@@ -1,5 +1,7 @@
 import { listStaff } from "@/lib/repositories/staff";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const staff = await listStaff();
   const active = staff.filter((s) => s.employmentStatus === "Active").length;
