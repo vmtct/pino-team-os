@@ -4,6 +4,7 @@ import { multiSelectProp, relationIds, selectProp, textProp } from "@/lib/notion
 export type Staff = {
   id: string;
   name: string;
+  userId: string;
   email: string;
   phone: string;
   employmentStatus: string;
@@ -17,6 +18,7 @@ export function mapStaff(page: NotionPage): Staff {
   return {
     id: page.id,
     name: textProp(page, "Name"),
+    userId: textProp(page, "User ID"),
     email: textProp(page, "Email"),
     phone: textProp(page, "Phone"),
     employmentStatus: selectProp(page, "Employment Status"),
