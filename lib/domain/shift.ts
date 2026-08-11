@@ -1,0 +1,2 @@
+export type Shift = { id:string; code:string; period:string; startTime:string; endTime:string; active:boolean; };
+export function mapShift(page:any):Shift { const p=page.properties; return {id:page.id,code:p.Name?.title?.map((x:any)=>x.plain_text).join("")??"",period:p.Period?.select?.name??"",startTime:p["Start Time"]?.date?.start??"",endTime:p["End Time"]?.date?.start??"",active:p.Active?.checkbox??true}; }

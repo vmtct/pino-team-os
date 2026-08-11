@@ -1,0 +1,7 @@
+import { listStaff } from "@/lib/repositories/staff";
+
+export default async function HomePage() {
+  const staff = await listStaff();
+  const active = staff.filter((s) => s.employmentStatus === "Active").length;
+  return <div className="page"><div className="eyebrow">PINO TEAM OS</div><h1>Good morning, team.</h1><p className="subtitle">Một nơi để nhìn thấy công việc, lịch làm và hành trình của PINO Team.</p><div className="grid grid-4"><div className="card"><div className="muted">Total staff</div><div className="metric">{staff.length}</div></div><div className="card"><div className="muted">Active</div><div className="metric">{active}</div></div><div className="card"><div className="muted">Schedule</div><div className="metric">—</div></div><div className="card"><div className="muted">Training</div><div className="metric">—</div></div></div><div className="section grid grid-3"><div className="card"><div className="row"><h2>My day</h2><span className="pill">Coming soon</span></div><p className="muted">Schedule, tasks và timesheet sẽ được nối vào đây.</p></div><div className="card"><div className="row"><h2>Team</h2><span className="pill">Live</span></div><p className="muted">{active} staff đang active trong Staff database.</p></div><div className="card"><div className="row"><h2>Knowledge</h2><span className="pill">Next</span></div><p className="muted">SOP, onboarding và training sẽ được tích hợp sau.</p></div></div></div>;
+}
