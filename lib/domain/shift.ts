@@ -1,2 +1,22 @@
-export type Shift = { id:string; code:string; period:string; startTime:string; endTime:string; active:boolean; };
-export function mapShift(page:any):Shift { const p=page.properties; return {id:page.id,code:p.Name?.title?.map((x:any)=>x.plain_text).join("")??"",period:p.Period?.select?.name??"",startTime:p["Start Time"]?.date?.start??"",endTime:p["End Time"]?.date?.start??"",active:p.Active?.checkbox??true}; }
+import type { NotionPage } from "@/lib/notion/types";
+import { checkboxProp, dateStartProp, selectProp, textProp } from "@/lib/notion/properties";
+
+export type Shift = {
+  id: string;
+  code: string;
+  period: string;
+  startTime: string;
+  endTime: string;
+  active: boolean;
+};
+
+export function mapShift(page: NotionPage): Shift {
+  return {
+    id: page.id,
+    code: textProp(page, "Name"),
+    period: selectProp(page, "Period"),
+    startTime: dateStartProp(page, "Start Time"),
+    endTime: dateStartProp(page, "End Time"),
+    active: checkboxProp(page, "Active", true),
+  };
+}
