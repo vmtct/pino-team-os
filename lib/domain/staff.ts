@@ -8,7 +8,6 @@ export type Staff = {
   phone: string;
   employmentStatus: string;
   department: string;
-  role: string;
   functions: string[];
   programs: string[];
   appAccess: string;
@@ -22,7 +21,6 @@ export function mapStaff(page: NotionPage): Staff {
     phone: textProp(page, "Phone"),
     employmentStatus: selectProp(page, "Employment Status"),
     department: selectProp(page, "Department"),
-    role: textProp(page, "Role"),
     functions: multiSelectProp(page, "Functions"),
     programs: relationIds(page, "Programs"),
     appAccess: selectProp(page, "App Access") || "Staff",
