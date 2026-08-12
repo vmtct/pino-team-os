@@ -1,6 +1,8 @@
 import { currentStaffSchedule, diagnoseStaffSchedule, listStaffScheduleHistory, type ScheduleDiagnostic } from "@/lib/repositories/staff-schedule";
 import { staffByUsername } from "@/lib/repositories/staff-access";
+import { missingStaffProfileFields, staffProfile } from "@/lib/repositories/staff-profile";
 import { SCHEDULE_DAYS } from "@/lib/domain/staff-schedule";
+import StaffProfileGate from "./StaffProfileGate";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,6 +29,19 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   } catch (error) { debug.staff = { status: "ERROR", error: error instanceof Error ? error.message : String(error) }; }
   if (!staff) return <main className="main"><div className="page"><div className="eyebrow">PINO TEAM OS</div><h1>Staff link không hợp lệ</h1><p className="subtitle">Vui lòng sử dụng đường dẫn lịch cá nhân được PINO cấp.</p>{debugEnabled ? <DebugPanel debug={debug} /> : null}</div></main>;
 
+  const profile = await staffProfile(staff);
+  const missing = missingStaffProfileFields(profile);
+  if (missing.length) {
+    return (
+      <main className="main">
+        <div className="page" aria-hidden="true" style={{ filter: "blur(3px)", pointerEvents: "none", userSelect: "none" }}>
+          <div className="eyebrow">MY SCHEDULE</div><h1>{staff.name}</h1><p className="subtitle">Hoàn tất hồ sơ để xem lịch.</p>
+        </div>
+        <StaffProfileGate username={username} staffName={staff.name} profile={profile} missing={missing} />
+      </main>
+    );
+  }
+
   let history;
   try { history = await listStaffScheduleHistory(staff); }
   catch (error) { const message = error instanceof Error ? error.message : String(error); debug.scheduleError = message; return <main className="main"><div className="page"><div className="eyebrow">MY SCHEDULE</div><h1>{staff.name || "Lịch làm việc"}</h1><p className="subtitle">Không thể tải lịch lúc này.</p>{debugEnabled ? <DebugPanel debug={debug} /> : null}</div></main>; }
@@ -45,18 +60,8 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       <div className="page">
         <div className="eyebrow">MY SCHEDULE</div>
         <div className="row" style={{ alignItems: "end", gap: 16 }}><div><h1>{staff.name}</h1><p className="subtitle">{schedule.weekName || "Tuần"} · {formatRange(schedule.weekStart, schedule.weekEnd)}</p></div><span className="pill">{selectedIsCurrent ? "Tuần hiện tại" : schedule.status || "—"}</span></div>
-
-        <div className="card section" style={{ marginBottom: 24 }}>
-          <div className="muted" style={{ marginBottom: 8 }}>XEM LỊCH THEO TUẦN</div>
-          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-            {history.map((item) => { const href = `/schedule?t=${encodeURIComponent(username)}&week=${encodeURIComponent(item.weekId)}${debugEnabled ? "&debug=1" : ""}`; const isSelected = item.weekId === schedule.weekId; return <a key={item.weekId} className={isSelected ? "pill" : "button"} href={href}>{item.weekName || formatRange(item.weekStart, item.weekEnd)}</a>; })}
-          </div>
-          <p className="muted" style={{ marginBottom: 0, marginTop: 12 }}>{history.length > 1 ? "Các tuần được sắp xếp từ mới nhất đến cũ nhất." : "Chưa có tuần trước."}</p>
-        </div>
-
-        <div className="grid grid-4">
-          {SCHEDULE_DAYS.map(([key, label], index) => { const dayShifts = schedule.shifts[key] ?? []; return <div className="card" key={key}><div className="muted">{label} · {dayDate(schedule.weekStart, index)}</div>{dayShifts.length ? <div className="list">{dayShifts.map((shift) => <div className="list-item" key={shift.id}><div className="row"><strong>{shift.code}</strong><span className="pill">{shift.period}</span></div><div style={{ fontSize: 20, fontWeight: 750, marginTop: 8 }}>{shift.startTime} — {shift.endTime}</div></div>)}</div> : <div style={{ marginTop: 18 }} className="muted">Không có ca</div>}</div>; })}
-        </div>
+        <div className="card section" style={{ marginBottom: 24 }}><div className="muted" style={{ marginBottom: 8 }}>XEM LỊCH THEO TUẦN</div><div className="row" style={{ gap: 8, flexWrap: "wrap" }}>{history.map((item) => { const href = `/schedule?t=${encodeURIComponent(username)}&week=${encodeURIComponent(item.weekId)}${debugEnabled ? "&debug=1" : ""}`; const isSelected = item.weekId === schedule.weekId; return <a key={item.weekId} className={isSelected ? "pill" : "button"} href={href}>{item.weekName || formatRange(item.weekStart, item.weekEnd)}</a>; })}</div><p className="muted" style={{ marginBottom: 0, marginTop: 12 }}>{history.length > 1 ? "Các tuần được sắp xếp từ mới nhất đến cũ nhất." : "Chưa có tuần trước."}</p></div>
+        <div className="grid grid-4">{SCHEDULE_DAYS.map(([key, label], index) => { const dayShifts = schedule.shifts[key] ?? []; return <div className="card" key={key}><div className="muted">{label} · {dayDate(schedule.weekStart, index)}</div>{dayShifts.length ? <div className="list">{dayShifts.map((shift) => <div className="list-item" key={shift.id}><div className="row"><strong>{shift.code}</strong><span className="pill">{shift.period}</span></div><div style={{ fontSize: 20, fontWeight: 750, marginTop: 8 }}>{shift.startTime} — {shift.endTime}</div></div>)}</div> : <div style={{ marginTop: 18 }} className="muted">Không có ca</div>}</div>; })}</div>
         {schedule.note ? <div className="card section"><div className="muted">Ghi chú</div><p style={{ marginBottom: 0 }}>{schedule.note}</p></div> : null}
         {debugEnabled ? <DebugPanel debug={debug} /> : null}
       </div>
