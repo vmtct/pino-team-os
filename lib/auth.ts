@@ -1,4 +1,6 @@
-import { jwtVerify, createRemoteJWKSet, type JWTPayload } from "jose";
+import { jwtVerify } from "jose/jwt/verify";
+import { createRemoteJWKSet } from "jose";
+import type { JWTPayload } from "jose";
 
 export type PinoIdentity = {
   userId: string;
