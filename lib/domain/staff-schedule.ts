@@ -25,19 +25,11 @@ export type StaffSchedule = {
   shifts: Record<string, Shift[]>;
 };
 
-function dayShiftCodes(page: NotionPage, day: string): string[] {
-  const select = selectProp(page, day);
-  if (select) return [select];
-  const text = textProp(page, day).trim();
-  return text ? [text] : [];
-}
-
 function dayShiftEntries(page: NotionPage, day: string, shiftsByKey: Map<string, Shift>): Shift[] {
-  const keys = [...relationIds(page, `${day} Shifts`), ...relationIds(page, day), ...dayShiftCodes(page, day)];
   const seen = new Set<string>();
   const shifts: Shift[] = [];
-  for (const key of keys) {
-    const shift = shiftsByKey.get(key);
+  for (const id of relationIds(page, `${day} Shifts`)) {
+    const shift = shiftsByKey.get(id);
     if (!shift || seen.has(shift.id)) continue;
     seen.add(shift.id);
     shifts.push(shift);
@@ -53,7 +45,7 @@ export function mapStaffSchedule(page: NotionPage, shiftsByKey: Map<string, Shif
   return {
     id: page.id,
     name: textProp(page, "Name"),
-    status: selectProp(page, "Schedule Status"),
+    status: selectProp(page, "Week Status"),
     staffId: relationIds(page, "Staff")[0] ?? "",
     weekId: relationIds(page, "Week")[0] ?? "",
     weekName: week.name,
