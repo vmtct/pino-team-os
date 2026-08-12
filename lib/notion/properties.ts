@@ -64,6 +64,17 @@ export function dateStartProp(page: NotionPage, name: string): string {
   return typeof date?.start === "string" ? date.start : "";
 }
 
+export function formulaValueProp(page: NotionPage, name: string): string {
+  const property = record(page.properties[name]);
+  const formula = record(property?.formula);
+  if (!formula) return "";
+  if (typeof formula.string === "string") return formula.string;
+  if (typeof formula.number === "number") return String(formula.number);
+  const date = record(formula.date);
+  if (typeof date?.start === "string") return date.start;
+  return "";
+}
+
 export function checkboxProp(page: NotionPage, name: string, fallback = false): boolean {
   const property = record(page.properties[name]);
   return typeof property?.checkbox === "boolean" ? property.checkbox : fallback;
