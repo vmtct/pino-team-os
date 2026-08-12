@@ -13,10 +13,20 @@ export async function GET() {
     const diagnostic = await diagnoseStaffSchedule(staff);
     return Response.json({ ok: true, diagnostic });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[Schedule Diagnostic] failed", {
       staffId: staff.id,
-      message: error instanceof Error ? error.message : String(error),
+      message,
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    return Response.json({ ok: false, error: "diagnostic_failed" }, { status: 500 });
+    return Response.json(
+      {
+        ok: false,
+        error: "diagnostic_failed",
+        stage: "diagnoseStaffSchedule",
+        message,
+      },
+      { status: 500 },
+    );
   }
 }
