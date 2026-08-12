@@ -13,40 +13,24 @@ test.describe("PINO Team OS production", () => {
     expect(response.status()).toBe(200);
   });
 
-  for (const route of ["/me", "/schedule", "/team"]) {
-    test(`${route} respects auth boundary`, async ({ request }) => {
-      const response = await request.get(route, { maxRedirects: 0 });
-      expect([200, 302, 303, 307, 308, 401, 403]).toContain(response.status());
-    });
-  }
+  test("invalid staff username is rejected", async ({ request }) => {
+    const response = await request.get("/s/definitely-not-a-real-staff-key", { maxRedirects: 0 });
+    expect([404, 307, 308]).toContain(response.status());
+  });
 
-  test("current staff schedule resolves the live week and Wednesday S2", async ({ request }) => {
-    const secret = process.env.SCHEDULE_E2E_SECRET;
-    const email = process.env.SCHEDULE_E2E_EMAIL;
-    test.skip(!secret || !email, "Production schedule probe credentials are not configured");
-
-    const response = await request.get("/api/debug/schedule", {
-      headers: {
-        "x-pino-e2e-secret": secret!,
-        "x-pino-e2e-email": email!,
-      },
-    });
-
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-
+  test("live staff link renders current schedule", async ({ page }) => {
+    const username = process.env.STAFF_E2E_USERNAME;
+    test.skip(!username, "STAFF_E2E_USERNAME is not configured");
+    const response = await page.goto(`/s/${encodeURIComponent(username!)}/schedule`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("body")).toContainText("Lịch của tôi");
+    const apiResponse = await page.request.get(`/api/staff/${encodeURIComponent(username!)}/schedule`);
+    expect(apiResponse.status()).toBe(200);
+    const body = await apiResponse.json();
     expect(body.ok).toBe(true);
-    expect(body.diagnostic.identity.email).toBe(email);
-    expect(body.diagnostic.week.name).toBe("26B(11)");
-    expect(body.diagnostic.week.startResolved).toBe("2026-08-10");
-    expect(body.diagnostic.result.currentWeek).toBe(true);
-
-    expect(body.diagnostic.days.Monday.shiftIds.length).toBeGreaterThan(0);
-    expect(body.diagnostic.days.Wednesday.shiftIds.length).toBeGreaterThan(0);
-    expect(body.diagnostic.days.Wednesday.shifts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "S2", start: "09:30", end: "11:30" }),
-      ]),
-    );
+    expect(body.schedule?.weekName).toBe("26B(11)");
+    expect(body.schedule?.weekStart).toContain("2026-08-10");
+    expect(body.schedule?.shifts?.Monday?.length).toBeGreaterThan(0);
+    expect(body.schedule?.shifts?.Wednesday).toEqual(expect.arrayContaining([expect.objectContaining({ code: "S2", startTime: "09:30", endTime: "11:30" })]));
   });
 });

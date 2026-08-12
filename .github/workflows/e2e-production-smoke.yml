@@ -13,25 +13,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.15
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
       - name: Install Playwright browser
         run: bunx playwright install --with-deps chromium
-
       - name: Run Playwright E2E
         env:
           E2E_BASE_URL: https://pino-team-os.minhtri-van42.workers.dev
-          SCHEDULE_E2E_SECRET: ${{ secrets.SCHEDULE_E2E_SECRET }}
-          SCHEDULE_E2E_EMAIL: minhtri.van42@gmail.com
+          STAFF_E2E_USERNAME: ${{ secrets.STAFF_E2E_USERNAME }}
         run: bun run test:e2e
-
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
