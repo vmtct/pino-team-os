@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
 
-test("authenticated schedule inspect exposes live schedule data", async ({ page }) => {
-  await page.goto("/api/debug/schedule-inspect");
-  const response = await page.locator("body").innerText();
-  const body = JSON.parse(response);
+test("authenticated schedule inspect exposes live schedule data", async ({ request }) => {
+  const baseUrl = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
+  const response = await request.get(`${baseUrl}/api/debug/schedule-inspect`);
+
+  expect(response.status()).toBe(200);
+  const body = await response.json();
 
   expect(body.ok).toBe(true);
   expect(body.week.name).toBe("26B(11)");
