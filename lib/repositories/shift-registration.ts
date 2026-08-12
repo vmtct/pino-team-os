@@ -17,6 +17,7 @@ export type ShiftRegistration = {
   weekEnd: string;
   status: string;
   editable: boolean;
+  availableShifts: Shift[];
   shifts: Record<string, Shift[]>;
 };
 
@@ -54,12 +55,10 @@ function localDateParts(): { date: string; weekday: number } {
   return { date, weekday: weekdayMap[get("weekday")] ?? 0 };
 }
 
-export function registrationWindow(): { open: boolean; readonly: boolean; targetMonday: string } {
+export function registrationWindow(): { open: boolean; targetMonday: string } {
   const { date, weekday } = localDateParts();
   const daysUntilMonday = weekday === 6 ? 2 : weekday === 0 ? 1 : 8 - weekday;
-  const targetMonday = addDays(date, daysUntilMonday);
-  const open = weekday === 6 || weekday === 0;
-  return { open, readonly: false, targetMonday };
+  return { open: weekday === 6 || weekday === 0, targetMonday: addDays(date, daysUntilMonday) };
 }
 
 async function findNextWeek(targetMonday: string): Promise<Week | null> {
@@ -85,7 +84,7 @@ async function activeShifts(): Promise<Shift[]> {
 function registrationFromPage(page: NotionPage, week: Week, shifts: Shift[], editable: boolean): ShiftRegistration {
   const byId = new Map(shifts.map((shift) => [shift.id, shift]));
   const shiftMap = Object.fromEntries(DAY_NAMES.map((day) => [day, relationIds(page, `${day} Shifts`).map((id) => byId.get(id)).filter((shift): shift is Shift => Boolean(shift))]));
-  return { id: page.id, weekId: week.id, weekName: week.name, weekStart: week.start, weekEnd: week.end, status: selectProp(page, "Schedule Status"), editable, shifts: shiftMap };
+  return { id: page.id, weekId: week.id, weekName: week.name, weekStart: week.start, weekEnd: week.end, status: selectProp(page, "Schedule Status") || "Draft", editable, availableShifts: shifts, shifts: shiftMap };
 }
 
 async function existingRegistration(staff: Staff, week: Week): Promise<NotionPage | null> {
@@ -101,21 +100,20 @@ export async function getShiftRegistration(staff: Staff): Promise<ShiftRegistrat
   const shifts = await activeShifts();
   const page = await existingRegistration(staff, week);
   if (!page) {
-    return { id: "", weekId: week.id, weekName: week.name, weekStart: week.start, weekEnd: week.end, status: "Draft", editable: true, shifts: Object.fromEntries(DAY_NAMES.map((day) => [day, []])) };
+    return { id: "", weekId: week.id, weekName: week.name, weekStart: week.start, weekEnd: week.end, status: "Draft", editable: true, availableShifts: shifts, shifts: Object.fromEntries(DAY_NAMES.map((day) => [day, []])) };
   }
   return registrationFromPage(page, week, shifts, ["Draft", "Submitted"].includes(selectProp(page, "Schedule Status")));
 }
 
 function relationProperty(ids: string[]) {
-  return ids;
+  return { relation: ids.map((id) => ({ id })) };
 }
 
 export async function saveShiftRegistration(staff: Staff, weekId: string, selected: Record<string, string[]>): Promise<ShiftRegistration> {
   const window = registrationWindow();
   if (!window.open) throw new Error("REGISTRATION_CLOSED");
   const weekPages = await queryAll(dbId("NOTION_WEEK_DB_ID"));
-  const weekPage = weekPages.find((page) => page.id === weekId);
-  if (!weekPage) throw new Error("INVALID_WEEK");
+  if (!weekPages.some((page) => page.id === weekId)) throw new Error("INVALID_WEEK");
   const fullWeek = await getPage(weekId);
   const start = formulaDate(fullWeek, "Monday Start on");
   if (start !== window.targetMonday) throw new Error("INVALID_WEEK");
@@ -125,7 +123,7 @@ export async function saveShiftRegistration(staff: Staff, weekId: string, select
   const props: Record<string, unknown> = { "Schedule Status": { select: { name: "Draft" } } };
   for (const [day] of SCHEDULE_DAYS) {
     const ids = (selected[day] ?? []).filter((id) => validIds.has(id));
-    props[`${day} Shifts`] = { relation: relationProperty(ids) };
+    props[`${day} Shifts`] = relationProperty(ids);
   }
   const existing = await existingRegistration(staff, week);
   let pageId: string;
@@ -145,16 +143,14 @@ export async function saveShiftRegistration(staff: Staff, weekId: string, select
     pageId = created.id;
     await notion().pages.update({ page_id: pageId, properties: props as never });
   }
-  const fresh = await getPage(pageId);
-  return registrationFromPage(fresh, week, shifts, true);
+  return registrationFromPage(await getPage(pageId), week, shifts, true);
 }
 
 export async function submitShiftRegistration(staff: Staff, weekId: string): Promise<ShiftRegistration> {
   const window = registrationWindow();
   if (!window.open) throw new Error("REGISTRATION_CLOSED");
   const weekPages = await queryAll(dbId("NOTION_WEEK_DB_ID"));
-  const weekPage = weekPages.find((page) => page.id === weekId);
-  if (!weekPage) throw new Error("INVALID_WEEK");
+  if (!weekPages.some((page) => page.id === weekId)) throw new Error("INVALID_WEEK");
   const fullWeek = await getPage(weekId);
   const start = formulaDate(fullWeek, "Monday Start on");
   if (start !== window.targetMonday) throw new Error("INVALID_WEEK");
@@ -164,6 +160,5 @@ export async function submitShiftRegistration(staff: Staff, weekId: string): Pro
   const status = selectProp(existing, "Schedule Status");
   if (!["Draft", "Submitted"].includes(status)) throw new Error("REGISTRATION_LOCKED");
   await notion().pages.update({ page_id: existing.id, properties: { "Schedule Status": { select: { name: "Submitted" } } } as never });
-  const fresh = await getPage(existing.id);
-  return registrationFromPage(fresh, week, await activeShifts(), true);
+  return registrationFromPage(await getPage(existing.id), week, await activeShifts(), true);
 }
