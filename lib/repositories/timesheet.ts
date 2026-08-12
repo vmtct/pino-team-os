@@ -1,5 +1,5 @@
 import { dataSourceId, notion, queryAll } from "@/lib/notion";
-import { relationIds, selectProp, textProp } from "@/lib/notion/properties";
+import { relationIds, selectProp, textProp, formulaValueProp } from "@/lib/notion/properties";
 import type { NotionPage } from "@/lib/notion/types";
 import type { Staff } from "@/lib/domain/staff";
 
@@ -19,15 +19,20 @@ export async function latestTimesheet(staff: Staff): Promise<{ checkType: string
   return { checkType: selectProp(latest, "Check Type"), createdTime: createdAt(latest) };
 }
 
-export async function listTimesheetsForStaff(staff: Staff): Promise<Array<{ id: string; checkType: string; createdTime: string; ipAddress: string; workContent: string }>> {
+export async function listTimesheetsForStaff(staff: Staff): Promise<Array<{ id: string; checkType: string; createdTime: string; roundedTime: string; ipAddress: string; workContent: string }>> {
   const pages = await queryAll(TIMESHEET_DATABASE_ID);
   return pages
     .filter((page) => relationIds(page, "Staff").includes(staff.id))
-    .sort((a, b) => createdAt(b).localeCompare(createdAt(a)))
+    .sort((a, b) => {
+      const ar = formulaValueProp(a, "Rounded Time") || createdAt(a);
+      const br = formulaValueProp(b, "Rounded Time") || createdAt(b);
+      return br.localeCompare(ar);
+    })
     .map((page) => ({
       id: page.id,
       checkType: selectProp(page, "Check Type"),
       createdTime: createdAt(page),
+      roundedTime: formulaValueProp(page, "Rounded Time"),
       ipAddress: textProp(page, "IP Address"),
       workContent: textProp(page, "Work Content"),
     }));
