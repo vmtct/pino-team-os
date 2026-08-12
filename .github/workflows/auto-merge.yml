@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: read
+  actions: write
 
 jobs:
   auto-merge:
@@ -70,3 +70,15 @@ jobs:
             -f merge_method=squash \
             -f commit_title="$(jq -r '.title' <<<"$pr")" \
             -f commit_message="Automated merge after successful Production E2E validation."
+
+          MERGE_SHA="$(gh api "repos/${repo}/pulls/${pr_number}" --jq '.merge_commit_sha')"
+          if [ -z "$MERGE_SHA" ] || [ "$MERGE_SHA" = "null" ]; then
+            echo "Could not resolve merge commit SHA." >&2
+            exit 1
+          fi
+
+          echo "Triggering post-merge Cloudflare verification for ${MERGE_SHA}."
+          gh workflow run cloudflare-build-guardian.yml \
+            --repo "$repo" \
+            --ref main \
+            -f "commit_sha=${MERGE_SHA}"
