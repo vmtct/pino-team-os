@@ -56,8 +56,8 @@ jobs:
           auth=( -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" )
 
           echo "Looking up Cloudflare Worker tag for ${WORKER_NAME}..."
-          worker_json="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts-search?name=${WORKER_NAME}" "${auth[@]}")"
-          worker_tag="$(jq -r '.result.tag // empty' <<<"$worker_json")"
+          worker_json="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
+          worker_tag="$(jq -r --arg name "$WORKER_NAME" '.result[]? | select(.id == $name) | .tag // empty' <<<"$worker_json" | head -n 1)"
 
           if [ -z "$worker_tag" ]; then
             echo "Could not resolve Cloudflare Worker tag. Response:"
@@ -65,7 +65,7 @@ jobs:
             exit 1
           fi
 
-          echo "Worker tag resolved: ${worker_tag}"
+          echo "Worker tag resolved."
           builds_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/builds?per_page=100"
 
           build_uuid=""
