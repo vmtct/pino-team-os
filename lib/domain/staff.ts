@@ -20,7 +20,7 @@ export function mapStaff(page: NotionPage): Staff {
     name: textProp(page, "Name"),
     userId: textProp(page, "User ID"),
     email: textProp(page, "Email"),
-    phone: textProp(page, "Phone"),
+    phone: textProp(page, "Mobile"),
     employmentStatus: selectProp(page, "Employment Status"),
     department: selectProp(page, "Department"),
     functions: multiSelectProp(page, "Functions"),
