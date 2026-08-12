@@ -93,6 +93,24 @@ function dayShiftEntries(page: NotionPage, day: string, shiftsByKey: Map<string,
   return relationIds(page, `${day} Shifts`).map((id) => shiftsByKey.get(id)).filter((shift): shift is Shift => Boolean(shift && !seen.has(shift.id) && seen.add(shift.id)));
 }
 
+function hasShifts(schedule: StaffSchedule): boolean {
+  return Object.values(schedule.shifts).some((dayShifts) => dayShifts.length > 0);
+}
+
+function mondayStart(value: Date): Date {
+  const date = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  const day = date.getUTCDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date;
+}
+
+function weekDistanceFromCurrent(weekStart: string, now = new Date()): number {
+  const currentMonday = mondayStart(now).getTime();
+  const weekMonday = mondayStart(new Date(weekStart)).getTime();
+  return Math.round((weekMonday - currentMonday) / (7 * 24 * 60 * 60 * 1000));
+}
+
 function diagnosticDays(page: NotionPage, weekStart: string, shiftsByKey: Map<string, Shift>): ScheduleDiagnostic["days"] {
   return Object.fromEntries(DAYS.map((day, index) => {
     const shifts = dayShiftEntries(page, day, shiftsByKey);
@@ -107,7 +125,13 @@ async function mapCandidate(candidate: ScheduleCandidate): Promise<StaffSchedule
 
 export async function listStaffScheduleHistory(staff: Staff): Promise<StaffSchedule[]> {
   const candidates = await scheduleCandidates(staff);
-  return Promise.all(candidates.map(mapCandidate));
+  const mapped = await Promise.all(candidates.map(mapCandidate));
+  return mapped
+    .filter(hasShifts)
+    .filter((schedule) => {
+      const distance = weekDistanceFromCurrent(schedule.weekStart);
+      return distance >= -4 && distance <= 4;
+    });
 }
 
 export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule | null> {
@@ -119,12 +143,16 @@ export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule 
     end.setHours(23, 59, 59, 999);
     return now >= start && now <= end;
   }).sort((a, b) => priority(b.status) - priority(a.status))[0];
-  return current ? mapCandidate(current) : null;
+  if (!current) return null;
+  const schedule = await mapCandidate(current);
+  return hasShifts(schedule) ? schedule : null;
 }
 
 export async function staffScheduleByWeek(staff: Staff, weekId: string): Promise<StaffSchedule | null> {
   const candidate = (await scheduleCandidates(staff)).find((item) => item.week.id === weekId);
-  return candidate ? mapCandidate(candidate) : null;
+  if (!candidate) return null;
+  const schedule = await mapCandidate(candidate);
+  return hasShifts(schedule) ? schedule : null;
 }
 
 export async function diagnoseStaffSchedule(staff: Staff): Promise<ScheduleDiagnostic> {
