@@ -1,5 +1,5 @@
 import type { NotionPage } from "@/lib/notion/types";
-import { multiSelectProp, relationIds, selectProp, textProp } from "@/lib/notion/properties";
+import { checkboxProp, multiSelectProp, relationIds, selectProp, textProp } from "@/lib/notion/properties";
 
 export type Staff = {
   id: string;
@@ -12,6 +12,7 @@ export type Staff = {
   functions: string[];
   programs: string[];
   appAccess: string;
+  companionAccess: boolean;
 };
 
 export function mapStaff(page: NotionPage): Staff {
@@ -26,5 +27,6 @@ export function mapStaff(page: NotionPage): Staff {
     functions: multiSelectProp(page, "Functions"),
     programs: relationIds(page, "Programs"),
     appAccess: selectProp(page, "App Access") || "Staff",
+    companionAccess: checkboxProp(page, "Companion Access"),
   };
 }
