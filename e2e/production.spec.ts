@@ -13,40 +13,23 @@ test.describe("PINO Team OS production", () => {
     expect(response.status()).toBe(200);
   });
 
-  for (const route of ["/me", "/schedule", "/team"]) {
-    test(`${route} respects auth boundary`, async ({ request }) => {
-      const response = await request.get(route, { maxRedirects: 0 });
-      expect([200, 302, 303, 307, 308, 401, 403]).toContain(response.status());
-    });
-  }
+  test("invalid staff token is rejected", async ({ request }) => {
+    const response = await request.get("/schedule?t=definitely-not-a-real-staff-key", { maxRedirects: 0 });
+    expect([200, 404]).toContain(response.status());
+    if (response.status() === 200) {
+      const body = await response.text();
+      expect(body).toContain("Staff link không hợp lệ");
+    }
+  });
 
-  test("current staff schedule resolves the live week and Wednesday S2", async ({ request }) => {
-    const secret = process.env.SCHEDULE_E2E_SECRET;
-    const email = process.env.SCHEDULE_E2E_EMAIL;
-    test.skip(!secret || !email, "Production schedule probe credentials are not configured");
-
-    const response = await request.get("/api/debug/schedule", {
-      headers: {
-        "x-pino-e2e-secret": secret!,
-        "x-pino-e2e-email": email!,
-      },
-    });
-
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-
-    expect(body.ok).toBe(true);
-    expect(body.diagnostic.identity.email).toBe(email);
-    expect(body.diagnostic.week.name).toBe("26B(11)");
-    expect(body.diagnostic.week.startResolved).toBe("2026-08-10");
-    expect(body.diagnostic.result.currentWeek).toBe(true);
-
-    expect(body.diagnostic.days.Monday.shiftIds.length).toBeGreaterThan(0);
-    expect(body.diagnostic.days.Wednesday.shiftIds.length).toBeGreaterThan(0);
-    expect(body.diagnostic.days.Wednesday.shifts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "S2", start: "09:30", end: "11:30" }),
-      ]),
-    );
+  test("live staff token renders current schedule", async ({ page }) => {
+    const username = process.env.STAFF_E2E_USERNAME;
+    test.skip(!username, "STAFF_E2E_USERNAME is not configured");
+    const response = await page.goto(`/schedule?t=${encodeURIComponent(username!)}`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("body")).toContainText("Văn Minh Trị");
+    await expect(page.locator("body")).toContainText("26B(11)");
+    await expect(page.locator("body")).toContainText("09:30 — 11:30");
+    await expect(page.locator("body")).toContainText("S2");
   });
 });
