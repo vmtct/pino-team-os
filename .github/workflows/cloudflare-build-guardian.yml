@@ -198,10 +198,6 @@ jobs:
             Codex inspected the Cloudflare build diagnostics and proposed the smallest repository-level repair.
 
             The original Cloudflare logs are attached to the GitHub Actions run as an artifact.
-          labels: |
-            automated
-            cloudflare
-            repair
           draft: true
 
       - name: Report repair result
