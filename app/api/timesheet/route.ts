@@ -9,6 +9,18 @@ function normalizeMobile(value: string): string { return value.replace(/\D/g, ""
 function requestIp(request: Request): string {
   return request.headers.get("cf-connecting-ip")?.trim() || request.headers.get("x-real-ip")?.trim() || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
+function errorDetail(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    return String(value.message || value.code || JSON.stringify(value));
+  }
+  return String(error || "unknown_error");
+}
+function diagnosticResponse(stage: string, error: unknown) {
+  console.error("[Timesheet API] failure", { stage, error });
+  return NextResponse.json({ ok: false, error: "diagnostic_failed", stage, message: errorDetail(error) }, { status: 500, headers: { "Cache-Control": "no-store" } });
+}
 
 async function resolveStaff(request: Request) {
   const url = new URL(request.url);
@@ -28,29 +40,38 @@ async function enforceNetworkIfEnabled(request: Request): Promise<{ ok: true; ip
 }
 
 export async function GET(request: Request) {
-  const { staff, error } = await resolveStaff(request);
-  if (!staff) return NextResponse.json({ ok: false, error }, { status: error === "inactive_staff" ? 403 : 404 });
-  if (!(await getConfigBoolean("team_os_checkin_enabled", true))) return NextResponse.json({ ok: false, error: "checkin_disabled" }, { status: 503 });
-  return NextResponse.json({ ok: true, staff: { id: staff.id, name: staff.name }, latest: await latestTimesheet(staff) }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const { staff, error } = await resolveStaff(request);
+    if (!staff) return NextResponse.json({ ok: false, error }, { status: error === "inactive_staff" ? 403 : 404 });
+    if (!(await getConfigBoolean("team_os_checkin_enabled", true))) return NextResponse.json({ ok: false, error: "checkin_disabled" }, { status: 503 });
+    const latest = await latestTimesheet(staff);
+    return NextResponse.json({ ok: true, staff: { id: staff.id, name: staff.name }, latest }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return diagnosticResponse("GET_TIMESHEET", error);
+  }
 }
 
 export async function POST(request: Request) {
-  const { staff, error } = await resolveStaff(request);
-  if (!staff) return NextResponse.json({ ok: false, error }, { status: error === "inactive_staff" ? 403 : 404 });
-  if (!(await getConfigBoolean("team_os_checkin_enabled", true))) return NextResponse.json({ ok: false, error: "checkin_disabled" }, { status: 503 });
+  try {
+    const { staff, error } = await resolveStaff(request);
+    if (!staff) return NextResponse.json({ ok: false, error }, { status: error === "inactive_staff" ? 403 : 404 });
+    if (!(await getConfigBoolean("team_os_checkin_enabled", true))) return NextResponse.json({ ok: false, error: "checkin_disabled" }, { status: 503 });
 
-  const body = await request.json().catch(() => null) as { checkType?: unknown } | null;
-  const checkType = body?.checkType;
-  if (checkType !== "Check in" && checkType !== "Check out") return NextResponse.json({ ok: false, error: "invalid_check_type" }, { status: 400 });
+    const body = await request.json().catch(() => null) as { checkType?: unknown } | null;
+    const checkType = body?.checkType;
+    if (checkType !== "Check in" && checkType !== "Check out") return NextResponse.json({ ok: false, error: "invalid_check_type" }, { status: 400 });
 
-  const latest = await latestTimesheet(staff);
-  if (checkType === "Check in" && latest?.checkType === "Check in") return NextResponse.json({ ok: false, error: "already_checked_in", latest }, { status: 409 });
-  if (checkType === "Check out" && latest?.checkType !== "Check in") return NextResponse.json({ ok: false, error: "not_checked_in", latest }, { status: 409 });
+    const latest = await latestTimesheet(staff);
+    if (checkType === "Check in" && latest?.checkType === "Check in") return NextResponse.json({ ok: false, error: "already_checked_in", latest }, { status: 409 });
+    if (checkType === "Check out" && latest?.checkType !== "Check in") return NextResponse.json({ ok: false, error: "not_checked_in", latest }, { status: 409 });
 
-  const network = await enforceNetworkIfEnabled(request);
-  if (!network.ok) return NextResponse.json({ ok: false, error: "OFFSITE_NETWORK", message: "Bạn cần kết nối Wi-Fi PINO để chấm công.", ip: network.ip }, { status: 403 });
+    const network = await enforceNetworkIfEnabled(request);
+    if (!network.ok) return NextResponse.json({ ok: false, error: "OFFSITE_NETWORK", message: "Bạn cần kết nối Wi-Fi PINO để chấm công.", ip: network.ip }, { status: 403 });
 
-  const ipLoggingEnabled = await getConfigBoolean("team_os_checkin_ip_logging_enabled", true);
-  const pageId = await createTimesheet(staff, checkType, ipLoggingEnabled ? network.ip : "");
-  return NextResponse.json({ ok: true, pageId, checkType, ipLogged: ipLoggingEnabled }, { headers: { "Cache-Control": "no-store" } });
+    const ipLoggingEnabled = await getConfigBoolean("team_os_checkin_ip_logging_enabled", true);
+    const pageId = await createTimesheet(staff, checkType, ipLoggingEnabled ? network.ip : "");
+    return NextResponse.json({ ok: true, pageId, checkType, ipLogged: ipLoggingEnabled }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return diagnosticResponse("POST_TIMESHEET", error);
+  }
 }
