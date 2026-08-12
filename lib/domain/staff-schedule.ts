@@ -25,9 +25,29 @@ export type StaffSchedule = {
   shifts: Record<string, Shift[]>;
 };
 
-export function mapStaffSchedule(page: NotionPage, shiftsById: Map<string, Shift>, week: { name: string; start: string; end: string }): StaffSchedule {
+function dayShiftCodes(page: NotionPage, day: string): string[] {
+  const select = selectProp(page, day);
+  if (select) return [select];
+  const text = textProp(page, day).trim();
+  return text ? [text] : [];
+}
+
+function dayShiftEntries(page: NotionPage, day: string, shiftsByKey: Map<string, Shift>): Shift[] {
+  const keys = [...relationIds(page, `${day} Shifts`), ...relationIds(page, day), ...dayShiftCodes(page, day)];
+  const seen = new Set<string>();
+  const shifts: Shift[] = [];
+  for (const key of keys) {
+    const shift = shiftsByKey.get(key);
+    if (!shift || seen.has(shift.id)) continue;
+    seen.add(shift.id);
+    shifts.push(shift);
+  }
+  return shifts;
+}
+
+export function mapStaffSchedule(page: NotionPage, shiftsByKey: Map<string, Shift>, week: { name: string; start: string; end: string }): StaffSchedule {
   const shifts = Object.fromEntries(
-    SCHEDULE_DAYS.map(([key]) => [key, relationIds(page, `${key} Shifts`).map((id) => shiftsById.get(id)).filter((shift): shift is Shift => Boolean(shift))]),
+    SCHEDULE_DAYS.map(([key]) => [key, dayShiftEntries(page, key, shiftsByKey)]),
   );
 
   return {
