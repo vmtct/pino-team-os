@@ -8,6 +8,14 @@ import type { NotionPage } from "@/lib/notion/types";
 type WeekInfo = { name: string; start: string; end: string };
 type PropertyRecord = Record<string, unknown>;
 
+export type ScheduleDiagnostic = {
+  identity: { staffId: string; email: string; name: string };
+  schedule: { found: boolean; scheduleId: string; weekId: string; status: string };
+  week: { name: string; startRawType: string; startResolved: string; endResolved: string };
+  days: Record<string, { date: string; shiftIds: string[]; shifts: Array<{ code: string; startTime: string; endTime: string }> }>;
+  result: { currentWeek: boolean; reason: string };
+};
+
 function record(value: unknown): PropertyRecord | null {
   return value && typeof value === "object" ? value as PropertyRecord : null;
 }
@@ -15,16 +23,19 @@ function record(value: unknown): PropertyRecord | null {
 function computedDate(page: NotionPage, name: string): string {
   const property = record(page.properties[name]);
   if (!property) return "";
-
   const formula = record(property.formula);
   const formulaDate = record(formula?.date);
   if (typeof formulaDate?.start === "string") return formulaDate.start;
-
   const rollup = record(property.rollup);
   const rollupDate = record(rollup?.date);
   if (typeof rollupDate?.start === "string") return rollupDate.start;
-
   return dateStartProp(page, name);
+}
+
+function rawType(page: NotionPage, name: string): string {
+  const property = record(page.properties[name]);
+  if (!property) return "missing";
+  return typeof property.type === "string" ? property.type : "unknown";
 }
 
 function addDays(value: string, days: number): string {
@@ -49,7 +60,6 @@ async function loadReferencedShifts(page: NotionPage): Promise<Map<string, Shift
   for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
     relationIds(page, `${day} Shifts`).forEach((id) => ids.add(id));
   }
-
   const entries = await Promise.allSettled([...ids].map(async (id) => [id, mapShift(await getPage(id))] as const));
   const shifts = new Map<string, Shift>();
   for (const entry of entries) {
@@ -59,15 +69,24 @@ async function loadReferencedShifts(page: NotionPage): Promise<Map<string, Shift
   return shifts;
 }
 
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+
+function diagnosticDays(page: NotionPage, weekStart: string, shiftsById: Map<string, Shift>): ScheduleDiagnostic["days"] {
+  return Object.fromEntries(DAYS.map((day, index) => {
+    const shiftIds = relationIds(page, `${day} Shifts`);
+    const date = weekStart ? addDays(weekStart, index) : "";
+    const shifts = shiftIds.map((id) => shiftsById.get(id)).filter((shift): shift is Shift => Boolean(shift));
+    return [day, { date, shiftIds, shifts: shifts.map((shift) => ({ code: shift.code, startTime: shift.startTime, endTime: shift.endTime })) }];
+  }));
+}
+
 export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule | null> {
   const schedulePages = await queryAll(dbId("NOTION_SCHEDULE_DB_ID"));
   const staffPages = schedulePages.filter((page) => relationIds(page, "Staff").includes(staff.id));
   if (!staffPages.length) return null;
-
   const candidates = await Promise.all(staffPages.map(async (page) => {
     const weekId = relationIds(page, "Week")[0];
     if (!weekId) return null;
-
     try {
       const week = await loadWeek(weekId);
       return { page, week, status: selectProp(page, "Schedule Status") };
@@ -78,14 +97,9 @@ export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule 
         return null;
       }
       console.warn("[Schedule] using Start On rollup fallback", { staffId: staff.id, scheduleId: page.id, weekId });
-      return {
-        page,
-        week: { name: "Tuần hiện tại", start, end: addDays(start, 6) },
-        status: selectProp(page, "Schedule Status"),
-      };
+      return { page, week: { name: "Tuần hiện tại", start, end: addDays(start, 6) }, status: selectProp(page, "Schedule Status") };
     }
   }));
-
   const now = new Date();
   const current = candidates
     .filter((item): item is { page: NotionPage; week: WeekInfo; status: string } => Boolean(item?.week.start && item?.week.end))
@@ -96,9 +110,33 @@ export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule 
       return now >= start && now <= end;
     })
     .sort((a, b) => priority(b.status) - priority(a.status))[0];
-
   if (!current) return null;
-
   const shiftsById = await loadReferencedShifts(current.page);
   return mapStaffSchedule(current.page, shiftsById, current.week);
+}
+
+export async function diagnoseStaffSchedule(staff: Staff): Promise<ScheduleDiagnostic> {
+  const schedulePages = await queryAll(dbId("NOTION_SCHEDULE_DB_ID"));
+  const staffPages = schedulePages.filter((page) => relationIds(page, "Staff").includes(staff.id));
+  const schedulePage = staffPages[0];
+  const weekId = schedulePage ? relationIds(schedulePage, "Week")[0] ?? "" : "";
+  const status = schedulePage ? selectProp(schedulePage, "Schedule Status") : "";
+  const weekPage = weekId ? await getPage(weekId) : null;
+  const start = weekPage ? computedDate(weekPage, "Monday Start on") : "";
+  const end = weekPage ? computedDate(weekPage, "Saturday Date") || (start ? addDays(start, 6) : "") : "";
+  const shiftsById = schedulePage ? await loadReferencedShifts(schedulePage) : new Map<string, Shift>();
+  const now = new Date();
+  const currentWeek = Boolean(start && end && now >= new Date(start) && now <= new Date(end));
+  let reason = "ok";
+  if (!schedulePage) reason = "no Staff Schedule row matched staff relation";
+  else if (!weekId) reason = "Staff Schedule has no Week relation";
+  else if (!start) reason = "Week Monday Start on did not resolve to a date";
+  else if (!currentWeek) reason = "resolved Week is not current";
+  return {
+    identity: { staffId: staff.id, email: staff.email, name: staff.name },
+    schedule: { found: Boolean(schedulePage), scheduleId: schedulePage?.id ?? "", weekId, status },
+    week: { name: weekPage ? textProp(weekPage, "Name") : "", startRawType: weekPage ? rawType(weekPage, "Monday Start on") : "missing", startResolved: start, endResolved: end },
+    days: schedulePage ? diagnosticDays(schedulePage, start, shiftsById) : {},
+    result: { currentWeek, reason },
+  };
 }
