@@ -10,7 +10,6 @@ export function notion(): Client { client ??= new Client({ auth: requiredEnv("NO
 export async function dataSourceId(databaseIdOrDataSourceId: string): Promise<string> {
   const cached = dataSourceCache.get(databaseIdOrDataSourceId);
   if (cached) return cached;
-
   try {
     const response = await notion().databases.retrieve({ database_id: databaseIdOrDataSourceId });
     const sources = "data_sources" in response ? response.data_sources : undefined;
@@ -19,9 +18,6 @@ export async function dataSourceId(databaseIdOrDataSourceId: string): Promise<st
     dataSourceCache.set(databaseIdOrDataSourceId, resolved);
     return resolved;
   } catch (databaseError) {
-    // During the Notion migration the Staff Schedule environment variable was
-    // populated with the data-source ID rather than the parent database ID.
-    // Accept both forms so a valid Notion source cannot break the whole page.
     try {
       await notion().dataSources.retrieve({ data_source_id: databaseIdOrDataSourceId });
       console.warn("[Notion] using configured data source id directly", { id: databaseIdOrDataSourceId });
@@ -38,3 +34,12 @@ export async function dataSourceId(databaseIdOrDataSourceId: string): Promise<st
 export function dbId(name: string): string { return requiredEnv(name); }
 export async function queryAll(databaseId: string): Promise<NotionPage[]> { const pages: NotionPage[] = []; const sourceId = await dataSourceId(databaseId); let startCursor: string | undefined; do { try { const response = await notion().dataSources.query({ data_source_id: sourceId, page_size: 100, ...(startCursor ? { start_cursor: startCursor } : {}) }); pages.push(...(response.results as NotionPage[])); startCursor = response.has_more ? response.next_cursor ?? undefined : undefined; } catch (error) { logNotionError("dataSources.query", error); throw error; } } while (startCursor); return pages; }
 export async function getPage(pageId: string): Promise<NotionPage> { try { return await notion().pages.retrieve({ page_id: pageId }) as unknown as NotionPage; } catch (error) { logNotionError("pages.retrieve", error); throw error; } }
+
+export async function updatePageProperties(pageId: string, properties: Record<string, unknown>): Promise<NotionPage> {
+  try {
+    return await notion().pages.update({ page_id: pageId, properties: properties as any }) as unknown as NotionPage;
+  } catch (error) {
+    logNotionError("pages.update", error);
+    throw error;
+  }
+}
