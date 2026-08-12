@@ -9,6 +9,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // The production schedule diagnostic is protected at the route level by a
+  // dedicated secret so GitHub Actions can verify real schedule data without
+  // requiring a short-lived human Cloudflare Access JWT.
+  if (request.nextUrl.pathname === "/api/debug/schedule") {
+    return NextResponse.next();
+  }
+
   if (!token) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
