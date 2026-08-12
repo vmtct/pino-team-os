@@ -1,0 +1,119 @@
+name: Cloudflare Status Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Commit SHA to inspect (leave blank for the latest main commit)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-status-bridge
+  cancel-in-progress: true
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      WORKER_NAME: pino-team-os
+      COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+    steps:
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in CF_ACCOUNT_ID CF_API_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing GitHub Actions secret: $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Collect Cloudflare build status and logs
+        id: cf
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          api="https://api.cloudflare.com/client/v4"
+          auth=( -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" )
+
+          worker_json="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
+          worker_tag="$(jq -r --arg name "$WORKER_NAME" '.result[]? | select(.id == $name) | .tag // empty' <<<"$worker_json" | head -n 1)"
+
+          if [ -z "$worker_tag" ]; then
+            echo "Could not resolve Cloudflare Worker tag." >&2
+            jq '{success,errors,messages}' <<<"$worker_json" >&2
+            exit 1
+          fi
+
+          builds_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/builds?per_page=100"
+          builds_json="$(curl -fsS "$builds_url" "${auth[@]}")"
+
+          row="$(jq -r --arg sha "$COMMIT_SHA" '
+            .result[]?
+            | select((.build_trigger_metadata.commit_hash // "") == $sha)
+            | [.build_uuid, .build_outcome, (.build_trigger_metadata.branch // ""), (.created_on // ""), (.build_trigger_metadata.commit_message // "")]
+            | @tsv
+          ' <<<"$builds_json" | head -n 1)"
+
+          if [ -z "$row" ]; then
+            echo "No Cloudflare Workers Build found for commit ${COMMIT_SHA}." >&2
+            echo "The commit may not use Cloudflare Workers Builds, or the build may not have been recorded yet." >&2
+            exit 2
+          fi
+
+          IFS=$'\t' read -r build_uuid outcome branch created_on commit_message <<<"$row"
+          logs_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${build_uuid}/logs"
+          curl -fsS "$logs_url" "${auth[@]}" > cloudflare-build-response.json
+
+          jq -r '.result.lines[]? | if type == "string" then . else tostring end' cloudflare-build-response.json > cloudflare-build.log || true
+          if [ ! -s cloudflare-build.log ]; then
+            jq -r '.errors[]?.message, .messages[]?' cloudflare-build-response.json > cloudflare-build.log || true
+          fi
+
+          cat > cloudflare-status.md <<EOF
+          # PINO Team OS — Cloudflare Status
+
+          - Worker: \`${WORKER_NAME}\`
+          - Commit: \`${COMMIT_SHA}\`
+          - Build UUID: \`${build_uuid}\`
+          - Outcome: **${outcome}**
+          - Branch: \`${branch}\`
+          - Created: \`${created_on}\`
+          - Commit message: ${commit_message}
+
+          Full Cloudflare build diagnostics are attached to this workflow run as an artifact.
+          EOF
+
+          cat cloudflare-status.md
+          {
+            echo "build_uuid=${build_uuid}"
+            echo "outcome=${outcome}"
+            echo "branch=${branch}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload Cloudflare diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-status-${{ steps.cf.outputs.build_uuid }}
+          path: |
+            cloudflare-status.md
+            cloudflare-build.log
+            cloudflare-build-response.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish workflow summary
+        shell: bash
+        run: |
+          cat cloudflare-status.md >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: cloudflare-status-${{ steps.cf.outputs.build_uuid }}" >> "$GITHUB_STEP_SUMMARY"
