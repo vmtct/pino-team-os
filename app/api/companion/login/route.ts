@@ -6,6 +6,8 @@ import { hasCompanionAccess } from "@/lib/repositories/companion";
 
 export const dynamic = "force-dynamic";
 
+const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 12 };
+
 export async function POST(request: Request) {
   try {
     if (!(await companionEnabled())) return NextResponse.json({ ok: false, error: "disabled" }, { status: 503 });
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
 
     const token = await createCompanionSession(mobile);
     const response = NextResponse.json({ ok: true, staff: { name: staff.name, mobile } });
-    response.cookies.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/companion", maxAge: 60 * 60 * 12 });
+    response.cookies.set(COOKIE, token, cookieOptions);
     return response;
   } catch (error) {
     console.error("[Companion Login] failed", error);
@@ -30,6 +32,6 @@ export async function POST(request: Request) {
 
 export async function DELETE() {
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/companion", maxAge: 0 });
+  response.cookies.set(COOKIE, "", { ...cookieOptions, maxAge: 0 });
   return response;
 }
