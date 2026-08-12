@@ -3,7 +3,7 @@ import { relationIds, selectProp } from "@/lib/notion/properties";
 import type { NotionPage } from "@/lib/notion/types";
 import type { Staff } from "@/lib/domain/staff";
 
-const FALLBACK_TIMESHEET_DB = "39f8156e326f807aa745cd7e936a144c";
+const FALLBACK_TIMESHEET_DB = "39f8156e-326f-807a-a745-cd7e936a144c";
 
 function timesheetDbId(): string {
   return process.env.NOTION_TIMESHEET_DB_ID || FALLBACK_TIMESHEET_DB;
