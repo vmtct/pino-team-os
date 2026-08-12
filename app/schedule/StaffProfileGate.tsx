@@ -19,17 +19,23 @@ const labels: Record<StaffProfileField, string> = {
 
 const selectOptions: Record<string, string[]> = {
   gender: ["Male", "Female"],
-  employmentType: ["Full-time", "Part-time", "Contract", "Intern", "Other"],
-  department: ["Academy", "Operations", "Marketing", "Sales", "Management", "Other"],
 };
 
-const fieldOrder: StaffProfileField[] = ["email", "dateOfBirth", "gender", "cccd", "idIssueDate", "idIssuePlace", "address", "employmentType", "department", "startDate", "role"];
+const fieldOrder: StaffProfileField[] = [
+  "email",
+  "dateOfBirth",
+  "gender",
+  "cccd",
+  "idIssueDate",
+  "idIssuePlace",
+  "address",
+];
 
 export default function StaffProfileGate({ username, staffName, profile, missing }: { username: string; staffName: string; profile: StaffProfile; missing: StaffProfileField[] }) {
   const [values, setValues] = useState<StaffProfile>(profile);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const missingSet = useMemo(() => new Set(missing), [missing]);
+  const missingSet = useMemo(() => new Set(missing.filter((field) => fieldOrder.includes(field))), [missing]);
 
   async function save() {
     setSaving(true);
@@ -42,7 +48,7 @@ export default function StaffProfileGate({ username, staffName, profile, missing
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "Không thể lưu thông tin");
-      if (Array.isArray(result.missing) && result.missing.length) {
+      if (Array.isArray(result.missing) && result.missing.some((field: StaffProfileField) => fieldOrder.includes(field))) {
         setError("Vui lòng hoàn tất các trường còn thiếu.");
         return;
       }
@@ -75,7 +81,7 @@ export default function StaffProfileGate({ username, staffName, profile, missing
                     {options.map((option) => <option key={option} value={option}>{option}</option>)}
                   </select>
                 ) : (
-                  <input type={field === "dateOfBirth" || field === "startDate" ? "date" : field === "email" ? "email" : "text"} value={value} onChange={(e) => setValues({ ...values, [field]: e.target.value })} style={{ padding: "12px 14px", borderRadius: 10, border: required ? "1px solid #b45309" : "1px solid #ccc" }} />
+                  <input type={field === "dateOfBirth" ? "date" : field === "email" ? "email" : "text"} value={value} onChange={(e) => setValues({ ...values, [field]: e.target.value })} style={{ padding: "12px 14px", borderRadius: 10, border: required ? "1px solid #b45309" : "1px solid #ccc" }} />
                 )}
               </label>
             );
