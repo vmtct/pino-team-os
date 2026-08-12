@@ -35,8 +35,8 @@ function addDays(value: string, days: number): string {
 
 async function loadWeek(pageId: string): Promise<WeekInfo> {
   const page = await getPage(pageId);
-  const start = computedDate(page, "T2");
-  const end = computedDate(page, "T7");
+  const start = computedDate(page, "Monday Start on");
+  const end = computedDate(page, "Saturday Date") || (start ? addDays(start, 6) : "");
   return { name: textProp(page, "Name"), start, end };
 }
 
@@ -72,8 +72,6 @@ export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule 
       const week = await loadWeek(weekId);
       return { page, week, status: selectProp(page, "Schedule Status") };
     } catch (error) {
-      // Staff Schedule also exposes Start On as a rollup. Use it as a resilient fallback
-      // so a permission/read failure on the related Week page does not blank the schedule.
       const start = computedDate(page, "Start On");
       if (!start) {
         console.error("[Schedule] week load failed", { staffId: staff.id, scheduleId: page.id, weekId, message: error instanceof Error ? error.message : String(error) });
