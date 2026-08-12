@@ -1,6 +1,9 @@
 name: Cloudflare Status Bridge
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -10,9 +13,10 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
-  group: cloudflare-status-bridge
+  group: cloudflare-status-bridge-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,6 +28,8 @@ jobs:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       WORKER_NAME: pino-team-os
       COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+      GH_TOKEN: ${{ github.token }}
+
     steps:
       - name: Validate Cloudflare credentials
         shell: bash
@@ -55,28 +61,43 @@ jobs:
           fi
 
           builds_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/builds?per_page=100"
-          builds_json="$(curl -fsS "$builds_url" "${auth[@]}")"
+          row=""
 
-          row="$(jq -r --arg sha "$COMMIT_SHA" '
-            .result[]?
-            | select((.build_trigger_metadata.commit_hash // "") == $sha)
-            | [.build_uuid, .build_outcome, (.build_trigger_metadata.branch // ""), (.created_on // ""), (.build_trigger_metadata.commit_message // "")]
-            | @tsv
-          ' <<<"$builds_json" | head -n 1)"
+          echo "Waiting for Cloudflare build for commit ${COMMIT_SHA}..."
+          for attempt in $(seq 1 12); do
+            builds_json="$(curl -fsS "$builds_url" "${auth[@]}")"
+            row="$(jq -r --arg sha "$COMMIT_SHA" '
+              .result[]?
+              | select((.build_trigger_metadata.commit_hash // "") == $sha)
+              | [.build_uuid, .build_outcome, (.build_trigger_metadata.branch // ""), (.created_on // ""), (.build_trigger_metadata.commit_message // "")]
+              | @tsv
+            ' <<<"$builds_json" | head -n 1)"
+
+            if [ -n "$row" ]; then
+              break
+            fi
+
+            if [ "$attempt" -lt 12 ]; then
+              sleep 20
+            fi
+          done
 
           if [ -z "$row" ]; then
-            echo "No Cloudflare Workers Build found for commit ${COMMIT_SHA}." >&2
-            echo "The commit may not use Cloudflare Workers Builds, or the build may not have been recorded yet." >&2
-            exit 2
-          fi
+            outcome="not_found"
+            build_uuid=""
+            branch=""
+            created_on=""
+            commit_message=""
+            echo "No Cloudflare Workers Build found for commit ${COMMIT_SHA} after waiting." >&2
+          else
+            IFS=$'\t' read -r build_uuid outcome branch created_on commit_message <<<"$row"
+            logs_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${build_uuid}/logs"
+            curl -fsS "$logs_url" "${auth[@]}" > cloudflare-build-response.json
 
-          IFS=$'\t' read -r build_uuid outcome branch created_on commit_message <<<"$row"
-          logs_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${build_uuid}/logs"
-          curl -fsS "$logs_url" "${auth[@]}" > cloudflare-build-response.json
-
-          jq -r '.result.lines[]? | if type == "string" then . else tostring end' cloudflare-build-response.json > cloudflare-build.log || true
-          if [ ! -s cloudflare-build.log ]; then
-            jq -r '.errors[]?.message, .messages[]?' cloudflare-build-response.json > cloudflare-build.log || true
+            jq -r '.result.lines[]? | if type == "string" then . else tostring end' cloudflare-build-response.json > cloudflare-build.log || true
+            if [ ! -s cloudflare-build.log ]; then
+              jq -r '.errors[]?.message, .messages[]?' cloudflare-build-response.json > cloudflare-build.log || true
+            fi
           fi
 
           cat > cloudflare-status.md <<EOF
@@ -84,14 +105,19 @@ jobs:
 
           - Worker: \`${WORKER_NAME}\`
           - Commit: \`${COMMIT_SHA}\`
-          - Build UUID: \`${build_uuid}\`
+          - Build UUID: \`${build_uuid:-n/a}\`
           - Outcome: **${outcome}**
-          - Branch: \`${branch}\`
-          - Created: \`${created_on}\`
-          - Commit message: ${commit_message}
+          - Branch: \`${branch:-n/a}\`
+          - Created: \`${created_on:-n/a}\`
+          - Commit message: ${commit_message:-n/a}
 
-          Full Cloudflare build diagnostics are attached to this workflow run as an artifact.
+          This diagnostic was collected automatically by GitHub Actions.
           EOF
+
+          if [ ! -f cloudflare-build-response.json ]; then
+            printf '{"success":false,"errors":[{"message":"Cloudflare build not found for commit %s"}]}' "$COMMIT_SHA" > cloudflare-build-response.json
+            printf 'Cloudflare build not found for commit %s\n' "$COMMIT_SHA" > cloudflare-build.log
+          fi
 
           cat cloudflare-status.md
           {
@@ -101,19 +127,59 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload Cloudflare diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cloudflare-status-${{ steps.cf.outputs.build_uuid }}
+          name: cloudflare-status-${{ steps.cf.outputs.build_uuid || github.run_id }}
           path: |
             cloudflare-status.md
             cloudflare-build.log
             cloudflare-build-response.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Publish workflow summary
+        if: always()
         shell: bash
         run: |
-          cat cloudflare-status.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f cloudflare-status.md ]; then
+            cat cloudflare-status.md >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Artifact: cloudflare-status-${{ steps.cf.outputs.build_uuid }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open GitHub incident when Cloudflare fails
+        if: steps.cf.outputs.outcome == 'fail' || steps.cf.outputs.outcome == 'not_found'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title="Cloudflare build failure: ${COMMIT_SHA:0:12}"
+          body_file="cloudflare-incident.md"
+          {
+            echo "## Cloudflare build failure"
+            echo
+            cat cloudflare-status.md
+            echo
+            echo "### Diagnostic log"
+            echo '```text'
+            tail -n 400 cloudflare-build.log || true
+            echo '```'
+            echo
+            echo "### GitHub run"
+            echo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "This issue was created automatically. When reviewing it, inspect the Cloudflare log and the referenced commit before making a fix."
+          } > "$body_file"
+
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$title" \
+            --body-file "$body_file"
+
+      - name: Fail workflow when Cloudflare build failed
+        if: steps.cf.outputs.outcome == 'fail' || steps.cf.outputs.outcome == 'not_found'
+        shell: bash
+        run: |
+          echo "Cloudflare outcome: ${{ steps.cf.outputs.outcome }}"
+          exit 1
