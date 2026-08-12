@@ -20,15 +20,42 @@ function record(value: unknown): PropertyRecord | null {
   return value && typeof value === "object" ? value as PropertyRecord : null;
 }
 
+function dateValue(value: unknown): string {
+  const object = record(value);
+  if (!object) return "";
+
+  const date = record(object.date);
+  if (typeof date?.start === "string") return date.start;
+
+  if (typeof object.string === "string") {
+    const value = object.string.trim();
+    if (/^\d{4}-\d{2}-\d{2}(?:[T ].*)?$/.test(value)) return value;
+    const match = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (match) return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  }
+
+  if (Array.isArray(object.array)) {
+    for (const item of object.array) {
+      const resolved = dateValue(item);
+      if (resolved) return resolved;
+    }
+  }
+
+  return "";
+}
+
 function computedDate(page: NotionPage, name: string): string {
   const property = record(page.properties[name]);
   if (!property) return "";
+
   const formula = record(property.formula);
-  const formulaDate = record(formula?.date);
-  if (typeof formulaDate?.start === "string") return formulaDate.start;
+  const formulaDate = dateValue(formula);
+  if (formulaDate) return formulaDate;
+
   const rollup = record(property.rollup);
-  const rollupDate = record(rollup?.date);
-  if (typeof rollupDate?.start === "string") return rollupDate.start;
+  const rollupDate = dateValue(rollup);
+  if (rollupDate) return rollupDate;
+
   return dateStartProp(page, name);
 }
 
