@@ -39,12 +39,23 @@ export function multiSelectProp(page: NotionPage, name: string): string[] {
     .filter((name): name is string => typeof name === "string");
 }
 
+function relationId(value: unknown): string {
+  const item = record(value);
+  if (!item) return "";
+  if (typeof item.id === "string") return item.id;
+  if (typeof item.url === "string") {
+    const match = item.url.match(/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?:[?#].*)?$/i);
+    return match?.[1] ?? "";
+  }
+  return "";
+}
+
 export function relationIds(page: NotionPage, name: string): string[] {
   const property = record(page.properties[name]);
   if (!Array.isArray(property?.relation)) return [];
   return property.relation
-    .map((item) => record(item)?.id)
-    .filter((id): id is string => typeof id === "string");
+    .map(relationId)
+    .filter((id): id is string => Boolean(id));
 }
 
 export function dateStartProp(page: NotionPage, name: string): string {
