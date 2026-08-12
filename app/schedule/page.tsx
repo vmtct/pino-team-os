@@ -4,6 +4,7 @@ import { missingStaffProfileFields, staffProfile } from "@/lib/repositories/staf
 import { getShiftRegistration } from "@/lib/repositories/shift-registration";
 import { SCHEDULE_DAYS } from "@/lib/domain/staff-schedule";
 import StaffProfileGate from "./StaffProfileGate";
+import ScheduleLogin from "./ScheduleLogin";
 import ShiftRegistration from "./ShiftRegistration";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +25,14 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const trace = traceId();
   let debug: DebugState = { traceId: trace, username, staff: { status: "NOT_RUN" } };
 
+  if (!username) return <ScheduleLogin />;
+
   let staff = null;
   try {
-    staff = username ? await staffByUsername(username) : null;
-    debug.staff = staff ? { status: "PASS", id: staff.id, name: staff.name, email: staff.email } : { status: "FAIL", error: username ? "No Staff matched username" : "Missing query parameter t" };
+    staff = await staffByUsername(username);
+    debug.staff = staff ? { status: "PASS", id: staff.id, name: staff.name, email: staff.email } : { status: "FAIL", error: "No Staff matched mobile" };
   } catch (error) { debug.staff = { status: "ERROR", error: error instanceof Error ? error.message : String(error) }; }
-  if (!staff) return <main className="main"><div className="page"><div className="eyebrow">PINO TEAM OS</div><h1>Staff link không hợp lệ</h1><p className="subtitle">Vui lòng sử dụng đường dẫn lịch cá nhân được PINO cấp.</p>{debugEnabled ? <DebugPanel debug={debug} /> : null}</div></main>;
+  if (!staff) return <ScheduleLogin error="Không tìm thấy nhân sự với số điện thoại này. Vui lòng xác nhận lại." />;
 
   const profile = await staffProfile(staff);
   const missing = missingStaffProfileFields(profile);
