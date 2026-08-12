@@ -3,6 +3,9 @@ import { dateStartProp, selectProp, textProp } from "@/lib/notion/properties";
 import type { Staff } from "@/lib/domain/staff";
 import type { NotionPage } from "@/lib/notion/types";
 
+// Only these fields are required before a staff member can access Schedule.
+// Organizational fields (Employment Type, Department, Role, Start Date) remain
+// part of the Staff schema but are not enforced by the self-service profile gate.
 export const REQUIRED_STAFF_PROFILE_FIELDS = [
   "Email",
   "Date of Birth",
@@ -11,10 +14,6 @@ export const REQUIRED_STAFF_PROFILE_FIELDS = [
   "ID Issue Date",
   "ID Issue Place",
   "LEG Address",
-  "Employment Type",
-  "Department",
-  "Start Date",
-  "Role",
 ] as const;
 
 export type StaffProfile = {
@@ -73,22 +72,19 @@ export function mapStaffProfile(page: NotionPage): StaffProfile {
 
 export function missingStaffProfileFields(profile: StaffProfile): StaffProfileField[] {
   const values: Record<StaffProfileField, string> = profile;
-  return REQUIRED_STAFF_PROFILE_FIELDS.map((name) => {
-    const key = ({
-      Email: "email",
-      "Date of Birth": "dateOfBirth",
-      Gender: "gender",
-      CCCD: "cccd",
-      "ID Issue Date": "idIssueDate",
-      "ID Issue Place": "idIssuePlace",
-      "LEG Address": "address",
-      "Employment Type": "employmentType",
-      Department: "department",
-      "Start Date": "startDate",
-      Role: "role",
-    } as const)[name];
-    return [key, normalize(values[key])] as const;
-  }).filter(([, value]) => !value).map(([key]) => key);
+  const fieldKeys = {
+    Email: "email",
+    "Date of Birth": "dateOfBirth",
+    Gender: "gender",
+    CCCD: "cccd",
+    "ID Issue Date": "idIssueDate",
+    "ID Issue Place": "idIssuePlace",
+    "LEG Address": "address",
+  } as const;
+
+  return REQUIRED_STAFF_PROFILE_FIELDS
+    .map((name) => fieldKeys[name])
+    .filter((key) => !normalize(values[key]));
 }
 
 export async function staffProfile(staff: Staff): Promise<StaffProfile> {
