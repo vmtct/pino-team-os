@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { staffByUsername } from "@/lib/repositories/staff-access";
 import { createTimesheet, latestTimesheet } from "@/lib/repositories/timesheet";
-import { getConfigBoolean } from "@/lib/repositories/web-config";
+import { getConfigBoolean, getConfigValue } from "@/lib/repositories/web-config";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,13 @@ async function resolveStaff(request: Request) {
   if (!staff) return { staff: null, error: "staff_not_found" };
   if ((await getConfigBoolean("team_os_login_active_staff_only", true)) && staff.employmentStatus !== "Active") return { staff: null, error: "inactive_staff" };
   return { staff, error: "" };
+}
+
+async function enforceNetworkIfEnabled(request: Request): Promise<{ ok: true; ip: string } | { ok: false; ip: string }> {
+  const ip = requestIp(request);
+  if (!(await getConfigBoolean("team_os_checkin_ip_filter_enabled", false))) return { ok: true, ip };
+  const allowed = (await getConfigValue("team_os_checkin_allowed_ips", "")).split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean);
+  return { ok: allowed.includes(ip), ip };
 }
 
 export async function GET(request: Request) {
@@ -40,7 +47,10 @@ export async function POST(request: Request) {
   if (checkType === "Check in" && latest?.checkType === "Check in") return NextResponse.json({ ok: false, error: "already_checked_in", latest }, { status: 409 });
   if (checkType === "Check out" && latest?.checkType !== "Check in") return NextResponse.json({ ok: false, error: "not_checked_in", latest }, { status: 409 });
 
-  const ip = requestIp(request);
-  const pageId = await createTimesheet(staff, checkType, ip);
-  return NextResponse.json({ ok: true, pageId, checkType, ipLogged: await getConfigBoolean("team_os_checkin_ip_logging_enabled", true) }, { headers: { "Cache-Control": "no-store" } });
+  const network = await enforceNetworkIfEnabled(request);
+  if (!network.ok) return NextResponse.json({ ok: false, error: "OFFSITE_NETWORK", message: "Bạn cần kết nối Wi-Fi PINO để chấm công.", ip: network.ip }, { status: 403 });
+
+  const ipLoggingEnabled = await getConfigBoolean("team_os_checkin_ip_logging_enabled", true);
+  const pageId = await createTimesheet(staff, checkType, ipLoggingEnabled ? network.ip : "");
+  return NextResponse.json({ ok: true, pageId, checkType, ipLogged: ipLoggingEnabled }, { headers: { "Cache-Control": "no-store" } });
 }
