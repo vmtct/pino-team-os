@@ -1,5 +1,5 @@
 import { dataSourceId, notion, queryAll } from "@/lib/notion";
-import { relationIds, selectProp } from "@/lib/notion/properties";
+import { relationIds, selectProp, textProp } from "@/lib/notion/properties";
 import type { NotionPage } from "@/lib/notion/types";
 import type { Staff } from "@/lib/domain/staff";
 
@@ -17,6 +17,20 @@ export async function latestTimesheet(staff: Staff): Promise<{ checkType: string
   const latest = latestForStaff(pages, staff.id);
   if (!latest) return null;
   return { checkType: selectProp(latest, "Check Type"), createdTime: createdAt(latest) };
+}
+
+export async function listTimesheetsForStaff(staff: Staff): Promise<Array<{ id: string; checkType: string; createdTime: string; ipAddress: string; workContent: string }>> {
+  const pages = await queryAll(TIMESHEET_DATABASE_ID);
+  return pages
+    .filter((page) => relationIds(page, "Staff").includes(staff.id))
+    .sort((a, b) => createdAt(b).localeCompare(createdAt(a)))
+    .map((page) => ({
+      id: page.id,
+      checkType: selectProp(page, "Check Type"),
+      createdTime: createdAt(page),
+      ipAddress: textProp(page, "IP Address"),
+      workContent: textProp(page, "Work Content"),
+    }));
 }
 
 export async function createTimesheet(staff: Staff, checkType: "Check in" | "Check out", ipAddress: string): Promise<string> {
