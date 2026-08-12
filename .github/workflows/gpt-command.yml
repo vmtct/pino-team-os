@@ -14,11 +14,9 @@ jobs:
   command:
     if: startsWith(github.event.issue.title, '[GPT]')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
-      ISSUE_TITLE: ${{ github.event.issue.title }}
-      ISSUE_BODY: ${{ github.event.issue.body }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
 
     steps:
@@ -28,13 +26,84 @@ jobs:
           set -euo pipefail
           gh issue comment "$ISSUE_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
-            --body "GPT command received. Starting Cloudflare status diagnostics for the current main commit."
+            --body "GPT command received. Starting a fresh Cloudflare status check for the current main commit."
 
-      - name: Start Cloudflare diagnostics
+      - name: Resolve current main commit
+        id: head
         shell: bash
         run: |
           set -euo pipefail
-          run_url="$(gh workflow run cloudflare-build-guardian.yml --repo "$GITHUB_REPOSITORY" --ref main 2>&1 | tail -n 1 || true)"
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Current main: $sha"
+
+      - name: Trigger fresh Cloudflare diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run cloudflare-build-guardian.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f "commit_sha=${{ steps.head.outputs.sha }}"
+
+      - name: Wait for the fresh Cloudflare diagnostics run
+        id: wait
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="${{ steps.head.outputs.sha }}"
+          run_id=""
+          run_url=""
+
+          for attempt in $(seq 1 60); do
+            run_json="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow cloudflare-build-guardian.yml \
+              --event workflow_dispatch \
+              --branch main \
+              --limit 20 \
+              --json databaseId,headSha,status,conclusion,url,createdAt \
+              | jq -c --arg sha "$sha" 'map(select(.headSha == $sha)) | sort_by(.createdAt) | last // empty')"
+
+            if [ -n "$run_json" ]; then
+              run_id="$(jq -r '.databaseId' <<<"$run_json")"
+              run_url="$(jq -r '.url' <<<"$run_json")"
+              status="$(jq -r '.status' <<<"$run_json")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
+              echo "Cloudflare diagnostics run $run_id: status=$status conclusion=$conclusion"
+
+              if [ "$status" = "completed" ]; then
+                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+                echo "run_url=$run_url" >> "$GITHUB_OUTPUT"
+                echo "status=$status" >> "$GITHUB_OUTPUT"
+                echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for a fresh Cloudflare diagnostics run." >&2
+          exit 1
+
+      - name: Report fresh status
+        shell: bash
+        run: |
+          set -euo pipefail
+          conclusion="${{ steps.wait.outputs.conclusion }}"
+          run_url="${{ steps.wait.outputs.run_url }}"
+          sha="${{ steps.head.outputs.sha }}"
+
+          case "$conclusion" in
+            success)
+              message="STATUS FRESH: Cloudflare diagnostics completed successfully for main commit $sha.\n\n$run_url"
+              ;;
+            *)
+              message="STATUS FRESH: Cloudflare diagnostics completed with outcome **$conclusion** for main commit $sha.\n\n$run_url\n\nUse \`status update and fix\` to investigate and repair."
+              ;;
+          esac
+
           gh issue comment "$ISSUE_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
-            --body "Cloudflare diagnostics triggered. $run_url"
+            --body "$message"
