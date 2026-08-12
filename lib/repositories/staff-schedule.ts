@@ -23,39 +23,30 @@ function record(value: unknown): PropertyRecord | null {
 function dateValue(value: unknown): string {
   const object = record(value);
   if (!object) return "";
-
   const date = record(object.date);
   if (typeof date?.start === "string") return date.start;
-
   if (typeof object.string === "string") {
     const value = object.string.trim();
     if (/^\d{4}-\d{2}-\d{2}(?:[T ].*)?$/.test(value)) return value;
     const match = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
     if (match) return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
   }
-
   if (Array.isArray(object.array)) {
     for (const item of object.array) {
       const resolved = dateValue(item);
       if (resolved) return resolved;
     }
   }
-
   return "";
 }
 
 function computedDate(page: NotionPage, name: string): string {
   const property = record(page.properties[name]);
   if (!property) return "";
-
-  const formula = record(property.formula);
-  const formulaDate = dateValue(formula);
+  const formulaDate = dateValue(record(property.formula));
   if (formulaDate) return formulaDate;
-
-  const rollup = record(property.rollup);
-  const rollupDate = dateValue(rollup);
+  const rollupDate = dateValue(record(property.rollup));
   if (rollupDate) return rollupDate;
-
   return dateStartProp(page, name);
 }
 
@@ -84,58 +75,33 @@ function priority(status: string): number {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
-function dayShiftCodes(page: NotionPage, day: string): string[] {
-  const select = selectProp(page, day);
-  if (select) return [select];
-  const text = textProp(page, day).trim();
-  return text ? [text] : [];
-}
-
+/** The Staff Schedule schema uses only <Day> Shifts relation properties. */
 async function loadReferencedShifts(page: NotionPage): Promise<Map<string, Shift>> {
   const ids = new Set<string>();
-  const codes = new Set<string>();
-
-  for (const day of DAYS) {
-    relationIds(page, `${day} Shifts`).forEach((id) => ids.add(id));
-    relationIds(page, day).forEach((id) => ids.add(id));
-    dayShiftCodes(page, day).forEach((code) => codes.add(code));
-  }
+  for (const day of DAYS) relationIds(page, `${day} Shifts`).forEach((id) => ids.add(id));
 
   const shifts = new Map<string, Shift>();
-
-  const relationEntries = await Promise.allSettled([...ids].map(async (id) => [id, mapShift(await getPage(id))] as const));
-  for (const entry of relationEntries) {
+  const entries = await Promise.allSettled(
+    [...ids].map(async (id) => [id, mapShift(await getPage(id))] as const),
+  );
+  for (const entry of entries) {
     if (entry.status === "fulfilled") {
       const [id, shift] = entry.value;
       shifts.set(id, shift);
-      shifts.set(shift.code, shift);
     } else {
-      console.error("[Schedule] shift relation load failed", { message: entry.reason instanceof Error ? entry.reason.message : String(entry.reason) });
+      console.error("[Schedule] shift relation load failed", {
+        message: entry.reason instanceof Error ? entry.reason.message : String(entry.reason),
+      });
     }
   }
-
-  if (codes.size) {
-    try {
-      const masterPages = await queryAll(dbId("NOTION_SHIFT_MASTER_DB_ID"));
-      for (const masterPage of masterPages) {
-        const shift = mapShift(masterPage);
-        shifts.set(masterPage.id, shift);
-        shifts.set(shift.code, shift);
-      }
-    } catch (error) {
-      console.error("[Schedule] Shift Master load failed", { message: error instanceof Error ? error.message : String(error) });
-    }
-  }
-
   return shifts;
 }
 
 function dayShiftEntries(page: NotionPage, day: string, shiftsByKey: Map<string, Shift>): Shift[] {
-  const keys = [...relationIds(page, `${day} Shifts`), ...relationIds(page, day), ...dayShiftCodes(page, day)];
   const seen = new Set<string>();
   const shifts: Shift[] = [];
-  for (const key of keys) {
-    const shift = shiftsByKey.get(key);
+  for (const id of relationIds(page, `${day} Shifts`)) {
+    const shift = shiftsByKey.get(id);
     if (!shift || seen.has(shift.id)) continue;
     seen.add(shift.id);
     shifts.push(shift);
@@ -146,10 +112,13 @@ function dayShiftEntries(page: NotionPage, day: string, shiftsByKey: Map<string,
 function diagnosticDays(page: NotionPage, weekStart: string, shiftsByKey: Map<string, Shift>): ScheduleDiagnostic["days"] {
   return Object.fromEntries(DAYS.map((day, index) => {
     const date = weekStart ? addDays(weekStart, index) : "";
-    const shiftCodes = dayShiftCodes(page, day);
     const shifts = dayShiftEntries(page, day, shiftsByKey);
-    const shiftIds = shifts.map((shift) => shift.id);
-    return [day, { date, shiftIds, shiftCodes, shifts: shifts.map((shift) => ({ code: shift.code, startTime: shift.startTime, endTime: shift.endTime })) }];
+    return [day, {
+      date,
+      shiftIds: shifts.map((shift) => shift.id),
+      shiftCodes: shifts.map((shift) => shift.code),
+      shifts: shifts.map((shift) => ({ code: shift.code, startTime: shift.startTime, endTime: shift.endTime })),
+    }];
   }));
 }
 
@@ -157,22 +126,24 @@ export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule 
   const schedulePages = await queryAll(dbId("NOTION_SCHEDULE_DB_ID"));
   const staffPages = schedulePages.filter((page) => relationIds(page, "Staff").includes(staff.id));
   if (!staffPages.length) return null;
+
   const candidates = await Promise.all(staffPages.map(async (page) => {
     const weekId = relationIds(page, "Week")[0];
     if (!weekId) return null;
     try {
       const week = await loadWeek(weekId);
-      return { page, week, status: selectProp(page, "Schedule Status") };
+      return { page, week, status: selectProp(page, "Week Status") };
     } catch (error) {
-      const start = computedDate(page, "Start On");
-      if (!start) {
-        console.error("[Schedule] week load failed", { staffId: staff.id, scheduleId: page.id, weekId, message: error instanceof Error ? error.message : String(error) });
-        return null;
-      }
-      console.warn("[Schedule] using Start On rollup fallback", { staffId: staff.id, scheduleId: page.id, weekId });
-      return { page, week: { name: "Tuần hiện tại", start, end: addDays(start, 6) }, status: selectProp(page, "Schedule Status") };
+      console.error("[Schedule] week load failed", {
+        staffId: staff.id,
+        scheduleId: page.id,
+        weekId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return null;
     }
   }));
+
   const now = new Date();
   const current = candidates
     .filter((item): item is { page: NotionPage; week: WeekInfo; status: string } => Boolean(item?.week.start && item?.week.end))
@@ -183,6 +154,7 @@ export async function currentStaffSchedule(staff: Staff): Promise<StaffSchedule 
       return now >= start && now <= end;
     })
     .sort((a, b) => priority(b.status) - priority(a.status))[0];
+
   if (!current) return null;
   const shiftsByKey = await loadReferencedShifts(current.page);
   return mapStaffSchedule(current.page, shiftsByKey, current.week);
@@ -193,7 +165,7 @@ export async function diagnoseStaffSchedule(staff: Staff): Promise<ScheduleDiagn
   const staffPages = schedulePages.filter((page) => relationIds(page, "Staff").includes(staff.id));
   const schedulePage = staffPages[0];
   const weekId = schedulePage ? relationIds(schedulePage, "Week")[0] ?? "" : "";
-  const status = schedulePage ? selectProp(schedulePage, "Schedule Status") : "";
+  const status = schedulePage ? selectProp(schedulePage, "Week Status") : "";
   const weekPage = weekId ? await getPage(weekId) : null;
   const start = weekPage ? computedDate(weekPage, "Monday Start on") : "";
   const end = weekPage ? computedDate(weekPage, "Saturday Date") || (start ? addDays(start, 6) : "") : "";
