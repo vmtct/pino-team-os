@@ -28,6 +28,8 @@ jobs:
       - name: Run Playwright E2E
         env:
           E2E_BASE_URL: https://pino-team-os.minhtri-van42.workers.dev
+          SCHEDULE_E2E_SECRET: ${{ secrets.SCHEDULE_E2E_SECRET }}
+          SCHEDULE_E2E_EMAIL: minhtri.van42@gmail.com
         run: bun run test:e2e
 
       - name: Upload Playwright report
