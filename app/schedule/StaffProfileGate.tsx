@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { StaffProfile, StaffProfileField } from "@/lib/repositories/staff-profile";
 
 const labels: Record<StaffProfileField, string> = {
@@ -11,45 +11,57 @@ const labels: Record<StaffProfileField, string> = {
   idIssueDate: "Ngày cấp CCCD",
   idIssuePlace: "Nơi cấp CCCD",
   address: "Địa chỉ",
+  idDocuments: "Ảnh CCCD 2 mặt",
   employmentType: "Loại nhân sự",
   department: "Bộ phận",
   startDate: "Ngày bắt đầu",
   role: "Chức danh / Vai trò",
 };
 
-const selectOptions: Record<string, string[]> = {
-  gender: ["Male", "Female"],
-};
-
-const fieldOrder: StaffProfileField[] = [
-  "email",
-  "dateOfBirth",
-  "gender",
-  "cccd",
-  "idIssueDate",
-  "idIssuePlace",
-  "address",
-];
+const selectOptions: Record<string, string[]> = { gender: ["Male", "Female"] };
+const fieldOrder: StaffProfileField[] = ["email", "dateOfBirth", "gender", "cccd", "idIssueDate", "idIssuePlace", "address"];
 
 export default function StaffProfileGate({ username, staffName, profile, missing }: { username: string; staffName: string; profile: StaffProfile; missing: StaffProfileField[] }) {
   const [values, setValues] = useState<StaffProfile>(profile);
+  const [front, setFront] = useState<File | null>(null);
+  const [back, setBack] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const missingSet = useMemo(() => new Set(missing.filter((field) => fieldOrder.includes(field))), [missing]);
+  const frontRef = useRef<HTMLInputElement>(null);
+  const backRef = useRef<HTMLInputElement>(null);
+  const missingSet = useMemo(() => new Set(missing), [missing]);
+  const documentsRequired = !profile.idDocuments;
+
+  function pickFile(file: File | null, side: "front" | "back") {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("CCCD chỉ nhận ảnh JPG, PNG hoặc WebP.");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Ảnh CCCD không được vượt quá 20MB mỗi file.");
+      return;
+    }
+    setError("");
+    side === "front" ? setFront(file) : setBack(file);
+  }
 
   async function save() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(`/api/staff/profile?t=${encodeURIComponent(username)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+      const form = new FormData();
+      Object.entries(values).forEach(([key, value]) => {
+        if (typeof value === "string") form.append(key, value);
       });
+      if (front) form.append("cccdFront", front, front.name);
+      if (back) form.append("cccdBack", back, back.name);
+
+      const response = await fetch(`/api/staff/profile?t=${encodeURIComponent(username)}`, { method: "POST", body: form });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "Không thể lưu thông tin");
-      if (Array.isArray(result.missing) && result.missing.some((field: StaffProfileField) => fieldOrder.includes(field))) {
-        setError("Vui lòng hoàn tất các trường còn thiếu.");
+      if (Array.isArray(result.missing) && result.missing.length) {
+        setError("Vui lòng hoàn tất các trường còn thiếu, bao gồm ảnh CCCD 2 mặt.");
         return;
       }
       window.location.reload();
@@ -86,6 +98,23 @@ export default function StaffProfileGate({ username, staffName, profile, missing
               </label>
             );
           })}
+        </div>
+
+        <div style={{ marginTop: 18, padding: 16, border: "1px solid #e7e0d7", borderRadius: 14, background: "#faf7f2" }}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Ảnh CCCD 2 mặt {documentsRequired ? <span aria-hidden="true">*</span> : null}</div>
+          <div className="muted" style={{ marginBottom: 14 }}>Tải ảnh mặt trước và mặt sau. JPG, PNG hoặc WebP, tối đa 20MB mỗi ảnh.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <input ref={frontRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickFile(e.target.files?.[0] ?? null, "front")} />
+              <button type="button" onClick={() => frontRef.current?.click()} style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px dashed #b8afa5", background: "white", cursor: "pointer" }}>Mặt trước</button>
+              <div className="muted" style={{ marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{front?.name ?? (profile.idDocuments ? "Đã có tài liệu trên Notion" : "Chưa chọn ảnh")}</div>
+            </div>
+            <div>
+              <input ref={backRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickFile(e.target.files?.[0] ?? null, "back")} />
+              <button type="button" onClick={() => backRef.current?.click()} style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px dashed #b8afa5", background: "white", cursor: "pointer" }}>Mặt sau</button>
+              <div className="muted" style={{ marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{back?.name ?? (profile.idDocuments ? "Đã có tài liệu trên Notion" : "Chưa chọn ảnh")}</div>
+            </div>
+          </div>
         </div>
 
         {error ? <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "#fff1f2", color: "#991b1b" }}>{error}</div> : null}
