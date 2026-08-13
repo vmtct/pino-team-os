@@ -3,9 +3,6 @@ import { dateStartProp, selectProp, textProp } from "@/lib/notion/properties";
 import type { Staff } from "@/lib/domain/staff";
 import type { NotionPage } from "@/lib/notion/types";
 
-// Only these fields are required before a staff member can access Schedule.
-// Organizational fields (Employment Type, Department, Role, Start Date) remain
-// part of the Staff schema but are not enforced by the self-service profile gate.
 export const REQUIRED_STAFF_PROFILE_FIELDS = [
   "Email",
   "Date of Birth",
@@ -25,7 +22,7 @@ export type StaffProfile = {
   idIssueDate: string;
   idIssuePlace: string;
   address: string;
-  idDocuments: boolean;
+  idDocuments: number;
   employmentType: string;
   department: string;
   startDate: string;
@@ -57,9 +54,9 @@ export const STAFF_PROFILE_OPTIONS = {
 
 function normalize(value: string): string { return value.trim(); }
 
-function hasIdDocuments(page: NotionPage): boolean {
+function idDocumentsCount(page: NotionPage): number {
   const property = page.properties["ID Documents"] as { files?: unknown[] } | undefined;
-  return Array.isArray(property?.files) && property.files.length > 0;
+  return Array.isArray(property?.files) ? property.files.length : 0;
 }
 
 export function mapStaffProfile(page: NotionPage): StaffProfile {
@@ -71,7 +68,7 @@ export function mapStaffProfile(page: NotionPage): StaffProfile {
     idIssueDate: textProp(page, "ID Issue Date"),
     idIssuePlace: textProp(page, "ID Issue Place"),
     address: textProp(page, "LEG Address"),
-    idDocuments: hasIdDocuments(page),
+    idDocuments: idDocumentsCount(page),
     employmentType: selectProp(page, "Employment Type"),
     department: selectProp(page, "Department"),
     startDate: dateStartProp(page, "Start Date"),
@@ -80,7 +77,7 @@ export function mapStaffProfile(page: NotionPage): StaffProfile {
 }
 
 export function missingStaffProfileFields(profile: StaffProfile): StaffProfileField[] {
-  const values: Record<StaffProfileField, string | boolean> = profile;
+  const values = profile;
   const fieldKeys = {
     Email: "email",
     "Date of Birth": "dateOfBirth",
@@ -94,7 +91,7 @@ export function missingStaffProfileFields(profile: StaffProfile): StaffProfileFi
 
   return REQUIRED_STAFF_PROFILE_FIELDS
     .map((name) => fieldKeys[name])
-    .filter((key) => typeof values[key] === "boolean" ? !values[key] : !normalize(values[key]));
+    .filter((key) => key === "idDocuments" ? values[key] < 2 : !normalize(values[key]));
 }
 
 export async function staffProfile(staff: Staff): Promise<StaffProfile> {
