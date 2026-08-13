@@ -77,21 +77,16 @@ export function mapStaffProfile(page: NotionPage): StaffProfile {
 }
 
 export function missingStaffProfileFields(profile: StaffProfile): StaffProfileField[] {
-  const values = profile;
-  const fieldKeys = {
-    Email: "email",
-    "Date of Birth": "dateOfBirth",
-    Gender: "gender",
-    CCCD: "cccd",
-    "ID Issue Date": "idIssueDate",
-    "ID Issue Place": "idIssuePlace",
-    "LEG Address": "address",
-    "ID Documents": "idDocuments",
-  } as const;
-
-  return REQUIRED_STAFF_PROFILE_FIELDS
-    .map((name) => fieldKeys[name])
-    .filter((key) => key === "idDocuments" ? values[key] < 2 : !normalize(values[key]));
+  const missing: StaffProfileField[] = [];
+  if (!normalize(profile.email)) missing.push("email");
+  if (!normalize(profile.dateOfBirth)) missing.push("dateOfBirth");
+  if (!normalize(profile.gender)) missing.push("gender");
+  if (!normalize(profile.cccd)) missing.push("cccd");
+  if (!normalize(profile.idIssueDate)) missing.push("idIssueDate");
+  if (!normalize(profile.idIssuePlace)) missing.push("idIssuePlace");
+  if (!normalize(profile.address)) missing.push("address");
+  if (profile.idDocuments < 2) missing.push("idDocuments");
+  return missing;
 }
 
 export async function staffProfile(staff: Staff): Promise<StaffProfile> {
