@@ -14,6 +14,7 @@ export const REQUIRED_STAFF_PROFILE_FIELDS = [
   "ID Issue Date",
   "ID Issue Place",
   "LEG Address",
+  "ID Documents",
 ] as const;
 
 export type StaffProfile = {
@@ -24,6 +25,7 @@ export type StaffProfile = {
   idIssueDate: string;
   idIssuePlace: string;
   address: string;
+  idDocuments: boolean;
   employmentType: string;
   department: string;
   startDate: string;
@@ -40,6 +42,7 @@ export const STAFF_PROFILE_LABELS: Record<StaffProfileField, string> = {
   idIssueDate: "Ngày cấp CCCD",
   idIssuePlace: "Nơi cấp CCCD",
   address: "Địa chỉ",
+  idDocuments: "Ảnh CCCD 2 mặt",
   employmentType: "Loại nhân sự",
   department: "Bộ phận",
   startDate: "Ngày bắt đầu",
@@ -54,6 +57,11 @@ export const STAFF_PROFILE_OPTIONS = {
 
 function normalize(value: string): string { return value.trim(); }
 
+function hasIdDocuments(page: NotionPage): boolean {
+  const property = page.properties["ID Documents"] as { files?: unknown[] } | undefined;
+  return Array.isArray(property?.files) && property.files.length > 0;
+}
+
 export function mapStaffProfile(page: NotionPage): StaffProfile {
   return {
     email: textProp(page, "Email"),
@@ -63,6 +71,7 @@ export function mapStaffProfile(page: NotionPage): StaffProfile {
     idIssueDate: textProp(page, "ID Issue Date"),
     idIssuePlace: textProp(page, "ID Issue Place"),
     address: textProp(page, "LEG Address"),
+    idDocuments: hasIdDocuments(page),
     employmentType: selectProp(page, "Employment Type"),
     department: selectProp(page, "Department"),
     startDate: dateStartProp(page, "Start Date"),
@@ -71,7 +80,7 @@ export function mapStaffProfile(page: NotionPage): StaffProfile {
 }
 
 export function missingStaffProfileFields(profile: StaffProfile): StaffProfileField[] {
-  const values: Record<StaffProfileField, string> = profile;
+  const values: Record<StaffProfileField, string | boolean> = profile;
   const fieldKeys = {
     Email: "email",
     "Date of Birth": "dateOfBirth",
@@ -80,11 +89,12 @@ export function missingStaffProfileFields(profile: StaffProfile): StaffProfileFi
     "ID Issue Date": "idIssueDate",
     "ID Issue Place": "idIssuePlace",
     "LEG Address": "address",
+    "ID Documents": "idDocuments",
   } as const;
 
   return REQUIRED_STAFF_PROFILE_FIELDS
     .map((name) => fieldKeys[name])
-    .filter((key) => !normalize(values[key]));
+    .filter((key) => typeof values[key] === "boolean" ? !values[key] : !normalize(values[key]));
 }
 
 export async function staffProfile(staff: Staff): Promise<StaffProfile> {
