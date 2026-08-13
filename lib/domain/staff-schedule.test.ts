@@ -1,4 +1,5 @@
-import { describe, expect, it } from "node:test";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { mapStaffSchedule } from "@/lib/domain/staff-schedule";
 
 const shiftId = "3378156e-326f-80f3-ab64-dadd3539f868";
@@ -32,9 +33,9 @@ describe("Staff Schedule Notion schema", () => {
       end: "2026-08-16T00:00:00.000Z",
     });
 
-    expect(result.weekName).toBe("26B(11)");
-    expect(result.weekStart).toBe("2026-08-10T00:00:00.000Z");
-    expect(result.shifts.Wednesday).toHaveLength(1);
-    expect(result.shifts.Wednesday[0]).toMatchObject({ code: "S2", startTime: "09:30", endTime: "11:30" });
+    assert.equal(result.weekName, "26B(11)");
+    assert.equal(result.weekStart, "2026-08-10T00:00:00.000Z");
+    assert.equal(result.shifts.Wednesday.length, 1);
+    assert.deepEqual(result.shifts.Wednesday[0], { ...s2 });
   });
 });
