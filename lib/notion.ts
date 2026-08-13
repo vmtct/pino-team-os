@@ -43,3 +43,40 @@ export async function updatePageProperties(pageId: string, properties: Record<st
     throw error;
   }
 }
+
+const NOTION_API_VERSION = "2026-03-11";
+const MAX_NOTION_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+export async function uploadNotionFile(file: File, filename: string): Promise<string> {
+  if (file.size > MAX_NOTION_UPLOAD_BYTES) throw new Error("File vượt quá giới hạn 20MB");
+  const token = requiredEnv("NOTION_TOKEN");
+  const createResponse = await fetch("https://api.notion.com/v1/file_uploads", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Notion-Version": NOTION_API_VERSION },
+    body: JSON.stringify({ mode: "single_part", filename, content_type: file.type }),
+  });
+  if (!createResponse.ok) throw new Error(`Notion file upload create failed (${createResponse.status})`);
+  const created = await createResponse.json() as { id: string; upload_url?: string };
+  if (!created.id || !created.upload_url) throw new Error("Notion did not return an upload URL");
+
+  const form = new FormData();
+  form.append("file", file, filename);
+  const sendResponse = await fetch(created.upload_url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Notion-Version": NOTION_API_VERSION },
+    body: form,
+  });
+  if (!sendResponse.ok) throw new Error(`Notion file upload send failed (${sendResponse.status})`);
+  return created.id;
+}
+
+export async function appendFileUploadsToPage(pageId: string, propertyName: string, uploads: Array<{ id: string; name: string }>): Promise<NotionPage> {
+  const page = await getPage(pageId);
+  const current = page.properties[propertyName] as { files?: unknown[] } | undefined;
+  const existing = Array.isArray(current?.files) ? current.files : [];
+  const files = [
+    ...existing,
+    ...uploads.map((upload) => ({ type: "file_upload", file_upload: { id: upload.id }, name: upload.name })),
+  ];
+  return updatePageProperties(pageId, { [propertyName]: { files } });
+}
