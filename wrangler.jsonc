@@ -6,7 +6,7 @@
   "compatibility_flags":["nodejs_compat"],
   "assets":{"binding":"ASSETS","directory":".open-next/assets"},
   "observability":{"enabled":true},
-  "services":[{"binding":"PINO_CORE","service":"pino-core-dev","entrypoint":"FounderControlPlane"}],
+  "services":[{"binding":"PINO_CORE","service":"pino-core","entrypoint":"FounderControlPlane"}],
   "routes":[{"pattern":"team.pinohouse.art","custom_domain":true}],
   "keep_vars":true
 }
