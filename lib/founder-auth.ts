@@ -22,6 +22,7 @@ export async function authenticateFounder(
   }catch{throw new FounderAuthError(401,"Cloudflare Access token is invalid");}
   if(typeof payload.sub!=="string"||!payload.sub)throw new FounderAuthError(401,"Cloudflare Access subject is missing");
   const email=typeof payload.email==="string"?payload.email.toLowerCase():"";
-  if(email!==config.founderEmail.toLowerCase())throw new FounderAuthError(403,"Founder identity is not approved");
+  const approvedEmails=config.founderEmail.split(",").map(value=>value.trim().toLowerCase()).filter(Boolean);
+  if(!approvedEmails.includes(email))throw new FounderAuthError(403,"Founder identity is not approved");
   return {actorType:"founder",subject:payload.sub,email};
 }
