@@ -8,6 +8,9 @@
   "observability":{"enabled":true},
   "vars":{"FOUNDER_EMAIL":"minhtri.van42@gmail.com,chuthhang@gmail.com"},
   "services":[{"binding":"PINO_CORE","service":"pino-core","entrypoint":"FounderControlPlane"}],
-  "routes":[{"pattern":"team.pinohouse.art","custom_domain":true}],
+  "routes":[
+    {"pattern":"tos.pinohouse.art","custom_domain":true},
+    {"pattern":"team.pinohouse.art","custom_domain":true}
+  ],
   "keep_vars":true
 }
