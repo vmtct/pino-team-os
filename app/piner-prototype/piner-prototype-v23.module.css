@@ -1,0 +1,384 @@
+.root {
+  position: relative;
+}
+
+.root :global([data-v23-legacy-legend="true"]) {
+  display: none !important;
+}
+
+.exploreControls {
+  margin: 2px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.filterGroup {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filterGroup button,
+.sortButton {
+  min-height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 42, 39, 0.13);
+  background: #fffdf7;
+  color: #53605a;
+  padding: 0 11px;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 550;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.filterGroup button[data-active="true"] {
+  border-color: rgba(83, 99, 90, 0.42);
+  background: #edf1ec;
+  color: #35433c;
+  font-weight: 650;
+}
+
+.filterGroup button[data-kind="premium"] {
+  border-color: rgba(180, 145, 73, 0.4);
+  background: #fff9e9;
+  color: #735f32;
+}
+
+.filterGroup button[data-kind="premium"][data-active="true"] {
+  border-color: rgba(157, 123, 55, 0.68);
+  background: #f2e2b9;
+  color: #443820;
+}
+
+.sortButton {
+  flex: 0 0 auto;
+  min-width: 72px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .filterGroup button:hover,
+  .sortButton:hover {
+    transform: translateY(-1px);
+    border-color: rgba(31, 42, 39, 0.28);
+    box-shadow: 0 5px 14px rgba(31, 42, 39, 0.07);
+  }
+}
+
+/* Explore schedule gets a thin separator from the content column. */
+.root :global([data-v22-session-schedule="true"]) {
+  min-height: 54px;
+  padding-left: 12px !important;
+  border-left: 1px solid rgba(31, 42, 39, 0.13);
+}
+
+.root :global([data-v21-session-premium="true"] [data-v22-session-schedule="true"]) {
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.root :global([data-v21-session-premium="true"] [data-v22-session-day="true"]) {
+  color: #cbd2ce !important;
+  opacity: 1 !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v22-session-clock="true"]) {
+  color: #fffdf7 !important;
+  opacity: 1 !important;
+}
+
+.root :global([data-v21-session-premium="false"] > button:last-child) {
+  border-color: transparent !important;
+  background: #53635a !important;
+  color: #fff !important;
+}
+
+.root :global([data-v23-access-lock="true"]) {
+  border: 1px solid rgba(242, 220, 164, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5e8c7;
+  padding: 3px 7px;
+  font-size: 10px !important;
+  line-height: 1.1;
+  font-weight: 600 !important;
+}
+
+.root :global([data-v23-premium-locked="true"]) {
+  box-shadow: 0 8px 20px rgba(31, 42, 39, 0.11) !important;
+}
+
+.root :global([data-v23-premium-locked="true"] > button:last-child) {
+  opacity: 0.72;
+}
+
+/* V23 keeps the touchpoint artwork square rather than stretching it to sheet height. */
+.root :global([data-v22-touchpoint-sheet="true"]) {
+  min-height: 230px;
+  grid-template-columns: minmax(145px, 40%) minmax(0, 1fr) !important;
+  grid-template-rows: auto 1fr !important;
+  align-items: start !important;
+}
+
+.root :global([data-v22-touchpoint-hero="true"]) {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1;
+  align-self: start;
+  object-fit: cover;
+}
+
+.root :global([data-v23-touchpoint-description="true"]) {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(31, 42, 39, 0.1);
+  display: grid;
+  gap: 4px;
+}
+
+.root :global([data-v23-touchpoint-description="true"] small) {
+  margin: 0 !important;
+  color: #7a837e;
+  font-size: 10px !important;
+  line-height: 1.2;
+  font-weight: 650 !important;
+}
+
+.root :global([data-v23-touchpoint-description="true"] p) {
+  margin: 0 !important;
+  color: #42504a;
+  font-size: 11px !important;
+  line-height: 1.45;
+  font-weight: 450 !important;
+}
+
+/* Age / access registration flow. */
+.modalBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(24, 29, 27, 0.56);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.modalCard {
+  position: relative;
+  width: min(100%, 440px);
+  max-height: 84%;
+  overflow-y: auto;
+  border-radius: 24px;
+  border: 1px solid rgba(31, 42, 39, 0.13);
+  background: #fffdf7;
+  color: #26342f;
+  box-shadow: 0 24px 70px rgba(20, 27, 24, 0.27);
+}
+
+.modalClose {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #efede6;
+  color: #59645f;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.modalBody {
+  padding: 22px;
+  display: grid;
+  gap: 13px;
+}
+
+.modalEyebrow {
+  padding-right: 36px;
+  color: #75807a;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+}
+
+.modalBody h2 {
+  margin: 0;
+  padding-right: 30px;
+  font-family: "Lora", "Times New Roman", "Noto Serif", serif;
+  font-size: 23px;
+  line-height: 1.15;
+  font-weight: 500;
+}
+
+.modalBody > p {
+  margin: 0;
+  color: #52605a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sessionSummary {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 16px;
+  padding: 11px 12px;
+  display: grid;
+  gap: 3px;
+  background: #f7f4ec;
+}
+
+.sessionSummary > span {
+  color: #77817c;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sessionSummary > strong {
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 650;
+}
+
+.sessionSummary > small {
+  color: #707a75;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.ackRow {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  border-radius: 14px;
+  padding: 10px;
+  background: #f3f2ec;
+  color: #4c5953;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ackRow input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 9px;
+}
+
+.formGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.formGrid label > span {
+  color: #68736e;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.formGrid input {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 12px;
+  background: white;
+  color: #26342f;
+  padding: 0 10px;
+  font: 500 12px/1 "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  outline: none;
+}
+
+.formGrid input:focus {
+  border-color: rgba(83, 99, 90, 0.5);
+  box-shadow: 0 0 0 3px rgba(83, 99, 90, 0.08);
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 42px;
+  border-radius: 999px;
+  padding: 0 16px;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primaryAction {
+  border: 0;
+  background: #53635a;
+  color: white;
+}
+
+.secondaryAction {
+  border: 1px solid rgba(31, 42, 39, 0.15);
+  background: #fffdf7;
+  color: #405049;
+}
+
+.primaryAction:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 560px) {
+  .exploreControls {
+    align-items: flex-start;
+  }
+
+  .filterGroup {
+    gap: 5px;
+  }
+
+  .filterGroup button,
+  .sortButton {
+    padding: 0 9px;
+  }
+
+  .root :global([data-v22-session-schedule="true"]) {
+    padding-left: 8px !important;
+  }
+
+  .root :global([data-v22-touchpoint-sheet="true"]) {
+    grid-template-columns: 38% minmax(0, 1fr) !important;
+    column-gap: 11px !important;
+  }
+
+  .modalBackdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modalCard {
+    width: 100%;
+    max-height: 88%;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .modalBody {
+    padding: 20px 18px 22px;
+  }
+
+  .formGrid {
+    grid-template-columns: minmax(0, 1fr) 84px;
+  }
+}
