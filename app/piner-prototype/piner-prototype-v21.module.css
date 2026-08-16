@@ -17,6 +17,10 @@
   letter-spacing: 0 !important;
 }
 
+.root :global([data-v21-pino-logo-text="true"]) {
+  display: none !important;
+}
+
 .root :global([data-v21-pino-logo-image="true"]) {
   width: 32px;
   height: 32px;
@@ -176,6 +180,43 @@
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.12em;
+}
+
+/* Music-piece avatar slots now use the same CDN stand-in instead of Unicode. */
+.root :global([data-v21-music-avatar]) {
+  overflow: hidden;
+  display: grid !important;
+  place-items: center;
+  font-size: 0 !important;
+  color: transparent !important;
+}
+
+.root :global([data-v21-music-avatar] img) {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.root :global([data-v21-music-avatar="hero"]) {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border-radius: 17px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  background: #eee8dc;
+}
+
+.root :global([data-v21-music-avatar="small"]) {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #eee8dc;
+}
+
+.root :global([data-v21-music-avatar="hero"] img),
+.root :global([data-v21-music-avatar="small"] img) {
+  border-radius: inherit;
 }
 
 /* Image-first Open Studio / Premium Session presentation. */
