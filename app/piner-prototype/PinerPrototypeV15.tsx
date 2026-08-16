@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import PinerPrototypeV14 from "./PinerPrototypeV14";
 import v15 from "./piner-prototype-v15.module.css";
 
-type Surface = "Home" | "Journey" | "Collection" | "Explore";
+type Surface = "Trang chủ" | "Hành trình" | "Thành quả" | "Khám phá";
 
 type ReviewCase = {
   key: string;
@@ -15,24 +15,30 @@ type ReviewCase = {
 };
 
 const reviewCases: ReviewCase[] = [
-  { key: "an-free", label: "An", state: "Free", focus: "Explore → OS booking + Premium gate" },
-  { key: "an-free-confirmed", label: "An", state: "Free · confirmed", focus: "weekly block + retained booking" },
-  { key: "han-trial-ac", label: "Hân", state: "Trial · AC", focus: "real Journey + owned Trial media" },
-  { key: "leo-trial", label: "Leo", state: "Trial · PH", focus: "multi-booking + active Premium practice" },
-  { key: "leo-expired", label: "Leo", state: "Expired", focus: "retained history + upgrade CTA" },
-  { key: "leo-reenrolled", label: "Leo", state: "Re-enrolled", focus: "resume L4 + shared 1-booking quota" },
-  { key: "minh-premium", label: "Minh", state: "Premium · PH + AC", focus: "multi-Path continuity" },
-  { key: "mia-lpa", label: "Mía", state: "Premium · LPA", focus: "scheduled topics + checkpoints" },
-  { key: "bo-lpp", label: "Bơ", state: "Premium · LPP", focus: "starter practice + Collection" },
+  { key: "an-free", label: "An", state: "Miễn phí", focus: "Khám phá → đăng ký Open Studio + giới hạn Premium" },
+  { key: "an-free-confirmed", label: "An", state: "Miễn phí · đã xác nhận", focus: "giới hạn theo tuần + giữ lịch sử đăng ký" },
+  { key: "han-trial-ac", label: "Hân", state: "Dùng thử · ArtChitect", focus: "hành trình thật + nội dung đã sở hữu trong thời gian dùng thử" },
+  { key: "leo-trial", label: "Leo", state: "Dùng thử · PianoHouse", focus: "nhiều đăng ký + luyện tập Premium đang mở" },
+  { key: "leo-expired", label: "Leo", state: "Đã hết hạn", focus: "giữ lịch sử + CTA tiếp tục Premium" },
+  { key: "leo-reenrolled", label: "Leo", state: "Đã tiếp tục Premium", focus: "tiếp tục L4 + quota chung 1 đăng ký" },
+  { key: "minh-premium", label: "Minh", state: "Premium · PianoHouse + ArtChitect", focus: "liên tục nhiều chương trình" },
+  { key: "mia-lpa", label: "Mía", state: "Premium · Little Piner Art", focus: "chủ đề theo lịch + checkpoint" },
+  { key: "bo-lpp", label: "Bơ", state: "Premium · Little Piner Piano", focus: "luyện tập khởi đầu + Thành quả" },
 ];
 
-const surfaces: Surface[] = ["Home", "Journey", "Collection", "Explore"];
+const surfaces: Surface[] = ["Trang chủ", "Hành trình", "Thành quả", "Khám phá"];
+const legacySurfaceLabels: Record<Surface, string> = {
+  "Trang chủ": "Home",
+  "Hành trình": "Journey",
+  "Thành quả": "Collection",
+  "Khám phá": "Explore",
+};
 
 export default function PinerPrototypeV15() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [mountTarget, setMountTarget] = useState<HTMLElement | null>(null);
   const [activeCase, setActiveCase] = useState("an-free");
-  const [activeSurface, setActiveSurface] = useState<Surface>("Home");
+  const [activeSurface, setActiveSurface] = useState<Surface>("Trang chủ");
 
   useEffect(() => {
     const root = rootRef.current;
@@ -47,12 +53,12 @@ export default function PinerPrototypeV15() {
         const lab = asides.find((aside) => aside.querySelector("h1")?.textContent?.trim() === "Piner Member Space");
         if (!lab) return;
 
-        const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE"));
-        if (badge) badge.textContent = "LOCAL PROTOTYPE · V15";
+        const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE") || node.textContent?.trim().startsWith("BẢN THỬ NỘI BỘ"));
+        if (badge) badge.textContent = "BẢN THỬ NỘI BỘ · V15";
 
         const intro = lab.querySelector("h1")?.nextElementSibling as HTMLElement | null;
         if (intro?.tagName === "P") {
-          intro.textContent = "Holistic review build · kiểm tra continuity, access, booking và learner state xuyên Home / Journey / Collection / Explore.";
+          intro.textContent = "Bản rà soát tổng thể · kiểm tra hành trình, quyền truy cập, đăng ký và trạng thái học viên trên toàn bộ Piner.";
         }
 
         const legacyFocus = Array.from(lab.querySelectorAll<HTMLElement>("strong")).find((node) => node.textContent?.trim() === "V4 review focus");
@@ -90,15 +96,16 @@ export default function PinerPrototypeV15() {
     else select.value = key;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     setActiveCase(key);
-    setActiveSurface("Home");
+    setActiveSurface("Trang chủ");
   }
 
   function jump(surface: Surface) {
     const root = rootRef.current;
     if (!root) return;
+    const labels = [surface, legacySurfaceLabels[surface]];
     const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"));
-    const jumpButton = buttons.find((button) => button.textContent?.trim() === surface && button.closest("aside"));
-    const navButton = buttons.find((button) => button.textContent?.trim() === surface && button.closest("nav"));
+    const jumpButton = buttons.find((button) => labels.includes(button.textContent?.trim() ?? "") && button.closest("aside"));
+    const navButton = buttons.find((button) => labels.includes(button.textContent?.trim() ?? "") && button.closest("nav"));
     (jumpButton ?? navButton)?.click();
     setActiveSurface(surface);
   }
@@ -130,11 +137,11 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
   return (
     <section className={v15.console}>
       <div className={v15.consoleHead}>
-        <div><span>V15 · HOLISTIC AUDIT</span><strong>Founder review matrix</strong></div>
-        <em>{current?.state ?? "Custom scenario"}</em>
+        <div><span>V15 · RÀ SOÁT TỔNG THỂ</span><strong>Ma trận rà soát Founder</strong></div>
+        <em>{current?.state ?? "Trạng thái tùy chỉnh"}</em>
       </div>
 
-      <p className={v15.focus}>{current?.focus ?? "Review current Student state across all surfaces."}</p>
+      <p className={v15.focus}>{current?.focus ?? "Rà soát trạng thái học viên hiện tại trên tất cả màn hình."}</p>
 
       <div className={v15.surfaceRow}>
         {surfaces.map((surface) => (
@@ -153,12 +160,12 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
       </div>
 
       <div className={v15.invariants}>
-        <strong>Audit invariants</strong>
-        <span>Student context không merge giữa siblings.</span>
-        <span>Access có thể hết; achievement/owned history không mất.</span>
-        <span>Booking Pending ≠ Confirmed ≠ Attendance.</span>
-        <span>Practice submit ≠ auto level-up ≠ auto Collection.</span>
-        <span>Trial nhiều booking; Active Premium quota 1 dùng chung OS + Premium Session.</span>
+        <strong>Nguyên tắc cần giữ nhất quán</strong>
+        <span>Không trộn dữ liệu giữa các bé trong cùng gia đình.</span>
+        <span>Quyền truy cập có thể hết; thành quả và lịch sử đã sở hữu không mất.</span>
+        <span>Đăng ký chờ xác nhận ≠ đã xác nhận ≠ đã tham dự.</span>
+        <span>Gửi bài luyện tập ≠ tự tăng cấp ≠ tự đưa vào Thành quả.</span>
+        <span>Dùng thử được nhiều đăng ký; Premium active dùng quota 1 chung cho Open Studio + Buổi Premium.</span>
       </div>
     </section>
   );
