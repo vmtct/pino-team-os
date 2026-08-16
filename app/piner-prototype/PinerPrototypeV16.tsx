@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useLayoutEffect, useRef, useState } from "react";
 import PinerPrototypeV15 from "./PinerPrototypeV15";
 import v16 from "./piner-prototype-v16.module.css";
 
@@ -14,9 +14,6 @@ const surfaceLabels: Record<SurfaceKey, { vi: string; en: string }> = {
 };
 
 const exactText: Record<string, string> = {
-  "STUDENT / MEMBERSHIP STATE": "HỌC VIÊN / TRẠNG THÁI THÀNH VIÊN",
-  "HOME CONDITION": "TRẠNG THÁI TRANG CHỦ",
-  "JUMP TO SCREEN": "CHUYỂN MÀN HÌNH",
   "Normal": "Bình thường",
   "Fresh": "Mới",
   "Home": "Trang chủ",
@@ -78,10 +75,23 @@ const exactText: Record<string, string> = {
   "Locked": "Chưa mở",
   "Owned": "Đã sở hữu",
   "Retained": "Được giữ lại",
-  "LOCAL PROTOTYPE · V15": "BẢN THỬ NỘI BỘ · V16",
-  "V15 · HOLISTIC AUDIT": "V16 · RÀ SOÁT TỔNG THỂ",
-  "Founder review matrix": "Ma trận rà soát Founder",
-  "Audit invariants": "Nguyên tắc cần giữ nhất quán",
+  "Journey bắt đầu khi con bước vào một Path Premium.": "Hành trình bắt đầu khi con tham gia một chương trình Premium.",
+  "Free vẫn là một Explore experience hoàn chỉnh.": "Với gói Miễn phí, con vẫn có thể khám phá PINO qua Open Studio.",
+  "Package-relative surface, canonical Path progress.": "Tiến trình theo gói học và chương trình của con.",
+  "Open Studio là Explore — không tạo curriculum progress giả cho Free.": "Open Studio là trải nghiệm khám phá; không tạo tiến trình học giả cho gói Miễn phí.",
+  "Preview Journey": "Xem trước hành trình",
+  "Journey thật bám theo Path, package và canonical progress của Student.": "Hành trình thật bám theo chương trình, gói học và tiến trình của học viên.",
+  "Current được center": "Tự đưa buổi hiện tại vào giữa",
+  "current được center": "Tự đưa buổi hiện tại vào giữa",
+  "Click để xem child-level state": "Chạm để xem chi tiết",
+  "child-level projection": "Chi tiết chuyên đề",
+  "Syllabus / package journey": "Hành trình theo giáo án và gói học",
+  "Elapsed topics và attendance là hai lớp khác nhau.": "Chủ đề đã đi qua và số buổi tham dự được theo dõi riêng.",
+  "Sneak peek · kỳ tiếp theo": "Xem trước · kỳ tiếp theo",
+  "Current · Starter resource mở": "Hiện tại · tài liệu khởi đầu đã mở",
+  "Available": "Có thể mở",
+  "Next familiar song": "Bài quen thuộc tiếp theo",
+  "Future visibility": "Nội dung sắp tới",
 };
 
 const phraseReplacements: Array<[RegExp, string]> = [
@@ -92,10 +102,10 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Trial Premium · real Journey/g, "Dùng thử Premium · hành trình thật"],
   [/Trial Journey/g, "Hành trình dùng thử"],
   [/real Journey/g, "hành trình thật"],
+  [/Current package timeline/g, "Tiến trình gói hiện tại"],
   [/Current package/g, "Gói hiện tại"],
   [/Current project/g, "Dự án đang thực hiện"],
   [/Current repertoire/g, "Bài đang học"],
-  [/Current package timeline/g, "Tiến trình gói hiện tại"],
   [/Specialization roadmap/g, "Lộ trình chuyên đề"],
   [/Specialization/g, "Chuyên đề"],
   [/Foundation/g, "Nền tảng"],
@@ -115,7 +125,6 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Founder content source/g, "Nguồn nội dung PINO"],
   [/Starter collection/g, "Bộ bài khởi đầu"],
   [/Future unlock/g, "Sẽ mở sau"],
-  [/Future visibility/g, "Hiển thị trước nội dung sắp tới"],
   [/Future progression/g, "Tiến trình sắp tới"],
   [/Future L5 outcome/g, "Thành quả L5 sắp tới"],
   [/Upcoming/g, "Sắp diễn ra"],
@@ -124,11 +133,9 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Trial recording/g, "Bản ghi âm trong thời gian dùng thử"],
   [/Trial milestone/g, "Cột mốc trong thời gian dùng thử"],
   [/Trial Premium/g, "Dùng thử Premium"],
-  [/Trial/g, "Dùng thử"],
   [/Re-enrolled/g, "Đã tiếp tục Premium"],
   [/Expired/g, "Đã hết hạn"],
   [/Free vs Premium/g, "Miễn phí và Premium"],
-  [/Free/g, "Miễn phí"],
   [/Artwork/g, "Tác phẩm"],
   [/Music/g, "Âm nhạc"],
   [/Milestone/g, "Cột mốc"],
@@ -136,17 +143,12 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Collection/g, "Thành quả"],
   [/Journey/g, "Hành trình"],
   [/Explore/g, "Khám phá"],
-  [/Home/g, "Trang chủ"],
-  [/OPEN STUDIO/g, "OPEN STUDIO"],
-  [/PREMIUM SESSION/g, "BUỔI PREMIUM"],
-  [/member access/g, "dành cho thành viên"],
   [/Booking/g, "Đăng ký"],
   [/booking/g, "đăng ký"],
   [/Pending/g, "Đang chờ xác nhận"],
   [/Confirmed/g, "Đã xác nhận"],
   [/Cancelled/g, "Đã hủy"],
   [/Rejected/g, "Không được xác nhận"],
-  [/Staff/g, "PINO"],
   [/Current/g, "Hiện tại"],
   [/Completed/g, "Đã hoàn thành"],
   [/Available/g, "Có thể mở"],
@@ -183,23 +185,36 @@ export default function PinerPrototypeV16() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [activeSurface, setActiveSurface] = useState<SurfaceKey>("home");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    let frame = 0;
 
-    const enhance = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
+    let frame = 0;
+    let scheduled = false;
+    const observer = new MutationObserver(() => scheduleEnhance());
+    const observe = () => observer.observe(root, { childList: true, subtree: true, characterData: true });
+
+    const runEnhance = () => {
+      scheduled = false;
+      observer.disconnect();
+      try {
         localizeVisibleText(root);
         enhanceNavigation(root, activeSurface);
         enhancePackageContext(root);
-      });
+      } finally {
+        observe();
+      }
     };
 
-    enhance();
-    const observer = new MutationObserver(enhance);
-    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    const scheduleEnhance = () => {
+      if (scheduled) return;
+      scheduled = true;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(runEnhance);
+    };
+
+    runEnhance();
+
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
@@ -226,22 +241,17 @@ export default function PinerPrototypeV16() {
 }
 
 function localizeVisibleText(root: HTMLElement) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const walker = document.createTreeWalker(root, 4);
   const nodes: Text[] = [];
   while (walker.nextNode()) nodes.push(walker.currentNode as Text);
 
   for (const node of nodes) {
     const parent = node.parentElement;
     if (!parent || parent.closest("script, style")) continue;
+    // Founder/audit controls stay operational and are not learner-facing copy.
+    if (parent.closest("aside") || parent.closest("[data-v15-audit-mount='true']")) continue;
     const next = translateText(node.nodeValue ?? "");
     if (next !== node.nodeValue) node.nodeValue = next;
-  }
-
-  const labTitle = Array.from(root.querySelectorAll<HTMLElement>("h1"))
-    .find((heading) => heading.textContent?.trim() === "Piner Member Space");
-  const intro = labTitle?.nextElementSibling as HTMLElement | null;
-  if (intro?.tagName === "P") {
-    intro.textContent = "Bản rà soát tổng thể · kiểm tra hành trình, quyền truy cập, đăng ký và trạng thái học viên trên toàn bộ Piner.";
   }
 }
 
@@ -259,7 +269,7 @@ function enhanceNavigation(root: HTMLElement, activeSurface: SurfaceKey) {
     const surface = surfaceFromText(button.textContent ?? "");
     if (!surface) return;
     const small = button.querySelector("small");
-    if (small) small.textContent = surfaceLabels[surface].vi;
+    if (small && small.textContent !== surfaceLabels[surface].vi) small.textContent = surfaceLabels[surface].vi;
     button.dataset.v16NavButton = "true";
     button.dataset.v16Active = surface === activeSurface ? "true" : "false";
   });
@@ -298,10 +308,10 @@ function enhancePackageContext(root: HTMLElement) {
       card.insertBefore(toggle, card.firstChild);
     }
 
-    if (!card.dataset.v16Expanded || (scenarioChanged && card.dataset.v16UserToggled !== "true")) {
+    if (!card.dataset.v16Expanded || scenarioChanged) {
       setPackageExpanded(card, packageDefaultExpanded(scenarioKey));
+      delete card.dataset.v16UserToggled;
     }
-    if (scenarioChanged) delete card.dataset.v16UserToggled;
 
     const raw = Array.from(card.querySelectorAll<HTMLElement>("[data-v16-package-detail='true']"))
       .map((node) => node.textContent ?? "")
@@ -313,20 +323,33 @@ function enhancePackageContext(root: HTMLElement) {
     const days = raw.match(/(T\d(?:\s*·\s*T\d)*)/)?.[1];
     const time = raw.match(/(\d{2}:\d{2}[–-]\d{2}:\d{2})/)?.[1];
     const meta = [days, time, end ? `đến ${end}` : null].filter(Boolean).join(" · ");
+    const summary = meta || "Xem lịch học và thời hạn";
 
-    toggle.replaceChildren();
-    const copy = document.createElement("span");
-    copy.className = v16.packageToggleCopy;
-    const strong = document.createElement("strong");
-    strong.textContent = title;
-    const small = document.createElement("small");
-    small.textContent = meta || "Xem lịch học và thời hạn";
-    copy.append(strong, small);
-    const chevron = document.createElement("span");
-    chevron.className = v16.packageChevron;
-    chevron.textContent = card.dataset.v16Expanded === "true" ? "⌃" : "⌄";
-    toggle.append(copy, chevron);
+    const currentStrong = toggle.querySelector<HTMLElement>("[data-v16-package-title='true']");
+    const currentSmall = toggle.querySelector<HTMLElement>("[data-v16-package-summary='true']");
+    if (!currentStrong || !currentSmall) {
+      toggle.replaceChildren();
+      const copy = document.createElement("span");
+      copy.className = v16.packageToggleCopy;
+      const strong = document.createElement("strong");
+      strong.dataset.v16PackageTitle = "true";
+      const small = document.createElement("small");
+      small.dataset.v16PackageSummary = "true";
+      copy.append(strong, small);
+      const chevron = document.createElement("span");
+      chevron.className = v16.packageChevron;
+      chevron.dataset.v16PackageChevron = "true";
+      toggle.append(copy, chevron);
+    }
+
+    const strong = toggle.querySelector<HTMLElement>("[data-v16-package-title='true']");
+    const small = toggle.querySelector<HTMLElement>("[data-v16-package-summary='true']");
+    if (strong && strong.textContent !== title) strong.textContent = title;
+    if (small && small.textContent !== summary) small.textContent = summary;
     toggle.setAttribute("aria-expanded", card.dataset.v16Expanded === "true" ? "true" : "false");
+    const chevron = toggle.querySelector<HTMLElement>("[data-v16-package-chevron='true']");
+    const chevronText = card.dataset.v16Expanded === "true" ? "⌃" : "⌄";
+    if (chevron && chevron.textContent !== chevronText) chevron.textContent = chevronText;
   });
 }
 
@@ -334,6 +357,6 @@ function setPackageExpanded(card: HTMLElement, expanded: boolean) {
   card.dataset.v16Expanded = expanded ? "true" : "false";
   const toggle = card.querySelector<HTMLButtonElement>("[data-v16-package-toggle='true']");
   toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
-  const chevron = toggle?.querySelector<HTMLElement>(`.${v16.packageChevron}`);
+  const chevron = toggle?.querySelector<HTMLElement>("[data-v16-package-chevron='true']");
   if (chevron) chevron.textContent = expanded ? "⌃" : "⌄";
 }
