@@ -365,19 +365,19 @@ function ensureExploreControlsMount(root: HTMLElement) {
 function applyExploreView(root: HTMLElement, filter: ExploreFilter, direction: SortDirection) {
   const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-v22-session-card='true']"));
   if (!cards.length) return;
-  const list = cards[0].parentElement;
-  if (!list) return;
 
-  const sorted = [...cards].sort((a, b) => {
+  const ranked = [...cards].sort((a, b) => {
     const delta = sessionSortValue(a) - sessionSortValue(b);
     return direction === "ASC" ? delta : -delta;
   });
-  sorted.forEach((card) => list.appendChild(card));
 
-  sorted.forEach((card) => {
+  const rank = new Map(ranked.map((card, index) => [card, index]));
+  cards.forEach((card) => {
     const premium = card.dataset.v21SessionPremium === "true";
     const visible = filter === "ALL" || (filter === "PREMIUM" ? premium : !premium);
-    card.style.display = visible ? "" : "none";
+    card.style.order = String(rank.get(card) ?? 0);
+    if (visible) card.style.removeProperty("display");
+    else card.style.display = "none";
   });
 }
 
