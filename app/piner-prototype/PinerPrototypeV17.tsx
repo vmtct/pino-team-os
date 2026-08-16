@@ -98,7 +98,6 @@ export default function PinerPrototypeV17() {
   const [scenarioKey, setScenarioKey] = useState("minh-premium");
   const [surface, setSurface] = useState<Surface>("home");
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  const [practiceBlocked, setPracticeBlocked] = useState(false);
   const lastScenarioRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -142,7 +141,6 @@ export default function PinerPrototypeV17() {
         if (lastScenarioRef.current !== currentScenario) {
           lastScenarioRef.current = currentScenario;
           setSurface("home");
-          setPracticeBlocked(false);
           if (currentScenario === ATTRITION_KEY) {
             window.requestAnimationFrame(() => {
               root.querySelectorAll<HTMLElement>("[data-v16-package-scenario='leo-attrition']").forEach((card) => {
@@ -176,21 +174,13 @@ export default function PinerPrototypeV17() {
     select.dispatchEvent(new Event("change", { bubbles: true }));
     setScenarioKey(key);
     setSurface("home");
-    setPracticeBlocked(false);
   }
 
   function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
     const button = (event.target as HTMLElement).closest("button") as HTMLButtonElement | null;
     if (!button) return;
-    const text = button.textContent ?? "";
-    const nextSurface = surfaceFromText(text);
+    const nextSurface = surfaceFromText(button.textContent ?? "");
     if (nextSurface && (button.closest("nav") || button.closest("aside"))) setSurface(nextSurface);
-
-    if (scenarioKey === ATTRITION_KEY && text.includes("Founder · published")) {
-      event.preventDefault();
-      event.stopPropagation();
-      setPracticeBlocked(true);
-    }
   }
 
   function handleChangeCapture(event: FormEvent<HTMLDivElement>) {
@@ -198,7 +188,6 @@ export default function PinerPrototypeV17() {
     if (target.id !== "scenario") return;
     setScenarioKey(target.value);
     setSurface("home");
-    setPracticeBlocked(false);
   }
 
   const copy = attritionCopy(surface);
@@ -217,17 +206,6 @@ export default function PinerPrototypeV17() {
           </div>
         </section>,
         portalTarget,
-      )}
-
-      {practiceBlocked && (
-        <div className={v17.modalBackdrop} onMouseDown={() => setPracticeBlocked(false)}>
-          <section className={v17.modal} onMouseDown={(event) => event.stopPropagation()}>
-            <span>ATTRITION · PRACTICE ACCESS</span>
-            <h2>Luyện tập Premium đang tạm dừng</h2>
-            <p>Trang luyện tập của gói Premium không được xem như đang active sau attrition. Thành quả và lịch sử đã sở hữu vẫn được giữ ở Hành trình và Thành quả.</p>
-            <button type="button" onClick={() => setPracticeBlocked(false)}>Đóng</button>
-          </section>
-        </div>
       )}
     </div>
   );
