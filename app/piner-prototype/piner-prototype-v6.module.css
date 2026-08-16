@@ -1,0 +1,460 @@
+.v6Root {
+  position: relative;
+}
+
+.demoLauncher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 14px;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 12px 34px rgba(31, 42, 39, 0.18);
+  cursor: pointer;
+}
+
+.viewerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 24, 23, 0.82);
+  padding: 12px;
+}
+
+.viewerShell {
+  width: min(1280px, 100%);
+  height: min(820px, calc(100vh - 24px));
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #f7f3e9;
+  color: #1f2a27;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.34);
+}
+
+.viewerHeader {
+  flex: 0 0 auto;
+  min-height: 70px;
+  padding: 13px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.12);
+  background: #fffdf7;
+}
+
+.viewerHeader > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "badge title"
+    "badge meta";
+  gap: 2px 9px;
+  align-items: center;
+}
+
+.familyBadge {
+  grid-area: badge;
+  align-self: stretch;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 10px;
+  padding: 0 9px;
+  background: rgba(95, 114, 93, 0.12);
+  color: #3f5341;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.viewerHeader strong {
+  grid-area: title;
+  font-family: Georgia, serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.viewerHeader small {
+  grid-area: meta;
+  color: #6f7974;
+  font-size: 9px;
+}
+
+.viewerHeader > button {
+  border: 0;
+  background: transparent;
+  font-size: 25px;
+  color: #6f7974;
+  cursor: pointer;
+}
+
+.orientationGate {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 30px;
+  background: linear-gradient(145deg, #eef1e9, #faf5eb);
+}
+
+.phoneGlyph {
+  width: 116px;
+  height: 66px;
+  border: 2px solid rgba(31, 42, 39, 0.52);
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: #fffdf7;
+  font-size: 30px;
+  transform: rotate(-7deg);
+  box-shadow: 0 12px 30px rgba(31, 42, 39, 0.08);
+}
+
+.orientationGate h2 {
+  margin: 5px 0 0;
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.orientationGate p {
+  margin: 0;
+  max-width: 600px;
+  color: #6f7974;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.orientationGate button {
+  margin-top: 7px;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.landscapeWorkspace {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.stickyTools {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.viewTools {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.viewTools button,
+.accessPreview button {
+  min-height: 32px;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: #fffdf7;
+  color: #1f2a27;
+  font-size: 9px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.activeTool {
+  background: #e9f0e5 !important;
+  border-color: rgba(95, 114, 93, 0.35) !important;
+}
+
+.recordingTool {
+  background: #f3e7e1 !important;
+  border-color: rgba(170, 110, 103, 0.35) !important;
+}
+
+.accessPreview {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.accessPreview > span {
+  color: #6f7974;
+  font-size: 8px;
+}
+
+.accessPreview button {
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: 8px;
+}
+
+.accessActive {
+  background: #1f2a27 !important;
+  color: #fff !important;
+}
+
+.viewerHint {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: #ece8de;
+}
+
+.viewerHint strong {
+  font-size: 9px;
+}
+
+.viewerHint span {
+  color: #6f7974;
+  font-size: 8px;
+}
+
+.phraseScroller {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  background: #ece8de;
+  padding: 8px;
+  scrollbar-gutter: stable;
+}
+
+.phrasePair {
+  overflow: hidden;
+  border-radius: 15px;
+  border: 1px solid rgba(31, 42, 39, 0.11);
+  background: #fffdf7;
+  box-shadow: 0 5px 18px rgba(31, 42, 39, 0.05);
+}
+
+.phrasePair + .phrasePair {
+  margin-top: 10px;
+}
+
+.phraseHeading {
+  min-height: 30px;
+  padding: 5px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.09);
+  background: #f5f1e8;
+}
+
+.phraseHeading span {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.phraseHeading small {
+  color: #6f7974;
+  font-size: 7.5px;
+}
+
+.rowCrop {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 704 / 125;
+  overflow: hidden;
+  background: #fffdf7;
+}
+
+.rowCrop img {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.worksheetRow {
+  position: relative;
+  border-top: 1px solid rgba(31, 42, 39, 0.1);
+  background: #fffdf7;
+}
+
+.leftHandLock {
+  position: absolute;
+  z-index: 3;
+  inset: 0 auto 0 0;
+  width: 50%;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(244, 241, 232, 0.2);
+  backdrop-filter: blur(8px) saturate(0.55);
+  -webkit-backdrop-filter: blur(8px) saturate(0.55);
+  display: grid;
+  place-items: center;
+}
+
+.lockMessage {
+  width: min(190px, calc(100% - 18px));
+  border-radius: 13px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon title"
+    "icon note"
+    "icon cta";
+  gap: 1px 7px;
+  align-items: center;
+  text-align: left;
+  background: rgba(31, 42, 39, 0.88);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+.lockMessage > span {
+  grid-area: icon;
+  font-size: 15px;
+}
+
+.lockMessage strong {
+  grid-area: title;
+  font-size: 8px;
+}
+
+.lockMessage small {
+  grid-area: note;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 7px;
+}
+
+.lockMessage button {
+  grid-area: cta;
+  width: fit-content;
+  margin-top: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  min-height: 23px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 7px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitButton {
+  flex: 0 0 auto;
+  border: 0;
+  min-height: 36px;
+  border-radius: 999px;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.submitNotice {
+  flex: 0 0 auto;
+  border-radius: 11px;
+  padding: 8px 10px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  background: #e9f0e5;
+  border: 1px solid rgba(95, 114, 93, 0.22);
+}
+
+.submitNotice strong {
+  font-size: 9px;
+}
+
+.submitNotice span {
+  color: #6f7974;
+  font-size: 8px;
+}
+
+.viewerFooter {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6f7974;
+}
+
+.viewerFooter span {
+  font-size: 8px;
+  font-weight: 850;
+  color: #3f5341;
+}
+
+.viewerFooter small {
+  text-align: right;
+  max-width: 700px;
+  font-size: 7.5px;
+}
+
+@media (max-width: 760px) {
+  .viewerBackdrop {
+    padding: 0;
+  }
+
+  .viewerShell {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .stickyTools {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .accessPreview {
+    width: 100%;
+  }
+
+  .viewerHint,
+  .viewerFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .viewerFooter small {
+    text-align: left;
+  }
+
+  .phraseScroller {
+    padding: 5px;
+  }
+}
