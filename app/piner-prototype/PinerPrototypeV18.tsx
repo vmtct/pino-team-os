@@ -21,12 +21,12 @@ export default function PinerPrototypeV18() {
       frame = requestAnimationFrame(() => {
         observer.disconnect();
         syncPracticeFamilies(root);
-        observer.observe(root, { childList: true, subtree: true });
+        observer.observe(root, { childList: true, subtree: true, characterData: true });
       });
     };
 
     schedule();
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
 
     return () => {
       cancelAnimationFrame(frame);
@@ -51,70 +51,74 @@ function syncPracticeFamilies(root: HTMLElement) {
   const scenarioKey = root.querySelector<HTMLSelectElement>("#scenario")?.value ?? "";
   const ended = ENDED_ACCESS.has(scenarioKey);
 
-  const practiceSections = Array.from(root.querySelectorAll<HTMLElement>("section"));
-  const pianoSection = practiceSections.find((section) => {
-    const text = section.textContent ?? "";
-    const hasSpecialty = text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty") || text.includes("CHUYÊN ĐỀ");
-    return (text.includes("Luyện tập tại nhà") || text.includes("Practice support"))
-      && text.includes("Always With Me")
-      && hasSpecialty;
+  // Find the actual PianoHouse practice resource row from a stable resource card,
+  // instead of matching translated section copy. V16 localization can rewrite
+  // labels such as Music / Specialty, so section-text matching was brittle.
+  const allButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"));
+  const currentJourney = allButtons.find((button) => {
+    const text = button.textContent ?? "";
+    return text.includes("Always With Me")
+      && text.includes("Founder · published")
+      && !text.includes("Expansion")
+      && !text.includes("Mở rộng");
   });
+  if (!currentJourney?.parentElement) return;
+
+  const list = currentJourney.parentElement;
+  const pianoSection = currentJourney.closest("section") as HTMLElement | null;
   if (!pianoSection) return;
 
   pianoSection.dataset.v18PracticeSection = "true";
   pianoSection.dataset.v18EndedAccess = ended ? "true" : "false";
 
-  const resourceButtons = Array.from(pianoSection.querySelectorAll<HTMLButtonElement>("button"));
-  const currentJourney = resourceButtons.find((button) => {
+  // Prefer a structurally rendered Starter card when one exists. Until the base
+  // prototype is refactored to typed resources, V18 creates the prototype card
+  // from the same resource-card visual grammar so Founder can review all 3 families.
+  let starter = Array.from(list.querySelectorAll<HTMLButtonElement>(":scope > button")).find((button) => {
     const text = button.textContent ?? "";
-    return text.includes("Always With Me") && !text.includes("Expansion") && !text.includes("Mở rộng");
-  });
-  if (!currentJourney?.parentElement) return;
+    return button.dataset.v18Starter === "true"
+      || text.includes("KHỞI HÀNH")
+      || text.includes("Giai điệu quen thuộc")
+      || (text.includes("ABC Song") && text.includes("Founder · published"));
+  }) ?? null;
 
-  const list = currentJourney.parentElement;
-  let starter = list.querySelector<HTMLButtonElement>("[data-v18-starter='true']");
   if (!starter) {
     starter = currentJourney.cloneNode(true) as HTMLButtonElement;
-    starter.dataset.v18Starter = "true";
-    starter.dataset.v18Family = "starter";
-    starter.disabled = false;
-    starter.removeAttribute("disabled");
-    starter.removeAttribute("aria-disabled");
-
-    const children = Array.from(starter.children) as HTMLElement[];
-    if (children[0]) children[0].textContent = "KHỞI HÀNH";
-    if (children[1]) {
-      const strong = children[1].querySelector("strong");
-      const small = children[1].querySelector("small");
-      const em = children[1].querySelector("em");
-      if (strong) strong.textContent = "Giai điệu quen thuộc · ABC Song";
-      if (small) small.textContent = "Bản luyện tay phải · làm quen giai điệu";
-      if (em) em.textContent = "Khởi Hành · luôn mở";
-    }
-    if (children[2]) {
-      const assets = Array.from(children[2].querySelectorAll("small"));
-      if (assets[0]) assets[0].textContent = "♩ Bản nhạc";
-      if (assets[1]) assets[1].textContent = "☝ Hướng dẫn tay";
-      if (assets[2]) assets[2].textContent = "▶ Nghe mẫu";
-    }
-    if (children[3]) children[3].textContent = "Founder · published";
-    if (children[4]) children[4].textContent = "→";
-
     list.insertBefore(starter, currentJourney);
   }
 
+  starter.dataset.v18Starter = "true";
+  starter.dataset.v18Family = "starter";
   starter.dataset.v18Access = "open";
   starter.disabled = false;
   starter.removeAttribute("disabled");
-  const starterArrow = starter.lastElementChild as HTMLElement | null;
-  if (starterArrow) starterArrow.textContent = "→";
+  starter.removeAttribute("aria-disabled");
+
+  const starterChildren = Array.from(starter.children) as HTMLElement[];
+  if (starterChildren[0]) starterChildren[0].textContent = "KHỞI HÀNH";
+  if (starterChildren[1]) {
+    const strong = starterChildren[1].querySelector("strong");
+    const small = starterChildren[1].querySelector("small");
+    const em = starterChildren[1].querySelector("em");
+    if (strong) strong.textContent = "Giai điệu quen thuộc · ABC Song";
+    if (small) small.textContent = "Bản luyện tay phải · làm quen giai điệu";
+    if (em) em.textContent = "Khởi Hành · luôn mở";
+  }
+  if (starterChildren[2]) {
+    const assets = Array.from(starterChildren[2].querySelectorAll("small"));
+    if (assets[0]) assets[0].textContent = "♩ Bản nhạc";
+    if (assets[1]) assets[1].textContent = "☝ Hướng dẫn tay";
+    if (assets[2]) assets[2].textContent = "▶ Nghe mẫu";
+  }
+  if (starterChildren[3]) starterChildren[3].textContent = "Founder · published";
+  if (starterChildren[4]) starterChildren[4].textContent = "→";
 
   Array.from(list.querySelectorAll<HTMLButtonElement>(":scope > button")).forEach((button) => {
     const text = button.textContent ?? "";
     if (button.dataset.v18Starter === "true") return;
 
     const isJourney = text.includes("HÀNH TRÌNH") || text.includes("JOURNEY") || text.includes("Always With Me");
-    const isSpecialty = text.includes("CHUYÊN ĐỀ") || text.includes("SPECIALTY") || text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty");
+    const isSpecialty = text.includes("CHUYÊN ĐỀ") || text.includes("SPECIALTY") || text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty") || (text.includes("Film") && text.includes("Chuyên Đề"));
     if (!isJourney && !isSpecialty) return;
 
     button.dataset.v18Family = isSpecialty ? "specialty" : "journey";
