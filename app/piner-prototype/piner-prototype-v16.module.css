@@ -1,0 +1,147 @@
+.localizedRoot {
+  --v16-ink: #1f2a27;
+  --v16-moss: #5f725d;
+  --v16-moss-soft: rgba(95, 114, 93, 0.12);
+  --v16-paper: #fffdf7;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+}
+
+.localizedRoot :global(*) {
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+.localizedRoot :global(h1),
+.localizedRoot :global(h2),
+.localizedRoot :global(h3),
+.localizedRoot :global([class*="wordmark"]),
+.localizedRoot :global([class*="heroCard"] h2),
+.localizedRoot :global([class*="journeyHero"] h3),
+.localizedRoot :global([class*="consoleHead"] strong) {
+  font-family: "Lora", "Times New Roman", "Noto Serif", serif !important;
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+}
+
+.localizedRoot :global([data-v16-primary-nav="true"]) {
+  gap: 6px;
+  padding: 7px;
+}
+
+.localizedRoot :global([data-v16-nav-button="true"]) {
+  position: relative;
+  min-width: 0;
+  border-radius: 16px !important;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.localizedRoot :global([data-v16-nav-button="true"] span) {
+  transition: transform 160ms ease;
+}
+
+.localizedRoot :global([data-v16-nav-button="true"] small) {
+  font-size: 8.5px !important;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.localizedRoot :global([data-v16-nav-button="true"][data-v16-active="true"]) {
+  background: var(--v16-moss-soft) !important;
+  color: var(--v16-ink) !important;
+  box-shadow: inset 0 0 0 1px rgba(95, 114, 93, 0.08);
+}
+
+.localizedRoot :global([data-v16-nav-button="true"][data-v16-active="true"] span) {
+  transform: translateY(-1px) scale(1.08);
+  color: var(--v16-moss) !important;
+}
+
+.localizedRoot :global([data-v16-nav-button="true"][data-v16-active="true"] small) {
+  color: var(--v16-ink) !important;
+  font-weight: 900;
+}
+
+.packageEnhanced {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.packageToggle {
+  width: 100%;
+  min-height: 62px;
+  border: 0;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  color: var(--v16-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.packageToggleCopy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.packageToggleCopy strong {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.packageToggleCopy small {
+  color: #6f7974;
+  font-size: 9px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.packageChevron {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(31, 42, 39, 0.07);
+  color: #53635a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.packageEnhanced[data-v16-expanded="false"] > :global([data-v16-package-detail="true"]) {
+  display: none !important;
+}
+
+.packageEnhanced[data-v16-expanded="true"] .packageToggle {
+  border-bottom: 1px solid rgba(31, 42, 39, 0.08);
+}
+
+.packageEnhanced[data-v16-expanded="true"] > :global([data-v16-package-detail="true"]) {
+  margin-left: 16px !important;
+  margin-right: 16px !important;
+}
+
+.packageEnhanced[data-v16-expanded="true"] > :global([data-v16-package-detail="true"]:last-child) {
+  margin-bottom: 16px !important;
+}
+
+@media (max-width: 720px) {
+  .localizedRoot :global([data-v16-primary-nav="true"]) {
+    gap: 3px;
+    padding: 6px;
+  }
+
+  .localizedRoot :global([data-v16-nav-button="true"] small) {
+    font-size: 8px !important;
+  }
+
+  .packageToggleCopy small {
+    white-space: normal;
+  }
+}
