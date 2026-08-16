@@ -1,0 +1,434 @@
+.v9Root {
+  position: relative;
+}
+
+.osContinuity {
+  position: sticky;
+  z-index: 19;
+  bottom: 12px;
+  margin: 14px;
+  border-radius: 18px;
+  padding: 13px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 14px 34px rgba(31, 42, 39, 0.14);
+}
+
+.osPending {
+  border: 1px solid rgba(182, 139, 76, 0.28);
+  background: rgba(250, 245, 234, 0.97);
+}
+
+.osConfirmed {
+  border: 1px solid rgba(95, 114, 93, 0.28);
+  background: rgba(237, 242, 233, 0.97);
+}
+
+.osContinuityIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.osConfirmed .osContinuityIcon {
+  background: #5f725d;
+}
+
+.osContinuityCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.osContinuityCopy > span,
+.stateEyebrow {
+  color: #6f7974;
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.osContinuityCopy strong {
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.osContinuityCopy p,
+.osContinuityCopy small {
+  margin: 0;
+}
+
+.osContinuityCopy p {
+  color: #38423f;
+  font-size: 8.5px;
+  font-weight: 750;
+}
+
+.osContinuityCopy small {
+  color: #6f7974;
+  font-size: 7.5px;
+  line-height: 1.4;
+}
+
+.osContinuityActions {
+  display: flex;
+  gap: 6px;
+}
+
+.osContinuityActions button {
+  min-height: 34px;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: #fffdf7;
+  color: #1f2a27;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.flowBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(20, 24, 23, 0.78);
+}
+
+.flowCard {
+  width: min(620px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
+  overflow-y: auto;
+  border-radius: 24px;
+  background: #f7f3e9;
+  color: #1f2a27;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+}
+
+.flowHeader {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 68px;
+  padding: 13px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.11);
+  background: rgba(255, 253, 247, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.flowHeader > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.flowHeader span {
+  color: #6f7974;
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.flowHeader strong {
+  font-family: Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.flowHeader > button {
+  border: 0;
+  background: transparent;
+  color: #6f7974;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.flowBody {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.sessionHero {
+  min-height: 126px;
+  border-radius: 20px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  background: linear-gradient(145deg, #eef1e9, #faf5eb);
+  border: 1px solid rgba(31, 42, 39, 0.1);
+}
+
+.sessionHero > span {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: #fffdf7;
+  font-size: 34px;
+  box-shadow: 0 9px 24px rgba(31, 42, 39, 0.08);
+}
+
+.sessionHero > div {
+  display: grid;
+  gap: 3px;
+}
+
+.sessionHero small {
+  color: #6f7974;
+  font-size: 9px;
+}
+
+.sessionHero strong {
+  font-size: 13px;
+}
+
+.sessionHero p {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 20px;
+}
+
+.coreCheck,
+.zaloNote,
+.blockedPrivacy,
+.flowDoctrine {
+  border-radius: 16px;
+  padding: 12px 13px;
+}
+
+.coreCheck {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  background: #e9f0e5;
+  border: 1px solid rgba(95, 114, 93, 0.24);
+}
+
+.coreCheck > span {
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: #5f725d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.coreCheck > div,
+.zaloNote,
+.blockedPrivacy,
+.flowDoctrine {
+  display: grid;
+  gap: 3px;
+}
+
+.coreCheck strong,
+.zaloNote strong,
+.blockedPrivacy strong,
+.flowDoctrine strong {
+  font-size: 9.5px;
+}
+
+.coreCheck small,
+.zaloNote span,
+.blockedPrivacy span,
+.flowDoctrine p {
+  margin: 0;
+  color: #6f7974;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.flowDoctrine {
+  border: 1px dashed rgba(31, 42, 39, 0.17);
+  background: #fffdf7;
+}
+
+.primaryAction,
+.secondaryAction,
+.flowActions button {
+  min-height: 43px;
+  border-radius: 999px;
+  padding: 0 18px;
+  font-size: 9.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.primaryAction {
+  border: 0;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.secondaryAction,
+.flowActions button {
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  background: #fffdf7;
+  color: #1f2a27;
+}
+
+.flowActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.flowActions .primaryAction {
+  border: 0;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.stateGlyph {
+  width: 68px;
+  height: 68px;
+  margin: 8px auto 2px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 27px;
+  font-weight: 900;
+  box-shadow: 0 12px 30px rgba(31, 42, 39, 0.14);
+}
+
+.pendingGlyph {
+  background: #a67f45;
+}
+
+.confirmedGlyph {
+  background: #5f725d;
+}
+
+.blockedGlyph {
+  background: #8f564b;
+}
+
+.flowBody > .stateEyebrow,
+.flowBody > h2,
+.stateCopy {
+  text-align: center;
+}
+
+.flowBody > h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.stateCopy {
+  margin: -4px 0 4px;
+  color: #5e6864;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.zaloNote {
+  background: #f3efe5;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+}
+
+.prototypeNote {
+  color: #8a918d;
+  font-size: 7.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.confirmedFacts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.confirmedFacts span {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fffdf7;
+  display: grid;
+  gap: 2px;
+}
+
+.confirmedFacts small {
+  color: #6f7974;
+  font-size: 7.5px;
+}
+
+.confirmedFacts strong {
+  font-size: 9px;
+}
+
+.confirmedNote {
+  margin: 0;
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: #e9f0e5;
+  color: #53635a;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.blockedPrivacy {
+  background: #f3e7e2;
+  border: 1px solid rgba(143, 86, 75, 0.18);
+}
+
+@media (max-width: 760px) {
+  .osContinuity {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 9px;
+  }
+
+  .osContinuityActions {
+    grid-column: 1 / -1;
+  }
+
+  .osContinuityActions button {
+    width: 100%;
+  }
+
+  .flowBackdrop {
+    padding: 0;
+  }
+
+  .flowCard {
+    width: 100%;
+    min-height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .flowActions,
+  .confirmedFacts {
+    grid-template-columns: 1fr;
+  }
+}
