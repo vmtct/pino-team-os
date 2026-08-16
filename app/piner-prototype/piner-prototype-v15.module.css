@@ -152,3 +152,30 @@
   left: 2px;
   color: #e0c77f;
 }
+
+.freezeGate {
+  border: 1px solid rgba(31, 42, 39, 0.12);
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 5px;
+  background: #f7f4ec;
+  color: #405049;
+}
+
+.freezeGate > strong {
+  margin-bottom: 1px;
+  color: #26342f;
+  font-size: 8px;
+}
+
+.freezeGate > span {
+  font-size: 6.8px;
+  line-height: 1.42;
+}
+
+.freezeGate b {
+  color: #53635a;
+  font-size: inherit;
+  font-weight: 900;
+}
