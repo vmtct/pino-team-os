@@ -56,7 +56,7 @@ const leoTrial: StudentScenario = {
     detail: "Always With Me · fixed slot 19:30–21:00",
   },
   exploreStatus: "premium",
-  exploreNote: "Trial learning access đang active; Explore vẫn đọc canonical policy thay vì invent pass counter.",
+  exploreNote: "Trial Premium có thể đăng ký nhiều Open Studio / Premium Session trong cùng tuần; mỗi booking vẫn qua confirmation/capacity riêng.",
   collection: [
     { id: "leo-trial-free-1", kind: "Artwork", tier: "FREE", title: "Open Studio postcard", subtitle: "Free Collection", meta: "Trước Trial", emoji: "🎨", owned: true },
     { id: "leo-trial-music-1", kind: "Music", tier: "PREMIUM", title: "Always With Me · L4", subtitle: "Trial recording", meta: "Created during Trial", emoji: "🎹", owned: true, trial: true, featured: true },
@@ -106,7 +106,7 @@ const leoReenrolled: StudentScenario = {
     detail: "Always With Me · tiếp tục từ L4 · fixed slot",
   },
   exploreStatus: "premium",
-  exploreNote: "Premium learning access đã active trở lại; Explore vẫn theo entitlement policy canonical hiện hành.",
+  exploreNote: "Premium active dùng quota 1 Booking/tuần, dùng chung cho Open Studio và Premium Session.",
   collection: [
     { id: "leo-resumed-free-1", kind: "Artwork", tier: "FREE", title: "Open Studio postcard", subtitle: "Free Collection", meta: "Retained", emoji: "🎨", owned: true },
     { id: "leo-resumed-music-1", kind: "Music", tier: "PREMIUM", title: "Always With Me · L4", subtitle: "Carried from Trial", meta: "Student-owned history", emoji: "🎹", owned: true, featured: true },
@@ -148,20 +148,20 @@ function lifecycleCopy(state: LifecycleState, surface: AppSurface) {
   if (state === "TRIAL") {
     if (surface === "journey") return { title: "Trial dùng Journey thật", body: "Leo đang ở L4. Progress, Evidence và Achievement hợp lệ trong Trial là learner history thật — không phải demo state." };
     if (surface === "collection") return { title: "Những gì đã tạo trong Trial có thể trở thành owned history", body: "Trial badge chỉ giải thích nguồn gốc access. Nó không có nghĩa nội dung đã sở hữu sẽ bị xóa khi Trial kết thúc." };
-    if (surface === "explore") return { title: "Trial learning access và Explore là hai lớp riêng", body: "Explore vẫn đọc Core entitlement/eligibility; Piner không invent số pass chỉ vì learner đang Trial." };
+    if (surface === "explore") return { title: "Trial mở rộng Explore trong thời gian trải nghiệm", body: "Leo có thể đăng ký nhiều Booking trong cùng tuần, gồm cả Open Studio và Premium Session. Mỗi Booking vẫn là record riêng và cần confirmation/capacity hợp lệ." };
     return { title: "Trial là Premium thật trong thời gian giới hạn", body: "Home vẫn ưu tiên Path continuation và physical touchpoint. Trial timing chỉ là Parent-readable notice, không biến Home thành sales page." };
   }
 
   if (state === "EXPIRED") {
     if (surface === "journey") return { title: "Journey bị đóng băng, không bị reset", body: "L4 và lịch sử đã đạt vẫn hiển thị. Progression mới dừng cho đến khi learning access được khôi phục." };
     if (surface === "collection") return { title: "Owned history vẫn mở", body: "Recording, milestone và Artifact đã vested vẫn thuộc về Leo. Future/unowned Premium outcome tiếp tục locked." };
-    if (surface === "explore") return { title: "Expired Premium không xóa Free Explore", body: "Leo vẫn có thể quay lại bằng Open Studio nếu Core cho biết Free eligibility hiện hợp lệ." };
+    if (surface === "explore") return { title: "Expired Premium không xóa Free Explore", body: "Leo vẫn có thể quay lại bằng Open Studio nếu Core cho biết Free eligibility hiện hợp lệ. Premium Session sẽ dẫn vào flow tiếp tục Premium." };
     return { title: "Access hết hạn, learner identity vẫn nguyên", body: "Home foreground retained value và route quay lại. Không tạo lại Student, không reset Journey, không thu hồi Achievement." };
   }
 
   if (surface === "journey") return { title: "Journey tiếp tục từ L4", body: "Re-enroll phục hồi access trên cùng Student + Path continuity. Không bắt đầu lại từ L1 và không copy history sang learner mới." };
   if (surface === "collection") return { title: "Collection đi xuyên qua subscription boundary", body: "Recording/milestone từ Trial vẫn là cùng owned history. Re-enroll chỉ mở access mới; không cần re-award những gì đã có." };
-  if (surface === "explore") return { title: "Premium active trở lại", body: "Learning access đã phục hồi; Explore vẫn tuân canonical entitlement policy và không suy diễn unlimited/pass quantity." };
+  if (surface === "explore") return { title: "Premium active trở lại · quota Explore đã chuyển", body: "Leo dùng tối đa 1 active Booking trong tuần; Open Studio và Premium Session cùng tính vào một quota." };
   return { title: "Premium resumed · continuity restored", body: "Home quay lại Path continuation. Leo tiếp tục Always With Me · L4 với lịch sử Trial còn nguyên." };
 }
 
