@@ -1,6 +1,6 @@
 "use client";
 
-import { MouseEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import PinerPrototypeV15 from "./PinerPrototypeV15";
 import v16 from "./piner-prototype-v16.module.css";
 
@@ -210,11 +210,16 @@ export default function PinerPrototypeV16() {
     const button = (event.target as HTMLElement).closest("button") as HTMLButtonElement | null;
     if (!button) return;
     const surface = surfaceFromText(button.textContent ?? "");
-    if (surface && button.closest("nav")) setActiveSurface(surface);
+    if (surface && (button.closest("nav") || button.closest("aside"))) setActiveSurface(surface);
+  }
+
+  function handleChangeCapture(event: FormEvent<HTMLDivElement>) {
+    const target = event.target as HTMLSelectElement;
+    if (target.id === "scenario") setActiveSurface("home");
   }
 
   return (
-    <div ref={rootRef} className={v16.localizedRoot} onClickCapture={handleClickCapture}>
+    <div ref={rootRef} className={v16.localizedRoot} onClickCapture={handleClickCapture} onChangeCapture={handleChangeCapture}>
       <PinerPrototypeV15 />
     </div>
   );
