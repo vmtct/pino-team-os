@@ -32,7 +32,7 @@
 }
 
 .sheetHeader {
-  padding: 10px 18px 13px;
+  padding: 12px 18px 14px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -42,12 +42,12 @@
 
 .sheetHeader > div {
   display: grid;
-  gap: 3px;
+  gap: 4px;
 }
 
 .sheetHeader span,
 .contextHead span {
-  font-size: 7.5px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.08em;
   color: #66736d;
@@ -56,20 +56,21 @@
 .sheetHeader h2 {
   margin: 0;
   font-family: Lora, Georgia, serif;
-  font-size: 21px;
+  font-size: 22px;
+  line-height: 1.15;
   font-weight: 500;
 }
 
 .sheetHeader p {
   margin: 0;
   color: #6f7974;
-  font-size: 8.5px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .sheetHeader > button {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: 999px;
   background: #ece8dd;
@@ -81,17 +82,17 @@
 .studentList {
   padding: 12px 16px 4px;
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .studentList > button {
   width: 100%;
   border: 1px solid rgba(34, 48, 43, 0.1);
   border-radius: 17px;
-  padding: 10px;
+  padding: 11px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 11px;
   align-items: center;
   background: #fffdf7;
   color: #22302b;
@@ -106,21 +107,21 @@
 }
 
 .avatar {
-  width: 39px;
-  height: 39px;
+  width: 42px;
+  height: 42px;
   border-radius: 13px;
   display: grid;
   place-items: center;
   background: #263630;
   color: #fff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .studentCopy {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .studentTopline {
@@ -131,34 +132,35 @@
 }
 
 .studentTopline strong {
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .studentTopline em {
   border-radius: 999px;
-  padding: 3px 6px;
+  padding: 3px 7px;
   background: #eee9dc;
   color: #5b6862;
-  font-size: 6.7px;
+  font-size: 10px;
+  line-height: 1.2;
   font-style: normal;
   font-weight: 850;
 }
 
 .studentCopy small {
   color: #77807c;
-  font-size: 7.4px;
-  line-height: 1.35;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .chooseMark {
-  min-width: 27px;
-  height: 27px;
+  min-width: 29px;
+  height: 29px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: #f0ede4;
   color: #5f725d;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
 }
 
@@ -171,7 +173,7 @@
 }
 
 .contextHead {
-  margin-bottom: 9px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -180,33 +182,34 @@
 
 .contextHead strong {
   font-family: Lora, Georgia, serif;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
 }
 
 .contextGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
 }
 
 .contextGrid > div {
   min-width: 0;
   border-radius: 13px;
-  padding: 9px;
+  padding: 10px;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   background: rgba(255, 253, 247, 0.82);
 }
 
 .contextGrid small {
   color: #7c8580;
-  font-size: 6.8px;
+  font-size: 10px;
+  line-height: 1.3;
 }
 
 .contextGrid strong {
-  font-size: 8.2px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .accountRows {
@@ -219,10 +222,10 @@
 
 .accountRows button {
   width: 100%;
-  min-height: 48px;
+  min-height: 54px;
   border: 0;
   border-bottom: 1px solid rgba(34, 48, 43, 0.08);
-  padding: 9px 11px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -238,29 +241,30 @@
 
 .accountRows button > span {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .accountRows strong {
-  font-size: 8.8px;
+  font-size: 12px;
 }
 
 .accountRows small {
   color: #7a837f;
-  font-size: 7.1px;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .accountRows em {
   color: #718078;
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
 }
 
 .doctrine {
-  margin: 11px 16px 16px;
+  margin: 12px 16px 17px;
   color: #7b837f;
-  font-size: 7.2px;
-  line-height: 1.45;
+  font-size: 10px;
+  line-height: 1.5;
   text-align: center;
 }
 
