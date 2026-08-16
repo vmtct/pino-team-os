@@ -1,0 +1,55 @@
+.root {
+  position: relative;
+}
+
+.root :global([data-v18-practice-section="true"]) {
+  position: relative;
+}
+
+.familyNote {
+  margin: 10px 0 12px;
+  border: 1px solid rgba(31, 42, 39, 0.09);
+  border-radius: 14px;
+  padding: 10px 11px;
+  display: grid;
+  gap: 3px;
+  background: rgba(240, 237, 227, 0.72);
+}
+
+.familyNote strong {
+  color: #314039;
+  font-size: 9px;
+}
+
+.familyNote span {
+  color: #69736e;
+  font-size: 7.8px;
+  line-height: 1.45;
+}
+
+.root :global([data-v18-starter="true"]) {
+  opacity: 1 !important;
+  filter: none !important;
+  cursor: pointer !important;
+  border-style: solid !important;
+  background: linear-gradient(120deg, rgba(236, 242, 233, 0.95), rgba(255, 253, 247, 0.95)) !important;
+}
+
+.root :global([data-v18-starter="true"] > span:first-child) {
+  background: rgba(95, 114, 93, 0.13) !important;
+  color: #4d6453 !important;
+}
+
+.root :global([data-v18-practice-section="true"][data-v18-ended-access="true"] [data-v18-access="locked"]) {
+  opacity: 0.52 !important;
+  filter: grayscale(0.35) saturate(0.65) !important;
+}
+
+.root :global([data-v18-practice-section="true"][data-v18-ended-access="true"] [data-v18-access="open"]) {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.root :global([data-v18-practice-section="true"][data-v18-ended-access="true"] [data-v18-starter="true"]) {
+  box-shadow: inset 3px 0 0 #5f725d;
+}
