@@ -1,0 +1,226 @@
+.root {
+  --v21-accent: #a93c27;
+  --v21-accent-soft: rgba(169, 60, 39, 0.11);
+  --v21-accent-line: rgba(169, 60, 39, 0.24);
+  position: relative;
+}
+
+/* PINO identity */
+.root :global([data-v21-pino-logo="true"]) {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid !important;
+  place-items: center;
+  overflow: hidden;
+  font-size: 0 !important;
+  letter-spacing: 0 !important;
+}
+
+.root :global([data-v21-pino-logo-image="true"]) {
+  width: 32px;
+  height: 32px;
+  display: block;
+  object-fit: contain;
+}
+
+/* Primary navigation keeps the current CMS-configurable slot shape, but uses
+   the supplied PINO sigil as the temporary asset for all four items. */
+.root :global([data-v21-nav-icon="true"]) {
+  width: 24px;
+  height: 24px;
+  display: grid !important;
+  place-items: center;
+}
+
+.root :global([data-v21-nav-icon-image="true"]) {
+  width: 20px;
+  height: 20px;
+  display: block;
+  object-fit: contain;
+  opacity: 0.66;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.root :global([data-v16-nav-button="true"][data-v16-active="true"]) {
+  background: var(--v21-accent-soft) !important;
+  color: var(--v21-accent) !important;
+  box-shadow: inset 0 0 0 1px var(--v21-accent-line) !important;
+}
+
+.root :global([data-v16-nav-button="true"][data-v16-active="true"] small) {
+  color: var(--v21-accent) !important;
+}
+
+.root :global([data-v16-nav-button="true"][data-v16-active="true"] [data-v21-nav-icon-image="true"]) {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
+/* Package context: V21 intentionally removes the old package-note footer. */
+.root :global([data-v21-package-footer="true"]) {
+  display: none !important;
+}
+
+.root :global([data-v16-package-toggle="true"] [class*="packageChevron"]) {
+  color: var(--v21-accent) !important;
+  background: var(--v21-accent-soft) !important;
+}
+
+/* Practice resource cards */
+.root :global([data-v21-practice-card="true"]) {
+  grid-template-columns: 60px minmax(0, 1fr) auto !important;
+  grid-template-areas:
+    "avatar kind arrow"
+    "avatar copy arrow"
+    "avatar tags arrow" !important;
+  gap: 6px 11px !important;
+  min-height: 104px;
+  padding: 12px !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.root :global([data-v21-practice-card="true"]:hover) {
+  border-color: var(--v21-accent-line) !important;
+  box-shadow: 0 9px 26px rgba(45, 31, 24, 0.08) !important;
+}
+
+.root :global([data-v21-practice-kind="true"]) {
+  grid-area: kind !important;
+  width: fit-content;
+}
+
+.root :global([data-v21-practice-copy="true"]) {
+  grid-area: copy !important;
+}
+
+.root :global([data-v21-generic-assets="true"]),
+.root :global([data-v21-founder-state="true"]) {
+  display: none !important;
+}
+
+.root :global([data-v21-practice-arrow="true"]) {
+  grid-area: arrow !important;
+  color: var(--v21-accent) !important;
+  align-self: center;
+}
+
+.root :global([data-v21-practice-avatar="true"]) {
+  grid-area: avatar;
+  width: 60px;
+  height: 60px;
+  align-self: center;
+  overflow: hidden;
+  border-radius: 17px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  background: #eee8dc;
+  box-shadow: 0 6px 16px rgba(31, 42, 39, 0.07);
+}
+
+.root :global([data-v21-practice-avatar="true"] img) {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.root :global([data-v21-resource-tags="true"]) {
+  grid-area: tags;
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.root :global([data-v21-resource-tags="true"] small) {
+  border: 1px solid var(--v21-accent-line);
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: var(--v21-accent-soft);
+  color: #85301f;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+/* Piano repertoire ladder */
+.root :global([data-v21-level-ladder="true"]) {
+  align-items: stretch;
+}
+
+.root :global([data-v21-piano-level]) {
+  min-height: 62px !important;
+  padding: 5px 3px;
+  text-align: center;
+}
+
+.root :global([data-v21-piano-level] small) {
+  line-height: 1.15;
+}
+
+.root :global([data-v21-level-current="true"]) {
+  box-shadow: inset 0 0 0 2px var(--v21-accent) !important;
+  border-color: var(--v21-accent-line) !important;
+}
+
+.root :global([data-v21-level-extra="true"]) {
+  grid-column: 1 / -1;
+  width: fit-content;
+  justify-self: center;
+  margin: 2px 0 -1px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: var(--v21-accent-soft);
+  color: var(--v21-accent);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+/* Image-first Open Studio / Premium Session presentation. */
+.root :global([data-v21-session-visual="true"]) {
+  overflow: hidden;
+}
+
+.root :global([data-v21-unicode-avatar="true"]) {
+  display: none !important;
+}
+
+.root :global([data-v21-session-image="true"]) {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.root :global([data-v21-session-hero="true"]) {
+  align-items: center;
+}
+
+.root :global([data-v21-session-hero-image="true"]) {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  display: block;
+  object-fit: cover;
+  border-radius: 15px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+}
+
+@media (max-width: 560px) {
+  .root :global([data-v21-practice-card="true"]) {
+    grid-template-columns: 54px minmax(0, 1fr) auto !important;
+  }
+
+  .root :global([data-v21-practice-avatar="true"]) {
+    width: 54px;
+    height: 54px;
+    border-radius: 15px;
+  }
+
+  .root :global([data-v21-piano-level]) {
+    min-height: 60px !important;
+  }
+}
