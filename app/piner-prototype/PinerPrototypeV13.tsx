@@ -114,30 +114,50 @@ export default function PinerPrototypeV13() {
     if (!root) return;
 
     const syncExploreMount = () => {
-      const sections = Array.from(root.querySelectorAll<HTMLElement>("section"));
-      const original = sections.find((section) => section.textContent?.includes("Open Studio gần nhất"));
+      const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h3"));
+      const legacyHeading = headings.find((heading) => {
+        const text = heading.textContent?.trim();
+        return text === "Open Studio gần nhất" || text === "Open Studio sessions · legacy";
+      });
+      const original = legacyHeading?.closest("section") as HTMLElement | null;
 
-      if (!original) {
+      if (!original || !original.parentElement) {
         setMountTarget((current) => current?.isConnected ? current : null);
         return;
       }
 
+      // V13 must only hide the leaf legacy Explore section. The previous
+      // textContent search could match a large ancestor containing the same
+      // heading and accidentally move the portal outside the learner device.
+      root.querySelectorAll<HTMLElement>("section[data-v13-hidden='true']").forEach((section) => {
+        if (section === original) return;
+        section.style.display = "";
+        delete section.dataset.v13Hidden;
+      });
+
       original.style.display = "none";
       original.dataset.v13Hidden = "true";
+      original.dataset.v13LegacyExplore = "true";
 
       let mount = original.previousElementSibling as HTMLElement | null;
       if (!mount || mount.dataset.v13ExploreMount !== "true") {
         mount = document.createElement("div");
         mount.dataset.v13ExploreMount = "true";
-        original.parentElement?.insertBefore(mount, original);
+        original.parentElement.insertBefore(mount, original);
       }
+
+      // Keep exactly one canonical mount adjacent to the leaf Explore section.
+      root.querySelectorAll<HTMLElement>("[data-v13-explore-mount='true']").forEach((candidate) => {
+        if (candidate === mount) return;
+        if (candidate.childElementCount === 0) candidate.remove();
+      });
 
       setMountTarget((current) => current === mount ? current : mount);
     };
 
     syncExploreMount();
     const observer = new MutationObserver(syncExploreMount);
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
 
     const select = root.querySelector<HTMLSelectElement>("#scenario");
     if (select) setScenarioKey(select.value);
