@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { MouseEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import PinerPrototypeV20 from "./PinerPrototypeV20";
 import v21 from "./piner-prototype-v21.module.css";
 
@@ -43,8 +44,119 @@ const RESOURCE_TAGS = [
   },
 ] as const;
 
+type SyllabusDetail = {
+  week: string;
+  title: string;
+  shortDescription: string;
+  skillSummary: string;
+  skillset: string;
+  keywords: string[];
+};
+
+// Snapshot from the canonical Notion Syllabus DB for ArtChitect · 26C.
+// Prototype only: production must read this through Core rather than ship this snapshot.
+const AC_SYLLABUS: SyllabusDetail[] = [
+  {
+    week: "26C (01)",
+    title: "Những Hình Khối Đầu Tiên",
+    shortDescription: "Khám phá các hình cơ bản và dùng chúng để tạo những khối đá, kiến trúc và địa hình đầu tiên của Terravia.",
+    skillSummary: "Nhận biết, đơn giản hóa và kết hợp hình tròn, vuông, tam giác để tạo cấu trúc rõ ràng.",
+    skillset: "Shape",
+    keywords: ["shape", "basic forms", "geometry", "structure", "building"],
+  },
+  {
+    week: "26C (02)",
+    title: "Đường Nét Của Hẻm Núi",
+    shortDescription: "Khám phá cách đường nét thay đổi cảm giác về đá, vách núi, địa hình và chuyển động trong Terravia.",
+    skillSummary: "Điều khiển độ dày, độ dài, hướng và nhịp của nét để tạo chất liệu và biểu đạt chuyển động.",
+    skillset: "Line Quality",
+    keywords: ["line", "stroke", "contour", "movement", "rock"],
+  },
+  {
+    week: "26C (03)",
+    title: "Đá Biết Đứng",
+    shortDescription: "Biến các hình phẳng thành những khối đá, tinh thể và kiến trúc có cảm giác ba chiều.",
+    skillSummary: "Tạo thể tích bằng cách xác định mặt, chiều sâu và mối quan hệ giữa các phần của vật thể.",
+    skillset: "Form",
+    keywords: ["form", "volume", "3D", "depth", "solid"],
+  },
+  {
+    week: "26C (04)",
+    title: "Bề Mặt Terravia",
+    shortDescription: "Quan sát và tạo bề mặt cho đá, đất, vách núi và các vật liệu đặc trưng của Terravia.",
+    skillSummary: "Tạo và kiểm soát texture bằng nét, hình và nhịp lặp để gợi chất liệu và bề mặt.",
+    skillset: "Texture",
+    keywords: ["texture", "rock", "stone", "surface", "material"],
+  },
+  {
+    week: "26C (05)",
+    title: "Bóng Hình Thung Lũng",
+    shortDescription: "Tạo hình các sinh vật, nhân vật và công trình Terravia bằng những bóng hình mạnh, dễ nhận biết.",
+    skillSummary: "Tập trung vào đường viền và khối tổng thể để truyền đạt hình dáng, tư thế và đặc điểm mà không cần chi tiết.",
+    skillset: "Silhouette",
+    keywords: ["silhouette", "shape language", "character", "creature", "architecture"],
+  },
+  {
+    week: "26C (06)",
+    title: "Sáng Tối Của Hẻm Núi",
+    shortDescription: "Khám phá ánh sáng và bóng tối để tạo chiều sâu, khối đá và không khí cho hẻm núi Terravia.",
+    skillSummary: "Sử dụng các cấp độ sáng tối để phân tách khối, tạo chiều sâu và xác định nguồn sáng.",
+    skillset: "Value",
+    keywords: ["value", "light", "shadow", "depth", "atmosphere"],
+  },
+  {
+    week: "26C (07)",
+    title: "Bố Cục Thành Phố Đá",
+    shortDescription: "Sắp xếp các khối kiến trúc và địa hình để tạo một khung cảnh thành phố đá có điểm nhìn rõ ràng.",
+    skillSummary: "Tổ chức vị trí, kích thước và điểm nhấn để hình ảnh cân bằng, có thứ bậc thị giác và dẫn mắt người xem.",
+    skillset: "Composition",
+    keywords: ["composition", "balance", "focal point", "framing", "visual hierarchy"],
+  },
+  {
+    week: "26C (08)",
+    title: "Con Đường Vào Terravia",
+    shortDescription: "Khám phá phối cảnh qua những con đường, cây cầu và thành phố nằm sâu trong hẻm núi Terravia.",
+    skillSummary: "Xây dựng cảm giác không gian bằng đường chân trời, điểm tụ, tỷ lệ và quan hệ gần–xa.",
+    skillset: "Perspective",
+    keywords: ["perspective", "space", "scale", "depth", "canyon"],
+  },
+  {
+    week: "26C (09)",
+    title: "Đôi Mắt Nhà Thám Hiểm",
+    shortDescription: "Quan sát đá, tinh thể, kiến trúc và cảnh quan để tìm chi tiết thực tế làm giàu thế giới Terravia.",
+    skillSummary: "Rèn khả năng nhìn, ghi nhận hình dáng, tỷ lệ, chi tiết và đặc điểm thị giác trước khi chuyển hóa thành tác phẩm.",
+    skillset: "Observation",
+    keywords: ["observation", "reference", "detail", "discovery", "real world"],
+  },
+  {
+    week: "26C (10)",
+    title: "Hoa Văn Cổ Đại",
+    shortDescription: "Tạo hoa văn lấy cảm hứng từ đá, tinh thể, cổ vật và ký hiệu của cư dân Terravia.",
+    skillSummary: "Phát hiện motif, đơn giản hóa hình và lặp lại có chủ đích để tạo pattern nhất quán.",
+    skillset: "Pattern",
+    keywords: ["pattern", "symbols", "ornament", "repetition", "ancient"],
+  },
+  {
+    week: "26C (11)",
+    title: "Ánh Sáng Trong Hang Sâu",
+    shortDescription: "Khám phá ánh sáng trong hang sâu và cách tương phản làm nổi bật chủ thể giữa bóng tối Terravia.",
+    skillSummary: "Điều chỉnh chênh lệch sáng tối, kích thước và sắc độ để tạo tiêu điểm và tăng cảm xúc thị giác.",
+    skillset: "Contrast",
+    keywords: ["contrast", "light", "dark", "focus", "drama"],
+  },
+  {
+    week: "26C (12)",
+    title: "Người Kiến Tạo Terravia",
+    shortDescription: "Tổng hợp các kỹ năng đã học để tạo một tác phẩm hoàn chỉnh kể một câu chuyện về Terravia.",
+    skillSummary: "Kết hợp hình, đường nét, khối, texture, không gian, ánh sáng và bố cục để hoàn thiện một tác phẩm có chủ đích.",
+    skillset: "Final Integration",
+    keywords: ["world building", "integration", "masterpiece", "portfolio", "presentation"],
+  },
+];
+
 export default function PinerPrototypeV21() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [syllabusModal, setSyllabusModal] = useState<SyllabusDetail | null>(null);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -83,9 +195,64 @@ export default function PinerPrototypeV21() {
     };
   }, []);
 
+  function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
+    const topic = (event.target as HTMLElement).closest<HTMLElement>("[data-v21-ac-topic-index]");
+    if (!topic) return;
+    const index = Number(topic.dataset.v21AcTopicIndex);
+    const detail = AC_SYLLABUS[index];
+    if (!detail) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSyllabusModal(detail);
+  }
+
+  const portalTarget = syllabusModal ? findDevice(rootRef.current) : null;
+
   return (
-    <div ref={rootRef} className={v21.root}>
+    <div ref={rootRef} className={v21.root} onClickCapture={handleClickCapture}>
       <PinerPrototypeV20 />
+      {syllabusModal && portalTarget && createPortal(
+        <SyllabusModal detail={syllabusModal} onClose={() => setSyllabusModal(null)} />,
+        portalTarget,
+      )}
+    </div>
+  );
+}
+
+function findDevice(root: HTMLElement | null) {
+  if (!root) return null;
+  const header = Array.from(root.querySelectorAll<HTMLElement>("header")).find((candidate) => Boolean(candidate.querySelector("[data-v21-pino-logo='true']")));
+  return header?.parentElement instanceof HTMLElement ? header.parentElement : null;
+}
+
+function SyllabusModal({ detail, onClose }: { detail: SyllabusDetail; onClose: () => void }) {
+  return (
+    <div className={v21.syllabusBackdrop} onMouseDown={onClose}>
+      <section className={v21.syllabusModal} onMouseDown={(event) => event.stopPropagation()}>
+        <header className={v21.syllabusModalHeader}>
+          <img src={CONTENT_AVATAR_URL} alt={`Ảnh đại diện ${detail.title}`} />
+          <div>
+            <span>{detail.week} · ArtChitect</span>
+            <h2>{detail.title}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Đóng chi tiết buổi học">×</button>
+        </header>
+
+        <div className={v21.syllabusModalBody}>
+          <section>
+            <small>Giới thiệu</small>
+            <p>{detail.shortDescription}</p>
+          </section>
+          <section>
+            <small>Kỹ năng trọng tâm</small>
+            <p>{detail.skillSummary}</p>
+          </section>
+          <div className={v21.syllabusFocusRow}>
+            <span className={v21.syllabusSkillset}>{detail.skillset}</span>
+            <div>{detail.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -99,8 +266,11 @@ function polish(root: HTMLElement) {
   polishPracticeCards(root);
   polishPianoLevels(root);
   polishMiaHomeHero(root);
+  polishAcSyllabus(root);
+  polishNextTouchpoint(root);
   polishMusicPieceAvatars(root);
   polishSessionAvatars(root);
+  normalizeExploreVocabulary(root);
 }
 
 function updatePrototypeBadge(root: HTMLElement) {
@@ -112,7 +282,7 @@ function updatePrototypeBadge(root: HTMLElement) {
 }
 
 function polishHeaderLogo(root: HTMLElement) {
-  const header = Array.from(root.querySelectorAll<HTMLElement>("header")).find((candidate) => candidate.textContent?.includes("PINO"));
+  const header = Array.from(root.querySelectorAll<HTMLElement>("header")).find((candidate) => candidate.textContent?.includes("PINO") || candidate.querySelector("[data-v21-pino-logo='true']"));
   if (!header) return;
 
   const wordmark = Array.from(header.querySelectorAll<HTMLElement>("span")).find((span) => span.dataset.v21PinoLogo === "true" || span.textContent?.trim() === "PINO");
@@ -120,21 +290,24 @@ function polishHeaderLogo(root: HTMLElement) {
 
   wordmark.dataset.v21PinoLogo = "true";
 
-  if (!wordmark.querySelector("[data-v21-pino-logo-text='true']")) {
-    wordmark.textContent = "";
-    const label = document.createElement("span");
+  let label = wordmark.querySelector<HTMLElement>("[data-v21-pino-logo-text='true']");
+  if (!label) {
+    label = document.createElement("span");
     label.textContent = "PINO";
     label.dataset.v21PinoLogoText = "true";
-    wordmark.appendChild(label);
   }
 
-  if (!wordmark.querySelector("img")) {
-    const image = document.createElement("img");
+  let image = wordmark.querySelector<HTMLImageElement>("[data-v21-pino-logo-image='true']");
+  if (!image) {
+    image = document.createElement("img");
     image.src = PINO_LOGO_URL;
     image.alt = "";
     image.setAttribute("aria-hidden", "true");
     image.dataset.v21PinoLogoImage = "true";
-    wordmark.appendChild(image);
+  }
+
+  if (wordmark.firstElementChild !== image || image.nextElementSibling !== label) {
+    wordmark.replaceChildren(image, label);
   }
 }
 
@@ -180,6 +353,9 @@ function polishPackageContext(root: HTMLElement) {
       paragraph.dataset.v21PackageFooter = "true";
       paragraph.style.display = "none";
     });
+    const toggle = section.querySelector<HTMLButtonElement>("[data-v16-package-toggle='true']");
+    const chevron = toggle?.querySelector<HTMLElement>("[data-v16-package-chevron='true']");
+    if (toggle && chevron) chevron.textContent = toggle.getAttribute("aria-expanded") === "true" ? "↑" : "↓";
   });
 }
 
@@ -209,7 +385,7 @@ function hideExploreCampaignBanner(root: HTMLElement) {
 function polishPracticeCards(root: HTMLElement) {
   const cards = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
     const text = button.textContent ?? "";
-    return text.includes("Founder · published") || text.includes("Founder · draft");
+    return text.includes("Founder · published") || text.includes("Founder · draft") || button.dataset.v21PracticeCard === "true";
   });
 
   cards.forEach((card) => {
@@ -217,7 +393,7 @@ function polishPracticeCards(root: HTMLElement) {
     const tags = RESOURCE_TAGS.find((entry) => entry.match(text))?.tags;
     if (!tags) return;
 
-    const children = Array.from(card.children) as HTMLElement[];
+    const children = Array.from(card.children).filter((child) => !(child instanceof HTMLElement) || !child.dataset.v21PracticeAvatar && !child.dataset.v21ResourceTags) as HTMLElement[];
     if (children.length < 5) return;
 
     card.dataset.v21PracticeCard = "true";
@@ -322,6 +498,73 @@ function polishMiaHomeHero(root: HTMLElement) {
   }
 }
 
+function polishAcSyllabus(root: HTMLElement) {
+  const section = Array.from(root.querySelectorAll<HTMLElement>("section")).find((candidate) => {
+    return candidate.querySelector("h3")?.textContent?.includes("12 buổi theo lịch của gói") ?? false;
+  });
+  if (!section) return;
+
+  const topics = Array.from(section.querySelectorAll<HTMLElement>("article")).slice(0, AC_SYLLABUS.length);
+  topics.forEach((topic, index) => {
+    const detail = AC_SYLLABUS[index];
+    if (!detail) return;
+    topic.dataset.v21AcTopicIndex = String(index);
+    topic.dataset.v21AcTopic = "true";
+    topic.setAttribute("role", "button");
+    topic.tabIndex = 0;
+    topic.setAttribute("aria-label", `Xem chi tiết ${detail.title}`);
+
+    const title = topic.querySelector<HTMLElement>(":scope > strong");
+    if (title) {
+      title.textContent = detail.title;
+      title.dataset.v21AcTopicTitle = "true";
+    }
+
+    const top = topic.querySelector<HTMLElement>(":scope > div");
+    const week = top?.querySelector<HTMLElement>(":scope > span");
+    if (week) week.textContent = detail.week;
+  });
+}
+
+function polishNextTouchpoint(root: HTMLElement) {
+  const returnCards = Array.from(root.querySelectorAll<HTMLElement>("section")).filter((section) => {
+    const eyebrow = Array.from(section.querySelectorAll<HTMLElement>("span")).find((span) => span.textContent?.trim() === "Quay lại PINO" || span.textContent?.trim() === "Return to PINO");
+    return Boolean(eyebrow && section.querySelector("h3"));
+  });
+
+  returnCards.forEach((card) => {
+    card.dataset.v21TouchpointCard = "true";
+    if (!card.querySelector("[data-v21-touchpoint-avatar='true']")) {
+      const avatar = document.createElement("span");
+      avatar.dataset.v21TouchpointAvatar = "true";
+      const image = document.createElement("img");
+      image.src = CONTENT_AVATAR_URL;
+      image.alt = "Ảnh đại diện buổi học sắp tới";
+      avatar.appendChild(image);
+      card.insertBefore(avatar, card.firstChild);
+    }
+  });
+
+  const detailCards = Array.from(root.querySelectorAll<HTMLElement>("div")).filter((candidate) => {
+    const strong = candidate.querySelector<HTMLElement>(":scope > strong");
+    const paragraph = candidate.querySelector<HTMLElement>(":scope > p");
+    return Boolean(strong && paragraph && /^Thứ|^Chủ Nhật|^Hôm/.test(strong.textContent?.trim() ?? ""));
+  });
+
+  detailCards.forEach((card) => {
+    card.dataset.v21TouchpointDetail = "true";
+    if (!card.querySelector("[data-v21-touchpoint-avatar='true']")) {
+      const avatar = document.createElement("span");
+      avatar.dataset.v21TouchpointAvatar = "true";
+      const image = document.createElement("img");
+      image.src = CONTENT_AVATAR_URL;
+      image.alt = "Ảnh đại diện buổi học";
+      avatar.appendChild(image);
+      card.insertBefore(avatar, card.firstChild);
+    }
+  });
+}
+
 function polishMusicPieceAvatars(root: HTMLElement) {
   const heroSections = Array.from(root.querySelectorAll<HTMLElement>("section")).filter((section) => {
     const title = section.querySelector("h3")?.textContent?.trim() ?? "";
@@ -365,32 +608,87 @@ function polishMusicPieceAvatars(root: HTMLElement) {
 function polishSessionAvatars(root: HTMLElement) {
   const sessionCards = Array.from(root.querySelectorAll<HTMLElement>("article")).filter((article) => {
     const text = article.textContent ?? "";
-    return text.includes("Đăng ký") && (text.includes("OPEN STUDIO") || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION"));
+    return article.dataset.v21SessionCard === "true" || (text.includes("Đăng ký") && (text.includes("OPEN STUDIO") || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION") || text.includes("KHÁM PHÁ")));
   });
 
   sessionCards.forEach((card) => {
-    const visual = Array.from(card.querySelectorAll<HTMLElement>(":scope > div")).find((candidate) => candidate.querySelector(":scope > em"));
-    if (!visual) return;
-    visual.dataset.v21SessionVisual = "true";
-    const emoji = visual.querySelector<HTMLElement>(":scope > span");
-    if (emoji) emoji.dataset.v21UnicodeAvatar = "true";
+    const text = card.textContent ?? "";
+    const premium = card.dataset.v21SessionPremium === "true" || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION");
+    card.dataset.v21SessionCard = "true";
+    card.dataset.v21SessionPremium = premium ? "true" : "false";
 
-    if (!visual.querySelector("img")) {
-      const image = document.createElement("img");
-      image.src = CONTENT_AVATAR_URL;
-      const title = card.querySelector<HTMLElement>("strong")?.textContent?.trim() || "Open Studio";
-      image.alt = `Ảnh đại diện ${title}`;
-      image.dataset.v21SessionImage = "true";
-      visual.insertBefore(image, visual.firstChild);
+    const visual = Array.from(card.querySelectorAll<HTMLElement>(":scope > div")).find((candidate) => candidate.querySelector(":scope > em"));
+    if (visual) {
+      visual.dataset.v21SessionVisual = "true";
+      const emoji = visual.querySelector<HTMLElement>(":scope > span");
+      if (emoji) emoji.dataset.v21UnicodeAvatar = "true";
+      if (!visual.querySelector("img")) {
+        const image = document.createElement("img");
+        image.src = CONTENT_AVATAR_URL;
+        const title = card.querySelector<HTMLElement>("strong")?.textContent?.trim() || "Open Studio";
+        image.alt = `Ảnh đại diện ${title}`;
+        image.dataset.v21SessionImage = "true";
+        visual.insertBefore(image, visual.firstChild);
+      }
     }
+
+    const copy = visual?.nextElementSibling instanceof HTMLElement ? visual.nextElementSibling : null;
+    if (!copy) return;
+    copy.dataset.v21SessionCopy = "true";
+    const badgeRow = copy.querySelector<HTMLElement>(":scope > div");
+    if (badgeRow) {
+      badgeRow.dataset.v21SessionTopline = "true";
+      const primaryBadge = badgeRow.querySelector<HTMLElement>(":scope > span");
+      if (primaryBadge) primaryBadge.textContent = premium ? "PREMIUM" : "KHÁM PHÁ";
+    }
+
+    const originalMeta = copy.querySelector<HTMLElement>(":scope > small");
+    if (originalMeta) {
+      originalMeta.dataset.v21SessionOriginalMeta = "true";
+      if (badgeRow) {
+        let context = badgeRow.querySelector<HTMLElement>("[data-v21-session-context='true']");
+        if (!context) {
+          context = document.createElement("small");
+          context.dataset.v21SessionContext = "true";
+          badgeRow.appendChild(context);
+        }
+        context.textContent = originalMeta.textContent ?? "";
+      }
+    }
+
+    const time = copy.querySelector<HTMLElement>(":scope > b");
+    if (time) time.dataset.v21SessionTime = "true";
+    const note = copy.querySelector<HTMLElement>(":scope > p");
+    if (note) note.dataset.v21SessionNote = "true";
   });
+
+  const section = sessionCards[0]?.closest("section");
+  if (section instanceof HTMLElement) {
+    section.dataset.v21SessionSection = "true";
+    const heading = section.querySelector<HTMLElement>("h3");
+    if (heading) heading.textContent = "Khám Phá & Premium";
+    const headingMeta = heading?.parentElement?.querySelector<HTMLElement>("span");
+    if (headingMeta) headingMeta.textContent = "SẮP DIỄN RA · 2 LOẠI QUYỀN TRUY CẬP";
+    const headingSmall = heading?.parentElement?.parentElement?.querySelector<HTMLElement>(":scope > small");
+    if (headingSmall) headingSmall.textContent = "Đăng ký theo cùng một luồng";
+
+    const legend = Array.from(section.querySelectorAll<HTMLElement>("div")).find((candidate) => {
+      const directSpans = candidate.querySelectorAll(":scope > span");
+      return directSpans.length === 2 && (candidate.textContent?.includes("OPEN STUDIO") || candidate.textContent?.includes("KHÁM PHÁ"));
+    });
+    if (legend) {
+      const spans = legend.querySelectorAll<HTMLElement>(":scope > span");
+      if (spans[0]) spans[0].textContent = "KHÁM PHÁ";
+      if (spans[1]) spans[1].textContent = "PREMIUM";
+    }
+  }
 
   const modalHeroes = Array.from(root.querySelectorAll<HTMLElement>("div")).filter((candidate) => {
     const directSpan = candidate.querySelector<HTMLElement>(":scope > span");
     const directBody = candidate.querySelector<HTMLElement>(":scope > div");
     if (!directSpan || !directBody) return false;
     const text = directBody.textContent ?? "";
-    return (text.includes("OPEN STUDIO") || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION")) && Boolean(directBody.querySelector("strong"));
+    return (text.includes("OPEN STUDIO") || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION") || text.includes("KHÁM PHÁ")) && Boolean(directBody.querySelector("strong"));
   });
 
   modalHeroes.forEach((hero) => {
@@ -404,5 +702,27 @@ function polishSessionAvatars(root: HTMLElement) {
       image.dataset.v21SessionHeroImage = "true";
       hero.insertBefore(image, hero.firstChild);
     }
+  });
+}
+
+function normalizeExploreVocabulary(root: HTMLElement) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+
+  nodes.forEach((node) => {
+    const parent = node.parentElement;
+    if (!parent || parent.closest("script, style, aside, [data-v15-audit-mount='true']")) return;
+    let value = node.nodeValue ?? "";
+    value = value
+      .replace(/Miễn phí và Premium/g, "Khám Phá <> Premium")
+      .replace(/Free vs Premium/g, "Khám Phá <> Premium")
+      .replace(/FREE \/ EXPIRED/g, "KHÁM PHÁ / ĐÃ HẾT HẠN")
+      .replace(/Free \/ expired/g, "Khám Phá / đã hết hạn")
+      .replace(/Free eligibility/g, "quyền Khám Phá")
+      .replace(/FREE/g, "KHÁM PHÁ")
+      .replace(/Free/g, "Khám Phá")
+      .replace(/Miễn phí/g, "Khám Phá");
+    if (value !== node.nodeValue) node.nodeValue = value;
   });
 }
