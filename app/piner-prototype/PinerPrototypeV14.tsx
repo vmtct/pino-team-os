@@ -15,37 +15,52 @@ export default function PinerPrototypeV14() {
     const repairExploreMount = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const mount = root.querySelector<HTMLElement>("[data-v13-explore-mount='true']");
-        const hiddenSections = Array.from(root.querySelectorAll<HTMLElement>("section[data-v13-hidden='true']"));
-        if (!mount || hiddenSections.length === 0) return;
-
-        const outerHidden = hiddenSections.find((section) => section.querySelector("nav")) ?? hiddenSections[0];
-        const legacyHeading = Array.from(outerHidden.querySelectorAll<HTMLHeadingElement>("h3"))
-          .find((heading) => heading.textContent?.trim() === "Open Studio gần nhất");
+        const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h3"));
+        const legacyHeading = headings.find((heading) => {
+          const text = heading.textContent?.trim();
+          return text === "Open Studio gần nhất" || text === "Open Studio sessions · legacy";
+        });
         const legacySection = legacyHeading?.closest("section") as HTMLElement | null;
+        if (!legacyHeading || !legacySection || !legacySection.parentElement) return;
 
-        if (!legacyHeading || !legacySection || legacySection === outerHidden || !legacySection.parentElement) return;
-
-        // V13 originally matched the first ancestor section whose text contained the heading,
-        // which could hide the entire device shell. Rename only the hidden legacy heading so
-        // the V13 observer no longer re-selects that ancestor after we move its portal mount.
-        if (!legacyHeading.dataset.v14MountFix) {
+        // V13 searches by textContent and can temporarily match an ancestor section.
+        // Neutralize the exact legacy heading so subsequent observer passes cannot
+        // select the entire device/stage as the portal target.
+        if (legacyHeading.textContent?.trim() === "Open Studio gần nhất") {
           legacyHeading.dataset.v14MountFix = "true";
           legacyHeading.textContent = "Open Studio sessions · legacy";
         }
 
         legacySection.style.display = "none";
-        outerHidden.style.display = "";
+        legacySection.dataset.v14LegacyExplore = "true";
 
-        if (mount.parentElement !== legacySection.parentElement || mount.nextElementSibling !== legacySection) {
-          legacySection.parentElement.insertBefore(mount, legacySection);
+        // Undo any accidental ancestor hiding from V13. Only the true leaf legacy
+        // Explore section should stay hidden; the learner device and bottom nav must remain.
+        Array.from(root.querySelectorAll<HTMLElement>("section[data-v13-hidden='true']")).forEach((section) => {
+          if (section === legacySection) return;
+          section.style.display = "";
+        });
+
+        const mounts = Array.from(root.querySelectorAll<HTMLElement>("[data-v13-explore-mount='true']"));
+        if (!mounts.length) return;
+
+        // The live React portal mount is the one containing rendered V13 content.
+        // A V13 race can leave an older empty mount behind and create a new one beside
+        // an ancestor. Always move the live mount back beside the leaf legacy section.
+        const liveMount = mounts.find((mount) => mount.childElementCount > 0) ?? mounts[mounts.length - 1];
+        if (liveMount.parentElement !== legacySection.parentElement || liveMount.nextElementSibling !== legacySection) {
+          legacySection.parentElement.insertBefore(liveMount, legacySection);
         }
+
+        mounts.forEach((mount) => {
+          if (mount !== liveMount && mount.childElementCount === 0) mount.remove();
+        });
       });
     };
 
     repairExploreMount();
     const observer = new MutationObserver(repairExploreMount);
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
 
     return () => {
       cancelAnimationFrame(frame);
