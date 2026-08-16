@@ -1,0 +1,343 @@
+.v11Root {
+  position: relative;
+}
+
+.staffBoundaryLab {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 1500;
+  width: min(360px, calc(100vw - 36px));
+  border: 1px solid rgba(31, 42, 39, 0.16);
+  border-radius: 18px;
+  padding: 13px;
+  display: grid;
+  gap: 7px;
+  background: rgba(255, 253, 247, 0.97);
+  color: #1f2a27;
+  box-shadow: 0 18px 45px rgba(31, 42, 39, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.staffBoundaryLab > span {
+  color: #7a837f;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.staffBoundaryLab > strong {
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.staffBoundaryLab > small {
+  color: #68726e;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+.staffBoundaryLab > div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.staffBoundaryLab button {
+  min-height: 34px;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.staffBoundaryLab button + button {
+  background: #fffdf7;
+  color: #1f2a27;
+}
+
+.curatedCollectionCard {
+  position: sticky;
+  z-index: 20;
+  bottom: 12px;
+  width: calc(100% - 28px);
+  margin: 14px;
+  border: 1px solid rgba(95, 114, 93, 0.24);
+  border-radius: 18px;
+  padding: 12px 13px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  background: rgba(237, 242, 233, 0.97);
+  color: #1f2a27;
+  box-shadow: 0 14px 34px rgba(31, 42, 39, 0.14);
+  cursor: pointer;
+}
+
+.curatedIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #5f725d;
+  font-size: 18px;
+}
+
+.curatedCollectionCard > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.curatedCollectionCard small {
+  color: #6f7974;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.curatedCollectionCard strong {
+  font-family: Georgia, serif;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.curatedCollectionCard em {
+  color: #65706b;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.curatedCollectionCard b {
+  font-size: 15px;
+}
+
+.detailBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1700;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(20, 24, 23, 0.78);
+}
+
+.detailModal {
+  width: min(660px, 100%);
+  max-height: min(780px, calc(100vh - 36px));
+  overflow-y: auto;
+  border-radius: 24px;
+  background: #f7f3e9;
+  color: #1f2a27;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.34);
+}
+
+.detailModal > header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.1);
+  background: rgba(255, 253, 247, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.detailModal > header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.detailModal > header span {
+  color: #75807b;
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detailModal h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.detailModal > header small {
+  color: #69736f;
+  font-size: 8.5px;
+}
+
+.detailModal > header button {
+  border: 0;
+  background: transparent;
+  color: #68726e;
+  font-size: 26px;
+  cursor: pointer;
+}
+
+.ownershipBanner {
+  margin: 16px;
+  border: 1px solid rgba(95, 114, 93, 0.2);
+  border-radius: 17px;
+  padding: 13px;
+  display: grid;
+  gap: 4px;
+  background: #edf2e9;
+}
+
+.ownershipBanner strong {
+  font-size: 10px;
+}
+
+.ownershipBanner p {
+  margin: 0;
+  color: #5d6863;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.mediaList {
+  margin: 0 16px;
+  display: grid;
+  gap: 9px;
+}
+
+.mediaCard {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 17px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  background: #fffdf7;
+}
+
+.mediaLocked {
+  background: #f1eee7;
+  border-style: dashed;
+}
+
+.mediaIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #eef1e9;
+  font-size: 18px;
+}
+
+.mediaCard > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.mediaCard > div strong {
+  font-size: 10px;
+}
+
+.mediaCard > div small {
+  color: #6c7672;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.mediaCard > em {
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+  background: #edf2e9;
+  color: #53635a;
+}
+
+.mediaCard > em[data-access="LOCKED"] {
+  background: #eee5e1;
+  color: #895d53;
+}
+
+.mediaCard > em[data-access="TRIAL"] {
+  background: #efe9da;
+  color: #836d43;
+}
+
+.mediaCard > em[data-access="RETAINED"] {
+  background: #e7edf3;
+  color: #526579;
+}
+
+.lockDoctrine {
+  margin: 14px 16px 0;
+  border: 1px dashed rgba(31, 42, 39, 0.16);
+  border-radius: 15px;
+  padding: 11px 12px;
+  display: grid;
+  gap: 3px;
+  background: #fffdf7;
+}
+
+.lockDoctrine strong {
+  font-size: 9px;
+}
+
+.lockDoctrine span {
+  color: #6c7672;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.detailModal > footer {
+  margin: 16px;
+  color: #7b847f;
+  font-size: 7.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .staffBoundaryLab {
+    left: 9px;
+    right: 9px;
+    bottom: 9px;
+    width: auto;
+  }
+
+  .detailBackdrop {
+    padding: 0;
+  }
+
+  .detailModal {
+    width: 100%;
+    min-height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .mediaCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .mediaCard > em {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
