@@ -1,13 +1,14 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-export type FounderDocGroup = "Architecture" | "Features" | "Proposals" | "ADRs" | "Runbooks";
+export type FounderDocGroup = "Founder Review" | "Features" | "Architecture" | "ADRs" | "Runbooks";
+export type FounderDocumentGroup = Exclude<FounderDocGroup, "Founder Review">;
 
 export type FounderDocument = {
   relativePath: string;
   sourcePath: string;
   title: string;
-  group: FounderDocGroup;
+  group: FounderDocumentGroup;
   specStatus: string;
   implementationStatus: string | null;
   authority: string;
@@ -21,7 +22,8 @@ export type FounderDocument = {
 
 type Frontmatter = Record<string, string>;
 
-const GROUP_ORDER: FounderDocGroup[] = ["Architecture", "Features", "Proposals", "ADRs", "Runbooks"];
+const GROUP_ORDER: FounderDocGroup[] = ["Founder Review", "Features", "Architecture", "ADRs", "Runbooks"];
+const DOCUMENT_GROUP_ORDER: FounderDocumentGroup[] = ["Features", "Architecture", "ADRs", "Runbooks"];
 
 export async function loadFounderDocuments(): Promise<{ documents: FounderDocument[]; repoRoot: string }> {
   const repoRoot = resolveCoreRepoRoot();
@@ -43,7 +45,7 @@ export async function loadFounderDocuments(): Promise<{ documents: FounderDocume
     }));
 
   documents.sort((a, b) => {
-    const groupDelta = GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group);
+    const groupDelta = DOCUMENT_GROUP_ORDER.indexOf(a.group) - DOCUMENT_GROUP_ORDER.indexOf(b.group);
     if (groupDelta) return groupDelta;
     return a.title.localeCompare(b.title, "vi");
   });
@@ -51,6 +53,13 @@ export async function loadFounderDocuments(): Promise<{ documents: FounderDocume
 }
 
 export function founderDocGroups(): FounderDocGroup[] { return GROUP_ORDER; }
+
+export function documentsForGroup(documents: FounderDocument[], group: FounderDocGroup): FounderDocument[] {
+  if (group === "Founder Review") {
+    return documents.filter(doc => doc.group === "Features" && doc.specStatus === "PROPOSED");
+  }
+  return documents.filter(doc => doc.group === group);
+}
 
 function resolveCoreRepoRoot(): string {
   const configured = process.env.PINO_CORE_REPO_PATH?.trim();
@@ -74,7 +83,8 @@ function toDocument(relativePath: string, raw: string, updatedAt: string): Found
   const group = groupFor(relativePath);
   const title = meta.title || firstHeading(body) || humanize(relativePath);
   const inferredAdrStatus = group === "ADRs" && /(?:^|\n)(?:#+\s*)?Status(?::|\s*\n)\s*accepted\.?/i.test(body) ? "APPROVED" : null;
-  const specStatus = (meta.spec_status || inferredAdrStatus || (group === "Proposals" ? "PROPOSED" : "CURRENT")).toUpperCase();
+  const inferredFeatureStatus = relativePath.startsWith("features/proposals/") ? "PROPOSED" : null;
+  const specStatus = (meta.spec_status || inferredAdrStatus || inferredFeatureStatus || "CURRENT").toUpperCase();
   return {
     relativePath,
     sourcePath: `docs/${relativePath}`,
@@ -105,8 +115,7 @@ function parseFrontmatter(raw: string): { meta: Frontmatter; body: string } {
   return { meta, body: raw.slice(end + 5) };
 }
 
-function groupFor(relativePath: string): FounderDocGroup {
-  if (relativePath.startsWith("features/proposals/")) return "Proposals";
+function groupFor(relativePath: string): FounderDocumentGroup {
   if (relativePath.startsWith("features/")) return "Features";
   if (relativePath.startsWith("adr/")) return "ADRs";
   if (relativePath === "environments.md" || relativePath === "migrations.md") return "Runbooks";
