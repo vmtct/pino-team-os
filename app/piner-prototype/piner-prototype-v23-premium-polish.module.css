@@ -1,0 +1,77 @@
+.root :global([data-v21-session-premium="true"]) {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(165, 132, 68, 0.3) !important;
+  background: linear-gradient(145deg, #fbf8ef 0%, #f6efdf 100%) !important;
+  color: #26342f !important;
+  box-shadow:
+    inset 3px 0 0 rgba(183, 148, 74, 0.58),
+    0 6px 18px rgba(31, 42, 39, 0.055) !important;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v21-session-visual="true"]) {
+  border: 1px solid rgba(120, 99, 55, 0.13) !important;
+  background: #fffdf7 !important;
+  box-shadow: 0 5px 14px rgba(31, 42, 39, 0.055) !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v21-session-copy="true"]),
+.root :global([data-v21-session-premium="true"] [data-v21-session-copy="true"] > strong) {
+  color: #26342f !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v21-session-context="true"]) {
+  color: #707872 !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v21-session-topline="true"] > span:first-child) {
+  border: 1px solid rgba(166, 132, 64, 0.25) !important;
+  background: #efe3bf !important;
+  color: #68542b !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v22-session-schedule="true"]) {
+  border-left-color: rgba(83, 79, 65, 0.16) !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v22-session-day="true"]) {
+  color: #737a75 !important;
+  opacity: 1 !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v22-session-clock="true"]) {
+  color: #26342f !important;
+  opacity: 1 !important;
+}
+
+.root :global([data-v21-session-premium="true"] [data-v23-access-lock="true"]) {
+  border-color: rgba(124, 98, 44, 0.18) !important;
+  background: rgba(124, 98, 44, 0.07) !important;
+  color: #76602f !important;
+}
+
+.root :global([data-v21-session-premium="true"] > button:last-child) {
+  border: 1px solid rgba(118, 92, 40, 0.16) !important;
+  background: #d7bd77 !important;
+  color: #403522 !important;
+  box-shadow: none !important;
+}
+
+.root :global([data-v23-premium-locked="true"] > button:last-child) {
+  opacity: 0.68 !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root :global([data-v21-session-premium="true"]:hover) {
+    transform: translateY(-1px);
+    border-color: rgba(157, 123, 55, 0.42) !important;
+    box-shadow:
+      inset 3px 0 0 rgba(183, 148, 74, 0.72),
+      0 9px 22px rgba(31, 42, 39, 0.075) !important;
+  }
+
+  .root :global([data-v21-session-premium="true"] > button:last-child:hover) {
+    background: #ccb069 !important;
+  }
+}
