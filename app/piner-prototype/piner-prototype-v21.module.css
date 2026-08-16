@@ -7,23 +7,31 @@
 
 /* PINO identity */
 .root :global([data-v21-pino-logo="true"]) {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  display: grid !important;
-  place-items: center;
+  min-width: 76px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
   overflow: hidden;
-  font-size: 0 !important;
   letter-spacing: 0 !important;
 }
 
 .root :global([data-v21-pino-logo-text="true"]) {
-  display: none !important;
+  display: inline-block !important;
+  color: #26342f;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.09em !important;
 }
 
 .root :global([data-v21-pino-logo-image="true"]) {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   display: block;
   object-fit: contain;
 }
@@ -87,9 +95,12 @@
   display: none !important;
 }
 
-.root :global([data-v16-package-toggle="true"] [class*="packageChevron"]) {
+.root :global([data-v16-package-toggle="true"] [data-v16-package-chevron="true"]) {
   color: var(--v21-accent) !important;
   background: var(--v21-accent-soft) !important;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif !important;
+  font-size: 15px !important;
+  line-height: 1;
 }
 
 /* Practice resource cards */
@@ -166,7 +177,7 @@
   color: #6f7974;
   font-size: 10px;
   line-height: 1.2;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 /* Piano repertoire ladder */
@@ -183,7 +194,7 @@
 .root :global([data-v21-piano-level] small) {
   font-size: 10px !important;
   line-height: 1.15;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
 }
 
 .root :global([data-v21-level-current="true"]) {
@@ -195,20 +206,21 @@
 .root :global([data-v21-syllabus-hero="true"]) {
   position: relative;
   overflow: hidden;
-  padding-right: 118px !important;
+  padding-right: 42% !important;
 }
 
 .root :global([data-v21-syllabus-avatar="true"]) {
   position: absolute;
-  top: 24px;
-  right: 22px;
-  width: 76px;
-  height: 76px;
+  top: 22px;
+  right: 20px;
+  width: 33.333%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 26px rgba(20, 30, 25, 0.16);
+  box-shadow: 0 12px 30px rgba(20, 30, 25, 0.18);
 }
 
 .root :global([data-v21-syllabus-avatar="true"] img) {
@@ -216,6 +228,194 @@
   height: 100%;
   display: block;
   object-fit: cover;
+}
+
+/* ArtChitect package topics use Vietnamese-safe UI type and become clickable. */
+.root :global([data-v21-ac-topic="true"]) {
+  cursor: pointer;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif !important;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.root :global([data-v21-ac-topic="true"] *) {
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif !important;
+}
+
+.root :global([data-v21-ac-topic-title="true"]) {
+  font-size: 11px !important;
+  line-height: 1.32;
+  font-weight: 650 !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root :global([data-v21-ac-topic="true"]:hover) {
+    transform: translateY(-2px);
+    border-color: var(--v21-accent-line) !important;
+    box-shadow: 0 8px 18px rgba(31, 42, 39, 0.08);
+  }
+}
+
+/* Syllabus detail modal */
+.syllabusBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 2400;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(24, 29, 27, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.syllabusModal {
+  width: min(100%, 450px);
+  max-height: 82%;
+  overflow-y: auto;
+  border-radius: 24px;
+  border: 1px solid rgba(31, 42, 39, 0.12);
+  background: #fffdf7;
+  color: #22302b;
+  box-shadow: 0 26px 70px rgba(20, 27, 24, 0.25);
+}
+
+.syllabusModalHeader {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 34px;
+  gap: 13px;
+  align-items: start;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.09);
+}
+
+.syllabusModalHeader > img {
+  width: 82px;
+  height: 82px;
+  object-fit: cover;
+  border-radius: 19px;
+}
+
+.syllabusModalHeader > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.syllabusModalHeader span {
+  color: #717b76;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.syllabusModalHeader h2 {
+  margin: 0;
+  font-family: "Lora", "Times New Roman", "Noto Serif", serif !important;
+  font-size: 23px;
+  line-height: 1.12;
+  font-weight: 500;
+}
+
+.syllabusModalHeader button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #f0ede5;
+  color: #5d6863;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.syllabusModalBody {
+  padding: 15px 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.syllabusModalBody > section {
+  border-radius: 16px;
+  padding: 12px;
+  background: #f7f4ec;
+}
+
+.syllabusModalBody small {
+  display: block;
+  margin-bottom: 5px;
+  color: #7b847f;
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.syllabusModalBody p {
+  margin: 0;
+  color: #394640;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.syllabusFocusRow {
+  display: grid;
+  gap: 8px;
+}
+
+.syllabusSkillset {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--v21-accent-soft);
+  color: #89301f;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.syllabusFocusRow > div {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.syllabusFocusRow > div span {
+  border: 1px solid rgba(31, 42, 39, 0.11);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: white;
+  color: #6d7772;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Next touchpoint cards always carry a learning-session avatar. */
+.root :global([data-v21-touchpoint-card="true"]) {
+  display: grid !important;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.root :global([data-v21-touchpoint-avatar="true"]) {
+  width: 58px;
+  height: 58px;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  background: #eee8dc;
+}
+
+.root :global([data-v21-touchpoint-avatar="true"] img) {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.root :global([data-v21-touchpoint-detail="true"] [data-v21-touchpoint-avatar="true"]) {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 8px;
+  border-radius: 19px;
 }
 
 /* Music-piece avatar slots now use the same CDN stand-in instead of Unicode. */
@@ -255,8 +455,16 @@
   border-radius: inherit;
 }
 
-/* Image-first Open Studio / Premium Session presentation. */
+/* Image-first Khám Phá / Premium session presentation. */
+.root :global([data-v21-session-card="true"]) {
+  min-height: 112px !important;
+  padding: 12px !important;
+  gap: 12px !important;
+}
+
 .root :global([data-v21-session-visual="true"]) {
+  width: 66px !important;
+  height: 76px !important;
   overflow: hidden;
 }
 
@@ -270,6 +478,68 @@
   display: block;
   object-fit: cover;
   border-radius: inherit;
+}
+
+.root :global([data-v21-session-copy="true"]) {
+  gap: 4px !important;
+}
+
+.root :global([data-v21-session-topline="true"]) {
+  display: flex !important;
+  align-items: center;
+  gap: 6px !important;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.root :global([data-v21-session-topline="true"] > span) {
+  font-size: 10px !important;
+  line-height: 1.15;
+  font-weight: 700 !important;
+}
+
+.root :global([data-v21-session-context="true"]) {
+  color: inherit !important;
+  opacity: 0.72;
+  font-size: 10px !important;
+  line-height: 1.2;
+  font-weight: 500 !important;
+}
+
+.root :global([data-v21-session-original-meta="true"]),
+.root :global([data-v21-session-note="true"]) {
+  display: none !important;
+}
+
+.root :global([data-v21-session-copy="true"] > strong) {
+  font-size: 14px !important;
+  line-height: 1.25;
+  font-weight: 550 !important;
+}
+
+.root :global([data-v21-session-time="true"]) {
+  margin-top: 2px;
+  color: var(--v21-accent) !important;
+  font-size: 12px !important;
+  line-height: 1.25;
+  font-weight: 850 !important;
+}
+
+.root :global([data-v21-session-card="true"] > button:last-child) {
+  min-width: 76px !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.root :global([data-v21-session-section="true"] h3) {
+  font-size: 18px !important;
+}
+
+.root :global([data-v21-session-section="true"] [class*="legendRow"] span) {
+  font-size: 10px !important;
+  font-weight: 650 !important;
 }
 
 .root :global([data-v21-session-hero="true"]) {
@@ -302,14 +572,33 @@
   }
 
   .root :global([data-v21-syllabus-hero="true"]) {
-    padding-right: 102px !important;
+    padding-right: 42% !important;
   }
 
   .root :global([data-v21-syllabus-avatar="true"]) {
-    top: 22px;
-    right: 18px;
-    width: 64px;
-    height: 64px;
-    border-radius: 17px;
+    top: 20px;
+    right: 16px;
+    width: 33.333%;
+    border-radius: 20px;
+  }
+
+  .syllabusBackdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .syllabusModal {
+    width: 100%;
+    max-height: 86%;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .root :global([data-v21-session-card="true"]) {
+    grid-template-columns: 60px minmax(0, 1fr) !important;
+  }
+
+  .root :global([data-v21-session-card="true"] > button:last-child) {
+    grid-column: 2;
+    width: fit-content;
   }
 }
