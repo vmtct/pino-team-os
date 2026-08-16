@@ -41,8 +41,8 @@ function familyLabel(family: PracticeFamily) {
 
 function resourceFromButton(text: string, mode: ViewerMode): ViewerResource | null {
   if (!text.includes("Founder · published")) return null;
-  if (text.includes("Expansion")) return null;
-  if (text.includes("Film Music Specialty")) {
+  if (text.includes("Expansion") || text.includes("Mở rộng")) return null;
+  if (text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty") || (text.includes("CHUYÊN ĐỀ") && text.includes("Film"))) {
     return { family: "SPECIALTY", title: "Film Music Specialty", context: "Chuyên Đề · L2", mode };
   }
   if (text.includes("Giai điệu quen thuộc") || text.includes("ABC Song")) {
@@ -92,16 +92,10 @@ export default function PinerPrototypeV7() {
       <PinerPrototypeV4 />
 
       <div className={v7.demoLauncherGroup}>
-        <button
-          type="button"
-          onClick={() => setResource({ family: "JOURNEY", title: "Always With Me", context: "V7 multipage demo", mode: "ACTIVE_PREMIUM" })}
-        >
+        <button type="button" onClick={() => setResource({ family: "JOURNEY", title: "Always With Me", context: "V7 multipage demo", mode: "ACTIVE_PREMIUM" })}>
           V7 · Active demo
         </button>
-        <button
-          type="button"
-          onClick={() => setResource({ family: "STARTER", title: "Giai điệu quen thuộc", context: "Khởi Hành · Trial hết hạn", mode: "TRIAL_EXPIRED" })}
-        >
+        <button type="button" onClick={() => setResource({ family: "STARTER", title: "Giai điệu quen thuộc", context: "Khởi Hành · Trial hết hạn", mode: "TRIAL_EXPIRED" })}>
           V7 · Leo expired
         </button>
       </div>
@@ -160,12 +154,7 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
           <div className={v6.landscapeWorkspace}>
             <div className={v6.stickyTools}>
               <div className={v6.viewTools}>
-                <button
-                  type="button"
-                  disabled={!worksheetAvailable || resourceLocked}
-                  className={showWorksheet && worksheetAvailable && !resourceLocked ? v6.activeTool : ""}
-                  onClick={() => setShowWorksheet((value) => !value)}
-                >
+                <button type="button" disabled={!worksheetAvailable || resourceLocked} className={showWorksheet && worksheetAvailable && !resourceLocked ? v6.activeTool : ""} onClick={() => setShowWorksheet((value) => !value)}>
                   {!worksheetAvailable ? "Không có phiếu hướng dẫn" : showWorksheet ? "Ẩn phiếu hướng dẫn" : "Hiện phiếu hướng dẫn"}
                 </button>
                 <button type="button" disabled={resourceLocked} className={listening ? v6.activeTool : ""} onClick={() => setListening((value) => !value)}>
@@ -194,17 +183,11 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
 
             <div className={v7.pageTabs} aria-label="Các trang luyện tập">
               {PAGES.map((candidate) => (
-                <button
-                  type="button"
-                  key={candidate.page}
-                  disabled={resourceLocked}
-                  className={activePage === candidate.page ? v7.pageTabActive : ""}
-                  onClick={() => {
-                    setActivePage(candidate.page);
-                    setRecording("idle");
-                    setListening(false);
-                  }}
-                >
+                <button type="button" key={candidate.page} disabled={resourceLocked} className={activePage === candidate.page ? v7.pageTabActive : ""} onClick={() => {
+                  setActivePage(candidate.page);
+                  setRecording("idle");
+                  setListening(false);
+                }}>
                   <strong>Trang {candidate.page}</strong>
                   <small>{resourceLocked ? "🔒 Premium" : candidate.worksheetUrl ? "Bản nhạc + hướng dẫn" : "Chỉ bản nhạc"}</small>
                 </button>
@@ -256,9 +239,7 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
               </div>
             )}
 
-            {!resourceLocked && recording === "ready" && (
-              <button type="button" className={v6.submitButton} onClick={() => setRecording("submitted")}>Gửi bài luyện tập →</button>
-            )}
+            {!resourceLocked && recording === "ready" && <button type="button" className={v6.submitButton} onClick={() => setRecording("submitted")}>Gửi bài luyện tập →</button>}
             {!resourceLocked && recording === "submitted" && (
               <div className={v6.submitNotice}>
                 <strong>Đã gửi bài luyện tập</strong>
@@ -280,12 +261,7 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
 function RowCrop({ src, rowIndex, alt }: { src: string; rowIndex: number; alt: string }) {
   return (
     <div className={v6.rowCrop}>
-      <img
-        src={src}
-        alt={alt}
-        draggable={false}
-        style={{ top: `${-rowIndex * 100}%` }}
-      />
+      <img src={src} alt={alt} draggable={false} style={{ top: `${-rowIndex * 100}%` }} />
     </div>
   );
 }
