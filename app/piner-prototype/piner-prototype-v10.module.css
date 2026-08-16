@@ -1,0 +1,162 @@
+.osTerminal {
+  border: 1px solid rgba(120, 105, 96, 0.22);
+  background: rgba(246, 242, 234, 0.97);
+}
+
+.osTerminal .osContinuityIcon {
+  background: #6f625b;
+}
+
+.prototypeStaffActions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(31, 42, 39, 0.12);
+}
+
+.prototypeStaffActions > span {
+  margin-right: auto;
+  color: #8a918d;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.prototypeStaffActions button,
+.staffTextAction,
+.secondaryWide {
+  min-height: 30px;
+  border: 1px solid rgba(31, 42, 39, 0.13);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #fffdf7;
+  color: #52605a;
+  font-size: 7.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.staffTextAction {
+  justify-self: center;
+  min-height: 32px;
+  background: transparent;
+}
+
+.durableRecord,
+.auditNote,
+.terminalNote {
+  border-radius: 16px;
+  padding: 12px 13px;
+}
+
+.durableRecord,
+.auditNote {
+  display: grid;
+  gap: 3px;
+}
+
+.durableRecord {
+  background: #f3efe5;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+}
+
+.auditNote {
+  background: #f4e7e2;
+  border: 1px solid rgba(143, 86, 75, 0.16);
+}
+
+.durableRecord strong,
+.auditNote strong {
+  font-size: 9.5px;
+}
+
+.durableRecord span,
+.auditNote span,
+.terminalNote {
+  color: #6f7974;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.cancelGlyph {
+  background: #8e695d !important;
+}
+
+.cancelledGlyph {
+  background: #6f625b !important;
+}
+
+.rejectedGlyph {
+  background: #9b6d4e !important;
+}
+
+.dangerAction {
+  min-height: 43px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: #8f564b;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.secondaryWide {
+  width: 100%;
+  min-height: 40px;
+  font-size: 9px;
+}
+
+.historyFacts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.historyFacts span {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fffdf7;
+  display: grid;
+  gap: 2px;
+}
+
+.historyFacts small {
+  color: #6f7974;
+  font-size: 7.5px;
+}
+
+.historyFacts strong {
+  font-size: 9px;
+}
+
+.terminalNote {
+  margin: 0;
+  background: #f3efe5;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+}
+
+@media (max-width: 760px) {
+  .prototypeStaffActions {
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .prototypeStaffActions > span {
+    width: 100%;
+  }
+
+  .prototypeStaffActions button {
+    flex: 1;
+  }
+
+  .historyFacts {
+    grid-template-columns: 1fr;
+  }
+}
