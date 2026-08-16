@@ -39,15 +39,15 @@ const exactText: Record<string, string> = {
   "Milestone": "Cột mốc",
   "Moment": "Khoảnh khắc",
   "Trial Premium": "Dùng thử Premium",
-  "Free": "Miễn phí",
+  "Free": "Khám Phá",
   "Expired": "Đã hết hạn",
   "Re-enrolled": "Đã tiếp tục Premium",
   "Fixed slot": "Khung giờ cố định",
   "Flexible studio window": "Khung giờ linh hoạt",
   "Package schedule": "Lịch của gói",
-  "OPEN STUDIO · Explore": "OPEN STUDIO · Khám phá",
-  "PREMIUM SESSION · member access": "BUỔI PREMIUM · dành cho thành viên",
-  "PREMIUM SESSION": "BUỔI PREMIUM",
+  "OPEN STUDIO · Explore": "KHÁM PHÁ",
+  "PREMIUM SESSION · member access": "PREMIUM",
+  "PREMIUM SESSION": "PREMIUM",
   "BOOKING · PENDING": "ĐĂNG KÝ · ĐANG CHỜ XÁC NHẬN",
   "BOOKING · CONFIRMED": "ĐĂNG KÝ · ĐÃ XÁC NHẬN",
   "BOOKING · CANCELLED": "ĐĂNG KÝ · ĐÃ HỦY",
@@ -76,9 +76,9 @@ const exactText: Record<string, string> = {
   "Owned": "Đã sở hữu",
   "Retained": "Được giữ lại",
   "Journey bắt đầu khi con bước vào một Path Premium.": "Hành trình bắt đầu khi con tham gia một chương trình Premium.",
-  "Free vẫn là một Explore experience hoàn chỉnh.": "Với gói Miễn phí, con vẫn có thể khám phá PINO qua Open Studio.",
+  "Free vẫn là một Explore experience hoàn chỉnh.": "Với gói Khám Phá, con vẫn có thể khám phá PINO qua Open Studio.",
   "Package-relative surface, canonical Path progress.": "Tiến trình theo gói học và chương trình của con.",
-  "Open Studio là Explore — không tạo curriculum progress giả cho Free.": "Open Studio là trải nghiệm khám phá; không tạo tiến trình học giả cho gói Miễn phí.",
+  "Open Studio là Explore — không tạo curriculum progress giả cho Free.": "Open Studio là trải nghiệm khám phá; không tạo tiến trình học giả cho gói Khám Phá.",
   "Preview Journey": "Xem trước hành trình",
   "Journey thật bám theo Path, package và canonical progress của Student.": "Hành trình thật bám theo chương trình, gói học và tiến trình của học viên.",
   "Current được center": "Tự đưa buổi hiện tại vào giữa",
@@ -128,14 +128,14 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Future progression/g, "Tiến trình sắp tới"],
   [/Future L5 outcome/g, "Thành quả L5 sắp tới"],
   [/Upcoming/g, "Sắp diễn ra"],
-  [/Free Collection/g, "Thành quả Miễn phí"],
+  [/Free Collection/g, "Thành quả Khám Phá"],
   [/Premium preview/g, "Xem trước Premium"],
   [/Trial recording/g, "Bản ghi âm trong thời gian dùng thử"],
   [/Trial milestone/g, "Cột mốc trong thời gian dùng thử"],
   [/Trial Premium/g, "Dùng thử Premium"],
   [/Re-enrolled/g, "Đã tiếp tục Premium"],
   [/Expired/g, "Đã hết hạn"],
-  [/Free vs Premium/g, "Miễn phí và Premium"],
+  [/Free vs Premium/g, "Khám Phá <> Premium"],
   [/Artwork/g, "Tác phẩm"],
   [/Music/g, "Âm nhạc"],
   [/Milestone/g, "Cột mốc"],
@@ -348,7 +348,7 @@ function enhancePackageContext(root: HTMLElement) {
     if (small && small.textContent !== summary) small.textContent = summary;
     toggle.setAttribute("aria-expanded", card.dataset.v16Expanded === "true" ? "true" : "false");
     const chevron = toggle.querySelector<HTMLElement>("[data-v16-package-chevron='true']");
-    const chevronText = card.dataset.v16Expanded === "true" ? "⌃" : "⌄";
+    const chevronText = card.dataset.v16Expanded === "true" ? "↑" : "↓";
     if (chevron && chevron.textContent !== chevronText) chevron.textContent = chevronText;
   });
 }
@@ -358,5 +358,5 @@ function setPackageExpanded(card: HTMLElement, expanded: boolean) {
   const toggle = card.querySelector<HTMLButtonElement>("[data-v16-package-toggle='true']");
   toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
   const chevron = toggle?.querySelector<HTMLElement>("[data-v16-package-chevron='true']");
-  if (chevron) chevron.textContent = expanded ? "⌃" : "⌄";
+  if (chevron) chevron.textContent = expanded ? "↑" : "↓";
 }
