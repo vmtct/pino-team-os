@@ -1,0 +1,438 @@
+.v12Root {
+  position: relative;
+}
+
+.lifecycleLab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1500;
+  width: min(300px, calc(100vw - 36px));
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+  background: rgba(255, 253, 247, 0.97);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 46px rgba(31, 42, 39, 0.18);
+}
+
+.lifecycleLab > span {
+  color: #7d8581;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.lifecycleLab > strong {
+  font-family: Georgia, serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.lifecycleLab > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.lifecycleLab button {
+  min-height: 32px;
+  border: 1px solid rgba(31, 42, 39, 0.13);
+  border-radius: 999px;
+  background: #f4f0e6;
+  color: #51605a;
+  font-size: 7.5px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.lifecycleLab .labActive {
+  background: #1f2a27;
+  color: #fff;
+  border-color: #1f2a27;
+}
+
+.lifecycleLab > small {
+  color: #818985;
+  font-size: 7px;
+  line-height: 1.4;
+}
+
+.lifecycleBanner {
+  position: sticky;
+  top: 10px;
+  z-index: 28;
+  margin: 10px 12px;
+  border-radius: 17px;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 12px 30px rgba(31, 42, 39, 0.13);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.bannerTrial {
+  border: 1px solid rgba(166, 127, 69, 0.28);
+  background: rgba(250, 245, 234, 0.97);
+}
+
+.bannerExpired {
+  border: 1px solid rgba(143, 86, 75, 0.26);
+  background: rgba(246, 235, 231, 0.97);
+}
+
+.bannerResumed {
+  border: 1px solid rgba(95, 114, 93, 0.28);
+  background: rgba(237, 242, 233, 0.97);
+}
+
+.lifecycleMark {
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.bannerTrial .lifecycleMark {
+  background: #a67f45;
+}
+
+.bannerExpired .lifecycleMark {
+  background: #8f564b;
+}
+
+.bannerResumed .lifecycleMark {
+  background: #5f725d;
+}
+
+.lifecycleCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.lifecycleCopy > span {
+  color: #727b77;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+}
+
+.lifecycleCopy strong {
+  font-family: Georgia, serif;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.lifecycleCopy p {
+  margin: 0;
+  color: #5d6863;
+  font-size: 7.7px;
+  line-height: 1.45;
+}
+
+.lifecycleActions button,
+.lifecycleActions span {
+  min-height: 32px;
+  border-radius: 999px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 7.5px;
+  font-weight: 850;
+}
+
+.lifecycleActions button {
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  background: #fffdf7;
+  color: #1f2a27;
+  cursor: pointer;
+}
+
+.lifecycleActions span {
+  background: rgba(255, 255, 255, 0.55);
+  color: #5f725d;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1700;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(20, 24, 23, 0.78);
+}
+
+.resumeModal,
+.collectionModal {
+  width: min(620px, 100%);
+  max-height: min(780px, calc(100vh - 36px));
+  overflow-y: auto;
+  border-radius: 24px;
+  background: #f7f3e9;
+  color: #1f2a27;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+}
+
+.resumeModal header,
+.collectionModal header {
+  padding: 15px 17px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.1);
+  background: rgba(255, 253, 247, 0.96);
+}
+
+.resumeModal header > div,
+.collectionModal header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.resumeModal header span,
+.collectionModal header span {
+  color: #737d78;
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.resumeModal h2,
+.collectionModal h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.collectionModal header small {
+  color: #737d78;
+  font-size: 8px;
+}
+
+.resumeModal header > button,
+.collectionModal header > button {
+  border: 0;
+  background: transparent;
+  color: #737d78;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.resumeLead {
+  margin: 0;
+  padding: 18px 18px 4px;
+  color: #4e5b55;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.resumeFacts {
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.resumeFacts span {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 15px;
+  padding: 11px;
+  display: grid;
+  gap: 3px;
+  background: #fffdf7;
+}
+
+.resumeFacts small {
+  color: #7a827e;
+  font-size: 7.5px;
+}
+
+.resumeFacts strong {
+  font-size: 9.5px;
+}
+
+.resumeDoctrine {
+  margin: 0 18px 14px;
+  border-radius: 16px;
+  padding: 13px;
+  display: grid;
+  gap: 4px;
+  background: #e9f0e5;
+  border: 1px solid rgba(95, 114, 93, 0.2);
+}
+
+.resumeDoctrine strong {
+  font-size: 10px;
+}
+
+.resumeDoctrine p {
+  margin: 0;
+  color: #59675f;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.resumePrimary,
+.closeButton {
+  margin: 0 18px 10px;
+  width: calc(100% - 36px);
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.resumePrimary {
+  border: 0;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.closeButton {
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  background: #fffdf7;
+  color: #1f2a27;
+}
+
+.billingNote {
+  display: block;
+  padding: 0 18px 18px;
+  color: #888f8b;
+  font-size: 7.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.ownershipState {
+  margin: 16px 18px 10px;
+  border-radius: 16px;
+  padding: 13px;
+  display: grid;
+  gap: 4px;
+  background: #eef1e9;
+  border: 1px solid rgba(95, 114, 93, 0.18);
+}
+
+.ownershipState strong {
+  font-size: 10px;
+}
+
+.ownershipState p {
+  margin: 0;
+  color: #5d6863;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.lifecycleMediaList {
+  padding: 4px 18px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.lifecycleMediaList article {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  background: #fffdf7;
+}
+
+.lifecycleMediaList article > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #edf0e8;
+  font-size: 18px;
+}
+
+.lifecycleMediaList article > div {
+  display: grid;
+  gap: 2px;
+}
+
+.lifecycleMediaList strong {
+  font-size: 10px;
+}
+
+.lifecycleMediaList small {
+  color: #5f725d;
+  font-size: 7.5px;
+  font-weight: 850;
+}
+
+.lifecycleMediaList p {
+  margin: 0;
+  color: #6f7974;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.lifecycleMediaList .futureMedia {
+  opacity: 0.82;
+  border-style: dashed;
+}
+
+.lifecycleMediaList .futureMedia > span {
+  background: #f1ece4;
+}
+
+@media (max-width: 760px) {
+  .lifecycleLab {
+    right: 9px;
+    bottom: 9px;
+  }
+
+  .lifecycleBanner {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 8px;
+  }
+
+  .lifecycleActions {
+    grid-column: 1 / -1;
+  }
+
+  .lifecycleActions button,
+  .lifecycleActions span {
+    width: 100%;
+  }
+
+  .modalBackdrop {
+    padding: 0;
+  }
+
+  .resumeModal,
+  .collectionModal {
+    width: 100%;
+    min-height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .resumeFacts {
+    grid-template-columns: 1fr;
+  }
+}
