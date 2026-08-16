@@ -1,12 +1,21 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { founderDocGroups, loadFounderDocuments, type FounderDocument, type FounderDocGroup } from "@/lib/founder-docs";
+import { documentsForGroup, founderDocGroups, loadFounderDocuments, type FounderDocument, type FounderDocGroup } from "@/lib/founder-docs";
 import styles from "./docs.module.css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type Params = { doc?: string; group?: string; q?: string };
+type Params = { doc?: string; group?: string; q?: string; status?: string };
+type FeatureStatusFilter = "ALL" | "APPROVED" | "PROPOSED" | "RECONSTRUCTED" | "SUPERSEDED";
+
+const FEATURE_STATUS_FILTERS: { value: FeatureStatusFilter; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "PROPOSED", label: "Proposed" },
+  { value: "RECONSTRUCTED", label: "Reconstructed" },
+  { value: "SUPERSEDED", label: "Superseded" },
+];
 
 export default async function FounderDocsPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
@@ -19,14 +28,20 @@ export default async function FounderDocsPage({ searchParams }: { searchParams: 
 
   const groups = founderDocGroups();
   const requestedGroup = groups.includes(params.group as FounderDocGroup) ? params.group as FounderDocGroup : "Features";
+  const requestedStatus = FEATURE_STATUS_FILTERS.some(filter => filter.value === params.status?.toUpperCase())
+    ? params.status!.toUpperCase() as FeatureStatusFilter
+    : "ALL";
   const query = (params.q || "").trim().toLocaleLowerCase("vi");
-  const groupDocs = loaded.documents.filter(doc => doc.group === requestedGroup);
-  const visibleDocs = query ? groupDocs.filter(doc => `${doc.title} ${doc.relativePath} ${doc.specStatus} ${doc.implementationStatus || ""}`.toLocaleLowerCase("vi").includes(query)) : groupDocs;
-  const selected = loaded.documents.find(doc => doc.relativePath === params.doc)
+  const groupDocs = documentsForGroup(loaded.documents, requestedGroup);
+  const statusDocs = requestedGroup === "Features" && requestedStatus !== "ALL"
+    ? groupDocs.filter(doc => doc.specStatus === requestedStatus)
+    : groupDocs;
+  const visibleDocs = query
+    ? statusDocs.filter(doc => `${doc.title} ${doc.relativePath} ${doc.specStatus} ${doc.implementationStatus || ""}`.toLocaleLowerCase("vi").includes(query))
+    : statusDocs;
+  const selected = visibleDocs.find(doc => doc.relativePath === params.doc)
     || visibleDocs.find(doc => doc.relativePath === "features/current/open-studio.md")
     || visibleDocs[0]
-    || groupDocs[0]
-    || loaded.documents[0]
     || null;
 
   return <div className={styles.shell}>
@@ -34,6 +49,7 @@ export default async function FounderDocsPage({ searchParams }: { searchParams: 
       <div className={styles.titleBlock}><p className={styles.eyebrow}>PINO · FOUNDER OS</p><h1>Founder Docs</h1></div>
       <form className={styles.search} method="get" action="/founder/docs">
         <input type="hidden" name="group" value={requestedGroup} />
+        {requestedGroup === "Features" && requestedStatus !== "ALL" ? <input type="hidden" name="status" value={requestedStatus} /> : null}
         <input name="q" defaultValue={params.q || ""} placeholder="Tìm tài liệu..." aria-label="Tìm tài liệu" />
         <button type="submit">Tìm</button>
       </form>
@@ -44,9 +60,14 @@ export default async function FounderDocsPage({ searchParams }: { searchParams: 
         <nav className={styles.tabs} aria-label="Nhóm tài liệu">
           {groups.map(group => <Link key={group} className={`${styles.tab} ${group === requestedGroup ? styles.tabActive : ""}`} href={`/founder/docs?group=${encodeURIComponent(group)}`}>{group}</Link>)}
         </nav>
-        <div className={styles.listHeader}><strong>{requestedGroup}</strong><span>{visibleDocs.length} tài liệu</span></div>
+        <div className={styles.listHeader}>
+          <strong>{requestedGroup === "Founder Review" ? "Awaiting founder decision" : requestedGroup}</strong>
+          <span>{visibleDocs.length} tài liệu</span>
+        </div>
+        {requestedGroup === "Features" ? <FeatureStatusFilters active={requestedStatus} query={params.q || ""} /> : null}
+        {requestedGroup === "Founder Review" ? <p className={styles.reviewNote}>Các Feature Spec đang ở trạng thái PROPOSED và cần Founder quyết định trước khi trở thành implementation authority.</p> : null}
         <div className={styles.docList}>
-          {visibleDocs.length ? visibleDocs.map(doc => <DocLink key={doc.relativePath} doc={doc} active={selected?.relativePath === doc.relativePath} group={requestedGroup} query={params.q || ""} />) : <div className={styles.empty}>Không tìm thấy tài liệu phù hợp.</div>}
+          {visibleDocs.length ? visibleDocs.map(doc => <DocLink key={doc.relativePath} doc={doc} active={selected?.relativePath === doc.relativePath} group={requestedGroup} query={params.q || ""} status={requestedStatus} />) : <div className={styles.empty}>{requestedGroup === "Founder Review" ? "Không có Feature Spec nào đang chờ duyệt." : "Không tìm thấy tài liệu phù hợp."}</div>}
         </div>
       </aside>
 
@@ -55,7 +76,7 @@ export default async function FounderDocsPage({ searchParams }: { searchParams: 
           <header className={styles.readerHeader}>
             <h2>{selected.title}</h2>
             <div className={styles.chips}>
-              <span className={styles.chip}><b>Spec</b> <StatusBadge value={selected.specStatus} /></span>
+              <span className={styles.chip}><b>Spec status</b> <StatusBadge value={selected.specStatus} /></span>
               {selected.implementationStatus ? <span className={styles.chip}><b>Implementation</b> <StatusBadge value={selected.implementationStatus} /></span> : null}
               <span className={styles.chip}><b>Canonical repo</b> {selected.canonicalRepo}</span>
               <span className={styles.chip}><b>Authority</b> {shortAuthority(selected.authority)}</span>
@@ -63,7 +84,7 @@ export default async function FounderDocsPage({ searchParams }: { searchParams: 
             </div>
           </header>
           <div className={styles.markdown}><Markdown source={selected.content} /></div>
-        </> : <div className={styles.noSelection}><strong>Chưa có tài liệu</strong><p>Thêm Markdown vào `pino-core/docs` để tài liệu tự xuất hiện tại đây.</p></div>}
+        </> : <div className={styles.noSelection}><strong>{requestedGroup === "Founder Review" ? "Review queue đang trống" : "Chưa có tài liệu"}</strong><p>{requestedGroup === "Founder Review" ? "Khi có Feature Spec ở trạng thái PROPOSED, chúng sẽ xuất hiện tại đây." : "Thêm Markdown vào `pino-core/docs` để tài liệu tự xuất hiện tại đây."}</p></div>}
       </article>
 
       <aside className={styles.side}>
@@ -79,10 +100,23 @@ export default async function FounderDocsPage({ searchParams }: { searchParams: 
   </div>;
 }
 
-function DocLink({ doc, active, group, query }: { doc: FounderDocument; active: boolean; group: FounderDocGroup; query: string }) {
-  const href = `/founder/docs?group=${encodeURIComponent(group)}&doc=${encodeURIComponent(doc.relativePath)}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
-  return <Link href={href} className={`${styles.docItem} ${active ? styles.docItemActive : ""}`}>
-    <span className={styles.docIcon}>{doc.group === "ADRs" ? "A" : doc.group === "Proposals" ? "P" : "D"}</span>
+function FeatureStatusFilters({ active, query }: { active: FeatureStatusFilter; query: string }) {
+  return <nav className={styles.filters} aria-label="Feature lifecycle status">
+    {FEATURE_STATUS_FILTERS.map(filter => {
+      const params = new URLSearchParams({ group: "Features" });
+      if (filter.value !== "ALL") params.set("status", filter.value);
+      if (query) params.set("q", query);
+      return <Link key={filter.value} className={`${styles.filter} ${filter.value === active ? styles.filterActive : ""}`} href={`/founder/docs?${params.toString()}`}>{filter.label}</Link>;
+    })}
+  </nav>;
+}
+
+function DocLink({ doc, active, group, query, status }: { doc: FounderDocument; active: boolean; group: FounderDocGroup; query: string; status: FeatureStatusFilter }) {
+  const params = new URLSearchParams({ group, doc: doc.relativePath });
+  if (group === "Features" && status !== "ALL") params.set("status", status);
+  if (query) params.set("q", query);
+  return <Link href={`/founder/docs?${params.toString()}`} className={`${styles.docItem} ${active ? styles.docItemActive : ""}`}>
+    <span className={styles.docIcon}>{group === "Founder Review" ? "R" : doc.group === "ADRs" ? "A" : doc.group === "Features" ? "F" : "D"}</span>
     <span><span className={styles.docTitle}><strong>{doc.title}</strong><StatusBadge value={doc.specStatus} /></span><span className={styles.docPath}>{doc.sourcePath}</span></span>
   </Link>;
 }
