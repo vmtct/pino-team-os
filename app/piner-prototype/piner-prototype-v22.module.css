@@ -1,0 +1,157 @@
+.root {
+  position: relative;
+}
+
+/* Header identity: keep the supplied sigil immediately adjacent to PINO. */
+.root :global([data-v21-pino-logo="true"]) {
+  gap: 0 !important;
+}
+
+/* Explore cards: dedicated schedule column immediately before registration. */
+.root :global([data-v22-session-card="true"]) {
+  grid-template-columns: 66px minmax(0, 1fr) 72px 82px !important;
+  align-items: center !important;
+}
+
+.root :global([data-v22-schedule-source="true"]) {
+  display: none !important;
+}
+
+.root :global([data-v22-session-schedule="true"]) {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  gap: 2px;
+  padding-left: 4px;
+  color: #26342f;
+  font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif !important;
+}
+
+.root :global([data-v22-session-day="true"]) {
+  color: #6f7974;
+  font-size: 10px !important;
+  line-height: 1.15;
+  font-weight: 500 !important;
+  white-space: nowrap;
+}
+
+.root :global([data-v22-session-clock="true"]) {
+  color: #26342f !important;
+  font-size: 13px !important;
+  line-height: 1.12;
+  font-weight: 700 !important;
+  white-space: nowrap;
+}
+
+.root :global([data-v22-session-card="true"] > button:last-child) {
+  min-width: 82px !important;
+  min-height: 40px !important;
+  padding: 0 13px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+}
+
+/* Next-touchpoint sheet: image is a full-height left column, information is right. */
+.root :global([data-v22-touchpoint-sheet="true"]) {
+  min-height: 260px;
+  display: grid !important;
+  grid-template-columns: minmax(150px, 42%) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 16px;
+  row-gap: 10px;
+  align-items: stretch;
+}
+
+.root :global([data-v22-touchpoint-hero="true"]) {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  display: block;
+  object-fit: cover;
+  border-radius: 20px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  background: #eee8dc;
+}
+
+.root :global([data-v22-touchpoint-header="true"]) {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0 !important;
+}
+
+.root :global([data-v22-touchpoint-detail="true"]) {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0 !important;
+  align-self: stretch;
+  display: grid !important;
+  place-items: initial !important;
+  align-content: start !important;
+  text-align: left !important;
+  gap: 7px !important;
+  padding: 14px !important;
+}
+
+.root :global([data-v22-legacy-touchpoint-avatar="true"]),
+.root :global([data-v22-touchpoint-glyph="true"]) {
+  display: none !important;
+}
+
+.root :global([data-v22-touchpoint-detail="true"] > strong) {
+  font-size: 16px !important;
+  line-height: 1.2;
+  font-weight: 700 !important;
+}
+
+.root :global([data-v22-touchpoint-detail="true"] > p) {
+  margin: 0 !important;
+  font-size: 11px !important;
+  line-height: 1.5;
+}
+
+.root :global([data-v22-touchpoint-detail="true"] > small) {
+  font-size: 10px !important;
+  line-height: 1.35;
+}
+
+@media (max-width: 560px) {
+  .root :global([data-v22-session-card="true"]) {
+    grid-template-columns: 54px minmax(0, 1fr) 58px 74px !important;
+    gap: 7px !important;
+  }
+
+  .root :global([data-v22-session-card="true"] [data-v21-session-visual="true"]) {
+    width: 54px !important;
+    height: 66px !important;
+  }
+
+  .root :global([data-v22-session-day="true"]) {
+    font-size: 10px !important;
+  }
+
+  .root :global([data-v22-session-clock="true"]) {
+    font-size: 12px !important;
+  }
+
+  .root :global([data-v22-session-card="true"] > button:last-child) {
+    min-width: 74px !important;
+    padding: 0 9px !important;
+    font-size: 12px !important;
+    grid-column: auto !important;
+    width: auto !important;
+  }
+
+  .root :global([data-v22-touchpoint-sheet="true"]) {
+    grid-template-columns: 38% minmax(0, 1fr);
+    column-gap: 12px;
+  }
+
+  .root :global([data-v22-touchpoint-hero="true"]) {
+    min-height: 220px;
+    border-radius: 17px;
+  }
+}
