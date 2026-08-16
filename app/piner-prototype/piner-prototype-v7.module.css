@@ -87,50 +87,79 @@
 }
 
 .strongLeftHandLock {
-  background: rgba(240, 237, 228, 0.82) !important;
-  backdrop-filter: blur(22px) saturate(0.25) contrast(0.72) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(0.25) contrast(0.72) !important;
+  isolation: isolate;
+  background: rgba(247, 243, 233, 0.34) !important;
+  backdrop-filter: blur(30px) saturate(0.12) contrast(0.58) brightness(0.94) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(0.12) contrast(0.58) brightness(0.94) !important;
+}
+
+.strongLeftHandLock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(247, 243, 233, 0.38);
+  backdrop-filter: blur(34px) saturate(0.08) contrast(0.5) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(0.08) contrast(0.5) !important;
 }
 
 .strongLeftHandLock::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -1;
-  background: rgba(247, 243, 233, 0.46);
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(247, 243, 233, 0.2), rgba(236, 232, 222, 0.44));
 }
 
 .largeLockMessage {
-  width: min(270px, calc(100% - 28px)) !important;
-  min-height: 92px;
-  border-radius: 18px !important;
-  padding: 13px 15px !important;
-  grid-template-columns: auto 1fr !important;
-  gap: 3px 10px !important;
+  position: relative;
+  z-index: 2;
+  width: 85% !important;
+  height: 85% !important;
+  min-height: 0 !important;
+  border-radius: 24px !important;
+  padding: clamp(16px, 2vw, 28px) !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-areas:
+    "icon title"
+    "icon note"
+    "icon cta" !important;
+  align-content: center !important;
+  align-items: center !important;
+  gap: 6px 14px !important;
   background: rgba(31, 42, 39, 0.94) !important;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28) !important;
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3) !important;
 }
 
 .largeLockMessage > span {
-  font-size: 24px !important;
+  font-size: clamp(28px, 3vw, 42px) !important;
 }
 
 .largeLockMessage strong {
-  font-size: 11px !important;
-  line-height: 1.2;
+  font-size: clamp(15px, 1.7vw, 22px) !important;
+  line-height: 1.15;
 }
 
 .largeLockMessage small {
-  font-size: 8.5px !important;
+  font-size: clamp(10px, 1vw, 13px) !important;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.72) !important;
 }
 
 .largeLockMessage button {
-  min-height: 31px !important;
-  padding: 0 12px !important;
-  font-size: 8.5px !important;
+  min-height: 42px !important;
+  width: fit-content;
+  margin-top: 8px !important;
+  padding: 0 18px !important;
+  font-size: clamp(10px, 1vw, 13px) !important;
   background: #fff !important;
   color: #1f2a27 !important;
   border-color: #fff !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .pageLockState {
@@ -218,6 +247,27 @@
   }
 
   .largeLockMessage {
-    width: min(230px, calc(100% - 18px)) !important;
+    width: 85% !important;
+    height: 85% !important;
+    padding: 14px !important;
+    gap: 4px 10px !important;
+  }
+
+  .largeLockMessage > span {
+    font-size: 26px !important;
+  }
+
+  .largeLockMessage strong {
+    font-size: 14px !important;
+  }
+
+  .largeLockMessage small {
+    font-size: 9px !important;
+  }
+
+  .largeLockMessage button {
+    min-height: 36px !important;
+    padding: 0 13px !important;
+    font-size: 9px !important;
   }
 }
