@@ -19,7 +19,8 @@ const reviewCases: ReviewCase[] = [
   { key: "an-free-confirmed", label: "An", state: "Miễn phí · đã xác nhận", focus: "giới hạn theo tuần + giữ lịch sử đăng ký" },
   { key: "han-trial-ac", label: "Hân", state: "Dùng thử · ArtChitect", focus: "hành trình thật + nội dung đã sở hữu trong thời gian dùng thử" },
   { key: "leo-trial", label: "Leo", state: "Dùng thử · PianoHouse", focus: "nhiều đăng ký + luyện tập Premium đang mở" },
-  { key: "leo-expired", label: "Leo", state: "Đã hết hạn", focus: "giữ lịch sử + CTA tiếp tục Premium" },
+  { key: "leo-expired", label: "Leo", state: "Trial đã hết hạn", focus: "Trial không chuyển Premium + giữ lịch sử + CTA tiếp tục" },
+  { key: "leo-attrition", label: "Leo", state: "Attrition · Premium", focus: "đã dùng Premium nhưng ngưng tiếp tục + giữ learner history" },
   { key: "leo-reenrolled", label: "Leo", state: "Đã tiếp tục Premium", focus: "tiếp tục L4 + quota chung 1 đăng ký" },
   { key: "minh-premium", label: "Minh", state: "Premium · PianoHouse + ArtChitect", focus: "liên tục nhiều chương trình" },
   { key: "mia-lpa", label: "Mía", state: "Premium · Little Piner Art", focus: "chủ đề theo lịch + checkpoint" },
@@ -163,6 +164,7 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
         <strong>Nguyên tắc cần giữ nhất quán</strong>
         <span>Không trộn dữ liệu giữa các bé trong cùng gia đình.</span>
         <span>Quyền truy cập có thể hết; thành quả và lịch sử đã sở hữu không mất.</span>
+        <span>Trial hết hạn và Attrition là hai nguyên nhân dừng Premium khác nhau; không gộp copy/lifecycle provenance.</span>
         <span>Đăng ký chờ xác nhận ≠ đã xác nhận ≠ đã tham dự.</span>
         <span>Gửi bài luyện tập ≠ tự tăng cấp ≠ tự đưa vào Thành quả.</span>
         <span>Dùng thử được nhiều đăng ký; Premium active dùng quota 1 chung cho Open Studio + Buổi Premium.</span>
