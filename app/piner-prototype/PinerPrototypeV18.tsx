@@ -42,15 +42,22 @@ export default function PinerPrototypeV18() {
 }
 
 function syncPracticeFamilies(root: HTMLElement) {
+  const badge = Array.from(root.querySelectorAll<HTMLElement>("aside div, aside span")).find((node) => {
+    const text = node.textContent?.trim() ?? "";
+    return text.startsWith("LOCAL PROTOTYPE") || text.startsWith("BẢN THỬ NỘI BỘ");
+  });
+  if (badge) badge.textContent = "BẢN THỬ NỘI BỘ · V18";
+
   const scenarioKey = root.querySelector<HTMLSelectElement>("#scenario")?.value ?? "";
   const ended = ENDED_ACCESS.has(scenarioKey);
 
   const practiceSections = Array.from(root.querySelectorAll<HTMLElement>("section"));
   const pianoSection = practiceSections.find((section) => {
     const text = section.textContent ?? "";
+    const hasSpecialty = text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty") || text.includes("CHUYÊN ĐỀ");
     return (text.includes("Luyện tập tại nhà") || text.includes("Practice support"))
       && text.includes("Always With Me")
-      && text.includes("Film Music Specialty");
+      && hasSpecialty;
   });
   if (!pianoSection) return;
 
@@ -60,7 +67,7 @@ function syncPracticeFamilies(root: HTMLElement) {
   const resourceButtons = Array.from(pianoSection.querySelectorAll<HTMLButtonElement>("button"));
   const currentJourney = resourceButtons.find((button) => {
     const text = button.textContent ?? "";
-    return text.includes("Always With Me") && !text.includes("Expansion");
+    return text.includes("Always With Me") && !text.includes("Expansion") && !text.includes("Mở rộng");
   });
   if (!currentJourney?.parentElement) return;
 
@@ -107,11 +114,11 @@ function syncPracticeFamilies(root: HTMLElement) {
     if (button.dataset.v18Starter === "true") return;
 
     const isJourney = text.includes("HÀNH TRÌNH") || text.includes("JOURNEY") || text.includes("Always With Me");
-    const isSpecialty = text.includes("CHUYÊN ĐỀ") || text.includes("SPECIALTY") || text.includes("Film Music Specialty");
+    const isSpecialty = text.includes("CHUYÊN ĐỀ") || text.includes("SPECIALTY") || text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty");
     if (!isJourney && !isSpecialty) return;
 
     button.dataset.v18Family = isSpecialty ? "specialty" : "journey";
-    const naturallyLocked = text.includes("Expansion") || text.includes("Sẽ mở sau") || text.includes("locked");
+    const naturallyLocked = text.includes("Expansion") || text.includes("Mở rộng") || text.includes("Sẽ mở sau") || text.includes("locked");
     const access = ended || naturallyLocked ? "locked" : "open";
     button.dataset.v18Access = access;
     const arrow = button.lastElementChild as HTMLElement | null;
