@@ -15,16 +15,16 @@ type ReviewCase = {
 };
 
 const reviewCases: ReviewCase[] = [
-  { key: "an-free", label: "An", state: "Miễn phí", focus: "Khám phá → đăng ký Open Studio + giới hạn Premium" },
-  { key: "an-free-confirmed", label: "An", state: "Miễn phí · đã xác nhận", focus: "giới hạn theo tuần + giữ lịch sử đăng ký" },
-  { key: "han-trial-ac", label: "Hân", state: "Dùng thử · ArtChitect", focus: "hành trình thật + nội dung đã sở hữu trong thời gian dùng thử" },
-  { key: "leo-trial", label: "Leo", state: "Dùng thử · PianoHouse", focus: "nhiều đăng ký + luyện tập Premium đang mở" },
-  { key: "leo-expired", label: "Leo", state: "Trial đã hết hạn", focus: "Trial không chuyển Premium + giữ lịch sử + CTA tiếp tục" },
-  { key: "leo-attrition", label: "Leo", state: "Attrition · Premium", focus: "đã dùng Premium nhưng ngưng tiếp tục + giữ learner history" },
-  { key: "leo-reenrolled", label: "Leo", state: "Đã tiếp tục Premium", focus: "tiếp tục L4 + quota chung 1 đăng ký" },
-  { key: "minh-premium", label: "Minh", state: "Premium · PianoHouse + ArtChitect", focus: "liên tục nhiều chương trình" },
-  { key: "mia-lpa", label: "Mía", state: "Premium · Little Piner Art", focus: "chủ đề theo lịch + checkpoint" },
-  { key: "bo-lpp", label: "Bơ", state: "Premium · Little Piner Piano", focus: "luyện tập khởi đầu + Thành quả" },
+  { key: "an-free", label: "An", state: "Khám Phá", focus: "Khám Phá → Open Studio → Booking(PENDING); Premium vẫn nhìn thấy nhưng khóa" },
+  { key: "an-free-confirmed", label: "An", state: "Khám Phá · đã xác nhận", focus: "weekly claim + active booking blocker + lịch sử đăng ký vẫn giữ" },
+  { key: "han-trial-ac", label: "Hân", state: "Dùng thử · ArtChitect", focus: "Hành trình thật + Premium mở full + cảnh báo tuổi có acknowledge" },
+  { key: "leo-trial", label: "Leo", state: "Dùng thử · PianoHouse", focus: "Khởi Hành/Hành Trình/Chuyên Đề đều dùng được + nhiều booking trong tuần" },
+  { key: "leo-expired", label: "Leo", state: "Trial đã hết hạn", focus: "Khởi Hành còn mở nhưng tay trái khóa; Hành Trình/Chuyên Đề khóa; lịch sử giữ" },
+  { key: "leo-attrition", label: "Leo", state: "Attrition · Premium", focus: "paid Premium đã dừng; provenance khác Trial; Khám Phá vẫn có thể dùng" },
+  { key: "leo-reenrolled", label: "Leo", state: "Đã tiếp tục Premium", focus: "resume đúng learner history; không reset level; Premium session vẫn khóa theo policy hiện tại" },
+  { key: "minh-premium", label: "Minh", state: "Premium · PianoHouse + ArtChitect", focus: "multi-Path continuity + Khám Phá bookable + Premium session visible/locked" },
+  { key: "mia-lpa", label: "Mía", state: "Premium · Little Piner Art", focus: "syllabus avatar + scheduled topic + checkpoint + Next Touchpoint" },
+  { key: "bo-lpp", label: "Bơ", state: "Premium · Little Piner Piano", focus: "self-paced Journey + Khởi Hành + Thành quả" },
 ];
 
 const surfaces: Surface[] = ["Trang chủ", "Hành trình", "Thành quả", "Khám phá"];
@@ -55,11 +55,11 @@ export default function PinerPrototypeV15() {
         if (!lab) return;
 
         const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE") || node.textContent?.trim().startsWith("BẢN THỬ NỘI BỘ"));
-        if (badge) badge.textContent = "BẢN THỬ NỘI BỘ · V15";
+        if (badge) badge.textContent = "FREEZE CANDIDATE · FINAL AUDIT";
 
         const intro = lab.querySelector("h1")?.nextElementSibling as HTMLElement | null;
         if (intro?.tagName === "P") {
-          intro.textContent = "Bản rà soát tổng thể · kiểm tra hành trình, quyền truy cập, đăng ký và trạng thái học viên trên toàn bộ Piner.";
+          intro.textContent = "Rà soát cuối trước khi freeze UI reference · kiểm tra state, access, navigation, copy và cross-flow trên toàn bộ Piner.";
         }
 
         const legacyFocus = Array.from(lab.querySelectorAll<HTMLElement>("strong")).find((node) => node.textContent?.trim() === "V4 review focus");
@@ -138,7 +138,7 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
   return (
     <section className={v15.console}>
       <div className={v15.consoleHead}>
-        <div><span>V15 · RÀ SOÁT TỔNG THỂ</span><strong>Ma trận rà soát Founder</strong></div>
+        <div><span>FINAL · HOLISTIC AUDIT</span><strong>Ma trận freeze Piner</strong></div>
         <em>{current?.state ?? "Trạng thái tùy chỉnh"}</em>
       </div>
 
@@ -161,13 +161,24 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
       </div>
 
       <div className={v15.invariants}>
-        <strong>Nguyên tắc cần giữ nhất quán</strong>
-        <span>Không trộn dữ liệu giữa các bé trong cùng gia đình.</span>
-        <span>Quyền truy cập có thể hết; thành quả và lịch sử đã sở hữu không mất.</span>
-        <span>Trial hết hạn và Attrition là hai nguyên nhân dừng Premium khác nhau; không gộp copy/lifecycle provenance.</span>
-        <span>Đăng ký chờ xác nhận ≠ đã xác nhận ≠ đã tham dự.</span>
-        <span>Gửi bài luyện tập ≠ tự tăng cấp ≠ tự đưa vào Thành quả.</span>
-        <span>Dùng thử được nhiều đăng ký; Premium active dùng quota 1 chung cho Open Studio + Buổi Premium.</span>
+        <strong>Freeze invariants</strong>
+        <span>Không trộn dữ liệu giữa các bé trong cùng household; đổi bé là hard context switch.</span>
+        <span>Access có thể hết; Journey history, Achievement và Thành quả đã sở hữu không bị mất.</span>
+        <span>Trial Expired và Attrition có cùng broad expired access nhưng provenance/copy khác nhau.</span>
+        <span>Khởi Hành luôn là practice family có thể tồn tại ngoài Premium; tay trái vẫn Premium-gated khi access không active.</span>
+        <span>Hành Trình/Chuyên Đề không fabricate cho learner chưa từng có Premium context; khi expired/attrition thì history card có thể giữ nhưng practice bị khóa.</span>
+        <span>Booking(PENDING) ≠ CONFIRMED ≠ Attendance; cancel/reject không xóa history.</span>
+        <span>Trial có thể đăng ký Khám Phá + Premium; paid Premium/re-enrolled/expired/attrition chỉ đăng ký Khám Phá, Premium vẫn visible nhưng locked.</span>
+        <span>Age mismatch: Trial có warning + acknowledge cho Student hiện tại; paid/expired/attrition có thể tạo Registration riêng cho bé khác.</span>
+        <span>Gửi bài luyện tập ≠ tự tăng level ≠ tự đưa vào Thành quả.</span>
+      </div>
+
+      <div className={v15.freezeGate}>
+        <strong>Freeze gate</strong>
+        <span><b>PASS</b> · visual hierarchy, typography floor, navigation, package context, Practice families, Explore presentation.</span>
+        <span><b>VERIFY LOCAL</b> · toàn bộ 10 learner cases × 4 tabs + modal/booking/practice interactions.</span>
+        <span><b>PRODUCTION GAP</b> · Core-backed read models/access decisions, auth, media/evidence upload, real Registration/Booking writes, typed React architecture.</span>
+        <span><b>NO NEW FEATURE</b> · sau khi walkthrough sạch, freeze prototype và chuyển sang production reconstruction.</span>
       </div>
     </section>
   );
