@@ -98,6 +98,7 @@ function polish(root: HTMLElement) {
   hideExploreCampaignBanner(root);
   polishPracticeCards(root);
   polishPianoLevels(root);
+  polishMusicPieceAvatars(root);
   polishSessionAvatars(root);
 }
 
@@ -113,10 +114,19 @@ function polishHeaderLogo(root: HTMLElement) {
   const header = Array.from(root.querySelectorAll<HTMLElement>("header")).find((candidate) => candidate.textContent?.includes("PINO"));
   if (!header) return;
 
-  const wordmark = Array.from(header.querySelectorAll<HTMLElement>("span")).find((span) => span.textContent?.trim() === "PINO");
+  const wordmark = Array.from(header.querySelectorAll<HTMLElement>("span")).find((span) => span.dataset.v21PinoLogo === "true" || span.textContent?.trim() === "PINO");
   if (!wordmark) return;
 
   wordmark.dataset.v21PinoLogo = "true";
+
+  if (!wordmark.querySelector("[data-v21-pino-logo-text='true']")) {
+    wordmark.textContent = "";
+    const label = document.createElement("span");
+    label.textContent = "PINO";
+    label.dataset.v21PinoLogoText = "true";
+    wordmark.appendChild(label);
+  }
+
   if (!wordmark.querySelector("img")) {
     const image = document.createElement("img");
     image.src = PINO_LOGO_URL;
@@ -271,6 +281,46 @@ function polishPianoLevels(root: HTMLElement) {
     extra.textContent = "EXTRA";
     parent.insertBefore(extra, levelSix);
   }
+}
+
+function polishMusicPieceAvatars(root: HTMLElement) {
+  const heroSections = Array.from(root.querySelectorAll<HTMLElement>("section")).filter((section) => {
+    const title = section.querySelector("h3")?.textContent?.trim() ?? "";
+    return title === "Always With Me" || title === "ABC Song";
+  });
+
+  heroSections.forEach((section) => {
+    const glyph = Array.from(section.querySelectorAll<HTMLElement>("span")).find((span) => {
+      const text = span.textContent?.trim() ?? "";
+      return text === "♬" || text === "♫";
+    });
+    if (!glyph) return;
+    glyph.dataset.v21MusicAvatar = "hero";
+    if (!glyph.querySelector("img")) {
+      const image = document.createElement("img");
+      image.src = CONTENT_AVATAR_URL;
+      image.alt = `Ảnh đại diện ${section.querySelector("h3")?.textContent?.trim() ?? "nhạc phẩm"}`;
+      glyph.appendChild(image);
+    }
+  });
+
+  const songRows = Array.from(root.querySelectorAll<HTMLElement>("div")).filter((row) => {
+    const strong = row.querySelector<HTMLElement>(":scope > strong");
+    const title = strong?.textContent?.trim() ?? "";
+    return title === "ABC Song" || title === "Twinkle Twinkle" || title === "Bài quen thuộc tiếp theo";
+  });
+
+  songRows.forEach((row) => {
+    const glyph = row.querySelector<HTMLElement>(":scope > span");
+    if (!glyph) return;
+    glyph.dataset.v21MusicAvatar = "small";
+    if (!glyph.querySelector("img")) {
+      const image = document.createElement("img");
+      image.src = CONTENT_AVATAR_URL;
+      image.alt = `Ảnh đại diện ${row.querySelector("strong")?.textContent?.trim() ?? "nhạc phẩm"}`;
+      glyph.appendChild(image);
+    }
+  });
 }
 
 function polishSessionAvatars(root: HTMLElement) {
