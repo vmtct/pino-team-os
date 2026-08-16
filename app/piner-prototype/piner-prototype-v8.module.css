@@ -1,0 +1,124 @@
+.continuityCard {
+  position: sticky;
+  z-index: 18;
+  bottom: 12px;
+  margin: 14px;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 18px;
+  padding: 13px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  background: rgba(255, 253, 247, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 14px 34px rgba(31, 42, 39, 0.14);
+}
+
+.continuityAcknowledged {
+  background: rgba(237, 242, 233, 0.97);
+  border-color: rgba(95, 114, 93, 0.28);
+}
+
+.continuityIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.continuityAcknowledged .continuityIcon {
+  background: #5f725d;
+}
+
+.continuityCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.continuityCopy > span {
+  color: #6f7974;
+  font-size: 7.5px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.continuityCopy strong {
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.continuityCopy p {
+  margin: 0;
+  color: #38423f;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
+.continuityCopy small {
+  color: #6f7974;
+  font-size: 7.5px;
+  line-height: 1.4;
+}
+
+.continuityCard > button {
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  background: #fffdf7;
+  color: #1f2a27;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.viewerSubmitNotice {
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.viewerSubmitNotice > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.viewerSubmitNotice > button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 13px;
+  background: #1f2a27;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .continuityCard {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 9px;
+  }
+
+  .continuityCard > button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .viewerSubmitNotice {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+}
