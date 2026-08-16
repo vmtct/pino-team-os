@@ -1,0 +1,671 @@
+.v13Root {
+  position: relative;
+}
+
+.sessionSection {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 18px;
+  padding: 13px;
+  background: #fffdf7;
+  display: grid;
+  gap: 10px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionHeading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.sectionHeading span {
+  color: #6f7974;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.sectionHeading h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.sectionHeading small {
+  color: #8a918d;
+  font-size: 7px;
+}
+
+.legendRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.openLegend,
+.premiumLegend,
+.openBadge,
+.premiumBadge,
+.lockBadge {
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 6.5px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.openLegend,
+.openBadge {
+  border: 1px solid rgba(95, 114, 93, 0.22);
+  background: #edf2e9;
+  color: #53635a;
+}
+
+.premiumLegend,
+.premiumBadge {
+  border: 1px solid rgba(196, 164, 96, 0.42);
+  background: rgba(224, 199, 139, 0.14);
+  color: #f2dca4;
+}
+
+.openBadge {
+  color: #53635a;
+}
+
+.lockBadge {
+  border: 1px solid rgba(242, 220, 164, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4e8c8;
+}
+
+.sessionList {
+  display: grid;
+  gap: 8px;
+}
+
+.sessionCard {
+  min-height: 96px;
+  border-radius: 16px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.openCard {
+  border: 1px solid rgba(95, 114, 93, 0.18);
+  background: linear-gradient(145deg, #f3f6ef, #fffaf0);
+  color: #1f2a27;
+}
+
+.premiumCard {
+  border: 1px solid rgba(218, 188, 119, 0.26);
+  background: linear-gradient(145deg, #202b28, #34403a);
+  color: #fffdf7;
+  box-shadow: 0 10px 24px rgba(31, 42, 39, 0.14);
+}
+
+.sessionVisual {
+  width: 58px;
+  height: 68px;
+  position: relative;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 253, 247, 0.9);
+  font-size: 27px;
+  box-shadow: 0 8px 18px rgba(31, 42, 39, 0.08);
+}
+
+.premiumCard .sessionVisual {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.sessionVisual em {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #5f725d;
+  color: #fff;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.premiumCard .sessionVisual em {
+  background: #d8b96f;
+  color: #27302d;
+}
+
+.sessionCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 1px;
+}
+
+.sessionCopy > small {
+  color: #6f7974;
+  font-size: 7px;
+}
+
+.premiumCard .sessionCopy > small,
+.premiumCard .sessionCopy p {
+  color: #c9d0cb;
+}
+
+.sessionCopy > strong {
+  font-family: Georgia, serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sessionCopy > b {
+  font-size: 8px;
+}
+
+.sessionCopy p {
+  margin: 1px 0 0;
+  color: #68736e;
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.openRegister,
+.premiumRegister {
+  min-width: 66px;
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 11px;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.openRegister {
+  border: 0;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.premiumRegister {
+  border: 1px solid rgba(244, 226, 181, 0.55);
+  background: #e2c57f;
+  color: #27302d;
+}
+
+.policyNote {
+  margin: 0;
+  color: #858d89;
+  font-size: 6.8px;
+  line-height: 1.45;
+}
+
+.bookingStrip {
+  border: 1px solid rgba(95, 114, 93, 0.2);
+  border-radius: 14px;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  background: #edf2e9;
+}
+
+.bookingStripPremium {
+  border-color: rgba(207, 176, 103, 0.28);
+  background: #28332f;
+  color: #fffdf7;
+}
+
+.bookingGlyph {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #5f725d;
+  color: #fff;
+  font-weight: 900;
+}
+
+.bookingStripPremium .bookingGlyph {
+  background: #d8b96f;
+  color: #25302c;
+}
+
+.bookingStrip > div:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.bookingStrip small {
+  color: #68736e;
+  font-size: 6.5px;
+  font-weight: 850;
+}
+
+.bookingStripPremium small,
+.bookingStripPremium p {
+  color: #c8d0cb;
+}
+
+.bookingStrip strong {
+  font-size: 8.5px;
+}
+
+.bookingStrip p {
+  margin: 0;
+  color: #68736e;
+  font-size: 6.8px;
+}
+
+.bookingActions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(31, 42, 39, 0.12);
+}
+
+.bookingStripPremium .bookingActions {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.bookingActions button {
+  min-height: 26px;
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: #fffdf7;
+  color: #27302d;
+  font-size: 6.7px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(18, 23, 21, 0.8);
+}
+
+.modalCard {
+  width: min(610px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
+  overflow-y: auto;
+  border-radius: 24px;
+  background: #f8f4ea;
+  color: #1f2a27;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.34);
+}
+
+.modalCard > header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-height: 68px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(31, 42, 39, 0.1);
+  background: rgba(255, 253, 247, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.modalCard > .modalHeaderPremium {
+  background: rgba(37, 48, 44, 0.97);
+  color: #fffdf7;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.modalCard header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.modalCard header span {
+  color: #7b8580;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.modalHeaderPremium span {
+  color: #dbc787 !important;
+}
+
+.modalCard header strong {
+  font-family: Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.modalCard header > button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.modalBody {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.modalEyebrow {
+  justify-self: center;
+  color: #7c8581;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.modalBody h2 {
+  margin: 0;
+  text-align: center;
+  font-family: Georgia, serif;
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.centerCopy {
+  margin: -4px 0 2px;
+  text-align: center;
+  color: #626d68;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.sessionHero {
+  min-height: 112px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 18px;
+  padding: 13px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  background: linear-gradient(145deg, #eef2ea, #fff9ee);
+}
+
+.sessionHeroPremium {
+  border-color: rgba(212, 179, 105, 0.3);
+  background: linear-gradient(145deg, #25302c, #39443f);
+  color: #fffdf7;
+}
+
+.sessionHero > span {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 253, 247, 0.92);
+  font-size: 29px;
+}
+
+.sessionHeroPremium > span {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sessionHero > div {
+  display: grid;
+  gap: 3px;
+}
+
+.sessionHero small {
+  color: #77817d;
+  font-size: 7.5px;
+  font-weight: 800;
+}
+
+.sessionHeroPremium small {
+  color: #d9c786;
+}
+
+.sessionHero strong {
+  font-size: 10px;
+}
+
+.sessionHero p {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 18px;
+}
+
+.sessionHeroCompact {
+  min-height: 88px;
+}
+
+.accessCheck,
+.infoBox {
+  border-radius: 15px;
+  padding: 11px 12px;
+  display: grid;
+  gap: 3px;
+}
+
+.accessCheck {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  background: #e8f0e4;
+  border: 1px solid rgba(95, 114, 93, 0.22);
+}
+
+.accessCheckPremium {
+  background: #eee4c9;
+  border-color: rgba(181, 146, 76, 0.26);
+}
+
+.accessCheck > span {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #5f725d;
+  color: #fff;
+  font-weight: 900;
+}
+
+.accessCheckPremium > span {
+  background: #9b7a38;
+}
+
+.accessCheck > div,
+.infoBox {
+  display: grid;
+  gap: 3px;
+}
+
+.accessCheck strong,
+.infoBox strong {
+  font-size: 9px;
+}
+
+.accessCheck small,
+.infoBox span {
+  color: #6e7773;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.infoBox {
+  background: #f0ece2;
+  border: 1px solid rgba(31, 42, 39, 0.09);
+}
+
+.primaryAction,
+.secondaryAction,
+.dangerAction,
+.staffAction,
+.twoActions > button {
+  min-height: 42px;
+  border-radius: 999px;
+  padding: 0 16px;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.primaryAction {
+  border: 0;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.secondaryAction,
+.twoActions > button {
+  border: 1px solid rgba(31, 42, 39, 0.14);
+  background: #fffdf7;
+  color: #27302d;
+}
+
+.dangerAction {
+  border: 0 !important;
+  background: #8e594f !important;
+  color: #fff !important;
+}
+
+.staffAction {
+  justify-self: center;
+  min-height: 30px;
+  border: 1px solid rgba(31, 42, 39, 0.12);
+  background: transparent;
+  color: #6e7773;
+}
+
+.twoActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.twoActions .primaryAction {
+  border: 0;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.pendingGlyph,
+.confirmedGlyph,
+.blockedGlyph,
+.cancelGlyph,
+.lockHero {
+  width: 66px;
+  height: 66px;
+  margin: 6px auto 0;
+  border-radius: 21px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.pendingGlyph {
+  background: #a47e43;
+}
+
+.confirmedGlyph {
+  background: #5f725d;
+}
+
+.blockedGlyph {
+  background: #8e594f;
+}
+
+.cancelGlyph {
+  background: #74645d;
+}
+
+.lockHero {
+  background: linear-gradient(145deg, #25302c, #a07d39);
+}
+
+.historyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.historyGrid span {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 13px;
+  padding: 9px;
+  display: grid;
+  gap: 2px;
+  background: #fffdf7;
+}
+
+.historyGrid small {
+  color: #7b8580;
+  font-size: 7px;
+}
+
+.historyGrid strong {
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  .sessionCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .openRegister,
+  .premiumRegister {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+  }
+
+  .modalBackdrop {
+    padding: 0;
+  }
+
+  .modalCard {
+    width: 100%;
+    min-height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .twoActions,
+  .historyGrid {
+    grid-template-columns: 1fr;
+  }
+}
