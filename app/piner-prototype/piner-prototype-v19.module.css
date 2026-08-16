@@ -1,0 +1,271 @@
+.root {
+  position: relative;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1900;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(24, 29, 27, 0.56);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.sheet {
+  width: 100%;
+  max-height: 86%;
+  overflow-y: auto;
+  border-radius: 24px 24px 0 0;
+  background: #f8f4ea;
+  color: #22302b;
+  box-shadow: 0 -22px 58px rgba(22, 28, 25, 0.22);
+}
+
+.handle {
+  width: 42px;
+  height: 4px;
+  margin: 9px auto 4px;
+  border-radius: 999px;
+  background: rgba(34, 48, 43, 0.18);
+}
+
+.sheetHeader {
+  padding: 10px 18px 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(34, 48, 43, 0.09);
+}
+
+.sheetHeader > div {
+  display: grid;
+  gap: 3px;
+}
+
+.sheetHeader span,
+.contextHead span {
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #66736d;
+}
+
+.sheetHeader h2 {
+  margin: 0;
+  font-family: Lora, Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+}
+
+.sheetHeader p {
+  margin: 0;
+  color: #6f7974;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+.sheetHeader > button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #ece8dd;
+  color: #56635e;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.studentList {
+  padding: 12px 16px 4px;
+  display: grid;
+  gap: 7px;
+}
+
+.studentList > button {
+  width: 100%;
+  border: 1px solid rgba(34, 48, 43, 0.1);
+  border-radius: 17px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  background: #fffdf7;
+  color: #22302b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.studentList > .studentActive {
+  border-color: rgba(95, 114, 93, 0.34);
+  background: #edf2e9;
+  box-shadow: inset 3px 0 0 #5f725d;
+}
+
+.avatar {
+  width: 39px;
+  height: 39px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #263630;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.studentCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.studentTopline {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.studentTopline strong {
+  font-size: 10px;
+}
+
+.studentTopline em {
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: #eee9dc;
+  color: #5b6862;
+  font-size: 6.7px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.studentCopy small {
+  color: #77807c;
+  font-size: 7.4px;
+  line-height: 1.35;
+}
+
+.chooseMark {
+  min-width: 27px;
+  height: 27px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #f0ede4;
+  color: #5f725d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.contextCard {
+  margin: 10px 16px 0;
+  border: 1px solid rgba(34, 48, 43, 0.1);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(239, 242, 232, 0.78);
+}
+
+.contextHead {
+  margin-bottom: 9px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.contextHead strong {
+  font-family: Lora, Georgia, serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.contextGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.contextGrid > div {
+  min-width: 0;
+  border-radius: 13px;
+  padding: 9px;
+  display: grid;
+  gap: 3px;
+  background: rgba(255, 253, 247, 0.82);
+}
+
+.contextGrid small {
+  color: #7c8580;
+  font-size: 6.8px;
+}
+
+.contextGrid strong {
+  font-size: 8.2px;
+  line-height: 1.35;
+}
+
+.accountRows {
+  margin: 10px 16px 0;
+  border: 1px solid rgba(34, 48, 43, 0.1);
+  border-radius: 17px;
+  overflow: hidden;
+  background: #fffdf7;
+}
+
+.accountRows button {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 1px solid rgba(34, 48, 43, 0.08);
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  color: #22302b;
+  text-align: left;
+}
+
+.accountRows button:last-child {
+  border-bottom: 0;
+}
+
+.accountRows button > span {
+  display: grid;
+  gap: 2px;
+}
+
+.accountRows strong {
+  font-size: 8.8px;
+}
+
+.accountRows small {
+  color: #7a837f;
+  font-size: 7.1px;
+}
+
+.accountRows em {
+  color: #718078;
+  font-size: 15px;
+  font-style: normal;
+}
+
+.doctrine {
+  margin: 11px 16px 16px;
+  color: #7b837f;
+  font-size: 7.2px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .sheet {
+    max-height: 91%;
+  }
+}
