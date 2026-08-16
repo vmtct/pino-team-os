@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import PinerPrototypeV12 from "./PinerPrototypeV12";
+import PinerPrototypeV13 from "./PinerPrototypeV13";
 
 export const metadata: Metadata = {
-  title: "Piner Member Space — Local Prototype V12",
+  title: "Piner Member Space — Local Prototype V13",
   description: "Local mock prototype for PINO Piner Member Space",
 };
 
 export default function PinerPrototypePage() {
-  return <PinerPrototypeV12 />;
+  return <PinerPrototypeV13 />;
 }
