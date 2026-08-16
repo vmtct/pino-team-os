@@ -98,6 +98,7 @@ function polish(root: HTMLElement) {
   hideExploreCampaignBanner(root);
   polishPracticeCards(root);
   polishPianoLevels(root);
+  polishMiaHomeHero(root);
   polishMusicPieceAvatars(root);
   polishSessionAvatars(root);
 }
@@ -144,6 +145,13 @@ function polishNavigationIcons(root: HTMLElement) {
 
   Array.from(nav.querySelectorAll<HTMLButtonElement>(":scope > button")).forEach((button) => {
     button.dataset.v21NavButton = "true";
+    const label = button.querySelector<HTMLElement>(":scope > small");
+    if (label) {
+      label.style.setProperty("font-size", "12px", "important");
+      label.style.setProperty("font-weight", button.dataset.v16Active === "true" ? "750" : "650", "important");
+      label.style.setProperty("line-height", "1.15", "important");
+    }
+
     const icon = button.querySelector<HTMLElement>(":scope > span");
     if (!icon) return;
     icon.dataset.v21NavIcon = "true";
@@ -176,13 +184,25 @@ function polishPackageContext(root: HTMLElement) {
 }
 
 function hideExploreCampaignBanner(root: HTMLElement) {
-  const campaignSections = Array.from(root.querySelectorAll<HTMLElement>("section")).filter((section) => {
+  const candidates = Array.from(root.querySelectorAll<HTMLElement>("section")).filter((section) => {
     return Boolean(section.querySelector("button[aria-label^='Campaign']"));
   });
 
-  campaignSections.forEach((section) => {
-    section.dataset.v21ExploreBanner = "hidden";
-    section.style.display = "none";
+  const leafCampaignSections = candidates.filter((section) => {
+    return !Array.from(section.querySelectorAll<HTMLElement>("section")).some((descendant) => {
+      return Boolean(descendant.querySelector("button[aria-label^='Campaign']"));
+    });
+  });
+
+  candidates.forEach((section) => {
+    const shouldHide = leafCampaignSections.includes(section);
+    if (shouldHide) {
+      section.dataset.v21ExploreBanner = "hidden";
+      section.style.display = "none";
+    } else if (section.dataset.v21ExploreBanner === "hidden") {
+      delete section.dataset.v21ExploreBanner;
+      section.style.removeProperty("display");
+    }
   });
 }
 
@@ -256,6 +276,8 @@ function polishPianoLevels(root: HTMLElement) {
   if (!parent) return;
   parent.dataset.v21LevelLadder = "true";
 
+  parent.querySelector<HTMLElement>("[data-v21-level-extra='true']")?.remove();
+
   const ordered = Array.from(parent.children).filter((child): child is HTMLElement => {
     if (!(child instanceof HTMLElement)) return false;
     return /^L(?:10|[1-9])$/.test(child.querySelector(":scope > strong")?.textContent?.trim() ?? "");
@@ -269,17 +291,34 @@ function polishPianoLevels(root: HTMLElement) {
     const level = Number(match[1]);
     const wasLocked = (small.textContent ?? "").includes("🔒");
     small.textContent = `${PIANO_LEVELS[level - 1]}${wasLocked ? " · 🔒" : ""}`;
+    small.style.setProperty("font-size", "10px", "important");
+    small.style.setProperty("font-weight", "650", "important");
     node.dataset.v21PianoLevel = String(level);
     if (level === 4) node.dataset.v21LevelCurrent = "true";
   });
+}
 
-  let extra = parent.querySelector<HTMLElement>("[data-v21-level-extra='true']");
-  const levelSix = ordered.find((node) => node.dataset.v21PianoLevel === "6");
-  if (!extra && levelSix) {
-    extra = document.createElement("div");
-    extra.dataset.v21LevelExtra = "true";
-    extra.textContent = "EXTRA";
-    parent.insertBefore(extra, levelSix);
+function polishMiaHomeHero(root: HTMLElement) {
+  const scenarioKey = root.querySelector<HTMLSelectElement>("#scenario")?.value ?? "";
+  if (scenarioKey !== "mia-lpa") return;
+
+  const hero = Array.from(root.querySelectorAll<HTMLElement>("section")).find((section) => {
+    const heading = section.querySelector<HTMLElement>(":scope > h2");
+    const eyebrow = section.querySelector<HTMLElement>(":scope > span");
+    return heading?.textContent?.trim() === "Cơn mưa chấm tròn"
+      && (eyebrow?.textContent ?? "").includes("Tuần này của Mía");
+  });
+  if (!hero) return;
+
+  hero.dataset.v21SyllabusHero = "true";
+  if (!hero.querySelector("[data-v21-syllabus-avatar='true']")) {
+    const avatar = document.createElement("span");
+    avatar.dataset.v21SyllabusAvatar = "true";
+    const image = document.createElement("img");
+    image.src = CONTENT_AVATAR_URL;
+    image.alt = "Ảnh đại diện chủ đề Cơn mưa chấm tròn";
+    avatar.appendChild(image);
+    hero.appendChild(avatar);
   }
 }
 
