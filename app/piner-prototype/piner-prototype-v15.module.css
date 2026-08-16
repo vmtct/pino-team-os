@@ -1,0 +1,154 @@
+.console {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(31, 42, 39, 0.12);
+  display: grid;
+  gap: 10px;
+}
+
+.consoleHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.consoleHead > div {
+  display: grid;
+  gap: 2px;
+}
+
+.consoleHead span {
+  color: #6e7773;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.consoleHead strong {
+  color: #1f2a27;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.consoleHead em {
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #edf2e9;
+  color: #53635a;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.focus {
+  margin: 0;
+  color: #6e7773;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.surfaceRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.surfaceRow button {
+  min-height: 30px;
+  border: 1px solid rgba(31, 42, 39, 0.12);
+  border-radius: 10px;
+  background: #fffdf7;
+  color: #34403a;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.surfaceRow .surfaceActive {
+  border-color: #1f2a27;
+  background: #1f2a27;
+  color: #fff;
+}
+
+.caseList {
+  display: grid;
+  gap: 5px;
+  max-height: 255px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.caseList button {
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 11px;
+  padding: 7px 8px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1px 7px;
+  text-align: left;
+  background: rgba(255, 253, 247, 0.75);
+  color: #27302d;
+  cursor: pointer;
+}
+
+.caseList button > span {
+  grid-row: 1 / 3;
+  width: 25px;
+  height: 25px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  background: #edf2e9;
+  color: #53635a;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.caseList button > strong {
+  font-size: 8px;
+}
+
+.caseList button > small {
+  color: #7a827e;
+  font-size: 6.8px;
+  line-height: 1.35;
+}
+
+.caseList .caseActive {
+  border-color: rgba(31, 42, 39, 0.45);
+  background: #f0ede3;
+  box-shadow: inset 3px 0 0 #1f2a27;
+}
+
+.invariants {
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+  background: #25302c;
+  color: #f8f4ea;
+}
+
+.invariants strong {
+  margin-bottom: 2px;
+  color: #e0c77f;
+  font-size: 8px;
+}
+
+.invariants span {
+  position: relative;
+  padding-left: 10px;
+  color: #d3d9d5;
+  font-size: 6.8px;
+  line-height: 1.4;
+}
+
+.invariants span::before {
+  content: "·";
+  position: absolute;
+  left: 2px;
+  color: #e0c77f;
+}
