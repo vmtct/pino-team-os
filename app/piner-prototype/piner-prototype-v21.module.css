@@ -30,6 +30,10 @@
 
 /* Primary navigation keeps the current CMS-configurable slot shape, but uses
    the supplied PINO sigil as the temporary asset for all four items. */
+.root :global([data-v21-nav-button="true"]) {
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease !important;
+}
+
 .root :global([data-v21-nav-icon="true"]) {
   width: 24px;
   height: 24px;
@@ -59,6 +63,23 @@
 .root :global([data-v16-nav-button="true"][data-v16-active="true"] [data-v21-nav-icon-image="true"]) {
   opacity: 1;
   transform: scale(1.04);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root :global([data-v21-nav-button="true"]:hover) {
+    background: rgba(31, 42, 39, 0.055) !important;
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 1px rgba(31, 42, 39, 0.055);
+  }
+
+  .root :global([data-v21-nav-button="true"]:hover [data-v21-nav-icon-image="true"]) {
+    opacity: 0.92;
+    transform: translateY(-1px) scale(1.04);
+  }
+
+  .root :global([data-v16-nav-button="true"][data-v16-active="true"]:hover) {
+    background: rgba(169, 60, 39, 0.15) !important;
+  }
 }
 
 /* Package context: V21 intentionally removes the old package-note footer. */
@@ -138,14 +159,14 @@
 }
 
 .root :global([data-v21-resource-tags="true"] small) {
-  border: 1px solid var(--v21-accent-line);
+  border: 1px solid rgba(31, 42, 39, 0.12);
   border-radius: 999px;
   padding: 3px 7px;
-  background: var(--v21-accent-soft);
-  color: #85301f;
+  background: #fffdf7;
+  color: #6f7974;
   font-size: 10px;
   line-height: 1.2;
-  font-weight: 750;
+  font-weight: 550;
 }
 
 /* Piano repertoire ladder */
@@ -160,7 +181,9 @@
 }
 
 .root :global([data-v21-piano-level] small) {
+  font-size: 10px !important;
   line-height: 1.15;
+  font-weight: 650 !important;
 }
 
 .root :global([data-v21-level-current="true"]) {
@@ -168,18 +191,31 @@
   border-color: var(--v21-accent-line) !important;
 }
 
-.root :global([data-v21-level-extra="true"]) {
-  grid-column: 1 / -1;
-  width: fit-content;
-  justify-self: center;
-  margin: 2px 0 -1px;
-  border-radius: 999px;
-  padding: 3px 9px;
-  background: var(--v21-accent-soft);
-  color: var(--v21-accent);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+/* Mía Home uses the syllabus artwork avatar as a visual anchor. */
+.root :global([data-v21-syllabus-hero="true"]) {
+  position: relative;
+  overflow: hidden;
+  padding-right: 118px !important;
+}
+
+.root :global([data-v21-syllabus-avatar="true"]) {
+  position: absolute;
+  top: 24px;
+  right: 22px;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 26px rgba(20, 30, 25, 0.16);
+}
+
+.root :global([data-v21-syllabus-avatar="true"] img) {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 /* Music-piece avatar slots now use the same CDN stand-in instead of Unicode. */
@@ -263,5 +299,17 @@
 
   .root :global([data-v21-piano-level]) {
     min-height: 60px !important;
+  }
+
+  .root :global([data-v21-syllabus-hero="true"]) {
+    padding-right: 102px !important;
+  }
+
+  .root :global([data-v21-syllabus-avatar="true"]) {
+    top: 22px;
+    right: 18px;
+    width: 64px;
+    height: 64px;
+    border-radius: 17px;
   }
 }
