@@ -25,11 +25,17 @@ export default function PinerPrototypeV18() {
       });
     };
 
-    schedule();
+    // Prototype safeguard: earlier versions injected the Starter card only on a
+    // mutation edge and React could replace that unmanaged node afterwards.
+    // Keep the projection deterministic while this surface is still a prototype.
+    const interval = window.setInterval(() => syncPracticeFamilies(root), 250);
+
+    syncPracticeFamilies(root);
     observer.observe(root, { childList: true, subtree: true, characterData: true });
 
     return () => {
       cancelAnimationFrame(frame);
+      window.clearInterval(interval);
       observer.disconnect();
     };
   }, []);
@@ -51,14 +57,13 @@ function syncPracticeFamilies(root: HTMLElement) {
   const scenarioKey = root.querySelector<HTMLSelectElement>("#scenario")?.value ?? "";
   const ended = ENDED_ACCESS.has(scenarioKey);
 
-  // Find the actual PianoHouse practice resource row from a stable resource card,
-  // instead of matching translated section copy. V16 localization can rewrite
-  // labels such as Music / Specialty, so section-text matching was brittle.
+  // Find the actual PianoHouse current Journey resource card. The subtitle is
+  // intentionally used because it remains stable through V16 localization.
   const allButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"));
   const currentJourney = allButtons.find((button) => {
     const text = button.textContent ?? "";
     return text.includes("Always With Me")
-      && text.includes("Founder · published")
+      && text.includes("Verse 1 + Chorus")
       && !text.includes("Expansion")
       && !text.includes("Mở rộng");
   });
@@ -71,19 +76,27 @@ function syncPracticeFamilies(root: HTMLElement) {
   pianoSection.dataset.v18PracticeSection = "true";
   pianoSection.dataset.v18EndedAccess = ended ? "true" : "false";
 
-  // Prefer a structurally rendered Starter card when one exists. Until the base
-  // prototype is refactored to typed resources, V18 creates the prototype card
-  // from the same resource-card visual grammar so Founder can review all 3 families.
+  // Remove the duplicated learner-facing title: eyebrow describes the content
+  // type, while the h3 remains the single section title.
+  const heading = pianoSection.querySelector<HTMLElement>(":scope > div");
+  if (heading) {
+    const eyebrow = heading.querySelector<HTMLElement>("span");
+    const title = heading.querySelector<HTMLElement>("h3");
+    if (eyebrow && /Luyện tập tại nhà|Practice support/i.test(eyebrow.textContent ?? "")) eyebrow.textContent = "TÀI LIỆU LUYỆN TẬP";
+    if (title && /Luyện tập tại nhà|Practice support/i.test(title.textContent ?? "")) title.textContent = "Luyện tập tại nhà";
+  }
+
   let starter = Array.from(list.querySelectorAll<HTMLButtonElement>(":scope > button")).find((button) => {
     const text = button.textContent ?? "";
     return button.dataset.v18Starter === "true"
       || text.includes("KHỞI HÀNH")
-      || text.includes("Giai điệu quen thuộc")
-      || (text.includes("ABC Song") && text.includes("Founder · published"));
+      || text.includes("Giai điệu quen thuộc · ABC Song");
   }) ?? null;
 
   if (!starter) {
     starter = currentJourney.cloneNode(true) as HTMLButtonElement;
+    starter.type = "button";
+    starter.dataset.v18Starter = "true";
     list.insertBefore(starter, currentJourney);
   }
 
