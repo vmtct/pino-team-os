@@ -1,0 +1,20 @@
+.root {
+  position: relative;
+}
+
+/* Practice focus mode: once a phrase is in view, keep the following phrase outside the snap viewport. */
+.root :global([data-practice-focus-scroller="true"]) {
+  scroll-snap-type: y mandatory !important;
+  scroll-padding-block: 6px;
+}
+
+.root :global([data-practice-focus-phrase="true"]) {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root :global([data-practice-focus-scroller="true"]) {
+    scroll-behavior: auto !important;
+  }
+}
