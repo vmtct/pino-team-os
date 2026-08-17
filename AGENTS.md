@@ -9,6 +9,7 @@
 3. `DATABASE.md` for Notion-backed staff/schedule contracts
 4. relevant source/tests
 5. `pino-core/docs/system-context.md`, `pino-core/docs/principles.md`, and relevant accepted Core ADRs when touching a Core-owned capability
+6. the current `pino-core` TOS access-control feature spec whenever a capability reads non-public data or performs a protected action
 
 ## Invariants
 
@@ -20,6 +21,21 @@
 - Do not use another module/repository's internal persistence details as an application API.
 - Preserve current Notion migration rules: do not infer missing HR data, do not hard-code shift times, and do not remove legacy fields without an explicit verified migration.
 - When a domain migrates from Notion to Core, update `PROJECT.md`, `DATABASE.md` if applicable, `docs/architecture.md`, and the Core system-context/ADR documentation in the same delivery window.
+
+## Access-control discipline
+
+Any TOS capability that reads non-public data or performs a privileged action must declare its access contract before implementation is considered complete.
+
+- Deny by default when no explicit permission grants the action.
+- Authorize by stable permission key, scope, and contextual resource policy; never by job title, page/route, client-side state, or hard-coded role name.
+- Roles are configurable permission bundles. A new business role must not require new authorization branches in application code.
+- UI visibility is not authorization. Every privileged server action must enforce authorization again on the server.
+- Authentication resolves a canonical Principal/User; client-supplied role or permission claims are not trusted authorization authority.
+- User and StaffMember remain distinct concepts even when linked.
+- Protected mutations must emit their required audit events.
+- Do not invent ad-hoc permission strings inside routes or components; use the canonical permission registry/contract.
+
+Every protected feature spec must include an `Access Control` section covering actors, permission keys, scope, contextual rules, UI visibility, server enforcement, and audit events.
 
 ## Change discipline
 
