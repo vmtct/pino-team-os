@@ -30,6 +30,7 @@ const EXACT_COPY: Record<string, string> = {
 };
 
 const PHRASE_COPY: Array<[RegExp, string]> = [
+  [/Open Studio · một outcome, nhiều nội dung · 2 nội dung Khám Phá · 1 nội dung Premium/g, "Open Studio · 3 nội dung đã lưu · 2 Khám Phá · 1 Premium"],
   [/Một outcome duy nhất, nhưng từng representation bên trong có access riêng\. Khám Phá\/Premium không chia Thành quả thành hai lane\./g, "Tác phẩm này có nhiều nội dung đi kèm. Mỗi nội dung giữ quyền truy cập riêng nhưng vẫn nằm trong cùng một Thành quả."],
   [/Một outcome duy nhất, nhưng từng representation bên trong có access riêng\. Free\/Premium không chia Collection thành hai lane\./g, "Tác phẩm này có nhiều nội dung đi kèm. Mỗi nội dung giữ quyền truy cập riêng nhưng vẫn nằm trong cùng một Thành quả."],
   [/Collection chỉ surface learner-facing outcomes đã được chọn; raw Evidence, audit và review queue ở ngoài surface này\./g, "Thành quả chỉ hiển thị những nội dung PINO đã chọn để gia đình xem lại."],
