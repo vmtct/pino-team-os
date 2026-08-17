@@ -32,6 +32,25 @@ const EXACT_COPY: Record<string, string> = {
   "Hiện worksheet": "Hiện hướng dẫn",
   "Bản nhạc full width · phiếu hướng dẫn ngay bên dưới từng câu.": "Bản nhạc ở trên · hướng dẫn thế tay ngay bên dưới từng câu.",
   "Bản nhạc + bàn phím hướng dẫn": "Bản nhạc + hướng dẫn thế tay",
+  "Founder · published": "Nội dung PINO",
+  "Attrition · quyền học mới đã dừng · lịch sử không mất": "Premium đã kết thúc · Hành trình và Thành quả vẫn được giữ",
+  "Recording và cột mốc đã đạt vẫn thuộc về Leo dù gói Premium đã kết thúc.": "Bản ghi âm và cột mốc đã đạt vẫn thuộc về Leo dù gói Premium đã kết thúc.",
+  "Premium recording": "Bản ghi âm Premium",
+  "Achievement retained": "Cột mốc đã được giữ lại",
+  "Đã đạt khi Premium còn active": "Đã đạt khi Premium còn hiệu lực",
+  "Next Premium milestone": "Cột mốc Premium tiếp theo",
+  "Future progression": "Tiến trình sắp tới",
+  "Không có gói Premium active": "Không có gói Premium đang hoạt động",
+  "Premium dừng, Hành trình không reset": "Premium kết thúc, Hành trình vẫn được giữ",
+  "Attrition là trường hợp gia đình đã dùng Premium nhưng không tiếp tục gói mới. Lịch sử L4 vẫn giữ; progression mới tạm dừng.": "Gia đình đã dùng Premium và hiện chưa tiếp tục gói mới. L4 vẫn được giữ; tiến trình mới tạm dừng.",
+  "Recording, cột mốc và Artifact đã vested không mất khi Premium kết thúc. Nội dung tương lai chưa sở hữu vẫn khóa.": "Bản ghi âm, cột mốc và tác phẩm đã sở hữu vẫn được giữ khi Premium kết thúc. Nội dung chưa mở vẫn khóa.",
+  "Attrition không đồng nghĩa mất quyền Khám phá Miễn phí": "Premium kết thúc không làm mất quyền Khám Phá",
+  "Open Studio Miễn phí tiếp tục theo eligibility của Core. Buổi Premium vẫn cần Premium active.": "Open Studio Khám Phá vẫn có thể dùng khi hồ sơ đủ điều kiện. Buổi Premium vẫn cần quyền truy cập phù hợp.",
+  "Attrition khác với Trial hết hạn": "Premium đã kết thúc",
+  "Leo đã từng là thành viên Premium trả phí và hiện ngưng tiếp tục gói mới. Quyền học mới dừng nhưng learner identity và lịch sử vẫn nguyên.": "Leo từng là thành viên Premium và hiện chưa tiếp tục gói mới. Hành trình, Thành quả và lịch sử của Leo vẫn được giữ.",
+  "ATTRITION · PREMIUM ENDED": "PREMIUM ĐÃ KẾT THÚC",
+  "Tạo registration": "Đăng ký cho bé này",
+  "REGISTRATION · ĐÃ GHI NHẬN": "ĐÃ GHI NHẬN",
 };
 
 const PHRASE_COPY: Array<[RegExp, string]> = [
@@ -117,6 +136,40 @@ function polishExploreSessionModal(root: HTMLElement) {
   });
 }
 
+function polishRegistrationCopy(root: HTMLElement) {
+  const sections = Array.from(root.querySelectorAll<HTMLElement>("section"));
+  sections.forEach((section) => {
+    const text = section.textContent ?? "";
+    const body = section.querySelector<HTMLElement>("[class*='modalBody']");
+    if (!body) return;
+
+    const paragraph = body.querySelector<HTMLParagraphElement>(":scope > p");
+    const eyebrow = body.querySelector<HTMLElement>(":scope > span");
+    const primary = body.querySelector<HTMLButtonElement>("button[type='submit'], button[class*='primaryAction']");
+
+    if (text.includes("Buổi Premium đang khóa")) {
+      if (paragraph) paragraph.textContent = "Buổi Premium chỉ mở trong thời gian Dùng thử Premium. Các buổi Khám Phá vẫn có thể đăng ký khi hồ sơ hiện tại đủ điều kiện.";
+      return;
+    }
+
+    if (text.includes("KIỂM TRA ĐỘ TUỔI") && text.includes("Buổi này khác nhóm tuổi")) {
+      if (paragraph) paragraph.textContent = "Buổi Khám Phá này được thiết kế cho nhóm tuổi khác với hồ sơ đang xem. Trong thời gian dùng thử, gia đình vẫn có thể tiếp tục sau khi xác nhận cảnh báo độ tuổi.";
+      return;
+    }
+
+    if (text.includes("ĐĂNG KÝ CHO BÉ KHÁC")) {
+      if (paragraph) paragraph.textContent = "Buổi này dành cho nhóm tuổi khác với hồ sơ đang xem. Bạn có thể đăng ký cho anh/chị/em khác bằng thông tin bên dưới; Hành trình của bé đang xem sẽ không bị thay đổi.";
+      if (primary) primary.textContent = "Đăng ký cho bé này";
+      return;
+    }
+
+    if (text.includes("REGISTRATION · ĐÃ GHI NHẬN") || text.includes("Booking của")) {
+      if (eyebrow) eyebrow.textContent = "ĐÃ GHI NHẬN";
+      if (paragraph) paragraph.textContent = "Đăng ký cho bé khác đã được ghi nhận. Hồ sơ của bé đang xem không bị thay đổi.";
+    }
+  });
+}
+
 function markCollectionDetail(root: HTMLElement) {
   const sections = Array.from(root.querySelectorAll<HTMLElement>("section"));
   sections.forEach((section) => {
@@ -142,6 +195,7 @@ function polish(root: HTMLElement) {
   rewriteVisibleCopy(root);
   polishPracticeGlyphs(root);
   polishExploreSessionModal(root);
+  polishRegistrationCopy(root);
   markCollectionDetail(root);
   markPrimarySurfaces(root);
 }
