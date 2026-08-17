@@ -4,6 +4,7 @@ import PinerPracticeImmersive from "./PinerPracticeImmersive";
 import premiumPolish from "./piner-prototype-v23-premium-polish.module.css";
 import finalPolish from "./piner-prototype-final-ui-polish.module.css";
 import musicViewerPolish from "./piner-prototype-music-viewer-freeze.module.css";
+import practiceFocus from "./piner-prototype-practice-focus.module.css";
 
 export const metadata: Metadata = {
   title: "Piner Member Space — Local Prototype V23",
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function PinerPrototypePage() {
   return (
-    <div className={`${premiumPolish.root} ${finalPolish.root} ${musicViewerPolish.root}`}>
+    <div className={`${premiumPolish.root} ${finalPolish.root} ${musicViewerPolish.root} ${practiceFocus.root}`}>
       <PinerPrototypeFreezePolish />
       <PinerPracticeImmersive />
     </div>
