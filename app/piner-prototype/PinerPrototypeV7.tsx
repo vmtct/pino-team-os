@@ -22,6 +22,14 @@ type PracticePage = {
   worksheetUrl?: string;
 };
 
+type LockCopy = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  retained?: string;
+  cta: string;
+};
+
 const SHEET_URL = "https://assets.pinohouse.art/draft/Piano%20Sheet%20-%20176.250%20(1).png";
 const WORKSHEET_URL = "https://assets.pinohouse.art/draft/Piano%20Sheet%20-%20176.250.png";
 const ROWS = Array.from({ length: 8 }, (_, index) => index);
@@ -67,9 +75,37 @@ function currentViewerMode(): ViewerMode {
 }
 
 function endedAccessLabel(mode: ViewerMode) {
-  if (mode === "TRIAL_EXPIRED") return "TRIAL ĐÃ HẾT HẠN";
+  if (mode === "TRIAL_EXPIRED") return "DÙNG THỬ PREMIUM ĐÃ KẾT THÚC";
   if (mode === "ATTRITION") return "PREMIUM ĐÃ KẾT THÚC";
-  return "PREMIUM REQUIRED";
+  return "PREMIUM";
+}
+
+function lockCopy(resource: ViewerResource): LockCopy {
+  const family = familyLabel(resource.family);
+  if (resource.mode === "TRIAL_EXPIRED") {
+    return {
+      eyebrow: "DÙNG THỬ PREMIUM ĐÃ KẾT THÚC",
+      title: `${family} vẫn được giữ trong Hành trình`,
+      body: "Thời gian dùng thử đã kết thúc. Tài liệu con đã thấy vẫn được lưu trong lịch sử, nhưng nội dung luyện tập Hành Trình và Chuyên Đề cần Premium đang hoạt động để mở lại.",
+      retained: "Tiến độ và lịch sử của con vẫn được giữ nguyên.",
+      cta: "Nâng cấp Premium →",
+    };
+  }
+  if (resource.mode === "ATTRITION") {
+    return {
+      eyebrow: "PREMIUM ĐÃ KẾT THÚC",
+      title: `${family} vẫn được giữ trong Hành trình`,
+      body: "Gói Premium đã kết thúc. Các tài liệu Hành Trình và Chuyên Đề vẫn hiện trong lịch sử của con; tiếp tục Premium để mở lại nội dung luyện tập.",
+      retained: "Không mất Thành quả, tiến độ hay lịch sử đã có.",
+      cta: "Tiếp tục Premium →",
+    };
+  }
+  return {
+    eyebrow: "PREMIUM",
+    title: `${family} thuộc phần luyện tập Premium`,
+    body: "Khởi Hành vẫn có thể luyện ở chế độ Khám Phá. Hành Trình và Chuyên Đề mở khi hồ sơ có Premium đang hoạt động.",
+    cta: "Khám phá Premium →",
+  };
 }
 
 export default function PinerPrototypeV7() {
@@ -120,6 +156,7 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
   const resourceLocked = !membershipResumed && resource.family !== "STARTER" && (endedAccess || freeAccess);
   const effectivePremium = membershipResumed || premiumUnlocked;
   const worksheetAvailable = Boolean(page.worksheetUrl);
+  const lockedCopy = lockCopy(resource);
 
   function toggleRecording() {
     if (recording === "recording") setRecording("ready");
@@ -166,16 +203,19 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
               </div>
 
               {endedAccess ? (
-                <div className={v7.expiredAccessBadge}>
+                <div className={v7.expiredAccessBadge} data-practice-ended-state={resource.mode === "TRIAL_EXPIRED" ? "trial" : "attrition"}>
                   <span>{endedAccessLabel(resource.mode)}</span>
-                  <small>{resource.family === "STARTER" ? "Khởi Hành vẫn mở · tay trái cần Premium" : "Hành Trình / Chuyên Đề đang khóa"}</small>
+                  <small>{resource.family === "STARTER" ? "Khởi Hành vẫn mở · tay phải có thể luyện" : "Hành Trình / Chuyên Đề đang khóa"}</small>
                 </div>
               ) : resource.mode === "FREE" ? (
-                <div className={v7.expiredAccessBadge}><span>KHỞI HÀNH · MIỄN PHÍ</span><small>Tay phải mở · tay trái cần Premium</small></div>
+                <div className={v7.expiredAccessBadge} data-practice-ended-state="explore">
+                  <span>KHÁM PHÁ · KHỞI HÀNH</span>
+                  <small>Tay phải mở · hướng dẫn tay trái cần Premium</small>
+                </div>
               ) : (
                 <div className={v6.accessPreview}>
-                  <span>Quyền truy cập</span>
-                  <button type="button" className={!premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(false)}>Miễn phí</button>
+                  <span>Bản thử quyền truy cập</span>
+                  <button type="button" className={!premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(false)}>Khám Phá</button>
                   <button type="button" className={premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(true)}>Premium</button>
                 </div>
               )}
@@ -194,19 +234,14 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
               ))}
             </div>
 
-            <div className={v6.viewerHint}>
-              <strong>{resourceLocked ? `${familyLabel(resource.family)} đang khóa` : `Trang ${activePage} · tập theo từng câu`}</strong>
-              <span>{resourceLocked ? "Khởi Hành vẫn là lớp luyện tập mở; Hành Trình và Chuyên Đề cần Premium đang hoạt động." : worksheetAvailable ? "Bản nhạc full width · phiếu hướng dẫn ngay bên dưới từng câu." : "Trang này chỉ có bản nhạc; không cần phiếu hướng dẫn."}</span>
-            </div>
-
             {resourceLocked ? (
-              <div className={v7.pageLockState}>
+              <div className={v7.pageLockState} data-practice-lock-state={resource.mode.toLowerCase()}>
                 <div className={v7.bigLock}>🔒</div>
-                <span className={v7.lockEyebrow}>{endedAccessLabel(resource.mode)}</span>
-                <h2>{familyLabel(resource.family)} thuộc phần luyện tập Premium</h2>
-                <p>{resource.mode === "TRIAL_EXPIRED" ? "Trial đã kết thúc. Hành Trình và Chuyên Đề đã từng xuất hiện vẫn được giữ trong lịch sử nhưng nội dung luyện tập đang khóa." : resource.mode === "ATTRITION" ? "Gói Premium đã kết thúc. Tài nguyên Hành Trình và Chuyên Đề vẫn hiện như lịch sử đã có nhưng cần tiếp tục Premium để mở lại." : "Tài nguyên này thuộc Premium. Khởi Hành vẫn có thể luyện miễn phí với phần tay trái được khóa."}</p>
-                <button type="button" onClick={resumePremium}>Tiếp tục với Premium →</button>
-                <small>Prototype: CTA mô phỏng khôi phục quyền Premium để review nội dung sau khi mở lại.</small>
+                <span className={v7.lockEyebrow}>{lockedCopy.eyebrow}</span>
+                <h2>{lockedCopy.title}</h2>
+                <p>{lockedCopy.body}</p>
+                {lockedCopy.retained && <div className={v7.retainedNote}>✓ {lockedCopy.retained}</div>}
+                <button type="button" onClick={resumePremium}>{lockedCopy.cta}</button>
               </div>
             ) : (
               <div className={v6.phraseScroller} key={activePage}>
@@ -243,13 +278,12 @@ function MultipagePracticeViewer({ resource, onClose }: { resource: ViewerResour
             {!resourceLocked && recording === "submitted" && (
               <div className={v6.submitNotice}>
                 <strong>Đã gửi bài luyện tập</strong>
-                <span>Bài gửi không tự tăng cấp; đây là practice/evidence candidate để PINO xử lý tiếp.</span>
+                <span>PINO đã nhận bài để mentor xem lại. Việc gửi bài không tự thay đổi cấp độ của con.</span>
               </div>
             )}
 
             <footer className={v6.viewerFooter}>
               <span>Nội dung do PINO quản lý</span>
-              <small>Prototype đang reuse sample asset cho nhiều trang để test UX. Production access state lấy từ Core.</small>
             </footer>
           </div>
         )}
