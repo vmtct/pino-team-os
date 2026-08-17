@@ -8,6 +8,9 @@ const UP_INTENT_THRESHOLD = 18;
 const INTENT_WINDOW_MS = 260;
 const SETTLE_DELAY_MS = 110;
 const PARTIAL_SETTLE_THRESHOLD = 0.18;
+const COMPACT_HEADER_HEIGHT = 54;
+const COLLAPSED_WORKSPACE_GAP = 2;
+const MIN_FOCUS_VIEWPORT = 260;
 
 type ScrollIntent = "idle" | "down" | "up";
 
@@ -17,11 +20,17 @@ type BoundState = {
   intent: ScrollIntent;
   lastIntentAt: number;
   upwardIntent: number;
+  syncFocus: () => void;
   cleanup: () => void;
 };
 
 function clamp(value: number) {
   return Math.max(0, Math.min(1, value));
+}
+
+function numberStyle(value: string) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export default function PinerPracticeImmersive() {
@@ -56,6 +65,7 @@ export default function PinerPracticeImmersive() {
       const heights = new Map<HTMLElement, number>();
       let settleTimer = 0;
       let touchY: number | null = null;
+      let lastFocusHeight = 0;
 
       const state: BoundState = {
         lastTop: scroller.scrollTop,
@@ -63,6 +73,7 @@ export default function PinerPracticeImmersive() {
         intent: "idle",
         lastIntentAt: 0,
         upwardIntent: 0,
+        syncFocus: () => undefined,
         cleanup: () => undefined,
       };
 
@@ -80,6 +91,51 @@ export default function PinerPracticeImmersive() {
           }
         });
       }
+
+      function targetFocusHeight() {
+        const workspaceStyle = window.getComputedStyle(workspace);
+        const paddingY = numberStyle(workspaceStyle.paddingTop) + numberStyle(workspaceStyle.paddingBottom);
+        const nonChrome = Array.from(workspace.children).filter((child): child is HTMLElement => {
+          return child instanceof HTMLElement && child !== scroller && !chrome.includes(child);
+        });
+        const reservedHeight = nonChrome.reduce((total, child) => total + child.getBoundingClientRect().height, 0);
+        const gapCount = Math.max(0, workspace.children.length - 1);
+        const collapsedGapHeight = gapCount * COLLAPSED_WORKSPACE_GAP;
+        const available = shell.clientHeight
+          - COMPACT_HEADER_HEIGHT
+          - paddingY
+          - reservedHeight
+          - collapsedGapHeight;
+        return Math.max(MIN_FOCUS_VIEWPORT, Math.round(available));
+      }
+
+      function syncFocusSlots() {
+        if (!scroller.isConnected) return;
+        const focusHeight = targetFocusHeight();
+        const phrases = Array.from(scroller.querySelectorAll<HTMLElement>(":scope > [class*='phrasePair']"));
+        if (!phrases.length) return;
+
+        scroller.dataset.practiceFocusScroller = "true";
+        if (Math.abs(focusHeight - lastFocusHeight) > 1) {
+          scroller.style.setProperty("--practice-focus-height", `${focusHeight}px`);
+          lastFocusHeight = focusHeight;
+        }
+
+        phrases.forEach((phrase) => {
+          phrase.dataset.practiceFocusPhrase = "true";
+          const naturalHeight = phrase.getBoundingClientRect().height;
+          // Keep the card at its natural height and use the remaining viewport as quiet space.
+          // When a phrase is snapped to the top, the next phrase therefore starts fully outside
+          // the maximum collapsed practice viewport instead of peeking into the learner's view.
+          const spacer = Math.max(10, Math.ceil(focusHeight - naturalHeight));
+          const nextMargin = `${spacer}px`;
+          if (phrase.style.marginBottom !== nextMargin) {
+            phrase.style.setProperty("margin-bottom", nextMargin, "important");
+          }
+        });
+      }
+
+      state.syncFocus = syncFocusSlots;
 
       function apply(next: number) {
         state.progress = clamp(next);
@@ -107,7 +163,7 @@ export default function PinerPracticeImmersive() {
           else item.removeAttribute("aria-hidden");
         });
 
-        workspace.style.setProperty("gap", `${Math.max(2, 9 * (1 - progress))}px`, "important");
+        workspace.style.setProperty("gap", `${Math.max(COLLAPSED_WORKSPACE_GAP, 9 * (1 - progress))}px`, "important");
         workspace.style.transition = reducedMotion ? "none" : "gap 150ms ease-out";
 
         const headerProgress = clamp((progress - 0.58) / 0.42);
@@ -154,8 +210,6 @@ export default function PinerPracticeImmersive() {
           }
           state.intent = "idle";
           state.upwardIntent = 0;
-          // Layout contraction/expansion can alter scrollTop without user input.
-          // Re-baseline after the transition so that synthetic deltas cannot reverse it.
           window.setTimeout(() => {
             state.lastTop = scroller.scrollTop;
           }, reducedMotion ? 0 : 190);
@@ -207,8 +261,6 @@ export default function PinerPracticeImmersive() {
           if (recentExplicitUp) {
             noteUpIntent(delta);
           }
-          // Otherwise this negative delta is most likely caused by the chrome itself
-          // shrinking the flex layout. Ignore it instead of reopening the navigation.
         }
       }
 
@@ -230,7 +282,6 @@ export default function PinerPracticeImmersive() {
         if (touchY == null || nextY == null) return;
         const fingerDelta = nextY - touchY;
         touchY = nextY;
-        // Finger moves up -> content scrolls down. Finger moves down -> user wants chrome back.
         if (fingerDelta < -1) noteDownIntent();
         else if (fingerDelta > 1) noteUpIntent(fingerDelta);
       }
@@ -250,6 +301,7 @@ export default function PinerPracticeImmersive() {
         });
         requestAnimationFrame(() => {
           measure();
+          syncFocusSlots();
           apply(state.progress);
           state.lastTop = scroller.scrollTop;
         });
@@ -257,6 +309,7 @@ export default function PinerPracticeImmersive() {
 
       requestAnimationFrame(() => {
         measure();
+        syncFocusSlots();
         apply(clamp(scroller.scrollTop / COLLAPSE_DISTANCE));
         state.lastTop = scroller.scrollTop;
       });
@@ -285,6 +338,12 @@ export default function PinerPracticeImmersive() {
         ["min-height", "height", "padding", "transition"].forEach((property) => header.style.removeProperty(property));
         delete shell.dataset.practiceImmersive;
         delete shell.dataset.practiceImmersiveProgress;
+        delete scroller.dataset.practiceFocusScroller;
+        scroller.style.removeProperty("--practice-focus-height");
+        scroller.querySelectorAll<HTMLElement>("[data-practice-focus-phrase='true']").forEach((phrase) => {
+          delete phrase.dataset.practiceFocusPhrase;
+          phrase.style.removeProperty("margin-bottom");
+        });
         [family, context].forEach((item) => {
           if (!item) return;
           ["opacity", "transform", "transition", "pointer-events", "width", "padding-inline", "overflow", "height"].forEach((property) => item.style.removeProperty(property));
@@ -300,7 +359,9 @@ export default function PinerPracticeImmersive() {
         if (!scroller.isConnected) {
           state.cleanup();
           bound.delete(scroller);
+          return;
         }
+        state.syncFocus();
       });
     }
 
