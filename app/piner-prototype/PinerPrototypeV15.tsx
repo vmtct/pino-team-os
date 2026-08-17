@@ -54,12 +54,12 @@ export default function PinerPrototypeV15() {
         const lab = asides.find((aside) => aside.querySelector("h1")?.textContent?.trim() === "Piner Member Space");
         if (!lab) return;
 
-        const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE") || node.textContent?.trim().startsWith("BẢN THỬ NỘI BỘ"));
-        if (badge) badge.textContent = "FREEZE CANDIDATE · FINAL AUDIT";
+        const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE") || node.textContent?.trim().startsWith("BẢN THỬ NỘI BỘ") || node.textContent?.trim().startsWith("FREEZE CANDIDATE"));
+        if (badge) badge.textContent = "PINER PRODUCT UI V1 · FINAL AUDIT";
 
         const intro = lab.querySelector("h1")?.nextElementSibling as HTMLElement | null;
         if (intro?.tagName === "P") {
-          intro.textContent = "Rà soát cuối trước khi freeze UI reference · kiểm tra state, access, navigation, copy và cross-flow trên toàn bộ Piner.";
+          intro.textContent = "Rà soát end-to-end trước khi freeze UI reference: state, access, navigation, copy, modal, Practice Viewer và continuity trên toàn bộ Piner.";
         }
 
         const legacyFocus = Array.from(lab.querySelectorAll<HTMLElement>("strong")).find((node) => node.textContent?.trim() === "V4 review focus");
@@ -138,7 +138,7 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
   return (
     <section className={v15.console}>
       <div className={v15.consoleHead}>
-        <div><span>FINAL · HOLISTIC AUDIT</span><strong>Ma trận freeze Piner</strong></div>
+        <div><span>FINAL · END-TO-END AUDIT</span><strong>Ma trận freeze Piner Product UI v1</strong></div>
         <em>{current?.state ?? "Trạng thái tùy chỉnh"}</em>
       </div>
 
@@ -167,6 +167,9 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
         <span>Trial Expired và Attrition có cùng broad expired access nhưng provenance/copy khác nhau.</span>
         <span>Khởi Hành luôn là practice family có thể tồn tại ngoài Premium; tay trái vẫn Premium-gated khi access không active.</span>
         <span>Hành Trình/Chuyên Đề không fabricate cho learner chưa từng có Premium context; khi expired/attrition thì history card có thể giữ nhưng practice bị khóa.</span>
+        <span>Practice Viewer landscape-first; scroll xuống collapse chrome, scroll lên reveal; một phrase là một focus viewport.</span>
+        <span>Practice phrase media giữ 60/40: Sheet = crop gốc 50% + 5% white padding trên/dưới; Worksheet = 40%.</span>
+        <span>Trang 1–4, bật/tắt hướng dẫn, nghe mẫu, ghi âm và submit không được phá focus/snap state.</span>
         <span>Booking(PENDING) ≠ CONFIRMED ≠ Attendance; cancel/reject không xóa history.</span>
         <span>Trial có thể đăng ký Khám Phá + Premium; paid Premium/re-enrolled/expired/attrition chỉ đăng ký Khám Phá, Premium vẫn visible nhưng locked.</span>
         <span>Age mismatch: Trial có warning + acknowledge cho Student hiện tại; paid/expired/attrition có thể tạo Registration riêng cho bé khác.</span>
@@ -175,10 +178,11 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
 
       <div className={v15.freezeGate}>
         <strong>Freeze gate</strong>
-        <span><b>PASS</b> · visual hierarchy, typography floor, navigation, package context, Practice families, Explore presentation.</span>
-        <span><b>VERIFY LOCAL</b> · toàn bộ 10 learner cases × 4 tabs + modal/booking/practice interactions.</span>
+        <span><b>PASS · STATIC AUDIT</b> · 4 primary tabs, household shell, lifecycle copy, Explore/session modals, Collection details, typography floor và Practice Viewer hierarchy.</span>
+        <span><b>VERIFY LOCAL</b> · 10 learner cases × 4 tabs + household switch + Explore registration/age warning + Collection detail + Premium compare + Practice interactions.</span>
+        <span><b>PRACTICE CHECK</b> · landscape, first-scroll collapse, upward reveal, page switch, worksheet toggle, one-phrase snap, 60/40 crop, recording submit.</span>
         <span><b>PRODUCTION GAP</b> · Core-backed read models/access decisions, auth, media/evidence upload, real Registration/Booking writes, typed React architecture.</span>
-        <span><b>NO NEW FEATURE</b> · sau khi walkthrough sạch, freeze prototype và chuyển sang production reconstruction.</span>
+        <span><b>FREEZE CRITERION</b> · không thêm feature mới; local walkthrough sạch thì ghi nhận Piner Product UI v1 — Founder Approved và chuyển production reconstruction.</span>
       </div>
     </section>
   );
