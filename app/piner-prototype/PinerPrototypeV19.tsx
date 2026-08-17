@@ -9,9 +9,10 @@ import v19 from "./piner-prototype-v19.module.css";
 function localizedMembership(student: StudentScenario) {
   if (student.key === "leo-attrition") return "Premium đã kết thúc";
   if (student.key === "leo-reenrolled") return "Premium đã tiếp tục";
-  if (student.mode === "FREE_EXPLORE") return "Miễn phí";
-  if (student.mode === "TRIAL_PREMIUM") return "Dùng thử Premium";
-  if (student.mode === "EXPIRED_PREMIUM") return student.membershipLabel.includes("Trial") ? "Trial đã hết hạn" : "Premium đã hết hạn";
+  if (student.key === "leo-expired") return "Trải nghiệm đã kết thúc";
+  if (student.mode === "FREE_EXPLORE") return "Khám Phá";
+  if (student.mode === "TRIAL_PREMIUM") return "Trải nghiệm";
+  if (student.mode === "EXPIRED_PREMIUM") return "Premium đã kết thúc";
   return "Premium";
 }
 
@@ -136,7 +137,7 @@ function HouseholdShell({ current, students, onChoose, onClose }: {
             <div><small>Trạng thái</small><strong>{localizedMembership(current)}</strong></div>
             <div><small>Chương trình</small><strong>{current.paths.length ? current.paths.map((path) => path.label).join(" + ") : "Khám phá PINO"}</strong></div>
             <div><small>Hành trình</small><strong>{current.paths[0]?.summary ?? "Chưa bắt đầu"}</strong></div>
-            <div><small>Gói hiện tại</small><strong>{current.paths[0]?.package.end ? `đến ${current.paths[0].package.end}` : "Không có gói Premium active"}</strong></div>
+            <div><small>Gói hiện tại</small><strong>{current.paths[0]?.package.end ? `đến ${current.paths[0].package.end}` : "Không có gói Premium đang hoạt động"}</strong></div>
           </div>
         </section>
 
@@ -146,7 +147,7 @@ function HouseholdShell({ current, students, onChoose, onClose }: {
           <button type="button"><span><strong>Hỗ trợ từ PINO</strong><small>Liên hệ khi cần thay đổi thông tin học viên</small></span><em>›</em></button>
         </div>
 
-        <p className={v19.doctrine}>Đổi hồ sơ là một hard context switch: dữ liệu của các bé không được gộp vào cùng một Hành trình hoặc Thành quả.</p>
+        <p className={v19.doctrine}>Mỗi bé có Hành trình, Thành quả và quyền truy cập riêng. Khi đổi hồ sơ, PINO chỉ hiển thị dữ liệu của bé đang chọn.</p>
       </section>
     </div>
   );
