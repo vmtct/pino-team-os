@@ -1,0 +1,42 @@
+.root {
+  position: relative;
+}
+
+/* Practice phrase media ratio: sheet 60%, worksheet 40% while preserving the total pair height. */
+.root :global([data-practice-focus-phrase="true"] > [class*="rowCrop"]) {
+  aspect-ratio: 704 / 150 !important;
+}
+
+.root :global([data-practice-focus-phrase="true"] > [class*="worksheetRow"] > [class*="rowCrop"]) {
+  aspect-ratio: 704 / 100 !important;
+}
+
+/*
+ * The source sheet/worksheet images are still 8 equal rows tall. Because the
+ * visible crop heights changed from 1.0 row to 1.2 / 0.8 rows, override the
+ * old container-relative top offsets with image-relative offsets so each phrase
+ * continues to show the correct source row without vertical stretching.
+ */
+.root :global([data-practice-focus-phrase="true"] [class*="rowCrop"] img) {
+  top: 0 !important;
+}
+
+/* Sheet: reveal ~0.1 row above and below (bounded on first/last row). */
+.root :global([data-practice-focus-phrase="true"]:nth-child(1) > [class*="rowCrop"] img) { transform: translateY(0%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(2) > [class*="rowCrop"] img) { transform: translateY(-11.25%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(3) > [class*="rowCrop"] img) { transform: translateY(-23.75%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(4) > [class*="rowCrop"] img) { transform: translateY(-36.25%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(5) > [class*="rowCrop"] img) { transform: translateY(-48.75%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(6) > [class*="rowCrop"] img) { transform: translateY(-61.25%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(7) > [class*="rowCrop"] img) { transform: translateY(-73.75%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(8) > [class*="rowCrop"] img) { transform: translateY(-85%); }
+
+/* Worksheet: trim the upper 0.2 row, keeping the lower 80% visible. */
+.root :global([data-practice-focus-phrase="true"]:nth-child(1) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-2.5%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(2) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-15%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(3) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-27.5%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(4) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-40%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(5) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-52.5%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(6) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-65%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(7) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-77.5%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(8) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-90%); }
