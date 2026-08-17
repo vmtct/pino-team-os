@@ -21,8 +21,8 @@ const exactText: Record<string, string> = {
   "Collection": "Thành quả",
   "Explore": "Khám phá",
   "Current package": "Gói hiện tại",
-  "Trial period": "Giai đoạn dùng thử",
-  "Access period ended": "Gói đã hết hạn",
+  "Trial period": "Trải nghiệm",
+  "Access period ended": "Quyền truy cập đã kết thúc",
   "Current project": "Dự án đang thực hiện",
   "Current repertoire": "Bài đang học",
   "Foundation · package timeline": "Nền tảng · tiến trình gói",
@@ -38,9 +38,9 @@ const exactText: Record<string, string> = {
   "Music": "Âm nhạc",
   "Milestone": "Cột mốc",
   "Moment": "Khoảnh khắc",
-  "Trial Premium": "Dùng thử Premium",
+  "Trial Premium": "Trải nghiệm",
   "Free": "Khám Phá",
-  "Expired": "Đã hết hạn",
+  "Expired": "Đã kết thúc",
   "Re-enrolled": "Đã tiếp tục Premium",
   "Fixed slot": "Khung giờ cố định",
   "Flexible studio window": "Khung giờ linh hoạt",
@@ -99,8 +99,8 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Fresh \/ meaningful/g, "Mới / đáng chú ý"],
   [/Return to PINO/g, "Quay lại PINO"],
   [/Progression locked/g, "Tiến trình đang tạm dừng"],
-  [/Trial Premium · real Journey/g, "Dùng thử Premium · hành trình thật"],
-  [/Trial Journey/g, "Hành trình dùng thử"],
+  [/Trial Premium · real Journey/g, "Trải nghiệm · hành trình thật"],
+  [/Trial Journey/g, "Hành trình Trải nghiệm"],
   [/real Journey/g, "hành trình thật"],
   [/Current package timeline/g, "Tiến trình gói hiện tại"],
   [/Current package/g, "Gói hiện tại"],
@@ -130,11 +130,11 @@ const phraseReplacements: Array<[RegExp, string]> = [
   [/Upcoming/g, "Sắp diễn ra"],
   [/Free Collection/g, "Thành quả Khám Phá"],
   [/Premium preview/g, "Xem trước Premium"],
-  [/Trial recording/g, "Bản ghi âm trong thời gian dùng thử"],
-  [/Trial milestone/g, "Cột mốc trong thời gian dùng thử"],
-  [/Trial Premium/g, "Dùng thử Premium"],
+  [/Trial recording/g, "Bản ghi âm trong Trải nghiệm"],
+  [/Trial milestone/g, "Cột mốc trong Trải nghiệm"],
+  [/Trial Premium/g, "Trải nghiệm"],
   [/Re-enrolled/g, "Đã tiếp tục Premium"],
-  [/Expired/g, "Đã hết hạn"],
+  [/Expired/g, "Đã kết thúc"],
   [/Free vs Premium/g, "Khám Phá <> Premium"],
   [/Artwork/g, "Tác phẩm"],
   [/Music/g, "Âm nhạc"],
@@ -318,12 +318,13 @@ function enhancePackageContext(root: HTMLElement) {
       .join(" ");
     const isTrial = scenarioKey.includes("trial");
     const isExpired = scenarioKey.includes("expired");
-    const title = isTrial ? "Giai đoạn dùng thử" : isExpired ? "Gói đã hết hạn" : "Gói hiện tại";
+    const isAttrition = scenarioKey.includes("attrition");
+    const title = isTrial ? "Trải nghiệm" : isExpired ? "Trải nghiệm đã kết thúc" : isAttrition ? "Premium đã kết thúc" : "Gói hiện tại";
     const end = raw.match(/Hết gói\s*([0-9/]+)/)?.[1];
     const days = raw.match(/(T\d(?:\s*·\s*T\d)*)/)?.[1];
     const time = raw.match(/(\d{2}:\d{2}[–-]\d{2}:\d{2})/)?.[1];
     const meta = [days, time, end ? `đến ${end}` : null].filter(Boolean).join(" · ");
-    const summary = meta || "Xem lịch học và thời hạn";
+    const summary = meta || "Xem lịch học và thời gian áp dụng";
 
     const currentStrong = toggle.querySelector<HTMLElement>("[data-v16-package-title='true']");
     const currentSmall = toggle.querySelector<HTMLElement>("[data-v16-package-summary='true']");
