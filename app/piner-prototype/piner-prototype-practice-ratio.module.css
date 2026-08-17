@@ -2,9 +2,15 @@
   position: relative;
 }
 
-/* Practice phrase media ratio: sheet 60%, worksheet 40% while preserving the total pair height. */
+/*
+ * Practice phrase media ratio stays 60 / 40, but the sheet itself returns to
+ * the original 50% crop. The extra 10% assigned to the sheet is quiet white
+ * space: +5% of the full media pair above and +5% below.
+ */
 .root :global([data-practice-focus-phrase="true"] > [class*="rowCrop"]) {
+  position: relative;
   aspect-ratio: 704 / 150 !important;
+  background: #fffdf7 !important;
 }
 
 .root :global([data-practice-focus-phrase="true"] > [class*="worksheetRow"] > [class*="rowCrop"]) {
@@ -12,26 +18,50 @@
 }
 
 /*
- * The source sheet/worksheet images are still 8 equal rows tall. Because the
- * visible crop heights changed from 1.0 row to 1.2 / 0.8 rows, override the
- * old container-relative top offsets with image-relative offsets so each phrase
- * continues to show the correct source row without vertical stretching.
+ * 12.5 source pixels of white space on each side of a 125px sheet row equals
+ * 5% + 5% of the original 250px sheet+worksheet pair. In the new 150px sheet
+ * container that is 8.333% at the top and bottom.
+ */
+.root :global([data-practice-focus-phrase="true"] > [class*="rowCrop"]::before),
+.root :global([data-practice-focus-phrase="true"] > [class*="rowCrop"]::after) {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  height: 8.333333%;
+  pointer-events: none;
+  background: #fffdf7;
+}
+
+.root :global([data-practice-focus-phrase="true"] > [class*="rowCrop"]::before) {
+  top: 0;
+}
+
+.root :global([data-practice-focus-phrase="true"] > [class*="rowCrop"]::after) {
+  bottom: 0;
+}
+
+/*
+ * The source images are eight equal rows tall. Override the old container-
+ * relative top offsets with image-relative transforms. The sheet offsets below
+ * place the original 125px crop in the middle of the new 150px white frame.
  */
 .root :global([data-practice-focus-phrase="true"] [class*="rowCrop"] img) {
   top: 0 !important;
 }
 
-/* Sheet: reveal ~0.1 row above and below (bounded on first/last row). */
-.root :global([data-practice-focus-phrase="true"]:nth-child(1) > [class*="rowCrop"] img) { transform: translateY(0%); }
+/* Sheet: original row crop, vertically centered inside 5% + 5% white padding. */
+.root :global([data-practice-focus-phrase="true"]:nth-child(1) > [class*="rowCrop"] img) { transform: translateY(1.25%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(2) > [class*="rowCrop"] img) { transform: translateY(-11.25%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(3) > [class*="rowCrop"] img) { transform: translateY(-23.75%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(4) > [class*="rowCrop"] img) { transform: translateY(-36.25%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(5) > [class*="rowCrop"] img) { transform: translateY(-48.75%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(6) > [class*="rowCrop"] img) { transform: translateY(-61.25%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(7) > [class*="rowCrop"] img) { transform: translateY(-73.75%); }
-.root :global([data-practice-focus-phrase="true"]:nth-child(8) > [class*="rowCrop"] img) { transform: translateY(-85%); }
+.root :global([data-practice-focus-phrase="true"]:nth-child(8) > [class*="rowCrop"] img) { transform: translateY(-86.25%); }
 
-/* Worksheet: trim the upper 0.2 row, keeping the lower 80% visible. */
+/* Worksheet remains exactly as approved: 40%, trimming the upper 20% of its source row. */
 .root :global([data-practice-focus-phrase="true"]:nth-child(1) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-2.5%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(2) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-15%); }
 .root :global([data-practice-focus-phrase="true"]:nth-child(3) > [class*="worksheetRow"] > [class*="rowCrop"] img) { transform: translateY(-27.5%); }
