@@ -2,6 +2,12 @@
   position: relative;
 }
 
+/* The page-level instruction is redundant once the sheet is phrase-first. Remove it
+   from the practice viewport so the sheet begins immediately below page navigation. */
+.root :global([class*="viewerHint"]) {
+  display: none !important;
+}
+
 /* Practice focus mode: once a phrase is in view, keep the following phrase outside the snap viewport. */
 .root :global([data-practice-focus-scroller="true"]) {
   scroll-snap-type: y mandatory !important;
