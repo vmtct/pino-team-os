@@ -7,8 +7,10 @@
 1. `docs/architecture.md`
 2. `PROJECT.md`
 3. `DATABASE.md` for Notion-backed staff/schedule contracts
-4. relevant source/tests
-5. `pino-core/docs/system-context.md`, `pino-core/docs/principles.md`, and relevant accepted Core ADRs when touching a Core-owned capability
+4. `docs/access-control.md` when work touches protected TOS data/actions, authentication-to-user resolution, roles, permissions, scopes, or access administration
+5. relevant source/tests
+6. `pino-core/docs/system-context.md`, `pino-core/docs/principles.md`, and relevant accepted Core ADRs when touching a Core-owned capability
+7. for TOS authorization work, `pino-core/docs/access-control-doctrine.md` and `pino-core/docs/features/proposals/tos-access-control.md` or their approved/superseding successors
 
 ## Invariants
 
@@ -20,6 +22,33 @@
 - Do not use another module/repository's internal persistence details as an application API.
 - Preserve current Notion migration rules: do not infer missing HR data, do not hard-code shift times, and do not remove legacy fields without an explicit verified migration.
 - When a domain migrates from Notion to Core, update `PROJECT.md`, `DATABASE.md` if applicable, `docs/architecture.md`, and the Core system-context/ADR documentation in the same delivery window.
+
+## Access-control discipline
+
+Any new TOS feature that reads non-public data or performs a privileged action must have an explicit Access Control contract before implementation.
+
+- Deny by default when no explicit permission grants access.
+- Authorize by stable permission key + scope + contextual resource policy; never by job title, department, Staff function, route path, client-side state, or hard-coded role name.
+- Treat roles as configurable permission bundles, not application behavior switches.
+- UI visibility is not authorization. Every privileged server read/mutation must enforce authorization server-side.
+- Authentication resolves identity to a canonical Principal/User; it does not become the permission source of truth.
+- User and StaffMember are distinct concepts even when linked.
+- Do not add ad-hoc permission strings inside route/components. Declare/register them through the canonical Core feature/access-control contract.
+- Privileged mutations must emit the required audit events.
+- Any mock Founder Access UI must be clearly labeled `PROTOTYPE / MOCK DATA` until the Core access-control spec is APPROVED and integrated.
+
+Before implementing a protected feature, its canonical spec must state:
+
+- actors;
+- permission keys;
+- scope semantics;
+- contextual rules;
+- UI visibility behavior;
+- server enforcement points;
+- audit events;
+- explicit deny cases.
+
+If those are unresolved, stop at proposal/prototype rather than inventing authorization behavior in code.
 
 ## Change discipline
 
