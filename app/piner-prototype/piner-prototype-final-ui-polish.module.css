@@ -1,0 +1,196 @@
+.root {
+  position: relative;
+}
+
+/* Final prototype cleanup: interaction consistency without changing product behavior. */
+.root :global([data-v16-package-toggle="true"]),
+.root :global([data-v21-practice-card="true"]),
+.root :global([data-v21-ac-topic="true"]),
+.root :global([data-v22-session-card="true"]),
+.root :global([class*="studentList"] > button),
+.root :global([class*="accountRows"] button) {
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.root :global([data-v21-practice-card="true"]),
+.root :global([data-v21-ac-topic="true"]),
+.root :global([class*="studentList"] > button),
+.root :global([class*="accountRows"] button) {
+  cursor: pointer;
+}
+
+/* Keep long Vietnamese titles and metadata from pushing cards out of alignment. */
+.root :global([data-v21-session-copy="true"]),
+.root :global([data-v22-touchpoint-detail="true"]),
+.root :global([data-v21-practice-copy="true"]),
+.root :global([class*="studentCopy"]),
+.root :global([class*="packageToggleCopy"]) {
+  min-width: 0;
+}
+
+.root :global([data-v21-session-copy="true"] > strong),
+.root :global([data-v22-touchpoint-detail="true"] > strong),
+.root :global([data-v21-practice-copy="true"] strong),
+.root :global([class*="studentCopy"] strong) {
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+/* Visible keyboard focus across the learner-facing controls. */
+.root :global([data-v16-nav-button="true"]:focus-visible),
+.root :global([data-v16-package-toggle="true"]:focus-visible),
+.root :global([data-v21-practice-card="true"]:focus-visible),
+.root :global([data-v21-ac-topic="true"]:focus-visible),
+.root :global([data-v22-session-card="true"] > button:last-child:focus-visible),
+.root :global([class*="studentList"] > button:focus-visible),
+.root :global([class*="accountRows"] button:focus-visible),
+.root :global([aria-label="Lọc loại buổi"] button:focus-visible),
+.root :global(button[aria-label="Đổi thứ tự theo ngày"]:focus-visible) {
+  outline: 2px solid rgba(83, 99, 90, 0.7);
+  outline-offset: 2px;
+}
+
+.root :global([data-v21-session-premium="true"] > button:last-child:focus-visible) {
+  outline-color: rgba(157, 123, 55, 0.78);
+}
+
+/* Package card feels clickable on desktop without becoming visually noisy. */
+@media (hover: hover) and (pointer: fine) {
+  .root :global([data-v16-package-toggle="true"]:hover) {
+    background: rgba(31, 42, 39, 0.035);
+  }
+
+  .root :global([data-v21-practice-card="true"]:hover),
+  .root :global([data-v21-ac-topic="true"]:hover) {
+    transform: translateY(-1px);
+  }
+
+  .root :global([class*="studentList"] > button:hover),
+  .root :global([class*="accountRows"] button:hover) {
+    background: #f7f4ec;
+    border-color: rgba(31, 42, 39, 0.16);
+  }
+
+  .root :global([data-v22-session-card="true"] > button:last-child:hover) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(31, 42, 39, 0.1);
+  }
+}
+
+/* Explore controls: stable sizing and clearer control grouping. */
+.root :global([aria-label="Lọc loại buổi"]) {
+  min-width: 0;
+}
+
+.root :global([aria-label="Lọc loại buổi"] button),
+.root :global(button[aria-label="Đổi thứ tự theo ngày"]) {
+  white-space: nowrap;
+}
+
+.root :global([data-v22-session-card="true"]) {
+  box-sizing: border-box;
+}
+
+.root :global([data-v22-session-card="true"] > button:last-child) {
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.root :global([data-v23-premium-locked="true"] > button:last-child) {
+  cursor: pointer;
+}
+
+/* Household sheet and all content modals should scroll locally, not pull the page. */
+.root :global([class*="sheet"]),
+.root :global([class*="syllabusModal"]),
+.root :global([class*="modalCard"]) {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.root :global([class*="sheetHeader"] > button),
+.root :global([class*="syllabusModalHeader"] button),
+.root :global([class*="modalClose"]) {
+  transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.root :global([class*="sheetHeader"] > button:focus-visible),
+.root :global([class*="syllabusModalHeader"] button:focus-visible),
+.root :global([class*="modalClose"]:focus-visible),
+.root :global([class*="primaryAction"]:focus-visible),
+.root :global([class*="secondaryAction"]:focus-visible) {
+  outline: 2px solid rgba(83, 99, 90, 0.7);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root :global([class*="sheetHeader"] > button:hover),
+  .root :global([class*="syllabusModalHeader"] button:hover),
+  .root :global([class*="modalClose"]:hover) {
+    transform: translateY(-1px);
+    background: #e7e3d9;
+  }
+
+  .root :global([class*="primaryAction"]:not(:disabled):hover) {
+    filter: brightness(0.96);
+    transform: translateY(-1px);
+  }
+
+  .root :global([class*="secondaryAction"]:hover) {
+    background: #f6f2e9;
+    transform: translateY(-1px);
+  }
+}
+
+.root :global([class*="primaryAction"]),
+.root :global([class*="secondaryAction"]) {
+  transition: transform 140ms ease, filter 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+/* Forms remain aligned even with browser-specific input sizing. */
+.root :global([class*="formGrid"] input) {
+  box-sizing: border-box;
+}
+
+.root :global([class*="formGrid"] input:focus-visible) {
+  outline: none;
+}
+
+/* Prevent the square touchpoint artwork from shrinking when the copy gets longer. */
+.root :global([data-v22-touchpoint-hero="true"]) {
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .root :global([data-v22-session-card="true"]) {
+    min-width: 0;
+  }
+
+  .root :global([data-v22-session-card="true"] > button:last-child) {
+    min-height: 42px !important;
+  }
+
+  .root :global([aria-label="Lọc loại buổi"]) {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root :global(*) {
+    scroll-behavior: auto !important;
+  }
+
+  .root :global([data-v16-package-toggle="true"]),
+  .root :global([data-v21-practice-card="true"]),
+  .root :global([data-v21-ac-topic="true"]),
+  .root :global([data-v22-session-card="true"]),
+  .root :global([class*="studentList"] > button),
+  .root :global([class*="accountRows"] button),
+  .root :global([class*="primaryAction"]),
+  .root :global([class*="secondaryAction"]) {
+    transition: none !important;
+    transform: none !important;
+  }
+}
