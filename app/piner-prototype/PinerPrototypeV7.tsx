@@ -75,7 +75,7 @@ function currentViewerMode(): ViewerMode {
 }
 
 function endedAccessLabel(mode: ViewerMode) {
-  if (mode === "TRIAL_EXPIRED") return "DÙNG THỬ PREMIUM ĐÃ KẾT THÚC";
+  if (mode === "TRIAL_EXPIRED") return "TRẢI NGHIỆM ĐÃ KẾT THÚC";
   if (mode === "ATTRITION") return "PREMIUM ĐÃ KẾT THÚC";
   return "PREMIUM";
 }
@@ -84,9 +84,9 @@ function lockCopy(resource: ViewerResource): LockCopy {
   const family = familyLabel(resource.family);
   if (resource.mode === "TRIAL_EXPIRED") {
     return {
-      eyebrow: "DÙNG THỬ PREMIUM ĐÃ KẾT THÚC",
+      eyebrow: "TRẢI NGHIỆM ĐÃ KẾT THÚC",
       title: `${family} vẫn được giữ trong Hành trình`,
-      body: "Thời gian dùng thử đã kết thúc. Tài liệu con đã thấy vẫn được lưu trong lịch sử, nhưng nội dung luyện tập Hành Trình và Chuyên Đề cần Premium đang hoạt động để mở lại.",
+      body: "Thời gian Trải nghiệm đã kết thúc. Tài liệu con đã thấy vẫn được lưu trong lịch sử, nhưng nội dung luyện tập Hành Trình và Chuyên Đề cần Premium đang hoạt động để mở lại.",
       retained: "Tiến độ và lịch sử của con vẫn được giữ nguyên.",
       cta: "Nâng cấp Premium →",
     };
@@ -131,8 +131,8 @@ export default function PinerPrototypeV7() {
         <button type="button" onClick={() => setResource({ family: "JOURNEY", title: "Always With Me", context: "V7 multipage demo", mode: "ACTIVE_PREMIUM" })}>
           V7 · Active demo
         </button>
-        <button type="button" onClick={() => setResource({ family: "STARTER", title: "Giai điệu quen thuộc", context: "Khởi Hành · Trial hết hạn", mode: "TRIAL_EXPIRED" })}>
-          V7 · Leo expired
+        <button type="button" onClick={() => setResource({ family: "STARTER", title: "Giai điệu quen thuộc", context: "Khởi Hành · Trải nghiệm đã kết thúc", mode: "TRIAL_EXPIRED" })}>
+          V7 · Leo experience ended
         </button>
       </div>
 
