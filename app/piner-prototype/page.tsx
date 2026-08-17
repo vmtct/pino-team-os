@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PinerPrototypeFreezePolish from "./PinerPrototypeFreezePolish";
+import PinerPracticeImmersive from "./PinerPracticeImmersive";
 import premiumPolish from "./piner-prototype-v23-premium-polish.module.css";
 import finalPolish from "./piner-prototype-final-ui-polish.module.css";
 import musicViewerPolish from "./piner-prototype-music-viewer-freeze.module.css";
@@ -13,6 +14,7 @@ export default function PinerPrototypePage() {
   return (
     <div className={`${premiumPolish.root} ${finalPolish.root} ${musicViewerPolish.root}`}>
       <PinerPrototypeFreezePolish />
+      <PinerPracticeImmersive />
     </div>
   );
 }
