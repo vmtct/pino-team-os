@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PolicyShell } from "../policy-shell";
 import styles from "../policies.module.css";
 import { currentWorkforcePolicies, historicalWorkforcePolicies, upcomingWorkforcePolicies } from "@/lib/policy-center-prototype";
@@ -20,7 +21,7 @@ export default function WorkforcePoliciesPage(){return <PolicyShell
       <strong>1 Workforce policy version is already scheduled.</strong>
       <p>Evening Assistant Shift v4 becomes effective 01 Sep 2026. Founder can inspect the full policy stream before creating any later version.</p>
     </div>
-    <a className={styles.buttonGhost} href="/founder/policies/workforce/evening-shift">Review scheduled change</a>
+    <Link className={styles.buttonGhost} href="/founder/policies/workforce/evening-shift">Review scheduled change</Link>
   </section>
 
   <section className={`${styles.workspace} ${styles.sectionGap}`}>
