@@ -5,7 +5,7 @@ import PinerPrototypeV23 from "./PinerPrototypeV23";
 
 const EXACT_COPY: Record<string, string> = {
   "Group theo outcome/item. Khám Phá/Premium gating có thể nằm ở từng media bên trong item.": "Mỗi Thành quả có thể chứa nhiều ảnh, bản ghi và cột mốc. Nội dung đã thuộc về con vẫn được giữ lại khi quyền truy cập thay đổi.",
-  "Access expires. Achievement does not.": "Quyền truy cập có thể hết. Thành quả vẫn còn.",
+  "Access expires. Achievement does not.": "Quyền truy cập có thể kết thúc. Thành quả vẫn còn.",
   "Đã sở hữu historical media vẫn được giữ; gating chỉ áp vào nội dung chưa có quyền truy cập.": "Ảnh, bản ghi và cột mốc con đã sở hữu vẫn được giữ lại. Chỉ nội dung chưa mở mới phụ thuộc vào quyền truy cập hiện tại.",
   "Open Studio · một outcome, nhiều nội dung": "Open Studio · 3 nội dung đã lưu",
   "PianoHouse recording": "PianoHouse · Bản ghi âm",
@@ -33,6 +33,14 @@ const EXACT_COPY: Record<string, string> = {
   "Bản nhạc full width · phiếu hướng dẫn ngay bên dưới từng câu.": "Bản nhạc ở trên · hướng dẫn thế tay ngay bên dưới từng câu.",
   "Bản nhạc + bàn phím hướng dẫn": "Bản nhạc + hướng dẫn thế tay",
   "Founder · published": "Nội dung PINO",
+  "Trial Premium": "Trải nghiệm",
+  "Dùng thử Premium": "Trải nghiệm",
+  "Trial Journey": "Hành trình Trải nghiệm",
+  "Trial đã hết hạn": "Trải nghiệm đã kết thúc",
+  "Trial đã kết thúc": "Trải nghiệm đã kết thúc",
+  "Trial đã hết": "Trải nghiệm đã kết thúc",
+  "Gói đã hết hạn": "Gói đã kết thúc",
+  "Không hết hạn cùng access": "Được giữ sau khi quyền truy cập kết thúc",
   "Attrition · quyền học mới đã dừng · lịch sử không mất": "Premium đã kết thúc · Hành trình và Thành quả vẫn được giữ",
   "Recording và cột mốc đã đạt vẫn thuộc về Leo dù gói Premium đã kết thúc.": "Bản ghi âm và cột mốc đã đạt vẫn thuộc về Leo dù gói Premium đã kết thúc.",
   "Premium recording": "Bản ghi âm Premium",
@@ -61,6 +69,13 @@ const PHRASE_COPY: Array<[RegExp, string]> = [
   [/Thành quả chỉ surface learner-facing outcomes đã được chọn; raw Evidence, audit và review queue ở ngoài surface này\./g, "Thành quả chỉ hiển thị những nội dung PINO đã chọn để gia đình xem lại."],
   [/Raw internal review, evidence obligations và audit trail vẫn ở TOS\/Core; Thành quả chỉ render learner-facing durable outcome\./g, "Thành quả chỉ hiển thị nội dung đã được PINO chọn để gia đình lưu giữ và xem lại."],
   [/Piner không surface internal attendance\/session IDs ở đây; chỉ learner\/parent-readable context\./g, "Thông tin buổi học được trình bày ngắn gọn để gia đình dễ theo dõi."],
+  [/Trial đã hết hạn|Trial đã kết thúc|Trial đã hết|Trial expired|Trial ended/gi, "Trải nghiệm đã kết thúc"],
+  [/Dùng thử Premium/g, "Trải nghiệm"],
+  [/Trial Premium/g, "Trải nghiệm"],
+  [/Dùng thử/g, "Trải nghiệm"],
+  [/Trial/g, "Trải nghiệm"],
+  [/Đã hết hạn/g, "Đã kết thúc"],
+  [/đã hết hạn/g, "đã kết thúc"],
   [/Miễn phí/g, "Khám Phá"],
 ];
 
@@ -148,12 +163,12 @@ function polishRegistrationCopy(root: HTMLElement) {
     const primary = body.querySelector<HTMLButtonElement>("button[type='submit'], button[class*='primaryAction']");
 
     if (text.includes("Buổi Premium đang khóa")) {
-      if (paragraph) paragraph.textContent = "Buổi Premium chỉ mở trong thời gian Dùng thử Premium. Các buổi Khám Phá vẫn có thể đăng ký khi hồ sơ hiện tại đủ điều kiện.";
+      if (paragraph) paragraph.textContent = "Buổi Premium chỉ mở trong thời gian Trải nghiệm. Các buổi Khám Phá vẫn có thể đăng ký khi hồ sơ hiện tại đủ điều kiện.";
       return;
     }
 
     if (text.includes("KIỂM TRA ĐỘ TUỔI") && text.includes("Buổi này khác nhóm tuổi")) {
-      if (paragraph) paragraph.textContent = "Buổi Khám Phá này được thiết kế cho nhóm tuổi khác với hồ sơ đang xem. Trong thời gian dùng thử, gia đình vẫn có thể tiếp tục sau khi xác nhận cảnh báo độ tuổi.";
+      if (paragraph) paragraph.textContent = "Buổi Khám Phá này được thiết kế cho nhóm tuổi khác với hồ sơ đang xem. Trong thời gian Trải nghiệm, gia đình vẫn có thể tiếp tục sau khi xác nhận cảnh báo độ tuổi.";
       return;
     }
 
@@ -166,6 +181,24 @@ function polishRegistrationCopy(root: HTMLElement) {
     if (text.includes("REGISTRATION · ĐÃ GHI NHẬN") || text.includes("Booking của")) {
       if (eyebrow) eyebrow.textContent = "ĐÃ GHI NHẬN";
       if (paragraph) paragraph.textContent = "Đăng ký cho bé khác đã được ghi nhận. Hồ sơ của bé đang xem không bị thay đổi.";
+    }
+  });
+}
+
+function polishPremiumExperienceCards(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>("[data-v21-session-premium='true']").forEach((card) => {
+    const locked = card.dataset.v23PremiumLocked === "true";
+    const accessLock = card.querySelector<HTMLElement>("[data-v23-access-lock='true']");
+    const action = card.querySelector<HTMLButtonElement>(":scope > button:last-child");
+    const actionLabel = action?.querySelector<HTMLElement>(":scope > span");
+
+    if (locked && accessLock) accessLock.textContent = "Chỉ trong Trải nghiệm";
+    if (!locked) accessLock?.remove();
+
+    if (action) {
+      const label = locked ? "Xem điều kiện" : "Đăng ký";
+      action.setAttribute("aria-label", label);
+      if (actionLabel) actionLabel.textContent = label;
     }
   });
 }
@@ -196,6 +229,7 @@ function polish(root: HTMLElement) {
   polishPracticeGlyphs(root);
   polishExploreSessionModal(root);
   polishRegistrationCopy(root);
+  polishPremiumExperienceCards(root);
   markCollectionDetail(root);
   markPrimarySurfaces(root);
 }
