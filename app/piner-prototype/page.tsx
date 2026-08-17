@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PinerPrototypeV23 from "./PinerPrototypeV23";
+import PinerPrototypeFreezePolish from "./PinerPrototypeFreezePolish";
 import premiumPolish from "./piner-prototype-v23-premium-polish.module.css";
 import finalPolish from "./piner-prototype-final-ui-polish.module.css";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function PinerPrototypePage() {
   return (
     <div className={`${premiumPolish.root} ${finalPolish.root}`}>
-      <PinerPrototypeV23 />
+      <PinerPrototypeFreezePolish />
     </div>
   );
 }
