@@ -27,6 +27,11 @@ const EXACT_COPY: Record<string, string> = {
   "Premium quota còn trống": "Khám Phá đang khả dụng",
   "Paid Premium dùng tối đa 1 active Đăng ký trong tuần; hai session type dùng chung quota.": "Buổi Khám Phá này đang khả dụng với hồ sơ hiện tại. PINO sẽ xác nhận chỗ sau khi bạn đăng ký.",
   "Đăng ký · tạo Đăng ký Đang chờ xác nhận →": "Đăng ký buổi này →",
+  "Prototype access": "Bản thử quyền truy cập",
+  "Ẩn worksheet": "Ẩn hướng dẫn",
+  "Hiện worksheet": "Hiện hướng dẫn",
+  "Bản nhạc full width · phiếu hướng dẫn ngay bên dưới từng câu.": "Bản nhạc ở trên · hướng dẫn thế tay ngay bên dưới từng câu.",
+  "Bản nhạc + bàn phím hướng dẫn": "Bản nhạc + hướng dẫn thế tay",
 };
 
 const PHRASE_COPY: Array<[RegExp, string]> = [
