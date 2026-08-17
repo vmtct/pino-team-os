@@ -163,6 +163,150 @@
   flex-shrink: 0;
 }
 
+/* Screenshot audit: remove duplicated legacy affordances on Practice cards. */
+.root :global([data-freeze-duplicate-practice-glyph="true"]) {
+  display: none !important;
+}
+
+/* Explore registration must not inherit the large Next Touchpoint sheet layout. */
+.root :global([data-freeze-session-modal="true"]) {
+  width: min(100%, 620px) !important;
+}
+
+.root :global([data-freeze-session-hero="true"]) {
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: 88px minmax(0, 1fr) !important;
+  grid-template-rows: auto !important;
+  gap: 14px !important;
+  align-items: center !important;
+  padding: 14px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(31, 42, 39, 0.1) !important;
+  background: #f7f4ec !important;
+}
+
+.root :global([data-freeze-session-hero="true"] > [data-v22-touchpoint-hero="true"]) {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 88px !important;
+  height: 88px !important;
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 18px !important;
+  object-fit: cover !important;
+  align-self: center !important;
+}
+
+.root :global([data-freeze-session-hero="true"] > [data-v22-touchpoint-detail="true"]) {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: initial !important;
+  align-content: center !important;
+  gap: 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+  text-align: left !important;
+}
+
+.root :global([data-freeze-session-hero="true"] [data-v21-session-hero-image="true"]),
+.root :global([data-freeze-session-hero="true"] [data-v22-legacy-touchpoint-avatar="true"]),
+.root :global([data-freeze-session-hero="true"] [data-v22-touchpoint-glyph="true"]),
+.root :global([data-freeze-wrong-touchpoint-description="true"]) {
+  display: none !important;
+}
+
+.root :global([data-freeze-session-hero="true"] small) {
+  font-size: 10px !important;
+  line-height: 1.3 !important;
+  color: #66736d !important;
+}
+
+.root :global([data-freeze-session-hero="true"] strong) {
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  color: #26342f !important;
+}
+
+.root :global([data-freeze-session-hero="true"] p) {
+  margin: 1px 0 0 !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  color: #59655f !important;
+}
+
+/* Collection detail: three related media belong together, so avoid an empty 2x2 quadrant. */
+.root :global([data-freeze-collection-detail="true"]) {
+  width: min(760px, calc(100vw - 36px)) !important;
+}
+
+.root :global([data-freeze-collection-media-grid="true"]) {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.root :global([data-freeze-collection-media-card="true"]) {
+  min-width: 0;
+  min-height: 170px;
+  padding: 16px 12px !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto auto auto !important;
+  justify-items: center !important;
+  align-content: center !important;
+  gap: 8px !important;
+  text-align: center !important;
+}
+
+.root :global([data-freeze-collection-media-card="true"] > div) {
+  justify-items: center;
+  text-align: center;
+}
+
+.root :global([data-freeze-collection-media-card="true"] > em) {
+  justify-self: center !important;
+}
+
+/* Surface-level cards get the same restrained desktop feedback as Explore. */
+.root :global([data-freeze-collection-card="true"]),
+.root :global([data-freeze-glance-card="true"]),
+.root :global([data-freeze-fresh-card="true"]),
+.root :global([data-freeze-student-button="true"]),
+.root :global([data-freeze-filter-button="true"]) {
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.root :global([data-freeze-collection-card="true"]:focus-visible),
+.root :global([data-freeze-glance-card="true"]:focus-visible),
+.root :global([data-freeze-fresh-card="true"]:focus-visible),
+.root :global([data-freeze-student-button="true"]:focus-visible),
+.root :global([data-freeze-filter-button="true"]:focus-visible) {
+  outline: 2px solid rgba(83, 99, 90, 0.7);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root :global([data-freeze-collection-card="true"]:hover),
+  .root :global([data-freeze-glance-card="true"]:hover),
+  .root :global([data-freeze-fresh-card="true"]:hover) {
+    transform: translateY(-1px);
+    border-color: rgba(83, 99, 90, 0.22) !important;
+    box-shadow: 0 8px 20px rgba(31, 42, 39, 0.065);
+  }
+
+  .root :global([data-freeze-filter-button="true"]:hover) {
+    border-color: rgba(31, 42, 39, 0.24) !important;
+  }
+
+  .root :global([data-freeze-student-button="true"]:hover) {
+    opacity: 0.82;
+  }
+}
+
 @media (max-width: 560px) {
   .root :global([data-v22-session-card="true"]) {
     min-width: 0;
@@ -174,6 +318,30 @@
 
   .root :global([aria-label="Lọc loại buổi"]) {
     flex: 1 1 auto;
+  }
+
+  .root :global([data-freeze-session-modal="true"]) {
+    width: 100% !important;
+  }
+
+  .root :global([data-freeze-session-hero="true"]) {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+    gap: 11px !important;
+    padding: 12px !important;
+  }
+
+  .root :global([data-freeze-session-hero="true"] > [data-v22-touchpoint-hero="true"]) {
+    width: 72px !important;
+    height: 72px !important;
+    border-radius: 15px !important;
+  }
+
+  .root :global([data-freeze-collection-media-grid="true"]) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .root :global([data-freeze-collection-media-card="true"]) {
+    min-height: 132px;
   }
 }
 
@@ -189,7 +357,10 @@
   .root :global([class*="studentList"] > button),
   .root :global([class*="accountRows"] button),
   .root :global([class*="primaryAction"]),
-  .root :global([class*="secondaryAction"]) {
+  .root :global([class*="secondaryAction"]),
+  .root :global([data-freeze-collection-card="true"]),
+  .root :global([data-freeze-glance-card="true"]),
+  .root :global([data-freeze-fresh-card="true"]) {
     transition: none !important;
     transform: none !important;
   }
