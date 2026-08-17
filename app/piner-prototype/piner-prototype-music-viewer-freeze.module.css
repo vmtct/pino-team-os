@@ -1,0 +1,374 @@
+.root {
+  position: relative;
+}
+
+/* Music viewer freeze pass: preserve phrase-first behavior while making the sheet the visual priority. */
+.root :global([class*="viewerBackdrop"]) {
+  padding: 14px !important;
+  background: rgba(20, 24, 23, 0.78) !important;
+}
+
+.root :global([class*="viewerShell"]) {
+  width: min(1180px, calc(100vw - 28px)) !important;
+  height: min(900px, calc(100dvh - 28px)) !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #f6f2e9 !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.3) !important;
+}
+
+.root :global([class*="viewerHeader"]) {
+  min-height: 72px !important;
+  padding: 13px 18px !important;
+  border-bottom-color: rgba(31, 42, 39, 0.09) !important;
+}
+
+.root :global([class*="familyBadge"]) {
+  min-height: 32px;
+  border-radius: 10px !important;
+  padding-inline: 10px !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.06em !important;
+}
+
+.root :global([class*="viewerHeader"] strong) {
+  font-size: 20px !important;
+  line-height: 1.15 !important;
+}
+
+.root :global([class*="viewerHeader"] small) {
+  font-size: 10px !important;
+  line-height: 1.3 !important;
+}
+
+.root :global([class*="viewerHeader"] > button) {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px !important;
+  background: #f0ede5 !important;
+  font-size: 21px !important;
+  transition: transform 140ms ease, background 140ms ease;
+}
+
+.root :global([class*="landscapeWorkspace"]) {
+  gap: 9px !important;
+  padding: 10px 12px 12px !important;
+}
+
+.root :global([class*="stickyTools"]) {
+  min-height: 40px;
+  gap: 9px !important;
+}
+
+.root :global([class*="viewTools"]) {
+  gap: 6px !important;
+}
+
+.root :global([class*="viewTools"] button) {
+  min-height: 36px !important;
+  padding: 0 12px !important;
+  border-color: rgba(31, 42, 39, 0.13) !important;
+  background: #fffdf7 !important;
+  font-size: 10.5px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.root :global([class*="activeTool"]) {
+  background: #e9eee5 !important;
+  border-color: rgba(83, 99, 90, 0.34) !important;
+}
+
+.root :global([class*="recordingTool"]) {
+  background: #f2e9e5 !important;
+}
+
+.root :global([class*="accessPreview"]) {
+  min-height: 36px;
+  padding: 3px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.72);
+}
+
+.root :global([class*="accessPreview"] > span) {
+  padding-left: 6px;
+  font-size: 10px !important;
+  line-height: 1.2;
+}
+
+.root :global([class*="accessPreview"] button) {
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+}
+
+.root :global([class*="pageTabs"]) {
+  gap: 7px !important;
+}
+
+.root :global([class*="pageTabs"] button) {
+  min-height: 54px !important;
+  padding: 9px 11px !important;
+  border-radius: 12px !important;
+  border-color: rgba(31, 42, 39, 0.11) !important;
+  background: rgba(255, 253, 247, 0.86) !important;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.root :global([class*="pageTabs"] strong) {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+}
+
+.root :global([class*="pageTabs"] small) {
+  font-size: 10px !important;
+  line-height: 1.25 !important;
+  color: #74807a !important;
+}
+
+.root :global([class*="pageTabActive"]) {
+  border-color: rgba(83, 99, 90, 0.36) !important;
+  background: #e9eee5 !important;
+  box-shadow: inset 0 0 0 1px rgba(83, 99, 90, 0.08) !important;
+}
+
+.root :global([class*="viewerHint"]) {
+  min-height: 34px;
+  padding: 7px 10px !important;
+  border: 1px solid rgba(31, 42, 39, 0.08);
+  background: rgba(239, 236, 226, 0.72) !important;
+}
+
+.root :global([class*="viewerHint"] strong),
+.root :global([class*="viewerHint"] span) {
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+.root :global([class*="viewerHint"] span) {
+  color: #707a75 !important;
+}
+
+.root :global([class*="phraseScroller"]) {
+  padding: 6px !important;
+  border-radius: 14px !important;
+  border-color: rgba(31, 42, 39, 0.1) !important;
+  background: #eae6dc !important;
+  scroll-snap-type: y proximity;
+  overscroll-behavior: contain;
+}
+
+.root :global([class*="phrasePair"]) {
+  scroll-snap-align: start;
+  border-radius: 13px !important;
+  border-color: rgba(31, 42, 39, 0.09) !important;
+  box-shadow: 0 3px 10px rgba(31, 42, 39, 0.035) !important;
+}
+
+.root :global([class*="phrasePair"] + [class*="phrasePair"]) {
+  margin-top: 8px !important;
+}
+
+.root :global([class*="phraseHeading"]) {
+  min-height: 30px !important;
+  padding: 5px 9px !important;
+  background: #f5f1e8 !important;
+}
+
+.root :global([class*="phraseHeading"] span) {
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  font-weight: 750 !important;
+}
+
+/* The repeated descriptor adds noise; page-level hint already explains the pair structure. */
+.root :global([class*="phraseHeading"] small) {
+  display: none !important;
+}
+
+.root :global([class*="worksheetRow"]) {
+  border-top-color: rgba(31, 42, 39, 0.08) !important;
+}
+
+/* Preserve the approved 50% left-hand gate and 90%x80% callout, but reduce its visual aggression. */
+.root :global([class*="strongLeftHandLock"]) {
+  background: rgba(244, 241, 232, 0.08) !important;
+}
+
+.root :global([class*="largeLockMessage"]) {
+  width: 90% !important;
+  height: 80% !important;
+  border-radius: 18px !important;
+  padding: clamp(12px, 1.4vw, 20px) !important;
+  gap: 4px 11px !important;
+  background: rgba(83, 99, 90, 0.84) !important;
+  backdrop-filter: blur(5px) saturate(0.88) !important;
+  -webkit-backdrop-filter: blur(5px) saturate(0.88) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 10px 28px rgba(20, 28, 24, 0.18) !important;
+}
+
+.root :global([class*="largeLockMessage"] > span) {
+  font-size: clamp(24px, 2.4vw, 32px) !important;
+}
+
+.root :global([class*="largeLockMessage"] strong) {
+  font-size: clamp(14px, 1.35vw, 17px) !important;
+  line-height: 1.18 !important;
+  font-weight: 700 !important;
+}
+
+.root :global([class*="largeLockMessage"] small) {
+  font-size: 10px !important;
+  line-height: 1.3 !important;
+  color: rgba(255, 255, 255, 0.76) !important;
+}
+
+.root :global([class*="largeLockMessage"] button) {
+  min-height: 34px !important;
+  margin-top: 5px !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  background: #fffdf7 !important;
+  color: #26342f !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+.root :global([class*="submitButton"]) {
+  min-height: 40px !important;
+  font-size: 11px !important;
+}
+
+.root :global([class*="submitNotice"] strong),
+.root :global([class*="submitNotice"] span),
+.root :global([class*="viewerFooter"] span) {
+  font-size: 10px !important;
+}
+
+/* Internal implementation note should not be part of the learner-facing freeze reference. */
+.root :global([class*="viewerFooter"] small) {
+  display: none !important;
+}
+
+.root :global([class*="viewerFooter"]) {
+  min-height: 18px;
+  justify-content: flex-start !important;
+}
+
+.root :global([class*="viewerHeader"] > button:focus-visible),
+.root :global([class*="viewTools"] button:focus-visible),
+.root :global([class*="accessPreview"] button:focus-visible),
+.root :global([class*="pageTabs"] button:focus-visible),
+.root :global([class*="largeLockMessage"] button:focus-visible),
+.root :global([class*="submitButton"]:focus-visible) {
+  outline: 2px solid rgba(83, 99, 90, 0.75);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root :global([class*="viewerHeader"] > button:hover),
+  .root :global([class*="viewTools"] button:hover),
+  .root :global([class*="pageTabs"] button:hover),
+  .root :global([class*="largeLockMessage"] button:hover) {
+    transform: translateY(-1px);
+  }
+
+  .root :global([class*="viewTools"] button:hover),
+  .root :global([class*="pageTabs"] button:hover) {
+    border-color: rgba(83, 99, 90, 0.27) !important;
+    box-shadow: 0 5px 14px rgba(31, 42, 39, 0.055);
+  }
+
+  .root :global([class*="viewerHeader"] > button:hover) {
+    background: #e7e3d9 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .root :global([class*="viewerBackdrop"]) {
+    padding: 0 !important;
+  }
+
+  .root :global([class*="viewerShell"]) {
+    width: 100% !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  .root :global([class*="viewerHeader"]) {
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+  }
+
+  .root :global([class*="viewerHeader"] strong) {
+    font-size: 17px !important;
+  }
+
+  .root :global([class*="stickyTools"]) {
+    gap: 6px !important;
+  }
+
+  .root :global([class*="viewTools"] button) {
+    min-height: 34px !important;
+    padding-inline: 10px !important;
+    font-size: 10px !important;
+  }
+
+  .root :global([class*="accessPreview"]) {
+    width: auto !important;
+    align-self: flex-start;
+  }
+
+  .root :global([class*="pageTabs"]) {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .root :global([class*="pageTabs"] button) {
+    min-height: 48px !important;
+    padding: 7px 8px !important;
+  }
+
+  .root :global([class*="pageTabs"] strong) {
+    font-size: 10px !important;
+  }
+
+  .root :global([class*="pageTabs"] small) {
+    display: none !important;
+  }
+
+  .root :global([class*="viewerHint"] span) {
+    display: none !important;
+  }
+
+  .root :global([class*="largeLockMessage"]) {
+    width: 90% !important;
+    height: 80% !important;
+    padding: 10px !important;
+    gap: 3px 8px !important;
+  }
+
+  .root :global([class*="largeLockMessage"] > span) {
+    font-size: 22px !important;
+  }
+
+  .root :global([class*="largeLockMessage"] strong) {
+    font-size: 12px !important;
+  }
+
+  .root :global([class*="largeLockMessage"] small),
+  .root :global([class*="largeLockMessage"] button) {
+    font-size: 10px !important;
+  }
+}
