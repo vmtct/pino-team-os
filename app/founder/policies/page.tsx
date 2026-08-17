@@ -8,7 +8,7 @@ export default function PolicyCenterPage(){
   const upcoming = policyDomains.reduce((sum,domain)=>sum+domain.upcoming,0);
   return <PolicyShell
     title="Policies"
-    subtitle="Một nơi để Founder hiểu PINO đang chọn vận hành theo rule nào. Policy Center quản trị version, effective date, history và impact; semantics vẫn thuộc domain sở hữu policy."
+    subtitle="Một nơi để Founder hiểu PINO đang chọn vận hành theo rule nào, rule nào sắp đổi, và trước đây rule là gì. Policy Center quản trị version/effective history; semantics vẫn thuộc domain sở hữu policy."
   >
     <section className={styles.summary}>
       <div className={styles.metric}><span>Active policies</span><strong>{active}</strong></div>
@@ -17,7 +17,16 @@ export default function PolicyCenterPage(){
       <div className={styles.metric}><span>Policy model</span><strong>Versioned</strong></div>
     </section>
 
-    <section className={styles.grid}>
+    <section className={styles.attention}>
+      <div>
+        <span className={styles.attentionKicker}>Review path</span>
+        <strong>Workforce is the first materialized policy domain.</strong>
+        <p>Review Current → Upcoming → History, then open Evening Assistant Shift and create the next mock version to inspect change review + Impact Preview.</p>
+      </div>
+      <Link className={styles.button} href="/founder/policies/workforce">Start Workforce review</Link>
+    </section>
+
+    <section className={`${styles.grid} ${styles.sectionGap}`}>
       {policyDomains.map(domain => <article className={styles.domainCard} key={domain.id}>
         <div>
           <h2>{domain.name}</h2>
