@@ -35,6 +35,10 @@ Internal domain/state names such as `TRIAL_PREMIUM` and `EXPIRED_PREMIUM` may re
 
 Every registered copy key has a source-controlled fallback in Core. This protects local/degraded rendering and lets runtime return a complete bundle before the first D1 release is published.
 
+## Current prototype boundary
+
+The existing `/piner-prototype` remains the frozen/disposable UI reference and is not rewired through the Founder control plane. Production Piner must consume `GET /v1/piner/content` directly from the public Core boundary and use the matching source fallback per semantic key. This avoids adding another DOM-rewrite layer to the prototype and prevents a private Founder contract from leaking into learner runtime architecture.
+
 The governing architecture decision and approved behavior live in `pino-core`:
 
 - `docs/adr/0016-piner-content-core-d1.md`
