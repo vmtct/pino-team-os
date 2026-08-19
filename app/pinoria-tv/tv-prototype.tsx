@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./tv.module.css";
-import choiceStyles from "./choice-polish.module.css";
 
 type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
 type TVSubject = {
@@ -206,51 +205,55 @@ function Arrival({ subject }: { subject: TVSubject }) {
 function Choice({ subject }: { subject: TVSubject }) {
   return (
     <SpotlightShell>
-      <div className={choiceStyles.scene}>
-        <header className={choiceStyles.header}>
-          <span className={choiceStyles.kicker}>CHỌN NHANH · TÚI ĐỒ & CỬA HÀNG</span>
-          <h1>{subject.name} muốn mang gì theo hôm nay?</h1>
-          <p>Nói mã A1, A2, A3 hoặc B1, B2, B3 để cô chú chọn giúp con.</p>
-          <div className={choiceStyles.timer} aria-label="Còn 8 giây">
-            <div className={choiceStyles.timerTop}><span>Còn</span><strong>8</strong><span>giây</span></div>
-            <div className={choiceStyles.timerTrack}><i /></div>
+      <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", padding: "58px clamp(46px,6vw,86px) 52px", display: "grid", gridTemplateRows: "auto minmax(0,1fr)", gap: 16, overflow: "hidden" }}>
+        <header style={{ position: "relative", width: "100%", maxWidth: 1060, margin: "0 auto", padding: "4px 128px 0", boxSizing: "border-box", textAlign: "center" }}>
+          <span style={{ display: "block", fontSize: 11, letterSpacing: ".18em", fontWeight: 900, color: "#e7c77a" }}>CHỌN NHANH · TÚI ĐỒ & CỬA HÀNG</span>
+          <h1 style={{ margin: "9px 0 9px", fontSize: "clamp(36px,4vw,54px)", lineHeight: .98, letterSpacing: "-.045em", color: "#fff" }}>{subject.name} muốn mang gì theo hôm nay?</h1>
+          <p style={{ margin: 0, fontSize: "clamp(14px,1.35vw,18px)", lineHeight: 1.35, color: "#e5dfd4" }}>Nói mã A1, A2, A3 hoặc B1, B2, B3 để cô chú chọn giúp con.</p>
+          <div aria-label="Còn 8 giây" style={{ position: "absolute", right: 0, top: 0, width: 108, padding: "9px 11px 8px", borderRadius: 15, background: "#f2e3ba", color: "#2f3e2d", boxShadow: "0 12px 34px #0002", textAlign: "left" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}><span style={{ fontSize: 9, fontWeight: 900, letterSpacing: ".08em" }}>CÒN</span><strong style={{ fontSize: 24, lineHeight: 1 }}>8</strong><span style={{ fontSize: 9, fontWeight: 900, letterSpacing: ".08em" }}>GIÂY</span></div>
+            <div style={{ height: 4, marginTop: 7, borderRadius: 999, background: "#2f3e2d22", overflow: "hidden" }}><i style={{ display: "block", width: "72%", height: "100%", borderRadius: 999, background: "#435740" }} /></div>
           </div>
         </header>
 
-        <div className={choiceStyles.board}>
-          <section className={choiceStyles.group}>
-            <div className={choiceStyles.groupHead}><strong>Túi đồ · đã sở hữu</strong><span>Chọn món muốn mang theo</span></div>
-            <div className={choiceStyles.cards}>
-              <ChoiceCard code="A1" title="Mũ Lá" meta="Đang trang bị" icon="⌁" kind="owned" />
-              <ChoiceCard code="A2" title="Huy hiệu Rêu" meta="Đã sở hữu" icon="✦" kind="owned" />
-              <ChoiceCard code="A3" title="Giữ hiện tại" meta="Không đổi trang phục" icon="●" kind="current" />
-            </div>
-          </section>
-
-          <section className={choiceStyles.group}>
-            <div className={choiceStyles.groupHead}><strong>Cửa hàng · gợi ý hôm nay</strong><span>{subject.pls} PLS hiện có</span></div>
-            <div className={choiceStyles.cards}>
-              <ChoiceCard code="B1" title="Huy hiệu Lá Terravia" meta="180 PLS" icon="◇" kind="shop" />
-              <ChoiceCard code="B2" title="Túi Rêu" meta="360 PLS" icon="▣" kind="shop" hero />
-              <ChoiceCard code="B3" title="Áo choàng Đèn Lồng" meta="520 PLS" icon="△" kind="shop" />
-            </div>
-          </section>
+        <div style={{ minHeight: 0, width: "100%", maxWidth: 1080, margin: "0 auto", display: "grid", gridTemplateRows: "1fr 1fr", gap: 11 }}>
+          <ChoiceGroup title="Túi đồ · đã sở hữu" meta="Chọn món muốn mang theo">
+            <ChoiceCard code="A1" title="Mũ Lá" meta="Đang trang bị" icon="⌁" kind="owned" />
+            <ChoiceCard code="A2" title="Huy hiệu Rêu" meta="Đã sở hữu" icon="✦" kind="owned" />
+            <ChoiceCard code="A3" title="Giữ hiện tại" meta="Không đổi trang phục" icon="●" kind="current" />
+          </ChoiceGroup>
+          <ChoiceGroup title="Cửa hàng · gợi ý hôm nay" meta={`${subject.pls} PLS hiện có`}>
+            <ChoiceCard code="B1" title="Huy hiệu Lá Terravia" meta="180 PLS" icon="◇" kind="shop" />
+            <ChoiceCard code="B2" title="Túi Rêu" meta="360 PLS" icon="▣" kind="shop" hero />
+            <ChoiceCard code="B3" title="Áo choàng Đèn Lồng" meta="520 PLS" icon="△" kind="shop" />
+          </ChoiceGroup>
         </div>
       </div>
     </SpotlightShell>
   );
 }
 
-function ChoiceCard({ code, title, meta, icon, kind, hero = false }: { code: string; title: string; meta: string; icon: string; kind: "owned" | "shop" | "current"; hero?: boolean }) {
-  const kindClass = kind === "shop" ? choiceStyles.cardShop : kind === "current" ? choiceStyles.current : choiceStyles.cardOwned;
+function ChoiceGroup({ title, meta, children }: { title: string; meta: string; children: React.ReactNode }) {
   return (
-    <div className={`${choiceStyles.card} ${kindClass} ${hero ? choiceStyles.cardHero : ""}`}>
-      <b className={choiceStyles.code}>{code}</b>
-      <div className={choiceStyles.identity}>
-        <span className={choiceStyles.icon}>{icon}</span>
-        <div className={choiceStyles.copy}><strong>{title}</strong><small>{kind === "shop" ? "Gợi ý từ Cửa hàng" : "Trong Túi đồ"}</small></div>
+    <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto minmax(0,1fr)", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "0 3px" }}><strong style={{ fontSize: 10, letterSpacing: ".14em", color: "#f0d18a", textTransform: "uppercase" }}>{title}</strong><span style={{ fontSize: 10, color: "#c8cec2" }}>{meta}</span></div>
+      <div style={{ minHeight: 0, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 11 }}>{children}</div>
+    </section>
+  );
+}
+
+function ChoiceCard({ code, title, meta, icon, kind, hero = false }: { code: string; title: string; meta: string; icon: string; kind: "owned" | "shop" | "current"; hero?: boolean }) {
+  const isShop = kind === "shop";
+  const background = hero ? "linear-gradient(145deg,#d8bd7233,#ffffff0c)" : isShop ? "linear-gradient(145deg,#d8bd7220,#ffffff08)" : "linear-gradient(145deg,#ffffff12,#ffffff08)";
+  const borderColor = hero ? "#e4cf8d88" : isShop ? "#e4cf8d44" : "#ffffff24";
+  return (
+    <div style={{ position: "relative", minWidth: 0, minHeight: 0, borderRadius: 17, background, border: `1px solid ${borderColor}`, display: "grid", gridTemplateColumns: "40px minmax(0,1fr)", gridTemplateRows: "1fr auto", columnGap: 11, rowGap: 7, alignItems: "center", padding: "11px 13px", boxSizing: "border-box", boxShadow: hero ? "0 0 0 1px #e4cf8d22,inset 0 1px 0 #ffffff12" : "inset 0 1px 0 #ffffff08" }}>
+      <b style={{ width: 36, height: 36, borderRadius: 10, background: "#1e281d", color: "#f5df9f", display: "grid", placeItems: "center", fontSize: 14, fontWeight: 900 }}>{code}</b>
+      <div style={{ minWidth: 0, display: "grid", gridTemplateColumns: "40px minmax(0,1fr)", gap: 9, alignItems: "center" }}>
+        <span style={{ width: 38, height: 38, display: "grid", placeItems: "center", color: "#eccb78", fontSize: kind === "current" ? 24 : 31, lineHeight: 1 }}>{icon}</span>
+        <div style={{ minWidth: 0, display: "grid", gap: 3 }}><strong style={{ fontSize: 15, lineHeight: 1.15, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</strong><small style={{ fontSize: 9, color: "#cbd0c5", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isShop ? "Gợi ý từ Cửa hàng" : "Trong Túi đồ"}</small></div>
       </div>
-      <div className={choiceStyles.meta}><b>{kind === "shop" ? "Giá" : "Trạng thái"}</b><span>{meta}</span></div>
+      <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, paddingTop: 7, borderTop: "1px solid #ffffff14", fontSize: 10, color: "#d6dbd0" }}><b style={{ fontSize: 9, letterSpacing: ".08em", color: isShop ? "#f1d58e" : "#d4dbcf" }}>{isShop ? "GIÁ" : "TRẠNG THÁI"}</b><span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{meta}</span></div>
     </div>
   );
 }
