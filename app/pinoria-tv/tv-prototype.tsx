@@ -14,23 +14,17 @@ type TVSubject = {
   fruit: number;
 };
 
-type TVPlayMessage = {
-  type: "PINORIA_TV_PLAY";
-  mode: "arrival" | "departure";
-  replay: boolean;
-  subject: TVSubject;
-  sentAt: number;
+type RelayEvent = {
+  id: number;
+  kind: "play" | "control";
+  mode?: "arrival" | "departure";
+  replay?: boolean;
+  subject?: TVSubject;
+  action?: "ambient";
 };
 
-type TVControlMessage = {
-  type: "PINORIA_TV_CONTROL";
-  action: "ambient";
-  sentAt: number;
-};
-
-type TVIncomingMessage = TVPlayMessage | TVControlMessage;
-
-const TV_CHANNEL = "pinoria-tv-prototype-v1";
+const SURFACE_ID = "RECEPTION_TV";
+const RELAY_URL = "/api/pinoria-prototype/tv-relay";
 
 const modes: { id: Mode; label: string }[] = [
   { id: "ambient", label: "Ambient" },
@@ -57,65 +51,94 @@ export function PinoriaTVPrototype() {
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
-  const channelRef = useRef<BroadcastChannel | null>(null);
+  const modeRef = useRef<Mode>("ambient");
+  const lastHandledEvent = useRef<number | null>(null);
 
   useEffect(() => {
-    let channel: BroadcastChannel | null = null;
-    let heartbeat: number | null = null;
+    modeRef.current = mode;
+  }, [mode]);
 
-    const announceClosed = () => {
-      try { channel?.postMessage({ type: "PINORIA_TV_CLOSED", sentAt: Date.now() }); } catch { /* no-op */ }
-    };
+  useEffect(() => {
+    let stopped = false;
 
-    try {
-      channel = new BroadcastChannel(TV_CHANNEL);
-      channelRef.current = channel;
-      channel.postMessage({ type: "PINORIA_TV_READY", mode: "ambient", sentAt: Date.now() });
-      heartbeat = window.setInterval(() => {
-        try { channel?.postMessage({ type: "PINORIA_TV_HEARTBEAT", sentAt: Date.now() }); } catch { /* no-op */ }
-      }, 2000);
-
-      channel.onmessage = (event: MessageEvent<TVIncomingMessage>) => {
-        const message = event.data;
-        if (!message || typeof message !== "object" || !("type" in message)) return;
-
-        if (message.type === "PINORIA_TV_CONTROL") {
-          if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
-          setReplayLabel(null);
-          setMode("ambient");
-          return;
-        }
-
-        if (message.type !== "PINORIA_TV_PLAY") return;
-        if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
-        setSubject(message.subject);
-        setMode(message.mode);
-        setReplayLabel(message.replay ? `PHÁT LẠI · ${message.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
-
-        if (message.mode === "arrival" && !message.replay) {
-          sequenceTimer.current = window.setTimeout(() => {
-            setMode("choice");
-            setReplayLabel(null);
-          }, 6500);
-        }
-      };
-    } catch {
-      channelRef.current = null;
+    async function post(body: Record<string, unknown>) {
+      try {
+        await fetch(RELAY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          cache: "no-store",
+        });
+      } catch {
+        // The TV remains a disposable presentation client when the mock relay is unavailable.
+      }
     }
 
-    window.addEventListener("beforeunload", announceClosed);
-    return () => {
-      window.removeEventListener("beforeunload", announceClosed);
-      announceClosed();
-      if (heartbeat) window.clearInterval(heartbeat);
+    async function heartbeat() {
+      await post({ op: "heartbeat", surfaceId: SURFACE_ID, mode: modeRef.current });
+    }
+
+    async function ack(id: number) {
+      await post({ op: "ack", surfaceId: SURFACE_ID, id });
+    }
+
+    function playEvent(event: RelayEvent) {
+      if (event.kind === "control") {
+        if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+        setReplayLabel(null);
+        setMode("ambient");
+        return;
+      }
+
+      if (!event.subject || !event.mode) return;
       if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
-      channel?.close();
-      channelRef.current = null;
+      setSubject(event.subject);
+      setMode(event.mode);
+      setReplayLabel(event.replay ? `PHÁT LẠI · ${event.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
+
+      if (event.mode === "arrival" && !event.replay) {
+        sequenceTimer.current = window.setTimeout(() => {
+          setMode("choice");
+          setReplayLabel(null);
+        }, 6500);
+      }
+    }
+
+    async function poll() {
+      try {
+        const response = await fetch(`${RELAY_URL}?surfaceId=${SURFACE_ID}&includeEvent=1`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as { event?: RelayEvent | null };
+        const event = data.event;
+        if (!event || event.id === lastHandledEvent.current) return;
+        lastHandledEvent.current = event.id;
+        await ack(event.id);
+        if (!stopped) playEvent(event);
+      } catch {
+        // Keep the current scene if the relay is temporarily unavailable.
+      }
+    }
+
+    void heartbeat();
+    void poll();
+    const heartbeatTimer = window.setInterval(() => { void heartbeat(); }, 2000);
+    const pollTimer = window.setInterval(() => { void poll(); }, 900);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(heartbeatTimer);
+      window.clearInterval(pollTimer);
+      if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
     };
   }, []);
 
   useEffect(() => {
-    try { channelRef.current?.postMessage({ type: "PINORIA_TV_STATE", mode, sentAt: Date.now() }); } catch { /* no-op */ }
+    void fetch(RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "heartbeat", surfaceId: SURFACE_ID, mode }),
+      cache: "no-store",
+    }).catch(() => undefined);
   }, [mode]);
 
   function selectReviewMode(next: Mode) {
@@ -126,7 +149,7 @@ export function PinoriaTVPrototype() {
 
   return (
     <main className={styles.screen}>
-      <div className={styles.prototypeTag}>{replayLabel ?? "TV PROTOTYPE · MOCK DATA · EXTENDED DISPLAY REVIEW"}</div>
+      <div className={styles.prototypeTag}>{replayLabel ?? "TV PROTOTYPE · CORE RELAY SIMULATION · RECEPTION_TV"}</div>
       {mode === "ambient" ? <Ambient /> : null}
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <Choice subject={subject} /> : null}
@@ -135,7 +158,7 @@ export function PinoriaTVPrototype() {
       {mode === "news" ? <News subject={subject} /> : null}
 
       <button className={styles.reviewToggle} onClick={() => setReviewOpen((open) => !open)}>{reviewOpen ? "Hide review controls" : "Review controls"}</button>
-      {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Production TV would receive events from Core and never expose these controls.</small></aside> : null}
+      {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV polls the mock Core relay. Production TV will use a scoped surface session and cannot change business truth.</small></aside> : null}
     </main>
   );
 }
