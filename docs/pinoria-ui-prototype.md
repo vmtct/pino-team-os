@@ -4,6 +4,10 @@ Status: **prototype only**. This branch is intentionally mock-data and interacti
 
 This follows `AGENTS.md` prototype discipline: product findings from this UI must be reconciled into the canonical `pino-core` spec before runtime implementation.
 
+## Terminology lock
+
+Across PINO operational surfaces, use **Check-in** and **Check-out** exactly as written. These two terms are not localized into Vietnamese. TV presentation scenes remain **Chào đến** and **Chào về** because they describe what the learner sees, not the underlying presence command.
+
 ## Run locally
 
 ```bash
@@ -18,13 +22,14 @@ Open:
 - Founder Pinoria workspace: `http://localhost:3001/founder/pinoria` when using the PINO Local Platform port convention, or the port printed by `npm run dev` when running this repo alone.
 - Pinoria TV directly: `/pinoria-tv`.
 
-From the Pinoria workspace, use **Open Pinoria TV**. It opens a separate window intended to be moved to the laptop's extended display and fullscreened for review.
+The production direction is for TOS and Pinoria TV to be independent clients. The current prototype includes an in-memory relay so a staff browser can issue Check-in/Check-out while the reception TV runs independently on the fixed laptop.
 
 ## Prototype coverage
 
 ### Pinoria Ops
 - Live House / current presence
-- attention-before-checkout
+- Check-in / Check-out workflow
+- attention-before-Check-out
 - Pending Arrival Choices and async resolution
 - learner Pinoria profile
 - Character / Showcase / resources / effects
@@ -33,7 +38,8 @@ From the Pinoria workspace, use **Open Pinoria TV**. It opens a separate window 
 - Hạt / Phép / Mirror entitlement representation
 - Physical Fulfillment
 - Physical Chest batch logging concept
-- TV launcher / runtime status / Return to Ambient / replay / close
+- TV runtime status / Return to Ambient / replay / queued presentation
+- Staffing Guard for presence permissions, staff presence, and operating window
 
 ### Pinoria Studio
 - Milestones & Journey architecture
@@ -54,10 +60,10 @@ From the Pinoria workspace, use **Open Pinoria TV**. It opens a separate window 
 
 ### TV review surfaces
 - Ambient House
-- Arrival Spotlight
+- Chào đến / Arrival Spotlight
 - Quick Choice
 - Companion Materialization Ritual
-- Departure Reveal
+- Chào về / Departure Reveal
 - World News / Artifact discovery
 
 The TV review controls are deliberately visible in prototype mode only. A production TV client would not expose them.
@@ -66,7 +72,7 @@ The TV review controls are deliberately visible in prototype mode only. A produc
 
 1. Does the **Ops vs Studio** split match how reception, manager, and Founder should think about Pinoria?
 2. Is `Live House` the right operational home rather than a dashboard?
-3. Are Arrival Choice and checkout-attention flows light enough for reception?
+3. Are Check-in Choice and Check-out attention flows light enough for reception?
 4. Does the learner profile make `Character = self`, `Companion = relationship`, and `Showcase = achievement/history` clear?
 5. Is Companion progression understandable without a manual level setter?
 6. Does Founder configuration feel like product configuration rather than database administration?
@@ -74,7 +80,7 @@ The TV review controls are deliberately visible in prototype mode only. A produc
 8. Does the Content Library make new content feel publishable without code when behavior stays inside a supported capability class?
 9. Does Campaign simulation communicate a shared world rather than a leaderboard?
 10. Is the TV experience calm, theatrical, and understandable at reception distance?
-11. Is the separate TV window launched from TOS suitable for the fixed laptop + extended-display setup?
+11. Does the independent-client model work for staff phone/browser + fixed reception TV?
 12. What UI/product decisions changed during review? Those become the final inputs to the Core handoff spec.
 
 ## Explicit non-authority
