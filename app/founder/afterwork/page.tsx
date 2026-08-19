@@ -16,6 +16,7 @@ type SessionRow = {
   capacity: number;
   facilitator: string;
   deposit: string;
+  publicSlug?: string;
   status: "Published" | "Draft" | "Cancelled";
 };
 type Booking = {
@@ -61,10 +62,10 @@ const pianoSongs = [
 ];
 
 const initialSessions: SessionRow[] = [
-  { id: "AW-0822-A", sourceType: "Painting", sourceTitle: "Sunday Flowers", collection: "Slow Living", day: "Sat 22 Aug", time: "14:30–17:00", booked: 4, capacity: 8, facilitator: "Trang", deposit: "100k / seat", status: "Published" },
-  { id: "AW-0822-P", sourceType: "Piano Song", sourceTitle: "Always With Me", collection: "Ghibli Collection", day: "Sat 22 Aug", time: "19:00–20:30", booked: 3, capacity: 5, facilitator: "Hương", deposit: "100k / seat", status: "Published" },
-  { id: "AW-0823-A", sourceType: "Painting", sourceTitle: "Rainy Window", collection: "After Rain", day: "Sun 23 Aug", time: "14:30–17:00", booked: 6, capacity: 8, facilitator: "Trang", deposit: "100k / seat", status: "Published" },
-  { id: "AW-0823-P", sourceType: "Piano Song", sourceTitle: "Kiss The Rain", collection: "Rainy Piano", day: "Sun 23 Aug", time: "19:00–20:30", booked: 4, capacity: 5, facilitator: "Bảo", deposit: "100k / seat", status: "Published" },
+  { id: "AW-0822-A", sourceType: "Painting", sourceTitle: "Sunday Flowers", collection: "Slow Living", day: "Sat 22 Aug", time: "14:30–17:00", booked: 4, capacity: 8, facilitator: "Trang", deposit: "100k / seat", publicSlug: "sunday-flowers-22-aug", status: "Published" },
+  { id: "AW-0822-P", sourceType: "Piano Song", sourceTitle: "Always With Me", collection: "Ghibli Collection", day: "Sat 22 Aug", time: "19:00–20:30", booked: 3, capacity: 5, facilitator: "Hương", deposit: "100k / seat", publicSlug: "always-with-me-22-aug", status: "Published" },
+  { id: "AW-0823-A", sourceType: "Painting", sourceTitle: "Rainy Window", collection: "After Rain", day: "Sun 23 Aug", time: "14:30–17:00", booked: 6, capacity: 8, facilitator: "Trang", deposit: "100k / seat", publicSlug: "rainy-window-23-aug", status: "Published" },
+  { id: "AW-0823-P", sourceType: "Piano Song", sourceTitle: "Kiss The Rain", collection: "Rainy Piano", day: "Sun 23 Aug", time: "19:00–20:30", booked: 4, capacity: 5, facilitator: "Bảo", deposit: "100k / seat", publicSlug: "kiss-the-rain-23-aug", status: "Published" },
 ];
 
 const seedBookings: Booking[] = [
@@ -107,6 +108,7 @@ export default function AfterworkFounderPrototype() {
 
   const sourceOptions = sourceType === "Painting" ? paintings.map((item) => item.title) : pianoSongs.map((item) => item.title);
   const selectedSource = sourceType === "Painting" ? paintings.find((item) => item.title === sourceTitle) : pianoSongs.find((item) => item.title === sourceTitle);
+  const landingSlugPreview = makeLandingSlug(sourceTitle, sessionDate);
 
   function openSessionBuilder(type: LibraryType = "Painting", title?: string) {
     const firstTitle = type === "Painting" ? paintings[0].title : pianoSongs[0].title;
@@ -141,6 +143,7 @@ export default function AfterworkFounderPrototype() {
       capacity: Number(capacity) || (sourceType === "Painting" ? 8 : 5),
       facilitator,
       deposit: "100k / seat",
+      publicSlug: landingSlugPreview,
       status: "Draft",
     };
     setSessionRows((rows) => [row, ...rows]);
@@ -200,9 +203,10 @@ export default function AfterworkFounderPrototype() {
           <label>Hold TTL<input value="15 minutes" readOnly /></label>
           <label className="span-2">Cancellation<input value="100% refund ≥24h · non-refundable <24h / no-show" readOnly /></label>
         </div>
+        <div className="builder-boundary"><b>Public landing is automatic.</b><span>Template copy/media comes from the selected Painting or Piano Song. Date, time, capacity, facilitator and commercial terms come from this Session.</span><code style={{ display: "block", marginTop: 8, overflowWrap: "anywhere" }}>afterwork.pinohouse.art/session/{landingSlugPreview}</code></div>
         <div className="builder-boundary"><b>Session owns occurrence data.</b><span>The selected Painting/Piano Song remains reusable and unchanged for future sessions.</span></div>
         <div className="form-actions"><button className="button secondary" type="button" onClick={() => setBuilderOpen(false)}>Cancel</button><button className="button" type="button" onClick={createPrototypeSession}>Create mock session</button></div>
-        <p className="hint">Prototype only — this creates client state, not a Core session or payment obligation.</p>
+        <p className="hint">Prototype only — this creates client state, not a Core session, public route or payment obligation.</p>
       </section>
     </div>}
   </div>;
@@ -218,13 +222,13 @@ function Overview({ sessions, totals, holds, confirmed, onNewSession }: { sessio
 
 function Sessions({ sessions, onNewSession }: { sessions: SessionRow[]; onNewSession: () => void }) {
   return <section className="afterwork-stack">
-    <section className="panel afterwork-panel"><div className="afterwork-panel-head"><div><span className="muted">Occurrence registry</span><h2>Sessions</h2><p className="afterwork-copy">A Session is one dated run. It references exactly one reusable Painting or Piano Song.</p></div><button className="button" type="button" onClick={onNewSession}>+ New session</button></div><SessionTable sessions={sessions} /></section>
-    <section className="panel session-rule"><div><span className="eyebrow">Definition</span><h2>Library item ≠ Session</h2></div><p>Changing date, capacity, facilitator, deposit or lifecycle belongs here on the occurrence. Editing a painting/song belongs in its Library view and must not rewrite existing session history.</p></section>
+    <section className="panel afterwork-panel"><div className="afterwork-panel-head"><div><span className="muted">Occurrence registry</span><h2>Sessions</h2><p className="afterwork-copy">A Session is one dated run. Publishing it exposes one focused public landing through the shared template.</p></div><button className="button" type="button" onClick={onNewSession}>+ New session</button></div><SessionTable sessions={sessions} /></section>
+    <section className="panel session-rule"><div><span className="eyebrow">Definition</span><h2>Library item ≠ Session ≠ webpage copy.</h2></div><p>Offering content remains reusable. Session owns occurrence/commercial data. The public app composes both into one landing template instead of staff rebuilding pages for every date.</p></section>
   </section>;
 }
 
 function SessionTable({ sessions }: { sessions: SessionRow[] }) {
-  return <div className="session-table"><div className="session-row session-head"><span>Occurrence</span><span>Library source</span><span>When</span><span>Capacity</span><span>Status</span></div>{sessions.map((session) => <div className="session-row" key={session.id}><span><b>{session.id}</b><small>{session.sourceType}</small></span><span><b>{session.sourceTitle}</b><small>{session.collection} · {session.facilitator}</small></span><span><b>{session.day}</b><small>{session.time} · deposit {session.deposit}</small></span><span><b>{session.booked}/{session.capacity}</b><small>{session.capacity - session.booked} seats left</small></span><span><em className={`status ${session.status === "Published" ? "status-published" : "status-draft"}`}>{session.status}</em></span></div>)}</div>;
+  return <div className="session-table"><div className="session-row session-head"><span>Occurrence</span><span>Library source</span><span>When</span><span>Capacity</span><span>Status</span></div>{sessions.map((session) => <div className="session-row" key={session.id}><span><b>{session.id}</b><small>{session.publicSlug ? `/session/${session.publicSlug}` : "Landing not reserved"}</small></span><span><b>{session.sourceTitle}</b><small>{session.collection} · {session.facilitator}</small></span><span><b>{session.day}</b><small>{session.time} · deposit {session.deposit}</small></span><span><b>{session.booked}/{session.capacity}</b><small>{session.capacity - session.booked} seats left</small></span><span><em className={`status ${session.status === "Published" ? "status-published" : "status-draft"}`}>{session.status}</em>{session.publicSlug && session.status === "Published" && <a href={`http://localhost:3003/session/${session.publicSlug}`} target="_blank" rel="noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11 }}>Preview landing ↗</a>}</span></div>)}</div>;
 }
 
 function Paintings({ onCreate }: { onCreate: (title: string) => void }) {
@@ -259,4 +263,11 @@ function Metric({ n, label }: { n: string; label: string }) {
 
 function statusLabel(status: BookingStatus) {
   return ({ holding: "HOLDING", confirmed: "CONFIRMED", expired: "EXPIRED", cancelled: "CANCELLED", attended: "ATTENDED", no_show: "NO SHOW" })[status];
+}
+
+function makeLandingSlug(title: string, date: string) {
+  const titlePart = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const parsed = new Date(`${date}T12:00:00`);
+  const datePart = parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short" }).toLowerCase().replace(/\s+/g, "-");
+  return `${titlePart}-${datePart}`;
 }
