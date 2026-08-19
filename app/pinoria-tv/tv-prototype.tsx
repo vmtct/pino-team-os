@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./tv.module.css";
+import choiceStyles from "./choice-polish.module.css";
 
 type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
 type TVSubject = {
@@ -47,7 +48,7 @@ const defaultSubject: TVSubject = {
 
 export function PinoriaTVPrototype() {
   const [mode, setMode] = useState<Mode>("ambient");
-  const [reviewOpen, setReviewOpen] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
@@ -203,11 +204,55 @@ function Arrival({ subject }: { subject: TVSubject }) {
 }
 
 function Choice({ subject }: { subject: TVSubject }) {
-  return <SpotlightShell><div className={styles.choiceHead}><span className={styles.kicker}>QUICK CHOICE · 8 SEC</span><h1>{subject.name} muốn mang gì theo hôm nay?</h1><p>Con chọn mã A/B rồi nói với cô chú. TV không cần chạm.</p></div><div className={styles.choiceGrid}><ChoiceCard code="A1" title="Leaf Cap" meta="Owned · Equip" icon="⌁" /><ChoiceCard code="A2" title="Moss Pin" meta="Owned · Equip" icon="✦" /><ChoiceCard code="A3" title="Keep current" meta="Owned" icon="●" /><ChoiceCard code="B1" title="Terravia Leaf Pin" meta="180 PLS" icon="◇" /><ChoiceCard code="B2" title="Moss Satchel" meta="360 PLS" icon="▣" hero /><ChoiceCard code="B3" title="Lantern Cape" meta="520 PLS" icon="△" /></div><div className={styles.countdown}>8</div></SpotlightShell>;
+  return (
+    <SpotlightShell>
+      <div className={choiceStyles.scene}>
+        <header className={choiceStyles.header}>
+          <span className={choiceStyles.kicker}>CHỌN NHANH · TÚI ĐỒ & CỬA HÀNG</span>
+          <h1>{subject.name} muốn mang gì theo hôm nay?</h1>
+          <p>Nói mã A1, A2, A3 hoặc B1, B2, B3 để cô chú chọn giúp con.</p>
+          <div className={choiceStyles.timer} aria-label="Còn 8 giây">
+            <div className={choiceStyles.timerTop}><span>Còn</span><strong>8</strong><span>giây</span></div>
+            <div className={choiceStyles.timerTrack}><i /></div>
+          </div>
+        </header>
+
+        <div className={choiceStyles.board}>
+          <section className={choiceStyles.group}>
+            <div className={choiceStyles.groupHead}><strong>Túi đồ · đã sở hữu</strong><span>Chọn món muốn mang theo</span></div>
+            <div className={choiceStyles.cards}>
+              <ChoiceCard code="A1" title="Mũ Lá" meta="Đang trang bị" icon="⌁" kind="owned" />
+              <ChoiceCard code="A2" title="Huy hiệu Rêu" meta="Đã sở hữu" icon="✦" kind="owned" />
+              <ChoiceCard code="A3" title="Giữ hiện tại" meta="Không đổi trang phục" icon="●" kind="current" />
+            </div>
+          </section>
+
+          <section className={choiceStyles.group}>
+            <div className={choiceStyles.groupHead}><strong>Cửa hàng · gợi ý hôm nay</strong><span>{subject.pls} PLS hiện có</span></div>
+            <div className={choiceStyles.cards}>
+              <ChoiceCard code="B1" title="Huy hiệu Lá Terravia" meta="180 PLS" icon="◇" kind="shop" />
+              <ChoiceCard code="B2" title="Túi Rêu" meta="360 PLS" icon="▣" kind="shop" hero />
+              <ChoiceCard code="B3" title="Áo choàng Đèn Lồng" meta="520 PLS" icon="△" kind="shop" />
+            </div>
+          </section>
+        </div>
+      </div>
+    </SpotlightShell>
+  );
 }
 
-function ChoiceCard({ code, title, meta, icon, hero = false }: { code: string; title: string; meta: string; icon: string; hero?: boolean }) {
-  return <div className={`${styles.choiceCard} ${hero ? styles.choiceHero : ""}`}><b>{code}</b><span className={styles.choiceIcon}>{icon}</span><strong>{title}</strong><small>{meta}</small></div>;
+function ChoiceCard({ code, title, meta, icon, kind, hero = false }: { code: string; title: string; meta: string; icon: string; kind: "owned" | "shop" | "current"; hero?: boolean }) {
+  const kindClass = kind === "shop" ? choiceStyles.cardShop : kind === "current" ? choiceStyles.current : choiceStyles.cardOwned;
+  return (
+    <div className={`${choiceStyles.card} ${kindClass} ${hero ? choiceStyles.cardHero : ""}`}>
+      <b className={choiceStyles.code}>{code}</b>
+      <div className={choiceStyles.identity}>
+        <span className={choiceStyles.icon}>{icon}</span>
+        <div className={choiceStyles.copy}><strong>{title}</strong><small>{kind === "shop" ? "Gợi ý từ Cửa hàng" : "Trong Túi đồ"}</small></div>
+      </div>
+      <div className={choiceStyles.meta}><b>{kind === "shop" ? "Giá" : "Trạng thái"}</b><span>{meta}</span></div>
+    </div>
+  );
 }
 
 function Ritual() {
