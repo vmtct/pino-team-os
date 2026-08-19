@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pino-team-os-afterwork-review",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "observability": {"enabled": true},
+  "vars": {
+    "FOUNDER_EMAIL": "prototype-review-only"
+  }
+}
