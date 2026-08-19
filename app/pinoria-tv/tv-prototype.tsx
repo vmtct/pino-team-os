@@ -14,13 +14,21 @@ type TVSubject = {
   fruit: number;
 };
 
-type TVMessage = {
+type TVPlayMessage = {
   type: "PINORIA_TV_PLAY";
   mode: "arrival" | "departure";
   replay: boolean;
   subject: TVSubject;
   sentAt: number;
 };
+
+type TVControlMessage = {
+  type: "PINORIA_TV_CONTROL";
+  action: "ambient";
+  sentAt: number;
+};
+
+type TVIncomingMessage = TVPlayMessage | TVControlMessage;
 
 const TV_CHANNEL = "pinoria-tv-prototype-v1";
 
@@ -49,14 +57,36 @@ export function PinoriaTVPrototype() {
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
+    let heartbeat: number | null = null;
+
+    const announceClosed = () => {
+      try { channel?.postMessage({ type: "PINORIA_TV_CLOSED", sentAt: Date.now() }); } catch { /* no-op */ }
+    };
+
     try {
       channel = new BroadcastChannel(TV_CHANNEL);
-      channel.onmessage = (event: MessageEvent<TVMessage>) => {
+      channelRef.current = channel;
+      channel.postMessage({ type: "PINORIA_TV_READY", mode: "ambient", sentAt: Date.now() });
+      heartbeat = window.setInterval(() => {
+        try { channel?.postMessage({ type: "PINORIA_TV_HEARTBEAT", sentAt: Date.now() }); } catch { /* no-op */ }
+      }, 2000);
+
+      channel.onmessage = (event: MessageEvent<TVIncomingMessage>) => {
         const message = event.data;
-        if (!message || message.type !== "PINORIA_TV_PLAY") return;
+        if (!message || typeof message !== "object" || !("type" in message)) return;
+
+        if (message.type === "PINORIA_TV_CONTROL") {
+          if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+          setReplayLabel(null);
+          setMode("ambient");
+          return;
+        }
+
+        if (message.type !== "PINORIA_TV_PLAY") return;
         if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
         setSubject(message.subject);
         setMode(message.mode);
@@ -70,13 +100,23 @@ export function PinoriaTVPrototype() {
         }
       };
     } catch {
-      // Review controls remain usable even if BroadcastChannel is unavailable.
+      channelRef.current = null;
     }
+
+    window.addEventListener("beforeunload", announceClosed);
     return () => {
+      window.removeEventListener("beforeunload", announceClosed);
+      announceClosed();
+      if (heartbeat) window.clearInterval(heartbeat);
       if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
       channel?.close();
+      channelRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    try { channelRef.current?.postMessage({ type: "PINORIA_TV_STATE", mode, sentAt: Date.now() }); } catch { /* no-op */ }
+  }, [mode]);
 
   function selectReviewMode(next: Mode) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
