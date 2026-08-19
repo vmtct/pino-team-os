@@ -28,12 +28,6 @@ type RecentPresentation = {
 
 type TVMode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
 
-type TVStatusMessage =
-  | { type: "PINORIA_TV_READY"; mode: TVMode; sentAt: number }
-  | { type: "PINORIA_TV_HEARTBEAT"; sentAt: number }
-  | { type: "PINORIA_TV_STATE"; mode: TVMode; sentAt: number }
-  | { type: "PINORIA_TV_CLOSED"; sentAt: number };
-
 type AttentionItem = {
   key: string;
   learnerId: string;
@@ -43,7 +37,18 @@ type AttentionItem = {
   action: string;
 };
 
-const TV_CHANNEL = "pinoria-tv-prototype-v1";
+type StaffAccess = {
+  name: string;
+  role: string;
+  checkedInAtPino: boolean;
+  withinPresenceWindow: boolean;
+  canManagePresence: boolean;
+};
+
+const SURFACE_ID = "RECEPTION_TV";
+const RELAY_URL = "/api/pinoria-prototype/tv-relay";
+const SHIFT_LABEL = "Ca 14:00–21:00";
+const PRESENCE_WINDOW_LABEL = "Window 13:45–21:15";
 
 const candidates: PresenceCandidate[] = [
   { id: "bo", name: "Bơ", path: "ArtChitect · Màu nước II", session: "18:00 · ArtChitect", room: "Phòng Họa", companion: "Bùm · Ploo · Cấp 2", pls: 420, fruit: 2, checkout: "19:30", existingCard: true },
@@ -72,6 +77,14 @@ const baseAttention: AttentionItem[] = [
   { key: "bo-ritual", learnerId: "bo", kind: "ritual", meta: "Bơ · Hộ Linh Bùm", title: "Bùm đã sẵn sàng Hiện hình", action: "Nghi lễ" },
 ];
 
+const initialStaffAccess: StaffAccess = {
+  name: "Hằng",
+  role: "Ops",
+  checkedInAtPino: true,
+  withinPresenceWindow: true,
+  canManagePresence: true,
+};
+
 const tvModeLabels: Record<TVMode, string> = {
   ambient: "Không gian thường nhật",
   arrival: "Chào đến",
@@ -83,8 +96,6 @@ const tvModeLabels: Record<TVMode, string> = {
 
 export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const tvChannelRef = useRef<BroadcastChannel | null>(null);
-  const tvLastSeenRef = useRef(0);
   const [present, setPresent] = useState<Record<string, boolean>>(initialPresence);
   const [opsHost, setOpsHost] = useState<HTMLElement | null>(null);
   const [gridHost, setGridHost] = useState<HTMLElement | null>(null);
@@ -94,6 +105,7 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   const [learnerActionHosts, setLearnerActionHosts] = useState<Record<string, HTMLElement>>({});
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutTarget, setCheckOutTarget] = useState<string | null>(null);
+  const [accessReviewOpen, setAccessReviewOpen] = useState(false);
   const [selectedId, setSelectedId] = useState("mai");
   const [checkInQuery, setCheckInQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -101,6 +113,8 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   const [dismissedAttention, setDismissedAttention] = useState<Record<string, boolean>>({});
   const [tvOnline, setTvOnline] = useState(false);
   const [tvMode, setTvMode] = useState<TVMode>("ambient");
+  const [tvQueuedCount, setTvQueuedCount] = useState(0);
+  const [staffAccess, setStaffAccess] = useState<StaffAccess>(initialStaffAccess);
 
   const presentLearners = useMemo(() => candidates.filter((item) => present[item.id]), [present]);
   const absentLearners = useMemo(() => candidates.filter((item) => !present[item.id]), [present]);
@@ -113,6 +127,15 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   const checkoutLearner = candidates.find((item) => item.id === checkOutTarget) ?? null;
   const nextCheckout = [...presentLearners].sort((a, b) => a.checkout.localeCompare(b.checkout))[0] ?? null;
   const attentionItems = baseAttention.filter((item) => present[item.learnerId] && !dismissedAttention[item.key]);
+  const presenceAllowed = staffAccess.checkedInAtPino && staffAccess.withinPresenceWindow && staffAccess.canManagePresence;
+
+  const accessReason = !staffAccess.checkedInAtPino
+    ? "Bạn chưa check-in nhân sự tại PINO."
+    : !staffAccess.withinPresenceWindow
+      ? "Hiện ngoài window được phép Vào học / Tan học."
+      : !staffAccess.canManagePresence
+        ? "Tài khoản chưa có quyền presence.manage."
+        : "Đủ điều kiện Vào học / Tan học.";
 
   useEffect(() => {
     if (!toast) return;
@@ -121,35 +144,27 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   }, [toast]);
 
   useEffect(() => {
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel(TV_CHANNEL);
-      tvChannelRef.current = channel;
-      channel.onmessage = (event: MessageEvent<TVStatusMessage>) => {
-        const message = event.data;
-        if (!message || typeof message !== "object" || !("type" in message)) return;
-        if (message.type === "PINORIA_TV_READY" || message.type === "PINORIA_TV_HEARTBEAT" || message.type === "PINORIA_TV_STATE") {
-          tvLastSeenRef.current = Date.now();
-          setTvOnline(true);
-        }
-        if (message.type === "PINORIA_TV_READY" || message.type === "PINORIA_TV_STATE") setTvMode(message.mode);
-        if (message.type === "PINORIA_TV_CLOSED") {
-          tvLastSeenRef.current = 0;
-          setTvOnline(false);
-        }
-      };
-    } catch {
-      tvChannelRef.current = null;
+    let stopped = false;
+
+    async function pollSurface() {
+      try {
+        const response = await fetch(`${RELAY_URL}?surfaceId=${SURFACE_ID}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as { surface?: { online?: boolean; mode?: TVMode; queuedCount?: number } };
+        if (stopped || !data.surface) return;
+        setTvOnline(!!data.surface.online);
+        setTvMode(data.surface.mode ?? "ambient");
+        setTvQueuedCount(data.surface.queuedCount ?? 0);
+      } catch {
+        if (!stopped) setTvOnline(false);
+      }
     }
 
-    const heartbeatGuard = window.setInterval(() => {
-      if (tvLastSeenRef.current && Date.now() - tvLastSeenRef.current > 6000) setTvOnline(false);
-    }, 2000);
-
+    void pollSurface();
+    const timer = window.setInterval(() => { void pollSurface(); }, 1800);
     return () => {
-      window.clearInterval(heartbeatGuard);
-      channel?.close();
-      tvChannelRef.current = null;
+      stopped = true;
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -279,24 +294,42 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
     });
   }, [present, gridHost]);
 
-  function openTv() {
-    const tv = window.open("/pinoria-tv", "pinoria-tv", "popup=yes,width=1440,height=900");
-    tv?.focus();
-    setToast(tvOnline ? "Đã đưa cửa sổ TV Pinoria lên trước." : "Đang mở TV Pinoria. Khi TV kết nối, trạng thái sẽ chuyển sang Đang mở.");
-  }
-
-  function returnToAmbient() {
+  async function relayPost(body: Record<string, unknown>) {
     try {
-      tvChannelRef.current?.postMessage({ type: "PINORIA_TV_CONTROL", action: "ambient", sentAt: Date.now() });
-      setToast("Đã yêu cầu TV trở về Không gian thường nhật.");
+      const response = await fetch(RELAY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        cache: "no-store",
+      });
+      if (!response.ok) return null;
+      const data = await response.json() as { surface?: { online?: boolean; mode?: TVMode; queuedCount?: number } };
+      if (data.surface) {
+        setTvOnline(!!data.surface.online);
+        setTvMode(data.surface.mode ?? "ambient");
+        setTvQueuedCount(data.surface.queuedCount ?? 0);
+      }
+      return data;
     } catch {
-      setToast("Không thể gửi điều khiển TV trong trình duyệt hiện tại.");
+      return null;
     }
   }
 
-  function broadcastPresentation(candidate: PresenceCandidate, mode: "arrival" | "departure", replay: boolean) {
-    const message = {
-      type: "PINORIA_TV_PLAY",
+  function openTv() {
+    const tv = window.open("/pinoria-tv", "pinoria-tv", "popup=yes,width=1440,height=900");
+    tv?.focus();
+    setToast("Đã mở TV Pinoria trên thiết bị này. Đây chỉ là tiện ích desktop; TV production chạy độc lập với TOS.");
+  }
+
+  async function returnToAmbient() {
+    const result = await relayPost({ op: "enqueue-control", surfaceId: SURFACE_ID, action: "ambient" });
+    setToast(result ? "Đã xếp lệnh đưa TV về Không gian thường nhật qua mock Core relay." : "Mock Core relay hiện không nhận được lệnh TV.");
+  }
+
+  async function queuePresentation(candidate: PresenceCandidate, mode: "arrival" | "departure", replay: boolean) {
+    return relayPost({
+      op: "enqueue-play",
+      surfaceId: SURFACE_ID,
       mode,
       replay,
       subject: {
@@ -308,13 +341,7 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         pls: candidate.pls,
         fruit: candidate.fruit,
       },
-      sentAt: Date.now(),
-    };
-    try {
-      tvChannelRef.current?.postMessage(message);
-    } catch {
-      // Presence remains valid even when presentation is unavailable.
-    }
+    });
   }
 
   function pushRecent(candidate: PresenceCandidate, mode: "arrival" | "departure") {
@@ -330,13 +357,15 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
     setRecent((current) => [entry, ...current].slice(0, 6));
   }
 
-  function replay(candidate: PresenceCandidate, mode: "arrival" | "departure") {
-    if (!tvOnline) {
-      setToast(`TV Pinoria đang tắt. Mở TV rồi phát lại ${mode === "arrival" ? "Chào đến" : "Chào về"} của ${candidate.name}.`);
+  async function replay(candidate: PresenceCandidate, mode: "arrival" | "departure") {
+    const result = await queuePresentation(candidate, mode, true);
+    if (!result) {
+      setToast(`Không thể xếp hàng phát lại ${mode === "arrival" ? "Chào đến" : "Chào về"}. Presence không bị ảnh hưởng.`);
       return;
     }
-    broadcastPresentation(candidate, mode, true);
-    setToast(`Đang phát lại ${mode === "arrival" ? "Chào đến" : "Chào về"} của ${candidate.name} · chỉ trình chiếu, không thay đổi trạng thái.`);
+    setToast(tvOnline
+      ? `Đã xếp hàng phát lại ${mode === "arrival" ? "Chào đến" : "Chào về"} của ${candidate.name}.`
+      : `TV đang tắt · đã xếp hàng phát lại ${mode === "arrival" ? "Chào đến" : "Chào về"} của ${candidate.name}; TV sẽ nhận khi online nếu sự kiện còn hiệu lực.`);
   }
 
   function triggerLearnerAction(item: AttentionItem) {
@@ -359,7 +388,15 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
     setDismissedAttention((current) => ({ ...current, [item.key]: true }));
   }
 
+  function ensurePresenceAccess() {
+    if (presenceAllowed) return true;
+    setToast(`Không thể thao tác hiện diện · ${accessReason}`);
+    setAccessReviewOpen(true);
+    return false;
+  }
+
   function openCheckIn() {
+    if (!ensurePresenceAccess()) return;
     const first = absentLearners[0];
     if (first) setSelectedId(first.id);
     setCheckInQuery("");
@@ -373,26 +410,40 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
     if (first) setSelectedId(first.id);
   }
 
-  function confirmCheckIn() {
-    if (!selected || present[selected.id]) return;
+  async function confirmCheckIn() {
+    if (!selected || present[selected.id] || !ensurePresenceAccess()) return;
     setPresent((current) => ({ ...current, [selected.id]: true }));
     pushRecent(selected, "arrival");
-    if (tvOnline) broadcastPresentation(selected, "arrival", false);
     setCheckInOpen(false);
+    const relayResult = await queuePresentation(selected, "arrival", false);
+    if (!relayResult) {
+      setToast(`${selected.name} đã Vào học · mock Core relay lỗi nên Chào đến chưa được xếp hàng.`);
+      return;
+    }
     setToast(tvOnline
-      ? `${selected.name} đã Vào học · TV đang phát Chào đến. Chọn nhanh sẽ xuất hiện sau màn chào.`
-      : `${selected.name} đã Vào học · TV đang tắt. Có thể phát lại Chào đến sau khi mở TV.`);
+      ? `${selected.name} đã Vào học · Chào đến đã vào hàng đợi của RECEPTION_TV.`
+      : `${selected.name} đã Vào học · TV đang tắt nhưng Chào đến đã được xếp hàng độc lập.`);
   }
 
-  function confirmCheckOut() {
-    if (!checkoutLearner) return;
-    setPresent((current) => ({ ...current, [checkoutLearner.id]: false }));
-    pushRecent(checkoutLearner, "departure");
-    if (tvOnline) broadcastPresentation(checkoutLearner, "departure", false);
+  async function confirmCheckOut() {
+    if (!checkoutLearner || !ensurePresenceAccess()) return;
+    const learner = checkoutLearner;
+    setPresent((current) => ({ ...current, [learner.id]: false }));
+    pushRecent(learner, "departure");
     setCheckOutTarget(null);
+    const relayResult = await queuePresentation(learner, "departure", false);
+    if (!relayResult) {
+      setToast(`${learner.name} đã Tan học · mock Core relay lỗi nên Chào về chưa được xếp hàng.`);
+      return;
+    }
     setToast(tvOnline
-      ? `${checkoutLearner.name} đã Tan học · TV đang phát Chào về.`
-      : `${checkoutLearner.name} đã Tan học · TV đang tắt. Có thể phát lại Chào về sau khi mở TV.`);
+      ? `${learner.name} đã Tan học · Chào về đã vào hàng đợi của RECEPTION_TV.`
+      : `${learner.name} đã Tan học · TV đang tắt nhưng Chào về đã được xếp hàng độc lập.`);
+  }
+
+  function requestCheckout(id: string) {
+    if (!ensurePresenceAccess()) return;
+    setCheckOutTarget(id);
   }
 
   return (
@@ -407,15 +458,27 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
               <strong>{presentLearners.length} học viên đang học</strong>
               <small>{nextCheckout ? `Tan học gần nhất: ${nextCheckout.name} · ${nextCheckout.checkout}` : "Chưa có học viên đang học"}</small>
             </div>
+
+            <button className={`${styles.staffGuard} ${presenceAllowed ? styles.staffGuardGood : styles.staffGuardBlocked}`} onClick={() => setAccessReviewOpen(true)}>
+              <i>{presenceAllowed ? "✓" : "!"}</i>
+              <div><span>QUYỀN HIỆN DIỆN</span><strong>{staffAccess.name} · {presenceAllowed ? "Được phép" : "Bị chặn"}</strong><small>{staffAccess.checkedInAtPino ? "Đã check-in tại PINO" : "Chưa check-in"} · {PRESENCE_WINDOW_LABEL}</small></div>
+            </button>
+
             <div className={`${styles.tvStatus} ${tvOnline ? styles.tvStatusOnline : ""}`}>
               <i />
-              <div><span>TV PINORIA</span><strong>{tvOnline ? "Đang mở" : "Đang tắt"}</strong><small>{tvOnline ? tvModeLabels[tvMode] : "Mở từ TOS khi bắt đầu vận hành"}</small></div>
+              <div><span>RECEPTION_TV</span><strong>{tvOnline ? "Đang online" : "Đang offline"}</strong><small>{tvOnline ? `${tvModeLabels[tvMode]} · ${tvQueuedCount} đang chờ` : `${tvQueuedCount} sự kiện đang chờ Core relay`}</small></div>
             </div>
+
             <div className={styles.opsActions}>
-              <button className={pinoriaStyles.primary} onClick={openCheckIn}>+ Vào học</button>
-              <button className={pinoriaStyles.secondary} onClick={openTv}>{tvOnline ? "Đưa TV lên trước" : "Mở TV Pinoria"}</button>
-              {tvOnline ? <button className={pinoriaStyles.ghost} onClick={returnToAmbient}>Về thường nhật</button> : null}
+              <button className={pinoriaStyles.primary} disabled={!presenceAllowed} onClick={openCheckIn}>+ Vào học</button>
+              <button className={`${pinoriaStyles.secondary} ${styles.localTvButton}`} onClick={openTv}>Mở TV trên máy này</button>
+              {tvOnline ? <button className={pinoriaStyles.ghost} onClick={() => { void returnToAmbient(); }}>Về thường nhật</button> : null}
             </div>
+          </div>
+
+          <div className={styles.independentNote}>
+            <strong>TOS và TV là hai client độc lập.</strong>
+            <span>Staff có thể thao tác từ điện thoại; sự kiện đi qua mock Core relay và RECEPTION_TV tự nhận bằng polling. Nút mở TV trên đây chỉ là tiện ích cho laptop lễ tân.</span>
           </div>
 
           <div className={styles.attentionHeader}>
@@ -439,7 +502,7 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
       {listHeaderHost ? createPortal(
         <div className={styles.presenceListHeader}>
           <div><span>ĐANG HỌC</span><h2>Học viên đang có mặt</h2></div>
-          <small>{presentLearners.length} học viên · thao tác quan trọng nằm ngay trên từng thẻ</small>
+          <small>{presentLearners.length} học viên · Vào/Tan học chỉ mở khi staff pass đủ điều kiện quyền + hiện diện + window</small>
         </div>,
         listHeaderHost,
       ) : null}
@@ -449,8 +512,8 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         if (!present[id] || !candidate) return null;
         return createPortal(
           <div className={styles.cardUtilityRow} key={`utility-${id}`}>
-            <button className={styles.replayButton} onClick={() => replay(candidate, "arrival")}>↻ Chào đến</button>
-            <button className={styles.checkoutButton} onClick={() => setCheckOutTarget(id)}>Tan học</button>
+            <button className={styles.replayButton} onClick={() => { void replay(candidate, "arrival"); }}>↻ Chào đến</button>
+            <button className={styles.checkoutButton} disabled={!presenceAllowed} onClick={() => requestCheckout(id)}>Tan học</button>
           </div>,
           host,
         );
@@ -470,10 +533,10 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
             <div className={pinoriaStyles.detail}><span>Tan học</span><strong>19:30</strong></div>
           </div>
           <div className={pinoriaStyles.actionStack}>
-            <span className={pinoriaStyles.clearState}>Vừa Vào học · {tvOnline ? "Chào đến đã gửi sang TV" : "TV đang tắt"}</span>
+            <span className={pinoriaStyles.clearState}>Vừa Vào học · Chào đến đã vào hàng chờ RECEPTION_TV</span>
             <div className={styles.cardUtilityRow}>
-              <button className={styles.replayButton} onClick={() => replay(candidates[4], "arrival")}>↻ Chào đến</button>
-              <button className={styles.checkoutButton} onClick={() => setCheckOutTarget("mai")}>Tan học</button>
+              <button className={styles.replayButton} onClick={() => { void replay(candidates[4], "arrival"); }}>↻ Chào đến</button>
+              <button className={styles.checkoutButton} disabled={!presenceAllowed} onClick={() => requestCheckout("mai")}>Tan học</button>
             </div>
           </div>
         </section>,
@@ -486,16 +549,16 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         <section className={`${pinoriaStyles.card} ${styles.recentCard}`}>
           <div className={pinoriaStyles.cardHead}>
             <div><span className={pinoriaStyles.kicker}>TRÌNH CHIẾU GẦN ĐÂY</span><h2>Chào đến & Chào về</h2></div>
-            <span className={`${pinoriaStyles.badge} ${tvOnline ? pinoriaStyles.badge_good : pinoriaStyles.badge_neutral}`}>{tvOnline ? "TV đang mở" : "TV đang tắt"}</span>
+            <span className={`${pinoriaStyles.badge} ${tvOnline ? pinoriaStyles.badge_good : pinoriaStyles.badge_neutral}`}>{tvOnline ? `TV online · ${tvQueuedCount} chờ` : `TV offline · ${tvQueuedCount} chờ`}</span>
           </div>
-          <p className={pinoriaStyles.bodyCopy}>Phát lại chỉ chạy lại màn đã có; không Vào học/Tan học lần nữa và không tạo kết quả mới.</p>
+          <p className={pinoriaStyles.bodyCopy}>Phát lại tạo một presentation event mới từ cùng kết quả cũ. TV có thể đang ở một browser/thiết bị khác; không Vào học/Tan học lần nữa và không tạo kết quả mới.</p>
           <div className={styles.recentList}>
             {recent.slice(0, 4).map((item) => {
               const candidate = candidates.find((entry) => entry.id === item.learnerId);
               if (!candidate) return null;
               return <div className={styles.recentItem} key={item.id}>
                 <div><span>{item.occurredAt} · {item.label}</span><strong>{candidate.name}</strong><small>{candidate.path}</small></div>
-                <button onClick={() => replay(candidate, item.mode)}>↻ Phát lại</button>
+                <button onClick={() => { void replay(candidate, item.mode); }}>↻ Phát lại</button>
               </div>;
             })}
           </div>
@@ -509,8 +572,14 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         <div className={styles.backdrop} role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setCheckInOpen(false); }}>
           <section className={styles.modal} role="dialog" aria-modal="true" aria-label="Vào học">
             <div className={styles.modalHead}>
-              <div><span>VẬN HÀNH PINORIA</span><h2>Vào học</h2><p>Ghi nhận hiện diện trước; trình chiếu TV là bước tiếp theo và không bao giờ chặn Vào học.</p></div>
+              <div><span>VẬN HÀNH PINORIA</span><h2>Vào học</h2><p>Presence được ghi nhận bởi Core độc lập với TV. Staff chỉ được thao tác khi đã check-in tại PINO, trong window cho phép và có capability phù hợp.</p></div>
               <button onClick={() => setCheckInOpen(false)} aria-label="Đóng">×</button>
+            </div>
+
+            <div className={`${styles.accessStrip} ${presenceAllowed ? styles.accessStripGood : styles.accessStripBlocked}`}>
+              <strong>{staffAccess.name} · {presenceAllowed ? "Đủ điều kiện" : "Không đủ điều kiện"}</strong>
+              <span>{accessReason} · {SHIFT_LABEL} · {PRESENCE_WINDOW_LABEL}</span>
+              <button onClick={() => setAccessReviewOpen(true)}>Xem quyền</button>
             </div>
 
             {absentLearners.length ? (
@@ -541,10 +610,10 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
                     </dl>
                     <div className={`${styles.tvNotice} ${tvOnline ? styles.tvNoticeOnline : ""}`}>
                       <i />
-                      <div><strong>{tvOnline ? "TV đang mở" : "TV đang tắt"}</strong><span>{tvOnline ? "Chào đến sẽ phát tự động sau khi Vào học." : "Vào học vẫn được ghi nhận. Có thể phát lại Chào đến sau khi mở TV."}</span></div>
+                      <div><strong>{tvOnline ? "RECEPTION_TV đang online" : "RECEPTION_TV đang offline"}</strong><span>{tvOnline ? "Chào đến sẽ được TV tự nhận từ relay." : "Vào học vẫn hoàn tất; Chào đến được xếp hàng và TV tự nhận khi online nếu còn hiệu lực."}</span></div>
                     </div>
                     <div className={styles.chain}>
-                      <span>Vào học</span><b>→</b><span>Nhà PINO hôm nay</span><b>→</b><span>Chào đến</span><b>→</b><span>Chọn nhanh</span>
+                      <span>Staff phone / TOS</span><b>→</b><span>Mock Core relay</span><b>→</b><span>RECEPTION_TV</span>
                     </div>
                   </div>
                 </div>
@@ -553,7 +622,7 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
 
             <div className={styles.actions}>
               <button className={pinoriaStyles.ghost} onClick={() => setCheckInOpen(false)}>Hủy</button>
-              <button className={pinoriaStyles.primary} disabled={!absentLearners.length || present[selected.id]} onClick={confirmCheckIn}>Vào học</button>
+              <button className={pinoriaStyles.primary} disabled={!presenceAllowed || !absentLearners.length || present[selected.id]} onClick={() => { void confirmCheckIn(); }}>Vào học</button>
             </div>
           </section>
         </div>
@@ -563,25 +632,64 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         <div className={styles.backdrop} role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setCheckOutTarget(null); }}>
           <section className={`${styles.modal} ${styles.checkoutModal}`} role="dialog" aria-modal="true" aria-label="Tan học">
             <div className={styles.modalHead}>
-              <div><span>VẬN HÀNH PINORIA</span><h2>Tan học · {checkoutLearner.name}</h2><p>Tan học chốt phiên hiện diện ngay; Chào về là trình chiếu đi sau và không chặn thao tác.</p></div>
+              <div><span>VẬN HÀNH PINORIA</span><h2>Tan học · {checkoutLearner.name}</h2><p>Tan học chốt Presence trước; Chào về là presentation event đi qua Core relay và không quyết định business truth.</p></div>
               <button onClick={() => setCheckOutTarget(null)} aria-label="Đóng">×</button>
+            </div>
+            <div className={`${styles.accessStrip} ${presenceAllowed ? styles.accessStripGood : styles.accessStripBlocked}`}>
+              <strong>{staffAccess.name} · {presenceAllowed ? "Đủ điều kiện" : "Không đủ điều kiện"}</strong>
+              <span>{accessReason} · {SHIFT_LABEL} · {PRESENCE_WINDOW_LABEL}</span>
+              <button onClick={() => setAccessReviewOpen(true)}>Xem quyền</button>
             </div>
             <div className={styles.checkoutSummary}>
               <div><span>Học viên</span><strong>{checkoutLearner.name}</strong></div>
               <div><span>Phòng hiện tại</span><strong>{checkoutLearner.room}</strong></div>
               <div><span>Hộ Linh</span><strong>{checkoutLearner.companion}</strong></div>
             </div>
-            {checkoutLearner.id === "bo" ? <div className={styles.warning}><strong>Trước khi Tan học</strong><span>• Lựa chọn B2 Túi Rêu vẫn đang chờ xử lý.</span><span>• Bùm đang sẵn sàng làm nghi lễ.</span><small>Đây là cảnh báo, không chặn Tan học.</small></div> : null}
+            {checkoutLearner.id === "bo" ? <div className={styles.warning}><strong>Trước khi Tan học</strong><span>• Lựa chọn B2 Túi Rêu vẫn đang chờ xử lý.</span><span>• Bùm đang sẵn sàng làm nghi lễ.</span><small>Đây là cảnh báo, không chặn Tan học nếu staff vẫn đủ quyền.</small></div> : null}
             <div className={`${styles.tvNotice} ${tvOnline ? styles.tvNoticeOnline : ""}`}>
               <i />
-              <div><strong>{tvOnline ? "TV đang mở" : "TV đang tắt"}</strong><span>{tvOnline ? "Chào về sẽ phát sau khi Tan học." : "Tan học vẫn hoàn tất. Có thể phát lại Chào về sau khi mở TV."}</span></div>
+              <div><strong>{tvOnline ? "RECEPTION_TV đang online" : "RECEPTION_TV đang offline"}</strong><span>{tvOnline ? "Chào về sẽ được TV tự nhận từ relay." : "Tan học vẫn hoàn tất; Chào về được xếp hàng cho TV nhận sau."}</span></div>
             </div>
             <div className={styles.chain}>
-              <span>Tan học</span><b>→</b><span>Chốt hiện diện</span><b>→</b><span>Chào về</span>
+              <span>Tan học</span><b>→</b><span>Presence closed</span><b>→</b><span>Chào về queued</span>
             </div>
             <div className={styles.actions}>
               <button className={pinoriaStyles.ghost} onClick={() => setCheckOutTarget(null)}>Hủy</button>
-              <button className={pinoriaStyles.primary} onClick={confirmCheckOut}>Tan học</button>
+              <button className={pinoriaStyles.primary} disabled={!presenceAllowed} onClick={() => { void confirmCheckOut(); }}>Tan học</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {accessReviewOpen ? (
+        <div className={styles.backdrop} role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setAccessReviewOpen(false); }}>
+          <section className={`${styles.modal} ${styles.accessModal}`} role="dialog" aria-modal="true" aria-label="Quyền thao tác hiện diện">
+            <div className={styles.modalHead}>
+              <div><span>STAFFING GUARD · PROTOTYPE</span><h2>Ai được Vào học / Tan học?</h2><p>Production phải kiểm tra server-side trước mọi command. Các toggle dưới đây chỉ để Founder review denial states; client không được tự khai quyền hay vị trí.</p></div>
+              <button onClick={() => setAccessReviewOpen(false)} aria-label="Đóng">×</button>
+            </div>
+
+            <div className={styles.guardSummary}>
+              <div><span>Staff</span><strong>{staffAccess.name} · {staffAccess.role}</strong></div>
+              <div><span>Ca</span><strong>{SHIFT_LABEL}</strong></div>
+              <div><span>Window mẫu</span><strong>{PRESENCE_WINDOW_LABEL}</strong></div>
+              <div><span>Kết quả</span><strong className={presenceAllowed ? styles.goodText : styles.blockedText}>{presenceAllowed ? "ALLOW" : "DENY"}</strong></div>
+            </div>
+
+            <div className={styles.guardChecks}>
+              <label><input type="checkbox" checked={staffAccess.checkedInAtPino} onChange={(event) => setStaffAccess((current) => ({ ...current, checkedInAtPino: event.target.checked }))} /><span><strong>Đã check-in nhân sự tại PINO</strong><small>Canonical StaffPresenceSession phải ACTIVE tại cùng location. Không tin GPS/client flag tự khai.</small></span></label>
+              <label><input type="checkbox" checked={staffAccess.withinPresenceWindow} onChange={(event) => setStaffAccess((current) => ({ ...current, withinPresenceWindow: event.target.checked }))} /><span><strong>Đang trong window được phép</strong><small>Bản mẫu dùng ca ±15 phút: 13:45–21:15. Window thật thuộc Staffing policy.</small></span></label>
+              <label><input type="checkbox" checked={staffAccess.canManagePresence} onChange={(event) => setStaffAccess((current) => ({ ...current, canManagePresence: event.target.checked }))} /><span><strong>Có capability presence.manage</strong><small>Role/capability được Core resolve; không dựa vào việc UI có hiện nút hay không.</small></span></label>
+            </div>
+
+            <div className={styles.guardDoctrine}>
+              <strong>Rule chốt cho implementation</strong>
+              <span>Vào học/Tan học chỉ ALLOW khi cả 3 điều kiện cùng đúng. Command vẫn phải audit actor, location, thời điểm và lý do override nếu sau này có quyền quản lý đặc biệt.</span>
+            </div>
+
+            <div className={styles.actions}>
+              <button className={pinoriaStyles.secondary} onClick={() => setStaffAccess(initialStaffAccess)}>Khôi phục trạng thái hợp lệ</button>
+              <button className={pinoriaStyles.primary} onClick={() => setAccessReviewOpen(false)}>Xong</button>
             </div>
           </section>
         </div>
