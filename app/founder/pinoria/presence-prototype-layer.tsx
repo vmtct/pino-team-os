@@ -18,6 +18,16 @@ type PresenceCandidate = {
   existingCard: boolean;
 };
 
+type RecentPresentation = {
+  id: string;
+  learnerId: string;
+  mode: "arrival" | "departure";
+  label: "Chào đến" | "Chào về";
+  occurredAt: string;
+};
+
+const TV_CHANNEL = "pinoria-tv-prototype-v1";
+
 const candidates: PresenceCandidate[] = [
   { id: "bo", name: "Bơ", path: "ArtChitect · Màu nước II", session: "18:00 · ArtChitect", room: "Phòng Họa", companion: "Bùm · Ploo · Cấp 2", pls: 420, fruit: 2, checkout: "19:30", existingCard: true },
   { id: "tri", name: "Trí", path: "PianoHouse · Bản Thu Khởi Hành I", session: "18:30 · PianoHouse", room: "Phòng Đàn", companion: "Miso · Mori · Cấp 3", pls: 760, fruit: 1, checkout: "20:00", existingCard: true },
@@ -34,17 +44,24 @@ const initialPresence: Record<string, boolean> = {
   mai: false,
 };
 
+const initialRecent: RecentPresentation[] = [
+  { id: "seed-bo-arrival", learnerId: "bo", mode: "arrival", label: "Chào đến", occurredAt: "18:01" },
+  { id: "seed-tri-arrival", learnerId: "tri", mode: "arrival", label: "Chào đến", occurredAt: "18:31" },
+];
+
 export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [present, setPresent] = useState<Record<string, boolean>>(initialPresence);
   const [actionHost, setActionHost] = useState<HTMLElement | null>(null);
   const [gridHost, setGridHost] = useState<HTMLElement | null>(null);
+  const [liveContentHost, setLiveContentHost] = useState<HTMLElement | null>(null);
   const [artRoomHost, setArtRoomHost] = useState<HTMLElement | null>(null);
   const [learnerActionHosts, setLearnerActionHosts] = useState<Record<string, HTMLElement>>({});
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutTarget, setCheckOutTarget] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState("mai");
   const [toast, setToast] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentPresentation[]>(initialRecent);
 
   const absentLearners = useMemo(() => candidates.filter((item) => !present[item.id]), [present]);
   const selected = candidates.find((item) => item.id === selectedId) ?? absentLearners[0] ?? candidates[0];
@@ -67,7 +84,9 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         return title === "Live House" || title === "Nhà PINO hôm nay";
       });
       setActionHost(liveHead?.querySelector<HTMLElement>(`.${pinoriaStyles.sectionActions}`) ?? null);
-      setGridHost(root.querySelector<HTMLElement>(`.${pinoriaStyles.learnerGrid}`));
+      const learnerGrid = root.querySelector<HTMLElement>(`.${pinoriaStyles.learnerGrid}`);
+      setGridHost(learnerGrid);
+      setLiveContentHost(learnerGrid?.parentElement ?? null);
 
       const hosts: Record<string, HTMLElement> = {};
       root.querySelectorAll<HTMLElement>(`.${pinoriaStyles.learnerCard}`).forEach((card) => {
@@ -125,6 +144,49 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
     });
   }, [present, actionHost, gridHost]);
 
+  function broadcastPresentation(candidate: PresenceCandidate, mode: "arrival" | "departure", replay: boolean) {
+    const message = {
+      type: "PINORIA_TV_PLAY",
+      mode,
+      replay,
+      subject: {
+        id: candidate.id,
+        name: candidate.name,
+        path: candidate.path,
+        room: candidate.room,
+        companion: candidate.companion,
+        pls: candidate.pls,
+        fruit: candidate.fruit,
+      },
+      sentAt: Date.now(),
+    };
+    try {
+      const channel = new BroadcastChannel(TV_CHANNEL);
+      channel.postMessage(message);
+      channel.close();
+    } catch {
+      // Prototype keeps TOS state valid even if the TV window is closed or unsupported.
+    }
+  }
+
+  function pushRecent(candidate: PresenceCandidate, mode: "arrival" | "departure") {
+    const now = new Date();
+    const occurredAt = now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    const entry: RecentPresentation = {
+      id: `${mode}-${candidate.id}-${Date.now()}`,
+      learnerId: candidate.id,
+      mode,
+      label: mode === "arrival" ? "Chào đến" : "Chào về",
+      occurredAt,
+    };
+    setRecent((current) => [entry, ...current].slice(0, 6));
+  }
+
+  function replay(candidate: PresenceCandidate, mode: "arrival" | "departure") {
+    broadcastPresentation(candidate, mode, true);
+    setToast(`Đang phát lại ${mode === "arrival" ? "Chào đến" : "Chào về"} của ${candidate.name} · chỉ phát lại trình chiếu, không thay đổi trạng thái.`);
+  }
+
   function openCheckIn() {
     const first = absentLearners[0];
     if (first) setSelectedId(first.id);
@@ -134,15 +196,19 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
   function confirmCheckIn() {
     if (!selected) return;
     setPresent((current) => ({ ...current, [selected.id]: true }));
+    pushRecent(selected, "arrival");
+    broadcastPresentation(selected, "arrival", false);
     setCheckInOpen(false);
-    setToast(`${selected.name} đã Vào học · Chào đến đã được đưa vào hàng chờ TV.`);
+    setToast(`${selected.name} đã Vào học · TV đang phát Chào đến. Chọn nhanh sẽ xuất hiện sau màn chào.`);
   }
 
   function confirmCheckOut() {
     if (!checkoutLearner) return;
     setPresent((current) => ({ ...current, [checkoutLearner.id]: false }));
+    pushRecent(checkoutLearner, "departure");
+    broadcastPresentation(checkoutLearner, "departure", false);
     setCheckOutTarget(null);
-    setToast(`${checkoutLearner.name} đã Tan học · Chào về đã được đưa vào hàng chờ TV.`);
+    setToast(`${checkoutLearner.name} đã Tan học · TV đang phát Chào về.`);
   }
 
   return (
@@ -154,10 +220,17 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
         actionHost,
       ) : null}
 
-      {Object.entries(learnerActionHosts).map(([id, host]) => present[id] ? createPortal(
-        <button key={`checkout-${id}`} className={pinoriaStyles.ghost} onClick={() => setCheckOutTarget(id)}>Tan học</button>,
-        host,
-      ) : null)}
+      {Object.entries(learnerActionHosts).map(([id, host]) => {
+        const candidate = candidates.find((item) => item.id === id);
+        if (!present[id] || !candidate) return null;
+        return createPortal(
+          <>
+            <button key={`replay-arrival-${id}`} className={pinoriaStyles.ghost} onClick={() => replay(candidate, "arrival")}>Phát lại Chào đến</button>
+            <button key={`checkout-${id}`} className={pinoriaStyles.ghost} onClick={() => setCheckOutTarget(id)}>Tan học</button>
+          </>,
+          host,
+        );
+      })}
 
       {gridHost && present.mai ? createPortal(
         <section className={`${pinoriaStyles.card} ${pinoriaStyles.learnerCard}`}>
@@ -173,7 +246,8 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
             <div className={pinoriaStyles.detail}><span>Tan học</span><strong>19:30</strong></div>
           </div>
           <div className={pinoriaStyles.actionStack}>
-            <span className={pinoriaStyles.clearState}>Vừa Vào học · Chào đến đang chờ TV</span>
+            <span className={pinoriaStyles.clearState}>Vừa Vào học · Chào đến đã được gửi sang TV</span>
+            <button className={pinoriaStyles.ghost} onClick={() => replay(candidates[4], "arrival")}>Phát lại Chào đến</button>
             <button className={pinoriaStyles.ghost} onClick={() => setCheckOutTarget("mai")}>Tan học</button>
           </div>
         </section>,
@@ -181,6 +255,27 @@ export function PresencePrototypeLayer({ children }: { children: ReactNode }) {
       ) : null}
 
       {artRoomHost && present.mai ? createPortal(<span>Mai</span>, artRoomHost) : null}
+
+      {liveContentHost ? createPortal(
+        <section className={pinoriaStyles.card} style={{ marginTop: 14 }}>
+          <div className={pinoriaStyles.cardHead}>
+            <div><span className={pinoriaStyles.kicker}>TRÌNH CHIẾU GẦN ĐÂY</span><h2>Phát lại Chào đến / Chào về</h2></div>
+            <span className={`${pinoriaStyles.badge} ${pinoriaStyles.badge_neutral}`}>Presentation only</span>
+          </div>
+          <p className={pinoriaStyles.bodyCopy}>Phát lại dùng đúng kết quả đã có. Không Vào học/Tan học lần nữa, không tạo lựa chọn mới và không phát sinh phần thưởng.</p>
+          <div className={pinoriaStyles.attentionList}>
+            {recent.map((item) => {
+              const candidate = candidates.find((entry) => entry.id === item.learnerId);
+              if (!candidate) return null;
+              return <div className={pinoriaStyles.attentionItem} key={item.id}>
+                <div><span>{item.occurredAt} · {item.label}</span><strong>{candidate.name} · {candidate.path}</strong></div>
+                <button onClick={() => replay(candidate, item.mode)}>Phát lại</button>
+              </div>;
+            })}
+          </div>
+        </section>,
+        liveContentHost,
+      ) : null}
 
       {toast ? <div className={styles.toast}>{toast}</div> : null}
 
