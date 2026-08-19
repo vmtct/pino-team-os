@@ -24,8 +24,16 @@ type RelayEvent = {
   action?: "ambient";
 };
 
+type RelayMutationResponse = {
+  ok?: boolean;
+  event?: RelayEvent;
+};
+
 const SURFACE_ID = "RECEPTION_TV";
 const RELAY_URL = "/api/pinoria-prototype/tv-relay";
+const ARRIVAL_MS = 6500;
+const QUICK_CHOICE_MS = 8000;
+const DEPARTURE_MS = 9000;
 
 const modes: { id: Mode; label: string }[] = [
   { id: "ambient", label: "Ambient" },
@@ -53,7 +61,9 @@ export function PinoriaTVPrototype() {
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
   const modeRef = useRef<Mode>("ambient");
-  const lastHandledEvent = useRef<number | null>(null);
+  const activeEventId = useRef<number | null>(null);
+  const busyRef = useRef(false);
+  const pollingRef = useRef(false);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -62,16 +72,18 @@ export function PinoriaTVPrototype() {
   useEffect(() => {
     let stopped = false;
 
-    async function post(body: Record<string, unknown>) {
+    async function post(body: Record<string, unknown>): Promise<RelayMutationResponse | null> {
       try {
-        await fetch(RELAY_URL, {
+        const response = await fetch(RELAY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
           cache: "no-store",
         });
+        if (!response.ok) return null;
+        return await response.json().catch(() => null) as RelayMutationResponse | null;
       } catch {
-        // The TV remains a disposable presentation client when the mock relay is unavailable.
+        return null;
       }
     }
 
@@ -79,51 +91,81 @@ export function PinoriaTVPrototype() {
       await post({ op: "heartbeat", surfaceId: SURFACE_ID, mode: modeRef.current });
     }
 
-    async function ack(id: number) {
-      await post({ op: "ack", surfaceId: SURFACE_ID, id });
+    async function finishEvent(id: number) {
+      if (activeEventId.current !== id) return;
+      await post({ op: "complete", surfaceId: SURFACE_ID, id });
+      activeEventId.current = null;
+      busyRef.current = false;
+      if (!stopped) {
+        setReplayLabel(null);
+        setMode("ambient");
+      }
     }
 
     function playEvent(event: RelayEvent) {
+      if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+
       if (event.kind === "control") {
-        if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
         setReplayLabel(null);
         setMode("ambient");
+        void finishEvent(event.id);
         return;
       }
 
-      if (!event.subject || !event.mode) return;
-      if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+      if (!event.subject || !event.mode) {
+        void finishEvent(event.id);
+        return;
+      }
+
       setSubject(event.subject);
       setMode(event.mode);
       setReplayLabel(event.replay ? `PHÁT LẠI · ${event.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
 
       if (event.mode === "arrival" && !event.replay) {
         sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
           setMode("choice");
           setReplayLabel(null);
-        }, 6500);
+          sequenceTimer.current = window.setTimeout(() => {
+            void finishEvent(event.id);
+          }, QUICK_CHOICE_MS);
+        }, ARRIVAL_MS);
+        return;
       }
+
+      const duration = event.mode === "departure" ? DEPARTURE_MS : ARRIVAL_MS;
+      sequenceTimer.current = window.setTimeout(() => {
+        void finishEvent(event.id);
+      }, duration);
     }
 
     async function poll() {
+      if (busyRef.current || pollingRef.current) return;
+      pollingRef.current = true;
       try {
         const response = await fetch(`${RELAY_URL}?surfaceId=${SURFACE_ID}&includeEvent=1`, { cache: "no-store" });
         if (!response.ok) return;
         const data = await response.json() as { event?: RelayEvent | null };
         const event = data.event;
-        if (!event || event.id === lastHandledEvent.current) return;
-        lastHandledEvent.current = event.id;
-        await ack(event.id);
-        if (!stopped) playEvent(event);
+        if (!event) return;
+
+        const claimed = await post({ op: "claim", surfaceId: SURFACE_ID, id: event.id });
+        if (!claimed?.ok) return;
+        const claimedEvent = claimed.event ?? event;
+        busyRef.current = true;
+        activeEventId.current = claimedEvent.id;
+        if (!stopped) playEvent(claimedEvent);
       } catch {
         // Keep the current scene if the relay is temporarily unavailable.
+      } finally {
+        pollingRef.current = false;
       }
     }
 
     void heartbeat();
     void poll();
     const heartbeatTimer = window.setInterval(() => { void heartbeat(); }, 2000);
-    const pollTimer = window.setInterval(() => { void poll(); }, 900);
+    const pollTimer = window.setInterval(() => { void poll(); }, 700);
 
     return () => {
       stopped = true;
@@ -144,6 +186,17 @@ export function PinoriaTVPrototype() {
 
   function selectReviewMode(next: Mode) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+    const id = activeEventId.current;
+    if (id !== null) {
+      activeEventId.current = null;
+      busyRef.current = false;
+      void fetch(RELAY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "complete", surfaceId: SURFACE_ID, id }),
+        cache: "no-store",
+      }).catch(() => undefined);
+    }
     setReplayLabel(null);
     setMode(next);
   }
@@ -228,7 +281,7 @@ function Choice({ subject }: { subject: TVSubject }) {
             </div>
           </div>
           <h1 style={{ margin: "0 0 8px", fontSize: "clamp(38px,4.1vw,54px)", lineHeight: .98, letterSpacing: "-.045em", color: "#fff" }}>{subject.name} muốn mang gì theo hôm nay?</h1>
-          <p style={{ margin: 0, fontSize: "clamp(14px,1.28vw,17px)", lineHeight: 1.35, color: "#ddd9d0" }}>Nói mã A1, A2, A3 hoặc B1, B2, B3 để cô chú chọn giúp con.</p>
+          <p style={{ margin: 0, fontSize: "clamp(14px,1.28vw,17px)", lineHeight: 1.35, color: "#ddd9d0" }}>Nói số 1 đến 6 để thầy cô chọn giúp con.</p>
         </header>
 
         <div style={{ minHeight: 0, width: "100%", maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateRows: "1fr 1fr", gap: 13 }}>
