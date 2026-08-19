@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ArrivalScene } from "./arrival-scene";
 import styles from "./tv.module.css";
 
 type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
@@ -147,13 +148,13 @@ export function PinoriaTVPrototype() {
     setMode(next);
   }
 
-  const choiceChrome = mode === "choice";
+  const learnerChrome = mode === "choice" || mode === "arrival";
 
   return (
     <main className={styles.screen}>
       <div
         className={styles.prototypeTag}
-        style={choiceChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .52, background: "#161a15aa" } : undefined}
+        style={learnerChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .32, background: "#161a15aa" } : undefined}
       >
         {replayLabel ?? "TV PROTOTYPE · CORE RELAY SIMULATION · RECEPTION_TV"}
       </div>
@@ -166,10 +167,10 @@ export function PinoriaTVPrototype() {
 
       <button
         className={styles.reviewToggle}
-        style={choiceChrome ? { right: 13, bottom: 12, padding: "6px 9px", fontSize: 9, opacity: reviewOpen ? 1 : .5, background: reviewOpen ? "#f2e8dc" : "#172019cc", color: reviewOpen ? "#3a312a" : "#d9d3c8", border: "1px solid #ffffff18" } : undefined}
+        style={learnerChrome ? { right: 10, bottom: 9, padding: "5px 8px", fontSize: 8, opacity: reviewOpen ? 1 : .28, background: reviewOpen ? "#f2e8dc" : "#172019cc", color: reviewOpen ? "#3a312a" : "#d9d3c8", border: "1px solid #ffffff18" } : undefined}
         onClick={() => setReviewOpen((open) => !open)}
       >
-        {reviewOpen ? "Hide review controls" : choiceChrome ? "Duyệt" : "Review controls"}
+        {reviewOpen ? "Hide review controls" : learnerChrome ? "Duyệt" : "Review controls"}
       </button>
       {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV polls the mock Core relay. Production TV will use a scoped surface session and cannot change business truth.</small></aside> : null}
     </main>
@@ -211,8 +212,7 @@ function Artifact({ label, muted = false }: { label: string; muted?: boolean }) 
 }
 
 function Arrival({ subject }: { subject: TVSubject }) {
-  const companion = splitCompanion(subject.companion);
-  return <SpotlightShell><div className={styles.arrivalLayout}><div><span className={styles.kicker}>{subject.name.toUpperCase()} HAS ARRIVED</span><h1>Chào {subject.name} ✦</h1><p>{companion.name !== "—" ? `“Hôm nay ${companion.name} đi cùng mình!”` : "“Một buổi học mới bắt đầu rồi!”"}</p><div className={styles.identityMeta}><span>{subject.path}</span><span>{subject.pls} PLS</span><span>Fruit ×{subject.fruit}</span></div></div><Character subject={subject} /><div className={styles.showcase}><span className={styles.kicker}>SHOWCASE</span><Artifact label="Water Drop II" /><Artifact label="Journey Seal II" /><Artifact label="PINA Bow" /><Artifact label="Empty" muted /></div></div><div className={styles.arrivalFooter}>Full character + active companion + selected achievements. Cosmetics render on character; showcase artifacts float beside it.</div></SpotlightShell>;
+  return <ArrivalScene subject={subject} />;
 }
 
 function Choice({ subject }: { subject: TVSubject }) {
