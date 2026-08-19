@@ -1,0 +1,9 @@
+.vnFont {
+  font-family: "Segoe UI Variable Text", "Segoe UI", Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+}
+
+.vnFont > :global(*) {
+  font-family: inherit !important;
+}
