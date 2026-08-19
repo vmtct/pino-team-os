@@ -391,8 +391,9 @@ const generic: Array<[string, string]> = [
   ["Cosmetic", "Trang phục"], ["cosmetic", "trang phục"],
   ["Projection", "Hiển thị"], ["projection", "Hiển thị"],
   ["Campaign", "Viễn Chinh"], ["campaign", "Viễn Chinh"],
-  ["Check-in", "Vào học"], ["check-in", "Vào học"],
-  ["Checkout", "Tan học"], ["checkout", "tan học"],
+  ["Check-in", "Check-in"], ["check-in", "Check-in"],
+  ["Check-out", "Check-out"], ["check-out", "Check-out"],
+  ["Checkout", "Check-out"], ["checkout", "Check-out"],
   ["Progression", "Thăng cấp"], ["progression", "thăng cấp"],
   ["Asset", "Tài sản"], ["asset", "tài sản"],
   ["Unknown", "Bí ẩn"], ["unknown", "Bí ẩn"],
@@ -410,12 +411,21 @@ const generic: Array<[string, string]> = [
   ["Shop", "Cửa hàng"], ["shop", "cửa hàng"]
 ];
 
+function normalizePresenceTerms(input: string): string {
+  return input
+    .split("Vào học").join("Check-in")
+    .split("vào học").join("Check-in")
+    .split("Tan học").join("Check-out")
+    .split("tan học").join("Check-out")
+    .split("Checkout").join("Check-out")
+    .split("checkout").join("Check-out");
+}
+
 function translate(input: string): string {
   const direct = exact.find(([from]) => from === input);
-  if (direct) return direct[1];
-  let output = input;
+  let output = direct ? direct[1] : input;
   for (const [from, to] of generic) output = output.split(from).join(to);
-  return output;
+  return normalizePresenceTerms(output);
 }
 
 function translateNode(node: Node) {
