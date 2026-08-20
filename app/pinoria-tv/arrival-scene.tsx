@@ -8,15 +8,7 @@ type ArrivalSubject = {
   companion: string;
 };
 
-function splitCompanion(value: string) {
-  if (!value || value.startsWith("Chưa có")) return { name: "", detail: "" };
-  const parts = value.split(" · ");
-  return { name: parts[0] ?? "", detail: parts.join(" · ") };
-}
-
 export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
-  const companion = splitCompanion(subject.companion);
-
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "radial-gradient(circle at 61% 42%,#87956b 0,#3b4c35 35%,#1b241a 72%)", color: "#fff" }}>
       <style>{`
@@ -34,10 +26,10 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         <section style={{ maxWidth: 560, animation: "pinoriaArrivalCopy 6.2s cubic-bezier(.2,.75,.2,1) both" }}>
           <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>CHÀO ĐẾN · {subject.name.toUpperCase()}</span>
           <h1 style={{ margin: "0 0 16px", fontSize: "clamp(50px,5.2vw,72px)", lineHeight: .94, letterSpacing: "-.05em" }}>Chào {subject.name} ✦</h1>
-          <p style={{ margin: 0, maxWidth: 520, color: "#eee6d7", fontSize: "clamp(19px,1.75vw,24px)", lineHeight: 1.42 }}>{companion.name ? `“Hôm nay ${companion.name} đi cùng mình!”` : `“Hôm nay ${prototypeCompanionManifest.displayName} ghé Nhà PINO cùng mình!”`}</p>
+          <p style={{ margin: 0, maxWidth: 520, color: "#eee6d7", fontSize: "clamp(19px,1.75vw,24px)", lineHeight: 1.42 }}>{`“Hôm nay ${prototypeCompanionManifest.displayName} đi cùng mình!”`}</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 26 }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 30, padding: "6px 10px", borderRadius: 999, background: "#ffffff0b", border: "1px solid #ffffff1b", color: "#dfe4da", fontSize: 10 }}><strong style={{ color: "#f0d58d", fontSize: 9, letterSpacing: ".06em" }}>HÀNH TRÌNH</strong>{subject.path}</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 30, padding: "6px 10px", borderRadius: 999, background: "#ffffff0b", border: "1px solid #ffffff1b", color: "#dfe4da", fontSize: 10 }}><strong style={{ color: "#f0d58d", fontSize: 9, letterSpacing: ".06em" }}>HỘ LINH</strong>{companion.detail || prototypeCompanionManifest.displayName}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 30, padding: "6px 10px", borderRadius: 999, background: "#ffffff0b", border: "1px solid #ffffff1b", color: "#dfe4da", fontSize: 10 }}><strong style={{ color: "#f0d58d", fontSize: 9, letterSpacing: ".06em" }}>HỘ LINH</strong>{prototypeCompanionManifest.displayName}</span>
           </div>
         </section>
 
