@@ -61,6 +61,53 @@ export const prototypeCompanionManifest = {
   src: "https://assets.pinohouse.art/draft/Mori.png",
 } as const;
 
+export const prototypeFloatingProps = [
+  {
+    id: "floating-prop-1",
+    displayName: "Đạo cụ 1",
+    src: "https://assets.pinohouse.art/draft/Pinoria_accessories1.png",
+    anchor: { left: "2%", top: "10%" },
+    width: "min(126px,10vw)",
+    depth: "back",
+    delay: 0.15,
+    duration: 4.8,
+    rotate: -3,
+  },
+  {
+    id: "floating-prop-2",
+    displayName: "Đạo cụ 2",
+    src: "https://assets.pinohouse.art/draft/Pinoria_accessories2.png",
+    anchor: { right: "3%", top: "12%" },
+    width: "min(118px,9.4vw)",
+    depth: "mid",
+    delay: 0.42,
+    duration: 5.4,
+    rotate: 4,
+  },
+  {
+    id: "floating-prop-3",
+    displayName: "Đạo cụ 3",
+    src: "https://assets.pinohouse.art/draft/Pinoria_accessories3.png",
+    anchor: { left: "5%", bottom: "7%" },
+    width: "min(112px,9vw)",
+    depth: "front",
+    delay: 0.7,
+    duration: 4.3,
+    rotate: 3,
+  },
+  {
+    id: "floating-prop-4",
+    displayName: "Đạo cụ 4",
+    src: "https://assets.pinohouse.art/draft/Pinoria_accessories4.png",
+    anchor: { right: "10%", bottom: "5%" },
+    width: "min(104px,8.5vw)",
+    depth: "front",
+    delay: 0.95,
+    duration: 5.1,
+    rotate: -4,
+  },
+] as const;
+
 export const prototypeChoiceAssets = {
   A1: {
     displayName: "Nón Sinh Nhật",
@@ -92,6 +139,7 @@ export const prototypeChoiceAssets = {
 export const prototypeAssetUrls = [
   ...prototypeCharacterManifest.layers.map((layer) => layer.src),
   prototypeCompanionManifest.src,
+  ...prototypeFloatingProps.map((prop) => prop.src),
 ];
 
 export function PrototypeCharacter({
