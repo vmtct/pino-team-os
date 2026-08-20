@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./tos-shell.module.css";
 
-export type OpsAppTheme = "home" | "shift" | "classroom" | "tasks" | "pinoria";
+export type TosAppTheme = "home" | "shift" | "classroom" | "tasks" | "pinoria";
 
-export type OpsFooterItem = {
+export type TosFooterItem = {
   id: string;
   label: string;
   href: string;
@@ -21,13 +21,13 @@ export type BoNavGroup = {
   items: BoNavItem[];
 };
 
-function assertFooterLimit(items: OpsFooterItem[]) {
+function assertFooterLimit(items: TosFooterItem[]) {
   if (items.length > 5) {
-    throw new Error("TOS Ops footer navigation is limited to 5 items by Adaptive Workspace Doctrine v1.");
+    throw new Error("TOS contextual footer navigation is limited to 5 items by Team Surface Doctrine v1.");
   }
 }
 
-const themeClass: Record<OpsAppTheme, string> = {
+const themeClass: Record<TosAppTheme, string> = {
   home: styles.themeHome,
   shift: styles.themeShift,
   classroom: styles.themeClassroom,
@@ -35,12 +35,12 @@ const themeClass: Record<OpsAppTheme, string> = {
   pinoria: styles.themePinoria,
 };
 
-export function OpsShell({
+export function TosShell({
   children,
   title,
   subtitle,
   theme = "home",
-  homeHref = "/ops",
+  homeHref = "/",
   backHref,
   footerItems,
   activeFooterId,
@@ -49,10 +49,10 @@ export function OpsShell({
   children: ReactNode;
   title: string;
   subtitle?: string;
-  theme?: OpsAppTheme;
+  theme?: TosAppTheme;
   homeHref?: string;
   backHref?: string;
-  footerItems: OpsFooterItem[];
+  footerItems: TosFooterItem[];
   activeFooterId?: string;
   home?: boolean;
 }) {
@@ -62,7 +62,7 @@ export function OpsShell({
     <div className={`${styles.opsShell} ${themeClass[theme]}`}>
       <header className={styles.opsHeader}>
         <div className={styles.opsHeaderCopy}>
-          <span className={styles.opsKicker}>{home ? "PINO TEAM OS · OPS" : "OPS APP"}</span>
+          <span className={styles.opsKicker}>{home ? "PINO TEAM · TOS" : "TOS APP"}</span>
           <h1>{title}</h1>
           {subtitle ? <p>{subtitle}</p> : null}
         </div>
@@ -84,7 +84,7 @@ export function OpsShell({
 
       <nav
         className={`${styles.opsFooter} ${home ? styles.opsFooterHome : styles.opsFooterFeature}`}
-        aria-label={home ? "Điều hướng ứng dụng Ops" : `Điều hướng ${title}`}
+        aria-label={home ? "Điều hướng ứng dụng TOS" : `Điều hướng ${title}`}
       >
         {footerItems.map((item) => (
           <Link
@@ -104,7 +104,7 @@ export function OpsShell({
 
 export function BoShell({
   children,
-  title = "PINO Team OS",
+  title = "PINO Team",
   subtitle = "Back Office",
   groups,
   activeHref,
