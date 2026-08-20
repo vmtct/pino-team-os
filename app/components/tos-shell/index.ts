@@ -1,8 +1,8 @@
 export {
   BoShell,
-  OpsShell,
+  TosShell,
   type BoNavGroup,
   type BoNavItem,
-  type OpsAppTheme,
-  type OpsFooterItem,
+  type TosAppTheme,
+  type TosFooterItem,
 } from "./TosShell";
