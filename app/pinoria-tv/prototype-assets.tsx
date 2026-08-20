@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 
 export type PrototypeCharacterSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
+export type PrototypeWingMotion = "off" | "idle" | "arrival";
 
 type CharacterLayer = {
   slot: PrototypeCharacterSlot;
@@ -92,14 +93,105 @@ export const prototypeAssetUrls = [
   ...prototypeFloatingProps.map((prop) => prop.src),
 ];
 
-export function PrototypeCharacter({ size = "100%", style, hiddenSlots = [] }: { size?: number | string; style?: CSSProperties; hiddenSlots?: PrototypeCharacterSlot[] }) {
+export function PrototypeCharacter({
+  size = "100%",
+  style,
+  hiddenSlots = [],
+  wingMotion = "idle",
+}: {
+  size?: number | string;
+  style?: CSSProperties;
+  hiddenSlots?: PrototypeCharacterSlot[];
+  wingMotion?: PrototypeWingMotion;
+}) {
   const hidden = new Set(hiddenSlots);
   const layers = [...prototypeCharacterManifest.layers].sort((a, b) => a.order - b.order);
+
   return (
     <div aria-label="Nhân vật Pinoria mẫu" style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}>
-      {layers.filter((layer) => !hidden.has(layer.slot)).map((layer) => (
-        <img key={layer.slot} src={layer.src} alt="" draggable={false} decoding="async" loading="eager" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none" }} />
-      ))}
+      <style>{`
+        @keyframes pinoriaWingIdleFold {
+          0%,100% {
+            transform: scaleX(1);
+            opacity: 1;
+            filter: brightness(1.02) drop-shadow(0 0 10px rgba(183,229,255,.12));
+          }
+          50% {
+            transform: scaleX(.935);
+            opacity: .965;
+            filter: brightness(.97) drop-shadow(0 0 5px rgba(183,229,255,.07));
+          }
+        }
+        @keyframes pinoriaWingArrivalFold {
+          0% {
+            transform: scaleX(.90);
+            opacity: .92;
+            filter: brightness(.94) drop-shadow(0 0 4px rgba(183,229,255,.06));
+          }
+          18% {
+            transform: scaleX(1.018);
+            opacity: 1;
+            filter: brightness(1.06) drop-shadow(0 0 14px rgba(183,229,255,.18));
+          }
+          38% {
+            transform: scaleX(.962);
+            opacity: .975;
+            filter: brightness(.98) drop-shadow(0 0 7px rgba(183,229,255,.10));
+          }
+          58% {
+            transform: scaleX(1);
+            opacity: 1;
+            filter: brightness(1.025) drop-shadow(0 0 11px rgba(183,229,255,.14));
+          }
+          78% {
+            transform: scaleX(.945);
+            opacity: .968;
+            filter: brightness(.97) drop-shadow(0 0 6px rgba(183,229,255,.08));
+          }
+          100% {
+            transform: scaleX(.99);
+            opacity: 1;
+            filter: brightness(1.01) drop-shadow(0 0 9px rgba(183,229,255,.11));
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-pinoria-wing-layer="true"] { animation: none !important; transform: none !important; }
+        }
+      `}</style>
+      {layers.filter((layer) => !hidden.has(layer.slot)).map((layer) => {
+        const isWing = layer.slot === "back";
+        const wingAnimation = wingMotion === "arrival"
+          ? "pinoriaWingArrivalFold 6.2s cubic-bezier(.22,.72,.2,1) both"
+          : wingMotion === "idle"
+            ? "pinoriaWingIdleFold 3.8s ease-in-out infinite"
+            : undefined;
+
+        return (
+          <img
+            key={layer.slot}
+            src={layer.src}
+            alt=""
+            draggable={false}
+            decoding="async"
+            loading="eager"
+            data-pinoria-wing-layer={isWing ? "true" : undefined}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              pointerEvents: "none",
+              userSelect: "none",
+              ...(isWing ? {
+                transformOrigin: "50% 50%",
+                animation: wingAnimation,
+                willChange: "transform, opacity, filter",
+              } : null),
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
