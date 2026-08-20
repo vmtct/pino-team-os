@@ -192,36 +192,36 @@ export function PrototypeCharacter({
             filter: brightness(1.02) drop-shadow(0 0 10px rgba(183,229,255,.12));
           }
           50% {
-            transform: scaleX(.91);
+            transform: scaleX(.82);
             opacity: .97;
             filter: brightness(.985) drop-shadow(0 0 6px rgba(183,229,255,.08));
           }
         }
         @keyframes pinoriaWingArrivalHinge {
           0% {
-            transform: scaleX(.78);
-            opacity: .9;
-            filter: brightness(.94) drop-shadow(0 0 4px rgba(183,229,255,.06));
+            transform: scaleX(.60);
+            opacity: .88;
+            filter: brightness(.92) drop-shadow(0 0 4px rgba(183,229,255,.06));
           }
           20% {
             transform: scaleX(1);
             opacity: 1;
-            filter: brightness(1.075) drop-shadow(0 0 18px rgba(183,229,255,.22));
+            filter: brightness(1.09) drop-shadow(0 0 20px rgba(183,229,255,.24));
           }
           42% {
-            transform: scaleX(.88);
-            opacity: .97;
-            filter: brightness(.985) drop-shadow(0 0 7px rgba(183,229,255,.1));
+            transform: scaleX(.78);
+            opacity: .96;
+            filter: brightness(.98) drop-shadow(0 0 7px rgba(183,229,255,.1));
           }
           64% {
             transform: scaleX(1);
             opacity: 1;
-            filter: brightness(1.045) drop-shadow(0 0 14px rgba(183,229,255,.18));
+            filter: brightness(1.055) drop-shadow(0 0 15px rgba(183,229,255,.19));
           }
           82% {
-            transform: scaleX(.93);
-            opacity: .985;
-            filter: brightness(1) drop-shadow(0 0 8px rgba(183,229,255,.11));
+            transform: scaleX(.86);
+            opacity: .98;
+            filter: brightness(.995) drop-shadow(0 0 8px rgba(183,229,255,.11));
           }
           100% {
             transform: scaleX(1);
