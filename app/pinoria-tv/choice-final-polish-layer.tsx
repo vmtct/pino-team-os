@@ -22,13 +22,23 @@ const ownedStatus: Record<string, string> = {
   A3: "Giữ nguyên",
 };
 
-const visualByCode: Record<string, { title: string; src?: string; scale?: number }> = {
-  A1: { title: prototypeChoiceAssets.A1.displayName, src: prototypeChoiceAssets.A1.src, scale: 1.75 },
-  A2: { title: prototypeChoiceAssets.A2.displayName, src: prototypeChoiceAssets.A2.src, scale: 2.05 },
+type VisualConfig = {
+  title: string;
+  src?: string;
+  scale?: number;
+  x?: number;
+  y?: number;
+};
+
+// These source PNGs are registration-canvas layers (2048×2048), not cropped thumbnails.
+// Each preview therefore needs a slot-aware crop to bring the painted pixels into the 62px medallion.
+const visualByCode: Record<string, VisualConfig> = {
+  A1: { title: prototypeChoiceAssets.A1.displayName, src: prototypeChoiceAssets.A1.src, scale: 3.2, x: 0, y: 45 },
+  A2: { title: prototypeChoiceAssets.A2.displayName, src: prototypeChoiceAssets.A2.src, scale: 3.15, x: 0, y: 10 },
   A3: { title: "Giữ hiện tại" },
-  B1: { title: prototypeChoiceAssets.B1.displayName, src: prototypeChoiceAssets.B1.src, scale: 1.2 },
-  B2: { title: prototypeChoiceAssets.B2.displayName, src: prototypeChoiceAssets.B2.src, scale: 1.28 },
-  B3: { title: prototypeChoiceAssets.B3.displayName, src: prototypeChoiceAssets.B3.src, scale: 1.75 },
+  B1: { title: prototypeChoiceAssets.B1.displayName, src: prototypeChoiceAssets.B1.src, scale: 1.25, x: 0, y: 0 },
+  B2: { title: prototypeChoiceAssets.B2.displayName, src: prototypeChoiceAssets.B2.src, scale: 1.4, x: 0, y: 1 },
+  B3: { title: prototypeChoiceAssets.B3.displayName, src: prototypeChoiceAssets.B3.src, scale: 2.35, x: 0, y: 11 },
 };
 
 export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
@@ -79,14 +89,6 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         overflow: hidden;
         position: relative;
       }
-      .pinoriaChoiceGroup:before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        border-radius: inherit;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.055);
-      }
       .pinoriaChoiceGroupBag {
         background: linear-gradient(115deg,rgba(27,48,31,.78),rgba(21,37,26,.63)) !important;
         border: 1px solid rgba(203,224,197,.13) !important;
@@ -98,12 +100,8 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         box-shadow: 0 16px 38px rgba(8,12,7,.12), inset 0 1px 0 rgba(255,245,197,.05) !important;
         animation: pinoriaChoiceShopIn .55s .42s cubic-bezier(.2,.82,.2,1) both;
       }
-      .pinoriaChoiceGroupBag > div:first-child strong {
-        color: #d7e8cf !important;
-      }
-      .pinoriaChoiceGroupShop > div:first-child strong {
-        color: #f3d681 !important;
-      }
+      .pinoriaChoiceGroupBag > div:first-child strong { color: #d7e8cf !important; }
+      .pinoriaChoiceGroupShop > div:first-child strong { color: #f3d681 !important; }
       .pinoriaChoiceGroup > div:first-child strong {
         font-size: 11px !important;
         letter-spacing: .16em !important;
@@ -153,9 +151,18 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         background: #3c3823 !important;
         color: #f4d77d !important;
       }
+      .pinoriaChoiceVisualHost {
+        position: relative !important;
+        overflow: hidden !important;
+        isolation: isolate;
+      }
       .pinoriaChoiceAsset {
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
         width: 100% !important;
         height: 100% !important;
+        max-width: none !important;
         object-fit: contain !important;
         pointer-events: none !important;
         user-select: none !important;
@@ -183,8 +190,7 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         header.classList.add("pinoriaChoiceHeader");
         const instruction = header.querySelector<HTMLParagraphElement>("p");
         if (instruction) instruction.textContent = "Nói số 1 đến 6 để thầy cô chọn giúp con.";
-        const timerBar = header.querySelector<HTMLElement>("[aria-label='Còn 8 giây'] i");
-        timerBar?.classList.add("pinoriaChoiceTimerBar");
+        header.querySelector<HTMLElement>("[aria-label='Còn 8 giây'] i")?.classList.add("pinoriaChoiceTimerBar");
       }
 
       const prototypeTag = Array.from(root.querySelectorAll<HTMLElement>("div")).find((element) => normalize(element.textContent).startsWith("tv prototype · core relay simulation"));
@@ -192,7 +198,6 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         prototypeTag.style.opacity = ".25";
         prototypeTag.style.fontSize = "7px";
         prototypeTag.style.padding = "3px 6px";
-        prototypeTag.style.letterSpacing = ".09em";
       }
 
       const reviewButton = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
@@ -203,8 +208,6 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         reviewButton.style.opacity = ".22";
         reviewButton.style.padding = "5px 8px";
         reviewButton.style.fontSize = "8px";
-        reviewButton.style.right = "10px";
-        reviewButton.style.bottom = "9px";
       }
 
       const strongs = Array.from(root.querySelectorAll<HTMLElement>("strong"));
@@ -219,9 +222,9 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         if (bagMeta) {
           bagMeta.textContent = "Con đang có sẵn";
           bagMeta.style.display = "inline-flex";
-          bagMeta.style.color = "#bfcdb8";
           bagMeta.style.padding = "3px 7px";
           bagMeta.style.borderRadius = "999px";
+          bagMeta.style.color = "#bfcdb8";
           bagMeta.style.background = "#dcebd60a";
           bagMeta.style.border = "1px solid #dcebd612";
         }
@@ -234,10 +237,8 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         const shopMeta = shopTitle.parentElement?.querySelector<HTMLElement>(":scope > span");
         if (shopMeta) {
           const balanceMatch = shopMeta.textContent?.match(/\d[\d.]*/u)?.[0] ?? "";
-          const balance = balanceMatch ? `${balanceMatch} PLS hiện có` : "Đổi bằng PLS";
-          shopMeta.textContent = balanceMatch ? `Đổi bằng PLS · ${balance}` : balance;
+          shopMeta.textContent = balanceMatch ? `Đổi bằng PLS · ${balanceMatch} PLS hiện có` : "Đổi bằng PLS";
           shopMeta.style.display = "inline-flex";
-          shopMeta.style.alignItems = "center";
           shopMeta.style.padding = "4px 8px";
           shopMeta.style.borderRadius = "999px";
           shopMeta.style.background = "#f0d18a14";
@@ -257,8 +258,7 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
 
         const card = codeNode.parentElement;
         if (!card) return;
-        const order = codeToNumber[code];
-        card.dataset.choiceOrder = order;
+        card.dataset.choiceOrder = codeToNumber[code];
         card.classList.add("pinoriaChoiceCard");
         const isShop = code.startsWith("B");
         card.classList.toggle("pinoriaChoiceCardOwned", !isShop);
@@ -271,31 +271,35 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
           if (visual?.title) title.textContent = visual.title;
           title.style.whiteSpace = "normal";
           title.style.overflow = "hidden";
-          title.style.textOverflow = "clip";
           title.style.display = "-webkit-box";
           title.style.setProperty("-webkit-line-clamp", "2");
           title.style.setProperty("-webkit-box-orient", "vertical");
           title.style.fontSize = "15px";
           title.style.lineHeight = "1.08";
-          title.style.maxWidth = "100%";
         }
 
         const visualHost = card.children.item(1);
-        if (visual?.src && visualHost instanceof HTMLElement && !visualHost.querySelector("[data-pinoria-choice-asset]")) {
-          visualHost.replaceChildren();
-          const image = document.createElement("img");
-          image.src = visual.src;
-          image.alt = "";
-          image.decoding = "async";
-          image.loading = "eager";
-          image.draggable = false;
-          image.dataset.pinoriaChoiceAsset = code;
-          image.className = "pinoriaChoiceAsset";
-          image.style.transform = `scale(${visual.scale ?? 1.2})`;
-          visualHost.appendChild(image);
+        if (visualHost instanceof HTMLElement) {
+          visualHost.classList.add("pinoriaChoiceVisualHost");
+          if (visual?.src) {
+            let image = visualHost.querySelector<HTMLImageElement>("[data-pinoria-choice-asset]");
+            if (!image) {
+              visualHost.replaceChildren();
+              image = document.createElement("img");
+              image.src = visual.src;
+              image.alt = "";
+              image.decoding = "async";
+              image.loading = "eager";
+              image.draggable = false;
+              image.dataset.pinoriaChoiceAsset = code;
+              image.className = "pinoriaChoiceAsset";
+              visualHost.appendChild(image);
+            }
+            image.style.transform = `translate(-50%, -50%) translate(${visual.x ?? 0}%, ${visual.y ?? 0}%) scale(${visual.scale ?? 1})`;
+          }
         }
 
-        const detailPills = Array.from(card.querySelectorAll<HTMLElement>("span")).filter((node) => node !== codeNode);
+        const detailPills = Array.from(card.querySelectorAll<HTMLElement>("span"));
         if (!isShop && ownedStatus[code]) {
           const statusPill = detailPills.find((node) => {
             const text = normalize(node.textContent);
@@ -304,7 +308,7 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
           if (statusPill) statusPill.textContent = ownedStatus[code];
         }
 
-        if (isShop && code !== "A3") {
+        if (isShop) {
           const price = code === "B1" ? prototypeChoiceAssets.B1.price : code === "B2" ? prototypeChoiceAssets.B2.price : code === "B3" ? prototypeChoiceAssets.B3.price : null;
           if (price) {
             const pricePill = detailPills.find((node) => /pls/u.test(normalize(node.textContent)));
