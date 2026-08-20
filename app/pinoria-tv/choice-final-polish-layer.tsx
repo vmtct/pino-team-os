@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { prototypeChoiceAssets } from "./prototype-assets";
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().toLocaleLowerCase("vi-VN");
@@ -19,6 +20,15 @@ const ownedStatus: Record<string, string> = {
   A1: "Đang mang",
   A2: "Đã có",
   A3: "Giữ nguyên",
+};
+
+const visualByCode: Record<string, { title: string; src?: string; scale?: number }> = {
+  A1: { title: prototypeChoiceAssets.A1.displayName, src: prototypeChoiceAssets.A1.src, scale: 1.75 },
+  A2: { title: prototypeChoiceAssets.A2.displayName, src: prototypeChoiceAssets.A2.src, scale: 2.05 },
+  A3: { title: "Giữ hiện tại" },
+  B1: { title: prototypeChoiceAssets.B1.displayName, src: prototypeChoiceAssets.B1.src, scale: 1.2 },
+  B2: { title: prototypeChoiceAssets.B2.displayName, src: prototypeChoiceAssets.B2.src, scale: 1.28 },
+  B3: { title: prototypeChoiceAssets.B3.displayName, src: prototypeChoiceAssets.B3.src, scale: 1.75 },
 };
 
 export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
@@ -143,6 +153,14 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         background: #3c3823 !important;
         color: #f4d77d !important;
       }
+      .pinoriaChoiceAsset {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        pointer-events: none !important;
+        user-select: none !important;
+        filter: drop-shadow(0 5px 8px rgba(0,0,0,.18));
+      }
       @media (prefers-reduced-motion: reduce) {
         .pinoriaChoiceHeader,.pinoriaChoiceGroup,.pinoriaChoiceCard,.pinoriaChoiceTimerBar {
           animation: none !important;
@@ -247,8 +265,10 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         card.classList.toggle("pinoriaChoiceCardShop", isShop);
         card.classList.toggle("pinoriaChoiceCardFeatured", code === "B2");
 
+        const visual = visualByCode[code];
         const title = card.querySelector<HTMLElement>("strong");
         if (title) {
+          if (visual?.title) title.textContent = visual.title;
           title.style.whiteSpace = "normal";
           title.style.overflow = "hidden";
           title.style.textOverflow = "clip";
@@ -260,6 +280,21 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
           title.style.maxWidth = "100%";
         }
 
+        const visualHost = card.children.item(1);
+        if (visual?.src && visualHost instanceof HTMLElement && !visualHost.querySelector("[data-pinoria-choice-asset]")) {
+          visualHost.replaceChildren();
+          const image = document.createElement("img");
+          image.src = visual.src;
+          image.alt = "";
+          image.decoding = "async";
+          image.loading = "eager";
+          image.draggable = false;
+          image.dataset.pinoriaChoiceAsset = code;
+          image.className = "pinoriaChoiceAsset";
+          image.style.transform = `scale(${visual.scale ?? 1.2})`;
+          visualHost.appendChild(image);
+        }
+
         const detailPills = Array.from(card.querySelectorAll<HTMLElement>("span")).filter((node) => node !== codeNode);
         if (!isShop && ownedStatus[code]) {
           const statusPill = detailPills.find((node) => {
@@ -267,6 +302,14 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
             return text.includes("trang bị") || text.includes("sở hữu") || text.includes("không đổi") || text.includes("đang mang") || text === "đã có" || text === "giữ nguyên";
           });
           if (statusPill) statusPill.textContent = ownedStatus[code];
+        }
+
+        if (isShop && code !== "A3") {
+          const price = code === "B1" ? prototypeChoiceAssets.B1.price : code === "B2" ? prototypeChoiceAssets.B2.price : code === "B3" ? prototypeChoiceAssets.B3.price : null;
+          if (price) {
+            const pricePill = detailPills.find((node) => /pls/u.test(normalize(node.textContent)));
+            if (pricePill) pricePill.textContent = price;
+          }
         }
 
         if (code === "B2") {
