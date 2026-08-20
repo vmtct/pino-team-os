@@ -1,0 +1,225 @@
+.opsShell {
+  --tos-accent: #6b59d3;
+  --tos-accent-strong: #5947bc;
+  --tos-tint: #f1edff;
+  --tos-tint-soft: #faf8ff;
+  --tos-line: #ded7ff;
+  min-height: 100vh;
+  background: #fbfbfd;
+  color: #171720;
+  position: relative;
+  padding-bottom: 84px;
+}
+
+.themeHome {
+  --tos-accent: #6b59d3;
+  --tos-accent-strong: #5947bc;
+  --tos-tint: #f1edff;
+  --tos-tint-soft: #faf8ff;
+  --tos-line: #ded7ff;
+}
+
+.themeShift {
+  --tos-accent: #3478bd;
+  --tos-accent-strong: #245f9b;
+  --tos-tint: #eaf4ff;
+  --tos-tint-soft: #f7fbff;
+  --tos-line: #cfe5fa;
+  background: #f8fbfe;
+}
+
+.themeClassroom {
+  --tos-accent: #3d8b63;
+  --tos-accent-strong: #2e6f4d;
+  --tos-tint: #eaf7ef;
+  --tos-tint-soft: #f7fcf9;
+  --tos-line: #cce8d7;
+  background: #f8fcfa;
+}
+
+.themeTasks {
+  --tos-accent: #c67a33;
+  --tos-accent-strong: #9b5b22;
+  --tos-tint: #fff1e3;
+  --tos-tint-soft: #fffaf5;
+  --tos-line: #f0d2b4;
+  background: #fffbf7;
+}
+
+.themePinoria {
+  --tos-accent: #7753c7;
+  --tos-accent-strong: #6040ad;
+  --tos-tint: #f2ebff;
+  --tos-tint-soft: #fbf8ff;
+  --tos-line: #ddd0f7;
+  background: #fbf9ff;
+}
+
+.opsHeader {
+  min-height: 104px;
+  padding: 22px 20px 14px;
+  border-bottom: 1px solid var(--tos-line);
+  background: linear-gradient(180deg, var(--tos-tint-soft), rgba(255, 255, 255, .96));
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.opsHeaderCopy { min-width: 0; }
+.opsKicker {
+  display: block;
+  color: var(--tos-accent-strong);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.opsHeader h1 {
+  margin: 4px 0 5px;
+  font-size: 25px;
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
+.opsHeader p { margin: 0; color: #71717d; font-size: 13px; }
+.opsHeaderActions { display: flex; gap: 8px; }
+.iconButton {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--tos-line);
+  border-radius: 13px;
+  background: #fff;
+  color: var(--tos-accent-strong);
+  font-size: 20px;
+  font-weight: 800;
+}
+.opsContent {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 16px 14px 112px;
+}
+
+.opsFooter {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 78px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  z-index: 30;
+  border-top: 1px solid var(--tos-line);
+}
+.opsFooter a {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 3px;
+  text-align: center;
+}
+.opsFooter small { font-size: 10px; line-height: 1.15; }
+.footerIcon { font-size: 18px; line-height: 1; }
+.opsFooterHome {
+  background: rgba(255, 255, 255, .98);
+  color: #777784;
+  backdrop-filter: blur(12px);
+}
+.opsFooterHome .footerActive { color: var(--tos-accent); font-weight: 850; }
+.opsFooterFeature {
+  background: var(--tos-accent);
+  border-top-color: color-mix(in srgb, var(--tos-accent) 72%, #000);
+  color: rgba(255, 255, 255, .72);
+}
+.opsFooterFeature .footerActive { color: #fff; font-weight: 850; }
+
+.boShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr);
+  background: #f3f4f8;
+  color: #181820;
+}
+.boSidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  background: #171820;
+  color: #fff;
+  padding: 22px 16px;
+}
+.boBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 24px;
+}
+.boMark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #715ed8;
+  font-weight: 900;
+}
+.boBrand div { display: grid; }
+.boBrand small { color: #9292a0; }
+.boNav { display: grid; gap: 22px; }
+.boNavGroup { display: grid; gap: 4px; }
+.boNavGroup > span {
+  padding: 0 10px 6px;
+  color: #777987;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.boNavGroup a {
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #bdbdc7;
+}
+.boNavGroup a:hover,
+.boNavGroup a:focus-visible,
+.boNavActive {
+  background: #2a2c39;
+  color: #fff !important;
+}
+.boMain { min-width: 0; padding: 30px 34px 44px; }
+
+@media (min-width: 760px) {
+  .opsShell {
+    width: min(430px, calc(100% - 32px));
+    min-height: 860px;
+    margin: 28px auto;
+    border: 1px solid #d9d9e2;
+    border-radius: 34px;
+    overflow: hidden;
+    box-shadow: 0 24px 70px rgba(28, 24, 45, .13);
+  }
+  .opsHeader { position: static; }
+  .opsFooter {
+    position: absolute;
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .boShell { grid-template-columns: 1fr; }
+  .boSidebar { position: static; height: auto; }
+  .boNav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .boMain { padding: 24px 18px 40px; }
+}
+
+@media (max-width: 620px) {
+  .boNav { grid-template-columns: 1fr; }
+}

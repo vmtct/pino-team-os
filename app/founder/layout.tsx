@@ -1,3 +1,30 @@
-import Link from"next/link";
-const links=[["/founder","Tổng quan"],["/founder/running-classes","Lớp đang chạy"],["/founder/syllabus","Giáo án"],["/founder/sessions","Buổi học"],["/founder/registrations","Đăng ký"]];
-export default function FounderLayout({children}:{children:React.ReactNode}){return <div className="founder-shell"><aside className="founder-nav"><div><div className="founder-mark">P</div><strong>Founder</strong><span>PINO Ops</span></div><nav aria-label="Điều hướng Founder">{links.map(([href,label])=><Link key={href} href={href}>{label}</Link>)}</nav></aside><main className="founder-main">{children}</main><nav className="founder-mobile-nav" aria-label="Điều hướng Founder trên di động">{links.map(([href,label])=><Link key={href} href={href}>{label}</Link>)}</nav></div>}
+import { BoShell, type BoNavGroup } from "../components/tos-shell";
+
+const groups: BoNavGroup[] = [
+  {
+    label: "Overview",
+    items: [{ href: "/founder", label: "Tổng quan" }],
+  },
+  {
+    label: "Operations",
+    items: [
+      { href: "/founder/sessions", label: "Buổi học" },
+      { href: "/founder/registrations", label: "Đăng ký" },
+    ],
+  },
+  {
+    label: "Learning",
+    items: [
+      { href: "/founder/running-classes", label: "Lớp đang chạy" },
+      { href: "/founder/syllabus", label: "Giáo án" },
+    ],
+  },
+];
+
+export default function FounderLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <BoShell title="PINO Team" subtitle="Back Office" groups={groups}>
+      {children}
+    </BoShell>
+  );
+}
