@@ -74,7 +74,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
           {backProps.map((prop) => <div key={prop.id} data-pinoria-floating-prop><FloatingProp prop={prop} /></div>)}
 
-          <PrototypeCharacter size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
+          <PrototypeCharacter wingMotion="arrival" size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
           <div style={{ position: "absolute", zIndex: 5, right: "6%", bottom: 12, width: "min(235px,18.5vw)", display: "grid", justifyItems: "center", gap: 2, animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both" }}>
             <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
