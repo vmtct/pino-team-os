@@ -47,11 +47,11 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         @keyframes pinoriaArrivalCharacter { 0%,8% { opacity:0; transform:translateX(56px) scale(.94) } 43% { opacity:1; transform:translateX(0) scale(1.015) } 58%,100% { opacity:1; transform:translateX(0) scale(1) } }
         @keyframes pinoriaArrivalCompanion { 0%,36% { opacity:0; transform:translate(20px,14px) scale(.7) } 62% { opacity:1; transform:translate(-3px,-3px) scale(1.04) } 74%,100% { opacity:1; transform:translate(0,0) scale(1) } }
         @keyframes pinoriaArrivalGlow { 0%,100% { opacity:.45; transform:scale(.97) } 50% { opacity:.72; transform:scale(1.035) } }
-        @keyframes pinoriaArrivalFloat { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-8px) } }
+        @keyframes pinoriaArrivalFloat { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-7px) } }
         @keyframes pinoriaPropReveal { 0% { opacity:0; transform:translateY(14px) scale(.72) } 72% { opacity:1; transform:translateY(-2px) scale(1.04) } 100% { opacity:1; transform:translateY(0) scale(1) } }
-        @keyframes pinoriaPropFloat { 0%,100% { transform:translate3d(0,0,0) rotate(calc(var(--pinoria-prop-rotate) * -.45)) scale(.985) } 50% { transform:translate3d(4px,-14px,0) rotate(var(--pinoria-prop-rotate)) scale(1.025) } }
-        @keyframes pinoriaPropGlow { 0%,100% { opacity:.34; transform:scale(.86) } 50% { opacity:.72; transform:scale(1.1) } }
-        @keyframes pinoriaPropSpark { 0%,100% { opacity:.15; transform:translate(-50%,-50%) scale(.75) rotate(0deg) } 50% { opacity:.75; transform:translate(-50%,-50%) scale(1.15) rotate(35deg) } }
+        @keyframes pinoriaPropFloat { 0%,100% { transform:translate3d(0,0,0) rotate(calc(var(--pinoria-prop-rotate) * -.45)) scale(.985) } 50% { transform:translate3d(4px,-12px,0) rotate(var(--pinoria-prop-rotate)) scale(1.022) } }
+        @keyframes pinoriaPropGlow { 0%,100% { opacity:.34; transform:scale(.86) } 50% { opacity:.68; transform:scale(1.08) } }
+        @keyframes pinoriaPropSpark { 0%,100% { opacity:.15; transform:translate(-50%,-50%) scale(.75) rotate(0deg) } 50% { opacity:.7; transform:translate(-50%,-50%) scale(1.12) rotate(35deg) } }
         @media (prefers-reduced-motion: reduce) { [data-pinoria-floating-prop] img,[data-pinoria-floating-prop] div,[data-pinoria-floating-prop] span { animation:none!important; } }
       `}</style>
 
@@ -76,9 +76,9 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
           <PrototypeCharacter wingMotion="arrival" size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
-          <div style={{ position: "absolute", zIndex: 5, right: "6%", bottom: 12, width: "min(235px,18.5vw)", display: "grid", justifyItems: "center", gap: 2, animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both" }}>
-            <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
-            <span style={{ marginTop: -34, maxWidth: 190, padding: "5px 9px", borderRadius: 999, background: "#142016d9", border: "1px solid #ffffff18", color: "#efe6d8", fontSize: 9, whiteSpace: "nowrap" }}>{prototypeCompanionManifest.displayName}</span>
+          <div style={{ position: "absolute", zIndex: 5, right: "8%", bottom: 18, width: "min(212px,16.8vw)", display: "grid", justifyItems: "center", gap: 2, animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both" }}>
+            <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
+            <span style={{ marginTop: -31, maxWidth: 176, padding: "5px 9px", borderRadius: 999, background: "#142016d9", border: "1px solid #ffffff18", color: "#efe6d8", fontSize: 9, whiteSpace: "nowrap" }}>{prototypeCompanionManifest.displayName}</span>
           </div>
 
           {frontProps.map((prop) => <div key={prop.id} data-pinoria-floating-prop><FloatingProp prop={prop} /></div>)}
