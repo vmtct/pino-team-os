@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "documents": [
+    {
+      "id": "asset-publishing-doctrine",
+      "title": "PINO Asset Publishing Doctrine",
+      "version": "v1",
+      "status": "CANONICAL",
+      "path": "docs/founder/asset-publishing-doctrine-v1.md",
+      "decisionClasses": ["INVARIANT", "DEPLOYMENT_CONFIG"],
+      "implementationRepositories": ["vmtct/pino-asset-publisher"],
+      "projection": {
+        "surface": "BO",
+        "targetRoute": "/founder/docs/asset-publishing-doctrine",
+        "mode": "READ_ONLY"
+      }
+    }
+  ]
+}
