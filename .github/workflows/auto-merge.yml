@@ -1,84 +1,18 @@
-name: Auto Merge Validated PRs
+name: Auto Merge Disabled
 
 on:
-  workflow_run:
-    workflows: ["Production E2E Smoke"]
-    types: [completed]
+  workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  actions: write
+  contents: read
+  pull-requests: read
 
 jobs:
-  auto-merge:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0].number != null
+  disabled:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Validate and merge
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        shell: bash
+      - name: Explain release gate
         run: |
-          set -euo pipefail
-
-          repo="$GITHUB_REPOSITORY"
-          pr_number="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
-          [ -n "$pr_number" ] || { echo "No PR associated with workflow run."; exit 0; }
-
-          pr="$(gh api "repos/${repo}/pulls/${pr_number}")"
-          state="$(jq -r '.state' <<<"$pr")"
-          draft="$(jq -r '.draft' <<<"$pr")"
-          mergeable="$(jq -r '.mergeable' <<<"$pr")"
-          head_sha="$(jq -r '.head.sha' <<<"$pr")"
-          head_repo="$(jq -r '.head.repo.full_name // empty' <<<"$pr")"
-          base="$(jq -r '.base.ref' <<<"$pr")"
-
-          echo "PR #${pr_number}: state=${state} draft=${draft} mergeable=${mergeable} base=${base} head=${head_sha}"
-
-          if [ "$state" != "open" ] || [ "$draft" = "true" ] || [ "$mergeable" != "true" ]; then
-            echo "PR is not eligible for automatic merge."
-            exit 0
-          fi
-
-          if [ "$base" != "main" ] || [ "$head_repo" != "$repo" ]; then
-            echo "Only same-repository PRs targeting main are eligible."
-            exit 0
-          fi
-
-          if [ "$head_sha" != "$HEAD_SHA" ]; then
-            echo "PR head changed after the E2E run; refusing to merge stale validation."
-            exit 0
-          fi
-
-          changes_requested="$(gh api --paginate "repos/${repo}/pulls/${pr_number}/reviews" --jq '.[] | select(.state == "CHANGES_REQUESTED") | .id' | head -n 1 || true)"
-          if [ -n "$changes_requested" ]; then
-            echo "A review requested changes; refusing automatic merge."
-            exit 0
-          fi
-
-          echo "All pre-merge gates passed. Squash-merging PR #${pr_number} at ${HEAD_SHA}."
-          gh api --method PUT "repos/${repo}/pulls/${pr_number}/merge" \
-            -H 'Accept: application/vnd.github+json' \
-            -f sha="$HEAD_SHA" \
-            -f merge_method=squash \
-            -f commit_title="$(jq -r '.title' <<<"$pr")" \
-            -f commit_message="Automated merge after successful Production E2E validation."
-
-          MERGE_SHA="$(gh api "repos/${repo}/pulls/${pr_number}" --jq '.merge_commit_sha')"
-          if [ -z "$MERGE_SHA" ] || [ "$MERGE_SHA" = "null" ]; then
-            echo "Could not resolve merge commit SHA." >&2
-            exit 1
-          fi
-
-          echo "Triggering post-merge Cloudflare verification for ${MERGE_SHA}."
-          gh workflow run cloudflare-build-guardian.yml \
-            --repo "$repo" \
-            --ref main \
-            -f "commit_sha=${MERGE_SHA}"
+          echo "Automatic PR merging is intentionally disabled."
+          echo "A successful validation run does not authorize merge or production release."
+          echo "Merge to main requires an explicit merge decision; production remains a separate explicit release action."
