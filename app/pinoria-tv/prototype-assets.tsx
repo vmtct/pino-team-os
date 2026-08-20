@@ -93,6 +93,76 @@ export const prototypeAssetUrls = [
   ...prototypeFloatingProps.map((prop) => prop.src),
 ];
 
+function StandardLayer({ layer }: { layer: CharacterLayer }) {
+  return (
+    <img
+      src={layer.src}
+      alt=""
+      draggable={false}
+      decoding="async"
+      loading="eager"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        pointerEvents: "none",
+        userSelect: "none",
+      }}
+    />
+  );
+}
+
+function WingHalf({
+  side,
+  src,
+  animation,
+}: {
+  side: "left" | "right";
+  src: string;
+  animation?: string;
+}) {
+  const isLeft = side === "left";
+
+  return (
+    <div
+      data-pinoria-wing-half={side}
+      style={{
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: isLeft ? 0 : "50%",
+        width: "50%",
+        overflow: "hidden",
+        transformOrigin: isLeft ? "100% 50%" : "0% 50%",
+        animation,
+        willChange: "transform, opacity, filter",
+        pointerEvents: "none",
+      }}
+    >
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        decoding="async"
+        loading="eager"
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: isLeft ? 0 : "-100%",
+          width: "200%",
+          height: "100%",
+          objectFit: "contain",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
+    </div>
+  );
+}
+
 export function PrototypeCharacter({
   size = "100%",
   style,
@@ -106,90 +176,74 @@ export function PrototypeCharacter({
 }) {
   const hidden = new Set(hiddenSlots);
   const layers = [...prototypeCharacterManifest.layers].sort((a, b) => a.order - b.order);
+  const wingAnimation = wingMotion === "arrival"
+    ? "pinoriaWingArrivalHinge 6.2s cubic-bezier(.22,.72,.2,1) both"
+    : wingMotion === "idle"
+      ? "pinoriaWingIdleHinge 4.2s ease-in-out infinite"
+      : undefined;
 
   return (
     <div aria-label="Nhân vật Pinoria mẫu" style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}>
       <style>{`
-        @keyframes pinoriaWingIdleFold {
+        @keyframes pinoriaWingIdleHinge {
           0%,100% {
             transform: scaleX(1);
             opacity: 1;
             filter: brightness(1.02) drop-shadow(0 0 10px rgba(183,229,255,.12));
           }
           50% {
-            transform: scaleX(.935);
-            opacity: .965;
-            filter: brightness(.97) drop-shadow(0 0 5px rgba(183,229,255,.07));
+            transform: scaleX(.91);
+            opacity: .97;
+            filter: brightness(.985) drop-shadow(0 0 6px rgba(183,229,255,.08));
           }
         }
-        @keyframes pinoriaWingArrivalFold {
+        @keyframes pinoriaWingArrivalHinge {
           0% {
-            transform: scaleX(.90);
-            opacity: .92;
+            transform: scaleX(.78);
+            opacity: .9;
             filter: brightness(.94) drop-shadow(0 0 4px rgba(183,229,255,.06));
           }
-          18% {
-            transform: scaleX(1.018);
-            opacity: 1;
-            filter: brightness(1.06) drop-shadow(0 0 14px rgba(183,229,255,.18));
-          }
-          38% {
-            transform: scaleX(.962);
-            opacity: .975;
-            filter: brightness(.98) drop-shadow(0 0 7px rgba(183,229,255,.10));
-          }
-          58% {
+          20% {
             transform: scaleX(1);
             opacity: 1;
-            filter: brightness(1.025) drop-shadow(0 0 11px rgba(183,229,255,.14));
+            filter: brightness(1.075) drop-shadow(0 0 18px rgba(183,229,255,.22));
           }
-          78% {
-            transform: scaleX(.945);
-            opacity: .968;
-            filter: brightness(.97) drop-shadow(0 0 6px rgba(183,229,255,.08));
+          42% {
+            transform: scaleX(.88);
+            opacity: .97;
+            filter: brightness(.985) drop-shadow(0 0 7px rgba(183,229,255,.1));
+          }
+          64% {
+            transform: scaleX(1);
+            opacity: 1;
+            filter: brightness(1.045) drop-shadow(0 0 14px rgba(183,229,255,.18));
+          }
+          82% {
+            transform: scaleX(.93);
+            opacity: .985;
+            filter: brightness(1) drop-shadow(0 0 8px rgba(183,229,255,.11));
           }
           100% {
-            transform: scaleX(.99);
+            transform: scaleX(1);
             opacity: 1;
-            filter: brightness(1.01) drop-shadow(0 0 9px rgba(183,229,255,.11));
+            filter: brightness(1.02) drop-shadow(0 0 10px rgba(183,229,255,.13));
           }
         }
         @media (prefers-reduced-motion: reduce) {
-          [data-pinoria-wing-layer="true"] { animation: none !important; transform: none !important; }
+          [data-pinoria-wing-half] { animation-duration: 12s !important; }
         }
       `}</style>
+
       {layers.filter((layer) => !hidden.has(layer.slot)).map((layer) => {
-        const isWing = layer.slot === "back";
-        const wingAnimation = wingMotion === "arrival"
-          ? "pinoriaWingArrivalFold 6.2s cubic-bezier(.22,.72,.2,1) both"
-          : wingMotion === "idle"
-            ? "pinoriaWingIdleFold 3.8s ease-in-out infinite"
-            : undefined;
+        if (layer.slot !== "back") {
+          return <StandardLayer key={layer.slot} layer={layer} />;
+        }
 
         return (
-          <img
-            key={layer.slot}
-            src={layer.src}
-            alt=""
-            draggable={false}
-            decoding="async"
-            loading="eager"
-            data-pinoria-wing-layer={isWing ? "true" : undefined}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              pointerEvents: "none",
-              userSelect: "none",
-              ...(isWing ? {
-                transformOrigin: "50% 50%",
-                animation: wingAnimation,
-                willChange: "transform, opacity, filter",
-              } : null),
-            }}
-          />
+          <div key={layer.slot} data-pinoria-wing-layer="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            <WingHalf side="left" src={layer.src} animation={wingAnimation} />
+            <WingHalf side="right" src={layer.src} animation={wingAnimation} />
+          </div>
         );
       })}
     </div>
