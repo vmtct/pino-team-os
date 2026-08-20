@@ -23,7 +23,7 @@ const groups: BoNavGroup[] = [
 
 export default function FounderLayout({ children }: { children: React.ReactNode }) {
   return (
-    <BoShell title="PINO Team OS" subtitle="Back Office" groups={groups}>
+    <BoShell title="PINO Team" subtitle="Back Office" groups={groups}>
       {children}
     </BoShell>
   );
