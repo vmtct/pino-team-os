@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BoShell, OpsShell, type BoNavGroup, type OpsAppTheme, type OpsFooterItem } from "@/app/components/tos-shell";
+import { BoShell, TosShell, type BoNavGroup, type TosAppTheme, type TosFooterItem } from "@/app/components/tos-shell";
 
-const APP_LABELS: Record<OpsAppTheme, string> = {
+const APP_LABELS: Record<TosAppTheme, string> = {
   home: "Home",
   shift: "Ca làm",
   classroom: "Lớp học",
@@ -11,8 +11,8 @@ const APP_LABELS: Record<OpsAppTheme, string> = {
   pinoria: "Pinoria",
 };
 
-const APP_SUBTITLES: Record<OpsAppTheme, string> = {
-  home: "Neutral launcher shell",
+const APP_SUBTITLES: Record<TosAppTheme, string> = {
+  home: "Neutral launcher shell · tos.pinohouse.art",
   shift: "Workforce execution context",
   classroom: "Pedagogy-only delivery context",
   tasks: "Operational attention context",
@@ -30,7 +30,7 @@ const BO_GROUPS: BoNavGroup[] = [
   { label: "System", items: [{ label: "Policies", href: "#policies" }, { label: "Access", href: "#access" }] },
 ];
 
-function footerFor(theme: OpsAppTheme): OpsFooterItem[] {
+function footerFor(theme: TosAppTheme): TosFooterItem[] {
   if (theme === "home") {
     return [
       { id: "home", label: "Home", href: "#home", icon: "⌂" },
@@ -71,19 +71,19 @@ const buttonStyle = (active: boolean) => ({
 });
 
 export default function TosShellFoundationReview() {
-  const [workspace, setWorkspace] = useState<"ops" | "bo">("ops");
-  const [theme, setTheme] = useState<OpsAppTheme>("home");
+  const [surface, setSurface] = useState<"tos" | "bo">("tos");
+  const [theme, setTheme] = useState<TosAppTheme>("home");
   const footerItems = useMemo(() => footerFor(theme), [theme]);
 
   return (
     <>
-      <div style={switchStyle} aria-label="Shell review controls">
-        <button style={buttonStyle(workspace === "ops")} onClick={() => setWorkspace("ops")}>OPS</button>
-        <button style={buttonStyle(workspace === "bo")} onClick={() => setWorkspace("bo")}>BO</button>
+      <div style={switchStyle} aria-label="Surface review controls">
+        <button style={buttonStyle(surface === "tos")} onClick={() => setSurface("tos")}>TOS</button>
+        <button style={buttonStyle(surface === "bo")} onClick={() => setSurface("bo")}>BO</button>
       </div>
 
-      {workspace === "ops" ? (
-        <OpsShell
+      {surface === "tos" ? (
+        <TosShell
           title={theme === "home" ? "TOS Shell Foundation" : APP_LABELS[theme]}
           subtitle={APP_SUBTITLES[theme]}
           theme={theme}
@@ -94,15 +94,15 @@ export default function TosShellFoundationReview() {
         >
           <section style={{ display: "grid", gap: 14 }}>
             <div style={{ border: "1px solid rgba(120,120,135,.18)", borderRadius: 18, padding: 16, background: "rgba(255,255,255,.82)" }}>
-              <small style={{ fontWeight: 850, letterSpacing: ".08em" }}>LOCAL REVIEW · SHELL ONLY</small>
+              <small style={{ fontWeight: 850, letterSpacing: ".08em" }}>LOCAL REVIEW · TOS SURFACE · SHELL ONLY</small>
               <h2 style={{ margin: "7px 0 6px", fontSize: 21 }}>{APP_LABELS[theme]}</h2>
               <p style={{ margin: 0, lineHeight: 1.5, fontSize: 13, opacity: .72 }}>
-                Kiểm tra hierarchy, header, theme continuity và footer contract. Không có business state trong review surface này.
+                Mobile-first Team Ops target: tos.pinohouse.art. Kiểm tra hierarchy, header, theme continuity và footer contract; không có business state trong review surface này.
               </p>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>
-              {(Object.keys(APP_LABELS) as OpsAppTheme[]).map((candidate) => (
+              {(Object.keys(APP_LABELS) as TosAppTheme[]).map((candidate) => (
                 <button
                   key={candidate}
                   onClick={() => setTheme(candidate)}
@@ -123,18 +123,18 @@ export default function TosShellFoundationReview() {
               ))}
             </div>
           </section>
-        </OpsShell>
+        </TosShell>
       ) : (
-        <BoShell groups={BO_GROUPS} activeHref="#dashboard" title="PINO Team OS" subtitle="Back Office · Shell Review">
+        <BoShell groups={BO_GROUPS} activeHref="#dashboard" title="PINO Team" subtitle="BO · bo.pinohouse.art · Shell Review">
           <section style={{ maxWidth: 1180, margin: "0 auto" }}>
-            <small style={{ fontWeight: 850, letterSpacing: ".08em", opacity: .6 }}>LOCAL REVIEW · SHELL ONLY</small>
+            <small style={{ fontWeight: 850, letterSpacing: ".08em", opacity: .6 }}>LOCAL REVIEW · BO SURFACE · SHELL ONLY</small>
             <h1 style={{ margin: "8px 0 6px", fontSize: 34 }}>Back Office Foundation</h1>
-            <p style={{ margin: "0 0 24px", opacity: .65 }}>Grouped persistent sidebar, desktop-first density and content workspace.</p>
+            <p style={{ margin: "0 0 24px", opacity: .65 }}>Desktop-first target: bo.pinohouse.art. Grouped persistent sidebar, high-density management and configuration workspace.</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 14 }}>
               {["Operational queue", "Management workspace", "Configuration surface"].map((label) => (
                 <article key={label} style={{ border: "1px solid #e3e3e9", borderRadius: 18, background: "#fff", padding: 18, minHeight: 150 }}>
                   <strong>{label}</strong>
-                  <p style={{ fontSize: 13, lineHeight: 1.5, opacity: .62 }}>Placeholder only. Feature teams compose their own content inside the canonical shell.</p>
+                  <p style={{ fontSize: 13, lineHeight: 1.5, opacity: .62 }}>Placeholder only. Feature teams compose their own content inside the canonical BO shell.</p>
                 </article>
               ))}
             </div>
