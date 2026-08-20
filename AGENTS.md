@@ -11,7 +11,8 @@ Before changing material business behavior, protected data flow, or a Core-owned
 3. read `pino-core/docs/feature-governance.md` and `pino-core/docs/platform-foundations.md`;
 4. read the registered feature spec and relevant accepted ADRs;
 5. if the Core registry says `READY_FOR_CODEX`, read and obey the registered handoff before runtime integration;
-6. when protected TOS behavior is involved, read the approved Access Control spec/greenfield bootstrap/handoff in Core.
+6. when protected TOS behavior is involved, read the approved Access Control spec/greenfield bootstrap/handoff in Core;
+7. for any TOS UI work, read `docs/tos-adaptive-workspace-doctrine-v1.md` before choosing navigation, mobile/desktop composition, or shell placement.
 
 If the required Core governance/spec material is unavailable, stop before inventing material business behavior and report the missing dependency.
 
@@ -49,6 +50,60 @@ Any TOS feature that reads non-public data or performs a privileged action requi
 
 When the Core feature registry or Access handoff says a prerequisite is not ready, do not add a temporary privileged bypass.
 
+## TOS Adaptive Workspace presentation contract
+
+TOS has one product with two presentation workspaces:
+
+- `OPS` — mobile-first physical-work execution.
+- `BO` — desktop-first management/configuration/control-plane work.
+
+`OPS` / `BO` are presentation choices, not authorization roles.
+
+Reusable shell primitives live in `app/components/tos-shell/`. New implementation branches should compose them from current `main`; do not copy an old prototype shell wholesale.
+
+Before implementing any TOS UI feature, explicitly record this decision in implementation notes, PR body, feature handoff, or equivalent review evidence:
+
+```yaml
+TOS Layout Decision
+
+workspace: OPS | BO | DUAL
+primary_device: MOBILE | DESKTOP
+
+ops:
+  app_family: CA_LAM | LOP_HOC | VIEC | PINORIA | NONE
+  entry_context:
+  footer_items: []   # maximum 5
+  theme:
+  primary_action:
+  capture_requirements:
+
+bo:
+  sidebar_group:
+  subnavigation:
+  primary_layout: QUEUE | TABLE | SPLIT_VIEW | FORM | TIMELINE | CANVAS | NONE
+
+shared:
+  permission_context:
+  cross_domain_links:
+
+founder_layout_review: APPROVED | PENDING
+```
+
+Hard presentation rules:
+
+- OPS Home is the neutral launcher/today-awareness surface.
+- Approved Ops app families are `Ca làm`, `Lớp học`, `Việc`, and `Pinoria` unless Founder approves another.
+- Entering an Ops app replaces Home navigation with contextual footer navigation of at most five items.
+- Feature-level Ops footer is filled with the app theme color; Home footer remains neutral.
+- App header carries title on the left and Home on the right; Back is for deeper detail only.
+- `Lớp học` mentor/student views are pedagogy-only: attendance may appear as read-only fact, but learner Check-in/out actions and Pinoria actions must not be embedded there.
+- BO uses grouped desktop sidebar IA and may use dense table/queue/split-view/form patterns.
+- DUAL features require distinct mobile Ops and desktop BO compositions rather than a shrunken desktop page.
+
+A feature may inherit an already-approved slot without a new Founder decision. Stop for Founder layout review if changing global Ops app families, global footer architecture, theme families, the max-five rule, the pedagogy/Pinoria boundary, or the BO grouped-sidebar model.
+
+`founder_layout_review: PENDING` permits prototype exploration only; it does not authorize a new final navigation architecture.
+
 ## Prototype discipline
 
 A Founder prototype may contain mock data and interaction-only state when clearly labeled.
@@ -73,8 +128,19 @@ For a material cross-repository feature:
 2. verify registry readiness before runtime work;
 3. preserve F1–F7 decisions from the canonical spec;
 4. keep UI adaptation separate from canonical business semantics;
-5. add/update TOS tests for the app boundary;
-6. surface any spec/code mismatch instead of silently choosing one side;
-7. require independent spec ↔ Core/app code ↔ tests review before staging/production readiness.
+5. include the `TOS Layout Decision` when the feature touches TOS UI;
+6. compose the approved TOS shell instead of inventing parallel navigation;
+7. add/update TOS tests for the app boundary;
+8. surface any spec/code/layout mismatch instead of silently choosing one side;
+9. require independent spec ↔ Core/app code ↔ tests review before staging/production readiness.
+
+Before approving a material TOS UI PR, independently verify:
+
+- correct `OPS | BO | DUAL` placement;
+- correct app family/sidebar group;
+- no unauthorized shell/navigation invention;
+- Ops footer maximum five items;
+- app theme/orientation preserved;
+- pedagogy/domain boundaries preserved.
 
 Production deployment remains an explicit release action. A green build or merged PR does not itself authorize production.
