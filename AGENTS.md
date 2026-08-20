@@ -1,6 +1,6 @@
 # PINO Team OS — AI Working Contract
 
-`pino-team-os` is an internal application surface. It does not become the canonical owner of shared PINO business rules merely because it renders or operates them.
+`pino-team-os` is the current repository for the PINO Team staff platform. It may render both TOS and BO application surfaces, but it does not become the canonical owner of shared PINO business rules merely because it renders or operates them.
 
 ## Read order for material behavior
 
@@ -11,8 +11,8 @@ Before changing material business behavior, protected data flow, or a Core-owned
 3. read `pino-core/docs/feature-governance.md` and `pino-core/docs/platform-foundations.md`;
 4. read the registered feature spec and relevant accepted ADRs;
 5. if the Core registry says `READY_FOR_CODEX`, read and obey the registered handoff before runtime integration;
-6. when protected TOS behavior is involved, read the approved Access Control spec/greenfield bootstrap/handoff in Core;
-7. for any TOS UI work, read `docs/tos-adaptive-workspace-doctrine-v1.md` before choosing navigation, mobile/desktop composition, or shell placement.
+6. when protected staff behavior is involved, read the approved Access Control spec/greenfield bootstrap/handoff in Core;
+7. for any staff UI work, read `docs/tos-adaptive-workspace-doctrine-v1.md` before choosing TOS/BO placement, navigation, mobile/desktop composition, or shell usage.
 
 If the required Core governance/spec material is unavailable, stop before inventing material business behavior and report the missing dependency.
 
@@ -30,46 +30,49 @@ Product decisions discovered while prototyping must be reconciled into the canon
 ## Core ownership boundary
 
 - For Core-owned domains, use explicit private Core contracts; do not query Core D1 directly.
-- Do not duplicate Core-owned identity, membership, access, booking, attendance, capacity, catalog, delivery, policy, or other shared invariants inside TOS for convenience.
+- Do not duplicate Core-owned identity, membership, access, booking, attendance, capacity, catalog, delivery, policy, or other shared invariants inside this repository for convenience.
 - Notion may remain authority only for explicitly unmigrated domains; never assume Notion or D1 is globally authoritative.
 - Do not import another module/repository's persistence adapter as an application API.
 - When a domain migrates to Core, update app architecture/data docs in the same delivery window.
 
 ## Access-control discipline
 
-Any TOS feature that reads non-public data or performs a privileged action requires the canonical Access Control contract.
+Any TOS or BO feature that reads non-public data or performs a privileged action requires the canonical Access Control contract.
 
 - Deny by default.
-- Authorize server-side by stable permission + canonical scope + contextual policy; never by job title, route, client state, hard-coded role, email allowlist, or Cloudflare Access group.
+- Authorize server-side by stable permission + canonical scope + contextual policy; never by job title, route, client state, hard-coded role, email allowlist, Cloudflare Access group, or surface switcher state.
 - UI visibility is not authorization.
 - Authentication resolves an external identity to canonical User; Core remains authorization authority.
 - User and StaffMember are distinct even when linked.
-- Do not invent ad-hoc permission strings in components/routes.
+- Do not invent ad-hoc permission strings or surface applicability in components/routes.
+- Canonical permissions declare `TOS | BO | BOTH` applicability in Core.
+- TOS surface entry is derived from ACTIVE StaffMember-linked operational authority; do not invent `team.tos.access`.
+- BO surface entry requires effective explicit `team.bo.access`; this permission grants surface entry only and never implies feature permissions.
 - Privileged mutations emit the audit events required by the Core spec.
 - Never expose Founder/private Core control-plane operations through a public application contract.
 
 When the Core feature registry or Access handoff says a prerequisite is not ready, do not add a temporary privileged bypass.
 
-## TOS Adaptive Workspace presentation contract
+## PINO Team presentation contract
 
-TOS has one product with two presentation workspaces:
+PINO Team is one platform with two distinct application surfaces:
 
-- `OPS` — mobile-first physical-work execution.
-- `BO` — desktop-first management/configuration/control-plane work.
+- `TOS` — Team Ops, target host `tos.pinohouse.art`, mobile-first physical-work execution.
+- `BO` — Back Office, target host `bo.pinohouse.art`, desktop-first management/configuration/control-plane work.
 
-`OPS` / `BO` are presentation choices, not authorization roles.
+These hostnames are target architecture, not permission authority or production-DNS authorization. TOS and BO may initially share this repository/deployment, but they must keep separate navigation/composition boundaries.
 
-Reusable shell primitives live in `app/components/tos-shell/`. New implementation branches should compose them from current `main`; do not copy an old prototype shell wholesale.
+Reusable shell primitives live in `app/components/tos-shell/`. New implementation branches should compose `TosShell` or `BoShell` from current `main`; do not copy an old prototype shell wholesale.
 
-Before implementing any TOS UI feature, explicitly record this decision in implementation notes, PR body, feature handoff, or equivalent review evidence:
+Before implementing any staff UI feature, explicitly record this decision in implementation notes, PR body, feature handoff, or equivalent review evidence:
 
 ```yaml
-TOS Layout Decision
+Team Surface Decision
 
-workspace: OPS | BO | DUAL
+surface: TOS | BO | DUAL
 primary_device: MOBILE | DESKTOP
 
-ops:
+tos:
   app_family: CA_LAM | LOP_HOC | VIEC | PINORIA | NONE
   entry_context:
   footer_items: []   # maximum 5
@@ -91,16 +94,17 @@ founder_layout_review: APPROVED | PENDING
 
 Hard presentation rules:
 
-- OPS Home is the neutral launcher/today-awareness surface.
-- Approved Ops app families are `Ca làm`, `Lớp học`, `Việc`, and `Pinoria` unless Founder approves another.
-- Entering an Ops app replaces Home navigation with contextual footer navigation of at most five items.
-- Feature-level Ops footer is filled with the app theme color; Home footer remains neutral.
+- TOS Home is the neutral launcher/today-awareness surface.
+- Approved TOS app families are `Ca làm`, `Lớp học`, `Việc`, and `Pinoria` unless Founder approves another.
+- Entering a TOS app replaces Home navigation with contextual footer navigation of at most five items.
+- Feature-level TOS footer is filled with the app theme color; Home footer remains neutral.
 - App header carries title on the left and Home on the right; Back is for deeper detail only.
 - `Lớp học` mentor/student views are pedagogy-only: attendance may appear as read-only fact, but learner Check-in/out actions and Pinoria actions must not be embedded there.
 - BO uses grouped desktop sidebar IA and may use dense table/queue/split-view/form patterns.
-- DUAL features require distinct mobile Ops and desktop BO compositions rather than a shrunken desktop page.
+- DUAL features require distinct mobile TOS and desktop BO compositions rather than a shrunken desktop page.
+- TOS must not import BO page-level navigation/compositions, and BO must not import TOS page-level navigation/compositions. Shared code should stay domain-neutral.
 
-A feature may inherit an already-approved slot without a new Founder decision. Stop for Founder layout review if changing global Ops app families, global footer architecture, theme families, the max-five rule, the pedagogy/Pinoria boundary, or the BO grouped-sidebar model.
+A feature may inherit an already-approved slot without a new Founder decision. Stop for Founder layout review if changing global TOS app families, TOS footer architecture, theme families, the max-five rule, the pedagogy/Pinoria boundary, the BO grouped-sidebar model, or the logical split between TOS and BO.
 
 `founder_layout_review: PENDING` permits prototype exploration only; it does not authorize a new final navigation architecture.
 
@@ -128,19 +132,20 @@ For a material cross-repository feature:
 2. verify registry readiness before runtime work;
 3. preserve F1–F7 decisions from the canonical spec;
 4. keep UI adaptation separate from canonical business semantics;
-5. include the `TOS Layout Decision` when the feature touches TOS UI;
-6. compose the approved TOS shell instead of inventing parallel navigation;
-7. add/update TOS tests for the app boundary;
+5. include the `Team Surface Decision` when the feature touches TOS or BO UI;
+6. compose the approved surface shell instead of inventing parallel navigation;
+7. add/update app-boundary tests;
 8. surface any spec/code/layout mismatch instead of silently choosing one side;
 9. require independent spec ↔ Core/app code ↔ tests review before staging/production readiness.
 
-Before approving a material TOS UI PR, independently verify:
+Before approving a material staff UI PR, independently verify:
 
-- correct `OPS | BO | DUAL` placement;
-- correct app family/sidebar group;
+- correct `TOS | BO | DUAL` placement;
+- correct TOS app family / BO sidebar group;
 - no unauthorized shell/navigation invention;
-- Ops footer maximum five items;
+- TOS footer maximum five items;
 - app theme/orientation preserved;
-- pedagogy/domain boundaries preserved.
+- pedagogy/domain boundaries preserved;
+- surface entry and feature visibility derive from canonical Access Control, not UI-local assumptions.
 
 Production deployment remains an explicit release action. A green build or merged PR does not itself authorize production.
