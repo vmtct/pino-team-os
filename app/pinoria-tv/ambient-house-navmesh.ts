@@ -15,62 +15,31 @@ export const AMBIENT_MINI_CHARACTER = {
   },
 } as const;
 
-/**
- * Canonical 1920x1080 movement mesh using the mini-character CENTER anchor.
- *
- * Previous geometry was authored against the 164x115 mini-character top-left
- * anchor. The character center is +82px on X and +57.5px on Y from that old
- * anchor, so every movement-space point below was translated by (+82,+57.5).
- * This preserves the exact same visual/physical boundary alignment.
- */
+/** Canonical 1920x1080 movement mesh using the mini-character CENTER anchor. */
 export const AMBIENT_HOUSE_OUTER_BOUNDARY: readonly AmbientHousePoint[] = [
-  { x: 171, y: 757.5 },
-  { x: 133, y: 791.5 },
-  { x: 154, y: 807.5 },
-  { x: 350, y: 992.5 },
-  { x: 1454, y: 989.5 },
-  { x: 1757, y: 858.5 },
-  { x: 1753, y: 795.5 },
-  { x: 1315, y: 789.5 },
-  { x: 1314, y: 860.5 },
-  { x: 1259, y: 859.5 },
-  { x: 1228, y: 785.5 },
-  { x: 1119, y: 783.5 },
-  { x: 1149.8, y: 893.8 },
-  { x: 1108.4, y: 893.8 },
-  { x: 1043, y: 638.5 },
-  { x: 1069.9, y: 499.4 },
-  { x: 1070, y: 474.5 },
-  { x: 1065, y: 450.5 },
-  { x: 268, y: 447.5 },
-  { x: 155.4, y: 499.4 },
-  { x: 994.9, y: 499.4 },
-  { x: 994.9, y: 636.6 },
-  { x: 960, y: 725.5 },
-  { x: 915, y: 897.5 },
-  { x: 888, y: 898.5 },
-  { x: 886, y: 784.5 },
-  { x: 590, y: 782.5 },
-  { x: 472, y: 802.5 },
-  { x: 211, y: 801.5 },
-  { x: 181, y: 777.5 },
-  { x: 344, y: 777.5 },
-  { x: 351, y: 755.5 },
+  { x: 171, y: 757.5 }, { x: 133, y: 791.5 }, { x: 154, y: 807.5 }, { x: 350, y: 992.5 },
+  { x: 1454, y: 989.5 }, { x: 1757, y: 858.5 }, { x: 1753, y: 795.5 }, { x: 1315, y: 789.5 },
+  { x: 1314, y: 860.5 }, { x: 1259, y: 859.5 }, { x: 1228, y: 785.5 }, { x: 1119, y: 783.5 },
+  { x: 1149.8, y: 893.8 }, { x: 1108.4, y: 893.8 }, { x: 1043, y: 638.5 }, { x: 1069.9, y: 499.4 },
+  { x: 1070, y: 474.5 }, { x: 1065, y: 450.5 }, { x: 268, y: 447.5 }, { x: 155.4, y: 499.4 },
+  { x: 994.9, y: 499.4 }, { x: 994.9, y: 636.6 }, { x: 960, y: 725.5 }, { x: 915, y: 897.5 },
+  { x: 888, y: 898.5 }, { x: 886, y: 784.5 }, { x: 590, y: 782.5 }, { x: 472, y: 802.5 },
+  { x: 211, y: 801.5 }, { x: 181, y: 777.5 }, { x: 344, y: 777.5 }, { x: 351, y: 755.5 },
 ] as const;
 
-/** Current no-go markers translated into center-anchor space. */
+/**
+ * Inner boundaries are DEPTH-LOCK zones, not collision blockers.
+ * A character may move straight through them. On entry, its current MID
+ * front/behind state is frozen until it exits the zone, preventing a z-index
+ * flip halfway through a single crossing motion.
+ * A zone only becomes active once it has 3+ points.
+ */
 export const AMBIENT_HOUSE_INNER_BOUNDARIES = [
   [{ x: 598, y: 921.6 }],
   [{ x: 1490.3, y: 880.7 }],
 ] as const satisfies readonly (readonly AmbientHousePoint[])[];
 
-export const AMBIENT_HOUSE_AREA_IDS = [
-  "reception",
-  "artchitect",
-  "little-piner",
-  "pianohouse",
-] as const;
-
+export const AMBIENT_HOUSE_AREA_IDS = ["reception", "artchitect", "little-piner", "pianohouse"] as const;
 export type AmbientHouseAreaId = (typeof AMBIENT_HOUSE_AREA_IDS)[number];
 
 export const AMBIENT_HOUSE_AREA_LABELS: Record<AmbientHouseAreaId, string> = {
@@ -80,11 +49,6 @@ export const AMBIENT_HOUSE_AREA_LABELS: Record<AmbientHouseAreaId, string> = {
   pianohouse: "Piano House",
 };
 
-/**
- * Learner home/wander areas are authored directly in center-anchor space.
- * During arrival/transit a learner may use the global mesh; once they enter
- * their assigned area, ambient wandering can be constrained to that polygon.
- */
 export const AMBIENT_HOUSE_AREAS: Record<AmbientHouseAreaId, readonly AmbientHousePoint[]> = {
   reception: [],
   artchitect: [],
@@ -100,7 +64,6 @@ export type AmbientHouseDepthRules = {
   houseFrontAlwaysOnTop: true;
 };
 
-/** Depth thresholds are authored in CENTER-anchor Y space. */
 export const AMBIENT_HOUSE_DEPTH_RULES: AmbientHouseDepthRules = {
   groundFrontMinYExclusive: 893.8,
   groundFrontMaxYExclusive: 1022.5,
@@ -110,17 +73,11 @@ export const AMBIENT_HOUSE_DEPTH_RULES: AmbientHouseDepthRules = {
 };
 
 export function ambientMiniCharacterTopLeftFromAnchor(anchor: AmbientHousePoint): AmbientHousePoint {
-  return {
-    x: anchor.x - AMBIENT_MINI_CHARACTER.centerOffset.x,
-    y: anchor.y - AMBIENT_MINI_CHARACTER.centerOffset.y,
-  };
+  return { x: anchor.x - AMBIENT_MINI_CHARACTER.centerOffset.x, y: anchor.y - AMBIENT_MINI_CHARACTER.centerOffset.y };
 }
 
 export function ambientMiniCharacterBottomRightFromAnchor(anchor: AmbientHousePoint): AmbientHousePoint {
-  return {
-    x: anchor.x + AMBIENT_MINI_CHARACTER.centerOffset.x,
-    y: anchor.y + AMBIENT_MINI_CHARACTER.centerOffset.y,
-  };
+  return { x: anchor.x + AMBIENT_MINI_CHARACTER.centerOffset.x, y: anchor.y + AMBIENT_MINI_CHARACTER.centerOffset.y };
 }
 
 function pointOnSegment(point: AmbientHousePoint, a: AmbientHousePoint, b: AmbientHousePoint, epsilon = 1e-6) {
@@ -147,9 +104,16 @@ export function isPointInsidePolygon(point: AmbientHousePoint, polygon: readonly
   return inside;
 }
 
+/** Global collision rule: only the outer movement mesh constrains movement. */
 export function isAmbientMiniCharacterAnchorWalkable(anchor: AmbientHousePoint) {
-  if (!isPointInsidePolygon(anchor, AMBIENT_HOUSE_OUTER_BOUNDARY)) return false;
-  return !AMBIENT_HOUSE_INNER_BOUNDARIES.some((blocked) => isPointInsidePolygon(anchor, blocked));
+  return isPointInsidePolygon(anchor, AMBIENT_HOUSE_OUTER_BOUNDARY);
+}
+
+export function ambientInnerBoundaryIndexAtPoint(
+  anchor: AmbientHousePoint,
+  boundaries: readonly (readonly AmbientHousePoint[])[] = AMBIENT_HOUSE_INNER_BOUNDARIES,
+) {
+  return boundaries.findIndex((zone) => zone.length >= 3 && isPointInsidePolygon(anchor, zone));
 }
 
 export function isAmbientMiniCharacterAnchorInArea(
@@ -168,10 +132,7 @@ export function isAmbientMiniCharacterWalkableInArea(
   return isAmbientMiniCharacterAnchorWalkable(anchor) && isAmbientMiniCharacterAnchorInArea(anchor, areaId, areas);
 }
 
-export function isAmbientMiniCharacterInFrontOfMidWithRules(
-  y: number,
-  rules: AmbientHouseDepthRules,
-) {
+export function isAmbientMiniCharacterInFrontOfMidWithRules(y: number, rules: AmbientHouseDepthRules) {
   const groundFront = y > rules.groundFrontMinYExclusive && y < rules.groundFrontMaxYExclusive;
   const upperFront = Math.abs(y - rules.upperFrontY) <= rules.upperFrontTolerancePx;
   return groundFront || upperFront;
@@ -182,10 +143,7 @@ export function isAmbientMiniCharacterInFrontOfMid(y: number) {
 }
 
 export function ambientHousePointToViewport(point: AmbientHousePoint, renderedWidth: number, renderedHeight: number): AmbientHousePoint {
-  return {
-    x: (point.x / AMBIENT_HOUSE_CANVAS.width) * renderedWidth,
-    y: (point.y / AMBIENT_HOUSE_CANVAS.height) * renderedHeight,
-  };
+  return { x: (point.x / AMBIENT_HOUSE_CANVAS.width) * renderedWidth, y: (point.y / AMBIENT_HOUSE_CANVAS.height) * renderedHeight };
 }
 
 export function ambientMiniCharacterSizeToViewport(renderedWidth: number, renderedHeight: number) {
