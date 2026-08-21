@@ -205,7 +205,7 @@ export function PrototypeCharacter({
       if (override === null) return null;
       return override ? { ...baseLayer, src: override } : baseLayer;
     })
-    .filter((layer): layer is CharacterLayer => Boolean(layer));
+    .filter(Boolean) as CharacterLayer[];
   const wingAnimation = wingMotion === "arrival"
     ? "pinoriaWingArrivalHinge 6.2s cubic-bezier(.22,.72,.2,1) both"
     : wingMotion === "idle"
