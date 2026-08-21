@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { ArrivalScene } from "./arrival-scene";
 import { ChoiceScene } from "./choice-scene";
+import { DepartureScene } from "./departure-scene";
 import styles from "./tv.module.css";
 
 type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
@@ -203,7 +204,7 @@ export function PinoriaTVPrototype() {
     setMode(next);
   }
 
-  const learnerChrome = mode === "choice" || mode === "arrival";
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "departure";
 
   return (
     <main className={styles.screen}>
@@ -260,8 +261,7 @@ function Ritual() {
 }
 
 function Departure({ subject }: { subject: TVSubject }) {
-  const companion = splitCompanion(subject.companion);
-  return <SpotlightShell><div className={styles.departureLayout}><div><span className={styles.kicker}>TODAY IN PINORIA</span><h1>{subject.name} đã có một ngày thật dài ✦</h1><p>{companion.name !== "—" ? `${companion.name} cùng ${subject.name} đã hoàn thành một buổi ở Nhà PINO.` : `${subject.name} đã hoàn thành một buổi ở Nhà PINO.`}</p><div className={styles.changeList}><span>Companion</span><strong>{subject.companion}</strong><span>Journey</span><strong>{subject.path}</strong><span>Room</span><strong>{subject.room}</strong></div></div><Character subject={subject} /><div className={styles.departureHero}><Artifact label="Water Drop II" /><span>FEATURED DEPARTURE MOMENT</span></div></div><div className={styles.exitLine}>{subject.name}{companion.name !== "—" ? ` + ${companion.name}` : ""} → Reception → Exit</div></SpotlightShell>;
+  return <DepartureScene subject={subject} />;
 }
 
 function News({ subject }: { subject: TVSubject }) {
