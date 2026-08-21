@@ -4,13 +4,13 @@
 Internal management portal for PINO Team.
 
 ## Source of truth
-Notion. The Next.js app is the experience/application layer.
+Authority is per domain. Core owns Staff/Workforce runtime; Notion remains only for explicitly unmigrated domains. The Next.js app is the experience/application layer.
 
-## Canonical databases
-- Staff
-- Staff Schedule
-- Shift Master
-- Timesheet
+## Canonical Workforce
+- Core Staff Records
+- Core Shift Operations
+- Core Availability
+- Core Timekeeping
 - Training Progress
 - Path Programs
 

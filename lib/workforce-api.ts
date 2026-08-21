@@ -1,0 +1,18 @@
+export interface StaffProfile{id:string;displayLabel:string;status:string;email:string|null;mobile:string|null;legalAddress:string|null}
+export interface WorkforceContext{userId:string;staffMemberId:string;email:string;centers:Array<{id:string;key:string;displayName:string;timeZone:string}>;termWeeks:Array<{id:string;termId:string;centerId:string;code:string;ordinal:number;startDate:string;endDate:string}>}
+export interface Assignment{id:string;centerId:string;workDate:string;shiftTemplateId:string;termWeekId:string|null;status:string;shift:{code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}|null}
+export interface TimekeepingSession{id:string;centerId:string;assignmentId:string|null;workDate:string;status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null}
+export interface Availability{id:string;centerId:string;termWeekId:string;status:"DRAFT"|"SUBMITTED";version:number;items:Array<{workDate:string;shiftTemplateId:string}>}
+export interface ShiftTemplate{id:string;code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}
+export class WorkforceApiError extends Error{constructor(readonly status:number,readonly code:string,message:string,readonly details?:unknown){super(message);}}
+async function request<T>(path:string,init:RequestInit={}):Promise<T>{const response=await fetch(`/api/workforce${path}`,{cache:"no-store",...init,headers:{...(init.body?{"content-type":"application/json"}:{}),...init.headers}});const body=await response.json() as T&{error?:{code:string;message:string;details?:unknown}};if(!response.ok)throw new WorkforceApiError(response.status,body.error?.code??"UNKNOWN",body.error?.message??"Không thể hoàn tất yêu cầu.",body.error?.details);return body;}
+const query=(value:Record<string,string|undefined>)=>new URLSearchParams(Object.entries(value).filter((entry):entry is[string,string]=>Boolean(entry[1]))).toString();
+export const workforceApi={
+ context:()=>request<{data:WorkforceContext}>("/context"),profile:()=>request<{data:StaffProfile}>("/profile"),updateProfile:(body:{email?:string;mobile?:string;legalAddress?:string})=>request<{data:StaffProfile}>("/profile",{method:"PATCH",body:JSON.stringify(body)}),
+ schedule:(body:{centerId:string;startDate:string;endDate:string;termWeekId?:string})=>request<{data:Assignment[]}>(`/schedule?${query(body)}`),
+ availabilityDraft:(termWeekId:string)=>request<{data:{submission:Availability;templates:ShiftTemplate[]}}>("/availability/draft",{method:"POST",body:JSON.stringify({termWeekId})}),
+ replaceAvailability:(body:{submissionId:string;expectedVersion:number;items:Array<{workDate:string;shiftTemplateId:string}>})=>request<{data:Availability}>("/availability/items",{method:"PUT",body:JSON.stringify(body)}),
+ submitAvailability:(body:{submissionId:string;expectedVersion:number})=>request<{data:Availability}>("/availability/submit",{method:"POST",body:JSON.stringify(body)}),
+ currentTimekeeping:()=>request<{data:TimekeepingSession|null}>("/timekeeping/current"),history:(body:{centerId:string;startDate:string;endDate:string})=>request<{data:TimekeepingSession[]}>(`/timekeeping/history?${query(body)}`),
+ checkIn:(centerId:string,assignmentId?:string|null)=>request<{data:TimekeepingSession}>("/timekeeping/check-in",{method:"POST",body:JSON.stringify({centerId,assignmentId:assignmentId??null})}),checkOut:()=>request<{data:TimekeepingSession}>("/timekeeping/check-out",{method:"POST",body:"{}"}),
+};
