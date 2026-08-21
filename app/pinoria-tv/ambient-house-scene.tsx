@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AMBIENT_HOUSE_CANVAS,
   AMBIENT_HOUSE_INNER_BOUNDARIES,
@@ -11,10 +11,11 @@ import {
   type AmbientHousePoint,
 } from "./ambient-house-navmesh";
 import { AMBIENT_HOUSE_FRONT_MASK } from "./ambient-house-front-mask";
+import { AMBIENT_HOUSE_MID_MASK } from "./ambient-house-mid-mask";
 import { PrototypeCharacter } from "./prototype-assets";
 
 const START: AmbientHousePoint = { x: 300, y: 850 };
-const ASSET_VERSION = "ambient-house-v1-20260821c";
+const ASSET_VERSION = "ambient-house-v1-20260821d";
 
 const AMBIENT_HOUSE_ASSETS = {
   back: `https://assets.pinohouse.art/draft/1.png?v=${ASSET_VERSION}`,
@@ -25,8 +26,8 @@ const AMBIENT_HOUSE_ASSETS = {
 type LayerName = keyof typeof AMBIENT_HOUSE_ASSETS;
 type LayerState = "loading" | "loaded" | "error";
 
-function points(points: readonly AmbientHousePoint[]) {
-  return points.map((point) => `${point.x},${point.y}`).join(" ");
+function points(items: readonly AmbientHousePoint[]) {
+  return items.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
 function HouseLayer({
@@ -57,9 +58,10 @@ function HouseLayer({
       onError={onError}
       style={{
         position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
+        left: 0,
+        top: 0,
+        width: AMBIENT_HOUSE_CANVAS.width,
+        height: AMBIENT_HOUSE_CANVAS.height,
         objectFit: "fill",
         zIndex,
         pointerEvents: "none",
@@ -67,12 +69,13 @@ function HouseLayer({
         ...(alphaMask ? {
           WebkitMaskImage: `url(${alphaMask})`,
           maskImage: `url(${alphaMask})`,
-          WebkitMaskSize: "100% 100%",
-          maskSize: "100% 100%",
+          WebkitMaskSize: `${AMBIENT_HOUSE_CANVAS.width}px ${AMBIENT_HOUSE_CANVAS.height}px`,
+          maskSize: `${AMBIENT_HOUSE_CANVAS.width}px ${AMBIENT_HOUSE_CANVAS.height}px`,
           WebkitMaskRepeat: "no-repeat",
           maskRepeat: "no-repeat",
           WebkitMaskPosition: "0 0",
           maskPosition: "0 0",
+          maskMode: "alpha",
         } : null),
       }}
     />
@@ -80,8 +83,10 @@ function HouseLayer({
 }
 
 export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
+  const [stageScale, setStageScale] = useState(0);
   const [anchor, setAnchor] = useState<AmbientHousePoint>(START);
   const [navVisible, setNavVisible] = useState(debug);
   const [layerState, setLayerState] = useState<Record<LayerName, LayerState>>({
@@ -89,8 +94,33 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
     mid: "loading",
     front: "loading",
   });
+
   const charInFrontOfMid = isAmbientMiniCharacterInFrontOfMid(anchor.y);
   const walkable = isAmbientMiniCharacterAnchorWalkable(anchor);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    function updateScale() {
+      const rect = viewport.getBoundingClientRect();
+      const next = Math.min(
+        rect.width / AMBIENT_HOUSE_CANVAS.width,
+        rect.height / AMBIENT_HOUSE_CANVAS.height,
+      );
+      setStageScale(Number.isFinite(next) && next > 0 ? next : 1);
+    }
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(viewport);
+    window.addEventListener("resize", updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
 
   function markLayer(name: LayerName, state: LayerState) {
     setLayerState((current) => (current[name] === state ? current : { ...current, [name]: state }));
@@ -98,19 +128,20 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
 
   const charStyle = useMemo(() => ({
     position: "absolute" as const,
-    left: `${(anchor.x / AMBIENT_HOUSE_CANVAS.width) * 100}%`,
-    top: `${(anchor.y / AMBIENT_HOUSE_CANVAS.height) * 100}%`,
-    width: `${(AMBIENT_MINI_CHARACTER.width / AMBIENT_HOUSE_CANVAS.width) * 100}%`,
-    height: `${(AMBIENT_MINI_CHARACTER.height / AMBIENT_HOUSE_CANVAS.height) * 100}%`,
+    left: anchor.x,
+    top: anchor.y,
+    width: AMBIENT_MINI_CHARACTER.width,
+    height: AMBIENT_MINI_CHARACTER.height,
     zIndex: 30,
     filter: "drop-shadow(0 8px 8px rgba(0,0,0,.32))",
-    cursor: "grab",
+    cursor: debug ? "grab" : "default",
     touchAction: "none",
-  }), [anchor]);
+  }), [anchor, debug]);
 
   function canonicalPoint(clientX: number, clientY: number) {
     const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return null;
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+
     return {
       x: ((clientX - rect.left) / rect.width) * AMBIENT_HOUSE_CANVAS.width,
       y: ((clientY - rect.top) / rect.height) * AMBIENT_HOUSE_CANVAS.height,
@@ -120,111 +151,155 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
   function tryMove(clientX: number, clientY: number) {
     const target = canonicalPoint(clientX, clientY);
     if (!target) return;
+
     const next = {
       x: Math.round((target.x - AMBIENT_MINI_CHARACTER.width / 2) * 10) / 10,
       y: Math.round((target.y - AMBIENT_MINI_CHARACTER.height / 2) * 10) / 10,
     };
+
     if (isAmbientMiniCharacterAnchorWalkable(next)) setAnchor(next);
   }
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!debug) return;
     draggingRef.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
     tryMove(event.clientX, event.clientY);
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!draggingRef.current) return;
+    if (!debug || !draggingRef.current) return;
     tryMove(event.clientX, event.clientY);
   }
 
   function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (!debug) return;
     draggingRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
+  const scaledWidth = AMBIENT_HOUSE_CANVAS.width * stageScale;
+  const scaledHeight = AMBIENT_HOUSE_CANVAS.height * stageScale;
+
   return (
-    <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", overflow: "hidden", background: "#101711" }}>
+    <div
+      ref={viewportRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "grid",
+        placeItems: "center",
+        overflow: "hidden",
+        background: "#101711",
+      }}
+    >
       <div
-        ref={stageRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={() => { draggingRef.current = false; }}
         style={{
           position: "relative",
-          width: "100vw",
-          maxWidth: "calc(100vh * 1.8333333)",
-          aspectRatio: "1980 / 1080",
+          width: scaledWidth,
+          height: scaledHeight,
+          flex: "0 0 auto",
           overflow: "hidden",
-          userSelect: "none",
-          touchAction: "none",
-          background: "#3d4939",
-          isolation: "isolate",
         }}
       >
-        <HouseLayer
-          src={AMBIENT_HOUSE_ASSETS.back}
-          zIndex={10}
-          label="HOUSE BACK"
-          onLoad={() => markLayer("back", "loaded")}
-          onError={() => markLayer("back", "error")}
-        />
+        <div
+          ref={stageRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => { draggingRef.current = false; }}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: AMBIENT_HOUSE_CANVAS.width,
+            height: AMBIENT_HOUSE_CANVAS.height,
+            transform: `scale(${stageScale})`,
+            transformOrigin: "0 0",
+            overflow: "hidden",
+            userSelect: "none",
+            touchAction: "none",
+            background: "#3d4939",
+            isolation: "isolate",
+          }}
+        >
+          <HouseLayer
+            src={AMBIENT_HOUSE_ASSETS.back}
+            zIndex={10}
+            label="HOUSE BACK"
+            onLoad={() => markLayer("back", "loaded")}
+            onError={() => markLayer("back", "error")}
+          />
 
-        <HouseLayer
-          src={AMBIENT_HOUSE_ASSETS.mid}
-          zIndex={charInFrontOfMid ? 20 : 40}
-          label="HOUSE MID"
-          onLoad={() => markLayer("mid", "loaded")}
-          onError={() => markLayer("mid", "error")}
-        />
+          <HouseLayer
+            src={AMBIENT_HOUSE_ASSETS.mid}
+            zIndex={charInFrontOfMid ? 20 : 40}
+            label="HOUSE MID"
+            onLoad={() => markLayer("mid", "loaded")}
+            onError={() => markLayer("mid", "error")}
+            alphaMask={AMBIENT_HOUSE_MID_MASK}
+          />
 
-        <div style={charStyle} data-ambient-mini-character>
-          <PrototypeCharacter size="100%" wingMotion="idle" />
-        </div>
+          <div style={charStyle} data-ambient-mini-character>
+            <PrototypeCharacter size="100%" wingMotion="idle" />
+          </div>
 
-        <HouseLayer
-          src={AMBIENT_HOUSE_ASSETS.front}
-          zIndex={50}
-          label="HOUSE FRONT"
-          onLoad={() => markLayer("front", "loaded")}
-          onError={() => markLayer("front", "error")}
-          alphaMask={AMBIENT_HOUSE_FRONT_MASK}
-        />
+          <HouseLayer
+            src={AMBIENT_HOUSE_ASSETS.front}
+            zIndex={50}
+            label="HOUSE FRONT"
+            onLoad={() => markLayer("front", "loaded")}
+            onError={() => markLayer("front", "error")}
+            alphaMask={AMBIENT_HOUSE_FRONT_MASK}
+          />
 
-        {navVisible ? (
-          <svg viewBox="0 0 1980 1080" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 60, pointerEvents: "none" }}>
-            <polygon points={points(AMBIENT_HOUSE_OUTER_BOUNDARY)} fill="#5ae38d22" stroke="#72f0a0" strokeWidth="5" />
-            {AMBIENT_HOUSE_INNER_BOUNDARIES.map((blocked, index) => (
-              <polygon key={index} points={points(blocked)} fill="#ff5c5c33" stroke="#ff7878" strokeWidth="5" />
-            ))}
-            <line x1="0" y1="836.3" x2="1980" y2="836.3" stroke="#f7ca66" strokeWidth="3" strokeDasharray="14 10" opacity=".75" />
-            <line x1="0" y1="441.9" x2="1980" y2="441.9" stroke="#77bfff" strokeWidth="3" strokeDasharray="14 10" opacity=".75" />
-          </svg>
-        ) : null}
-
-        <div style={{ position: "absolute", left: 20, top: 20, zIndex: 80, padding: "12px 14px", borderRadius: 14, background: "#101711dd", color: "#f7f0df", fontFamily: "system-ui, sans-serif", fontSize: 13, lineHeight: 1.45, border: "1px solid #ffffff20", pointerEvents: "auto", maxWidth: 330 }}>
-          <strong style={{ display: "block", letterSpacing: ".08em", fontSize: 11, color: "#e9c66d" }}>AMBIENT NAVMESH DEBUG · REAL HOUSE</strong>
-          <span>x {anchor.x.toFixed(1)} · y {anchor.y.toFixed(1)}</span><br />
-          <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · {charInFrontOfMid ? "CHAR trước MID" : "MID trước CHAR"}</span><br />
-          <span style={{ display: "block", marginTop: 5, fontSize: 11, opacity: .78 }}>
-            BACK {layerState.back} · MID {layerState.mid} · FRONT {layerState.front}
-          </span>
-          <span style={{ display: "block", marginTop: 3, fontSize: 10, opacity: .62 }}>
-            FRONT alpha mask: active
-          </span>
-          {(layerState.back === "error" || layerState.mid === "error" || layerState.front === "error") ? (
-            <span style={{ display: "block", marginTop: 5, color: "#ffb0a8", fontSize: 11 }}>
-              Asset lỗi tải: mở URL R2 trực tiếp để kiểm tra object/public access. Cache-bust đã bật.
-            </span>
+          {navVisible ? (
+            <svg
+              width={AMBIENT_HOUSE_CANVAS.width}
+              height={AMBIENT_HOUSE_CANVAS.height}
+              viewBox={`0 0 ${AMBIENT_HOUSE_CANVAS.width} ${AMBIENT_HOUSE_CANVAS.height}`}
+              preserveAspectRatio="none"
+              style={{ position: "absolute", left: 0, top: 0, zIndex: 60, pointerEvents: "none" }}
+            >
+              <polygon points={points(AMBIENT_HOUSE_OUTER_BOUNDARY)} fill="#5ae38d22" stroke="#72f0a0" strokeWidth="5" />
+              {AMBIENT_HOUSE_INNER_BOUNDARIES.map((blocked, index) => (
+                <polygon key={index} points={points(blocked)} fill="#ff5c5c33" stroke="#ff7878" strokeWidth="5" />
+              ))}
+              <line x1="0" y1="836.3" x2="1980" y2="836.3" stroke="#f7ca66" strokeWidth="3" strokeDasharray="14 10" opacity=".75" />
+              <line x1="0" y1="441.9" x2="1980" y2="441.9" stroke="#77bfff" strokeWidth="3" strokeDasharray="14 10" opacity=".75" />
+            </svg>
           ) : null}
-          <button onClick={(event) => { event.stopPropagation(); setNavVisible((value) => !value); }} style={{ marginTop: 8, border: "1px solid #ffffff2a", borderRadius: 999, background: "#ffffff10", color: "inherit", padding: "5px 9px", cursor: "pointer" }}>
-            {navVisible ? "Ẩn navmesh" : "Hiện navmesh"}
-          </button>
-        </div>
 
-        <div style={{ position: "absolute", right: 20, bottom: 18, zIndex: 80, borderRadius: 999, background: "#101711cc", color: "#e7ddca", padding: "8px 12px", fontFamily: "system-ui, sans-serif", fontSize: 12, pointerEvents: "none" }}>
-          Kéo mini-char để test boundary · FRONT luôn ở trên
+          {debug ? (
+            <>
+              <div style={{ position: "absolute", left: 20, top: 20, zIndex: 80, padding: "12px 14px", borderRadius: 14, background: "#101711dd", color: "#f7f0df", fontFamily: "system-ui, sans-serif", fontSize: 13, lineHeight: 1.45, border: "1px solid #ffffff20", pointerEvents: "auto", maxWidth: 360 }}>
+                <strong style={{ display: "block", letterSpacing: ".08em", fontSize: 11, color: "#e9c66d" }}>AMBIENT NAVMESH DEBUG · REAL HOUSE</strong>
+                <span>CANVAS 1980×1080 · scale {stageScale.toFixed(4)}</span><br />
+                <span>x {anchor.x.toFixed(1)} · y {anchor.y.toFixed(1)}</span><br />
+                <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · {charInFrontOfMid ? "CHAR trước MID" : "MID trước CHAR"}</span><br />
+                <span style={{ display: "block", marginTop: 5, fontSize: 11, opacity: .78 }}>
+                  BACK {layerState.back} · MID {layerState.mid} · FRONT {layerState.front}
+                </span>
+                <span style={{ display: "block", marginTop: 3, fontSize: 10, opacity: .62 }}>
+                  MID alpha mask: active · FRONT alpha mask: active
+                </span>
+                {(layerState.back === "error" || layerState.mid === "error" || layerState.front === "error") ? (
+                  <span style={{ display: "block", marginTop: 5, color: "#ffb0a8", fontSize: 11 }}>
+                    Asset lỗi tải: mở URL R2 trực tiếp để kiểm tra object/public access.
+                  </span>
+                ) : null}
+                <button onClick={(event) => { event.stopPropagation(); setNavVisible((value) => !value); }} style={{ marginTop: 8, border: "1px solid #ffffff2a", borderRadius: 999, background: "#ffffff10", color: "inherit", padding: "5px 9px", cursor: "pointer" }}>
+                  {navVisible ? "Ẩn navmesh" : "Hiện navmesh"}
+                </button>
+              </div>
+
+              <div style={{ position: "absolute", right: 20, bottom: 18, zIndex: 80, borderRadius: 999, background: "#101711cc", color: "#e7ddca", padding: "8px 12px", fontFamily: "system-ui, sans-serif", fontSize: 12, pointerEvents: "none" }}>
+                Kéo mini-char để test boundary · logical stage 1980×1080
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
