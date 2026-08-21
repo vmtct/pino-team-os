@@ -62,18 +62,21 @@ export function AmbientToDepartureTransition({
             left:var(--actor-left);
             top:var(--actor-top);
             width:var(--actor-width);
+            transform:scale(1);
             filter:brightness(1) drop-shadow(0 8px 12px rgba(0,0,0,.22));
           }
           48% {
             left:var(--actor-left);
             top:var(--actor-top);
-            width:calc(var(--actor-width) * 1.18);
+            width:var(--actor-width);
+            transform:scale(1.18);
             filter:brightness(1.28) drop-shadow(0 0 24px rgba(249,224,145,.32)) drop-shadow(0 14px 18px rgba(0,0,0,.24));
           }
           100% {
             left:${TARGET_LEFT}%;
             top:${TARGET_TOP}%;
             width:${TARGET_WIDTH}%;
+            transform:scale(1);
             filter:brightness(1.04) drop-shadow(0 28px 30px rgba(0,0,0,.30));
           }
         }
@@ -134,7 +137,7 @@ export function AmbientToDepartureTransition({
           ["--actor-width" as string]: `${checkout.widthPct}%`,
           transformOrigin: "50% 50%",
           pointerEvents: "none",
-          willChange: "left,top,width,filter",
+          willChange: "left,top,width,transform,filter",
         }}
       >
         <PrototypeCharacter subjectId={subject.id} size="100%" wingMotion="idle" />
