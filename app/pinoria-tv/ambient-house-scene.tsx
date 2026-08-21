@@ -10,12 +10,10 @@ import {
   isAmbientMiniCharacterInFrontOfMid,
   type AmbientHousePoint,
 } from "./ambient-house-navmesh";
-import { AMBIENT_HOUSE_FRONT_MASK } from "./ambient-house-front-mask";
-import { AMBIENT_HOUSE_MID_MASK } from "./ambient-house-mid-mask";
 import { PrototypeCharacter } from "./prototype-assets";
 
 const START: AmbientHousePoint = { x: 300, y: 850 };
-const ASSET_VERSION = "ambient-house-v1-20260821d";
+const ASSET_VERSION = "ambient-house-v1-20260821e";
 
 const AMBIENT_HOUSE_ASSETS = {
   back: `https://assets.pinohouse.art/draft/1.png?v=${ASSET_VERSION}`,
@@ -25,6 +23,11 @@ const AMBIENT_HOUSE_ASSETS = {
 
 type LayerName = keyof typeof AMBIENT_HOUSE_ASSETS;
 type LayerState = "loading" | "loaded" | "error";
+type LayerInfo = {
+  state: LayerState;
+  width?: number;
+  height?: number;
+};
 
 function points(items: readonly AmbientHousePoint[]) {
   return items.map((point) => `${point.x},${point.y}`).join(" ");
@@ -36,14 +39,12 @@ function HouseLayer({
   label,
   onLoad,
   onError,
-  alphaMask,
 }: {
   src: string;
   zIndex: number;
   label: string;
-  onLoad: () => void;
+  onLoad: (width: number, height: number) => void;
   onError: () => void;
-  alphaMask?: string;
 }) {
   return (
     <img
@@ -54,7 +55,7 @@ function HouseLayer({
       decoding="async"
       loading="eager"
       referrerPolicy="no-referrer"
-      onLoad={onLoad}
+      onLoad={(event) => onLoad(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)}
       onError={onError}
       style={{
         position: "absolute",
@@ -62,21 +63,9 @@ function HouseLayer({
         top: 0,
         width: AMBIENT_HOUSE_CANVAS.width,
         height: AMBIENT_HOUSE_CANVAS.height,
-        objectFit: "fill",
         zIndex,
         pointerEvents: "none",
         userSelect: "none",
-        ...(alphaMask ? {
-          WebkitMaskImage: `url(${alphaMask})`,
-          maskImage: `url(${alphaMask})`,
-          WebkitMaskSize: `${AMBIENT_HOUSE_CANVAS.width}px ${AMBIENT_HOUSE_CANVAS.height}px`,
-          maskSize: `${AMBIENT_HOUSE_CANVAS.width}px ${AMBIENT_HOUSE_CANVAS.height}px`,
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "0 0",
-          maskPosition: "0 0",
-          maskMode: "alpha",
-        } : null),
       }}
     />
   );
@@ -86,13 +75,13 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
-  const [stageScale, setStageScale] = useState(0);
+  const [stageScale, setStageScale] = useState(1);
   const [anchor, setAnchor] = useState<AmbientHousePoint>(START);
   const [navVisible, setNavVisible] = useState(debug);
-  const [layerState, setLayerState] = useState<Record<LayerName, LayerState>>({
-    back: "loading",
-    mid: "loading",
-    front: "loading",
+  const [layerInfo, setLayerInfo] = useState<Record<LayerName, LayerInfo>>({
+    back: { state: "loading" },
+    mid: { state: "loading" },
+    front: { state: "loading" },
   });
 
   const charInFrontOfMid = isAmbientMiniCharacterInFrontOfMid(anchor.y);
@@ -122,8 +111,18 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
     };
   }, []);
 
-  function markLayer(name: LayerName, state: LayerState) {
-    setLayerState((current) => (current[name] === state ? current : { ...current, [name]: state }));
+  function markLayerLoaded(name: LayerName, width: number, height: number) {
+    setLayerInfo((current) => ({
+      ...current,
+      [name]: { state: "loaded", width, height },
+    }));
+  }
+
+  function markLayerError(name: LayerName) {
+    setLayerInfo((current) => ({
+      ...current,
+      [name]: { state: "error" },
+    }));
   }
 
   const charStyle = useMemo(() => ({
@@ -140,11 +139,13 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
 
   function canonicalPoint(clientX: number, clientY: number) {
     const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+    if (!rect || stageScale <= 0) return null;
 
+    // The entire Ambient House is authored in one canonical 1980x1080 space.
+    // Only the finished stage is uniformly scaled to fit the physical TV viewport.
     return {
-      x: ((clientX - rect.left) / rect.width) * AMBIENT_HOUSE_CANVAS.width,
-      y: ((clientY - rect.top) / rect.height) * AMBIENT_HOUSE_CANVAS.height,
+      x: (clientX - rect.left) / stageScale,
+      y: (clientY - rect.top) / stageScale,
     } satisfies AmbientHousePoint;
   }
 
@@ -182,6 +183,10 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
 
   const scaledWidth = AMBIENT_HOUSE_CANVAS.width * stageScale;
   const scaledHeight = AMBIENT_HOUSE_CANVAS.height * stageScale;
+  const sourceMismatch = (Object.entries(layerInfo) as [LayerName, LayerInfo][]).some(([, info]) =>
+    info.state === "loaded" &&
+    (info.width !== AMBIENT_HOUSE_CANVAS.width || info.height !== AMBIENT_HOUSE_CANVAS.height),
+  );
 
   return (
     <div
@@ -200,7 +205,6 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
           position: "relative",
           width: scaledWidth,
           height: scaledHeight,
-          flex: "0 0 auto",
           overflow: "hidden",
         }}
       >
@@ -229,17 +233,16 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
             src={AMBIENT_HOUSE_ASSETS.back}
             zIndex={10}
             label="HOUSE BACK"
-            onLoad={() => markLayer("back", "loaded")}
-            onError={() => markLayer("back", "error")}
+            onLoad={(width, height) => markLayerLoaded("back", width, height)}
+            onError={() => markLayerError("back")}
           />
 
           <HouseLayer
             src={AMBIENT_HOUSE_ASSETS.mid}
             zIndex={charInFrontOfMid ? 20 : 40}
             label="HOUSE MID"
-            onLoad={() => markLayer("mid", "loaded")}
-            onError={() => markLayer("mid", "error")}
-            alphaMask={AMBIENT_HOUSE_MID_MASK}
+            onLoad={(width, height) => markLayerLoaded("mid", width, height)}
+            onError={() => markLayerError("mid")}
           />
 
           <div style={charStyle} data-ambient-mini-character>
@@ -250,18 +253,16 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
             src={AMBIENT_HOUSE_ASSETS.front}
             zIndex={50}
             label="HOUSE FRONT"
-            onLoad={() => markLayer("front", "loaded")}
-            onError={() => markLayer("front", "error")}
-            alphaMask={AMBIENT_HOUSE_FRONT_MASK}
+            onLoad={(width, height) => markLayerLoaded("front", width, height)}
+            onError={() => markLayerError("front")}
           />
 
           {navVisible ? (
             <svg
               width={AMBIENT_HOUSE_CANVAS.width}
               height={AMBIENT_HOUSE_CANVAS.height}
-              viewBox={`0 0 ${AMBIENT_HOUSE_CANVAS.width} ${AMBIENT_HOUSE_CANVAS.height}`}
-              preserveAspectRatio="none"
-              style={{ position: "absolute", left: 0, top: 0, zIndex: 60, pointerEvents: "none" }}
+              viewBox="0 0 1980 1080"
+              style={{ position: "absolute", left: 0, top: 0, width: 1980, height: 1080, zIndex: 60, pointerEvents: "none" }}
             >
               <polygon points={points(AMBIENT_HOUSE_OUTER_BOUNDARY)} fill="#5ae38d22" stroke="#72f0a0" strokeWidth="5" />
               {AMBIENT_HOUSE_INNER_BOUNDARIES.map((blocked, index) => (
@@ -274,20 +275,22 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
 
           {debug ? (
             <>
-              <div style={{ position: "absolute", left: 20, top: 20, zIndex: 80, padding: "12px 14px", borderRadius: 14, background: "#101711dd", color: "#f7f0df", fontFamily: "system-ui, sans-serif", fontSize: 13, lineHeight: 1.45, border: "1px solid #ffffff20", pointerEvents: "auto", maxWidth: 360 }}>
-                <strong style={{ display: "block", letterSpacing: ".08em", fontSize: 11, color: "#e9c66d" }}>AMBIENT NAVMESH DEBUG · REAL HOUSE</strong>
-                <span>CANVAS 1980×1080 · scale {stageScale.toFixed(4)}</span><br />
+              <div style={{ position: "absolute", left: 20, top: 20, zIndex: 80, padding: "12px 14px", borderRadius: 14, background: "#101711dd", color: "#f7f0df", fontFamily: "system-ui, sans-serif", fontSize: 13, lineHeight: 1.45, border: "1px solid #ffffff20", pointerEvents: "auto", maxWidth: 410 }}>
+                <strong style={{ display: "block", letterSpacing: ".08em", fontSize: 11, color: "#e9c66d" }}>AMBIENT NAVMESH DEBUG · CANONICAL</strong>
+                <span>CANVAS 1980×1080 · uniform scale {stageScale.toFixed(4)}</span><br />
                 <span>x {anchor.x.toFixed(1)} · y {anchor.y.toFixed(1)}</span><br />
-                <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · {charInFrontOfMid ? "CHAR trước MID" : "MID trước CHAR"}</span><br />
-                <span style={{ display: "block", marginTop: 5, fontSize: 11, opacity: .78 }}>
-                  BACK {layerState.back} · MID {layerState.mid} · FRONT {layerState.front}
+                <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · {charInFrontOfMid ? "CHAR trước MID" : "MID trước CHAR"}</span>
+                {(Object.entries(layerInfo) as [LayerName, LayerInfo][]).map(([name, info]) => (
+                  <span key={name} style={{ display: "block", marginTop: 3, fontSize: 11, opacity: .78 }}>
+                    {name.toUpperCase()} {info.state}{info.width && info.height ? ` · source ${info.width}×${info.height}` : ""}
+                  </span>
+                ))}
+                <span style={{ display: "block", marginTop: 5, fontSize: 10, opacity: .7 }}>
+                  DIRECT SOURCE ALPHA · no synthetic masks · coordinates 1:1
                 </span>
-                <span style={{ display: "block", marginTop: 3, fontSize: 10, opacity: .62 }}>
-                  MID alpha mask: active · FRONT alpha mask: active
-                </span>
-                {(layerState.back === "error" || layerState.mid === "error" || layerState.front === "error") ? (
+                {sourceMismatch ? (
                   <span style={{ display: "block", marginTop: 5, color: "#ffb0a8", fontSize: 11 }}>
-                    Asset lỗi tải: mở URL R2 trực tiếp để kiểm tra object/public access.
+                    Source dimension mismatch: asset phải là đúng 1980×1080.
                   </span>
                 ) : null}
                 <button onClick={(event) => { event.stopPropagation(); setNavVisible((value) => !value); }} style={{ marginTop: 8, border: "1px solid #ffffff2a", borderRadius: 999, background: "#ffffff10", color: "inherit", padding: "5px 9px", cursor: "pointer" }}>
@@ -296,7 +299,7 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
               </div>
 
               <div style={{ position: "absolute", right: 20, bottom: 18, zIndex: 80, borderRadius: 999, background: "#101711cc", color: "#e7ddca", padding: "8px 12px", fontFamily: "system-ui, sans-serif", fontSize: 12, pointerEvents: "none" }}>
-                Kéo mini-char để test boundary · logical stage 1980×1080
+                1980×1080 canonical · raw pixel coordinates · FRONT luôn ở trên
               </div>
             </>
           ) : null}
