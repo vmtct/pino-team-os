@@ -43,3 +43,11 @@ h2 { margin: 0; font-size: 19px; }
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #d99a7f;outline-offset:2px}
 @media(max-width:900px){.founder-shell{grid-template-columns:1fr}.founder-nav{display:none}.founder-main{padding:26px 22px 84px}.founder-mobile-nav{position:fixed;z-index:5;display:flex;bottom:0;left:0;right:0;overflow:auto;background:#27231f;color:#fff;padding:9px}.founder-mobile-nav a{white-space:nowrap;padding:10px;font-size:12px}.ops-grid{grid-template-columns:1fr 1fr}.syllabus-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.founder-main{padding:20px 14px 82px}.founder-header{align-items:flex-start}.founder-header h1{font-size:28px}.ops-grid,.syllabus-grid,.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.record,.registration{display:grid}.record>div:last-child{text-align:left}.record-actions{justify-content:flex-start}.ops-dialog{padding:17px}.metrics .metric-card strong{font-size:25px}}
+
+/* Pinoria Ambient mini-character viewport: 164px-wide square render cropped to 115px high (~29.9% bottom crop). */
+[data-ambient-mini-character] {
+  overflow: hidden;
+}
+[data-ambient-mini-character] img[src*="Char_body_painting_girl.png"] {
+  display: none !important;
+}
