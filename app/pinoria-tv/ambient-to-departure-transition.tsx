@@ -20,13 +20,6 @@ type DepartureTransitionSubject = {
   name: string;
 };
 
-const ASSET_VERSION = "ambient-checkout-transition-v5";
-const ASSETS = {
-  back: `/api/pinoria-prototype/ambient-house-asset?layer=back&v=${ASSET_VERSION}`,
-  mid: `/api/pinoria-prototype/ambient-house-asset?layer=mid&v=${ASSET_VERSION}`,
-  front: `/api/pinoria-prototype/ambient-house-asset?layer=front&v=${ASSET_VERSION}`,
-};
-
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
 }
@@ -38,36 +31,6 @@ function lerp(from: number, to: number, t: number) {
 function smoothstep(t: number) {
   const value = clamp01(t);
   return value * value * (3 - 2 * value);
-}
-
-function MiniReplica({ actor, subjectId }: { actor: FrozenAmbientActor; subjectId: string }) {
-  return (
-    <div
-      data-checkout-frozen-mini
-      style={{
-        position: "absolute",
-        left: `${actor.leftPct}%`,
-        top: `${actor.topPct}%`,
-        width: `${actor.widthPct}%`,
-        aspectRatio: "1 / 1",
-        pointerEvents: "none",
-      }}
-    >
-      <div
-        data-ambient-mini-character
-        data-ambient-mini-body="on"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          ["--ambient-mini-name" as string]: '""',
-        }}
-      >
-        <PrototypeCharacter subjectId={subjectId} size="100%" wingMotion="off" />
-      </div>
-    </div>
-  );
 }
 
 export function AmbientToDepartureTransition({
@@ -103,14 +66,14 @@ export function AmbientToDepartureTransition({
       heightPct: 15.2,
     };
 
-  // Keep the first beat completely still so the eye sees the same mini-character,
-  // then make the growth unmistakable for most of the transition.
+  // The actual House stays mounted underneath this overlay. We only animate the
+  // captured learner replica, so checkout never re-requests/repaints BACK/MID/FRONT.
   const moveT = smoothstep((progress - 0.16) / 0.78);
   const leftPct = lerp(checkout.leftPct, DEPARTURE_HERO_TARGET.leftPct, moveT);
   const topPct = lerp(checkout.topPct, DEPARTURE_HERO_TARGET.topPct, moveT);
   const widthPct = lerp(checkout.widthPct, DEPARTURE_HERO_TARGET.widthPct, moveT);
 
-  const dimOpacity = 0.72 * smoothstep((progress - 0.04) / 0.18);
+  const dimOpacity = 0.72 * smoothstep((progress - 0.025) / 0.16);
   const miniOpacity = 1 - smoothstep((progress - 0.62) / 0.18);
   const fullOpacity = smoothstep((progress - 0.62) / 0.18);
   const labelIn = smoothstep((progress - 0.08) / 0.13);
@@ -121,21 +84,18 @@ export function AmbientToDepartureTransition({
   return (
     <div
       data-ambient-to-departure
-      style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#0d140f", color: "#fff" }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 20,
+        overflow: "hidden",
+        background: "transparent",
+        color: "#fff",
+        pointerEvents: "none",
+      }}
     >
-      <PinoriaStage dataStage="checkout-transition" style={{ background: "#101711" }}>
-        <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />
-        <img src={ASSETS.mid} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 10, pointerEvents: "none" }} />
-
-        {actors.filter((actor) => actor.id !== subject.id).map((actor) => (
-          <div key={actor.id} style={{ position: "absolute", inset: 0, zIndex: 14, opacity: .62, filter: "brightness(.58) saturate(.72)" }}>
-            <MiniReplica actor={actor} subjectId={actor.id} />
-          </div>
-        ))}
-
-        <img src={ASSETS.front} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 20, pointerEvents: "none" }} />
-
-        {/* Intentional: checkout uses only a global dim. No circular spotlight. */}
+      <PinoriaStage dataStage="checkout-transition" style={{ background: "transparent" }}>
+        {/* Global dim lands directly on the already-hot persistent Ambient House. */}
         <div
           data-checkout-dim
           style={{
