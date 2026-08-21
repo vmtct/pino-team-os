@@ -27,13 +27,7 @@ export const AMBIENT_HOUSE_OUTER_BOUNDARY: readonly AmbientHousePoint[] = [
   { x: 211, y: 801.5 }, { x: 181, y: 777.5 }, { x: 344, y: 777.5 }, { x: 351, y: 755.5 },
 ] as const;
 
-/**
- * Inner boundaries are DEPTH-LOCK zones, not collision blockers.
- * A character may move straight through them. On entry, its current MID
- * front/behind state is frozen until it exits the zone, preventing a z-index
- * flip halfway through a single crossing motion.
- * A zone only becomes active once it has 3+ points.
- */
+/** Legacy depth-lock geometry retained only for compatibility while MID is disabled. */
 export const AMBIENT_HOUSE_INNER_BOUNDARIES = [
   [{ x: 598, y: 921.6 }],
   [{ x: 1490.3, y: 880.7 }],
@@ -49,11 +43,34 @@ export const AMBIENT_HOUSE_AREA_LABELS: Record<AmbientHouseAreaId, string> = {
   pianohouse: "Piano House",
 };
 
+/** Founder-approved canonical learner designated areas. */
 export const AMBIENT_HOUSE_AREAS: Record<AmbientHouseAreaId, readonly AmbientHousePoint[]> = {
-  reception: [],
-  artchitect: [],
-  "little-piner": [],
-  pianohouse: [],
+  reception: [
+    { x: 168, y: 738 },
+    { x: 467, y: 728 },
+    { x: 466, y: 915 },
+    { x: 333, y: 1002 },
+    { x: 111, y: 787 },
+  ],
+  artchitect: [
+    { x: 488, y: 723 },
+    { x: 482, y: 991 },
+    { x: 885, y: 995 },
+    { x: 881, y: 764 },
+  ],
+  "little-piner": [
+    { x: 1270, y: 773 },
+    { x: 1281, y: 994 },
+    { x: 1472, y: 1002 },
+    { x: 1782, y: 872 },
+    { x: 1768, y: 768 },
+  ],
+  pianohouse: [
+    { x: 276, y: 426 },
+    { x: 122, y: 507 },
+    { x: 794, y: 515 },
+    { x: 784, y: 419 },
+  ],
 };
 
 export type AmbientHouseDepthRules = {
@@ -64,6 +81,7 @@ export type AmbientHouseDepthRules = {
   houseFrontAlwaysOnTop: true;
 };
 
+/** Legacy MID depth config retained only for compatibility while MID is disabled. */
 export const AMBIENT_HOUSE_DEPTH_RULES: AmbientHouseDepthRules = {
   groundFrontMinYExclusive: 893.8,
   groundFrontMaxYExclusive: 1022.5,
