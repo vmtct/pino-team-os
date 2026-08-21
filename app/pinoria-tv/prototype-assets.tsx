@@ -1,6 +1,10 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  prototypeCharacterProfileAssetUrls,
+  prototypeCharacterProfileForSubject,
+} from "./prototype-character-profiles";
 
 export type PrototypeCharacterSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type PrototypeWingMotion = "off" | "idle" | "arrival";
@@ -89,6 +93,7 @@ export const prototypeChoiceAssets = {
 
 export const prototypeAssetUrls = [
   ...prototypeCharacterManifest.layers.map((layer) => layer.src),
+  ...prototypeCharacterProfileAssetUrls,
   prototypeCompanionManifest.src,
   ...prototypeFloatingProps.map((prop) => prop.src),
 ];
@@ -169,14 +174,38 @@ export function PrototypeCharacter({
   style,
   hiddenSlots = [],
   wingMotion = "idle",
+  subjectId,
 }: {
   size?: number | string;
   style?: CSSProperties;
   hiddenSlots?: PrototypeCharacterSlot[];
   wingMotion?: PrototypeWingMotion;
+  subjectId?: string;
 }) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [inferredSubjectId, setInferredSubjectId] = useState<string | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (subjectId) {
+      setInferredSubjectId(undefined);
+      return;
+    }
+    const host = rootRef.current?.closest<HTMLElement>("[data-ambient-runtime-character]");
+    const next = host?.dataset.ambientRuntimeCharacter || undefined;
+    setInferredSubjectId((current) => current === next ? current : next);
+  }, [subjectId]);
+
+  const resolvedSubjectId = subjectId ?? inferredSubjectId;
+  const profile = prototypeCharacterProfileForSubject(resolvedSubjectId);
   const hidden = new Set(hiddenSlots);
-  const layers = [...prototypeCharacterManifest.layers].sort((a, b) => a.order - b.order);
+  const layers = [...prototypeCharacterManifest.layers]
+    .sort((a, b) => a.order - b.order)
+    .map((baseLayer) => {
+      const override = profile?.layers[baseLayer.slot];
+      if (override === null) return null;
+      return override ? { ...baseLayer, src: override } : baseLayer;
+    })
+    .filter((layer): layer is CharacterLayer => Boolean(layer));
   const wingAnimation = wingMotion === "arrival"
     ? "pinoriaWingArrivalHinge 6.2s cubic-bezier(.22,.72,.2,1) both"
     : wingMotion === "idle"
@@ -184,7 +213,13 @@ export function PrototypeCharacter({
       : undefined;
 
   return (
-    <div aria-label="Nhân vật Pinoria mẫu" style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}>
+    <div
+      ref={rootRef}
+      aria-label="Nhân vật Pinoria mẫu"
+      data-pinoria-character-subject={resolvedSubjectId ?? "default"}
+      data-pinoria-character-profile={profile?.id ?? "golden-slice-character-v1"}
+      style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}
+    >
       <style>{`
         @keyframes pinoriaWingIdleHinge {
           0%,100% {
