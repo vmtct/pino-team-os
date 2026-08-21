@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import savedAreas from "./ambient-house-areas.saved.json";
+import savedEmergence from "./ambient-house-emergence.saved.json";
 import savedGraph from "./ambient-house-motion-graph.saved.json";
 import {
   AMBIENT_HOUSE_CANVAS,
@@ -22,6 +23,7 @@ import { PrototypeCharacter } from "./prototype-assets";
 type AreaId = "reception" | "artchitect" | "little-piner" | "pianohouse";
 type AreaBoundary = { id: AreaId; label: string; points: AmbientHousePoint[] };
 type AreaSnapshot = { canvas: { width: number; height: number }; areas: AreaBoundary[] };
+type EmergenceSnapshot = { canvas: { width: number; height: number }; pin: AmbientHousePoint & { laneId: string } };
 
 export type AmbientRuntimeSubject = {
   id: string;
@@ -65,13 +67,14 @@ type AgentState = {
 
 const GRAPH = canonicalizeAmbientMotionGraph(savedGraph as AmbientMotionGraphRaw);
 const AREA_SNAPSHOT = savedAreas as AreaSnapshot;
+const EMERGENCE_SNAPSHOT = savedEmergence as EmergenceSnapshot;
 const ASSET_VERSION = "ambient-house-1920-20260821-runtime-area-v1";
 const ASSETS = {
   back: `/api/pinoria-prototype/ambient-house-asset?layer=back&v=${ASSET_VERSION}`,
   mid: `/api/pinoria-prototype/ambient-house-asset?layer=mid&v=${ASSET_VERSION}`,
   front: `/api/pinoria-prototype/ambient-house-asset?layer=front&v=${ASSET_VERSION}`,
 };
-const ENTRY_REFERENCE: AmbientHousePoint = { x: 170, y: 931 };
+const ENTRY_REFERENCE: AmbientHousePoint = EMERGENCE_SNAPSHOT.pin;
 const Z_BEHIND_BASE = 1_000;
 const Z_MID = 500_000_000;
 const Z_FRONT_BASE = 600_000_000;
