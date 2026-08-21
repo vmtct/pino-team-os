@@ -96,6 +96,7 @@ export const prototypeAssetUrls = [
 function StandardLayer({ layer }: { layer: CharacterLayer }) {
   return (
     <img
+      data-pinoria-character-slot={layer.slot}
       src={layer.src}
       alt=""
       draggable={false}
@@ -240,7 +241,7 @@ export function PrototypeCharacter({
         }
 
         return (
-          <div key={layer.slot} data-pinoria-wing-layer="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <div key={layer.slot} data-pinoria-wing-layer="true" data-pinoria-character-slot="back" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
             <WingHalf side="left" src={layer.src} animation={wingAnimation} />
             <WingHalf side="right" src={layer.src} animation={wingAnimation} />
           </div>
