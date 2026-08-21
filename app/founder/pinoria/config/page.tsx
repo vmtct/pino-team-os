@@ -7,6 +7,11 @@ const configCards = [
     source: "app/pinoria-tv/ambient-house-motion-graph.saved.json",
   },
   {
+    title: "Emergence Pin",
+    body: "Điểm mini-char xuất hiện sau Chọn nhanh. Pin luôn snap trực tiếp lên một horizontal lane và được dùng làm runtime entry.",
+    source: "app/pinoria-tv/ambient-house-emergence.saved.json",
+  },
+  {
     title: "Area Boundaries",
     body: "Reception, Artchitect, Little Piner and Piano House learner-area polygons for later runtime assignment/constrained wandering.",
     source: "app/pinoria-tv/ambient-house-areas.saved.json",
@@ -21,7 +26,7 @@ export default function PinoriaAmbientConfigPage() {
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".12em", opacity: .58 }}>PINORIA · BACK OFFICE</div>
           <h1 style={{ margin: "5px 0 4px", fontSize: 28 }}>Ambient House Config</h1>
           <p style={{ margin: 0, maxWidth: 760, color: "#667067", lineHeight: 1.55 }}>
-            Công cụ cấu hình dài hạn cho motion graph và area boundary. Editor vẫn dùng cùng source-of-truth JSON đã lưu trong code để có thể mở lại và điều chỉnh sau này.
+            Công cụ cấu hình dài hạn cho motion graph, emergence pin và area boundary. Editor dùng cùng source-of-truth JSON đã lưu trong code để có thể mở lại và điều chỉnh sau này.
           </p>
         </div>
         <Link
@@ -46,7 +51,7 @@ export default function PinoriaAmbientConfigPage() {
       <div style={{ border: "1px solid #dfe5df", borderRadius: 16, overflow: "hidden", background: "#101711" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", background: "#f5f7f5", borderBottom: "1px solid #dfe5df", fontSize: 11 }}>
           <strong>Configurator</strong>
-          <span style={{ color: "#687169" }}>Motion Graph · Area Boundaries · Save to Code</span>
+          <span style={{ color: "#687169" }}>Motion Graph · Emergence Pin · Area Boundaries · Save to Code</span>
         </div>
         <iframe
           src="/pinoria-tv/ambient-debug"
