@@ -1,0 +1,35 @@
+/* Ambient House mini-character presentation rules.
+ * The mini-character wrapper remains 164x115 on the canonical 1980x1080 stage.
+ * The inner 164x164 character is clipped by 29.9% at the bottom while the
+ * wrapper itself stays overflow-visible so the learner name can sit above it.
+ */
+[data-ambient-mini-character] {
+  overflow: visible !important;
+}
+
+[data-ambient-mini-character] > [aria-label="Nhân vật Pinoria mẫu"] {
+  clip-path: inset(0 0 29.9% 0);
+}
+
+[data-ambient-mini-character] img[src*="Char_body_painting_girl.png"],
+[data-ambient-mini-character] [data-pinoria-wing-layer="true"] {
+  display: none !important;
+}
+
+[data-ambient-mini-character]::before {
+  content: var(--ambient-mini-name, "Bơ");
+  position: absolute;
+  left: 50%;
+  top: -21px;
+  transform: translateX(-50%);
+  z-index: 100;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-text-stroke: 0.55px rgba(0, 0, 0, 0.95);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
+}
