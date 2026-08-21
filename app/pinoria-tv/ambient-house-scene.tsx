@@ -244,8 +244,8 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
         >
           <CanvasHouseLayer layer="back" src={AMBIENT_HOUSE_ASSETS.back} zIndex={10} onReport={reportLayer} />
 
-          <div style={charStyle} data-ambient-mini-character>
-            <PrototypeCharacter size={164} hiddenSlots={["body", "back"]} wingMotion="off" />
+          <div style={charStyle} data-ambient-mini-character data-ambient-mini-body="on">
+            <PrototypeCharacter size={164} wingMotion="off" />
           </div>
 
           <CanvasHouseLayer layer="front" src={AMBIENT_HOUSE_ASSETS.front} zIndex={50} onReport={reportLayer} />
@@ -268,7 +268,8 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
               <span>CANVAS 1920×1080 · scale {stageScale.toFixed(4)}</span><br />
               <span>center x {anchor.x.toFixed(1)} · y {anchor.y.toFixed(1)}</span><br />
               <span>TL x {topLeft.x.toFixed(1)} · y {topLeft.y.toFixed(1)}</span><br />
-              <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · BACK → CHAR → FRONT</span>
+              <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · BODY/BACK 60% · HEAD 164×115</span><br />
+              <span>BACK → CHAR → FRONT</span>
               {(Object.entries(layerInfo) as [LayerName, LayerInfo][]).map(([name, info]) => (
                 <span key={name} style={{ display: "block", marginTop: 3, fontSize: 11, opacity: .82 }}>
                   {name.toUpperCase()} {info.state}{info.width && info.height ? ` · ${info.width}×${info.height}` : ""}{typeof info.transparentPct === "number" ? ` · α0 ${info.transparentPct.toFixed(1)}%` : ""}
