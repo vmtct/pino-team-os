@@ -1,5 +1,6 @@
 "use client";
 
+import savedEmergence from "./ambient-house-emergence.saved.json";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { ChoiceScene } from "./choice-scene";
 import { PrototypeCharacter } from "./prototype-assets";
@@ -18,10 +19,24 @@ type ChoiceTransitionSubject = {
   fruit: number;
 };
 
+type EmergenceSnapshot = {
+  pin: { laneId: string; x: number; y: number };
+};
+
+const EMERGENCE = (savedEmergence as EmergenceSnapshot).pin;
+const MINI_WIDTH = 164;
+const MINI_HEIGHT = 115;
+const MINI_CENTER_X = 82;
+const MINI_CENTER_Y = 57.5;
+const emergeLeftPct = ((EMERGENCE.x - MINI_CENTER_X) / 1920) * 100;
+const emergeTopPct = ((EMERGENCE.y - MINI_CENTER_Y) / 1080) * 100;
+const emergeWidthPct = (MINI_WIDTH / 1920) * 100;
+
 export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSubject }) {
   return (
     <div
       data-pinoria-choice-to-ambient
+      data-emergence-lane={EMERGENCE.laneId}
       style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#101711", color: "#fff" }}
     >
       <style>{`
@@ -140,9 +155,9 @@ export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSub
         style={{
           position: "absolute",
           zIndex: 40,
-          left: "4.583vw",
-          top: "80.88vh",
-          width: "8.542vw",
+          left: `${emergeLeftPct}%`,
+          top: `${emergeTopPct}%`,
+          width: `${emergeWidthPct}%`,
           minWidth: 90,
           aspectRatio: "1 / 1",
           transformOrigin: "50% 50%",
