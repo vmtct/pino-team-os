@@ -61,6 +61,8 @@ export function PinoriaTVPrototype() {
   const [mode, setMode] = useState<Mode>("ambient");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
+  const [ambientSubject, setAmbientSubject] = useState<TVSubject>(defaultSubject);
+  const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
   const modeRef = useRef<Mode>("ambient");
@@ -123,6 +125,16 @@ export function PinoriaTVPrototype() {
       setSubject(event.subject);
       setMode(event.mode);
       setReplayLabel(event.replay ? `PHÁT LẠI · ${event.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
+
+      if (!event.replay && event.mode === "arrival") {
+        setAmbientSubject(event.subject);
+        setAmbientCharacterVisible(true);
+      }
+      if (!event.replay && event.mode === "departure") {
+        // Current prototype has one ambient learner actor. Normal checkout removes
+        // that actor after the departure presentation; replay never mutates ambient presence.
+        setAmbientCharacterVisible(false);
+      }
 
       if (event.mode === "arrival" && !event.replay) {
         sequenceTimer.current = window.setTimeout(() => {
@@ -214,7 +226,12 @@ export function PinoriaTVPrototype() {
       >
         {replayLabel ?? "TV PROTOTYPE · CORE RELAY SIMULATION · RECEPTION_TV"}
       </div>
-      {mode === "ambient" ? <AmbientHouseRuntime subject={subject} /> : null}
+      {mode === "ambient" ? (
+        <div data-ambient-character-visible={ambientCharacterVisible ? "true" : "false"} style={{ position: "absolute", inset: 0 }}>
+          <style>{`[data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
+          <AmbientHouseRuntime subject={ambientSubject} />
+        </div>
+      ) : null}
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <ChoiceScene subject={subject} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
@@ -235,17 +252,6 @@ export function PinoriaTVPrototype() {
 
 function SpotlightShell({ children }: { children: React.ReactNode }) {
   return <div className={styles.spotlight}><div className={styles.spotlightGlow} />{children}</div>;
-}
-
-function splitCompanion(value: string) {
-  if (!value || value.startsWith("Chưa có")) return { name: "—", detail: "Chưa có Hộ Linh" };
-  const parts = value.split(" · ");
-  return { name: parts[0] ?? "—", detail: parts.join(" · ") };
-}
-
-function Character({ subject, compact = false }: { subject: TVSubject; compact?: boolean }) {
-  const companion = splitCompanion(subject.companion);
-  return <div className={`${styles.character} ${compact ? styles.characterCompact : ""}`}><div className={styles.hat}>⌁</div><div className={styles.face}>{subject.name.toUpperCase()}</div><div className={styles.bodyMark}>P</div>{companion.name !== "—" ? <div className={styles.companionFull}><span>{companion.name.slice(0,1)}</span><small>{companion.detail}</small></div> : null}</div>;
 }
 
 function Artifact({ label, muted = false }: { label: string; muted?: boolean }) {
