@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ASSETS = {
-  back: "https://assets.pinohouse.art/draft/Back.png",
-  mid: "https://assets.pinohouse.art/draft/Mid.png",
-  front: "https://assets.pinohouse.art/draft/Front.png",
+  back: "https://assets.pinohouse.art/draft/HouseBack.png",
+  mid: "https://assets.pinohouse.art/draft/HouseMid.png",
+  front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
 
 type LayerName = keyof typeof ASSETS;
