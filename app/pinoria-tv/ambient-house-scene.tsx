@@ -10,10 +10,11 @@ import {
   isAmbientMiniCharacterInFrontOfMid,
   type AmbientHousePoint,
 } from "./ambient-house-navmesh";
+import { AMBIENT_HOUSE_FRONT_MASK } from "./ambient-house-front-mask";
 import { PrototypeCharacter } from "./prototype-assets";
 
 const START: AmbientHousePoint = { x: 300, y: 850 };
-const ASSET_VERSION = "ambient-house-v1-20260821b";
+const ASSET_VERSION = "ambient-house-v1-20260821c";
 
 const AMBIENT_HOUSE_ASSETS = {
   back: `https://assets.pinohouse.art/draft/1.png?v=${ASSET_VERSION}`,
@@ -34,12 +35,14 @@ function HouseLayer({
   label,
   onLoad,
   onError,
+  alphaMask,
 }: {
   src: string;
   zIndex: number;
   label: string;
   onLoad: () => void;
   onError: () => void;
+  alphaMask?: string;
 }) {
   return (
     <img
@@ -61,6 +64,16 @@ function HouseLayer({
         zIndex,
         pointerEvents: "none",
         userSelect: "none",
+        ...(alphaMask ? {
+          WebkitMaskImage: `url(${alphaMask})`,
+          maskImage: `url(${alphaMask})`,
+          WebkitMaskSize: "100% 100%",
+          maskSize: "100% 100%",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "0 0",
+          maskPosition: "0 0",
+        } : null),
       }}
     />
   );
@@ -147,6 +160,7 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
           userSelect: "none",
           touchAction: "none",
           background: "#3d4939",
+          isolation: "isolate",
         }}
       >
         <HouseLayer
@@ -175,6 +189,7 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
           label="HOUSE FRONT"
           onLoad={() => markLayer("front", "loaded")}
           onError={() => markLayer("front", "error")}
+          alphaMask={AMBIENT_HOUSE_FRONT_MASK}
         />
 
         {navVisible ? (
@@ -194,6 +209,9 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
           <span>{walkable ? "✓ Đi được" : "× Ngoài vùng"} · {charInFrontOfMid ? "CHAR trước MID" : "MID trước CHAR"}</span><br />
           <span style={{ display: "block", marginTop: 5, fontSize: 11, opacity: .78 }}>
             BACK {layerState.back} · MID {layerState.mid} · FRONT {layerState.front}
+          </span>
+          <span style={{ display: "block", marginTop: 3, fontSize: 10, opacity: .62 }}>
+            FRONT alpha mask: active
           </span>
           {(layerState.back === "error" || layerState.mid === "error" || layerState.front === "error") ? (
             <span style={{ display: "block", marginTop: 5, color: "#ffb0a8", fontSize: 11 }}>
