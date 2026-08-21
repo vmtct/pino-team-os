@@ -1,11 +1,15 @@
-name: Production E2E Smoke
+name: Production Perimeter Smoke
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -15,13 +19,21 @@ jobs:
           bun-version: 1.2.15
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Install Playwright browser
-        run: bunx playwright install --with-deps chromium
-      - name: Run Playwright E2E against production
+      - name: Run unauthenticated production perimeter smoke
         env:
-          E2E_BASE_URL: https://pino-team-os.minhtri-van42.workers.dev
-          STAFF_E2E_USERNAME: ${{ secrets.STAFF_E2E_USERNAME }}
+          E2E_BASE_URL: https://tos.pinohouse.art
         run: bun run test:e2e
+      - name: Record authenticated rollout boundary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Production smoke scope"
+            echo
+            echo "- Automated here: unauthenticated Cloudflare Access perimeter, retired team hostname, and disabled workers.dev bypass."
+            echo "- Explicit rollout-only: authenticated TOS identity, self context, and own-schedule reads through an authorized Access session."
+            echo "- BO is excluded until its domain and Access application are explicitly activated."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

@@ -10,7 +10,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env.E2E_BASE_URL || "https://pino-team-os.minhtri-van42.workers.dev",
+    baseURL: process.env.E2E_BASE_URL || "https://tos.pinohouse.art",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

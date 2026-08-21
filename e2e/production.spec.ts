@@ -1,35 +1,61 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type APIResponse } from "@playwright/test";
 
-test.describe("PINO Team OS production", () => {
-  test("home renders successfully", async ({ page }) => {
-    const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-    expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle(/.+/);
-    await expect(page.locator("body")).not.toBeEmpty();
+const CANONICAL_TOS_ORIGIN = "https://tos.pinohouse.art";
+const RETIRED_TEAM_ORIGIN = "https://team.pinohouse.art";
+const LEGACY_WORKERS_DEV_ORIGIN = "https://pino-team-os.minhtri-van42.workers.dev";
+const configuredOrigin = new URL(process.env.E2E_BASE_URL ?? CANONICAL_TOS_ORIGIN).origin;
+
+function expectCloudflareAccessChallenge(response: APIResponse) {
+  expect([302, 303, 307, 401, 403]).toContain(response.status());
+  expect(response.status()).not.toBe(200);
+
+  const location = response.headers()["location"];
+  const challenge = response.headers()["www-authenticate"] ?? "";
+  if (response.status() >= 300 && response.status() < 400) {
+    expect(location).toBeTruthy();
+    const login = new URL(location!);
+    expect(login.protocol).toBe("https:");
+    expect(login.hostname).toMatch(/\.cloudflareaccess\.com$/);
+    expect(login.pathname).toContain("/cdn-cgi/access/login/tos.pinohouse.art");
+  } else {
+    expect(challenge).toContain("Cloudflare-Access");
+  }
+}
+
+test.describe("PINO Team OS canonical production perimeter", () => {
+  test("the configured target is the canonical TOS origin", () => {
+    expect(configuredOrigin).toBe(CANONICAL_TOS_ORIGIN);
   });
 
-  test("health endpoint is available", async ({ request }) => {
-    const response = await request.get("/api/health");
-    expect(response.status()).toBe(200);
-  });
+  for (const pathname of ["/", "/api/workforce/context"]) {
+    test(`${pathname} requires Cloudflare Access`, async ({ request }) => {
+      const response = await request.get(pathname, { maxRedirects: 0 });
+      expectCloudflareAccessChallenge(response);
+    });
+  }
 
-  test("invalid staff token is rejected", async ({ request }) => {
-    const response = await request.get("/schedule?t=definitely-not-a-real-staff-key", { maxRedirects: 0 });
-    expect([200, 404]).toContain(response.status());
-    if (response.status() === 200) {
-      const body = await response.text();
-      expect(body).toContain("Staff link không hợp lệ");
+  test("the retired team hostname is absent and never redirects", async ({ request }) => {
+    try {
+      const response = await request.get(RETIRED_TEAM_ORIGIN, {
+        failOnStatusCode: false,
+        maxRedirects: 0,
+        timeout: 10_000,
+      });
+      expect(response.status()).toBeGreaterThanOrEqual(400);
+      expect(response.headers()["location"]).toBeUndefined();
+    } catch (error) {
+      expect(String(error)).toMatch(/ENOTFOUND|ERR_NAME_NOT_RESOLVED|getaddrinfo|Could not resolve/i);
     }
   });
 
-  test("live staff token renders current schedule", async ({ page }) => {
-    const username = process.env.STAFF_E2E_USERNAME;
-    test.skip(!username, "STAFF_E2E_USERNAME is not configured");
-    const response = await page.goto(`/schedule?t=${encodeURIComponent(username!)}`, { waitUntil: "domcontentloaded" });
-    expect(response?.status()).toBe(200);
-    await expect(page.locator("body")).toContainText("Văn Minh Trị");
-    await expect(page.locator("body")).toContainText("26B(11)");
-    await expect(page.locator("body")).toContainText("09:30 — 11:30");
-    await expect(page.locator("body")).toContainText("S2");
+  test("the public workers.dev hostname is not an application bypass", async ({ request }) => {
+    const response = await request.get(LEGACY_WORKERS_DEV_ORIGIN, {
+      failOnStatusCode: false,
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBeGreaterThanOrEqual(400);
   });
+
+  // BO intentionally has no automated production assertion until its domain and Access app are live.
+  // Authenticated TOS self-context checks likewise remain an explicit authorized rollout smoke.
 });
