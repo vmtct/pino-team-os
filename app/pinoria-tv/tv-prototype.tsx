@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import { AmbientToDepartureTransition, AMBIENT_TO_DEPARTURE_MS, type FrozenAmbientActor } from "./ambient-to-departure-transition";
 import { ArrivalScene } from "./arrival-scene";
 import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS } from "./choice-to-ambient-scene";
 import { DepartureScene } from "./departure-scene";
 import styles from "./tv.module.css";
 
-type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure-transition" | "departure" | "news";
 type TVSubject = {
   id: string;
   name: string;
@@ -37,7 +38,7 @@ const RELAY_URL = "/api/pinoria-prototype/tv-relay";
 const ARRIVAL_MS = 6500;
 const DEPARTURE_MS = 9000;
 
-const modes: { id: Mode; label: string }[] = [
+const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
   { id: "ambient", label: "Ambient" },
   { id: "arrival", label: "Arrival" },
   { id: "choice", label: "Quick Choice" },
@@ -56,12 +57,34 @@ const defaultSubject: TVSubject = {
   fruit: 2,
 };
 
+function captureAmbientActors(): FrozenAmbientActor[] {
+  const screen = document.querySelector<HTMLElement>("[data-pinoria-tv-screen]");
+  const screenRect = screen?.getBoundingClientRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  if (!screenRect.width || !screenRect.height) return [];
+
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
+    .map((element) => {
+      const id = element.dataset.ambientRuntimeCharacter;
+      if (!id) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        id,
+        leftPct: ((rect.left - screenRect.left) / screenRect.width) * 100,
+        topPct: ((rect.top - screenRect.top) / screenRect.height) * 100,
+        widthPct: (rect.width / screenRect.width) * 100,
+        heightPct: (rect.height / screenRect.height) * 100,
+      } satisfies FrozenAmbientActor;
+    })
+    .filter((value): value is FrozenAmbientActor => value !== null);
+}
+
 export function PinoriaTVPrototype() {
   const [mode, setMode] = useState<Mode>("ambient");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
   const [ambientSubject, setAmbientSubject] = useState<TVSubject>(defaultSubject);
   const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
+  const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
   const modeRef = useRef<Mode>("ambient");
@@ -92,7 +115,8 @@ export function PinoriaTVPrototype() {
     }
 
     async function heartbeat() {
-      await post({ op: "heartbeat", surfaceId: SURFACE_ID, mode: modeRef.current });
+      const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current;
+      await post({ op: "heartbeat", surfaceId: SURFACE_ID, mode: relayMode });
     }
 
     async function finishEvent(id: number) {
@@ -122,20 +146,15 @@ export function PinoriaTVPrototype() {
       }
 
       setSubject(event.subject);
-      setMode(event.mode);
       setReplayLabel(event.replay ? `PHÁT LẠI · ${event.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
 
       if (!event.replay && event.mode === "arrival") {
         setAmbientSubject(event.subject);
         setAmbientCharacterVisible(true);
       }
-      if (!event.replay && event.mode === "departure") {
-        // Current prototype has one ambient learner actor. Normal checkout removes
-        // that actor after the departure presentation; replay never mutates ambient presence.
-        setAmbientCharacterVisible(false);
-      }
 
       if (event.mode === "arrival" && !event.replay) {
+        setMode("arrival");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
           setMode("choice");
@@ -147,6 +166,22 @@ export function PinoriaTVPrototype() {
         return;
       }
 
+      if (event.mode === "departure" && !event.replay) {
+        const actors = captureAmbientActors();
+        setFrozenActors(actors);
+        setAmbientCharacterVisible(false);
+        setMode("departure-transition");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          setMode("departure");
+          sequenceTimer.current = window.setTimeout(() => {
+            void finishEvent(event.id);
+          }, DEPARTURE_MS);
+        }, AMBIENT_TO_DEPARTURE_MS);
+        return;
+      }
+
+      setMode(event.mode);
       const duration = event.mode === "departure" ? DEPARTURE_MS : ARRIVAL_MS;
       sequenceTimer.current = window.setTimeout(() => {
         void finishEvent(event.id);
@@ -190,15 +225,16 @@ export function PinoriaTVPrototype() {
   }, []);
 
   useEffect(() => {
+    const relayMode = mode === "departure-transition" ? "departure" : mode;
     void fetch(RELAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ op: "heartbeat", surfaceId: SURFACE_ID, mode }),
+      body: JSON.stringify({ op: "heartbeat", surfaceId: SURFACE_ID, mode: relayMode }),
       cache: "no-store",
     }).catch(() => undefined);
   }, [mode]);
 
-  function selectReviewMode(next: Mode) {
+  function selectReviewMode(next: Exclude<Mode, "departure-transition">) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
     const id = activeEventId.current;
     if (id !== null) {
@@ -215,10 +251,10 @@ export function PinoriaTVPrototype() {
     setMode(next);
   }
 
-  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "departure";
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "departure-transition" || mode === "departure";
 
   return (
-    <main className={styles.screen}>
+    <main data-pinoria-tv-screen className={styles.screen}>
       <div
         className={styles.prototypeTag}
         style={learnerChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .32, background: "#161a15aa" } : undefined}
@@ -234,6 +270,7 @@ export function PinoriaTVPrototype() {
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
+      {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
       {mode === "departure" ? <Departure subject={subject} /> : null}
       {mode === "news" ? <News subject={subject} /> : null}
 
