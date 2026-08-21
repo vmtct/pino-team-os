@@ -6,6 +6,7 @@ import { AmbientToDepartureTransition, AMBIENT_TO_DEPARTURE_MS, type FrozenAmbie
 import { ArrivalScene } from "./arrival-scene";
 import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS } from "./choice-to-ambient-scene";
 import { DepartureScene } from "./departure-scene";
+import { fitPinoriaStageRect } from "./pinoria-stage";
 import styles from "./tv.module.css";
 
 type Mode = "ambient" | "arrival" | "choice" | "ritual" | "departure-transition" | "departure" | "news";
@@ -59,24 +60,33 @@ const defaultSubject: TVSubject = {
 
 function captureAmbientActors(): FrozenAmbientActor[] {
   const screen = document.querySelector<HTMLElement>("[data-pinoria-tv-screen]");
-  const screenRect = screen?.getBoundingClientRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  const screenRect = screen?.getBoundingClientRect() ?? {
+    left: 0,
+    top: 0,
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
   if (!screenRect.width || !screenRect.height) return [];
+
+  const stageRect = fitPinoriaStageRect({
+    left: screenRect.left,
+    top: screenRect.top,
+    width: screenRect.width,
+    height: screenRect.height,
+  });
 
   return Array.from(document.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
     .map((element) => {
       const id = element.dataset.ambientRuntimeCharacter;
       if (!id) return null;
-      // Capture the actual square character registration rather than the 164x115
-      // movement viewport. This keeps the checkout spotlight and lift aligned to
-      // what the learner is visibly seeing on screen.
       const visual = element.querySelector<HTMLElement>("[data-pinoria-character-subject]") ?? element;
       const rect = visual.getBoundingClientRect();
       return {
         id,
-        leftPct: ((rect.left - screenRect.left) / screenRect.width) * 100,
-        topPct: ((rect.top - screenRect.top) / screenRect.height) * 100,
-        widthPct: (rect.width / screenRect.width) * 100,
-        heightPct: (rect.height / screenRect.height) * 100,
+        leftPct: ((rect.left - stageRect.left) / stageRect.width) * 100,
+        topPct: ((rect.top - stageRect.top) / stageRect.height) * 100,
+        widthPct: (rect.width / stageRect.width) * 100,
+        heightPct: (rect.height / stageRect.height) * 100,
       } satisfies FrozenAmbientActor;
     })
     .filter((value): value is FrozenAmbientActor => value !== null);
