@@ -38,6 +38,7 @@ const SURFACE_ID = "RECEPTION_TV";
 const RELAY_URL = "/api/pinoria-prototype/tv-relay";
 const ARRIVAL_MS = 6500;
 const DEPARTURE_MS = 9000;
+const AMBIENT_SUBJECT_HANDOFF_LEAD_MS = 180;
 
 const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
   { id: "ambient", label: "Ambient" },
@@ -101,6 +102,7 @@ export function PinoriaTVPrototype() {
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
+  const ambientSubjectTimer = useRef<number | null>(null);
   const modeRef = useRef<Mode>("ambient");
   const activeEventId = useRef<number | null>(null);
   const busyRef = useRef(false);
@@ -144,8 +146,15 @@ export function PinoriaTVPrototype() {
       }
     }
 
-    function playEvent(event: RelayEvent) {
+    function clearSequenceTimers() {
       if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+      if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
+      sequenceTimer.current = null;
+      ambientSubjectTimer.current = null;
+    }
+
+    function playEvent(event: RelayEvent) {
+      clearSequenceTimers();
 
       if (event.kind === "control") {
         setReplayLabel(null);
@@ -162,18 +171,28 @@ export function PinoriaTVPrototype() {
       setSubject(event.subject);
       setReplayLabel(event.replay ? `PHÁT LẠI · ${event.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
 
-      if (!event.replay && event.mode === "arrival") {
-        setAmbientSubject(event.subject);
-        setAmbientCharacterVisible(true);
-      }
-
       if (event.mode === "arrival" && !event.replay) {
+        // Keep the persistent House backplane mounted, but hide its actor while
+        // Arrival + Choice own the learner presentation. The House artwork and
+        // runtime stay hot behind these screens instead of remounting at handoff.
+        setAmbientCharacterVisible(false);
         setMode("arrival");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
           setMode("choice");
           setReplayLabel(null);
+
+          // Swap the runtime subject shortly before takeover so the actor is
+          // initialized at the emergence route without having time to wander away.
+          ambientSubjectTimer.current = window.setTimeout(() => {
+            if (stopped || activeEventId.current !== event.id) return;
+            setAmbientSubject(event.subject!);
+          }, Math.max(0, CHOICE_TO_AMBIENT_MS - AMBIENT_SUBJECT_HANDOFF_LEAD_MS));
+
           sequenceTimer.current = window.setTimeout(() => {
+            if (stopped || activeEventId.current !== event.id) return;
+            setAmbientSubject(event.subject!);
+            setAmbientCharacterVisible(true);
             void finishEvent(event.id);
           }, CHOICE_TO_AMBIENT_MS);
         }, ARRIVAL_MS);
@@ -234,7 +253,7 @@ export function PinoriaTVPrototype() {
       stopped = true;
       window.clearInterval(heartbeatTimer);
       window.clearInterval(pollTimer);
-      if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+      clearSequenceTimers();
     };
   }, []);
 
@@ -250,6 +269,9 @@ export function PinoriaTVPrototype() {
 
   function selectReviewMode(next: Exclude<Mode, "departure-transition">) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+    if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
+    sequenceTimer.current = null;
+    ambientSubjectTimer.current = null;
     const id = activeEventId.current;
     if (id !== null) {
       activeEventId.current = null;
@@ -266,21 +288,34 @@ export function PinoriaTVPrototype() {
   }
 
   const learnerChrome = mode === "choice" || mode === "arrival" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "choice" || mode === "departure-transition" || mode === "departure";
 
   return (
     <main data-pinoria-tv-screen className={styles.screen}>
+      <div
+        data-ambient-backplane
+        data-ambient-character-visible={ambientCharacterVisible ? "true" : "false"}
+        data-ambient-backplane-visible={ambientBackplaneVisible ? "true" : "false"}
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          opacity: ambientBackplaneVisible ? 1 : 0,
+          pointerEvents: "none",
+          transition: "opacity 120ms linear",
+        }}
+      >
+        <style>{`[data-ambient-backplane][data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
+        <AmbientHouseRuntime subject={ambientSubject} />
+      </div>
+
       <div
         className={styles.prototypeTag}
         style={learnerChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .32, background: "#161a15aa" } : undefined}
       >
         {replayLabel ?? "TV PROTOTYPE · CORE RELAY SIMULATION · RECEPTION_TV"}
       </div>
-      {mode === "ambient" ? (
-        <div data-ambient-character-visible={ambientCharacterVisible ? "true" : "false"} style={{ position: "absolute", inset: 0 }}>
-          <style>{`[data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
-          <AmbientHouseRuntime subject={ambientSubject} />
-        </div>
-      ) : null}
+
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
