@@ -26,6 +26,11 @@ type DragHandle =
   | { kind: "lane-start" | "lane-end"; id: string }
   | { kind: "connector-from" | "connector-to"; id: string }
   | null;
+type LaneMove = {
+  id: string;
+  pointerStart: AmbientHousePoint;
+  laneStart: AmbientHorizontalLane;
+} | null;
 
 type SimAgent = {
   id: number;
@@ -47,6 +52,7 @@ type SimAgent = {
 const LEARNER_NAME = "Bơ";
 const STORAGE_KEY = "pinoria:ambient-house:motion-graph:1920-v1";
 const ASSET_VERSION = "ambient-house-1920-20260821d-lane-graph";
+const LANE_CLONE_GAP_PX = 20;
 const ASSETS = {
   back: `/api/pinoria-prototype/ambient-house-asset?layer=back&v=${ASSET_VERSION}`,
   mid: `/api/pinoria-prototype/ambient-house-asset?layer=mid&v=${ASSET_VERSION}`,
@@ -132,6 +138,7 @@ export function AmbientHouseEditor() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragHandleRef = useRef<DragHandle>(null);
+  const laneMoveRef = useRef<LaneMove>(null);
   const frameRef = useRef<number | null>(null);
 
   const [scale, setScale] = useState(1);
@@ -147,7 +154,7 @@ export function AmbientHouseEditor() {
   const [showSimBody, setShowSimBody] = useState(true);
   const [simAgents, setSimAgents] = useState<SimAgent[]>([]);
   const [demo, setDemo] = useState(false);
-  const [status, setStatus] = useState("DRAW HORIZONTAL: drag left/right. Y is locked at 0°. Then draw diagonal connectors across lanes.");
+  const [status, setStatus] = useState("DRAW HORIZONTAL: drag left/right. Y is locked at 0°. Drag an existing lane body to translate it in parallel.");
 
   const canonical = useMemo(() => canonicalizeAmbientMotionGraph(draft), [draft]);
 
@@ -188,6 +195,45 @@ export function AmbientHouseEditor() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "d") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      if (!selection || selection.kind !== "lane") return;
+
+      const source = laneById(draft.horizontalLanes, selection.id);
+      if (!source) return;
+      event.preventDefault();
+
+      const lane = normalizeAmbientHorizontalLane(source);
+      const length = laneLength(lane);
+      const x1 = lane.x2 + LANE_CLONE_GAP_PX;
+      const x2 = x1 + length;
+      if (x2 > AMBIENT_HOUSE_CANVAS.width) {
+        setStatus(`Cannot clone ${lane.id}: endpoint + ${LANE_CLONE_GAP_PX}px would exceed canvas width.`);
+        return;
+      }
+
+      const id = nextId("lane", draft.horizontalLanes.map((item) => item.id));
+      const clone: AmbientHorizontalLane = {
+        id,
+        y: lane.y,
+        x1,
+        x2,
+        midLayer: lane.midLayer,
+      };
+      setDraft((current) => ({ ...current, horizontalLanes: [...current.horizontalLanes, clone] }));
+      setSelection({ kind: "lane", id });
+      setMode("lane");
+      setTestChar(null);
+      setStatus(`${id} cloned from ${lane.id} · same Y ${lane.y} · starts at previous endpoint + ${LANE_CLONE_GAP_PX}px.`);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [draft.horizontalLanes, selection]);
+
   function clientToCanonical(clientX: number, clientY: number) {
     const rect = stageRef.current?.getBoundingClientRect();
     if (!rect || scale <= 0) return null;
@@ -220,7 +266,7 @@ export function AmbientHouseEditor() {
   }
 
   function onStagePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (dragHandleRef.current || simulate) return;
+    if (dragHandleRef.current || laneMoveRef.current || simulate) return;
     const point = clientToCanonical(event.clientX, event.clientY);
     if (!point) return;
 
@@ -248,6 +294,19 @@ export function AmbientHouseEditor() {
     const point = clientToCanonical(event.clientX, event.clientY);
     if (!point) return;
 
+    const laneMove = laneMoveRef.current;
+    if (laneMove) {
+      const source = normalizeAmbientHorizontalLane(laneMove.laneStart);
+      const dxRaw = point.x - laneMove.pointerStart.x;
+      const dy = point.y - laneMove.pointerStart.y;
+      let dx = dxRaw;
+      if (source.x1 + dx < 0) dx = -source.x1;
+      if (source.x2 + dx > AMBIENT_HOUSE_CANVAS.width) dx = AMBIENT_HOUSE_CANVAS.width - source.x2;
+      const y = clamp(source.y + dy, 0, AMBIENT_HOUSE_CANVAS.height);
+      updateLane(laneMove.id, (lane) => ({ ...lane, x1: source.x1 + dx, x2: source.x2 + dx, y }));
+      return;
+    }
+
     const handle = dragHandleRef.current;
     if (handle) {
       if (handle.kind === "lane-start") {
@@ -273,6 +332,14 @@ export function AmbientHouseEditor() {
   }
 
   function onStagePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (laneMoveRef.current) {
+      const id = laneMoveRef.current.id;
+      laneMoveRef.current = null;
+      setStatus(`${id} translated in parallel · 0° preserved · length unchanged.`);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      return;
+    }
+
     if (dragHandleRef.current) {
       dragHandleRef.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
@@ -316,6 +383,19 @@ export function AmbientHouseEditor() {
     stageRef.current?.setPointerCapture(event.pointerId);
   }
 
+  function beginLaneMove(event: React.PointerEvent<SVGLineElement>, lane: AmbientHorizontalLane) {
+    event.stopPropagation();
+    if (simulate) return;
+    const point = clientToCanonical(event.clientX, event.clientY);
+    if (!point) return;
+    const normalized = normalizeAmbientHorizontalLane(lane);
+    laneMoveRef.current = { id: normalized.id, pointerStart: point, laneStart: normalized };
+    setSelection({ kind: "lane", id: normalized.id });
+    setMode("lane");
+    setTestChar(null);
+    stageRef.current?.setPointerCapture(event.pointerId);
+  }
+
   function deleteSelected() {
     if (!selection) return;
     if (selection.kind === "lane") {
@@ -352,7 +432,6 @@ export function AmbientHouseEditor() {
   }
 
   const selectedLane = selection?.kind === "lane" ? laneById(draft.horizontalLanes, selection.id) : undefined;
-
   const graphLaneById = useMemo(() => new Map(canonical.horizontalLanes.map((lane) => [lane.id, lane])), [canonical.horizontalLanes]);
 
   useEffect(() => {
@@ -429,9 +508,7 @@ export function AmbientHouseEditor() {
               const target = fromCurrent ? connector.to : connector.from;
               const atJunction = Math.hypot(agent.position.x - source.x, agent.position.y - source.y) < 4;
               if (atJunction) {
-                return startMove(agent, target, time, "connector", {
-                  targetLaneId: target.laneId,
-                });
+                return startMove(agent, target, time, "connector", { targetLaneId: target.laneId });
               }
             }
           }
@@ -448,9 +525,7 @@ export function AmbientHouseEditor() {
                 targetLaneId: target.laneId,
               });
             }
-            return startMove(agent, { x: junction.x, y: lane.y }, time, "lane", {
-              pendingConnectorId: connector.id,
-            });
+            return startMove(agent, { x: junction.x, y: lane.y }, time, "lane", { pendingConnectorId: connector.id });
           }
 
           const targetX = lane.x1 + Math.random() * Math.max(1, lane.x2 - lane.x1);
@@ -501,7 +576,6 @@ export function AmbientHouseEditor() {
 
   const testLane = testChar ? laneById(canonical.horizontalLanes, testChar.laneId) : undefined;
   const testPosition = testChar && testLane ? pointOnLane(testLane, testChar.x) : null;
-
   const behindAgents = simAgents.filter((agent) => agent.depth === "behind");
   const frontAgents = simAgents.filter((agent) => agent.depth === "front");
 
@@ -526,7 +600,12 @@ export function AmbientHouseEditor() {
           onPointerDown={onStagePointerDown}
           onPointerMove={onStagePointerMove}
           onPointerUp={onStagePointerUp}
-          onPointerCancel={() => { dragHandleRef.current = null; setDrawingLane(null); setDrawingConnector(null); }}
+          onPointerCancel={() => {
+            dragHandleRef.current = null;
+            laneMoveRef.current = null;
+            setDrawingLane(null);
+            setDrawingConnector(null);
+          }}
           style={{ position: "absolute", inset: 0, width: 1920, height: 1080, transform: `scale(${scale})`, transformOrigin: "0 0", overflow: "hidden", touchAction: "none", userSelect: "none", isolation: "isolate" }}
         >
           <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 10, pointerEvents: "none" }} />
@@ -553,8 +632,8 @@ export function AmbientHouseEditor() {
                       stroke={LANE_COLORS[lane.midLayer]}
                       strokeWidth={selected ? 10 : 7}
                       opacity={selected ? 1 : .82}
-                      style={{ pointerEvents: "auto", cursor: "pointer" }}
-                      onPointerDown={(event) => { event.stopPropagation(); setSelection({ kind: "lane", id: lane.id }); }}
+                      style={{ pointerEvents: "auto", cursor: "move" }}
+                      onPointerDown={(event) => beginLaneMove(event, lane)}
                     />
                     <text x={(lane.x1 + lane.x2) / 2} y={lane.y - 12} textAnchor="middle" fill="#fff" fontSize="15" stroke="#000" strokeWidth="3" paintOrder="stroke">
                       {lane.id} · {lane.midLayer === "front" ? "FRONT MID" : "BEHIND MID"}
@@ -606,7 +685,7 @@ export function AmbientHouseEditor() {
           <strong style={{ display: "block", fontSize: 12, letterSpacing: ".1em", color: "#f1d17b" }}>AMBIENT MOTION GRAPH EDITOR</strong>
           <div style={{ marginTop: 4, fontSize: 12, opacity: .75 }}>1920×1080 · horizontal lanes + diagonal connectors</div>
           <div style={{ marginTop: 7, padding: 8, borderRadius: 10, background: "#ffffff0b", fontSize: 11, lineHeight: 1.45 }}>
-            Horizontal = hard 0°. Connector may cross many lanes; every crossing becomes a junction. Orphan diagonal tails are excluded from canonical preview.
+            Horizontal = hard 0°. Drag lane body to move the whole lane in parallel; endpoint handles only change length. Connector crossings become junctions.
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 12 }}>
@@ -617,6 +696,12 @@ export function AmbientHouseEditor() {
             ] as const).map(([id, label]) => (
               <button key={id} onClick={() => { setMode(id); setSelection(null); setSimulate(false); }} style={{ padding: "8px 5px", borderRadius: 9, border: "1px solid #ffffff24", background: mode === id ? "#f0d076" : "#ffffff10", color: mode === id ? "#1d251e" : "#fff", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>{label}</button>
             ))}
+          </div>
+
+          <div style={{ marginTop: 10, padding: 8, borderRadius: 9, background: "#ffffff08", fontSize: 11, lineHeight: 1.45 }}>
+            <strong>Lane shortcuts</strong><br />
+            Drag lane body → parallel translate, preserving 0° + length.<br />
+            Ctrl+D → clone selected lane on the same Y; new start X = previous end X + {LANE_CLONE_GAP_PX}px.
           </div>
 
           <div style={{ marginTop: 13, fontSize: 10, fontWeight: 800, letterSpacing: ".1em", opacity: .66 }}>NEW LANE DEFAULT DEPTH</div>
