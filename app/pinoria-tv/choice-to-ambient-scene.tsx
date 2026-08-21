@@ -1,7 +1,6 @@
 "use client";
 
 import savedEmergence from "./ambient-house-emergence.saved.json";
-import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { ChoiceScene } from "./choice-scene";
 import { PinoriaStage } from "./pinoria-stage";
 import { PrototypeCharacter } from "./prototype-assets";
@@ -34,18 +33,15 @@ const emergeWidthPct = (MINI_WIDTH / 1920) * 100;
 
 export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSubject }) {
   return (
-    <div data-pinoria-choice-to-ambient data-emergence-lane={EMERGENCE.laneId} style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#101711", color: "#fff" }}>
+    <div
+      data-pinoria-choice-to-ambient
+      data-emergence-lane={EMERGENCE.laneId}
+      style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent", color: "#fff" }}
+    >
       <style>{`
-        [data-pinoria-choice-to-ambient] [data-transition-house] [data-ambient-runtime-character] { display:none!important; }
-
         @keyframes pinoriaChoiceLayerExit {
           0% { opacity:1; transform:scale(1); filter:blur(0); }
           100% { opacity:0; transform:scale(1.012); filter:blur(7px); }
-        }
-        @keyframes pinoriaChoiceHouseReveal {
-          0% { opacity:.55; filter:brightness(.76) saturate(.82); }
-          35% { opacity:.86; filter:brightness(.92) saturate(.92); }
-          100% { opacity:1; filter:brightness(1) saturate(1); }
         }
         @keyframes pinoriaChoiceHeroCharacter {
           0%,8% { opacity:0; left:39%; top:21%; width:22%; transform:scale(.94); }
@@ -63,16 +59,11 @@ export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSub
           24%,52% { opacity:.86; transform:translate(-50%,-50%) scale(1); }
           72%,100% { opacity:0; transform:translate(-50%,-50%) scale(.76); }
         }
-        [data-transition-house] { animation:pinoriaChoiceHouseReveal ${CHOICE_SETTLE_MS}ms ease-out ${CHOICE_SELECTION_MS - 180}ms both; }
         [data-transition-choice] { animation:pinoriaChoiceLayerExit 520ms cubic-bezier(.2,.78,.2,1) ${CHOICE_SELECTION_MS - 280}ms both; }
         [data-transition-character] { animation:pinoriaChoiceHeroCharacter ${CHOICE_SETTLE_MS}ms cubic-bezier(.18,.76,.16,1) ${CHOICE_SELECTION_MS - 120}ms both; }
         [data-transition-greeting] { animation:pinoriaChoiceGreeting ${CHOICE_SETTLE_MS}ms cubic-bezier(.2,.78,.2,1) ${CHOICE_SELECTION_MS - 80}ms both; }
         [data-transition-glow] { animation:pinoriaChoiceGlow ${CHOICE_SETTLE_MS}ms cubic-bezier(.2,.78,.2,1) ${CHOICE_SELECTION_MS - 120}ms both; }
       `}</style>
-
-      <div data-transition-house style={{ position: "absolute", inset: 0, zIndex: 0 }}>
-        <AmbientHouseRuntime subject={subject} />
-      </div>
 
       <div data-transition-choice style={{ position: "absolute", inset: 0, zIndex: 20 }}>
         <ChoiceScene subject={subject} />
