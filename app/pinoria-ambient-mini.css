@@ -1,7 +1,9 @@
 /* Ambient House mini-character presentation rules.
- * The mini-character wrapper remains 164x115 on the canonical 1980x1080 stage.
- * The inner 164x164 character is clipped by 29.9% at the bottom while the
- * wrapper itself stays overflow-visible so the learner name can sit above it.
+ * The mini-character wrapper remains 164x115 on the canonical 1920x1080 stage.
+ * The inner character registration stays 164x164 and is clipped by 29.9% at
+ * the bottom while the wrapper remains overflow-visible for the learner name.
+ * Head layers keep their original registration. BODY + BACK are rendered at
+ * 60% scale around the shared character center.
  */
 [data-ambient-mini-character] {
   overflow: visible !important;
@@ -11,8 +13,16 @@
   clip-path: inset(0 0 29.9% 0);
 }
 
+/* Body section = body + back/wing. Keep registration centered while scaling. */
 [data-ambient-mini-character] img[src*="Char_body_painting_girl.png"],
 [data-ambient-mini-character] [data-pinoria-wing-layer="true"] {
+  transform: scale(0.6);
+  transform-origin: 50% 50%;
+}
+
+/* Simulation/editor can hide only the body section without affecting the head. */
+[data-ambient-mini-character][data-ambient-mini-body="off"] img[src*="Char_body_painting_girl.png"],
+[data-ambient-mini-character][data-ambient-mini-body="off"] [data-pinoria-wing-layer="true"] {
   display: none !important;
 }
 
