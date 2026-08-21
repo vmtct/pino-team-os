@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { DEPARTURE_HERO_TARGET } from "./departure-layout";
 import { PinoriaStage } from "./pinoria-stage";
 import { PrototypeCharacter } from "./prototype-assets";
 
-export const AMBIENT_TO_DEPARTURE_MS = 5600;
+export const AMBIENT_TO_DEPARTURE_MS = 6200;
 
 export type FrozenAmbientActor = {
   id: string;
@@ -19,12 +20,25 @@ type DepartureTransitionSubject = {
   name: string;
 };
 
-const ASSET_VERSION = "ambient-checkout-transition-v4";
+const ASSET_VERSION = "ambient-checkout-transition-v5";
 const ASSETS = {
   back: `/api/pinoria-prototype/ambient-house-asset?layer=back&v=${ASSET_VERSION}`,
   mid: `/api/pinoria-prototype/ambient-house-asset?layer=mid&v=${ASSET_VERSION}`,
   front: `/api/pinoria-prototype/ambient-house-asset?layer=front&v=${ASSET_VERSION}`,
 };
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function lerp(from: number, to: number, t: number) {
+  return from + (to - from) * t;
+}
+
+function smoothstep(t: number) {
+  const value = clamp01(t);
+  return value * value * (3 - 2 * value);
+}
 
 function MiniReplica({ actor, subjectId }: { actor: FrozenAmbientActor; subjectId: string }) {
   return (
@@ -42,7 +56,13 @@ function MiniReplica({ actor, subjectId }: { actor: FrozenAmbientActor; subjectI
       <div
         data-ambient-mini-character
         data-ambient-mini-body="on"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          ["--ambient-mini-name" as string]: '""',
+        }}
       >
         <PrototypeCharacter subjectId={subjectId} size="100%" wingMotion="off" />
       </div>
@@ -57,6 +77,22 @@ export function AmbientToDepartureTransition({
   subject: DepartureTransitionSubject;
   actors: FrozenAmbientActor[];
 }) {
+  const [progress, setProgress] = useState(0);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const next = clamp01((now - startedAt) / AMBIENT_TO_DEPARTURE_MS);
+      setProgress(next);
+      if (next < 1) frameRef.current = window.requestAnimationFrame(tick);
+    };
+    frameRef.current = window.requestAnimationFrame(tick);
+    return () => {
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
+
   const checkout = actors.find((actor) => actor.id === subject.id)
     ?? actors[0]
     ?? {
@@ -67,103 +103,47 @@ export function AmbientToDepartureTransition({
       heightPct: 15.2,
     };
 
-  const checkoutCenterX = checkout.leftPct + checkout.widthPct / 2;
-  const checkoutCenterY = checkout.topPct + checkout.widthPct / 2;
+  // Keep the first beat completely still so the eye sees the same mini-character,
+  // then make the growth unmistakable for most of the transition.
+  const moveT = smoothstep((progress - 0.16) / 0.78);
+  const leftPct = lerp(checkout.leftPct, DEPARTURE_HERO_TARGET.leftPct, moveT);
+  const topPct = lerp(checkout.topPct, DEPARTURE_HERO_TARGET.topPct, moveT);
+  const widthPct = lerp(checkout.widthPct, DEPARTURE_HERO_TARGET.widthPct, moveT);
+
+  const dimOpacity = 0.72 * smoothstep((progress - 0.04) / 0.18);
+  const miniOpacity = 1 - smoothstep((progress - 0.62) / 0.18);
+  const fullOpacity = smoothstep((progress - 0.62) / 0.18);
+  const labelIn = smoothstep((progress - 0.08) / 0.13);
+  const labelOut = 1 - smoothstep((progress - 0.58) / 0.16);
+  const labelOpacity = labelIn * labelOut;
+  const lift = 1 + 0.08 * Math.sin(Math.PI * clamp01((progress - 0.12) / 0.32));
 
   return (
     <div
       data-ambient-to-departure
       style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#0d140f", color: "#fff" }}
     >
-      <style>{`
-        [data-ambient-to-departure] [data-checkout-frozen-mini] [data-ambient-mini-character]::before,
-        [data-ambient-to-departure] [data-checkout-moving-mini] [data-ambient-mini-character]::before {
-          display:none!important;
-        }
-
-        @keyframes pinoriaCheckoutDim {
-          0%,8% { opacity:0; }
-          25%,100% { opacity:1; }
-        }
-        @keyframes pinoriaCheckoutSpotlight {
-          0%,8% { opacity:0; transform:translate(-50%,-50%) scale(.72); }
-          24%,48% { opacity:1; transform:translate(-50%,-50%) scale(1); }
-          64%,100% { opacity:0; transform:translate(-50%,-50%) scale(1.12); }
-        }
-        @keyframes pinoriaCheckoutMover {
-          0%,38% {
-            left:${checkout.leftPct}%;
-            top:${checkout.topPct}%;
-            width:${checkout.widthPct}%;
-            transform:scale(1);
-          }
-          49% {
-            left:${checkout.leftPct}%;
-            top:${checkout.topPct}%;
-            width:${checkout.widthPct}%;
-            transform:scale(1.24);
-          }
-          59% {
-            left:${checkout.leftPct}%;
-            top:${checkout.topPct}%;
-            width:${checkout.widthPct}%;
-            transform:scale(1.08);
-          }
-          100% {
-            left:${DEPARTURE_HERO_TARGET.leftPct}%;
-            top:${DEPARTURE_HERO_TARGET.topPct}%;
-            width:${DEPARTURE_HERO_TARGET.widthPct}%;
-            transform:scale(1);
-          }
-        }
-        @keyframes pinoriaCheckoutMiniResolve {
-          0%,56% { opacity:1; }
-          76%,100% { opacity:0; }
-        }
-        @keyframes pinoriaCheckoutFullResolve {
-          0%,56% { opacity:0; }
-          76%,100% { opacity:1; }
-        }
-        @keyframes pinoriaCheckoutLabel {
-          0%,12% { opacity:0; transform:translate(-50%,10px); }
-          27%,52% { opacity:1; transform:translate(-50%,0); }
-          68%,100% { opacity:0; transform:translate(-50%,-8px); }
-        }
-        [data-checkout-dim] { animation:pinoriaCheckoutDim ${AMBIENT_TO_DEPARTURE_MS}ms ease-out both; }
-        [data-checkout-spotlight] { animation:pinoriaCheckoutSpotlight ${AMBIENT_TO_DEPARTURE_MS}ms cubic-bezier(.2,.8,.2,1) both; }
-        [data-checkout-mover] { animation:pinoriaCheckoutMover ${AMBIENT_TO_DEPARTURE_MS}ms cubic-bezier(.16,.76,.12,1) both; }
-        [data-checkout-moving-mini] { animation:pinoriaCheckoutMiniResolve ${AMBIENT_TO_DEPARTURE_MS}ms ease both; }
-        [data-checkout-moving-full] { animation:pinoriaCheckoutFullResolve ${AMBIENT_TO_DEPARTURE_MS}ms ease both; }
-        [data-checkout-label] { animation:pinoriaCheckoutLabel ${AMBIENT_TO_DEPARTURE_MS}ms cubic-bezier(.2,.8,.2,1) both; }
-      `}</style>
-
       <PinoriaStage dataStage="checkout-transition" style={{ background: "#101711" }}>
         <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />
         <img src={ASSETS.mid} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 10, pointerEvents: "none" }} />
 
         {actors.filter((actor) => actor.id !== subject.id).map((actor) => (
-          <div key={actor.id} style={{ position: "absolute", inset: 0, zIndex: 14, opacity: .68, filter: "brightness(.62) saturate(.75)" }}>
+          <div key={actor.id} style={{ position: "absolute", inset: 0, zIndex: 14, opacity: .62, filter: "brightness(.58) saturate(.72)" }}>
             <MiniReplica actor={actor} subjectId={actor.id} />
           </div>
         ))}
 
         <img src={ASSETS.front} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 20, pointerEvents: "none" }} />
 
-        <div data-checkout-dim style={{ position: "absolute", inset: 0, zIndex: 24, background: "rgba(4,8,5,.70)", pointerEvents: "none" }} />
-
+        {/* Intentional: checkout uses only a global dim. No circular spotlight. */}
         <div
-          data-checkout-spotlight
-          aria-hidden="true"
+          data-checkout-dim
           style={{
             position: "absolute",
-            zIndex: 25,
-            left: `${checkoutCenterX}%`,
-            top: `${checkoutCenterY}%`,
-            width: "20%",
-            aspectRatio: "1 / 1",
-            borderRadius: "50%",
-            background: "radial-gradient(circle,rgba(255,250,222,.66) 0,rgba(247,229,166,.31) 30%,rgba(238,218,155,.10) 54%,transparent 73%)",
-            boxShadow: "0 0 82px rgba(248,225,151,.24)",
+            inset: 0,
+            zIndex: 24,
+            background: "#040805",
+            opacity: dimOpacity,
             pointerEvents: "none",
           }}
         />
@@ -174,21 +154,32 @@ export function AmbientToDepartureTransition({
           style={{
             position: "absolute",
             zIndex: 30,
-            left: `${checkout.leftPct}%`,
-            top: `${checkout.topPct}%`,
-            width: `${checkout.widthPct}%`,
+            left: `${leftPct}%`,
+            top: `${topPct}%`,
+            width: `${widthPct}%`,
             aspectRatio: "1 / 1",
+            transform: `scale(${lift})`,
             transformOrigin: "50% 50%",
             pointerEvents: "none",
             willChange: "left,top,width,transform",
           }}
         >
-          <div data-checkout-moving-mini style={{ position: "absolute", inset: 0 }}>
-            <div data-ambient-mini-character data-ambient-mini-body="on" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <div data-checkout-moving-mini style={{ position: "absolute", inset: 0, opacity: miniOpacity }}>
+            <div
+              data-ambient-mini-character
+              data-ambient-mini-body="on"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                ["--ambient-mini-name" as string]: '""',
+              }}
+            >
               <PrototypeCharacter subjectId={subject.id} size="100%" wingMotion="off" />
             </div>
           </div>
-          <div data-checkout-moving-full style={{ position: "absolute", inset: 0 }}>
+          <div data-checkout-moving-full style={{ position: "absolute", inset: 0, opacity: fullOpacity }}>
             <PrototypeCharacter
               subjectId={subject.id}
               size="100%"
@@ -205,8 +196,10 @@ export function AmbientToDepartureTransition({
             zIndex: 34,
             left: "50%",
             top: "6.5%",
-            textAlign: "center",
             width: "70%",
+            transform: "translateX(-50%)",
+            opacity: labelOpacity,
+            textAlign: "center",
             textShadow: "0 5px 24px #000a",
             pointerEvents: "none",
           }}
