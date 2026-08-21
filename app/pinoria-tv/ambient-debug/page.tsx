@@ -1,13 +1,13 @@
 import fontStyles from "../../pinoria-vietnamese-font.module.css";
 import { PinoriaVietnameseLocale } from "../../pinoria-vietnamese-locale";
-import { AmbientHouseEditor } from "../ambient-house-editor";
+import { AmbientHouseEditorBootstrap } from "../ambient-house-editor-bootstrap";
 import { AmbientMidDebugToggle } from "../ambient-mid-debug-toggle";
 
 export default function AmbientHouseDebugPage() {
   return (
     <PinoriaVietnameseLocale>
       <div className={fontStyles.vnFont} lang="vi">
-        <AmbientHouseEditor />
+        <AmbientHouseEditorBootstrap />
         <AmbientMidDebugToggle />
       </div>
     </PinoriaVietnameseLocale>
