@@ -33,8 +33,8 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
     >
       <style>{`
         @keyframes pinoriaDepartureCopy {
-          0%,10% { opacity:0; transform:translateY(18px) }
-          38%,100% { opacity:1; transform:translateY(0) }
+          0%,10% { opacity:0; transform:translateY(-50%) translateY(18px) }
+          38%,100% { opacity:1; transform:translateY(-50%) translateY(0) }
         }
         @keyframes pinoriaDepartureCharacter {
           0% { opacity:1; transform:scale(1); filter:brightness(1.04) drop-shadow(0 30px 32px rgba(0,0,0,.30)); }
@@ -58,11 +58,11 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
           50% { transform:translateY(-6px) }
         }
         @media (prefers-reduced-motion: reduce) {
-          .pinoriaDepartureCopy,
+          .pinoriaDepartureCopy { animation:none!important; opacity:1!important; transform:translateY(-50%)!important; }
           .pinoriaDepartureCharacter,
           .pinoriaDepartureCard,
           .pinoriaDepartureRoute,
-          .pinoriaDepartureFloat { animation:none!important; opacity:1!important; transform:none!important; }
+          .pinoriaDepartureFloat { animation:none!important; opacity:1!important; }
         }
       `}</style>
 
@@ -75,34 +75,34 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
         style={{
           position: "absolute",
           left: "clamp(64px,7vw,112px)",
-          top: "50%",
+          top: "48%",
           width: "min(600px,46vw)",
           transform: "translateY(-50%)",
           animation: "pinoriaDepartureCopy 8.6s cubic-bezier(.18,.8,.2,1) both",
         }}
       >
-        <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>
+        <span style={{ display: "block", marginBottom: 10, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>
           CHÀO VỀ · {subject.name.toUpperCase()}
         </span>
-        <h1 style={{ margin: "0 0 14px", fontSize: "clamp(52px,5.4vw,76px)", lineHeight: .94, letterSpacing: "-.052em" }}>
+        <h1 style={{ margin: "0 0 12px", fontSize: "clamp(50px,5.1vw,72px)", lineHeight: .94, letterSpacing: "-.052em" }}>
           Hẹn gặp lại, {subject.name} ✦
         </h1>
-        <p style={{ margin: 0, maxWidth: 560, color: "#e7e2d8", fontSize: "clamp(18px,1.65vw,23px)", lineHeight: 1.42 }}>
+        <p style={{ margin: 0, maxWidth: 560, color: "#e7e2d8", fontSize: "clamp(17px,1.55vw,22px)", lineHeight: 1.4 }}>
           {hasCompanion
             ? `${subject.name} và Hộ Linh đã hoàn thành thêm một buổi trong Pinoria.`
             : `${subject.name} đã hoàn thành thêm một buổi trong Pinoria.`}
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 28, maxWidth: 590 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22, maxWidth: 590 }}>
           <SummaryCard label="HÀNH TRÌNH" value={subject.path} delay=".18s" />
           <SummaryCard label="KHU VỰC" value={subject.room} delay=".26s" />
           <SummaryCard label="HỘ LINH" value={companionLabel(subject.companion)} delay=".34s" />
           <SummaryCard label="TÀI NGUYÊN" value={`${subject.pls} PLS · ${subject.fruit} Fruit`} delay=".42s" />
         </div>
 
-        <div className="pinoriaDepartureCard" style={{ marginTop: 14, maxWidth: 590, padding: "12px 14px", borderRadius: 18, background: "linear-gradient(110deg,rgba(225,199,116,.16),rgba(255,255,255,.045))", border: "1px solid rgba(232,208,135,.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)", animation: "pinoriaDepartureCard 8.6s .22s cubic-bezier(.18,.82,.2,1) both" }}>
+        <div className="pinoriaDepartureCard" style={{ marginTop: 12, maxWidth: 590, padding: "11px 14px", borderRadius: 18, background: "linear-gradient(110deg,rgba(225,199,116,.16),rgba(255,255,255,.045))", border: "1px solid rgba(232,208,135,.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)", animation: "pinoriaDepartureCard 8.6s .22s cubic-bezier(.18,.82,.2,1) both" }}>
           <span style={{ display: "block", color: "#e8cb7d", fontSize: 9, fontWeight: 900, letterSpacing: ".14em", marginBottom: 5 }}>KHOẢNH KHẮC RA VỀ NỔI BẬT</span>
-          <strong style={{ display: "block", fontSize: 17, lineHeight: 1.28, color: "#f7f2e8" }}>{subject.path}</strong>
+          <strong style={{ display: "block", fontSize: 16, lineHeight: 1.25, color: "#f7f2e8" }}>{subject.path}</strong>
           <small style={{ display: "block", marginTop: 4, color: "#cfd5ca", fontSize: 11 }}>Một dấu mốc nhỏ của hành trình hôm nay đã được mang theo về nhà.</small>
         </div>
       </section>
@@ -138,7 +138,7 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
         </div>
       </section>
 
-      <div className="pinoriaDepartureRoute" style={{ position: "absolute", left: "50%", bottom: 24, minWidth: "min(760px,72vw)", padding: "9px 16px", borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, background: "rgba(15,23,16,.72)", border: "1px solid rgba(255,255,255,.10)", color: "#d9ddd4", fontSize: 11, letterSpacing: ".05em", backdropFilter: "blur(10px)", animation: "pinoriaDepartureRoute 8.6s cubic-bezier(.18,.82,.2,1) both" }}>
+      <div className="pinoriaDepartureRoute" style={{ position: "absolute", left: "50%", bottom: 18, minWidth: "min(760px,72vw)", padding: "8px 16px", borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, background: "rgba(15,23,16,.72)", border: "1px solid rgba(255,255,255,.10)", color: "#d9ddd4", fontSize: 11, letterSpacing: ".05em", backdropFilter: "blur(10px)", animation: "pinoriaDepartureRoute 8.6s cubic-bezier(.18,.82,.2,1) both" }}>
         <strong style={{ color: "#f0d487" }}>{subject.name}</strong>
         <span>Nhà PINO</span><b style={{ color: "#d2b96e" }}>→</b><span>Reception</span><b style={{ color: "#d2b96e" }}>→</b><span>Về nhà</span>
       </div>
@@ -148,7 +148,7 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
 
 function SummaryCard({ label, value, delay }: { label: string; value: string; delay: string }) {
   return (
-    <div className="pinoriaDepartureCard" style={{ minHeight: 82, padding: "11px 13px", borderRadius: 17, background: "rgba(255,255,255,.055)", border: "1px solid rgba(255,255,255,.10)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)", animation: `pinoriaDepartureCard 8.6s ${delay} cubic-bezier(.18,.82,.2,1) both` }}>
+    <div className="pinoriaDepartureCard" style={{ minHeight: 72, padding: "10px 13px", borderRadius: 17, background: "rgba(255,255,255,.055)", border: "1px solid rgba(255,255,255,.10)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)", animation: `pinoriaDepartureCard 8.6s ${delay} cubic-bezier(.18,.82,.2,1) both` }}>
       <span style={{ display: "block", color: "#d7c47f", fontSize: 8, fontWeight: 900, letterSpacing: ".13em", marginBottom: 6 }}>{label}</span>
       <strong style={{ display: "block", color: "#f5f1e8", fontSize: 13, lineHeight: 1.25 }}>{value}</strong>
     </div>
