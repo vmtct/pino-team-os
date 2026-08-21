@@ -8,49 +8,60 @@ export const AMBIENT_HOUSE_CANVAS = {
 export const AMBIENT_MINI_CHARACTER = {
   width: 164,
   height: 115,
-  anchor: "top-left",
+  anchor: "center",
+  centerOffset: {
+    x: 82,
+    y: 57.5,
+  },
 } as const;
 
-/** Canonical 1920x1080 movement mesh approved from the Ambient editor. */
+/**
+ * Canonical 1920x1080 movement mesh using the mini-character CENTER anchor.
+ *
+ * Previous geometry was authored against the 164x115 mini-character top-left
+ * anchor. The character center is +82px on X and +57.5px on Y from that old
+ * anchor, so every movement-space point below was translated by (+82,+57.5).
+ * This preserves the exact same visual/physical boundary alignment.
+ */
 export const AMBIENT_HOUSE_OUTER_BOUNDARY: readonly AmbientHousePoint[] = [
-  { x: 89, y: 700 },
-  { x: 51, y: 734 },
-  { x: 72, y: 750 },
-  { x: 268, y: 935 },
-  { x: 1372, y: 932 },
-  { x: 1675, y: 801 },
-  { x: 1671, y: 738 },
-  { x: 1233, y: 732 },
-  { x: 1232, y: 803 },
-  { x: 1177, y: 802 },
-  { x: 1146, y: 728 },
-  { x: 1037, y: 726 },
-  { x: 1067.8, y: 836.3 },
-  { x: 1026.4, y: 836.3 },
-  { x: 961, y: 581 },
-  { x: 987.9, y: 441.9 },
-  { x: 988, y: 417 },
-  { x: 983, y: 393 },
-  { x: 186, y: 390 },
-  { x: 73.4, y: 441.9 },
-  { x: 912.9, y: 441.9 },
-  { x: 912.9, y: 579.1 },
-  { x: 878, y: 668 },
-  { x: 833, y: 840 },
-  { x: 806, y: 841 },
-  { x: 804, y: 727 },
-  { x: 508, y: 725 },
-  { x: 390, y: 745 },
-  { x: 129, y: 744 },
-  { x: 99, y: 720 },
-  { x: 262, y: 720 },
-  { x: 269, y: 698 },
+  { x: 171, y: 757.5 },
+  { x: 133, y: 791.5 },
+  { x: 154, y: 807.5 },
+  { x: 350, y: 992.5 },
+  { x: 1454, y: 989.5 },
+  { x: 1757, y: 858.5 },
+  { x: 1753, y: 795.5 },
+  { x: 1315, y: 789.5 },
+  { x: 1314, y: 860.5 },
+  { x: 1259, y: 859.5 },
+  { x: 1228, y: 785.5 },
+  { x: 1119, y: 783.5 },
+  { x: 1149.8, y: 893.8 },
+  { x: 1108.4, y: 893.8 },
+  { x: 1043, y: 638.5 },
+  { x: 1069.9, y: 499.4 },
+  { x: 1070, y: 474.5 },
+  { x: 1065, y: 450.5 },
+  { x: 268, y: 447.5 },
+  { x: 155.4, y: 499.4 },
+  { x: 994.9, y: 499.4 },
+  { x: 994.9, y: 636.6 },
+  { x: 960, y: 725.5 },
+  { x: 915, y: 897.5 },
+  { x: 888, y: 898.5 },
+  { x: 886, y: 784.5 },
+  { x: 590, y: 782.5 },
+  { x: 472, y: 802.5 },
+  { x: 211, y: 801.5 },
+  { x: 181, y: 777.5 },
+  { x: 344, y: 777.5 },
+  { x: 351, y: 755.5 },
 ] as const;
 
-/** Current no-go markers. A polygon only blocks movement once it has 3+ points. */
+/** Current no-go markers translated into center-anchor space. */
 export const AMBIENT_HOUSE_INNER_BOUNDARIES = [
-  [{ x: 516, y: 864.1 }],
-  [{ x: 1408.3, y: 823.2 }],
+  [{ x: 598, y: 921.6 }],
+  [{ x: 1490.3, y: 880.7 }],
 ] as const satisfies readonly (readonly AmbientHousePoint[])[];
 
 export const AMBIENT_HOUSE_AREA_IDS = [
@@ -70,10 +81,9 @@ export const AMBIENT_HOUSE_AREA_LABELS: Record<AmbientHouseAreaId, string> = {
 };
 
 /**
- * Learner home/wander areas. These intentionally start empty and are authored
- * visually in /pinoria-tv/ambient-debug. During arrival/transit a learner may
- * use the global mesh; once they enter their assigned area, ambient wandering
- * can be constrained to that area's polygon.
+ * Learner home/wander areas are authored directly in center-anchor space.
+ * During arrival/transit a learner may use the global mesh; once they enter
+ * their assigned area, ambient wandering can be constrained to that polygon.
  */
 export const AMBIENT_HOUSE_AREAS: Record<AmbientHouseAreaId, readonly AmbientHousePoint[]> = {
   reception: [],
@@ -82,13 +92,28 @@ export const AMBIENT_HOUSE_AREAS: Record<AmbientHouseAreaId, readonly AmbientHou
   pianohouse: [],
 };
 
+/** Depth thresholds also moved +57.5px because Y now references character center. */
 export const AMBIENT_HOUSE_DEPTH_RULES = {
-  groundFrontMinYExclusive: 836.3,
-  groundFrontMaxYExclusive: 965,
-  upperFrontY: 441.9,
+  groundFrontMinYExclusive: 893.8,
+  groundFrontMaxYExclusive: 1022.5,
+  upperFrontY: 499.4,
   upperFrontTolerancePx: 3,
   houseFrontAlwaysOnTop: true,
 } as const;
+
+export function ambientMiniCharacterTopLeftFromAnchor(anchor: AmbientHousePoint): AmbientHousePoint {
+  return {
+    x: anchor.x - AMBIENT_MINI_CHARACTER.centerOffset.x,
+    y: anchor.y - AMBIENT_MINI_CHARACTER.centerOffset.y,
+  };
+}
+
+export function ambientMiniCharacterBottomRightFromAnchor(anchor: AmbientHousePoint): AmbientHousePoint {
+  return {
+    x: anchor.x + AMBIENT_MINI_CHARACTER.centerOffset.x,
+    y: anchor.y + AMBIENT_MINI_CHARACTER.centerOffset.y,
+  };
+}
 
 function pointOnSegment(point: AmbientHousePoint, a: AmbientHousePoint, b: AmbientHousePoint, epsilon = 1e-6) {
   const cross = (point.y - a.y) * (b.x - a.x) - (point.x - a.x) * (b.y - a.y);
