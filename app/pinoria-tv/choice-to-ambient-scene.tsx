@@ -87,9 +87,9 @@ export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSub
           }
         }
         @keyframes pinoriaChoiceGreeting {
-          0%,10% { opacity: 0; transform: translateY(15px) scale(.985); }
-          22%,52% { opacity: 1; transform: translateY(0) scale(1); }
-          68%,100% { opacity: 0; transform: translateY(-8px) scale(.985); }
+          0%,10% { opacity: 0; transform: translate(-50%,15px) scale(.985); }
+          22%,52% { opacity: 1; transform: translate(-50%,0) scale(1); }
+          68%,100% { opacity: 0; transform: translate(-50%,-8px) scale(.985); }
         }
         @keyframes pinoriaChoiceSpark {
           0%,100% { opacity: 0; transform: translate3d(0,10px,0) scale(.7); }
@@ -179,18 +179,18 @@ export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSub
           position: "absolute",
           zIndex: 45,
           left: "50%",
-          top: "11%",
-          width: "min(860px,78vw)",
+          top: "8.5%",
+          width: "min(980px,74vw)",
           transform: "translateX(-50%)",
           textAlign: "center",
           pointerEvents: "none",
           textShadow: "0 4px 24px rgba(9,16,9,.42)",
         }}
       >
-        <span style={{ display: "block", marginBottom: 9, color: "#efd78d", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>
+        <span style={{ display: "block", marginBottom: 8, color: "#efd78d", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>
           ĐÃ CHỌN XONG ✦
         </span>
-        <h1 style={{ margin: 0, fontSize: "clamp(34px,4.2vw,60px)", lineHeight: .98, letterSpacing: "-.045em", color: "#fffaf0" }}>
+        <h1 style={{ margin: 0, fontSize: "clamp(32px,3.5vw,56px)", lineHeight: 1.02, letterSpacing: "-.04em", color: "#fffaf0" }}>
           Chúc {subject.name} một buổi thật vui ở Nhà PINO nhé!
         </h1>
       </div>
