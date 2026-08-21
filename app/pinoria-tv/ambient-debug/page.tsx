@@ -1,12 +1,12 @@
 import fontStyles from "../../pinoria-vietnamese-font.module.css";
 import { PinoriaVietnameseLocale } from "../../pinoria-vietnamese-locale";
-import { AmbientHouseScene } from "../ambient-house-scene";
+import { AmbientHouseEditor } from "../ambient-house-editor";
 
 export default function AmbientHouseDebugPage() {
   return (
     <PinoriaVietnameseLocale>
       <div className={fontStyles.vnFont} lang="vi">
-        <AmbientHouseScene debug />
+        <AmbientHouseEditor />
       </div>
     </PinoriaVietnameseLocale>
   );
