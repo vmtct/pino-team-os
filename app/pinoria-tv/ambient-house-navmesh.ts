@@ -11,34 +11,76 @@ export const AMBIENT_MINI_CHARACTER = {
   anchor: "top-left",
 } as const;
 
-const LEGACY_WIDTH = 1980;
-const sx = (x: number) => Math.round((x * AMBIENT_HOUSE_CANVAS.width / LEGACY_WIDTH) * 10) / 10;
-const migrate = (points: readonly AmbientHousePoint[]) => points.map(({ x, y }) => ({ x: sx(x), y })) as AmbientHousePoint[];
+/** Canonical 1920x1080 movement mesh approved from the Ambient editor. */
+export const AMBIENT_HOUSE_OUTER_BOUNDARY: readonly AmbientHousePoint[] = [
+  { x: 89, y: 700 },
+  { x: 51, y: 734 },
+  { x: 72, y: 750 },
+  { x: 268, y: 935 },
+  { x: 1372, y: 932 },
+  { x: 1675, y: 801 },
+  { x: 1671, y: 738 },
+  { x: 1233, y: 732 },
+  { x: 1232, y: 803 },
+  { x: 1177, y: 802 },
+  { x: 1146, y: 728 },
+  { x: 1037, y: 726 },
+  { x: 1067.8, y: 836.3 },
+  { x: 1026.4, y: 836.3 },
+  { x: 961, y: 581 },
+  { x: 987.9, y: 441.9 },
+  { x: 988, y: 417 },
+  { x: 983, y: 393 },
+  { x: 186, y: 390 },
+  { x: 73.4, y: 441.9 },
+  { x: 912.9, y: 441.9 },
+  { x: 912.9, y: 579.1 },
+  { x: 878, y: 668 },
+  { x: 833, y: 840 },
+  { x: 806, y: 841 },
+  { x: 804, y: 727 },
+  { x: 508, y: 725 },
+  { x: 390, y: 745 },
+  { x: 129, y: 744 },
+  { x: 99, y: 720 },
+  { x: 262, y: 720 },
+  { x: 269, y: 698 },
+] as const;
 
-// Bootstrap draft migrated from the previous 1980x1080 editor geometry.
-// Use /pinoria-tv/ambient-debug to visually refine against the new 1920x1080 artwork,
-// then copy the editor JSON back into the canonical config when approved.
-const LEGACY_OUTER: readonly AmbientHousePoint[] = [
-  { x: 293.1, y: 812 }, { x: 217.9, y: 812 }, { x: 0, y: 851.2 }, { x: 0, y: 965 },
-  { x: 1865, y: 965 }, { x: 1865, y: 857 }, { x: 1720.8, y: 792.8 }, { x: 1309.2, y: 792.8 },
-  { x: 1309.2, y: 799.8 }, { x: 1216.4, y: 799.8 }, { x: 1197.5, y: 783.1 }, { x: 1111.7, y: 783.1 },
-  { x: 1101.2, y: 836.3 }, { x: 1058.5, y: 836.3 }, { x: 1013.2, y: 579.1 }, { x: 1018.8, y: 441.9 },
-  { x: 1780.7, y: 441.9 }, { x: 1628.3, y: 435.3 }, { x: 186.4, y: 435.3 }, { x: 75.7, y: 441.9 },
-  { x: 941.4, y: 441.9 }, { x: 941.4, y: 579.1 }, { x: 919.9, y: 836.3 }, { x: 850.2, y: 836.3 },
-  { x: 829.5, y: 791.2 }, { x: 519.3, y: 791.2 }, { x: 430.2, y: 801.9 }, { x: 293.1, y: 851.2 },
-  { x: 82.9, y: 851.2 },
-];
-
-export const AMBIENT_HOUSE_OUTER_BOUNDARY: readonly AmbientHousePoint[] = migrate(LEGACY_OUTER);
-
+/** Current no-go markers. A polygon only blocks movement once it has 3+ points. */
 export const AMBIENT_HOUSE_INNER_BOUNDARIES = [
-  migrate([
-    { x: 608.9, y: 822.1 }, { x: 532.1, y: 864.1 }, { x: 742.6, y: 873.8 }, { x: 787, y: 819.3 },
-  ]),
-  migrate([
-    { x: 1557.4, y: 846 }, { x: 1452.3, y: 823.2 }, { x: 1547, y: 807.3 }, { x: 1652.9, y: 834.2 },
-  ]),
+  [{ x: 516, y: 864.1 }],
+  [{ x: 1408.3, y: 823.2 }],
 ] as const satisfies readonly (readonly AmbientHousePoint[])[];
+
+export const AMBIENT_HOUSE_AREA_IDS = [
+  "reception",
+  "artchitect",
+  "little-piner",
+  "pianohouse",
+] as const;
+
+export type AmbientHouseAreaId = (typeof AMBIENT_HOUSE_AREA_IDS)[number];
+
+export const AMBIENT_HOUSE_AREA_LABELS: Record<AmbientHouseAreaId, string> = {
+  reception: "Reception",
+  artchitect: "Artchitect",
+  "little-piner": "Little Piner",
+  pianohouse: "Piano House",
+};
+
+/**
+ * Learner home/wander areas. These intentionally start empty and are authored
+ * visually in /pinoria-tv/ambient-debug. During arrival/transit a learner may
+ * use the global mesh; once they enter their assigned area, ambient wandering
+ * can be constrained to that area's polygon.
+ */
+export const AMBIENT_HOUSE_AREAS: Record<AmbientHouseAreaId, readonly AmbientHousePoint[]> = {
+  reception: [],
+  artchitect: [],
+  "little-piner": [],
+  pianohouse: [],
+};
 
 export const AMBIENT_HOUSE_DEPTH_RULES = {
   groundFrontMinYExclusive: 836.3,
@@ -75,6 +117,22 @@ export function isPointInsidePolygon(point: AmbientHousePoint, polygon: readonly
 export function isAmbientMiniCharacterAnchorWalkable(anchor: AmbientHousePoint) {
   if (!isPointInsidePolygon(anchor, AMBIENT_HOUSE_OUTER_BOUNDARY)) return false;
   return !AMBIENT_HOUSE_INNER_BOUNDARIES.some((blocked) => isPointInsidePolygon(anchor, blocked));
+}
+
+export function isAmbientMiniCharacterAnchorInArea(
+  anchor: AmbientHousePoint,
+  areaId: AmbientHouseAreaId,
+  areas: Record<AmbientHouseAreaId, readonly AmbientHousePoint[]> = AMBIENT_HOUSE_AREAS,
+) {
+  return isPointInsidePolygon(anchor, areas[areaId]);
+}
+
+export function isAmbientMiniCharacterWalkableInArea(
+  anchor: AmbientHousePoint,
+  areaId: AmbientHouseAreaId,
+  areas: Record<AmbientHouseAreaId, readonly AmbientHousePoint[]> = AMBIENT_HOUSE_AREAS,
+) {
+  return isAmbientMiniCharacterAnchorWalkable(anchor) && isAmbientMiniCharacterAnchorInArea(anchor, areaId, areas);
 }
 
 export function isAmbientMiniCharacterInFrontOfMid(y: number) {
