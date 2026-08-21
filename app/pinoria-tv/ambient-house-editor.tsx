@@ -6,33 +6,21 @@ import {
   AMBIENT_HOUSE_AREA_IDS,
   AMBIENT_HOUSE_AREA_LABELS,
   AMBIENT_HOUSE_CANVAS,
-  AMBIENT_HOUSE_DEPTH_RULES,
-  AMBIENT_HOUSE_INNER_BOUNDARIES,
   AMBIENT_HOUSE_OUTER_BOUNDARY,
   AMBIENT_MINI_CHARACTER,
   ambientMiniCharacterBottomRightFromAnchor,
   ambientMiniCharacterTopLeftFromAnchor,
   isPointInsidePolygon,
   type AmbientHouseAreaId,
-  type AmbientHouseDepthRules,
   type AmbientHousePoint,
 } from "./ambient-house-navmesh";
-import {
-  initialAmbientDepthState,
-  isStraightSegmentAllowed,
-  randomPointInPolygon,
-  resolveAmbientDepthState,
-  type AmbientDepthState,
-} from "./ambient-house-motion";
+import { isStraightSegmentAllowed, randomPointInPolygon } from "./ambient-house-motion";
 import { PrototypeCharacter } from "./prototype-assets";
 
-type InnerZoneId = "inner-1" | "inner-2";
-type BaseZone = "outer" | InnerZoneId;
 type AreaZone = `area:${AmbientHouseAreaId}`;
-type Zone = BaseZone | AreaZone;
-type EditMode = "move" | "depth" | Zone;
+type Zone = "outer" | AreaZone;
+type EditMode = "move" | Zone;
 type RoamArea = "all" | AmbientHouseAreaId;
-type DepthHandle = "upper" | "ground-min" | "ground-max";
 
 type Draft = {
   canvas: { width: number; height: number };
@@ -43,14 +31,13 @@ type Draft = {
     centerOffset: { x: number; y: number };
   };
   outerBoundary: AmbientHousePoint[];
-  innerDepthZones: { id: InnerZoneId; points: AmbientHousePoint[] }[];
   areas: { id: AmbientHouseAreaId; points: AmbientHousePoint[] }[];
-  depth: AmbientHouseDepthRules;
 };
 
 type DragTarget = { zone: Zone; index: number } | null;
 type SimAgent = {
   id: number;
+  name: string;
   position: AmbientHousePoint;
   from: AmbientHousePoint;
   target: AmbientHousePoint;
@@ -58,14 +45,13 @@ type SimAgent = {
   pauseUntil: number;
   moveStartedAt: number;
   durationMs: number;
-  depth: AmbientDepthState;
 };
 
-const STORAGE_KEY = "pinoria:ambient-house:navmesh:1920-v5-motion-depthlock";
+const LEARNER_NAME = "Bơ";
+const STORAGE_KEY = "pinoria:ambient-house:navmesh:1920-v6-no-mid";
 const ASSET_VERSION = "ambient-house-1920-20260821a";
 const ASSETS = {
   back: `/api/pinoria-prototype/ambient-house-asset?layer=back&v=${ASSET_VERSION}`,
-  mid: `/api/pinoria-prototype/ambient-house-asset?layer=mid&v=${ASSET_VERSION}`,
   front: `/api/pinoria-prototype/ambient-house-asset?layer=front&v=${ASSET_VERSION}`,
 };
 
@@ -90,19 +76,17 @@ function canonicalDraft(): Draft {
       centerOffset: { ...AMBIENT_MINI_CHARACTER.centerOffset },
     },
     outerBoundary: clonePoints(AMBIENT_HOUSE_OUTER_BOUNDARY),
-    innerDepthZones: [
-      { id: "inner-1", points: clonePoints(AMBIENT_HOUSE_INNER_BOUNDARIES[0]) },
-      { id: "inner-2", points: clonePoints(AMBIENT_HOUSE_INNER_BOUNDARIES[1]) },
-    ],
     areas: AMBIENT_HOUSE_AREA_IDS.map((id) => ({ id, points: clonePoints(AMBIENT_HOUSE_AREAS[id]) })),
-    depth: { ...AMBIENT_HOUSE_DEPTH_RULES },
   };
 }
 
 function roundPoint(point: AmbientHousePoint, snap: number) {
   const clamp = (value: number, max: number) => Math.min(max, Math.max(0, value));
   const apply = (value: number) => snap > 0 ? Math.round(value / snap) * snap : Math.round(value * 10) / 10;
-  return { x: clamp(apply(point.x), AMBIENT_HOUSE_CANVAS.width), y: clamp(apply(point.y), AMBIENT_HOUSE_CANVAS.height) };
+  return {
+    x: clamp(apply(point.x), AMBIENT_HOUSE_CANVAS.width),
+    y: clamp(apply(point.y), AMBIENT_HOUSE_CANVAS.height),
+  };
 }
 
 function pointList(points: readonly AmbientHousePoint[]) {
@@ -119,19 +103,12 @@ function areaIdFromZone(zone: AreaZone): AmbientHouseAreaId {
 
 function zoneColor(zone: Zone) {
   if (zone === "outer") return "#2df78c";
-  if (zone === "inner-1" || zone === "inner-2") return "#ff6464";
   return AREA_COLORS[areaIdFromZone(zone)];
 }
 
 function zoneLabel(zone: Zone) {
   if (zone === "outer") return "outer";
-  if (zone === "inner-1" || zone === "inner-2") return `${zone} depth-lock`;
   return `area:${AMBIENT_HOUSE_AREA_LABELS[areaIdFromZone(zone)]}`;
-}
-
-function clampY(value: number) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(AMBIENT_HOUSE_CANVAS.height, Math.max(0, Math.round(value * 10) / 10));
 }
 
 function globalWalkable(point: AmbientHousePoint, draft: Draft) {
@@ -170,7 +147,7 @@ function chooseStraightTarget(from: AmbientHousePoint, draft: Draft, roamArea: R
   return null;
 }
 
-function MiniCharacterView({ anchor, inFrontOfMid, name = "Bơ", opacity = 1 }: { anchor: AmbientHousePoint; inFrontOfMid: boolean; name?: string; opacity?: number }) {
+function MiniCharacterView({ anchor, name = LEARNER_NAME }: { anchor: AmbientHousePoint; name?: string }) {
   const topLeft = ambientMiniCharacterTopLeftFromAnchor(anchor);
   return (
     <div
@@ -181,8 +158,7 @@ function MiniCharacterView({ anchor, inFrontOfMid, name = "Bơ", opacity = 1 }: 
         top: topLeft.y,
         width: AMBIENT_MINI_CHARACTER.width,
         height: AMBIENT_MINI_CHARACTER.height,
-        zIndex: inFrontOfMid ? 30 : 15,
-        opacity,
+        zIndex: 30,
         pointerEvents: "none",
         ["--ambient-mini-name" as string]: JSON.stringify(name),
       }}
@@ -196,7 +172,6 @@ export function AmbientHouseEditor() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragTargetRef = useRef<DragTarget>(null);
-  const depthDragRef = useRef<DepthHandle | null>(null);
   const draggingMiniRef = useRef(false);
   const frameRef = useRef<number | null>(null);
 
@@ -205,13 +180,12 @@ export function AmbientHouseEditor() {
   const [snap, setSnap] = useState(1);
   const [draft, setDraft] = useState<Draft>(canonicalDraft);
   const [mini, setMini] = useState<AmbientHousePoint>({ x: 382, y: 907.5 });
-  const [manualDepth, setManualDepth] = useState<AmbientDepthState>(() => initialAmbientDepthState({ x: 382, y: 907.5 }, AMBIENT_HOUSE_DEPTH_RULES));
   const [selected, setSelected] = useState<DragTarget>(null);
   const [roamArea, setRoamArea] = useState<RoamArea>("all");
   const [demo, setDemo] = useState(false);
   const [simulate, setSimulate] = useState(false);
   const [simAgents, setSimAgents] = useState<SimAgent[]>([]);
-  const [status, setStatus] = useState("Straight-line motion active. Inner boundaries now lock MID depth instead of blocking movement.");
+  const [status, setStatus] = useState("MID layer temporarily disabled. Character layer is fixed above BACK; FRONT remains foreground.");
 
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -219,10 +193,9 @@ export function AmbientHouseEditor() {
     try {
       const parsed = JSON.parse(raw) as Draft;
       const hasAreas = Array.isArray(parsed.areas) && AMBIENT_HOUSE_AREA_IDS.every((id) => parsed.areas.some((area) => area.id === id));
-      const hasInner = Array.isArray(parsed.innerDepthZones) && parsed.innerDepthZones.length === 2;
-      if (parsed.canvas?.width === 1920 && parsed.canvas?.height === 1080 && parsed.miniCharacter?.anchor === "center" && hasAreas && hasInner && parsed.depth) {
+      if (parsed.canvas?.width === 1920 && parsed.canvas?.height === 1080 && parsed.miniCharacter?.anchor === "center" && hasAreas) {
         setDraft(parsed);
-        setStatus("Loaded center-anchor mesh + areas + depth-lock zones from localStorage.");
+        setStatus("Loaded center-anchor mesh + designated areas from localStorage.");
       }
     } catch {
       // Keep canonical draft.
@@ -247,14 +220,6 @@ export function AmbientHouseEditor() {
   }, [draft]);
 
   useEffect(() => {
-    setManualDepth((current) => current.lockedInnerBoundary === null
-      ? initialAmbientDepthState(mini, draft.depth)
-      : current);
-  }, [draft.depth, mini]);
-
-  const innerPolygons = useMemo(() => draft.innerDepthZones.map((zone) => zone.points), [draft.innerDepthZones]);
-
-  useEffect(() => {
     if (!simulate) {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
@@ -276,6 +241,7 @@ export function AmbientHouseEditor() {
       if (!position) continue;
       agents.push({
         id,
+        name: LEARNER_NAME,
         position,
         from: position,
         target: position,
@@ -283,7 +249,6 @@ export function AmbientHouseEditor() {
         pauseUntil: now + Math.random() * 1400,
         moveStartedAt: now,
         durationMs: 0,
-        depth: initialAmbientDepthState(position, draft.depth),
       });
     }
     setSimAgents(agents);
@@ -311,7 +276,6 @@ export function AmbientHouseEditor() {
           x: agent.from.x + (agent.target.x - agent.from.x) * progress,
           y: agent.from.y + (agent.target.y - agent.from.y) * progress,
         };
-        const depth = resolveAmbientDepthState(agent.depth, position, draft.depth, innerPolygons);
 
         if (progress >= 1) {
           return {
@@ -320,10 +284,9 @@ export function AmbientHouseEditor() {
             from: agent.target,
             phase: "pause",
             pauseUntil: time + 650 + Math.random() * 1800,
-            depth,
           };
         }
-        return { ...agent, position, depth };
+        return { ...agent, position };
       }));
       frameRef.current = requestAnimationFrame(tick);
     };
@@ -333,13 +296,11 @@ export function AmbientHouseEditor() {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
     };
-  }, [simulate, roamArea, draft, innerPolygons]);
+  }, [simulate, roamArea, draft]);
 
   const activePoints = useMemo(() => {
-    if (mode === "move" || mode === "depth") return [];
+    if (mode === "move") return [];
     if (mode === "outer") return draft.outerBoundary;
-    if (mode === "inner-1") return draft.innerDepthZones[0].points;
-    if (mode === "inner-2") return draft.innerDepthZones[1].points;
     return draft.areas.find((area) => area.id === areaIdFromZone(mode))?.points ?? [];
   }, [draft, mode]);
 
@@ -356,8 +317,6 @@ export function AmbientHouseEditor() {
 
   function pointsForZone(current: Draft, zone: Zone) {
     if (zone === "outer") return current.outerBoundary;
-    if (zone === "inner-1") return current.innerDepthZones[0].points;
-    if (zone === "inner-2") return current.innerDepthZones[1].points;
     return current.areas.find((area) => area.id === areaIdFromZone(zone))?.points ?? [];
   }
 
@@ -366,13 +325,9 @@ export function AmbientHouseEditor() {
       const next: Draft = {
         ...current,
         outerBoundary: clonePoints(current.outerBoundary),
-        innerDepthZones: current.innerDepthZones.map((item) => ({ ...item, points: clonePoints(item.points) })),
         areas: current.areas.map((item) => ({ ...item, points: clonePoints(item.points) })),
-        depth: { ...current.depth },
       };
       if (zone === "outer") next.outerBoundary = updater(next.outerBoundary);
-      else if (zone === "inner-1") next.innerDepthZones[0].points = updater(next.innerDepthZones[0].points);
-      else if (zone === "inner-2") next.innerDepthZones[1].points = updater(next.innerDepthZones[1].points);
       else {
         const areaId = areaIdFromZone(zone);
         next.areas = next.areas.map((area) => area.id === areaId ? { ...area, points: updater(area.points) } : area);
@@ -382,44 +337,15 @@ export function AmbientHouseEditor() {
     });
   }
 
-  function updateDepthHandle(handle: DepthHandle, rawY: number) {
-    const y = clampY(rawY);
-    setDraft((current) => {
-      const depth = { ...current.depth };
-      if (handle === "upper") depth.upperFrontY = y;
-      if (handle === "ground-min") depth.groundFrontMinYExclusive = Math.min(y, depth.groundFrontMaxYExclusive - 1);
-      if (handle === "ground-max") depth.groundFrontMaxYExclusive = Math.max(y, depth.groundFrontMinYExclusive + 1);
-      return { ...current, depth };
-    });
-  }
-
-  function updateDepthNumber(key: "upperFrontY" | "upperFrontTolerancePx" | "groundFrontMinYExclusive" | "groundFrontMaxYExclusive", value: number) {
-    setDraft((current) => {
-      const depth = { ...current.depth };
-      if (key === "upperFrontTolerancePx") depth.upperFrontTolerancePx = Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
-      else if (key === "upperFrontY") depth.upperFrontY = clampY(value);
-      else if (key === "groundFrontMinYExclusive") depth.groundFrontMinYExclusive = Math.min(clampY(value), depth.groundFrontMaxYExclusive - 1);
-      else depth.groundFrontMaxYExclusive = Math.max(clampY(value), depth.groundFrontMinYExclusive + 1);
-      return { ...current, depth };
-    });
-  }
-
-  function moveManual(point: AmbientHousePoint) {
-    if (!walkable(point, draft, roamArea)) return;
-    setMini(point);
-    setManualDepth((current) => resolveAmbientDepthState(current, point, draft.depth, innerPolygons));
-  }
-
   function onStagePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     const point = clientToCanonical(event.clientX, event.clientY);
     if (!point) return;
     if (mode === "move" && !simulate) {
       draggingMiniRef.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
-      moveManual(point);
+      if (walkable(point, draft, roamArea)) setMini(point);
       return;
     }
-    if (mode === "depth") return;
     const zone = mode === "move" ? null : mode;
     if (!zone || dragTargetRef.current) return;
     updateZone(zone, (points) => [...points, point]);
@@ -429,12 +355,8 @@ export function AmbientHouseEditor() {
   function onStagePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     const point = clientToCanonical(event.clientX, event.clientY);
     if (!point) return;
-    if (depthDragRef.current) {
-      updateDepthHandle(depthDragRef.current, point.y);
-      return;
-    }
     if (mode === "move" && draggingMiniRef.current && !simulate) {
-      moveManual(point);
+      if (walkable(point, draft, roamArea)) setMini(point);
       return;
     }
     const target = dragTargetRef.current;
@@ -445,7 +367,6 @@ export function AmbientHouseEditor() {
   function onStagePointerUp(event: React.PointerEvent<HTMLDivElement>) {
     draggingMiniRef.current = false;
     dragTargetRef.current = null;
-    depthDragRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
@@ -453,12 +374,6 @@ export function AmbientHouseEditor() {
     event.stopPropagation();
     dragTargetRef.current = { zone, index };
     setSelected({ zone, index });
-    stageRef.current?.setPointerCapture(event.pointerId);
-  }
-
-  function beginDepthDrag(event: React.PointerEvent<SVGElement>, handle: DepthHandle) {
-    event.stopPropagation();
-    depthDragRef.current = handle;
     stageRef.current?.setPointerCapture(event.pointerId);
   }
 
@@ -471,26 +386,23 @@ export function AmbientHouseEditor() {
   function resetDraft() {
     const next = canonicalDraft();
     setDraft(next);
-    const start = { x: 382, y: 907.5 };
-    setMini(start);
-    setManualDepth(initialAmbientDepthState(start, next.depth));
+    setMini({ x: 382, y: 907.5 });
     setRoamArea("all");
     setSimulate(false);
     window.localStorage.removeItem(STORAGE_KEY);
-    setStatus("Reset canonical mesh. Inner zones remain passable depth-lock zones.");
+    setStatus("Reset canonical center-anchor mesh + designated areas.");
   }
 
   async function copyJson() {
     await navigator.clipboard.writeText(JSON.stringify(draft, null, 2));
-    setStatus("Copied mesh + inner depth-lock zones + learner areas + MID thresholds.");
+    setStatus("Copied center-anchor movement mesh + designated areas. MID/depth config omitted.");
   }
 
   function selectEditMode(nextMode: EditMode) {
     setMode(nextMode);
     setSelected(null);
     setSimulate(false);
-    if (nextMode === "depth") setStatus("EDIT DEPTH: thresholds apply normally except while a character is inside an INNER depth-lock zone.");
-    else if (nextMode !== "move" && isAreaZone(nextMode)) {
+    if (nextMode !== "move" && isAreaZone(nextMode)) {
       const areaId = areaIdFromZone(nextMode);
       setRoamArea(areaId);
       setStatus(`Editing ${AMBIENT_HOUSE_AREA_LABELS[areaId]} designated wander area.`);
@@ -507,7 +419,7 @@ export function AmbientHouseEditor() {
       setMode("move");
       setSelected(null);
       setSimulate(true);
-      setStatus(`Simulating 10 mini-chars in ${roamArea === "all" ? "GLOBAL MESH" : AMBIENT_HOUSE_AREA_LABELS[roamArea]}: straight segment → random stop → new straight segment.`);
+      setStatus(`Simulating 10 clones of ${LEARNER_NAME} in ${roamArea === "all" ? "GLOBAL MESH" : AMBIENT_HOUSE_AREA_LABELS[roamArea]}: straight segment → random stop → new straight segment.`);
     } else {
       setSimulate(false);
       setStatus("Movement simulation stopped.");
@@ -516,13 +428,14 @@ export function AmbientHouseEditor() {
 
   const baseButtons: { id: EditMode; label: string }[] = [
     { id: "move", label: "MOVE TEST" },
-    { id: "depth", label: "EDIT DEPTH" },
     { id: "outer", label: "EDIT OUTER" },
-    { id: "inner-1", label: "INNER DEPTH 1" },
-    { id: "inner-2", label: "INNER DEPTH 2" },
   ];
 
-  const areaButtons = AMBIENT_HOUSE_AREA_IDS.map((id) => ({ id: `area:${id}` as AreaZone, areaId: id, label: AMBIENT_HOUSE_AREA_LABELS[id] }));
+  const areaButtons = AMBIENT_HOUSE_AREA_IDS.map((id) => ({
+    id: `area:${id}` as AreaZone,
+    areaId: id,
+    label: AMBIENT_HOUSE_AREA_LABELS[id],
+  }));
 
   const renderVertices = (zone: Zone, points: readonly AmbientHousePoint[]) => points.map((point, index) => (
     <g key={`${zone}-${index}`}>
@@ -533,20 +446,16 @@ export function AmbientHouseEditor() {
         fill="#fff"
         stroke={zoneColor(zone)}
         strokeWidth="4"
-        style={{ pointerEvents: mode === "move" || mode === "depth" ? "none" : "auto", cursor: "grab" }}
+        style={{ pointerEvents: mode === "move" ? "none" : "auto", cursor: "grab" }}
         onPointerDown={(event) => beginVertexDrag(event, zone, index)}
       />
       {selected?.zone === zone && selected.index === index ? (
-        <text x={point.x + 12} y={point.y - 12} fill="#fff" fontSize="18" stroke="#000" strokeWidth="3" paintOrder="stroke">{index} · {point.x},{point.y}</text>
+        <text x={point.x + 12} y={point.y - 12} fill="#fff" fontSize="18" stroke="#000" strokeWidth="3" paintOrder="stroke">
+          {index} · {point.x},{point.y}
+        </text>
       ) : null}
     </g>
   ));
-
-  const upperBandTop = Math.max(0, draft.depth.upperFrontY - draft.depth.upperFrontTolerancePx);
-  const upperBandHeight = Math.max(1, draft.depth.upperFrontTolerancePx * 2);
-  const groundBandHeight = Math.max(0, draft.depth.groundFrontMaxYExclusive - draft.depth.groundFrontMinYExclusive);
-  const frontCount = simAgents.filter((agent) => agent.depth.inFrontOfMid).length;
-  const lockedCount = simAgents.filter((agent) => agent.depth.lockedInnerBoundary !== null).length;
 
   return (
     <div ref={viewportRef} style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#101711", color: "white", fontFamily: "system-ui, sans-serif" }}>
@@ -556,17 +465,13 @@ export function AmbientHouseEditor() {
           onPointerDown={onStagePointerDown}
           onPointerMove={onStagePointerMove}
           onPointerUp={onStagePointerUp}
-          onPointerCancel={() => { draggingMiniRef.current = false; dragTargetRef.current = null; depthDragRef.current = null; }}
+          onPointerCancel={() => { draggingMiniRef.current = false; dragTargetRef.current = null; }}
           style={{ position: "absolute", inset: 0, width: 1920, height: 1080, transform: `scale(${scale})`, transformOrigin: "0 0", overflow: "hidden", touchAction: "none", userSelect: "none", isolation: "isolate" }}
         >
           <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 10, pointerEvents: "none" }} />
 
-          {!simulate ? <MiniCharacterView anchor={mini} inFrontOfMid={manualDepth.inFrontOfMid} /> : null}
-          {simulate ? simAgents.filter((agent) => !agent.depth.inFrontOfMid).map((agent) => <MiniCharacterView key={`behind-${agent.id}`} anchor={agent.position} inFrontOfMid={false} name="" />) : null}
-
-          <img src={ASSETS.mid} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 20, pointerEvents: "none" }} />
-
-          {simulate ? simAgents.filter((agent) => agent.depth.inFrontOfMid).map((agent) => <MiniCharacterView key={`front-${agent.id}`} anchor={agent.position} inFrontOfMid name="" />) : null}
+          {!simulate ? <MiniCharacterView anchor={mini} /> : null}
+          {simulate ? simAgents.map((agent) => <MiniCharacterView key={agent.id} anchor={agent.position} name={agent.name} />) : null}
 
           <img src={ASSETS.front} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 50, pointerEvents: "none" }} />
 
@@ -574,31 +479,21 @@ export function AmbientHouseEditor() {
             <svg viewBox="0 0 1920 1080" width="1920" height="1080" style={{ position: "absolute", inset: 0, zIndex: 60, overflow: "visible", pointerEvents: "none" }}>
               <polygon points={pointList(draft.outerBoundary)} fill="#42e78620" stroke="#4cff9d" strokeWidth="4" />
 
-              {draft.innerDepthZones.map((zone) => zone.points.length >= 2 ? (
-                <polygon key={zone.id} points={pointList(zone.points)} fill="#ff4f4f25" stroke="#ff6969" strokeWidth="4" strokeDasharray="10 7" />
-              ) : null)}
-
               {draft.areas.map((area) => {
                 const areaZone = `area:${area.id}` as AreaZone;
                 const active = mode === areaZone || roamArea === area.id;
                 return area.points.length >= 2 ? (
-                  <polygon key={area.id} points={pointList(area.points)} fill={`${AREA_COLORS[area.id]}${active ? "35" : "18"}`} stroke={AREA_COLORS[area.id]} strokeWidth={active ? 5 : 3} strokeDasharray={active ? undefined : "12 9"} opacity={active ? 1 : .78} />
+                  <polygon
+                    key={area.id}
+                    points={pointList(area.points)}
+                    fill={`${AREA_COLORS[area.id]}${active ? "35" : "18"}`}
+                    stroke={AREA_COLORS[area.id]}
+                    strokeWidth={active ? 5 : 3}
+                    strokeDasharray={active ? undefined : "12 9"}
+                    opacity={active ? 1 : .78}
+                  />
                 ) : null;
               })}
-
-              <rect x="0" y={upperBandTop} width="1920" height={upperBandHeight} fill="#63b8ff" opacity={mode === "depth" ? .18 : .05} />
-              <rect x="0" y={draft.depth.groundFrontMinYExclusive} width="1920" height={groundBandHeight} fill="#ffc95b" opacity={mode === "depth" ? .16 : .05} />
-              <line x1="0" y1={draft.depth.upperFrontY} x2="1920" y2={draft.depth.upperFrontY} stroke="#63b8ff" strokeWidth={mode === "depth" ? 5 : 2} strokeDasharray="14 9" opacity={mode === "depth" ? 1 : .45} />
-              <line x1="0" y1={draft.depth.groundFrontMinYExclusive} x2="1920" y2={draft.depth.groundFrontMinYExclusive} stroke="#ffd05d" strokeWidth={mode === "depth" ? 5 : 2} strokeDasharray="14 9" opacity={mode === "depth" ? 1 : .45} />
-              <line x1="0" y1={draft.depth.groundFrontMaxYExclusive} x2="1920" y2={draft.depth.groundFrontMaxYExclusive} stroke="#ff8b4a" strokeWidth={mode === "depth" ? 5 : 2} strokeDasharray="14 9" opacity={mode === "depth" ? 1 : .45} />
-
-              {mode === "depth" ? (
-                <>
-                  <circle cx="1840" cy={draft.depth.upperFrontY} r="13" fill="#63b8ff" stroke="#07131d" strokeWidth="4" style={{ pointerEvents: "auto", cursor: "ns-resize" }} onPointerDown={(event) => beginDepthDrag(event, "upper")} />
-                  <circle cx="1780" cy={draft.depth.groundFrontMinYExclusive} r="13" fill="#ffd05d" stroke="#191307" strokeWidth="4" style={{ pointerEvents: "auto", cursor: "ns-resize" }} onPointerDown={(event) => beginDepthDrag(event, "ground-min")} />
-                  <circle cx="1720" cy={draft.depth.groundFrontMaxYExclusive} r="13" fill="#ff8b4a" stroke="#1c0c05" strokeWidth="4" style={{ pointerEvents: "auto", cursor: "ns-resize" }} onPointerDown={(event) => beginDepthDrag(event, "ground-max")} />
-                </>
-              ) : null}
 
               {!simulate ? (
                 <>
@@ -609,14 +504,12 @@ export function AmbientHouseEditor() {
                 </>
               ) : simAgents.map((agent) => (
                 <g key={`path-${agent.id}`}>
-                  {agent.phase === "move" ? <line x1={agent.position.x} y1={agent.position.y} x2={agent.target.x} y2={agent.target.y} stroke={agent.depth.lockedInnerBoundary !== null ? "#ff8b8b" : "#ffffff"} strokeWidth="2" strokeDasharray="7 8" opacity=".28" /> : null}
-                  <circle cx={agent.position.x} cy={agent.position.y} r="5" fill={agent.depth.lockedInnerBoundary !== null ? "#ff6464" : agent.depth.inFrontOfMid ? "#ffe266" : "#71c9ff"} />
+                  {agent.phase === "move" ? <line x1={agent.position.x} y1={agent.position.y} x2={agent.target.x} y2={agent.target.y} stroke="#ffffff" strokeWidth="2" strokeDasharray="7 8" opacity=".24" /> : null}
+                  <circle cx={agent.position.x} cy={agent.position.y} r="5" fill="#ffe266" />
                 </g>
               ))}
 
               {renderVertices("outer", draft.outerBoundary)}
-              {renderVertices("inner-1", draft.innerDepthZones[0].points)}
-              {renderVertices("inner-2", draft.innerDepthZones[1].points)}
               {draft.areas.map((area) => renderVertices(`area:${area.id}` as AreaZone, area.points))}
             </svg>
           ) : null}
@@ -624,11 +517,11 @@ export function AmbientHouseEditor() {
       </div>
 
       {!demo ? (
-        <aside style={{ position: "absolute", left: 18, top: 18, zIndex: 100, width: 420, maxHeight: "calc(100vh - 36px)", overflowY: "auto", padding: 14, borderRadius: 16, background: "#0d1510e8", border: "1px solid #ffffff22", backdropFilter: "blur(10px)" }}>
-          <strong style={{ display: "block", fontSize: 12, letterSpacing: ".1em", color: "#f1d17b" }}>AMBIENT MOTION + DEPTH EDITOR</strong>
+        <aside style={{ position: "absolute", left: 18, top: 18, zIndex: 100, width: 410, maxHeight: "calc(100vh - 36px)", overflowY: "auto", padding: 14, borderRadius: 16, background: "#0d1510e8", border: "1px solid #ffffff22", backdropFilter: "blur(10px)" }}>
+          <strong style={{ display: "block", fontSize: 12, letterSpacing: ".1em", color: "#f1d17b" }}>AMBIENT MOTION + AREA EDITOR</strong>
           <div style={{ marginTop: 4, fontSize: 12, opacity: .75 }}>1920×1080 · CENTER anchor · straight-line segments only</div>
           <div style={{ marginTop: 7, padding: 8, borderRadius: 10, background: "#ffffff0b", fontSize: 11, lineHeight: 1.45 }}>
-            INNER zones no longer block movement. Entering one freezes the current MID front/behind state until the character exits it.
+            Layer order fixed: BACK → MINI-CHAR → FRONT. MID/depth/inner ordering logic is temporarily disabled.
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 12 }}>
@@ -655,34 +548,18 @@ export function AmbientHouseEditor() {
           <button onClick={toggleSimulation} style={{ width: "100%", marginTop: 10, padding: "10px 12px", borderRadius: 10, border: simulate ? "1px solid #ff8d8d" : "1px solid #7de5aa", background: simulate ? "#5b2424" : "#174b31", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
             {simulate ? "STOP SIMULATION" : "SIMULATE MOVEMENT ×10"}
           </button>
-
-          {simulate ? <div style={{ marginTop: 7, fontSize: 11, color: "#bdebd0" }}>10 clones · {frontCount} trước MID · {simAgents.length - frontCount} sau MID · {lockedCount} đang depth-lock</div> : null}
+          {simulate ? <div style={{ marginTop: 7, fontSize: 11, color: "#bdebd0" }}>{simAgents.length} clones · name cloned: {LEARNER_NAME}</div> : null}
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 12 }}>
             <span>SNAP</span>
             {[0, 1, 5, 10].map((value) => <button key={value} onClick={() => setSnap(value)} style={{ borderRadius: 8, border: "1px solid #ffffff20", padding: "5px 7px", background: snap === value ? "#fff" : "#ffffff0d", color: snap === value ? "#111" : "#fff" }}>{value === 0 ? "OFF" : `${value}px`}</button>)}
           </div>
 
-          <div style={{ marginTop: 12, padding: 10, borderRadius: 12, border: "1px solid #ffd05d44", background: "#ffffff08" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em", opacity: .66 }}>MID DEPTH THRESHOLDS</div>
-            {([
-              ["Upper center Y", "upperFrontY", draft.depth.upperFrontY],
-              ["Upper tolerance ±", "upperFrontTolerancePx", draft.depth.upperFrontTolerancePx],
-              ["Ground start Y", "groundFrontMinYExclusive", draft.depth.groundFrontMinYExclusive],
-              ["Ground end Y", "groundFrontMaxYExclusive", draft.depth.groundFrontMaxYExclusive],
-            ] as const).map(([label, key, value]) => (
-              <label key={key} style={{ display: "grid", gridTemplateColumns: "1fr 92px", alignItems: "center", gap: 8, marginTop: 7, fontSize: 11 }}>
-                <span>{label}</span>
-                <input type="number" value={value} step="0.1" onChange={(event) => updateDepthNumber(key, Number(event.target.value))} style={{ width: 92, padding: "5px 6px", borderRadius: 7, border: "1px solid #ffffff22", background: "#0c120f", color: "#fff" }} />
-              </label>
-            ))}
-          </div>
-
           <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.55 }}>
-            {!simulate ? <div>Manual CENTER {Math.round(mini.x)},{Math.round(mini.y)} · {manualDepth.inFrontOfMid ? "CHAR trước MID" : "CHAR sau MID"} {manualDepth.lockedInnerBoundary !== null ? `· LOCK inner-${manualDepth.lockedInnerBoundary + 1}` : ""}</div> : null}
+            {!simulate ? <div>Manual CENTER {Math.round(mini.x)},{Math.round(mini.y)}</div> : null}
             <div>Roam: <strong>{roamArea === "all" ? "ALL GLOBAL MESH" : AMBIENT_HOUSE_AREA_LABELS[roamArea]}</strong> · {anchorRoamWalkable ? "✓ manual allowed" : "× manual outside"}</div>
             <div>Global anchor: {anchorGlobalWalkable ? "✓" : "×"} · TL {Math.round(topLeft.x)},{Math.round(topLeft.y)} · BR {Math.round(bottomRight.x)},{Math.round(bottomRight.y)}</div>
-            <div>Outer {draft.outerBoundary.length} pts · Inner depth {draft.innerDepthZones[0].points.length}/{draft.innerDepthZones[1].points.length}</div>
+            <div>Outer {draft.outerBoundary.length} pts</div>
             {draft.areas.map((area) => <div key={area.id} style={{ color: AREA_COLORS[area.id] }}>{AMBIENT_HOUSE_AREA_LABELS[area.id]} · {area.points.length} pts {area.points.length >= 3 ? "✓" : "(need 3+)"}</div>)}
             {selected ? <div>Selected {zoneLabel(selected.zone)}[{selected.index}]</div> : null}
           </div>
