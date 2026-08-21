@@ -3,6 +3,7 @@
 import { PrototypeCharacter, PrototypeCompanion, prototypeCompanionManifest, prototypeFloatingProps } from "./prototype-assets";
 
 type ArrivalSubject = {
+  id: string;
   name: string;
   path: string;
   companion: string;
@@ -74,7 +75,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
           {backProps.map((prop) => <div key={prop.id} data-pinoria-floating-prop><FloatingProp prop={prop} /></div>)}
 
-          <PrototypeCharacter wingMotion="arrival" size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
+          <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
           <div style={{ position: "absolute", zIndex: 5, right: "8%", bottom: 18, width: "min(212px,16.8vw)", display: "grid", justifyItems: "center", gap: 2, animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both" }}>
             <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
