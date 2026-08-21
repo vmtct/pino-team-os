@@ -66,7 +66,11 @@ function captureAmbientActors(): FrozenAmbientActor[] {
     .map((element) => {
       const id = element.dataset.ambientRuntimeCharacter;
       if (!id) return null;
-      const rect = element.getBoundingClientRect();
+      // Capture the actual square character registration rather than the 164x115
+      // movement viewport. This keeps the checkout spotlight and lift aligned to
+      // what the learner is visibly seeing on screen.
+      const visual = element.querySelector<HTMLElement>("[data-pinoria-character-subject]") ?? element;
+      const rect = visual.getBoundingClientRect();
       return {
         id,
         leftPct: ((rect.left - screenRect.left) / screenRect.width) * 100,
