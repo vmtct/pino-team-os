@@ -48,7 +48,7 @@ type SimAgent = {
 };
 
 const LEARNER_NAME = "Bơ";
-const STORAGE_KEY = "pinoria:ambient-house:navmesh:1920-v6-no-mid";
+const STORAGE_KEY = "pinoria:ambient-house:navmesh:1920-v7-body60";
 const ASSET_VERSION = "ambient-house-1920-20260821a";
 const ASSETS = {
   back: `/api/pinoria-prototype/ambient-house-asset?layer=back&v=${ASSET_VERSION}`,
@@ -102,13 +102,11 @@ function areaIdFromZone(zone: AreaZone): AmbientHouseAreaId {
 }
 
 function zoneColor(zone: Zone) {
-  if (zone === "outer") return "#2df78c";
-  return AREA_COLORS[areaIdFromZone(zone)];
+  return zone === "outer" ? "#2df78c" : AREA_COLORS[areaIdFromZone(zone)];
 }
 
 function zoneLabel(zone: Zone) {
-  if (zone === "outer") return "outer";
-  return `area:${AMBIENT_HOUSE_AREA_LABELS[areaIdFromZone(zone)]}`;
+  return zone === "outer" ? "outer" : `area:${AMBIENT_HOUSE_AREA_LABELS[areaIdFromZone(zone)]}`;
 }
 
 function globalWalkable(point: AmbientHousePoint, draft: Draft) {
@@ -147,11 +145,20 @@ function chooseStraightTarget(from: AmbientHousePoint, draft: Draft, roamArea: R
   return null;
 }
 
-function MiniCharacterView({ anchor, name = LEARNER_NAME }: { anchor: AmbientHousePoint; name?: string }) {
+function MiniCharacterView({
+  anchor,
+  name = LEARNER_NAME,
+  showBodySection = true,
+}: {
+  anchor: AmbientHousePoint;
+  name?: string;
+  showBodySection?: boolean;
+}) {
   const topLeft = ambientMiniCharacterTopLeftFromAnchor(anchor);
   return (
     <div
       data-ambient-mini-character
+      data-ambient-mini-body={showBodySection ? "on" : "off"}
       style={{
         position: "absolute",
         left: topLeft.x,
@@ -163,7 +170,7 @@ function MiniCharacterView({ anchor, name = LEARNER_NAME }: { anchor: AmbientHou
         ["--ambient-mini-name" as string]: JSON.stringify(name),
       }}
     >
-      <PrototypeCharacter size={164} hiddenSlots={["body", "back"]} wingMotion="off" />
+      <PrototypeCharacter size={164} wingMotion="off" />
     </div>
   );
 }
@@ -184,8 +191,9 @@ export function AmbientHouseEditor() {
   const [roamArea, setRoamArea] = useState<RoamArea>("all");
   const [demo, setDemo] = useState(false);
   const [simulate, setSimulate] = useState(false);
+  const [showSimBody, setShowSimBody] = useState(true);
   const [simAgents, setSimAgents] = useState<SimAgent[]>([]);
-  const [status, setStatus] = useState("MID layer temporarily disabled. Character layer is fixed above BACK; FRONT remains foreground.");
+  const [status, setStatus] = useState("Mini-char BODY + BACK restored at 60% scale around center; head registration remains unchanged.");
 
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -384,18 +392,18 @@ export function AmbientHouseEditor() {
   }
 
   function resetDraft() {
-    const next = canonicalDraft();
-    setDraft(next);
+    setDraft(canonicalDraft());
     setMini({ x: 382, y: 907.5 });
     setRoamArea("all");
     setSimulate(false);
+    setShowSimBody(true);
     window.localStorage.removeItem(STORAGE_KEY);
     setStatus("Reset canonical center-anchor mesh + designated areas.");
   }
 
   async function copyJson() {
     await navigator.clipboard.writeText(JSON.stringify(draft, null, 2));
-    setStatus("Copied center-anchor movement mesh + designated areas. MID/depth config omitted.");
+    setStatus("Copied center-anchor movement mesh + designated areas.");
   }
 
   function selectEditMode(nextMode: EditMode) {
@@ -419,7 +427,7 @@ export function AmbientHouseEditor() {
       setMode("move");
       setSelected(null);
       setSimulate(true);
-      setStatus(`Simulating 10 clones of ${LEARNER_NAME} in ${roamArea === "all" ? "GLOBAL MESH" : AMBIENT_HOUSE_AREA_LABELS[roamArea]}: straight segment → random stop → new straight segment.`);
+      setStatus(`Simulating 10 clones of ${LEARNER_NAME}; BODY + BACK are ${showSimBody ? "visible" : "hidden"}.`);
     } else {
       setSimulate(false);
       setStatus("Movement simulation stopped.");
@@ -470,8 +478,8 @@ export function AmbientHouseEditor() {
         >
           <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 10, pointerEvents: "none" }} />
 
-          {!simulate ? <MiniCharacterView anchor={mini} /> : null}
-          {simulate ? simAgents.map((agent) => <MiniCharacterView key={agent.id} anchor={agent.position} name={agent.name} />) : null}
+          {!simulate ? <MiniCharacterView anchor={mini} showBodySection /> : null}
+          {simulate ? simAgents.map((agent) => <MiniCharacterView key={agent.id} anchor={agent.position} name={agent.name} showBodySection={showSimBody} />) : null}
 
           <img src={ASSETS.front} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 50, pointerEvents: "none" }} />
 
@@ -483,15 +491,7 @@ export function AmbientHouseEditor() {
                 const areaZone = `area:${area.id}` as AreaZone;
                 const active = mode === areaZone || roamArea === area.id;
                 return area.points.length >= 2 ? (
-                  <polygon
-                    key={area.id}
-                    points={pointList(area.points)}
-                    fill={`${AREA_COLORS[area.id]}${active ? "35" : "18"}`}
-                    stroke={AREA_COLORS[area.id]}
-                    strokeWidth={active ? 5 : 3}
-                    strokeDasharray={active ? undefined : "12 9"}
-                    opacity={active ? 1 : .78}
-                  />
+                  <polygon key={area.id} points={pointList(area.points)} fill={`${AREA_COLORS[area.id]}${active ? "35" : "18"}`} stroke={AREA_COLORS[area.id]} strokeWidth={active ? 5 : 3} strokeDasharray={active ? undefined : "12 9"} opacity={active ? 1 : .78} />
                 ) : null;
               })}
 
@@ -519,9 +519,9 @@ export function AmbientHouseEditor() {
       {!demo ? (
         <aside style={{ position: "absolute", left: 18, top: 18, zIndex: 100, width: 410, maxHeight: "calc(100vh - 36px)", overflowY: "auto", padding: 14, borderRadius: 16, background: "#0d1510e8", border: "1px solid #ffffff22", backdropFilter: "blur(10px)" }}>
           <strong style={{ display: "block", fontSize: 12, letterSpacing: ".1em", color: "#f1d17b" }}>AMBIENT MOTION + AREA EDITOR</strong>
-          <div style={{ marginTop: 4, fontSize: 12, opacity: .75 }}>1920×1080 · CENTER anchor · straight-line segments only</div>
+          <div style={{ marginTop: 4, fontSize: 12, opacity: .75 }}>1920×1080 · CENTER anchor · head 164×115</div>
           <div style={{ marginTop: 7, padding: 8, borderRadius: 10, background: "#ffffff0b", fontSize: 11, lineHeight: 1.45 }}>
-            Layer order fixed: BACK → MINI-CHAR → FRONT. MID/depth/inner ordering logic is temporarily disabled.
+            Mini-char: head keeps original registration; BODY + BACK are scaled to 60% around the same center. Layer order remains BACK → MINI-CHAR → FRONT.
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 12 }}>
@@ -548,7 +548,18 @@ export function AmbientHouseEditor() {
           <button onClick={toggleSimulation} style={{ width: "100%", marginTop: 10, padding: "10px 12px", borderRadius: 10, border: simulate ? "1px solid #ff8d8d" : "1px solid #7de5aa", background: simulate ? "#5b2424" : "#174b31", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
             {simulate ? "STOP SIMULATION" : "SIMULATE MOVEMENT ×10"}
           </button>
-          {simulate ? <div style={{ marginTop: 7, fontSize: 11, color: "#bdebd0" }}>{simAgents.length} clones · name cloned: {LEARNER_NAME}</div> : null}
+
+          {simulate ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, padding: 8, borderRadius: 10, background: "#ffffff0b" }}>
+              <div style={{ fontSize: 11, color: "#bdebd0" }}>{simAgents.length} clones · name: {LEARNER_NAME}</div>
+              <button
+                onClick={() => setShowSimBody((value) => !value)}
+                style={{ padding: "6px 9px", borderRadius: 8, border: "1px solid #ffffff25", background: showSimBody ? "#f0d076" : "#ffffff10", color: showSimBody ? "#182018" : "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+              >
+                BODY {showSimBody ? "ON" : "OFF"}
+              </button>
+            </div>
+          ) : null}
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 12 }}>
             <span>SNAP</span>
