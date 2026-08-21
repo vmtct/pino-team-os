@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { ArrivalScene } from "./arrival-scene";
 import { ChoiceScene } from "./choice-scene";
 import styles from "./tv.module.css";
@@ -212,7 +213,7 @@ export function PinoriaTVPrototype() {
       >
         {replayLabel ?? "TV PROTOTYPE · CORE RELAY SIMULATION · RECEPTION_TV"}
       </div>
-      {mode === "ambient" ? <Ambient /> : null}
+      {mode === "ambient" ? <AmbientHouseRuntime subject={subject} /> : null}
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <ChoiceScene subject={subject} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
@@ -230,21 +231,6 @@ export function PinoriaTVPrototype() {
     </main>
   );
 }
-
-function Ambient() {
-  return <div className={styles.ambient}><div className={styles.skyGlow} /><header className={styles.worldHeader}><div><span>PINORIA · TERRAVIA</span><strong>Lantern Festival</strong></div><div className={styles.worldState}>Ancient Tree · Awakening</div></header><div className={styles.house}><Room title="Reception" className={styles.reception}><Mini name="Bơ" companion="Bùm" /><Door /></Room><Room title="Common" className={styles.common}><Mini name="Lan" /></Room><Room title="Art Room" className={styles.art}><Mini name="An" companion="Mây" /><Mini name="Bơ" companion="Bùm" /><Prop text="Lanterns" /></Room><Room title="Piano Room" className={styles.piano}><Mini name="Trí" companion="Miso" /><Prop text="Music glow" /></Room><Room title="Little Piner" className={styles.lp}><Mini name="An" companion="Mây" /><Prop text="PINA ribbons" /></Room><div className={styles.tree}><span>♧</span><strong>Ancient Tree</strong></div><div className={styles.vines}>Terravia vines</div></div><div className={styles.ambientBubble}>“Hình như cây kia vừa sáng thêm một chút...”</div></div>;
-}
-
-function Room({ title, className, children }: { title: string; className: string; children: React.ReactNode }) {
-  return <section className={`${styles.room} ${className}`}><h2>{title}</h2>{children}</section>;
-}
-
-function Mini({ name, companion }: { name: string; companion?: string }) {
-  return <div className={styles.miniWrap}><div className={styles.mini}>{name.slice(0,1)}</div><strong>{name}</strong>{companion ? <div className={styles.pet}><span>{companion.slice(0,1)}</span>{companion}</div> : null}</div>;
-}
-
-function Door() { return <div className={styles.door}>EXIT</div>; }
-function Prop({ text }: { text: string }) { return <div className={styles.prop}>{text}</div>; }
 
 function SpotlightShell({ children }: { children: React.ReactNode }) {
   return <div className={styles.spotlight}><div className={styles.spotlightGlow} />{children}</div>;
