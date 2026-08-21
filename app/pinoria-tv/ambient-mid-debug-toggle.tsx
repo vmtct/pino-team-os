@@ -35,6 +35,19 @@ export function AmbientMidDebugToggle() {
     document.documentElement.classList.toggle("pinoria-highlight-mid", highlighted);
   }, [highlighted]);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.key.toLowerCase() !== "m") return;
+      event.preventDefault();
+      setHighlighted((value) => !value);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const stateLabel = midState === "loaded"
     ? "MID LOADED"
     : midState === "loading"
@@ -79,7 +92,7 @@ export function AmbientMidDebugToggle() {
           cursor: "pointer",
         }}
       >
-        MID BRIGHTNESS 200% {highlighted ? "ON" : "OFF"}
+        MID BRIGHTNESS 200% {highlighted ? "ON" : "OFF"} · M
       </button>
     </div>
   );
