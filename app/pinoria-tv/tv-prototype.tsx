@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { ArrivalScene } from "./arrival-scene";
-import { ChoiceScene } from "./choice-scene";
+import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS } from "./choice-to-ambient-scene";
 import { DepartureScene } from "./departure-scene";
 import styles from "./tv.module.css";
 
@@ -35,7 +35,6 @@ type RelayMutationResponse = {
 const SURFACE_ID = "RECEPTION_TV";
 const RELAY_URL = "/api/pinoria-prototype/tv-relay";
 const ARRIVAL_MS = 6500;
-const QUICK_CHOICE_MS = 8000;
 const DEPARTURE_MS = 9000;
 
 const modes: { id: Mode; label: string }[] = [
@@ -143,7 +142,7 @@ export function PinoriaTVPrototype() {
           setReplayLabel(null);
           sequenceTimer.current = window.setTimeout(() => {
             void finishEvent(event.id);
-          }, QUICK_CHOICE_MS);
+          }, CHOICE_TO_AMBIENT_MS);
         }, ARRIVAL_MS);
         return;
       }
@@ -233,7 +232,7 @@ export function PinoriaTVPrototype() {
         </div>
       ) : null}
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
-      {mode === "choice" ? <ChoiceScene subject={subject} /> : null}
+      {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
       {mode === "departure" ? <Departure subject={subject} /> : null}
       {mode === "news" ? <News subject={subject} /> : null}
