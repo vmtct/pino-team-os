@@ -6,7 +6,7 @@ export const AMBIENT_HOUSE_CANVAS = {
 } as const;
 
 export const AMBIENT_MINI_CHARACTER = {
-  width: 115,
+  width: 164,
   height: 115,
   anchor: "top-left",
 } as const;
@@ -15,7 +15,7 @@ export const AMBIENT_MINI_CHARACTER = {
  * Canonical walkable outer boundary for Ambient House v1.
  *
  * Coordinates are authored on the 1980x1080 canonical canvas and represent
- * the TOP-LEFT anchor of the 115x115 mini-character.
+ * the TOP-LEFT anchor of the 164x115 mini-character viewport.
  *
  * The earlier draft point (105.3, 810.5) and the repeated terminal
  * (217.9, 812) were intentionally removed so this remains a simple polygon.
