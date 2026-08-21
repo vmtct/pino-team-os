@@ -1,0 +1,63 @@
+import Link from "next/link";
+
+const configCards = [
+  {
+    title: "Motion Graph",
+    body: "Horizontal lanes, diagonal connectors, MID front/behind depth and Y-based character ordering.",
+    source: "app/pinoria-tv/ambient-house-motion-graph.saved.json",
+  },
+  {
+    title: "Area Boundaries",
+    body: "Reception, Artchitect, Little Piner and Piano House learner-area polygons for later runtime assignment/constrained wandering.",
+    source: "app/pinoria-tv/ambient-house-areas.saved.json",
+  },
+] as const;
+
+export default function PinoriaAmbientConfigPage() {
+  return (
+    <section style={{ display: "grid", gap: 18, paddingBottom: 28 }}>
+      <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".12em", opacity: .58 }}>PINORIA · BACK OFFICE</div>
+          <h1 style={{ margin: "5px 0 4px", fontSize: 28 }}>Ambient House Config</h1>
+          <p style={{ margin: 0, maxWidth: 760, color: "#667067", lineHeight: 1.55 }}>
+            Công cụ cấu hình dài hạn cho motion graph và area boundary. Editor vẫn dùng cùng source-of-truth JSON đã lưu trong code để có thể mở lại và điều chỉnh sau này.
+          </p>
+        </div>
+        <Link
+          href="/pinoria-tv/ambient-debug"
+          target="_blank"
+          style={{ padding: "10px 14px", borderRadius: 10, background: "#17251b", color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: 12 }}
+        >
+          Mở toàn màn hình ↗
+        </Link>
+      </header>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+        {configCards.map((card) => (
+          <article key={card.title} style={{ border: "1px solid #dfe5df", borderRadius: 14, padding: 14, background: "#fff" }}>
+            <strong style={{ display: "block", fontSize: 14 }}>{card.title}</strong>
+            <p style={{ margin: "6px 0 10px", color: "#687169", fontSize: 12, lineHeight: 1.5 }}>{card.body}</p>
+            <code style={{ display: "block", overflowWrap: "anywhere", fontSize: 10, color: "#59635b", background: "#f5f7f5", borderRadius: 8, padding: 8 }}>{card.source}</code>
+          </article>
+        ))}
+      </div>
+
+      <div style={{ border: "1px solid #dfe5df", borderRadius: 16, overflow: "hidden", background: "#101711" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", background: "#f5f7f5", borderBottom: "1px solid #dfe5df", fontSize: 11 }}>
+          <strong>Configurator</strong>
+          <span style={{ color: "#687169" }}>Motion Graph · Area Boundaries · Save to Code</span>
+        </div>
+        <iframe
+          src="/pinoria-tv/ambient-debug"
+          title="Pinoria Ambient House Configurator"
+          style={{ display: "block", width: "100%", aspectRatio: "16 / 9", minHeight: 640, border: 0, background: "#101711" }}
+        />
+      </div>
+
+      <p style={{ margin: 0, fontSize: 11, color: "#7a837b" }}>
+        Lưu ý: các nút SAVE TO CODE trong configurator chỉ ghi file source khi chạy local development. Đây là intentional để BO production không tự ghi trực tiếp vào repository.
+      </p>
+    </section>
+  );
+}
