@@ -92,14 +92,22 @@ export const AMBIENT_HOUSE_AREAS: Record<AmbientHouseAreaId, readonly AmbientHou
   pianohouse: [],
 };
 
-/** Depth thresholds also moved +57.5px because Y now references character center. */
-export const AMBIENT_HOUSE_DEPTH_RULES = {
+export type AmbientHouseDepthRules = {
+  groundFrontMinYExclusive: number;
+  groundFrontMaxYExclusive: number;
+  upperFrontY: number;
+  upperFrontTolerancePx: number;
+  houseFrontAlwaysOnTop: true;
+};
+
+/** Depth thresholds are authored in CENTER-anchor Y space. */
+export const AMBIENT_HOUSE_DEPTH_RULES: AmbientHouseDepthRules = {
   groundFrontMinYExclusive: 893.8,
   groundFrontMaxYExclusive: 1022.5,
   upperFrontY: 499.4,
   upperFrontTolerancePx: 3,
   houseFrontAlwaysOnTop: true,
-} as const;
+};
 
 export function ambientMiniCharacterTopLeftFromAnchor(anchor: AmbientHousePoint): AmbientHousePoint {
   return {
@@ -160,10 +168,17 @@ export function isAmbientMiniCharacterWalkableInArea(
   return isAmbientMiniCharacterAnchorWalkable(anchor) && isAmbientMiniCharacterAnchorInArea(anchor, areaId, areas);
 }
 
-export function isAmbientMiniCharacterInFrontOfMid(y: number) {
-  const groundFront = y > AMBIENT_HOUSE_DEPTH_RULES.groundFrontMinYExclusive && y < AMBIENT_HOUSE_DEPTH_RULES.groundFrontMaxYExclusive;
-  const upperFront = Math.abs(y - AMBIENT_HOUSE_DEPTH_RULES.upperFrontY) <= AMBIENT_HOUSE_DEPTH_RULES.upperFrontTolerancePx;
+export function isAmbientMiniCharacterInFrontOfMidWithRules(
+  y: number,
+  rules: AmbientHouseDepthRules,
+) {
+  const groundFront = y > rules.groundFrontMinYExclusive && y < rules.groundFrontMaxYExclusive;
+  const upperFront = Math.abs(y - rules.upperFrontY) <= rules.upperFrontTolerancePx;
   return groundFront || upperFront;
+}
+
+export function isAmbientMiniCharacterInFrontOfMid(y: number) {
+  return isAmbientMiniCharacterInFrontOfMidWithRules(y, AMBIENT_HOUSE_DEPTH_RULES);
 }
 
 export function ambientHousePointToViewport(point: AmbientHousePoint, renderedWidth: number, renderedHeight: number): AmbientHousePoint {
