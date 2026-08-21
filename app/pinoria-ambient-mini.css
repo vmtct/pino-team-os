@@ -8,6 +8,15 @@
  */
 [data-ambient-mini-character] {
   overflow: visible !important;
+
+  /*
+   * Motion-graph editor renders BEHIND chars before HOUSE_MID and FRONT chars
+   * after HOUSE_MID. Keeping both character and MID at the same z-index lets
+   * DOM order decide the intended occlusion. The previous inline z-index:30
+   * always beat MID's z-index:20, so BEHIND lanes could never actually render
+   * behind the MID artwork.
+   */
+  z-index: 20 !important;
 }
 
 [data-ambient-mini-character] > [aria-label="Nhân vật Pinoria mẫu"] {
@@ -44,6 +53,11 @@
 [data-ambient-mini-character][data-ambient-mini-body="off"] img[data-pinoria-character-slot="body"],
 [data-ambient-mini-character][data-ambient-mini-body="off"] [data-pinoria-character-slot="back"] {
   display: none !important;
+}
+
+/* Debug-only MID presence highlight. Toggled from /pinoria-tv/ambient-debug. */
+html.pinoria-highlight-mid img[src*="layer=mid"] {
+  filter: brightness(2) !important;
 }
 
 [data-ambient-mini-character]::before {
