@@ -14,7 +14,7 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
 
   if (hostname === BO_HOSTNAME) {
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
-    if (isBoFoundationPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
+    if (isApprovedBoPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
     return { action: "not_found" };
   }
 
@@ -26,12 +26,22 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
   return { action: "next" };
 }
 
-function isBoFoundationPath(pathname: string): boolean {
-  return pathname === "/bo"
-    || pathname === "/bo/"
-    || pathname === "/api/bo/context"
-    || pathname === "/api/bo/context/"
-    || pathname === "/favicon.ico";
+function isApprovedBoPath(pathname: string): boolean {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  if ([
+    "/bo",
+    "/bo/running-classes",
+    "/bo/sessions",
+    "/bo/registrations",
+    "/bo/syllabus",
+    "/api/bo/context",
+    "/api/bo/path-programs",
+    "/api/bo/running-classes",
+    "/api/bo/syllabi",
+    "/api/bo/sessions",
+    "/favicon.ico",
+  ].includes(normalized)) return true;
+  return /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized);
 }
 
 function isFrameworkAsset(pathname: string): boolean {
