@@ -55,6 +55,11 @@ type Conversation = {
   exchangeIndex: number;
 };
 
+type WorldState = {
+  agents: SocialAgent[];
+  conversations: Conversation[];
+};
+
 type CooldownMap = Record<string, number>;
 
 type Blocker = {
@@ -115,9 +120,98 @@ function seedAgents(): SocialAgent[] {
   ];
 }
 
+function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: CooldownMap): WorldState {
+  const conversations = current.conversations.filter((conversation) => conversation.until > now);
+  const expired = current.conversations.filter((conversation) => conversation.until <= now);
+  for (const conversation of expired) {
+    cooldowns[pairKey(conversation.aId, conversation.bId)] = now + CHAT_COOLDOWN_MS;
+  }
+
+  const activeIds = new Set(conversations.flatMap((conversation) => [conversation.aId, conversation.bId]));
+  const blockers = buildBlockers(current.agents, conversations);
+
+  let agents = current.agents.map((agent) => {
+    if (activeIds.has(agent.id)) return agent;
+    if (now < agent.pauseUntil) return agent;
+
+    const lane = laneById(agent.laneId);
+    const minX = lane.x1 + HALF_W;
+    const maxX = lane.x2 - HALF_W;
+    let direction = agent.direction;
+    let candidateX = agent.x + direction * agent.speed * (dt / 1000);
+
+    if (candidateX <= minX || candidateX >= maxX) {
+      direction = direction === 1 ? -1 : 1;
+      candidateX = Math.max(minX, Math.min(maxX, candidateX));
+    }
+
+    const blocker = blockers.find((item) => item.laneId === agent.laneId && intersectsBlocker(candidateX, agent.y, item));
+    if (blocker) {
+      return {
+        ...agent,
+        direction: direction === 1 ? -1 : 1,
+        pauseUntil: now + 420 + Math.random() * 420,
+      };
+    }
+
+    return { ...agent, x: candidateX, direction };
+  });
+
+  const nextConversations = [...conversations];
+  const maxBubbles = Math.min(3, Math.max(1, DIALOGUES.maxConcurrentBubbles));
+
+  if (nextConversations.length < maxBubbles) {
+    outer:
+    for (let i = 0; i < agents.length; i += 1) {
+      for (let j = i + 1; j < agents.length; j += 1) {
+        const a = agents[i];
+        const b = agents[j];
+        if (activeIds.has(a.id) || activeIds.has(b.id)) continue;
+        if (a.laneId !== b.laneId) continue;
+        if (Math.abs(a.y - b.y) > 4) continue;
+
+        const key = pairKey(a.id, b.id);
+        if ((cooldowns[key] ?? 0) > now) continue;
+
+        const distanceX = Math.abs(a.x - b.x);
+        const areApproaching = (a.x < b.x && a.direction === 1 && b.direction === -1)
+          || (b.x < a.x && b.direction === 1 && a.direction === -1);
+        if (!areApproaching || distanceX > MINI_WIDTH + 6) continue;
+
+        const leftFirst = a.x <= b.x;
+        const midpoint = (a.x + b.x) / 2;
+        const leftX = midpoint - HALF_W;
+        const rightX = midpoint + HALF_W;
+        agents[i] = { ...a, x: leftFirst ? leftX : rightX, conversationId: key, pauseUntil: now + DIALOGUES.conversationDurationMs };
+        agents[j] = { ...b, x: leftFirst ? rightX : leftX, conversationId: key, pauseUntil: now + DIALOGUES.conversationDurationMs };
+
+        const exchangeIndex = Math.floor(Math.random() * Math.max(1, DIALOGUES.exchanges.length));
+        nextConversations.push({
+          id: key,
+          aId: a.id,
+          bId: b.id,
+          laneId: a.laneId,
+          startedAt: now,
+          until: now + DIALOGUES.conversationDurationMs,
+          exchangeIndex,
+        });
+        activeIds.add(a.id);
+        activeIds.add(b.id);
+        if (nextConversations.length >= maxBubbles) break outer;
+      }
+    }
+  }
+
+  const activeConversationIds = new Set(nextConversations.map((conversation) => conversation.id));
+  agents = agents.map((agent) => agent.conversationId && !activeConversationIds.has(agent.conversationId)
+    ? { ...agent, conversationId: undefined, direction: agent.direction === 1 ? -1 : 1, pauseUntil: now + 320 }
+    : agent);
+
+  return { agents, conversations: nextConversations };
+}
+
 export function AmbientSocialSimulation() {
-  const [agents, setAgents] = useState<SocialAgent[]>(seedAgents);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [world, setWorld] = useState<WorldState>(() => ({ agents: seedAgents(), conversations: [] }));
   const cooldownRef = useRef<CooldownMap>({});
   const lastFrameRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -127,95 +221,7 @@ export function AmbientSocialSimulation() {
       const previous = lastFrameRef.current ?? now;
       const dt = Math.min(MAX_STEP_MS, Math.max(0, now - previous));
       lastFrameRef.current = now;
-
-      setConversations((currentConversations) => {
-        const active = currentConversations.filter((conversation) => conversation.until > now);
-        const expired = currentConversations.filter((conversation) => conversation.until <= now);
-        if (expired.length) {
-          for (const conversation of expired) {
-            cooldownRef.current[pairKey(conversation.aId, conversation.bId)] = now + CHAT_COOLDOWN_MS;
-          }
-        }
-
-        setAgents((currentAgents) => {
-          let nextAgents = currentAgents.map((agent) => ({ ...agent }));
-          const activeIds = new Set(active.flatMap((conversation) => [conversation.aId, conversation.bId]));
-          const blockers = buildBlockers(nextAgents, active);
-
-          nextAgents = nextAgents.map((agent) => {
-            if (activeIds.has(agent.id)) return agent;
-            if (now < agent.pauseUntil) return agent;
-            const lane = laneById(agent.laneId);
-            const minX = lane.x1 + HALF_W;
-            const maxX = lane.x2 - HALF_W;
-            let direction = agent.direction;
-            let candidateX = agent.x + direction * agent.speed * (dt / 1000);
-
-            if (candidateX <= minX || candidateX >= maxX) {
-              direction = direction === 1 ? -1 : 1;
-              candidateX = Math.max(minX, Math.min(maxX, candidateX));
-            }
-
-            const blocker = blockers.find((item) => item.laneId === agent.laneId && intersectsBlocker(candidateX, agent.y, item));
-            if (blocker) {
-              return {
-                ...agent,
-                direction: direction === 1 ? -1 : 1,
-                pauseUntil: now + 420 + Math.random() * 420,
-              };
-            }
-
-            return { ...agent, x: candidateX, direction };
-          });
-
-          if (active.length < Math.min(3, DIALOGUES.maxConcurrentBubbles)) {
-            outer:
-            for (let i = 0; i < nextAgents.length; i += 1) {
-              for (let j = i + 1; j < nextAgents.length; j += 1) {
-                const a = nextAgents[i];
-                const b = nextAgents[j];
-                if (activeIds.has(a.id) || activeIds.has(b.id)) continue;
-                if (a.laneId !== b.laneId) continue;
-                if (Math.abs(a.y - b.y) > 4) continue;
-                const key = pairKey(a.id, b.id);
-                if ((cooldownRef.current[key] ?? 0) > now) continue;
-
-                const distanceX = Math.abs(a.x - b.x);
-                const areApproaching = (a.x < b.x && a.direction === 1 && b.direction === -1)
-                  || (b.x < a.x && b.direction === 1 && a.direction === -1);
-                if (!areApproaching || distanceX > MINI_WIDTH + 6) continue;
-
-                const leftFirst = a.x <= b.x;
-                const midpoint = (a.x + b.x) / 2;
-                const leftX = midpoint - HALF_W;
-                const rightX = midpoint + HALF_W;
-                nextAgents[i] = { ...a, x: leftFirst ? leftX : rightX, conversationId: key, pauseUntil: now + DIALOGUES.conversationDurationMs };
-                nextAgents[j] = { ...b, x: leftFirst ? rightX : leftX, conversationId: key, pauseUntil: now + DIALOGUES.conversationDurationMs };
-
-                const exchangeIndex = Math.floor(Math.random() * Math.max(1, DIALOGUES.exchanges.length));
-                active.push({
-                  id: key,
-                  aId: a.id,
-                  bId: b.id,
-                  laneId: a.laneId,
-                  startedAt: now,
-                  until: now + DIALOGUES.conversationDurationMs,
-                  exchangeIndex,
-                });
-                if (active.length >= Math.min(3, DIALOGUES.maxConcurrentBubbles)) break outer;
-              }
-            }
-          }
-
-          const conversationIds = new Set(active.map((conversation) => conversation.id));
-          return nextAgents.map((agent) => agent.conversationId && !conversationIds.has(agent.conversationId)
-            ? { ...agent, conversationId: undefined, direction: agent.direction === 1 ? -1 : 1, pauseUntil: now + 320 }
-            : agent);
-        });
-
-        return active;
-      });
-
+      setWorld((current) => advanceWorld(current, now, dt, cooldownRef.current));
       frameRef.current = window.requestAnimationFrame(tick);
     };
 
@@ -227,6 +233,7 @@ export function AmbientSocialSimulation() {
     };
   }, []);
 
+  const { agents, conversations } = world;
   const blockers = useMemo(() => buildBlockers(agents, conversations), [agents, conversations]);
 
   return (
