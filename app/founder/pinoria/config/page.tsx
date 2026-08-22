@@ -19,7 +19,7 @@ const configCards = [
   },
   {
     title: "Social Dialogue",
-    body: "Random Piner-to-Piner exchanges, conversation duration and the global max chat-bubble cap.",
+    body: "Random Piner-to-Piner exchanges. Conversation bắt đầu khi hai mini canvas overlap 50px, mỗi zone tối đa 1 bubble và toàn TV tối đa 3 bubble.",
     source: "app/pinoria-tv/ambient-dialogues.saved.json",
   },
 ] as const;
@@ -68,7 +68,7 @@ export default function PinoriaAmbientConfigPage() {
       <div style={{ border: "1px solid #dfe5df", borderRadius: 16, overflow: "hidden", background: "#101711" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", background: "#f5f7f5", borderBottom: "1px solid #dfe5df", fontSize: 11 }}>
           <strong>Social Simulation</strong>
-          <span style={{ color: "#687169" }}>Touch → random conversation · max 3 bubbles · convo pair becomes blocker</span>
+          <span style={{ color: "#687169" }}>50px overlap → đối đáp từng bubble · zone cap 1 · TV cap 3 · convo pair = blocker</span>
         </div>
         <iframe
           src="/pinoria-tv/social-debug"
