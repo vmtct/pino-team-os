@@ -16,13 +16,15 @@ const MINI_WIDTH = 164;
 const MINI_HEIGHT = 115;
 const HALF_W = MINI_WIDTH / 2;
 const HALF_H = MINI_HEIGHT / 2;
-const REQUIRED_OVERLAP_PX = 50;
+const REQUIRED_OVERLAP_PX = 70;
 const CONVERSATION_CENTER_GAP = MINI_WIDTH - REQUIRED_OVERLAP_PX;
 const MAX_STEP_MS = 40;
 const CHAT_COOLDOWN_MS = 4200;
 const BLOCKER_MARGIN = 18;
 const BUBBLE_WIDTH = 250;
 const BUBBLE_GAP = 18;
+const BUBBLE_PULL_IN_X_PX = 20;
+const BUBBLE_PULL_IN_Y_PX = 20;
 const GLOBAL_BUBBLE_HARD_CAP = 3;
 const ZONE_BUBBLE_HARD_CAP = 1;
 
@@ -475,10 +477,10 @@ export function AmbientSocialSimulation() {
           const text = firstTurn ? exchange.first : exchange.reply;
           const speakerIsLeft = speaker.x < listener.x;
           const desiredLeft = speakerIsLeft
-            ? speaker.x - HALF_W - BUBBLE_GAP - BUBBLE_WIDTH
-            : speaker.x + HALF_W + BUBBLE_GAP;
+            ? speaker.x - HALF_W - BUBBLE_GAP - BUBBLE_WIDTH + BUBBLE_PULL_IN_X_PX
+            : speaker.x + HALF_W + BUBBLE_GAP - BUBBLE_PULL_IN_X_PX;
           const bubbleLeft = clamp(desiredLeft, 18, 1920 - BUBBLE_WIDTH - 18);
-          const bubbleTop = clamp(speaker.y - 126, 28, 1080 - 150);
+          const bubbleTop = clamp(speaker.y - 126 + BUBBLE_PULL_IN_Y_PX, 28, 1080 - 150);
 
           return (
             <div
