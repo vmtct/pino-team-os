@@ -23,13 +23,17 @@ test("BO facade uses only BO auth and PINO_BO_CORE", async () => {
   assert.doesNotMatch(sources, /FounderControlPlane|PINO_WORKFORCE_CORE|targetStaffMemberId|userId=|staffMemberId=/);
 });
 
-test("BO shell remains foundation-only and does not import Founder or Workforce features", async () => {
+test("BO read plane composes only BO APIs and the BO shell", async () => {
   const sources = await Promise.all([
     readFile("app/bo/layout.tsx", "utf8"),
     readFile("app/bo/page.tsx", "utf8"),
-    readFile("app/bo/BoContextCard.tsx", "utf8"),
+    readFile("app/bo/BoOperationalView.tsx", "utf8"),
+    readFile("lib/bo-api.ts", "utf8"),
+    readFile("lib/bo-read-handler.ts", "utf8"),
   ]).then((items) => items.join("\n"));
   assert.match(sources, /BoShell/);
-  assert.match(sources, /\/api\/bo\/context/);
-  assert.doesNotMatch(sources, /founderApi|WorkforceWorkspace|\/founder|\/api\/workforce/);
+  assert.match(sources, /\/api\/bo\//);
+  assert.match(sources, /Running Classes|Sessions|Registrations|Syllabus \/ Programs/);
+  assert.doesNotMatch(sources, /founderApi|WorkforceWorkspace|\/founder|\/api\/workforce|NOTION|PINO_CORE|PINO_WORKFORCE_CORE/);
+  assert.doesNotMatch(sources, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
 });
