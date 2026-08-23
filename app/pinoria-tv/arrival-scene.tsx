@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AMBIENT_HOUSE_ARRIVAL_ASSETS,
+  DEFAULT_ARRIVAL_BACKGROUND,
+  normalizeArrivalBackgroundVariant,
+  PINORIA_ARRIVAL_BACKGROUND_EVENT,
+  PINORIA_ARRIVAL_BACKGROUND_STORAGE_KEY,
+  type ArrivalBackgroundVariant,
+} from "./arrival-visual-config";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -151,6 +159,36 @@ function InventoryGrid() {
   );
 }
 
+function HouseAmbientBackdrop() {
+  return (
+    <div data-pinoria-arrival-house-backdrop style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0, pointerEvents: "none", background: "#211a17" }}>
+      {(Object.values(AMBIENT_HOUSE_ARRIVAL_ASSETS) as string[]).map((src, index) => (
+        <img
+          key={src}
+          src={src}
+          alt=""
+          draggable={false}
+          decoding="async"
+          loading="eager"
+          style={{
+            position: "absolute",
+            inset: "-5%",
+            width: "110%",
+            height: "110%",
+            objectFit: "cover",
+            opacity: index === 0 ? .98 : .88,
+            transform: "scale(1.035)",
+            transformOrigin: "50% 50%",
+            filter: "blur(20px) brightness(.54) saturate(.68) contrast(.94)",
+          }}
+        />
+      ))}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 62% 43%,rgba(103,82,68,.18),rgba(31,23,20,.42) 47%,rgba(24,18,16,.72) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,rgba(28,21,18,.62) 0%,rgba(28,21,18,.30) 48%,rgba(25,18,16,.48) 100%)" }} />
+    </div>
+  );
+}
+
 function OrbitingMarks() {
   const markRefs = useRef<Array<HTMLImageElement | null>>([]);
 
@@ -237,16 +275,46 @@ function OrbitingMarks() {
 }
 
 export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
+  const [backgroundVariant, setBackgroundVariant] = useState<ArrivalBackgroundVariant>(DEFAULT_ARRIVAL_BACKGROUND);
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      setBackgroundVariant(normalizeArrivalBackgroundVariant(window.localStorage.getItem(PINORIA_ARRIVAL_BACKGROUND_STORAGE_KEY)));
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === PINORIA_ARRIVAL_BACKGROUND_STORAGE_KEY) syncFromStorage();
+    };
+    const onDirectChange = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      setBackgroundVariant(normalizeArrivalBackgroundVariant(detail));
+    };
+
+    syncFromStorage();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(PINORIA_ARRIVAL_BACKGROUND_EVENT, onDirectChange);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(PINORIA_ARRIVAL_BACKGROUND_EVENT, onDirectChange);
+    };
+  }, []);
+
+  const houseBackground = backgroundVariant === "ambient-house-blur";
+
   return (
     <div
+      data-pinoria-arrival-background={backgroundVariant}
       style={{
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        background: "radial-gradient(circle at 61% 42%,rgba(126,103,89,.24) 0,rgba(84,66,57,.12) 34%,transparent 62%),linear-gradient(135deg,#443a35 0%,#392f2b 48%,#292320 100%)",
+        background: houseBackground
+          ? "#211a17"
+          : "radial-gradient(circle at 61% 42%,rgba(126,103,89,.24) 0,rgba(84,66,57,.12) 34%,transparent 62%),linear-gradient(135deg,#443a35 0%,#392f2b 48%,#292320 100%)",
         color: "#f8f3ee",
       }}
     >
+      {houseBackground ? <HouseAmbientBackdrop /> : null}
+
       <style>{`
         @keyframes pinoriaArrivalCopy { 0%,18% { opacity:0; transform:translateY(16px) } 48%,100% { opacity:1; transform:translateY(0) } }
         @keyframes pinoriaArrivalCharacter { 0%,8% { opacity:0; transform:translateX(56px) scale(.94) } 43% { opacity:1; transform:translateX(0) scale(1.015) } 58%,100% { opacity:1; transform:translateX(0) scale(1) } }
@@ -296,8 +364,11 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           right: "5%",
           top: "5%",
           height: "82%",
+          zIndex: 1,
           borderRadius: "50%",
-          background: "radial-gradient(circle,rgba(151,123,105,.15) 0,rgba(111,88,75,.06) 44%,transparent 72%)",
+          background: houseBackground
+            ? "radial-gradient(circle,rgba(151,123,105,.10) 0,rgba(111,88,75,.04) 44%,transparent 72%)"
+            : "radial-gradient(circle,rgba(151,123,105,.15) 0,rgba(111,88,75,.06) 44%,transparent 72%)",
           filter: "blur(26px)",
           animation: "pinoriaArrivalGlow 4s ease-in-out infinite",
         }}
@@ -305,7 +376,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
       <InventoryGrid />
 
-      <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", padding: "76px clamp(70px,7vw,110px) 58px", display: "grid", gridTemplateColumns: "minmax(0,.82fr) minmax(500px,1.18fr)", alignItems: "center", gap: 34 }}>
+      <div style={{ position: "absolute", inset: 0, zIndex: 2, boxSizing: "border-box", padding: "76px clamp(70px,7vw,110px) 58px", display: "grid", gridTemplateColumns: "minmax(0,.82fr) minmax(500px,1.18fr)", alignItems: "center", gap: 34 }}>
         <section style={{ maxWidth: 560, animation: "pinoriaArrivalCopy 6.2s cubic-bezier(.2,.75,.2,1) both" }}>
           <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>CHÀO ĐẾN · {subject.name.toUpperCase()}</span>
           <h1 style={{ margin: "0 0 16px", fontSize: "clamp(50px,5.2vw,72px)", lineHeight: .94, letterSpacing: "-.05em" }}>Chào {subject.name} ✦</h1>
