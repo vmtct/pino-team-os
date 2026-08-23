@@ -49,7 +49,7 @@ export function AmbientDialogueConfigEditor() {
         <div>
           <strong style={{ display: "block", fontSize: 15 }}>Social Dialogue</strong>
           <p style={{ margin: "5px 0 0", color: "#687169", fontSize: 12, lineHeight: 1.45 }}>
-            Pool lời thoại random khi hai mini-char overlap 70px. Hai Piner đối đáp bằng bubble riêng theo lượt; mỗi zone tối đa 1 bubble và toàn TV tối đa 3 bubble.
+            Pool lời thoại random khi hai mini-char overlap 90px. Hai Piner đối đáp bằng bubble riêng theo lượt; mỗi zone tối đa 1 bubble và toàn TV tối đa 3 bubble.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
