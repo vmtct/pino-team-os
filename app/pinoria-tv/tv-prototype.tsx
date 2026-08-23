@@ -288,7 +288,7 @@ export function PinoriaTVPrototype() {
   }
 
   const learnerChrome = mode === "choice" || mode === "arrival" || mode === "departure-transition" || mode === "departure";
-  const ambientBackplaneVisible = mode === "ambient" || mode === "choice" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "departure-transition" || mode === "departure";
 
   return (
     <main data-pinoria-tv-screen className={styles.screen}>
