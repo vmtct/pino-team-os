@@ -411,8 +411,6 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         </section>
 
         <section aria-hidden="true" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
-          <div style={{ position: "absolute", width: "76%", aspectRatio: "1", borderRadius: "50%", border: "1px solid #ead89322", boxShadow: "0 0 54px #dfcd7720" }} />
-
           <OrbitingMarks />
 
           <div
@@ -426,6 +424,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
               transform: "translate(-50%,-50%) translateX(-11px)",
               zIndex: 0,
               pointerEvents: "none",
+              filter: "drop-shadow(0 0 54px #dfcd7720)",
             }}
           >
             <img
