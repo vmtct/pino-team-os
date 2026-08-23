@@ -2,14 +2,14 @@ export type ArrivalBackgroundVariant = "earth-brown" | "ambient-house-blur";
 
 export const PINORIA_ARRIVAL_BACKGROUND_STORAGE_KEY = "pinoria:arrival-background-variant";
 export const PINORIA_ARRIVAL_BACKGROUND_EVENT = "pinoria:arrival-background-change";
-export const DEFAULT_ARRIVAL_BACKGROUND: ArrivalBackgroundVariant = "earth-brown";
+export const DEFAULT_ARRIVAL_BACKGROUND: ArrivalBackgroundVariant = "ambient-house-blur";
 
 export const ARRIVAL_BACKGROUND_OPTIONS = [
   {
     id: "earth-brown",
     label: "A · Earth Brown",
     shortLabel: "Earth Brown",
-    description: "Nền nâu đất tối, muted/faded. Đây là phương án hiện tại và giữ visual sạch nhất quanh character.",
+    description: "Nền nâu đất tối, muted/faded. Đây là phương án sạch và tối giản quanh character.",
   },
   {
     id: "ambient-house-blur",
@@ -32,5 +32,6 @@ export const AMBIENT_HOUSE_ARRIVAL_ASSETS = {
 } as const;
 
 export function normalizeArrivalBackgroundVariant(value: string | null | undefined): ArrivalBackgroundVariant {
-  return value === "ambient-house-blur" ? "ambient-house-blur" : DEFAULT_ARRIVAL_BACKGROUND;
+  if (value === "earth-brown" || value === "ambient-house-blur") return value;
+  return DEFAULT_ARRIVAL_BACKGROUND;
 }
