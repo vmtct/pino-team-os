@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AmbientDialogueConfigEditor } from "./ambient-dialogue-config-editor";
+import { WelcomeVisualConfigEditor } from "./welcome-visual-config-editor";
 
 const configCards = [
   {
@@ -30,12 +31,19 @@ export default function PinoriaAmbientConfigPage() {
       <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".12em", opacity: .58 }}>PINORIA · BACK OFFICE</div>
-          <h1 style={{ margin: "5px 0 4px", fontSize: 28 }}>Ambient House Config</h1>
+          <h1 style={{ margin: "5px 0 4px", fontSize: 28 }}>Pinoria Config</h1>
           <p style={{ margin: 0, maxWidth: 760, color: "#667067", lineHeight: 1.55 }}>
-            Công cụ cấu hình dài hạn cho motion graph, emergence pin, area boundary và social dialogue. Các editor dùng source-of-truth JSON trong code để có thể mở lại và điều chỉnh sau này.
+            Cấu hình presentation cho Welcome và Ambient House, gồm A/B visual, motion graph, emergence pin, area boundary và social dialogue.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link
+            href="/pinoria-tv"
+            target="_blank"
+            style={{ padding: "10px 14px", borderRadius: 10, background: "#f1e9df", color: "#4a3c34", textDecoration: "none", fontWeight: 800, fontSize: 12 }}
+          >
+            Mở TV Prototype ↗
+          </Link>
           <Link
             href="/pinoria-tv/social-debug"
             target="_blank"
@@ -52,6 +60,8 @@ export default function PinoriaAmbientConfigPage() {
           </Link>
         </div>
       </header>
+
+      <WelcomeVisualConfigEditor />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
         {configCards.map((card) => (
@@ -90,7 +100,7 @@ export default function PinoriaAmbientConfigPage() {
       </div>
 
       <p style={{ margin: 0, fontSize: 11, color: "#7a837b" }}>
-        Lưu ý: các nút SAVE TO CODE chỉ ghi file source khi chạy local development. Đây là intentional để BO production không tự ghi trực tiếp vào repository.
+        Lưu ý: SAVE TO CODE chỉ ghi file source khi chạy local development. Welcome A/B là presentation preference lưu trong browser để test nhanh, không ghi vào Core.
       </p>
     </section>
   );
