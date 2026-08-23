@@ -15,7 +15,7 @@ import {
   type ShopSessionSnapshot,
 } from "./shop-types";
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 6;
 const STACK_ORDER: Record<PrototypeCharacterSlot, number> = {
   back: 10,
   body: 20,
@@ -25,40 +25,110 @@ const STACK_ORDER: Record<PrototypeCharacterSlot, number> = {
   eyewear: 60,
 };
 
+type PreviewLayer = {
+  slot: PrototypeCharacterSlot;
+  src: string;
+  fallbackSrc: string;
+  order: number;
+};
+
+function ShopLayerImage({ layer }: { layer: PreviewLayer }) {
+  const [src, setSrc] = useState(layer.src);
+
+  useEffect(() => {
+    setSrc(layer.src);
+  }, [layer.src]);
+
+  return (
+    <img
+      data-pinoria-shop-character-layer={layer.slot}
+      src={src}
+      alt=""
+      draggable={false}
+      decoding="async"
+      loading="eager"
+      onError={() => {
+        if (src !== layer.fallbackSrc) setSrc(layer.fallbackSrc);
+      }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        zIndex: layer.order,
+        pointerEvents: "none",
+        userSelect: "none",
+      }}
+    />
+  );
+}
+
 function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; selected?: ShopCatalogItem }) {
   const profile = prototypeCharacterProfileForSubject(subjectId);
   const selectedSlot = selected?.previewable ? selected.slot as PrototypeCharacterSlot : null;
   const layers = prototypeCharacterManifest.layers
     .map((base) => {
       const profileSrc = profile?.layers[base.slot];
-      const baseSrc = profileSrc === null ? null : profileSrc || base.src;
+      const baseSrc = base.src;
+      const resolvedBaseSrc = profileSrc === null ? null : profileSrc || baseSrc;
       const selectedSrc = selectedSlot === base.slot && selected?.layerUrl ? selected.layerUrl : undefined;
-      const src = selectedSrc ?? baseSrc;
-      return src ? { slot: base.slot, src, order: STACK_ORDER[base.slot] } : null;
+      const src = selectedSrc ?? resolvedBaseSrc;
+      return src ? { slot: base.slot, src, fallbackSrc: baseSrc, order: STACK_ORDER[base.slot] } : null;
     })
-    .filter((layer): layer is { slot: PrototypeCharacterSlot; src: string; order: number } => !!layer)
+    .filter((layer): layer is PreviewLayer => !!layer)
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div style={{ position: "relative", width: "min(430px,35vw)", aspectRatio: "1 / 1" }}>
+    <div style={{ position: "relative", width: "min(470px,38vw)", aspectRatio: "1 / 1" }}>
+      <div
+        style={{
+          position: "absolute",
+          inset: "8% 5% 4%",
+          borderRadius: "50%",
+          background: "radial-gradient(circle,rgba(151,92,207,.14),rgba(103,64,151,.05) 42%,transparent 68%)",
+          filter: "blur(12px)",
+          animation: "pinoriaShopAmbientGlow 4.8s ease-in-out infinite",
+        }}
+      />
       <img
         src={prototypeCharacterEffects.aura.src}
         alt=""
         draggable={false}
-        style={{ position: "absolute", inset: "2%", width: "96%", height: "96%", objectFit: "contain", opacity: .72, filter: "brightness(.92) drop-shadow(0 0 28px rgba(181,100,255,.28))" }}
+        style={{
+          position: "absolute",
+          inset: "1%",
+          width: "98%",
+          height: "98%",
+          objectFit: "contain",
+          opacity: .8,
+          filter: "brightness(.96) drop-shadow(0 0 28px rgba(181,100,255,.32))",
+          animation: "pinoriaShopAuraPulse 5.4s ease-in-out infinite",
+          zIndex: 2,
+        }}
       />
-      {layers.map((layer) => (
+      {prototypeCharacterEffects.glows.map((glow, index) => (
         <img
-          key={`${layer.slot}:${layer.src}`}
-          src={layer.src}
+          key={glow.id}
+          src={glow.src}
           alt=""
           draggable={false}
-          decoding="async"
-          loading="eager"
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: layer.order }}
+          style={{
+            position: "absolute",
+            inset: "4%",
+            width: "92%",
+            height: "92%",
+            objectFit: "contain",
+            opacity: index % 2 === 0 ? .08 : .055,
+            transform: glow.mirrored ? "scaleX(-1)" : undefined,
+            mixBlendMode: "screen",
+            animation: `pinoriaShopGlowDrift ${6.4 + index * .7}s ease-in-out ${index * -.9}s infinite`,
+            zIndex: 3,
+          }}
         />
       ))}
-      <div style={{ position: "absolute", left: "50%", bottom: "2%", width: "45%", height: 20, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(ellipse,rgba(12,7,5,.5),transparent 70%)", filter: "blur(6px)", zIndex: 5 }} />
+      {layers.map((layer) => <ShopLayerImage key={`${layer.slot}:${layer.src}`} layer={layer} />)}
+      <div style={{ position: "absolute", left: "50%", bottom: "1%", width: "48%", height: 22, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(ellipse,rgba(9,6,5,.56),transparent 70%)", filter: "blur(7px)", zIndex: 5 }} />
     </div>
   );
 }
@@ -78,15 +148,26 @@ function HouseShopBackdrop() {
             width: "108%",
             height: "108%",
             objectFit: "cover",
-            opacity: index === 0 ? .78 : .54,
-            filter: "blur(14px) brightness(.36) saturate(.58) sepia(.12)",
-            transform: "scale(1.03)",
+            opacity: index === 0 ? .72 : .48,
+            filter: "blur(15px) brightness(.33) saturate(.54) sepia(.12)",
+            transform: "scale(1.04)",
           }}
         />
       ))}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 28% 48%,rgba(104,64,44,.15),transparent 38%),linear-gradient(100deg,rgba(19,12,10,.72),rgba(34,23,18,.76) 48%,rgba(17,11,9,.88))" }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 26% 46%,rgba(112,70,49,.17),transparent 38%),radial-gradient(circle at 71% 41%,rgba(91,51,103,.08),transparent 34%),linear-gradient(100deg,rgba(18,12,10,.72),rgba(34,23,18,.78) 48%,rgba(16,10,8,.9))" }} />
+      <div style={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 120px rgba(8,4,3,.42)" }} />
     </div>
   );
+}
+
+function descriptionFor(item?: ShopCatalogItem) {
+  if (!item) return "Staff chọn một món trên điện thoại để cả House cùng xem trên TV.";
+  if (item.category === "body") return "Thử trực tiếp trang phục này lên Piner của con.";
+  if (item.category === "eyewear") return "Một thay đổi nhỏ, nhìn Piner khác hẳn ngay lập tức.";
+  if (item.category === "headwear") return "Đội thử lên Piner trước khi con quyết định.";
+  if (item.category === "back") return "Trang trí phía sau Piner và giữ nguyên các dấu mốc đã đạt được.";
+  if (item.category === "hair" || item.category === "face") return "Xem thử diện mạo này trên Piner của con.";
+  return "Món này sẽ xuất hiện cùng Piner trong thế giới Pinoria.";
 }
 
 export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?: string }) {
@@ -145,6 +226,9 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pendingItem = catalog.find((item) => item.assetId === session?.pendingPurchaseAssetId);
   const owned = !!selected && !!session?.ownedAssetIds.includes(selected.assetId);
+  const subjectPls = session?.subject.pls ?? 420;
+  const canAfford = !!selected && subjectPls >= selected.pricePls;
+  const missingPls = selected ? Math.max(0, selected.pricePls - subjectPls) : 0;
   const purchaseResult = session?.purchaseResult;
   const resultItem = purchaseResult ? catalog.find((item) => item.assetId === purchaseResult.assetId) : undefined;
 
@@ -153,108 +237,120 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
       <HouseShopBackdrop />
       <style>{`
         @keyframes pinoriaShopEnter { from { opacity:0; transform:scale(1.012) } to { opacity:1; transform:scale(1) } }
-        @keyframes pinoriaShopSelect { 0% { box-shadow:0 0 0 rgba(245,197,91,0) } 45% { box-shadow:0 0 34px rgba(245,197,91,.28) } 100% { box-shadow:0 0 20px rgba(245,197,91,.16) } }
+        @keyframes pinoriaShopSelect { 0% { box-shadow:0 0 0 rgba(245,197,91,0) } 45% { box-shadow:0 0 38px rgba(245,197,91,.32) } 100% { box-shadow:0 0 22px rgba(245,197,91,.18) } }
         @keyframes pinoriaShopToast { 0% { opacity:0; transform:translate(-50%,14px) } 18%,78% { opacity:1; transform:translate(-50%,0) } 100% { opacity:0; transform:translate(-50%,-8px) } }
+        @keyframes pinoriaShopAuraPulse { 0%,100% { opacity:.72; transform:scale(.99) } 50% { opacity:.88; transform:scale(1.018) } }
+        @keyframes pinoriaShopAmbientGlow { 0%,100% { opacity:.72; transform:scale(.96) } 50% { opacity:1; transform:scale(1.05) } }
+        @keyframes pinoriaShopGlowDrift { 0%,100% { opacity:.035; filter:blur(.2px) } 50% { opacity:.11; filter:blur(1px) } }
       `}</style>
 
-      <div style={{ position: "absolute", inset: "34px 52px 38px", display: "grid", gridTemplateColumns: "39% 61%", gridTemplateRows: "82px 1fr", gap: "16px 22px", animation: "pinoriaShopEnter .48s ease-out both" }}>
-        <header style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <img src={PINORIA_SHOP_LOGO} alt="Pinoria" style={{ width: 152, maxHeight: 58, objectFit: "contain", objectPosition: "left center", filter: "drop-shadow(0 7px 18px rgba(0,0,0,.32))" }} />
-            <div style={{ width: 1, height: 34, background: "rgba(245,214,155,.22)" }} />
+      <div style={{ position: "absolute", inset: "30px 50px 34px", display: "grid", gridTemplateColumns: "41% 59%", gridTemplateRows: "86px 1fr", gap: "16px 24px", animation: "pinoriaShopEnter .48s ease-out both" }}>
+        <header style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "280px 1fr 126px", alignItems: "center", gap: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <img src={PINORIA_SHOP_LOGO} alt="Pinoria" style={{ width: 146, maxHeight: 58, objectFit: "contain", objectPosition: "left center", filter: "drop-shadow(0 7px 18px rgba(0,0,0,.32))" }} />
+            <div style={{ width: 1, height: 38, background: "rgba(245,214,155,.22)" }} />
             <div>
-              <div style={{ color: "#f0cb80", fontSize: 13, fontWeight: 900, letterSpacing: ".15em" }}>SHOP PINORIA</div>
-              <div style={{ marginTop: 3, color: "rgba(245,235,218,.56)", fontSize: 11 }}>Con muốn thử món nào hôm nay?</div>
+              <div style={{ color: "#f0cb80", fontSize: 12, fontWeight: 900, letterSpacing: ".14em" }}>SHOP</div>
+              <div style={{ marginTop: 2, color: "#f7e5c4", fontSize: 15, fontWeight: 900, letterSpacing: ".08em" }}>PINORIA</div>
             </div>
           </div>
 
-          <nav style={{ display: "flex", alignItems: "center", gap: 7, padding: 7, borderRadius: 18, background: "rgba(39,27,21,.74)", border: "1px solid rgba(239,199,120,.16)", boxShadow: "0 14px 34px rgba(0,0,0,.18)" }}>
+          <nav style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 4, padding: 6, borderRadius: 19, background: "rgba(39,27,21,.76)", border: "1px solid rgba(239,199,120,.16)", boxShadow: "0 14px 34px rgba(0,0,0,.18)" }}>
             {PINORIA_SHOP_CATEGORIES.filter((item) => item.id !== "all").map((category) => {
               const active = session?.category === category.id;
               return (
-                <div key={category.id} style={{ minWidth: category.id === "body" ? 104 : 72, padding: "9px 11px", borderRadius: 12, display: "grid", gridTemplateColumns: "18px auto", alignItems: "center", gap: 6, color: active ? "#2a1b12" : "rgba(249,235,210,.72)", background: active ? "linear-gradient(180deg,#f6d78d,#dcae55)" : "transparent", border: active ? "1px solid #ffe7ac" : "1px solid transparent", fontSize: 10, fontWeight: 800 }}>
-                  <span style={{ fontSize: 15, textAlign: "center" }}>{category.icon}</span>
+                <div key={category.id} style={{ minWidth: category.id === "body" ? 92 : 62, padding: "9px 8px", borderRadius: 12, display: "grid", gridTemplateColumns: "16px auto", alignItems: "center", justifyContent: "center", gap: 5, color: active ? "#2a1b12" : "rgba(249,235,210,.7)", background: active ? "linear-gradient(180deg,#f7d98f,#dcac51)" : "transparent", border: active ? "1px solid #ffe9b4" : "1px solid transparent", boxShadow: active ? "0 7px 22px rgba(225,176,78,.18)" : undefined, fontSize: 9.5, fontWeight: 850 }}>
+                  <span style={{ fontSize: 13, textAlign: "center" }}>{category.icon}</span>
                   <span>{category.label}</span>
                 </div>
               );
             })}
           </nav>
 
-          <div style={{ display: "grid", justifyItems: "end", gap: 3, minWidth: 132 }}>
-            <strong style={{ fontSize: 16 }}>{session?.subject.name ?? "Bơ"}</strong>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#f0c96f", fontSize: 13, fontWeight: 900 }}><b style={{ fontSize: 16 }}>✦</b>{session?.subject.pls ?? 420} PLS</span>
+          <div style={{ display: "grid", justifyItems: "end", gap: 4 }}>
+            <strong style={{ fontSize: 15, color: "#f6ead8" }}>{session?.subject.name ?? "Bơ"}</strong>
+            <span style={{ color: owned ? "#9fd18f" : canAfford ? "#efc875" : "rgba(245,226,193,.56)", fontSize: 10.5, fontWeight: 850 }}>
+              {owned ? "Đã có món này" : canAfford ? "✦ Có thể đổi" : selected ? `Cần thêm ${missingPls} PLS` : "Đang chọn món"}
+            </span>
           </div>
         </header>
 
-        <section style={{ position: "relative", minHeight: 0, borderRadius: 24, overflow: "hidden", border: "1px solid rgba(236,194,115,.18)", background: "linear-gradient(180deg,rgba(47,31,25,.62),rgba(27,18,15,.72))", boxShadow: "0 28px 54px rgba(0,0,0,.25)" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 44%,rgba(133,70,183,.12),transparent 48%)" }} />
-          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", alignItems: "center", justifyItems: "center", padding: "18px 20px 20px" }}>
+        <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.19)", background: "linear-gradient(180deg,rgba(46,30,25,.61),rgba(24,16,14,.76))", boxShadow: "0 30px 60px rgba(0,0,0,.28)" }}>
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 41%,rgba(143,78,195,.14),transparent 50%)" }} />
+          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", alignItems: "center", justifyItems: "center", padding: "16px 18px 18px" }}>
             <div style={{ position: "relative", display: "grid", placeItems: "center", alignSelf: "stretch", width: "100%" }}>
+              <div style={{ position: "absolute", left: 10, top: 10, padding: "7px 10px", borderRadius: 999, border: "1px solid rgba(239,195,110,.16)", background: "rgba(23,15,13,.58)", color: "rgba(248,232,204,.6)", fontSize: 9, fontWeight: 900, letterSpacing: ".12em" }}>ĐANG THỬ</div>
               <ShopCharacterPreview subjectId={session?.subject.id ?? "bo"} selected={selected} />
-              <div style={{ position: "absolute", right: 16, bottom: 20, width: 126 }}>
-                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.28))" }} />
+              <div style={{ position: "absolute", right: 14, bottom: 14, width: 118, zIndex: 72 }}>
+                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.32))" }} />
               </div>
             </div>
-            <div style={{ width: "100%", padding: "14px 16px", borderRadius: 16, background: "rgba(23,15,13,.68)", border: "1px solid rgba(240,196,112,.16)", boxSizing: "border-box" }}>
+            <div style={{ width: "100%", padding: "13px 15px", borderRadius: 17, background: "rgba(20,13,11,.7)", border: "1px solid rgba(240,196,112,.16)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-                <strong style={{ fontSize: 18, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
-                {selected ? <span style={{ fontSize: 11, color: owned ? "#9bd18d" : "rgba(246,232,208,.58)" }}>{owned ? "Đã có" : "Đang xem"}</span> : null}
+                <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 18, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
+                {selected ? <span style={{ flex: "0 0 auto", fontSize: 10, fontWeight: 900, color: owned ? "#9bd18d" : "rgba(246,232,208,.58)" }}>{owned ? "ĐÃ CÓ" : "ĐANG XEM"}</span> : null}
               </div>
-              <p style={{ margin: "6px 0 0", color: "rgba(246,235,217,.58)", fontSize: 11, lineHeight: 1.45 }}>
-                {selected?.previewable ? "Món đang chọn được thử trực tiếp trên nhân vật của con." : "Món đang chọn được hiển thị để cả con và staff cùng xem trên TV."}
-              </p>
+              <p style={{ margin: "6px 0 0", color: "rgba(246,235,217,.58)", fontSize: 10.5, lineHeight: 1.45 }}>{descriptionFor(selected)}</p>
             </div>
           </div>
         </section>
 
         <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr auto", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 32 }}>
-            <div style={{ color: "rgba(247,233,210,.62)", fontSize: 11 }}><strong style={{ color: "#f1cb7e" }}>{categoryLabel(session?.category ?? "all")}</strong> · {filtered.length} món</div>
-            <div style={{ display: "flex", gap: 5 }}>{Array.from({ length: totalPages }).map((_, index) => <i key={index} style={{ width: index === page ? 18 : 6, height: 6, borderRadius: 99, background: index === page ? "#e1b45d" : "rgba(238,218,180,.2)" }} />)}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 30 }}>
+            <div style={{ color: "rgba(247,233,210,.58)", fontSize: 10.5 }}><strong style={{ color: "#f1cb7e" }}>{categoryLabel(session?.category ?? "all")}</strong> · {filtered.length} món</div>
+            <div style={{ display: "flex", gap: 5 }}>{Array.from({ length: totalPages }).map((_, index) => <i key={index} style={{ width: index === page ? 18 : 6, height: 6, borderRadius: 99, background: index === page ? "#e1b45d" : "rgba(238,218,180,.18)" }} />)}</div>
           </div>
 
-          <div style={{ minHeight: 0, display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gridTemplateRows: "repeat(2,minmax(0,1fr))", gap: 11 }}>
+          <div style={{ minHeight: 0, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gridTemplateRows: "repeat(2,minmax(0,1fr))", gap: 11 }}>
             {visibleItems.map((item) => {
               const active = selected?.assetId === item.assetId;
               const isOwned = !!session?.ownedAssetIds.includes(item.assetId);
               return (
-                <article key={item.assetId} style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 17, padding: "11px 10px 10px", display: "grid", gridTemplateRows: "1fr auto", gap: 6, background: active ? "linear-gradient(180deg,rgba(85,58,36,.94),rgba(52,34,25,.96))" : "linear-gradient(180deg,rgba(53,37,29,.74),rgba(35,24,20,.78))", border: active ? "1px solid rgba(250,207,116,.78)" : "1px solid rgba(236,195,116,.14)", animation: active ? "pinoriaShopSelect .42s ease-out both" : undefined }}>
-                  <div style={{ minHeight: 0, display: "grid", placeItems: "center", borderRadius: 12, background: "radial-gradient(circle,rgba(255,226,169,.08),transparent 66%)" }}>
-                    <img src={item.imageUrl} alt="" draggable={false} style={{ width: "86%", height: "86%", objectFit: "contain", filter: active ? "drop-shadow(0 8px 12px rgba(0,0,0,.25)) brightness(1.06)" : "drop-shadow(0 7px 10px rgba(0,0,0,.22))" }} />
+                <article key={item.assetId} style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 18, padding: "11px 11px 10px", display: "grid", gridTemplateRows: "1fr auto", gap: 6, background: active ? "linear-gradient(180deg,rgba(88,60,38,.94),rgba(52,34,25,.97))" : "linear-gradient(180deg,rgba(53,37,29,.72),rgba(34,23,19,.8))", border: active ? "1px solid rgba(250,207,116,.82)" : "1px solid rgba(236,195,116,.14)", boxShadow: active ? "0 10px 30px rgba(226,177,82,.1)" : "0 10px 24px rgba(0,0,0,.08)", animation: active ? "pinoriaShopSelect .42s ease-out both" : undefined }}>
+                  {active ? <span style={{ position: "absolute", right: 9, top: 9, zIndex: 3, padding: "4px 7px", borderRadius: 999, background: "#edc66f", color: "#2c1c12", fontSize: 7.5, fontWeight: 950, letterSpacing: ".06em" }}>ĐANG THỬ</span> : null}
+                  <div style={{ minHeight: 0, display: "grid", placeItems: "center", borderRadius: 13, background: "radial-gradient(circle,rgba(255,226,169,.085),transparent 66%)" }}>
+                    <img src={item.imageUrl} alt="" draggable={false} style={{ width: "88%", height: "88%", objectFit: "contain", filter: active ? "drop-shadow(0 9px 14px rgba(0,0,0,.27)) brightness(1.07)" : "drop-shadow(0 7px 11px rgba(0,0,0,.22))" }} />
                   </div>
                   <div>
                     <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11.5, color: active ? "#ffe0a0" : "#f0e2cd" }}>{item.displayName}</strong>
-                    <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, color: "#e5bc68", fontSize: 10, fontWeight: 800 }}><span>✦ {item.pricePls} PLS</span>{isOwned ? <span style={{ color: "#94c985", fontSize: 9 }}>ĐÃ CÓ</span> : null}</div>
+                    <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, color: "#e5bc68", fontSize: 9.5, fontWeight: 850 }}><span>✦ {item.pricePls} PLS</span>{isOwned ? <span style={{ color: "#94c985", fontSize: 8.5 }}>ĐÃ CÓ</span> : null}</div>
                   </div>
                 </article>
               );
             })}
-            {!visibleItems.length ? <div style={{ gridColumn: "1 / -1", gridRow: "1 / -1", display: "grid", placeItems: "center", color: "rgba(245,232,210,.42)", border: "1px dashed rgba(240,196,112,.16)", borderRadius: 18 }}>Chưa có asset phù hợp trong publisher registry.</div> : null}
+            {!visibleItems.length ? <div style={{ gridColumn: "1 / -1", gridRow: "1 / -1", display: "grid", placeItems: "center", color: "rgba(245,232,210,.42)", border: "1px dashed rgba(240,196,112,.16)", borderRadius: 18 }}>Chưa có món nào trong khu này.</div> : null}
           </div>
 
-          <div style={{ minHeight: 70, borderRadius: 18, border: "1px solid rgba(239,196,112,.17)", background: "rgba(31,20,17,.72)", padding: "13px 17px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 18 }}>
-            <div>
-              <strong style={{ fontSize: 15, color: "#f0c878" }}>{selected?.displayName ?? "Chọn món trên remote"}</strong>
-              <div style={{ marginTop: 4, color: "rgba(247,235,215,.48)", fontSize: 10 }}>{selected ? `${selected.version} · ${selected.gender} · ${selected.slot}` : "Staff dùng điện thoại để điều khiển món đang hiển thị."}</div>
+          <div style={{ minHeight: 78, borderRadius: 19, border: "1px solid rgba(239,196,112,.17)", background: "rgba(29,19,16,.76)", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 18, boxShadow: "0 12px 28px rgba(0,0,0,.12)" }}>
+            <div style={{ minWidth: 0 }}>
+              <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 15.5, color: "#f0c878" }}>{selected?.displayName ?? "Chọn món trên remote"}</strong>
+              <div style={{ marginTop: 4, color: "rgba(247,235,215,.48)", fontSize: 9.5 }}>{selected ? descriptionFor(selected) : "Staff dùng điện thoại để điều khiển món đang hiển thị."}</div>
             </div>
-            {selected ? <div style={{ padding: "10px 14px", borderRadius: 13, minWidth: 144, textAlign: "center", background: owned ? "rgba(77,112,65,.18)" : "rgba(218,166,69,.12)", border: owned ? "1px solid rgba(141,196,117,.3)" : "1px solid rgba(236,187,89,.25)", color: owned ? "#a7d694" : "#f2ca76", fontWeight: 900, fontSize: 13 }}>{owned ? "Đã sở hữu" : `${selected.pricePls} PLS · Có thể mua`}</div> : null}
+            {selected ? (
+              <div style={{ display: "grid", justifyItems: "end", gap: 4 }}>
+                <div style={{ padding: "10px 14px", borderRadius: 13, minWidth: 142, textAlign: "center", background: owned ? "rgba(77,112,65,.18)" : canAfford ? "rgba(218,166,69,.14)" : "rgba(92,67,48,.2)", border: owned ? "1px solid rgba(141,196,117,.3)" : canAfford ? "1px solid rgba(236,187,89,.28)" : "1px solid rgba(214,181,135,.16)", color: owned ? "#a7d694" : canAfford ? "#f2ca76" : "rgba(245,223,188,.58)", fontWeight: 950, fontSize: 12.5 }}>
+                  {owned ? "Đã sở hữu" : canAfford ? `✦ ${selected.pricePls} PLS · Có thể đổi` : `Cần thêm ${missingPls} PLS`}
+                </div>
+                {!owned ? <span style={{ color: "rgba(244,229,204,.34)", fontSize: 8.5 }}>Staff xác nhận trên điện thoại</span> : null}
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
 
       {pendingItem ? (
-        <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "grid", placeItems: "center", background: "rgba(12,8,7,.58)", backdropFilter: "blur(10px)" }}>
-          <div style={{ width: 520, padding: 28, borderRadius: 24, textAlign: "center", background: "linear-gradient(180deg,#39251d,#241713)", border: "1px solid rgba(246,201,112,.38)", boxShadow: "0 28px 80px rgba(0,0,0,.42)" }}>
-            <div style={{ fontSize: 11, color: "#d5a957", fontWeight: 900, letterSpacing: ".14em" }}>XÁC NHẬN TRÊN ĐIỆN THOẠI</div>
-            <h2 style={{ margin: "10px 0 8px", fontSize: 28 }}>{session?.subject.name} muốn nhận {pendingItem.displayName}?</h2>
-            <p style={{ margin: 0, color: "rgba(246,232,209,.58)", fontSize: 14 }}>{session?.subject.pls} PLS → {Math.max(0, (session?.subject.pls ?? 0) - pendingItem.pricePls)} PLS</p>
+        <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "grid", placeItems: "center", background: "rgba(12,8,7,.6)", backdropFilter: "blur(10px)" }}>
+          <div style={{ width: 520, padding: 28, borderRadius: 25, textAlign: "center", background: "linear-gradient(180deg,#39251d,#241713)", border: "1px solid rgba(246,201,112,.4)", boxShadow: "0 28px 80px rgba(0,0,0,.44)" }}>
+            <div style={{ fontSize: 10.5, color: "#d5a957", fontWeight: 950, letterSpacing: ".14em" }}>CON ĐÃ CHỌN</div>
+            <h2 style={{ margin: "10px 0 8px", fontSize: 28 }}>{pendingItem.displayName}</h2>
+            <p style={{ margin: 0, color: "rgba(246,232,209,.58)", fontSize: 13 }}>Staff xác nhận trên điện thoại để hoàn tất đổi món.</p>
           </div>
         </div>
       ) : null}
 
       {purchaseResult && resultItem ? (
-        <div key={purchaseResult.id} style={{ position: "absolute", left: "50%", bottom: 42, zIndex: 60, transform: "translateX(-50%)", padding: "13px 20px", borderRadius: 999, background: purchaseResult.status === "purchased" ? "rgba(67,100,57,.94)" : "rgba(61,42,31,.94)", border: "1px solid rgba(255,226,162,.28)", boxShadow: "0 14px 40px rgba(0,0,0,.3)", fontSize: 13, fontWeight: 900, animation: "pinoriaShopToast 3.2s ease both" }}>
-          {purchaseResult.status === "purchased" ? `✦ Đã nhận ${resultItem.displayName}` : purchaseResult.status === "already-owned" ? `Đã có ${resultItem.displayName}` : "Chưa đủ PLS để mua món này"}
+        <div key={purchaseResult.id} style={{ position: "absolute", left: "50%", bottom: 38, zIndex: 60, transform: "translateX(-50%)", padding: "13px 20px", borderRadius: 999, background: purchaseResult.status === "purchased" ? "rgba(67,100,57,.94)" : "rgba(61,42,31,.94)", border: "1px solid rgba(255,226,162,.28)", boxShadow: "0 14px 40px rgba(0,0,0,.3)", fontSize: 13, fontWeight: 900, animation: "pinoriaShopToast 3.2s ease both" }}>
+          {purchaseResult.status === "purchased" ? `✦ Đã nhận ${resultItem.displayName}` : purchaseResult.status === "already-owned" ? `Đã có ${resultItem.displayName}` : "Chưa đủ PLS để đổi món này"}
         </div>
       ) : null}
     </div>
