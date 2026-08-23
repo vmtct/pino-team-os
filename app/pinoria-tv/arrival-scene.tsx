@@ -1,6 +1,12 @@
 "use client";
 
-import { PrototypeCharacter, PrototypeCompanion, prototypeCompanionManifest, prototypeFloatingProps } from "./prototype-assets";
+import {
+  PrototypeCharacter,
+  PrototypeCompanion,
+  prototypeCharacterEffects,
+  prototypeCompanionManifest,
+  prototypeFloatingProps,
+} from "./prototype-assets";
 
 type ArrivalSubject = {
   id: string;
@@ -53,7 +59,29 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         @keyframes pinoriaPropFloat { 0%,100% { transform:translate3d(0,0,0) rotate(calc(var(--pinoria-prop-rotate) * -.45)) scale(.985) } 50% { transform:translate3d(4px,-12px,0) rotate(var(--pinoria-prop-rotate)) scale(1.022) } }
         @keyframes pinoriaPropGlow { 0%,100% { opacity:.34; transform:scale(.86) } 50% { opacity:.68; transform:scale(1.08) } }
         @keyframes pinoriaPropSpark { 0%,100% { opacity:.15; transform:translate(-50%,-50%) scale(.75) rotate(0deg) } 50% { opacity:.7; transform:translate(-50%,-50%) scale(1.12) rotate(35deg) } }
-        @media (prefers-reduced-motion: reduce) { [data-pinoria-floating-prop] img,[data-pinoria-floating-prop] div,[data-pinoria-floating-prop] span { animation:none!important; } }
+        @keyframes pinoriaAuraPulse {
+          0%,100% { transform:scale(.985); }
+          50% { transform:scale(1.018); }
+        }
+        @keyframes pinoriaAuraRadiance {
+          0%,16%,100% { opacity:.72; filter:brightness(.98) drop-shadow(0 0 10px rgba(182,111,255,.14)); }
+          28% { opacity:.9; filter:brightness(1.07) drop-shadow(0 0 24px rgba(182,111,255,.28)); }
+          44% { opacity:.76; filter:brightness(1) drop-shadow(0 0 13px rgba(182,111,255,.18)); }
+          67% { opacity:.96; filter:brightness(1.1) drop-shadow(0 0 31px rgba(182,111,255,.34)); }
+          82% { opacity:.79; filter:brightness(1.02) drop-shadow(0 0 16px rgba(182,111,255,.2)); }
+        }
+        @keyframes pinoriaVioletGlowCycle {
+          0% { opacity:0; filter:brightness(.94) saturate(.96); }
+          6% { opacity:.34; }
+          12% { opacity:.76; filter:brightness(1.08) saturate(1.06); }
+          19% { opacity:.66; }
+          26%,100% { opacity:0; filter:brightness(.98) saturate(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-pinoria-floating-prop] img,[data-pinoria-floating-prop] div,[data-pinoria-floating-prop] span { animation:none!important; }
+          [data-pinoria-full-character-aura] img { animation:none!important; opacity:.82!important; }
+          [data-pinoria-full-character-glow] img { animation:none!important; opacity:.18!important; }
+        }
       `}</style>
 
       <div style={{ position: "absolute", left: "32%", right: "6%", top: "7%", height: "78%", borderRadius: "50%", background: "radial-gradient(circle,#f0dda243 0,transparent 70%)", filter: "blur(22px)", animation: "pinoriaArrivalGlow 4s ease-in-out infinite" }} />
@@ -72,6 +100,37 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         <section aria-hidden="true" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: "pinoriaArrivalCharacter 6.2s cubic-bezier(.18,.8,.2,1) both" }}>
           <div style={{ position: "absolute", width: "76%", aspectRatio: "1", borderRadius: "50%", border: "1px solid #ead89322", boxShadow: "0 0 54px #dfcd7720" }} />
           <div style={{ position: "absolute", left: "25%", right: "13%", bottom: "5%", height: 34, borderRadius: "50%", background: "#050b0680", filter: "blur(15px)" }} />
+
+          <div
+            data-pinoria-full-character-aura
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              width: "min(500px,42vw)",
+              aspectRatio: "1 / 1",
+              transform: "translate(-50%,-50%) translateX(-11px)",
+              zIndex: 0,
+              pointerEvents: "none",
+            }}
+          >
+            <img
+              src={prototypeCharacterEffects.aura.src}
+              alt=""
+              draggable={false}
+              decoding="async"
+              loading="eager"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                transformOrigin: "50% 50%",
+                animation: "pinoriaAuraPulse 4.8s ease-in-out infinite, pinoriaAuraRadiance 7.6s ease-in-out infinite",
+              }}
+            />
+          </div>
 
           {backProps.map((prop) => <div key={prop.id} data-pinoria-floating-prop><FloatingProp prop={prop} /></div>)}
 
@@ -96,6 +155,45 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           </div>
 
           {frontProps.map((prop) => <div key={prop.id} data-pinoria-floating-prop><FloatingProp prop={prop} /></div>)}
+
+          <div
+            data-pinoria-full-character-glow
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              width: "min(500px,42vw)",
+              aspectRatio: "1 / 1",
+              transform: "translate(-50%,-50%) translateX(-11px)",
+              zIndex: 12,
+              pointerEvents: "none",
+            }}
+          >
+            {prototypeCharacterEffects.glows.map((glow, index) => (
+              <img
+                key={glow.id}
+                src={glow.src}
+                alt=""
+                draggable={false}
+                decoding="async"
+                loading="eager"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  opacity: 0,
+                  transform: glow.mirrored ? "scaleX(-1)" : "scaleX(1)",
+                  transformOrigin: "50% 50%",
+                  mixBlendMode: "screen",
+                  filter: "drop-shadow(0 0 13px rgba(183,104,255,.18))",
+                  animation: `pinoriaVioletGlowCycle 6.4s ${index * 1.6}s linear infinite`,
+                  willChange: "opacity, filter",
+                }}
+              />
+            ))}
+          </div>
         </section>
       </div>
     </div>
