@@ -48,6 +48,11 @@ export const prototypeCharacterEffects = {
     { id: "violet-1-mirror", src: "https://assets.pinohouse.art/draft/glowViolet1.png", mirrored: true },
     { id: "violet-2-mirror", src: "https://assets.pinohouse.art/draft/glowViolet2.png", mirrored: true },
   ],
+  marks: [
+    { id: "mark-02", src: "https://assets.pinohouse.art/draft/Mark/Char%20Base%20(2).png" },
+    { id: "mark-03", src: "https://assets.pinohouse.art/draft/Mark/Char%20Base%20(3).png" },
+    { id: "mark-04", src: "https://assets.pinohouse.art/draft/Mark/Char%20Base%20(4).png" },
+  ],
 } as const;
 
 export const prototypeFloatingProps = [
@@ -111,6 +116,7 @@ export const prototypeAssetUrls = [
   prototypeCompanionManifest.src,
   prototypeCharacterEffects.aura.src,
   ...prototypeCharacterEffects.glows.map((glow) => glow.src),
+  ...prototypeCharacterEffects.marks.map((mark) => mark.src),
   ...prototypeFloatingProps.map((prop) => prop.src),
 ];
 
