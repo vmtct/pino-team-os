@@ -371,7 +371,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
               position: "absolute",
               zIndex: 8,
               right: "13%",
-              bottom: "-6%",
+              bottom: "calc(-6% + 10px)",
               width: "min(212px,16.8vw)",
               display: "grid",
               justifyItems: "center",
@@ -380,7 +380,6 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             }}
           >
             <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
-            <span style={{ marginTop: -31, maxWidth: 176, padding: "5px 9px", borderRadius: 999, background: "#142016d9", border: "1px solid #ffffff18", color: "#efe6d8", fontSize: 9, whiteSpace: "nowrap" }}>{prototypeCompanionManifest.displayName}</span>
           </div>
 
           <div
