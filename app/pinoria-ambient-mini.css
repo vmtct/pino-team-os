@@ -77,3 +77,21 @@ html.pinoria-highlight-mid img[src*="layer=mid"] {
   paint-order: stroke fill;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
 }
+
+/*
+ * Social conversation bubble polish.
+ * The speaker name/zone already exists visually above the mini character, so
+ * the bubble only carries dialogue. Pull the bubble toward the speaker by one
+ * more beat: 20px on X and 16px on Y, preserving the outside-of-pair layout.
+ */
+[data-ambient-chat-bubble] > strong {
+  display: none !important;
+}
+
+[data-ambient-chat-bubble]:has(> i[style*="right:"]) {
+  transform: translate(20px, 16px);
+}
+
+[data-ambient-chat-bubble]:has(> i[style*="left:"]) {
+  transform: translate(-20px, 16px);
+}
