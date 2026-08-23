@@ -77,7 +77,20 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
           <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
-          <div style={{ position: "absolute", zIndex: 5, right: "8%", bottom: 18, width: "min(212px,16.8vw)", display: "grid", justifyItems: "center", gap: 2, animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both" }}>
+          <div
+            data-pinoria-full-character-companion
+            style={{
+              position: "absolute",
+              zIndex: 8,
+              right: "13%",
+              bottom: "-6%",
+              width: "min(212px,16.8vw)",
+              display: "grid",
+              justifyItems: "center",
+              gap: 2,
+              animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both",
+            }}
+          >
             <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
             <span style={{ marginTop: -31, maxWidth: 176, padding: "5px 9px", borderRadius: 999, background: "#142016d9", border: "1px solid #ffffff18", color: "#efe6d8", fontSize: 9, whiteSpace: "nowrap" }}>{prototypeCompanionManifest.displayName}</span>
           </div>
