@@ -15,23 +15,26 @@ type ArrivalSubject = {
   companion: string;
 };
 
+const INVENTORY_PLACEHOLDERS = ["Huy hiệu", "Dây chuyền", "Vòng tay", "Nhẫn"] as const;
+
 function InventoryGrid() {
   return (
     <div
       data-pinoria-arrival-inventory
       style={{
         position: "absolute",
-        right: "-1%",
-        top: "1%",
-        zIndex: 15,
+        right: 24,
+        top: 22,
+        zIndex: 24,
         display: "grid",
-        gridTemplateColumns: "repeat(2, 82px)",
-        gap: 8,
-        padding: 9,
-        borderRadius: 18,
-        background: "rgba(12,22,14,.52)",
-        border: "1px solid rgba(255,255,255,.13)",
-        boxShadow: "0 18px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05)",
+        gridTemplateColumns: "repeat(2, 70px)",
+        gridTemplateRows: "repeat(4, 70px)",
+        gap: 7,
+        padding: 8,
+        borderRadius: 16,
+        background: "rgba(12,22,14,.50)",
+        border: "1px solid rgba(255,255,255,.12)",
+        boxShadow: "0 16px 34px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.05)",
         backdropFilter: "blur(10px)",
         pointerEvents: "none",
         animation: "pinoriaInventoryReveal .72s .48s cubic-bezier(.18,.82,.2,1) both",
@@ -43,13 +46,13 @@ function InventoryGrid() {
           data-pinoria-inventory-item={prop.id}
           style={{
             position: "relative",
-            width: 82,
-            height: 82,
-            borderRadius: 14,
+            width: 70,
+            height: 70,
+            borderRadius: 12,
             overflow: "hidden",
             background: "linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.025))",
             border: "1px solid rgba(240,213,142,.16)",
-            boxShadow: "inset 0 0 20px rgba(215,194,117,.035)",
+            boxShadow: "inset 0 0 17px rgba(215,194,117,.035)",
             animation: `pinoriaInventoryItemReveal .54s ${.58 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
           }}
         >
@@ -59,7 +62,7 @@ function InventoryGrid() {
               inset: "13%",
               borderRadius: "50%",
               background: "radial-gradient(circle,rgba(231,211,145,.13),transparent 70%)",
-              filter: "blur(8px)",
+              filter: "blur(7px)",
             }}
           />
           <img
@@ -70,13 +73,55 @@ function InventoryGrid() {
             loading="eager"
             style={{
               position: "absolute",
-              inset: 7,
-              width: "calc(100% - 14px)",
-              height: "calc(100% - 14px)",
+              inset: 6,
+              width: "calc(100% - 12px)",
+              height: "calc(100% - 12px)",
               objectFit: "contain",
-              filter: "drop-shadow(0 7px 9px rgba(0,0,0,.2))",
+              filter: "drop-shadow(0 6px 8px rgba(0,0,0,.2))",
             }}
           />
+        </div>
+      ))}
+
+      {INVENTORY_PLACEHOLDERS.map((label, index) => (
+        <div
+          key={label}
+          data-pinoria-inventory-placeholder={label}
+          style={{
+            position: "relative",
+            width: 70,
+            height: 70,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 12,
+            boxSizing: "border-box",
+            background: "rgba(255,255,255,.022)",
+            border: "1px dashed rgba(229,216,175,.18)",
+            color: "rgba(235,230,211,.42)",
+            textAlign: "center",
+            fontSize: 8.5,
+            lineHeight: 1.2,
+            letterSpacing: ".02em",
+            padding: 7,
+            animation: `pinoriaInventoryItemReveal .54s ${.9 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
+          }}
+        >
+          <span style={{ display: "grid", gap: 4, justifyItems: "center" }}>
+            <i
+              aria-hidden="true"
+              style={{
+                display: "block",
+                width: 17,
+                height: 17,
+                borderRadius: "50%",
+                border: "1px solid rgba(235,230,211,.22)",
+                position: "relative",
+              }}
+            >
+              <b style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-54%)", fontSize: 11, fontWeight: 400, lineHeight: 1, color: "rgba(235,230,211,.30)" }}>+</b>
+            </i>
+            {label}
+          </span>
         </div>
       ))}
     </div>
@@ -124,11 +169,13 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         @media (prefers-reduced-motion: reduce) {
           [data-pinoria-full-character-aura] img { animation:none!important; opacity:.82!important; }
           [data-pinoria-full-character-glow] img { animation:none!important; opacity:.18!important; }
-          [data-pinoria-arrival-inventory],[data-pinoria-inventory-item] { animation:none!important; }
+          [data-pinoria-arrival-inventory],[data-pinoria-inventory-item],[data-pinoria-inventory-placeholder] { animation:none!important; }
         }
       `}</style>
 
       <div style={{ position: "absolute", left: "32%", right: "6%", top: "7%", height: "78%", borderRadius: "50%", background: "radial-gradient(circle,#f0dda243 0,transparent 70%)", filter: "blur(22px)", animation: "pinoriaArrivalGlow 4s ease-in-out infinite" }} />
+
+      <InventoryGrid />
 
       <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", padding: "76px clamp(70px,7vw,110px) 58px", display: "grid", gridTemplateColumns: "minmax(0,.82fr) minmax(500px,1.18fr)", alignItems: "center", gap: 34 }}>
         <section style={{ maxWidth: 560, animation: "pinoriaArrivalCopy 6.2s cubic-bezier(.2,.75,.2,1) both" }}>
@@ -227,8 +274,6 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
             <span style={{ marginTop: -31, maxWidth: 176, padding: "5px 9px", borderRadius: 999, background: "#142016d9", border: "1px solid #ffffff18", color: "#efe6d8", fontSize: 9, whiteSpace: "nowrap" }}>{prototypeCompanionManifest.displayName}</span>
           </div>
-
-          <InventoryGrid />
 
           <div
             data-pinoria-full-character-glow
