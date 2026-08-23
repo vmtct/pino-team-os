@@ -36,7 +36,7 @@ type RelayMutationResponse = {
 
 const SURFACE_ID = "RECEPTION_TV";
 const RELAY_URL = "/api/pinoria-prototype/tv-relay";
-const ARRIVAL_MS = 6500;
+const ARRIVAL_MS = 7650;
 const DEPARTURE_MS = 9000;
 const AMBIENT_SUBJECT_HANDOFF_LEAD_MS = 180;
 
