@@ -25,8 +25,11 @@ type ArrivalSubject = {
 };
 
 const INVENTORY_PLACEHOLDERS = ["Huy hiệu", "Dây chuyền", "Vòng tay", "Nhẫn"] as const;
+const HOUSE_COVER_SECONDS = 1.15;
 
-function InventoryGrid() {
+function InventoryGrid({ delay = .48 }: { delay?: number }) {
+  const childDelayOffset = Math.max(0, delay - .48);
+
   return (
     <div
       data-pinoria-arrival-inventory
@@ -39,7 +42,7 @@ function InventoryGrid() {
         justifyItems: "end",
         gap: 6,
         pointerEvents: "none",
-        animation: "pinoriaInventoryReveal .72s .48s cubic-bezier(.18,.82,.2,1) both",
+        animation: `pinoriaInventoryReveal .72s ${delay}s cubic-bezier(.18,.82,.2,1) both`,
       }}
     >
       <div
@@ -83,7 +86,7 @@ function InventoryGrid() {
               background: "linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.022))",
               border: "1px solid rgba(240,213,142,.15)",
               boxShadow: "inset 0 0 15px rgba(215,194,117,.03)",
-              animation: `pinoriaInventoryItemReveal .54s ${.58 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
+              animation: `pinoriaInventoryItemReveal .54s ${.58 + childDelayOffset + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
             }}
           >
             <div
@@ -133,7 +136,7 @@ function InventoryGrid() {
               lineHeight: 1.2,
               letterSpacing: ".02em",
               padding: 6,
-              animation: `pinoriaInventoryItemReveal .54s ${.9 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
+              animation: `pinoriaInventoryItemReveal .54s ${.9 + childDelayOffset + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
             }}
           >
             <span style={{ display: "grid", gap: 3, justifyItems: "center" }}>
@@ -161,7 +164,19 @@ function InventoryGrid() {
 
 function HouseAmbientBackdrop() {
   return (
-    <div data-pinoria-arrival-house-backdrop style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0, pointerEvents: "none", background: "#211a17" }}>
+    <div
+      data-pinoria-arrival-house-backdrop
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        zIndex: 0,
+        pointerEvents: "none",
+        background: "#211a17",
+        animation: `pinoriaHouseBackdropCover ${HOUSE_COVER_SECONDS}s cubic-bezier(.22,.72,.2,1) both`,
+        willChange: "opacity",
+      }}
+    >
       {(Object.values(AMBIENT_HOUSE_ARRIVAL_ASSETS) as string[]).map((src, index) => (
         <img
           key={src}
@@ -299,6 +314,8 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
   }, []);
 
   const houseBackground = backgroundVariant === "ambient-house-blur";
+  const foregroundDelay = houseBackground ? HOUSE_COVER_SECONDS : 0;
+  const inventoryDelay = .48 + foregroundDelay;
 
   return (
     <div
@@ -306,9 +323,10 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
       style={{
         position: "absolute",
         inset: 0,
+        zIndex: 1,
         overflow: "hidden",
         background: houseBackground
-          ? "#211a17"
+          ? "transparent"
           : "radial-gradient(circle at 61% 42%,rgba(126,103,89,.24) 0,rgba(84,66,57,.12) 34%,transparent 62%),linear-gradient(135deg,#443a35 0%,#392f2b 48%,#292320 100%)",
         color: "#f8f3ee",
       }}
@@ -316,6 +334,10 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
       {houseBackground ? <HouseAmbientBackdrop /> : null}
 
       <style>{`
+        @keyframes pinoriaHouseBackdropCover {
+          0% { opacity:0; }
+          100% { opacity:1; }
+        }
         @keyframes pinoriaArrivalCopy { 0%,18% { opacity:0; transform:translateY(16px) } 48%,100% { opacity:1; transform:translateY(0) } }
         @keyframes pinoriaArrivalCharacter { 0%,8% { opacity:0; transform:translateX(56px) scale(.94) } 43% { opacity:1; transform:translateX(0) scale(1.015) } 58%,100% { opacity:1; transform:translateX(0) scale(1) } }
         @keyframes pinoriaArrivalCompanion { 0%,36% { opacity:0; transform:translate(20px,14px) scale(.7) } 62% { opacity:1; transform:translate(-3px,-3px) scale(1.04) } 74%,100% { opacity:1; transform:translate(0,0) scale(1) } }
@@ -351,6 +373,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           100% { opacity:1; transform:translateY(0) scale(1); }
         }
         @media (prefers-reduced-motion: reduce) {
+          [data-pinoria-arrival-house-backdrop] { animation:none!important; opacity:1!important; }
           [data-pinoria-full-character-aura] img { animation:none!important; opacity:.82!important; }
           [data-pinoria-full-character-glow] img { animation:none!important; opacity:.18!important; }
           [data-pinoria-arrival-inventory],[data-pinoria-inventory-item],[data-pinoria-inventory-placeholder] { animation:none!important; }
@@ -370,14 +393,14 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             ? "radial-gradient(circle,rgba(151,123,105,.10) 0,rgba(111,88,75,.04) 44%,transparent 72%)"
             : "radial-gradient(circle,rgba(151,123,105,.15) 0,rgba(111,88,75,.06) 44%,transparent 72%)",
           filter: "blur(26px)",
-          animation: "pinoriaArrivalGlow 4s ease-in-out infinite",
+          animation: `pinoriaArrivalGlow 4s ${foregroundDelay}s ease-in-out infinite`,
         }}
       />
 
-      <InventoryGrid />
+      <InventoryGrid delay={inventoryDelay} />
 
       <div style={{ position: "absolute", inset: 0, zIndex: 2, boxSizing: "border-box", padding: "76px clamp(70px,7vw,110px) 58px", display: "grid", gridTemplateColumns: "minmax(0,.82fr) minmax(500px,1.18fr)", alignItems: "center", gap: 34 }}>
-        <section style={{ maxWidth: 560, animation: "pinoriaArrivalCopy 6.2s cubic-bezier(.2,.75,.2,1) both" }}>
+        <section style={{ maxWidth: 560, animation: `pinoriaArrivalCopy 6.2s ${foregroundDelay}s cubic-bezier(.2,.75,.2,1) both` }}>
           <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>CHÀO ĐẾN · {subject.name.toUpperCase()}</span>
           <h1 style={{ margin: "0 0 16px", fontSize: "clamp(50px,5.2vw,72px)", lineHeight: .94, letterSpacing: "-.05em" }}>Chào {subject.name} ✦</h1>
           <p style={{ margin: 0, maxWidth: 520, color: "#eee6d7", fontSize: "clamp(19px,1.75vw,24px)", lineHeight: 1.42 }}>{`“Hôm nay ${prototypeCompanionManifest.displayName} đi cùng mình!”`}</p>
@@ -387,7 +410,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           </div>
         </section>
 
-        <section aria-hidden="true" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: "pinoriaArrivalCharacter 6.2s cubic-bezier(.18,.8,.2,1) both" }}>
+        <section aria-hidden="true" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
           <div style={{ position: "absolute", width: "76%", aspectRatio: "1", borderRadius: "50%", border: "1px solid #ead89322", boxShadow: "0 0 54px #dfcd7720" }} />
 
           <OrbitingMarks />
@@ -469,7 +492,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
               display: "grid",
               justifyItems: "center",
               gap: 2,
-              animation: "pinoriaArrivalCompanion 6.2s cubic-bezier(.18,.82,.2,1) both",
+              animation: `pinoriaArrivalCompanion 6.2s ${foregroundDelay}s cubic-bezier(.18,.82,.2,1) both`,
             }}
           >
             <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
