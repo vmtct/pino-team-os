@@ -33,7 +33,7 @@ function InventoryGrid() {
         gap: 7,
         padding: 8,
         borderRadius: 16,
-        background: "rgba(12,22,14,.50)",
+        background: "rgba(43,32,27,.52)",
         border: "1px solid rgba(255,255,255,.12)",
         boxShadow: "0 16px 34px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.05)",
         backdropFilter: "blur(10px)",
@@ -216,7 +216,15 @@ function OrbitingMarks() {
 
 export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "radial-gradient(circle at 61% 42%,#87956b 0,#3b4c35 35%,#1b241a 72%)", color: "#fff" }}>
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        background: "radial-gradient(circle at 61% 42%,rgba(132,110,96,.32) 0,rgba(93,74,63,.17) 34%,transparent 62%),linear-gradient(135deg,#4b403a 0%,#40352f 48%,#2f2926 100%)",
+        color: "#f8f3ee",
+      }}
+    >
       <style>{`
         @keyframes pinoriaArrivalCopy { 0%,18% { opacity:0; transform:translateY(16px) } 48%,100% { opacity:1; transform:translateY(0) } }
         @keyframes pinoriaArrivalCharacter { 0%,8% { opacity:0; transform:translateX(56px) scale(.94) } 43% { opacity:1; transform:translateX(0) scale(1.015) } 58%,100% { opacity:1; transform:translateX(0) scale(1) } }
@@ -259,7 +267,19 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         }
       `}</style>
 
-      <div style={{ position: "absolute", left: "32%", right: "6%", top: "7%", height: "78%", borderRadius: "50%", background: "radial-gradient(circle,#f0dda243 0,transparent 70%)", filter: "blur(22px)", animation: "pinoriaArrivalGlow 4s ease-in-out infinite" }} />
+      <div
+        style={{
+          position: "absolute",
+          left: "30%",
+          right: "5%",
+          top: "5%",
+          height: "82%",
+          borderRadius: "50%",
+          background: "radial-gradient(circle,rgba(161,132,113,.20) 0,rgba(122,97,83,.08) 44%,transparent 72%)",
+          filter: "blur(26px)",
+          animation: "pinoriaArrivalGlow 4s ease-in-out infinite",
+        }}
+      />
 
       <InventoryGrid />
 
