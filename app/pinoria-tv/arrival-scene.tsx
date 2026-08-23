@@ -25,106 +25,128 @@ function InventoryGrid() {
       style={{
         position: "absolute",
         right: 24,
-        top: 22,
+        top: 18,
         zIndex: 24,
         display: "grid",
-        gridTemplateColumns: "repeat(2, 70px)",
-        gridTemplateRows: "repeat(4, 70px)",
-        gap: 7,
-        padding: 8,
-        borderRadius: 16,
-        background: "rgba(43,32,27,.52)",
-        border: "1px solid rgba(255,255,255,.12)",
-        boxShadow: "0 16px 34px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.05)",
-        backdropFilter: "blur(10px)",
+        justifyItems: "end",
+        gap: 6,
         pointerEvents: "none",
         animation: "pinoriaInventoryReveal .72s .48s cubic-bezier(.18,.82,.2,1) both",
       }}
     >
-      {prototypeFloatingProps.map((prop, index) => (
-        <div
-          key={prop.id}
-          data-pinoria-inventory-item={prop.id}
-          style={{
-            position: "relative",
-            width: 70,
-            height: 70,
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.025))",
-            border: "1px solid rgba(240,213,142,.16)",
-            boxShadow: "inset 0 0 17px rgba(215,194,117,.035)",
-            animation: `pinoriaInventoryItemReveal .54s ${.58 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: "13%",
-              borderRadius: "50%",
-              background: "radial-gradient(circle,rgba(231,211,145,.13),transparent 70%)",
-              filter: "blur(7px)",
-            }}
-          />
-          <img
-            src={prop.src}
-            alt=""
-            draggable={false}
-            decoding="async"
-            loading="eager"
-            style={{
-              position: "absolute",
-              inset: 6,
-              width: "calc(100% - 12px)",
-              height: "calc(100% - 12px)",
-              objectFit: "contain",
-              filter: "drop-shadow(0 6px 8px rgba(0,0,0,.2))",
-            }}
-          />
-        </div>
-      ))}
+      <div
+        style={{
+          paddingRight: 2,
+          color: "rgba(244,232,210,.68)",
+          fontSize: 9,
+          fontWeight: 900,
+          lineHeight: 1,
+          letterSpacing: ".16em",
+        }}
+      >
+        TRANG BỊ
+      </div>
 
-      {INVENTORY_PLACEHOLDERS.map((label, index) => (
-        <div
-          key={label}
-          data-pinoria-inventory-placeholder={label}
-          style={{
-            position: "relative",
-            width: 70,
-            height: 70,
-            display: "grid",
-            placeItems: "center",
-            borderRadius: 12,
-            boxSizing: "border-box",
-            background: "rgba(255,255,255,.022)",
-            border: "1px dashed rgba(229,216,175,.18)",
-            color: "rgba(235,230,211,.42)",
-            textAlign: "center",
-            fontSize: 8.5,
-            lineHeight: 1.2,
-            letterSpacing: ".02em",
-            padding: 7,
-            animation: `pinoriaInventoryItemReveal .54s ${.9 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
-          }}
-        >
-          <span style={{ display: "grid", gap: 4, justifyItems: "center" }}>
-            <i
-              aria-hidden="true"
+      <div
+        data-pinoria-arrival-inventory-grid
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 63px)",
+          gridTemplateRows: "repeat(4, 63px)",
+          gap: 6,
+          padding: 7,
+          borderRadius: 14,
+          background: "rgba(43,32,27,.50)",
+          border: "1px solid rgba(255,255,255,.11)",
+          boxShadow: "0 15px 31px rgba(0,0,0,.19), inset 0 1px 0 rgba(255,255,255,.045)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        {prototypeFloatingProps.map((prop, index) => (
+          <div
+            key={prop.id}
+            data-pinoria-inventory-item={prop.id}
+            style={{
+              position: "relative",
+              width: 63,
+              height: 63,
+              borderRadius: 11,
+              overflow: "hidden",
+              background: "linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.022))",
+              border: "1px solid rgba(240,213,142,.15)",
+              boxShadow: "inset 0 0 15px rgba(215,194,117,.03)",
+              animation: `pinoriaInventoryItemReveal .54s ${.58 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
+            }}
+          >
+            <div
               style={{
-                display: "block",
-                width: 17,
-                height: 17,
+                position: "absolute",
+                inset: "13%",
                 borderRadius: "50%",
-                border: "1px solid rgba(235,230,211,.22)",
-                position: "relative",
+                background: "radial-gradient(circle,rgba(231,211,145,.12),transparent 70%)",
+                filter: "blur(6px)",
               }}
-            >
-              <b style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-54%)", fontSize: 11, fontWeight: 400, lineHeight: 1, color: "rgba(235,230,211,.30)" }}>+</b>
-            </i>
-            {label}
-          </span>
-        </div>
-      ))}
+            />
+            <img
+              src={prop.src}
+              alt=""
+              draggable={false}
+              decoding="async"
+              loading="eager"
+              style={{
+                position: "absolute",
+                inset: 5,
+                width: "calc(100% - 10px)",
+                height: "calc(100% - 10px)",
+                objectFit: "contain",
+                filter: "drop-shadow(0 5px 7px rgba(0,0,0,.2))",
+              }}
+            />
+          </div>
+        ))}
+
+        {INVENTORY_PLACEHOLDERS.map((label, index) => (
+          <div
+            key={label}
+            data-pinoria-inventory-placeholder={label}
+            style={{
+              position: "relative",
+              width: 63,
+              height: 63,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: 11,
+              boxSizing: "border-box",
+              background: "rgba(255,255,255,.02)",
+              border: "1px dashed rgba(229,216,175,.17)",
+              color: "rgba(235,230,211,.40)",
+              textAlign: "center",
+              fontSize: 7.7,
+              lineHeight: 1.2,
+              letterSpacing: ".02em",
+              padding: 6,
+              animation: `pinoriaInventoryItemReveal .54s ${.9 + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
+            }}
+          >
+            <span style={{ display: "grid", gap: 3, justifyItems: "center" }}>
+              <i
+                aria-hidden="true"
+                style={{
+                  display: "block",
+                  width: 15,
+                  height: 15,
+                  borderRadius: "50%",
+                  border: "1px solid rgba(235,230,211,.20)",
+                  position: "relative",
+                }}
+              >
+                <b style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-54%)", fontSize: 10, fontWeight: 400, lineHeight: 1, color: "rgba(235,230,211,.28)" }}>+</b>
+              </i>
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -221,7 +243,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        background: "radial-gradient(circle at 61% 42%,rgba(132,110,96,.32) 0,rgba(93,74,63,.17) 34%,transparent 62%),linear-gradient(135deg,#4b403a 0%,#40352f 48%,#2f2926 100%)",
+        background: "radial-gradient(circle at 61% 42%,rgba(126,103,89,.24) 0,rgba(84,66,57,.12) 34%,transparent 62%),linear-gradient(135deg,#443a35 0%,#392f2b 48%,#292320 100%)",
         color: "#f8f3ee",
       }}
     >
@@ -229,7 +251,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         @keyframes pinoriaArrivalCopy { 0%,18% { opacity:0; transform:translateY(16px) } 48%,100% { opacity:1; transform:translateY(0) } }
         @keyframes pinoriaArrivalCharacter { 0%,8% { opacity:0; transform:translateX(56px) scale(.94) } 43% { opacity:1; transform:translateX(0) scale(1.015) } 58%,100% { opacity:1; transform:translateX(0) scale(1) } }
         @keyframes pinoriaArrivalCompanion { 0%,36% { opacity:0; transform:translate(20px,14px) scale(.7) } 62% { opacity:1; transform:translate(-3px,-3px) scale(1.04) } 74%,100% { opacity:1; transform:translate(0,0) scale(1) } }
-        @keyframes pinoriaArrivalGlow { 0%,100% { opacity:.45; transform:scale(.97) } 50% { opacity:.72; transform:scale(1.035) } }
+        @keyframes pinoriaArrivalGlow { 0%,100% { opacity:.41; transform:scale(.97) } 50% { opacity:.65; transform:scale(1.035) } }
         @keyframes pinoriaArrivalFloat { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-7px) } }
         @keyframes pinoriaAuraPulse {
           0%,100% { transform:scale(.985); }
@@ -275,7 +297,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           top: "5%",
           height: "82%",
           borderRadius: "50%",
-          background: "radial-gradient(circle,rgba(161,132,113,.20) 0,rgba(122,97,83,.08) 44%,transparent 72%)",
+          background: "radial-gradient(circle,rgba(151,123,105,.15) 0,rgba(111,88,75,.06) 44%,transparent 72%)",
           filter: "blur(26px)",
           animation: "pinoriaArrivalGlow 4s ease-in-out infinite",
         }}
@@ -334,14 +356,14 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             data-pinoria-character-foot-shadow
             style={{
               position: "absolute",
-              left: "48%",
-              bottom: "4.2%",
-              width: "44%",
+              left: "calc(50% - 11px)",
+              top: "calc(50% + min(250px,21vw) - 15px)",
+              width: "42%",
               height: 30,
               transform: "translateX(-50%)",
               zIndex: 1,
               borderRadius: "50%",
-              background: "radial-gradient(ellipse at center,rgba(3,7,4,.62) 0%,rgba(3,7,4,.38) 38%,rgba(3,7,4,.12) 67%,transparent 82%)",
+              background: "radial-gradient(ellipse at center,rgba(17,11,8,.58) 0%,rgba(17,11,8,.34) 38%,rgba(17,11,8,.10) 67%,transparent 82%)",
               filter: "blur(8px)",
               pointerEvents: "none",
             }}
@@ -350,14 +372,14 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             aria-hidden="true"
             style={{
               position: "absolute",
-              left: "48%",
-              bottom: "5.1%",
-              width: "25%",
+              left: "calc(50% - 11px)",
+              top: "calc(50% + min(250px,21vw) - 6px)",
+              width: "24%",
               height: 12,
               transform: "translateX(-50%)",
               zIndex: 1,
               borderRadius: "50%",
-              background: "rgba(2,5,3,.38)",
+              background: "rgba(12,8,6,.36)",
               filter: "blur(5px)",
               pointerEvents: "none",
             }}
