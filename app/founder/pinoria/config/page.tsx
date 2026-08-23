@@ -45,6 +45,13 @@ export default function PinoriaAmbientConfigPage() {
             Mở TV Prototype ↗
           </Link>
           <Link
+            href="/founder/pinoria/shop"
+            target="_blank"
+            style={{ padding: "10px 14px", borderRadius: 10, background: "#705093", color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: 12 }}
+          >
+            Mở Shop Remote ↗
+          </Link>
+          <Link
             href="/pinoria-tv/social-debug"
             target="_blank"
             style={{ padding: "10px 14px", borderRadius: 10, background: "#e6ede7", color: "#17251b", textDecoration: "none", fontWeight: 800, fontSize: 12 }}
