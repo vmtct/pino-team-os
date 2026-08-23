@@ -58,9 +58,65 @@ const DISPLAY_NAMES: Record<string, string> = {
   "face-04": "Gương mặt 04",
 };
 
+const TOKEN_LABELS: Record<string, string> = {
+  brown: "Nâu",
+  beige: "Be",
+  cream: "Kem",
+  white: "Trắng",
+  black: "Đen",
+  blue: "Xanh",
+  green: "Xanh Rêu",
+  olive: "Ô-liu",
+  pink: "Hồng",
+  purple: "Tím",
+  yellow: "Vàng",
+  red: "Đỏ",
+  orange: "Cam",
+  basic: "Cơ Bản",
+  base: "Cơ Bản",
+  painting: "Hội Họa",
+  piano: "Piano",
+  artist: "Họa Sĩ",
+  explorer: "Thám Hiểm",
+  classic: "Cổ Điển",
+};
+
+function displayToken(value: string) {
+  return TOKEN_LABELS[value] ?? titleCasePart(value);
+}
+
 function displayNameFor(slug: string) {
   if (DISPLAY_NAMES[slug]) return DISPLAY_NAMES[slug];
-  return slug.split("-").map(titleCasePart).join(" ");
+
+  // Publisher draft slugs can carry technical source/hash suffixes. Keep those
+  // identifiers in metadata, but never leak them into the learner-facing TV UI.
+  const cleaned = slug
+    .replace(/-src-[a-z0-9]+$/i, "")
+    .replace(/-source-[a-z0-9]+$/i, "")
+    .replace(/-draft-[a-z0-9]+$/i, "");
+  const parts = cleaned.split("-").filter(Boolean);
+
+  if (parts[0] === "body") parts.shift();
+
+  const noun = parts[0];
+  if (noun === "shorts") {
+    parts.shift();
+    return ["Bộ Shorts", ...parts.map(displayToken)].join(" ").trim();
+  }
+  if (noun === "dress") {
+    parts.shift();
+    return ["Váy", ...parts.map(displayToken)].join(" ").trim();
+  }
+  if (noun === "overalls" || noun === "overall") {
+    parts.shift();
+    return ["Yếm", ...parts.map(displayToken)].join(" ").trim();
+  }
+  if (noun === "outfit") {
+    parts.shift();
+    return ["Trang phục", ...parts.map(displayToken)].join(" ").trim();
+  }
+
+  return parts.map(displayToken).join(" ") || "Vật phẩm Pinoria";
 }
 
 function stableHash(value: string) {
