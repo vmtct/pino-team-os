@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -128,6 +129,91 @@ function InventoryGrid() {
   );
 }
 
+function OrbitingMarks() {
+  const markRefs = useRef<Array<HTMLImageElement | null>>([]);
+
+  useEffect(() => {
+    let frame = 0;
+    const periodMs = 10800;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const renderFrame = (now: number) => {
+      const firstMark = markRefs.current[0];
+      const stage = firstMark?.offsetParent as HTMLElement | null;
+      if (!stage) {
+        frame = window.requestAnimationFrame(renderFrame);
+        return;
+      }
+
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
+      const centerX = width * .5 - 11;
+      const centerY = height * .68;
+      const radiusX = Math.min(205, width * .34);
+      const radiusY = Math.min(74, height * .14);
+      const baseAngle = reducedMotion ? 0 : ((now % periodMs) / periodMs) * Math.PI * 2;
+
+      prototypeCharacterEffects.marks.forEach((_, index) => {
+        const element = markRefs.current[index];
+        if (!element) return;
+
+        const angle = baseAngle + index * (Math.PI * 2 / 3);
+        const sin = Math.sin(angle);
+        const cos = Math.cos(angle);
+        const depth = (sin + 1) / 2;
+        const frontHalf = sin >= 0;
+        const x = centerX + radiusX * cos - 50;
+        const y = centerY + radiusY * sin - 50;
+        const scale = .90 + depth * .12;
+        const opacity = .72 + depth * .28;
+        const blur = (1 - depth) * .7;
+        const tilt = Math.sin(angle * 1.7 + index) * 3.5;
+
+        element.style.transform = `translate3d(${x}px,${y}px,0) scale(${scale}) rotate(${tilt}deg)`;
+        element.style.opacity = `${opacity}`;
+        element.style.zIndex = frontHalf ? "18" : "-1";
+        element.style.filter = `brightness(${.92 + depth * .13}) saturate(${.94 + depth * .10}) blur(${blur}px) drop-shadow(0 9px 14px rgba(0,0,0,${.12 + depth * .08}))`;
+        element.dataset.pinoriaOrbitDepth = frontHalf ? "front" : "behind";
+      });
+
+      if (!reducedMotion) frame = window.requestAnimationFrame(renderFrame);
+    };
+
+    frame = window.requestAnimationFrame(renderFrame);
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <>
+      {prototypeCharacterEffects.marks.map((mark, index) => (
+        <img
+          key={mark.id}
+          ref={(element) => { markRefs.current[index] = element; }}
+          data-pinoria-orbit-mark={mark.id}
+          data-pinoria-orbit-depth="behind"
+          src={mark.src}
+          alt=""
+          draggable={false}
+          decoding="async"
+          loading="eager"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: 100,
+            height: 100,
+            objectFit: "contain",
+            opacity: 0,
+            pointerEvents: "none",
+            transformOrigin: "50% 50%",
+            willChange: "transform, opacity, filter",
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "radial-gradient(circle at 61% 42%,#87956b 0,#3b4c35 35%,#1b241a 72%)", color: "#fff" }}>
@@ -190,6 +276,8 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
         <section aria-hidden="true" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: "pinoriaArrivalCharacter 6.2s cubic-bezier(.18,.8,.2,1) both" }}>
           <div style={{ position: "absolute", width: "76%", aspectRatio: "1", borderRadius: "50%", border: "1px solid #ead89322", boxShadow: "0 0 54px #dfcd7720" }} />
+
+          <OrbitingMarks />
 
           <div
             data-pinoria-full-character-aura
