@@ -36,6 +36,20 @@ export const prototypeCompanionManifest = {
   src: "https://assets.pinohouse.art/draft/Mori.png",
 } as const;
 
+export const prototypeCharacterEffects = {
+  canvas: { width: 2048, height: 2048 },
+  aura: {
+    id: "aura-lv3",
+    src: "https://assets.pinohouse.art/draft/AuraLv3.png",
+  },
+  glows: [
+    { id: "violet-1", src: "https://assets.pinohouse.art/draft/glowViolet1.png", mirrored: false },
+    { id: "violet-2", src: "https://assets.pinohouse.art/draft/glowViolet2.png", mirrored: false },
+    { id: "violet-1-mirror", src: "https://assets.pinohouse.art/draft/glowViolet1.png", mirrored: true },
+    { id: "violet-2-mirror", src: "https://assets.pinohouse.art/draft/glowViolet2.png", mirrored: true },
+  ],
+} as const;
+
 export const prototypeFloatingProps = [
   {
     id: "floating-prop-1",
@@ -95,6 +109,8 @@ export const prototypeAssetUrls = [
   ...prototypeCharacterManifest.layers.map((layer) => layer.src),
   ...prototypeCharacterProfileAssetUrls,
   prototypeCompanionManifest.src,
+  prototypeCharacterEffects.aura.src,
+  ...prototypeCharacterEffects.glows.map((glow) => glow.src),
   ...prototypeFloatingProps.map((prop) => prop.src),
 ];
 
