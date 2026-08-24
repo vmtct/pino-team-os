@@ -331,7 +331,6 @@ function OrbitingCharacterMarks({ motion }: { motion: PrototypeCharacterMotion }
 }
 
 function CharacterPrestigeEffects({ motion }: { motion: PrototypeCharacterMotion }) {
-  const auraSpinDuration = motion === "arrival" ? "34s" : motion === "celebrate" ? "18s" : "38s";
   const auraBreathDuration = motion === "arrival" ? "4.8s" : "5.8s";
   const radianceDuration = motion === "arrival" ? "7.6s" : "8.4s";
   const glowDuration = motion === "arrival" ? 6.4 : 7.2;
@@ -349,25 +348,24 @@ function CharacterPrestigeEffects({ motion }: { motion: PrototypeCharacterMotion
           filter: "drop-shadow(0 0 34px rgba(182,111,255,.14))",
         }}
       >
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", animation: `pinoriaPrestigeAuraSpin ${auraSpinDuration} linear infinite` }}>
-          <img
-            src={prototypeCharacterEffects.aura.src}
-            alt=""
-            draggable={false}
-            decoding="async"
-            loading="eager"
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              transformOrigin: "50% 50%",
-              animation: `pinoriaPrestigeAuraBreath ${auraBreathDuration} ease-in-out infinite, pinoriaPrestigeAuraRadiance ${radianceDuration} ease-in-out infinite`,
-              willChange: "transform, opacity, filter",
-            }}
-          />
-        </div>
+        <img
+          data-pinoria-canonical-aura="true"
+          src={prototypeCharacterEffects.aura.src}
+          alt=""
+          draggable={false}
+          decoding="async"
+          loading="eager"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            transformOrigin: "50% 50%",
+            animation: `pinoriaPrestigeAuraBreath ${auraBreathDuration} ease-in-out infinite, pinoriaPrestigeAuraRadiance ${radianceDuration} ease-in-out infinite`,
+            willChange: "transform, opacity, filter",
+          }}
+        />
       </div>
 
       <OrbitingCharacterMarks motion={motion} />
@@ -376,6 +374,7 @@ function CharacterPrestigeEffects({ motion }: { motion: PrototypeCharacterMotion
         {prototypeCharacterEffects.glows.map((glow, index) => (
           <img
             key={glow.id}
+            data-pinoria-canonical-glow="true"
             src={glow.src}
             alt=""
             draggable={false}
@@ -552,10 +551,6 @@ export function PrototypeCharacter({
           58% { transform:scaleX(.76); filter:brightness(1.1) drop-shadow(0 0 17px rgba(183,229,255,.21)); }
           78% { transform:scaleX(.94); filter:brightness(1.04); }
         }
-        @keyframes pinoriaPrestigeAuraSpin {
-          from { transform:rotate(0deg); }
-          to { transform:rotate(360deg); }
-        }
         @keyframes pinoriaPrestigeAuraBreath {
           0%,100% { transform:scale(.985); }
           36% { transform:scale(1.012); }
@@ -577,26 +572,24 @@ export function PrototypeCharacter({
           100% { opacity:0; filter:brightness(.98) saturate(1); }
         }
 
-        /* Arrival and Shop used to own aura/glow/mark renderers separately.
-           Once the canonical character renderer is present, hide those legacy
-           visual copies so only one prestige-effects system is visible. */
+        /* Arrival still owns legacy effect markup. Hide those copies once the
+           canonical character renderer is present. */
         [data-pinoria-arrival-background] [data-pinoria-full-character-aura],
         [data-pinoria-arrival-background] [data-pinoria-full-character-glow],
         [data-pinoria-arrival-background] [data-pinoria-orbit-mark] {
           display:none !important;
         }
-        [data-pinoria-shop-scene] img[src*="AuraLv3.png"],
-        [data-pinoria-shop-scene] img[src*="glowViolet"] {
+
+        /* Shop still has pre-canonical aura/glow markup in its preview wrapper.
+           Explicitly keep only canonical effect images to avoid double render. */
+        [data-pinoria-shop-scene] img[src*="AuraLv3.png"]:not([data-pinoria-canonical-aura]),
+        [data-pinoria-shop-scene] img[src*="glowViolet"]:not([data-pinoria-canonical-glow]) {
           display:none !important;
-        }
-        [data-pinoria-shop-scene] [data-pinoria-character-effect] img {
-          display:block !important;
         }
 
         @media (prefers-reduced-motion: reduce) {
           [data-pinoria-character-motion] > [data-pinoria-character-motion-shell],
           [data-pinoria-character-motion] [data-pinoria-wing-half],
-          [data-pinoria-character-effect="aura"] > div,
           [data-pinoria-character-effect="aura"] img,
           [data-pinoria-character-effect="glows"] img {
             animation: none !important;
