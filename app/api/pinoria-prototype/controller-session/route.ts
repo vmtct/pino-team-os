@@ -61,19 +61,34 @@ export async function POST(request: NextRequest) {
   if (body.op === "acquire") {
     const result = acquireControllerLease(surfaceId, staff, clientId);
     const state = snapshot(surfaceId, staff.id, clientId);
-    return NextResponse.json({ ok: result.ok, staff: { id: staff.id, name: staff.name }, ...state }, { status: result.ok ? 200 : 409 });
+    return NextResponse.json({
+      ok: result.ok,
+      ...(result.ok ? {} : { error: "CONTROLLER_BUSY" }),
+      staff: { id: staff.id, name: staff.name },
+      ...state,
+    }, { status: result.ok ? 200 : 409 });
   }
 
   if (body.op === "renew") {
     const result = renewControllerLease(surfaceId, staff, clientId);
     const state = snapshot(surfaceId, staff.id, clientId);
-    return NextResponse.json({ ok: result.ok, staff: { id: staff.id, name: staff.name }, ...state }, { status: result.ok ? 200 : 409 });
+    return NextResponse.json({
+      ok: result.ok,
+      ...(result.ok ? {} : { error: "CONTROLLER_LEASE_LOST" }),
+      staff: { id: staff.id, name: staff.name },
+      ...state,
+    }, { status: result.ok ? 200 : 409 });
   }
 
   if (body.op === "release") {
     const result = releaseControllerLease(surfaceId, staff, clientId);
     const state = snapshot(surfaceId, staff.id, clientId);
-    return NextResponse.json({ ok: result.ok, staff: { id: staff.id, name: staff.name }, ...state }, { status: result.ok ? 200 : 409 });
+    return NextResponse.json({
+      ok: result.ok,
+      ...(result.ok ? {} : { error: "CONTROLLER_BUSY" }),
+      staff: { id: staff.id, name: staff.name },
+      ...state,
+    }, { status: result.ok ? 200 : 409 });
   }
 
   return NextResponse.json({ ok: false, error: "UNSUPPORTED_OPERATION" }, { status: 400 });
