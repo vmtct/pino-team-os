@@ -2,8 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
-import { PrototypeCompanion, prototypeCharacterEffects, prototypeCharacterManifest, type PrototypeCharacterSlot } from "./prototype-assets";
-import { prototypeCharacterProfileForSubject } from "./prototype-character-profiles";
+import {
+  PrototypeCharacter,
+  PrototypeCompanion,
+  prototypeCharacterEffects,
+  type PrototypeCharacterLayerOverrides,
+  type PrototypeCharacterSlot,
+} from "./prototype-assets";
 import {
   PINORIA_SHOP_CATALOG_URL,
   PINORIA_SHOP_CATEGORIES,
@@ -16,14 +21,6 @@ import {
 } from "./shop-types";
 
 const PAGE_SIZE = 6;
-const STACK_ORDER: Record<PrototypeCharacterSlot, number> = {
-  back: 10,
-  body: 20,
-  hair: 30,
-  face: 40,
-  headwear: 50,
-  eyewear: 60,
-};
 
 const SPARKLES = [
   { left: "20%", top: "24%", delay: "0ms", size: 15 },
@@ -33,59 +30,10 @@ const SPARKLES = [
   { left: "67%", top: "72%", delay: "310ms", size: 9 },
 ] as const;
 
-type PreviewLayer = {
-  slot: PrototypeCharacterSlot;
-  src: string;
-  fallbackSrc: string;
-  order: number;
-};
-
-function ShopLayerImage({ layer }: { layer: PreviewLayer }) {
-  const [src, setSrc] = useState(layer.src);
-
-  useEffect(() => {
-    setSrc(layer.src);
-  }, [layer.src]);
-
-  return (
-    <img
-      data-pinoria-shop-character-layer={layer.slot}
-      src={src}
-      alt=""
-      draggable={false}
-      decoding="async"
-      loading="eager"
-      onError={() => {
-        if (src !== layer.fallbackSrc) setSrc(layer.fallbackSrc);
-      }}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-        zIndex: layer.order,
-        pointerEvents: "none",
-        userSelect: "none",
-      }}
-    />
-  );
-}
-
 function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; selected?: ShopCatalogItem }) {
-  const profile = prototypeCharacterProfileForSubject(subjectId);
-  const selectedSlot = selected?.previewable ? selected.slot as PrototypeCharacterSlot : null;
-  const layers = prototypeCharacterManifest.layers
-    .map((base) => {
-      const profileSrc = profile?.layers[base.slot];
-      const baseSrc = base.src;
-      const resolvedBaseSrc = profileSrc === null ? null : profileSrc || baseSrc;
-      const selectedSrc = selectedSlot === base.slot && selected?.layerUrl ? selected.layerUrl : undefined;
-      const src = selectedSrc ?? resolvedBaseSrc;
-      return src ? { slot: base.slot, src, fallbackSrc: baseSrc, order: STACK_ORDER[base.slot] } : null;
-    })
-    .filter((layer): layer is PreviewLayer => !!layer)
-    .sort((a, b) => a.order - b.order);
+  const layerOverrides: PrototypeCharacterLayerOverrides | undefined = selected?.previewable && selected.layerUrl
+    ? { [selected.slot as PrototypeCharacterSlot]: selected.layerUrl }
+    : undefined;
 
   return (
     <div style={{ position: "relative", width: "min(480px,38.5vw)", aspectRatio: "1 / 1" }}>
@@ -135,7 +83,13 @@ function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; sele
           }}
         />
       ))}
-      {layers.map((layer) => <ShopLayerImage key={`${layer.slot}:${layer.src}`} layer={layer} />)}
+      <PrototypeCharacter
+        subjectId={subjectId}
+        motion="shop-preview"
+        layerOverrides={layerOverrides}
+        size="100%"
+        style={{ position: "absolute", inset: 0, zIndex: 10, filter: "drop-shadow(0 18px 20px rgba(0,0,0,.18))" }}
+      />
       <div style={{ position: "absolute", left: "50%", bottom: "1%", width: "48%", height: 22, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(ellipse,rgba(9,6,5,.56),transparent 70%)", filter: "blur(7px)", zIndex: 5 }} />
     </div>
   );
