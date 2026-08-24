@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markHouseArrival, markHouseDeparture } from "../../../../lib/pinoria-prototype/house-presence";
 import {
+  closeSurfaceInteractive,
   getSurfaceSessionSnapshot,
   heartbeatSurface,
   setSurfaceSubject,
@@ -110,6 +111,8 @@ function applyPresenceOnClaim(event: RelayEvent, now: number) {
 
 function applyPresenceOnComplete(event: RelayEvent) {
   if (event.replay || event.kind !== "play" || event.mode !== "departure" || !event.subject) return;
+  const surface = getSurfaceSessionSnapshot(event.surfaceId);
+  if (surface.interactive?.subjectId === event.subject.id) closeSurfaceInteractive(event.surfaceId);
   markHouseDeparture(event.surfaceId, event.subject.id);
 }
 
