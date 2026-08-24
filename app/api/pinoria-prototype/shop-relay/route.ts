@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  closeSurfaceInteractive,
+  getSurfaceSessionSnapshot,
+  openSurfaceInteractive,
+  setSurfaceInteractiveView,
+} from "../../../../lib/pinoria-prototype/surface-session";
 import type {
   InventoryAchievementSlot,
   InventoryEquipmentState,
@@ -202,15 +208,52 @@ function touch(session: MutableShopSession) {
   session.updatedAt = Date.now();
 }
 
+function reconcileSessionWithSurface(session: MutableShopSession) {
+  const surface = getSurfaceSessionSnapshot(session.surfaceId);
+  const interactive = surface.interactive;
+  const ownsInteractive = !!interactive && interactive.subjectId === session.subject.id;
+
+  if (!ownsInteractive) {
+    if (session.open) {
+      session.open = false;
+      session.pendingPurchaseAssetId = null;
+      session.purchaseResult = null;
+      touch(session);
+    }
+    return surface;
+  }
+
+  if (!session.open || session.view !== interactive.view) {
+    session.open = true;
+    session.view = interactive.view;
+    touch(session);
+  }
+  return surface;
+}
+
+function response(session: MutableShopSession, ok = true) {
+  return NextResponse.json({
+    ok,
+    session: snapshot(session),
+    surface: getSurfaceSessionSnapshot(session.surfaceId),
+  });
+}
+
 export async function GET(request: NextRequest) {
   const surfaceId = request.nextUrl.searchParams.get("surfaceId") || DEFAULT_SURFACE_ID;
-  return NextResponse.json({ ok: true, session: snapshot(getSession(surfaceId)) }, { headers: { "Cache-Control": "no-store" } });
+  const session = getSession(surfaceId);
+  reconcileSessionWithSurface(session);
+  return NextResponse.json(
+    { ok: true, session: snapshot(session), surface: getSurfaceSessionSnapshot(surfaceId) },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const surfaceId = typeof body.surfaceId === "string" && body.surfaceId ? body.surfaceId : DEFAULT_SURFACE_ID;
   const session = getSession(surfaceId);
+  reconcileSessionWithSurface(session);
 
   if (body.op === "open") {
     session.open = true;
@@ -227,16 +270,18 @@ export async function POST(request: NextRequest) {
       };
       if (changedSubject) resetSubjectInventory(session, nextId);
     }
+    openSurfaceInteractive(surfaceId, session.subject, "shop");
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "close") {
     session.open = false;
     session.pendingPurchaseAssetId = null;
     session.purchaseResult = null;
+    closeSurfaceInteractive(surfaceId);
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "set-subject") {
@@ -252,8 +297,9 @@ export async function POST(request: NextRequest) {
     resetSubjectInventory(session, nextId);
     session.pendingPurchaseAssetId = null;
     session.purchaseResult = null;
+    if (session.open) openSurfaceInteractive(surfaceId, session.subject, "shop");
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "set-view") {
@@ -262,8 +308,9 @@ export async function POST(request: NextRequest) {
     session.view = view;
     session.pendingPurchaseAssetId = null;
     session.purchaseResult = null;
+    if (session.open) setSurfaceInteractiveView(surfaceId, view);
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "set-category") {
@@ -273,7 +320,7 @@ export async function POST(request: NextRequest) {
     session.pendingPurchaseAssetId = null;
     session.purchaseResult = null;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "preview") {
@@ -281,7 +328,7 @@ export async function POST(request: NextRequest) {
     session.pendingPurchaseAssetId = null;
     session.purchaseResult = null;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "inventory-preview") {
@@ -291,7 +338,7 @@ export async function POST(request: NextRequest) {
     }
     session.inventorySelectedId = itemId;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "equip-wearable") {
@@ -302,7 +349,7 @@ export async function POST(request: NextRequest) {
     session.equipment.wearables[slot] = itemId;
     session.inventorySelectedId = itemId;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "unequip-wearable") {
@@ -310,7 +357,7 @@ export async function POST(request: NextRequest) {
     if (!VALID_WEARABLE_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
     delete session.equipment.wearables[slot];
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "equip-achievement") {
@@ -324,7 +371,7 @@ export async function POST(request: NextRequest) {
     session.equipment.achievements[slot] = itemId;
     session.inventorySelectedId = itemId;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "unequip-achievement") {
@@ -332,7 +379,7 @@ export async function POST(request: NextRequest) {
     if (!VALID_ACHIEVEMENT_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
     delete session.equipment.achievements[slot];
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "begin-purchase") {
@@ -341,14 +388,14 @@ export async function POST(request: NextRequest) {
     session.pendingPurchaseAssetId = body.assetId;
     session.purchaseResult = null;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "cancel-purchase") {
     session.pendingPurchaseAssetId = null;
     session.purchaseResult = null;
     touch(session);
-    return NextResponse.json({ ok: true, session: snapshot(session) });
+    return response(session);
   }
 
   if (body.op === "confirm-purchase") {
@@ -370,7 +417,7 @@ export async function POST(request: NextRequest) {
     session.pendingPurchaseAssetId = null;
     session.selectedAssetId = assetId;
     touch(session);
-    return NextResponse.json({ ok: status === "purchased" || status === "already-owned", session: snapshot(session) });
+    return response(session, status === "purchased" || status === "already-owned");
   }
 
   return NextResponse.json({ ok: false, error: "UNSUPPORTED_OPERATION" }, { status: 400 });
