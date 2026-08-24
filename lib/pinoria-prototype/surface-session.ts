@@ -51,19 +51,24 @@ function getMutableSurface(surfaceId: string): MutableSurfaceSession {
   return store.sessions[surfaceId];
 }
 
-function applySubject(
+function writeBaseSubject(
   surface: MutableSurfaceSession,
   subject: { id: string; name: string } | null | undefined,
   now: number,
+  invalidateMismatchedInteractive: boolean,
 ) {
   if (!subject?.id) return;
-  const changed = !!surface.subjectId && surface.subjectId !== subject.id;
   surface.subjectId = subject.id;
   surface.subjectName = subject.name;
 
-  // A shared TV can only have one learner owner. When a transient learner
-  // handoff changes that owner, never resurrect a stale Shop/Inventory session.
-  if (changed && surface.interactive && surface.interactive.subjectId !== subject.id) {
+  // Only an explicit learner handoff (event claim) invalidates an interactive
+  // session. Ambient heartbeats merely report what the backplane is showing;
+  // Shop/Inventory may intentionally be opened for another selected learner.
+  if (
+    invalidateMismatchedInteractive
+    && surface.interactive
+    && surface.interactive.subjectId !== subject.id
+  ) {
     surface.interactive = null;
   }
   surface.updatedAt = now;
@@ -101,7 +106,7 @@ export function heartbeatSurface(input: {
   const surface = getMutableSurface(input.surfaceId);
   surface.baseMode = input.mode;
   surface.lastSeenAt = now;
-  applySubject(surface, input.subject, now);
+  writeBaseSubject(surface, input.subject, now, false);
   surface.updatedAt = now;
   return getSurfaceSessionSnapshot(input.surfaceId, now);
 }
@@ -112,7 +117,7 @@ export function setSurfaceSubject(
   now = Date.now(),
 ) {
   const surface = getMutableSurface(surfaceId);
-  applySubject(surface, subject, now);
+  writeBaseSubject(surface, subject, now, true);
   return getSurfaceSessionSnapshot(surfaceId, now);
 }
 
@@ -123,7 +128,6 @@ export function openSurfaceInteractive(
   now = Date.now(),
 ) {
   const surface = getMutableSurface(surfaceId);
-  applySubject(surface, subject, now);
   surface.interactive = {
     view,
     subjectId: subject.id,
