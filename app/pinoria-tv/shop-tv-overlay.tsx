@@ -3,21 +3,14 @@
 import { useEffect, useState } from "react";
 import { InventoryScene } from "./inventory-scene";
 import { ShopScene } from "./shop-scene";
-import { PINORIA_SHOP_RELAY_URL, PINORIA_SHOP_SURFACE_ID, type ShopSessionSnapshot } from "./shop-types";
-
-const TV_RELAY_URL = "/api/pinoria-prototype/tv-relay";
-
-type TvSurfaceSnapshot = {
-  mode?: string;
-  subjectId?: string | null;
-  activeEvent?: {
-    subjectId?: string | null;
-  } | null;
-};
+import {
+  PINORIA_SHOP_SURFACE_ID,
+  PINORIA_SURFACE_SESSION_URL,
+  type PinoriaSurfaceSessionSnapshot,
+} from "./shop-types";
 
 export function ShopTvOverlay() {
-  const [session, setSession] = useState<ShopSessionSnapshot | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [surface, setSurface] = useState<PinoriaSurfaceSessionSnapshot | null>(null);
 
   useEffect(() => {
     let stopped = false;
@@ -26,44 +19,13 @@ export function ShopTvOverlay() {
       if (inFlight) return;
       inFlight = true;
       try {
-        const [shopResponse, tvResponse] = await Promise.all([
-          fetch(`${PINORIA_SHOP_RELAY_URL}?surfaceId=${PINORIA_SHOP_SURFACE_ID}`, { cache: "no-store" }),
-          fetch(`${TV_RELAY_URL}?surfaceId=${PINORIA_SHOP_SURFACE_ID}`, { cache: "no-store" }),
-        ]);
-        if (!shopResponse.ok || !tvResponse.ok) return;
-
-        const shopData = await shopResponse.json() as { session?: ShopSessionSnapshot };
-        const tvData = await tvResponse.json() as { surface?: TvSurfaceSnapshot };
-        let nextSession = shopData.session ?? null;
-        const surfaceSubjectId = tvData.surface?.subjectId
-          ?? tvData.surface?.activeEvent?.subjectId
-          ?? null;
-        const subjectMismatch = !!nextSession?.open
-          && !!surfaceSubjectId
-          && surfaceSubjectId !== nextSession.subject.id;
-
-        // A learner handoff changes the canonical subject owned by the shared
-        // Reception TV. Invalidate a stale interactive session before it can
-        // reappear after a transient Arrival/Departure scene returns to Ambient.
-        if (subjectMismatch) {
-          const closeResponse = await fetch(PINORIA_SHOP_RELAY_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ surfaceId: PINORIA_SHOP_SURFACE_ID, op: "close" }),
-            cache: "no-store",
-          });
-          if (closeResponse.ok) {
-            const closeData = await closeResponse.json() as { session?: ShopSessionSnapshot };
-            nextSession = closeData.session ?? nextSession;
-          }
-        }
-
-        if (!stopped) {
-          setSession(nextSession);
-          setVisible(!!nextSession?.open
-            && !subjectMismatch
-            && (tvData.surface?.mode ?? "ambient") === "ambient");
-        }
+        const response = await fetch(
+          `${PINORIA_SURFACE_SESSION_URL}?surfaceId=${encodeURIComponent(PINORIA_SHOP_SURFACE_ID)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) return;
+        const data = await response.json() as { surface?: PinoriaSurfaceSessionSnapshot };
+        if (!stopped && data.surface) setSurface(data.surface);
       } catch {
         // Leave the last projection state intact during a brief local relay pause.
       } finally {
@@ -75,10 +37,15 @@ export function ShopTvOverlay() {
     return () => { stopped = true; window.clearInterval(timer); };
   }, []);
 
-  if (!visible) return null;
+  const interactiveVisible = !!surface?.online
+    && !surface.interactiveSuspended
+    && (surface.effectiveMode === "shop" || surface.effectiveMode === "inventory")
+    && !!surface.interactive;
+
+  if (!interactiveVisible) return null;
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, pointerEvents: "none" }}>
-      {session?.view === "inventory"
+      {surface?.effectiveMode === "inventory"
         ? <InventoryScene surfaceId={PINORIA_SHOP_SURFACE_ID} />
         : <ShopScene surfaceId={PINORIA_SHOP_SURFACE_ID} />}
     </div>
