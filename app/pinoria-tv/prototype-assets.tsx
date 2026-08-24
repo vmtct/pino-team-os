@@ -230,6 +230,178 @@ function wingAnimationFor(motion: PrototypeCharacterMotion) {
   return undefined;
 }
 
+function effectMotionEnabled(motion: PrototypeCharacterMotion) {
+  return motion === "arrival" || motion === "shop-preview" || motion === "celebrate";
+}
+
+function orbitPeriodFor(motion: PrototypeCharacterMotion) {
+  if (motion === "celebrate") return 7200;
+  if (motion === "arrival") return 10800;
+  return 12600;
+}
+
+function OrbitingCharacterMarks({ motion }: { motion: PrototypeCharacterMotion }) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const markRefs = useRef<Array<HTMLImageElement | null>>([]);
+
+  useEffect(() => {
+    let frame = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const periodMs = orbitPeriodFor(motion);
+
+    const renderFrame = (now: number) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
+      if (!width || !height) {
+        frame = window.requestAnimationFrame(renderFrame);
+        return;
+      }
+
+      const markSize = Math.min(94, width * .19);
+      const centerX = width * .5;
+      const centerY = height * .64;
+      const radiusX = Math.min(210, width * .40);
+      const radiusY = Math.min(76, height * .145);
+      const baseAngle = reducedMotion ? 0 : ((now % periodMs) / periodMs) * Math.PI * 2;
+
+      prototypeCharacterEffects.marks.forEach((_, index) => {
+        const element = markRefs.current[index];
+        if (!element) return;
+
+        const angle = baseAngle + index * (Math.PI * 2 / 3);
+        const sin = Math.sin(angle);
+        const cos = Math.cos(angle);
+        const depth = (sin + 1) / 2;
+        const frontHalf = sin >= 0;
+        const x = centerX + radiusX * cos - markSize / 2;
+        const y = centerY + radiusY * sin - markSize / 2;
+        const scale = .88 + depth * .15;
+        const opacity = .66 + depth * .34;
+        const blur = (1 - depth) * .75;
+        const tilt = Math.sin(angle * 1.7 + index) * 4;
+
+        element.style.width = `${markSize}px`;
+        element.style.height = `${markSize}px`;
+        element.style.transform = `translate3d(${x}px,${y}px,0) scale(${scale}) rotate(${tilt}deg)`;
+        element.style.opacity = `${opacity}`;
+        element.style.zIndex = frontHalf ? "16" : "6";
+        element.style.filter = `brightness(${.91 + depth * .16}) saturate(${.94 + depth * .12}) blur(${blur}px) drop-shadow(0 9px 14px rgba(0,0,0,${.10 + depth * .09}))`;
+        element.dataset.pinoriaCharacterOrbitDepth = frontHalf ? "front" : "behind";
+      });
+
+      if (!reducedMotion) frame = window.requestAnimationFrame(renderFrame);
+    };
+
+    frame = window.requestAnimationFrame(renderFrame);
+    return () => window.cancelAnimationFrame(frame);
+  }, [motion]);
+
+  return (
+    <div ref={stageRef} data-pinoria-character-effect="marks" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {prototypeCharacterEffects.marks.map((mark, index) => (
+        <img
+          key={mark.id}
+          ref={(element) => { markRefs.current[index] = element; }}
+          data-pinoria-character-orbit-mark={mark.id}
+          data-pinoria-character-orbit-depth="behind"
+          src={mark.src}
+          alt=""
+          draggable={false}
+          decoding="async"
+          loading="eager"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: 94,
+            height: 94,
+            objectFit: "contain",
+            opacity: 0,
+            pointerEvents: "none",
+            transformOrigin: "50% 50%",
+            willChange: "transform, opacity, filter",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CharacterPrestigeEffects({ motion }: { motion: PrototypeCharacterMotion }) {
+  const auraSpinDuration = motion === "arrival" ? "34s" : motion === "celebrate" ? "18s" : "38s";
+  const auraBreathDuration = motion === "arrival" ? "4.8s" : "5.8s";
+  const radianceDuration = motion === "arrival" ? "7.6s" : "8.4s";
+  const glowDuration = motion === "arrival" ? 6.4 : 7.2;
+  const glowStep = glowDuration / 4;
+
+  return (
+    <>
+      <div
+        data-pinoria-character-effect="aura"
+        style={{
+          position: "absolute",
+          inset: "1%",
+          zIndex: 0,
+          pointerEvents: "none",
+          filter: "drop-shadow(0 0 34px rgba(182,111,255,.14))",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", animation: `pinoriaPrestigeAuraSpin ${auraSpinDuration} linear infinite` }}>
+          <img
+            src={prototypeCharacterEffects.aura.src}
+            alt=""
+            draggable={false}
+            decoding="async"
+            loading="eager"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              transformOrigin: "50% 50%",
+              animation: `pinoriaPrestigeAuraBreath ${auraBreathDuration} ease-in-out infinite, pinoriaPrestigeAuraRadiance ${radianceDuration} ease-in-out infinite`,
+              willChange: "transform, opacity, filter",
+            }}
+          />
+        </div>
+      </div>
+
+      <OrbitingCharacterMarks motion={motion} />
+
+      <div data-pinoria-character-effect="glows" style={{ position: "absolute", inset: "4%", zIndex: 20, pointerEvents: "none" }}>
+        {prototypeCharacterEffects.glows.map((glow, index) => (
+          <img
+            key={glow.id}
+            src={glow.src}
+            alt=""
+            draggable={false}
+            decoding="async"
+            loading="eager"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              opacity: 0,
+              transform: glow.mirrored ? "scaleX(-1)" : "scaleX(1)",
+              transformOrigin: "50% 50%",
+              mixBlendMode: "screen",
+              filter: "drop-shadow(0 0 13px rgba(183,104,255,.18))",
+              animation: `pinoriaPrestigeGlowCycle ${glowDuration}s ${index * glowStep}s linear infinite`,
+              willChange: "opacity, filter",
+            }}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function PrototypeCharacter({
   size = "100%",
   style,
@@ -287,6 +459,7 @@ export function PrototypeCharacter({
     .filter((layer): layer is CharacterLayer => !!layer);
   const bodyAnimation = bodyAnimationFor(resolvedMotion);
   const wingAnimation = wingAnimationFor(resolvedMotion);
+  const showPrestigeEffects = effectMotionEnabled(resolvedMotion);
 
   return (
     <div
@@ -379,20 +552,69 @@ export function PrototypeCharacter({
           58% { transform:scaleX(.76); filter:brightness(1.1) drop-shadow(0 0 17px rgba(183,229,255,.21)); }
           78% { transform:scaleX(.94); filter:brightness(1.04); }
         }
+        @keyframes pinoriaPrestigeAuraSpin {
+          from { transform:rotate(0deg); }
+          to { transform:rotate(360deg); }
+        }
+        @keyframes pinoriaPrestigeAuraBreath {
+          0%,100% { transform:scale(.985); }
+          36% { transform:scale(1.012); }
+          58% { transform:scale(1.02); }
+          82% { transform:scale(.994); }
+        }
+        @keyframes pinoriaPrestigeAuraRadiance {
+          0%,14%,100% { opacity:.72; filter:brightness(.98) drop-shadow(0 0 10px rgba(182,111,255,.14)); }
+          27% { opacity:.91; filter:brightness(1.075) drop-shadow(0 0 25px rgba(182,111,255,.29)); }
+          43% { opacity:.77; filter:brightness(1.005) drop-shadow(0 0 13px rgba(182,111,255,.18)); }
+          66% { opacity:.97; filter:brightness(1.11) drop-shadow(0 0 32px rgba(182,111,255,.35)); }
+          83% { opacity:.80; filter:brightness(1.02) drop-shadow(0 0 16px rgba(182,111,255,.2)); }
+        }
+        @keyframes pinoriaPrestigeGlowCycle {
+          0% { opacity:0; filter:brightness(.96) saturate(.98); }
+          6.25% { opacity:.62; filter:brightness(1.08) saturate(1.06); }
+          25% { opacity:.62; filter:brightness(1.08) saturate(1.06); }
+          31.25% { opacity:0; filter:brightness(.98) saturate(1); }
+          100% { opacity:0; filter:brightness(.98) saturate(1); }
+        }
+
+        /* Arrival and Shop used to own aura/glow/mark renderers separately.
+           Once the canonical character renderer is present, hide those legacy
+           visual copies so only one prestige-effects system is visible. */
+        [data-pinoria-arrival-background] [data-pinoria-full-character-aura],
+        [data-pinoria-arrival-background] [data-pinoria-full-character-glow],
+        [data-pinoria-arrival-background] [data-pinoria-orbit-mark] {
+          display:none !important;
+        }
+        [data-pinoria-shop-scene] img[src*="AuraLv3.png"],
+        [data-pinoria-shop-scene] img[src*="glowViolet"] {
+          display:none !important;
+        }
+        [data-pinoria-shop-scene] [data-pinoria-character-effect] img {
+          display:block !important;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           [data-pinoria-character-motion] > [data-pinoria-character-motion-shell],
-          [data-pinoria-character-motion] [data-pinoria-wing-half] {
+          [data-pinoria-character-motion] [data-pinoria-wing-half],
+          [data-pinoria-character-effect="aura"] > div,
+          [data-pinoria-character-effect="aura"] img,
+          [data-pinoria-character-effect="glows"] img {
             animation: none !important;
             transform: none !important;
           }
+          [data-pinoria-character-effect="aura"] img { opacity:.84 !important; }
+          [data-pinoria-character-effect="glows"] img { opacity:.12 !important; }
         }
       `}</style>
+
+      {showPrestigeEffects ? <CharacterPrestigeEffects motion={resolvedMotion} /> : null}
 
       <div
         data-pinoria-character-motion-shell
         style={{
           position: "absolute",
           inset: 0,
+          zIndex: 10,
           transformOrigin: "50% 78%",
           animation: bodyAnimation,
           willChange: bodyAnimation ? "transform" : undefined,
