@@ -9,6 +9,7 @@ const TV_RELAY_URL = "/api/pinoria-prototype/tv-relay";
 
 type TvSurfaceSnapshot = {
   mode?: string;
+  subjectId?: string | null;
   activeEvent?: {
     subjectId?: string | null;
   } | null;
@@ -34,14 +35,16 @@ export function ShopTvOverlay() {
         const shopData = await shopResponse.json() as { session?: ShopSessionSnapshot };
         const tvData = await tvResponse.json() as { surface?: TvSurfaceSnapshot };
         let nextSession = shopData.session ?? null;
-        const activeSubjectId = tvData.surface?.activeEvent?.subjectId ?? null;
+        const surfaceSubjectId = tvData.surface?.subjectId
+          ?? tvData.surface?.activeEvent?.subjectId
+          ?? null;
         const subjectMismatch = !!nextSession?.open
-          && !!activeSubjectId
-          && activeSubjectId !== nextSession.subject.id;
+          && !!surfaceSubjectId
+          && surfaceSubjectId !== nextSession.subject.id;
 
-        // A transient learner event owns the shared TV. If it belongs to a
-        // different learner, invalidate the old interactive Shop/Inventory
-        // session so it cannot reappear after Arrival/Departure completes.
+        // A learner handoff changes the canonical subject owned by the shared
+        // Reception TV. Invalidate a stale interactive session before it can
+        // reappear after a transient Arrival/Departure scene returns to Ambient.
         if (subjectMismatch) {
           const closeResponse = await fetch(PINORIA_SHOP_RELAY_URL, {
             method: "POST",
