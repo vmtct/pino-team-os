@@ -398,8 +398,8 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
                 {ACHIEVEMENT_SLOTS.slice(4, 8).map((slot, index) => renderAchievementSlot(slot, index + 4))}
               </div>
 
-              <div style={{ position: "absolute", right: 84, bottom: 25, width: 144, zIndex: 32 }}>
-                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 15px 18px rgba(0,0,0,.3))" }} />
+              <div style={{ position: "absolute", right: 134, bottom: 25, width: 144, zIndex: 32 }}>
+                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />
               </div>
             </div>
 
