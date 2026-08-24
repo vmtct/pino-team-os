@@ -15,7 +15,16 @@ const DEFAULT_SUBJECT: ShopSubject = { id: "bo", name: "Bơ", pls: 420 };
 const VALID_CATEGORIES = new Set<ShopCategoryId>(["all", "hair", "face", "headwear", "eyewear", "back", "body", "prop"]);
 const VALID_VIEWS = new Set<PinoriaStoreView>(["shop", "inventory"]);
 const VALID_WEARABLE_SLOTS = new Set<InventoryWearableSlot>(["back", "body", "hair", "face", "headwear", "eyewear"]);
-const VALID_ACHIEVEMENT_SLOTS = new Set<InventoryAchievementSlot>(["artifact-1", "artifact-2", "badge"]);
+const VALID_ACHIEVEMENT_SLOTS = new Set<InventoryAchievementSlot>([
+  "achievement-1",
+  "achievement-2",
+  "achievement-3",
+  "achievement-4",
+  "achievement-5",
+  "achievement-6",
+  "achievement-7",
+  "achievement-8",
+]);
 
 const SUBJECT_STARTING_OWNED: Record<string, string[]> = {
   bo: ["asset_hologram_wings", "asset_painting_outfit_01", "asset_hair_01", "asset_face_01", "asset_birthday_hat", "asset_star_glasses"],
@@ -45,9 +54,9 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
       eyewear: "asset_star_glasses",
     },
     achievements: {
-      "artifact-1": "achievement-brush-l2",
-      "artifact-2": "achievement-palette-l2",
-      badge: "badge-artchitect-l3",
+      "achievement-1": "achievement-brush-l2",
+      "achievement-2": "achievement-palette-l2",
+      "achievement-3": "badge-artchitect-l3",
     },
   },
   tri: {
@@ -59,9 +68,9 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
       eyewear: "asset_party_glasses",
     },
     achievements: {
-      "artifact-1": "achievement-scroll-l3",
-      "artifact-2": "achievement-maker-l2",
-      badge: "badge-pianohouse-l3",
+      "achievement-1": "achievement-scroll-l3",
+      "achievement-2": "achievement-maker-l2",
+      "achievement-3": "badge-pianohouse-l3",
     },
   },
   an: {
@@ -73,9 +82,9 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
       headwear: "asset_conical_hat",
     },
     achievements: {
-      "artifact-1": "achievement-brush-l3",
-      "artifact-2": "achievement-palette-l2",
-      badge: "badge-artchitect-l3",
+      "achievement-1": "achievement-brush-l3",
+      "achievement-2": "achievement-palette-l2",
+      "achievement-3": "badge-artchitect-l3",
     },
   },
   mai: {
@@ -87,8 +96,8 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
       eyewear: "asset_party_glasses",
     },
     achievements: {
-      "artifact-1": "achievement-brush-l1",
-      badge: "badge-artchitect-l1",
+      "achievement-1": "achievement-brush-l1",
+      "achievement-2": "badge-artchitect-l1",
     },
   },
 };
@@ -155,6 +164,16 @@ function getSession(surfaceId: string): MutableShopSession {
   session.equipment ??= initialEquipment(session.subject.id);
   session.equipment.wearables ??= {};
   session.equipment.achievements ??= {};
+
+  // Migrate the original three prototype achievement slot keys in hot sessions.
+  const legacyAchievements = session.equipment.achievements as Record<string, string | undefined>;
+  if (legacyAchievements["artifact-1"] && !legacyAchievements["achievement-1"]) legacyAchievements["achievement-1"] = legacyAchievements["artifact-1"];
+  if (legacyAchievements["artifact-2"] && !legacyAchievements["achievement-2"]) legacyAchievements["achievement-2"] = legacyAchievements["artifact-2"];
+  if (legacyAchievements.badge && !legacyAchievements["achievement-3"]) legacyAchievements["achievement-3"] = legacyAchievements.badge;
+  delete legacyAchievements["artifact-1"];
+  delete legacyAchievements["artifact-2"];
+  delete legacyAchievements.badge;
+
   return session;
 }
 
