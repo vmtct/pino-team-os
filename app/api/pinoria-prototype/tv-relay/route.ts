@@ -92,6 +92,7 @@ function surfaceSnapshot(surfaceId: string, now: number) {
       id: active.id,
       kind: active.kind,
       mode: active.mode ?? null,
+      subjectId: active.subject?.id ?? null,
       subjectName: active.subject?.name ?? null,
     } : null,
   };
