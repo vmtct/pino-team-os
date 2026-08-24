@@ -53,6 +53,8 @@ export type ShopSessionSnapshot = {
   updatedAt: number;
 };
 
+// Shop is intentionally cosmetic-only. Props/artifacts/badges are earned
+// learning achievements and live in Túi Hành Trang instead of being purchasable.
 export const PINORIA_SHOP_CATEGORIES: readonly { id: ShopCategoryId; label: string; icon: string }[] = [
   { id: "all", label: "Tất cả", icon: "✦" },
   { id: "hair", label: "Tóc", icon: "◒" },
@@ -61,7 +63,6 @@ export const PINORIA_SHOP_CATEGORIES: readonly { id: ShopCategoryId; label: stri
   { id: "eyewear", label: "Kính", icon: "◎" },
   { id: "back", label: "Cánh", icon: "◇" },
   { id: "body", label: "Trang phục", icon: "♢" },
-  { id: "prop", label: "Đạo cụ", icon: "✧" },
 ] as const;
 
 export const PINORIA_SHOP_LOGO = "https://assets.pinohouse.art/pinoria/Pinoria%20Logo.png";
@@ -71,7 +72,8 @@ export const PINORIA_SHOP_CATALOG_URL = "/api/pinoria-prototype/shop-catalog";
 
 export function categoryForAsset(slot: string | null | undefined, family: string | null | undefined): ShopCategoryId | null {
   if (slot === "hair" || slot === "face" || slot === "headwear" || slot === "eyewear" || slot === "back" || slot === "body") return slot;
-  if (family === "prop" || family === "artifact") return "prop";
+  // Earned props/artifacts must never leak back into the PLS Shop catalog.
+  if (family === "prop" || family === "artifact") return null;
   return null;
 }
 
