@@ -51,15 +51,16 @@ const DISPLAY_NAMES: Record<string, string> = {
   "painting-outfit-01": "Trang phục Hội Họa I",
   "painting-outfit-02": "Trang phục Hội Họa II",
   "base-body-01": "Trang phục Cơ Bản",
-  "hair-01": "Tóc 01",
-  "face-01": "Gương mặt 01",
-  "face-02": "Gương mặt 02",
-  "face-03": "Gương mặt 03",
-  "face-04": "Gương mặt 04",
+  "hair-01": "Tóc Cơ Bản",
+  "face-01": "Gương mặt Mỉm Cười",
+  "face-02": "Gương mặt Tinh Nghịch",
+  "face-03": "Gương mặt Dịu Dàng",
+  "face-04": "Gương mặt Rạng Rỡ",
 };
 
 const TOKEN_LABELS: Record<string, string> = {
   brown: "Nâu",
+  nau: "Nâu",
   beige: "Be",
   cream: "Kem",
   white: "Trắng",
@@ -79,10 +80,38 @@ const TOKEN_LABELS: Record<string, string> = {
   artist: "Họa Sĩ",
   explorer: "Thám Hiểm",
   classic: "Cổ Điển",
+  long: "Dài",
+  short: "Ngắn",
+  medium: "Ngang Vai",
+  bob: "Bob",
+  wavy: "Gợn Sóng",
+  spiky: "Dựng",
+  headband: "Băng Đô",
+  clip: "Kẹp",
+  star: "Sao",
+  middle: "Giữa",
+  side: "Bên",
+  part: "Rẽ",
 };
 
 function displayToken(value: string) {
   return TOKEN_LABELS[value] ?? titleCasePart(value);
+}
+
+function hairDisplayName(parts: string[]) {
+  const source = [...parts];
+  if (source[0] === "hair") source.shift();
+
+  const hasBob = source.includes("bob");
+  const length = source.includes("long") ? "Dài" : source.includes("short") ? "Ngắn" : hasBob ? "Bob" : source.includes("medium") ? "Ngang Vai" : null;
+  const color = source.includes("brown") || source.includes("nau") ? "Nâu" : null;
+  const texture = source.includes("wavy") ? "Gợn Sóng" : source.includes("spiky") ? "Dựng" : null;
+  const accessory = source.includes("headband") ? "Băng Đô" : source.includes("star") && source.includes("clip") ? "Kẹp Sao" : null;
+  const parting = source.includes("middle") && source.includes("part") ? "Rẽ Giữa" : source.includes("side") && source.includes("part") ? "Rẽ Bên" : null;
+
+  const known = new Set(["long", "short", "medium", "bob", "brown", "nau", "wavy", "spiky", "headband", "star", "clip", "middle", "side", "part"]);
+  const extras = source.filter((token) => !known.has(token)).map(displayToken);
+  return ["Tóc", length, color, texture, parting, accessory, ...extras].filter(Boolean).join(" ");
 }
 
 function displayNameFor(slug: string) {
@@ -96,6 +125,7 @@ function displayNameFor(slug: string) {
     .replace(/-draft-[a-z0-9]+$/i, "");
   const parts = cleaned.split("-").filter(Boolean);
 
+  if (parts[0] === "hair") return hairDisplayName(parts);
   if (parts[0] === "body") parts.shift();
 
   const noun = parts[0];
@@ -171,7 +201,7 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
   }
 
   const order = ["hair", "face", "headwear", "eyewear", "back", "body", "prop"];
-  return [...groups.values()]
+  const mapped = [...groups.values()]
     .map((group) => {
       const category = categoryForAsset(group.slot, group.family);
       const layerUrl = toAssetUrl(group.layer);
@@ -193,7 +223,14 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
         previewable: !!layerUrl && ["hair", "face", "headwear", "eyewear", "back", "body"].includes(group.slot),
       } satisfies ShopCatalogItem;
     })
-    .filter((item): item is ShopCatalogItem => item !== null)
+    .filter((item): item is ShopCatalogItem => item !== null);
+
+  // Once richer hair assets exist, the old generic hair-01 is only a base
+  // character layer and adds visual noise to the learner-facing shop catalog.
+  const hasRichHairCatalog = mapped.some((item) => item.category === "hair" && item.slug !== "hair-01");
+
+  return mapped
+    .filter((item) => !(hasRichHairCatalog && item.slug === "hair-01"))
     .sort((a, b) => {
       const categoryDelta = order.indexOf(a.category) - order.indexOf(b.category);
       if (categoryDelta) return categoryDelta;
