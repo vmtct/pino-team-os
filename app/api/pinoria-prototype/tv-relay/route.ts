@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getSurfaceSessionSnapshot,
+  heartbeatSurface,
+  setSurfaceSubject,
+} from "../../../../lib/pinoria-prototype/surface-session";
+import type { PinoriaSurfaceBaseMode } from "../../../pinoria-tv/shop-types";
 
-type TVMode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
+type TVMode = PinoriaSurfaceBaseMode;
 type TVSubject = {
   id: string;
   name: string;
@@ -26,29 +32,19 @@ type RelayEvent = {
   completedAt?: number;
 };
 
-type SurfaceState = {
-  surfaceId: string;
-  mode: TVMode;
-  lastSeenAt: number;
-  subjectId?: string;
-  subjectName?: string;
-};
-
 type RelayStore = {
   seq: number;
   events: RelayEvent[];
-  surfaces: Record<string, SurfaceState>;
 };
 
 declare global {
   // eslint-disable-next-line no-var
-  var __pinoriaPrototypeTvRelay: RelayStore | undefined;
+  var __pinoriaPrototypeTvRelay: (RelayStore & { surfaces?: Record<string, unknown> }) | undefined;
 }
 
 const store = globalThis.__pinoriaPrototypeTvRelay ?? {
   seq: 0,
   events: [],
-  surfaces: {},
 };
 globalThis.__pinoriaPrototypeTvRelay = store;
 
@@ -81,16 +77,13 @@ function nextQueuedEventFor(surfaceId: string) {
   return store.events.find((event) => event.surfaceId === surfaceId && event.status === "queued") ?? null;
 }
 
-function surfaceSnapshot(surfaceId: string, now: number) {
-  const surface = store.surfaces[surfaceId];
+function relaySurfaceSnapshot(surfaceId: string, now: number) {
+  const surface = getSurfaceSessionSnapshot(surfaceId, now);
   const active = activeEventFor(surfaceId);
   return {
-    surfaceId,
-    online: !!surface && now - surface.lastSeenAt < 6500,
-    mode: surface?.mode ?? "ambient",
-    lastSeenAt: surface?.lastSeenAt ?? null,
-    subjectId: surface?.subjectId ?? active?.subject?.id ?? null,
-    subjectName: surface?.subjectName ?? active?.subject?.name ?? null,
+    ...surface,
+    // Backward-compatible alias for older prototype clients.
+    mode: surface.baseMode,
     queuedCount: store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued").length,
     activeEvent: active ? {
       id: active.id,
@@ -100,6 +93,13 @@ function surfaceSnapshot(surfaceId: string, now: number) {
       subjectName: active.subject?.name ?? null,
     } : null,
   };
+}
+
+function parseSubject(value: unknown): { id: string; name: string } | null {
+  if (!value || typeof value !== "object") return null;
+  const subject = value as { id?: unknown; name?: unknown };
+  if (typeof subject.id !== "string" || typeof subject.name !== "string") return null;
+  return { id: subject.id, name: subject.name };
 }
 
 export async function GET(request: NextRequest) {
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     : null;
 
   return NextResponse.json({
-    surface: surfaceSnapshot(surfaceId, now),
+    surface: relaySurfaceSnapshot(surfaceId, now),
     event,
   }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -124,16 +124,20 @@ export async function POST(request: NextRequest) {
   const surfaceId = typeof body.surfaceId === "string" ? body.surfaceId : "RECEPTION_TV";
 
   if (body.op === "heartbeat") {
-    const mode: TVMode = body.mode ?? "ambient";
-    const previous = store.surfaces[surfaceId];
-    store.surfaces[surfaceId] = {
+    const mode: TVMode = body.mode === "arrival"
+      || body.mode === "choice"
+      || body.mode === "ritual"
+      || body.mode === "departure"
+      || body.mode === "news"
+      ? body.mode
+      : "ambient";
+    heartbeatSurface({
       surfaceId,
       mode,
-      lastSeenAt: now,
-      subjectId: previous?.subjectId,
-      subjectName: previous?.subjectName,
-    };
-    return NextResponse.json({ ok: true, surface: surfaceSnapshot(surfaceId, now) });
+      subject: parseSubject(body.subject),
+      now,
+    });
+    return NextResponse.json({ ok: true, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "enqueue-play") {
@@ -149,7 +153,7 @@ export async function POST(request: NextRequest) {
       expiresAt: now + (body.replay ? 5 : 15) * 60 * 1000,
     };
     store.events.push(event);
-    return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "enqueue-control") {
@@ -163,7 +167,7 @@ export async function POST(request: NextRequest) {
       expiresAt: now + 5 * 60 * 1000,
     };
     store.events.push(event);
-    return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "claim") {
@@ -178,15 +182,8 @@ export async function POST(request: NextRequest) {
     }
     event.status = "claimed";
     event.claimedAt = now;
-    if (event.subject) {
-      const current = store.surfaces[surfaceId] ?? { surfaceId, mode: "ambient" as TVMode, lastSeenAt: now };
-      store.surfaces[surfaceId] = {
-        ...current,
-        subjectId: event.subject.id,
-        subjectName: event.subject.name,
-      };
-    }
-    return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
+    if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
+    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "complete") {
@@ -197,7 +194,7 @@ export async function POST(request: NextRequest) {
       event.status = "completed";
       event.completedAt = now;
     }
-    return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   // Backward-compatible alias while older local clients are still open.
@@ -208,16 +205,9 @@ export async function POST(request: NextRequest) {
     if (event.status === "queued" && !activeEventFor(surfaceId)) {
       event.status = "claimed";
       event.claimedAt = now;
-      if (event.subject) {
-        const current = store.surfaces[surfaceId] ?? { surfaceId, mode: "ambient" as TVMode, lastSeenAt: now };
-        store.surfaces[surfaceId] = {
-          ...current,
-          subjectId: event.subject.id,
-          subjectName: event.subject.name,
-        };
-      }
+      if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
     }
-    return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   return NextResponse.json({ ok: false, error: "UNSUPPORTED_OPERATION" }, { status: 400 });
