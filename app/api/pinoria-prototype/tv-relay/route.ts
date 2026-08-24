@@ -30,6 +30,8 @@ type SurfaceState = {
   surfaceId: string;
   mode: TVMode;
   lastSeenAt: number;
+  subjectId?: string;
+  subjectName?: string;
 };
 
 type RelayStore = {
@@ -87,6 +89,8 @@ function surfaceSnapshot(surfaceId: string, now: number) {
     online: !!surface && now - surface.lastSeenAt < 6500,
     mode: surface?.mode ?? "ambient",
     lastSeenAt: surface?.lastSeenAt ?? null,
+    subjectId: surface?.subjectId ?? active?.subject?.id ?? null,
+    subjectName: surface?.subjectName ?? active?.subject?.name ?? null,
     queuedCount: store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued").length,
     activeEvent: active ? {
       id: active.id,
@@ -121,7 +125,14 @@ export async function POST(request: NextRequest) {
 
   if (body.op === "heartbeat") {
     const mode: TVMode = body.mode ?? "ambient";
-    store.surfaces[surfaceId] = { surfaceId, mode, lastSeenAt: now };
+    const previous = store.surfaces[surfaceId];
+    store.surfaces[surfaceId] = {
+      surfaceId,
+      mode,
+      lastSeenAt: now,
+      subjectId: previous?.subjectId,
+      subjectName: previous?.subjectName,
+    };
     return NextResponse.json({ ok: true, surface: surfaceSnapshot(surfaceId, now) });
   }
 
@@ -167,6 +178,14 @@ export async function POST(request: NextRequest) {
     }
     event.status = "claimed";
     event.claimedAt = now;
+    if (event.subject) {
+      const current = store.surfaces[surfaceId] ?? { surfaceId, mode: "ambient" as TVMode, lastSeenAt: now };
+      store.surfaces[surfaceId] = {
+        ...current,
+        subjectId: event.subject.id,
+        subjectName: event.subject.name,
+      };
+    }
     return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
   }
 
@@ -189,6 +208,14 @@ export async function POST(request: NextRequest) {
     if (event.status === "queued" && !activeEventFor(surfaceId)) {
       event.status = "claimed";
       event.claimedAt = now;
+      if (event.subject) {
+        const current = store.surfaces[surfaceId] ?? { surfaceId, mode: "ambient" as TVMode, lastSeenAt: now };
+        store.surfaces[surfaceId] = {
+          ...current,
+          subjectId: event.subject.id,
+          subjectName: event.subject.name,
+        };
+      }
     }
     return NextResponse.json({ ok: true, event, surface: surfaceSnapshot(surfaceId, now) });
   }
