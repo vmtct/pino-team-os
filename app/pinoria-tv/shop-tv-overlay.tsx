@@ -7,6 +7,13 @@ import { PINORIA_SHOP_RELAY_URL, PINORIA_SHOP_SURFACE_ID, type ShopSessionSnapsh
 
 const TV_RELAY_URL = "/api/pinoria-prototype/tv-relay";
 
+type TvSurfaceSnapshot = {
+  mode?: string;
+  activeEvent?: {
+    subjectId?: string | null;
+  } | null;
+};
+
 export function ShopTvOverlay() {
   const [session, setSession] = useState<ShopSessionSnapshot | null>(null);
   const [visible, setVisible] = useState(false);
@@ -23,11 +30,36 @@ export function ShopTvOverlay() {
           fetch(`${TV_RELAY_URL}?surfaceId=${PINORIA_SHOP_SURFACE_ID}`, { cache: "no-store" }),
         ]);
         if (!shopResponse.ok || !tvResponse.ok) return;
+
         const shopData = await shopResponse.json() as { session?: ShopSessionSnapshot };
-        const tvData = await tvResponse.json() as { surface?: { mode?: string } };
+        const tvData = await tvResponse.json() as { surface?: TvSurfaceSnapshot };
+        let nextSession = shopData.session ?? null;
+        const activeSubjectId = tvData.surface?.activeEvent?.subjectId ?? null;
+        const subjectMismatch = !!nextSession?.open
+          && !!activeSubjectId
+          && activeSubjectId !== nextSession.subject.id;
+
+        // A transient learner event owns the shared TV. If it belongs to a
+        // different learner, invalidate the old interactive Shop/Inventory
+        // session so it cannot reappear after Arrival/Departure completes.
+        if (subjectMismatch) {
+          const closeResponse = await fetch(PINORIA_SHOP_RELAY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ surfaceId: PINORIA_SHOP_SURFACE_ID, op: "close" }),
+            cache: "no-store",
+          });
+          if (closeResponse.ok) {
+            const closeData = await closeResponse.json() as { session?: ShopSessionSnapshot };
+            nextSession = closeData.session ?? nextSession;
+          }
+        }
+
         if (!stopped) {
-          setSession(shopData.session ?? null);
-          setVisible(!!shopData.session?.open && (tvData.surface?.mode ?? "ambient") === "ambient");
+          setSession(nextSession);
+          setVisible(!!nextSession?.open
+            && !subjectMismatch
+            && (tvData.surface?.mode ?? "ambient") === "ambient");
         }
       } catch {
         // Leave the last projection state intact during a brief local relay pause.
