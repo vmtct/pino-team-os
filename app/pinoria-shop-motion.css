@@ -33,6 +33,13 @@
   animation: pinoriaShopCompanionTilt 5.2s ease-in-out infinite;
 }
 
+/* Backpack presents Mori as part of the Piner composition rather than as a
+ * separate corner ornament. The absolute wrapper stays layout-neutral while
+ * the companion itself is visually tucked immediately beside the Piner's feet. */
+[data-pinoria-inventory-scene] [aria-label="Mori"] {
+  transform: translate3d(-118px, 6px, 0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-pinoria-shop-scene] [aria-label="Mori"],
   [data-pinoria-shop-scene] [aria-label="Mori"] > img {
