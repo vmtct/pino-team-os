@@ -1,4 +1,7 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
+export type PinoriaStoreView = "shop" | "inventory";
+export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
+export type InventoryAchievementSlot = "artifact-1" | "artifact-2" | "badge";
 
 export type ShopCatalogItem = {
   assetId: string;
@@ -29,14 +32,23 @@ export type ShopPurchaseResult = {
   at: number;
 };
 
+export type InventoryEquipmentState = {
+  wearables: Partial<Record<InventoryWearableSlot, string>>;
+  achievements: Partial<Record<InventoryAchievementSlot, string>>;
+};
+
 export type ShopSessionSnapshot = {
   surfaceId: string;
   open: boolean;
+  view: PinoriaStoreView;
   subject: ShopSubject;
   category: ShopCategoryId;
   selectedAssetId: string | null;
   pendingPurchaseAssetId: string | null;
   ownedAssetIds: string[];
+  earnedAchievementIds: string[];
+  inventorySelectedId: string | null;
+  equipment: InventoryEquipmentState;
   purchaseResult: ShopPurchaseResult | null;
   updatedAt: number;
 };
