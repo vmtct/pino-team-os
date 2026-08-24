@@ -22,10 +22,15 @@ import {
 } from "./shop-types";
 
 const WEARABLE_SLOTS: readonly InventoryWearableSlot[] = ["hair", "face", "headwear", "eyewear", "back", "body"];
-const ACHIEVEMENT_SLOTS: readonly { id: InventoryAchievementSlot; label: string }[] = [
-  { id: "artifact-1", label: "Đạo cụ I" },
-  { id: "artifact-2", label: "Đạo cụ II" },
-  { id: "badge", label: "Huy hiệu" },
+const ACHIEVEMENT_SLOTS: readonly InventoryAchievementSlot[] = [
+  "achievement-1",
+  "achievement-2",
+  "achievement-3",
+  "achievement-4",
+  "achievement-5",
+  "achievement-6",
+  "achievement-7",
+  "achievement-8",
 ];
 
 const SLOT_LABELS: Record<InventoryWearableSlot, string> = {
@@ -183,14 +188,58 @@ function levelRoman(level: number) {
   return ["", "I", "II", "III", "IV", "V"][level] ?? String(level);
 }
 
-function EquipmentSlot({ label, imageUrl, empty, level }: { label: string; imageUrl?: string; empty?: boolean; level?: number }) {
+function AchievementSlot({ imageUrl, level, index }: { imageUrl?: string; level?: number; index: number }) {
+  const empty = !imageUrl;
   return (
-    <div style={{ display: "grid", justifyItems: "center", gap: 5 }}>
-      <div style={{ position: "relative", width: 68, height: 68, borderRadius: 19, display: "grid", placeItems: "center", background: empty ? "rgba(255,255,255,.018)" : "radial-gradient(circle,rgba(240,198,111,.11),rgba(42,28,23,.82) 68%)", border: empty ? "1px dashed rgba(238,208,153,.18)" : "1px solid rgba(236,191,104,.28)", boxShadow: empty ? undefined : "0 11px 28px rgba(0,0,0,.18),inset 0 0 18px rgba(234,188,95,.04)" }}>
-        {imageUrl ? <img src={imageUrl} alt="" draggable={false} style={{ width: "82%", height: "82%", objectFit: "contain", filter: "drop-shadow(0 7px 9px rgba(0,0,0,.24))" }} /> : <span style={{ color: "rgba(242,225,194,.2)", fontSize: 20 }}>＋</span>}
-        {level ? <span style={{ position: "absolute", right: -3, bottom: -3, minWidth: 22, height: 22, padding: "0 5px", display: "grid", placeItems: "center", borderRadius: 99, background: "#d7ab55", border: "2px solid #281a15", color: "#281a15", fontSize: 8, fontWeight: 950 }}>LV {levelRoman(level)}</span> : null}
-      </div>
-      <span style={{ color: "rgba(243,229,204,.5)", fontSize: 8.5, fontWeight: 850, letterSpacing: ".04em" }}>{label}</span>
+    <div
+      aria-label={empty ? `Ô thành quả ${index + 1} trống` : `Thành quả đang mang ở ô ${index + 1}`}
+      style={{
+        position: "relative",
+        width: 58,
+        height: 58,
+        borderRadius: 15,
+        display: "grid",
+        placeItems: "center",
+        background: empty ? "rgba(255,255,255,.012)" : "radial-gradient(circle,rgba(240,198,111,.1),rgba(42,28,23,.82) 70%)",
+        border: empty ? "1px dashed rgba(238,208,153,.15)" : "1px solid rgba(236,191,104,.25)",
+        boxShadow: empty ? undefined : "0 9px 22px rgba(0,0,0,.16),inset 0 0 16px rgba(234,188,95,.04)",
+      }}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt="" draggable={false} style={{ width: "80%", height: "80%", objectFit: "contain", filter: "drop-shadow(0 6px 8px rgba(0,0,0,.24))" }} />
+      ) : (
+        <span style={{ color: "rgba(242,225,194,.14)", fontSize: 14 }}>✦</span>
+      )}
+      {level ? (
+        <span style={{ position: "absolute", right: -2, bottom: -2, minWidth: 18, height: 18, padding: "0 4px", display: "grid", placeItems: "center", borderRadius: 99, background: "#d7ab55", border: "2px solid #281a15", color: "#281a15", fontSize: 7, fontWeight: 950 }}>
+          {levelRoman(level)}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function WearableSlot({ slot, imageUrl }: { slot: InventoryWearableSlot; imageUrl?: string }) {
+  const empty = !imageUrl;
+  return (
+    <div
+      title={SLOT_LABELS[slot]}
+      aria-label={empty ? `${SLOT_LABELS[slot]} trống` : `${SLOT_LABELS[slot]} đang mang`}
+      style={{
+        width: 58,
+        height: 58,
+        borderRadius: 14,
+        display: "grid",
+        placeItems: "center",
+        background: empty ? "rgba(255,255,255,.012)" : "radial-gradient(circle,rgba(240,198,111,.085),rgba(45,30,24,.72) 72%)",
+        border: empty ? "1px dashed rgba(237,211,164,.12)" : "1px solid rgba(234,187,96,.19)",
+      }}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt="" draggable={false} style={{ width: "84%", height: "84%", objectFit: "contain", filter: "drop-shadow(0 5px 7px rgba(0,0,0,.18))" }} />
+      ) : (
+        <span style={{ color: "rgba(241,224,194,.17)", fontSize: 16 }}>{SLOT_ICONS[slot]}</span>
+      )}
     </div>
   );
 }
@@ -237,12 +286,14 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
     return catalog.filter((item) => owned.has(item.assetId) && WEARABLE_SLOTS.includes(item.slot as InventoryWearableSlot));
   }, [catalog, session]);
 
-  const achievements = useMemo(() => (session?.earnedAchievementIds ?? []).map(achievementFromId).filter((item): item is AchievementItem => !!item), [session]);
-
-  const equippedWearableIds = new Set(Object.values(session?.equipment?.wearables ?? {}));
-  const equippedAchievementIds = new Set(Object.values(session?.equipment?.achievements ?? {}));
+  const achievements = useMemo(
+    () => (session?.earnedAchievementIds ?? []).map(achievementFromId).filter((item): item is AchievementItem => !!item),
+    [session],
+  );
 
   const inventoryItems = useMemo<InventoryItem[]>(() => {
+    const equippedWearableIds = new Set(Object.values(session?.equipment?.wearables ?? {}));
+    const equippedAchievementIds = new Set(Object.values(session?.equipment?.achievements ?? {}));
     const wearables: InventoryItem[] = ownedWearables.map((item) => ({
       id: item.assetId,
       kind: "wearable",
@@ -266,8 +317,8 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
     return [...wearables, ...earned];
   }, [ownedWearables, achievements, session?.equipment]);
 
-  const selected = inventoryItems.find((item) => item.id === session?.inventorySelectedId) ?? inventoryItems[0];
-  const rows = Math.max(1, Math.ceil(inventoryItems.length / 6));
+  const selected = inventoryItems.find((item) => item.id === session?.inventorySelectedId);
+  const inventoryColumns = inventoryItems.length > 36 ? 10 : inventoryItems.length > 28 ? 9 : 8;
 
   const layerOverrides = useMemo<PrototypeCharacterLayerOverrides | undefined>(() => {
     if (!catalog.length || !session) return undefined;
@@ -288,7 +339,7 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
       <HouseInventoryBackdrop />
       <style>{`
         @keyframes pinoriaInventoryEnter { from { opacity:0; transform:scale(1.008) } to { opacity:1; transform:scale(1) } }
-        @keyframes pinoriaInventorySlotPulse { 0%,100% { box-shadow:0 0 0 rgba(226,178,82,0) } 50% { box-shadow:0 0 22px rgba(226,178,82,.12) } }
+        @keyframes pinoriaInventorySelected { 0% { box-shadow:0 0 0 rgba(235,188,91,0) } 50% { box-shadow:0 0 28px rgba(235,188,91,.18) } 100% { box-shadow:0 0 18px rgba(235,188,91,.1) } }
       `}</style>
 
       <div style={{ position: "absolute", inset: "28px 46px 32px", display: "grid", gridTemplateColumns: "39% 61%", gridTemplateRows: "92px 1fr", gap: "15px 24px", animation: "pinoriaInventoryEnter .45s ease-out both" }}>
@@ -319,20 +370,20 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
 
         <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.2)", background: "linear-gradient(180deg,rgba(46,30,25,.61),rgba(24,16,14,.78))", boxShadow: "0 30px 60px rgba(0,0,0,.27)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 52% 42%,rgba(143,78,195,.13),transparent 52%)" }} />
-          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", padding: "16px 18px 16px" }}>
+          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", padding: "14px 16px 15px" }}>
             <div style={{ position: "relative", minHeight: 0, display: "grid", placeItems: "center" }}>
-              <div style={{ position: "absolute", left: 4, top: 2, display: "grid", gap: 10, zIndex: 28 }}>
-                <span style={{ color: "rgba(243,229,204,.44)", fontSize: 8.5, fontWeight: 950, letterSpacing: ".12em" }}>THÀNH QUẢ ĐANG MANG</span>
-                <div style={{ display: "grid", gap: 10 }}>
-                  {ACHIEVEMENT_SLOTS.map((slot) => {
-                    const achievementId = session?.equipment?.achievements?.[slot.id];
+              <div style={{ position: "absolute", left: 5, top: 5, zIndex: 28 }}>
+                <span style={{ display: "block", marginBottom: 9, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>THÀNH QUẢ ĐANG MANG</span>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,58px)", gridTemplateRows: "repeat(4,58px)", gap: 8 }}>
+                  {ACHIEVEMENT_SLOTS.map((slot, index) => {
+                    const achievementId = session?.equipment?.achievements?.[slot];
                     const item = achievementId ? achievementById.get(achievementId) : undefined;
-                    return <EquipmentSlot key={slot.id} label={slot.label} imageUrl={item?.imageUrl} level={item?.level} empty={!item} />;
+                    return <AchievementSlot key={slot} imageUrl={item?.imageUrl} level={item?.level} index={index} />;
                   })}
                 </div>
               </div>
 
-              <div style={{ width: "min(470px,37vw)", aspectRatio: "1 / 1", display: "grid", placeItems: "center", transform: "translateX(22px)" }}>
+              <div style={{ width: "min(500px,39vw)", aspectRatio: "1 / 1", display: "grid", placeItems: "center", transform: "translateX(34px)" }}>
                 <PrototypeCharacter
                   subjectId={session?.subject.id ?? "bo"}
                   motion="shop-preview"
@@ -342,23 +393,18 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
                 />
               </div>
 
-              <div style={{ position: "absolute", right: 12, bottom: 8, width: 116, zIndex: 32 }}>
+              <div style={{ position: "absolute", right: 10, bottom: 5, width: 112, zIndex: 32 }}>
                 <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 15px 18px rgba(0,0,0,.3))" }} />
               </div>
             </div>
 
-            <div style={{ borderRadius: 18, padding: "10px 12px", background: "rgba(19,12,10,.7)", border: "1px solid rgba(240,196,112,.16)" }}>
-              <div style={{ marginBottom: 8, color: "rgba(243,229,204,.42)", fontSize: 8.5, fontWeight: 950, letterSpacing: ".12em" }}>WEARABLE ĐANG MANG</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(6,minmax(0,1fr))", gap: 7 }}>
+            <div style={{ borderRadius: 17, padding: "9px 12px 11px", background: "rgba(19,12,10,.7)", border: "1px solid rgba(240,196,112,.16)" }}>
+              <div style={{ marginBottom: 7, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>WEARABLE ĐANG MANG</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(6,58px)", justifyContent: "center", gap: 8 }}>
                 {WEARABLE_SLOTS.map((slot) => {
                   const assetId = session?.equipment?.wearables?.[slot];
                   const item = assetId ? catalog.find((candidate) => candidate.assetId === assetId) : undefined;
-                  return (
-                    <div key={slot} style={{ minWidth: 0, height: 54, borderRadius: 12, display: "grid", gridTemplateColumns: "24px 1fr", alignItems: "center", gap: 6, padding: "5px 7px", boxSizing: "border-box", background: item ? "rgba(93,61,39,.28)" : "rgba(255,255,255,.015)", border: item ? "1px solid rgba(234,187,96,.18)" : "1px dashed rgba(237,211,164,.12)" }}>
-                      <div style={{ width: 24, height: 38, display: "grid", placeItems: "center" }}>{item ? <img src={item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span style={{ color: "rgba(241,224,194,.22)", fontSize: 14 }}>{SLOT_ICONS[slot]}</span>}</div>
-                      <div style={{ minWidth: 0 }}><strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: item ? "#ead7b9" : "rgba(238,222,194,.28)", fontSize: 8.5 }}>{SLOT_LABELS[slot]}</strong><span style={{ display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "rgba(238,222,194,.34)", fontSize: 7.4 }}>{item?.displayName ?? "Trống"}</span></div>
-                    </div>
-                  );
+                  return <WearableSlot key={slot} slot={slot} imageUrl={item?.imageUrl} />;
                 })}
               </div>
             </div>
@@ -368,34 +414,82 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
         <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto minmax(0,1fr) auto", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 30 }}>
             <div><strong style={{ color: "#efc979", fontSize: 12.5 }}>Trong túi</strong><span style={{ marginLeft: 6, color: "rgba(247,233,210,.48)", fontSize: 10 }}>· {ownedWearables.length} wearable · {achievements.length} thành quả</span></div>
-            <span style={{ color: "rgba(247,233,210,.42)", fontSize: 9 }}>Một loại thành quả chỉ giữ cấp hiện tại cao nhất</span>
+            <span style={{ color: "rgba(247,233,210,.42)", fontSize: 9 }}>Chỉ vào món con muốn dùng</span>
           </div>
 
-          <div style={{ minHeight: 0, display: "grid", gridTemplateColumns: "repeat(6,minmax(0,1fr))", gridTemplateRows: `repeat(${rows},minmax(0,1fr))`, gap: 9 }}>
+          <div style={{ minHeight: 0, display: "grid", gridTemplateColumns: `repeat(${inventoryColumns},minmax(0,1fr))`, alignContent: "start", gap: 8 }}>
             {inventoryItems.map((item) => {
               const active = selected?.id === item.id;
               return (
-                <article key={item.id} style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 16, padding: "8px 8px 7px", display: "grid", gridTemplateRows: "1fr auto", gap: 5, background: active ? "linear-gradient(180deg,rgba(88,60,38,.95),rgba(52,34,25,.97))" : item.kind === "achievement" ? "linear-gradient(180deg,rgba(54,39,28,.82),rgba(31,22,18,.88))" : "linear-gradient(180deg,rgba(51,36,29,.72),rgba(32,22,19,.8))", border: active ? "1px solid rgba(250,207,116,.84)" : item.kind === "achievement" ? "1px solid rgba(226,179,84,.2)" : "1px solid rgba(236,195,116,.13)", boxShadow: active ? "0 10px 28px rgba(226,177,82,.11)" : "0 9px 22px rgba(0,0,0,.07)" }}>
-                  {item.equipped ? <span style={{ position: "absolute", right: 7, top: 7, zIndex: 4, padding: "3px 6px", borderRadius: 99, background: "#e4bd68", color: "#2a1b12", fontSize: 6.8, fontWeight: 950, letterSpacing: ".04em" }}>ĐANG MANG</span> : null}
-                  {item.kind === "achievement" ? <span style={{ position: "absolute", left: 7, top: 7, zIndex: 4, padding: "3px 6px", borderRadius: 99, background: "rgba(54,36,27,.88)", border: "1px solid rgba(233,191,106,.25)", color: "#ebc879", fontSize: 6.8, fontWeight: 950 }}>CẤP {levelRoman(item.level)}</span> : null}
-                  <div style={{ minHeight: 0, display: "grid", placeItems: "center", borderRadius: 12, background: item.kind === "achievement" ? "radial-gradient(circle,rgba(239,199,113,.105),transparent 67%)" : "radial-gradient(circle,rgba(255,226,169,.07),transparent 66%)" }}>
-                    <img src={item.imageUrl} alt="" draggable={false} style={{ width: item.kind === "achievement" ? "74%" : "88%", height: item.kind === "achievement" ? "74%" : "88%", objectFit: "contain", filter: active ? "drop-shadow(0 8px 12px rgba(0,0,0,.28)) brightness(1.06)" : "drop-shadow(0 6px 9px rgba(0,0,0,.22))" }} />
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <strong style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: 9.5, lineHeight: 1.14, color: active ? "#ffe0a0" : "#ede0cc" }}>{item.displayName}</strong>
-                    <span style={{ display: "block", marginTop: 3, color: item.kind === "achievement" ? "#d6ae5e" : "rgba(235,219,192,.4)", fontSize: 7.7, fontWeight: 850 }}>{item.kind === "achievement" ? `${item.achievementKind === "badge" ? "HUY HIỆU" : "THÀNH QUẢ"} · CẤP ${levelRoman(item.level)}` : SLOT_LABELS[item.slot]}</span>
-                  </div>
+                <article
+                  key={item.id}
+                  aria-label={item.displayName}
+                  style={{
+                    position: "relative",
+                    minWidth: 0,
+                    aspectRatio: "1 / 1",
+                    overflow: "hidden",
+                    borderRadius: 14,
+                    padding: 6,
+                    display: "grid",
+                    placeItems: "center",
+                    background: active
+                      ? "linear-gradient(180deg,rgba(91,61,38,.95),rgba(52,34,25,.98))"
+                      : item.kind === "achievement"
+                        ? "linear-gradient(180deg,rgba(54,39,28,.8),rgba(31,22,18,.88))"
+                        : "linear-gradient(180deg,rgba(51,36,29,.7),rgba(32,22,19,.8))",
+                    border: active
+                      ? "1px solid rgba(250,207,116,.88)"
+                      : item.equipped
+                        ? "1px solid rgba(158,204,137,.28)"
+                        : item.kind === "achievement"
+                          ? "1px solid rgba(226,179,84,.18)"
+                          : "1px solid rgba(236,195,116,.12)",
+                    boxShadow: item.equipped ? "inset 0 0 0 1px rgba(155,205,137,.08)" : "0 7px 18px rgba(0,0,0,.06)",
+                    animation: active ? "pinoriaInventorySelected .42s ease-out both" : undefined,
+                  }}
+                >
+                  {item.kind === "achievement" ? (
+                    <span style={{ position: "absolute", left: 6, top: 6, zIndex: 4, minWidth: 18, height: 18, padding: "0 3px", display: "grid", placeItems: "center", borderRadius: 99, background: "rgba(49,33,25,.9)", border: "1px solid rgba(233,191,106,.22)", color: "#e9c477", fontSize: 6.8, fontWeight: 950 }}>
+                      {levelRoman(item.level)}
+                    </span>
+                  ) : null}
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      width: item.kind === "achievement" ? "76%" : "88%",
+                      height: item.kind === "achievement" ? "76%" : "88%",
+                      objectFit: "contain",
+                      filter: active ? "drop-shadow(0 8px 12px rgba(0,0,0,.28)) brightness(1.07)" : "drop-shadow(0 5px 8px rgba(0,0,0,.2))",
+                    }}
+                  />
                 </article>
               );
             })}
           </div>
 
-          <div style={{ minHeight: 76, borderRadius: 18, border: "1px solid rgba(239,196,112,.17)", background: "rgba(29,19,16,.76)", padding: "11px 15px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 18, boxShadow: "0 12px 28px rgba(0,0,0,.12)" }}>
+          <div style={{ minHeight: 70, borderRadius: 18, border: "1px solid rgba(239,196,112,.17)", background: "rgba(29,19,16,.76)", padding: "10px 15px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 18, boxShadow: "0 12px 28px rgba(0,0,0,.12)" }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 15.5, color: "#f0c878" }}>{selected?.displayName ?? "Túi hành trang"}</strong>{selected?.kind === "achievement" ? <span style={{ color: "#e8bd69", fontSize: 9, fontWeight: 950 }}>CẤP {levelRoman(selected.level)} / {levelRoman(selected.maxLevel)}</span> : null}</div>
-              <div style={{ marginTop: 4, color: "rgba(247,235,215,.47)", fontSize: 9.5 }}>{selected?.kind === "achievement" ? `${selected.description} Cấp thấp hơn được thay thế khi con tiến bộ.` : selected ? `Đã sở hữu · ${SLOT_LABELS[selected.slot]}. Staff có thể trang bị món này cho Piner.` : "Tất cả đồ con sở hữu đều ở đây."}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 15.5, color: "#f0c878" }}>{selected?.displayName ?? "Chỉ vào một món trong túi"}</strong>
+                {selected?.kind === "achievement" ? <span style={{ color: "#e8bd69", fontSize: 9, fontWeight: 950 }}>CẤP {levelRoman(selected.level)}</span> : null}
+              </div>
+              <div style={{ marginTop: 4, color: "rgba(247,235,215,.47)", fontSize: 9.5 }}>
+                {selected?.kind === "achievement"
+                  ? `${selected.description} Staff có thể đặt thành quả này vào một ô đang mang.`
+                  : selected
+                    ? `Đã sở hữu · ${SLOT_LABELS[selected.slot]}. Staff có thể trang bị món này cho Piner.`
+                    : "Staff chọn đúng món con đang chỉ trên TV để xem chi tiết."}
+              </div>
             </div>
-            {selected ? <div style={{ minWidth: 142, padding: "10px 14px", borderRadius: 13, textAlign: "center", background: selected.equipped ? "rgba(77,112,65,.18)" : "rgba(218,166,69,.12)", border: selected.equipped ? "1px solid rgba(141,196,117,.3)" : "1px solid rgba(236,187,89,.24)", color: selected.equipped ? "#a7d694" : "#f2ca76", fontWeight: 950, fontSize: 11.5 }}>{selected.equipped ? "Đang trang bị" : "Có thể trang bị"}<span style={{ display: "block", marginTop: 3, color: "rgba(245,226,193,.38)", fontSize: 7.7, fontWeight: 700 }}>Staff thao tác trên điện thoại</span></div> : null}
+            {selected ? (
+              <div style={{ minWidth: 138, padding: "9px 13px", borderRadius: 13, textAlign: "center", background: selected.equipped ? "rgba(77,112,65,.16)" : "rgba(218,166,69,.11)", border: selected.equipped ? "1px solid rgba(141,196,117,.27)" : "1px solid rgba(236,187,89,.22)", color: selected.equipped ? "#a7d694" : "#f2ca76", fontWeight: 950, fontSize: 11 }}>
+                {selected.equipped ? "Đang dùng" : "Trang bị"}
+                <span style={{ display: "block", marginTop: 3, color: "rgba(245,226,193,.34)", fontSize: 7.5, fontWeight: 700 }}>Staff thao tác trên điện thoại</span>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
