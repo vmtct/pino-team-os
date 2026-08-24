@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { PinoriaStaffController } from "./pinoria-staff-controller";
-import "./controller.css";
 
 export const metadata: Metadata = {
   title: "Pinoria Staff Controller | PINO Team OS",
