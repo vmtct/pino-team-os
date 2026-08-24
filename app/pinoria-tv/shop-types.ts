@@ -1,7 +1,15 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
-export type InventoryAchievementSlot = "artifact-1" | "artifact-2" | "badge";
+export type InventoryAchievementSlot =
+  | "achievement-1"
+  | "achievement-2"
+  | "achievement-3"
+  | "achievement-4"
+  | "achievement-5"
+  | "achievement-6"
+  | "achievement-7"
+  | "achievement-8";
 
 export type ShopCatalogItem = {
   assetId: string;
