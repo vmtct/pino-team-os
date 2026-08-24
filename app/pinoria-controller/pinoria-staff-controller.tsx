@@ -11,9 +11,11 @@ import {
   PINORIA_SHOP_LOGO,
   PINORIA_SHOP_RELAY_URL,
   PINORIA_SHOP_SURFACE_ID,
+  PINORIA_SURFACE_SESSION_URL,
   type InventoryAchievementSlot,
   type InventoryWearableSlot,
   type PinoriaStoreView,
+  type PinoriaSurfaceSessionSnapshot,
   type ShopCatalogItem,
   type ShopCategoryId,
   type ShopSessionSnapshot,
@@ -43,23 +45,6 @@ type AchievementDefinition = {
   displayName: string;
   imageUrl: string;
 };
-
-type TvSurfaceSnapshot = {
-  surfaceId: string;
-  online: boolean;
-  mode: string;
-  lastSeenAt: number | null;
-  queuedCount?: number;
-  activeEvent?: {
-    id: number;
-    kind: string;
-    mode?: string | null;
-    subjectId?: string | null;
-    subjectName?: string | null;
-  } | null;
-};
-
-const TV_RELAY_URL = "/api/pinoria-prototype/tv-relay";
 
 const SUBJECTS = [
   { id: "bo", name: "Bơ", pls: 420 },
@@ -120,13 +105,15 @@ function tvModeLabel(mode: string) {
     ritual: "Ritual",
     departure: "Departure",
     news: "World News",
+    shop: "Shop",
+    inventory: "Túi Hành Trang",
   } as Record<string, string>)[mode] ?? mode;
 }
 
 export function PinoriaStaffController() {
   const [catalog, setCatalog] = useState<ShopCatalogItem[]>([]);
   const [session, setSession] = useState<ShopSessionSnapshot | null>(null);
-  const [surface, setSurface] = useState<TvSurfaceSnapshot | null>(null);
+  const [surface, setSurface] = useState<PinoriaSurfaceSessionSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [purchaseOpen, setPurchaseOpen] = useState(false);
@@ -152,16 +139,16 @@ export function PinoriaStaffController() {
       if (inFlight) return;
       inFlight = true;
       try {
-        const [shopResponse, tvResponse] = await Promise.all([
+        const [shopResponse, surfaceResponse] = await Promise.all([
           fetch(`${PINORIA_SHOP_RELAY_URL}?surfaceId=${encodeURIComponent(PINORIA_SHOP_SURFACE_ID)}`, { cache: "no-store" }),
-          fetch(`${TV_RELAY_URL}?surfaceId=${encodeURIComponent(PINORIA_SHOP_SURFACE_ID)}`, { cache: "no-store" }),
+          fetch(`${PINORIA_SURFACE_SESSION_URL}?surfaceId=${encodeURIComponent(PINORIA_SHOP_SURFACE_ID)}`, { cache: "no-store" }),
         ]);
         const shopData = await shopResponse.json().catch(() => ({})) as { session?: ShopSessionSnapshot };
-        const tvData = await tvResponse.json().catch(() => ({})) as { surface?: TvSurfaceSnapshot };
+        const surfaceData = await surfaceResponse.json().catch(() => ({})) as { surface?: PinoriaSurfaceSessionSnapshot };
         if (!stopped) {
           if (shopResponse.ok && shopData.session) setSession(shopData.session);
-          if (tvResponse.ok && tvData.surface) setSurface(tvData.surface);
-          if (!shopResponse.ok || !tvResponse.ok) setError("Không đọc được trạng thái Reception TV.");
+          if (surfaceResponse.ok && surfaceData.surface) setSurface(surfaceData.surface);
+          if (!shopResponse.ok || !surfaceResponse.ok) setError("Không đọc được SurfaceSession của Reception TV.");
         }
       } catch {
         if (!stopped) {
@@ -194,9 +181,15 @@ export function PinoriaStaffController() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ surfaceId: PINORIA_SHOP_SURFACE_ID, op, ...payload }),
       });
-      const data = await response.json() as { ok?: boolean; session?: ShopSessionSnapshot; error?: string };
+      const data = await response.json() as {
+        ok?: boolean;
+        session?: ShopSessionSnapshot;
+        surface?: PinoriaSurfaceSessionSnapshot;
+        error?: string;
+      };
       if (!response.ok || !data.ok) throw new Error(data.error || "REQUEST_FAILED");
       if (data.session) setSession(data.session);
+      if (data.surface) setSurface(data.surface);
       return data.session ?? null;
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "REQUEST_FAILED";
@@ -252,21 +245,28 @@ export function PinoriaStaffController() {
     : undefined;
 
   const subject = session?.subject ?? SUBJECTS[0];
-  const view: PinoriaStoreView = session?.view ?? "shop";
+  const view: PinoriaStoreView = surface?.interactive?.view ?? session?.view ?? "shop";
   const tvOnline = !!surface?.online;
-  const tvMode = surface?.mode ?? "ambient";
-  const tvReady = tvOnline && tvMode === "ambient";
-  const interactiveLabel = session?.open
-    ? view === "inventory" ? "Túi Hành Trang đang mở" : "Shop đang mở"
-    : "House Ambient";
+  const baseMode = surface?.baseMode ?? "ambient";
+  const effectiveMode = surface?.effectiveMode ?? "ambient";
+  const interactiveOpen = !!surface?.interactive;
+  const tvReady = tvOnline && baseMode === "ambient";
+  const interactiveReady = tvReady && interactiveOpen;
+  const interactiveLabel = !tvOnline
+    ? "Reception TV offline"
+    : surface?.interactiveSuspended && surface.interactive
+      ? `${tvModeLabel(surface.interactive.view)} tạm ẩn · sẽ tự trở lại`
+      : surface?.interactive
+        ? `${tvModeLabel(surface.interactive.view)} đang mở`
+        : "House Ambient";
 
   function ensureTvReady() {
     if (!tvOnline) {
       setError("Reception TV đang offline. Hãy mở /pinoria-tv trên TV trước.");
       return false;
     }
-    if (tvMode !== "ambient") {
-      setError(`Reception TV đang chạy ${tvModeLabel(tvMode)}. Chờ scene kết thúc rồi tiếp tục.`);
+    if (baseMode !== "ambient") {
+      setError(`Reception TV đang chạy ${tvModeLabel(baseMode)}. Interactive session đang tạm ẩn.`);
       return false;
     }
     return true;
@@ -280,7 +280,7 @@ export function PinoriaStaffController() {
   }
 
   async function toggleInteractiveSession() {
-    if (session?.open) {
+    if (interactiveOpen) {
       await send("close");
       return;
     }
@@ -290,23 +290,26 @@ export function PinoriaStaffController() {
 
   async function switchView(nextView: PinoriaStoreView) {
     if (!ensureTvReady()) return;
-    if (!session?.open) await send("open", { subject });
+    if (!interactiveOpen) {
+      const opened = await send("open", { subject });
+      if (!opened) return;
+    }
     await send("set-view", { view: nextView });
   }
 
   async function selectShopItem(item: ShopCatalogItem) {
-    if (!ensureTvReady()) return;
+    if (!interactiveReady || !ensureTvReady()) return;
     await send("preview", { assetId: item.assetId });
   }
 
   async function beginPurchase() {
-    if (!selectedShopItem || !ensureTvReady()) return;
+    if (!selectedShopItem || !interactiveReady || !ensureTvReady()) return;
     await send("begin-purchase", { assetId: selectedShopItem.assetId });
     setPurchaseOpen(true);
   }
 
   async function confirmPurchase() {
-    if (!selectedShopItem || !ensureTvReady()) return;
+    if (!selectedShopItem || !interactiveReady || !ensureTvReady()) return;
     const result = await send("confirm-purchase", { assetId: selectedShopItem.assetId, pricePls: selectedShopItem.pricePls });
     if (result) setPurchaseOpen(false);
   }
@@ -317,12 +320,12 @@ export function PinoriaStaffController() {
   }
 
   async function selectInventoryItem(item: ControllerInventoryItem) {
-    if (!ensureTvReady()) return;
+    if (!interactiveReady || !ensureTvReady()) return;
     await send("inventory-preview", { itemId: item.id });
   }
 
   async function toggleWearable(item: Extract<ControllerInventoryItem, { kind: "wearable" }>) {
-    if (!ensureTvReady()) return;
+    if (!interactiveReady || !ensureTvReady()) return;
     if (item.equipped) {
       await send("unequip-wearable", { slot: item.slot });
       return;
@@ -331,12 +334,12 @@ export function PinoriaStaffController() {
   }
 
   async function unequipAchievement() {
-    if (!selectedAchievementSlot || !ensureTvReady()) return;
+    if (!selectedAchievementSlot || !interactiveReady || !ensureTvReady()) return;
     await send("unequip-achievement", { slot: selectedAchievementSlot });
   }
 
   async function equipAchievement(slot: InventoryAchievementSlot) {
-    if (!selectedInventoryItem || selectedInventoryItem.kind !== "achievement" || !ensureTvReady()) return;
+    if (!selectedInventoryItem || selectedInventoryItem.kind !== "achievement" || !interactiveReady || !ensureTvReady()) return;
     const result = await send("equip-achievement", { itemId: selectedInventoryItem.id, slot });
     if (result) setSlotPickerOpen(false);
   }
@@ -372,16 +375,16 @@ export function PinoriaStaffController() {
 
           <div className="psc-session-row">
             <div className="psc-session-copy">
-              <span>RECEPTION TV · {tvOnline ? tvModeLabel(tvMode) : "OFFLINE"}</span>
+              <span>RECEPTION TV · {tvOnline ? tvModeLabel(effectiveMode) : "OFFLINE"}</span>
               <strong>{interactiveLabel}</strong>
             </div>
             <button
               type="button"
-              className={`psc-session-toggle ${session?.open ? "is-open" : ""}`}
-              disabled={busy || (!tvOnline && !session?.open) || (tvMode !== "ambient" && !session?.open)}
+              className={`psc-session-toggle ${interactiveOpen ? "is-open" : ""}`}
+              disabled={busy || (!tvOnline && !interactiveOpen) || (baseMode !== "ambient" && !interactiveOpen)}
               onClick={() => void toggleInteractiveSession()}
             >
-              {session?.open ? "Đóng" : "Mở Shop"}
+              {interactiveOpen ? "Đóng" : "Mở Shop"}
             </button>
           </div>
 
@@ -396,7 +399,7 @@ export function PinoriaStaffController() {
         {view === "shop" ? (
           <section className="psc-content" aria-label="Pinoria Shop controller">
             <div className="psc-section-head">
-              <div><span>SHOP</span><strong>Chọn món để hiện lên TV</strong></div>
+              <div><span>SHOP</span><strong>{surface?.interactiveSuspended ? "TV đang bận · Shop sẽ tự trở lại" : "Chọn món để hiện lên TV"}</strong></div>
               <small>{shopItems.length} món</small>
             </div>
 
@@ -406,7 +409,7 @@ export function PinoriaStaffController() {
                   key={category.id}
                   type="button"
                   className={session?.category === category.id ? "active" : ""}
-                  disabled={busy || !tvReady}
+                  disabled={busy || !interactiveReady}
                   onClick={() => void send("set-category", { category: category.id as ShopCategoryId })}
                 >
                   <span>{category.icon}</span>{category.label}
@@ -419,7 +422,7 @@ export function PinoriaStaffController() {
                 const active = selectedShopItem?.assetId === item.assetId;
                 const owned = !!session?.ownedAssetIds.includes(item.assetId);
                 return (
-                  <button key={item.assetId} disabled={!tvReady} type="button" className={`psc-shop-card ${active ? "active" : ""}`} onClick={() => void selectShopItem(item)}>
+                  <button key={item.assetId} disabled={!interactiveReady} type="button" className={`psc-shop-card ${active ? "active" : ""}`} onClick={() => void selectShopItem(item)}>
                     <div className="psc-card-art"><img src={item.imageUrl} alt="" /></div>
                     <strong>{item.displayName}</strong>
                     <span className={owned ? "owned" : ""}>{owned ? "Đã có" : `${item.pricePls} PLS`}</span>
@@ -431,7 +434,7 @@ export function PinoriaStaffController() {
         ) : (
           <section className="psc-content" aria-label="Túi Hành Trang controller">
             <div className="psc-section-head">
-              <div><span>TÚI HÀNH TRANG</span><strong>Chọn món để trang bị</strong></div>
+              <div><span>TÚI HÀNH TRANG</span><strong>{surface?.interactiveSuspended ? "TV đang bận · Túi sẽ tự trở lại" : "Chọn món để trang bị"}</strong></div>
               <small>{inventoryItems.length} món</small>
             </div>
 
@@ -445,7 +448,7 @@ export function PinoriaStaffController() {
               {inventoryItems.map((item) => {
                 const active = selectedInventoryItem?.id === item.id;
                 return (
-                  <button key={item.id} disabled={!tvReady} type="button" className={`psc-inventory-card ${active ? "active" : ""} ${item.equipped ? "equipped" : ""}`} onClick={() => void selectInventoryItem(item)}>
+                  <button key={item.id} disabled={!interactiveReady} type="button" className={`psc-inventory-card ${active ? "active" : ""} ${item.equipped ? "equipped" : ""}`} onClick={() => void selectInventoryItem(item)}>
                     {item.kind === "achievement" ? <i>{roman(item.level)}</i> : null}
                     <img src={item.imageUrl} alt="" />
                   </button>
@@ -464,13 +467,13 @@ export function PinoriaStaffController() {
                   <div><strong>{selectedShopItem.displayName}</strong><span>{session?.ownedAssetIds.includes(selectedShopItem.assetId) ? "Đã sở hữu" : `${selectedShopItem.pricePls} PLS`}</span></div>
                 </div>
                 <div className="psc-action-buttons">
-                  <button type="button" className="secondary" disabled={busy || !tvReady} onClick={() => void selectShopItem(selectedShopItem)}>Hiện TV</button>
-                  <button type="button" className="primary" disabled={busy || !tvReady || !!session?.ownedAssetIds.includes(selectedShopItem.assetId)} onClick={() => void beginPurchase()}>
+                  <button type="button" className="secondary" disabled={busy || !interactiveReady} onClick={() => void selectShopItem(selectedShopItem)}>Hiện TV</button>
+                  <button type="button" className="primary" disabled={busy || !interactiveReady || !!session?.ownedAssetIds.includes(selectedShopItem.assetId)} onClick={() => void beginPurchase()}>
                     {session?.ownedAssetIds.includes(selectedShopItem.assetId) ? "Đã có" : "Mua"}
                   </button>
                 </div>
               </>
-            ) : <div className="psc-empty-action">{tvOnline ? "Chạm một món để điều khiển TV" : "Reception TV đang offline"}</div>
+            ) : <div className="psc-empty-action">{interactiveReady ? "Chạm một món để điều khiển TV" : interactiveOpen ? "Interactive session đang tạm ẩn" : "Mở Shop để bắt đầu"}</div>
           ) : (
             selectedInventoryItem ? (
               <>
@@ -482,17 +485,17 @@ export function PinoriaStaffController() {
                   </div>
                 </div>
                 <div className="psc-action-buttons">
-                  <button type="button" className="secondary" disabled={busy || !tvReady} onClick={() => void selectInventoryItem(selectedInventoryItem)}>Hiện TV</button>
+                  <button type="button" className="secondary" disabled={busy || !interactiveReady} onClick={() => void selectInventoryItem(selectedInventoryItem)}>Hiện TV</button>
                   {selectedInventoryItem.kind === "wearable" ? (
-                    <button type="button" className="primary" disabled={busy || !tvReady} onClick={() => void toggleWearable(selectedInventoryItem)}>{selectedInventoryItem.equipped ? "Tháo" : "Trang bị"}</button>
+                    <button type="button" className="primary" disabled={busy || !interactiveReady} onClick={() => void toggleWearable(selectedInventoryItem)}>{selectedInventoryItem.equipped ? "Tháo" : "Trang bị"}</button>
                   ) : selectedAchievementSlot ? (
-                    <button type="button" className="primary" disabled={busy || !tvReady} onClick={() => void unequipAchievement()}>Tháo</button>
+                    <button type="button" className="primary" disabled={busy || !interactiveReady} onClick={() => void unequipAchievement()}>Tháo</button>
                   ) : (
-                    <button type="button" className="primary" disabled={busy || !tvReady} onClick={() => setSlotPickerOpen(true)}>Trang bị</button>
+                    <button type="button" className="primary" disabled={busy || !interactiveReady} onClick={() => setSlotPickerOpen(true)}>Trang bị</button>
                   )}
                 </div>
               </>
-            ) : <div className="psc-empty-action">{tvOnline ? "Chạm một món trong túi để trang bị" : "Reception TV đang offline"}</div>
+            ) : <div className="psc-empty-action">{interactiveReady ? "Chạm một món trong túi để trang bị" : interactiveOpen ? "Interactive session đang tạm ẩn" : "Mở Túi Hành Trang để bắt đầu"}</div>
           )}
         </div>
       </div>
@@ -507,7 +510,7 @@ export function PinoriaStaffController() {
             <p>Đổi <strong>{selectedShopItem.pricePls} PLS</strong>. TV đang giữ màn hình xác nhận để học viên nhìn thấy món đã chọn.</p>
             <div className="psc-sheet-actions">
               <button type="button" className="secondary" disabled={busy} onClick={() => void cancelPurchase()}>Quay lại</button>
-              <button type="button" className="primary" disabled={busy || !tvReady || subject.pls < selectedShopItem.pricePls} onClick={() => void confirmPurchase()}>{subject.pls < selectedShopItem.pricePls ? "Không đủ PLS" : "Xác nhận mua"}</button>
+              <button type="button" className="primary" disabled={busy || !interactiveReady || subject.pls < selectedShopItem.pricePls} onClick={() => void confirmPurchase()}>{subject.pls < selectedShopItem.pricePls ? "Không đủ PLS" : "Xác nhận mua"}</button>
             </div>
           </section>
         </div>
@@ -525,7 +528,7 @@ export function PinoriaStaffController() {
                 const occupiedId = session?.equipment.achievements[slot];
                 const occupied = occupiedId ? achievementInfo(occupiedId) : null;
                 return (
-                  <button key={slot} type="button" disabled={busy || !tvReady} onClick={() => void equipAchievement(slot)}>
+                  <button key={slot} type="button" disabled={busy || !interactiveReady} onClick={() => void equipAchievement(slot)}>
                     <span>{index + 1}</span>
                     {occupied ? <img src={occupied.imageUrl} alt="" /> : <i>✦</i>}
                   </button>
