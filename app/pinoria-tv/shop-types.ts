@@ -1,5 +1,7 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
+export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
+export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type InventoryAchievementSlot =
   | "achievement-1"
@@ -61,6 +63,27 @@ export type ShopSessionSnapshot = {
   updatedAt: number;
 };
 
+export type PinoriaSurfaceInteractiveSnapshot = {
+  view: PinoriaStoreView;
+  subjectId: string;
+  subjectName: string;
+  openedAt: number;
+  updatedAt: number;
+};
+
+export type PinoriaSurfaceSessionSnapshot = {
+  surfaceId: string;
+  online: boolean;
+  baseMode: PinoriaSurfaceBaseMode;
+  effectiveMode: PinoriaSurfaceEffectiveMode;
+  lastSeenAt: number | null;
+  subjectId: string | null;
+  subjectName: string | null;
+  interactive: PinoriaSurfaceInteractiveSnapshot | null;
+  interactiveSuspended: boolean;
+  updatedAt: number;
+};
+
 // Shop is intentionally cosmetic-only. Props/artifacts/badges are earned
 // learning achievements and live in Túi Hành Trang instead of being purchasable.
 export const PINORIA_SHOP_CATEGORIES: readonly { id: ShopCategoryId; label: string; icon: string }[] = [
@@ -77,6 +100,7 @@ export const PINORIA_SHOP_LOGO = "https://assets.pinohouse.art/pinoria/Pinoria%2
 export const PINORIA_SHOP_SURFACE_ID = "RECEPTION_TV";
 export const PINORIA_SHOP_RELAY_URL = "/api/pinoria-prototype/shop-relay";
 export const PINORIA_SHOP_CATALOG_URL = "/api/pinoria-prototype/shop-catalog";
+export const PINORIA_SURFACE_SESSION_URL = "/api/pinoria-prototype/surface-session";
 
 export function categoryForAsset(slot: string | null | undefined, family: string | null | undefined): ShopCategoryId | null {
   if (slot === "hair" || slot === "face" || slot === "headwear" || slot === "eyewear" || slot === "back" || slot === "body") return slot;
