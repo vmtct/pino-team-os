@@ -334,6 +334,12 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
   const achievementById = useMemo(() => new Map(achievements.map((item) => [item.id, item])), [achievements]);
   const equipmentCount = Object.keys(session?.equipment?.wearables ?? {}).length + Object.keys(session?.equipment?.achievements ?? {}).length;
 
+  const renderAchievementSlot = (slot: InventoryAchievementSlot, index: number) => {
+    const achievementId = session?.equipment?.achievements?.[slot];
+    const item = achievementId ? achievementById.get(achievementId) : undefined;
+    return <AchievementSlot key={slot} imageUrl={item?.imageUrl} level={item?.level} index={index} />;
+  };
+
   return (
     <div data-pinoria-inventory-scene style={{ position: "absolute", inset: 0, overflow: "hidden", color: "#f6ead7", background: "#1b1411" }}>
       <HouseInventoryBackdrop />
@@ -372,18 +378,13 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 52% 42%,rgba(143,78,195,.13),transparent 52%)" }} />
           <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", padding: "14px 16px 15px" }}>
             <div style={{ position: "relative", minHeight: 0, display: "grid", placeItems: "center" }}>
-              <div style={{ position: "absolute", left: 5, top: 5, zIndex: 28 }}>
-                <span style={{ display: "block", marginBottom: 9, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>THÀNH QUẢ ĐANG MANG</span>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,58px)", gridTemplateRows: "repeat(4,58px)", gap: 8 }}>
-                  {ACHIEVEMENT_SLOTS.map((slot, index) => {
-                    const achievementId = session?.equipment?.achievements?.[slot];
-                    const item = achievementId ? achievementById.get(achievementId) : undefined;
-                    return <AchievementSlot key={slot} imageUrl={item?.imageUrl} level={item?.level} index={index} />;
-                  })}
-                </div>
+              <span style={{ position: "absolute", left: "50%", top: 5, transform: "translateX(-50%)", color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em", zIndex: 28 }}>THÀNH QUẢ ĐANG MANG</span>
+
+              <div style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-47%)", display: "grid", gridTemplateRows: "repeat(4,58px)", gap: 10, zIndex: 28 }}>
+                {ACHIEVEMENT_SLOTS.slice(0, 4).map((slot, index) => renderAchievementSlot(slot, index))}
               </div>
 
-              <div style={{ width: "min(500px,39vw)", aspectRatio: "1 / 1", display: "grid", placeItems: "center", transform: "translateX(34px)" }}>
+              <div style={{ width: "min(400px,31.2vw)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
                 <PrototypeCharacter
                   subjectId={session?.subject.id ?? "bo"}
                   motion="shop-preview"
@@ -393,7 +394,11 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
                 />
               </div>
 
-              <div style={{ position: "absolute", right: 10, bottom: 5, width: 112, zIndex: 32 }}>
+              <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-47%)", display: "grid", gridTemplateRows: "repeat(4,58px)", gap: 10, zIndex: 28 }}>
+                {ACHIEVEMENT_SLOTS.slice(4, 8).map((slot, index) => renderAchievementSlot(slot, index + 4))}
+              </div>
+
+              <div style={{ position: "absolute", right: 84, bottom: 5, width: 96, zIndex: 32 }}>
                 <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 15px 18px rgba(0,0,0,.3))" }} />
               </div>
             </div>
