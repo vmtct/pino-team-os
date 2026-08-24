@@ -104,6 +104,7 @@ export function PinoriaTVPrototype() {
   const sequenceTimer = useRef<number | null>(null);
   const ambientSubjectTimer = useRef<number | null>(null);
   const modeRef = useRef<Mode>("ambient");
+  const subjectRef = useRef<TVSubject>(defaultSubject);
   const activeEventId = useRef<number | null>(null);
   const busyRef = useRef(false);
   const pollingRef = useRef(false);
@@ -111,6 +112,10 @@ export function PinoriaTVPrototype() {
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  useEffect(() => {
+    subjectRef.current = subject;
+  }, [subject]);
 
   useEffect(() => {
     let stopped = false;
@@ -132,7 +137,13 @@ export function PinoriaTVPrototype() {
 
     async function heartbeat() {
       const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current;
-      await post({ op: "heartbeat", surfaceId: SURFACE_ID, mode: relayMode });
+      const currentSubject = subjectRef.current;
+      await post({
+        op: "heartbeat",
+        surfaceId: SURFACE_ID,
+        mode: relayMode,
+        subject: { id: currentSubject.id, name: currentSubject.name },
+      });
     }
 
     async function finishEvent(id: number) {
@@ -168,6 +179,7 @@ export function PinoriaTVPrototype() {
         return;
       }
 
+      subjectRef.current = event.subject;
       setSubject(event.subject);
       setReplayLabel(event.replay ? `PHÁT LẠI · ${event.mode === "arrival" ? "CHÀO ĐẾN" : "CHÀO VỀ"}` : null);
 
@@ -262,10 +274,15 @@ export function PinoriaTVPrototype() {
     void fetch(RELAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ op: "heartbeat", surfaceId: SURFACE_ID, mode: relayMode }),
+      body: JSON.stringify({
+        op: "heartbeat",
+        surfaceId: SURFACE_ID,
+        mode: relayMode,
+        subject: { id: subject.id, name: subject.name },
+      }),
       cache: "no-store",
     }).catch(() => undefined);
-  }, [mode]);
+  }, [mode, subject.id, subject.name]);
 
   function selectReviewMode(next: Exclude<Mode, "departure-transition">) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
@@ -313,7 +330,7 @@ export function PinoriaTVPrototype() {
         className={styles.prototypeTag}
         style={learnerChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .32, background: "#161a15aa" } : undefined}
       >
-        {replayLabel ?? "TV PROTOTYPE · CORE RELAY SIMULATION · RECEPTION_TV"}
+        {replayLabel ?? "TV PROTOTYPE · SURFACE SESSION · RECEPTION_TV"}
       </div>
 
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
@@ -330,7 +347,7 @@ export function PinoriaTVPrototype() {
       >
         {reviewOpen ? "Hide review controls" : learnerChrome ? "Duyệt" : "Review controls"}
       </button>
-      {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV polls the mock Core relay. Production TV will use a scoped surface session and cannot change business truth.</small></aside> : null}
+      {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV projects one scoped SurfaceSession. Review controls never change business truth.</small></aside> : null}
     </main>
   );
 }
