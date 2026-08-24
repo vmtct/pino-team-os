@@ -1,5 +1,6 @@
 import "./globals.css";
 import "./pinoria-ambient-mini.css";
+import "./pinoria-shop-motion.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
