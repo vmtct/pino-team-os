@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { markHouseArrival, markHouseDeparture } from "../../../../lib/pinoria-prototype/house-presence";
 import {
   getSurfaceSessionSnapshot,
   heartbeatSurface,
@@ -102,6 +103,16 @@ function parseSubject(value: unknown): { id: string; name: string } | null {
   return { id: subject.id, name: subject.name };
 }
 
+function applyPresenceOnClaim(event: RelayEvent, now: number) {
+  if (event.replay || event.kind !== "play" || event.mode !== "arrival" || !event.subject) return;
+  markHouseArrival(event.surfaceId, event.subject, now);
+}
+
+function applyPresenceOnComplete(event: RelayEvent) {
+  if (event.replay || event.kind !== "play" || event.mode !== "departure" || !event.subject) return;
+  markHouseDeparture(event.surfaceId, event.subject.id);
+}
+
 export async function GET(request: NextRequest) {
   const now = Date.now();
   expireOldEvents(now);
@@ -183,6 +194,7 @@ export async function POST(request: NextRequest) {
     event.status = "claimed";
     event.claimedAt = now;
     if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
+    applyPresenceOnClaim(event, now);
     return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
@@ -193,6 +205,7 @@ export async function POST(request: NextRequest) {
     if (event.status === "claimed") {
       event.status = "completed";
       event.completedAt = now;
+      applyPresenceOnComplete(event);
     }
     return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
@@ -206,6 +219,7 @@ export async function POST(request: NextRequest) {
       event.status = "claimed";
       event.claimedAt = now;
       if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
+      applyPresenceOnClaim(event, now);
     }
     return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
