@@ -1,43 +1,8 @@
-/* Pinoria Shop shared-TV character motion.
- *
- * Shop renders previewable publisher layers directly so it can hot-swap a
- * selected cosmetic without changing the learner profile. Those layers share
- * one 2048x2048 registration, therefore every visible character layer must use
- * the exact same transform curve or the character tears apart.
- *
- * Keep this scoped to [data-pinoria-shop-scene]. Arrival, Ambient and editor
- * surfaces own their motion independently.
+/* Shop-only companion motion.
+ * Character motion now lives in the canonical PrototypeCharacter renderer via
+ * motion="shop-preview". Keep this file scoped to the shared-TV companion so
+ * the Shop does not maintain a second character animation implementation.
  */
-
-@keyframes pinoriaShopCharacterIdle {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) rotate(-0.08deg) scale(1);
-  }
-  24% {
-    transform: translate3d(0, -1.5px, 0) rotate(0.04deg) scale(1.001, 1.003);
-  }
-  50% {
-    transform: translate3d(0, -4px, 0) rotate(0.12deg) scale(1.003, 1.007);
-  }
-  76% {
-    transform: translate3d(0, -1.25px, 0) rotate(-0.03deg) scale(1.001, 1.002);
-  }
-}
-
-@keyframes pinoriaShopWingLife {
-  0%, 100% {
-    opacity: .985;
-    filter: brightness(1) saturate(1) drop-shadow(0 0 5px rgba(190, 231, 255, .08));
-  }
-  38% {
-    opacity: 1;
-    filter: brightness(1.045) saturate(1.04) drop-shadow(0 0 12px rgba(190, 231, 255, .16));
-  }
-  68% {
-    opacity: .975;
-    filter: brightness(.99) saturate(.985) drop-shadow(0 0 7px rgba(190, 231, 255, .1));
-  }
-}
 
 @keyframes pinoriaShopCompanionFloat {
   0%, 100% {
@@ -56,22 +21,6 @@
   50% { transform: rotate(.7deg); }
 }
 
-/* All registered character layers move as one puppet. */
-[data-pinoria-shop-scene] [data-pinoria-shop-character-layer] {
-  transform-origin: 50% 76%;
-  will-change: transform;
-  animation: pinoriaShopCharacterIdle 6.4s cubic-bezier(.45,.05,.55,.95) infinite;
-}
-
-/* Wings stay registered with the body; only light/opacity gets its own phase. */
-[data-pinoria-shop-scene] [data-pinoria-shop-character-layer="back"] {
-  will-change: transform, opacity, filter;
-  animation:
-    pinoriaShopCharacterIdle 6.4s cubic-bezier(.45,.05,.55,.95) infinite,
-    pinoriaShopWingLife 4.1s ease-in-out infinite;
-}
-
-/* Mori should feel alive without competing with the Piner preview. */
 [data-pinoria-shop-scene] [aria-label="Mori"] {
   transform-origin: 50% 72%;
   will-change: transform;
@@ -85,7 +34,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-pinoria-shop-scene] [data-pinoria-shop-character-layer],
   [data-pinoria-shop-scene] [aria-label="Mori"],
   [data-pinoria-shop-scene] [aria-label="Mori"] > img {
     animation: none !important;
