@@ -1,0 +1,86 @@
+name: Arrival v0 Core Build
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  core-build:
+    if: github.event.issue.title == '[GPT] Arrival v0 core build' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CORE_WORKER: pino-core
+      CORE_SHA: e7f8c903ab39a402b5c5a44fe9160c554d7a837d
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Trigger exact Core production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="${GITHUB_REPOSITORY}"
+
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_CORE_BUILD: **FAIL_SAFE**\n\n$1\n\nNo ingress/domain mutation was performed."
+            exit 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "Missing CF_ACCOUNT_ID."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
+
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")" || fail "Cannot list Workers scripts."
+          core_tag="$(jq -r --arg n "$CORE_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$core_tag" ] || fail "Cannot resolve pino-core Worker tag."
+
+          builds="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${core_tag}/builds?per_page=100" "${auth[@]}")" || fail "Cannot list pino-core builds."
+          existing_uuid="$(jq -r --arg sha "$CORE_SHA" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_uuid // empty' <<<"$builds" | head -1)"
+          existing_outcome="$(jq -r --arg sha "$CORE_SHA" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_outcome // empty' <<<"$builds" | head -1)"
+
+          build_uuid="$existing_uuid"
+          if [ "$existing_outcome" = "success" ]; then
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_CORE_BUILD: **PASS**\n\nExact Core build ${CORE_SHA} already exists and is successful. No new build was created."
+            exit 0
+          fi
+
+          if [ -z "$build_uuid" ]; then
+            triggers="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${core_tag}/triggers" "${auth[@]}")" || fail "Cannot list pino-core build triggers."
+            trigger_uuid="$(jq -r '.result[]? | select((.deleted_on // null) == null) | select((.branch_includes // []) | index("main")) | .trigger_uuid // empty' <<<"$triggers" | head -1)"
+            [ -n "$trigger_uuid" ] || fail "No active pino-core production trigger includes main."
+
+            response_file="$(mktemp)"
+            http_code="$(curl -sS -o "$response_file" -w '%{http_code}' -X POST "${api}/accounts/${CF_ACCOUNT_ID}/builds/triggers/${trigger_uuid}/builds" "${auth[@]}" --data "{\"branch\":\"main\",\"commit_hash\":\"${CORE_SHA}\"}")" || fail "Cloudflare build trigger request failed."
+            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+              message="$(jq -r '[.errors[]?.message] | join("; ")' "$response_file" 2>/dev/null || true)"
+              fail "Cloudflare rejected the exact Core build trigger (HTTP ${http_code}${message:+: ${message}})."
+            fi
+            build_uuid="$(jq -r '.result.build_uuid // empty' "$response_file")"
+            [ -n "$build_uuid" ] || fail "Cloudflare accepted the request but returned no build UUID."
+          fi
+
+          for _ in $(seq 1 60); do
+            build="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${build_uuid}" "${auth[@]}")" || fail "Cannot inspect Core build ${build_uuid}."
+            status="$(jq -r '.result.status // empty' <<<"$build")"
+            outcome="$(jq -r '.result.build_outcome // empty' <<<"$build")"
+            commit="$(jq -r '.result.build_trigger_metadata.commit_hash // empty' <<<"$build")"
+            [ "$commit" = "$CORE_SHA" ] || fail "Build UUID resolved to unexpected commit ${commit:-unknown}."
+            if [ "$status" = "stopped" ]; then
+              if [ "$outcome" = "success" ]; then
+                gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_CORE_BUILD: **PASS**\n\n- Core SHA: ${CORE_SHA}\n- Cloudflare build: ${build_uuid}\n- Outcome: success\n\nNo ingress/domain mutation was performed."
+                exit 0
+              fi
+              fail "Exact Core build stopped with outcome: ${outcome:-unknown}."
+            fi
+            sleep 10
+          done
+
+          fail "Exact Core build did not reach a terminal state inside the bounded check window."
