@@ -1,0 +1,159 @@
+name: Arrival v0 TOS Attach
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: arrival-v0-tos-attach
+  cancel-in-progress: false
+
+jobs:
+  attach:
+    if: github.event.issue.title == '[GPT] Arrival v0 attach TOS' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      APPROVED_TEAM_SHA: c82d7e181605e7790500714c56511a63f726fefe
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      CORE_VERSION_ID: 73be57df-defe-43ea-8d40-cd0399b259d9
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      ZONE_NAME: pinohouse.art
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Checkout control-plane source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Attach only TOS and verify Access perimeter
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN:-}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          attached=0
+          domain_id=""
+          SMOKE_CODE=""
+
+          comment() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"
+          }
+
+          rollback() {
+            if [ "$attached" -eq 1 ]; then
+              if [ -z "$domain_id" ]; then
+                domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}" 2>/dev/null || true)"
+                domain_id="$(jq -r --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '.result[]? | select(.hostname==$h and .service==$s) | .id // empty' <<<"${domains:-{}}" | head -1)"
+              fi
+              if [ -n "$domain_id" ]; then
+                curl -fsS -X DELETE "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains/${domain_id}" "${auth[@]}" >/dev/null 2>&1 || true
+              fi
+            fi
+          }
+
+          fail() {
+            rollback
+            comment "ARRIVAL_V0_TOS_ATTACH: **FAIL_SAFE**\n\n$1\n\nTOS was detached again if this run had attached it. BO/Core/data were not mutated."
+            exit 1
+          }
+
+          smoke_access() {
+            local path="$1" attempt headers location challenge
+            SMOKE_CODE=""
+            for attempt in $(seq 1 36); do
+              headers="$RUNNER_TEMP/headers.txt"
+              : > "$headers"
+              SMOKE_CODE="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${TOS_HOST}${path}" || true)"
+              location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+              challenge="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+
+              case "$SMOKE_CODE" in
+                302|303|307)
+                  if [[ "$location" =~ ^https://[^/]*\.cloudflareaccess\.com/cdn-cgi/access/login/tos\.pinohouse\.art ]]; then
+                    return 0
+                  fi
+                  ;;
+                401|403)
+                  if [[ "$challenge" == *Cloudflare-Access* ]]; then
+                    return 0
+                  fi
+                  ;;
+                200)
+                  return 2
+                  ;;
+              esac
+
+              sleep 5
+            done
+            return 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "Missing CF_ACCOUNT_ID."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
+
+          # The only source delta since the approved runtime SHA must be this control-plane workflow.
+          git merge-base --is-ancestor "$APPROVED_TEAM_SHA" HEAD || fail "Approved Team runtime SHA is not an ancestor of current main."
+          unexpected="$(git diff --name-only "$APPROVED_TEAM_SHA"..HEAD | grep -v '^\.github/workflows/arrival-v0-tos-attach\.yml$' || true)"
+          [ -z "$unexpected" ] || fail "Runtime-affecting source changed after approved Team build; re-run readiness before attach."
+
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")" || fail "Cannot list Workers scripts."
+          team_tag="$(jq -r --arg n "$TEAM_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$team_tag" ] || fail "Cannot resolve Team OS Worker tag."
+          builds="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${team_tag}/builds?per_page=100" "${auth[@]}")" || fail "Cannot inspect Team OS Cloudflare builds."
+          team_outcome="$(jq -r --arg sha "$APPROVED_TEAM_SHA" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_outcome // empty' <<<"$builds" | head -1)"
+          [ "$team_outcome" = "success" ] || fail "Approved Team runtime build is not successful (outcome: ${team_outcome:-none})."
+
+          core_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect Core deployment."
+          active_core="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_deployments" | head -1)"
+          [ "$active_core" = "$CORE_VERSION_ID" ] || fail "Approved Core version is no longer active at 100%."
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker custom domains."
+          jq -e --arg h "$TOS_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "TOS is already attached before this governed step."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "BO is attached; expected detached."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core has a custom domain; expected none."
+
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone Worker routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
+          jq -e --arg t "$TOS_HOST" --arg b "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($t) or contains($b))] | length == 0' <<<"$routes" >/dev/null || fail "TOS or BO zone route exists unexpectedly."
+
+          payload="$(jq -nc --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" --arg z "$ZONE_ID" --arg zn "$ZONE_NAME" '{hostname:$h,service:$s,zone_id:$z,zone_name:$zn}')"
+          attach_response="$(curl -fsS -X PUT "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected the TOS custom-domain attach."
+          jq -e '.success == true' <<<"$attach_response" >/dev/null || fail "Cloudflare did not report a successful TOS attach."
+          attached=1
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot verify TOS custom domain after attach."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "TOS custom domain is not attached exactly once to pino-team-os."
+          domain_id="$(jq -r --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '.result[]? | select(.hostname==$h and .service==$s) | .id // empty' <<<"$domains" | head -1)"
+          [ -n "$domain_id" ] || fail "Cannot resolve attached TOS domain ID for rollback safety."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "BO attached unexpectedly during TOS rollout."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core gained a custom domain during TOS rollout."
+
+          smoke_access "/pinoria" || {
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail "/pinoria returned public HTTP 200; Cloudflare Access perimeter is not protecting TOS."; fi
+            fail "/pinoria did not produce the expected Cloudflare Access challenge (last HTTP ${SMOKE_CODE:-000})."
+          }
+          pinoria_code="$SMOKE_CODE"
+
+          smoke_access "/pinoria-tv" || {
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail "/pinoria-tv returned public HTTP 200; Cloudflare Access perimeter is not protecting TOS."; fi
+            fail "/pinoria-tv did not produce the expected Cloudflare Access challenge (last HTTP ${SMOKE_CODE:-000})."
+          }
+          tv_code="$SMOKE_CODE"
+
+          attached=0
+          comment "ARRIVAL_V0_TOS_ATTACH: **PASS**\n\n- tos.pinohouse.art → pino-team-os: attached\n- Approved Team runtime: ${APPROVED_TEAM_SHA}\n- Approved Core version: ${CORE_VERSION_ID} = active 100%\n- /pinoria Access challenge: HTTP ${pinoria_code}\n- /pinoria-tv Access challenge: HTTP ${tv_code}\n- BO: detached\n- Core public ingress: none\n\nNo D1 migration, learner Visit, or application-data mutation was performed."
