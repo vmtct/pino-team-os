@@ -1,0 +1,106 @@
+name: Arrival v0 Team Runtime Promote
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: arrival-v0-team-runtime-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.event.issue.title == '[GPT] Arrival v0 promote Team runtime' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      TARGET_VERSION_ID: c654a5db-37b9-4ff9-abd5-cfbe98585747
+      TARGET_SOURCE_SHA: e13134102f381937120d09f05c40a25ee850b1cd
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Checkout control-plane source
+        uses: actions/checkout@v4
+
+      - name: Promote exact uploaded Team version
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN:-}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          old_version=""
+          serving_changed=0
+
+          comment() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
+          rollback() {
+            if [ "$serving_changed" -eq 1 ] && [ -n "$old_version" ]; then
+              CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+                npx --yes wrangler@4.122.0 versions deploy "${old_version}@100%" -y >/dev/null 2>&1 || true
+            fi
+          }
+          fail() {
+            rollback
+            comment "ARRIVAL_V0_TEAM_PROMOTE: **FAIL_SAFE**\n\n$1\n\nRollback was attempted if serving traffic changed. No D1, Access-policy, BO, Core, or route mutation was authorized."
+            exit 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "Missing CF_ACCOUNT_ID."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
+
+          deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Team deployment."
+          old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+          [ -n "$old_version" ] || fail "Cannot resolve current 100% Team version."
+
+          target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${TARGET_VERSION_ID}" "${auth[@]}")" || fail "Target Team version does not exist."
+          jq -e '.success == true' <<<"$target" >/dev/null || fail "Cloudflare did not return the target Team version successfully."
+
+          provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${TARGET_VERSION_ID}" "${auth[@]}")" || fail "Cannot inspect target build provenance."
+          target_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+          [ "$target_commit" = "$TARGET_SOURCE_SHA" ] || fail "Target version provenance is ${target_commit:-unknown}, expected ${TARGET_SOURCE_SHA}."
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker custom domains."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "TOS is not attached exactly once to pino-team-os."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "BO is unexpectedly attached."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core unexpectedly has a custom domain."
+
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone Worker routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($h))] | length == 0' <<<"$routes" >/dev/null || fail "BO zone route exists unexpectedly."
+
+          if [ "$old_version" != "$TARGET_VERSION_ID" ]; then
+            CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+              npx --yes wrangler@4.122.0 versions deploy "${TARGET_VERSION_ID}@100%" -y >/dev/null \
+              || fail "Wrangler could not promote the target Team version."
+            serving_changed=1
+          fi
+
+          current="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify post-promotion deployment."
+          active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$current" | head -1)"
+          [ "$active" = "$TARGET_VERSION_ID" ] || fail "Target Team version is not active at 100%."
+
+          for path in /pinoria /pinoria-tv; do
+            headers="$RUNNER_TEMP/headers.txt"
+            code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${TOS_HOST}${path}" || true)"
+            location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            case "$code" in
+              302|303|307) [[ "$location" =~ cloudflareaccess\.com ]] || fail "${path} redirects outside Cloudflare Access." ;;
+              401|403) ;;
+              *) fail "${path} perimeter smoke returned unexpected HTTP ${code}." ;;
+            esac
+          done
+
+          serving_changed=0
+          comment "ARRIVAL_V0_TEAM_PROMOTE: **PASS**\n\n- Team source: ${TARGET_SOURCE_SHA}\n- Worker version: ${TARGET_VERSION_ID}\n- Traffic: 100%\n- TOS domain: attached\n- /pinoria + /pinoria-tv: Cloudflare Access protected\n- BO: detached\n- Core public ingress: none\n\nNo D1, Visit, Attendance, Participation, or Access-policy mutation was performed."
