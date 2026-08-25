@@ -6,7 +6,7 @@ import {
   heartbeatSurface,
   setSurfaceSubject,
 } from "../../../../lib/pinoria-prototype/surface-session";
-import type { PinoriaSurfaceBaseMode } from "../../../pinoria-tv/shop-types";
+import type { EnergySeedReward, PinoriaSurfaceBaseMode } from "../../../pinoria-tv/shop-types";
 
 type TVMode = PinoriaSurfaceBaseMode;
 type TVSubject = {
@@ -23,9 +23,10 @@ type RelayEvent = {
   id: number;
   surfaceId: string;
   kind: "play" | "control";
-  mode?: "arrival" | "departure";
+  mode?: "arrival" | "departure" | "reward";
   replay?: boolean;
   subject?: TVSubject;
+  reward?: EnergySeedReward;
   action?: "ambient";
   status: "queued" | "claimed" | "completed" | "expired";
   createdAt: number;
@@ -76,7 +77,12 @@ function activeEventFor(surfaceId: string) {
 }
 
 function nextQueuedEventFor(surfaceId: string) {
-  return store.events.find((event) => event.surfaceId === surfaceId && event.status === "queued") ?? null;
+  const queued = store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued");
+  // Presence owns the shared House moment. Energy Seed is deliberately lower
+  // priority, so an Arrival/Departure queued after it still plays first.
+  return queued.find((event) => event.kind === "play" && (event.mode === "arrival" || event.mode === "departure"))
+    ?? queued[0]
+    ?? null;
 }
 
 function relaySurfaceSnapshot(surfaceId: string, now: number) {
@@ -141,6 +147,7 @@ export async function POST(request: NextRequest) {
     const mode: TVMode = body.mode === "arrival"
       || body.mode === "choice"
       || body.mode === "ritual"
+      || body.mode === "reward"
       || body.mode === "departure"
       || body.mode === "news"
       ? body.mode
@@ -155,13 +162,21 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.op === "enqueue-play") {
+    const mode: RelayEvent["mode"] = body.mode === "departure"
+      ? "departure"
+      : body.mode === "reward"
+        ? "reward"
+        : "arrival";
     const event: RelayEvent = {
       id: ++store.seq,
       surfaceId,
       kind: "play",
-      mode: body.mode === "departure" ? "departure" : "arrival",
+      mode,
       replay: !!body.replay,
       subject: body.subject,
+      reward: mode === "reward" && body.reward && typeof body.reward === "object"
+        ? body.reward as EnergySeedReward
+        : undefined,
       status: "queued",
       createdAt: now,
       expiresAt: now + (body.replay ? 5 : 15) * 60 * 1000,
