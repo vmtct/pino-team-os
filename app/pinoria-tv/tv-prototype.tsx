@@ -17,15 +17,29 @@ import {
   LearningSpotlightScene,
 } from "./learning-spotlight-scene";
 import { fitPinoriaStageRect } from "./pinoria-stage";
-import type { EnergySeedReward, LearningSpotlightPayload, WorldBroadcastPayload } from "./shop-types";
+import {
+  DEFAULT_PINORIA_WORLD_STATE,
+  type EnergySeedReward,
+  type LearningSpotlightPayload,
+  type PinoriaSurfaceSessionSnapshot,
+  type PinoriaWorldStateSnapshot,
+  type WorldBroadcastPayload,
+  type WorldStateTransitionPayload,
+} from "./shop-types";
 import {
   DEFAULT_WORLD_BROADCAST,
   WORLD_BROADCAST_MS,
   WorldBroadcastScene,
 } from "./world-broadcast-scene";
+import { WorldStateAmbientOverlay } from "./world-state-ambient-overlay";
+import {
+  DEFAULT_WORLD_STATE_TRANSITION,
+  WORLD_STATE_TRANSITION_MS,
+  WorldStateTransitionScene,
+} from "./world-state-transition-scene";
 import styles from "./tv.module.css";
 
-type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure-transition" | "departure";
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "world-transition" | "departure-transition" | "departure";
 type TVSubject = {
   id: string;
   name: string;
@@ -39,18 +53,20 @@ type TVSubject = {
 type RelayEvent = {
   id: number;
   kind: "play" | "control";
-  mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast";
+  mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast" | "world-transition";
   replay?: boolean;
   subject?: TVSubject;
   reward?: EnergySeedReward;
   spotlight?: LearningSpotlightPayload;
   broadcast?: WorldBroadcastPayload;
+  worldTransition?: WorldStateTransitionPayload;
   action?: "ambient";
 };
 
 type RelayMutationResponse = {
   ok?: boolean;
   event?: RelayEvent;
+  surface?: PinoriaSurfaceSessionSnapshot;
 };
 
 const SURFACE_ID = "RECEPTION_TV";
@@ -66,6 +82,7 @@ const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
   { id: "learning", label: "Learning Spotlight" },
   { id: "reward", label: "Hạt Năng Lượng" },
   { id: "broadcast", label: "World Broadcast" },
+  { id: "world-transition", label: "World State Transition" },
   { id: "ritual", label: "Companion Ritual" },
   { id: "departure", label: "Departure" },
 ];
@@ -86,6 +103,7 @@ function replayTitle(event: RelayEvent) {
   if (event.mode === "reward") return "HẠT NĂNG LƯỢNG";
   if (event.mode === "learning") return "LEARNING SPOTLIGHT";
   if (event.mode === "broadcast") return "WORLD BROADCAST";
+  if (event.mode === "world-transition") return "WORLD STATE";
   return "SỰ KIỆN";
 }
 
@@ -133,6 +151,8 @@ export function PinoriaTVPrototype() {
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
   const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
   const [broadcast, setBroadcast] = useState<WorldBroadcastPayload>(DEFAULT_WORLD_BROADCAST);
+  const [worldTransition, setWorldTransition] = useState<WorldStateTransitionPayload>(DEFAULT_WORLD_STATE_TRANSITION);
+  const [worldState, setWorldState] = useState<PinoriaWorldStateSnapshot>(DEFAULT_PINORIA_WORLD_STATE);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
   const ambientSubjectTimer = useRef<number | null>(null);
@@ -171,20 +191,24 @@ export function PinoriaTVPrototype() {
     async function heartbeat() {
       const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current;
       const currentSubject = subjectRef.current;
-      await post({
+      const response = await post({
         op: "heartbeat",
         surfaceId: SURFACE_ID,
         mode: relayMode,
         subject: { id: currentSubject.id, name: currentSubject.name },
       });
+      if (!stopped && response?.surface?.worldState && modeRef.current === "ambient") {
+        setWorldState(response.surface.worldState);
+      }
     }
 
     async function finishEvent(id: number) {
       if (activeEventId.current !== id) return;
-      await post({ op: "complete", surfaceId: SURFACE_ID, id });
+      const completed = await post({ op: "complete", surfaceId: SURFACE_ID, id });
       activeEventId.current = null;
       busyRef.current = false;
       if (!stopped) {
+        if (completed?.surface?.worldState) setWorldState(completed.surface.worldState);
         setReplayLabel(null);
         setAmbientCharacterVisible(true);
         setMode("ambient");
@@ -211,6 +235,23 @@ export function PinoriaTVPrototype() {
 
       if (!event.mode) {
         void finishEvent(event.id);
+        return;
+      }
+
+      // World State Transition is subjectless and changes persistent Ambient
+      // truth. The server commits first; this scene bridges the old projection
+      // to the committed target without stealing learner ownership.
+      if (event.mode === "world-transition") {
+        const transition = event.worldTransition ?? DEFAULT_WORLD_STATE_TRANSITION;
+        setWorldTransition(transition);
+        setWorldState(transition.to);
+        setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
+        setAmbientCharacterVisible(true);
+        setMode("world-transition");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, WORLD_STATE_TRANSITION_MS);
         return;
       }
 
@@ -310,9 +351,18 @@ export function PinoriaTVPrototype() {
       try {
         const response = await fetch(`${RELAY_URL}?surfaceId=${SURFACE_ID}&includeEvent=1`, { cache: "no-store" });
         if (!response.ok) return;
-        const data = await response.json() as { event?: RelayEvent | null };
+        const data = await response.json() as { event?: RelayEvent | null; surface?: PinoriaSurfaceSessionSnapshot };
         const event = data.event;
-        if (!event) return;
+        if (!event) {
+          if (!stopped && data.surface?.worldState && modeRef.current === "ambient") setWorldState(data.surface.worldState);
+          return;
+        }
+
+        // If a world transition is waiting, keep showing its `from` state until
+        // the event is claimed; the committed `to` state is already server truth.
+        if (!stopped && event.mode === "world-transition" && event.worldTransition && modeRef.current === "ambient") {
+          setWorldState(event.worldTransition.from);
+        }
 
         const claimed = await post({ op: "claim", surfaceId: SURFACE_ID, id: event.id });
         if (!claimed?.ok) return;
@@ -375,12 +425,16 @@ export function PinoriaTVPrototype() {
     if (next === "reward") setReward(DEFAULT_ENERGY_SEED_REWARD);
     if (next === "learning") setSpotlight(DEFAULT_LEARNING_SPOTLIGHT);
     if (next === "broadcast") setBroadcast(DEFAULT_WORLD_BROADCAST);
+    if (next === "world-transition") {
+      setWorldTransition(DEFAULT_WORLD_STATE_TRANSITION);
+      setWorldState(DEFAULT_WORLD_STATE_TRANSITION.from);
+    }
     setAmbientCharacterVisible(next !== "reward" && next !== "learning");
     setMode(next);
   }
 
-  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "departure-transition" || mode === "departure";
-  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "departure-transition" || mode === "departure";
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
 
   return (
     <main data-pinoria-tv-screen className={styles.screen}>
@@ -399,6 +453,7 @@ export function PinoriaTVPrototype() {
       >
         <style>{`[data-ambient-backplane][data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
         <AmbientHouseRuntime subject={ambientSubject} />
+        <WorldStateAmbientOverlay state={worldState} />
       </div>
 
       <div
@@ -413,6 +468,7 @@ export function PinoriaTVPrototype() {
       {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
       {mode === "broadcast" ? <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} /> : null}
+      {mode === "world-transition" ? <WorldStateTransitionScene transition={worldTransition} replay={!!replayLabel} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
       {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
       {mode === "departure" ? <Departure subject={subject} /> : null}
