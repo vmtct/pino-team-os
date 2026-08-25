@@ -1,0 +1,82 @@
+name: Arrival v0 Cloudflare Readiness
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  readiness:
+    if: github.event.issue.title == '[GPT] Arrival v0 readiness' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CORE_WORKER: pino-core
+      TEAM_WORKER: pino-team-os
+      CORE_SHA: e7f8c903ab39a402b5c5a44fe9160c554d7a837d
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Verify Cloudflare readiness read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="${GITHUB_REPOSITORY}"
+          team_sha="$(gh api "repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
+
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_READINESS: **FAIL_SAFE**\n\n$1\n\nNo Cloudflare mutation was performed."
+            exit 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "Missing CF_ACCOUNT_ID."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
+
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")" || fail "Cannot list Workers scripts."
+          core_tag="$(jq -r --arg n "$CORE_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          team_tag="$(jq -r --arg n "$TEAM_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$core_tag" ] || fail "Cannot resolve pino-core Worker tag."
+          [ -n "$team_tag" ] || fail "Cannot resolve pino-team-os Worker tag."
+
+          wait_build() {
+            local tag="$1" sha="$2" label="$3" payload="" outcome=""
+            for _ in $(seq 1 24); do
+              payload="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${tag}/builds?per_page=100" "${auth[@]}")" || return 2
+              outcome="$(jq -r --arg sha "$sha" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_outcome // empty' <<<"$payload" | head -1)"
+              case "$outcome" in
+                success) echo success; return 0 ;;
+                fail|skipped|cancelled|terminated) echo "$outcome"; return 1 ;;
+              esac
+              sleep 10
+            done
+            echo not_found_or_timeout
+            return 1
+          }
+
+          core_outcome="$(wait_build "$core_tag" "$CORE_SHA" core)" || fail "Core Cloudflare build for ${CORE_SHA} is not successful (outcome: ${core_outcome:-unknown})."
+          team_outcome="$(wait_build "$team_tag" "$team_sha" team)" || fail "Team OS Cloudflare build for ${team_sha} is not successful (outcome: ${team_outcome:-unknown})."
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot list Workers custom domains."
+          jq -e --arg h "$TOS_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "TOS custom domain is already attached before the governed attach step."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "BO custom domain is attached; expected detached."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "pino-core has a custom domain; expected none."
+
+          subdomain="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/subdomain" "${auth[@]}")" || fail "Cannot inspect pino-core workers.dev/preview state."
+          jq -e '.result.enabled == false and .result.previews_enabled == false' <<<"$subdomain" >/dev/null || fail "pino-core workers.dev or preview URLs are enabled."
+
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone Worker routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "pino-core has a public zone route."
+          jq -e --arg t "$TOS_HOST" --arg b "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($t) or contains($b))] | length == 0' <<<"$routes" >/dev/null || fail "TOS or BO zone route exists before governed attach."
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_READINESS: **PASS**\n\n- Core build: ${CORE_SHA} = success\n- Team OS build: ${team_sha} = success\n- TOS domain: detached\n- BO domain: detached\n- pino-core custom domains/routes: none\n- pino-core workers.dev + preview URLs: disabled\n\nRead-only verification only; no Cloudflare mutation was performed."

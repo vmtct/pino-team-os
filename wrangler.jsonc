@@ -7,15 +7,13 @@
   "assets":{"binding":"ASSETS","directory":".open-next/assets"},
   "observability":{"enabled":true},
   // CF_ACCESS_BO_AUD is environment-specific deployment configuration and is intentionally not committed.
+  // Production ingress is a separate gated operation; source deploys must not attach TOS/BO custom domains implicitly.
   "vars":{"FOUNDER_EMAIL":"minhtri.van42@gmail.com,chuthhang@gmail.com"},
   "services":[
     {"binding":"PINO_CORE","service":"pino-core","entrypoint":"FounderControlPlane"},
     {"binding":"PINO_WORKFORCE_CORE","service":"pino-core","entrypoint":"WorkforceControlPlane"},
-    {"binding":"PINO_BO_CORE","service":"pino-core","entrypoint":"BoAccessControlPlane"}
-  ],
-  "routes":[
-    {"pattern":"tos.pinohouse.art","custom_domain":true},
-    {"pattern":"bo.pinohouse.art","custom_domain":true}
+    {"binding":"PINO_BO_CORE","service":"pino-core","entrypoint":"BoAccessControlPlane"},
+    {"binding":"PINO_TOS_LEARNING_CORE","service":"pino-core","entrypoint":"TosLearningControlPlane"}
   ],
   "keep_vars":true
 }

@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("wrangler prepares only canonical TOS and BO domains plus the private BO binding", async () => {
+test("wrangler keeps production ingress gated outside source deploys and preserves private Core bindings", async () => {
   const source = await readFile("wrangler.jsonc", "utf8");
   assert.match(source, /"PINO_BO_CORE"[^\n]+"pino-core"[^\n]+"BoAccessControlPlane"/);
-  assert.match(source, /"tos\.pinohouse\.art"/);
-  assert.match(source, /"bo\.pinohouse\.art"/);
-  assert.doesNotMatch(source, /"team\.pinohouse\.art"/);
+  assert.match(source, /"PINO_TOS_LEARNING_CORE"[^\n]+"pino-core"[^\n]+"TosLearningControlPlane"/);
+  assert.doesNotMatch(source, /"(?:tos|bo|team)\.pinohouse\.art"/);
+  assert.doesNotMatch(source, /"routes"\s*:/);
   assert.doesNotMatch(source, /"CF_ACCESS_BO_AUD"\s*:/);
 });
 
