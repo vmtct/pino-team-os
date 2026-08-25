@@ -12,7 +12,7 @@ jobs:
   core-build:
     if: github.event.issue.title == '[GPT] Arrival v0 core build' && github.event.issue.user.login == 'vmtct'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -47,15 +47,20 @@ jobs:
           existing_outcome="$(jq -r --arg sha "$CORE_SHA" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_outcome // empty' <<<"$builds" | head -1)"
 
           build_uuid="$existing_uuid"
-          if [ "$existing_outcome" = "success" ]; then
-            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_CORE_BUILD: **PASS**\n\nExact Core build ${CORE_SHA} already exists and is successful. No new build was created."
-            exit 0
-          fi
 
           if [ -z "$build_uuid" ]; then
             triggers="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${core_tag}/triggers" "${auth[@]}")" || fail "Cannot list pino-core build triggers."
             trigger_uuid="$(jq -r '.result[]? | select((.deleted_on // null) == null) | select((.branch_includes // []) | index("main")) | .trigger_uuid // empty' <<<"$triggers" | head -1)"
-            [ -n "$trigger_uuid" ] || fail "No active pino-core production trigger includes main."
+
+            if [ -z "$trigger_uuid" ]; then
+              deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect active pino-core deployment provenance."
+              active_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+              [ -n "$active_version" ] || fail "Cannot resolve the currently active 100% pino-core version."
+
+              provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${active_version}" "${auth[@]}")" || fail "Cannot map active pino-core version to its Cloudflare build provenance."
+              trigger_uuid="$(jq -r '.result.builds | to_entries[]? | .value.trigger.trigger_uuid // empty' <<<"$provenance" | head -1)"
+              [ -n "$trigger_uuid" ] || fail "Active pino-core deployment has no reusable Workers Builds trigger provenance."
+            fi
 
             response_file="$(mktemp)"
             http_code="$(curl -sS -o "$response_file" -w '%{http_code}' -X POST "${api}/accounts/${CF_ACCOUNT_ID}/builds/triggers/${trigger_uuid}/builds" "${auth[@]}" --data "{\"branch\":\"main\",\"commit_hash\":\"${CORE_SHA}\"}")" || fail "Cloudflare build trigger request failed."
@@ -65,6 +70,8 @@ jobs:
             fi
             build_uuid="$(jq -r '.result.build_uuid // empty' "$response_file")"
             [ -n "$build_uuid" ] || fail "Cloudflare accepted the request but returned no build UUID."
+          elif [ "$existing_outcome" != "success" ]; then
+            : # Observe the already-created exact build below.
           fi
 
           for _ in $(seq 1 60); do
@@ -74,13 +81,29 @@ jobs:
             commit="$(jq -r '.result.build_trigger_metadata.commit_hash // empty' <<<"$build")"
             [ "$commit" = "$CORE_SHA" ] || fail "Build UUID resolved to unexpected commit ${commit:-unknown}."
             if [ "$status" = "stopped" ]; then
-              if [ "$outcome" = "success" ]; then
-                gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_CORE_BUILD: **PASS**\n\n- Core SHA: ${CORE_SHA}\n- Cloudflare build: ${build_uuid}\n- Outcome: success\n\nNo ingress/domain mutation was performed."
-                exit 0
-              fi
-              fail "Exact Core build stopped with outcome: ${outcome:-unknown}."
+              [ "$outcome" = "success" ] || fail "Exact Core build stopped with outcome: ${outcome:-unknown}."
+              break
             fi
             sleep 10
           done
 
-          fail "Exact Core build did not reach a terminal state inside the bounded check window."
+          build="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${build_uuid}" "${auth[@]}")" || fail "Cannot re-read terminal Core build."
+          [ "$(jq -r '.result.status // empty' <<<"$build")" = "stopped" ] || fail "Exact Core build did not reach a terminal state inside the bounded check window."
+          [ "$(jq -r '.result.build_outcome // empty' <<<"$build")" = "success" ] || fail "Exact Core build is not successful."
+
+          # A successful build is not sufficient: prove the exact commit is the active 100% Worker deployment.
+          for _ in $(seq 1 30); do
+            deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect post-build pino-core deployment."
+            active_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+            if [ -n "$active_version" ]; then
+              active_build="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${active_version}" "${auth[@]}")" || fail "Cannot map active pino-core version to build provenance."
+              active_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$active_build" | head -1)"
+              if [ "$active_commit" = "$CORE_SHA" ]; then
+                gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_CORE_BUILD: **PASS**\n\n- Core SHA: ${CORE_SHA}\n- Cloudflare build: ${build_uuid}\n- Active Worker version: ${active_version}\n- Traffic: 100%\n- Outcome: success\n\nNo ingress/domain mutation was performed."
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+
+          fail "Exact Core build succeeded but the resulting commit is not verified as the active 100% pino-core deployment."
