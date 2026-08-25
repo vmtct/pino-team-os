@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PINORIA_SHOP_RELAY_URL, PINORIA_SHOP_SURFACE_ID, type PinoriaSurfaceSessionSnapshot } from "../pinoria-tv/shop-types";
+import { PINORIA_SHOP_RELAY_URL, PINORIA_SHOP_SURFACE_ID, type EnergySeedReward, type PinoriaSurfaceSessionSnapshot } from "../pinoria-tv/shop-types";
 import { PinoriaStaffController } from "./pinoria-staff-controller";
 
 const CONTROLLER_SESSION_URL = "/api/pinoria-prototype/controller-session";
@@ -27,11 +27,21 @@ type LeaseView = {
   renewedAt: number;
   expiresAt: number;
 };
+type EnergySeedView = {
+  surfaceId: string;
+  learnerId: string;
+  status: "available" | "activated";
+  reward: EnergySeedReward | null;
+  activatedAt: number | null;
+  activatedByStaffId: string | null;
+  queuedEventId: number | null;
+};
 type ControllerSnapshot = {
   ok: boolean;
   staff?: StaffIdentity;
   surface?: PinoriaSurfaceSessionSnapshot;
   learners?: PresenceLearner[];
+  energySeeds?: EnergySeedView[];
   lease?: LeaseView | null;
   isOwner?: boolean;
   error?: string;
@@ -48,6 +58,7 @@ export function PinoriaControllerGate({ staffToken, staff }: { staffToken: strin
   const [selectedLearnerId, setSelectedLearnerId] = useState("");
   const [error, setError] = useState("");
   const [leaseBusy, setLeaseBusy] = useState(false);
+  const [seedBusy, setSeedBusy] = useState(false);
   const acquiringRef = useRef(false);
 
   useEffect(() => {
@@ -169,6 +180,9 @@ export function PinoriaControllerGate({ staffToken, staff }: { staffToken: strin
     () => learners.find((learner) => learner.id === selectedLearnerId) ?? learners[0] ?? null,
     [learners, selectedLearnerId],
   );
+  const selectedEnergySeed = selectedLearner
+    ? snapshot?.energySeeds?.find((seed) => seed.learnerId === selectedLearner.id) ?? null
+    : null;
 
   useEffect(() => {
     if (!learners.length) {
@@ -216,6 +230,49 @@ export function PinoriaControllerGate({ staffToken, staff }: { staffToken: strin
     if (ownsLease && tvReady) await issueCommand("set-subject", { subject: learner });
   }
 
+  async function activateSeed() {
+    if (!selectedLearner || !clientId || !ownsLease || seedBusy) return;
+    setSeedBusy(true);
+    setError("");
+    try {
+      const response = await fetch(CONTROLLER_COMMAND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          surfaceId: PINORIA_SHOP_SURFACE_ID,
+          op: "activate-energy-seed",
+          subject: selectedLearner,
+          staffToken,
+          clientId,
+        }),
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; activation?: EnergySeedView };
+      if (!response.ok || !data.ok) {
+        if (data.error === "ENERGY_SEED_ALREADY_ACTIVATED") {
+          await refresh();
+          return;
+        }
+        if (data.error === "REWARD_COMMITTED_RELAY_UNAVAILABLE") {
+          setError("Phần thưởng đã được chốt nhưng TV chưa nhận được sự kiện. Không kích hoạt lại để tránh reroll.");
+          await refresh();
+          return;
+        }
+        setError(data.error === "LEARNER_NOT_CHECKED_IN"
+          ? "Học viên đã rời PINO House."
+          : data.error === "CONTROLLER_LEASE_REQUIRED"
+            ? "Quyền điều khiển TV đã chuyển sang nhân sự khác."
+            : "Không thể kích hoạt Hạt Năng Lượng lúc này.");
+        return;
+      }
+      await refresh();
+    } catch {
+      setError("Không thể kết nối để kích hoạt Hạt Năng Lượng.");
+    } finally {
+      setSeedBusy(false);
+    }
+  }
+
   async function toggleLease() {
     if (leaseBusy || !clientId) return;
     setLeaseBusy(true);
@@ -230,6 +287,14 @@ export function PinoriaControllerGate({ staffToken, staff }: { staffToken: strin
     : lease
       ? `${lease.staffName} đang điều khiển`
       : "TV chưa có người điều khiển";
+  const seedActivated = selectedEnergySeed?.status === "activated";
+  const seedStatus = !selectedLearner
+    ? "Chọn học viên đang ở House"
+    : seedActivated
+      ? selectedEnergySeed?.queuedEventId
+        ? "Đã kích hoạt · đang chờ / đang phát trên TV"
+        : "Đã kích hoạt · phần thưởng đã được chốt"
+      : "Sẵn sàng kích hoạt";
 
   return (
     <div className={`p2-controller-shell ${interactionLocked ? "p2-controller-locked" : ""}`}>
@@ -256,6 +321,51 @@ export function PinoriaControllerGate({ staffToken, staff }: { staffToken: strin
             {ownsLease ? "Nhả quyền" : lease ? "Đang bận" : "Nhận quyền"}
           </button>
         </div>
+
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "11px 12px",
+            borderRadius: 16,
+            border: "1px solid rgba(174,216,255,.19)",
+            background: "linear-gradient(135deg,rgba(58,76,102,.24),rgba(58,42,89,.22))",
+            boxShadow: "inset 0 1px rgba(255,255,255,.035)",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <span style={{ display: "block", color: "rgba(185,218,255,.62)", fontSize: 8, fontWeight: 900, letterSpacing: ".13em" }}>HẠT NĂNG LƯỢNG PINORIA</span>
+            <strong style={{ display: "block", marginTop: 3, fontSize: 12 }}>{seedStatus}</strong>
+            {seedActivated && selectedEnergySeed?.reward ? (
+              <small style={{ display: "block", marginTop: 3, color: "rgba(246,232,208,.46)", fontSize: 9 }}>{selectedEnergySeed.reward.label} · kết quả đã cố định</small>
+            ) : (
+              <small style={{ display: "block", marginTop: 3, color: "rgba(246,232,208,.40)", fontSize: 9 }}>Core chốt phần thưởng trước, sau đó TV mới phát nghi thức.</small>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={!ownsLease || !selectedLearner || seedActivated || seedBusy}
+            onClick={() => void activateSeed()}
+            style={{
+              flex: "0 0 auto",
+              minWidth: 86,
+              padding: "10px 11px",
+              borderRadius: 12,
+              border: "1px solid rgba(201,228,255,.24)",
+              background: seedActivated ? "rgba(92,99,112,.32)" : "linear-gradient(145deg,#dbeeff,#a8c5ee)",
+              color: seedActivated ? "rgba(240,236,225,.48)" : "#182333",
+              fontWeight: 900,
+              fontSize: 10,
+              opacity: !ownsLease || !selectedLearner ? .45 : 1,
+            }}
+          >
+            {seedBusy ? "Đang chốt..." : seedActivated ? "Đã kích hoạt" : "Kích hoạt"}
+          </button>
+        </div>
+
         {error ? <div className="p2-controller-error">{error}</div> : null}
       </section>
       <PinoriaStaffController />
