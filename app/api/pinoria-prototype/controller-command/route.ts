@@ -3,9 +3,16 @@ import { isControllerLeaseOwner } from "../../../../lib/pinoria-prototype/contro
 import { activateEnergySeed, markEnergySeedQueued } from "../../../../lib/pinoria-prototype/energy-seed";
 import { isLearnerPresent, listHousePresence } from "../../../../lib/pinoria-prototype/house-presence";
 import { resolvePinoriaStaff } from "../../../../lib/pinoria-prototype/staff-auth";
-import type { LearningSpotlightPayload, WorldBroadcastPayload } from "../../../pinoria-tv/shop-types";
+import { getSurfaceSessionSnapshot, setSurfaceWorldState } from "../../../../lib/pinoria-prototype/surface-session";
+import type {
+  LearningSpotlightPayload,
+  PinoriaWorldStateSnapshot,
+  WorldBroadcastPayload,
+  WorldStateTransitionPayload,
+} from "../../../pinoria-tv/shop-types";
 
 const DEFAULT_SURFACE_ID = "RECEPTION_TV";
+const WORLD_THEMES = new Set(["neutral", "verdant", "tide", "terravia", "ember"]);
 
 function parseLearningSpotlight(value: unknown): LearningSpotlightPayload | null {
   if (!value || typeof value !== "object") return null;
@@ -57,6 +64,49 @@ function parseWorldBroadcast(value: unknown): WorldBroadcastPayload | null {
   };
 }
 
+function parseWorldState(value: unknown): PinoriaWorldStateSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Partial<PinoriaWorldStateSnapshot>;
+  if (
+    typeof input.id !== "string"
+    || typeof input.regionLabel !== "string"
+    || typeof input.chapterLabel !== "string"
+    || typeof input.seasonLabel !== "string"
+    || !WORLD_THEMES.has(String(input.ambientTheme))
+  ) return null;
+  return {
+    id: input.id,
+    revision: Number.isFinite(Number(input.revision)) ? Math.max(1, Math.round(Number(input.revision))) : 1,
+    regionLabel: input.regionLabel,
+    chapterLabel: input.chapterLabel,
+    seasonLabel: input.seasonLabel,
+    ambientTheme: input.ambientTheme!,
+    updatedAt: Number.isFinite(Number(input.updatedAt)) ? Number(input.updatedAt) : 0,
+  };
+}
+
+function parseWorldStateTransition(value: unknown): WorldStateTransitionPayload | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Partial<WorldStateTransitionPayload>;
+  const to = parseWorldState(input.to);
+  if (
+    typeof input.id !== "string"
+    || typeof input.title !== "string"
+    || typeof input.detail !== "string"
+    || !to
+  ) return null;
+  // The caller's `from` value is presentation metadata only. Canonical `from`
+  // is always replaced with the current committed state below.
+  return {
+    id: input.id,
+    title: input.title,
+    detail: input.detail,
+    from: to,
+    to,
+    footer: typeof input.footer === "string" ? input.footer : undefined,
+  };
+}
+
 async function projectRelay(request: NextRequest, body: Record<string, unknown>) {
   const relayUrl = new URL("/api/pinoria-prototype/tv-relay", request.url);
   try {
@@ -100,6 +150,58 @@ export async function POST(request: NextRequest) {
     const learnerId = String(body.subject.id);
     if (!isLearnerPresent(surfaceId, learnerId)) {
       return NextResponse.json({ ok: false, error: "LEARNER_NOT_CHECKED_IN" }, { status: 409 });
+    }
+  }
+
+  if (body.op === "play-world-state-transition") {
+    const parsed = parseWorldStateTransition(body.worldTransition);
+    if (!parsed) return NextResponse.json({ ok: false, error: "INVALID_WORLD_STATE_TRANSITION" }, { status: 400 });
+
+    const before = getSurfaceSessionSnapshot(surfaceId).worldState;
+    // Commit the actual world mutation first. TV projection may be delayed,
+    // replayed, or fail entirely; Ambient must still converge on this truth.
+    const committedSurface = setSurfaceWorldState(surfaceId, parsed.to);
+    const transition: WorldStateTransitionPayload = {
+      ...parsed,
+      from: before,
+      to: committedSurface.worldState,
+    };
+
+    const relayUrl = new URL("/api/pinoria-prototype/tv-relay", request.url);
+    try {
+      const relayResponse = await fetch(relayUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          op: "enqueue-play",
+          surfaceId,
+          mode: "world-transition",
+          worldTransition: transition,
+        }),
+        cache: "no-store",
+      });
+      const relayData = await relayResponse.json().catch(() => ({})) as { ok?: boolean; event?: unknown; error?: string };
+      if (!relayResponse.ok || !relayData.ok) {
+        return NextResponse.json({
+          ok: false,
+          error: "WORLD_STATE_COMMITTED_RELAY_UNAVAILABLE",
+          worldState: committedSurface.worldState,
+          transition,
+        }, { status: 503, headers: { "Cache-Control": "no-store" } });
+      }
+      return NextResponse.json({
+        ok: true,
+        event: relayData.event,
+        worldState: committedSurface.worldState,
+        transition,
+      }, { headers: { "Cache-Control": "no-store" } });
+    } catch {
+      return NextResponse.json({
+        ok: false,
+        error: "WORLD_STATE_COMMITTED_RELAY_UNAVAILABLE",
+        worldState: committedSurface.worldState,
+        transition,
+      }, { status: 503, headers: { "Cache-Control": "no-store" } });
     }
   }
 
