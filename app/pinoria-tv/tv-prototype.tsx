@@ -11,11 +11,16 @@ import {
   ENERGY_SEED_SCENE_MS,
   EnergySeedScene,
 } from "./energy-seed-scene";
+import {
+  DEFAULT_LEARNING_SPOTLIGHT,
+  LEARNING_SPOTLIGHT_MS,
+  LearningSpotlightScene,
+} from "./learning-spotlight-scene";
 import { fitPinoriaStageRect } from "./pinoria-stage";
-import type { EnergySeedReward } from "./shop-types";
+import type { EnergySeedReward, LearningSpotlightPayload } from "./shop-types";
 import styles from "./tv.module.css";
 
-type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "departure-transition" | "departure" | "news";
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "departure-transition" | "departure" | "news";
 type TVSubject = {
   id: string;
   name: string;
@@ -29,10 +34,11 @@ type TVSubject = {
 type RelayEvent = {
   id: number;
   kind: "play" | "control";
-  mode?: "arrival" | "departure" | "reward";
+  mode?: "arrival" | "departure" | "reward" | "learning";
   replay?: boolean;
   subject?: TVSubject;
   reward?: EnergySeedReward;
+  spotlight?: LearningSpotlightPayload;
   action?: "ambient";
 };
 
@@ -51,6 +57,7 @@ const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
   { id: "ambient", label: "Ambient" },
   { id: "arrival", label: "Arrival" },
   { id: "choice", label: "Quick Choice" },
+  { id: "learning", label: "Learning Spotlight" },
   { id: "reward", label: "Hạt Năng Lượng" },
   { id: "ritual", label: "Companion Ritual" },
   { id: "departure", label: "Departure" },
@@ -71,6 +78,7 @@ function replayTitle(event: RelayEvent) {
   if (event.mode === "arrival") return "CHÀO ĐẾN";
   if (event.mode === "departure") return "CHÀO VỀ";
   if (event.mode === "reward") return "HẠT NĂNG LƯỢNG";
+  if (event.mode === "learning") return "LEARNING SPOTLIGHT";
   return "SỰ KIỆN";
 }
 
@@ -116,6 +124,7 @@ export function PinoriaTVPrototype() {
   const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
+  const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
   const ambientSubjectTimer = useRef<number | null>(null);
@@ -201,6 +210,17 @@ export function PinoriaTVPrototype() {
       setSubject(event.subject);
       setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
 
+      if (event.mode === "learning") {
+        setSpotlight(event.spotlight ?? DEFAULT_LEARNING_SPOTLIGHT);
+        setAmbientCharacterVisible(false);
+        setMode("learning");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, LEARNING_SPOTLIGHT_MS);
+        return;
+      }
+
       if (event.mode === "reward") {
         setReward(event.reward ?? DEFAULT_ENERGY_SEED_REWARD);
         setAmbientCharacterVisible(false);
@@ -213,9 +233,6 @@ export function PinoriaTVPrototype() {
       }
 
       if (event.mode === "arrival" && !event.replay) {
-        // Keep the persistent House backplane mounted, but hide its actor while
-        // Arrival + Choice own the learner presentation. The House artwork and
-        // runtime stay hot behind these screens instead of remounting at handoff.
         setAmbientCharacterVisible(false);
         setMode("arrival");
         sequenceTimer.current = window.setTimeout(() => {
@@ -223,8 +240,6 @@ export function PinoriaTVPrototype() {
           setMode("choice");
           setReplayLabel(null);
 
-          // Swap the runtime subject shortly before takeover so the actor is
-          // initialized at the emergence route without having time to wander away.
           ambientSubjectTimer.current = window.setTimeout(() => {
             if (stopped || activeEventId.current !== event.id) return;
             setAmbientSubject(event.subject!);
@@ -331,12 +346,13 @@ export function PinoriaTVPrototype() {
     }
     setReplayLabel(null);
     if (next === "reward") setReward(DEFAULT_ENERGY_SEED_REWARD);
-    setAmbientCharacterVisible(next !== "reward");
+    if (next === "learning") setSpotlight(DEFAULT_LEARNING_SPOTLIGHT);
+    setAmbientCharacterVisible(next !== "reward" && next !== "learning");
     setMode(next);
   }
 
-  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "departure-transition" || mode === "departure";
-  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "departure-transition" || mode === "departure";
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "departure-transition" || mode === "departure";
 
   return (
     <main data-pinoria-tv-screen className={styles.screen}>
@@ -366,6 +382,7 @@ export function PinoriaTVPrototype() {
 
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
+      {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
       {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
