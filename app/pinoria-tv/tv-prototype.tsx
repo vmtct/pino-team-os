@@ -17,10 +17,15 @@ import {
   LearningSpotlightScene,
 } from "./learning-spotlight-scene";
 import { fitPinoriaStageRect } from "./pinoria-stage";
-import type { EnergySeedReward, LearningSpotlightPayload } from "./shop-types";
+import type { EnergySeedReward, LearningSpotlightPayload, WorldBroadcastPayload } from "./shop-types";
+import {
+  DEFAULT_WORLD_BROADCAST,
+  WORLD_BROADCAST_MS,
+  WorldBroadcastScene,
+} from "./world-broadcast-scene";
 import styles from "./tv.module.css";
 
-type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "departure-transition" | "departure" | "news";
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure-transition" | "departure" | "news";
 type TVSubject = {
   id: string;
   name: string;
@@ -34,11 +39,12 @@ type TVSubject = {
 type RelayEvent = {
   id: number;
   kind: "play" | "control";
-  mode?: "arrival" | "departure" | "reward" | "learning";
+  mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast";
   replay?: boolean;
   subject?: TVSubject;
   reward?: EnergySeedReward;
   spotlight?: LearningSpotlightPayload;
+  broadcast?: WorldBroadcastPayload;
   action?: "ambient";
 };
 
@@ -53,15 +59,15 @@ const ARRIVAL_MS = 7650;
 const DEPARTURE_MS = 9000;
 const AMBIENT_SUBJECT_HANDOFF_LEAD_MS = 180;
 
-const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
+const modes: { id: Exclude<Mode, "departure-transition" | "news">; label: string }[] = [
   { id: "ambient", label: "Ambient" },
   { id: "arrival", label: "Arrival" },
   { id: "choice", label: "Quick Choice" },
   { id: "learning", label: "Learning Spotlight" },
   { id: "reward", label: "Hạt Năng Lượng" },
+  { id: "broadcast", label: "World Broadcast" },
   { id: "ritual", label: "Companion Ritual" },
   { id: "departure", label: "Departure" },
-  { id: "news", label: "World News" },
 ];
 
 const defaultSubject: TVSubject = {
@@ -79,6 +85,7 @@ function replayTitle(event: RelayEvent) {
   if (event.mode === "departure") return "CHÀO VỀ";
   if (event.mode === "reward") return "HẠT NĂNG LƯỢNG";
   if (event.mode === "learning") return "LEARNING SPOTLIGHT";
+  if (event.mode === "broadcast") return "WORLD BROADCAST";
   return "SỰ KIỆN";
 }
 
@@ -125,6 +132,7 @@ export function PinoriaTVPrototype() {
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
   const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
+  const [broadcast, setBroadcast] = useState<WorldBroadcastPayload>(DEFAULT_WORLD_BROADCAST);
   const [replayLabel, setReplayLabel] = useState<string | null>(null);
   const sequenceTimer = useRef<number | null>(null);
   const ambientSubjectTimer = useRef<number | null>(null);
@@ -201,7 +209,26 @@ export function PinoriaTVPrototype() {
         return;
       }
 
-      if (!event.subject || !event.mode) {
+      if (!event.mode) {
+        void finishEvent(event.id);
+        return;
+      }
+
+      // World Broadcast is deliberately subjectless: it temporarily owns the
+      // shared surface without changing the current learner or interactive owner.
+      if (event.mode === "broadcast") {
+        setBroadcast(event.broadcast ?? DEFAULT_WORLD_BROADCAST);
+        setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
+        setAmbientCharacterVisible(true);
+        setMode("broadcast");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, WORLD_BROADCAST_MS);
+        return;
+      }
+
+      if (!event.subject) {
         void finishEvent(event.id);
         return;
       }
@@ -328,7 +355,7 @@ export function PinoriaTVPrototype() {
     }).catch(() => undefined);
   }, [mode, subject.id, subject.name]);
 
-  function selectReviewMode(next: Exclude<Mode, "departure-transition">) {
+  function selectReviewMode(next: Exclude<Mode, "departure-transition" | "news">) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
     if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
     sequenceTimer.current = null;
@@ -347,12 +374,13 @@ export function PinoriaTVPrototype() {
     setReplayLabel(null);
     if (next === "reward") setReward(DEFAULT_ENERGY_SEED_REWARD);
     if (next === "learning") setSpotlight(DEFAULT_LEARNING_SPOTLIGHT);
+    if (next === "broadcast") setBroadcast(DEFAULT_WORLD_BROADCAST);
     setAmbientCharacterVisible(next !== "reward" && next !== "learning");
     setMode(next);
   }
 
-  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "departure-transition" || mode === "departure";
-  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "departure-transition" || mode === "departure";
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "departure-transition" || mode === "departure";
 
   return (
     <main data-pinoria-tv-screen className={styles.screen}>
@@ -384,10 +412,10 @@ export function PinoriaTVPrototype() {
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
       {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
+      {mode === "broadcast" ? <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
       {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
       {mode === "departure" ? <Departure subject={subject} /> : null}
-      {mode === "news" ? <News subject={subject} /> : null}
 
       <button
         className={styles.reviewToggle}
@@ -419,8 +447,4 @@ function Ritual() {
 
 function Departure({ subject }: { subject: TVSubject }) {
   return <DepartureScene subject={subject} />;
-}
-
-function News({ subject }: { subject: TVSubject }) {
-  return <div className={styles.news}><div className={styles.newsBackdrop} /><div className={styles.newsCard}><span className={styles.kicker}>WORLD NEWS · DISCOVERY</span><div className={styles.newsHero}>✦</div><h1>Một hình thái mới vừa xuất hiện</h1><p>{subject.name} đã khám phá <strong>Water Drop II</strong>.</p><div className={styles.discoveryLine}><div><span>I</span><small>known</small></div><div className={styles.discovered}><span>II</span><small>discovered</small></div><div><span>III</span><small>rumored</small></div><div className={styles.hidden}><span>?</span><small>unknown</small></div></div><footer>Người ta nói Dây Chuyền Giọt Nước có bốn hình thái...</footer></div></div>;
 }
