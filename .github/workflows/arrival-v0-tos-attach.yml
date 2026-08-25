@@ -113,8 +113,8 @@ jobs:
           team_tag="$(jq -r --arg n "$TEAM_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
           [ -n "$team_tag" ] || fail "Cannot resolve Team OS Worker tag."
           builds="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${team_tag}/builds?per_page=100" "${auth[@]}")" || fail "Cannot inspect Team OS Cloudflare builds."
-          team_outcome="$(jq -r --arg sha "$APPROVED_TEAM_SHA" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_outcome // empty' <<<"$builds" | head -1)"
-          [ "$team_outcome" = "success" ] || fail "Approved Team runtime build is not successful (outcome: ${team_outcome:-none})."
+          team_success_count="$(jq -r --arg sha "$APPROVED_TEAM_SHA" '[.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha and .build_outcome == "success")] | length' <<<"$builds")"
+          [ "$team_success_count" -ge 1 ] || fail "No successful Cloudflare build exists for the approved Team runtime SHA."
 
           core_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect Core deployment."
           active_core="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_deployments" | head -1)"
