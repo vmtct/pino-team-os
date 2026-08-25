@@ -95,8 +95,6 @@ function parseWorldStateTransition(value: unknown): WorldStateTransitionPayload 
     || typeof input.detail !== "string"
     || !to
   ) return null;
-  // The caller's `from` value is presentation metadata only. Canonical `from`
-  // is always replaced with the current committed state below.
   return {
     id: input.id,
     title: input.title,
@@ -158,6 +156,14 @@ export async function POST(request: NextRequest) {
     if (!parsed) return NextResponse.json({ ok: false, error: "INVALID_WORLD_STATE_TRANSITION" }, { status: 400 });
 
     const before = getSurfaceSessionSnapshot(surfaceId).worldState;
+    if (before.id === parsed.to.id) {
+      return NextResponse.json({
+        ok: false,
+        error: "WORLD_STATE_ALREADY_CURRENT",
+        worldState: before,
+      }, { status: 409, headers: { "Cache-Control": "no-store" } });
+    }
+
     // Commit the actual world mutation first. TV projection may be delayed,
     // replayed, or fail entirely; Ambient must still converge on this truth.
     const committedSurface = setSurfaceWorldState(surfaceId, parsed.to);
