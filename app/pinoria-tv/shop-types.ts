@@ -1,6 +1,6 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
-export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "departure" | "news";
+export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "departure" | "news";
 export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type InventoryAchievementSlot =
@@ -29,6 +29,19 @@ export type EnergySeedReward = {
   amount?: number;
   imageUrl?: string;
   region?: string;
+};
+
+export type LearningSpotlightProgram = "artchitect" | "pianohouse" | "little-piner" | "toppi" | "house";
+export type LearningSpotlightKind = "skill" | "performance" | "project" | "achievement";
+export type LearningSpotlightPayload = {
+  id: string;
+  program: LearningSpotlightProgram;
+  kind: LearningSpotlightKind;
+  milestoneLabel: string;
+  detail: string;
+  previousLabel?: string;
+  nextLabel?: string;
+  evidenceLabel?: string;
 };
 
 export type ShopCatalogItem = {
