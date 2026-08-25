@@ -1,6 +1,6 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
-export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "departure" | "news";
+export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "departure" | "news";
 export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type InventoryAchievementSlot =
@@ -12,6 +12,24 @@ export type InventoryAchievementSlot =
   | "achievement-6"
   | "achievement-7"
   | "achievement-8";
+
+export type EnergySeedRewardKind =
+  | "wearable"
+  | "companion-item"
+  | "fruit"
+  | "pls"
+  | "utility"
+  | "mirror-ticket";
+
+export type EnergySeedReward = {
+  id: string;
+  kind: EnergySeedRewardKind;
+  label: string;
+  detail?: string;
+  amount?: number;
+  imageUrl?: string;
+  region?: string;
+};
 
 export type ShopCatalogItem = {
   assetId: string;
