@@ -5,6 +5,7 @@ import {
   releaseControllerLease,
   renewControllerLease,
 } from "../../../../lib/pinoria-prototype/controller-lease";
+import { energySeedSnapshot } from "../../../../lib/pinoria-prototype/energy-seed";
 import { listHousePresence } from "../../../../lib/pinoria-prototype/house-presence";
 import { resolvePinoriaStaff } from "../../../../lib/pinoria-prototype/staff-auth";
 import { getSurfaceSessionSnapshot } from "../../../../lib/pinoria-prototype/surface-session";
@@ -21,9 +22,11 @@ async function auth(username: string) {
 
 function snapshot(surfaceId: string, staffId: string, clientId: string) {
   const lease = controllerLeaseSnapshot(surfaceId);
+  const learners = listHousePresence(surfaceId);
   return {
     surface: getSurfaceSessionSnapshot(surfaceId),
-    learners: listHousePresence(surfaceId),
+    learners,
+    energySeeds: learners.map((learner) => energySeedSnapshot(surfaceId, learner.id)),
     lease: lease ? {
       staffId: lease.staffId,
       staffName: lease.staffName,
