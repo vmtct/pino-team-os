@@ -6,7 +6,7 @@ import {
   heartbeatSurface,
   setSurfaceSubject,
 } from "../../../../lib/pinoria-prototype/surface-session";
-import type { EnergySeedReward, PinoriaSurfaceBaseMode } from "../../../pinoria-tv/shop-types";
+import type { EnergySeedReward, LearningSpotlightPayload, PinoriaSurfaceBaseMode } from "../../../pinoria-tv/shop-types";
 
 type TVMode = PinoriaSurfaceBaseMode;
 type TVSubject = {
@@ -23,10 +23,11 @@ type RelayEvent = {
   id: number;
   surfaceId: string;
   kind: "play" | "control";
-  mode?: "arrival" | "departure" | "reward";
+  mode?: "arrival" | "departure" | "reward" | "learning";
   replay?: boolean;
   subject?: TVSubject;
   reward?: EnergySeedReward;
+  spotlight?: LearningSpotlightPayload;
   action?: "ambient";
   status: "queued" | "claimed" | "completed" | "expired";
   createdAt: number;
@@ -78,8 +79,8 @@ function activeEventFor(surfaceId: string) {
 
 function nextQueuedEventFor(surfaceId: string) {
   const queued = store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued");
-  // Presence owns the shared House moment. Energy Seed is deliberately lower
-  // priority, so an Arrival/Departure queued after it still plays first.
+  // Presence owns the shared House moment. Reward/Learning are meaningful but
+  // lower priority, so a later Arrival/Departure still plays first.
   return queued.find((event) => event.kind === "play" && (event.mode === "arrival" || event.mode === "departure"))
     ?? queued[0]
     ?? null;
@@ -90,7 +91,6 @@ function relaySurfaceSnapshot(surfaceId: string, now: number) {
   const active = activeEventFor(surfaceId);
   return {
     ...surface,
-    // Backward-compatible alias for older prototype clients.
     mode: surface.baseMode,
     queuedCount: store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued").length,
     activeEvent: active ? {
@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
       || body.mode === "choice"
       || body.mode === "ritual"
       || body.mode === "reward"
+      || body.mode === "learning"
       || body.mode === "departure"
       || body.mode === "news"
       ? body.mode
@@ -166,7 +167,9 @@ export async function POST(request: NextRequest) {
       ? "departure"
       : body.mode === "reward"
         ? "reward"
-        : "arrival";
+        : body.mode === "learning"
+          ? "learning"
+          : "arrival";
     const event: RelayEvent = {
       id: ++store.seq,
       surfaceId,
@@ -176,6 +179,9 @@ export async function POST(request: NextRequest) {
       subject: body.subject,
       reward: mode === "reward" && body.reward && typeof body.reward === "object"
         ? body.reward as EnergySeedReward
+        : undefined,
+      spotlight: mode === "learning" && body.spotlight && typeof body.spotlight === "object"
+        ? body.spotlight as LearningSpotlightPayload
         : undefined,
       status: "queued",
       createdAt: now,
@@ -228,7 +234,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
-  // Backward-compatible alias while older local clients are still open.
   if (body.op === "ack") {
     const id = Number(body.id);
     const event = store.events.find((item) => item.id === id && item.surfaceId === surfaceId);
