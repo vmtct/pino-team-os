@@ -103,6 +103,8 @@ function tvModeLabel(mode: string) {
     arrival: "Arrival",
     choice: "Quick Choice",
     ritual: "Ritual",
+    reward: "Hạt Năng Lượng",
+    learning: "Learning Spotlight",
     departure: "Departure",
     news: "World News",
     shop: "Shop",
