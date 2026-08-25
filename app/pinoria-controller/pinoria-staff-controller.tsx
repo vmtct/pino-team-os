@@ -106,6 +106,7 @@ function tvModeLabel(mode: string) {
     reward: "Hạt Năng Lượng",
     learning: "Learning Spotlight",
     broadcast: "World Broadcast",
+    "world-transition": "World State Transition",
     departure: "Departure",
     shop: "Shop",
     inventory: "Túi Hành Trang",
