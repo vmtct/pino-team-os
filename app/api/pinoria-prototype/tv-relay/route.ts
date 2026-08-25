@@ -99,8 +99,17 @@ function nextQueuedEventFor(surfaceId: string) {
 function relaySurfaceSnapshot(surfaceId: string, now: number) {
   const surface = getSurfaceSessionSnapshot(surfaceId, now);
   const active = activeEventFor(surfaceId);
+  const pendingWorldTransition = store.events.find((event) => (
+    event.surfaceId === surfaceId
+    && event.status === "queued"
+    && event.mode === "world-transition"
+    && event.worldTransition
+  ));
   return {
     ...surface,
+    // Domain truth is already committed, but the TV projection remains on the
+    // previous state until its transition event actually owns the surface.
+    worldState: pendingWorldTransition?.worldTransition?.from ?? surface.worldState,
     mode: surface.baseMode,
     queuedCount: store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued").length,
     activeEvent: active ? {
