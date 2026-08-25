@@ -1,13 +1,12 @@
-name: Cloudflare Status Bridge
+name: Cloudflare Build + Serving Truth
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: "Commit SHA to inspect (leave blank for the latest main commit)"
+        description: "Commit SHA to inspect (leave blank for latest main)"
         required: false
         type: string
 
@@ -17,7 +16,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: cloudflare-status-bridge-${{ github.ref }}
+  group: cloudflare-serving-truth-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,207 +31,156 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
+      - name: Checkout inspected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha || github.sha }}
+          fetch-depth: 2
+
       - name: Validate Cloudflare credentials
         shell: bash
         run: |
           set -euo pipefail
           for name in CF_ACCOUNT_ID CF_API_TOKEN; do
-            if [ -z "${!name:-}" ]; then
-              echo "Missing GitHub Actions secret: $name" >&2
-              exit 1
-            fi
+            [ -n "${!name:-}" ] || { echo "Missing GitHub Actions secret: $name" >&2; exit 1; }
           done
 
-      - name: Collect Cloudflare build status and logs
+      - name: Classify source delta
+        id: delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            files="$(git diff --name-only '${{ github.event.before }}' "$COMMIT_SHA" || true)"
+          else
+            files="$(git diff-tree --no-commit-id --name-only -r "$COMMIT_SHA" || true)"
+          fi
+          printf '%s\n' "$files"
+          runtime_files="$(printf '%s\n' "$files" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          if [ -n "$runtime_files" ]; then
+            echo "runtime_affecting=true" >> "$GITHUB_OUTPUT"
+            printf 'Runtime-affecting files:\n%s\n' "$runtime_files"
+          else
+            echo "runtime_affecting=false" >> "$GITHUB_OUTPUT"
+            echo "Control-plane/docs-only commit; serving runtime is not expected to match this SHA."
+          fi
+
+      - name: Collect Cloudflare build and serving truth
         id: cf
         shell: bash
         run: |
           set -euo pipefail
-
           api="https://api.cloudflare.com/client/v4"
-          auth=( -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" )
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
 
-          worker_json="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
-          worker_tag="$(jq -r --arg name "$WORKER_NAME" '.result[]? | select(.id == $name) | .tag // empty' <<<"$worker_json" | head -n 1)"
-
-          if [ -z "$worker_tag" ]; then
-            echo "Could not resolve Cloudflare Worker tag." >&2
-            jq '{success,errors,messages}' <<<"$worker_json" >&2
-            exit 1
-          fi
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
+          worker_tag="$(jq -r --arg n "$WORKER_NAME" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$worker_tag" ] || { echo "Cannot resolve Worker tag" >&2; exit 1; }
 
           builds_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/builds?per_page=100"
-          build_json=""
-          outcome=""
-
-          echo "Waiting for Cloudflare build for commit ${COMMIT_SHA}..."
+          build_json=""; build_outcome=""
+          echo "Waiting for Cloudflare build for ${COMMIT_SHA}..."
           for attempt in $(seq 1 18); do
-            builds_json="$(curl -fsS "$builds_url" "${auth[@]}")"
-            build_json="$(jq -c --arg sha "$COMMIT_SHA" '
-              .result[]?
-              | select((.build_trigger_metadata.commit_hash // "") == $sha)
-              | {
-                  build_uuid,
-                  build_outcome: (.build_outcome // ""),
-                  branch: (.build_trigger_metadata.branch // ""),
-                  created_on: (.created_on // ""),
-                  commit_message: (.build_trigger_metadata.commit_message // "")
-                }
-            ' <<<"$builds_json" | head -n 1)"
-
+            builds="$(curl -fsS "$builds_url" "${auth[@]}")"
+            build_json="$(jq -c --arg sha "$COMMIT_SHA" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | {build_uuid,build_outcome:(.build_outcome // ""),branch:(.build_trigger_metadata.branch // ""),created_on:(.created_on // ""),commit_message:(.build_trigger_metadata.commit_message // "")}' <<<"$builds" | head -1)"
             if [ -n "$build_json" ]; then
-              outcome="$(jq -r '.build_outcome' <<<"$build_json")"
-              echo "Cloudflare build found: $(jq -r '.build_uuid' <<<"$build_json") (outcome=${outcome:-running})"
-
-              case "$outcome" in
-                success|fail|skipped|cancelled|terminated)
-                  break
-                  ;;
-              esac
+              build_outcome="$(jq -r '.build_outcome' <<<"$build_json")"
+              echo "Build $(jq -r '.build_uuid' <<<"$build_json"): ${build_outcome:-running}"
+              case "$build_outcome" in success|fail|skipped|cancelled|terminated) break;; esac
             fi
-
-            if [ "$attempt" -lt 18 ]; then
-              sleep 20
-            fi
+            [ "$attempt" -eq 18 ] || sleep 20
           done
 
           if [ -z "$build_json" ]; then
-            outcome="not_found"
-            build_uuid=""
-            branch=""
-            created_on=""
-            commit_message=""
-            echo "No Cloudflare Workers Build found for commit ${COMMIT_SHA} after waiting." >&2
+            build_uuid=""; build_outcome="not_found"; branch=""; created_on=""; commit_message=""
           else
             build_uuid="$(jq -r '.build_uuid' <<<"$build_json")"
-            outcome="$(jq -r '.build_outcome' <<<"$build_json")"
             branch="$(jq -r '.branch' <<<"$build_json")"
             created_on="$(jq -r '.created_on' <<<"$build_json")"
             commit_message="$(jq -r '.commit_message' <<<"$build_json")"
+            [ -n "$build_outcome" ] || build_outcome="timeout"
+          fi
 
-            if [ -z "$outcome" ]; then
-              outcome="timeout"
-              echo "Cloudflare build still has no terminal outcome after waiting." >&2
+          active_version=""; active_commit=""; serving="false"
+          if [ "$build_outcome" = "success" ]; then
+            deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/deployments" "${auth[@]}")"
+            active_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+            if [ -n "$active_version" ]; then
+              provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${active_version}" "${auth[@]}")"
+              active_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
             fi
+            [ "$active_commit" = "$COMMIT_SHA" ] && serving="true"
+          fi
 
-            logs_url="${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${build_uuid}/logs"
-            : > cloudflare-build-response.json
-            : > cloudflare-build.log
-            cursor=""
-            first_page="true"
-
-            for page in $(seq 1 20); do
-              if [ -n "$cursor" ]; then
-                response="$(curl -fsS "${logs_url}?cursor=$(printf '%s' "$cursor" | jq -sRr @uri)" "${auth[@]}")"
-              else
-                response="$(curl -fsS "$logs_url" "${auth[@]}")"
-              fi
-
-              if [ "$first_page" = "true" ]; then
-                printf '%s' "$response" > cloudflare-build-response.json
-                first_page="false"
-              fi
-
-              jq -r '.result.lines[]? | if type == "array" then .[1] else . end' <<<"$response" >> cloudflare-build.log || true
-              cursor="$(jq -r '.result.cursor // empty' <<<"$response")"
-              [ -z "$cursor" ] && break
-            done
-
-            if [ ! -s cloudflare-build.log ]; then
-              jq -r '.errors[]?.message, .messages[]?' cloudflare-build-response.json > cloudflare-build.log || true
-            fi
+          runtime_affecting='${{ steps.delta.outputs.runtime_affecting }}'
+          status="$build_outcome"
+          if [ "$build_outcome" = "success" ] && [ "$runtime_affecting" = "true" ] && [ "$serving" != "true" ]; then
+            status="built_not_deployed"
+          elif [ "$build_outcome" = "success" ] && [ "$runtime_affecting" != "true" ]; then
+            status="control_plane_only"
           fi
 
           cat > cloudflare-status.md <<EOF
-          # PINO Team OS — Cloudflare Status
+          # PINO Team OS — Cloudflare Build + Serving Truth
 
           - Worker: \`${WORKER_NAME}\`
-          - Commit: \`${COMMIT_SHA}\`
+          - Inspected commit: \`${COMMIT_SHA}\`
+          - Runtime-affecting: **${runtime_affecting}**
           - Build UUID: \`${build_uuid:-n/a}\`
-          - Outcome: **${outcome}**
+          - Build outcome: **${build_outcome}**
+          - Active 100% version: \`${active_version:-n/a}\`
+          - Active source commit: \`${active_commit:-unknown}\`
+          - Exact inspected commit serving 100%: **${serving}**
+          - Status: **${status}**
           - Branch: \`${branch:-n/a}\`
           - Created: \`${created_on:-n/a}\`
           - Commit message: ${commit_message:-n/a}
 
-          This diagnostic was collected automatically by GitHub Actions.
+          Build success is not production authorization and is not proof of serving traffic.
           EOF
-
-          if [ ! -s cloudflare-build-response.json ]; then
-            printf '{"success":false,"errors":[{"message":"Cloudflare build not found for commit %s"}]}' "$COMMIT_SHA" > cloudflare-build-response.json
-            printf 'Cloudflare build not found for commit %s\n' "$COMMIT_SHA" > cloudflare-build.log
-          fi
-
           cat cloudflare-status.md
           {
             echo "build_uuid=${build_uuid}"
-            echo "outcome=${outcome}"
-            echo "branch=${branch}"
+            echo "build_outcome=${build_outcome}"
+            echo "active_version=${active_version}"
+            echo "active_commit=${active_commit}"
+            echo "serving=${serving}"
+            echo "status=${status}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upload Cloudflare diagnostics
+      - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cloudflare-status-${{ steps.cf.outputs.build_uuid || github.run_id }}
-          path: |
-            cloudflare-status.md
-            cloudflare-build.log
-            cloudflare-build-response.json
+          name: cloudflare-serving-${{ steps.cf.outputs.build_uuid || github.run_id }}
+          path: cloudflare-status.md
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Publish workflow summary
+      - name: Publish summary
         if: always()
         shell: bash
-        run: |
-          if [ -f cloudflare-status.md ]; then
-            cat cloudflare-status.md >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+        run: cat cloudflare-status.md >> "$GITHUB_STEP_SUMMARY" || true
 
-      - name: Trigger production smoke after successful Cloudflare build
-        if: steps.cf.outputs.outcome == 'success'
+      - name: Trigger production smoke only for exact serving runtime
+        if: steps.delta.outputs.runtime_affecting == 'true' && steps.cf.outputs.build_outcome == 'success' && steps.cf.outputs.serving == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          echo "Cloudflare build succeeded for ${COMMIT_SHA}; triggering production smoke."
-          gh workflow run e2e-production-smoke.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref main
+          echo "Exact runtime ${COMMIT_SHA} is active at 100%; triggering production smoke."
+          gh workflow run e2e-production-smoke.yml --repo "$GITHUB_REPOSITORY" --ref main
 
-      - name: Open GitHub incident when Cloudflare fails
-        if: steps.cf.outputs.outcome == 'fail' || steps.cf.outputs.outcome == 'not_found' || steps.cf.outputs.outcome == 'timeout' || steps.cf.outputs.outcome == 'cancelled' || steps.cf.outputs.outcome == 'terminated'
+      - name: Fail on Cloudflare build failure
+        if: steps.cf.outputs.build_outcome == 'fail' || steps.cf.outputs.build_outcome == 'not_found' || steps.cf.outputs.build_outcome == 'timeout' || steps.cf.outputs.build_outcome == 'cancelled' || steps.cf.outputs.build_outcome == 'terminated'
         shell: bash
         run: |
-          set -euo pipefail
+          echo "Cloudflare build outcome: ${{ steps.cf.outputs.build_outcome }}" >&2
+          exit 1
 
-          title="Cloudflare build failure: ${COMMIT_SHA:0:12}"
-          body_file="cloudflare-incident.md"
-          {
-            echo "## Cloudflare build failure"
-            echo
-            cat cloudflare-status.md
-            echo
-            echo "### Diagnostic log"
-            echo '```text'
-            tail -n 500 cloudflare-build.log || true
-            echo '```'
-            echo
-            echo "### GitHub run"
-            echo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo
-            echo "This issue was created automatically. Review the Cloudflare log and the referenced commit before making a fix."
-          } > "$body_file"
-
-          gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$title" \
-            --body-file "$body_file"
-
-      - name: Fail workflow when Cloudflare build failed
-        if: steps.cf.outputs.outcome == 'fail' || steps.cf.outputs.outcome == 'not_found' || steps.cf.outputs.outcome == 'timeout' || steps.cf.outputs.outcome == 'cancelled' || steps.cf.outputs.outcome == 'terminated'
+      - name: Fail runtime commit that is built but not serving
+        if: steps.delta.outputs.runtime_affecting == 'true' && steps.cf.outputs.build_outcome == 'success' && steps.cf.outputs.serving != 'true'
         shell: bash
         run: |
-          echo "Cloudflare outcome: ${{ steps.cf.outputs.outcome }}"
+          echo "Runtime commit built successfully but is NOT the active 100% Worker version." >&2
+          echo "A separately approved production promotion is required. Production smoke was intentionally not run." >&2
           exit 1
