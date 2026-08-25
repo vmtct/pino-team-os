@@ -3,7 +3,7 @@ import { isControllerLeaseOwner } from "../../../../lib/pinoria-prototype/contro
 import { activateEnergySeed, markEnergySeedQueued } from "../../../../lib/pinoria-prototype/energy-seed";
 import { isLearnerPresent, listHousePresence } from "../../../../lib/pinoria-prototype/house-presence";
 import { resolvePinoriaStaff } from "../../../../lib/pinoria-prototype/staff-auth";
-import type { LearningSpotlightPayload } from "../../../pinoria-tv/shop-types";
+import type { LearningSpotlightPayload, WorldBroadcastPayload } from "../../../pinoria-tv/shop-types";
 
 const DEFAULT_SURFACE_ID = "RECEPTION_TV";
 
@@ -31,6 +31,54 @@ function parseLearningSpotlight(value: unknown): LearningSpotlightPayload | null
   };
 }
 
+function parseWorldBroadcast(value: unknown): WorldBroadcastPayload | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Partial<WorldBroadcastPayload>;
+  const kinds = new Set(["world-update", "campaign", "discovery", "companion", "community"]);
+  const scopes = new Set(["pinoria", "house"]);
+  if (
+    typeof input.id !== "string"
+    || !kinds.has(String(input.kind))
+    || !scopes.has(String(input.scope))
+    || typeof input.eyebrow !== "string"
+    || typeof input.title !== "string"
+    || typeof input.detail !== "string"
+  ) return null;
+  return {
+    id: input.id,
+    kind: input.kind!,
+    scope: input.scope!,
+    eyebrow: input.eyebrow,
+    title: input.title,
+    detail: input.detail,
+    regionLabel: typeof input.regionLabel === "string" ? input.regionLabel : undefined,
+    chapterLabel: typeof input.chapterLabel === "string" ? input.chapterLabel : undefined,
+    footer: typeof input.footer === "string" ? input.footer : undefined,
+  };
+}
+
+async function projectRelay(request: NextRequest, body: Record<string, unknown>) {
+  const relayUrl = new URL("/api/pinoria-prototype/tv-relay", request.url);
+  try {
+    const relayResponse = await fetch(relayUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    const text = await relayResponse.text();
+    return new NextResponse(text, {
+      status: relayResponse.status,
+      headers: {
+        "Content-Type": relayResponse.headers.get("content-type") || "application/json",
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: "RELAY_UNAVAILABLE" }, { status: 503 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const username = typeof body.staffToken === "string" ? body.staffToken.trim() : "";
@@ -55,6 +103,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (body.op === "play-world-broadcast") {
+    const broadcast = parseWorldBroadcast(body.broadcast);
+    if (!broadcast) return NextResponse.json({ ok: false, error: "INVALID_WORLD_BROADCAST" }, { status: 400 });
+
+    // World Broadcast projects already-approved world truth. It is deliberately
+    // subjectless so it suspends, but never steals, learner ownership on TV.
+    return projectRelay(request, {
+      op: "enqueue-play",
+      surfaceId,
+      mode: "broadcast",
+      broadcast,
+    });
+  }
+
   if (body.op === "play-learning-spotlight") {
     const learnerId = typeof body.subject?.id === "string" ? body.subject.id : "";
     const learner = listHousePresence(surfaceId).find((item) => item.id === learnerId);
@@ -62,33 +124,13 @@ export async function POST(request: NextRequest) {
     const spotlight = parseLearningSpotlight(body.spotlight);
     if (!spotlight) return NextResponse.json({ ok: false, error: "INVALID_LEARNING_SPOTLIGHT" }, { status: 400 });
 
-    // Learning truth is assumed to be committed upstream. This command only
-    // projects that already-recorded milestone onto the shared House TV.
-    const relayUrl = new URL("/api/pinoria-prototype/tv-relay", request.url);
-    try {
-      const relayResponse = await fetch(relayUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          op: "enqueue-play",
-          surfaceId,
-          mode: "learning",
-          subject: learner,
-          spotlight,
-        }),
-        cache: "no-store",
-      });
-      const text = await relayResponse.text();
-      return new NextResponse(text, {
-        status: relayResponse.status,
-        headers: {
-          "Content-Type": relayResponse.headers.get("content-type") || "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
-    } catch {
-      return NextResponse.json({ ok: false, error: "RELAY_UNAVAILABLE" }, { status: 503 });
-    }
+    return projectRelay(request, {
+      op: "enqueue-play",
+      surfaceId,
+      mode: "learning",
+      subject: learner,
+      spotlight,
+    });
   }
 
   if (body.op === "activate-energy-seed") {
