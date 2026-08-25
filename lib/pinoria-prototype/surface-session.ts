@@ -2,8 +2,10 @@ import type {
   PinoriaStoreView,
   PinoriaSurfaceBaseMode,
   PinoriaSurfaceSessionSnapshot,
+  PinoriaWorldStateSnapshot,
   ShopSubject,
 } from "../../app/pinoria-tv/shop-types";
+import { DEFAULT_PINORIA_WORLD_STATE } from "../../app/pinoria-tv/shop-types";
 
 type MutableSurfaceInteractive = {
   view: PinoriaStoreView;
@@ -20,6 +22,7 @@ type MutableSurfaceSession = {
   subjectId: string | null;
   subjectName: string | null;
   interactive: MutableSurfaceInteractive | null;
+  worldState: PinoriaWorldStateSnapshot;
   updatedAt: number;
 };
 
@@ -36,6 +39,10 @@ const ONLINE_WINDOW_MS = 6500;
 const store = globalThis.__pinoriaPrototypeSurfaceSessions ?? { sessions: {} };
 globalThis.__pinoriaPrototypeSurfaceSessions = store;
 
+function defaultWorldState(now = Date.now()): PinoriaWorldStateSnapshot {
+  return { ...DEFAULT_PINORIA_WORLD_STATE, updatedAt: now };
+}
+
 function getMutableSurface(surfaceId: string): MutableSurfaceSession {
   if (!store.sessions[surfaceId]) {
     store.sessions[surfaceId] = {
@@ -45,10 +52,14 @@ function getMutableSurface(surfaceId: string): MutableSurfaceSession {
       subjectId: null,
       subjectName: null,
       interactive: null,
+      worldState: defaultWorldState(),
       updatedAt: Date.now(),
     };
   }
-  return store.sessions[surfaceId];
+  const surface = store.sessions[surfaceId];
+  // Migration for prototype sessions created before World State existed.
+  if (!surface.worldState) surface.worldState = defaultWorldState(surface.updatedAt);
+  return surface;
 }
 
 function writeBaseSubject(
@@ -92,6 +103,7 @@ export function getSurfaceSessionSnapshot(surfaceId: string, now = Date.now()): 
     subjectName: surface.subjectName,
     interactive: surface.interactive ? { ...surface.interactive } : null,
     interactiveSuspended,
+    worldState: { ...surface.worldState },
     updatedAt: surface.updatedAt,
   };
 }
@@ -118,6 +130,21 @@ export function setSurfaceSubject(
 ) {
   const surface = getMutableSurface(surfaceId);
   writeBaseSubject(surface, subject, now, true);
+  return getSurfaceSessionSnapshot(surfaceId, now);
+}
+
+export function setSurfaceWorldState(
+  surfaceId: string,
+  next: PinoriaWorldStateSnapshot,
+  now = Date.now(),
+) {
+  const surface = getMutableSurface(surfaceId);
+  surface.worldState = {
+    ...next,
+    revision: Math.max(surface.worldState.revision + 1, Number(next.revision) || 0),
+    updatedAt: now,
+  };
+  surface.updatedAt = now;
   return getSurfaceSessionSnapshot(surfaceId, now);
 }
 
