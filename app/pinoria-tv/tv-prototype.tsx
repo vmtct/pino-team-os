@@ -25,7 +25,7 @@ import {
 } from "./world-broadcast-scene";
 import styles from "./tv.module.css";
 
-type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure-transition" | "departure" | "news";
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure-transition" | "departure";
 type TVSubject = {
   id: string;
   name: string;
@@ -59,7 +59,7 @@ const ARRIVAL_MS = 7650;
 const DEPARTURE_MS = 9000;
 const AMBIENT_SUBJECT_HANDOFF_LEAD_MS = 180;
 
-const modes: { id: Exclude<Mode, "departure-transition" | "news">; label: string }[] = [
+const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
   { id: "ambient", label: "Ambient" },
   { id: "arrival", label: "Arrival" },
   { id: "choice", label: "Quick Choice" },
@@ -355,7 +355,7 @@ export function PinoriaTVPrototype() {
     }).catch(() => undefined);
   }, [mode, subject.id, subject.name]);
 
-  function selectReviewMode(next: Exclude<Mode, "departure-transition" | "news">) {
+  function selectReviewMode(next: Exclude<Mode, "departure-transition">) {
     if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
     if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
     sequenceTimer.current = null;
