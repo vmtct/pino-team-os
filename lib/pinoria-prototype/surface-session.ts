@@ -139,6 +139,9 @@ export function setSurfaceWorldState(
   now = Date.now(),
 ) {
   const surface = getMutableSurface(surfaceId);
+  // State identity is the idempotency key. Re-delivery may replay projection,
+  // but must never create another world revision for the same committed state.
+  if (surface.worldState.id === next.id) return getSurfaceSessionSnapshot(surfaceId, now);
   surface.worldState = {
     ...next,
     revision: Math.max(surface.worldState.revision + 1, Number(next.revision) || 0),
