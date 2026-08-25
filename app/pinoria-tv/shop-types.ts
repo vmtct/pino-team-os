@@ -1,6 +1,6 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
-export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "departure" | "news";
+export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure" | "news";
 export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type InventoryAchievementSlot =
@@ -42,6 +42,20 @@ export type LearningSpotlightPayload = {
   previousLabel?: string;
   nextLabel?: string;
   evidenceLabel?: string;
+};
+
+export type WorldBroadcastKind = "world-update" | "campaign" | "discovery" | "companion" | "community";
+export type WorldBroadcastScope = "pinoria" | "house";
+export type WorldBroadcastPayload = {
+  id: string;
+  kind: WorldBroadcastKind;
+  scope: WorldBroadcastScope;
+  eyebrow: string;
+  title: string;
+  detail: string;
+  regionLabel?: string;
+  chapterLabel?: string;
+  footer?: string;
 };
 
 export type ShopCatalogItem = {
