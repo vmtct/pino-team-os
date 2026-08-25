@@ -1,6 +1,6 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
-export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure";
+export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "world-transition" | "departure";
 export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type InventoryAchievementSlot =
@@ -56,6 +56,36 @@ export type WorldBroadcastPayload = {
   regionLabel?: string;
   chapterLabel?: string;
   footer?: string;
+};
+
+export type PinoriaWorldAmbientTheme = "neutral" | "verdant" | "tide" | "terravia" | "ember";
+export type PinoriaWorldStateSnapshot = {
+  id: string;
+  revision: number;
+  regionLabel: string;
+  chapterLabel: string;
+  seasonLabel: string;
+  ambientTheme: PinoriaWorldAmbientTheme;
+  updatedAt: number;
+};
+
+export type WorldStateTransitionPayload = {
+  id: string;
+  title: string;
+  detail: string;
+  from: PinoriaWorldStateSnapshot;
+  to: PinoriaWorldStateSnapshot;
+  footer?: string;
+};
+
+export const DEFAULT_PINORIA_WORLD_STATE: PinoriaWorldStateSnapshot = {
+  id: "terravia-chapter-i",
+  revision: 1,
+  regionLabel: "Terravia",
+  chapterLabel: "Chương I",
+  seasonLabel: "Mùa Thu",
+  ambientTheme: "terravia",
+  updatedAt: 0,
 };
 
 export type ShopCatalogItem = {
@@ -126,6 +156,7 @@ export type PinoriaSurfaceSessionSnapshot = {
   subjectName: string | null;
   interactive: PinoriaSurfaceInteractiveSnapshot | null;
   interactiveSuspended: boolean;
+  worldState: PinoriaWorldStateSnapshot;
   updatedAt: number;
 };
 
