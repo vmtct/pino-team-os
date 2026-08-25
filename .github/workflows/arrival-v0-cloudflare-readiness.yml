@@ -18,7 +18,8 @@ jobs:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CORE_WORKER: pino-core
       TEAM_WORKER: pino-team-os
-      CORE_SHA: e7f8c903ab39a402b5c5a44fe9160c554d7a837d
+      CORE_SOURCE_SHA: 38ca5ea934da8e0f5109463e3baf1f9608a0f39b
+      CORE_VERSION_ID: 73be57df-defe-43ea-8d40-cd0399b259d9
       ZONE_ID: 48b2809afabf3d65d30f80f346126213
       TOS_HOST: tos.pinohouse.art
       BO_HOST: bo.pinohouse.art
@@ -44,13 +45,16 @@ jobs:
           [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
 
           scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")" || fail "Cannot list Workers scripts."
-          core_tag="$(jq -r --arg n "$CORE_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
           team_tag="$(jq -r --arg n "$TEAM_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
-          [ -n "$core_tag" ] || fail "Cannot resolve pino-core Worker tag."
           [ -n "$team_tag" ] || fail "Cannot resolve pino-team-os Worker tag."
 
+          core_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Core deployment."
+          jq -e '[.result.deployments[0].versions[]? | select(.percentage == 100)] | length == 1' <<<"$core_deployments" >/dev/null || fail "Expected exactly one Core version at 100% traffic."
+          active_core_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_deployments" | head -1)"
+          [ "$active_core_version" = "$CORE_VERSION_ID" ] || fail "Active Core version ${active_core_version:-none} does not match approved Arrival version ${CORE_VERSION_ID}."
+
           wait_build() {
-            local tag="$1" sha="$2" label="$3" payload="" outcome=""
+            local tag="$1" sha="$2" payload="" outcome=""
             for _ in $(seq 1 24); do
               payload="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${tag}/builds?per_page=100" "${auth[@]}")" || return 2
               outcome="$(jq -r --arg sha "$sha" '.result[]? | select((.build_trigger_metadata.commit_hash // "") == $sha) | .build_outcome // empty' <<<"$payload" | head -1)"
@@ -64,8 +68,7 @@ jobs:
             return 1
           }
 
-          core_outcome="$(wait_build "$core_tag" "$CORE_SHA" core)" || fail "Core Cloudflare build for ${CORE_SHA} is not successful (outcome: ${core_outcome:-unknown})."
-          team_outcome="$(wait_build "$team_tag" "$team_sha" team)" || fail "Team OS Cloudflare build for ${team_sha} is not successful (outcome: ${team_outcome:-unknown})."
+          team_outcome="$(wait_build "$team_tag" "$team_sha")" || fail "Team OS Cloudflare build for ${team_sha} is not successful (outcome: ${team_outcome:-unknown})."
 
           domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot list Workers custom domains."
           jq -e --arg h "$TOS_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null || fail "TOS custom domain is already attached before the governed attach step."
@@ -79,4 +82,4 @@ jobs:
           jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "pino-core has a public zone route."
           jq -e --arg t "$TOS_HOST" --arg b "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($t) or contains($b))] | length == 0' <<<"$routes" >/dev/null || fail "TOS or BO zone route exists before governed attach."
 
-          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_READINESS: **PASS**\n\n- Core build: ${CORE_SHA} = success\n- Team OS build: ${team_sha} = success\n- TOS domain: detached\n- BO domain: detached\n- pino-core custom domains/routes: none\n- pino-core workers.dev + preview URLs: disabled\n\nRead-only verification only; no Cloudflare mutation was performed."
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_READINESS: **PASS**\n\n- Core source: ${CORE_SOURCE_SHA}\n- Core Worker version: ${CORE_VERSION_ID} = active 100%\n- Team OS build: ${team_sha} = success\n- TOS domain: detached\n- BO domain: detached\n- pino-core custom domains/routes: none\n- pino-core workers.dev + preview URLs: disabled\n\nRead-only verification only; no Cloudflare mutation was performed."
