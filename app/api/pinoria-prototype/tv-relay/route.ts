@@ -153,7 +153,6 @@ export async function POST(request: NextRequest) {
       || body.mode === "learning"
       || body.mode === "broadcast"
       || body.mode === "departure"
-      || body.mode === "news"
       ? body.mode
       : "ambient";
     heartbeatSurface({
