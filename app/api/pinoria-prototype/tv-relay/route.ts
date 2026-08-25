@@ -6,7 +6,13 @@ import {
   heartbeatSurface,
   setSurfaceSubject,
 } from "../../../../lib/pinoria-prototype/surface-session";
-import type { EnergySeedReward, LearningSpotlightPayload, PinoriaSurfaceBaseMode, WorldBroadcastPayload } from "../../../pinoria-tv/shop-types";
+import type {
+  EnergySeedReward,
+  LearningSpotlightPayload,
+  PinoriaSurfaceBaseMode,
+  WorldBroadcastPayload,
+  WorldStateTransitionPayload,
+} from "../../../pinoria-tv/shop-types";
 
 type TVMode = PinoriaSurfaceBaseMode;
 type TVSubject = {
@@ -23,12 +29,13 @@ type RelayEvent = {
   id: number;
   surfaceId: string;
   kind: "play" | "control";
-  mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast";
+  mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast" | "world-transition";
   replay?: boolean;
   subject?: TVSubject;
   reward?: EnergySeedReward;
   spotlight?: LearningSpotlightPayload;
   broadcast?: WorldBroadcastPayload;
+  worldTransition?: WorldStateTransitionPayload;
   action?: "ambient";
   status: "queued" | "claimed" | "completed" | "expired";
   createdAt: number;
@@ -80,9 +87,10 @@ function activeEventFor(surfaceId: string) {
 
 function nextQueuedEventFor(surfaceId: string) {
   const queued = store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued");
-  // Shared-surface priority: Presence always wins. World Broadcast is the next
-  // House-wide takeover. Learner reward/learning projections follow after it.
+  // Shared-surface priority: Presence owns learner handoff; an actual world-state
+  // mutation comes next; broadcast announces world truth; learner reveals follow.
   return queued.find((event) => event.kind === "play" && (event.mode === "arrival" || event.mode === "departure"))
+    ?? queued.find((event) => event.kind === "play" && event.mode === "world-transition")
     ?? queued.find((event) => event.kind === "play" && event.mode === "broadcast")
     ?? queued[0]
     ?? null;
@@ -152,6 +160,7 @@ export async function POST(request: NextRequest) {
       || body.mode === "reward"
       || body.mode === "learning"
       || body.mode === "broadcast"
+      || body.mode === "world-transition"
       || body.mode === "departure"
       ? body.mode
       : "ambient";
@@ -173,14 +182,16 @@ export async function POST(request: NextRequest) {
           ? "learning"
           : body.mode === "broadcast"
             ? "broadcast"
-            : "arrival";
+            : body.mode === "world-transition"
+              ? "world-transition"
+              : "arrival";
     const event: RelayEvent = {
       id: ++store.seq,
       surfaceId,
       kind: "play",
       mode,
       replay: !!body.replay,
-      subject: mode === "broadcast" ? undefined : body.subject,
+      subject: body.subject,
       reward: mode === "reward" && body.reward && typeof body.reward === "object"
         ? body.reward as EnergySeedReward
         : undefined,
@@ -189,6 +200,9 @@ export async function POST(request: NextRequest) {
         : undefined,
       broadcast: mode === "broadcast" && body.broadcast && typeof body.broadcast === "object"
         ? body.broadcast as WorldBroadcastPayload
+        : undefined,
+      worldTransition: mode === "world-transition" && body.worldTransition && typeof body.worldTransition === "object"
+        ? body.worldTransition as WorldStateTransitionPayload
         : undefined,
       status: "queued",
       createdAt: now,
@@ -224,8 +238,6 @@ export async function POST(request: NextRequest) {
     }
     event.status = "claimed";
     event.claimedAt = now;
-    // Broadcast is world-owned, not learner-owned, so it must never replace
-    // the current subject or invalidate a learner's suspended Shop/Inventory.
     if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
     applyPresenceOnClaim(event, now);
     return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
