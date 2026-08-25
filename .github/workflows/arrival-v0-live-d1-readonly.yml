@@ -1,0 +1,81 @@
+name: Arrival v0 Live D1 Readonly
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    if: github.event.issue.title == '[GPT] Arrival v0 live D1 read' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      D1_DATABASE_ID: 2f26900d-ffa0-40aa-9d4e-01b72eb4bd71
+      LOCAL_DATE: '2026-08-25'
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Query production Arrival candidates read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_LIVE_D1_READ: **FAIL_SAFE**\n\n$1\n\nNo D1 mutation was attempted."
+            exit 1
+          }
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "Missing CF_ACCOUNT_ID."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
+
+          read -r -d '' SQL <<'SQL' || true
+          WITH roster_sources AS (
+            SELECT s.id session_id,s.center_id,s.scheduled_starts_local,sub.student_profile_id
+            FROM sessions s JOIN enrollments e ON e.running_class_id=s.running_class_id JOIN subscriptions sub ON sub.id=e.subscription_id
+            WHERE s.local_date='2026-08-25' AND s.status<>'CANCELLED' AND sub.lifecycle='ACTIVE'
+              AND e.effective_from_local_date<=s.local_date AND (e.effective_until_exclusive_local_date IS NULL OR s.local_date<e.effective_until_exclusive_local_date)
+              AND NOT EXISTS(SELECT 1 FROM subscription_pauses p WHERE p.subscription_id=e.subscription_id AND p.cancelled_at IS NULL AND p.starts_on_local_date<=s.local_date AND (p.ends_before_local_date IS NULL OR s.local_date<p.ends_before_local_date))
+              AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.student_profile_id=sub.student_profile_id AND b.booking_basis='OCCURRENCE_SWAP' AND b.status='CONFIRMED' AND b.source_session_id=s.id)
+            UNION ALL
+            SELECT s.id,s.center_id,s.scheduled_starts_local,b.student_profile_id
+            FROM sessions s JOIN bookings b ON b.session_id=s.id
+            WHERE s.local_date='2026-08-25' AND s.status<>'CANCELLED' AND b.status='CONFIRMED'
+            UNION ALL
+            SELECT s.id,s.center_id,s.scheduled_starts_local,g.student_profile_id
+            FROM sessions s JOIN renewal_grace_authorizations g ON g.path_program_id=s.path_program_id AND g.revoked_at IS NULL
+            JOIN subscriptions sub ON sub.id=g.predecessor_subscription_id JOIN enrollments e ON e.subscription_id=sub.id AND e.running_class_id=s.running_class_id
+            WHERE s.local_date='2026-08-25' AND s.status<>'CANCELLED' AND g.valid_from_local_date<=s.local_date AND s.local_date<g.valid_until_exclusive_local_date
+              AND e.effective_from_local_date<=s.local_date AND (e.effective_until_exclusive_local_date IS NULL OR s.local_date<e.effective_until_exclusive_local_date)
+          ), roster AS (
+            SELECT student_profile_id,center_id,min(scheduled_starts_local) first_start,group_concat(DISTINCT substr(scheduled_starts_local,12,5)) session_times
+            FROM roster_sources GROUP BY student_profile_id,center_id
+          )
+          SELECT sp.display_name,sp.id student_profile_id,r.center_id,r.first_start,r.session_times,v.id open_visit_id,v.checked_in_at
+          FROM roster r JOIN student_profiles sp ON sp.id=r.student_profile_id AND sp.status='ACTIVE'
+          LEFT JOIN student_visits v ON v.student_profile_id=r.student_profile_id AND v.center_id=r.center_id AND v.checked_out_at IS NULL
+          ORDER BY (v.id IS NOT NULL),r.first_start,sp.display_name LIMIT 8;
+          SQL
+
+          if grep -Eiq '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|PRAGMA|VACUUM|ATTACH|DETACH)\b' <<<"$SQL"; then
+            fail "SELECT-only SQL guard rejected the probe."
+          fi
+
+          payload="$(jq -nc --arg sql "$SQL" '{sql:$sql}')"
+          response="$(curl -sS -w '\n%{http_code}' -X POST "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${D1_DATABASE_ID}/query" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" -H 'Content-Type: application/json' -d "$payload")"
+          code="${response##*$'\n'}"
+          body="${response%$'\n'*}"
+          [ "$code" = "200" ] || fail "Existing Team Cloudflare credential cannot perform the D1 read probe (HTTP ${code})."
+          jq -e '.success==true and (.result|type=="array")' <<<"$body" >/dev/null || fail "Cloudflare D1 query did not return success."
+          rows="$(jq -c '[.result[].results[]?]' <<<"$body")"
+          count="$(jq 'length' <<<"$rows")"
+          [ "$count" -gt 0 ] || fail "No expected learner candidates found for ${LOCAL_DATE}."
+
+          summary="$(jq -r '.[:8] | map("- **" + .display_name + "** — student `" + .student_profile_id + "` — center `" + .center_id + "` — ca " + (.session_times // "?") + (if .open_visit_id then " — **đang checked-in** (`" + .open_visit_id + "`)" else " — chưa check-in" end)) | join("\n")' <<<"$rows")"
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "ARRIVAL_V0_LIVE_D1_READ: **PASS**\n\nNgày ${LOCAL_DATE}; D1 SELECT-only.\n\n${summary}\n\nKhông đọc guardian/contact data; không mutation D1."
