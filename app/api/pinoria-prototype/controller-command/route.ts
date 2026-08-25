@@ -3,8 +3,33 @@ import { isControllerLeaseOwner } from "../../../../lib/pinoria-prototype/contro
 import { activateEnergySeed, markEnergySeedQueued } from "../../../../lib/pinoria-prototype/energy-seed";
 import { isLearnerPresent, listHousePresence } from "../../../../lib/pinoria-prototype/house-presence";
 import { resolvePinoriaStaff } from "../../../../lib/pinoria-prototype/staff-auth";
+import type { LearningSpotlightPayload } from "../../../pinoria-tv/shop-types";
 
 const DEFAULT_SURFACE_ID = "RECEPTION_TV";
+
+function parseLearningSpotlight(value: unknown): LearningSpotlightPayload | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Partial<LearningSpotlightPayload>;
+  const programs = new Set(["artchitect", "pianohouse", "little-piner", "toppi", "house"]);
+  const kinds = new Set(["skill", "performance", "project", "achievement"]);
+  if (
+    typeof input.id !== "string"
+    || !programs.has(String(input.program))
+    || !kinds.has(String(input.kind))
+    || typeof input.milestoneLabel !== "string"
+    || typeof input.detail !== "string"
+  ) return null;
+  return {
+    id: input.id,
+    program: input.program!,
+    kind: input.kind!,
+    milestoneLabel: input.milestoneLabel,
+    detail: input.detail,
+    previousLabel: typeof input.previousLabel === "string" ? input.previousLabel : undefined,
+    nextLabel: typeof input.nextLabel === "string" ? input.nextLabel : undefined,
+    evidenceLabel: typeof input.evidenceLabel === "string" ? input.evidenceLabel : undefined,
+  };
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -23,10 +48,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "CONTROLLER_LEASE_REQUIRED" }, { status: 409 });
   }
 
-  if ((body.op === "open" || body.op === "set-subject" || body.op === "activate-energy-seed") && body.subject?.id) {
+  if ((body.op === "open" || body.op === "set-subject" || body.op === "activate-energy-seed" || body.op === "play-learning-spotlight") && body.subject?.id) {
     const learnerId = String(body.subject.id);
     if (!isLearnerPresent(surfaceId, learnerId)) {
       return NextResponse.json({ ok: false, error: "LEARNER_NOT_CHECKED_IN" }, { status: 409 });
+    }
+  }
+
+  if (body.op === "play-learning-spotlight") {
+    const learnerId = typeof body.subject?.id === "string" ? body.subject.id : "";
+    const learner = listHousePresence(surfaceId).find((item) => item.id === learnerId);
+    if (!learner) return NextResponse.json({ ok: false, error: "LEARNER_NOT_CHECKED_IN" }, { status: 409 });
+    const spotlight = parseLearningSpotlight(body.spotlight);
+    if (!spotlight) return NextResponse.json({ ok: false, error: "INVALID_LEARNING_SPOTLIGHT" }, { status: 400 });
+
+    // Learning truth is assumed to be committed upstream. This command only
+    // projects that already-recorded milestone onto the shared House TV.
+    const relayUrl = new URL("/api/pinoria-prototype/tv-relay", request.url);
+    try {
+      const relayResponse = await fetch(relayUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          op: "enqueue-play",
+          surfaceId,
+          mode: "learning",
+          subject: learner,
+          spotlight,
+        }),
+        cache: "no-store",
+      });
+      const text = await relayResponse.text();
+      return new NextResponse(text, {
+        status: relayResponse.status,
+        headers: {
+          "Content-Type": relayResponse.headers.get("content-type") || "application/json",
+          "Cache-Control": "no-store",
+        },
+      });
+    } catch {
+      return NextResponse.json({ ok: false, error: "RELAY_UNAVAILABLE" }, { status: 503 });
     }
   }
 
@@ -35,8 +96,6 @@ export async function POST(request: NextRequest) {
     const learner = listHousePresence(surfaceId).find((item) => item.id === learnerId);
     if (!learner) return NextResponse.json({ ok: false, error: "LEARNER_NOT_CHECKED_IN" }, { status: 409 });
 
-    // Prototype Core semantics: resolve + commit the reward before TV delivery.
-    // A failed TV request must never reroll or grant a second reward.
     const activated = activateEnergySeed(surfaceId, learner, staff.id);
     if (!activated.ok) {
       return NextResponse.json({
