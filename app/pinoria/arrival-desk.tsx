@@ -1,7 +1,8 @@
 "use client";
 
-import {useCallback,useEffect,useMemo,useState}from"react";
-import {TosShell}from"@/app/components/tos-shell/TosShell";
+import{useCallback,useEffect,useMemo,useState}from"react";
+import{TosShell}from"@/app/components/tos-shell/TosShell";
+import{workforceApi}from"@/lib/workforce-api";
 import styles from"./pinoria.module.css";
 
 type Visit={id:string;checkedInAt:string;version:number};
@@ -18,13 +19,32 @@ function todayInVietnam(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia
 export function ArrivalDesk(){
   const[centerId,setCenterId]=useState("");
   const[draftCenterId,setDraftCenterId]=useState("");
+  const[centerResolving,setCenterResolving]=useState(true);
   const[date,setDate]=useState(todayInVietnam);
   const[data,setData]=useState<ArrivalProjection|null>(null);
   const[loading,setLoading]=useState(false);
   const[actionId,setActionId]=useState<string|null>(null);
   const[error,setError]=useState<string|null>(null);
 
-  useEffect(()=>{const query=new URLSearchParams(window.location.search).get("centerId")?.trim()??"";const saved=window.localStorage.getItem(CENTER_STORAGE)?.trim()??"";const value=query||saved;if(value){setCenterId(value);setDraftCenterId(value);if(query)window.localStorage.setItem(CENTER_STORAGE,query);}},[]);
+  useEffect(()=>{
+    let cancelled=false;
+    async function resolveCenter(){
+      const query=new URLSearchParams(window.location.search).get("centerId")?.trim()??"";
+      const saved=window.localStorage.getItem(CENTER_STORAGE)?.trim()??"";
+      const explicit=query||saved;
+      if(explicit){setCenterId(explicit);setDraftCenterId(explicit);if(query)window.localStorage.setItem(CENTER_STORAGE,query);setCenterResolving(false);return;}
+      try{
+        const context=await workforceApi.context();
+        if(cancelled)return;
+        const preferred=context.data.centers.find(center=>center.key==="can-tho")??context.data.centers[0];
+        if(preferred){window.localStorage.setItem(CENTER_STORAGE,preferred.id);setCenterId(preferred.id);setDraftCenterId(preferred.id);}
+        else setError("Tài khoản hiện chưa có Center khả dụng.");
+      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:"Không xác định được Center từ Core.");}
+      finally{if(!cancelled)setCenterResolving(false);}
+    }
+    void resolveCenter();
+    return()=>{cancelled=true;};
+  },[]);
 
   const load=useCallback(async()=>{
     if(!centerId)return;
@@ -62,10 +82,10 @@ export function ArrivalDesk(){
 
   return <TosShell title="Arrival Desk" subtitle="Check-in · Check-out học viên tại PINO House" theme="pinoria" footerItems={footer} activeFooterId="pinoria">
     <div className={styles.page}>
-      {!centerId?<section className={styles.setup}>
+      {centerResolving?<section className={styles.setup}><span className={styles.eyebrow}>LIVE HOUSE</span><h2>Đang kết nối Center…</h2><p>Lấy Center được phép từ Core.</p></section>:!centerId?<section className={styles.setup}>
         <span className={styles.eyebrow}>ONE-TIME SETUP</span>
         <h2>Kết nối quầy lễ tân</h2>
-        <p>Dán Center ID canonical một lần trên thiết bị này. PINO sẽ ghi nhớ cho các lần sau.</p>
+        <p>Không tìm thấy Center tự động. Dán Center ID canonical để fallback trên thiết bị này.</p>
         <input value={draftCenterId} onChange={event=>setDraftCenterId(event.target.value)} placeholder="Center ID" autoCapitalize="off" autoCorrect="off"/>
         <button onClick={saveCenter} disabled={!draftCenterId.trim()}>Kết nối</button>
       </section>:<>
@@ -95,7 +115,7 @@ export function ArrivalDesk(){
           })}
         </section>
 
-        <button className={styles.changeCenter} onClick={()=>{setCenterId("");setData(null);}}>Đổi Center</button>
+        <button className={styles.changeCenter} onClick={()=>{window.localStorage.removeItem(CENTER_STORAGE);setCenterId("");setDraftCenterId("");setData(null);}}>Đổi Center</button>
       </>}
     </div>
   </TosShell>;
