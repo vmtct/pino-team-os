@@ -105,8 +105,8 @@ function tvModeLabel(mode: string) {
     ritual: "Ritual",
     reward: "Hạt Năng Lượng",
     learning: "Learning Spotlight",
+    broadcast: "World Broadcast",
     departure: "Departure",
-    news: "World News",
     shop: "Shop",
     inventory: "Túi Hành Trang",
   } as Record<string, string>)[mode] ?? mode;
