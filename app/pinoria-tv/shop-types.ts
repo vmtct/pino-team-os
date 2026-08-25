@@ -1,6 +1,6 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
-export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure" | "news";
+export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "departure";
 export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type InventoryAchievementSlot =
