@@ -1,0 +1,185 @@
+name: TOS Live Staff Readiness
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: tos-live-staff-readiness
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    if: github.event.issue.title == '[GPT] TOS live staff readiness' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      D1_DATABASE_ID: 2f26900d-ffa0-40aa-9d4e-01b72eb4bd71
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify live perimeter and serving provenance
+        id: perimeter
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN:-}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TOS_LIVE_STAFF_READINESS: **FAIL_SAFE**\n\n$1\n\nRead-only probe; no Cloudflare or D1 mutation was attempted."
+            exit 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "Missing CF_ACCOUNT_ID."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "Missing CF_API_TOKEN."
+
+          main_sha="$(git rev-parse HEAD)"
+
+          deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" \
+            || fail "Cannot inspect Team OS deployment."
+          team_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+          [ -n "$team_version" ] || fail "Cannot resolve one active 100% Team OS version."
+
+          provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${team_version}" "${auth[@]}")" \
+            || fail "Cannot inspect active Team OS build provenance."
+          team_source="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+          [ -n "$team_source" ] || fail "Cannot resolve source commit for the active Team OS version."
+          git cat-file -e "${team_source}^{commit}" 2>/dev/null || fail "Active Team OS source commit is not present in repository history."
+          git merge-base --is-ancestor "$team_source" "$main_sha" || fail "Active Team OS source is not an ancestor of current main."
+
+          unexpected="$(git diff --name-only "$team_source".."$main_sha" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          [ -z "$unexpected" ] || fail "Runtime-affecting source exists on main after the serving Team version; promote a governed Team runtime before staff rollout."
+
+          core_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" \
+            || fail "Cannot inspect Core deployment."
+          core_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_deployments" | head -1)"
+          [ -n "$core_version" ] || fail "Cannot resolve one active 100% Core version."
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" \
+            || fail "Cannot inspect Worker custom domains."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null \
+            || fail "TOS is not attached exactly once to pino-team-os."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length == 0' <<<"$domains" >/dev/null \
+            || fail "BO is attached before its governed rollout."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null \
+            || fail "Core unexpectedly owns a custom domain."
+
+          subdomain="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/subdomain" "${auth[@]}")" \
+            || fail "Cannot inspect Core workers.dev state."
+          jq -e '.result.enabled == false and .result.previews_enabled == false' <<<"$subdomain" >/dev/null \
+            || fail "Core workers.dev or preview URLs are enabled."
+
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" \
+            || fail "Cannot inspect zone Worker routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null \
+            || fail "Core has a public zone route."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($h))] | length == 0' <<<"$routes" >/dev/null \
+            || fail "BO has a zone route before governed rollout."
+
+          for path in /pinoria /pinoria-tv; do
+            headers="$RUNNER_TEMP/headers.txt"
+            : > "$headers"
+            code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${TOS_HOST}${path}" || true)"
+            location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            challenge="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            case "$code" in
+              302|303|307) [[ "$location" =~ cloudflareaccess\.com ]] || fail "${path} redirects outside Cloudflare Access." ;;
+              401|403) [[ "$challenge" == *Cloudflare-Access* || -n "$challenge" ]] || fail "${path} denied without a recognizable Access challenge." ;;
+              200) fail "${path} is publicly reachable without Cloudflare Access." ;;
+              *) fail "${path} perimeter smoke returned unexpected HTTP ${code}." ;;
+            esac
+          done
+
+          {
+            echo "team_main_sha=$main_sha"
+            echo "team_source_sha=$team_source"
+            echo "team_version=$team_version"
+            echo "core_version=$core_version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Query aggregate Workforce readiness from production D1
+        id: workforce
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TOS_LIVE_STAFF_READINESS: **FAIL_SAFE**\n\n$1\n\nAggregate SELECT-only D1 probe; no staff PII was returned and no mutation was attempted."
+            exit 1
+          }
+
+          read -r -d '' SQL <<'SQL' || true
+          SELECT
+            (SELECT COUNT(*) FROM workforce_staff_members WHERE status='active') AS active_staff_members,
+            (SELECT COUNT(*) FROM access_users WHERE status='active') AS active_access_users,
+            (SELECT COUNT(*) FROM access_users WHERE status='active' AND staff_member_id IS NOT NULL) AS active_linked_access_users,
+            (SELECT COUNT(DISTINCT e.user_id)
+               FROM access_user_external_identities e
+               JOIN access_users u ON u.id=e.user_id
+              WHERE u.status='active' AND e.provider='cloudflare_access') AS active_cf_identity_users,
+            (SELECT COUNT(DISTINCT u.id)
+               FROM access_users u
+               JOIN workforce_staff_members s ON s.id=u.staff_member_id AND s.status='active'
+               JOIN access_user_external_identities e ON e.user_id=u.id AND e.provider='cloudflare_access'
+              WHERE u.status='active') AS staff_login_ready,
+            (SELECT COUNT(DISTINCT a.user_id)
+               FROM access_role_assignments a
+               JOIN access_users u ON u.id=a.user_id AND u.status='active'
+              WHERE a.status='active'
+                AND unixepoch(a.effective_from) <= unixepoch('now')
+                AND (a.effective_until IS NULL OR unixepoch('now') < unixepoch(a.effective_until))) AS users_with_effective_role_assignment;
+          SQL
+
+          grep -Eiq '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|PRAGMA|VACUUM|ATTACH|DETACH)\b' <<<"$SQL" \
+            && fail "SELECT-only SQL guard rejected the Workforce probe."
+
+          payload="$(jq -nc --arg sql "$SQL" '{sql:$sql}')"
+          response="$(curl -sS -w '\n%{http_code}' -X POST "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${D1_DATABASE_ID}/query" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" -H 'Content-Type: application/json' -d "$payload")"
+          code="${response##*$'\n'}"
+          body="${response%$'\n'*}"
+          [ "$code" = "200" ] || fail "Team read credential cannot perform the production D1 aggregate probe (HTTP ${code})."
+          jq -e '.success==true and (.result|type=="array")' <<<"$body" >/dev/null || fail "Cloudflare D1 query did not return success."
+          row="$(jq -c '.result[0].results[0] // empty' <<<"$body")"
+          [ -n "$row" ] || fail "Workforce aggregate query returned no row."
+
+          staff_ready="$(jq -r '.staff_login_ready // 0' <<<"$row")"
+          roles_ready="$(jq -r '.users_with_effective_role_assignment // 0' <<<"$row")"
+          [ "$staff_ready" -gt 0 ] || fail "No ACTIVE StaffMember is currently linked to an ACTIVE Access User with a Cloudflare Access identity."
+          [ "$roles_ready" -gt 0 ] || fail "No ACTIVE Access User currently has an effective role assignment."
+
+          echo "aggregate=$row" >> "$GITHUB_OUTPUT"
+
+      - name: Report staff rollout readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          row='${{ steps.workforce.outputs.aggregate }}'
+          active_staff="$(jq -r '.active_staff_members' <<<"$row")"
+          active_users="$(jq -r '.active_access_users' <<<"$row")"
+          linked_users="$(jq -r '.active_linked_access_users' <<<"$row")"
+          identity_users="$(jq -r '.active_cf_identity_users' <<<"$row")"
+          staff_ready="$(jq -r '.staff_login_ready' <<<"$row")"
+          role_users="$(jq -r '.users_with_effective_role_assignment' <<<"$row")"
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_LIVE_STAFF_READINESS: **PASS**\n\n- TOS: attached and Cloudflare Access protected\n- Team serving source: ${{ steps.perimeter.outputs.team_source_sha }}\n- Team serving version: ${{ steps.perimeter.outputs.team_version }}\n- Team current main: ${{ steps.perimeter.outputs.team_main_sha }} (runtime-safe control-plane drift only)\n- Core active version: ${{ steps.perimeter.outputs.core_version }}\n- Active StaffMembers: ${active_staff}\n- Active Access Users: ${active_users}\n- Active linked Access Users: ${linked_users}\n- Active Cloudflare identity users: ${identity_users}\n- Staff login-ready identities: ${staff_ready}\n- Users with effective role assignment: ${role_users}\n- BO: detached\n\nAggregate SELECT-only readiness. No staff PII, D1 mutation, Worker deploy, route/domain, or Access-policy mutation was performed."
