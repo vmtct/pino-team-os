@@ -23,17 +23,23 @@ test("BO facade uses only BO auth and PINO_BO_CORE", async () => {
   assert.doesNotMatch(sources, /FounderControlPlane|PINO_WORKFORCE_CORE|targetStaffMemberId|userId=|staffMemberId=/);
 });
 
-test("BO read plane composes only BO APIs and the BO shell", async () => {
-  const sources = await Promise.all([
+test("BO read plane remains read-only while the API exposes only the bounded onboarding write", async () => {
+  const readSources = await Promise.all([
     readFile("app/bo/layout.tsx", "utf8"),
     readFile("app/bo/page.tsx", "utf8"),
     readFile("app/bo/BoOperationalView.tsx", "utf8"),
-    readFile("lib/bo-api.ts", "utf8"),
     readFile("lib/bo-read-handler.ts", "utf8"),
   ]).then((items) => items.join("\n"));
+  const apiSource = await readFile("lib/bo-api.ts", "utf8");
+  const sources = `${readSources}\n${apiSource}`;
+
   assert.match(sources, /BoShell/);
   assert.match(sources, /\/api\/bo\//);
   assert.match(sources, /Running Classes|Sessions|Registrations|Syllabus \/ Programs/);
   assert.doesNotMatch(sources, /founderApi|WorkforceWorkspace|\/founder|\/api\/workforce|NOTION|PINO_CORE|PINO_WORKFORCE_CORE/);
-  assert.doesNotMatch(sources, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
+  assert.doesNotMatch(readSources, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
+  assert.doesNotMatch(apiSource, /method:\s*["'](?:PUT|PATCH|DELETE)["']/);
+  assert.equal((apiSource.match(/method:\s*["']POST["']/g) ?? []).length, 1);
+  assert.equal((apiSource.match(/\bwrite</g) ?? []).length, 2);
+  assert.match(apiSource, /onboardStaff:[\s\S]*write<BoStaffOnboardingResult>\("workforce\/staff-onboarding"/);
 });
