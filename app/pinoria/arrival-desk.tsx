@@ -15,6 +15,7 @@ const CENTER_STORAGE="pino.arrival.centerId";
 const footer=[{id:"home",label:"Home",href:"/dashboard"},{id:"pinoria",label:"Pinoria",href:"/pinoria"}];
 
 function todayInVietnam(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Ho_Chi_Minh",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
+function searchable(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLocaleLowerCase("vi");}
 
 export function ArrivalDesk(){
   const[centerId,setCenterId]=useState("");
@@ -25,14 +26,15 @@ export function ArrivalDesk(){
   const[loading,setLoading]=useState(false);
   const[actionId,setActionId]=useState<string|null>(null);
   const[error,setError]=useState<string|null>(null);
+  const[query,setQuery]=useState("");
 
   useEffect(()=>{
     let cancelled=false;
     async function resolveCenter(){
-      const query=new URLSearchParams(window.location.search).get("centerId")?.trim()??"";
+      const queryCenter=new URLSearchParams(window.location.search).get("centerId")?.trim()??"";
       const saved=window.localStorage.getItem(CENTER_STORAGE)?.trim()??"";
-      const explicit=query||saved;
-      if(explicit){setCenterId(explicit);setDraftCenterId(explicit);if(query)window.localStorage.setItem(CENTER_STORAGE,query);setCenterResolving(false);return;}
+      const explicit=queryCenter||saved;
+      if(explicit){setCenterId(explicit);setDraftCenterId(explicit);if(queryCenter)window.localStorage.setItem(CENTER_STORAGE,queryCenter);setCenterResolving(false);return;}
       try{
         const context=await workforceApi.context();
         if(cancelled)return;
@@ -62,11 +64,24 @@ export function ArrivalDesk(){
 
   const sessionMap=useMemo(()=>new Map((data?.sessions??[]).map(session=>[session.id,session])),[data]);
   const unresolved=useMemo(()=>(data?.sessions??[]).reduce((sum,session)=>sum+session.unresolvedRegistrations.length,0),[data]);
+  const visibleLearners=useMemo(()=>{
+    const needle=searchable(query.trim());
+    return [...(data?.learners??[])]
+      .filter(learner=>!needle||searchable(learner.displayName).includes(needle))
+      .sort((a,b)=>{
+        if(!!a.openVisit!==!!b.openVisit)return a.openVisit?-1:1;
+        if(a.hasRosterConflict!==b.hasRosterConflict)return a.hasRosterConflict?1:-1;
+        const aTime=a.sessionIds.map(id=>sessionMap.get(id)?.scheduledStartsLocal??"").filter(Boolean).sort()[0]??"";
+        const bTime=b.sessionIds.map(id=>sessionMap.get(id)?.scheduledStartsLocal??"").filter(Boolean).sort()[0]??"";
+        return aTime.localeCompare(bTime)||a.displayName.localeCompare(b.displayName,"vi");
+      });
+  },[data,query,sessionMap]);
 
   function saveCenter(){const value=draftCenterId.trim();if(!value)return;window.localStorage.setItem(CENTER_STORAGE,value);setCenterId(value);}
 
   async function mutate(learner:Learner){
     if(!centerId||actionId)return;
+    if(learner.hasRosterConflict&&!learner.openVisit){setError("Hồ sơ này đang có xung đột roster. Resolve learner trước khi Check-in.");return;}
     setActionId(learner.studentProfileId);setError(null);
     try{
       const checkedIn=!learner.openVisit;
@@ -93,6 +108,7 @@ export function ArrivalDesk(){
           <div><span className={styles.eyebrow}>LIVE HOUSE</span><strong>{data?.learners.filter(item=>item.openVisit).length??0} đang ở PINO</strong></div>
           <label>Ngày<input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label>
           <button className={styles.refresh} onClick={()=>void load()} disabled={loading}>{loading?"Đang tải…":"Làm mới"}</button>
+          <label className={styles.search}>Tìm học viên<input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Tên học viên" inputMode="search"/></label>
         </section>
 
         {error?<div className={styles.error}>{error}</div>:null}
@@ -100,22 +116,24 @@ export function ArrivalDesk(){
 
         <section className={styles.list} aria-busy={loading}>
           {!loading&&data?.learners.length===0?<div className={styles.empty}><strong>Chưa có học viên dự kiến</strong><span>Roster của ngày {date} hiện đang trống.</span></div>:null}
-          {data?.learners.map(learner=>{
+          {!loading&&data?.learners.length!==0&&visibleLearners.length===0?<div className={styles.empty}><strong>Không tìm thấy học viên</strong><span>Thử một phần khác của tên.</span></div>:null}
+          {visibleLearners.map(learner=>{
             const times=learner.sessionIds.map(id=>sessionMap.get(id)).filter(Boolean).map(session=>session!.scheduledStartsLocal.slice(11,16));
             const present=!!learner.openVisit;
-            return <article key={learner.studentProfileId} className={`${styles.card} ${present?styles.present:""}`}>
+            const blocked=learner.hasRosterConflict&&!present;
+            return <article key={learner.studentProfileId} className={`${styles.card} ${present?styles.present:""} ${blocked?styles.blocked:""}`}>
               <div className={styles.avatar}>{learner.displayName.trim().charAt(0).toLocaleUpperCase("vi")}</div>
               <div className={styles.identity}>
-                <div className={styles.nameRow}><h3>{learner.displayName}</h3><span className={present?styles.inBadge:styles.waitBadge}>{present?"Đã đến":"Chưa đến"}</span></div>
+                <div className={styles.nameRow}><h3>{learner.displayName}</h3><span className={present?styles.inBadge:styles.waitBadge}>{present?"Đã đến":blocked?"Cần kiểm tra":"Chưa đến"}</span></div>
                 <div className={styles.meta}>{times.length?`Ca ${[...new Set(times)].join(" · ")}`:"Có lịch hôm nay"}{learner.hasRosterConflict?<span className={styles.conflict}> · Cần kiểm tra roster</span>:null}</div>
                 {present&&learner.openVisit?<small>Check-in {new Date(learner.openVisit.checkedInAt).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Ho_Chi_Minh"})}</small>:null}
               </div>
-              <button className={present?styles.checkout:styles.checkin} disabled={actionId===learner.studentProfileId} onClick={()=>void mutate(learner)}>{actionId===learner.studentProfileId?"…":present?"Check-out":"Check-in"}</button>
+              <button className={present?styles.checkout:styles.checkin} disabled={actionId!==null||blocked} onClick={()=>void mutate(learner)} title={blocked?"Resolve roster trước khi Check-in":undefined}>{actionId===learner.studentProfileId?"…":present?"Check-out":blocked?"Resolve":"Check-in"}</button>
             </article>;
           })}
         </section>
 
-        <button className={styles.changeCenter} onClick={()=>{window.localStorage.removeItem(CENTER_STORAGE);setCenterId("");setDraftCenterId("");setData(null);}}>Đổi Center</button>
+        <button className={styles.changeCenter} onClick={()=>{window.localStorage.removeItem(CENTER_STORAGE);setCenterId("");setDraftCenterId("");setData(null);setQuery("");}}>Đổi Center</button>
       </>}
     </div>
   </TosShell>;
