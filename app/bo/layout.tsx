@@ -14,6 +14,10 @@ const groups: BoNavGroup[] = [
     ],
   },
   {
+    label: "Workforce",
+    items: [{ href: "/bo/staff", label: "Staff onboarding" }],
+  },
+  {
     label: "Content",
     items: [{ href: "/bo/syllabus", label: "Syllabus / Programs" }],
   },

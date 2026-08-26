@@ -9,6 +9,7 @@ export interface BoAccessRequest {
     runningClassId?: string;
   };
   body?: unknown;
+  idempotencyKey?: string;
 }
 
 export interface BoAccessResponse {
