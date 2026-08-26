@@ -34,10 +34,14 @@ export async function handleBoOperationalReadRequest(
 }
 
 export function isOperationalReadPath(path: string): boolean {
-  return path === "path-programs"
+  return path === "centers"
+    || path === "path-programs"
     || path === "running-classes"
     || path === "syllabi"
     || path === "sessions"
+    || path === "access/roles"
+    || path === "access/users"
+    || path === "workforce/staff-records"
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path);
 }
 
