@@ -1,6 +1,6 @@
 import{getCloudflareContext}from"@opennextjs/cloudflare";
 import{authenticateWorkforce,WorkforceAuthError}from"@/lib/workforce-auth";
-import{callTosLearningCore,type TosLearningCoreBinding}from"@/lib/tos-learning-core";
+import{callTosLearningCore,callTosLearningCoreWithStaffPin,type TosLearningCoreBinding}from"@/lib/tos-learning-core";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -21,7 +21,8 @@ async function handle(request:Request,context:Context){
       if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))body={...body,...parsed};
     }
     const idempotencyKey=request.headers.get("idempotency-key")??undefined;
-    const result=await callTosLearningCore(env.PINO_TOS_LEARNING_CORE,{method:request.method,path:`/${path.join("/")}`,body,...(idempotencyKey?{idempotencyKey}:{})},identity);
+    const coreRequest={method:request.method,path:`/${path.join("/")}`,body,...(idempotencyKey?{idempotencyKey}:{})},staffToken=cookie(request,"pino_staff_session");
+    const result=staffToken?await callTosLearningCoreWithStaffPin(env.PINO_TOS_LEARNING_CORE,coreRequest,staffToken):await callTosLearningCore(env.PINO_TOS_LEARNING_CORE,coreRequest,identity);
     return Response.json(result.body,{status:result.status,headers:{"cache-control":"no-store","x-request-id":result.requestId}});
   }catch(error){
     if(error instanceof WorkforceAuthError)return Response.json({error:{code:"IDENTITY_AUTHENTICATION_FAILED",message:error.message}},{status:error.status,headers:{"cache-control":"no-store"}});
@@ -29,6 +30,7 @@ async function handle(request:Request,context:Context){
     return Response.json({error:{code:"PLATFORM_INTERNAL_ERROR",message:"An unexpected error occurred"}},{status:500,headers:{"cache-control":"no-store"}});
   }
 }
+function cookie(request:Request,name:string){return request.headers.get("cookie")?.split(";").map(value=>value.trim()).find(value=>value.startsWith(`${name}=`))?.slice(name.length+1)??"";}
 
 export const GET=handle;
 export const POST=handle;

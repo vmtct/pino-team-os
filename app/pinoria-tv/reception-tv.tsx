@@ -1,66 +1,14 @@
 "use client";
-
-import {useCallback,useEffect,useRef,useState}from"react";
+import{useCallback,useEffect,useRef,useState}from"react";
 import styles from"./reception-tv.module.css";
-
-type Learner={studentProfileId:string;displayName:string;openVisit:{id:string;checkedInAt:string;version:number}|null};
-type Projection={learners:Learner[]};
-type Scene={id:string;kind:"arrival"|"departure";name:string};
-const CENTER_STORAGE="pino.arrival.centerId";
-const layers=[
-  "https://assets.pinohouse.art/draft/Char_Wing%20Hollogram.png",
-  "https://assets.pinohouse.art/draft/Char_body_painting_girl.png",
-  "https://assets.pinohouse.art/draft/Char_hair_girl_short.png",
-  "https://assets.pinohouse.art/draft/Char_face_smiley.png",
-];
-function todayInVietnam(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Ho_Chi_Minh",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
-
-export function ReceptionTv(){
-  const[centerId,setCenterId]=useState("");
-  const[draft,setDraft]=useState("");
-  const[connected,setConnected]=useState(false);
-  const[events,setEvents]=useState<Scene[]>([]);
-  const[inside,setInside]=useState(0);
-  const baseline=useRef<Map<string,boolean>|null>(null);
-
-  useEffect(()=>{const query=new URLSearchParams(window.location.search).get("centerId")?.trim()??"";const saved=window.localStorage.getItem(CENTER_STORAGE)?.trim()??"";const value=query||saved;if(value){setCenterId(value);setDraft(value);if(query)window.localStorage.setItem(CENTER_STORAGE,query);}},[]);
-
-  const poll=useCallback(async()=>{
-    if(!centerId)return;
-    try{
-      const date=todayInVietnam();
-      const response=await fetch(`/api/tos-learning/arrival-desk?centerId=${encodeURIComponent(centerId)}&localDate=${date}&t=${Date.now()}`,{cache:"no-store"});
-      if(!response.ok)throw new Error("offline");
-      const json=await response.json() as{data?:Projection};if(!json.data)throw new Error("empty");
-      const next=new Map(json.data.learners.map(learner=>[learner.studentProfileId,!!learner.openVisit]));
-      setInside(json.data.learners.filter(learner=>learner.openVisit).length);
-      if(baseline.current){
-        const changes:Scene[]=[];
-        for(const learner of json.data.learners){const before=baseline.current.get(learner.studentProfileId)??false,after=!!learner.openVisit;if(before!==after)changes.push({id:`${learner.studentProfileId}-${after?learner.openVisit?.id:"out"}-${Date.now()}`,kind:after?"arrival":"departure",name:learner.displayName});}
-        if(changes.length)setEvents(queue=>[...queue,...changes]);
-      }
-      baseline.current=next;setConnected(true);
-    }catch{setConnected(false);}
-  },[centerId]);
-
-  useEffect(()=>{if(!centerId)return;void poll();const timer=window.setInterval(()=>void poll(),1500);return()=>window.clearInterval(timer);},[centerId,poll]);
-  useEffect(()=>{if(!events.length)return;const timer=window.setTimeout(()=>setEvents(queue=>queue.slice(1)),6500);return()=>window.clearTimeout(timer);},[events]);
-
-  function save(){const value=draft.trim();if(!value)return;window.localStorage.setItem(CENTER_STORAGE,value);baseline.current=null;setCenterId(value);}
-  const scene=events[0]??null;
-
-  if(!centerId)return <main className={styles.setup}><div><span>PINORIA · RECEPTION TV</span><h1>Kết nối màn hình</h1><p>Nhập Center ID một lần cho TV lễ tân.</p><input value={draft} onChange={event=>setDraft(event.target.value)} placeholder="Center ID"/><button onClick={save}>Kết nối</button></div></main>;
-
-  return <main className={`${styles.stage} ${scene?styles.active:""}`}>
-    <div className={styles.sky}/><div className={styles.orbOne}/><div className={styles.orbTwo}/>
-    <header className={styles.status}><div><b>PINORIA</b><span>RECEPTION</span></div><div className={styles.live}><i className={connected?styles.online:styles.offline}/>{connected?`${inside} Piner đang ở House`:"Đang kết nối lại…"}</div></header>
-    <div className={styles.sparkles}>{Array.from({length:10},(_,index)=><i key={index} style={{"--i":index}as React.CSSProperties}/>)}</div>
-    {scene?<section key={scene.id} className={`${styles.scene} ${scene.kind==="departure"?styles.departure:""}`}>
-      <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt=""/></div>
-      <div className={styles.character}>{layers.map((src,index)=><img key={src} src={src} alt="" style={{zIndex:index+1}}/>)}</div>
-      <img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt=""/>
-      <div className={styles.copy}><span>{scene.kind==="arrival"?"CHÀO ĐẾN PINO HOUSE":"HẸN GẶP LẠI"}</span><h1>{scene.name}</h1><p>{scene.kind==="arrival"?"Một buổi sáng tạo mới đang chờ bạn ✦":"Pinoria sẽ giữ lại những điều đẹp hôm nay ✦"}</p></div>
-    </section>:<section className={styles.idle}><div className={styles.sigil}>P</div><span>PINORIA IS LISTENING</span><h1>Chào mừng đến PINO House</h1><p>Mỗi lần một Piner đến, Pinoria sẽ thức dậy.</p></section>}
-    <footer><span>{new Date().toLocaleDateString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",weekday:"long",day:"2-digit",month:"2-digit"})}</span><button onClick={()=>{window.localStorage.removeItem(CENTER_STORAGE);setCenterId("");baseline.current=null;}}>Center</button></footer>
-  </main>;
-}
+type Config={hair:string;face:string;outfit:string;back?:string};type Presence={studentProfileId:string;displayName:string;visit:{id:string;checkedInAt:string;version:number};character:{id:string;config:Config}};type HouseSnapshot={cursor:number;learners:Presence[]};type HouseEvent={sequence:number;type:"ARRIVAL"|"DEPARTURE";studentProfileId:string;visitId:string;characterId:string;occurredAt:string;payload:{displayName:string;character:Config}};type EventPage={cursor:number;events:HouseEvent[]};type Scene={id:string;kind:"arrival"|"departure";name:string;config:Config};
+const CENTER_STORAGE="pino.arrival.centerId",asset=(path:string)=>path.startsWith("http")?path:`https://assets.pinohouse.art/${path}`;
+export function ReceptionTv(){const[centerId,setCenterId]=useState(""),[draft,setDraft]=useState(""),[connected,setConnected]=useState(false),[inside,setInside]=useState<Presence[]>([]),[scenes,setScenes]=useState<Scene[]>([]),cursor=useRef(0),wasConnected=useRef(false);
+useEffect(()=>{const query=new URLSearchParams(location.search).get("centerId")?.trim()??"",saved=localStorage.getItem(CENTER_STORAGE)?.trim()??"",value=query||saved;if(value){setCenterId(value);setDraft(value);if(query)localStorage.setItem(CENTER_STORAGE,query)}},[]);
+const reconcile=useCallback(async()=>{if(!centerId)return;const response=await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`,{cache:"no-store"}),json=await response.json()as{data?:HouseSnapshot};if(!response.ok||!json.data)throw new Error("offline");cursor.current=json.data.cursor;setInside(json.data.learners);setConnected(true);wasConnected.current=true},[centerId]);
+const poll=useCallback(async()=>{if(!centerId)return;try{if(!wasConnected.current){await reconcile();return}const response=await fetch(`/api/pinoria-tv/events?centerId=${encodeURIComponent(centerId)}&after=${cursor.current}&t=${Date.now()}`,{cache:"no-store"}),json=await response.json()as{data?:EventPage};if(!response.ok||!json.data)throw new Error("offline");const page=json.data;cursor.current=page.cursor;if(page.events.length){setScenes(queue=>[...queue,...page.events.map(event=>({id:`${event.sequence}`,kind:event.type==="ARRIVAL"?"arrival" as const:"departure" as const,name:event.payload.displayName,config:event.payload.character}))]);setInside(current=>{const next=new Map(current.map(item=>[item.studentProfileId,item]));for(const event of page.events)if(event.type==="DEPARTURE")next.delete(event.studentProfileId);else next.set(event.studentProfileId,{studentProfileId:event.studentProfileId,displayName:event.payload.displayName,visit:{id:event.visitId,checkedInAt:event.occurredAt,version:1},character:{id:event.characterId,config:event.payload.character}});return[...next.values()]})}setConnected(true);}catch{setConnected(false);wasConnected.current=false}},[centerId,reconcile]);
+useEffect(()=>{if(!centerId)return;wasConnected.current=false;void poll();const timer=setInterval(()=>void poll(),750);return()=>clearInterval(timer)},[centerId,poll]);useEffect(()=>{if(!scenes.length)return;const timer=setTimeout(()=>setScenes(queue=>queue.slice(1)),5200);return()=>clearTimeout(timer)},[scenes]);
+function save(){const value=draft.trim();if(!value)return;localStorage.setItem(CENTER_STORAGE,value);cursor.current=0;wasConnected.current=false;setCenterId(value)}const scene=scenes[0]??null;
+if(!centerId)return <main className={styles.setup}><div><span>PINORIA · HOUSE TV</span><h1>Kết nối màn hình</h1><p>Nhập Center ID một lần cho TV.</p><input value={draft} onChange={event=>setDraft(event.target.value)} placeholder="Center ID"/><button onClick={save}>Kết nối</button></div></main>;
+return <main className={`${styles.stage} ${scene?styles.active:""}`}><div className={styles.sky}/><div className={styles.orbOne}/><div className={styles.orbTwo}/><header className={styles.status}><div><b>PINORIA</b><span>HOUSE</span></div><div className={styles.live}><i className={connected?styles.online:styles.offline}/>{connected?`${inside.length} Piner đang ở House`:"Đang reconcile…"}</div></header><div className={styles.ambient} aria-label={`${inside.length} learners in House`}>{inside.slice(0,60).map((learner,index)=><div className={styles.ambientCharacter} key={learner.studentProfileId} style={{"--x":`${6+(index*37)%88}%`,"--y":`${20+(index*53)%60}%`,"--delay":`${-(index%11)*.7}s`,"--scale":`${.55+(index%5)*.07}`}as React.CSSProperties}><Character config={learner.character.config}/><span>{learner.displayName}</span></div>)}</div>{scene?<section key={scene.id} className={`${styles.scene} ${scene.kind==="departure"?styles.departure:""}`}><div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt=""/></div><div className={styles.character}><Character config={scene.config}/></div><img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt=""/><div className={styles.copy}><span>{scene.kind==="arrival"?"CHÀO ĐẾN PINO HOUSE":"HẸN GẶP LẠI"}</span><h1>{scene.name}</h1><p>{scene.kind==="arrival"?"Pinoria đã nhận ra bạn ✦":"Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p></div></section>:<section className={styles.idle}><div className={styles.sigil}>P</div><span>PINORIA HOUSE IS ALIVE</span><h1>Chào mừng đến PINO House</h1><p>{inside.length?`${inside.length} Piner đang khám phá cùng nhau.`:"Pinoria đang chờ Piner đầu tiên."}</p></section>}<footer><span>{new Date().toLocaleDateString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",weekday:"long",day:"2-digit",month:"2-digit"})}</span><button onClick={()=>{localStorage.removeItem(CENTER_STORAGE);setCenterId("");wasConnected.current=false}}>Center</button></footer></main>}
+function Character({config}:{config:Config}){return <>{config.back?<img src={asset(config.back)} alt=""/>:null}<img src={asset(config.outfit)} alt=""/><img src={asset(config.hair)} alt=""/><img src={asset(config.face)} alt=""/></>}
