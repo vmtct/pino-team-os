@@ -318,7 +318,7 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
   }, [ownedWearables, achievements, session?.equipment]);
 
   const selected = inventoryItems.find((item) => item.id === session?.inventorySelectedId);
-  const inventoryColumns = inventoryItems.length > 36 ? 10 : inventoryItems.length > 28 ? 9 : 8;
+  const inventoryColumns = inventoryItems.length <= 14 ? 7 : inventoryItems.length > 36 ? 10 : inventoryItems.length > 28 ? 9 : 8;
 
   const layerOverrides = useMemo<PrototypeCharacterLayerOverrides | undefined>(() => {
     if (!catalog.length || !session) return undefined;

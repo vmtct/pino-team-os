@@ -1,34 +1,10 @@
 "use client";
 
 import type { WorldStateTransitionPayload } from "./shop-types";
+import { DEFAULT_WORLD_STATE_TRANSITION } from "./world-state-transition-data";
 import styles from "./world-state-transition.module.css";
 
 export const WORLD_STATE_TRANSITION_MS = 10_200;
-
-export const DEFAULT_WORLD_STATE_TRANSITION: WorldStateTransitionPayload = {
-  id: "prototype-terravia-chapter-ii",
-  title: "Terravia đang chuyển mình",
-  detail: "Ánh sáng, nhịp thở và dấu hiệu trong House đang đổi theo chương mới của thế giới Pinoria.",
-  from: {
-    id: "terravia-chapter-i",
-    revision: 1,
-    regionLabel: "Terravia",
-    chapterLabel: "Chương I",
-    seasonLabel: "Mùa Thu",
-    ambientTheme: "terravia",
-    updatedAt: 0,
-  },
-  to: {
-    id: "terravia-chapter-ii",
-    revision: 2,
-    regionLabel: "Terravia",
-    chapterLabel: "Chương II",
-    seasonLabel: "Giao mùa",
-    ambientTheme: "ember",
-    updatedAt: 0,
-  },
-  footer: "Thay đổi này tiếp tục tồn tại trong House Ambient sau khi nghi thức kết thúc.",
-};
 
 const themeGlyph = {
   neutral: "○",

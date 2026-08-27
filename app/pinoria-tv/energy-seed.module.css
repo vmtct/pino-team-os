@@ -428,3 +428,13 @@
   .seedShell { transform: translate(-50%,-50%) rotate(-13deg); }
   .rewardPanel { transform: translate(-50%,0); }
 }
+
+/* Production polish: use the real companion art instead of a placeholder orb. */
+.companionReaction{right:6.8%;bottom:8.5%;gap:4px}
+.companionHalo{width:184px;height:184px;background:radial-gradient(circle,rgba(174,229,255,.24),rgba(131,117,255,.08) 48%,transparent 72%)}
+.companionOrb{width:clamp(110px,9.5vw,150px);border:0;background:transparent;box-shadow:none;border-radius:0;overflow:visible;color:inherit;font-size:0;filter:drop-shadow(0 18px 22px rgba(0,0,0,.28))}
+.companionReaction strong{margin-top:-8px;padding:4px 9px;border-radius:999px;background:rgba(16,19,29,.54);border:1px solid rgba(220,241,255,.12);backdrop-filter:blur(10px)}
+.characterWrap{left:5.5%;bottom:-1%;width:min(30vw,420px)}
+.seedStage{top:48%;width:min(37vw,530px)}
+.rewardPanel{bottom:4.2%;width:min(620px,52vw);border-radius:26px;padding:18px 22px 15px}
+.rewardRow strong{font-size:clamp(20px,1.9vw,31px)}

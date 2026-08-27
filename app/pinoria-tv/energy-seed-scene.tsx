@@ -1,6 +1,6 @@
 "use client";
 
-import { PrototypeCharacter } from "./prototype-assets";
+import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 import type { EnergySeedReward } from "./shop-types";
 import styles from "./energy-seed.module.css";
 
@@ -78,7 +78,7 @@ export function EnergySeedScene({
 
       <div className={styles.companionReaction} aria-label={companion}>
         <div className={styles.companionHalo} />
-        <div className={styles.companionOrb}>{companion.slice(0, 1).toUpperCase()}</div>
+        <div className={styles.companionOrb}><PrototypeCompanion size="100%" /></div>
         <strong>{companion}</strong>
       </div>
 

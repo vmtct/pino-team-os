@@ -17,6 +17,7 @@ import {
   LearningSpotlightScene,
 } from "./learning-spotlight-scene";
 import { fitPinoriaStageRect } from "./pinoria-stage";
+import { PrototypeCompanion } from "./prototype-assets";
 import { getLostArtifact } from "./lost-artifact-data";
 import { LOST_ARTIFACT_BROADCAST_MS, LostArtifactScene } from "./lost-artifact-scene";
 import {
@@ -35,10 +36,10 @@ import {
 } from "./world-broadcast-scene";
 import { WorldStateAmbientOverlay } from "./world-state-ambient-overlay";
 import {
-  DEFAULT_WORLD_STATE_TRANSITION,
   WORLD_STATE_TRANSITION_MS,
   WorldStateTransitionScene,
 } from "./world-state-transition-scene";
+import { DEFAULT_WORLD_STATE_TRANSITION } from "./world-state-transition-data";
 import styles from "./tv.module.css";
 
 type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "world-transition" | "departure-transition" | "departure";
@@ -248,7 +249,7 @@ export function PinoriaTVPrototype() {
         setWorldTransition(transition);
         setWorldState(transition.to);
         setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
-        setAmbientCharacterVisible(true);
+        setAmbientCharacterVisible(false);
         setMode("world-transition");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
@@ -263,7 +264,7 @@ export function PinoriaTVPrototype() {
         const nextBroadcast = event.broadcast ?? DEFAULT_WORLD_BROADCAST;
         setBroadcast(nextBroadcast);
         setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
-        setAmbientCharacterVisible(true);
+        setAmbientCharacterVisible(false);
         setMode("broadcast");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
@@ -503,7 +504,7 @@ function Arrival({ subject }: { subject: TVSubject }) {
 }
 
 function Ritual() {
-  return <SpotlightShell><div className={styles.ritualLayout}><div className={styles.ritualIngredients}><Artifact label="Fruit ×5" /><Artifact label="Water Sigil" /></div><div className={styles.ritualCenter}><div className={styles.rings}><i /><i /><i /></div><div className={styles.companionHero}><span>B</span><strong>Bùm</strong><small>Ploo · Lv2 → Lv3</small></div><h1>Bùm đang hiện hình rõ hơn</h1><p>Canonical stage change has already been committed. This is presentation only.</p></div><div className={styles.ritualResult}><span className={styles.kicker}>NEW FORM</span><strong>Manifested III</strong><small>Replay shows the same outcome. No reroll.</small></div></div></SpotlightShell>;
+  return <SpotlightShell><div className={styles.ritualLayout}><div className={styles.ritualIngredients}><Artifact label="Fruit ×5" /><Artifact label="Thủy Ấn" /></div><div className={styles.ritualCenter}><div className={styles.rings}><i /><i /><i /></div><div className={styles.companionHero}><div className={styles.companionVisual}><PrototypeCompanion size="100%" /></div><strong>Bùm</strong><small>Ploo · Cấp 2 → Cấp 3</small></div><h1>Bùm đang hiện hình rõ hơn</h1><p>Hình thái mới đã được ghi nhận. Phát lại luôn hiển thị cùng kết quả.</p></div><div className={styles.ritualResult}><span className={styles.kicker}>HÌNH THÁI MỚI</span><strong>Hiện hình III</strong><small>Kết quả đã chốt · Không reroll</small></div></div></SpotlightShell>;
 }
 
 function Departure({ subject }: { subject: TVSubject }) {

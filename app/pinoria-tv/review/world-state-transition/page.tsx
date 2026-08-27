@@ -2,10 +2,8 @@ import fontStyles from "../../../pinoria-vietnamese-font.module.css";
 import { PinoriaVietnameseLocale } from "../../../pinoria-vietnamese-locale";
 import { AmbientHouseRuntime } from "../../ambient-house-runtime";
 import { WorldStateAmbientOverlay } from "../../world-state-ambient-overlay";
-import {
-  DEFAULT_WORLD_STATE_TRANSITION,
-  WorldStateTransitionScene,
-} from "../../world-state-transition-scene";
+import { DEFAULT_WORLD_STATE_TRANSITION } from "../../world-state-transition-data";
+import { WorldStateTransitionScene } from "../../world-state-transition-scene";
 
 export const dynamic = "force-dynamic";
 
