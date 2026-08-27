@@ -1,0 +1,97 @@
+/* Ambient House mini-character presentation rules.
+ * The movement/head viewport remains 164x115 on the canonical 1920x1080 stage.
+ * The internal character registration stays 164x164.
+ *
+ * IMPORTANT: do not clip the entire character root. Head layers are clipped to
+ * the 115px head viewport, while BODY + BACK are allowed to extend below it.
+ * BODY + BACK are rendered at 60% scale around the shared 164x164 center.
+ */
+[data-ambient-mini-character] {
+  overflow: visible !important;
+
+  /*
+   * Motion-graph editor renders BEHIND chars before HOUSE_MID and FRONT chars
+   * after HOUSE_MID. Keeping both character and MID at the same z-index lets
+   * DOM order decide the intended occlusion. The previous inline z-index:30
+   * always beat MID's z-index:20, so BEHIND lanes could never actually render
+   * behind the MID artwork.
+   */
+  z-index: 20 !important;
+}
+
+[data-ambient-mini-character] > [aria-label="Nhân vật Pinoria mẫu"] {
+  overflow: visible !important;
+  clip-path: none !important;
+}
+
+/* Head section keeps the existing 164x115 crop. */
+[data-ambient-mini-character] img[data-pinoria-character-slot="hair"],
+[data-ambient-mini-character] img[data-pinoria-character-slot="face"],
+[data-ambient-mini-character] img[data-pinoria-character-slot="headwear"],
+[data-ambient-mini-character] img[data-pinoria-character-slot="eyewear"] {
+  clip-path: inset(0 0 29.9% 0);
+}
+
+/*
+ * Body section = body + back/wing.
+ * Explicit display:block !important overrides the stale legacy globals.css rule
+ * that used to hide Char_body_painting_girl.png in Ambient.
+ */
+[data-ambient-mini-character] img[data-pinoria-character-slot="body"] {
+  display: block !important;
+  transform: scale(0.6);
+  transform-origin: 50% 50%;
+}
+
+[data-ambient-mini-character] [data-pinoria-character-slot="back"] {
+  display: block !important;
+  transform: scale(0.6);
+  transform-origin: 50% 50%;
+}
+
+/* Simulation/editor can hide only BODY + BACK without affecting the head. */
+[data-ambient-mini-character][data-ambient-mini-body="off"] img[data-pinoria-character-slot="body"],
+[data-ambient-mini-character][data-ambient-mini-body="off"] [data-pinoria-character-slot="back"] {
+  display: none !important;
+}
+
+/* Debug-only MID presence highlight. Toggled from /pinoria-tv/ambient-debug. */
+html.pinoria-highlight-mid img[src*="layer=mid"] {
+  filter: brightness(2) !important;
+}
+
+[data-ambient-mini-character]::before {
+  content: var(--ambient-mini-name, "Bơ");
+  position: absolute;
+  left: 50%;
+  top: -21px;
+  transform: translateX(-50%);
+  z-index: 100;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-text-stroke: 0.55px rgba(0, 0, 0, 0.95);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
+}
+
+/*
+ * Social conversation bubble polish.
+ * The speaker name/zone already exists visually above the mini character, so
+ * the bubble only carries dialogue. Pull the bubble toward the speaker by one
+ * more beat: 20px on X and 16px on Y, preserving the outside-of-pair layout.
+ */
+[data-ambient-chat-bubble] > strong {
+  display: none !important;
+}
+
+[data-ambient-chat-bubble]:has(> i[style*="right:"]) {
+  transform: translate(20px, 16px);
+}
+
+[data-ambient-chat-bubble]:has(> i[style*="left:"]) {
+  transform: translate(-20px, 16px);
+}

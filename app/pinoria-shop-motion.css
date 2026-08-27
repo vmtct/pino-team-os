@@ -1,0 +1,49 @@
+/* Shop-only companion motion.
+ * Character motion now lives in the canonical PrototypeCharacter renderer via
+ * motion="shop-preview". Keep this file scoped to the shared-TV companion so
+ * the Shop does not maintain a second character animation implementation.
+ */
+
+@keyframes pinoriaShopCompanionFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-.5deg) scale(1);
+  }
+  46% {
+    transform: translate3d(0, -7px, 0) rotate(.8deg) scale(1.018);
+  }
+  72% {
+    transform: translate3d(0, -2px, 0) rotate(.15deg) scale(1.006);
+  }
+}
+
+@keyframes pinoriaShopCompanionTilt {
+  0%, 100% { transform: rotate(-.35deg); }
+  50% { transform: rotate(.7deg); }
+}
+
+[data-pinoria-shop-scene] [aria-label="Mori"] {
+  transform-origin: 50% 72%;
+  will-change: transform;
+  animation: pinoriaShopCompanionFloat 3.9s ease-in-out infinite;
+}
+
+[data-pinoria-shop-scene] [aria-label="Mori"] > img {
+  transform-origin: 50% 62%;
+  will-change: transform;
+  animation: pinoriaShopCompanionTilt 5.2s ease-in-out infinite;
+}
+
+/* Backpack presents Mori as part of the Piner composition rather than as a
+ * separate corner ornament. The absolute wrapper stays layout-neutral while
+ * the companion itself is visually tucked immediately beside the Piner's feet. */
+[data-pinoria-inventory-scene] [aria-label="Mori"] {
+  transform: translate3d(-118px, 6px, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-pinoria-shop-scene] [aria-label="Mori"],
+  [data-pinoria-shop-scene] [aria-label="Mori"] > img {
+    animation: none !important;
+    transform: none !important;
+  }
+}

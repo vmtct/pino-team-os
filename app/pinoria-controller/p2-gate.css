@@ -1,0 +1,130 @@
+.p2-controller-shell {
+  min-height: 100dvh;
+  position: relative;
+}
+
+.p2-controller-gate {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 70;
+  width: min(100%, 460px);
+  transform: translateX(-50%);
+  padding: calc(8px + env(safe-area-inset-top, 0)) 14px 10px;
+  background: linear-gradient(180deg, rgba(16, 10, 9, .99), rgba(26, 17, 14, .96));
+  border-bottom: 1px solid rgba(239, 199, 120, .15);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .22);
+  backdrop-filter: blur(18px);
+  color: #f6ead7;
+}
+
+.p2-controller-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.p2-controller-meta span {
+  color: #d6aa59;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.p2-controller-meta strong {
+  color: rgba(246, 234, 215, .68);
+  font-size: 9px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.p2-controller-presence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.p2-controller-presence label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.p2-controller-presence label > span {
+  color: rgba(246, 234, 215, .42);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.p2-controller-presence select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(239, 199, 120, .16);
+  border-radius: 10px;
+  padding: 0 10px;
+  background: rgba(56, 38, 30, .9);
+  color: #f8ead6;
+  font-size: 11px;
+  font-weight: 850;
+  outline: none;
+}
+
+.p2-controller-presence select option { color: #211510; }
+
+.p2-controller-presence button {
+  min-height: 34px;
+  border: 1px solid rgba(239, 199, 120, .2);
+  border-radius: 10px;
+  padding: 0 10px;
+  background: rgba(61, 41, 31, .86);
+  color: #edcf94;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.p2-controller-presence button:disabled { opacity: .46; }
+
+.p2-controller-error {
+  margin-top: 7px;
+  padding: 6px 8px;
+  border: 1px solid rgba(242, 139, 117, .22);
+  border-radius: 8px;
+  background: rgba(124, 42, 32, .18);
+  color: #efb1a4;
+  font-size: 8px;
+}
+
+.p2-controller-shell .psc-header {
+  padding-top: calc(98px + env(safe-area-inset-top, 0));
+}
+
+.p2-controller-shell .psc-student-card {
+  display: none !important;
+}
+
+.p2-controller-locked .psc-session-toggle,
+.p2-controller-locked .psc-view-switch button,
+.p2-controller-locked .psc-category-strip button,
+.p2-controller-locked .psc-shop-card,
+.p2-controller-locked .psc-inventory-card,
+.p2-controller-locked .psc-action-buttons button,
+.p2-controller-locked .psc-slot-grid button {
+  pointer-events: none !important;
+  opacity: .42 !important;
+}
+
+@media (min-width: 700px) {
+  .p2-controller-gate {
+    top: 18px;
+    border: 1px solid rgba(239, 199, 120, .14);
+    border-bottom-color: rgba(239, 199, 120, .14);
+    border-radius: 24px 24px 0 0;
+  }
+}

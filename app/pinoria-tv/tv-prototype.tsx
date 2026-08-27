@@ -1,0 +1,506 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import { AmbientToDepartureTransition, AMBIENT_TO_DEPARTURE_MS, type FrozenAmbientActor } from "./ambient-to-departure-transition";
+import { ArrivalScene } from "./arrival-scene";
+import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS } from "./choice-to-ambient-scene";
+import { DepartureScene } from "./departure-scene";
+import {
+  DEFAULT_ENERGY_SEED_REWARD,
+  ENERGY_SEED_SCENE_MS,
+  EnergySeedScene,
+} from "./energy-seed-scene";
+import {
+  DEFAULT_LEARNING_SPOTLIGHT,
+  LEARNING_SPOTLIGHT_MS,
+  LearningSpotlightScene,
+} from "./learning-spotlight-scene";
+import { fitPinoriaStageRect } from "./pinoria-stage";
+import {
+  DEFAULT_PINORIA_WORLD_STATE,
+  type EnergySeedReward,
+  type LearningSpotlightPayload,
+  type PinoriaSurfaceSessionSnapshot,
+  type PinoriaWorldStateSnapshot,
+  type WorldBroadcastPayload,
+  type WorldStateTransitionPayload,
+} from "./shop-types";
+import {
+  DEFAULT_WORLD_BROADCAST,
+  WORLD_BROADCAST_MS,
+  WorldBroadcastScene,
+} from "./world-broadcast-scene";
+import { WorldStateAmbientOverlay } from "./world-state-ambient-overlay";
+import {
+  DEFAULT_WORLD_STATE_TRANSITION,
+  WORLD_STATE_TRANSITION_MS,
+  WorldStateTransitionScene,
+} from "./world-state-transition-scene";
+import styles from "./tv.module.css";
+
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "world-transition" | "departure-transition" | "departure";
+type TVSubject = {
+  id: string;
+  name: string;
+  path: string;
+  room: string;
+  companion: string;
+  pls: number;
+  fruit: number;
+};
+
+type RelayEvent = {
+  id: number;
+  kind: "play" | "control";
+  mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast" | "world-transition";
+  replay?: boolean;
+  subject?: TVSubject;
+  reward?: EnergySeedReward;
+  spotlight?: LearningSpotlightPayload;
+  broadcast?: WorldBroadcastPayload;
+  worldTransition?: WorldStateTransitionPayload;
+  action?: "ambient";
+};
+
+type RelayMutationResponse = {
+  ok?: boolean;
+  event?: RelayEvent;
+  surface?: PinoriaSurfaceSessionSnapshot;
+};
+
+const SURFACE_ID = "RECEPTION_TV";
+const RELAY_URL = "/api/pinoria-prototype/tv-relay";
+const ARRIVAL_MS = 7650;
+const DEPARTURE_MS = 9000;
+const AMBIENT_SUBJECT_HANDOFF_LEAD_MS = 180;
+
+const modes: { id: Exclude<Mode, "departure-transition">; label: string }[] = [
+  { id: "ambient", label: "Ambient" },
+  { id: "arrival", label: "Arrival" },
+  { id: "choice", label: "Quick Choice" },
+  { id: "learning", label: "Learning Spotlight" },
+  { id: "reward", label: "Hạt Năng Lượng" },
+  { id: "broadcast", label: "World Broadcast" },
+  { id: "world-transition", label: "World State Transition" },
+  { id: "ritual", label: "Companion Ritual" },
+  { id: "departure", label: "Departure" },
+];
+
+const defaultSubject: TVSubject = {
+  id: "bo",
+  name: "Bơ",
+  path: "ArtChitect · Màu nước II",
+  room: "Phòng Họa",
+  companion: "Bùm · Ploo · Cấp 2",
+  pls: 420,
+  fruit: 2,
+};
+
+function replayTitle(event: RelayEvent) {
+  if (event.mode === "arrival") return "CHÀO ĐẾN";
+  if (event.mode === "departure") return "CHÀO VỀ";
+  if (event.mode === "reward") return "HẠT NĂNG LƯỢNG";
+  if (event.mode === "learning") return "LEARNING SPOTLIGHT";
+  if (event.mode === "broadcast") return "WORLD BROADCAST";
+  if (event.mode === "world-transition") return "WORLD STATE";
+  return "SỰ KIỆN";
+}
+
+function captureAmbientActors(): FrozenAmbientActor[] {
+  const screen = document.querySelector<HTMLElement>("[data-pinoria-tv-screen]");
+  const screenRect = screen?.getBoundingClientRect() ?? {
+    left: 0,
+    top: 0,
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+  if (!screenRect.width || !screenRect.height) return [];
+
+  const stageRect = fitPinoriaStageRect({
+    left: screenRect.left,
+    top: screenRect.top,
+    width: screenRect.width,
+    height: screenRect.height,
+  });
+
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
+    .map((element) => {
+      const id = element.dataset.ambientRuntimeCharacter;
+      if (!id) return null;
+      const visual = element.querySelector<HTMLElement>("[data-pinoria-character-subject]") ?? element;
+      const rect = visual.getBoundingClientRect();
+      return {
+        id,
+        leftPct: ((rect.left - stageRect.left) / stageRect.width) * 100,
+        topPct: ((rect.top - stageRect.top) / stageRect.height) * 100,
+        widthPct: (rect.width / stageRect.width) * 100,
+        heightPct: (rect.height / stageRect.height) * 100,
+      } satisfies FrozenAmbientActor;
+    })
+    .filter((value): value is FrozenAmbientActor => value !== null);
+}
+
+export function PinoriaTVPrototype() {
+  const [mode, setMode] = useState<Mode>("ambient");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [subject, setSubject] = useState<TVSubject>(defaultSubject);
+  const [ambientSubject, setAmbientSubject] = useState<TVSubject>(defaultSubject);
+  const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
+  const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
+  const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
+  const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
+  const [broadcast, setBroadcast] = useState<WorldBroadcastPayload>(DEFAULT_WORLD_BROADCAST);
+  const [worldTransition, setWorldTransition] = useState<WorldStateTransitionPayload>(DEFAULT_WORLD_STATE_TRANSITION);
+  const [worldState, setWorldState] = useState<PinoriaWorldStateSnapshot>(DEFAULT_PINORIA_WORLD_STATE);
+  const [replayLabel, setReplayLabel] = useState<string | null>(null);
+  const sequenceTimer = useRef<number | null>(null);
+  const ambientSubjectTimer = useRef<number | null>(null);
+  const modeRef = useRef<Mode>("ambient");
+  const subjectRef = useRef<TVSubject>(defaultSubject);
+  const activeEventId = useRef<number | null>(null);
+  const busyRef = useRef(false);
+  const pollingRef = useRef(false);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    subjectRef.current = subject;
+  }, [subject]);
+
+  useEffect(() => {
+    let stopped = false;
+
+    async function post(body: Record<string, unknown>): Promise<RelayMutationResponse | null> {
+      try {
+        const response = await fetch(RELAY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          cache: "no-store",
+        });
+        if (!response.ok) return null;
+        return await response.json().catch(() => null) as RelayMutationResponse | null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function heartbeat() {
+      const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current;
+      const currentSubject = subjectRef.current;
+      const response = await post({
+        op: "heartbeat",
+        surfaceId: SURFACE_ID,
+        mode: relayMode,
+        subject: { id: currentSubject.id, name: currentSubject.name },
+      });
+      if (!stopped && response?.surface?.worldState && modeRef.current === "ambient") {
+        setWorldState(response.surface.worldState);
+      }
+    }
+
+    async function finishEvent(id: number) {
+      if (activeEventId.current !== id) return;
+      const completed = await post({ op: "complete", surfaceId: SURFACE_ID, id });
+      activeEventId.current = null;
+      busyRef.current = false;
+      if (!stopped) {
+        if (completed?.surface?.worldState) setWorldState(completed.surface.worldState);
+        setReplayLabel(null);
+        setAmbientCharacterVisible(true);
+        setMode("ambient");
+      }
+    }
+
+    function clearSequenceTimers() {
+      if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+      if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
+      sequenceTimer.current = null;
+      ambientSubjectTimer.current = null;
+    }
+
+    function playEvent(event: RelayEvent) {
+      clearSequenceTimers();
+
+      if (event.kind === "control") {
+        setReplayLabel(null);
+        setAmbientCharacterVisible(true);
+        setMode("ambient");
+        void finishEvent(event.id);
+        return;
+      }
+
+      if (!event.mode) {
+        void finishEvent(event.id);
+        return;
+      }
+
+      // World State Transition is subjectless and changes persistent Ambient
+      // truth. The server commits first; this scene bridges the old projection
+      // to the committed target without stealing learner ownership.
+      if (event.mode === "world-transition") {
+        const transition = event.worldTransition ?? DEFAULT_WORLD_STATE_TRANSITION;
+        setWorldTransition(transition);
+        setWorldState(transition.to);
+        setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
+        setAmbientCharacterVisible(true);
+        setMode("world-transition");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, WORLD_STATE_TRANSITION_MS);
+        return;
+      }
+
+      // World Broadcast is deliberately subjectless: it temporarily owns the
+      // shared surface without changing the current learner or interactive owner.
+      if (event.mode === "broadcast") {
+        setBroadcast(event.broadcast ?? DEFAULT_WORLD_BROADCAST);
+        setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
+        setAmbientCharacterVisible(true);
+        setMode("broadcast");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, WORLD_BROADCAST_MS);
+        return;
+      }
+
+      if (!event.subject) {
+        void finishEvent(event.id);
+        return;
+      }
+
+      subjectRef.current = event.subject;
+      setSubject(event.subject);
+      setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
+
+      if (event.mode === "learning") {
+        setSpotlight(event.spotlight ?? DEFAULT_LEARNING_SPOTLIGHT);
+        setAmbientCharacterVisible(false);
+        setMode("learning");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, LEARNING_SPOTLIGHT_MS);
+        return;
+      }
+
+      if (event.mode === "reward") {
+        setReward(event.reward ?? DEFAULT_ENERGY_SEED_REWARD);
+        setAmbientCharacterVisible(false);
+        setMode("reward");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          void finishEvent(event.id);
+        }, ENERGY_SEED_SCENE_MS);
+        return;
+      }
+
+      if (event.mode === "arrival" && !event.replay) {
+        setAmbientCharacterVisible(false);
+        setMode("arrival");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          setMode("choice");
+          setReplayLabel(null);
+
+          ambientSubjectTimer.current = window.setTimeout(() => {
+            if (stopped || activeEventId.current !== event.id) return;
+            setAmbientSubject(event.subject!);
+          }, Math.max(0, CHOICE_TO_AMBIENT_MS - AMBIENT_SUBJECT_HANDOFF_LEAD_MS));
+
+          sequenceTimer.current = window.setTimeout(() => {
+            if (stopped || activeEventId.current !== event.id) return;
+            setAmbientSubject(event.subject!);
+            setAmbientCharacterVisible(true);
+            void finishEvent(event.id);
+          }, CHOICE_TO_AMBIENT_MS);
+        }, ARRIVAL_MS);
+        return;
+      }
+
+      if (event.mode === "departure" && !event.replay) {
+        const actors = captureAmbientActors();
+        setFrozenActors(actors);
+        setAmbientCharacterVisible(false);
+        setMode("departure-transition");
+        sequenceTimer.current = window.setTimeout(() => {
+          if (stopped || activeEventId.current !== event.id) return;
+          setMode("departure");
+          sequenceTimer.current = window.setTimeout(() => {
+            void finishEvent(event.id);
+          }, DEPARTURE_MS);
+        }, AMBIENT_TO_DEPARTURE_MS);
+        return;
+      }
+
+      setMode(event.mode);
+      const duration = event.mode === "departure" ? DEPARTURE_MS : ARRIVAL_MS;
+      sequenceTimer.current = window.setTimeout(() => {
+        void finishEvent(event.id);
+      }, duration);
+    }
+
+    async function poll() {
+      if (busyRef.current || pollingRef.current) return;
+      pollingRef.current = true;
+      try {
+        const response = await fetch(`${RELAY_URL}?surfaceId=${SURFACE_ID}&includeEvent=1`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as { event?: RelayEvent | null; surface?: PinoriaSurfaceSessionSnapshot };
+        const event = data.event;
+        if (!event) {
+          if (!stopped && data.surface?.worldState && modeRef.current === "ambient") setWorldState(data.surface.worldState);
+          return;
+        }
+
+        // If a world transition is waiting, keep showing its `from` state until
+        // the event is claimed; the committed `to` state is already server truth.
+        if (!stopped && event.mode === "world-transition" && event.worldTransition && modeRef.current === "ambient") {
+          setWorldState(event.worldTransition.from);
+        }
+
+        const claimed = await post({ op: "claim", surfaceId: SURFACE_ID, id: event.id });
+        if (!claimed?.ok) return;
+        const claimedEvent = claimed.event ?? event;
+        busyRef.current = true;
+        activeEventId.current = claimedEvent.id;
+        if (!stopped) playEvent(claimedEvent);
+      } catch {
+        // Keep the current scene if the relay is temporarily unavailable.
+      } finally {
+        pollingRef.current = false;
+      }
+    }
+
+    void heartbeat();
+    void poll();
+    const heartbeatTimer = window.setInterval(() => { void heartbeat(); }, 2000);
+    const pollTimer = window.setInterval(() => { void poll(); }, 700);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(heartbeatTimer);
+      window.clearInterval(pollTimer);
+      clearSequenceTimers();
+    };
+  }, []);
+
+  useEffect(() => {
+    const relayMode = mode === "departure-transition" ? "departure" : mode;
+    void fetch(RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        op: "heartbeat",
+        surfaceId: SURFACE_ID,
+        mode: relayMode,
+        subject: { id: subject.id, name: subject.name },
+      }),
+      cache: "no-store",
+    }).catch(() => undefined);
+  }, [mode, subject.id, subject.name]);
+
+  function selectReviewMode(next: Exclude<Mode, "departure-transition">) {
+    if (sequenceTimer.current) window.clearTimeout(sequenceTimer.current);
+    if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
+    sequenceTimer.current = null;
+    ambientSubjectTimer.current = null;
+    const id = activeEventId.current;
+    if (id !== null) {
+      activeEventId.current = null;
+      busyRef.current = false;
+      void fetch(RELAY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "complete", surfaceId: SURFACE_ID, id }),
+        cache: "no-store",
+      }).catch(() => undefined);
+    }
+    setReplayLabel(null);
+    if (next === "reward") setReward(DEFAULT_ENERGY_SEED_REWARD);
+    if (next === "learning") setSpotlight(DEFAULT_LEARNING_SPOTLIGHT);
+    if (next === "broadcast") setBroadcast(DEFAULT_WORLD_BROADCAST);
+    if (next === "world-transition") {
+      setWorldTransition(DEFAULT_WORLD_STATE_TRANSITION);
+      setWorldState(DEFAULT_WORLD_STATE_TRANSITION.from);
+    }
+    setAmbientCharacterVisible(next !== "reward" && next !== "learning");
+    setMode(next);
+  }
+
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
+
+  return (
+    <main data-pinoria-tv-screen className={styles.screen}>
+      <div
+        data-ambient-backplane
+        data-ambient-character-visible={ambientCharacterVisible ? "true" : "false"}
+        data-ambient-backplane-visible={ambientBackplaneVisible ? "true" : "false"}
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          opacity: ambientBackplaneVisible ? 1 : 0,
+          pointerEvents: "none",
+          transition: "opacity 120ms linear",
+        }}
+      >
+        <style>{`[data-ambient-backplane][data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
+        <AmbientHouseRuntime subject={ambientSubject} />
+        <WorldStateAmbientOverlay state={worldState} />
+      </div>
+
+      <div
+        className={styles.prototypeTag}
+        style={learnerChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .32, background: "#161a15aa" } : undefined}
+      >
+        {replayLabel ?? "TV PROTOTYPE · SURFACE SESSION · RECEPTION_TV"}
+      </div>
+
+      {mode === "arrival" ? <Arrival subject={subject} /> : null}
+      {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
+      {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
+      {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
+      {mode === "broadcast" ? <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} /> : null}
+      {mode === "world-transition" ? <WorldStateTransitionScene transition={worldTransition} replay={!!replayLabel} /> : null}
+      {mode === "ritual" ? <Ritual /> : null}
+      {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
+      {mode === "departure" ? <Departure subject={subject} /> : null}
+
+      <button
+        className={styles.reviewToggle}
+        style={learnerChrome ? { right: 10, bottom: 9, padding: "5px 8px", fontSize: 8, opacity: reviewOpen ? 1 : .28, background: reviewOpen ? "#f2e8dc" : "#172019cc", color: reviewOpen ? "#3a312a" : "#d9d3c8", border: "1px solid #ffffff18" } : undefined}
+        onClick={() => setReviewOpen((open) => !open)}
+      >
+        {reviewOpen ? "Hide review controls" : learnerChrome ? "Duyệt" : "Review controls"}
+      </button>
+      {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV projects one scoped SurfaceSession. Review controls never change business truth.</small></aside> : null}
+    </main>
+  );
+}
+
+function SpotlightShell({ children }: { children: React.ReactNode }) {
+  return <div className={styles.spotlight}><div className={styles.spotlightGlow} />{children}</div>;
+}
+
+function Artifact({ label, muted = false }: { label: string; muted?: boolean }) {
+  return <div className={`${styles.artifact} ${muted ? styles.artifactMuted : ""}`}><span>✦</span><strong>{label}</strong></div>;
+}
+
+function Arrival({ subject }: { subject: TVSubject }) {
+  return <ArrivalScene subject={subject} />;
+}
+
+function Ritual() {
+  return <SpotlightShell><div className={styles.ritualLayout}><div className={styles.ritualIngredients}><Artifact label="Fruit ×5" /><Artifact label="Water Sigil" /></div><div className={styles.ritualCenter}><div className={styles.rings}><i /><i /><i /></div><div className={styles.companionHero}><span>B</span><strong>Bùm</strong><small>Ploo · Lv2 → Lv3</small></div><h1>Bùm đang hiện hình rõ hơn</h1><p>Canonical stage change has already been committed. This is presentation only.</p></div><div className={styles.ritualResult}><span className={styles.kicker}>NEW FORM</span><strong>Manifested III</strong><small>Replay shows the same outcome. No reroll.</small></div></div></SpotlightShell>;
+}
+
+function Departure({ subject }: { subject: TVSubject }) {
+  return <DepartureScene subject={subject} />;
+}

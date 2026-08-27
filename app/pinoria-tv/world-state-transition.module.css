@@ -1,0 +1,332 @@
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 74;
+  overflow: hidden;
+  color: #f7edd9;
+  isolation: isolate;
+  animation: worldStateIn 520ms ease-out both, worldStateOut 760ms ease-in 9.42s both;
+}
+
+.scrim,
+.oldWorld,
+.newWorld,
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scrim {
+  background: rgba(8, 7, 10, .68);
+  backdrop-filter: blur(2px) saturate(.78) brightness(.58);
+}
+
+.oldWorld {
+  background:
+    radial-gradient(circle at 26% 45%, rgba(212, 169, 108, .22), transparent 28%),
+    linear-gradient(110deg, rgba(128, 91, 52, .30), transparent 48%);
+  opacity: .9;
+  animation: oldWorldLeave 5.1s ease-in-out 1.7s forwards;
+}
+
+.newWorld {
+  background:
+    radial-gradient(circle at 72% 44%, rgba(255, 164, 102, .28), transparent 27%),
+    radial-gradient(circle at 58% 58%, rgba(126, 91, 196, .14), transparent 35%),
+    linear-gradient(250deg, rgba(132, 58, 42, .34), transparent 48%);
+  opacity: 0;
+  animation: newWorldArrive 4.2s ease-out 3.25s forwards;
+}
+
+.vignette {
+  box-shadow: inset 0 0 190px rgba(4, 3, 7, .88), inset 0 -100px 110px rgba(4, 3, 7, .46);
+}
+
+.header {
+  position: absolute;
+  top: 5.6%;
+  left: 50%;
+  z-index: 10;
+  width: min(720px, 72vw);
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0;
+  animation: headerIn 800ms ease-out .25s forwards;
+}
+
+.header span,
+.header strong,
+.fromCard small,
+.toCard small,
+.persistenceLine small,
+.truthNote {
+  display: block;
+  font-size: clamp(8px, .68vw, 11px);
+  font-weight: 900;
+  letter-spacing: .19em;
+  text-transform: uppercase;
+}
+
+.header span {
+  color: rgba(236, 222, 198, .46);
+}
+
+.header strong {
+  margin-top: 7px;
+  color: rgba(255, 245, 226, .88);
+  font-size: clamp(12px, 1vw, 17px);
+  letter-spacing: .24em;
+}
+
+.axis {
+  position: absolute;
+  left: 50%;
+  top: 45.5%;
+  z-index: 12;
+  width: min(1020px, 82vw);
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: 1fr 260px 1fr;
+  align-items: center;
+  gap: 24px;
+}
+
+.fromCard,
+.toCard {
+  min-height: 204px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 30px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.06);
+}
+
+.fromCard {
+  background: linear-gradient(150deg, rgba(101, 78, 56, .50), rgba(42, 36, 34, .58));
+  opacity: 0;
+  transform: translateX(-30px) scale(.96);
+  animation: fromCardIn 820ms cubic-bezier(.2,.8,.2,1) .75s forwards, fromCardFade 1.4s ease-in 4.45s forwards;
+}
+
+.toCard {
+  background: linear-gradient(150deg, rgba(116, 62, 47, .58), rgba(48, 33, 50, .62));
+  opacity: 0;
+  transform: translateX(34px) scale(.94);
+  animation: toCardIn 920ms cubic-bezier(.15,.88,.22,1.04) 4.25s forwards;
+}
+
+.stateGlyph {
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.17);
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.14), rgba(255,255,255,.03) 55%, transparent 72%);
+  box-shadow: 0 0 30px rgba(255, 196, 132, .12), inset 0 0 24px rgba(255,255,255,.06);
+  font-size: 31px;
+  font-weight: 900;
+}
+
+.fromCard small,
+.toCard small {
+  margin-top: 13px;
+  color: rgba(245, 231, 207, .44);
+}
+
+.fromCard strong,
+.toCard strong {
+  margin-top: 4px;
+  font-size: clamp(22px, 2.1vw, 35px);
+  letter-spacing: -.035em;
+}
+
+.fromCard p,
+.toCard p {
+  margin: 5px 0 0;
+  color: rgba(247, 236, 218, .58);
+  font-size: clamp(10px, .85vw, 14px);
+  font-weight: 700;
+}
+
+.portal {
+  position: relative;
+  width: 220px;
+  aspect-ratio: 1;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+}
+
+.portal i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+
+.ringA {
+  width: 88%;
+  height: 88%;
+  border: 1px solid rgba(255, 213, 166, .24);
+  animation: ringWake 900ms ease-out 1.25s forwards, ringSpin 9s linear 2.2s infinite;
+}
+
+.ringB {
+  width: 64%;
+  height: 64%;
+  border: 1px dashed rgba(226, 194, 255, .27);
+  animation: ringWake 900ms ease-out 1.55s forwards, ringSpinReverse 6.8s linear 2.2s infinite;
+}
+
+.ringC {
+  width: 42%;
+  height: 42%;
+  border: 1px solid rgba(255, 241, 213, .30);
+  box-shadow: 0 0 24px rgba(255, 180, 108, .16), inset 0 0 18px rgba(255,255,255,.05);
+  animation: ringWake 860ms ease-out 1.85s forwards, ringBreathe 1.9s ease-in-out 2.4s infinite;
+}
+
+.portal span {
+  position: relative;
+  z-index: 3;
+  color: rgba(255, 244, 218, .94);
+  font-size: 38px;
+  text-shadow: 0 0 18px rgba(255, 211, 156, .74), 0 0 44px rgba(239, 116, 87, .30);
+  opacity: 0;
+  transform: scale(.4);
+  animation: coreWake 1.1s cubic-bezier(.16,.85,.25,1.12) 1.8s forwards, coreShift 1.3s ease-in-out 4.1s both;
+}
+
+.copy {
+  position: absolute;
+  left: 50%;
+  bottom: 12.2%;
+  z-index: 16;
+  width: min(820px, 72vw);
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0;
+  animation: copyIn 860ms ease-out 5.15s forwards;
+}
+
+.copy p {
+  margin: 0;
+  color: rgba(249, 228, 200, .68);
+  font-size: clamp(11px, 1vw, 16px);
+  font-weight: 850;
+}
+
+.copy h1 {
+  margin: 3px 0 6px;
+  font-size: clamp(38px, 4.6vw, 76px);
+  line-height: .95;
+  letter-spacing: -.055em;
+  text-shadow: 0 9px 34px rgba(0,0,0,.44), 0 0 38px rgba(255, 169, 105, .17);
+}
+
+.copy > strong {
+  display: block;
+  color: rgba(247, 238, 221, .63);
+  font-size: clamp(10px, .86vw, 14px);
+  line-height: 1.45;
+  font-weight: 650;
+}
+
+.persistenceLine {
+  position: absolute;
+  left: 50%;
+  bottom: 3.4%;
+  z-index: 18;
+  width: min(680px, 64vw);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  animation: persistenceIn 700ms ease-out 6.4s forwards;
+}
+
+.persistenceLine > span {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #ffd39d;
+  box-shadow: 0 0 16px rgba(255, 173, 106, .82);
+}
+
+.persistenceLine small {
+  color: rgba(251, 226, 194, .46);
+  letter-spacing: .15em;
+}
+
+.persistenceLine strong {
+  display: block;
+  margin-top: 3px;
+  color: rgba(248, 238, 222, .72);
+  font-size: clamp(9px, .74vw, 12px);
+  font-weight: 700;
+}
+
+.truthNote {
+  position: absolute;
+  right: 2%;
+  bottom: 1.7%;
+  color: rgba(245, 234, 217, .13);
+  font-size: 7px;
+  letter-spacing: .13em;
+}
+
+@keyframes worldStateIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes worldStateOut { to { opacity: 0; } }
+@keyframes oldWorldLeave { 0%,36% { opacity: .9; } 100% { opacity: 0; transform: translateX(-4%) scale(1.04); } }
+@keyframes newWorldArrive { from { opacity: 0; transform: translateX(4%) scale(1.05); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes headerIn { from { opacity: 0; transform: translate(-50%,-12px); } to { opacity: 1; transform: translate(-50%,0); } }
+@keyframes fromCardIn { to { opacity: .96; transform: translateX(0) scale(1); } }
+@keyframes fromCardFade { to { opacity: .34; transform: translateX(-16px) scale(.97); filter: saturate(.55); } }
+@keyframes toCardIn { to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes ringWake { from { opacity: 0; transform: translate(-50%,-50%) scale(.5); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+@keyframes ringSpin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+@keyframes ringSpinReverse { to { transform: translate(-50%,-50%) rotate(-360deg); } }
+@keyframes ringBreathe { 0%,100% { transform: translate(-50%,-50%) scale(.94); opacity: .58; } 50% { transform: translate(-50%,-50%) scale(1.08); opacity: 1; } }
+@keyframes coreWake { to { opacity: 1; transform: scale(1); } }
+@keyframes coreShift { 0%,100% { transform: scale(1); } 40% { transform: scale(1.34) rotate(9deg); filter: brightness(1.4); } 70% { transform: scale(.94) rotate(-3deg); } }
+@keyframes copyIn { from { opacity: 0; transform: translate(-50%,22px); } to { opacity: 1; transform: translate(-50%,0); } }
+@keyframes persistenceIn { from { opacity: 0; transform: translate(-50%,10px); } to { opacity: 1; transform: translate(-50%,0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene,
+  .oldWorld,
+  .newWorld,
+  .header,
+  .fromCard,
+  .toCard,
+  .portal i,
+  .portal span,
+  .copy,
+  .persistenceLine { animation: none !important; }
+  .scene,
+  .newWorld,
+  .header,
+  .fromCard,
+  .toCard,
+  .portal i,
+  .portal span,
+  .copy,
+  .persistenceLine { opacity: 1 !important; }
+  .fromCard,
+  .toCard,
+  .portal span { transform: none !important; }
+  .header,
+  .copy,
+  .persistenceLine { transform: translateX(-50%) !important; }
+  .portal i { transform: translate(-50%,-50%) !important; }
+}

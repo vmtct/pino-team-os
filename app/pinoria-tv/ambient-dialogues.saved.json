@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "maxConcurrentBubbles": 3,
+  "conversationDurationMs": 4200,
+  "exchanges": [
+    {
+      "first": "Chào bạn! Hôm nay bạn đang làm gì ở Nhà PINO?",
+      "reply": "Mình đang khám phá một thứ mới nè ✦"
+    },
+    {
+      "first": "Bạn vừa tìm thấy gì hay vậy?",
+      "reply": "Bí mật đó, lát nữa mình kể cho nghe!"
+    },
+    {
+      "first": "Mình thích bộ đồ của bạn ghê!",
+      "reply": "Cảm ơn nha! Bộ của bạn cũng xịn lắm."
+    },
+    {
+      "first": "Lát nữa gặp nhau ở Open Studio nhé!",
+      "reply": "Okee, mình qua liền khi xong việc này."
+    },
+    {
+      "first": "Chúc bạn có một buổi thật vui ✦",
+      "reply": "Bạn cũng vậy nha!"
+    }
+  ]
+}

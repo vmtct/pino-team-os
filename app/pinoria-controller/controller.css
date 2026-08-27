@@ -1,0 +1,197 @@
+.psc-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 16% -4%, rgba(149, 87, 198, .22), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(220, 170, 74, .14), transparent 28%),
+    linear-gradient(180deg, #17100e 0%, #1d1411 44%, #120c0b 100%);
+  color: #f6ead7;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.psc-phone {
+  width: min(100%, 460px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top, 0) 0 calc(132px + env(safe-area-inset-bottom, 0));
+  position: relative;
+}
+
+.psc-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: 14px 14px 12px;
+  background: linear-gradient(180deg, rgba(23, 15, 13, .98), rgba(23, 15, 13, .92) 82%, rgba(23, 15, 13, 0));
+  backdrop-filter: blur(18px);
+}
+
+.psc-brand-row,
+.psc-brand-lockup,
+.psc-student-card,
+.psc-view-switch,
+.psc-section-head,
+.psc-action-item,
+.psc-action-buttons,
+.psc-sheet-actions {
+  display: flex;
+  align-items: center;
+}
+
+.psc-brand-row { justify-content: space-between; gap: 12px; }
+.psc-brand-lockup { gap: 10px; min-width: 0; }
+.psc-logo { width: 86px; height: 34px; object-fit: contain; object-position: left center; }
+.psc-brand-divider { width: 1px; height: 28px; background: rgba(239, 199, 120, .2); }
+.psc-kicker { color: #d8ab58; font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+.psc-brand-lockup strong { display: block; margin-top: 2px; font-size: 13px; }
+
+.psc-live {
+  border: 1px solid rgba(239, 199, 120, .18);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(54, 37, 29, .72);
+  color: rgba(247, 234, 213, .72);
+  font-size: 9px;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.psc-live span { width: 7px; height: 7px; border-radius: 50%; background: #8b7768; box-shadow: 0 0 0 3px rgba(139, 119, 104, .08); }
+.psc-live.is-online { color: #c9efb8; border-color: rgba(143, 198, 119, .25); background: rgba(65, 99, 52, .16); }
+.psc-live.is-online span { background: #8fca75; box-shadow: 0 0 0 3px rgba(143, 202, 117, .12); }
+
+.psc-student-card {
+  margin-top: 12px;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid rgba(239, 199, 120, .16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(54, 37, 29, .86), rgba(36, 24, 20, .9));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .16);
+}
+.psc-avatar { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; background: linear-gradient(145deg, #ecd18f, #c79643); color: #261812; font-size: 18px; font-weight: 950; }
+.psc-student-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.psc-student-copy > span { color: rgba(246, 232, 208, .45); font-size: 8px; font-weight: 800; letter-spacing: .04em; }
+.psc-student-copy select { width: 100%; appearance: none; border: 0; outline: 0; padding: 0; background: transparent; color: #f7e8d2; font: inherit; font-size: 16px; font-weight: 900; }
+.psc-student-copy option { color: #1d1411; }
+.psc-pls { display: grid; justify-items: end; }
+.psc-pls b { color: #efc875; font-size: 17px; }
+.psc-pls span { color: rgba(246, 232, 208, .4); font-size: 8px; font-weight: 900; letter-spacing: .1em; }
+
+.psc-session-row {
+  margin-top: 10px;
+  min-height: 46px;
+  padding: 8px 9px 8px 11px;
+  border: 1px solid rgba(239, 199, 120, .12);
+  border-radius: 15px;
+  background: rgba(35, 23, 19, .76);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.psc-session-copy { min-width: 0; display: grid; gap: 2px; }
+.psc-session-copy span { color: rgba(246, 232, 208, .38); font-size: 7.5px; font-weight: 900; letter-spacing: .08em; }
+.psc-session-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; }
+.psc-session-toggle {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(239, 199, 120, .2);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(78, 51, 35, .9), rgba(49, 31, 24, .94));
+  color: #efd7b5;
+  font-size: 8.5px;
+  font-weight: 950;
+}
+.psc-session-toggle.is-open { border-color: rgba(230, 142, 107, .24); background: rgba(112, 53, 37, .25); color: #efb29b; }
+
+.psc-view-switch {
+  margin-top: 10px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid rgba(239, 199, 120, .12);
+  border-radius: 15px;
+  background: rgba(27, 18, 15, .82);
+}
+.psc-view-switch button { flex: 1; min-height: 40px; border: 0; border-radius: 11px; background: transparent; color: rgba(247, 234, 213, .48); font-size: 11px; font-weight: 900; }
+.psc-view-switch button.active { background: linear-gradient(180deg, #f0cf82, #cf9f49); color: #281a13; box-shadow: 0 6px 18px rgba(221, 169, 68, .14); }
+
+.psc-error { margin: 0 14px 8px; padding: 9px 11px; border: 1px solid rgba(242, 139, 117, .24); border-radius: 12px; background: rgba(124, 42, 32, .18); color: #f2b0a1; font-size: 10px; }
+.psc-content { padding: 4px 14px 18px; }
+.psc-section-head { justify-content: space-between; margin: 4px 2px 10px; }
+.psc-section-head > div { display: grid; gap: 2px; }
+.psc-section-head span { color: #d8ab58; font-size: 8px; font-weight: 950; letter-spacing: .12em; }
+.psc-section-head strong { font-size: 13px; }
+.psc-section-head small { color: rgba(246, 232, 208, .4); font-size: 9px; }
+
+.psc-category-strip { display: flex; gap: 7px; overflow-x: auto; padding: 0 0 10px; scrollbar-width: none; }
+.psc-category-strip::-webkit-scrollbar { display: none; }
+.psc-category-strip button { flex: 0 0 auto; min-width: 58px; height: 38px; border: 1px solid rgba(239, 199, 120, .12); border-radius: 12px; background: rgba(48, 33, 27, .72); color: rgba(247, 234, 213, .58); font-size: 8.5px; font-weight: 850; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.psc-category-strip button span { font-size: 12px; }
+.psc-category-strip button.active { color: #2a1b12; border-color: #f7dda0; background: linear-gradient(180deg, #f3d48d, #d6a64c); }
+
+.psc-shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.psc-shop-card { min-width: 0; border: 1px solid rgba(239, 199, 120, .12); border-radius: 15px; padding: 7px; background: linear-gradient(180deg, rgba(52, 36, 29, .8), rgba(32, 22, 19, .88)); color: #f4e7d3; text-align: left; }
+.psc-shop-card.active { border-color: rgba(248, 207, 119, .82); box-shadow: 0 0 0 1px rgba(248, 207, 119, .1), 0 10px 24px rgba(215, 164, 66, .08); background: linear-gradient(180deg, rgba(87, 59, 38, .9), rgba(48, 31, 24, .94)); }
+.psc-card-art { aspect-ratio: 1; border-radius: 11px; display: grid; place-items: center; background: radial-gradient(circle, rgba(250, 221, 165, .08), transparent 68%); }
+.psc-card-art img { width: 88%; height: 88%; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .18)); }
+.psc-shop-card strong { display: -webkit-box; margin-top: 7px; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 27px; font-size: 9.5px; line-height: 1.35; }
+.psc-shop-card > span { display: block; margin-top: 4px; color: #e9bf68; font-size: 8.5px; font-weight: 900; }
+.psc-shop-card > span.owned { color: #9dcd88; }
+
+.psc-inventory-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 10px; }
+.psc-inventory-summary div { padding: 8px 9px; border: 1px solid rgba(239, 199, 120, .11); border-radius: 12px; background: rgba(48, 33, 27, .55); display: flex; justify-content: space-between; align-items: baseline; }
+.psc-inventory-summary span { color: rgba(246, 232, 208, .42); font-size: 8px; }
+.psc-inventory-summary b { color: #efc875; font-size: 13px; }
+.psc-inventory-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.psc-inventory-card { position: relative; aspect-ratio: 1; min-width: 0; border: 1px solid rgba(239, 199, 120, .11); border-radius: 13px; padding: 5px; display: grid; place-items: center; background: linear-gradient(180deg, rgba(51, 36, 29, .72), rgba(31, 22, 18, .85)); }
+.psc-inventory-card.active { border-color: rgba(249, 207, 116, .86); box-shadow: 0 0 20px rgba(222, 171, 72, .13); }
+.psc-inventory-card.equipped { box-shadow: inset 0 0 0 1px rgba(148, 205, 124, .12); border-color: rgba(148, 205, 124, .28); }
+.psc-inventory-card img { width: 84%; height: 84%; object-fit: contain; filter: drop-shadow(0 5px 7px rgba(0, 0, 0, .18)); }
+.psc-inventory-card i { position: absolute; left: 5px; top: 5px; z-index: 2; min-width: 17px; height: 17px; padding: 0 3px; border-radius: 999px; display: grid; place-items: center; background: rgba(36, 24, 19, .9); border: 1px solid rgba(239, 199, 120, .22); color: #e9c477; font-size: 6px; font-weight: 950; font-style: normal; }
+
+.psc-action-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 40;
+  width: min(100%, 460px);
+  transform: translateX(-50%);
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0));
+  background: linear-gradient(180deg, rgba(19, 12, 10, .2), rgba(19, 12, 10, .96) 18%);
+  backdrop-filter: blur(18px);
+}
+.psc-action-dock::before { content: ""; position: absolute; inset: 8px 14px calc(8px + env(safe-area-inset-bottom, 0)); border: 1px solid rgba(239, 199, 120, .15); border-radius: 18px; background: linear-gradient(180deg, rgba(49, 33, 27, .94), rgba(31, 21, 18, .98)); box-shadow: 0 -10px 30px rgba(0, 0, 0, .2); }
+.psc-action-dock > * { position: relative; z-index: 1; }
+.psc-action-item { gap: 9px; padding: 9px 10px 5px; }
+.psc-action-item img { width: 42px; height: 42px; object-fit: contain; border-radius: 10px; background: rgba(255, 255, 255, .025); }
+.psc-action-item div { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.psc-action-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.psc-action-item span { color: rgba(246, 232, 208, .46); font-size: 8px; }
+.psc-action-buttons { gap: 7px; padding: 4px 10px 10px; }
+.psc-action-buttons button,
+.psc-sheet-actions button { flex: 1; min-height: 42px; border-radius: 12px; font-size: 10px; font-weight: 950; }
+button.primary { border: 1px solid #f6dda1; color: #2a1b12; background: linear-gradient(180deg, #f1d083, #d1a047); }
+button.secondary { border: 1px solid rgba(239, 199, 120, .18); color: #f0dbc1; background: rgba(49, 33, 27, .82); }
+button:disabled { opacity: .45; }
+.psc-empty-action { min-height: 84px; display: grid; place-items: center; color: rgba(246, 232, 208, .38); font-size: 9px; }
+
+.psc-sheet-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding: 0; background: rgba(8, 5, 4, .62); backdrop-filter: blur(8px); }
+.psc-sheet { width: min(100%, 460px); border: 1px solid rgba(239, 199, 120, .22); border-bottom: 0; border-radius: 24px 24px 0 0; padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0)); background: linear-gradient(180deg, #39261f, #211613); box-shadow: 0 -28px 70px rgba(0, 0, 0, .38); text-align: center; }
+.psc-sheet-handle { width: 42px; height: 4px; margin: 0 auto 14px; border-radius: 999px; background: rgba(247, 231, 203, .2); }
+.psc-sheet-art { width: 104px; height: 104px; object-fit: contain; margin: 0 auto 6px; filter: drop-shadow(0 12px 16px rgba(0, 0, 0, .28)); }
+.psc-sheet-kicker { display: block; color: #d7ab55; font-size: 8px; font-weight: 950; letter-spacing: .12em; }
+.psc-sheet h2 { margin: 6px 0 5px; font-size: 20px; }
+.psc-sheet p { margin: 0 auto 14px; max-width: 330px; color: rgba(246, 232, 208, .53); font-size: 10px; line-height: 1.5; }
+.psc-sheet-actions { gap: 8px; }
+.psc-slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 12px; }
+.psc-slot-grid button { position: relative; aspect-ratio: 1; border: 1px solid rgba(239, 199, 120, .16); border-radius: 14px; background: rgba(48, 33, 27, .72); display: grid; place-items: center; }
+.psc-slot-grid button > span { position: absolute; left: 5px; top: 5px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; background: rgba(223, 178, 87, .16); color: #e9c477; font-size: 7px; font-weight: 950; }
+.psc-slot-grid img { width: 72%; height: 72%; object-fit: contain; }
+.psc-slot-grid i { color: rgba(247, 230, 198, .15); font-style: normal; }
+.psc-sheet-cancel { width: 100%; min-height: 40px; border: 0; background: transparent; color: rgba(246, 232, 208, .48); font-size: 10px; font-weight: 850; }
+
+@media (min-width: 700px) {
+  .psc-phone { margin-top: 18px; min-height: calc(100dvh - 36px); border: 1px solid rgba(239, 199, 120, .12); border-radius: 26px 26px 0 0; overflow: hidden; box-shadow: 0 26px 80px rgba(0, 0, 0, .28); }
+}

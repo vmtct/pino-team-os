@@ -1,0 +1,63 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1200000000;
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: soft-light;
+  transition: opacity 800ms ease, filter 900ms ease;
+}
+
+.tint,
+.glow,
+.motes {
+  position: absolute;
+  inset: 0;
+}
+
+.tint { opacity: .34; transition: background 900ms ease, opacity 900ms ease; }
+.glow { opacity: .52; filter: blur(22px); transition: background 900ms ease; }
+
+.overlay[data-pinoria-world-theme="neutral"] .tint { background: linear-gradient(180deg, rgba(245,238,221,.08), rgba(29,43,37,.05)); }
+.overlay[data-pinoria-world-theme="neutral"] .glow { background: radial-gradient(circle at 68% 28%, rgba(255,255,255,.08), transparent 36%); }
+
+.overlay[data-pinoria-world-theme="verdant"] .tint { background: linear-gradient(165deg, rgba(104,170,121,.22), rgba(218,231,176,.06) 55%, rgba(48,77,56,.14)); }
+.overlay[data-pinoria-world-theme="verdant"] .glow { background: radial-gradient(circle at 28% 28%, rgba(166,231,174,.21), transparent 38%); }
+
+.overlay[data-pinoria-world-theme="tide"] .tint { background: linear-gradient(165deg, rgba(92,170,203,.24), rgba(198,231,242,.05) 52%, rgba(64,87,145,.16)); }
+.overlay[data-pinoria-world-theme="tide"] .glow { background: radial-gradient(circle at 70% 25%, rgba(146,226,239,.23), transparent 40%); }
+
+.overlay[data-pinoria-world-theme="terravia"] .tint { background: linear-gradient(165deg, rgba(189,136,82,.25), rgba(229,192,129,.05) 54%, rgba(98,70,48,.17)); }
+.overlay[data-pinoria-world-theme="terravia"] .glow { background: radial-gradient(circle at 28% 24%, rgba(241,187,112,.24), transparent 39%); }
+
+.overlay[data-pinoria-world-theme="ember"] .tint { background: linear-gradient(165deg, rgba(190,78,54,.27), rgba(224,146,91,.06) 49%, rgba(78,51,97,.18)); }
+.overlay[data-pinoria-world-theme="ember"] .glow { background: radial-gradient(circle at 73% 27%, rgba(255,159,99,.28), transparent 39%), radial-gradient(circle at 49% 68%, rgba(145,91,191,.13), transparent 42%); }
+
+.motes i {
+  position: absolute;
+  bottom: -3%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,244,219,.52);
+  box-shadow: 0 0 12px rgba(255,191,121,.36);
+  opacity: 0;
+  animation: worldAmbientMote 7.2s linear infinite;
+}
+
+.overlay[data-pinoria-world-theme="neutral"] .motes { opacity: .18; }
+.overlay[data-pinoria-world-theme="verdant"] .motes { opacity: .34; }
+.overlay[data-pinoria-world-theme="tide"] .motes { opacity: .27; }
+.overlay[data-pinoria-world-theme="terravia"] .motes { opacity: .42; }
+.overlay[data-pinoria-world-theme="ember"] .motes { opacity: .54; }
+
+@keyframes worldAmbientMote {
+  0% { opacity: 0; transform: translate3d(0,0,0) scale(.65); }
+  18% { opacity: .52; }
+  72% { opacity: .34; }
+  100% { opacity: 0; transform: translate3d(22px,-112vh,0) scale(1.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motes i { animation: none !important; opacity: .18; }
+}

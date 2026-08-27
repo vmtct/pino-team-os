@@ -1,0 +1,207 @@
+{
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "miniCharacter": {
+    "width": 164,
+    "height": 115,
+    "anchor": "center",
+    "centerOffset": {
+      "x": 82,
+      "y": 57.5
+    }
+  },
+  "horizontalLanes": [
+    {
+      "id": "lane-01",
+      "y": 931,
+      "x1": 90,
+      "x2": 1745,
+      "midLayer": "front"
+    },
+    {
+      "id": "lane-04",
+      "y": 885,
+      "x1": 63,
+      "x2": 1736,
+      "midLayer": "front"
+    },
+    {
+      "id": "lane-06",
+      "y": 807,
+      "x1": 545,
+      "x2": 869,
+      "midLayer": "behind"
+    },
+    {
+      "id": "lane-07",
+      "y": 813,
+      "x1": 1290,
+      "x2": 1676,
+      "midLayer": "behind"
+    },
+    {
+      "id": "lane-08",
+      "y": 830,
+      "x1": 444,
+      "x2": 537,
+      "midLayer": "front"
+    },
+    {
+      "id": "lane-09",
+      "y": 761,
+      "x1": 150,
+      "x2": 348,
+      "midLayer": "behind"
+    },
+    {
+      "id": "lane-10",
+      "y": 469,
+      "x1": 210,
+      "x2": 867,
+      "midLayer": "behind"
+    },
+    {
+      "id": "lane-11",
+      "y": 472,
+      "x1": 179,
+      "x2": 1024,
+      "midLayer": "front"
+    }
+  ],
+  "rawConnectors": [
+    {
+      "id": "connector-01",
+      "from": {
+        "x": 604,
+        "y": 785
+      },
+      "to": {
+        "x": 497,
+        "y": 908
+      }
+    },
+    {
+      "id": "connector-02",
+      "from": {
+        "x": 589,
+        "y": 793
+      },
+      "to": {
+        "x": 0,
+        "y": 995
+      }
+    },
+    {
+      "id": "connector-03",
+      "from": {
+        "x": 864,
+        "y": 775
+      },
+      "to": {
+        "x": 881,
+        "y": 1006
+      }
+    },
+    {
+      "id": "connector-04",
+      "from": {
+        "x": 1631,
+        "y": 758
+      },
+      "to": {
+        "x": 1803,
+        "y": 973
+      }
+    },
+    {
+      "id": "connector-05",
+      "from": {
+        "x": 1397,
+        "y": 766
+      },
+      "to": {
+        "x": 1377,
+        "y": 945
+      }
+    },
+    {
+      "id": "connector-06",
+      "from": {
+        "x": 1308,
+        "y": 766
+      },
+      "to": {
+        "x": 1303,
+        "y": 953
+      }
+    },
+    {
+      "id": "connector-07",
+      "from": {
+        "x": 540,
+        "y": 954
+      },
+      "to": {
+        "x": 509,
+        "y": 841
+      }
+    },
+    {
+      "id": "connector-08",
+      "from": {
+        "x": 203,
+        "y": 714
+      },
+      "to": {
+        "x": 63,
+        "y": 1012
+      }
+    },
+    {
+      "id": "connector-09",
+      "from": {
+        "x": 271,
+        "y": 405
+      },
+      "to": {
+        "x": 175,
+        "y": 561
+      }
+    },
+    {
+      "id": "connector-10",
+      "from": {
+        "x": 820,
+        "y": 395
+      },
+      "to": {
+        "x": 885,
+        "y": 560
+      }
+    },
+    {
+      "id": "connector-11",
+      "from": {
+        "x": 974,
+        "y": 433
+      },
+      "to": {
+        "x": 944,
+        "y": 1000
+      }
+    },
+    {
+      "id": "connector-12",
+      "from": {
+        "x": 1004,
+        "y": 397
+      },
+      "to": {
+        "x": 1088,
+        "y": 1038
+      }
+    }
+  ]
+}
