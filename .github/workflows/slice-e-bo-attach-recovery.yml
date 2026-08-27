@@ -1,0 +1,172 @@
+name: Slice E BO Attach Recovery
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: slice-e-bo-attach-recovery
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.issue.title == '[GPT] Slice E BO attach recovery' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      TARGET_TEAM_SHA: 112041ee411db908161dd60ecf04d072626fd9f9
+      TARGET_TEAM_VERSION: d3825ac1-f7d9-404b-883b-99d5e89f4f2d
+      TARGET_CORE_SHA: fa12eb40e2ae967463427f17b99882022a580b7e
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      FAILED_RUN: '33038036936'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile partial BO attach and finalize or rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          bo_domain_id=""
+          rollback_eligible=0
+          SMOKE_CODE=""
+
+          comment() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"
+          }
+
+          reject() {
+            comment "SLICE_E_BO_RECOVERY: **REJECTED**\n\n$1\n\nNo production mutation was attempted."
+            exit 1
+          }
+
+          rollback_bo() {
+            if [ "$rollback_eligible" -eq 1 ] && [ -n "$bo_domain_id" ]; then
+              curl -fsS -X DELETE "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains/${bo_domain_id}" "${auth[@]}" >/dev/null 2>&1 || true
+            fi
+          }
+
+          fail_safe() {
+            rollback_bo
+            comment "SLICE_E_BO_RECOVERY: **FAIL_SAFE**\n\n$1\n\nThe exact BO custom domain from failed run ${FAILED_RUN} was detached when safely identifiable. TOS/Core/D1/Access policy/business data were not mutated."
+            exit 1
+          }
+
+          require_json() {
+            local value="$1" label="$2"
+            jq -e . >/dev/null <<<"$value" || fail_safe "Cloudflare returned malformed JSON while reading ${label}."
+          }
+
+          smoke_access() {
+            local host="$1" path="$2" attempt headers location challenge
+            SMOKE_CODE=""
+            for attempt in $(seq 1 12); do
+              headers="$RUNNER_TEMP/headers.txt"
+              : > "$headers"
+              SMOKE_CODE="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${path}" || true)"
+              location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+              challenge="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+              case "$SMOKE_CODE" in
+                302|303|307) [[ "$location" =~ cloudflareaccess\.com ]] && return 0 ;;
+                401|403) [[ "$challenge" == *Cloudflare-Access* || -n "$challenge" ]] && return 0 ;;
+                200) return 2 ;;
+              esac
+              sleep 3
+            done
+            return 1
+          }
+
+          grep -Eq '^FAILED_RUN:[[:space:]]*33038036936[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Issue must pin FAILED_RUN: 33038036936."
+          grep -Eq '^CONFIRM:[[:space:]]*RECONCILE_SLICE_E_BO[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: RECONCILE_SLICE_E_BO."
+          [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
+
+          git merge-base --is-ancestor "$TARGET_TEAM_SHA" HEAD || reject "Reviewed Team runtime is not an ancestor of current main."
+          unexpected="$(git diff --name-only "$TARGET_TEAM_SHA"..HEAD | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          [ -z "$unexpected" ] || reject "Runtime-affecting Team drift exists after reviewed source: ${unexpected//$'\n'/, }."
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || reject "Cannot inspect Worker custom domains."
+          require_json "$domains" "Worker custom domains"
+          bo_any_count="$(jq -r --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length' <<<"$domains")"
+          bo_exact_count="$(jq -r --arg h "$BO_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length' <<<"$domains")"
+          [ "$bo_any_count" -eq 1 ] || reject "Expected exactly one current BO custom domain from the partial attach; found ${bo_any_count}."
+          [ "$bo_exact_count" -eq 1 ] || reject "Current BO custom domain is not attached exactly once to pino-team-os."
+          bo_domain_id="$(jq -r --arg h "$BO_HOST" --arg s "$TEAM_WORKER" '.result[]? | select(.hostname==$h and .service==$s) | .id // empty' <<<"$domains" | head -1)"
+          [ -n "$bo_domain_id" ] || reject "Cannot resolve exact BO domain ID."
+          rollback_eligible=1
+
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$domains" >/dev/null || fail_safe "TOS attachment is not preserved exactly once on Team OS."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length==0' <<<"$domains" >/dev/null || fail_safe "Core unexpectedly owns a custom domain."
+
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail_safe "Cannot inspect zone Worker routes."
+          require_json "$routes" "zone Worker routes"
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length==0' <<<"$routes" >/dev/null || fail_safe "Core has a public zone route."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($h))] | length==0' <<<"$routes" >/dev/null || fail_safe "BO unexpectedly has a zone Worker route in addition to its custom domain."
+
+          team_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail_safe "Cannot inspect Team deployment."
+          require_json "$team_deployments" "Team deployment"
+          active_team="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$team_deployments" | head -1)"
+          [ "$active_team" = "$TARGET_TEAM_VERSION" ] || fail_safe "Reviewed Team version is no longer active at 100%."
+
+          target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${TARGET_TEAM_VERSION}" "${auth[@]}")" || fail_safe "Cannot inspect reviewed Team version."
+          require_json "$target" "reviewed Team version"
+          for binding in PINO_WORKFORCE_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE PINO_TOS_LEARNING_CORE; do
+            jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$target" >/dev/null || fail_safe "Reviewed Team version lost private binding: ${binding}."
+          done
+
+          provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${TARGET_TEAM_VERSION}" "${auth[@]}")" || fail_safe "Cannot inspect Team build provenance."
+          require_json "$provenance" "Team build provenance"
+          candidate_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+          [ "$candidate_commit" = "$TARGET_TEAM_SHA" ] || fail_safe "Team version provenance no longer matches reviewed source."
+
+          core_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail_safe "Cannot inspect Core deployment."
+          require_json "$core_deployments" "Core deployment"
+          active_core="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$core_deployments" | head -1)"
+          [ -n "$active_core" ] || fail_safe "Cannot resolve active Core version."
+          core_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/versions/${active_core}" "${auth[@]}")" || fail_safe "Cannot inspect active Core version."
+          require_json "$core_detail" "active Core version"
+          core_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$core_detail")"
+          [ "$core_message" = "A-D Core production ${TARGET_CORE_SHA}" ] || fail_safe "Active Core is not the governed A-D source."
+
+          if smoke_access "$BO_HOST" "/bo/staff"; then
+            bo_code="$SMOKE_CODE"
+          else
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail_safe "/bo/staff returned public HTTP 200; BO is not protected by Cloudflare Access."; fi
+            fail_safe "/bo/staff did not produce a valid Cloudflare Access challenge (HTTP ${SMOKE_CODE:-000})."
+          fi
+
+          if smoke_access "$TOS_HOST" "/pinoria"; then
+            tos_code="$SMOKE_CODE"
+          else
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail_safe "TOS returned public HTTP 200 during recovery."; fi
+            fail_safe "TOS did not preserve its Access challenge (HTTP ${SMOKE_CODE:-000})."
+          fi
+
+          final_domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail_safe "Cannot perform final custom-domain verification."
+          require_json "$final_domains" "final Worker custom domains"
+          jq -e --arg h "$BO_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$final_domains" >/dev/null || fail_safe "Final BO attachment verification failed."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$final_domains" >/dev/null || fail_safe "Final TOS attachment verification failed."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length==0' <<<"$final_domains" >/dev/null || fail_safe "Final Core no-custom-domain invariant failed."
+
+          rollback_eligible=0
+          comment "SLICE_E_BO_RECOVERY: **PASS**\n\n- Failed run ${FAILED_RUN} was reconciled forward without a second attach.\n- bo.pinohouse.art → pino-team-os: attached exactly once\n- /bo/staff: Cloudflare Access protected (HTTP ${bo_code})\n- TOS: preserved and Access protected (HTTP ${tos_code})\n- Team version: ${TARGET_TEAM_VERSION} at 100%\n- Core source: ${TARGET_CORE_SHA}; public ingress: none\n\nNo D1, Staff, role, Access-policy, learner, Visit, Attendance, or reward data mutation was performed during recovery."
