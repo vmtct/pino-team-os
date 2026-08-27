@@ -112,10 +112,8 @@ export function StaffOnboardingView() {
     for (let index = 0; index < rows.length; index++) {
       const [name, email, pin] = rows[index];
       try {
-        const created = await boApi.onboardStaff({ commandType: "ONBOARD_STAFF_WITH_ACCESS", staff: { displayLabel: name, email }, email, assignments: [{ roleId: importRoleId, scopeType: "GLOBAL", scopeId: null }] }, crypto.randomUUID());
+        const created = await boApi.onboardStaff({ commandType: "ONBOARD_STAFF_WITH_ACCESS", staff: { displayLabel: name, email }, email, assignments: [{ roleId: importRoleId, scopeType: "GLOBAL", scopeId: null }], pin }, crypto.randomUUID());
         if (!created.userId) throw new Error("Core did not return an Access user");
-        const response = await fetch("/api/staff-pin/configure", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: created.userId, pin }) });
-        if (!response.ok) throw new Error("PIN configuration failed");
         setImportStatus(`Đang import ${index + 1}/${rows.length}…`);
       } catch (error) { setImportStatus(`Dừng ở dòng ${index + 1}: ${error instanceof Error ? error.message : "Import thất bại"}`); return; }
     }
