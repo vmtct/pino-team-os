@@ -1,0 +1,198 @@
+name: Slice E BO Production Attach
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: slice-e-bo-production-attach
+  cancel-in-progress: false
+
+jobs:
+  attach:
+    if: github.event.issue.title == '[GPT] Slice E BO production attach' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      TARGET_TEAM_SHA: 112041ee411db908161dd60ecf04d072626fd9f9
+      TARGET_TEAM_VERSION: d3825ac1-f7d9-404b-883b-99d5e89f4f2d
+      TARGET_CORE_SHA: fa12eb40e2ae967463427f17b99882022a580b7e
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      ZONE_NAME: pinohouse.art
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+
+    steps:
+      - name: Check out current Team control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Founder Slice E request and source drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          reject() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "SLICE_E_BO_ATTACH: **REJECTED**\n\n$1\n\nNo production mutation was attempted."
+            exit 1
+          }
+
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
+          requested="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          [ "$requested" = "$TARGET_TEAM_SHA" ] || reject "Requested Team SHA is not the reviewed production runtime."
+          grep -Eq '^CONFIRM:[[:space:]]*ATTACH_SLICE_E_BO_PRODUCTION[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: ATTACH_SLICE_E_BO_PRODUCTION."
+          [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
+
+          git merge-base --is-ancestor "$TARGET_TEAM_SHA" HEAD || reject "Reviewed Team runtime is not an ancestor of current main."
+          unexpected="$(git diff --name-only "$TARGET_TEAM_SHA"..HEAD | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          [ -z "$unexpected" ] || reject "Runtime-affecting Team drift exists after the reviewed runtime: ${unexpected//$'\n'/, }."
+
+      - name: Attach only BO and verify Access perimeter
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          attached=0
+          domain_id=""
+          SMOKE_CODE=""
+
+          comment() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"
+          }
+
+          resolve_bo_domain_id() {
+            local domains
+            domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}" 2>/dev/null || true)"
+            jq -r --arg h "$BO_HOST" --arg s "$TEAM_WORKER" '.result[]? | select(.hostname==$h and .service==$s) | .id // empty' <<<"${domains:-{}}" | head -1
+          }
+
+          rollback() {
+            if [ "$attached" -eq 1 ]; then
+              if [ -z "$domain_id" ]; then
+                domain_id="$(resolve_bo_domain_id)"
+              fi
+              if [ -n "$domain_id" ]; then
+                curl -fsS -X DELETE "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains/${domain_id}" "${auth[@]}" >/dev/null 2>&1 || true
+              fi
+            fi
+          }
+
+          fail() {
+            rollback
+            comment "SLICE_E_BO_ATTACH: **FAIL_SAFE**\n\n$1\n\nBO was detached again if this run had attached it. TOS/Core/D1/Access policy/business data were not mutated."
+            exit 1
+          }
+
+          smoke_access() {
+            local host="$1" path="$2" attempt headers location challenge
+            SMOKE_CODE=""
+            for attempt in $(seq 1 36); do
+              headers="$RUNNER_TEMP/headers.txt"
+              : > "$headers"
+              SMOKE_CODE="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${path}" || true)"
+              location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+              challenge="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+              case "$SMOKE_CODE" in
+                302|303|307)
+                  if [[ "$location" =~ cloudflareaccess\.com ]]; then return 0; fi
+                  ;;
+                401|403)
+                  if [[ "$challenge" == *Cloudflare-Access* || -n "$challenge" ]]; then return 0; fi
+                  ;;
+                200)
+                  return 2
+                  ;;
+              esac
+              sleep 5
+            done
+            return 1
+          }
+
+          target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${TARGET_TEAM_VERSION}" "${auth[@]}")" || fail "Cannot inspect reviewed Team version."
+          jq -e '.success==true' <<<"$target" >/dev/null || fail "Cloudflare did not return reviewed Team version successfully."
+          for binding in PINO_WORKFORCE_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE PINO_TOS_LEARNING_CORE; do
+            jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$target" >/dev/null || fail "Reviewed Team version lost required private binding: ${binding}."
+          done
+
+          provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${TARGET_TEAM_VERSION}" "${auth[@]}")" || fail "Cannot inspect Team build provenance."
+          candidate_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+          [ "$candidate_commit" = "$TARGET_TEAM_SHA" ] || fail "Team version provenance is ${candidate_commit:-unknown}, expected ${TARGET_TEAM_SHA}."
+
+          team_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect Team deployment."
+          active_team="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$team_deployments" | head -1)"
+          [ "$active_team" = "$TARGET_TEAM_VERSION" ] || fail "Reviewed Team Worker version is no longer active at 100%."
+
+          core_deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect Core deployment."
+          active_core="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$core_deployments" | head -1)"
+          [ -n "$active_core" ] || fail "Cannot resolve one active 100% Core version."
+          core_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/versions/${active_core}" "${auth[@]}")" || fail "Cannot inspect active Core version."
+          core_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$core_detail")"
+          [ "$core_message" = "A-D Core production ${TARGET_CORE_SHA}" ] || fail "Active Core is not the governed A-D production source."
+          for binding in DB STAFF_PIN_PEPPER; do
+            jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$core_detail" >/dev/null || fail "Active Core lacks required binding: ${binding}."
+          done
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker custom domains."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$domains" >/dev/null || fail "TOS is not attached exactly once to Team OS."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select(.hostname==$h)] | length==0' <<<"$domains" >/dev/null || fail "BO is already attached before this governed step."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length==0' <<<"$domains" >/dev/null || fail "Core unexpectedly owns a custom domain."
+
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone Worker routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length==0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
+          jq -e --arg h "$BO_HOST" '[.result[]? | select((.pattern // "") | contains($h))] | length==0' <<<"$routes" >/dev/null || fail "BO has an unexpected zone Worker route."
+
+          smoke_access "$TOS_HOST" "/pinoria" || {
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail "TOS became publicly reachable before BO activation."; fi
+            fail "Existing TOS Access perimeter is not healthy before BO activation (HTTP ${SMOKE_CODE:-000})."
+          }
+
+          payload="$(jq -nc --arg h "$BO_HOST" --arg s "$TEAM_WORKER" --arg z "$ZONE_ID" --arg zn "$ZONE_NAME" '{hostname:$h,service:$s,zone_id:$z,zone_name:$zn}')"
+          attach_response="$(curl -fsS -X PUT "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected the BO custom-domain attach."
+          jq -e '.success==true' <<<"$attach_response" >/dev/null || fail "Cloudflare did not report a successful BO attach."
+          attached=1
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot verify custom domains after BO attach."
+          jq -e --arg h "$BO_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$domains" >/dev/null || fail "BO is not attached exactly once to Team OS."
+          domain_id="$(resolve_bo_domain_id)"
+          [ -n "$domain_id" ] || fail "Cannot resolve attached BO domain ID for rollback safety."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$domains" >/dev/null || fail "TOS attachment changed unexpectedly during BO activation."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length==0' <<<"$domains" >/dev/null || fail "Core gained a custom domain during BO activation."
+
+          smoke_access "$BO_HOST" "/bo/staff" || {
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail "/bo/staff returned public HTTP 200; Cloudflare Access is not protecting BO."; fi
+            fail "/bo/staff did not produce the expected Cloudflare Access challenge (HTTP ${SMOKE_CODE:-000})."
+          }
+          bo_code="$SMOKE_CODE"
+
+          smoke_access "$TOS_HOST" "/pinoria" || {
+            rc=$?
+            if [ "$rc" -eq 2 ]; then fail "TOS became publicly reachable after BO activation."; fi
+            fail "TOS Access perimeter changed unexpectedly after BO activation (HTTP ${SMOKE_CODE:-000})."
+          }
+          tos_code="$SMOKE_CODE"
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot perform final domain verification."
+          jq -e --arg h "$BO_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$domains" >/dev/null || fail "Final BO attachment verification failed."
+          jq -e --arg h "$TOS_HOST" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length==1' <<<"$domains" >/dev/null || fail "Final TOS attachment verification failed."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length==0' <<<"$domains" >/dev/null || fail "Final Core no-custom-domain invariant failed."
+
+          attached=0
+          comment "SLICE_E_BO_ATTACH: **PASS**\n\n- bo.pinohouse.art → pino-team-os: attached\n- /bo/staff: Cloudflare Access protected (HTTP ${bo_code})\n- TOS: still attached and Access protected (HTTP ${tos_code})\n- Team source: ${TARGET_TEAM_SHA}\n- Team Worker version: ${TARGET_TEAM_VERSION} at 100%\n- Core source dependency: ${TARGET_CORE_SHA}\n- Core active version: ${active_core}\n- Core public ingress: none\n\nNo D1, Staff, role, Access-policy, learner, Visit, Attendance, or reward data mutation was performed by this operator."
