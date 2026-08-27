@@ -1,0 +1,60 @@
+﻿name: Pinoria TV Prototype Deploy
+
+on:
+  push:
+    branches:
+      - prototype/pinoria-full-ui-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pinoria-tv-prototype-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      PROTOTYPE_URL: https://pinoria-tv-prototype.minhtri-van42.workers.dev
+
+    steps:
+      - name: Checkout prototype
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build OpenNext for Cloudflare
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy isolated prototype Worker
+        run: npx wrangler deploy --config wrangler.pinoria-tv.jsonc
+
+      - name: Smoke prototype routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            "/pinoria-tv"
+            "/pinoria-tv/review"
+            "/pinoria-tv/review/lost-artifact/01"
+            "/pinoria-tv/review/lost-artifact/02"
+            "/pinoria-tv/review/lost-artifact/03"
+            "/pinoria-tv/review/lost-artifact/04"
+          )
+          for path in "${paths[@]}"; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --retry 4 --retry-all-errors --retry-delay 2 "${PROTOTYPE_URL}${path}")"
+            echo "${code} ${path}"
+            test "$code" = "200"
+          done
