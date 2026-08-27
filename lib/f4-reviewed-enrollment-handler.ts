@@ -6,7 +6,7 @@ import { REVIEWED_ENROLLMENT_PLAN, REVIEWED_ENROLLMENT_UNRESOLVED, type Reviewed
 
 export const REVIEWED_ENROLLMENT_CENTER_ID = "01a02354-6be1-7c77-a2dd-513052a18b98";
 export const REVIEWED_ENROLLMENT_EFFECTIVE_FROM = "2026-08-27";
-export const REVIEWED_ENROLLMENT_POLICY_EFFECTIVE_AT = "2026-08-27T12:00:00.000Z";
+export const REVIEWED_ENROLLMENT_FUTURE_MAX_DAYS = 0;
 export const REVIEWED_ENROLLMENT_ACTIVATION_PATH = "delivery/enrollment-activation";
 
 export interface ReviewedEnrollmentEnv {
@@ -19,6 +19,9 @@ interface Subscription { id: string; pathProgramId: string; lifecycle: string; w
 interface Enrollment { id: string; subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; effectiveUntilExclusiveLocalDate: string | null; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null }
 interface CapacityDecision { status: "AVAILABLE" | "ABOVE_OPTIMAL" | "HARD_BLOCKED"; bottlenecks: string[] }
 interface PlacementState { placementState: "PENDING_PLACEMENT" | "PARTIALLY_PLACED" | "PLACED"; effectiveEnrollmentCount: number; weeklySessionCommitment: number }
+interface FutureReservationPolicyVersion { id: string; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: { maxDaysAhead: number } }
+interface FutureReservationPolicyInspection { stream: { revision: number }; versions: FutureReservationPolicyVersion[] }
+interface PolicyDraftResult { versionId: string; revision: number }
 interface ResolvedPlacement { subscriptionId: string; runningClass: F3RunningClass; placement: ReviewedEnrollmentPlacement }
 
 class CoreFailure extends Error {
@@ -76,6 +79,7 @@ export async function handleReviewedEnrollmentActivation(
       const decision = await core<CapacityDecision>({ method: "GET", path: "enrollments/capacity", body: capacityBody(candidate) });
       if (decision.status === "HARD_BLOCKED") throw new Error(`Capacity preflight blocked ${candidate.runningClass.operationalName}: ${decision.bottlenecks.join(", ")}.`);
     }
+    const policyEffectiveAt = await ensureFutureReservationPolicy(core, centerId);
 
     let created = 0;
     for (const candidate of missing) {
@@ -87,7 +91,7 @@ export async function handleReviewedEnrollmentActivation(
           plannedEntryLocalTime: candidate.placement.plannedEntryLocalTime,
           plannedDurationMinutes: candidate.placement.plannedDurationMinutes,
           commandEffectiveLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
-          policyEffectiveAt: REVIEWED_ENROLLMENT_POLICY_EFFECTIVE_AT,
+          policyEffectiveAt,
         },
       });
       created += 1;
@@ -124,6 +128,49 @@ export async function handleReviewedEnrollmentActivation(
     console.error("Reviewed Enrollment activation stopped", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_CONFLICT", message: error instanceof Error ? error.message : "Reviewed Enrollment activation stopped" } }, 409);
   }
+}
+async function ensureFutureReservationPolicy(
+  core: <T>(request: BoAccessRequest) => Promise<T>,
+  centerId: string,
+): Promise<string> {
+  const target = { targetType: "CENTER", targetId: centerId };
+  const inspect = () => core<FutureReservationPolicyInspection | null>({
+    method: "GET", path: "policies/delivery/future_reservation.v1/stream", body: target,
+  });
+  let state = await inspect();
+  if (state === null) {
+    const draft = await core<PolicyDraftResult>({
+      method: "POST", path: "policies/delivery/future_reservation.v1/versions",
+      body: { ...target, value: { maxDaysAhead: REVIEWED_ENROLLMENT_FUTURE_MAX_DAYS }, changeReason: "Founder-approved F4 reviewed learner roster prerequisite" },
+    });
+    await core<{ published: boolean }>({
+      method: "POST", path: `policies/delivery/future_reservation.v1/versions/${draft.versionId}/publish`,
+      body: { ...target, effectiveFrom: new Date().toISOString(), expectedRevision: draft.revision },
+    });
+    state = await inspect();
+  } else {
+    const drafts = state.versions.filter((version) => version.storedState === "DRAFT");
+    const active = activeFutureReservationVersions(state);
+    if (active.length === 0 && drafts.length === 1 && drafts[0]!.value.maxDaysAhead === REVIEWED_ENROLLMENT_FUTURE_MAX_DAYS) {
+      await core<{ published: boolean }>({
+        method: "POST", path: `policies/delivery/future_reservation.v1/versions/${drafts[0]!.id}/publish`,
+        body: { ...target, effectiveFrom: new Date().toISOString(), expectedRevision: state.stream.revision },
+      });
+      state = await inspect();
+    }
+  }
+  if (state === null || state.versions.some((version) => version.storedState === "DRAFT")) {
+    throw new Error("Reviewed future-reservation policy has unresolved draft state.");
+  }
+  const active = activeFutureReservationVersions(state);
+  if (active.length !== 1 || active[0]!.value.maxDaysAhead !== REVIEWED_ENROLLMENT_FUTURE_MAX_DAYS || !active[0]!.effectiveFrom) {
+    throw new Error("Reviewed Enrollment activation requires exactly one active CENTER future-reservation policy at 0 days.");
+  }
+  return active[0]!.effectiveFrom;
+}
+
+function activeFutureReservationVersions(state: FutureReservationPolicyInspection) {
+  return state.versions.filter((version) => version.storedState === "PUBLISHED" && version.effectiveUntil === null);
 }
 async function coreData<T>(binding: BoAccessCoreBinding, request: BoAccessRequest, identity: Awaited<ReturnType<typeof authenticateBo>>): Promise<T> {
   const result = await callBoAccessCore(binding, request, identity);

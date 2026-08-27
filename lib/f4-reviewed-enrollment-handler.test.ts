@@ -83,15 +83,33 @@ function buildClasses(): F3RunningClass[] {
 }
 
 type StoredEnrollment = { id: string; subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; effectiveUntilExclusiveLocalDate: null; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null };
-function fakeCore(coreState: F3BootstrapState) {
+function fakeCore(coreState: F3BootstrapState, initialFutureDays?: number) {
   const enrollments = new Map<string, StoredEnrollment[]>();
   const subscriptions = new Map<string, { id: string; pathProgramId: string; lifecycle: string; weeklyCommitment: number }>();
   for (const item of [...REVIEWED_ENROLLMENT_PLAN, ...REVIEWED_ENROLLMENT_UNRESOLVED]) {
     subscriptions.set(item.subscriptionId, { id: item.subscriptionId, pathProgramId: pathIds[item.pathCode]!, lifecycle: "ACTIVE", weeklyCommitment: item.expectedWeeklyCommitment });
   }
   let created = 0;
+  let policyWrites = 0;
+  let policy: { stream: { revision: number }; versions: Array<{ id: string; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: { maxDaysAhead: number } }> } | null = initialFutureDays === undefined ? null : { stream: { revision: 2 }, versions: [{ id: "00000000-0000-7000-a001-000000000001", storedState: "PUBLISHED", effectiveFrom: "2026-08-27T14:00:00.000Z", effectiveUntil: null, value: { maxDaysAhead: initialFutureDays } }] };
   const binding: BoAccessCoreBinding = {
     async execute(request: BoAccessRequest) {
+      if (request.method === "GET" && request.path === "policies/delivery/future_reservation.v1/stream") return ok(policy);
+      if (request.method === "POST" && request.path === "policies/delivery/future_reservation.v1/versions") {
+        if (policy !== null) return { status: 409, body: { error: { message: "unexpected existing policy" } }, requestId: "fake-policy-conflict" };
+        const body = request.body as { value: { maxDaysAhead: number } };
+        policyWrites += 1;
+        policy = { stream: { revision: 1 }, versions: [{ id: "00000000-0000-7000-a001-000000000001", storedState: "DRAFT", effectiveFrom: null, effectiveUntil: null, value: { maxDaysAhead: body.value.maxDaysAhead } }] };
+        return ok({ versionId: policy.versions[0]!.id, revision: 1 }, 201);
+      }
+      const policyPublish = /^policies\/delivery\/future_reservation\.v1\/versions\/([0-9a-f-]{36})\/publish$/.exec(request.path);
+      if (request.method === "POST" && policyPublish) {
+        const body = request.body as { effectiveFrom: string };
+        const version = policy?.versions.find((item) => item.id === policyPublish[1]);
+        if (!policy || !version || version.storedState !== "DRAFT") return { status: 404, body: { error: { message: "policy draft missing" } }, requestId: "fake-policy-404" };
+        policyWrites += 1; version.storedState = "PUBLISHED"; version.effectiveFrom = body.effectiveFrom; policy.stream.revision = 2;
+        return ok({ published: true });
+      }
       if (request.method === "GET" && request.path === "delivery/bootstrap-state") return ok(coreState);
       if (request.method === "GET" && request.path === "enrollments/capacity") return ok({ status: "AVAILABLE", bottlenecks: [] });
       const enrollmentList = /^subscriptions\/([0-9a-f-]{36})\/enrollments$/.exec(request.path);
@@ -119,7 +137,7 @@ function fakeCore(coreState: F3BootstrapState) {
       return { status: 404, body: { error: { message: `unexpected ${request.method} ${request.path}` } }, requestId: "fake-404" };
     },
   };
-  return { binding, enrollments, created: () => created };
+  return { binding, enrollments, created: () => created, policyWrites: () => policyWrites };
 }
 function ok(data: unknown, status = 200) {
   return { status, body: { data }, requestId: `fake-${status}` };
@@ -138,6 +156,7 @@ test("reviewed Enrollment activation places 62 deterministic seats and is retry-
     unresolvedSubscriptions: 2, effectiveFromLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
   });
   assert.equal(core.created(), 62);
+  assert.equal(core.policyWrites(), 2);
   for (const item of REVIEWED_ENROLLMENT_UNRESOLVED) assert.equal((core.enrollments.get(item.subscriptionId) ?? []).length, 0);
 
   const second = await handleReviewedEnrollmentActivation(request(auth.token), env, auth.resolver);
@@ -146,6 +165,17 @@ test("reviewed Enrollment activation places 62 deterministic seats and is retry-
   assert.equal(secondBody.data.created, 0);
   assert.equal(secondBody.data.reused, 62);
   assert.equal(core.created(), 62);
+  assert.equal(core.policyWrites(), 2);
+});
+
+test("reviewed Enrollment activation rejects a conflicting active future-reservation policy before Enrollment writes", async () => {
+  const auth = await authFixture();
+  const core = fakeCore(state(), 14);
+  const env = { PINO_BO_CORE: core.binding, CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_BO_AUD: audience };
+  const response = await handleReviewedEnrollmentActivation(request(auth.token), env, auth.resolver);
+  assert.equal(response.status, 409);
+  assert.equal(core.created(), 0);
+  assert.equal(core.policyWrites(), 0);
 });
 
 test("reviewed Enrollment activation requires authenticated BO identity and idempotency", async () => {
