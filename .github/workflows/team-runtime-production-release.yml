@@ -1,0 +1,152 @@
+name: Team Runtime Production Release
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: team-runtime-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.issue.title == '[GPT] Team runtime production release' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+
+    steps:
+      - name: Validate Founder release request
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          reject() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **REJECTED**\n\n$1\n\nNo production mutation was attempted."
+            exit 1
+          }
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
+          grep -Eq '^CONFIRM:[[:space:]]*RELEASE_TEAM_RUNTIME[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: RELEASE_TEAM_RUNTIME."
+          team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          main_sha="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve Team main."
+          compare="$(gh api "/repos/${repo}/compare/${team_sha}...${main_sha}")" || reject "Cannot compare target source with current main."
+          status="$(jq -r '.status' <<<"$compare")"
+          [ "$status" = "identical" ] || [ "$status" = "ahead" ] || reject "Target Team source is not an ancestor of current main."
+          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          [ -z "$unexpected" ] || reject "Runtime-affecting Team drift exists after target: ${unexpected//$'\n'/, }."
+          prs="$(gh api -H 'Accept: application/vnd.github+json' "/repos/${repo}/commits/${team_sha}/pulls")" || reject "Cannot resolve pull-request provenance."
+          jq -e --arg sha "$team_sha" '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)] | length >= 1' <<<"$prs" >/dev/null || reject "Target source is not proven as a merged PR into main."
+          [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
+          echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Check out current Team control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve exact version and verify candidate perimeter
+        id: preflight
+        shell: bash
+        env:
+          TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nNo Team production traffic was changed."
+            exit 1
+          }
+
+          versions_json="$(CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions list --json)" || fail "Cannot list Team Worker versions."
+          mapfile -t candidate_ids < <(jq -r '.[].id // empty' <<<"$versions_json")
+          matches=()
+          for version_id in "${candidate_ids[@]}"; do
+            provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${version_id}" "${auth[@]}")" || fail "Cannot inspect build provenance for Team version ${version_id}."
+            commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+            [ "$commit" = "$TEAM_SHA" ] && matches+=("$version_id")
+          done
+          [ "${#matches[@]}" -eq 1 ] || fail "Expected exactly one Team Worker version for source ${TEAM_SHA}; found ${#matches[@]}."
+          team_version="${matches[0]}"
+
+          target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${team_version}" "${auth[@]}")" || fail "Resolved Team version does not exist."
+          jq -e '.success == true' <<<"$target" >/dev/null || fail "Cloudflare did not return resolved Team version successfully."
+          for binding in PINO_CORE PINO_WORKFORCE_CORE PINO_BO_CORE PINO_TOS_LEARNING_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE; do
+            jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$target" >/dev/null || fail "Target Team version lost required private binding: ${binding}."
+          done
+
+          deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Team deployment."
+          old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+          [ -n "$old_version" ] || fail "Cannot resolve current 100% Team version."
+          echo "team_version=$team_version" >> "$GITHUB_OUTPUT"
+          echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker domains."
+          for host in "$TOS_HOST" "$BO_HOST"; do
+            jq -e --arg h "$host" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "${host} is not attached exactly once to Team OS."
+          done
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core unexpectedly owns a custom domain."
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
+
+      - name: Promote exact Team version
+        shell: bash
+        env:
+          TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
+          TEAM_VERSION: ${{ steps.preflight.outputs.team_version }}
+          OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          serving_changed=0
+          rollback() {
+            if [ "$serving_changed" -eq 1 ] && [ -n "$OLD_VERSION" ]; then
+              CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions deploy "${OLD_VERSION}@100%" -y >/dev/null 2>&1 || true
+            fi
+          }
+          fail() {
+            rollback
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nPrevious Team runtime rollback was attempted if traffic changed. No Core, D1, Access-policy, route, or custom-domain mutation was authorized."
+            exit 1
+          }
+          if [ "$OLD_VERSION" != "$TEAM_VERSION" ]; then
+            CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions deploy "${TEAM_VERSION}@100%" -y >/dev/null || fail "Could not promote exact Team version."
+            serving_changed=1
+          fi
+          current="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify post-promotion Team traffic."
+          active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$current" | head -1)"
+          [ "$active" = "$TEAM_VERSION" ] || fail "Exact Team version is not active at 100%."
+          for host in "$TOS_HOST" "$BO_HOST"; do
+            headers="$RUNNER_TEMP/headers.txt"; : > "$headers"
+            code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}/" || true)"
+            location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            case "$code" in
+              302|303|307) [[ "$location" =~ cloudflareaccess\.com ]] || fail "${host} redirects outside Cloudflare Access." ;;
+              401|403) ;;
+              200) fail "${host} became publicly reachable without Cloudflare Access." ;;
+              *) fail "${host} perimeter smoke returned unexpected HTTP ${code}." ;;
+            esac
+          done
+          serving_changed=0
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Team Worker version: ${TEAM_VERSION}\n- Traffic: 100%\n- TOS + BO: attached to Team OS and Cloudflare Access protected\n- Core public ingress: none\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
