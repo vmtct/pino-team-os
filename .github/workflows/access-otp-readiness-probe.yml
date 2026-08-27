@@ -23,7 +23,6 @@ jobs:
       ISSUE_BODY: ${{ github.event.issue.body }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       CF_TOKEN: ${{ secrets.CF_API_TOKEN }}
-      ZONE_ID: 48b2809afabf3d65d30f80f346126213
 
     steps:
       - name: Read live Access configuration
@@ -36,29 +35,18 @@ jobs:
           target_hash="$(sed -nE 's/^TARGET_EMAIL_SHA256:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
           target_domain="$(sed -nE 's/^TARGET_DOMAIN:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY" | tr '[:upper:]' '[:lower:]')"
           [ -n "$target_hash" ] && [ -n "$target_domain" ] || fail "Missing target hash/domain."
-          root="https://api.cloudflare.com/client/v4"
-          account_api="${root}/accounts/${CF_ACCOUNT_ID}"
-          zone_api="${root}/zones/${ZONE_ID}"
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_TOKEN}" -H 'Content-Type: application/json')
-          account_apps="$(curl -fsS "${account_api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot read account-scoped Access applications."
-          zone_apps="$(curl -fsS "${zone_api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot read zone-scoped Access applications."
-          idps="$(curl -fsS "${account_api}/access/identity_providers" "${auth[@]}")" || fail "Cannot read Access identity providers."
-          jq -e '.success==true' <<<"$account_apps" >/dev/null || fail "Account Access applications API returned failure."
-          jq -e '.success==true' <<<"$zone_apps" >/dev/null || fail "Zone Access applications API returned failure."
+          apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot read account-scoped Access applications."
+          idps="$(curl -fsS "${api}/access/identity_providers" "${auth[@]}")" || fail "Cannot read Access identity providers."
+          jq -e '.success==true' <<<"$apps" >/dev/null || fail "Access applications API returned failure."
           jq -e '.success==true' <<<"$idps" >/dev/null || fail "Identity providers API returned failure."
           otp_ids="$(jq -r '.result[]? | select(.type=="onetimepin") | .id' <<<"$idps")"
           otp_count="$(wc -w <<<"$otp_ids" | tr -d ' ')"
           summary=""
           app_count=0
           for domain in tos.pinohouse.art bo.pinohouse.art; do
-            scope="account"
-            scope_api="$account_api"
-            app="$(jq -c --arg d "$domain" '.result[]? | select(.domain==$d)' <<<"$account_apps" | head -1)"
-            if [ -z "$app" ]; then
-              scope="zone"
-              scope_api="$zone_api"
-              app="$(jq -c --arg d "$domain" '.result[]? | select(.domain==$d)' <<<"$zone_apps" | head -1)"
-            fi
+            app="$(jq -c --arg d "$domain" '.result[]? | select((tojson | contains($d)))' <<<"$apps" | head -1)"
             if [ -z "$app" ]; then summary+="- ${domain}: app_missing\n"; continue; fi
             app_count=$((app_count+1))
             app_id="$(jq -r '.id' <<<"$app")"
@@ -66,7 +54,7 @@ jobs:
             otp_allowed=false
             if [ "$(jq 'length' <<<"$allowed_idps")" -eq 0 ] && [ "$otp_count" -gt 0 ]; then otp_allowed=true; fi
             for oid in $otp_ids; do jq -e --arg x "$oid" 'index($x)!=null' <<<"$allowed_idps" >/dev/null && otp_allowed=true || true; done
-            policies="$(curl -fsS "${scope_api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot read policies for ${domain}."
+            policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot read policies for ${domain}."
             jq -e '.success==true' <<<"$policies" >/dev/null || fail "Policies API failed for ${domain}."
             allow_match=false; allow_everyone=false; allow_policy_count=0; include_types=""
             while IFS= read -r p; do
@@ -79,7 +67,7 @@ jobs:
               while IFS= read -r e; do [ -n "$e" ] || continue; h="$(printf '%s' "$(tr '[:upper:]' '[:lower:]' <<<"$e")" | sha256sum | awk '{print $1}')"; [ "$h" = "$target_hash" ] && allow_match=true; done < <(jq -r '.include[]? | .email.email? // empty' <<<"$p")
               while IFS= read -r d; do [ "$(tr '[:upper:]' '[:lower:]' <<<"$d")" = "$target_domain" ] && allow_match=true; done < <(jq -r '.include[]? | .email_domain.domain? // empty' <<<"$p")
             done < <(jq -c '.result[]?' <<<"$policies")
-            summary+="- ${domain}: scope=${scope}, otp_allowed=${otp_allowed}, allow_match=${allow_match}, allow_everyone=${allow_everyone}, allow_policy_count=${allow_policy_count}, include_types=${include_types:-none}\n"
+            summary+="- ${domain}: otp_allowed=${otp_allowed}, allow_match=${allow_match}, allow_everyone=${allow_everyone}, allow_policy_count=${allow_policy_count}, include_types=${include_types:-none}\n"
           done
-          [ "$app_count" -gt 0 ] || fail "Neither account- nor zone-scoped TOS/BO Access app resolved."
+          [ "$app_count" -gt 0 ] || fail "No account-scoped Access app record contains the TOS/BO hostname in domain/destination metadata."
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "ACCESS_OTP_READINESS_PROBE: **PASS**\n\n- OTP identity provider count: ${otp_count}\n${summary}\nRead-only live Zero Trust reconciliation. Target email was compared only by SHA-256; no email address was written to logs or GitHub. No mutation performed."
