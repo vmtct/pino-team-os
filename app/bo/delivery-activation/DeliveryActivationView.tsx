@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BoApiError } from "@/lib/bo-api";
 import { f3DeliveryApi, type DeliveryTopology, type F3BootstrapState } from "@/lib/f3-delivery-api";
 import { applyReviewedF3Seed } from "@/lib/f3-reviewed-seed";
+import { activateReviewedEnrollments } from "@/lib/f4-enrollment-api";
 import styles from "../bo.module.css";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string; requestId: string | null } | { status: "ready"; data: F3BootstrapState };
@@ -136,6 +137,13 @@ export function DeliveryActivationView() {
       return `Reviewed F3 seed active: ${result.learningSpaces} spaces, ${result.runningClasses} classes, ${result.blocks} blocks. Sessions: ${result.materialization.materialized} new, ${result.materialization.existing} existing, ${result.materialization.excluded} excluded.`;
     });
   }
+  function activateReviewedRoster() {
+    if (!center) return;
+    void run("Activating reviewed learner roster", async () => {
+      const result = await activateReviewedEnrollments(center.id);
+      return `Reviewed roster active: ${result.placedSubscriptions} subscriptions / ${result.enrollments} Enrollments (${result.created} created, ${result.reused} reused). ${result.unresolvedSubscriptions} double-session subscriptions remain intentionally pending.`;
+    });
+  }
   function materialize() {
     if (!canMaterialize) return;
     void run("Materializing Sessions", async () => {
@@ -164,6 +172,12 @@ export function DeliveryActivationView() {
         <div className={styles.panelHeading}><div><h2>Reviewed F3 seed</h2><p>Founder-approved production seed: 3 Learning Spaces, 28 topology-aware Running Classes, reviewed blocks for Fixed/Overlapping classes, CENTER materialization policy 14 days, then immediate bounded Session materialization.</p></div><span className={styles.writePill}>One-click governed write</span></div>
         <p>This action is retry-safe and fail-safe: exact existing records are reused, mismatches stop the command, and all writes remain same-origin BO → verified Cloudflare Access identity → private Core.</p>
         <button className={styles.primaryButton} type="button" disabled={!centerId || action.status === "running"} onClick={activateReviewedSeed}>Activate reviewed F3 seed · 14 days</button>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeading}><div><h2>Reviewed learner roster</h2><p>Wave1A + Founder corrections: 31 standard subscriptions resolve deterministically to 62 recurring seats. Two reviewed double-session subscriptions stay pending until their assignment/model gap is resolved.</p></div><span className={styles.writePill}>Governed roster write</span></div>
+        <p>The command verifies canonical subscriptions, exact Running Class resolution, aggregate hard-capacity safety, live Core capacity, and existing Enrollment provenance before any missing seat is placed. Retry reuses exact prior seats and rejects unexpected data.</p>
+        <button className={styles.primaryButton} type="button" disabled={!centerId || action.status === "running" || activeClasses.length !== 28} onClick={activateReviewedRoster}>Activate reviewed roster · 31 / 33</button>
       </section>
 
       <section className={styles.panel}>

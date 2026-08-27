@@ -28,6 +28,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/context",
     "/api/bo/centers",
     "/api/bo/delivery/bootstrap-state",
+    "/api/bo/delivery/enrollment-activation",
     "/api/bo/delivery/learning-spaces",
     "/api/bo/delivery/running-classes",
     "/api/bo/delivery/running-class-blocks",
@@ -70,6 +71,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/bookings",
     "/api/bo/access/permissions",
     "/api/bo/delivery/learning-spaces/anything",
+    "/api/bo/delivery/enrollment-activation/anything",
     "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
     "/api/bo/sessions/not-a-canonical-id/registrations",
   ]) {
