@@ -11,7 +11,14 @@ export interface BoWriteEnv {
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
 const ACCESS_ROLE_PATH = "access/roles";
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
-const ALLOWED_POST_PATHS = new Set([STAFF_ONBOARDING_PATH, ACCESS_ROLE_PATH, ACCESS_ASSIGNMENT_PATH]);
+const DELIVERY_POST_PATHS = new Set([
+  "delivery/learning-spaces",
+  "delivery/running-classes",
+  "delivery/running-class-blocks",
+  "delivery/materializations",
+  "policies/delivery/materialization.v1/versions",
+]);
+const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -21,7 +28,7 @@ export async function handleBoWriteRequest(
 ): Promise<Response> {
   try {
     if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    if (!ALLOWED_POST_PATHS.has(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const identity = await authenticateBo(
       request.headers,
@@ -56,6 +63,14 @@ export async function handleBoWriteRequest(
     console.error("BO write facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
+}
+
+export function isAllowedPostPath(path: string): boolean {
+  return path === STAFF_ONBOARDING_PATH
+    || path === ACCESS_ROLE_PATH
+    || path === ACCESS_ASSIGNMENT_PATH
+    || DELIVERY_POST_PATHS.has(path)
+    || MATERIALIZATION_PUBLISH.test(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */
