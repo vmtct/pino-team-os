@@ -30,6 +30,7 @@ function isApprovedBoPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if ([
     "/bo",
+    "/bo/staff",
     "/bo/running-classes",
     "/bo/sessions",
     "/bo/registrations",
@@ -39,6 +40,9 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/running-classes",
     "/api/bo/syllabi",
     "/api/bo/sessions",
+    "/api/bo/workforce/staff-onboarding",
+    "/api/bo/access/roles",
+    "/api/bo/access/assignments",
     "/favicon.ico",
   ].includes(normalized)) return true;
   return /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized);
