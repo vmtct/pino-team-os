@@ -42,12 +42,9 @@ jobs:
             exit 1
           }
           mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
-          mapfile -t version_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_VERSION:[[:space:]]*([0-9a-fA-F-]{36})[[:space:]]*$/\1/p')
           [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
-          [ "${#version_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_VERSION line."
           grep -Eq '^CONFIRM:[[:space:]]*RELEASE_TEAM_RUNTIME[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: RELEASE_TEAM_RUNTIME."
           team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
-          team_version="$(tr 'A-F' 'a-f' <<<"${version_lines[0]}")"
           main_sha="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve Team main."
           compare="$(gh api "/repos/${repo}/compare/${team_sha}...${main_sha}")" || reject "Cannot compare target source with current main."
           status="$(jq -r '.status' <<<"$compare")"
@@ -59,19 +56,17 @@ jobs:
           [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
           [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
           echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
-          echo "team_version=$team_version" >> "$GITHUB_OUTPUT"
 
       - name: Check out current Team control plane
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Verify exact candidate and perimeter
+      - name: Resolve exact version and verify candidate perimeter
         id: preflight
         shell: bash
         env:
           TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
-          TEAM_VERSION: ${{ steps.gate.outputs.team_version }}
         run: |
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4"
@@ -81,18 +76,30 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nNo Team production traffic was changed."
             exit 1
           }
-          target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${TEAM_VERSION}" "${auth[@]}")" || fail "Target Team version does not exist."
-          jq -e '.success == true' <<<"$target" >/dev/null || fail "Cloudflare did not return target Team version successfully."
+
+          versions_json="$(CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions list --json)" || fail "Cannot list Team Worker versions."
+          mapfile -t candidate_ids < <(jq -r '.[].id // empty' <<<"$versions_json")
+          matches=()
+          for version_id in "${candidate_ids[@]}"; do
+            provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${version_id}" "${auth[@]}")" || fail "Cannot inspect build provenance for Team version ${version_id}."
+            commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+            [ "$commit" = "$TEAM_SHA" ] && matches+=("$version_id")
+          done
+          [ "${#matches[@]}" -eq 1 ] || fail "Expected exactly one Team Worker version for source ${TEAM_SHA}; found ${#matches[@]}."
+          team_version="${matches[0]}"
+
+          target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${team_version}" "${auth[@]}")" || fail "Resolved Team version does not exist."
+          jq -e '.success == true' <<<"$target" >/dev/null || fail "Cloudflare did not return resolved Team version successfully."
           for binding in PINO_CORE PINO_WORKFORCE_CORE PINO_BO_CORE PINO_TOS_LEARNING_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE; do
             jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$target" >/dev/null || fail "Target Team version lost required private binding: ${binding}."
           done
-          provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${TEAM_VERSION}" "${auth[@]}")" || fail "Cannot inspect target build provenance."
-          target_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
-          [ "$target_commit" = "$TEAM_SHA" ] || fail "Target version provenance is ${target_commit:-unknown}, expected ${TEAM_SHA}."
+
           deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Team deployment."
           old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
           [ -n "$old_version" ] || fail "Cannot resolve current 100% Team version."
+          echo "team_version=$team_version" >> "$GITHUB_OUTPUT"
           echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
+
           domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker domains."
           for host in "$TOS_HOST" "$BO_HOST"; do
             jq -e --arg h "$host" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "${host} is not attached exactly once to Team OS."
@@ -105,7 +112,7 @@ jobs:
         shell: bash
         env:
           TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
-          TEAM_VERSION: ${{ steps.gate.outputs.team_version }}
+          TEAM_VERSION: ${{ steps.preflight.outputs.team_version }}
           OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
         run: |
           set -euo pipefail
