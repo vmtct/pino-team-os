@@ -1,0 +1,132 @@
+.shopPolish :global([data-pinoria-shop-scene] header nav) {
+  gap: 6px !important;
+  padding: 7px 9px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(48, 32, 24, .82), rgba(31, 22, 18, .76)) !important;
+  border-color: rgba(239, 199, 120, .2) !important;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .2), inset 0 1px rgba(255,255,255,.025) !important;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] header nav > div) {
+  min-width: 82px !important;
+  padding: 12px 10px !important;
+  border-radius: 14px !important;
+  column-gap: 7px !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] header nav > div:nth-child(-n + 3)) {
+  min-width: 88px !important;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] section:nth-of-type(2) > div:nth-of-type(2)) {
+  gap: clamp(10px, .8vw, 14px) !important;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article) {
+  padding: 0 !important;
+  grid-template-rows: minmax(0, 1fr) 76px !important;
+  gap: 0 !important;
+  border-radius: 19px !important;
+  isolation: isolate;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type) {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 12px 14px 8px !important;
+  border-radius: 18px 18px 0 0 !important;
+  background: radial-gradient(circle at 50% 48%, rgba(255,226,169,.08), transparent 64%) !important;
+  overflow: hidden;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type img) {
+  width: 84% !important;
+  height: 84% !important;
+  max-width: 190px;
+  max-height: 150px;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article > div:last-child) {
+  position: relative;
+  z-index: 2;
+  min-height: 76px;
+  box-sizing: border-box;
+  padding: 10px 13px 11px !important;
+  border-top: 1px solid rgba(240, 199, 123, .14);
+  background: linear-gradient(180deg, rgba(28, 18, 15, .9), rgba(20, 13, 11, .97));
+  box-shadow: 0 -10px 24px rgba(10, 6, 5, .14);
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article > div:last-child > strong) {
+  min-height: 0 !important;
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13px !important;
+  line-height: 1.22 !important;
+  color: #f4e7d3 !important;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div) {
+  margin-top: 8px !important;
+  padding-top: 7px;
+  border-top: 1px solid rgba(240, 199, 123, .1);
+  font-size: 11.5px !important;
+  line-height: 1 !important;
+}
+
+.shopPolish :global([data-pinoria-shop-scene] article > span) {
+  top: 10px !important;
+  right: 10px !important;
+  padding: 5px 9px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .2);
+}
+
+@media (max-width: 1360px), (max-height: 760px) {
+  .shopPolish :global([data-pinoria-shop-scene] header nav) {
+    gap: 3px !important;
+    padding: 6px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] header nav > div) {
+    min-width: 68px !important;
+    padding: 10px 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] header nav > div:nth-child(-n + 3)) {
+    min-width: 72px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] article) {
+    grid-template-rows: minmax(0, 1fr) 68px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type) {
+    padding: 8px 10px 4px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type img) {
+    width: 78% !important;
+    height: 78% !important;
+    max-height: 112px;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child) {
+    min-height: 68px;
+    padding: 8px 11px 9px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child > strong) {
+    font-size: 11.5px !important;
+  }
+
+  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div) {
+    margin-top: 6px !important;
+    padding-top: 5px;
+    font-size: 10px !important;
+  }
+}
