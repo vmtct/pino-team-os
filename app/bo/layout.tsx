@@ -8,6 +8,7 @@ const groups: BoNavGroup[] = [
   {
     label: "Operations",
     items: [
+      { href: "/bo/delivery-activation", label: "Delivery Activation" },
       { href: "/bo/running-classes", label: "Running Classes" },
       { href: "/bo/sessions", label: "Sessions" },
       { href: "/bo/registrations", label: "Registrations" },
