@@ -202,7 +202,7 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
 
   const order = ["hair", "face", "headwear", "eyewear", "back", "body", "prop"];
   const mapped = [...groups.values()]
-    .map((group) => {
+    .map((group): ShopCatalogItem | null => {
       const category = categoryForAsset(group.slot, group.family);
       const layerUrl = toAssetUrl(group.layer);
       const imageUrl = toAssetUrl(group.standalone) ?? layerUrl;

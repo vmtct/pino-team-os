@@ -287,7 +287,7 @@ function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: C
   const activeIds = new Set(conversations.flatMap((conversation) => [conversation.aId, conversation.bId]));
   const blockers = buildBlockers(current.agents, conversations);
 
-  let agents = current.agents.map((agent) => {
+  let agents: SocialAgent[] = current.agents.map<SocialAgent>((agent) => {
     if (activeIds.has(agent.id)) return agent;
     if (now < agent.pauseUntil) return agent;
 
@@ -376,8 +376,8 @@ function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: C
   }
 
   const activeConversationIds = new Set(nextConversations.map((conversation) => conversation.id));
-  agents = agents.map((agent) => agent.conversationId && !activeConversationIds.has(agent.conversationId)
-    ? { ...agent, conversationId: undefined, direction: agent.direction === 1 ? -1 : 1, pauseUntil: now + 320 }
+  agents = agents.map<SocialAgent>((agent) => agent.conversationId && !activeConversationIds.has(agent.conversationId)
+    ? { ...agent, conversationId: undefined, direction: (agent.direction === 1 ? -1 : 1) as SocialAgent["direction"], pauseUntil: now + 320 }
     : agent);
 
   return { agents, conversations: nextConversations };

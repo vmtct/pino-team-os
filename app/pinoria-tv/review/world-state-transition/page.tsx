@@ -7,6 +7,8 @@ import {
   WorldStateTransitionScene,
 } from "../../world-state-transition-scene";
 
+export const dynamic = "force-dynamic";
+
 const subject = {
   id: "bo",
   name: "Bơ",

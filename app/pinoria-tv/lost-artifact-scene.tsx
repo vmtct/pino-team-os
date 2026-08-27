@@ -4,19 +4,25 @@ import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import type { LostArtifactRecord } from "./lost-artifact-data";
 import styles from "./lost-artifact.module.css";
 
-const UI_ASSET_BASE = process.env.NEXT_PUBLIC_PINORIA_LOST_ARTIFACT_ASSET_BASE ?? "https://assets.pinohouse.art/pinoria";
+const UI_ASSET_BASE = process.env.NEXT_PUBLIC_PINORIA_LOST_ARTIFACT_ASSET_BASE?.replace(/\/$/, "");
+
+function uiAsset(name: string) {
+  return UI_ASSET_BASE
+    ? `${UI_ASSET_BASE}/${name}`
+    : `/api/pinoria-prototype/lost-artifact-ui?asset=${encodeURIComponent(name)}`;
+}
 
 const ICONS = {
-  divider: `${UI_ASSET_BASE}/lost-artifact-divider.png`,
-  corner: `${UI_ASSET_BASE}/lost-artifact-frame-corner.png`,
-  artifactId: `${UI_ASSET_BASE}/meta-artifact-id.png`,
-  origin: `${UI_ASSET_BASE}/meta-origin.png`,
-  classification: `${UI_ASSET_BASE}/meta-classification.png`,
-  lastSeen: `${UI_ASSET_BASE}/meta-last-seen.png`,
-  history: `${UI_ASSET_BASE}/section-history.png`,
-  power1: `${UI_ASSET_BASE}/power-rune-01.png`,
-  power2: `${UI_ASSET_BASE}/power-rune-02.png`,
-  power3: `${UI_ASSET_BASE}/power-rune-03.png`,
+  divider: uiAsset("lost-artifact-divider.png"),
+  corner: uiAsset("lost-artifact-frame-corner.png"),
+  artifactId: uiAsset("meta-artifact-id.png"),
+  origin: uiAsset("meta-origin.png"),
+  classification: uiAsset("meta-classification.png"),
+  lastSeen: uiAsset("meta-last-seen.png"),
+  history: uiAsset("section-history.png"),
+  power1: uiAsset("power-rune-01.png"),
+  power2: uiAsset("power-rune-02.png"),
+  power3: uiAsset("power-rune-03.png"),
 } as const;
 
 type Palette = {

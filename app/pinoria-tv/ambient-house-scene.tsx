@@ -150,14 +150,15 @@ export function AmbientHouseScene({ debug = true }: { debug?: boolean }) {
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
+    const viewportElement = viewport;
     function updateScale() {
-      const rect = viewport.getBoundingClientRect();
+      const rect = viewportElement.getBoundingClientRect();
       const next = Math.min(rect.width / AMBIENT_HOUSE_CANVAS.width, rect.height / AMBIENT_HOUSE_CANVAS.height);
       setStageScale(Number.isFinite(next) && next > 0 ? next : 1);
     }
     updateScale();
     const observer = new ResizeObserver(updateScale);
-    observer.observe(viewport);
+    observer.observe(viewportElement);
     window.addEventListener("resize", updateScale);
     return () => {
       observer.disconnect();
