@@ -19,10 +19,37 @@ jobs:
           bun-version: 1.2.15
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Run unauthenticated production perimeter smoke
+      - name: Run unauthenticated TOS production perimeter smoke
         env:
           E2E_BASE_URL: https://tos.pinohouse.art
         run: bun run test:e2e
+      - name: Verify BO unauthenticated Access perimeter
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="bo.pinohouse.art"
+          path="/bo/staff"
+          headers="$RUNNER_TEMP/bo-headers.txt"
+          : > "$headers"
+          code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${path}" || true)"
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          challenge="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          case "$code" in
+            302|303|307)
+              [[ "$location" =~ cloudflareaccess\.com ]] || { echo "BO redirect is not a Cloudflare Access challenge" >&2; exit 1; }
+              ;;
+            401|403)
+              [[ "$challenge" == *Cloudflare-Access* || -n "$challenge" ]] || { echo "BO denial lacks a recognizable Access challenge" >&2; exit 1; }
+              ;;
+            200)
+              echo "BO is publicly reachable without Cloudflare Access" >&2
+              exit 1
+              ;;
+            *)
+              echo "Unexpected BO perimeter HTTP ${code}" >&2
+              exit 1
+              ;;
+          esac
       - name: Record authenticated rollout boundary
         if: always()
         shell: bash
@@ -30,9 +57,10 @@ jobs:
           {
             echo "## Production smoke scope"
             echo
-            echo "- Automated here: unauthenticated Cloudflare Access perimeter, retired team hostname, and disabled workers.dev bypass."
-            echo "- Explicit rollout-only: authenticated TOS identity, self context, and own-schedule reads through an authorized Access session."
-            echo "- BO is excluded until its domain and Access application are explicitly activated."
+            echo "- Automated here: unauthenticated TOS + BO Cloudflare Access perimeter, retired team hostname, and disabled workers.dev bypass."
+            echo "- TOS target: https://tos.pinohouse.art."
+            echo "- BO target: https://bo.pinohouse.art/bo/staff."
+            echo "- Explicit human-authenticated boundary: Access identity, BO Workforce data loading/commands, TOS self-context, and own-schedule reads through an authorized real-user session."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Playwright report
         if: always()
