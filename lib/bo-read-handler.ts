@@ -35,6 +35,7 @@ export async function handleBoOperationalReadRequest(
 
 export function isOperationalReadPath(path: string): boolean {
   return path === "centers"
+    || path === "delivery/bootstrap-state"
     || path === "path-programs"
     || path === "running-classes"
     || path === "syllabi"

@@ -31,12 +31,19 @@ function isApprovedBoPath(pathname: string): boolean {
   if ([
     "/bo",
     "/bo/staff",
+    "/bo/delivery-activation",
     "/bo/running-classes",
     "/bo/sessions",
     "/bo/registrations",
     "/bo/syllabus",
     "/api/bo/context",
     "/api/bo/centers",
+    "/api/bo/delivery/bootstrap-state",
+    "/api/bo/delivery/learning-spaces",
+    "/api/bo/delivery/running-classes",
+    "/api/bo/delivery/running-class-blocks",
+    "/api/bo/delivery/materializations",
+    "/api/bo/policies/delivery/materialization.v1/versions",
     "/api/bo/path-programs",
     "/api/bo/running-classes",
     "/api/bo/syllabi",
@@ -49,7 +56,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-pin/configure",
     "/favicon.ico",
   ].includes(normalized)) return true;
-  return /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized);
+  return /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
+    || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized);
 }
 
 function isFrameworkAsset(pathname: string): boolean {

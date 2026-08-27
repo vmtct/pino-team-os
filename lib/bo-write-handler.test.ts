@@ -129,3 +129,42 @@ test("Core authorization failure and request ID pass through unchanged", async (
   assert.equal(response.headers.get("x-request-id"), "core-denied");
   assert.equal((await response.json() as { error: { code: string } }).error.code, "ACCESS_PERMISSION_DENIED");
 });
+
+test("F3 delivery facade forwards exact governed writes without inventing idempotency or identity", async () => {
+  const f = await fixture();
+  const forwarded: Array<{ request: BoAccessRequest; identity: VerifiedBoIdentity }> = [];
+  const binding: BoAccessCoreBinding = {
+    async execute(coreRequest, identity) {
+      forwarded.push({ request: coreRequest, identity });
+      return { status: 201, body: { data: { id: "00000000-0000-7000-8000-000000000020" } }, requestId: "core-f3" };
+    },
+  };
+  const f3Path = "delivery/learning-spaces";
+  const body = { centerId: "00000000-0000-7000-8000-000000000001", code: "room-a", displayName: "Room A", optimalConcurrentCapacity: 6, hardConcurrentCapacity: 8, status: "ACTIVE" };
+
+  const response = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: JSON.stringify(body) }),
+    env(binding),
+    f3Path,
+    f.resolver,
+  );
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(forwarded[0]!.request, { method: "POST", path: f3Path, body });
+  assert.equal(Object.hasOwn(forwarded[0]!.request, "idempotencyKey"), false);
+  assert.equal(forwarded[0]!.identity.subject, "verified-founder-subject");
+});
+
+test("F3 delivery facade rejects path expansion beyond the exact allowlist", async () => {
+  const f = await fixture();
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const response = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: "{}" }),
+    env(binding),
+    "delivery/learning-spaces/anything",
+    f.resolver,
+  );
+  assert.equal(response.status, 404);
+  assert.equal(called, false);
+});
