@@ -4,7 +4,7 @@ import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import type { LostArtifactRecord } from "./lost-artifact-data";
 import styles from "./lost-artifact.module.css";
 
-const UI_ASSET_BASE = process.env.NEXT_PUBLIC_PINORIA_LOST_ARTIFACT_ASSET_BASE ?? "/pinoria/lost-artifact";
+const UI_ASSET_BASE = process.env.NEXT_PUBLIC_PINORIA_LOST_ARTIFACT_ASSET_BASE ?? "https://assets.pinohouse.art/pinoria";
 
 const ICONS = {
   divider: `${UI_ASSET_BASE}/lost-artifact-divider.png`,
@@ -113,7 +113,6 @@ function useArtifactPalette(src: string) {
   useEffect(() => {
     let cancelled = false;
     const image = new Image();
-    image.crossOrigin = "anonymous";
     image.decoding = "async";
     image.onload = () => {
       try {
@@ -148,7 +147,8 @@ function MaskIcon({ src, className = "" }: { src: string; className?: string }) 
 }
 
 export function LostArtifactScene({ artifact }: { artifact: LostArtifactRecord }) {
-  const palette = useArtifactPalette(artifact.heroUrl);
+  const heroSrc = `/api/pinoria-prototype/lost-artifact-image?id=${encodeURIComponent(artifact.id)}`;
+  const palette = useArtifactPalette(heroSrc);
   const themeStyle = useMemo(
     () => ({
       "--artifact-primary": palette.primary,
@@ -186,7 +186,7 @@ export function LostArtifactScene({ artifact }: { artifact: LostArtifactRecord }
 
       <div className={styles.heroStage}>
         <div className={styles.heroRings}><i /><i /><i /></div>
-        <img className={styles.heroImage} src={artifact.heroUrl} alt={artifact.title} crossOrigin="anonymous" />
+        <img className={styles.heroImage} src={heroSrc} alt={artifact.title} />
       </div>
 
       <aside className={styles.huntPanel}>
