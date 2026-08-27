@@ -1,42 +1,38 @@
-.shopPolish :global([data-pinoria-shop-scene] header nav) {
+.shopPolish :global([data-shop-category-rail]) {
   width: 100%;
   min-width: 0;
   display: grid !important;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
   align-items: stretch !important;
-  justify-content: stretch !important;
-  gap: 7px !important;
-  padding: 7px !important;
+  gap: 6px !important;
+  padding: 6px !important;
   border-radius: 22px !important;
-  background: linear-gradient(180deg, rgba(48, 32, 24, .82), rgba(31, 22, 18, .76)) !important;
-  border-color: rgba(239, 199, 120, .2) !important;
-  box-shadow: 0 16px 38px rgba(0, 0, 0, .2), inset 0 1px rgba(255,255,255,.025) !important;
+  background: linear-gradient(180deg, rgba(51,34,25,.86), rgba(29,20,17,.82)) !important;
+  border-color: rgba(239,199,120,.22) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.035) !important;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] header nav > div) {
+.shopPolish :global([data-shop-category-rail] > div) {
   min-width: 0 !important;
-  width: auto !important;
-  padding: 14px 10px !important;
+  padding: 13px 7px !important;
   border-radius: 15px !important;
-  grid-template-columns: 20px minmax(0, auto) !important;
-  column-gap: 8px !important;
+  grid-template-columns: 19px minmax(0, auto) !important;
+  column-gap: 7px !important;
   justify-content: center !important;
-  font-size: 14px !important;
+  font-size: 13.5px !important;
   line-height: 1 !important;
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] header nav > div > span:first-child) {
+.shopPolish :global([data-shop-category-rail] > div > span:first-child) {
   font-size: 17px !important;
 }
-
-/* React's active tab carries the only linear-gradient background in this rail. */
-.shopPolish :global([data-pinoria-shop-scene] header nav > div[style*="linear-gradient"]) {
+.shopPolish :global([data-shop-category-rail] > div[data-active="true"]) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(225,176,78,.31), inset 0 1px rgba(255,247,222,.42) !important;
-  outline: 1px solid rgba(255,232,177,.32);
+  box-shadow: 0 12px 30px rgba(225,176,78,.32), inset 0 1px rgba(255,247,222,.5) !important;
+  outline: 1px solid rgba(255,235,188,.42);
   outline-offset: -1px;
-  filter: saturate(1.04) brightness(1.03);
+  filter: saturate(1.05) brightness(1.03);
 }
 
 .shopPolish :global([data-pinoria-shop-scene] section:nth-of-type(2)) {
@@ -45,193 +41,231 @@
 }
 
 .shopPolish :global([data-pinoria-shop-scene] section:nth-of-type(2) > div:nth-of-type(2)) {
-  gap: clamp(11px, .82vw, 15px) !important;
+  gap: clamp(12px, .85vw, 16px) !important;
 }
 
-/* The explanatory ownership bar duplicated information already shown on each item. */
-.shopPolish :global([data-pinoria-shop-scene] section:nth-of-type(2) > div:nth-of-type(3)) {
-  display: none !important;
-}
-
-.shopPolish :global([data-pinoria-shop-scene] article) {
+.shopPolish :global([data-shop-item-card]) {
   padding: 0 !important;
-  grid-template-rows: minmax(0, 1fr) 86px !important;
+  grid-template-rows: minmax(0, 1fr) 88px !important;
   gap: 0 !important;
-  border-radius: 19px !important;
+  border-radius: 20px !important;
   isolation: isolate;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type) {
+.shopPolish :global([data-shop-item-card][data-active="true"]) {
+  box-shadow: 0 16px 38px rgba(226,177,82,.18), inset 0 1px rgba(255,235,186,.12) !important;
+}
+.shopPolish :global([data-shop-item-art]) {
   min-height: 0 !important;
   margin: 0 !important;
-  padding: 12px 14px 9px !important;
-  border-radius: 18px 18px 0 0 !important;
-  background: radial-gradient(circle at 50% 48%, rgba(255,226,169,.08), transparent 64%) !important;
+  padding: 10px 12px 4px !important;
+  border-radius: 19px 19px 0 0 !important;
+  background: radial-gradient(circle at 50% 46%, rgba(255,226,169,.095), transparent 66%) !important;
   overflow: hidden;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type img) {
-  width: 82% !important;
-  height: 82% !important;
-  max-width: 194px;
-  max-height: 154px;
+.shopPolish :global([data-shop-item-art] img) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 235px;
+  max-height: 208px;
+  object-fit: contain !important;
+  transform: scale(1.08);
+  transform-origin: center;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child) {
+.shopPolish :global([data-shop-item-footer]) {
   position: relative;
   z-index: 2;
-  min-height: 86px;
+  min-height: 88px;
   box-sizing: border-box;
-  padding: 9px 10px 9px 14px !important;
+  padding: 10px 10px 10px 15px !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 70px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
   gap: 10px;
-  border-top: 1px solid rgba(240, 199, 123, .14);
-  background: linear-gradient(180deg, rgba(28, 18, 15, .9), rgba(20, 13, 11, .97));
-  box-shadow: 0 -10px 24px rgba(10, 6, 5, .14);
+  border-top: 1px solid rgba(240,199,123,.15);
+  background: linear-gradient(180deg, rgba(28,18,15,.92), rgba(19,12,10,.985));
+  box-shadow: 0 -12px 26px rgba(10,6,5,.15);
+}
+.shopPolish :global([data-shop-item-name-row]) {
+  min-width: 0;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child > strong) {
-  position: relative;
-  min-height: 0 !important;
-  align-self: center;
-  display: -webkit-box !important;
-  overflow: hidden !important;
+.shopPolish :global([data-shop-item-name-row] > strong) {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 16.5px !important;
-  line-height: 1.2 !important;
-  color: #f4e7d3 !important;
+  font-size: 17px !important;
+  line-height: 1.18 !important;
+  color: #f5e8d5 !important;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child:has(> div > span:nth-child(2)) > strong) {
-  padding-right: 24px;
-}
-
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child:has(> div > span:nth-child(2)) > strong)::after {
-  content: "✓";
-  position: absolute;
-  top: 1px;
-  right: 0;
-  width: 17px;
-  height: 17px;
+.shopPolish :global([data-owned-check]) {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(113, 170, 91, .2);
-  border: 1px solid rgba(145, 206, 120, .42);
+  background: rgba(113,170,91,.2);
+  border: 1px solid rgba(145,206,120,.42);
   color: #a7df91;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1;
   font-weight: 950;
-  box-shadow: 0 0 12px rgba(109, 181, 87, .13);
+  box-shadow: 0 0 14px rgba(109,181,87,.13);
 }
-
-/* Price becomes a dedicated square column instead of competing with the item name. */
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div) {
-  width: 70px;
-  height: 70px;
-  margin: 0 !important;
-  padding: 0 !important;
-  align-self: center;
+.shopPolish :global([data-shop-price-box]) {
+  width: 72px;
+  height: 72px;
   display: grid !important;
   place-items: center;
-  border: 1px solid rgba(239, 196, 112, .19);
-  border-radius: 15px;
-  background: linear-gradient(180deg, rgba(235, 189, 96, .09), rgba(125, 83, 38, .09));
-  box-shadow: inset 0 1px rgba(255,255,255,.035);
-  font-size: 12.5px !important;
-  line-height: 1.12 !important;
+  align-content: center;
+  gap: 2px;
+  border: 1px solid rgba(239,196,112,.22);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(235,189,96,.11), rgba(125,83,38,.09));
+  box-shadow: inset 0 1px rgba(255,255,255,.04);
+  color: #e9bd64;
   text-align: center;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div > span:first-child) {
-  display: block;
-  max-width: 58px;
-  color: #e8bd66 !important;
-  font-size: 12px !important;
-  font-weight: 950 !important;
-  line-height: 1.18 !important;
-  white-space: normal;
+.shopPolish :global([data-shop-price-box] > span) {
+  font-size: 9.5px !important;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: .08em;
+  opacity: .78;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div > span:nth-child(2)) {
-  display: none !important;
+.shopPolish :global([data-shop-price-box] > strong) {
+  font-size: 19px !important;
+  line-height: 1;
+  font-weight: 950;
+  color: #f0c76f !important;
 }
 
-.shopPolish :global([data-pinoria-shop-scene] article > span) {
-  top: 10px !important;
-  right: 10px !important;
-  padding: 5px 9px !important;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .2);
+.shopPolish :global([data-shop-active-badge]) {
+  top: 11px !important;
+  right: 11px !important;
+  padding: 6px 9px !important;
+  box-shadow: 0 7px 20px rgba(0,0,0,.22);
 }
-
-/* Bring the companion back into the character composition and make it readable from TV distance. */
-.shopPolish :global([data-pinoria-shop-scene] section:first-of-type > div > div:first-child > div:last-child) {
-  right: -10px !important;
-  bottom: 34px !important;
-  width: 158px !important;
-  transform: translateX(8px);
+.shopPolish :global([data-shop-companion]) {
+  right: clamp(34px, 4vw, 64px) !important;
+  bottom: clamp(48px, 7vh, 66px) !important;
+  width: clamp(150px, 10vw, 178px) !important;
 }
 
 @media (max-width: 1360px), (max-height: 760px) {
-  .shopPolish :global([data-pinoria-shop-scene] header nav) {
+  .shopPolish :global([data-shop-category-rail]) {
     gap: 4px !important;
-    padding: 6px !important;
+    padding: 5px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] header nav > div) {
-    min-width: 0 !important;
-    padding: 11px 6px !important;
-    grid-template-columns: 17px minmax(0, auto) !important;
+  .shopPolish :global([data-shop-category-rail] > div) {
+    padding: 11px 4px !important;
+    grid-template-columns: 16px minmax(0, auto) !important;
     column-gap: 5px !important;
-    font-size: 11.5px !important;
+    font-size: 12px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] header nav > div > span:first-child) {
-    font-size: 14px !important;
+  .shopPolish :global([data-shop-category-rail] > div > span:first-child) {
+    font-size: 15px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] article) {
-    grid-template-rows: minmax(0, 1fr) 74px !important;
+  .shopPolish :global([data-shop-item-card]) {
+    grid-template-rows: minmax(0, 1fr) 76px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type) {
-    padding: 7px 9px 3px !important;
+  .shopPolish :global([data-shop-item-art]) {
+    padding: 6px 7px 2px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] article > div:first-of-type img) {
-    width: 77% !important;
-    height: 77% !important;
-    max-height: 116px;
+  .shopPolish :global([data-shop-item-art] img) {
+    max-width: 172px;
+    max-height: 150px;
+    transform: scale(1.08);
   }
-
-  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child) {
-    min-height: 74px;
+  .shopPolish :global([data-shop-item-footer]) {
+    min-height: 76px;
     grid-template-columns: minmax(0, 1fr) 60px;
     gap: 7px;
     padding: 7px 8px 7px 11px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child > strong) {
-    font-size: 13.5px !important;
+  .shopPolish :global([data-shop-item-name-row]) {
+    gap: 6px;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div) {
+  .shopPolish :global([data-shop-item-name-row] > strong) {
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+  }
+
+  .shopPolish :global([data-owned-check]) {
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
+  }
+
+  .shopPolish :global([data-shop-price-box]) {
     width: 60px;
     height: 60px;
     border-radius: 13px;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] article > div:last-child > div > span:first-child) {
-    max-width: 52px;
-    font-size: 10.5px !important;
+  .shopPolish :global([data-shop-price-box] > span) {
+    font-size: 8px !important;
   }
 
-  .shopPolish :global([data-pinoria-shop-scene] section:first-of-type > div > div:first-child > div:last-child) {
-    right: -6px !important;
-    bottom: 28px !important;
-    width: 136px !important;
+  .shopPolish :global([data-shop-price-box] > strong) {
+    font-size: 16px !important;
+  }
+
+  .shopPolish :global([data-shop-companion]) {
+    right: 42px !important;
+    bottom: 50px !important;
+    width: 150px !important;
+  }
+}
+.shopPolish :global([data-shop-grid][data-layout="compact"]) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.shopPolish :global([data-shop-grid][data-layout="sparse"]) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: clamp(260px, 38vh, 330px) !important;
+  align-content: start;
+}
+
+@media (max-width: 1360px), (max-height: 760px) {
+  .shopPolish :global([data-shop-grid][data-layout="sparse"]) {
+    grid-template-rows: 270px !important;
+  }
+
+  .shopPolish :global([data-shop-preview-info]) {
+    padding: 10px 14px !important;
+  }
+
+  .shopPolish :global([data-shop-preview-info] strong) {
+    font-size: 18px !important;
+  }
+
+  .shopPolish :global([data-shop-preview-info] p) {
+    margin-top: 4px !important;
+    font-size: 10.5px !important;
+    line-height: 1.25 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

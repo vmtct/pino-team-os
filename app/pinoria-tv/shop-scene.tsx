@@ -186,11 +186,9 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
 
   const visibleItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const catalogLayout = visibleItems.length <= 2 ? "sparse" : visibleItems.length <= 4 ? "compact" : "dense";
   const pendingItem = catalog.find((item) => item.assetId === session?.pendingPurchaseAssetId);
   const owned = !!selected && !!session?.ownedAssetIds.includes(selected.assetId);
-  const subjectPls = session?.subject.pls ?? 420;
-  const canAfford = !!selected && subjectPls >= selected.pricePls;
-  const missingPls = selected ? Math.max(0, selected.pricePls - subjectPls) : 0;
   const purchaseResult = session?.purchaseResult;
   const resultItem = purchaseResult ? catalog.find((item) => item.assetId === purchaseResult.assetId) : undefined;
 
@@ -219,13 +217,13 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
             </div>
           </div>
 
-          <nav style={{ minWidth: 0, display: "flex", justifyContent: "center", alignItems: "center", gap: 4, padding: 7, borderRadius: 20, background: "rgba(39,27,21,.76)", border: "1px solid rgba(239,199,120,.17)", boxShadow: "0 14px 34px rgba(0,0,0,.18)" }}>
-            {PINORIA_SHOP_CATEGORIES.filter((item) => item.id !== "all").map((category) => {
-              const active = session?.category === category.id;
+          <nav data-shop-category-rail style={{ minWidth: 0, display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", alignItems: "stretch", gap: 5, padding: 6, borderRadius: 20, background: "rgba(39,27,21,.76)", border: "1px solid rgba(239,199,120,.17)", boxShadow: "0 14px 34px rgba(0,0,0,.18)" }}>
+            {PINORIA_SHOP_CATEGORIES.map((category) => {
+              const active = (session?.category ?? "all") === category.id;
               return (
-                <div key={category.id} style={{ minWidth: category.id === "body" ? 102 : 70, padding: "11px 9px", borderRadius: 13, display: "grid", gridTemplateColumns: "17px auto", alignItems: "center", justifyContent: "center", gap: 6, color: active ? "#2a1b12" : "rgba(249,235,210,.72)", background: active ? "linear-gradient(180deg,#f7d98f,#dcac51)" : "transparent", border: active ? "1px solid #ffe9b4" : "1px solid transparent", boxShadow: active ? "0 8px 24px rgba(225,176,78,.2)" : undefined, fontSize: 11.5, fontWeight: 900, whiteSpace: "nowrap" }}>
-                  <span style={{ fontSize: 15, textAlign: "center" }}>{category.icon}</span>
-                  <span>{category.label}</span>
+                <div data-active={active ? "true" : "false"} key={category.id} style={{ minWidth: 0, padding: "12px 8px", borderRadius: 13, display: "grid", gridTemplateColumns: "18px minmax(0,auto)", alignItems: "center", justifyContent: "center", gap: 7, color: active ? "#2a1b12" : "rgba(249,235,210,.72)", background: active ? "linear-gradient(180deg,#ffe4a2,#d8a449)" : "transparent", border: active ? "1px solid #ffe9b4" : "1px solid transparent", boxShadow: active ? "0 9px 26px rgba(225,176,78,.26), inset 0 1px rgba(255,255,255,.42)" : undefined, fontSize: 12.5, fontWeight: 900, whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 16, textAlign: "center" }}>{category.icon}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{category.label}</span>
                 </div>
               );
             })}
@@ -233,9 +231,7 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
 
           <div style={{ display: "grid", justifyItems: "end", gap: 4 }}>
             <strong style={{ fontSize: 17, color: "#f6ead8" }}>{session?.subject.name ?? "Bơ"}</strong>
-            <span style={{ color: owned ? "#9fd18f" : canAfford ? "#efc875" : "rgba(245,226,193,.58)", fontSize: 11.5, fontWeight: 900 }}>
-              {owned ? "Đã có món này" : canAfford ? "✦ Có thể đổi" : selected ? `Cần thêm ${missingPls} PLS` : "Đang chọn món"}
-            </span>
+            <span style={{ color: "rgba(245,226,193,.56)", fontSize: 11.5, fontWeight: 900 }}>Cửa hàng đang mở</span>
           </div>
         </header>
 
@@ -254,39 +250,42 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
                   </div>
                 ) : null}
               </div>
-              <div style={{ position: "absolute", right: 14, bottom: 14, width: 120, zIndex: 82 }}>
-                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.32))" }} />
+              <div data-shop-companion style={{ position: "absolute", right: "clamp(24px,4vw,64px)", bottom: "clamp(34px,6vh,58px)", width: "clamp(142px,9.4vw,176px)", zIndex: 82 }}>
+                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 18px 22px rgba(0,0,0,.36))" }} />
               </div>
             </div>
-            <div style={{ width: "100%", padding: "14px 16px", borderRadius: 17, background: "rgba(20,13,11,.72)", border: "1px solid rgba(240,196,112,.17)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-                <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 20, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
-                {selected ? <span style={{ flex: "0 0 auto", fontSize: 11, fontWeight: 950, color: owned ? "#9bd18d" : "rgba(246,232,208,.6)" }}>{owned ? "ĐÃ CÓ" : "ĐANG XEM"}</span> : null}
+            <div data-shop-preview-info style={{ width: "100%", padding: "14px 16px", borderRadius: 17, background: "rgba(20,13,11,.72)", border: "1px solid rgba(240,196,112,.17)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 21, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
+                {owned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", width: 19, height: 19, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(91,146,73,.22)", border: "1px solid rgba(142,203,118,.42)", color: "#a7df92", fontSize: 12, fontWeight: 950 }}>✓</span> : null}
               </div>
               <p style={{ margin: "7px 0 0", color: "rgba(246,235,217,.62)", fontSize: 12, lineHeight: 1.45 }}>{descriptionFor(selected)}</p>
             </div>
           </div>
         </section>
 
-        <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr auto", gap: 12 }}>
+        <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 13 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 32 }}>
             <div style={{ color: "rgba(247,233,210,.62)", fontSize: 12.5 }}><strong style={{ color: "#f1cb7e" }}>{categoryLabel(session?.category ?? "all")}</strong> · {filtered.length} món</div>
             <div style={{ display: "flex", gap: 6 }}>{Array.from({ length: totalPages }).map((_, index) => <i key={index} style={{ width: index === page ? 21 : 7, height: 7, borderRadius: 99, background: index === page ? "#e1b45d" : "rgba(238,218,180,.2)" }} />)}</div>
           </div>
 
-          <div style={{ minHeight: 0, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gridTemplateRows: "repeat(2,minmax(0,1fr))", gap: 11 }}>
+          <div data-shop-grid data-layout={catalogLayout} style={{ minHeight: 0, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gridTemplateRows: "repeat(2,minmax(0,1fr))", gap: 11 }}>
             {visibleItems.map((item) => {
               const active = selected?.assetId === item.assetId;
               const isOwned = !!session?.ownedAssetIds.includes(item.assetId);
               return (
-                <article key={item.assetId} style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 18, padding: "12px 12px 11px", display: "grid", gridTemplateRows: "1fr auto", gap: 7, background: active ? "linear-gradient(180deg,rgba(88,60,38,.95),rgba(52,34,25,.98))" : "linear-gradient(180deg,rgba(53,37,29,.73),rgba(34,23,19,.82))", border: active ? "1.5px solid rgba(250,207,116,.86)" : "1px solid rgba(236,195,116,.15)", boxShadow: active ? "0 12px 34px rgba(226,177,82,.12)" : "0 10px 24px rgba(0,0,0,.08)", animation: active ? "pinoriaShopSelect .42s ease-out both" : undefined }}>
-                  {active ? <span style={{ position: "absolute", right: 10, top: 10, zIndex: 3, padding: "5px 8px", borderRadius: 999, background: "#edc66f", color: "#2c1c12", fontSize: 9.5, fontWeight: 950, letterSpacing: ".05em" }}>ĐANG THỬ</span> : null}
-                  <div style={{ minHeight: 0, display: "grid", placeItems: "center", borderRadius: 13, background: "radial-gradient(circle,rgba(255,226,169,.085),transparent 66%)" }}>
+                <article data-shop-item-card data-active={active ? "true" : "false"} key={item.assetId} style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 18, padding: "12px 12px 11px", display: "grid", gridTemplateRows: "1fr auto", gap: 7, background: active ? "linear-gradient(180deg,rgba(88,60,38,.95),rgba(52,34,25,.98))" : "linear-gradient(180deg,rgba(53,37,29,.73),rgba(34,23,19,.82))", border: active ? "1.5px solid rgba(250,207,116,.86)" : "1px solid rgba(236,195,116,.15)", boxShadow: active ? "0 12px 34px rgba(226,177,82,.12)" : "0 10px 24px rgba(0,0,0,.08)", animation: active ? "pinoriaShopSelect .42s ease-out both" : undefined }}>
+                  {active ? <span data-shop-active-badge style={{ position: "absolute", right: 10, top: 10, zIndex: 3, padding: "5px 8px", borderRadius: 999, background: "#edc66f", color: "#2c1c12", fontSize: 9.5, fontWeight: 950, letterSpacing: ".05em" }}>ĐANG THỬ</span> : null}
+                  <div data-shop-item-art style={{ minHeight: 0, display: "grid", placeItems: "center", borderRadius: 13, background: "radial-gradient(circle,rgba(255,226,169,.085),transparent 66%)" }}>
                     <img src={item.imageUrl} alt="" draggable={false} style={{ width: "89%", height: "89%", objectFit: "contain", filter: active ? "drop-shadow(0 9px 14px rgba(0,0,0,.27)) brightness(1.07)" : "drop-shadow(0 7px 11px rgba(0,0,0,.22))" }} />
                   </div>
-                  <div>
-                    <strong style={{ display: "block", minHeight: 32, overflow: "hidden", fontSize: 13.5, lineHeight: 1.17, color: active ? "#ffe0a0" : "#f0e2cd" }}>{item.displayName}</strong>
-                    <div style={{ marginTop: 5, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 7, color: "#e5bc68", fontSize: 11.5, fontWeight: 900 }}><span>✦ {item.pricePls} PLS</span>{isOwned ? <span style={{ color: "#9bd18d", fontSize: 10.5 }}>ĐÃ CÓ</span> : null}</div>
+                  <div data-shop-item-footer>
+                    <div data-shop-item-name-row>
+                      <strong>{item.displayName}</strong>
+                      {isOwned ? <span data-owned-check aria-label="Đã sở hữu">✓</span> : null}
+                    </div>
+                    <div data-shop-price-box><span>PLS</span><strong>{item.pricePls}</strong></div>
                   </div>
                 </article>
               );
@@ -294,19 +293,6 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
             {!visibleItems.length ? <div style={{ gridColumn: "1 / -1", gridRow: "1 / -1", display: "grid", placeItems: "center", color: "rgba(245,232,210,.48)", fontSize: 14, border: "1px dashed rgba(240,196,112,.16)", borderRadius: 18 }}>Chưa có món nào trong khu này.</div> : null}
           </div>
 
-          <div style={{ minHeight: 86, borderRadius: 19, border: "1px solid rgba(239,196,112,.18)", background: "rgba(29,19,16,.77)", padding: "13px 16px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 20, boxShadow: "0 12px 28px rgba(0,0,0,.12)" }}>
-            <div>
-              <strong style={{ display: "block", fontSize: 16.5, color: "#f0c878" }}>{owned ? "Món này đã ở trong tủ của con" : "Con thích món này?"}</strong>
-              <div style={{ marginTop: 5, color: "rgba(247,235,215,.52)", fontSize: 11.5 }}>{owned ? "Có thể thử lại bất cứ lúc nào." : "Nói với staff để xác nhận trên điện thoại."}</div>
-            </div>
-            {selected ? (
-              <div style={{ display: "grid", justifyItems: "end", gap: 5 }}>
-                <div style={{ padding: "11px 16px", borderRadius: 14, minWidth: 154, textAlign: "center", background: owned ? "rgba(77,112,65,.19)" : canAfford ? "rgba(218,166,69,.15)" : "rgba(92,67,48,.22)", border: owned ? "1px solid rgba(141,196,117,.32)" : canAfford ? "1px solid rgba(236,187,89,.3)" : "1px solid rgba(214,181,135,.17)", color: owned ? "#a7d694" : canAfford ? "#f2ca76" : "rgba(245,223,188,.62)", fontWeight: 950, fontSize: 14 }}>
-                  {owned ? "Đã sở hữu" : canAfford ? `✦ ${selected.pricePls} PLS · Có thể đổi` : `Cần thêm ${missingPls} PLS`}
-                </div>
-              </div>
-            ) : null}
-          </div>
         </section>
       </div>
 
