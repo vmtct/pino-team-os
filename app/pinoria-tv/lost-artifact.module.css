@@ -451,12 +451,12 @@
   .huntPanel small { margin-top: 7px; opacity: .72; }
   .dossier {
     right: 4.5%; top: 5.7%; width: 50.5%; height: 87%;
-    grid-template-rows: auto auto minmax(118px,.72fr) minmax(178px,1fr) auto;
-    gap: 16px;
+    grid-template-rows: auto auto auto minmax(154px,1fr) auto;
+    gap: 15px;
   }
   .titleBlock { text-align: left; padding-left: 8px; }
   .eyebrow { padding: 6px 16px; }
-  .titleBlock h1 { margin-top: 11px; font-size: clamp(30px, 3vw, 53px); line-height: 1; }
+  .titleBlock h1 { max-width: 96%; margin-top: 11px; font-size: clamp(30px, 3vw, 53px); line-height: 1; text-wrap: balance; }
   .divider { width: 48%; margin: 6px 0 0; }
 
   .metaGrid {
@@ -473,13 +473,14 @@
     padding: 12px 8px 10px;
     border: 0; border-radius: 0; background: transparent; box-shadow: none;
   }
-  .panelHeading { margin-bottom: 10px; }
-  .historyPanel { padding-top: 4px; border-top: 1px solid rgb(var(--artifact-primary-rgb) / .16); }
-  .historyPanel p { max-width: 760px; margin: 5px 0; line-height: 1.48; }
-  .clue { margin-top: 10px; }
+  .panelHeading { margin-bottom: 11px; }
+  .historyPanel { min-height: max-content; padding: 9px 8px 15px; border-top: 1px solid rgb(var(--artifact-primary-rgb) / .16); }
+  .historyPanel p { max-width: 760px; margin: 0 0 8px; line-height: 1.52; }
+  .historyPanel p:last-of-type { margin-bottom: 0; }
+  .clue { max-width: 96%; margin-top: 12px; padding-bottom: 1px; line-height: 1.42; }
 
-  .powersPanel { padding-top: 8px; border-top: 1px solid rgb(var(--artifact-primary-rgb) / .16); }
-  .powerGrid { height: calc(100% - 36px); gap: 14px; }
+  .powersPanel { min-height: 0; padding-top: 13px; border-top: 1px solid rgb(var(--artifact-primary-rgb) / .16); }
+  .powerGrid { height: calc(100% - 38px); min-height: 0; gap: 16px; }
   .powerGrid article {
     padding: 6px 14px 4px; border-right: 0; border-radius: 14px;
     background: linear-gradient(180deg, rgb(var(--artifact-primary-rgb) / .035), transparent 76%);
