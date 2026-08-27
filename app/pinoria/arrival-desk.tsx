@@ -1,122 +1,14 @@
 "use client";
-
-import{useCallback,useEffect,useMemo,useState}from"react";
+import{useCallback,useEffect,useState}from"react";
 import{TosShell}from"@/app/components/tos-shell/TosShell";
 import{workforceApi}from"@/lib/workforce-api";
 import styles from"./pinoria.module.css";
-
-type Visit={id:string;checkedInAt:string;version:number};
-type Learner={studentProfileId:string;displayName:string;sessionIds:string[];hasRosterConflict:boolean;openVisit:Visit|null};
-type Session={id:string;scheduledStartsLocal:string;scheduledEndsLocal:string;unresolvedRegistrations:Array<{registrationId:string}>};
-type ArrivalProjection={centerId:string;localDate:string;sessions:Session[];learners:Learner[]};
-type ApiEnvelope<T>={data?:T;error?:{message?:string;code?:string}};
-
-const CENTER_STORAGE="pino.arrival.centerId";
-const footer=[{id:"home",label:"Home",href:"/dashboard"},{id:"pinoria",label:"Pinoria",href:"/pinoria"}];
-
-function todayInVietnam(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Ho_Chi_Minh",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
-
-export function ArrivalDesk(){
-  const[centerId,setCenterId]=useState("");
-  const[draftCenterId,setDraftCenterId]=useState("");
-  const[centerResolving,setCenterResolving]=useState(true);
-  const[date,setDate]=useState(todayInVietnam);
-  const[data,setData]=useState<ArrivalProjection|null>(null);
-  const[loading,setLoading]=useState(false);
-  const[actionId,setActionId]=useState<string|null>(null);
-  const[error,setError]=useState<string|null>(null);
-
-  useEffect(()=>{
-    let cancelled=false;
-    async function resolveCenter(){
-      const query=new URLSearchParams(window.location.search).get("centerId")?.trim()??"";
-      const saved=window.localStorage.getItem(CENTER_STORAGE)?.trim()??"";
-      const explicit=query||saved;
-      if(explicit){setCenterId(explicit);setDraftCenterId(explicit);if(query)window.localStorage.setItem(CENTER_STORAGE,query);setCenterResolving(false);return;}
-      try{
-        const context=await workforceApi.context();
-        if(cancelled)return;
-        const preferred=context.data.centers.find(center=>center.key==="can-tho")??context.data.centers[0];
-        if(preferred){window.localStorage.setItem(CENTER_STORAGE,preferred.id);setCenterId(preferred.id);setDraftCenterId(preferred.id);}
-        else setError("Tài khoản hiện chưa có Center khả dụng.");
-      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:"Không xác định được Center từ Core.");}
-      finally{if(!cancelled)setCenterResolving(false);}
-    }
-    void resolveCenter();
-    return()=>{cancelled=true;};
-  },[]);
-
-  const load=useCallback(async()=>{
-    if(!centerId)return;
-    setLoading(true);setError(null);
-    try{
-      const response=await fetch(`/api/tos-learning/arrival-desk?centerId=${encodeURIComponent(centerId)}&localDate=${encodeURIComponent(date)}`,{cache:"no-store"});
-      const json=await response.json() as ApiEnvelope<ArrivalProjection>;
-      if(!response.ok||!json.data)throw new Error(json.error?.message??"Không tải được Arrival Desk");
-      setData(json.data);
-    }catch(cause){setError(cause instanceof Error?cause.message:"Không tải được Arrival Desk");}
-    finally{setLoading(false);}
-  },[centerId,date]);
-
-  useEffect(()=>{void load();},[load]);
-
-  const sessionMap=useMemo(()=>new Map((data?.sessions??[]).map(session=>[session.id,session])),[data]);
-  const unresolved=useMemo(()=>(data?.sessions??[]).reduce((sum,session)=>sum+session.unresolvedRegistrations.length,0),[data]);
-
-  function saveCenter(){const value=draftCenterId.trim();if(!value)return;window.localStorage.setItem(CENTER_STORAGE,value);setCenterId(value);}
-
-  async function mutate(learner:Learner){
-    if(!centerId||actionId)return;
-    setActionId(learner.studentProfileId);setError(null);
-    try{
-      const checkedIn=!learner.openVisit;
-      const url=checkedIn?`/api/tos-learning/students/${learner.studentProfileId}/visits/open`:`/api/tos-learning/visits/${learner.openVisit!.id}/check-out`;
-      const body=checkedIn?{centerId,checkedInAt:new Date().toISOString(),reason:"PINO Arrival Desk"}:{checkedOutAt:new Date().toISOString(),reason:"Rời PINO House",expectedVersion:learner.openVisit!.version};
-      const response=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
-      const json=await response.json() as ApiEnvelope<unknown>;
-      if(!response.ok)throw new Error(json.error?.message??(checkedIn?"Check-in thất bại":"Check-out thất bại"));
-      await load();
-    }catch(cause){setError(cause instanceof Error?cause.message:"Thao tác thất bại");}
-    finally{setActionId(null);}
-  }
-
-  return <TosShell title="Arrival Desk" subtitle="Check-in · Check-out học viên tại PINO House" theme="pinoria" footerItems={footer} activeFooterId="pinoria">
-    <div className={styles.page}>
-      {centerResolving?<section className={styles.setup}><span className={styles.eyebrow}>LIVE HOUSE</span><h2>Đang kết nối Center…</h2><p>Lấy Center được phép từ Core.</p></section>:!centerId?<section className={styles.setup}>
-        <span className={styles.eyebrow}>ONE-TIME SETUP</span>
-        <h2>Kết nối quầy lễ tân</h2>
-        <p>Không tìm thấy Center tự động. Dán Center ID canonical để fallback trên thiết bị này.</p>
-        <input value={draftCenterId} onChange={event=>setDraftCenterId(event.target.value)} placeholder="Center ID" autoCapitalize="off" autoCorrect="off"/>
-        <button onClick={saveCenter} disabled={!draftCenterId.trim()}>Kết nối</button>
-      </section>:<>
-        <section className={styles.toolbar}>
-          <div><span className={styles.eyebrow}>LIVE HOUSE</span><strong>{data?.learners.filter(item=>item.openVisit).length??0} đang ở PINO</strong></div>
-          <label>Ngày<input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label>
-          <button className={styles.refresh} onClick={()=>void load()} disabled={loading}>{loading?"Đang tải…":"Làm mới"}</button>
-        </section>
-
-        {error?<div className={styles.error}>{error}</div>:null}
-        {unresolved>0?<div className={styles.notice}><strong>{unresolved} hồ sơ mới</strong><span>cần resolve learner trước khi dùng Arrival Desk.</span></div>:null}
-
-        <section className={styles.list} aria-busy={loading}>
-          {!loading&&data?.learners.length===0?<div className={styles.empty}><strong>Chưa có học viên dự kiến</strong><span>Roster của ngày {date} hiện đang trống.</span></div>:null}
-          {data?.learners.map(learner=>{
-            const times=learner.sessionIds.map(id=>sessionMap.get(id)).filter(Boolean).map(session=>session!.scheduledStartsLocal.slice(11,16));
-            const present=!!learner.openVisit;
-            return <article key={learner.studentProfileId} className={`${styles.card} ${present?styles.present:""}`}>
-              <div className={styles.avatar}>{learner.displayName.trim().charAt(0).toLocaleUpperCase("vi")}</div>
-              <div className={styles.identity}>
-                <div className={styles.nameRow}><h3>{learner.displayName}</h3><span className={present?styles.inBadge:styles.waitBadge}>{present?"Đã đến":"Chưa đến"}</span></div>
-                <div className={styles.meta}>{times.length?`Ca ${[...new Set(times)].join(" · ")}`:"Có lịch hôm nay"}{learner.hasRosterConflict?<span className={styles.conflict}> · Cần kiểm tra roster</span>:null}</div>
-                {present&&learner.openVisit?<small>Check-in {new Date(learner.openVisit.checkedInAt).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Ho_Chi_Minh"})}</small>:null}
-              </div>
-              <button className={present?styles.checkout:styles.checkin} disabled={actionId===learner.studentProfileId} onClick={()=>void mutate(learner)}>{actionId===learner.studentProfileId?"…":present?"Check-out":"Check-in"}</button>
-            </article>;
-          })}
-        </section>
-
-        <button className={styles.changeCenter} onClick={()=>{window.localStorage.removeItem(CENTER_STORAGE);setCenterId("");setDraftCenterId("");setData(null);}}>Đổi Center</button>
-      </>}
-    </div>
-  </TosShell>;
-}
+type Visit={id:string;checkedInAt:string;version:number};type Learner={studentProfileId:string;displayName:string;hasCharacter:boolean;openVisit:Visit|null};type Preset={id:string;displayName:string;config:{hair:string;face:string;outfit:string;back?:string}};type Envelope<T>={data?:T;error?:{message?:string}};
+const CENTER_STORAGE="pino.arrival.centerId",footer=[{id:"home",label:"Home",href:"/dashboard"},{id:"pinoria",label:"Pinoria",href:"/pinoria"}];
+export function ArrivalDesk(){const[centerId,setCenterId]=useState(""),[query,setQuery]=useState(""),[learners,setLearners]=useState<Learner[]>([]),[presets,setPresets]=useState<Preset[]>([]),[pending,setPending]=useState<Learner|null>(null),[busy,setBusy]=useState<string|null>(null),[error,setError]=useState("");
+useEffect(()=>{let active=true;async function start(){try{const urlCenter=new URLSearchParams(location.search).get("centerId")?.trim(),saved=localStorage.getItem(CENTER_STORAGE)?.trim(),context=!urlCenter&&!saved?await workforceApi.context():null,value=urlCenter||saved||context?.data.centers[0]?.id||"";if(!active)return;if(value){localStorage.setItem(CENTER_STORAGE,value);setCenterId(value);}const response=await fetch("/api/tos-learning/pinoria/presets",{cache:"no-store"}),json=await response.json()as Envelope<Preset[]>;if(response.ok&&json.data)setPresets(json.data);}catch(cause){if(active)setError(cause instanceof Error?cause.message:"Không khởi tạo được quầy");}}void start();return()=>{active=false};},[]);
+const search=useCallback(async(value:string)=>{if(!centerId||!value.trim()){setLearners([]);return}try{const response=await fetch(`/api/tos-learning/pinoria/learners/search?centerId=${encodeURIComponent(centerId)}&query=${encodeURIComponent(value.trim())}`,{cache:"no-store"}),json=await response.json()as Envelope<Learner[]>;if(!response.ok||!json.data)throw new Error(json.error?.message??"Không tìm được học viên");setLearners(json.data);}catch(cause){setError(cause instanceof Error?cause.message:"Không tìm được học viên");}},[centerId]);
+useEffect(()=>{const timer=setTimeout(()=>void search(query),250);return()=>clearTimeout(timer)},[query,search]);
+async function mutate(learner:Learner,presetId?:string){setBusy(learner.studentProfileId);setError("");try{const checkIn=!learner.openVisit,response=await fetch(`/api/tos-learning/pinoria/house/${checkIn?"check-in":"check-out"}`,{method:"POST",headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},body:JSON.stringify(checkIn?{studentProfileId:learner.studentProfileId,centerId,presetId:presetId??null,checkedInAt:new Date().toISOString()}:{studentProfileId:learner.studentProfileId,centerId,expectedVersion:learner.openVisit!.version,checkedOutAt:new Date().toISOString(),reason:"Rời PINO House"})}),json=await response.json()as Envelope<unknown>;if(!response.ok)throw new Error(json.error?.message??"Thao tác thất bại");setPending(null);await search(query);}catch(cause){setError(cause instanceof Error?cause.message:"Thao tác thất bại");}finally{setBusy(null)}}
+function activate(learner:Learner){if(!learner.openVisit&&!learner.hasCharacter){setPending(learner);return}void mutate(learner)}
+return <TosShell title="PINO Arrival Desk" subtitle="Hiện diện toàn House · Staff only" theme="pinoria" footerItems={footer} activeFooterId="pinoria"><div className={styles.page}><section className={styles.toolbar}><div><span className={styles.eyebrow}>HOUSE-WIDE SEARCH</span><strong>Tìm học viên theo tên</strong></div><a className={styles.refresh} href="/staff-login">Đổi staff</a></section><input className={styles.search} autoFocus value={query} onChange={event=>setQuery(event.target.value)} placeholder="Nhập tên học viên…"/>{error?<div className={styles.error}>{error}</div>:null}<section className={styles.list}>{query.trim()&&!learners.length?<div className={styles.empty}><strong>Không có kết quả</strong><span>Thử một phần khác của tên học viên.</span></div>:null}{learners.map(learner=><article className={`${styles.card} ${learner.openVisit?styles.present:""}`} key={learner.studentProfileId}><div className={styles.avatar}>{learner.displayName.charAt(0).toUpperCase()}</div><div className={styles.identity}><div className={styles.nameRow}><h3>{learner.displayName}</h3><span className={learner.openVisit?styles.inBadge:styles.waitBadge}>{learner.openVisit?"Đang ở House":learner.hasCharacter?"Sẵn sàng":"Lần đầu"}</span></div>{learner.openVisit?<small>Đến lúc {new Date(learner.openVisit.checkedInAt).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})}</small>:null}</div><button className={learner.openVisit?styles.checkout:styles.checkin} disabled={busy===learner.studentProfileId} onClick={()=>activate(learner)}>{busy===learner.studentProfileId?"…":learner.openVisit?"Check-out":"Check-in"}</button></article>)}</section>{pending?<div className={styles.modalBackdrop} role="dialog" aria-modal="true"><section className={styles.modal}><span className={styles.eyebrow}>FIRST CHECK-IN</span><h2>Chọn nhân vật cho {pending.displayName}</h2><p>Lựa chọn này sẽ trở thành nhân vật canonical. Có thể customize ở rollout sau.</p><div className={styles.presetGrid}>{presets.map(preset=><button key={preset.id} disabled={!!busy} onClick={()=>void mutate(pending,preset.id)}><b>{preset.displayName}</b><small>{preset.config.hair.split("/").at(-3)} · {preset.config.face.split("/").at(-3)} · {preset.config.outfit.split("/").at(-3)}</small></button>)}</div><button className={styles.cancel} onClick={()=>setPending(null)}>Hủy</button></section></div>:null}</div></TosShell>}

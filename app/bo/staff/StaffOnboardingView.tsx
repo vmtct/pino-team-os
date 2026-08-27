@@ -43,6 +43,11 @@ export function StaffOnboardingView() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BoStaffOnboardingResult | null>(null);
   const [submitError, setSubmitError] = useState<{ message: string; requestId: string | null } | null>(null);
+  const [staffPin, setStaffPin] = useState("");
+  const [pinStatus, setPinStatus] = useState("");
+  const [importCsv, setImportCsv] = useState("");
+  const [importRoleId, setImportRoleId] = useState("");
+  const [importStatus, setImportStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -91,6 +96,30 @@ export function StaffOnboardingView() {
     }
   }
 
+  async function configurePin() {
+    if (!result?.userId || !/^\d{6}$/.test(staffPin)) return;
+    setPinStatus("Đang lưu PIN…");
+    const response = await fetch("/api/staff-pin/configure", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: result.userId, pin: staffPin }) });
+    const body = await response.json() as { error?: { message?: string } };
+    setPinStatus(response.ok ? "PIN đã được lưu; các session cũ đã bị thu hồi." : body.error?.message ?? "Không thể lưu PIN.");
+    if (response.ok) setStaffPin("");
+  }
+
+  async function importStaff() {
+    const rows = importCsv.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => line.split(",").map((cell) => cell.trim()));
+    if (!importRoleId || !rows.length || rows.some((row) => row.length < 3 || !row[0] || !row[1] || !/^\d{6}$/.test(row[2]))) { setImportStatus("Mỗi dòng cần: tên,email,PIN-6-số và một role."); return; }
+    setImportStatus(`Đang import 0/${rows.length}…`);
+    for (let index = 0; index < rows.length; index++) {
+      const [name, email, pin] = rows[index];
+      try {
+        const created = await boApi.onboardStaff({ commandType: "ONBOARD_STAFF_WITH_ACCESS", staff: { displayLabel: name, email }, email, assignments: [{ roleId: importRoleId, scopeType: "GLOBAL", scopeId: null }], pin }, crypto.randomUUID());
+        if (!created.userId) throw new Error("Core did not return an Access user");
+        setImportStatus(`Đang import ${index + 1}/${rows.length}…`);
+      } catch (error) { setImportStatus(`Dừng ở dòng ${index + 1}: ${error instanceof Error ? error.message : "Import thất bại"}`); return; }
+    }
+    setImportCsv(""); setImportStatus(`Đã import ${rows.length} staff và cấu hình PIN.`);
+  }
+
   function buildCommand(): BoStaffOnboardingCommand | null {
     const staff = profile();
     if (mode === "record") return displayLabel.trim() ? { commandType: "ONBOARD_STAFF_RECORD_ONLY", staff } : null;
@@ -131,6 +160,13 @@ export function StaffOnboardingView() {
         <ModeButton active={mode === "with-access"} title="Staff + Access" text="Create StaffMember and full Access graph atomically." onClick={() => setMode("with-access")} />
         <ModeButton active={mode === "provision"} title="Provision existing Staff" text="Add Access to an active StaffMember without recreating it." onClick={() => setMode("provision")} />
       </div>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeading}><div><h2>Quick CSV import</h2><p>Một staff mỗi dòng: <code>tên,email,PIN-6-số</code>. Import tuần tự và dừng đúng dòng lỗi.</p></div><span className={styles.writePill}>Manual import</span></div>
+        <label className={styles.field}>TOS role<select value={importRoleId} onChange={(event) => setImportRoleId(event.target.value)}><option value="">Select role…</option>{availableRoles.map((role) => <option value={role.id} key={role.id}>{role.displayName}</option>)}</select></label>
+        <label className={styles.field}>CSV rows<textarea rows={5} value={importCsv} onChange={(event) => setImportCsv(event.target.value)} placeholder="Nguyễn An,an@pino.vn,246810" /></label>
+        <button type="button" className={styles.secondaryButton} disabled={!importCsv.trim() || !importRoleId} onClick={() => void importStaff()}>Import staff</button>{importStatus ? <span>{importStatus}</span> : null}
+      </section>
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><h2>{mode === "provision" ? "Existing StaffMember" : "Staff record"}</h2><p>Canonical Workforce identity. Fields are explicit; no legacy mapping is created.</p></div><span className={styles.writePill}>Write</span></div>
@@ -189,7 +225,7 @@ export function StaffOnboardingView() {
       </section>
 
       {submitError ? <State compact error title="Command failed" message={submitError.message} requestId={submitError.requestId} /> : null}
-      {result ? <section className={styles.successCard}><strong>Command committed</strong><span>{result.accessState.replaceAll("_", " ")}</span><code>{result.staffMemberId}</code>{result.userId ? <code>{result.userId}</code> : null}</section> : null}
+      {result ? <section className={styles.successCard}><strong>Command committed</strong><span>{result.accessState.replaceAll("_", " ")}</span><code>{result.staffMemberId}</code>{result.userId ? <><code>{result.userId}</code><label className={styles.field}>Staff PIN (6 số)<input inputMode="numeric" type="password" value={staffPin} maxLength={6} onChange={(event) => setStaffPin(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label><button type="button" className={styles.primaryButton} disabled={staffPin.length !== 6} onClick={() => void configurePin()}>Set staff PIN</button>{pinStatus ? <span>{pinStatus}</span> : null}</> : null}</section> : null}
     </section>
   );
 }
