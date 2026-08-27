@@ -21,8 +21,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       ISSUE_BODY: ${{ github.event.issue.body }}
-      CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
-      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_TOKEN: ${{ secrets.CF_API_TOKEN }}
 
     steps:
       - name: Read live Access configuration
@@ -30,7 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           fail() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "ACCESS_OTP_READINESS_PROBE: **FAIL_SAFE**\n\n$1\n\nRead-only probe; no Access or production mutation was attempted."; exit 1; }
-          [ -n "${CF_TOKEN:-}" ] || fail "CLOUDFLARE_API_TOKEN unavailable."
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable."
           target_hash="$(sed -nE 's/^TARGET_EMAIL_SHA256:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
           target_domain="$(sed -nE 's/^TARGET_DOMAIN:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY" | tr '[:upper:]' '[:lower:]')"
           [ -n "$target_hash" ] && [ -n "$target_domain" ] || fail "Missing target hash/domain."
