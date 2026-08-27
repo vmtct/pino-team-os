@@ -57,7 +57,7 @@ export function DeliveryActivationView() {
   const classes = data.runningClasses.filter((item) => item.centerId === centerId);
   const activeClasses = classes.filter((item) => item.status === "ACTIVE");
   const classIdsWithBlocks = new Set(data.runningClassBlocks.map((item) => item.runningClassId));
-  const classesMissingBlocks = activeClasses.filter((item) => !classIdsWithBlocks.has(item.id));
+  const classesMissingBlocks = activeClasses.filter((item) => item.deliveryTopology !== "FLEXIBLE_STUDIO" && !classIdsWithBlocks.has(item.id));
   const centerPolicy = data.materializationPolicyStreams.find((item) => item.targetType === "CENTER" && item.targetId === centerId) ?? null;
   const globalPolicy = data.materializationPolicyStreams.find((item) => item.targetType === "GLOBAL") ?? null;
   const effectivePolicy = centerPolicy?.publishedValue ?? globalPolicy?.publishedValue ?? null;
@@ -97,7 +97,7 @@ export function DeliveryActivationView() {
       });
       setClassName(""); setStartsLocal(""); setEndsLocal(""); setParticipationMinutes(""); setClassOptimal(""); setClassHard("");
       setBlockClassId(created.id);
-      return `Running Class committed: ${created.operationalName}. Add its real block structure before materialization.`;
+      return created.deliveryTopology === "FLEXIBLE_STUDIO" ? `Running Class committed: ${created.operationalName}. Flexible Studio placements carry learner intervals; class blocks are optional.` : `Running Class committed: ${created.operationalName}. Add its real block structure before materialization.`;
     });
   }
 
@@ -172,11 +172,11 @@ export function DeliveryActivationView() {
           <Field label="Optimal capacity" type="number" value={classOptimal} onChange={setClassOptimal} /><Field label="Hard capacity (optional)" type="number" value={classHard} onChange={setClassHard} />
         </div>
         <button className={styles.primaryButton} type="button" disabled={!centerId || !classPathId || !classSpaceId || action.status === "running"} onClick={createClass}>Create Running Class</button>
-        {classes.length ? <CompactTable rows={classes.map((item) => [item.operationalName, pathName(data, item.pathProgramId), `${weekdayNames[item.weekdayIso]} ${item.windowStartsLocal}–${item.windowEndsLocal}`, item.deliveryTopology, classIdsWithBlocks.has(item.id) ? "Blocks ready" : "Needs block"])} headers={["Class", "Path", "Schedule", "Topology", "Block state"]} /> : null}
+        {classes.length ? <CompactTable rows={classes.map((item) => [item.operationalName, pathName(data, item.pathProgramId), `${weekdayNames[item.weekdayIso]} ${item.windowStartsLocal}–${item.windowEndsLocal}`, item.deliveryTopology, item.deliveryTopology === "FLEXIBLE_STUDIO" ? "Blocks optional" : classIdsWithBlocks.has(item.id) ? "Blocks ready" : "Needs block"])} headers={["Class", "Path", "Schedule", "Topology", "Block state"]} /> : null}
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.panelHeading}><div><h2>3 · Running Class block</h2><p>Materialization stays disabled until every active class has at least one explicit block.</p></div><span className={styles.writePill}>Explicit write</span></div>
+        <div className={styles.panelHeading}><div><h2>3 · Running Class block</h2><p>Materialization stays disabled until every active Fixed/Overlapping class has at least one explicit block. Flexible Studio uses planned learner intervals and does not require class blocks.</p></div><span className={styles.writePill}>Explicit write</span></div>
         <div className={styles.formGrid}>
           <SelectField label="Running Class" value={blockClassId} onChange={setBlockClassId} options={classes.filter((item) => item.status === "ACTIVE").map((item) => [item.id, item.operationalName])} />
           <label className={styles.field}>Block kind<select value={blockKind} onChange={(event) => setBlockKind(event.target.value as typeof blockKind)}><option value="LEARNING">Learning</option><option value="BRIDGE">Bridge</option><option value="TRANSITION">Transition</option></select></label>
