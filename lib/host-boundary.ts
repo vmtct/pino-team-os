@@ -36,13 +36,17 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/registrations",
     "/bo/syllabus",
     "/api/bo/context",
+    "/api/bo/centers",
     "/api/bo/path-programs",
     "/api/bo/running-classes",
     "/api/bo/syllabi",
     "/api/bo/sessions",
-    "/api/bo/workforce/staff-onboarding",
     "/api/bo/access/roles",
+    "/api/bo/access/users",
+    "/api/bo/workforce/staff-records",
+    "/api/bo/workforce/staff-onboarding",
     "/api/bo/access/assignments",
+    "/api/staff-pin/configure",
     "/favicon.ico",
   ].includes(normalized)) return true;
   return /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized);
