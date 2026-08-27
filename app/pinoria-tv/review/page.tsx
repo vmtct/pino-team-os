@@ -55,7 +55,7 @@ export default function PinoriaReviewHubPage() {
         lang="vi"
         style={{
           minHeight: "100vh",
-          padding: "30px clamp(20px,4vw,64px) 46px",
+          padding: "30px clamp(20px,4vw,64px) 38px",
           color: "#f7f1e7",
           background: "radial-gradient(circle at 18% 0%,#28372d 0,#161d19 34%,#0d110f 76%)",
         }}
