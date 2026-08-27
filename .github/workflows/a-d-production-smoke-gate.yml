@@ -1,0 +1,111 @@
+name: A-D Production Smoke Gate
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: a-d-production-smoke-gate
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: github.event.issue.title == '[GPT] A-D production perimeter smoke' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      TARGET_TEAM_SHA: 112041ee411db908161dd60ecf04d072626fd9f9
+
+    steps:
+      - name: Validate governed smoke request
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          reject() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "A_D_PRODUCTION_SMOKE: **REJECTED**\n\n$1\n\nNo production mutation was attempted."
+            exit 1
+          }
+
+          grep -Eq '^CONFIRM:[[:space:]]*RUN_A_D_PRODUCTION_SMOKE[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: RUN_A_D_PRODUCTION_SMOKE."
+
+          main_sha="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve Team main."
+          compare="$(gh api "/repos/${repo}/compare/${TARGET_TEAM_SHA}...${main_sha}")" || reject "Cannot compare reviewed Team candidate with current main."
+          status="$(jq -r '.status' <<<"$compare")"
+          [ "$status" = "identical" ] || [ "$status" = "ahead" ] || reject "Reviewed Team candidate is not an ancestor of current main."
+          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          [ -z "$unexpected" ] || reject "Runtime-affecting Team drift exists after the reviewed target: ${unexpected//$'\n'/, }."
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "A_D_PRODUCTION_SMOKE: **ACCEPTED**\n\nReviewed Team source: ${TARGET_TEAM_SHA}\nCurrent main: ${main_sha}\nRuntime-affecting drift after candidate: none.\n\nDispatching the existing Production Perimeter Smoke workflow."
+
+      - name: Dispatch production perimeter smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow e2e-production-smoke.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // 0')"
+          gh workflow run e2e-production-smoke.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "before=$before" >> "$GITHUB_ENV"
+
+      - name: Wait for fresh smoke result
+        id: wait
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=""
+          run_url=""
+          conclusion=""
+
+          for attempt in $(seq 1 60); do
+            run_json="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow e2e-production-smoke.yml \
+              --event workflow_dispatch \
+              --branch main \
+              --limit 10 \
+              --json databaseId,status,conclusion,url,createdAt \
+              | jq -c --argjson before "${before:-0}" 'map(select(.databaseId > $before)) | sort_by(.createdAt) | last // empty')"
+
+            if [ -n "$run_json" ]; then
+              run_id="$(jq -r '.databaseId' <<<"$run_json")"
+              run_url="$(jq -r '.url' <<<"$run_json")"
+              status="$(jq -r '.status' <<<"$run_json")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
+              if [ "$status" = "completed" ]; then
+                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+                echo "run_url=$run_url" >> "$GITHUB_OUTPUT"
+                echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "A_D_PRODUCTION_SMOKE: **TIMEOUT**\n\nA fresh smoke run was dispatched but did not complete inside the governed wait window. No production mutation was performed by this gate."
+          exit 1
+
+      - name: Report production smoke result
+        if: always() && steps.wait.outputs.run_id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          conclusion="${{ steps.wait.outputs.conclusion }}"
+          run_url="${{ steps.wait.outputs.run_url }}"
+          run_id="${{ steps.wait.outputs.run_id }}"
+
+          if [ "$conclusion" = "success" ]; then
+            result="PASS"
+          else
+            result="FAIL_SAFE"
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "A_D_PRODUCTION_SMOKE: **${result}**\n\n- Reviewed Team source: ${TARGET_TEAM_SHA}\n- Production Perimeter Smoke run: ${run_id}\n- Conclusion: ${conclusion}\n- Run: ${run_url}\n\nThis gate performed tests only; it did not mutate production runtime or data."
+
+          [ "$conclusion" = "success" ]
