@@ -44,7 +44,7 @@ test("BO operational facade forwards only exact GET paths and the verified ident
       return { status: 200, body: { data: [] }, requestId: `request-${forwarded.length}` };
     },
   };
-  const paths = ["path-programs", "running-classes", "syllabi", "sessions", "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations"];
+  const paths = ["delivery/bootstrap-state", "path-programs", "running-classes", "syllabi", "sessions", "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations"];
 
   const responses = await Promise.all(paths.map((path) => handleBoOperationalReadRequest(request(path, f.token), env(binding), path, f.resolver)));
 
