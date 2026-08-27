@@ -10,6 +10,12 @@ const routes = [
     badge: "LIVE FLOW",
   },
   {
+    href: "/pinoria-tv/review/shop",
+    title: "Pinoria Shop",
+    meta: "Cosmetic catalog · live character preview · PLS purchase flow",
+    badge: "INTERACTIVE · SHOP",
+  },
+  {
     href: "/pinoria-tv/review/inventory",
     title: "Túi Hành Trang",
     meta: "Inventory grid · equipped rails · companion · character preview",
@@ -143,7 +149,7 @@ export default function PinoriaReviewHubPage() {
               lineHeight: 1.6,
             }}
           >
-            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Túi Hành Trang → Hạt Năng Lượng → Learning Spotlight → World Broadcast → Thần Khí Thất Lạc → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
+            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Pinoria Shop → Túi Hành Trang → Hạt Năng Lượng → Learning Spotlight → World Broadcast → Thần Khí Thất Lạc → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
           </aside>
         </div>
       </main>
