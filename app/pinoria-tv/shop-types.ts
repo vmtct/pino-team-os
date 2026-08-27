@@ -103,6 +103,7 @@ export type ShopCatalogItem = {
   layerUrl?: string;
   pricePls: number;
   previewable: boolean;
+  attention?: "hot" | "featured" | "new";
 };
 
 export type ShopSubject = {

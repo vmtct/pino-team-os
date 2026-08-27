@@ -221,6 +221,7 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
         layerUrl,
         pricePls: prototypePrice(group.slug),
         previewable: !!layerUrl && ["hair", "face", "headwear", "eyewear", "back", "body"].includes(group.slot),
+        attention: group.slug === "face-02" ? "hot" : undefined,
       } satisfies ShopCatalogItem;
     })
     .filter((item): item is ShopCatalogItem => item !== null);
@@ -273,6 +274,7 @@ function fallbackCatalog(): ShopCatalogItem[] {
       layerUrl,
       pricePls: prototypePrice(slug),
       previewable,
+      attention: slug === "face-02" ? "hot" : undefined,
     };
   });
 }
