@@ -34,6 +34,12 @@ const routes = [
     badge: "WORLD",
   },
   {
+    href: "/pinoria-tv/review/lost-artifact",
+    title: "Thần Khí Thất Lạc",
+    meta: "4 artifact dossiers · hero-derived palette · generic adaptive icon family",
+    badge: "WORLD · LOST ARTIFACT",
+  },
+  {
     href: "/pinoria-tv/review/world-state-transition",
     title: "World State Transition",
     meta: "Persistent world mutation · old → new Ambient state · ~10.2s",
@@ -137,7 +143,7 @@ export default function PinoriaReviewHubPage() {
               lineHeight: 1.6,
             }}
           >
-            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Túi Hành Trang → Hạt Năng Lượng → Learning Spotlight → World Broadcast → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
+            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Túi Hành Trang → Hạt Năng Lượng → Learning Spotlight → World Broadcast → Thần Khí Thất Lạc → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
           </aside>
         </div>
       </main>
