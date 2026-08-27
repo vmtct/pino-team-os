@@ -431,3 +431,75 @@
   .heroImage,
   .heroRings { animation: none !important; }
 }
+
+/* Airier dossier composition: hero and information breathe independently. */
+@media (min-aspect-ratio: 4/3) {
+  .heroAura { left: 4.5%; top: 10%; width: 37%; height: 64%; }
+  .heroStage { left: 4.8%; top: 10.5%; width: 36.5%; height: 63%; }
+  .heroRings { width: 78%; opacity: .72; }
+  .heroImage { max-width: 91%; max-height: 88%; }
+
+  .huntPanel {
+    left: 4.8%; bottom: 7.2%; width: 34.8%; min-height: 126px;
+    grid-template-columns: 62px 1fr; gap: 15px; padding: 15px 18px;
+    border-color: rgb(var(--artifact-primary-rgb) / .28);
+    background: linear-gradient(135deg, rgb(var(--artifact-primary-rgb) / .07), rgb(10 9 12 / .72));
+  }
+  .huntSigil { width: 58px; }
+  .huntPanel h2 { margin-bottom: 10px; font-size: clamp(15px, 1.2vw, 21px); }
+  .huntPanel p { margin: 5px 0; line-height: 1.42; }
+  .huntPanel small { margin-top: 7px; opacity: .72; }
+  .dossier {
+    right: 4.5%; top: 5.7%; width: 50.5%; height: 87%;
+    grid-template-rows: auto auto minmax(118px,.72fr) minmax(178px,1fr) auto;
+    gap: 16px;
+  }
+  .titleBlock { text-align: left; padding-left: 8px; }
+  .eyebrow { padding: 6px 16px; }
+  .titleBlock h1 { margin-top: 11px; font-size: clamp(30px, 3vw, 53px); line-height: 1; }
+  .divider { width: 48%; margin: 6px 0 0; }
+
+  .metaGrid {
+    gap: 9px; border: 0; border-radius: 0; background: transparent; overflow: visible;
+  }
+  .metaItem {
+    grid-template-columns: 27px 1fr; gap: 7px; padding: 8px 10px;
+    border: 1px solid rgb(var(--artifact-primary-rgb) / .13); border-radius: 11px;
+    background: rgb(10 9 12 / .22);
+  }
+  .metaItem:last-child { border-right: 1px solid rgb(var(--artifact-primary-rgb) / .13); }
+  .metaIcon { width: 25px; height: 25px; opacity: .76; }
+  .panel {
+    padding: 12px 8px 10px;
+    border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  }
+  .panelHeading { margin-bottom: 10px; }
+  .historyPanel { padding-top: 4px; border-top: 1px solid rgb(var(--artifact-primary-rgb) / .16); }
+  .historyPanel p { max-width: 760px; margin: 5px 0; line-height: 1.48; }
+  .clue { margin-top: 10px; }
+
+  .powersPanel { padding-top: 8px; border-top: 1px solid rgb(var(--artifact-primary-rgb) / .16); }
+  .powerGrid { height: calc(100% - 36px); gap: 14px; }
+  .powerGrid article {
+    padding: 6px 14px 4px; border-right: 0; border-radius: 14px;
+    background: linear-gradient(180deg, rgb(var(--artifact-primary-rgb) / .035), transparent 76%);
+  }
+  .powerIcon { width: clamp(46px, 4vw, 68px); height: clamp(46px, 4vw, 68px); }
+  .powerGrid h3 { margin: 8px 0 4px; }
+  .powerGrid p { max-width: 190px; line-height: 1.45; }
+  .bountyPanel {
+    min-height: 108px; grid-template-columns: 104px 1fr; gap: 16px;
+    padding: 12px 18px; border-radius: 16px;
+    border-color: rgb(216 181 105 / .30);
+    background: linear-gradient(135deg, rgb(91 66 31 / .10), rgb(9 8 9 / .48));
+  }
+  .pinoriumMark { width: 84px; }
+  .pinoriumMark span { font-size: 28px; }
+  .bountyCopy { column-gap: 12px; }
+  .bountyCopy strong { font-size: clamp(38px, 4.3vw, 70px); }
+  .bountyCopy p { max-width: 620px; margin-top: 6px; line-height: 1.4; }
+
+  .corner { opacity: .11; }
+  .background::before, .background::after { opacity: .42; }
+  .footer { bottom: 1.1%; opacity: .55; }
+}
