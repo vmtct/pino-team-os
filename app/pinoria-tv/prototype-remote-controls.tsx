@@ -7,6 +7,7 @@ import {
   PINORIA_SHOP_RELAY_URL,
   PINORIA_SHOP_SURFACE_ID,
   type ShopCatalogItem,
+  type ShopCategoryId,
   type ShopSessionSnapshot,
 } from "./shop-types";
 
@@ -29,6 +30,8 @@ const MOCK_STUDENTS: MockStudent[] = [
 
 const TV_RELAY_URL = "/api/pinoria-prototype/tv-relay";
 const SURFACE_ID = PINORIA_SHOP_SURFACE_ID;
+const SHOP_PAGE_SIZE = 6;
+const SHOP_MOCK_STUDENT = MOCK_STUDENTS[0];
 
 const launcherStyle: CSSProperties = {
   position: "fixed", right: 14, top: 14, zIndex: 1500, padding: "9px 13px", borderRadius: 999,
@@ -48,10 +51,10 @@ const panelStyle: CSSProperties = {
 const sectionLabel: CSSProperties = { display: "block", margin: "14px 0 8px", paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)", color: "rgba(216,228,213,.52)", fontSize: 9, fontWeight: 900, letterSpacing: ".13em" };
 const actionStyle: CSSProperties = { minHeight: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,.10)", background: "rgba(255,255,255,.055)", color: "#f2ece3", fontWeight: 850, cursor: "pointer" };
 
-function RemoteShell({ title, open, setOpen, children }: { title: string; open: boolean; setOpen: (next: boolean) => void; children: React.ReactNode }) {
+function RemoteShell({ title, open, setOpen, children, panelWidth = 360 }: { title: string; open: boolean; setOpen: (next: boolean) => void; children: React.ReactNode; panelWidth?: number }) {
   return <>
     <button data-prototype-remote-launcher style={launcherStyle} onClick={() => setOpen(!open)}>{open ? "Đóng remote" : `Remote · ${title}`}</button>
-    {open ? <aside data-prototype-remote-panel style={panelStyle}>
+    {open ? <aside data-prototype-remote-panel style={{ ...panelStyle, width: `min(${panelWidth}px,calc(100vw - 28px))` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div><small style={{ display: "block", color: "rgba(220,230,218,.45)", fontSize: 9, fontWeight: 900, letterSpacing: ".14em" }}>PROTOTYPE REMOTE · RECEPTION_TV</small><strong style={{ display: "block", marginTop: 4, fontSize: 19 }}>{title}</strong></div>
         <button aria-label="Đóng remote" onClick={() => setOpen(false)} style={{ border: 0, background: "transparent", color: "rgba(245,239,229,.55)", fontSize: 20, cursor: "pointer" }}>×</button>
@@ -112,24 +115,47 @@ export function OperationalTvRemoteControl() {
 
 export function PinoriaShopRemoteControl() {
   const [open, setOpen] = useState(false);
-  const [selectedStudentId, setSelectedStudentId] = useState("bo");
   const [catalog, setCatalog] = useState<ShopCatalogItem[]>([]);
   const [session, setSession] = useState<ShopSessionSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("Mở Shop rồi chọn món để thử trên TV.");
+  const [status, setStatus] = useState("Chạm tab hoặc món để điều khiển màn hình TV.");
 
   useEffect(() => {
     let stopped = false;
-    void fetch(PINORIA_SHOP_CATALOG_URL, { cache: "no-store" }).then((r) => r.json()).then((data: { items?: ShopCatalogItem[] }) => { if (!stopped && Array.isArray(data.items)) setCatalog(data.items); }).catch(() => undefined);
-    const poll = () => void fetch(`${PINORIA_SHOP_RELAY_URL}?surfaceId=${SURFACE_ID}`, { cache: "no-store" }).then((r) => r.json()).then((data: { session?: ShopSessionSnapshot }) => { if (!stopped && data.session) { setSession(data.session); setSelectedStudentId(data.session.subject.id); } }).catch(() => undefined);
-    poll(); const timer = window.setInterval(poll, 700); return () => { stopped = true; window.clearInterval(timer); };
+    const loadCatalog = () => void fetch(PINORIA_SHOP_CATALOG_URL, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { items?: ShopCatalogItem[] }) => { if (!stopped && Array.isArray(data.items)) setCatalog(data.items); })
+      .catch(() => undefined);
+
+    const poll = () => void fetch(`${PINORIA_SHOP_RELAY_URL}?surfaceId=${SURFACE_ID}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then(async (data: { session?: ShopSessionSnapshot }) => {
+        if (stopped || !data.session) return;
+        if (data.session.subject.id !== SHOP_MOCK_STUDENT.id) {
+          const response = await fetch(PINORIA_SHOP_RELAY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ surfaceId: SURFACE_ID, op: "set-subject", subject: SHOP_MOCK_STUDENT }) });
+          const fixed = await response.json().catch(() => ({})) as { session?: ShopSessionSnapshot };
+          if (!stopped && fixed.session) setSession(fixed.session);
+          return;
+        }
+        setSession(data.session);
+      })
+      .catch(() => undefined);
+
+    loadCatalog();
+    poll();
+    const timer = window.setInterval(poll, 650);
+    return () => { stopped = true; window.clearInterval(timer); };
   }, []);
 
   const category = session?.category ?? "all";
   const filtered = useMemo(() => category === "all" ? catalog : catalog.filter((item) => item.category === category), [catalog, category]);
   const current = useMemo(() => catalog.find((item) => item.assetId === session?.selectedAssetId) ?? filtered[0] ?? catalog[0], [catalog, filtered, session?.selectedAssetId]);
-  const currentIndex = current ? Math.max(0, filtered.findIndex((item) => item.assetId === current.assetId)) : 0;
-  const selectedStudent = MOCK_STUDENTS.find((item) => item.id === selectedStudentId) ?? MOCK_STUDENTS[0];
+  const selectedIndex = current ? filtered.findIndex((item) => item.assetId === current.assetId) : -1;
+  const page = Math.max(0, Math.floor(Math.max(0, selectedIndex) / SHOP_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / SHOP_PAGE_SIZE));
+  const visibleItems = filtered.slice(page * SHOP_PAGE_SIZE, page * SHOP_PAGE_SIZE + SHOP_PAGE_SIZE);
+  const remoteLayout = visibleItems.length <= 2 ? "sparse" : visibleItems.length <= 4 ? "compact" : "dense";
+  const owned = !!current && !!session?.ownedAssetIds.includes(current.assetId);
 
   async function post(body: Record<string, unknown>, success: string) {
     setBusy(true);
@@ -143,42 +169,70 @@ export function PinoriaShopRemoteControl() {
     finally { setBusy(false); }
   }
 
-  async function selectStudent(next: MockStudent) {
-    setSelectedStudentId(next.id);
-    await post({ op: "set-subject", subject: next }, `Đã chọn ${next.name}.`);
-  }
-
-  async function selectCategory(next: string) {
-    const ok = await post({ op: "set-category", category: next }, "Đã đổi nhóm món.");
+  async function selectCategory(next: ShopCategoryId) {
+    const ok = await post({ op: "set-category", category: next }, `Đang xem ${PINORIA_SHOP_CATEGORIES.find((item) => item.id === next)?.label ?? "danh mục"}.`);
     if (!ok) return;
     const first = next === "all" ? catalog[0] : catalog.find((item) => item.category === next);
     if (first) await post({ op: "preview", assetId: first.assetId }, `Đang thử ${first.displayName}.`);
   }
 
-  async function move(delta: number) {
-    if (!filtered.length) return;
-    const next = filtered[(currentIndex + delta + filtered.length) % filtered.length];
-    await post({ op: "preview", assetId: next.assetId }, `Đang thử ${next.displayName}.`);
+  async function preview(item: ShopCatalogItem) {
+    await post({ op: "preview", assetId: item.assetId }, `Đang thử ${item.displayName}.`);
   }
 
-  const owned = !!current && !!session?.ownedAssetIds.includes(current.assetId);
+  async function goPage(nextPage: number) {
+    const first = filtered[nextPage * SHOP_PAGE_SIZE];
+    if (first) await preview(first);
+  }
 
-  return <RemoteShell title="Pinoria Shop" open={open} setOpen={setOpen}>
-    <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 12, color: "rgba(240,235,224,.56)", fontSize: 10 }}><span>Phiên: <b style={{ color: "#eee8df" }}>{session?.open ? "ĐANG MỞ" : "ĐÃ ĐÓNG"}</b></span><span>{session?.subject.name ?? selectedStudent.name} · <b style={{ color: "#e8cf86" }}>{session?.subject.pls ?? selectedStudent.pls} PLS</b></span></div>
-    <span style={sectionLabel}>HỌC VIÊN</span>
-    <StudentPicker selectedId={selectedStudentId} onSelect={(next) => void selectStudent(next)} />
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-      <button disabled={busy} data-remote-open-shop style={{ ...actionStyle, background: "#e5dfc9", color: "#282116" }} onClick={() => void post({ op: "open", subject: selectedStudent }, `Đã mở Shop cho ${selectedStudent.name}.`)}>Mở Shop</button>
-      <button disabled={busy} style={actionStyle} onClick={() => void post({ op: "close" }, "Đã đóng Shop.")}>Đóng Shop</button>
+  async function purchaseCurrent() {
+    if (!current || owned) return;
+    await post({ op: "confirm-purchase", assetId: current.assetId, pricePls: current.pricePls }, `Đã xử lý mua ${current.displayName}.`);
+  }
+
+  return <RemoteShell title="Pinoria Shop" open={open} setOpen={setOpen} panelWidth={470}>
+    <div data-remote-fixed-student style={{ marginTop: 13, padding: "11px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderRadius: 15, border: "1px solid rgba(255,255,255,.09)", background: "rgba(255,255,255,.035)" }}>
+      <div><small style={{ display: "block", color: "rgba(230,224,214,.44)", fontSize: 8.5, fontWeight: 900, letterSpacing: ".12em" }}>HỌC VIÊN MẪU</small><strong style={{ display: "block", marginTop: 2, fontSize: 15 }}>{SHOP_MOCK_STUDENT.name}</strong></div>
+      <div style={{ textAlign: "right" }}><strong style={{ color: "#ecd184", fontSize: 15 }}>{session?.subject.pls ?? SHOP_MOCK_STUDENT.pls} PLS</strong><small style={{ display: "block", marginTop: 2, color: "rgba(230,224,214,.42)", fontSize: 8.5 }}>TV đồng bộ trực tiếp</small></div>
     </div>
-    <span style={sectionLabel}>DANH MỤC</span>
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{PINORIA_SHOP_CATEGORIES.map((item) => <button key={item.id} disabled={busy} onClick={() => void selectCategory(item.id)} style={{ borderRadius: 999, padding: "6px 9px", border: item.id === category ? "1px solid rgba(224,198,125,.34)" : "1px solid rgba(255,255,255,.08)", background: item.id === category ? "rgba(216,193,132,.16)" : "rgba(255,255,255,.035)", color: item.id === category ? "#f0d58e" : "rgba(245,239,229,.7)", fontSize: 9, fontWeight: 850, cursor: "pointer" }}>{item.label}</button>)}</div>
-    <span style={sectionLabel}>MÓN ĐANG THỬ</span>
-    {current ? <div style={{ padding: 11, borderRadius: 15, border: "1px solid rgba(255,255,255,.09)", background: "rgba(255,255,255,.035)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><strong style={{ fontSize: 13 }}>{current.displayName}</strong><b style={{ color: owned ? "#a9d39b" : "#e6c879", fontSize: 10 }}>{owned ? "ĐÃ CÓ" : `${current.pricePls} PLS`}</b></div>
-      <div style={{ marginTop: 4, color: "rgba(240,235,224,.45)", fontSize: 9 }}>{currentIndex + 1}/{filtered.length} · {current.category}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "42px 1fr 42px", gap: 7, marginTop: 9 }}><button disabled={busy} style={actionStyle} onClick={() => void move(-1)}>‹</button><button disabled={busy || owned} data-remote-buy style={{ ...actionStyle, background: owned ? "rgba(255,255,255,.035)" : "rgba(221,190,112,.15)", color: owned ? "rgba(245,239,229,.4)" : "#f2d68d" }} onClick={() => void post({ op: "confirm-purchase", assetId: current.assetId, pricePls: current.pricePls }, `Đã xử lý mua ${current.displayName}.`)}>{owned ? "Đã sở hữu" : `Mua · ${current.pricePls} PLS`}</button><button disabled={busy} style={actionStyle} onClick={() => void move(1)}>›</button></div>
-    </div> : <p style={{ color: "rgba(240,235,224,.46)", fontSize: 10 }}>Đang tải catalog…</p>}
-    <p style={{ minHeight: 17, margin: "9px 0 0", color: "rgba(235,229,218,.56)", fontSize: 10, lineHeight: 1.45 }}>{status}</p>
+
+    <span style={sectionLabel}>NAV TRÊN TV</span>
+    <div data-remote-shop-tabs style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: 5 }}>
+      {PINORIA_SHOP_CATEGORIES.map((item) => {
+        const active = item.id === category;
+        return <button key={item.id} disabled={busy} data-active={active ? "true" : "false"} onClick={() => void selectCategory(item.id)} style={{ minWidth: 0, minHeight: 48, padding: "7px 3px", borderRadius: 12, border: active ? "1px solid rgba(241,207,127,.58)" : "1px solid rgba(255,255,255,.08)", background: active ? "linear-gradient(180deg,rgba(235,201,119,.28),rgba(198,151,66,.16))" : "rgba(255,255,255,.035)", color: active ? "#f3d88e" : "rgba(245,239,229,.66)", boxShadow: active ? "0 8px 20px rgba(204,158,73,.13),inset 0 1px rgba(255,255,255,.08)" : undefined, fontSize: 8.5, lineHeight: 1.05, fontWeight: 900, cursor: "pointer", overflow: "hidden" }}><span style={{ display: "block", marginBottom: 4, fontSize: 13 }}>{item.icon}</span><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span></button>;
+      })}
+    </div>
+
+    <div style={{ ...sectionLabel, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <span>ITEM ĐANG HIỆN TRÊN TV</span>
+      <span style={{ color: "rgba(235,226,207,.62)", letterSpacing: 0, fontSize: 9 }}>{filtered.length} món · trang {page + 1}/{totalPages}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "flex-end", gap: 5, margin: "-2px 0 8px" }}>
+      {Array.from({ length: totalPages }).map((_, index) => <button key={index} aria-label={`Trang ${index + 1}`} disabled={busy} onClick={() => void goPage(index)} style={{ width: index === page ? 25 : 9, height: 8, padding: 0, borderRadius: 99, border: 0, background: index === page ? "#dbc06f" : "rgba(255,255,255,.14)", cursor: "pointer" }} />)}
+    </div>
+
+    <div data-remote-shop-grid data-layout={remoteLayout} style={{ display: "grid", gridTemplateColumns: remoteLayout === "dense" ? "repeat(3,minmax(0,1fr))" : "repeat(2,minmax(0,1fr))", gap: 7 }}>
+      {visibleItems.map((item) => {
+        const active = current?.assetId === item.assetId;
+        const isOwned = !!session?.ownedAssetIds.includes(item.assetId);
+        return <button key={item.assetId} data-remote-shop-item data-active={active ? "true" : "false"} disabled={busy} onClick={() => void preview(item)} style={{ position: "relative", minWidth: 0, overflow: "hidden", padding: 0, borderRadius: 14, border: active ? "1px solid rgba(237,199,111,.76)" : "1px solid rgba(255,255,255,.08)", background: active ? "linear-gradient(180deg,rgba(111,74,43,.44),rgba(40,28,22,.72))" : "rgba(255,255,255,.035)", color: "#f1ece3", boxShadow: active ? "0 9px 24px rgba(205,158,69,.13)" : undefined, textAlign: "left", cursor: "pointer" }}>
+          {active ? <span style={{ position: "absolute", top: 6, right: 6, zIndex: 2, padding: "3px 5px", borderRadius: 99, background: "#dfbd67", color: "#302415", fontSize: 6.5, fontWeight: 950 }}>ĐANG THỬ</span> : null}
+          <div style={{ height: remoteLayout === "dense" ? 74 : 88, display: "grid", placeItems: "center", padding: "8px 7px 3px", background: "radial-gradient(circle,rgba(238,200,121,.07),transparent 68%)" }}><img src={item.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 5px 8px rgba(0,0,0,.24))" }} /></div>
+          <div style={{ minHeight: 47, display: "grid", gridTemplateColumns: "minmax(0,1fr) 38px", alignItems: "center", gap: 5, padding: "6px 6px 7px 8px", borderTop: "1px solid rgba(255,255,255,.06)", background: "rgba(10,9,7,.28)" }}>
+            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}><strong style={{ minWidth: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: remoteLayout === "dense" ? 8.5 : 10, lineHeight: 1.12 }}>{item.displayName}</strong>{isOwned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", color: "#a9da91", fontSize: 10 }}>✓</span> : null}</div>
+            <span style={{ width: 36, height: 36, display: "grid", placeItems: "center", alignContent: "center", borderRadius: 10, border: "1px solid rgba(236,194,108,.16)", color: "#e8c66f", background: "rgba(218,171,82,.07)", fontSize: 8, fontWeight: 950, textAlign: "center", lineHeight: 1.05 }}>{item.pricePls}<small style={{ display: "block", marginTop: 1, fontSize: 5.5, opacity: .7 }}>PLS</small></span>
+          </div>
+        </button>;
+      })}
+      {!visibleItems.length ? <div style={{ gridColumn: "1 / -1", padding: 20, borderRadius: 14, border: "1px dashed rgba(255,255,255,.1)", color: "rgba(240,235,224,.45)", fontSize: 10, textAlign: "center" }}>Đang tải các món trên TV…</div> : null}
+    </div>
+
+    {current ? <div data-remote-shop-action style={{ marginTop: 9, padding: "9px 10px", display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", alignItems: "center", gap: 10, borderRadius: 13, border: "1px solid rgba(255,255,255,.08)", background: "rgba(255,255,255,.03)" }}>
+      <div style={{ minWidth: 0 }}><small style={{ display: "block", color: "rgba(230,224,214,.42)", fontSize: 7.5, fontWeight: 900, letterSpacing: ".08em" }}>ĐANG THỬ TRÊN TV</small><strong style={{ display: "block", marginTop: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 11 }}>{current.displayName}</strong></div>
+      <button disabled={busy || owned} data-remote-buy onClick={() => void purchaseCurrent()} style={{ ...actionStyle, minHeight: 36, padding: "0 12px", background: owned ? "rgba(83,127,69,.13)" : "linear-gradient(180deg,rgba(226,190,105,.24),rgba(180,131,54,.16))", color: owned ? "#a9d79a" : "#f0d183", borderColor: owned ? "rgba(139,193,119,.2)" : "rgba(231,194,106,.25)", fontSize: 9.5 }}>{owned ? "✓ Đã có" : `Mua · ${current.pricePls} PLS`}</button>
+    </div> : null}
+
+    <p style={{ minHeight: 17, margin: "9px 0 0", color: "rgba(235,229,218,.52)", fontSize: 9.5, lineHeight: 1.4 }}>{status}</p>
   </RemoteShell>;
 }
