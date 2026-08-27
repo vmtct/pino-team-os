@@ -50,6 +50,9 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
           0%,100% { transform:translateY(0) }
           50% { transform:translateY(-6px) }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .pinoriaDepartureCopy,.pinoriaDepartureCard,.pinoriaDepartureRoute,.pinoriaDepartureCharacter { animation:none!important; opacity:1!important; transform:none!important; }
+        }
       `}</style>
 
       <PinoriaStage dataStage="departure" style={{ background: "radial-gradient(circle at 68% 40%,#8c956d 0,#495439 34%,#273126 67%,#171e18 100%)" }}>

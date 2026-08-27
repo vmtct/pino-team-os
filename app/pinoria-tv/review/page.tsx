@@ -55,13 +55,13 @@ export default function PinoriaReviewHubPage() {
         lang="vi"
         style={{
           minHeight: "100vh",
-          padding: "42px clamp(20px,4vw,64px) 64px",
+          padding: "30px clamp(20px,4vw,64px) 46px",
           color: "#f7f1e7",
           background: "radial-gradient(circle at 18% 0%,#28372d 0,#161d19 34%,#0d110f 76%)",
         }}
       >
         <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-          <header style={{ display: "flex", alignItems: "end", justifyContent: "space-between", gap: 24, marginBottom: 28 }}>
+          <header style={{ display: "flex", alignItems: "end", justifyContent: "space-between", gap: 24, marginBottom: 20 }}>
             <div>
               <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".18em", color: "rgba(218,236,218,.55)" }}>
                 PINORIA · FOUNDER REVIEW
@@ -102,8 +102,8 @@ export default function PinoriaReviewHubPage() {
                 key={route.href}
                 href={route.href}
                 style={{
-                  minHeight: 180,
-                  padding: 20,
+                  minHeight: 165,
+                  padding: 18,
                   borderRadius: 22,
                   border: "1px solid rgba(238,244,232,.10)",
                   background: index === 0
@@ -133,8 +133,8 @@ export default function PinoriaReviewHubPage() {
 
           <aside
             style={{
-              marginTop: 18,
-              padding: "16px 18px",
+              marginTop: 14,
+              padding: "12px 16px",
               borderRadius: 18,
               border: "1px solid rgba(238,244,232,.08)",
               background: "rgba(8,12,10,.28)",

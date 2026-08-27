@@ -377,6 +377,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           [data-pinoria-full-character-aura] img { animation:none!important; opacity:.82!important; }
           [data-pinoria-full-character-glow] img { animation:none!important; opacity:.18!important; }
           [data-pinoria-arrival-inventory],[data-pinoria-inventory-item],[data-pinoria-inventory-placeholder] { animation:none!important; }
+          .pinoriaArrivalCopy,.pinoriaArrivalCharacter { animation:none!important; opacity:1!important; transform:none!important; }
         }
       `}</style>
 
@@ -400,7 +401,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
       <InventoryGrid delay={inventoryDelay} />
 
       <div style={{ position: "absolute", inset: 0, zIndex: 2, boxSizing: "border-box", padding: "76px clamp(70px,7vw,110px) 58px", display: "grid", gridTemplateColumns: "minmax(0,.82fr) minmax(500px,1.18fr)", alignItems: "center", gap: 34 }}>
-        <section style={{ maxWidth: 560, animation: `pinoriaArrivalCopy 6.2s ${foregroundDelay}s cubic-bezier(.2,.75,.2,1) both` }}>
+        <section className="pinoriaArrivalCopy" style={{ maxWidth: 560, animation: `pinoriaArrivalCopy 6.2s ${foregroundDelay}s cubic-bezier(.2,.75,.2,1) both` }}>
           <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>CHÀO ĐẾN · {subject.name.toUpperCase()}</span>
           <h1 style={{ margin: "0 0 16px", fontSize: "clamp(50px,5.2vw,72px)", lineHeight: .94, letterSpacing: "-.05em" }}>Chào {subject.name} ✦</h1>
           <p style={{ margin: 0, maxWidth: 520, color: "#eee6d7", fontSize: "clamp(19px,1.75vw,24px)", lineHeight: 1.42 }}>{`“Hôm nay ${prototypeCompanionManifest.displayName} đi cùng mình!”`}</p>
@@ -410,7 +411,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           </div>
         </section>
 
-        <section aria-hidden="true" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
+        <section aria-hidden="true" className="pinoriaArrivalCharacter" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
           <OrbitingMarks />
 
           <div

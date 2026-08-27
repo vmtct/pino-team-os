@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { InventoryScene } from "./inventory-scene";
 import { ShopScene } from "./shop-scene";
 import {
+  PINORIA_SHOP_CATALOG_URL,
   PINORIA_SHOP_SURFACE_ID,
   PINORIA_SURFACE_SESSION_URL,
   type PinoriaSurfaceSessionSnapshot,
+  type ShopCatalogItem,
 } from "./shop-types";
 
 export function ShopTvOverlay() {
@@ -35,6 +37,24 @@ export function ShopTvOverlay() {
     void poll();
     const timer = window.setInterval(() => { void poll(); }, 420);
     return () => { stopped = true; window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    let stopped = false;
+    void fetch(PINORIA_SHOP_CATALOG_URL, { cache: "force-cache" })
+      .then((response) => response.json())
+      .then((data: { items?: ShopCatalogItem[] }) => {
+        if (stopped || !Array.isArray(data.items)) return;
+        data.items.slice(0, 6).forEach((item) => {
+          [item.imageUrl, item.layerUrl].filter(Boolean).forEach((src) => {
+            const image = new Image();
+            image.decoding = "async";
+            image.src = src as string;
+          });
+        });
+      })
+      .catch(() => undefined);
+    return () => { stopped = true; };
   }, []);
 
   const interactiveVisible = !!surface?.online

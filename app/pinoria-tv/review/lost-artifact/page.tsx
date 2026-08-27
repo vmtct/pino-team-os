@@ -11,7 +11,7 @@ export default function LostArtifactReviewIndexPage() {
         lang="vi"
         style={{
           minHeight: "100vh",
-          padding: "28px clamp(18px,4vw,58px) 40px",
+          padding: "20px clamp(18px,4vw,58px) 26px",
           color: "#f7f1e7",
           background: "radial-gradient(circle at 20% 0%,#332b36 0,#151317 38%,#0b0a0c 82%)",
         }}
@@ -20,7 +20,7 @@ export default function LostArtifactReviewIndexPage() {
           <Link href="/pinoria-tv/review" style={{ color: "rgba(245,235,220,.56)", textDecoration: "none", fontSize: 12 }}>
             ← Prototype Review Hub
           </Link>
-          <header style={{ margin: "16px 0 20px" }}>
+          <header style={{ margin: "12px 0 16px" }}>
             <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".18em", color: "rgba(231,193,211,.58)" }}>
               WORLD BROADCAST · LOST ARTIFACT
             </span>
@@ -32,13 +32,13 @@ export default function LostArtifactReviewIndexPage() {
             </p>
           </header>
 
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 16 }}>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12 }}>
             {LOST_ARTIFACTS.map((artifact) => (
               <Link
                 key={artifact.id}
                 href={`/pinoria-tv/review/lost-artifact/${artifact.id}`}
                 style={{
-                  minHeight: 232,
+                  minHeight: 214,
                   display: "grid",
                   gridTemplateColumns: "minmax(142px,.72fr) 1.28fr",
                   gap: 18,
@@ -53,7 +53,7 @@ export default function LostArtifactReviewIndexPage() {
                   boxShadow: "0 22px 48px rgba(0,0,0,.22)",
                 }}
               >
-                <div style={{ height: 184, display: "grid", placeItems: "center" }}>
+                <div style={{ height: 166, display: "grid", placeItems: "center" }}>
                   <img src={artifact.heroUrl} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "drop-shadow(0 18px 28px rgba(0,0,0,.45))" }} />
                 </div>
                 <div>
