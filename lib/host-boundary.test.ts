@@ -9,16 +9,17 @@ test("TOS keeps its root, operational routes, APIs, and Founder behavior", () =>
 });
 
 test("TOS cannot reach BO routes or the BO API", () => {
-  for (const pathname of ["/bo", "/bo/", "/bo/anything", "/api/bo", "/api/bo/context"]) {
+  for (const pathname of ["/bo", "/bo/", "/bo/anything", "/api/bo", "/api/bo/context", "/api/bo/access/roles"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }
 });
 
-test("BO root redirects on the same host and only approved read-plane routes are available", () => {
+test("BO root redirects on the same host and only governed BO routes are available", () => {
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/"), { action: "redirect", pathname: "/bo" });
   for (const pathname of [
     "/bo",
     "/bo/",
+    "/bo/staff",
     "/bo/running-classes",
     "/bo/sessions",
     "/bo/registrations",
@@ -28,6 +29,9 @@ test("BO root redirects on the same host and only approved read-plane routes are
     "/api/bo/running-classes",
     "/api/bo/syllabi",
     "/api/bo/sessions",
+    "/api/bo/workforce/staff-onboarding",
+    "/api/bo/access/roles",
+    "/api/bo/access/assignments",
     "/api/bo/sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations",
     "/_next/static/app.js",
     "/favicon.ico",
@@ -52,6 +56,8 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/bo/bookings",
     "/api/bo/users",
     "/api/bo/bookings",
+    "/api/bo/access/users",
+    "/api/bo/access/permissions",
     "/api/bo/sessions/not-a-canonical-id/registrations",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
