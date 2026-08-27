@@ -24,6 +24,7 @@ function kindLabel(kind: WorldBroadcastPayload["kind"]) {
     discovery: "DISCOVERY",
     companion: "COMPANION",
     community: "HOUSE MOMENT",
+    "lost-artifact": "THẦN KHÍ THẤT LẠC",
   } as const)[kind];
 }
 

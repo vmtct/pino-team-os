@@ -44,7 +44,7 @@ export type LearningSpotlightPayload = {
   evidenceLabel?: string;
 };
 
-export type WorldBroadcastKind = "world-update" | "campaign" | "discovery" | "companion" | "community";
+export type WorldBroadcastKind = "world-update" | "campaign" | "discovery" | "companion" | "community" | "lost-artifact";
 export type WorldBroadcastScope = "pinoria" | "house";
 export type WorldBroadcastPayload = {
   id: string;
@@ -55,6 +55,7 @@ export type WorldBroadcastPayload = {
   detail: string;
   regionLabel?: string;
   chapterLabel?: string;
+  artifactId?: string;
   footer?: string;
 };
 

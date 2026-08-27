@@ -17,6 +17,8 @@ import {
   LearningSpotlightScene,
 } from "./learning-spotlight-scene";
 import { fitPinoriaStageRect } from "./pinoria-stage";
+import { getLostArtifact } from "./lost-artifact-data";
+import { LOST_ARTIFACT_BROADCAST_MS, LostArtifactScene } from "./lost-artifact-scene";
 import {
   DEFAULT_PINORIA_WORLD_STATE,
   type EnergySeedReward,
@@ -102,7 +104,7 @@ function replayTitle(event: RelayEvent) {
   if (event.mode === "departure") return "CHÀO VỀ";
   if (event.mode === "reward") return "HẠT NĂNG LƯỢNG";
   if (event.mode === "learning") return "LEARNING SPOTLIGHT";
-  if (event.mode === "broadcast") return "WORLD BROADCAST";
+  if (event.mode === "broadcast") return event.broadcast?.kind === "lost-artifact" ? "THẦN KHÍ THẤT LẠC" : "WORLD BROADCAST";
   if (event.mode === "world-transition") return "WORLD STATE";
   return "SỰ KIỆN";
 }
@@ -258,14 +260,15 @@ export function PinoriaTVPrototype() {
       // World Broadcast is deliberately subjectless: it temporarily owns the
       // shared surface without changing the current learner or interactive owner.
       if (event.mode === "broadcast") {
-        setBroadcast(event.broadcast ?? DEFAULT_WORLD_BROADCAST);
+        const nextBroadcast = event.broadcast ?? DEFAULT_WORLD_BROADCAST;
+        setBroadcast(nextBroadcast);
         setReplayLabel(event.replay ? `PHÁT LẠI · ${replayTitle(event)}` : null);
         setAmbientCharacterVisible(true);
         setMode("broadcast");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
           void finishEvent(event.id);
-        }, WORLD_BROADCAST_MS);
+        }, nextBroadcast.kind === "lost-artifact" ? LOST_ARTIFACT_BROADCAST_MS : WORLD_BROADCAST_MS);
         return;
       }
 
@@ -432,6 +435,8 @@ export function PinoriaTVPrototype() {
     setAmbientCharacterVisible(next !== "reward" && next !== "learning");
     setMode(next);
   }
+  const activeLostArtifact = broadcast.kind === "lost-artifact" ? getLostArtifact(broadcast.artifactId ?? "") : undefined;
+
 
   const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
   const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
@@ -467,7 +472,7 @@ export function PinoriaTVPrototype() {
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
       {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
-      {mode === "broadcast" ? <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} /> : null}
+      {mode === "broadcast" ? (activeLostArtifact ? <LostArtifactScene artifact={activeLostArtifact} /> : <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} />) : null}
       {mode === "world-transition" ? <WorldStateTransitionScene transition={worldTransition} replay={!!replayLabel} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
       {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}

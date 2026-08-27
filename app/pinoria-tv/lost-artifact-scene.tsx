@@ -6,6 +6,8 @@ import styles from "./lost-artifact.module.css";
 
 const UI_ASSET_BASE = process.env.NEXT_PUBLIC_PINORIA_LOST_ARTIFACT_ASSET_BASE?.replace(/\/$/, "");
 
+export const LOST_ARTIFACT_BROADCAST_MS = 13_500;
+
 function uiAsset(name: string) {
   return UI_ASSET_BASE
     ? `${UI_ASSET_BASE}/${name}`

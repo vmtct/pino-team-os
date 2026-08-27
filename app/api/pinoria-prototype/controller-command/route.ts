@@ -41,8 +41,9 @@ function parseLearningSpotlight(value: unknown): LearningSpotlightPayload | null
 function parseWorldBroadcast(value: unknown): WorldBroadcastPayload | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Partial<WorldBroadcastPayload>;
-  const kinds = new Set(["world-update", "campaign", "discovery", "companion", "community"]);
+  const kinds = new Set(["world-update", "campaign", "discovery", "companion", "community", "lost-artifact"]);
   const scopes = new Set(["pinoria", "house"]);
+  if (input.kind === "lost-artifact" && !new Set(["01", "02", "03", "04"]).has(String(input.artifactId))) return null;
   if (
     typeof input.id !== "string"
     || !kinds.has(String(input.kind))
@@ -60,6 +61,7 @@ function parseWorldBroadcast(value: unknown): WorldBroadcastPayload | null {
     detail: input.detail,
     regionLabel: typeof input.regionLabel === "string" ? input.regionLabel : undefined,
     chapterLabel: typeof input.chapterLabel === "string" ? input.chapterLabel : undefined,
+    artifactId: typeof input.artifactId === "string" ? input.artifactId : undefined,
     footer: typeof input.footer === "string" ? input.footer : undefined,
   };
 }
