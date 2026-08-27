@@ -154,7 +154,6 @@ export function PinoriaShopRemoteControl() {
   const page = Math.max(0, Math.floor(Math.max(0, selectedIndex) / SHOP_PAGE_SIZE));
   const totalPages = Math.max(1, Math.ceil(filtered.length / SHOP_PAGE_SIZE));
   const visibleItems = filtered.slice(page * SHOP_PAGE_SIZE, page * SHOP_PAGE_SIZE + SHOP_PAGE_SIZE);
-  const remoteLayout = visibleItems.length <= 2 ? "sparse" : visibleItems.length <= 4 ? "compact" : "dense";
   const owned = !!current && !!session?.ownedAssetIds.includes(current.assetId);
 
   async function post(body: Record<string, unknown>, success: string) {
@@ -190,17 +189,17 @@ export function PinoriaShopRemoteControl() {
     await post({ op: "confirm-purchase", assetId: current.assetId, pricePls: current.pricePls }, `Đã xử lý mua ${current.displayName}.`);
   }
 
-  return <RemoteShell title="Pinoria Shop" open={open} setOpen={setOpen} panelWidth={470}>
+  return <RemoteShell title="Pinoria Shop" open={open} setOpen={setOpen}>
     <div data-remote-fixed-student style={{ marginTop: 13, padding: "11px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderRadius: 15, border: "1px solid rgba(255,255,255,.09)", background: "rgba(255,255,255,.035)" }}>
       <div><small style={{ display: "block", color: "rgba(230,224,214,.44)", fontSize: 8.5, fontWeight: 900, letterSpacing: ".12em" }}>HỌC VIÊN MẪU</small><strong style={{ display: "block", marginTop: 2, fontSize: 15 }}>{SHOP_MOCK_STUDENT.name}</strong></div>
       <div style={{ textAlign: "right" }}><strong style={{ color: "#ecd184", fontSize: 15 }}>{session?.subject.pls ?? SHOP_MOCK_STUDENT.pls} PLS</strong><small style={{ display: "block", marginTop: 2, color: "rgba(230,224,214,.42)", fontSize: 8.5 }}>TV đồng bộ trực tiếp</small></div>
     </div>
 
     <span style={sectionLabel}>NAV TRÊN TV</span>
-    <div data-remote-shop-tabs style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: 5 }}>
+    <div data-remote-shop-tabs style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 6 }}>
       {PINORIA_SHOP_CATEGORIES.map((item) => {
         const active = item.id === category;
-        return <button key={item.id} disabled={busy} data-active={active ? "true" : "false"} onClick={() => void selectCategory(item.id)} style={{ minWidth: 0, minHeight: 48, padding: "7px 3px", borderRadius: 12, border: active ? "1px solid rgba(241,207,127,.58)" : "1px solid rgba(255,255,255,.08)", background: active ? "linear-gradient(180deg,rgba(235,201,119,.28),rgba(198,151,66,.16))" : "rgba(255,255,255,.035)", color: active ? "#f3d88e" : "rgba(245,239,229,.66)", boxShadow: active ? "0 8px 20px rgba(204,158,73,.13),inset 0 1px rgba(255,255,255,.08)" : undefined, fontSize: 8.5, lineHeight: 1.05, fontWeight: 900, cursor: "pointer", overflow: "hidden" }}><span style={{ display: "block", marginBottom: 4, fontSize: 13 }}>{item.icon}</span><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span></button>;
+        return <button key={item.id} disabled={busy} data-active={active ? "true" : "false"} onClick={() => void selectCategory(item.id)} style={{ minWidth: 0, minHeight: 42, padding: "7px 5px", borderRadius: 12, border: active ? "1px solid rgba(241,207,127,.58)" : "1px solid rgba(255,255,255,.08)", background: active ? "linear-gradient(180deg,rgba(235,201,119,.28),rgba(198,151,66,.16))" : "rgba(255,255,255,.035)", color: active ? "#f3d88e" : "rgba(245,239,229,.66)", boxShadow: active ? "0 8px 20px rgba(204,158,73,.13),inset 0 1px rgba(255,255,255,.08)" : undefined, fontSize: 9.5, lineHeight: 1.05, fontWeight: 900, cursor: "pointer", overflow: "hidden" }}><span style={{ display: "block", marginBottom: 3, fontSize: 13 }}>{item.icon}</span><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span></button>;
       })}
     </div>
 
@@ -212,17 +211,13 @@ export function PinoriaShopRemoteControl() {
       {Array.from({ length: totalPages }).map((_, index) => <button key={index} aria-label={`Trang ${index + 1}`} disabled={busy} onClick={() => void goPage(index)} style={{ width: index === page ? 25 : 9, height: 8, padding: 0, borderRadius: 99, border: 0, background: index === page ? "#dbc06f" : "rgba(255,255,255,.14)", cursor: "pointer" }} />)}
     </div>
 
-    <div data-remote-shop-grid data-layout={remoteLayout} style={{ display: "grid", gridTemplateColumns: remoteLayout === "dense" ? "repeat(3,minmax(0,1fr))" : "repeat(2,minmax(0,1fr))", gap: 7 }}>
+    <div data-remote-shop-grid style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 7 }}>
       {visibleItems.map((item) => {
         const active = current?.assetId === item.assetId;
         const isOwned = !!session?.ownedAssetIds.includes(item.assetId);
-        return <button key={item.assetId} data-remote-shop-item data-active={active ? "true" : "false"} disabled={busy} onClick={() => void preview(item)} style={{ position: "relative", minWidth: 0, overflow: "hidden", padding: 0, borderRadius: 14, border: active ? "1px solid rgba(237,199,111,.76)" : "1px solid rgba(255,255,255,.08)", background: active ? "linear-gradient(180deg,rgba(111,74,43,.44),rgba(40,28,22,.72))" : "rgba(255,255,255,.035)", color: "#f1ece3", boxShadow: active ? "0 9px 24px rgba(205,158,69,.13)" : undefined, textAlign: "left", cursor: "pointer" }}>
-          {active ? <span style={{ position: "absolute", top: 6, right: 6, zIndex: 2, padding: "3px 5px", borderRadius: 99, background: "#dfbd67", color: "#302415", fontSize: 6.5, fontWeight: 950 }}>ĐANG THỬ</span> : null}
-          <div style={{ height: remoteLayout === "dense" ? 74 : 88, display: "grid", placeItems: "center", padding: "8px 7px 3px", background: "radial-gradient(circle,rgba(238,200,121,.07),transparent 68%)" }}><img src={item.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 5px 8px rgba(0,0,0,.24))" }} /></div>
-          <div style={{ minHeight: 47, display: "grid", gridTemplateColumns: "minmax(0,1fr) 38px", alignItems: "center", gap: 5, padding: "6px 6px 7px 8px", borderTop: "1px solid rgba(255,255,255,.06)", background: "rgba(10,9,7,.28)" }}>
-            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}><strong style={{ minWidth: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: remoteLayout === "dense" ? 8.5 : 10, lineHeight: 1.12 }}>{item.displayName}</strong>{isOwned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", color: "#a9da91", fontSize: 10 }}>✓</span> : null}</div>
-            <span style={{ width: 36, height: 36, display: "grid", placeItems: "center", alignContent: "center", borderRadius: 10, border: "1px solid rgba(236,194,108,.16)", color: "#e8c66f", background: "rgba(218,171,82,.07)", fontSize: 8, fontWeight: 950, textAlign: "center", lineHeight: 1.05 }}>{item.pricePls}<small style={{ display: "block", marginTop: 1, fontSize: 5.5, opacity: .7 }}>PLS</small></span>
-          </div>
+        return <button key={item.assetId} data-remote-shop-item data-active={active ? "true" : "false"} disabled={busy} onClick={() => void preview(item)} style={{ minWidth: 0, minHeight: 58, padding: "10px 11px", display: "grid", gridTemplateColumns: "minmax(0,1fr) 10px", alignItems: "center", gap: 8, borderRadius: 13, border: active ? "1px solid rgba(237,199,111,.76)" : "1px solid rgba(255,255,255,.08)", background: active ? "linear-gradient(180deg,rgba(111,74,43,.42),rgba(40,28,22,.72))" : "rgba(255,255,255,.035)", color: "#f1ece3", boxShadow: active ? "0 8px 22px rgba(205,158,69,.13)" : undefined, textAlign: "left", cursor: "pointer" }}>
+          <span style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 5 }}><strong style={{ minWidth: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: 11.5, lineHeight: 1.18 }}>{item.displayName}</strong>{isOwned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", color: "#a9da91", fontSize: 11 }}>✓</span> : null}</span>
+          <span aria-label={active ? "Đang thử" : undefined} style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#e2bf68" : "transparent", boxShadow: active ? "0 0 12px rgba(226,191,104,.45)" : undefined }} />
         </button>;
       })}
       {!visibleItems.length ? <div style={{ gridColumn: "1 / -1", padding: 20, borderRadius: 14, border: "1px dashed rgba(255,255,255,.1)", color: "rgba(240,235,224,.45)", fontSize: 10, textAlign: "center" }}>Đang tải các món trên TV…</div> : null}
