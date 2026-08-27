@@ -278,11 +278,21 @@ function enrollmentMatches(enrollment: Enrollment, candidate: ResolvedPlacement)
 function capacityBody(candidate: ResolvedPlacement) {
   return {
     runningClassId: candidate.runningClass.id,
-    targetLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
+    targetLocalDate: nextOrSameIsoWeekday(REVIEWED_ENROLLMENT_EFFECTIVE_FROM, candidate.runningClass.weekdayIso),
     subscriptionId: candidate.subscriptionId,
     plannedEntryLocalTime: candidate.placement.plannedEntryLocalTime,
     plannedDurationMinutes: candidate.placement.plannedDurationMinutes,
   };
+}
+
+function nextOrSameIsoWeekday(baseLocalDate: string, weekdayIso: number): string {
+  const base = new Date(baseLocalDate + "T00:00:00.000Z");
+  if (Number.isNaN(base.valueOf()) || !Number.isInteger(weekdayIso) || weekdayIso < 1 || weekdayIso > 7) {
+    throw new Error("Capacity preflight date is invalid.");
+  }
+  const baseIso = base.getUTCDay() === 0 ? 7 : base.getUTCDay();
+  base.setUTCDate(base.getUTCDate() + ((weekdayIso - baseIso + 7) % 7));
+  return base.toISOString().slice(0, 10);
 }
 
 function placementKey(activationKey: string, candidate: ResolvedPlacement) {

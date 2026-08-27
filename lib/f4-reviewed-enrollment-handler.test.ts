@@ -111,7 +111,16 @@ function fakeCore(coreState: F3BootstrapState, initialFutureDays?: number) {
         return ok({ published: true });
       }
       if (request.method === "GET" && request.path === "delivery/bootstrap-state") return ok(coreState);
-      if (request.method === "GET" && request.path === "enrollments/capacity") return ok({ status: "AVAILABLE", bottlenecks: [] });
+      if (request.method === "GET" && request.path === "enrollments/capacity") {
+        const body = request.body as { runningClassId: string; targetLocalDate: string };
+        const runningClass = coreState.runningClasses.find((item) => item.id === body.runningClassId);
+        const target = new Date(body.targetLocalDate + "T00:00:00.000Z");
+        const targetIso = target.getUTCDay() === 0 ? 7 : target.getUTCDay();
+        if (!runningClass || targetIso !== runningClass.weekdayIso) {
+          return { status: 400, body: { error: { message: "Capacity target must be the Running Class weekday" } }, requestId: "fake-capacity-weekday" };
+        }
+        return ok({ status: "AVAILABLE", bottlenecks: [] });
+      }
       const enrollmentList = /^subscriptions\/([0-9a-f-]{36})\/enrollments$/.exec(request.path);
       if (request.method === "GET" && enrollmentList) return ok(enrollments.get(enrollmentList[1]!) ?? []);
       const placement = /^subscriptions\/([0-9a-f-]{36})\/placement$/.exec(request.path);
