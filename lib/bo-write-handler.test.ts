@@ -168,3 +168,40 @@ test("F3 delivery facade rejects path expansion beyond the exact allowlist", asy
   assert.equal(response.status, 404);
   assert.equal(called, false);
 });
+
+
+test("Learning Owner facade requires replay evidence and forwards the exact BO command", async () => {
+  const f = await fixture();
+  const forwarded: Array<{ request: BoAccessRequest; identity: VerifiedBoIdentity }> = [];
+  const binding: BoAccessCoreBinding = {
+    async execute(coreRequest, identity) {
+      forwarded.push({ request: coreRequest, identity });
+      return { status: 200, body: { data: { sessionId: "0198d050-56c1-7ac5-b9ab-b0e45d912345", staffMemberId: "0198d050-56c1-7ac5-b9ab-b0e45d912346", version: 2 } }, requestId: "core-owner" };
+    },
+  };
+  const ownerPath = "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/learning-owner";
+  const body = { staffMemberId: "0198d050-56c1-7ac5-b9ab-b0e45d912346", expectedVersion: 1, reason: "Coverage handoff" };
+  const response = await handleBoStaffOnboardingRequest(
+    request(f.token, { idempotencyKey: "owner-command-1", body: JSON.stringify(body) }),
+    env(binding),
+    ownerPath,
+    f.resolver,
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(forwarded[0]!.request, { method: "POST", path: ownerPath, body, idempotencyKey: "owner-command-1" });
+  assert.equal(forwarded[0]!.identity.subject, "verified-founder-subject");
+});
+
+test("Learning Owner facade rejects mutation without Idempotency-Key before Core", async () => {
+  const f = await fixture();
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const response = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: JSON.stringify({ staffMemberId: "0198d050-56c1-7ac5-b9ab-b0e45d912346" }) }),
+    env(binding),
+    "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/learning-owner",
+    f.resolver,
+  );
+  assert.equal(response.status, 400);
+  assert.equal(called, false);
+});

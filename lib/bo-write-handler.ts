@@ -19,6 +19,7 @@ const DELIVERY_POST_PATHS = new Set([
   "policies/delivery/materialization.v1/versions",
 ]);
 const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
+const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -37,7 +38,7 @@ export async function handleBoWriteRequest(
     );
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if (path === STAFF_ONBOARDING_PATH && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -52,7 +53,7 @@ export async function handleBoWriteRequest(
       method: "POST",
       path,
       body,
-      ...(path === STAFF_ONBOARDING_PATH ? { idempotencyKey } : {}),
+      ...((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path)) ? { idempotencyKey } : {}),
     };
     const result = await callBoAccessCore(env.PINO_BO_CORE, coreRequest, identity);
     return json(result.body, result.status, { "x-request-id": result.requestId });
@@ -70,7 +71,8 @@ export function isAllowedPostPath(path: string): boolean {
     || path === ACCESS_ROLE_PATH
     || path === ACCESS_ASSIGNMENT_PATH
     || DELIVERY_POST_PATHS.has(path)
-    || MATERIALIZATION_PUBLISH.test(path);
+    || MATERIALIZATION_PUBLISH.test(path)
+    || LEARNING_OWNER_PATH.test(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */

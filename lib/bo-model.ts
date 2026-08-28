@@ -55,6 +55,28 @@ export interface BoSession {
   status: string;
 }
 
+export interface BoSessionLearningOwner {
+  sessionId: string;
+  staffMemberId: string;
+  assignedAt: string;
+  assignedByUserId: string | null;
+  assignmentSource: "OPERATOR" | "MIGRATION";
+  changeReason: string | null;
+  updatedAt: string;
+  version: number;
+}
+
+export interface BoSessionLearningOwnerProjection {
+  sessionId: string;
+  owner: BoSessionLearningOwner | null;
+}
+
+export interface BoSessionLearningOwnerCommand {
+  staffMemberId: string;
+  expectedVersion?: number;
+  reason?: string;
+}
+
 export interface BoRegistration {
   id: string;
   sessionId: string;
