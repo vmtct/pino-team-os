@@ -21,6 +21,18 @@ export type BoNavGroup = {
   items: BoNavItem[];
 };
 
+export type BoWorkspaceItem = {
+  id: string;
+  label: string;
+  href: string;
+  meta?: string;
+};
+
+export type BoWorkspaceSwitcher = {
+  activeId: string;
+  items: BoWorkspaceItem[];
+};
+
 function assertFooterLimit(items: TosFooterItem[]) {
   if (items.length > 5) {
     throw new Error("TOS contextual footer navigation is limited to 5 items by Team Surface Doctrine v1.");
@@ -108,13 +120,17 @@ export function BoShell({
   subtitle = "Back Office",
   groups,
   activeHref,
+  workspaceSwitcher,
 }: {
   children: ReactNode;
   title?: string;
   subtitle?: string;
   groups: BoNavGroup[];
   activeHref?: string;
+  workspaceSwitcher?: BoWorkspaceSwitcher;
 }) {
+  const activeWorkspace = workspaceSwitcher?.items.find((item) => item.id === workspaceSwitcher.activeId);
+
   return (
     <div className={styles.boShell}>
       <aside className={styles.boSidebar}>
@@ -125,6 +141,28 @@ export function BoShell({
             <small>{subtitle}</small>
           </div>
         </div>
+
+        {workspaceSwitcher ? (
+          <details className={styles.boWorkspaceSwitcher}>
+            <summary>
+              <span>Workspace</span>
+              <strong>{activeWorkspace?.label ?? "Select"}</strong>
+              <b aria-hidden="true">⌄</b>
+            </summary>
+            <div className={styles.boWorkspaceMenu}>
+              {workspaceSwitcher.items.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className={item.id === workspaceSwitcher.activeId ? styles.boWorkspaceActive : undefined}
+                >
+                  <span>{item.label}</span>
+                  {item.meta ? <small>{item.meta}</small> : null}
+                </Link>
+              ))}
+            </div>
+          </details>
+        ) : null}
 
         <nav className={styles.boNav} aria-label="Điều hướng Back Office">
           {groups.map((group) => (
