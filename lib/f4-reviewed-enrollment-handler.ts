@@ -15,15 +15,16 @@ export interface ReviewedEnrollmentEnv {
   CF_ACCESS_BO_AUD: string;
 }
 
-interface Subscription { id: string; pathProgramId: string; lifecycle: string; weeklyCommitment: number }
-interface Enrollment { id: string; subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; effectiveUntilExclusiveLocalDate: string | null; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null }
-interface CapacityDecision { status: "AVAILABLE" | "ABOVE_OPTIMAL" | "HARD_BLOCKED"; bottlenecks: string[] }
-interface PlacementState { placementState: "PENDING_PLACEMENT" | "PARTIALLY_PLACED" | "PLACED"; effectiveEnrollmentCount: number; weeklySessionCommitment: number }
+interface BulkEnrollmentPlacement { runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null }
+interface BulkEnrollmentSubscription { subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: BulkEnrollmentPlacement[] }
+interface BulkEnrollmentPendingSubscription { subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }
+interface BulkEnrollmentBody { subscriptions: BulkEnrollmentSubscription[]; pendingSubscriptions: BulkEnrollmentPendingSubscription[]; commandEffectiveLocalDate: string }
+interface BulkEnrollmentPreflightResult { placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; missing: number; reused: number }
+interface BulkEnrollmentActivationResult { placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; created: number; reused: number }
 interface FutureReservationPolicyVersion { id: string; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: { maxDaysAhead: number } }
 interface FutureReservationPolicyInspection { stream: { revision: number }; versions: FutureReservationPolicyVersion[] }
 interface PolicyDraftResult { versionId: string; revision: number }
 interface ResolvedPlacement { subscriptionId: string; runningClass: F3RunningClass; placement: ReviewedEnrollmentPlacement }
-
 class CoreFailure extends Error {
   constructor(readonly status: number, message: string, readonly requestId: string | null) { super(message); }
 }
@@ -53,73 +54,21 @@ export async function handleReviewedEnrollmentActivation(
     const resolved = resolvePlacements(state, centerId);
     assertReviewedPlanCapacity(state, resolved);
 
-    const existingBySubscription = new Map<string, Enrollment[]>();
-    for (const item of REVIEWED_ENROLLMENT_PLAN) {
-      const subscription = await core<Subscription>({ method: "GET", path: `subscriptions/${item.subscriptionId}` });
-      const path = state.paths.find((candidate) => candidate.code === item.pathCode);
-      if (!path || subscription.pathProgramId !== path.id || subscription.lifecycle !== "ACTIVE" || subscription.weeklyCommitment !== item.expectedWeeklyCommitment) {
-        throw new Error(`Subscription ${item.subscriptionId} conflicts with reviewed Enrollment plan.`);
-      }
-      const enrollments = await core<Enrollment[]>({ method: "GET", path: `subscriptions/${item.subscriptionId}/enrollments` });
-      assertExistingSubset(item.subscriptionId, enrollments, resolved.filter((candidate) => candidate.subscriptionId === item.subscriptionId));
-      existingBySubscription.set(item.subscriptionId, enrollments);
-    }
-    for (const item of REVIEWED_ENROLLMENT_UNRESOLVED) {
-      const subscription = await core<Subscription>({ method: "GET", path: `subscriptions/${item.subscriptionId}` });
-      const path = state.paths.find((candidate) => candidate.code === item.pathCode);
-      if (!path || subscription.pathProgramId !== path.id || subscription.lifecycle !== "ACTIVE" || subscription.weeklyCommitment !== item.expectedWeeklyCommitment) {
-        throw new Error(`Unresolved subscription ${item.subscriptionId} conflicts with reviewed plan.`);
-      }
-      const enrollments = await core<Enrollment[]>({ method: "GET", path: `subscriptions/${item.subscriptionId}/enrollments` });
-      if (enrollments.length) throw new Error(`Unresolved double-session subscription ${item.subscriptionId} already has Enrollment data; activation stopped.`);
-    }
-
-    const missing = resolved.filter((candidate) => !hasExact(existingBySubscription.get(candidate.subscriptionId) ?? [], candidate));
-    for (const candidate of missing) {
-      const decision = await core<CapacityDecision>({ method: "GET", path: "enrollments/capacity", body: capacityBody(candidate) });
-      if (decision.status === "HARD_BLOCKED") throw new Error(`Capacity preflight blocked ${candidate.runningClass.operationalName}: ${decision.bottlenecks.join(", ")}.`);
-    }
+    const bulk = reviewedBulkInput(state, resolved);
+    const preflight = await core<BulkEnrollmentPreflightResult>({ method: "POST", path: "enrollments/bulk-preflight", body: bulk });
+    assertBulkPreflight(preflight);
     const policyEffectiveAt = await ensureFutureReservationPolicy(core, centerId);
-
-    let created = 0;
-    for (const candidate of missing) {
-      await core<{ enrollment: Enrollment; capacityDecision: CapacityDecision }>({
-        method: "POST", path: "enrollments", idempotencyKey: placementKey(activationKey, candidate),
-        body: {
-          subscriptionId: candidate.subscriptionId, runningClassId: candidate.runningClass.id,
-          effectiveFromLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
-          plannedEntryLocalTime: candidate.placement.plannedEntryLocalTime,
-          plannedDurationMinutes: candidate.placement.plannedDurationMinutes,
-          commandEffectiveLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
-          policyEffectiveAt,
-        },
-      });
-      created += 1;
-    }
-    let placedSubscriptions = 0;
-    for (const item of REVIEWED_ENROLLMENT_PLAN) {
-      const enrollments = await core<Enrollment[]>({ method: "GET", path: `subscriptions/${item.subscriptionId}/enrollments` });
-      const expected = resolved.filter((candidate) => candidate.subscriptionId === item.subscriptionId);
-      assertExactEnrollmentSet(item.subscriptionId, enrollments, expected);
-      const placement = await core<PlacementState>({ method: "GET", path: `subscriptions/${item.subscriptionId}/placement`, body: { targetLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM } });
-      if (placement.placementState !== "PLACED" || placement.effectiveEnrollmentCount !== item.expectedWeeklyCommitment) {
-        throw new Error(`Subscription ${item.subscriptionId} did not reconcile to PLACED.`);
-      }
-      placedSubscriptions += 1;
-    }
-    for (const item of REVIEWED_ENROLLMENT_UNRESOLVED) {
-      const placement = await core<PlacementState>({ method: "GET", path: `subscriptions/${item.subscriptionId}/placement`, body: { targetLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM } });
-      if (placement.placementState !== "PENDING_PLACEMENT" || placement.effectiveEnrollmentCount !== 0) {
-        throw new Error(`Unresolved double-session subscription ${item.subscriptionId} must remain PENDING_PLACEMENT.`);
-      }
-    }
-
+    const activation = await core<BulkEnrollmentActivationResult>({
+      method: "POST", path: "enrollments/bulk-place", idempotencyKey: `${activationKey}:bulk`,
+      body: { ...bulk, policyEffectiveAt },
+    });
+    assertBulkActivation(activation);
     return json({ data: {
       effectiveFromLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
-      placedSubscriptions,
-      enrollments: resolved.length,
-      created,
-      reused: resolved.length - created,
+      placedSubscriptions: activation.placedSubscriptions,
+      enrollments: activation.enrollments,
+      created: activation.created,
+      reused: activation.reused,
       unresolvedSubscriptions: REVIEWED_ENROLLMENT_UNRESOLVED.length,
     } }, 200);
   } catch (error) {
@@ -248,55 +197,45 @@ function peak(intervals: Array<[number, number]>): number {
   for (const event of events) { current += event.delta; maximum = Math.max(maximum, current); }
   return maximum;
 }
-function assertExistingSubset(subscriptionId: string, existing: Enrollment[], expected: ResolvedPlacement[]) {
-  for (const enrollment of existing) {
-    const matches = expected.filter((candidate) => enrollmentMatches(enrollment, candidate));
-    if (matches.length !== 1) throw new Error(`Subscription ${subscriptionId} has unexpected existing Enrollment data.`);
+function reviewedBulkInput(state: F3BootstrapState, resolved: ResolvedPlacement[]): BulkEnrollmentBody {
+  const pathByCode = new Map(state.paths.filter((item) => item.status === "ACTIVE").map((item) => [item.code, item.id]));
+  const subscriptions: BulkEnrollmentSubscription[] = REVIEWED_ENROLLMENT_PLAN.map((item) => {
+    const expectedPathProgramId = pathByCode.get(item.pathCode);
+    if (!expectedPathProgramId) throw new Error(`Reviewed Path is missing: ${item.pathCode}.`);
+    const candidates = resolved.filter((candidate) => candidate.subscriptionId === item.subscriptionId);
+    if (candidates.length !== item.expectedWeeklyCommitment) throw new Error(`Reviewed Subscription placement count mismatch: ${item.subscriptionId}.`);
+    return {
+      subscriptionId: item.subscriptionId,
+      expectedPathProgramId,
+      expectedWeeklyCommitment: item.expectedWeeklyCommitment,
+      placements: candidates.map((candidate) => ({
+        runningClassId: candidate.runningClass.id,
+        effectiveFromLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM,
+        plannedEntryLocalTime: candidate.placement.plannedEntryLocalTime,
+        plannedDurationMinutes: candidate.placement.plannedDurationMinutes,
+      })),
+    };
+  });
+  const pendingSubscriptions: BulkEnrollmentPendingSubscription[] = REVIEWED_ENROLLMENT_UNRESOLVED.map((item) => {
+    const expectedPathProgramId = pathByCode.get(item.pathCode);
+    if (!expectedPathProgramId) throw new Error(`Reviewed unresolved Path is missing: ${item.pathCode}.`);
+    return { subscriptionId: item.subscriptionId, expectedPathProgramId, expectedWeeklyCommitment: item.expectedWeeklyCommitment };
+  });
+  return { subscriptions, pendingSubscriptions, commandEffectiveLocalDate: REVIEWED_ENROLLMENT_EFFECTIVE_FROM };
+}
+
+function assertBulkPreflight(result: BulkEnrollmentPreflightResult) {
+  if (result.placedSubscriptions !== REVIEWED_ENROLLMENT_PLAN.length || result.pendingSubscriptions !== REVIEWED_ENROLLMENT_UNRESOLVED.length
+    || result.enrollments !== 62 || result.missing + result.reused !== 62) {
+    throw new Error("Core bulk Enrollment preflight did not match the reviewed 31/33 roster contract.");
   }
-  const unique = new Set(existing.map((item) => item.id));
-  if (unique.size !== existing.length) throw new Error(`Subscription ${subscriptionId} has duplicate Enrollment IDs.`);
 }
 
-function assertExactEnrollmentSet(subscriptionId: string, existing: Enrollment[], expected: ResolvedPlacement[]) {
-  assertExistingSubset(subscriptionId, existing, expected);
-  if (existing.length !== expected.length || expected.some((candidate) => !hasExact(existing, candidate))) {
-    throw new Error(`Subscription ${subscriptionId} Enrollment reconciliation failed.`);
+function assertBulkActivation(result: BulkEnrollmentActivationResult) {
+  if (result.placedSubscriptions !== REVIEWED_ENROLLMENT_PLAN.length || result.pendingSubscriptions !== REVIEWED_ENROLLMENT_UNRESOLVED.length
+    || result.enrollments !== 62 || result.created + result.reused !== 62) {
+    throw new Error("Core bulk Enrollment activation did not reconcile to the reviewed 31/33 roster contract.");
   }
-}
-
-function hasExact(existing: Enrollment[], candidate: ResolvedPlacement): boolean {
-  return existing.some((enrollment) => enrollmentMatches(enrollment, candidate));
-}
-
-function enrollmentMatches(enrollment: Enrollment, candidate: ResolvedPlacement): boolean {
-  return enrollment.subscriptionId === candidate.subscriptionId && enrollment.runningClassId === candidate.runningClass.id
-    && enrollment.effectiveFromLocalDate === REVIEWED_ENROLLMENT_EFFECTIVE_FROM && enrollment.effectiveUntilExclusiveLocalDate === null
-    && enrollment.plannedEntryLocalTime === candidate.placement.plannedEntryLocalTime
-    && enrollment.plannedDurationMinutes === candidate.placement.plannedDurationMinutes;
-}
-
-function capacityBody(candidate: ResolvedPlacement) {
-  return {
-    runningClassId: candidate.runningClass.id,
-    targetLocalDate: nextOrSameIsoWeekday(REVIEWED_ENROLLMENT_EFFECTIVE_FROM, candidate.runningClass.weekdayIso),
-    subscriptionId: candidate.subscriptionId,
-    plannedEntryLocalTime: candidate.placement.plannedEntryLocalTime,
-    plannedDurationMinutes: candidate.placement.plannedDurationMinutes,
-  };
-}
-
-function nextOrSameIsoWeekday(baseLocalDate: string, weekdayIso: number): string {
-  const base = new Date(baseLocalDate + "T00:00:00.000Z");
-  if (Number.isNaN(base.valueOf()) || !Number.isInteger(weekdayIso) || weekdayIso < 1 || weekdayIso > 7) {
-    throw new Error("Capacity preflight date is invalid.");
-  }
-  const baseIso = base.getUTCDay() === 0 ? 7 : base.getUTCDay();
-  base.setUTCDate(base.getUTCDate() + ((weekdayIso - baseIso + 7) % 7));
-  return base.toISOString().slice(0, 10);
-}
-
-function placementKey(activationKey: string, candidate: ResolvedPlacement) {
-  return `${activationKey}:${candidate.subscriptionId}:${candidate.runningClass.id}:${candidate.placement.plannedEntryLocalTime ?? "full"}`;
 }
 async function parseBody(request: Request): Promise<Record<string, unknown>> {
   try {
