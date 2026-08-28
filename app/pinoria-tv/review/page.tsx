@@ -22,6 +22,12 @@ const routes = [
     badge: "INTERACTIVE",
   },
   {
+    href: "/pinoria-tv/review/companion",
+    title: "Hộ Linh Visual Registry",
+    meta: "visualId → resolved form · asset fallback · presentation treatment",
+    badge: "COMPANION · VISUAL",
+  },
+  {
     href: "/pinoria-tv/review/energy-seed",
     title: "Hạt Năng Lượng",
     meta: "Reward reveal · committed result · ~10s ritual",
@@ -149,7 +155,7 @@ export default function PinoriaReviewHubPage() {
               lineHeight: 1.6,
             }}
           >
-            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Pinoria Shop → Túi Hành Trang → Hạt Năng Lượng → Learning Spotlight → World Broadcast → Thần Khí Thất Lạc → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
+            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Pinoria Shop → Túi Hành Trang → Hộ Linh Visual Registry → Hạt Năng Lượng → Learning Spotlight → World Broadcast → Thần Khí Thất Lạc → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
           </aside>
         </div>
       </main>
