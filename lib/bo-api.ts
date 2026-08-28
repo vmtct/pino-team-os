@@ -4,6 +4,9 @@ import type {
   BoCenter,
   BoPathProgram,
   BoRegistration,
+  BoSessionLearningOwner,
+  BoSessionLearningOwnerCommand,
+  BoSessionLearningOwnerProjection,
   BoRunningClass,
   BoSession,
   BoStaffOnboardingCommand,
@@ -23,6 +26,13 @@ async function read<T>(path: string): Promise<T[]> {
   const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
   const body = await response.json() as { data?: T[]; error?: { message?: string; requestId?: string } };
   if (!response.ok || !body.data) throw apiError(response, body, "Back Office data could not be loaded.");
+  return body.data;
+}
+
+async function readOne<T>(path: string): Promise<T> {
+  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
+  const body = await response.json() as { data?: T; error?: { message?: string; requestId?: string } };
+  if (!response.ok || body.data === undefined) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
 }
 
@@ -48,6 +58,8 @@ export const boApi = {
   syllabi: () => read<BoSyllabus>("syllabi"),
   sessions: () => read<BoSession>("sessions"),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
+  learningOwner: (sessionId: string) => readOne<BoSessionLearningOwnerProjection>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`),
+  assignLearningOwner: (sessionId: string, command: BoSessionLearningOwnerCommand, idempotencyKey: string) => write<BoSessionLearningOwner>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`, command, idempotencyKey),
   accessRoles: () => read<BoAccessRole>("access/roles"),
   accessUsers: () => read<BoAccessUser>("access/users"),
   staffRecords: () => read<BoStaffRecord>("workforce/staff-records"),

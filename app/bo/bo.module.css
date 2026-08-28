@@ -79,6 +79,15 @@
 .tableWrap small { display: block; margin-top: 4px; font-size: 10px; font-weight: 500; }
 .id { display: inline-block; max-width: 170px; overflow: hidden; color: #626473; font-size: 10px; text-overflow: ellipsis; vertical-align: top; white-space: nowrap; }
 
+.ownerQueue { display: grid; gap: 10px; }
+.ownerRow { display: grid; gap: 12px; padding: 14px; border: 1px solid #e5e5ed; border-radius: 13px; background: #fbfbfd; }
+.ownerMeta { display: grid; gap: 4px; }
+.ownerMeta strong { color: #292936; font-size: 13px; }
+.ownerMeta span, .ownerMeta small { color: #737380; font-size: 11px; }
+.ownerControls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) auto; gap: 10px; align-items: end; }
+.ownerControls .primaryButton { min-height: 40px; }
+.ownerError { margin: 0; color: #9b3838; font-size: 11px; }
+
 .filterLabel { display: grid; grid-template-columns: 90px minmax(240px, 520px); align-items: center; gap: 10px; margin-bottom: 16px; color: #656674; font-size: 12px; font-weight: 750; }
 .filterLabel select { width: 100%; padding: 9px 11px; border: 1px solid #d9d9e3; border-radius: 9px; background: #fff; color: #24242e; }
 
@@ -115,7 +124,7 @@
 
 @media (max-width: 1050px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .modeGrid, .formGrid { grid-template-columns: 1fr; }
+  .modeGrid, .formGrid, .ownerControls { grid-template-columns: 1fr; }
   .assignmentRow { grid-template-columns: 1fr; }
   .commandBar { align-items: stretch; flex-direction: column; }
   .primaryButton { width: 100%; }

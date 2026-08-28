@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSyllabus } from "@/lib/bo-model";
+import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSessionLearningOwner, BoStaffRecord, BoSyllabus } from "@/lib/bo-model";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
@@ -89,8 +89,105 @@ function RunningClasses({ data }: { data: Data }) {
 }
 
 function Sessions({ data }: { data: Data }) {
+  const [staff, setStaff] = useState<BoStaffRecord[]>([]);
+  const [owners, setOwners] = useState<Record<string, BoSessionLearningOwner | null>>({});
+  const [selections, setSelections] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [loadingOwners, setLoadingOwners] = useState(true);
+  const [ownerLoadError, setOwnerLoadError] = useState("");
+  const [savingSessionId, setSavingSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingOwners(true);
+    setOwnerLoadError("");
+    void Promise.all([
+      boApi.staffRecords(),
+      Promise.all(data.sessions.map(async (session) => [session.id, (await boApi.learningOwner(session.id)).owner] as const)),
+    ]).then(([staffRows, ownerPairs]) => {
+      if (!active) return;
+      const activeStaff = staffRows.filter((item) => item.status === "active");
+      const ownerMap = Object.fromEntries(ownerPairs) as Record<string, BoSessionLearningOwner | null>;
+      setStaff(activeStaff);
+      setOwners(ownerMap);
+      setSelections(Object.fromEntries(data.sessions.map((session) => [session.id, ownerMap[session.id]?.staffMemberId ?? ""])));
+      setLoadingOwners(false);
+    }).catch((error: unknown) => {
+      if (!active) return;
+      setOwnerLoadError(error instanceof Error ? error.message : "Learning Owner readiness could not be loaded.");
+      setLoadingOwners(false);
+    });
+    return () => { active = false; };
+  }, [data.sessions]);
+
+  const orderedSessions = useMemo(() => [...data.sessions].sort((left, right) => {
+    const ownerDelta = Number(Boolean(owners[left.id])) - Number(Boolean(owners[right.id]));
+    return ownerDelta || left.startsAt.localeCompare(right.startsAt);
+  }), [data.sessions, owners]);
+  const unassignedCount = data.sessions.filter((session) => !owners[session.id]).length;
+
+  async function saveOwner(session: BoSession) {
+    const selected = selections[session.id] ?? "";
+    const current = owners[session.id] ?? null;
+    const reason = (reasons[session.id] ?? "").trim();
+    const changing = Boolean(current && current.staffMemberId !== selected);
+    if (!selected) return;
+    if (changing && !reason) {
+      setRowErrors((value) => ({ ...value, [session.id]: "Handoff reason is required when changing Learning Owner." }));
+      return;
+    }
+    setSavingSessionId(session.id);
+    setRowErrors((value) => ({ ...value, [session.id]: "" }));
+    try {
+      const next = await boApi.assignLearningOwner(session.id, {
+        staffMemberId: selected,
+        ...(current ? { expectedVersion: current.version } : {}),
+        reason: changing ? reason : "Assigned from BO Session queue",
+      }, `learning-owner:${session.id}:${selected}:${current?.version ?? 0}:${crypto.randomUUID()}`);
+      setOwners((value) => ({ ...value, [session.id]: next }));
+      setReasons((value) => ({ ...value, [session.id]: "" }));
+    } catch (error) {
+      setRowErrors((value) => ({ ...value, [session.id]: error instanceof Error ? error.message : "Learning Owner could not be saved." }));
+    } finally {
+      setSavingSessionId(null);
+    }
+  }
+
   return (
-    <Page title="Sessions" subtitle="Dated occurrences with capacity, linked curriculum, and registration volume.">
+    <Page title="Sessions" subtitle="Dated occurrences with capacity, linked curriculum, and Learning Owner readiness.">
+      <Panel title={`Learning Owner readiness · ${unassignedCount} unassigned`} hint="Assign exactly one active StaffMember per Session before PRESENT Attendance can create its Diary." mode="write">
+        {loadingOwners ? <Loading compact /> : ownerLoadError ? <ErrorState message={ownerLoadError} requestId={null} compact /> : !staff.length ? <Empty text="No active StaffMember is available for Learning Owner assignment." /> : (
+          <div className={styles.ownerQueue}>
+            {orderedSessions.map((session) => {
+              const current = owners[session.id] ?? null;
+              const selected = selections[session.id] ?? "";
+              const changing = Boolean(current && current.staffMemberId !== selected);
+              const currentStaff = current ? staff.find((item) => item.id === current.staffMemberId) : null;
+              const disabled = !selected || savingSessionId === session.id || selected === current?.staffMemberId || (changing && !(reasons[session.id] ?? "").trim());
+              return (
+                <article className={styles.ownerRow} key={session.id}>
+                  <div className={styles.ownerMeta}>
+                    <strong>{sessionLabel(session, data)}</strong>
+                    <span>{pathName(data.paths, session.pathProgramId)} · {syllabusName(data.syllabi, session.syllabusId)}</span>
+                    <small>{current ? `Owner: ${currentStaff?.displayLabel ?? current.staffMemberId} · v${current.version}` : "Owner chưa được gán"}</small>
+                  </div>
+                  <div className={styles.ownerControls}>
+                    <label className={styles.field}>Learning Owner
+                      <select value={selected} onChange={(event) => setSelections((value) => ({ ...value, [session.id]: event.target.value }))}>
+                        {staff.map((item) => <option key={item.id} value={item.id}>{item.displayLabel}{item.roleLabel ? ` · ${item.roleLabel}` : ""}</option>)}
+                      </select>
+                    </label>
+                    {changing ? <label className={styles.field}>Handoff reason<input value={reasons[session.id] ?? ""} onChange={(event) => setReasons((value) => ({ ...value, [session.id]: event.target.value }))} placeholder="Why is ownership changing?" /></label> : null}
+                    <button className={styles.primaryButton} disabled={disabled} onClick={() => void saveOwner(session)}>{savingSessionId === session.id ? "Saving…" : current ? "Change owner" : "Assign owner"}</button>
+                  </div>
+                  {rowErrors[session.id] ? <p className={styles.ownerError}>{rowErrors[session.id]}</p> : null}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
       <Panel title={`${data.sessions.length} upcoming sessions`} hint="Availability is the canonical Core projection.">
         {data.sessions.length ? <SessionTable sessions={data.sessions} data={data} /> : <Empty text="No upcoming sessions." />}
       </Panel>
@@ -188,8 +285,8 @@ function SessionTable({ sessions, data }: { sessions: BoSession[]; data: Data })
 function Page({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return <section className={styles.page}><header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>{title}</h1><p>{subtitle}</p></header>{children}</section>;
 }
-function Panel({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
-  return <section className={styles.panel}><div className={styles.panelHeading}><div><h2>{title}</h2><p>{hint}</p></div><span className={styles.readOnly}>Read only</span></div>{children}</section>;
+function Panel({ title, hint, children, mode = "read" }: { title: string; hint: string; children: ReactNode; mode?: "read" | "write" }) {
+  return <section className={styles.panel}><div className={styles.panelHeading}><div><h2>{title}</h2><p>{hint}</p></div><span className={mode === "write" ? styles.writePill : styles.readOnly}>{mode === "write" ? "Controlled write" : "Read only"}</span></div>{children}</section>;
 }
 function Metric({ label, value }: { label: string; value: number }) { return <article className={styles.metric}><span>{label}</span><strong>{value}</strong></article>; }
 function Table({ headers, children }: { headers: string[]; children: ReactNode }) { return <div className={styles.tableWrap}><table><thead><tr>{headers.map((header) => <th key={header} scope="col">{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>; }

@@ -43,7 +43,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/roles"
     || path === "access/users"
     || path === "workforce/staff-records"
-    || /^sessions\/[0-9a-f-]+\/registrations$/.test(path);
+    || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
+    || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
 
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {
