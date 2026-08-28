@@ -8,6 +8,7 @@ import {
 import type {
   InventoryAchievementSlot,
   InventoryEquipmentState,
+  InventoryFilter,
   InventoryWearableSlot,
   PinoriaStoreView,
   ShopCategoryId,
@@ -20,6 +21,7 @@ const DEFAULT_SURFACE_ID = "RECEPTION_TV";
 const DEFAULT_SUBJECT: ShopSubject = { id: "bo", name: "Bơ", pls: 420 };
 const VALID_CATEGORIES = new Set<ShopCategoryId>(["all", "hair", "face", "headwear", "eyewear", "back", "body", "prop"]);
 const VALID_VIEWS = new Set<PinoriaStoreView>(["shop", "inventory"]);
+const VALID_INVENTORY_FILTERS = new Set<InventoryFilter>(["outfit", "accessory"]);
 const VALID_WEARABLE_SLOTS = new Set<InventoryWearableSlot>(["back", "body", "hair", "face", "headwear", "eyewear"]);
 const VALID_ACHIEVEMENT_SLOTS = new Set<InventoryAchievementSlot>([
   "achievement-1",
@@ -62,7 +64,6 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
     achievements: {
       "achievement-1": "achievement-brush-l2",
       "achievement-2": "achievement-palette-l2",
-      "achievement-3": "badge-artchitect-l3",
     },
   },
   tri: {
@@ -76,7 +77,6 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
     achievements: {
       "achievement-1": "achievement-scroll-l3",
       "achievement-2": "achievement-maker-l2",
-      "achievement-3": "badge-pianohouse-l3",
     },
   },
   an: {
@@ -90,7 +90,6 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
     achievements: {
       "achievement-1": "achievement-brush-l3",
       "achievement-2": "achievement-palette-l2",
-      "achievement-3": "badge-artchitect-l3",
     },
   },
   mai: {
@@ -103,7 +102,6 @@ const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
     },
     achievements: {
       "achievement-1": "achievement-brush-l1",
-      "achievement-2": "badge-artchitect-l1",
     },
   },
 };
@@ -129,13 +127,18 @@ function initialAchievements(subjectId: string) {
 
 function initialEquipment(subjectId: string): InventoryEquipmentState {
   const source = SUBJECT_STARTING_EQUIPMENT[subjectId] ?? { wearables: {}, achievements: {} };
-  return { wearables: { ...source.wearables }, achievements: { ...source.achievements } };
+  const achievements = { ...source.achievements };
+  for (const slot of Object.keys(achievements) as InventoryAchievementSlot[]) {
+    if (achievements[slot]?.startsWith("badge-")) delete achievements[slot];
+  }
+  return { wearables: { ...source.wearables }, achievements };
 }
 
 function resetSubjectInventory(session: MutableShopSession, subjectId: string) {
   session.view = "shop";
   session.ownedAssetIds = initialOwned(subjectId);
   session.earnedAchievementIds = initialAchievements(subjectId);
+  session.inventoryFilter = "outfit";
   session.inventorySelectedId = null;
   session.equipment = initialEquipment(subjectId);
   session.selectedAssetId = null;
@@ -154,6 +157,7 @@ function getSession(surfaceId: string): MutableShopSession {
       pendingPurchaseAssetId: null,
       ownedAssetIds: initialOwned(DEFAULT_SUBJECT.id),
       earnedAchievementIds: initialAchievements(DEFAULT_SUBJECT.id),
+      inventoryFilter: "outfit",
       inventorySelectedId: null,
       equipment: initialEquipment(DEFAULT_SUBJECT.id),
       purchaseResult: null,
@@ -166,6 +170,7 @@ function getSession(surfaceId: string): MutableShopSession {
   const session = store.sessions[surfaceId];
   session.view ??= "shop";
   session.earnedAchievementIds ??= initialAchievements(session.subject.id);
+  session.inventoryFilter ??= "outfit";
   session.inventorySelectedId ??= null;
   session.equipment ??= initialEquipment(session.subject.id);
   session.equipment.wearables ??= {};
@@ -179,6 +184,9 @@ function getSession(surfaceId: string): MutableShopSession {
   delete legacyAchievements["artifact-1"];
   delete legacyAchievements["artifact-2"];
   delete legacyAchievements.badge;
+  for (const slot of VALID_ACHIEVEMENT_SLOTS) {
+    if (session.equipment.achievements[slot]?.startsWith("badge-")) delete session.equipment.achievements[slot];
+  }
 
   return session;
 }
@@ -194,6 +202,7 @@ function snapshot(session: MutableShopSession): ShopSessionSnapshot {
     pendingPurchaseAssetId: session.pendingPurchaseAssetId,
     ownedAssetIds: [...session.ownedAssetIds],
     earnedAchievementIds: [...session.earnedAchievementIds],
+    inventoryFilter: session.inventoryFilter,
     inventorySelectedId: session.inventorySelectedId,
     equipment: {
       wearables: { ...session.equipment.wearables },
@@ -331,6 +340,15 @@ export async function POST(request: NextRequest) {
     return response(session);
   }
 
+  if (body.op === "set-inventory-filter") {
+    const filter = body.filter as InventoryFilter;
+    if (!VALID_INVENTORY_FILTERS.has(filter)) return NextResponse.json({ ok: false, error: "INVALID_INVENTORY_FILTER" }, { status: 400 });
+    session.inventoryFilter = filter;
+    session.inventorySelectedId = null;
+    touch(session);
+    return response(session);
+  }
+
   if (body.op === "inventory-preview") {
     const itemId = typeof body.itemId === "string" && body.itemId ? body.itemId : null;
     if (itemId && !session.ownedAssetIds.includes(itemId) && !session.earnedAchievementIds.includes(itemId)) {
@@ -364,6 +382,7 @@ export async function POST(request: NextRequest) {
     const itemId = typeof body.itemId === "string" ? body.itemId : "";
     const slot = body.slot as InventoryAchievementSlot;
     if (!itemId || !session.earnedAchievementIds.includes(itemId)) return NextResponse.json({ ok: false, error: "ACHIEVEMENT_NOT_EARNED" }, { status: 400 });
+    if (itemId.startsWith("badge-")) return NextResponse.json({ ok: false, error: "MARK_AUTO_EQUIPPED" }, { status: 400 });
     if (!VALID_ACHIEVEMENT_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
     for (const existingSlot of VALID_ACHIEVEMENT_SLOTS) {
       if (session.equipment.achievements[existingSlot] === itemId) delete session.equipment.achievements[existingSlot];

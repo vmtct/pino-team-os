@@ -13,6 +13,7 @@ import {
   PINORIA_SHOP_SURFACE_ID,
   PINORIA_SURFACE_SESSION_URL,
   type InventoryAchievementSlot,
+  type InventoryFilter,
   type InventoryWearableSlot,
   type PinoriaStoreView,
   type PinoriaSurfaceSessionSnapshot,
@@ -69,9 +70,6 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   { prefix: "achievement-scroll", displayName: "Cuộn Nhạc", imageUrl: prototypeFloatingProps[1].src },
   { prefix: "achievement-palette", displayName: "Bảng Màu", imageUrl: prototypeFloatingProps[2].src },
   { prefix: "achievement-maker", displayName: "Bộ Dụng Cụ", imageUrl: prototypeFloatingProps[3].src },
-  { prefix: "badge-artchitect", displayName: "Dấu Ấn ArtChitect", imageUrl: prototypeCharacterEffects.marks[0].src },
-  { prefix: "badge-pianohouse", displayName: "Dấu Ấn Piano House", imageUrl: prototypeCharacterEffects.marks[1].src },
-  { prefix: "badge-house-helper", displayName: "Huy Hiệu Đồng Đội", imageUrl: prototypeCharacterEffects.marks[2].src },
 ];
 
 function roman(level: number) {
@@ -242,7 +240,11 @@ export function PinoriaStaffController() {
     return [...wearableItems, ...achievements];
   }, [catalog, session]);
 
-  const selectedInventoryItem = inventoryItems.find((item) => item.id === session?.inventorySelectedId);
+  const inventoryFilter: InventoryFilter = session?.inventoryFilter ?? "outfit";
+  const visibleInventoryItems = inventoryItems.filter((item) => inventoryFilter === "outfit"
+    ? item.kind === "wearable" && item.slot === "body"
+    : item.kind === "achievement" || (item.kind === "wearable" && item.slot !== "body"));
+  const selectedInventoryItem = visibleInventoryItems.find((item) => item.id === session?.inventorySelectedId);
   const selectedAchievementSlot = selectedInventoryItem?.kind === "achievement"
     ? ACHIEVEMENT_SLOTS.find((slot) => session?.equipment.achievements[slot] === selectedInventoryItem.id)
     : undefined;
@@ -438,17 +440,25 @@ export function PinoriaStaffController() {
           <section className="psc-content" aria-label="Túi Hành Trang controller">
             <div className="psc-section-head">
               <div><span>TÚI HÀNH TRANG</span><strong>{surface?.interactiveSuspended ? "TV đang bận · Túi sẽ tự trở lại" : "Chọn món để trang bị"}</strong></div>
-              <small>{inventoryItems.length} món</small>
+              <small>{visibleInventoryItems.length} món</small>
+            </div>
+
+            <div className="psc-category-strip" role="tablist" aria-label="Loại hành trang">
+              {([['outfit','♢','Trang phục'],['accessory','✦','Phụ Kiện']] as const).map(([id,icon,label]) => (
+                <button key={id} type="button" disabled={busy || !interactiveReady} className={inventoryFilter === id ? "active" : ""} onClick={() => void send("set-inventory-filter", { filter: id })}>
+                  <span>{icon}</span>{label}
+                </button>
+              ))}
             </div>
 
             <div className="psc-inventory-summary">
-              <div><span>Wearable</span><b>{session?.ownedAssetIds.length ?? 0}</b></div>
-              <div><span>Thành quả</span><b>{session?.earnedAchievementIds.length ?? 0}</b></div>
+              <div><span>Trang phục</span><b>{inventoryItems.filter((item) => item.kind === "wearable" && item.slot === "body").length}</b></div>
+              <div><span>Phụ kiện</span><b>{inventoryItems.filter((item) => item.kind === "achievement" || (item.kind === "wearable" && item.slot !== "body")).length}</b></div>
               <div><span>Đang mang</span><b>{Object.keys(session?.equipment.wearables ?? {}).length + Object.keys(session?.equipment.achievements ?? {}).length}</b></div>
             </div>
 
             <div className="psc-inventory-grid">
-              {inventoryItems.map((item) => {
+              {visibleInventoryItems.map((item) => {
                 const active = selectedInventoryItem?.id === item.id;
                 return (
                   <button key={item.id} disabled={!interactiveReady} type="button" className={`psc-inventory-card ${active ? "active" : ""} ${item.equipped ? "equipped" : ""}`} onClick={() => void selectInventoryItem(item)}>

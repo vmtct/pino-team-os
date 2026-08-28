@@ -1,5 +1,6 @@
 export type ShopCategoryId = "all" | "hair" | "face" | "headwear" | "eyewear" | "back" | "body" | "prop";
 export type PinoriaStoreView = "shop" | "inventory";
+export type InventoryFilter = "outfit" | "accessory";
 export type PinoriaSurfaceBaseMode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "world-transition" | "departure";
 export type PinoriaSurfaceEffectiveMode = PinoriaSurfaceBaseMode | PinoriaStoreView;
 export type InventoryWearableSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
@@ -134,6 +135,7 @@ export type ShopSessionSnapshot = {
   pendingPurchaseAssetId: string | null;
   ownedAssetIds: string[];
   earnedAchievementIds: string[];
+  inventoryFilter: InventoryFilter;
   inventorySelectedId: string | null;
   equipment: InventoryEquipmentState;
   purchaseResult: ShopPurchaseResult | null;
@@ -162,8 +164,8 @@ export type PinoriaSurfaceSessionSnapshot = {
   updatedAt: number;
 };
 
-// Shop is intentionally cosmetic-only. Props/artifacts/badges are earned
-// learning achievements and live in Túi Hành Trang instead of being purchasable.
+// Shop is intentionally cosmetic-only. Earned props/artifacts can live in Túi Hành Trang.
+// Marks are progression signals: once activated they equip automatically and never appear as bag items.
 export const PINORIA_SHOP_CATEGORIES: readonly { id: ShopCategoryId; label: string; icon: string }[] = [
   { id: "all", label: "Tất cả", icon: "✦" },
   { id: "hair", label: "Tóc", icon: "◒" },

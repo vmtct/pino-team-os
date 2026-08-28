@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   prototypeCharacterProfileAssetUrls,
   prototypeCharacterProfileForSubject,
@@ -240,7 +240,8 @@ function orbitPeriodFor(motion: PrototypeCharacterMotion) {
   return 12600;
 }
 
-function OrbitingCharacterMarks({ motion }: { motion: PrototypeCharacterMotion }) {
+function OrbitingCharacterMarks({ motion, markIds }: { motion: PrototypeCharacterMotion; markIds?: readonly string[] }) {
+  const marks = useMemo(() => markIds ? prototypeCharacterEffects.marks.filter((mark) => markIds.includes(mark.id)) : prototypeCharacterEffects.marks, [markIds]);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const markRefs = useRef<Array<HTMLImageElement | null>>([]);
 
@@ -267,7 +268,7 @@ function OrbitingCharacterMarks({ motion }: { motion: PrototypeCharacterMotion }
       const radiusY = Math.min(76, height * .145);
       const baseAngle = reducedMotion ? 0 : ((now % periodMs) / periodMs) * Math.PI * 2;
 
-      prototypeCharacterEffects.marks.forEach((_, index) => {
+      marks.forEach((_, index) => {
         const element = markRefs.current[index];
         if (!element) return;
 
@@ -297,11 +298,11 @@ function OrbitingCharacterMarks({ motion }: { motion: PrototypeCharacterMotion }
 
     frame = window.requestAnimationFrame(renderFrame);
     return () => window.cancelAnimationFrame(frame);
-  }, [motion]);
+  }, [motion, marks]);
 
   return (
     <div ref={stageRef} data-pinoria-character-effect="marks" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      {prototypeCharacterEffects.marks.map((mark, index) => (
+      {marks.map((mark, index) => (
         <img
           key={mark.id}
           ref={(element) => { markRefs.current[index] = element; }}
@@ -330,7 +331,7 @@ function OrbitingCharacterMarks({ motion }: { motion: PrototypeCharacterMotion }
   );
 }
 
-function CharacterPrestigeEffects({ motion }: { motion: PrototypeCharacterMotion }) {
+function CharacterPrestigeEffects({ motion, markIds }: { motion: PrototypeCharacterMotion; markIds?: readonly string[] }) {
   const auraBreathDuration = motion === "arrival" ? "4.8s" : "5.8s";
   const radianceDuration = motion === "arrival" ? "7.6s" : "8.4s";
   const glowDuration = motion === "arrival" ? 6.4 : 7.2;
@@ -368,7 +369,7 @@ function CharacterPrestigeEffects({ motion }: { motion: PrototypeCharacterMotion
         />
       </div>
 
-      <OrbitingCharacterMarks motion={motion} />
+      <OrbitingCharacterMarks motion={motion} markIds={markIds} />
 
       <div data-pinoria-character-effect="glows" style={{ position: "absolute", inset: "4%", zIndex: 20, pointerEvents: "none" }}>
         {prototypeCharacterEffects.glows.map((glow, index) => (
@@ -409,6 +410,7 @@ export function PrototypeCharacter({
   wingMotion,
   subjectId,
   layerOverrides,
+  prestigeMarkIds,
 }: {
   size?: number | string;
   style?: CSSProperties;
@@ -418,6 +420,7 @@ export function PrototypeCharacter({
   wingMotion?: PrototypeWingMotion;
   subjectId?: string;
   layerOverrides?: PrototypeCharacterLayerOverrides;
+  prestigeMarkIds?: readonly string[];
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [inferredSubjectId, setInferredSubjectId] = useState<string | undefined>(undefined);
@@ -600,7 +603,7 @@ export function PrototypeCharacter({
         }
       `}</style>
 
-      {showPrestigeEffects ? <CharacterPrestigeEffects motion={resolvedMotion} /> : null}
+      {showPrestigeEffects ? <CharacterPrestigeEffects motion={resolvedMotion} markIds={prestigeMarkIds} /> : null}
 
       <div
         data-pinoria-character-motion-shell
