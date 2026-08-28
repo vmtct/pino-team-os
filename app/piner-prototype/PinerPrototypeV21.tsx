@@ -1,9 +1,11 @@
 "use client";
 
-import { MouseEvent, useEffect, useRef, useState } from "react";
+import { MouseEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PinerPrototypeV20 from "./PinerPrototypeV20";
 import v21 from "./piner-prototype-v21.module.css";
+import { findPrototypeDevice, updatePrototypeBadge } from "./prototype-dom";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 const CONTENT_AVATAR_URL = "https://assets.pinohouse.art/draft/Whiteboard%20(2).png";
 const PINO_LOGO_URL = "https://assets.pinohouse.art/site/core/Pino%20Sigil.png";
@@ -158,42 +160,7 @@ export default function PinerPrototypeV21() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [syllabusModal, setSyllabusModal] = useState<SyllabusDetail | null>(null);
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-    let scheduled = false;
-    const observer = new MutationObserver(() => schedule());
-
-    const observe = () => observer.observe(root, { childList: true, subtree: true, characterData: true });
-
-    const run = () => {
-      scheduled = false;
-      observer.disconnect();
-      try {
-        polish(root);
-      } finally {
-        observe();
-      }
-    };
-
-    const schedule = () => {
-      if (scheduled) return;
-      scheduled = true;
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(run);
-    };
-
-    run();
-    const interval = window.setInterval(() => polish(root), 450);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearInterval(interval);
-      observer.disconnect();
-    };
-  }, []);
+  usePrototypePolish(rootRef, polish);
 
   function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
     const topic = (event.target as HTMLElement).closest<HTMLElement>("[data-v21-ac-topic-index]");
@@ -206,7 +173,7 @@ export default function PinerPrototypeV21() {
     setSyllabusModal(detail);
   }
 
-  const portalTarget = syllabusModal ? findDevice(rootRef.current) : null;
+  const portalTarget = syllabusModal ? findPrototypeDevice(rootRef.current) : null;
 
   return (
     <div ref={rootRef} className={v21.root} onClickCapture={handleClickCapture}>
@@ -219,17 +186,13 @@ export default function PinerPrototypeV21() {
   );
 }
 
-function findDevice(root: HTMLElement | null) {
-  if (!root) return null;
-  const header = Array.from(root.querySelectorAll<HTMLElement>("header")).find((candidate) => Boolean(candidate.querySelector("[data-v21-pino-logo='true']")));
-  return header?.parentElement instanceof HTMLElement ? header.parentElement : null;
-}
-
 function SyllabusModal({ detail, onClose }: { detail: SyllabusDetail; onClose: () => void }) {
   return (
     <div className={v21.syllabusBackdrop} onMouseDown={onClose}>
       <section className={v21.syllabusModal} onMouseDown={(event) => event.stopPropagation()}>
         <header className={v21.syllabusModalHeader}>
+          {/* Prototype keeps a direct remote asset URL for visual parity. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={CONTENT_AVATAR_URL} alt={`Ảnh đại diện ${detail.title}`} />
           <div>
             <span>{detail.week} · ArtChitect</span>
@@ -258,7 +221,7 @@ function SyllabusModal({ detail, onClose }: { detail: SyllabusDetail; onClose: (
 }
 
 function polish(root: HTMLElement) {
-  updatePrototypeBadge(root);
+  updatePrototypeBadge(root, "BẢN THỬ NỘI BỘ · V21 POLISH");
   polishHeaderLogo(root);
   polishNavigationIcons(root);
   polishPackageContext(root);
@@ -271,14 +234,6 @@ function polish(root: HTMLElement) {
   polishMusicPieceAvatars(root);
   polishSessionAvatars(root);
   normalizeExploreVocabulary(root);
-}
-
-function updatePrototypeBadge(root: HTMLElement) {
-  const badge = Array.from(root.querySelectorAll<HTMLElement>("aside div, aside span")).find((node) => {
-    const text = node.textContent?.trim() ?? "";
-    return text.startsWith("LOCAL PROTOTYPE") || text.startsWith("BẢN THỬ NỘI BỘ");
-  });
-  if (badge) badge.textContent = "BẢN THỬ NỘI BỘ · V21 POLISH";
 }
 
 function polishHeaderLogo(root: HTMLElement) {

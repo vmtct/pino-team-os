@@ -1,44 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import PinerPrototypeV17 from "./PinerPrototypeV17";
 import v18 from "./piner-prototype-v18.module.css";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 const ENDED_ACCESS = new Set(["leo-expired", "leo-attrition"]);
 
 export default function PinerPrototypeV18() {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-    const observer = new MutationObserver(() => schedule());
-
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        observer.disconnect();
-        syncPracticeFamilies(root);
-        observer.observe(root, { childList: true, subtree: true, characterData: true });
-      });
-    };
-
-    // Prototype safeguard: earlier versions injected the Starter card only on a
-    // mutation edge and React could replace that unmanaged node afterwards.
-    // Keep the projection deterministic while this surface is still a prototype.
-    const interval = window.setInterval(() => syncPracticeFamilies(root), 250);
-
-    syncPracticeFamilies(root);
-    observer.observe(root, { childList: true, subtree: true, characterData: true });
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearInterval(interval);
-      observer.disconnect();
-    };
-  }, []);
+  usePrototypePolish(rootRef, syncPracticeFamilies, { listenToChange: true });
 
   return (
     <div ref={rootRef} className={v18.root}>

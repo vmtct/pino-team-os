@@ -1,66 +1,26 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import PinerPrototypeV21 from "./PinerPrototypeV21";
 import v22 from "./piner-prototype-v22.module.css";
+import { updatePrototypeBadge } from "./prototype-dom";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 const CONTENT_AVATAR_URL = "https://assets.pinohouse.art/draft/Whiteboard%20(2).png";
 
 export default function PinerPrototypeV22() {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-    let scheduled = false;
-    const observer = new MutationObserver(() => schedule());
-
-    const observe = () => observer.observe(root, { childList: true, subtree: true, characterData: true });
-
-    const run = () => {
-      scheduled = false;
-      observer.disconnect();
-      try {
-        polishExploreSchedule(root);
-        polishTouchpointSheet(root);
-        updateBadge(root);
-      } finally {
-        observe();
-      }
-    };
-
-    const schedule = () => {
-      if (scheduled) return;
-      scheduled = true;
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(run);
-    };
-
-    run();
-    const interval = window.setInterval(run, 500);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearInterval(interval);
-      observer.disconnect();
-    };
-  }, []);
-
+  usePrototypePolish(rootRef, (root) => {
+    polishExploreSchedule(root);
+    polishTouchpointSheet(root);
+    updatePrototypeBadge(root, "BẢN THỬ NỘI BỘ · V22 POLISH");
+  });
   return (
     <div ref={rootRef} className={v22.root}>
       <PinerPrototypeV21 />
     </div>
   );
-}
-
-function updateBadge(root: HTMLElement) {
-  const badge = Array.from(root.querySelectorAll<HTMLElement>("aside div, aside span")).find((node) => {
-    const text = node.textContent?.trim() ?? "";
-    return text.startsWith("LOCAL PROTOTYPE") || text.startsWith("BẢN THỬ NỘI BỘ");
-  });
-  if (badge) badge.textContent = "BẢN THỬ NỘI BỘ · V22 POLISH";
 }
 
 function polishExploreSchedule(root: HTMLElement) {

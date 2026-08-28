@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import PinerPrototypeV22 from "./PinerPrototypeV22";
 import { scenarios, type MembershipMode } from "./fixtures-v2";
 import v23 from "./piner-prototype-v23.module.css";
+import { findPrototypeDevice, updatePrototypeBadge } from "./prototype-dom";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 type ExploreFilter = "ALL" | "EXPLORE" | "PREMIUM";
 type SortDirection = "ASC" | "DESC";
@@ -60,48 +62,14 @@ export default function PinerPrototypeV23() {
   filterRef.current = filter;
   sortRef.current = sortDirection;
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-    let scheduled = false;
-    const observer = new MutationObserver(() => schedule());
-
-    const run = () => {
-      scheduled = false;
-      observer.disconnect();
-      try {
-        const target = ensureExploreControlsMount(root);
-        setControlsTarget((current) => current === target ? current : target);
-        polishExploreAccess(root);
-        applyExploreView(root, filterRef.current, sortRef.current);
-        polishTouchpointDescription(root);
-        updateBadge(root);
-      } finally {
-        observer.observe(root, { childList: true, subtree: true, characterData: true });
-      }
-    };
-
-    const schedule = () => {
-      if (scheduled) return;
-      scheduled = true;
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(run);
-    };
-
-    run();
-    const interval = window.setInterval(run, 500);
-    root.addEventListener("change", schedule);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearInterval(interval);
-      observer.disconnect();
-      root.removeEventListener("change", schedule);
-    };
-  }, []);
-
+  usePrototypePolish(rootRef, (root) => {
+    const target = ensureExploreControlsMount(root);
+    setControlsTarget((current) => current === target ? current : target);
+    polishExploreAccess(root);
+    applyExploreView(root, filterRef.current, sortRef.current);
+    polishTouchpointDescription(root);
+    updatePrototypeBadge(root, "BẢN THỬ NỘI BỘ · STAGING");
+  }, { listenToChange: true });
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -193,7 +161,7 @@ export default function PinerPrototypeV23() {
     setFlowModal({ type: "GUEST_SUCCESS", registration });
   }
 
-  const portalTarget = flowModal ? findDevice(rootRef.current) : null;
+  const portalTarget = flowModal ? findPrototypeDevice(rootRef.current) : null;
 
   return (
     <div ref={rootRef} className={v23.root} onClickCapture={handleClickCapture}>
@@ -329,14 +297,6 @@ function SessionSummary({ session }: { session: SessionSnapshot }) {
       <small>{session.path} · {session.ageLabel} · {session.time}</small>
     </div>
   );
-}
-
-function updateBadge(root: HTMLElement) {
-  const badge = Array.from(root.querySelectorAll<HTMLElement>("aside div, aside span")).find((node) => {
-    const text = node.textContent?.trim() ?? "";
-    return text.startsWith("LOCAL PROTOTYPE") || text.startsWith("BẢN THỬ NỘI BỘ");
-  });
-  if (badge) badge.textContent = "BẢN THỬ NỘI BỘ · V23 POLISH";
 }
 
 function ensureExploreControlsMount(root: HTMLElement) {
@@ -479,10 +439,4 @@ function sessionSortValue(card: HTMLElement) {
   const time = clock.match(/(\d{1,2}):(\d{2})/);
   const minutes = time ? Number(time[1]) * 60 + Number(time[2]) : 0;
   return dayOrder * 1440 + minutes;
-}
-
-function findDevice(root: HTMLElement | null) {
-  if (!root) return null;
-  const header = Array.from(root.querySelectorAll<HTMLElement>("header")).find((candidate) => Boolean(candidate.querySelector("[data-v21-pino-logo='true']")));
-  return header?.parentElement instanceof HTMLElement ? header.parentElement : null;
 }

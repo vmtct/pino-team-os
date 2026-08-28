@@ -7,6 +7,16 @@ import v6 from "./piner-prototype-v6.module.css";
 import v7 from "./piner-prototype-v7.module.css";
 import v8 from "./piner-prototype-v8.module.css";
 
+const PINER_ICON_BASE = "https://assets.pinohouse.art/site/shared/piner-space-icon-";
+
+function PinerGlyph({ name, size = 18 }: { name: string; size?: number }) {
+  return (
+    // Native img keeps the shared R2 SVG pack provider-neutral for this prototype.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`${PINER_ICON_BASE}${name}.svg`} alt="" aria-hidden="true" width={size} height={size} />
+  );
+}
+
 type PracticeFamily = "STARTER" | "JOURNEY" | "SPECIALTY";
 type RecordingState = "idle" | "recording" | "ready" | "submitted";
 type ViewerMode = "ACTIVE" | "EXPIRED_TRIAL";
@@ -44,13 +54,16 @@ const PAGES: PracticePage[] = [
   { page: 4, sheetUrl: SHEET_URL },
 ];
 
-function resourceFromButton(text: string, mode: ViewerMode): ViewerResource | null {
-  if (!text.includes("Founder · published")) return null;
-  if (text.includes("Expansion")) return null;
-  if (text.includes("Film Music Specialty")) return { family: "SPECIALTY", title: "Film Music Specialty", context: "Specialty · L2", mode };
-  if (text.includes("ABC Song")) return { family: "STARTER", title: "ABC Song", context: "Starter · đang học", mode };
-  if (text.includes("Twinkle Twinkle")) return { family: "STARTER", title: "Twinkle Twinkle", context: "Starter · available", mode };
-  if (text.includes("Always With Me")) return { family: "JOURNEY", title: "Always With Me", context: "L4 · Fundamental", mode };
+function resourceFromButton(button: HTMLButtonElement, mode: ViewerMode): ViewerResource | null {
+  if (button.dataset.v21PracticeCard !== "true" || button.dataset.v18Access === "locked") return null;
+  const text = button.textContent ?? "";
+  const family = button.dataset.v18Family;
+  if (family === "starter") {
+    const title = text.includes("Twinkle Twinkle") ? "Twinkle Twinkle" : "ABC Song";
+    return { family: "STARTER", title, context: "Khởi Hành · đang học", mode };
+  }
+  if (family === "specialty") return { family: "SPECIALTY", title: "Chuyên đề nhạc phim", context: "Chuyên Đề · L2", mode };
+  if (family === "journey") return { family: "JOURNEY", title: "Always With Me", context: "L4 · Cơ bản", mode };
   return null;
 }
 
@@ -60,10 +73,10 @@ function currentViewerMode(): ViewerMode {
 }
 
 function surfaceFromButton(text: string): AppSurface | null {
-  if (text.includes("Home")) return "home";
-  if (text.includes("Journey")) return "journey";
-  if (text.includes("Collection")) return "collection";
-  if (text.includes("Explore")) return "explore";
+  if (text.includes("Home") || text.includes("Trang chủ")) return "home";
+  if (text.includes("Journey") || text.includes("Hành trình")) return "journey";
+  if (text.includes("Collection") || text.includes("Thành quả")) return "collection";
+  if (text.includes("Explore") || text.includes("Khám phá")) return "explore";
   return null;
 }
 
@@ -89,7 +102,7 @@ export default function PinerPrototypeV8() {
     const nextSurface = surfaceFromButton(text);
     if (nextSurface) setSurface(nextSurface);
 
-    const next = resourceFromButton(text, currentViewerMode());
+    const next = resourceFromButton(button, currentViewerMode());
     if (!next) return;
 
     event.preventDefault();
@@ -216,15 +229,15 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
             <strong>{resource.title}</strong>
             <small>{resource.context}</small>
           </div>
-          <button type="button" onClick={onClose} aria-label="Đóng practice viewer">×</button>
+          <button type="button" onClick={onClose} aria-label="Đóng trình luyện tập"><PinerGlyph name="close" /></button>
         </header>
 
         {!landscape ? (
           <div className={v6.orientationGate}>
-            <div className={v6.phoneGlyph}>↻</div>
+            <div className={v6.phoneGlyph}><PinerGlyph name="practice-rotate" size={42} /></div>
             <h2>Lật ngang điện thoại để luyện tập</h2>
-            <p>V8 nối Practice Viewer với Journey/Home: ghi âm → submit → continuity state → PINO ghi nhận, nhưng không tự tăng level.</p>
-            <button type="button" onClick={() => setLandscape(true)}>Mô phỏng đã xoay ngang →</button>
+            <p>Xoay ngang để xem bản nhạc rõ hơn, nghe mẫu và ghi lại phần luyện tập của con.</p>
+            <button type="button" onClick={() => setLandscape(true)}><PinerGlyph name="practice-rotate" /> <span>Đã xoay ngang</span></button>
           </div>
         ) : (
           <div className={v6.landscapeWorkspace}>
@@ -236,13 +249,13 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
                   className={showWorksheet && worksheetAvailable && !pageLocked ? v6.activeTool : ""}
                   onClick={() => setShowWorksheet((value) => !value)}
                 >
-                  {!worksheetAvailable ? "Không có worksheet" : showWorksheet ? "Ẩn worksheet" : "Hiện worksheet"}
+                  <PinerGlyph name="practice-sheet" /> <span>{!worksheetAvailable ? "Không có hướng dẫn" : showWorksheet ? "Ẩn hướng dẫn" : "Hiện hướng dẫn"}</span>
                 </button>
                 <button type="button" disabled={pageLocked} className={listening ? v6.activeTool : ""} onClick={() => setListening((value) => !value)}>
-                  {listening ? "❚❚ Đang nghe" : "▶ Nghe mẫu"}
+                  <PinerGlyph name={listening ? "practice-pause" : "practice-listen"} /> <span>{listening ? "Tạm dừng" : "Nghe mẫu"}</span>
                 </button>
                 <button type="button" disabled={pageLocked || recording === "submitted"} className={recording === "recording" ? v6.recordingTool : ""} onClick={toggleRecording}>
-                  {recording === "recording" ? "■ Dừng ghi" : recording === "submitted" ? "✓ Đã gửi" : "● Ghi âm"}
+                  <PinerGlyph name={recording === "submitted" ? "check" : "practice-record"} /> <span>{recording === "recording" ? "Dừng ghi" : recording === "submitted" ? "Đã gửi" : "Ghi âm"}</span>
                 </button>
               </div>
 
@@ -250,8 +263,8 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
                 <div className={v7.expiredAccessBadge}><span>TRIAL ĐÃ HẾT HẠN</span><small>Trang 1 đã tập vẫn được giữ</small></div>
               ) : (
                 <div className={v6.accessPreview}>
-                  <span>Prototype access</span>
-                  <button type="button" className={!premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(false)}>Free</button>
+                  <span>Quyền luyện tập</span>
+                  <button type="button" className={!premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(false)}>Khám Phá</button>
                   <button type="button" className={premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(true)}>Premium</button>
                 </div>
               )}
@@ -272,7 +285,7 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
                     }}
                   >
                     <strong>Trang {candidate.page}</strong>
-                    <small>{locked ? "🔒 Premium" : candidate.worksheetUrl ? "Sheet + worksheet" : "Sheet only"}</small>
+                    <small>{locked ? "Premium" : candidate.worksheetUrl ? "Bản nhạc + hướng dẫn" : "Bản nhạc"}</small>
                   </button>
                 );
               })}
@@ -280,17 +293,17 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
 
             <div className={v6.viewerHint}>
               <strong>{pageLocked ? `Trang ${activePage} đang khóa` : `Trang ${activePage} · tập theo từng câu`}</strong>
-              <span>{worksheetAvailable ? "Bản nhạc full width · worksheet ngay bên dưới từng câu." : "Trang này chỉ có sheet; không cần worksheet."}</span>
+              <span>{worksheetAvailable ? "Bản nhạc ở trên · hướng dẫn thế tay ngay bên dưới từng câu." : "Trang này chỉ có bản nhạc."}</span>
             </div>
 
             {pageLocked ? (
               <div className={v7.pageLockState}>
-                <div className={v7.bigLock}>🔒</div>
+                <div className={v7.bigLock}><PinerGlyph name="lock" size={34} /></div>
                 <span className={v7.lockEyebrow}>TRIAL ĐÃ HẾT HẠN</span>
                 <h2>Trang {activePage} thuộc phần luyện tập Premium</h2>
                 <p>Leo vẫn xem được Trang 1 của bài đã tập qua. Các trang tiếp theo mở lại khi tiếp tục Premium.</p>
                 <button type="button" onClick={resumePremium}>Tiếp tục với Premium →</button>
-                <small>Prototype: CTA mô phỏng trạng thái đã nâng cấp để review phần nội dung sau lock.</small>
+                <small>Tiếp tục Premium để mở lại phần luyện tập này.</small>
               </div>
             ) : (
               <div className={v6.phraseScroller} key={activePage}>
@@ -330,15 +343,15 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
               <div className={`${v6.submitNotice} ${v8.viewerSubmitNotice}`}>
                 <div>
                   <strong>Đã gửi bài luyện tập</strong>
-                  <span>Journey chưa đổi level. Khi đóng viewer, Home/Journey sẽ surface continuity state này.</span>
+                  <span>PINO đã ghi nhận bài luyện tập. Tiến trình sẽ được cập nhật sau khi giáo viên xem lại.</span>
                 </div>
                 <button type="button" onClick={onClose}>Quay lại Journey →</button>
               </div>
             )}
 
             <footer className={v6.viewerFooter}>
-              <span>Practice → Submit → Continuity</span>
-              <small>V8 mock giữ submission tách biệt Assessment/Achievement. Mô phỏng PINO ghi nhận chỉ là learner-facing acknowledgement, không phải level-up.</small>
+              <span>Luyện tập · Gửi bài · Theo dõi tiến trình</span>
+              <small>Gửi bài không tự động tăng cấp; giáo viên vẫn là người xác nhận tiến trình học.</small>
             </footer>
           </div>
         )}
@@ -350,6 +363,8 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
 function RowCrop({ src, rowIndex, alt }: { src: string; rowIndex: number; alt: string }) {
   return (
     <div className={v6.rowCrop}>
+      {/* Native img is intentional: CSS crops one source sheet into phrase rows. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} draggable={false} style={{ top: `${-rowIndex * 100}%` }} />
     </div>
   );

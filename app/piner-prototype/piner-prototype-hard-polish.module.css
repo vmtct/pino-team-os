@@ -1,0 +1,597 @@
+.root {
+  position: relative;
+  --piner-ink: #22312c;
+  --piner-muted: #6f7b75;
+  --piner-paper: #f7f3ea;
+  --piner-card: #fffdf8;
+  --piner-line: rgba(34, 49, 44, 0.11);
+  --piner-forest: #516b5b;
+  --piner-sage: #e9efe6;
+  --piner-blush: #f5e3da;
+  --piner-gold: #b58b47;
+}
+
+.root :global([class*="deviceStage__"] > [data-v21-touchpoint-avatar="true"]) {
+  display: none !important;
+}
+
+.root :global([class*="device__"]) {
+  background: var(--piner-paper) !important;
+  border-color: rgba(34, 49, 44, 0.09) !important;
+  box-shadow: 0 28px 72px rgba(35, 45, 40, 0.16) !important;
+}
+
+.root :global([class*="appHeader__"]) {
+  min-height: 66px !important;
+  padding: 10px 16px !important;
+  background: rgba(255, 253, 248, 0.94) !important;
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(34, 49, 44, 0.08) !important;
+}
+.root :global([data-freeze-student-button="true"]) {
+  min-width: 0;
+  gap: 9px !important;
+}
+
+.root :global([class*="avatar__"]) {
+  width: 34px !important;
+  height: 34px !important;
+  background: #7d978c !important;
+  color: #fffdf8 !important;
+  font-weight: 700 !important;
+}
+
+.root :global([data-hard-icon-host="chevron-down"]) {
+  width: 14px !important;
+  height: 14px !important;
+  display: grid !important;
+  place-items: center !important;
+  opacity: 0.58;
+}
+
+.root :global([data-hard-icon-host="chevron-down"] img) {
+  width: 12px !important;
+  height: 12px !important;
+  object-fit: contain !important;
+}
+
+.root :global([class*="screen__"]) {
+  padding: 17px 15px 24px !important;
+  background: var(--piner-paper) !important;
+}
+.root :global([class*="stack__"]) {
+  gap: 14px !important;
+}
+
+.root :global([class*="heroCard__"]),
+.root :global([class*="sectionBlock__"]),
+.root :global([class*="returnCard__"]) {
+  border-radius: 22px !important;
+  border: 1px solid var(--piner-line) !important;
+  overflow: hidden;
+}
+
+.root :global([class*="heroCard__"]) {
+  padding: 22px 20px !important;
+  box-shadow: 0 12px 30px rgba(38, 48, 43, 0.08) !important;
+}
+
+.root :global([class*="sectionBlock__"]) {
+  padding: 16px !important;
+  background: var(--piner-card) !important;
+  box-shadow: 0 8px 24px rgba(38, 48, 43, 0.035) !important;
+}
+
+.root :global([class*="sectionHeading__"]) {
+  margin-bottom: 11px !important;
+  align-items: flex-start !important;
+}
+.root :global([class*="sectionHeading__"] h3),
+.root :global([class*="heroCard__"] h2),
+.root :global([class*="returnCard__"] h3) {
+  color: var(--piner-ink) !important;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+.root :global([class*="heroCard__"] h2) {
+  font-size: clamp(27px, 7vw, 34px) !important;
+  line-height: 1.04 !important;
+}
+
+.root :global([class*="sectionHeading__"] h3),
+.root :global([class*="returnCard__"] h3) {
+  font-size: 20px !important;
+  line-height: 1.12 !important;
+}
+
+.root :global([class*="eyebrow__"]) {
+  letter-spacing: 0.105em !important;
+  font-weight: 760 !important;
+}
+
+.root :global([class*="primaryButton__"]) {
+  min-height: 42px !important;
+  padding: 0 17px !important;
+  border-radius: 999px !important;
+  box-shadow: 0 6px 16px rgba(31, 42, 39, 0.12) !important;
+}
+.root :global([data-hard-icon-host]) {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 auto;
+}
+
+.root :global([data-hard-icon-host] > img[data-hard-icon="true"]) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+.root :global([data-freeze-glance-card="true"]) {
+  min-height: 68px !important;
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) 18px !important;
+  gap: 11px !important;
+  align-items: center !important;
+  padding: 11px 12px !important;
+  border-radius: 17px !important;
+  border: 1px solid var(--piner-line) !important;
+  background: #fffdf8 !important;
+}
+
+.root :global([data-freeze-glance-card="true"] [data-hard-icon-host^="path-"]) {
+  width: 38px !important;
+  height: 38px !important;
+  padding: 8px !important;
+  border-radius: 12px !important;
+  background: var(--piner-sage) !important;
+}
+.root :global([data-freeze-glance-card="true"] [data-hard-icon-host="arrow-right"]) {
+  width: 16px !important;
+  height: 16px !important;
+  opacity: 0.66;
+}
+
+.root :global([data-freeze-fresh-card="true"]) {
+  min-height: 72px !important;
+  display: grid !important;
+  grid-template-columns: 46px minmax(0, 1fr) 18px !important;
+  gap: 11px !important;
+  align-items: center !important;
+  padding: 11px 12px !important;
+  border-radius: 17px !important;
+  border: 1px solid var(--piner-line) !important;
+  background: #fffdf8 !important;
+}
+
+.root :global([data-freeze-fresh-card="true"] > [data-hard-icon-host]:first-child) {
+  width: 42px !important;
+  height: 42px !important;
+  padding: 8px !important;
+  border-radius: 13px !important;
+  background: #f2ecdf !important;
+}
+
+.root :global([data-freeze-fresh-card="true"] > [data-hard-icon-host="arrow-right"]) {
+  width: 16px !important;
+  height: 16px !important;
+  opacity: 0.66;
+}
+.root :global([class*="returnCard__"]) {
+  display: grid !important;
+  grid-template-columns: 50px minmax(0, 1fr) 38px !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 13px 14px !important;
+  background: #edf2e9 !important;
+}
+
+.root :global([class*="returnCard__"] [data-v21-touchpoint-avatar="true"]) {
+  width: 46px !important;
+  height: 46px !important;
+  padding: 9px !important;
+  border-radius: 14px !important;
+  background: rgba(255, 253, 248, 0.82) !important;
+}
+
+.root :global([class*="returnCard__"] button[class*="circleButton"]) {
+  width: 38px !important;
+  height: 38px !important;
+  padding: 11px !important;
+  border-radius: 999px !important;
+  background: var(--piner-ink) !important;
+}
+
+.root :global([class*="returnCard__"] button[class*="circleButton"] img) {
+  filter: brightness(0) invert(1);
+}
+.root :global([data-v16-primary-nav="true"]) {
+  padding: 8px 9px 10px !important;
+  gap: 4px !important;
+  background: rgba(255, 253, 248, 0.97) !important;
+  border-top: 1px solid rgba(34, 49, 44, 0.08) !important;
+  box-shadow: 0 -10px 28px rgba(35, 45, 40, 0.05) !important;
+  backdrop-filter: blur(18px);
+}
+
+.root :global([data-v16-nav-button="true"]) {
+  min-height: 54px !important;
+  padding: 6px 4px 5px !important;
+  border-radius: 14px !important;
+  gap: 4px !important;
+}
+
+.root :global([data-v16-nav-button="true"][data-v16-active="true"]) {
+  background: var(--piner-blush) !important;
+  box-shadow: inset 0 0 0 1px rgba(166, 94, 70, 0.18) !important;
+}
+
+.root :global([data-v21-nav-icon="true"]) {
+  width: 20px !important;
+  height: 20px !important;
+  opacity: 0.7;
+}
+
+.root :global([data-v16-active="true"] [data-v21-nav-icon="true"]) {
+  opacity: 1;
+}
+.root :global([data-v21-practice-card="true"]) {
+  border-radius: 18px !important;
+  border-color: var(--piner-line) !important;
+  background: #fffdf8 !important;
+  box-shadow: 0 7px 18px rgba(38, 48, 43, 0.035) !important;
+}
+
+.root :global([data-v21-practice-avatar="true"]) {
+  width: 46px !important;
+  height: 46px !important;
+  padding: 9px !important;
+  border-radius: 14px !important;
+  background: var(--piner-sage) !important;
+}
+
+.root :global([data-v21-practice-arrow="true"]) {
+  width: 16px !important;
+  height: 16px !important;
+  opacity: 0.68;
+}
+
+.root :global([data-v21-generic-assets="true"] small) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.root :global([data-hard-asset-chip]::before) {
+  content: "";
+  width: 13px;
+  height: 13px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.root :global([data-hard-asset-chip="practice-hand"]::before) {
+  background-image: url("https://assets.pinohouse.art/site/shared/piner-space-icon-practice-hand.svg");
+}
+.root :global([data-hard-asset-chip="practice-listen"]::before) {
+  background-image: url("https://assets.pinohouse.art/site/shared/piner-space-icon-practice-listen.svg");
+}
+.root :global([data-hard-asset-chip="practice-sheet"]::before) {
+  background-image: url("https://assets.pinohouse.art/site/shared/piner-space-icon-practice-sheet.svg");
+}
+
+.root :global([data-v22-session-card="true"]) {
+  border-radius: 18px !important;
+  border-color: var(--piner-line) !important;
+  background: #fffdf8 !important;
+  box-shadow: 0 7px 18px rgba(38, 48, 43, 0.04) !important;
+}
+
+.root :global([data-hard-premium-card="true"]) {
+  background: #fffaf0 !important;
+  border-color: rgba(181, 139, 71, 0.23) !important;
+}
+
+.root :global([data-v21-session-visual="true"][data-hard-icon-host]) {
+  width: 58px !important;
+  height: 58px !important;
+  padding: 12px !important;
+  border-radius: 16px !important;
+  background: var(--piner-sage) !important;
+}
+.root :global([data-hard-premium-card="true"] [data-v21-session-visual="true"]) {
+  background: #f7edd8 !important;
+}
+
+.root :global([data-v22-session-card="true"] > button:last-child) {
+  min-height: 40px !important;
+  padding-inline: 12px !important;
+  border-radius: 999px !important;
+  font-weight: 760 !important;
+}
+
+.root :global([data-hard-state-icon="lock"]::before) {
+  content: "";
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 5px;
+  vertical-align: -2px;
+  background: url("https://assets.pinohouse.art/site/shared/piner-space-icon-lock.svg") center / contain no-repeat;
+}
+
+.root :global([class*="lifecycleMark__"][data-hard-icon-host]) {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 8px !important;
+  border-radius: 11px !important;
+  background: rgba(255, 253, 248, 0.72) !important;
+}
+
+.root :global([class*="sheet__"]),
+.root :global([class*="modalCard__"]),
+.root :global([class*="syllabusModal__"]) {
+  border-radius: 24px !important;
+  box-shadow: 0 28px 80px rgba(28, 38, 34, 0.24) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  .root :global([data-freeze-glance-card="true"]:hover),
+  .root :global([data-freeze-fresh-card="true"]:hover),
+  .root :global([data-v21-practice-card="true"]:hover),
+  .root :global([data-v22-session-card="true"]:hover) {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 12px 28px rgba(38, 48, 43, 0.075) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .root :global([class*="device__"]) {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .root :global([class*="screen__"]) {
+    padding: 15px 13px 20px !important;
+  }
+  .root :global([class*="heroCard__"]) {
+    padding: 20px 17px !important;
+  }
+  .root :global([class*="sectionBlock__"]) {
+    padding: 14px !important;
+  }
+  .root :global([data-v16-primary-nav="true"]) {
+    padding-bottom: max(9px, env(safe-area-inset-bottom)) !important;
+  }
+}
+/* Defensive prototype shell sizing: later polish must never collapse the learner device. */
+.root :global([class*="deviceStage__"]) {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+}
+
+.root :global([class*="device__"]) {
+  width: min(100%, 540px) !important;
+  min-width: 0 !important;
+  max-width: 540px !important;
+  flex: 0 1 540px !important;
+}
+
+.root :global([class*="screen__"]) {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+@media (max-width: 560px) {
+  .root :global([class*="deviceStage__"]) {
+    width: 100% !important;
+  }
+  .root :global([class*="device__"]) {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 100% !important;
+  }
+}
+/* V21 also tags the outer stage as a touchpoint card; neutralize that legacy grid rule. */
+.root :global([class*="deviceStage__"][data-v21-touchpoint-card="true"]) {
+  display: flex !important;
+  grid-template-columns: none !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+}
+
+.root :global([class*="deviceStage__"][data-v21-touchpoint-card="true"] > [class*="device__"]) {
+  width: min(100%, 540px) !important;
+  min-width: 0 !important;
+  max-width: 540px !important;
+  flex: 0 1 540px !important;
+}
+
+@media (max-width: 560px) {
+  .root :global([class*="deviceStage__"][data-v21-touchpoint-card="true"] > [class*="device__"]) {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 100% !important;
+  }
+}
+.root :global(button[class*="primaryButton"] [data-hard-icon-host="arrow-right"]) {
+  display: inline-grid !important;
+  width: 14px !important;
+  height: 14px !important;
+  margin-left: 5px !important;
+  vertical-align: -2px !important;
+}
+
+.root :global(button[class*="primaryButton"] [data-hard-icon-host="arrow-right"] img) {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+@media (max-width: 560px) {
+  .root :global([class*="lifecycleLab__"]) {
+    display: none !important;
+  }
+}
+
+/* Public staging should read as the learner app, not as a prototype harness. */
+.root :global([class*="labPanel__"]),
+.root :global([class*="demoLauncherGroup__"]),
+.root :global(button[class*="demoLauncher__"]),
+.root :global([class*="lifecycleLab__"]),
+.root :global([data-v15-audit-mount="true"]) {
+  display: none !important;
+}
+
+.root :global(main[class*="prototype__"]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 28px !important;
+}
+
+@media (max-width: 560px) {
+  .root :global(main[class*="prototype__"]) {
+    padding: 0 !important;
+  }
+}
+
+.root :global([data-freeze-collection-card="true"] [data-hard-icon-host^="media-"]) {
+  width: 58px !important;
+  height: 58px !important;
+  padding: 12px !important;
+  margin-bottom: 8px !important;
+  border-radius: 15px !important;
+  background: #f2ecdf !important;
+  border: 1px solid rgba(31, 42, 39, 0.1) !important;
+  box-shadow: 0 4px 12px rgba(31, 42, 39, 0.06) !important;
+}
+
+.root :global([data-hard-asset-chip]) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.root :global([data-hard-asset-chip]::before) {
+  content: "";
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.root :global([data-hard-asset-chip="practice-sheet"]::before) {
+  background-image: url("https://assets.pinohouse.art/site/shared/piner-space-icon-practice-sheet.svg");
+}
+
+.root :global([data-hard-asset-chip="practice-hand"]::before) {
+  background-image: url("https://assets.pinohouse.art/site/shared/piner-space-icon-practice-hand.svg");
+}
+
+.root :global([data-hard-asset-chip="practice-listen"]::before) {
+  background-image: url("https://assets.pinohouse.art/site/shared/piner-space-icon-practice-listen.svg");
+}
+
+.root :global([data-hard-state-icon="lock"]) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.root :global([data-hard-state-icon="lock"]::before) {
+  content: "";
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  background: url("https://assets.pinohouse.art/site/shared/piner-space-icon-lock.svg") center / contain no-repeat;
+}
+
+.root :global([data-v21-syllabus-avatar="true"][data-hard-icon-host]) {
+  padding: 22px !important;
+  background: rgba(255, 253, 248, 0.86) !important;
+  border-color: rgba(255, 255, 255, 0.42) !important;
+}
+
+.root :global([class*="noticeIcon__"][data-hard-icon-host="lock"]) {
+  padding: 11px !important;
+}
+
+.root :global([class*="checkpointRow__"] [data-hard-icon-host]) {
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 auto !important;
+}
+
+.root :global([data-freeze-prototype-control="true"]) {
+  display: none !important;
+}
+
+/* Modal/detail icon sizing: canonical SVGs must never inherit full-width media dimensions. */
+.root :global([class*="sheetTitleRow"] > button[data-hard-icon-host="close"]),
+.root :global([class*="viewerHeader"] > button[data-hard-icon-host="close"]),
+.root :global([class*="modalClose"][data-hard-icon-host="close"]) {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 9px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.root :global([class*="mediaTile"] > span[data-hard-icon-host]) {
+  width: 48px !important;
+  height: 48px !important;
+  padding: 9px !important;
+  margin: 0 auto 8px !important;
+  border-radius: 14px !important;
+  background: #f3eee4 !important;
+}
+
+.root :global([class*="mediaTile"] > span[data-hard-icon-host] img) {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+.root :global([data-freeze-session-modal="true"] > header button[data-hard-icon-host="close"]) {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  padding: 8px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.root :global([data-freeze-session-hero="true"] > img[data-hard-icon-host]) {
+  object-fit: contain !important;
+  padding: 16px !important;
+  background: #edf2e9 !important;
+}
+
+.root :global([class*="accessCheck"] > span[data-hard-icon-host="check"]) {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 7px !important;
+  border-radius: 10px !important;
+}
+
+.root :global([data-hard-asset-chip]) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.root :global([data-hard-asset-chip] > img[data-hard-icon="true"]) {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 14px !important;
+  object-fit: contain !important;
+}

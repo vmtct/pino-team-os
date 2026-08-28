@@ -376,14 +376,12 @@ export default function PinerPracticeImmersive() {
       scanFrame = requestAnimationFrame(scan);
     });
 
-    const interval = window.setInterval(scan, 250);
     document.addEventListener("scroll", onDocumentScroll, true);
     scan();
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
     return () => {
       cancelAnimationFrame(scanFrame);
-      window.clearInterval(interval);
       observer.disconnect();
       document.removeEventListener("scroll", onDocumentScroll, true);
       bound.forEach((state) => state.cleanup());

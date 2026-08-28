@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import PinerPrototypeV19 from "./PinerPrototypeV19";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 const TEXT_SELECTOR = "p, small, span, strong, em, button, label, li, h1, h2, h3, h4";
 
@@ -42,30 +43,7 @@ function applyTypographyFloor(root: HTMLElement) {
 export default function PinerPrototypeV20() {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-    const observer = new MutationObserver(() => schedule());
-
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        observer.disconnect();
-        applyTypographyFloor(root);
-        observer.observe(root, { childList: true, subtree: true, characterData: true });
-      });
-    };
-
-    schedule();
-    observer.observe(root, { childList: true, subtree: true, characterData: true });
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, []);
+  usePrototypePolish(rootRef, applyTypographyFloor);
 
   return (
     <div ref={rootRef}>
