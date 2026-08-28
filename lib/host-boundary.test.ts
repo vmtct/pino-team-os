@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { BO_HOSTNAME, decideHostBoundary, RETIRED_TEAM_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
-  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/api/workforce/context", "/api/tos-learning/sessions/day", "/founder", "/api/founder/sessions"]) {
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/tos-learning/sessions/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);
   }
 });
