@@ -154,6 +154,7 @@ export function PinoriaTVPrototype() {
   const [housePresence, setHousePresence] = useState<TVSubject[]>([]);
   const [housePresenceLoaded, setHousePresenceLoaded] = useState(false);
   const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
+  const [ambientHiddenSubjectId, setAmbientHiddenSubjectId] = useState<string | null>(null);
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
   const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
@@ -237,6 +238,7 @@ export function PinoriaTVPrototype() {
         if (completed?.surface?.housePresence) applyHousePresence(completed.surface.housePresence);
         setReplayLabel(null);
         setAmbientCharacterVisible(true);
+        setAmbientHiddenSubjectId(null);
         setMode("ambient");
       }
     }
@@ -254,6 +256,7 @@ export function PinoriaTVPrototype() {
       if (event.kind === "control") {
         setReplayLabel(null);
         setAmbientCharacterVisible(true);
+        setAmbientHiddenSubjectId(null);
         setMode("ambient");
         void finishEvent(event.id);
         return;
@@ -328,7 +331,8 @@ export function PinoriaTVPrototype() {
       }
 
       if (event.mode === "arrival" && !event.replay) {
-        setAmbientCharacterVisible(false);
+        setAmbientCharacterVisible(true);
+        setAmbientHiddenSubjectId(event.subject.id);
         setMode("arrival");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
@@ -344,6 +348,7 @@ export function PinoriaTVPrototype() {
             if (stopped || activeEventId.current !== event.id) return;
             setAmbientSubject(event.subject!);
             setAmbientCharacterVisible(true);
+            setAmbientHiddenSubjectId(null);
             void finishEvent(event.id);
           }, CHOICE_TO_AMBIENT_MS);
         }, ARRIVAL_MS);
@@ -353,7 +358,8 @@ export function PinoriaTVPrototype() {
       if (event.mode === "departure" && !event.replay) {
         const actors = captureAmbientActors();
         setFrozenActors(actors);
-        setAmbientCharacterVisible(false);
+        setAmbientCharacterVisible(true);
+        setAmbientHiddenSubjectId(event.subject.id);
         setMode("departure-transition");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
@@ -451,6 +457,7 @@ export function PinoriaTVPrototype() {
       }).catch(() => undefined);
     }
     setReplayLabel(null);
+    setAmbientHiddenSubjectId(null);
     if (next === "reward") setReward(DEFAULT_ENERGY_SEED_REWARD);
     if (next === "learning") setSpotlight(DEFAULT_LEARNING_SPOTLIGHT);
     if (next === "broadcast") setBroadcast(DEFAULT_WORLD_BROADCAST);
@@ -487,7 +494,7 @@ export function PinoriaTVPrototype() {
         }}
       >
         <style>{`[data-ambient-backplane][data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
-        <AmbientSocialSimulation subjects={ambientSubjects} />
+        <AmbientSocialSimulation subjects={ambientSubjects} hiddenSubjectId={ambientHiddenSubjectId} />
         <WorldStateAmbientOverlay state={worldState} />
       </div>
 

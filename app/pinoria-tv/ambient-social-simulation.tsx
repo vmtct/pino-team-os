@@ -241,6 +241,19 @@ function seedSubjects(subjects: readonly AmbientSocialSubject[]): SocialAgent[] 
   });
 }
 
+function reconcileSubjects(current: WorldState, subjects: readonly AmbientSocialSubject[]): WorldState {
+  const seeded = seedSubjects(subjects);
+  const previous = new Map(current.agents.map((agent) => [agent.id, agent]));
+  const agents = seeded.map((seed) => {
+    const existing = previous.get(seed.id);
+    if (!existing || existing.zoneId !== seed.zoneId || existing.laneId !== seed.laneId) return seed;
+    return { ...seed, x: clamp(existing.x, seed.minX, seed.maxX), direction: existing.direction, pauseUntil: existing.pauseUntil, conversationId: existing.conversationId };
+  });
+  const ids = new Set(agents.map((agent) => agent.id));
+  const conversations = current.conversations.filter((conversation) => ids.has(conversation.aId) && ids.has(conversation.bId));
+  return { agents, conversations };
+}
+
 function intersectsBlocker(x: number, y: number, blocker: Blocker) {
   const left = x - HALF_W;
   const right = x + HALF_W;
@@ -376,7 +389,7 @@ function zoneLabel(zoneId: ZoneId) {
   return AREAS.areas.find((area) => area.id === zoneId)?.label ?? zoneId;
 }
 
-export function AmbientSocialSimulation({ subjects = [], debug = false }: { subjects?: readonly AmbientSocialSubject[]; debug?: boolean }) {
+export function AmbientSocialSimulation({ subjects = [], debug = false, hiddenSubjectId = null }: { subjects?: readonly AmbientSocialSubject[]; debug?: boolean; hiddenSubjectId?: string | null }) {
   const subjectSignature = useMemo(() => subjects.map((subject) => `${subject.id}:${subject.name}:${subject.path}:${subject.room}`).join("|"), [subjects]);
   const [world, setWorld] = useState<WorldState>(() => ({ agents: seedSubjects(subjects), conversations: [] }));
   const cooldownRef = useRef<CooldownMap>({});
@@ -384,9 +397,7 @@ export function AmbientSocialSimulation({ subjects = [], debug = false }: { subj
   const frameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setWorld({ agents: seedSubjects(subjects), conversations: [] });
-    cooldownRef.current = {};
-    lastFrameRef.current = null;
+    setWorld((current) => reconcileSubjects(current, subjects));
   }, [subjectSignature, subjects]);
 
   useEffect(() => {
@@ -419,13 +430,13 @@ export function AmbientSocialSimulation({ subjects = [], debug = false }: { subj
         <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 0, pointerEvents: "none" }} />
 
         {agents.filter((agent) => laneById(agent.laneId).midLayer === "behind").map((agent) => (
-          <SocialMini key={agent.id} agent={agent} />
+          <SocialMini key={agent.id} agent={agent} hidden={agent.id === hiddenSubjectId} />
         ))}
 
         <img src={ASSETS.mid} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 500000000, pointerEvents: "none" }} />
 
         {agents.filter((agent) => laneById(agent.laneId).midLayer === "front").map((agent) => (
-          <SocialMini key={agent.id} agent={agent} />
+          <SocialMini key={agent.id} agent={agent} hidden={agent.id === hiddenSubjectId} />
         ))}
 
         <img src={ASSETS.front} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 1100000000, pointerEvents: "none" }} />
@@ -458,7 +469,7 @@ export function AmbientSocialSimulation({ subjects = [], debug = false }: { subj
           ))}
         </svg>
 
-        {conversations.slice(0, GLOBAL_BUBBLE_HARD_CAP).map((conversation) => {
+        {conversations.filter((conversation) => conversation.aId !== hiddenSubjectId && conversation.bId !== hiddenSubjectId).slice(0, GLOBAL_BUBBLE_HARD_CAP).map((conversation) => {
           const a = agents.find((agent) => agent.id === conversation.aId);
           const b = agents.find((agent) => agent.id === conversation.bId);
           if (!a || !b) return null;
@@ -535,7 +546,7 @@ export function AmbientSocialSimulation({ subjects = [], debug = false }: { subj
   );
 }
 
-function SocialMini({ agent }: { agent: SocialAgent }) {
+function SocialMini({ agent, hidden = false }: { agent: SocialAgent; hidden?: boolean }) {
   const lane = laneById(agent.laneId);
   const localZ = Math.round(agent.y * 100) * 4096 + Math.round(agent.x) * 2;
   const zIndex = (lane.midLayer === "behind" ? 1000 : 600000000) + localZ;
@@ -546,6 +557,7 @@ function SocialMini({ agent }: { agent: SocialAgent }) {
       data-ambient-social-zone={agent.zoneId}
       data-ambient-social-conversation={agent.conversationId ?? ""}
       style={{
+        display: hidden ? "none" : undefined,
         position: "absolute",
         left: agent.x - HALF_W,
         top: agent.y - HALF_H,
