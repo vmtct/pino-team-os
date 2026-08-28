@@ -230,16 +230,16 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
             })}
           </nav>
 
-          <div style={{ display: "grid", justifyItems: "end", gap: 4 }}>
-            <strong style={{ fontSize: 17, color: "#f6ead8" }}>{session?.subject.name ?? "Bơ"}</strong>
-            <span style={{ color: "rgba(245,226,193,.56)", fontSize: 11.5, fontWeight: 900 }}>Cửa hàng đang mở</span>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 7, color: "rgba(245,226,193,.56)", fontSize: 11.5, fontWeight: 900 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#8fbd72", boxShadow: "0 0 12px rgba(143,189,114,.35)" }} />
+            <span>Cửa hàng đang mở</span>
           </div>
         </header>
 
         <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.2)", background: "radial-gradient(circle at 22% 12%,rgba(38,65,105,.14),transparent 32%),linear-gradient(180deg,rgba(43,31,29,.68),rgba(22,16,16,.82))", boxShadow: "0 30px 60px rgba(0,0,0,.28)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 41%,rgba(143,78,195,.14),transparent 50%)" }} />
           <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "auto minmax(0,1fr) auto", alignItems: "center", justifyItems: "center", padding: "12px 17px 17px" }}>
-            <JourneyRankPanel subjectId={session?.subject.id ?? "bo"} style={{ width: "100%", boxSizing: "border-box", padding: "3px 10px 8px", borderBottom: "1px solid rgba(236,199,126,.09)" }} />
+            <JourneyRankPanel subjectId={session?.subject.id ?? "bo"} subjectName={session?.subject.name ?? "Bơ"} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px 11px", borderBottom: "1px solid rgba(236,199,126,.09)" }} />
             <div style={{ position: "relative", display: "grid", placeItems: "center", alignSelf: "stretch", width: "100%" }}>
               <div key={selected?.assetId ?? "empty"} style={{ position: "relative", display: "grid", placeItems: "center", animation: "pinoriaShopPreviewNudge .5s ease-out both" }}>
                 <ShopCharacterPreview subjectId={session?.subject.id ?? "bo"} selected={selected} />
