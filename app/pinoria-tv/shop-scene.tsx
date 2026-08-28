@@ -37,7 +37,7 @@ function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; sele
     : undefined;
 
   return (
-    <div style={{ position: "relative", width: "min(448px,35.5vw)", aspectRatio: "1 / 1" }}>
+    <div style={{ position: "relative", width: "min(448px,35.5vw,50vh)", aspectRatio: "1 / 1" }}>
       <div
         style={{
           position: "absolute",
