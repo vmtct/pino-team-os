@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
+import { PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -14,7 +15,6 @@ import {
   PINORIA_SHOP_LOGO,
   PINORIA_SHOP_RELAY_URL,
   PINORIA_SHOP_SURFACE_ID,
-  type InventoryAchievementSlot,
   type InventoryFilter,
   type InventoryWearableSlot,
   type ShopCatalogItem,
@@ -22,17 +22,6 @@ import {
 } from "./shop-types";
 
 const WEARABLE_SLOTS: readonly InventoryWearableSlot[] = ["hair", "face", "headwear", "eyewear", "back", "body"];
-const ACHIEVEMENT_SLOTS: readonly InventoryAchievementSlot[] = [
-  "achievement-1",
-  "achievement-2",
-  "achievement-3",
-  "achievement-4",
-  "achievement-5",
-  "achievement-6",
-  "achievement-7",
-  "achievement-8",
-];
-
 const SLOT_LABELS: Record<InventoryWearableSlot, string> = {
   hair: "Tóc",
   face: "Mặt",
@@ -164,37 +153,6 @@ function levelRoman(level: number) {
   return ["", "I", "II", "III", "IV", "V"][level] ?? String(level);
 }
 
-function AchievementSlot({ imageUrl, level, index }: { imageUrl?: string; level?: number; index: number }) {
-  const empty = !imageUrl;
-  return (
-    <div
-      aria-label={empty ? `Ô thành quả ${index + 1} trống` : `Thành quả đang mang ở ô ${index + 1}`}
-      style={{
-        position: "relative",
-        width: 58,
-        height: 58,
-        borderRadius: 15,
-        display: "grid",
-        placeItems: "center",
-        background: empty ? "rgba(255,255,255,.012)" : "radial-gradient(circle,rgba(240,198,111,.1),rgba(42,28,23,.82) 70%)",
-        border: empty ? "1px dashed rgba(238,208,153,.15)" : "1px solid rgba(236,191,104,.25)",
-        boxShadow: empty ? undefined : "0 9px 22px rgba(0,0,0,.16),inset 0 0 16px rgba(234,188,95,.04)",
-      }}
-    >
-      {imageUrl ? (
-        <img src={imageUrl} alt="" draggable={false} style={{ width: "80%", height: "80%", objectFit: "contain", filter: "drop-shadow(0 6px 8px rgba(0,0,0,.24))" }} />
-      ) : (
-        <span style={{ color: "rgba(242,225,194,.14)", fontSize: 14 }}>✦</span>
-      )}
-      {level ? (
-        <span style={{ position: "absolute", right: -2, bottom: -2, minWidth: 18, height: 18, padding: "0 4px", display: "grid", placeItems: "center", borderRadius: 99, background: "#d7ab55", border: "2px solid #281a15", color: "#281a15", fontSize: 7, fontWeight: 950 }}>
-          {levelRoman(level)}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
 function WearableSlot({ slot, imageUrl }: { slot: InventoryWearableSlot; imageUrl?: string }) {
   const empty = !imageUrl;
   return (
@@ -269,14 +227,8 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
     [session],
   );
 
-  const activatedMarkIds = useMemo(() => {
-    const earned = session?.earnedAchievementIds ?? [];
-    const ids: string[] = [];
-    if (earned.some((id) => id.startsWith("badge-artchitect-"))) ids.push("mark-02");
-    if (earned.some((id) => id.startsWith("badge-pianohouse-"))) ids.push("mark-03");
-    if (earned.some((id) => id.startsWith("badge-house-helper-"))) ids.push("mark-04");
-    return ids;
-  }, [session?.earnedAchievementIds]);
+  const activatedMarkIds = activatedMarkIdsFromEarned(session?.earnedAchievementIds);
+  const characterAccessories = characterAccessoriesFromEquipment(session?.equipment);
 
   const inventoryItems = useMemo<InventoryItem[]>(() => {
     const equippedWearableIds = new Set(Object.values(session?.equipment?.wearables ?? {}));
@@ -326,7 +278,6 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
     return overrides;
   }, [catalog, session]);
 
-  const achievementById = useMemo(() => new Map(achievements.map((item) => [item.id, item])), [achievements]);
   const equipmentCount = Object.keys(session?.equipment?.wearables ?? {}).length + Object.keys(session?.equipment?.achievements ?? {}).length;
 
   async function setInventoryFilter(filter: InventoryFilter) {
@@ -342,12 +293,6 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
       // Review surface keeps the last shared state if the relay pauses.
     }
   }
-
-  const renderAchievementSlot = (slot: InventoryAchievementSlot, index: number) => {
-    const achievementId = session?.equipment?.achievements?.[slot];
-    const item = achievementId ? achievementById.get(achievementId) : undefined;
-    return <AchievementSlot key={slot} imageUrl={item?.imageUrl} level={item?.level} index={index} />;
-  };
 
   return (
     <div data-pinoria-inventory-scene style={{ position: "absolute", inset: 0, overflow: "hidden", color: "#f6ead7", background: "#1b1411" }}>
@@ -375,55 +320,26 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
             })}
           </div>
 
-          <div style={{ display: "grid", justifyItems: "end", gap: 4 }}>
-            <strong style={{ fontSize: 17, color: "#f6ead8" }}>{session?.subject.name ?? "Bơ"}</strong>
-            <span style={{ color: "#efc875", fontSize: 11, fontWeight: 900, textAlign: "right", lineHeight: 1.25 }}>✦ {equipmentCount} đang trang bị<span style={{ display: "block", marginTop: 2, color: "rgba(239,200,117,.68)", fontSize: 9.5 }}>{activatedMarkIds.length} dấu ấn tự kích hoạt</span></span>
+          <div style={{ display: "grid", justifyItems: "end", gap: 3 }}>
+            <span style={{ color: "#efc875", fontSize: 11, fontWeight: 900, textAlign: "right", lineHeight: 1.25 }}>✦ {equipmentCount} đang trang bị</span>
+            <span style={{ color: "rgba(239,200,117,.58)", fontSize: 9.5 }}>{activatedMarkIds.length} dấu ấn tự kích hoạt</span>
           </div>
         </header>
 
         <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.2)", background: "linear-gradient(180deg,rgba(46,30,25,.61),rgba(24,16,14,.78))", boxShadow: "0 30px 60px rgba(0,0,0,.27)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 52% 42%,rgba(143,78,195,.13),transparent 52%)" }} />
-          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", padding: "14px 16px 15px" }}>
-            <div style={{ position: "relative", minHeight: 0, display: "grid", placeItems: "center" }}>
-{inventoryFilter === "accessory" ? <>
-              <span style={{ position: "absolute", left: "50%", top: 5, transform: "translateX(-50%)", color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em", zIndex: 28 }}>PHỤ KIỆN THÀNH QUẢ ĐANG DÙNG</span>
-              <div style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-47%)", display: "grid", gridTemplateRows: "repeat(4,58px)", gap: 10, zIndex: 28 }}>
-                {ACHIEVEMENT_SLOTS.slice(0, 4).map((slot, index) => renderAchievementSlot(slot, index))}
-              </div>
-              </> : null}
-
-              <div style={{ width: "min(400px,31.2vw)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
-                <PrototypeCharacter
-                  subjectId={session?.subject.id ?? "bo"}
-                  motion="shop-preview"
-                  layerOverrides={layerOverrides}
-                  prestigeMarkIds={activatedMarkIds}
-                  size="100%"
-                  style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }}
-                />
-              </div>
-
-{inventoryFilter === "accessory" ? <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-47%)", display: "grid", gridTemplateRows: "repeat(4,58px)", gap: 10, zIndex: 28 }}>
-                {ACHIEVEMENT_SLOTS.slice(4, 8).map((slot, index) => renderAchievementSlot(slot, index + 4))}
-              </div> : null}
-
-              <div style={{ position: "absolute", right: 10, bottom: 25, width: 144, zIndex: 32 }}>
-                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} />
-              </div>
+          <PinoriaCharacterFrame
+            subjectId={session?.subject.id ?? "bo"}
+            subjectName={session?.subject.name ?? "Bơ"}
+            accessories={characterAccessories}
+            style={{ padding: "12px 16px 15px" }}
+            companion={<div data-inventory-companion style={{ position: "absolute", right: "clamp(76px,6.5vw,102px)", bottom: "clamp(18px,3.6vh,36px)", width: "clamp(118px,8vw,148px)", zIndex: 32 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></div>}
+            footer={<div style={{ borderRadius: 17, padding: "9px 12px 11px", background: "rgba(19,12,10,.7)", border: "1px solid rgba(240,196,112,.16)" }}><div style={{ marginBottom: 7, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>{inventoryFilter === "outfit" ? "TRANG PHỤC ĐANG MẶC" : "PHỤ KIỆN ĐANG DÙNG"}</div><div style={{ display: "grid", gridTemplateColumns: `repeat(${visibleEquippedSlots.length},58px)`, justifyContent: "center", gap: 8 }}>{visibleEquippedSlots.map((slot) => { const assetId = session?.equipment?.wearables?.[slot]; const item = assetId ? catalog.find((candidate) => candidate.assetId === assetId) : undefined; return <WearableSlot key={slot} slot={slot} imageUrl={item?.imageUrl} />; })}</div></div>}
+          >
+            <div style={{ width: "min(390px,30.5vw,50vh)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
+              <PrototypeCharacter subjectId={session?.subject.id ?? "bo"} motion="shop-preview" layerOverrides={layerOverrides} prestigeMarkIds={activatedMarkIds} size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />
             </div>
-
-            <div style={{ borderRadius: 17, padding: "9px 12px 11px", background: "rgba(19,12,10,.7)", border: "1px solid rgba(240,196,112,.16)" }}>
-              <div style={{ marginBottom: 7, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>{inventoryFilter === "outfit" ? "TRANG PHỤC ĐANG MẶC" : "PHỤ KIỆN ĐANG DÙNG"}</div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${visibleEquippedSlots.length},58px)`, justifyContent: "center", gap: 8 }}>
-                {visibleEquippedSlots.map((slot) => {
-                  const assetId = session?.equipment?.wearables?.[slot];
-                  const item = assetId ? catalog.find((candidate) => candidate.assetId === assetId) : undefined;
-                  return <WearableSlot key={slot} slot={slot} imageUrl={item?.imageUrl} />;
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
+          </PinoriaCharacterFrame>        </section>
 
         <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto minmax(0,1fr) auto", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 30 }}>

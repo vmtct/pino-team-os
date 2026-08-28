@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
-import { JourneyRankPanel } from "./journey-rank";
+import { PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -31,7 +31,7 @@ const SPARKLES = [
   { left: "67%", top: "72%", delay: "310ms", size: 9 },
 ] as const;
 
-function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; selected?: ShopCatalogItem }) {
+function ShopCharacterPreview({ subjectId, selected, prestigeMarkIds }: { subjectId: string; selected?: ShopCatalogItem; prestigeMarkIds?: string[] }) {
   const layerOverrides: PrototypeCharacterLayerOverrides | undefined = selected?.previewable && selected.layerUrl
     ? { [selected.slot as PrototypeCharacterSlot]: selected.layerUrl }
     : undefined;
@@ -88,6 +88,7 @@ function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; sele
         subjectId={subjectId}
         motion="shop-preview"
         layerOverrides={layerOverrides}
+        prestigeMarkIds={prestigeMarkIds}
         size="100%"
         style={{ position: "absolute", inset: 0, zIndex: 10, filter: "drop-shadow(0 18px 20px rgba(0,0,0,.18))" }}
       />
@@ -192,6 +193,8 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
   const owned = !!selected && !!session?.ownedAssetIds.includes(selected.assetId);
   const purchaseResult = session?.purchaseResult;
   const resultItem = purchaseResult ? catalog.find((item) => item.assetId === purchaseResult.assetId) : undefined;
+  const characterAccessories = characterAccessoriesFromEquipment(session?.equipment);
+  const activatedMarkIds = activatedMarkIdsFromEarned(session?.earnedAchievementIds);
 
   return (
     <div data-pinoria-shop-scene style={{ position: "absolute", inset: 0, overflow: "hidden", color: "#f7ead7", background: "#1d1512" }}>
@@ -238,33 +241,19 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
 
         <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.2)", background: "radial-gradient(circle at 22% 12%,rgba(38,65,105,.14),transparent 32%),linear-gradient(180deg,rgba(43,31,29,.68),rgba(22,16,16,.82))", boxShadow: "0 30px 60px rgba(0,0,0,.28)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 41%,rgba(143,78,195,.14),transparent 50%)" }} />
-          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "auto minmax(0,1fr) auto", alignItems: "center", justifyItems: "center", padding: "12px 17px 17px" }}>
-            <JourneyRankPanel subjectId={session?.subject.id ?? "bo"} subjectName={session?.subject.name ?? "Bơ"} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px 11px", borderBottom: "1px solid rgba(236,199,126,.09)" }} />
-            <div style={{ position: "relative", display: "grid", placeItems: "center", alignSelf: "stretch", width: "100%" }}>
-              <div key={selected?.assetId ?? "empty"} style={{ position: "relative", display: "grid", placeItems: "center", animation: "pinoriaShopPreviewNudge .5s ease-out both" }}>
-                <ShopCharacterPreview subjectId={session?.subject.id ?? "bo"} selected={selected} />
-                {selected ? (
-                  <div style={{ position: "absolute", inset: "8%", zIndex: 75, pointerEvents: "none" }}>
-                    {SPARKLES.map((sparkle, index) => (
-                      <span key={`${selected.assetId}:${index}`} style={{ position: "absolute", left: sparkle.left, top: sparkle.top, color: "#f5cb72", fontSize: sparkle.size, textShadow: "0 0 16px rgba(244,197,100,.65)", opacity: 0, animation: `pinoriaShopSparkle 1.25s ease-out ${sparkle.delay} both` }}>✦</span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div data-shop-companion style={{ position: "absolute", right: "clamp(18px,3.2vw,50px)", bottom: "clamp(22px,4.4vh,44px)", width: "clamp(132px,8.8vw,164px)", zIndex: 82 }}>
-                <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 18px 22px rgba(0,0,0,.36))" }} />
-              </div>
+          <PinoriaCharacterFrame
+            subjectId={session?.subject.id ?? "bo"}
+            subjectName={session?.subject.name ?? "Bơ"}
+            accessories={characterAccessories}
+            style={{ padding: "12px 17px 17px" }}
+            companion={<div data-shop-companion style={{ position: "absolute", right: "clamp(76px,6.6vw,104px)", bottom: "clamp(20px,4vh,42px)", width: "clamp(118px,8vw,150px)", zIndex: 82 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 18px 22px rgba(0,0,0,.36))" }} /></div>}
+            footer={<div data-shop-preview-info style={{ width: "100%", padding: "14px 16px", borderRadius: 17, background: "rgba(20,13,11,.72)", border: "1px solid rgba(240,196,112,.17)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}><div style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ flex: "0 0 auto", padding: "5px 8px", borderRadius: 999, border: "1px solid rgba(239,195,110,.18)", background: "rgba(46,31,24,.72)", color: "rgba(248,232,204,.62)", fontSize: 9, fontWeight: 950, letterSpacing: ".09em" }}>ĐANG THỬ</span><strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 19, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>{owned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", width: 19, height: 19, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(91,146,73,.22)", border: "1px solid rgba(142,203,118,.42)", color: "#a7df92", fontSize: 12, fontWeight: 950 }}>✓</span> : null}</div><p style={{ margin: "7px 0 0", color: "rgba(246,235,217,.62)", fontSize: 12, lineHeight: 1.45 }}>{descriptionFor(selected)}</p></div>}
+          >
+            <div key={selected?.assetId ?? "empty"} style={{ position: "relative", display: "grid", placeItems: "center", animation: "pinoriaShopPreviewNudge .5s ease-out both" }}>
+              <ShopCharacterPreview subjectId={session?.subject.id ?? "bo"} selected={selected} prestigeMarkIds={activatedMarkIds} />
+              {selected ? <div style={{ position: "absolute", inset: "8%", zIndex: 75, pointerEvents: "none" }}>{SPARKLES.map((sparkle, index) => <span key={`${selected.assetId}:${index}`} style={{ position: "absolute", left: sparkle.left, top: sparkle.top, color: "#f5cb72", fontSize: sparkle.size, textShadow: "0 0 16px rgba(244,197,100,.65)", opacity: 0, animation: `pinoriaShopSparkle 1.25s ${sparkle.delay} both` }}>✦</span>)}</div> : null}
             </div>
-            <div data-shop-preview-info style={{ width: "100%", padding: "14px 16px", borderRadius: 17, background: "rgba(20,13,11,.72)", border: "1px solid rgba(240,196,112,.17)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <span style={{ flex: "0 0 auto", padding: "5px 8px", borderRadius: 999, border: "1px solid rgba(239,195,110,.18)", background: "rgba(46,31,24,.72)", color: "rgba(248,232,204,.62)", fontSize: 9, fontWeight: 950, letterSpacing: ".09em" }}>ĐANG THỬ</span>
-                <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 19, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
-                {owned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", width: 19, height: 19, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(91,146,73,.22)", border: "1px solid rgba(142,203,118,.42)", color: "#a7df92", fontSize: 12, fontWeight: 950 }}>✓</span> : null}
-              </div>
-              <p style={{ margin: "7px 0 0", color: "rgba(246,235,217,.62)", fontSize: 12, lineHeight: 1.45 }}>{descriptionFor(selected)}</p>
-            </div>
-          </div>
-        </section>
+          </PinoriaCharacterFrame>        </section>
 
         <section style={{ minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 13 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 32 }}>

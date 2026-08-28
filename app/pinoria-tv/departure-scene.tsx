@@ -2,7 +2,8 @@
 
 import { DEPARTURE_HERO_TARGET } from "./departure-layout";
 import { PinoriaStage } from "./pinoria-stage";
-import { PrototypeCharacter } from "./prototype-assets";
+import { PinoriaCharacterFrame, mockCharacterAccessories } from "./character-frame";
+import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 
 type DepartureSubject = {
   id: string;
@@ -86,13 +87,20 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
         </section>
 
         <section aria-hidden="true" className="pinoriaDepartureCharacter" data-departure-hero-anchor style={{ position: "absolute", left: `${DEPARTURE_HERO_TARGET.leftPct}%`, top: `${DEPARTURE_HERO_TARGET.topPct}%`, width: `${DEPARTURE_HERO_TARGET.widthPct}%`, aspectRatio: "1 / 1", zIndex: 3, animation: "pinoriaDepartureCharacter 8.6s cubic-bezier(.18,.8,.2,1) both", transformOrigin: "50% 50%" }}>
-          <div style={{ position: "absolute", inset: "10%", borderRadius: "50%", border: "1px solid rgba(236,216,146,.16)", boxShadow: "0 0 70px rgba(223,205,119,.14),inset 0 0 60px rgba(255,255,255,.025)" }} />
-          <div style={{ position: "absolute", left: "20%", right: "5%", bottom: "8%", height: "7%", borderRadius: "50%", background: "rgba(4,8,5,.55)", filter: "blur(16px)" }} />
-          <PrototypeCharacter subjectId={subject.id} wingMotion="idle" size="100%" style={{ position: "relative", zIndex: 2, filter: "drop-shadow(0 30px 30px rgba(0,0,0,.30))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} />
-          <div style={{ position: "absolute", right: "6%", bottom: "10%", zIndex: 4, minWidth: 150, padding: "8px 12px", borderRadius: 999, textAlign: "center", background: "rgba(18,29,20,.84)", border: "1px solid rgba(255,255,255,.12)", boxShadow: "0 12px 26px rgba(0,0,0,.18)", backdropFilter: "blur(9px)" }}>
-            <strong style={{ display: "block", fontSize: 14 }}>{subject.name}</strong>
-            <span style={{ display: "block", marginTop: 2, color: "#d8c990", fontSize: 9, letterSpacing: ".08em" }}>ĐÃ HOÀN THÀNH BUỔI HÔM NAY</span>
-          </div>
+          <PinoriaCharacterFrame
+            subjectId={subject.id}
+            subjectName={subject.name}
+            accessories={mockCharacterAccessories(subject.id)}
+            style={{ width: "100%", height: "100%" }}
+            identityStyle={{ padding: "5px 8px 10px" }}
+            companion={hasCompanion ? <div data-departure-companion style={{ position: "absolute", right: "clamp(70px,6vw,96px)", bottom: "8%", width: "clamp(112px,8vw,150px)", zIndex: 5 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.24))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} /></div> : undefined}
+          >
+            <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center" }}>
+              <div style={{ position: "absolute", inset: "12%", borderRadius: "50%", border: "1px solid rgba(236,216,146,.16)", boxShadow: "0 0 70px rgba(223,205,119,.14),inset 0 0 60px rgba(255,255,255,.025)" }} />
+              <div style={{ position: "absolute", left: "20%", right: "5%", bottom: "8%", height: "7%", borderRadius: "50%", background: "rgba(4,8,5,.55)", filter: "blur(16px)" }} />
+              <PrototypeCharacter subjectId={subject.id} wingMotion="idle" size="min(88%,52vh)" style={{ position: "relative", zIndex: 2, filter: "drop-shadow(0 30px 30px rgba(0,0,0,.30))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} />
+            </div>
+          </PinoriaCharacterFrame>
         </section>
 
         <div className="pinoriaDepartureRoute" style={{ position: "absolute", left: "50%", bottom: "2.8%", minWidth: "43%", padding: "9px 16px", borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, background: "rgba(15,23,16,.72)", border: "1px solid rgba(255,255,255,.10)", color: "#d9ddd4", fontSize: 11, letterSpacing: ".05em", backdropFilter: "blur(10px)", animation: "pinoriaDepartureRoute 8.6s cubic-bezier(.18,.82,.2,1) both" }}>

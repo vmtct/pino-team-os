@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PinoriaCharacterFrame, mockCharacterAccessories } from "./character-frame";
 import {
   AMBIENT_HOUSE_ARRIVAL_ASSETS,
   DEFAULT_ARRIVAL_BACKGROUND,
@@ -14,7 +15,6 @@ import {
   PrototypeCompanion,
   prototypeCharacterEffects,
   prototypeCompanionManifest,
-  prototypeFloatingProps,
 } from "./prototype-assets";
 
 type ArrivalSubject = {
@@ -24,143 +24,7 @@ type ArrivalSubject = {
   companion: string;
 };
 
-const INVENTORY_PLACEHOLDERS = ["Huy hiệu", "Dây chuyền", "Vòng tay", "Nhẫn"] as const;
 const HOUSE_COVER_SECONDS = 1.15;
-
-function InventoryGrid({ delay = .48 }: { delay?: number }) {
-  const childDelayOffset = Math.max(0, delay - .48);
-
-  return (
-    <div
-      data-pinoria-arrival-inventory
-      style={{
-        position: "absolute",
-        right: 24,
-        top: 18,
-        zIndex: 24,
-        display: "grid",
-        justifyItems: "end",
-        gap: 6,
-        pointerEvents: "none",
-        animation: `pinoriaInventoryReveal .72s ${delay}s cubic-bezier(.18,.82,.2,1) both`,
-      }}
-    >
-      <div
-        style={{
-          paddingRight: 2,
-          color: "rgba(244,232,210,.68)",
-          fontSize: 9,
-          fontWeight: 900,
-          lineHeight: 1,
-          letterSpacing: ".16em",
-        }}
-      >
-        TRANG BỊ
-      </div>
-
-      <div
-        data-pinoria-arrival-inventory-grid
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 63px)",
-          gridTemplateRows: "repeat(4, 63px)",
-          gap: 6,
-          padding: 7,
-          borderRadius: 14,
-          background: "rgba(43,32,27,.50)",
-          border: "1px solid rgba(255,255,255,.11)",
-          boxShadow: "0 15px 31px rgba(0,0,0,.19), inset 0 1px 0 rgba(255,255,255,.045)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        {prototypeFloatingProps.map((prop, index) => (
-          <div
-            key={prop.id}
-            data-pinoria-inventory-item={prop.id}
-            style={{
-              position: "relative",
-              width: 63,
-              height: 63,
-              borderRadius: 11,
-              overflow: "hidden",
-              background: "linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.022))",
-              border: "1px solid rgba(240,213,142,.15)",
-              boxShadow: "inset 0 0 15px rgba(215,194,117,.03)",
-              animation: `pinoriaInventoryItemReveal .54s ${.58 + childDelayOffset + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: "13%",
-                borderRadius: "50%",
-                background: "radial-gradient(circle,rgba(231,211,145,.12),transparent 70%)",
-                filter: "blur(6px)",
-              }}
-            />
-            <img
-              src={prop.src}
-              alt=""
-              draggable={false}
-              decoding="async"
-              loading="eager"
-              style={{
-                position: "absolute",
-                inset: 5,
-                width: "calc(100% - 10px)",
-                height: "calc(100% - 10px)",
-                objectFit: "contain",
-                filter: "drop-shadow(0 5px 7px rgba(0,0,0,.2))",
-              }}
-            />
-          </div>
-        ))}
-
-        {INVENTORY_PLACEHOLDERS.map((label, index) => (
-          <div
-            key={label}
-            data-pinoria-inventory-placeholder={label}
-            style={{
-              position: "relative",
-              width: 63,
-              height: 63,
-              display: "grid",
-              placeItems: "center",
-              borderRadius: 11,
-              boxSizing: "border-box",
-              background: "rgba(255,255,255,.02)",
-              border: "1px dashed rgba(229,216,175,.17)",
-              color: "rgba(235,230,211,.40)",
-              textAlign: "center",
-              fontSize: 7.7,
-              lineHeight: 1.2,
-              letterSpacing: ".02em",
-              padding: 6,
-              animation: `pinoriaInventoryItemReveal .54s ${.9 + childDelayOffset + index * .08}s cubic-bezier(.18,.82,.2,1) both`,
-            }}
-          >
-            <span style={{ display: "grid", gap: 3, justifyItems: "center" }}>
-              <i
-                aria-hidden="true"
-                style={{
-                  display: "block",
-                  width: 15,
-                  height: 15,
-                  borderRadius: "50%",
-                  border: "1px solid rgba(235,230,211,.20)",
-                  position: "relative",
-                }}
-              >
-                <b style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-54%)", fontSize: 10, fontWeight: 400, lineHeight: 1, color: "rgba(235,230,211,.28)" }}>+</b>
-              </i>
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function HouseAmbientBackdrop() {
   return (
@@ -315,7 +179,6 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
 
   const houseBackground = backgroundVariant === "ambient-house-blur";
   const foregroundDelay = houseBackground ? HOUSE_COVER_SECONDS : 0;
-  const inventoryDelay = .48 + foregroundDelay;
 
   return (
     <div
@@ -398,8 +261,6 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         }}
       />
 
-      <InventoryGrid delay={inventoryDelay} />
-
       <div style={{ position: "absolute", inset: 0, zIndex: 2, boxSizing: "border-box", padding: "76px clamp(70px,7vw,110px) 58px", display: "grid", gridTemplateColumns: "minmax(0,.82fr) minmax(500px,1.18fr)", alignItems: "center", gap: 34 }}>
         <section className="pinoriaArrivalCopy" style={{ maxWidth: 560, animation: `pinoriaArrivalCopy 6.2s ${foregroundDelay}s cubic-bezier(.2,.75,.2,1) both` }}>
           <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>CHÀO ĐẾN · {subject.name.toUpperCase()}</span>
@@ -411,7 +272,9 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           </div>
         </section>
 
-        <section aria-hidden="true" className="pinoriaArrivalCharacter" style={{ position: "relative", width: "min(610px,48vw)", height: "min(530px,70vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
+        <section aria-hidden="true" className="pinoriaArrivalCharacter" style={{ position: "relative", width: "min(650px,50vw)", height: "min(590px,76vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
+          <PinoriaCharacterFrame subjectId={subject.id} subjectName={subject.name} accessories={mockCharacterAccessories(subject.id)} style={{ width: "100%", height: "100%" }} identityStyle={{ padding: "5px 8px 10px" }}>
+            <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center" }}>
           <OrbitingMarks />
 
           <div
@@ -420,7 +283,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
               position: "absolute",
               left: "50%",
               top: "50%",
-              width: "min(500px,42vw)",
+              width: "min(430px,36vw,52vh)",
               aspectRatio: "1 / 1",
               transform: "translate(-50%,-50%) translateX(-11px)",
               zIndex: 0,
@@ -479,7 +342,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             }}
           />
 
-          <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" size="min(500px,42vw)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
+          <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" size="min(430px,36vw,52vh)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
           <div
             data-pinoria-full-character-companion
@@ -504,7 +367,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
               position: "absolute",
               left: "50%",
               top: "50%",
-              width: "min(500px,42vw)",
+              width: "min(430px,36vw,52vh)",
               aspectRatio: "1 / 1",
               transform: "translate(-50%,-50%) translateX(-11px)",
               zIndex: 12,
@@ -535,7 +398,8 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
                 }}
               />
             ))}
-          </div>
+          </div>            </div>
+          </PinoriaCharacterFrame>
         </section>
       </div>
     </div>
