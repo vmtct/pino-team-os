@@ -20,11 +20,28 @@ function companionLabel(value: string) {
   return value;
 }
 
+function DepartureHouseScrim() {
+  return (
+    <div
+      data-pinoria-departure-house-scrim
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 0,
+        pointerEvents: "none",
+        background: "radial-gradient(circle at 68% 40%,rgba(140,149,109,.24) 0,rgba(73,84,57,.34) 34%,rgba(39,49,38,.50) 67%,rgba(23,30,24,.64) 100%),linear-gradient(90deg,rgba(12,18,13,.28),rgba(12,18,13,.10) 48%,rgba(13,18,13,.22))",
+        backdropFilter: "blur(7px) brightness(.62) saturate(.78) contrast(.98)",
+        WebkitBackdropFilter: "blur(7px) brightness(.62) saturate(.78) contrast(.98)",
+      }}
+    />
+  );
+}
+
 export function DepartureScene({ subject }: { subject: DepartureSubject }) {
   const hasCompanion = !!subject.companion && !subject.companion.startsWith("Chưa có");
 
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#111912", color: "#fff" }}>
+    <div data-pinoria-departure-reveal style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent", color: "#fff" }}>
       <style>{`
         @keyframes pinoriaDepartureCopy {
           0%,10% { opacity:0; transform:translateY(18px) }
@@ -56,7 +73,8 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
         }
       `}</style>
 
-      <PinoriaStage dataStage="departure" style={{ background: "radial-gradient(circle at 68% 40%,#8c956d 0,#495439 34%,#273126 67%,#171e18 100%)" }}>
+      <PinoriaStage dataStage="departure" style={{ background: "transparent" }}>
+        <DepartureHouseScrim />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,rgba(12,18,13,.36),transparent 48%,rgba(13,18,13,.16))" }} />
         <div style={{ position: "absolute", right: "4%", top: "2%", width: "58%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle,#eadb9d38 0,#d7c68310 44%,transparent 70%)", filter: "blur(24px)", animation: "pinoriaDepartureGlow 4.8s ease-in-out infinite" }} />
         <div style={{ position: "absolute", left: "-8%", bottom: "-24%", width: "56%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle,#6a86542b,transparent 69%)", filter: "blur(28px)" }} />
@@ -76,7 +94,7 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
             <SummaryCard label="HÀNH TRÌNH" value={subject.path} delay=".18s" />
             <SummaryCard label="KHU VỰC" value={subject.room} delay=".26s" />
             <SummaryCard label="HỘ LINH" value={companionLabel(subject.companion)} delay=".34s" />
-            <SummaryCard label="TÀI NGUYÊN" value={`${subject.pls} PLS · ${subject.fruit} Fruit`} delay=".42s" />
+            <SummaryCard label="NHẬT KÝ" value="Khoảnh khắc hôm nay đã được lưu" delay=".42s" />
           </div>
 
           <div className="pinoriaDepartureCard" style={{ marginTop: 14, maxWidth: 650, padding: "12px 14px", borderRadius: 18, background: "linear-gradient(110deg,rgba(225,199,116,.16),rgba(255,255,255,.045))", border: "1px solid rgba(232,208,135,.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)", animation: "pinoriaDepartureCard 8.6s .22s cubic-bezier(.18,.82,.2,1) both" }}>
