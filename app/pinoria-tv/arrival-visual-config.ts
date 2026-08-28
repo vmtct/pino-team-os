@@ -15,7 +15,7 @@ export const ARRIVAL_BACKGROUND_OPTIONS = [
     id: "ambient-house-blur",
     label: "B · Ambient House Blur",
     shortLabel: "House Blur",
-    description: "Dùng chính House Back + Mid + Front, blur mạnh, giảm saturation và phủ lớp tối để giữ context Pinoria nhưng không tranh visual với character.",
+    description: "Blur/dim trực tiếp persistent House Ambient đang chạy phía sau để giữ đúng một world liên tục, không render bản House thứ hai.",
   },
 ] as const satisfies readonly {
   id: ArrivalBackgroundVariant;

@@ -24,47 +24,24 @@ type ArrivalSubject = {
   companion: string;
 };
 
-const HOUSE_COVER_SECONDS = 1.15;
+const HOUSE_COVER_SECONDS = .72;
 
-function HouseAmbientBackdrop() {
+function HouseAmbientScrim() {
   return (
     <div
-      data-pinoria-arrival-house-backdrop
+      data-pinoria-arrival-house-scrim
       style={{
         position: "absolute",
         inset: 0,
-        overflow: "hidden",
         zIndex: 0,
         pointerEvents: "none",
-        background: "#211a17",
-        animation: `pinoriaHouseBackdropCover ${HOUSE_COVER_SECONDS}s cubic-bezier(.22,.72,.2,1) both`,
-        willChange: "opacity",
+        background: "radial-gradient(circle at 62% 43%,rgba(103,82,68,.15),rgba(31,23,20,.35) 47%,rgba(24,18,16,.62) 100%),linear-gradient(90deg,rgba(28,21,18,.48) 0%,rgba(28,21,18,.24) 48%,rgba(25,18,16,.40) 100%)",
+        backdropFilter: "blur(18px) brightness(.58) saturate(.72) contrast(.96)",
+        WebkitBackdropFilter: "blur(18px) brightness(.58) saturate(.72) contrast(.96)",
+        animation: `pinoriaHouseScrimCover ${HOUSE_COVER_SECONDS}s cubic-bezier(.22,.72,.2,1) both`,
+        willChange: "opacity, backdrop-filter",
       }}
-    >
-      {(Object.values(AMBIENT_HOUSE_ARRIVAL_ASSETS) as string[]).map((src, index) => (
-        <img
-          key={src}
-          src={src}
-          alt=""
-          draggable={false}
-          decoding="async"
-          loading="eager"
-          style={{
-            position: "absolute",
-            inset: "-5%",
-            width: "110%",
-            height: "110%",
-            objectFit: "cover",
-            opacity: index === 0 ? .98 : .88,
-            transform: "scale(1.035)",
-            transformOrigin: "50% 50%",
-            filter: "blur(20px) brightness(.54) saturate(.68) contrast(.94)",
-          }}
-        />
-      ))}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 62% 43%,rgba(103,82,68,.18),rgba(31,23,20,.42) 47%,rgba(24,18,16,.72) 100%)" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,rgba(28,21,18,.62) 0%,rgba(28,21,18,.30) 48%,rgba(25,18,16,.48) 100%)" }} />
-    </div>
+    />
   );
 }
 
@@ -194,10 +171,10 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         color: "#f8f3ee",
       }}
     >
-      {houseBackground ? <HouseAmbientBackdrop /> : null}
+      {houseBackground ? <HouseAmbientScrim /> : null}
 
       <style>{`
-        @keyframes pinoriaHouseBackdropCover {
+        @keyframes pinoriaHouseScrimCover {
           0% { opacity:0; }
           100% { opacity:1; }
         }
@@ -236,7 +213,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
           100% { opacity:1; transform:translateY(0) scale(1); }
         }
         @media (prefers-reduced-motion: reduce) {
-          [data-pinoria-arrival-house-backdrop] { animation:none!important; opacity:1!important; }
+          [data-pinoria-arrival-house-scrim] { animation:none!important; opacity:1!important; }
           [data-pinoria-full-character-aura] img { animation:none!important; opacity:.82!important; }
           [data-pinoria-full-character-glow] img { animation:none!important; opacity:.18!important; }
           [data-pinoria-arrival-inventory],[data-pinoria-inventory-item],[data-pinoria-inventory-placeholder] { animation:none!important; }
