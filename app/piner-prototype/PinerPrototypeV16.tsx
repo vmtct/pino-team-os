@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, MouseEvent, useLayoutEffect, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useRef, useState } from "react";
 import PinerPrototypeV15 from "./PinerPrototypeV15";
 import v16 from "./piner-prototype-v16.module.css";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 type SurfaceKey = "home" | "journey" | "collection" | "explore";
 
@@ -185,41 +186,11 @@ export default function PinerPrototypeV16() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [activeSurface, setActiveSurface] = useState<SurfaceKey>("home");
 
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-    let scheduled = false;
-    const observer = new MutationObserver(() => scheduleEnhance());
-    const observe = () => observer.observe(root, { childList: true, subtree: true, characterData: true });
-
-    const runEnhance = () => {
-      scheduled = false;
-      observer.disconnect();
-      try {
-        localizeVisibleText(root);
-        enhanceNavigation(root, activeSurface);
-        enhancePackageContext(root);
-      } finally {
-        observe();
-      }
-    };
-
-    const scheduleEnhance = () => {
-      if (scheduled) return;
-      scheduled = true;
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(runEnhance);
-    };
-
-    runEnhance();
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [activeSurface]);
+  usePrototypePolish(rootRef, (root) => {
+    localizeVisibleText(root);
+    enhanceNavigation(root, activeSurface);
+    enhancePackageContext(root);
+  }, { listenToChange: true, settleFrames: 5 });
 
   function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
     const button = (event.target as HTMLElement).closest("button") as HTMLButtonElement | null;

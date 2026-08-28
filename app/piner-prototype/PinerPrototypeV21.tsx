@@ -37,7 +37,7 @@ const RESOURCE_TAGS = [
     tags: ["Ghibli", "lãng mạn", "vắt ngón"],
   },
   {
-    match: (text: string) => text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty") || (text.includes("Film") && text.includes("Chuyên Đề")),
+    match: (text: string) => text.includes("Film Music Specialty") || text.includes("Film Âm nhạc Specialty") || text.includes("Chuyên đề nhạc phim") || (text.includes("Film") && text.includes("Chuyên Đề")),
     tags: ["nhạc phim", "hòa âm", "chuyên đề"],
   },
   {
@@ -160,7 +160,7 @@ export default function PinerPrototypeV21() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [syllabusModal, setSyllabusModal] = useState<SyllabusDetail | null>(null);
 
-  usePrototypePolish(rootRef, polish);
+  usePrototypePolish(rootRef, polish, { observeMutations: true });
 
   function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
     const topic = (event.target as HTMLElement).closest<HTMLElement>("[data-v21-ac-topic-index]");
@@ -340,7 +340,7 @@ function hideExploreCampaignBanner(root: HTMLElement) {
 function polishPracticeCards(root: HTMLElement) {
   const cards = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
     const text = button.textContent ?? "";
-    return text.includes("Founder · published") || text.includes("Founder · draft") || button.dataset.v21PracticeCard === "true";
+    return Boolean(button.dataset.v18Family) || text.includes("Founder · published") || text.includes("Founder · draft") || button.dataset.v21PracticeCard === "true";
   });
 
   cards.forEach((card) => {
@@ -562,13 +562,14 @@ function polishMusicPieceAvatars(root: HTMLElement) {
 
 function polishSessionAvatars(root: HTMLElement) {
   const sessionCards = Array.from(root.querySelectorAll<HTMLElement>("article")).filter((article) => {
-    const text = article.textContent ?? "";
-    return article.dataset.v21SessionCard === "true" || (text.includes("Đăng ký") && (text.includes("OPEN STUDIO") || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION") || text.includes("KHÁM PHÁ")));
+    const text = (article.textContent ?? "").toUpperCase();
+    return article.dataset.v21SessionCard === "true" || (text.includes("ĐĂNG KÝ") && (text.includes("OPEN STUDIO") || text.includes("PREMIUM") || text.includes("KHÁM PHÁ")));
   });
 
   sessionCards.forEach((card) => {
     const text = card.textContent ?? "";
-    const premium = card.dataset.v21SessionPremium === "true" || text.includes("BUỔI PREMIUM") || text.includes("PREMIUM SESSION");
+    const normalizedText = text.toUpperCase();
+    const premium = card.dataset.v21SessionPremium === "true" || normalizedText.includes("PREMIUM");
     card.dataset.v21SessionCard = "true";
     card.dataset.v21SessionPremium = premium ? "true" : "false";
 
@@ -623,7 +624,7 @@ function polishSessionAvatars(root: HTMLElement) {
     const heading = section.querySelector<HTMLElement>("h3");
     if (heading) heading.textContent = "Khám Phá & Premium";
     const headingMeta = heading?.parentElement?.querySelector<HTMLElement>("span");
-    if (headingMeta) headingMeta.textContent = "SẮP DIỄN RA · 2 LOẠI QUYỀN TRUY CẬP";
+    if (headingMeta) headingMeta.textContent = "SẮP DIỄN RA";
     const headingSmall = heading?.parentElement?.parentElement?.querySelector<HTMLElement>(":scope > small");
     if (headingSmall) headingSmall.textContent = "Đăng ký theo cùng một luồng";
 

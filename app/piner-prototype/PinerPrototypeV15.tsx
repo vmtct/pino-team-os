@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PinerPrototypeV14 from "./PinerPrototypeV14";
 import v15 from "./piner-prototype-v15.module.css";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 type Surface = "Trang chủ" | "Hành trình" | "Thành quả" | "Khám phá";
 
@@ -21,8 +22,8 @@ const reviewCases: ReviewCase[] = [
   { key: "leo-trial", label: "Leo", state: "Dùng thử · PianoHouse", focus: "Khởi Hành/Hành Trình/Chuyên Đề đều dùng được + nhiều booking trong tuần" },
   { key: "leo-expired", label: "Leo", state: "Trial đã hết hạn", focus: "Khởi Hành còn mở nhưng tay trái khóa; Hành Trình/Chuyên Đề khóa; lịch sử giữ" },
   { key: "leo-attrition", label: "Leo", state: "Attrition · Premium", focus: "paid Premium đã dừng; provenance khác Trial; Khám Phá vẫn có thể dùng" },
-  { key: "leo-reenrolled", label: "Leo", state: "Đã tiếp tục Premium", focus: "resume đúng learner history; không reset level; Premium session vẫn khóa theo policy hiện tại" },
-  { key: "minh-premium", label: "Minh", state: "Premium · PianoHouse + ArtChitect", focus: "multi-Path continuity + Khám Phá bookable + Premium session visible/locked" },
+  { key: "leo-reenrolled", label: "Leo", state: "Đã tiếp tục Premium", focus: "resume đúng learner history; không reset level; Premium session mở lại theo quyền đang hoạt động" },
+  { key: "minh-premium", label: "Minh", state: "Premium · PianoHouse + ArtChitect", focus: "multi-Path continuity + Khám Phá/Premium cùng dùng quota 1 lượt mỗi tuần" },
   { key: "mia-lpa", label: "Mía", state: "Premium · Little Piner Art", focus: "syllabus avatar + scheduled topic + checkpoint + Next Touchpoint" },
   { key: "bo-lpp", label: "Bơ", state: "Premium · Little Piner Piano", focus: "self-paced Journey + Khởi Hành + Thành quả" },
 ];
@@ -41,53 +42,24 @@ export default function PinerPrototypeV15() {
   const [activeCase, setActiveCase] = useState("an-free");
   const [activeSurface, setActiveSurface] = useState<Surface>("Trang chủ");
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frame = 0;
-
-    const sync = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const asides = Array.from(root.querySelectorAll<HTMLElement>("aside"));
-        const lab = asides.find((aside) => aside.querySelector("h1")?.textContent?.trim() === "Piner Member Space");
-        if (!lab) return;
-
-        const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE") || node.textContent?.trim().startsWith("BẢN THỬ NỘI BỘ") || node.textContent?.trim().startsWith("FREEZE CANDIDATE"));
-        if (badge) badge.textContent = "PINER PRODUCT UI V1 · FINAL AUDIT";
-
-        const intro = lab.querySelector("h1")?.nextElementSibling as HTMLElement | null;
-        if (intro?.tagName === "P") {
-          intro.textContent = "Rà soát end-to-end trước khi freeze UI reference: state, access, navigation, copy, modal, Practice Viewer và continuity trên toàn bộ Piner.";
-        }
-
-        const legacyFocus = Array.from(lab.querySelectorAll<HTMLElement>("strong")).find((node) => node.textContent?.trim() === "V4 review focus");
-        const legacyBlock = legacyFocus?.parentElement as HTMLElement | null;
-        if (legacyBlock) legacyBlock.style.display = "none";
-
-        let mount = lab.querySelector<HTMLElement>("[data-v15-audit-mount='true']");
-        if (!mount) {
-          mount = document.createElement("div");
-          mount.dataset.v15AuditMount = "true";
-          lab.appendChild(mount);
-        }
-        setMountTarget((current) => current === mount ? current : mount);
-
-        const select = root.querySelector<HTMLSelectElement>("#scenario");
-        if (select?.value) setActiveCase(select.value);
-      });
-    };
-
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(root, { childList: true, subtree: true });
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, []);
+  usePrototypePolish(rootRef, (root) => {
+    const asides = Array.from(root.querySelectorAll<HTMLElement>("aside"));
+    const lab = asides.find((aside) => aside.querySelector("h1")?.textContent?.trim() === "Piner Member Space");
+    if (!lab) return;
+    const badge = Array.from(lab.querySelectorAll<HTMLElement>("div, span")).find((node) => node.textContent?.trim().startsWith("LOCAL PROTOTYPE") || node.textContent?.trim().startsWith("BẢN THỬ NỘI BỘ") || node.textContent?.trim().startsWith("FREEZE CANDIDATE"));
+    if (badge && badge.textContent !== "PINER PRODUCT UI V1 · FINAL AUDIT") badge.textContent = "PINER PRODUCT UI V1 · FINAL AUDIT";
+    const intro = lab.querySelector("h1")?.nextElementSibling as HTMLElement | null;
+    const introCopy = "Rà soát end-to-end trước khi freeze UI reference: state, access, navigation, copy, modal, Practice Viewer và continuity trên toàn bộ Piner.";
+    if (intro?.tagName === "P" && intro.textContent !== introCopy) intro.textContent = introCopy;
+    const legacyFocus = Array.from(lab.querySelectorAll<HTMLElement>("strong")).find((node) => node.textContent?.trim() === "V4 review focus");
+    const legacyBlock = legacyFocus?.parentElement as HTMLElement | null;
+    if (legacyBlock && legacyBlock.style.display !== "none") legacyBlock.style.display = "none";
+    let mount = lab.querySelector<HTMLElement>("[data-v15-audit-mount='true']");
+    if (!mount) { mount = document.createElement("div"); mount.dataset.v15AuditMount = "true"; lab.appendChild(mount); }
+    setMountTarget((current) => current === mount ? current : mount);
+    const select = root.querySelector<HTMLSelectElement>("#scenario");
+    if (select?.value) setActiveCase((current) => current === select.value ? current : select.value);
+  }, { listenToChange: true, settleFrames: 3 });
 
   function switchScenario(key: string) {
     const select = rootRef.current?.querySelector<HTMLSelectElement>("#scenario");
@@ -171,7 +143,7 @@ function ReviewConsole({ activeCase, activeSurface, onScenario, onSurface }: {
         <span>Practice phrase media giữ 60/40: Sheet = crop gốc 50% + 5% white padding trên/dưới; Worksheet = 40%.</span>
         <span>Trang 1–4, bật/tắt hướng dẫn, nghe mẫu, ghi âm và submit không được phá focus/snap state.</span>
         <span>Booking(PENDING) ≠ CONFIRMED ≠ Attendance; cancel/reject không xóa history.</span>
-        <span>Trial có thể đăng ký Khám Phá + Premium; paid Premium/re-enrolled/expired/attrition chỉ đăng ký Khám Phá, Premium vẫn visible nhưng locked.</span>
+        <span>Trial có thể đăng ký nhiều buổi Khám Phá + Premium; paid Premium/re-enrolled dùng quota 1 lượt chung; expired/attrition chỉ đăng ký Khám Phá và Premium vẫn khóa.</span>
         <span>Age mismatch: Trial có warning + acknowledge cho Student hiện tại; paid/expired/attrition có thể tạo Registration riêng cho bé khác.</span>
         <span>Gửi bài luyện tập ≠ tự tăng level ≠ tự đưa vào Thành quả.</span>
       </div>

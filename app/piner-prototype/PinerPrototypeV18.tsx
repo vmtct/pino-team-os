@@ -110,7 +110,7 @@ function syncPracticeFamilies(root: HTMLElement) {
     const naturallyLocked = text.includes("Expansion") || text.includes("Mở rộng") || text.includes("Sẽ mở sau") || text.includes("locked");
     const access = ended || naturallyLocked ? "locked" : "open";
     button.dataset.v18Access = access;
-    const arrow = button.lastElementChild as HTMLElement | null;
+    const arrow = button.querySelector<HTMLElement>("[data-v21-practice-arrow='true'], [class*='practiceArrow']") ?? button.children[4] as HTMLElement | undefined;
     if (arrow) arrow.textContent = access === "locked" ? "🔒" : "→";
   });
 

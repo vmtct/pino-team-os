@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PinerPrototypeV16 from "./PinerPrototypeV16";
 import { scenarios, type StudentScenario } from "./fixtures-v2";
 import v12 from "./piner-prototype-v12.module.css";
 import v17 from "./piner-prototype-v17.module.css";
+import { usePrototypePolish } from "./usePrototypePolish";
 
 type Surface = "home" | "journey" | "collection" | "explore";
 
@@ -85,7 +86,7 @@ function attritionCopy(surface: Surface) {
   };
   if (surface === "explore") return {
     title: "Attrition không đồng nghĩa mất quyền Khám phá Miễn phí",
-    body: "Open Studio Miễn phí tiếp tục theo eligibility của Core. Buổi Premium vẫn cần Premium active.",
+    body: "Các buổi Khám Phá vẫn có thể dùng khi hồ sơ đủ điều kiện. Buổi Premium cần quyền Premium đang hoạt động.",
   };
   return {
     title: "Attrition khác với Trial hết hạn",
@@ -100,70 +101,45 @@ export default function PinerPrototypeV17() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const lastScenarioRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
+  usePrototypePolish(rootRef, (root) => {
+    const select = root.querySelector<HTMLSelectElement>("#scenario");
+    const currentScenario = select?.value ?? scenarioKey;
+    if (select && currentScenario !== scenarioKey) setScenarioKey(currentScenario);
 
-    let frame = 0;
-    const sync = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const select = root.querySelector<HTMLSelectElement>("#scenario");
-        const currentScenario = select?.value ?? scenarioKey;
-        if (select && currentScenario !== scenarioKey) setScenarioKey(currentScenario);
+    const nav = Array.from(root.querySelectorAll<HTMLElement>("nav")).find((candidate) => candidate.querySelectorAll(":scope > button").length === 4);
+    const screen = nav?.previousElementSibling;
+    if (screen instanceof HTMLElement) setPortalTarget((current) => current === screen ? current : screen);
 
-        const nav = Array.from(root.querySelectorAll<HTMLElement>("nav")).find((candidate) => candidate.querySelectorAll(":scope > button").length === 4);
-        const screen = nav?.previousElementSibling;
-        if (screen instanceof HTMLElement) setPortalTarget((current) => current === screen ? current : screen);
-
-        const lab = Array.from(root.querySelectorAll<HTMLElement>("aside")).find((aside) => aside.textContent?.includes("LIFECYCLE LAB"));
-        if (lab) {
-          lab.dataset.v17LifecycleLab = "true";
-          const row = lab.querySelector<HTMLElement>(":scope > div");
-          if (row) {
-            let attritionButton = row.querySelector<HTMLButtonElement>("[data-v17-attrition='true']");
-            if (!attritionButton) {
-              attritionButton = document.createElement("button");
-              attritionButton.type = "button";
-              attritionButton.dataset.v17Attrition = "true";
-              attritionButton.textContent = "Attrition";
-              attritionButton.addEventListener("click", () => switchScenario(ATTRITION_KEY));
-              const reenrolledButton = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find((button) => /Re-enrolled|Đã tiếp tục Premium/.test(button.textContent ?? ""));
-              if (reenrolledButton) row.insertBefore(attritionButton, reenrolledButton);
-              else row.appendChild(attritionButton);
-            }
-            attritionButton.className = currentScenario === ATTRITION_KEY ? v12.labActive : "";
-          }
-          const note = lab.querySelector<HTMLElement>(":scope > small");
-          if (note) note.textContent = "Cùng learner continuity · Trial hết hạn và Attrition là hai nguyên nhân dừng access khác nhau.";
+    const lab = Array.from(root.querySelectorAll<HTMLElement>("aside")).find((aside) => aside.textContent?.includes("LIFECYCLE LAB"));
+    if (lab) {
+      if (lab.dataset.v17LifecycleLab !== "true") lab.dataset.v17LifecycleLab = "true";
+      const row = lab.querySelector<HTMLElement>(":scope > div");
+      if (row) {
+        let attritionButton = row.querySelector<HTMLButtonElement>("[data-v17-attrition='true']");
+        if (!attritionButton) {
+          attritionButton = document.createElement("button"); attritionButton.type = "button"; attritionButton.dataset.v17Attrition = "true"; attritionButton.textContent = "Attrition";
+          attritionButton.addEventListener("click", () => switchScenario(ATTRITION_KEY));
+          const reenrolledButton = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find((button) => /Re-enrolled|Đã tiếp tục Premium/.test(button.textContent ?? ""));
+          if (reenrolledButton) row.insertBefore(attritionButton, reenrolledButton); else row.appendChild(attritionButton);
         }
+        const nextClass = currentScenario === ATTRITION_KEY ? v12.labActive : "";
+        if (attritionButton.className !== nextClass) attritionButton.className = nextClass;
+      }
+      const note = lab.querySelector<HTMLElement>(":scope > small");
+      const noteCopy = "Cùng learner continuity · Trial hết hạn và Attrition là hai nguyên nhân dừng access khác nhau.";
+      if (note && note.textContent !== noteCopy) note.textContent = noteCopy;
+    }
 
-        if (lastScenarioRef.current !== currentScenario) {
-          lastScenarioRef.current = currentScenario;
-          setSurface("home");
-          if (currentScenario === ATTRITION_KEY) {
-            window.requestAnimationFrame(() => {
-              root.querySelectorAll<HTMLElement>("[data-v16-package-scenario='leo-attrition']").forEach((card) => {
-                card.dataset.v16Expanded = "true";
-                const toggle = card.querySelector<HTMLButtonElement>("[data-v16-package-toggle='true']");
-                toggle?.setAttribute("aria-expanded", "true");
-                const chevron = toggle?.lastElementChild;
-                if (chevron) chevron.textContent = "⌃";
-              });
-            });
-          }
-        }
+    if (lastScenarioRef.current !== currentScenario) {
+      lastScenarioRef.current = currentScenario; setSurface("home");
+      if (currentScenario === ATTRITION_KEY) requestAnimationFrame(() => {
+        root.querySelectorAll<HTMLElement>("[data-v16-package-scenario='leo-attrition']").forEach((card) => {
+          card.dataset.v16Expanded = "true"; const toggle = card.querySelector<HTMLButtonElement>("[data-v16-package-toggle='true']");
+          toggle?.setAttribute("aria-expanded", "true");
+        });
       });
-    };
-
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(root, { childList: true, subtree: true });
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [scenarioKey]);
+    }
+  }, { listenToChange: true, settleFrames: 4 });
 
   function switchScenario(key: string) {
     const select = rootRef.current?.querySelector<HTMLSelectElement>("#scenario");

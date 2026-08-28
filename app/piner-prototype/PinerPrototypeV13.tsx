@@ -55,7 +55,7 @@ const sessionCatalog: ExploreSession[] = [
   ...openStudioSessions.map((session) => ({
     ...session,
     kind: "OPEN_STUDIO" as const,
-    note: "Open Studio · đăng ký theo eligibility hiện hành",
+    note: "Khám Phá · đăng ký theo điều kiện tham gia hiện tại",
   })),
   {
     id: "premium-session-film-music",
@@ -83,6 +83,15 @@ function hasPremiumAccess(mode: MembershipMode | undefined) {
   return mode === "ACTIVE_PREMIUM" || mode === "TRIAL_PREMIUM";
 }
 
+function scenarioMode(key: string): MembershipMode | undefined {
+  const found = scenarios.find((candidate) => candidate.key === key)?.mode;
+  if (found) return found;
+  if (key === "leo-trial") return "TRIAL_PREMIUM";
+  if (key === "leo-reenrolled") return "ACTIVE_PREMIUM";
+  if (key === "leo-attrition") return "EXPIRED_PREMIUM";
+  return undefined;
+}
+
 function bookingPolicy(mode: MembershipMode | undefined): BookingPolicy {
   if (mode === "TRIAL_PREMIUM") return "TRIAL";
   if (mode === "ACTIVE_PREMIUM") return "ACTIVE_PREMIUM";
@@ -101,9 +110,9 @@ export default function PinerPrototypeV13() {
   const [bookings, setBookings] = useState<BookingState[]>([]);
   const [flowModal, setFlowModal] = useState<FlowModal>(null);
 
-  const student = useMemo(() => scenarios.find((candidate) => candidate.key === scenarioKey), [scenarioKey]);
-  const premiumAccess = hasPremiumAccess(student?.mode);
-  const policy = bookingPolicy(student?.mode);
+  const membershipMode = useMemo(() => scenarioMode(scenarioKey), [scenarioKey]);
+  const premiumAccess = hasPremiumAccess(membershipMode);
+  const policy = bookingPolicy(membershipMode);
   const activeFreeBooking = bookings.find((booking) => booking.freeRule && isActive(booking)) ?? null;
   const activeSharedPremiumBooking = policy === "ACTIVE_PREMIUM"
     ? bookings.find((booking) => isActive(booking)) ?? null
@@ -225,7 +234,7 @@ export default function PinerPrototypeV13() {
 
   function createPendingBooking(session: ExploreSession) {
     const freeRule = session.kind === "OPEN_STUDIO" && !premiumAccess;
-    const currentPolicy = bookingPolicy(student?.mode);
+    const currentPolicy = bookingPolicy(membershipMode);
     const prefix = session.kind === "PREMIUM" ? "BK-PREM" : freeRule ? "BK-FREE" : currentPolicy === "TRIAL" ? "BK-TRIAL" : "BK-MEMBER";
     const id = `${prefix}-${String(sequenceRef.current++).padStart(4, "0")}`;
     const booking: BookingState = { id, stage: "PENDING", session, policy: currentPolicy, freeRule };
@@ -276,7 +285,7 @@ export default function PinerPrototypeV13() {
 
       {mountTarget && createPortal(
         <ExploreSessionSection
-          membershipMode={student?.mode}
+          membershipMode={membershipMode}
           premiumAccess={premiumAccess}
           bookings={bookings}
           onRegister={openRegistration}
@@ -292,7 +301,7 @@ export default function PinerPrototypeV13() {
         <SessionFlowModal
           modal={flowModal}
           booking={bookingById(flowModal.bookingId)}
-          membershipMode={student?.mode}
+          membershipMode={membershipMode}
           premiumAccess={premiumAccess}
           onClose={() => setFlowModal(null)}
           onCreate={() => createPendingBooking(flowModal.session)}
@@ -324,15 +333,15 @@ function ExploreSessionSection({ membershipMode, premiumAccess, bookings, onRegi
     <section className={v13.sessionSection}>
       <div className={v13.sectionHeading}>
         <div>
-          <span>UPCOMING · 2 ACCESS TYPES</span>
-          <h3>Open Studio & Premium Sessions</h3>
+          <span>SẮP DIỄN RA</span>
+          <h3>Khám Phá & Premium</h3>
         </div>
-        <small>Đều dùng Booking lifecycle</small>
+        <small>Đăng ký tại cùng một nơi</small>
       </div>
 
       <div className={`${fix.policyBand} ${policy === "TRIAL" ? fix.policyTrial : policy === "ACTIVE_PREMIUM" ? fix.policyPremium : ""}`}>
-        <strong>{policy === "TRIAL" ? "Trial Premium · có thể đăng ký nhiều booking trong tuần" : policy === "ACTIVE_PREMIUM" ? "Premium · tối đa 1 booking đang giữ trong tuần" : "Free / expired · Open Studio theo Free eligibility"}</strong>
-        <span>{policy === "TRIAL" ? "Open Studio và Premium Session đều có thể tạo Booking; không áp quota 1 booking của paid Premium." : policy === "ACTIVE_PREMIUM" ? "Open Studio + Premium Session dùng chung một quota. PENDING hoặc CONFIRMED đều chiếm slot cho đến khi Booking thành terminal state." : "Premium Session cần Premium access; Open Studio vẫn theo active-booking + weekly Free rule hiện hành."}</span>
+        <strong>{policy === "TRIAL" ? "Trải nghiệm · có thể đăng ký nhiều buổi trong tuần" : policy === "ACTIVE_PREMIUM" ? "Premium · tối đa 1 đăng ký đang hoạt động trong tuần" : "Khám Phá · theo điều kiện tham gia hiện tại"}</strong>
+        <span>{policy === "TRIAL" ? "Trong thời gian Trải nghiệm, gia đình có thể đăng ký cả buổi Khám Phá và Premium trong cùng tuần." : policy === "ACTIVE_PREMIUM" ? "Khám Phá và Premium dùng chung một lượt đăng ký trong tuần. Lượt này được giữ cho đến khi đăng ký kết thúc." : "Buổi Premium cần quyền Premium; các buổi Khám Phá vẫn theo điều kiện tham gia hiện tại."}</span>
       </div>
 
       {bookings.length > 0 && (
@@ -352,8 +361,8 @@ function ExploreSessionSection({ membershipMode, premiumAccess, bookings, onRegi
       )}
 
       <div className={v13.legendRow}>
-        <span className={v13.openLegend}>OPEN STUDIO · Explore</span>
-        <span className={v13.premiumLegend}>PREMIUM SESSION · member access</span>
+        <span className={v13.openLegend}>KHÁM PHÁ</span>
+        <span className={v13.premiumLegend}>PREMIUM</span>
       </div>
 
       <div className={v13.sessionList}>
@@ -368,7 +377,7 @@ function ExploreSessionSection({ membershipMode, premiumAccess, bookings, onRegi
               <div className={v13.sessionCopy}>
                 <div className={v13.badgeRow}>
                   <span className={session.kind === "PREMIUM" ? v13.premiumBadge : v13.openBadge}>
-                    {session.kind === "PREMIUM" ? "PREMIUM SESSION" : "OPEN STUDIO"}
+                    {session.kind === "PREMIUM" ? "PREMIUM" : "KHÁM PHÁ"}
                   </span>
                   {lockedPremium && <span className={v13.lockBadge}>🔒 Premium</span>}
                 </div>
@@ -385,7 +394,7 @@ function ExploreSessionSection({ membershipMode, premiumAccess, bookings, onRegi
         })}
       </div>
 
-      <p className={fix.quotaNote}>Trial được phép có nhiều Booking trong cùng tuần. Active Premium sau Trial dùng quota 1 Booking chung cho Open Studio + Premium Session. Free/expired giữ rule Open Studio riêng đã chốt.</p>
+      <p className={fix.quotaNote}>Trong thời gian Trải nghiệm, gia đình có thể đăng ký nhiều buổi. Với Premium đang hoạt động, Khám Phá và Premium dùng chung một lượt đăng ký trong tuần.</p>
     </section>
   );
 }
@@ -439,7 +448,7 @@ function SessionFlowModal({ modal, booking, membershipMode, premiumAccess, onClo
     <div className={v13.modalBackdrop} onMouseDown={onClose}>
       <section className={v13.modalCard} onMouseDown={(event) => event.stopPropagation()}>
         <header className={premium ? v13.modalHeaderPremium : ""}>
-          <div><span>{premium ? "PREMIUM SESSION" : "OPEN STUDIO"}</span><strong>{session.title}</strong></div>
+          <div><span>{premium ? "PREMIUM" : "KHÁM PHÁ"}</span><strong>{session.title}</strong></div>
           <button type="button" onClick={onClose}>×</button>
         </header>
 
@@ -449,46 +458,46 @@ function SessionFlowModal({ modal, booking, membershipMode, premiumAccess, onClo
             <div className={`${v13.accessCheck} ${premium ? v13.accessCheckPremium : ""}`}>
               <span>✓</span>
               <div>
-                <strong>{policy === "TRIAL" ? "Trial Premium · có thể đăng ký thêm" : policy === "ACTIVE_PREMIUM" ? "Premium quota còn trống" : premium ? "Premium access hợp lệ" : "Free eligibility pre-check"}</strong>
-                <small>{policy === "TRIAL" ? "Trial cho phép nhiều Booking trong cùng tuần, áp cho cả Open Studio và Premium Session." : policy === "ACTIVE_PREMIUM" ? "Paid Premium dùng tối đa 1 active Booking trong tuần; hai session type dùng chung quota." : premium ? "Session này yêu cầu Premium access hiện hành." : "Free active-booking + weekly eligibility được kiểm tra trước khi tạo Booking."}</small>
+                <strong>{policy === "TRIAL" ? "Trải nghiệm · có thể đăng ký thêm" : policy === "ACTIVE_PREMIUM" ? "Premium · còn lượt đăng ký tuần này" : premium ? "Premium đang hoạt động" : "Có thể đăng ký buổi này"}</strong>
+                <small>{policy === "TRIAL" ? "Trong thời gian Trải nghiệm, gia đình có thể đăng ký nhiều buổi trong tuần." : policy === "ACTIVE_PREMIUM" ? "Khám Phá và Premium dùng chung một lượt đăng ký trong tuần." : premium ? "Buổi này cần quyền Premium đang hoạt động." : "PINO sẽ xác nhận chỗ sau khi bạn đăng ký."}</small>
               </div>
             </div>
-            <button type="button" className={v13.primaryAction} onClick={onCreate}>Đăng ký · tạo Booking Pending →</button>
+            <button type="button" className={v13.primaryAction} onClick={onCreate}>Đăng ký buổi này →</button>
           </div>
         )}
 
         {modal.view === "UPGRADE_REQUIRED" && (
           <div className={v13.modalBody}>
             <div className={v13.lockHero}>✦</div>
-            <span className={v13.modalEyebrow}>PREMIUM SESSION</span>
+            <span className={v13.modalEyebrow}>PREMIUM</span>
             <h2>Buổi này dành cho Premium</h2>
-            <p className={v13.centerCopy}>Bạn vẫn có thể đăng ký các Open Studio đang đủ điều kiện. Premium Session mở khi learner có Premium access.</p>
+            <p className={v13.centerCopy}>Bạn vẫn có thể chọn các buổi Khám Phá phù hợp. Buổi Premium mở khi quyền Premium đang hoạt động.</p>
             <SessionHero session={session} compact />
             <button type="button" className={v13.primaryAction} onClick={onPremium}>{membershipMode === "EXPIRED_PREMIUM" ? "Tiếp tục Premium →" : "Khám phá / nâng cấp Premium →"}</button>
-            <button type="button" className={v13.secondaryAction} onClick={onClose}>Quay lại Explore</button>
+            <button type="button" className={v13.secondaryAction} onClick={onClose}>Quay lại Khám Phá</button>
           </div>
         )}
 
         {modal.view === "PENDING" && booking && (
           <div className={v13.modalBody}>
             <div className={v13.pendingGlyph}>…</div>
-            <span className={v13.modalEyebrow}>BOOKING · PENDING</span>
+            <span className={v13.modalEyebrow}>ĐANG CHỜ XÁC NHẬN</span>
             <h2>Đang chờ PINO xác nhận</h2>
             <p className={v13.centerCopy}>{booking.id} · {session.title} · {session.time}</p>
-            <div className={v13.infoBox}><strong>Booking đã tồn tại</strong><span>{booking.policy === "TRIAL" ? "Trial vẫn có thể đăng ký thêm Booking khác trong tuần." : booking.policy === "ACTIVE_PREMIUM" ? "Booking này đang chiếm quota 1 Booking chung của Premium trong tuần." : "Đăng ký không tạo Request entity riêng. Staff xử lý cùng lifecycle đã chốt."}</span></div>
-            <div className={v13.twoActions}><button type="button" onClick={() => onAskCancel(booking, "PARENT")}>Huỷ booking</button><button type="button" className={v13.primaryAction} onClick={() => onConfirm(booking)}>Mô phỏng Staff confirm →</button></div>
-            <button type="button" className={v13.staffAction} onClick={() => onReject(booking)}>Prototype · Staff reject</button>
+            <div className={v13.infoBox}><strong>Đã ghi nhận đăng ký</strong><span>{booking.policy === "TRIAL" ? "Trial vẫn có thể đăng ký thêm Booking khác trong tuần." : booking.policy === "ACTIVE_PREMIUM" ? "Booking này đang chiếm quota 1 Booking chung của Premium trong tuần." : "Đăng ký không tạo Request entity riêng. Staff xử lý cùng lifecycle đã chốt."}</span></div>
+            <div className={v13.twoActions}><button type="button" onClick={() => onAskCancel(booking, "PARENT")}>Huỷ đăng ký</button><button type="button" className={v13.primaryAction} onClick={() => onConfirm(booking)}>Mô phỏng PINO xác nhận →</button></div>
+            <button type="button" className={v13.staffAction} onClick={() => onReject(booking)}>Mô phỏng PINO từ chối</button>
           </div>
         )}
 
         {modal.view === "CONFIRMED" && booking && (
           <div className={v13.modalBody}>
             <div className={v13.confirmedGlyph}>✓</div>
-            <span className={v13.modalEyebrow}>BOOKING · CONFIRMED</span>
+            <span className={v13.modalEyebrow}>ĐÃ XÁC NHẬN</span>
             <h2>Hẹn gặp tại PINO</h2>
             <p className={v13.centerCopy}>{booking.id} · {session.title} · {session.time}</p>
             <div className={v13.infoBox}><strong>{booking.freeRule ? "Free weekly claim đã được giữ" : booking.policy === "TRIAL" ? "Trial Booking đã xác nhận" : "Premium weekly booking quota đang được dùng"}</strong><span>{booking.freeRule ? "Nếu Parent/Staff cancel trước Session theo policy, claim/capacity được release." : booking.policy === "TRIAL" ? "Trial có thể tiếp tục đăng ký thêm Open Studio hoặc Premium Session trong cùng tuần." : "Open Studio và Premium Session dùng chung quota 1 Booking; Booking này đang giữ slot cho đến khi thành terminal state."}</span></div>
-            <div className={v13.twoActions}><button type="button" onClick={() => onAskCancel(booking, "PARENT")}>Huỷ booking</button><button type="button" className={v13.secondaryAction} onClick={onClose}>Đóng</button></div>
+            <div className={v13.twoActions}><button type="button" onClick={() => onAskCancel(booking, "PARENT")}>Huỷ đăng ký</button><button type="button" className={v13.secondaryAction} onClick={onClose}>Đóng</button></div>
             <button type="button" className={v13.staffAction} onClick={() => onAskCancel(booking, "STAFF")}>Prototype · Staff cancel</button>
           </div>
         )}
@@ -496,19 +505,19 @@ function SessionFlowModal({ modal, booking, membershipMode, premiumAccess, onClo
         {modal.view === "BLOCKED_MEMBER_QUOTA" && booking && (
           <div className={v13.modalBody}>
             <div className={v13.blockedGlyph}>1</div>
-            <span className={v13.modalEyebrow}>PREMIUM · WEEKLY BOOKING QUOTA</span>
-            <h2>Tuần này đã có một Booking đang giữ</h2>
+            <span className={v13.modalEyebrow}>PREMIUM · LƯỢT ĐĂNG KÝ TUẦN</span>
+            <h2>Tuần này đã có một đăng ký đang hoạt động</h2>
             <p className={v13.centerCopy}>{booking.id} · {booking.session.kind === "PREMIUM" ? "Premium Session" : "Open Studio"} · {booking.session.title}</p>
             <div className={v13.infoBox}><strong>Open Studio + Premium Session dùng chung quota</strong><span>Active Premium chỉ giữ tối đa 1 Booking PENDING hoặc CONFIRMED trong tuần. Muốn chọn buổi khác, hãy huỷ Booking hiện tại trước.</span></div>
-            <div className={v13.twoActions}><button type="button" onClick={onClose}>Giữ booking hiện tại</button><button type="button" className={v13.primaryAction} onClick={() => onAskCancel(booking, "PARENT")}>Huỷ để chọn buổi khác →</button></div>
+            <div className={v13.twoActions}><button type="button" onClick={onClose}>Giữ đăng ký hiện tại</button><button type="button" className={v13.primaryAction} onClick={() => onAskCancel(booking, "PARENT")}>Huỷ để chọn buổi khác →</button></div>
           </div>
         )}
 
         {modal.view === "BLOCKED_PENDING" && booking && (
           <div className={v13.modalBody}>
             <div className={v13.pendingGlyph}>1</div>
-            <span className={v13.modalEyebrow}>FREE · ACTIVE BOOKING</span>
-            <h2>Đang có một Booking chờ xác nhận</h2>
+            <span className={v13.modalEyebrow}>ĐANG CÓ ĐĂNG KÝ</span>
+            <h2>Đang có một đăng ký chờ xác nhận</h2>
             <p className={v13.centerCopy}>{booking.id} · {booking.session.title}</p>
             <div className={v13.infoBox}><strong>Mỗi Student Free chỉ giữ 1 Booking cùng lúc</strong><span>Huỷ Booking hiện tại trước nếu muốn chọn Open Studio khác.</span></div>
             <button type="button" className={v13.primaryAction} onClick={() => onAskCancel(booking, "PARENT")}>Huỷ để chọn buổi khác →</button>
@@ -519,7 +528,7 @@ function SessionFlowModal({ modal, booking, membershipMode, premiumAccess, onClo
           <div className={v13.modalBody}>
             <div className={v13.blockedGlyph}>1</div>
             <span className={v13.modalEyebrow}>FREE · CONFIRMED</span>
-            <h2>Open Studio Free tuần này đã được xác nhận</h2>
+            <h2>Buổi Khám Phá tuần này đã được xác nhận</h2>
             <p className={v13.centerCopy}>{booking ? `${booking.id} · ${booking.session.title}` : "Weekly Free allowance đang được sử dụng."}</p>
             {booking && <button type="button" className={v13.secondaryAction} onClick={() => onAskCancel(booking, "PARENT")}>Quản lý / huỷ booking hiện tại</button>}
             <button type="button" className={v13.primaryAction} onClick={onPremium}>Khám phá Premium →</button>
@@ -529,7 +538,7 @@ function SessionFlowModal({ modal, booking, membershipMode, premiumAccess, onClo
         {modal.view === "CANCEL_CONFIRM" && booking && modal.cancelActor && (
           <div className={v13.modalBody}>
             <div className={v13.cancelGlyph}>×</div>
-            <span className={v13.modalEyebrow}>CANCEL BOOKING</span>
+            <span className={v13.modalEyebrow}>HUỶ ĐĂNG KÝ</span>
             <h2>{modal.cancelActor === "PARENT" ? "Bạn muốn huỷ booking này?" : "Mô phỏng Staff huỷ booking"}</h2>
             <p className={v13.centerCopy}>{booking.id} · {booking.session.title}</p>
             <div className={v13.infoBox}><strong>Booking không bị xoá</strong><span>Status đổi thành CANCELLED; actor Parent/Staff và thời điểm vẫn được giữ trong history. Terminal Booking không còn chiếm active booking slot.</span></div>
@@ -540,18 +549,18 @@ function SessionFlowModal({ modal, booking, membershipMode, premiumAccess, onClo
         {modal.view === "CANCELLED" && booking && (
           <div className={v13.modalBody}>
             <div className={v13.cancelGlyph}>×</div>
-            <span className={v13.modalEyebrow}>BOOKING · CANCELLED</span>
+            <span className={v13.modalEyebrow}>ĐÃ HUỶ</span>
             <h2>{booking.cancelledBy === "PARENT" ? "Bạn đã huỷ booking" : "PINO đã huỷ booking"}</h2>
             <p className={v13.centerCopy}>{booking.id} · {booking.session.title}</p>
             <div className={v13.historyGrid}><span><small>Cancelled by</small><strong>{booking.cancelledBy === "PARENT" ? "Parent" : "Staff"}</strong></span><span><small>Cancelled at</small><strong>{booking.cancelledAt}</strong></span><span><small>Record</small><strong>Retained</strong></span></div>
-            <button type="button" className={v13.primaryAction} onClick={onClose}>Quay lại Explore</button>
+            <button type="button" className={v13.primaryAction} onClick={onClose}>Quay lại Khám Phá</button>
           </div>
         )}
 
         {modal.view === "REJECTED" && booking && (
           <div className={v13.modalBody}>
             <div className={v13.blockedGlyph}>!</div>
-            <span className={v13.modalEyebrow}>BOOKING · REJECTED</span>
+            <span className={v13.modalEyebrow}>CHƯA ĐƯỢC XÁC NHẬN</span>
             <h2>PINO chưa thể xác nhận buổi này</h2>
             <p className={v13.centerCopy}>{booking.id} · {booking.session.title}</p>
             <div className={v13.infoBox}><strong>Lịch sử vẫn giữ</strong><span>Rejected không xoá Booking và không còn chiếm active booking slot. Với Free pending, weekly claim vẫn chưa bị consume.</span></div>
@@ -567,7 +576,7 @@ function SessionHero({ session, compact = false }: { session: ExploreSession; co
   return (
     <div className={`${v13.sessionHero} ${compact ? v13.sessionHeroCompact : ""} ${session.kind === "PREMIUM" ? v13.sessionHeroPremium : ""}`}>
       <span>{session.emoji}</span>
-      <div><small>{session.kind === "PREMIUM" ? "PREMIUM SESSION" : "OPEN STUDIO"} · {session.path} · {session.age}</small><strong>{session.time}</strong><p>{session.title}</p></div>
+      <div><small>{session.kind === "PREMIUM" ? "PREMIUM" : "KHÁM PHÁ"} · {session.path} · {session.age}</small><strong>{session.time}</strong><p>{session.title}</p></div>
     </div>
   );
 }

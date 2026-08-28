@@ -155,7 +155,7 @@ function lifecycleCopy(state: LifecycleState, surface: AppSurface) {
   if (state === "EXPIRED") {
     if (surface === "journey") return { title: "Journey bị đóng băng, không bị reset", body: "L4 và lịch sử đã đạt vẫn hiển thị. Progression mới dừng cho đến khi learning access được khôi phục." };
     if (surface === "collection") return { title: "Owned history vẫn mở", body: "Recording, milestone và Artifact đã vested vẫn thuộc về Leo. Future/unowned Premium outcome tiếp tục locked." };
-    if (surface === "explore") return { title: "Expired Premium không xóa Free Explore", body: "Leo vẫn có thể quay lại bằng Open Studio nếu Core cho biết Free eligibility hiện hợp lệ. Premium Session sẽ dẫn vào flow tiếp tục Premium." };
+    if (surface === "explore") return { title: "Premium đã kết thúc, Khám Phá vẫn còn", body: "Leo vẫn có thể tham gia các buổi Khám Phá khi hồ sơ đủ điều kiện. Buổi Premium sẽ mở lại khi quyền Premium hoạt động." };
     return { title: "Access hết hạn, learner identity vẫn nguyên", body: "Home foreground retained value và route quay lại. Không tạo lại Student, không reset Journey, không thu hồi Achievement." };
   }
 
@@ -296,7 +296,7 @@ function LifecycleBanner({ state, surface, onExpire, onResume }: {
         <p>{copy.body}</p>
       </div>
       <div className={v12.lifecycleActions}>
-        {state === "TRIAL" && <button type="button" onClick={onExpire}>Mô phỏng hết Trial →</button>}
+        {state === "TRIAL" && <span>Trải nghiệm đang hoạt động</span>}
         {state === "EXPIRED" && <button type="button" onClick={onResume}>Tiếp tục Premium →</button>}
         {state === "REENROLLED" && <span>Không reset Journey</span>}
       </div>
@@ -317,7 +317,7 @@ function ResumePremiumModal({ onClose, onResume }: { onClose: () => void; onResu
           <span><small>Practice</small><strong>Normal access theo unlock rule</strong></span>
         </div>
         <div className={v12.resumeDoctrine}><strong>Access restored ≠ history recreated</strong><p>Subscription/access mới chỉ mở lại quyền tiếp tục. Achievement, recording và Artifact đã sở hữu không được re-award hoặc duplicate.</p></div>
-        <button type="button" className={v12.resumePrimary} onClick={onResume}>Mô phỏng kích hoạt Premium →</button>
+        <button type="button" className={v12.resumePrimary} onClick={onResume}>Tiếp tục Premium →</button>
         <small className={v12.billingNote}>Prototype không mô phỏng pricing, checkout hoặc billing vì commercial/payment policy chưa được chốt.</small>
       </section>
     </div>

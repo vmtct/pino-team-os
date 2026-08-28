@@ -373,7 +373,7 @@ function polishPracticeIcons(root: HTMLElement) {
     const chips = assets ? Array.from(assets.querySelectorAll<HTMLElement>("small")) : [];
     chips.forEach((chip) => {
       const raw = chip.textContent ?? "";
-      const name = /tay/i.test(raw) ? "practice-hand" : /nghe/i.test(raw) ? "practice-listen" : "practice-sheet";
+      const name = /tay/i.test(raw) ? "practice-hand" : /nghe|audio/i.test(raw) ? "practice-listen" : "practice-sheet";
       chip.dataset.hardAssetChip = name;
       if (!chip.querySelector("img[data-hard-icon='true']")) {
         const label = name === "practice-listen" ? "Nghe mẫu" : name === "practice-hand" ? (raw.includes("thế tay") ? "Hướng dẫn thế tay" : "Hướng dẫn tay") : "Bản nhạc";
@@ -470,7 +470,7 @@ function polish(root: HTMLElement) {
 export default function PinerPrototypeFreezePolish() {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  usePrototypePolish(rootRef, polish);
+  usePrototypePolish(rootRef, polish, { listenToChange: true, settleFrames: 8 });
 
   return (
     <div ref={rootRef}>

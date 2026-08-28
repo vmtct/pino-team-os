@@ -28,6 +28,7 @@ type ViewerResource = {
   title: string;
   context: string;
   mode: ViewerMode;
+  premiumAccess: boolean;
 };
 
 type PracticePage = {
@@ -54,22 +55,29 @@ const PAGES: PracticePage[] = [
   { page: 4, sheetUrl: SHEET_URL },
 ];
 
-function resourceFromButton(button: HTMLButtonElement, mode: ViewerMode): ViewerResource | null {
+function resourceFromButton(button: HTMLButtonElement, mode: ViewerMode, premiumAccess: boolean): ViewerResource | null {
   if (button.dataset.v21PracticeCard !== "true" || button.dataset.v18Access === "locked") return null;
   const text = button.textContent ?? "";
   const family = button.dataset.v18Family;
   if (family === "starter") {
     const title = text.includes("Twinkle Twinkle") ? "Twinkle Twinkle" : "ABC Song";
-    return { family: "STARTER", title, context: "Khởi Hành · đang học", mode };
+    return { family: "STARTER", title, context: "Khởi Hành · đang học", mode, premiumAccess };
   }
-  if (family === "specialty") return { family: "SPECIALTY", title: "Chuyên đề nhạc phim", context: "Chuyên Đề · L2", mode };
-  if (family === "journey") return { family: "JOURNEY", title: "Always With Me", context: "L4 · Cơ bản", mode };
+  if (family === "specialty") return { family: "SPECIALTY", title: "Chuyên đề nhạc phim", context: "Chuyên Đề · L2", mode, premiumAccess };
+  if (family === "journey") return { family: "JOURNEY", title: "Always With Me", context: "L4 · Cơ bản", mode, premiumAccess };
   return null;
 }
 
 function currentViewerMode(): ViewerMode {
   if (typeof document === "undefined") return "ACTIVE";
   return document.querySelector<HTMLSelectElement>("#scenario")?.value === "leo-expired" ? "EXPIRED_TRIAL" : "ACTIVE";
+}
+
+const PREMIUM_PRACTICE_SCENARIOS = new Set(["minh-premium", "mia-lpa", "han-trial-ac", "leo-trial", "leo-reenrolled", "bo-lpp"]);
+function currentViewerPremiumAccess() {
+  if (typeof document === "undefined") return false;
+  const key = document.querySelector<HTMLSelectElement>("#scenario")?.value ?? "";
+  return PREMIUM_PRACTICE_SCENARIOS.has(key);
 }
 
 function surfaceFromButton(text: string): AppSurface | null {
@@ -102,7 +110,7 @@ export default function PinerPrototypeV8() {
     const nextSurface = surfaceFromButton(text);
     if (nextSurface) setSurface(nextSurface);
 
-    const next = resourceFromButton(button, currentViewerMode());
+    const next = resourceFromButton(button, currentViewerMode(), currentViewerPremiumAccess());
     if (!next) return;
 
     event.preventDefault();
@@ -125,6 +133,7 @@ export default function PinerPrototypeV8() {
       title: "Always With Me",
       context: mode === "EXPIRED_TRIAL" ? "Leo · Trial đã hết hạn" : "L4 · Fundamental",
       mode,
+      premiumAccess: mode === "ACTIVE",
     });
   }
 
@@ -193,7 +202,7 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
   const [landscape, setLandscape] = useState(false);
   const [activePage, setActivePage] = useState(1);
   const [showWorksheet, setShowWorksheet] = useState(true);
-  const [premiumUnlocked, setPremiumUnlocked] = useState(false);
+  const [premiumUnlocked, setPremiumUnlocked] = useState(resource.premiumAccess);
   const [membershipResumed, setMembershipResumed] = useState(false);
   const [listening, setListening] = useState(false);
   const [recording, setRecording] = useState<RecordingState>("idle");
@@ -264,8 +273,7 @@ function MultipagePracticeViewer({ resource, onClose, onSubmitted }: {
               ) : (
                 <div className={v6.accessPreview}>
                   <span>Quyền luyện tập</span>
-                  <button type="button" className={!premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(false)}>Khám Phá</button>
-                  <button type="button" className={premiumUnlocked ? v6.accessActive : ""} onClick={() => setPremiumUnlocked(true)}>Premium</button>
+                  <b>{effectivePremium ? "Premium" : "Khám Phá"}</b>
                 </div>
               )}
             </div>

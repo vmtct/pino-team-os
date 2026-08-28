@@ -15,7 +15,7 @@ export default function PinerPrototypeV22() {
     polishExploreSchedule(root);
     polishTouchpointSheet(root);
     updatePrototypeBadge(root, "BẢN THỬ NỘI BỘ · V22 POLISH");
-  });
+  }, { observeMutations: true });
   return (
     <div ref={rootRef} className={v22.root}>
       <PinerPrototypeV21 />

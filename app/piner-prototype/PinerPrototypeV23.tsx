@@ -69,7 +69,7 @@ export default function PinerPrototypeV23() {
     applyExploreView(root, filterRef.current, sortRef.current);
     polishTouchpointDescription(root);
     updatePrototypeBadge(root, "BẢN THỬ NỘI BỘ · STAGING");
-  }, { listenToChange: true });
+  }, { listenToChange: true, observeMutations: true });
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -100,7 +100,7 @@ export default function PinerPrototypeV23() {
     const session = snapshotSession(card);
     if (!session) return;
 
-    if (session.kind === "PREMIUM" && mode !== "TRIAL_PREMIUM") {
+    if (session.kind === "PREMIUM" && mode !== "TRIAL_PREMIUM" && mode !== "ACTIVE_PREMIUM") {
       event.preventDefault();
       event.stopPropagation();
       setFlowModal({ type: "PREMIUM_LOCK", session, studentName });
@@ -236,8 +236,8 @@ function RegistrationModal({ modal, guestName, guestAge, guestAcknowledged, onGu
         {modal.type === "PREMIUM_LOCK" && (
           <div className={v23.modalBody}>
             <span className={v23.modalEyebrow}>PREMIUM</span>
-            <h2>Buổi Premium đang khóa</h2>
-            <p>{modal.studentName} hiện không ở trạng thái Trial. Trong projection V23, buổi Premium chỉ mở trong Trial; Khám Phá vẫn có thể đăng ký theo eligibility hiện hành.</p>
+            <h2>Buổi này cần Premium đang hoạt động</h2>
+            <p>{modal.studentName} hiện chưa có quyền Premium phù hợp cho buổi này. Các buổi Khám Phá vẫn có thể đăng ký khi hồ sơ đủ điều kiện.</p>
             <SessionSummary session={modal.session} />
             <button type="button" className={v23.secondaryAction} onClick={onClose}>Quay lại Khám Phá</button>
           </div>
@@ -343,23 +343,28 @@ function applyExploreView(root: HTMLElement, filter: ExploreFilter, direction: S
 
 function polishExploreAccess(root: HTMLElement) {
   const mode = currentScenario(root)?.mode;
-  const trial = mode === "TRIAL_PREMIUM";
+  const premiumAllowed = mode === "TRIAL_PREMIUM" || mode === "ACTIVE_PREMIUM";
   const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-v22-session-card='true']"));
 
   cards.forEach((card) => {
     const premium = card.dataset.v21SessionPremium === "true";
     if (!premium) return;
-    card.dataset.v23PremiumLocked = trial ? "false" : "true";
+    card.dataset.v23PremiumLocked = premiumAllowed ? "false" : "true";
+    const button = card.querySelector<HTMLButtonElement>(":scope > button:last-child");
+    const buttonLabel = button?.querySelector<HTMLElement>(":scope > span");
+    const nextLabel = premiumAllowed ? "Đăng ký" : "Xem điều kiện";
+    if (buttonLabel && buttonLabel.textContent !== nextLabel) buttonLabel.textContent = nextLabel;
+    if (button && button.getAttribute("aria-label") !== nextLabel) button.setAttribute("aria-label", nextLabel);
     const topline = card.querySelector<HTMLElement>("[data-v21-session-topline='true']");
     if (!topline) return;
     let lock = topline.querySelector<HTMLElement>("[data-v23-access-lock='true']");
-    if (!trial && !lock) {
+    if (!premiumAllowed && !lock) {
       lock = document.createElement("span");
       lock.dataset.v23AccessLock = "true";
-      lock.textContent = "🔒 Trial";
+      lock.textContent = "Cần Premium";
       topline.appendChild(lock);
     }
-    if (trial) lock?.remove();
+    if (premiumAllowed) lock?.remove();
   });
 }
 
@@ -390,7 +395,10 @@ function polishTouchpointDescription(root: HTMLElement) {
 function currentScenario(root: HTMLElement) {
   const key = root.querySelector<HTMLSelectElement>("#scenario")?.value ?? "";
   return scenarios.find((scenario) => scenario.key === key)
-    ?? (key === "leo-attrition" ? { name: "Leo", ageLabel: "12 tuổi", mode: "EXPIRED_PREMIUM" as MembershipMode } : undefined);
+    ?? (key === "leo-trial" ? { name: "Leo", ageLabel: "12 tuổi", mode: "TRIAL_PREMIUM" as MembershipMode }
+      : key === "leo-reenrolled" ? { name: "Leo", ageLabel: "12 tuổi", mode: "ACTIVE_PREMIUM" as MembershipMode }
+      : key === "leo-attrition" ? { name: "Leo", ageLabel: "12 tuổi", mode: "EXPIRED_PREMIUM" as MembershipMode }
+      : undefined);
 }
 
 function snapshotSession(card: HTMLElement): SessionSnapshot | null {

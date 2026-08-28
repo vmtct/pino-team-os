@@ -167,7 +167,7 @@ export const scenarios: StudentScenario[] = [
       detail: "Always With Me · cohort 18:00–19:30",
     },
     exploreStatus: "premium",
-    exploreNote: "Premium đang có thêm quyền lợi khám phá ngoài Journey chính.",
+    exploreNote: "Premium mở thêm các buổi Khám Phá ngoài Hành trình chính.",
     collection: [
       { id: "minh-free-1", kind: "Artwork", tier: "FREE", title: "Chú cá màu cam", subtitle: "Open Studio souvenir", meta: "Free Collection", emoji: "🐠", owned: true },
       { id: "minh-art-1", kind: "Artwork", tier: "PREMIUM", title: "Ngôi nhà trên mây", subtitle: "ArtChitect · Character", meta: "Mới thêm hôm qua", emoji: "☁️", owned: true, featured: true },
@@ -211,7 +211,7 @@ export const scenarios: StudentScenario[] = [
       detail: "Cơn mưa chấm tròn · Syllabus W14",
     },
     exploreStatus: "premium",
-    exploreNote: "Open Studio là một nhánh khám phá ngoài Journey chính.",
+    exploreNote: "Open Studio là một lựa chọn Khám Phá ngoài Hành trình chính.",
     collection: [
       { id: "mia-free-1", kind: "Moment", tier: "FREE", title: "Lần đầu ghé PINO", subtitle: "Open Studio moment", meta: "Free Collection", emoji: "🎨", owned: true },
       { id: "mia-moment-1", kind: "Moment", tier: "PREMIUM", title: "Con kể về nhân vật của mình", subtitle: "Little Piner moment", meta: "Hôm qua", emoji: "🌼", owned: true, featured: true },
@@ -235,14 +235,14 @@ export const scenarios: StudentScenario[] = [
       title: "Một buổi chiều để thử điều mới",
       description: "Chọn một Open Studio phù hợp để vẽ, chơi đàn hoặc khám phá một Path mới.",
       cta: "Khám phá Open Studio",
-      meta: "Free · eligibility được Core kiểm tra khi đặt chỗ",
+      meta: "Khám Phá · PINO kiểm tra điều kiện tham gia khi đặt chỗ",
       freshTitle: "Lần ghé PINO gần nhất",
       freshDescription: "Một souvenir nhỏ từ Open Studio trước vẫn được giữ lại.",
       freshEmoji: "🎨",
     },
     nextTouchpoint: null,
     exploreStatus: "eligible",
-    exploreNote: "Tuần này chưa có Open Studio Free nào được xác nhận.",
+    exploreNote: "Tuần này chưa có buổi Khám Phá nào được xác nhận.",
     collection: [
       { id: "an-free-1", kind: "Artwork", tier: "FREE", title: "Chú cá màu cam", subtitle: "Open Studio souvenir", meta: "Free Collection", emoji: "🐠", owned: true },
       { id: "an-premium-preview-1", kind: "Artwork", tier: "PREMIUM", title: "ArtChitect Portfolio", subtitle: "Premium preview", meta: "Mở với Premium", emoji: "🖼️", owned: false },
@@ -263,7 +263,7 @@ export const scenarios: StudentScenario[] = [
     home: {
       eyebrow: "Sắp đến PINO",
       title: "Open Studio đã được xác nhận",
-      description: "Tuần này An đã có một buổi Open Studio Free được xác nhận.",
+      description: "Tuần này An đã có một buổi Khám Phá được xác nhận.",
       cta: "Xem buổi đã đặt",
       meta: "Free · weekly Explore allowance đang được sử dụng",
       freshTitle: "Muốn khám phá thêm?",
@@ -272,7 +272,7 @@ export const scenarios: StudentScenario[] = [
     },
     nextTouchpoint: { title: "Open Studio · ArtChitect", subtitle: "Đã xác nhận", time: "Thứ Bảy · 15:30", detail: "Màu nước & những sinh vật nhỏ" },
     exploreStatus: "confirmed",
-    exploreNote: "Tuần này đã có một Open Studio Free được xác nhận.",
+    exploreNote: "Tuần này đã có một buổi Khám Phá được xác nhận.",
     collection: [
       { id: "an-free-1b", kind: "Artwork", tier: "FREE", title: "Chú cá màu cam", subtitle: "Open Studio souvenir", meta: "Free Collection", emoji: "🐠", owned: true },
       { id: "an-premium-preview-3", kind: "Artwork", tier: "PREMIUM", title: "Premium Portfolio", subtitle: "Premium preview", meta: "Mở với Premium", emoji: "🖼️", owned: false },
@@ -385,7 +385,7 @@ export const scenarios: StudentScenario[] = [
     },
     nextTouchpoint: { title: "Little Piner Piano", subtitle: "Buổi tiếp theo", time: "Thứ Sáu · 19:00", detail: "Fixed slot · Early Years TE" },
     exploreStatus: "premium",
-    exploreNote: "Journey chính và quyền lợi Explore là hai lớp khác nhau.",
+    exploreNote: "Hành trình chính và các quyền Khám Phá được quản lý riêng.",
     collection: [
       { id: "bo-free-1", kind: "Moment", tier: "FREE", title: "Piano Open Studio", subtitle: "Free Collection", meta: "Souvenir", emoji: "🎹", owned: true },
       { id: "bo-music-1", kind: "Music", tier: "PREMIUM", title: "ABC Song · first phrase", subtitle: "Little Piner Piano", meta: "Recording moment", emoji: "🎵", owned: true, featured: true },
