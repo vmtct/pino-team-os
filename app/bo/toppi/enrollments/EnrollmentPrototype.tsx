@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Progress, StatusPill } from "../components";
+import { EnrollmentActions } from "./EnrollmentActions";
 import {
   toppiStagingApi,
   type CoreProgram,
@@ -98,7 +99,12 @@ export default function EnrollmentPrototype() {
           </div>
           {!loading && !filtered.length ? <div className={styles.empty}>No canonical enrollments match these filters.</div> : null}
         </section>
-        {selected ? <EnrollmentDetail enrollment={selected} /> : null}
+        {selected ? <EnrollmentDetail
+          enrollment={selected}
+          slots={slots}
+          onChanged={async (nextMessage) => { setMessage(nextMessage); await refresh(); }}
+          onError={setError}
+        /> : null}
       </div>
 
       <NewEnrollmentDialog
@@ -119,7 +125,12 @@ export default function EnrollmentPrototype() {
   );
 }
 
-function EnrollmentDetail({ enrollment }: { enrollment: ToppiEnrollment }) {
+function EnrollmentDetail({ enrollment, slots, onChanged, onError }: {
+  enrollment: ToppiEnrollment;
+  slots: ToppiDeliverySlot[];
+  onChanged: (message: string) => Promise<void> | void;
+  onError: (message: string) => void;
+}) {
   const slot = enrollment.currentPlacement?.slot;
   return (
     <aside className={styles.detailCard}>
@@ -151,11 +162,7 @@ function EnrollmentDetail({ enrollment }: { enrollment: ToppiEnrollment }) {
           <div className={styles.detailRow}><span>Renewal</span><strong>{titleCase(enrollment.renewalState)}</strong></div>
         </div>
       </section>
-      <div className={styles.actionRow}>
-        <button className={styles.secondaryButton} disabled title="Deferred from this staging slice">Change schedule</button>
-        <button className={styles.secondaryButton} disabled title="Pause lifecycle is deferred">Pause</button>
-        <button className={styles.primaryButton} disabled title="Renewal mutation UI is deferred">Renew</button>
-      </div>
+      <EnrollmentActions enrollment={enrollment} slots={slots} onChanged={onChanged} onError={onError} />
     </aside>
   );
 }

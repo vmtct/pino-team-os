@@ -52,6 +52,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data;
 }
 
+function command(path: string, body: Record<string, unknown>) {
+  return request<ToppiEnrollment>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify(body),
+  });
+}
+
 export const toppiStagingApi = {
   students: (query = "") => request<ToppiLearner[]>(`students?centerId=${TOPPI_STAGING_CENTER_ID}${query.trim() ? `&query=${encodeURIComponent(query.trim())}` : ""}`),
   slots: () => request<ToppiDeliverySlot[]>(`delivery-slots?centerId=${TOPPI_STAGING_CENTER_ID}`),
@@ -69,4 +77,10 @@ export const toppiStagingApi = {
       headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
       body: JSON.stringify({ ...input, centerId: TOPPI_STAGING_CENTER_ID }),
     }),
+  activateEnrollment: (enrollmentId: string, expectedRevision: number, serviceStartsOnLocalDate: string) =>
+    command(`enrollments/${enrollmentId}/activate`, { expectedRevision, serviceStartsOnLocalDate }),
+  transferEnrollment: (input: { enrollmentId: string; sourcePlacementId: string; sourceExpectedRevision: number; destinationSlotId: string; transferLocalDate: string; reason: string }) =>
+    command(`enrollments/${input.enrollmentId}/transfer`, { sourcePlacementId: input.sourcePlacementId, sourceExpectedRevision: input.sourceExpectedRevision, destinationSlotId: input.destinationSlotId, transferLocalDate: input.transferLocalDate, reason: input.reason }),
+  prepareRenewal: (enrollmentId: string, predecessorExpectedRevision: number) =>
+    command(`enrollments/${enrollmentId}/renewal`, { predecessorExpectedRevision }),
 };

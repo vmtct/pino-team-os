@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { PageHeading, PrototypeBanner, StatusPill } from "../components";
 import { useCanonicalToppi } from "../use-canonical-toppi";
-import type { CoreProgram, ToppiDeliverySlot, ToppiEnrollment } from "@/lib/toppi-staging-api";
+import { toppiStagingApi, type CoreProgram, type ToppiDeliverySlot, type ToppiEnrollment } from "@/lib/toppi-staging-api";
 import styles from "../toppi-bo.module.css";
 
 export default function ToppiRenewalsPage() {
-  const { renewals, loading, error } = useCanonicalToppi();
+  const { renewals, loading, error, refresh } = useCanonicalToppi();
+  const [busyId, setBusyId] = useState("");
+  const [message, setMessage] = useState("");
+  const [actionError, setActionError] = useState("");
   return (
     <div className={styles.page}>
       <PrototypeBanner />
@@ -16,8 +20,10 @@ export default function ToppiRenewalsPage() {
       />
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
-          <div><h2>Canonical renewal queue</h2><p>Core determines successor eligibility; mutation UI remains deferred in this slice.</p></div>
+          <div><h2>Canonical renewal queue</h2><p>Prepare successor Level packages without activating them or rewriting completed history.</p></div>
         </div>
+        {message ? <div className={styles.success}>{message}</div> : null}
+        {actionError ? <div className={styles.empty}>{actionError}</div> : null}
         {error ? <div className={styles.empty}>{error}</div> : null}
         {loading ? <div className={styles.empty}>Loading canonical renewals…</div> : null}
         <div className={styles.tableWrap}>
@@ -30,7 +36,7 @@ export default function ToppiRenewalsPage() {
                   <td>{enrollment.package.unitProgress}/12</td>
                   <td>{enrollment.currentPlacement ? slotLabel(enrollment.currentPlacement.slot) : "Unplaced"}</td>
                   <td><StatusPill value={enrollment.renewalState} /></td>
-                  <td><div className={styles.actionRow}><span className={styles.badge}>{nextLabel(enrollment)}</span><button className={styles.primaryButton} disabled title="Renewal mutation UI is deferred">Renew</button></div></td>
+                  <td><div className={styles.actionRow}><span className={styles.badge}>{nextLabel(enrollment)}</span><button className={styles.primaryButton} disabled={Boolean(busyId) || enrollment.renewalState !== "ELIGIBLE" || enrollment.level >= 10} onClick={() => void prepare(enrollment)}>{busyId === enrollment.id ? "Preparing…" : enrollment.renewalState === "DRAFT_PREPARED" ? "Prepared" : "Prepare renewal"}</button></div></td>
                 </tr>
               ))}
             </tbody>
@@ -50,7 +56,17 @@ export default function ToppiRenewalsPage() {
       </section>
     </div>
   );
+  async function prepare(enrollment: ToppiEnrollment) {
+    setBusyId(enrollment.id); setMessage(""); setActionError("");
+    try {
+      await toppiStagingApi.prepareRenewal(enrollment.id, enrollment.revision);
+      setMessage(`Successor Level ${enrollment.level + 1} package prepared as DRAFT.`);
+      await refresh();
+    } catch (cause) { setActionError(cause instanceof Error ? cause.message : "Renewal could not be prepared."); }
+    finally { setBusyId(""); }
+  }
 }
+
 function programName(program: CoreProgram) {
   return program === "CONFIDENT_COMMUNICATION" ? "Confident Communication" : "Language Foundation";
 }
