@@ -20,8 +20,6 @@ type ChoiceTransitionSubject = {
   path: string;
   room: string;
   companion: string;
-  pls: number;
-  fruit: number;
   character?: CharacterProjectionSnapshot;
   companionState?: CompanionProjectionSnapshot;
 };

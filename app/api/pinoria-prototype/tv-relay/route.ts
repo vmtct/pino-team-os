@@ -31,6 +31,8 @@ type TVSubject = {
   companionState?: CompanionProjectionSnapshot;
 };
 
+type TVSurfaceSubject = Omit<TVSubject, "pls" | "fruit">;
+
 type RelayEvent = {
   id: number;
   surfaceId: string;
@@ -38,7 +40,7 @@ type RelayEvent = {
   mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast" | "world-transition";
   replay?: boolean;
   subject?: TVSubject;
-  subjectSnapshot?: TVSubject;
+  subjectSnapshot?: TVSurfaceSubject;
   reward?: EnergySeedReward;
   spotlight?: LearningSpotlightPayload;
   broadcast?: WorldBroadcastPayload;
@@ -102,10 +104,14 @@ function nextQueuedEventFor(surfaceId: string) {
     ?? null;
 }
 
-function projectedSubject(subject?: TVSubject | null): TVSubject | undefined {
+function projectedSubject(subject?: TVSubject | null): TVSurfaceSubject | undefined {
   if (!subject) return undefined;
   return {
-    ...subject,
+    id: subject.id,
+    name: subject.name,
+    path: subject.path,
+    room: subject.room,
+    companion: subject.companion,
     character: getCharacterProjection(subject.id),
     companionState: getCompanionProjection(subject.id),
   };
