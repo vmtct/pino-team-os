@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import styles from "./toppi-bo.module.css";
 
 export function PrototypeBanner() {
   return (
     <div className={styles.prototypeBanner}>
-      <strong>Toppi BO prototype · mock data</strong>
-      <span>No Core writes · no production data · browser interactions are temporary</span>
+      <strong>Toppi BO · canonical enrollment staging</strong>
+      <span>Students, Enrollments, Schedule and Renewals use synthetic Core data · remaining modules are reference prototypes · production remains untouched</span>
     </div>
   );
 }

@@ -1,10 +1,12 @@
+"use client";
+
 import { PageHeading, PrototypeBanner, StatusPill } from "../components";
-import { mockEnrollments, programName, slotFor, studentFor } from "../mock-data";
+import { useCanonicalToppi } from "../use-canonical-toppi";
+import type { CoreProgram, ToppiDeliverySlot, ToppiEnrollment } from "@/lib/toppi-staging-api";
 import styles from "../toppi-bo.module.css";
 
 export default function ToppiRenewalsPage() {
-  const items = mockEnrollments.filter((item) => item.renewalStatus !== "NONE");
-
+  const { renewals, loading, error } = useCanonicalToppi();
   return (
     <div className={styles.page}>
       <PrototypeBanner />
@@ -14,34 +16,31 @@ export default function ToppiRenewalsPage() {
       />
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
-          <div><h2>Attention queue</h2><p>Sorted by operational urgency in the mock projection.</p></div>
+          <div><h2>Canonical renewal queue</h2><p>Core determines successor eligibility; mutation UI remains deferred in this slice.</p></div>
         </div>
+        {error ? <div className={styles.empty}>{error}</div> : null}
+        {loading ? <div className={styles.empty}>Loading canonical renewals…</div> : null}
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead><tr><th>Student</th><th>Current journey</th><th>Progress</th><th>Schedule</th><th>State</th><th>Next</th></tr></thead>
-            <tbody>
-              {items.map((enrollment) => {
-                const student = studentFor(enrollment.studentId)!;
-                const slot = slotFor(enrollment.slotId)!;
-                const next = enrollment.level < 10 ? `Level ${enrollment.level + 1}` : "Program complete";
-                return (
-                  <tr key={enrollment.id}>
-                    <td><div className={styles.person}><strong>{student.displayName}</strong><small>{student.guardianName}</small></div></td>
-                    <td><div className={styles.program}><strong>{programName(enrollment.program)} · Lv {enrollment.level}</strong><small>Projected {enrollment.projectedCompletion}</small></div></td>
-                    <td>{enrollment.unit}/12</td>
-                    <td>{slot.label}</td>
-                    <td><StatusPill value={enrollment.renewalStatus} /></td>
-                    <td><div className={styles.actionRow}><span className={styles.badge}>{next}</span><button className={styles.primaryButton}>Renew</button></div></td>
-                  </tr>
-                );
-              })}
+            <tbody>              {renewals.map((enrollment) => (
+                <tr key={enrollment.id}>
+                  <td><div className={styles.person}><strong>{enrollment.student.displayName}</strong><small>{enrollment.student.guardianSummary.primaryDisplayName ?? "Guardian linked"}</small></div></td>
+                  <td><div className={styles.program}><strong>{programName(enrollment.program)} · Lv {enrollment.level}</strong><small>{enrollment.projectedCompletionLocalDate ? `Projected ${enrollment.projectedCompletionLocalDate}` : "Projection pending"}</small></div></td>
+                  <td>{enrollment.package.unitProgress}/12</td>
+                  <td>{enrollment.currentPlacement ? slotLabel(enrollment.currentPlacement.slot) : "Unplaced"}</td>
+                  <td><StatusPill value={enrollment.renewalState} /></td>
+                  <td><div className={styles.actionRow}><span className={styles.badge}>{nextLabel(enrollment)}</span><button className={styles.primaryButton} disabled title="Renewal mutation UI is deferred">Renew</button></div></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
+        {!loading && !renewals.length ? <div className={styles.empty}>No canonical renewal attention is required.</div> : null}
       </section>
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
-          <div><h2>Prototype rule visible in UI</h2><p>Successor starts only after the mandatory one qualifying operating-week break.</p></div>
+          <div><h2>Progression rule</h2><p>Successor activation remains fail-closed until the mandatory qualifying operating-week resolver lands.</p></div>
         </div>
         <div className={styles.wizardSummary}>
           <div><span>Level completion</span><strong>Unit 12 settles Level N</strong></div>
@@ -51,4 +50,18 @@ export default function ToppiRenewalsPage() {
       </section>
     </div>
   );
+}
+function programName(program: CoreProgram) {
+  return program === "CONFIDENT_COMMUNICATION" ? "Confident Communication" : "Language Foundation";
+}
+
+function slotLabel(slot: ToppiDeliverySlot) {
+  const weekday = ["", "T2", "T3", "T4", "T5", "T6", "T7", "CN"][slot.weekdayIso] ?? `D${slot.weekdayIso}`;
+  return `${weekday} · ${slot.startsLocal}–${slot.endsLocal}`;
+}
+
+function nextLabel(enrollment: ToppiEnrollment) {
+  if (enrollment.nextEligibleLevel) return `Level ${enrollment.nextEligibleLevel}`;
+  if (enrollment.level === 10 && enrollment.lifecycle === "COMPLETED") return "Program complete";
+  return "Pending progression";
 }

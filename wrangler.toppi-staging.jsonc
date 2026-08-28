@@ -9,5 +9,12 @@
     "directory": ".open-next/assets"
   },
   "observability": { "enabled": true },
-  "workers_dev": true
+  "workers_dev": true,
+  "vars": {
+    "TOPPI_STAGING_MODE": "canonical-synthetic",
+    "TOPPI_STAGING_CENTER_ID": "00000000-0000-7000-8000-000000000001"
+  },
+  "services": [
+    { "binding": "PINO_BO_CORE", "service": "pino-core-toppi-staging", "entrypoint": "BoAccessControlPlane" }
+  ]
 }
