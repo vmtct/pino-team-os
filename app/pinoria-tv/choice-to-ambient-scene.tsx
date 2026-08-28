@@ -4,8 +4,9 @@ import savedEmergence from "./ambient-house-emergence.saved.json";
 import { ChoiceScene } from "./choice-scene";
 import { PinoriaStage } from "./pinoria-stage";
 import { activatedMarkIdsFromEarned, characterLayerOverridesFromEquipment } from "./character-frame";
-import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
-import { PrototypeCharacter } from "./prototype-assets";
+import { companionView } from "./companion-view";
+import type { CharacterProjectionSnapshot, CompanionProjectionSnapshot, ShopCatalogItem } from "./shop-types";
+import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 
 export const CHOICE_SELECTION_MS = 8000;
 export const CHOICE_SETTLE_MS = 5200;
@@ -22,6 +23,7 @@ type ChoiceTransitionSubject = {
   pls: number;
   fruit: number;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 type EmergenceSnapshot = {
@@ -40,6 +42,7 @@ const DEFAULT_AMBIENT_TARGET: AmbientHandoffTarget = { leftPct: emergeLeftPct, t
 export function ChoiceToAmbientScene({ subject, ambientTarget = null, catalog = [] }: { subject: ChoiceTransitionSubject; ambientTarget?: AmbientHandoffTarget | null; catalog?: readonly ShopCatalogItem[] }) {
   const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
   const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
+  const companion = companionView(subject);
   const target = ambientTarget ?? DEFAULT_AMBIENT_TARGET;
   return (
     <div
@@ -85,6 +88,7 @@ export function ChoiceToAmbientScene({ subject, ambientTarget = null, catalog = 
 
         <div data-transition-character aria-label={`Nhân vật ${subject.name} trở về Nhà PINO`} style={{ position: "absolute", zIndex: 4, left: `${target.leftPct}%`, top: `${target.topPct}%`, width: `${target.widthPct}%`, aspectRatio: "1 / 1", transformOrigin: "50% 50%", willChange: "left,top,width,transform,opacity" }}>
           <PrototypeCharacter subjectId={subject.id} wingMotion="idle" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} size="100%" style={{ filter: "drop-shadow(0 14px 18px rgba(0,0,0,.22))" }} />
+          {companion.active ? <div data-transition-companion={companion.displayName} style={{ position: "absolute", right: "-8%", bottom: "-3%", width: "42%", zIndex: 20 }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
         </div>
 
         <div data-transition-greeting style={{ position: "absolute", zIndex: 6, left: "50%", top: "7%", width: "72%", textAlign: "center", textShadow: "0 4px 24px rgba(9,16,9,.42)" }}>

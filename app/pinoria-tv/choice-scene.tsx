@@ -1,10 +1,14 @@
 "use client";
 
-import { prototypeChoiceAssets } from "./prototype-assets";
+import { companionView } from "./companion-view";
+import { prototypeChoiceAssets, PrototypeCompanion } from "./prototype-assets";
+import type { CompanionProjectionSnapshot } from "./shop-types";
 
 type ChoiceSubject = {
   name: string;
   pls: number;
+  companion?: string;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 type Crop = {
@@ -177,6 +181,7 @@ function ChoiceGroup({ title, meta, kind, children }: { title: string; meta: str
 }
 
 export function ChoiceScene({ subject }: { subject: ChoiceSubject }) {
+  const companion = companionView(subject);
   const all = items(subject.pls);
   const owned = all.slice(0, 3);
   const shop = all.slice(3);
@@ -204,6 +209,7 @@ export function ChoiceScene({ subject }: { subject: ChoiceSubject }) {
       `}</style>
 
       <div style={{ position: "absolute", left: "25%", right: "25%", top: "7%", height: "70%", borderRadius: "50%", background: "radial-gradient(circle,#f3dd9f55 0,transparent 70%)", filter: "blur(20px)" }} />
+      {companion.active ? <div data-pinoria-choice-companion={companion.displayName} style={{ position: "absolute", right: "3.5%", top: "3.5%", width: 112, zIndex: 4, display: "grid", justifyItems: "center", gap: 2, pointerEvents: "none", filter: "drop-shadow(0 10px 16px rgba(0,0,0,.18))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /><strong style={{ fontSize: 10, color: "#efe5c9", textShadow: "0 3px 10px #0008" }}>{companion.displayName}</strong></div> : null}
 
       <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", padding: "64px clamp(52px,6.4vw,92px) 70px", display: "grid", gridTemplateRows: "auto minmax(0,1fr)", gap: 15, overflow: "hidden" }}>
         <header className="pinoriaChoiceHeaderDirect" style={{ width: "100%", maxWidth: 1040, margin: "0 auto", textAlign: "center" }}>

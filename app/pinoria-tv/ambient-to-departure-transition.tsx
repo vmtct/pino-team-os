@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { DEPARTURE_HERO_TARGET } from "./departure-layout";
 import { PinoriaStage } from "./pinoria-stage";
 import { activatedMarkIdsFromEarned, characterLayerOverridesFromEquipment } from "./character-frame";
-import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
-import { PrototypeCharacter } from "./prototype-assets";
+import { companionView } from "./companion-view";
+import type { CharacterProjectionSnapshot, CompanionProjectionSnapshot, ShopCatalogItem } from "./shop-types";
+import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 
 export const AMBIENT_TO_DEPARTURE_MS = 6200;
 
@@ -20,7 +21,9 @@ export type FrozenAmbientActor = {
 type DepartureTransitionSubject = {
   id: string;
   name: string;
+  companion?: string;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 function clamp01(value: number) {
@@ -47,6 +50,7 @@ export function AmbientToDepartureTransition({
 }) {
   const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
   const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
+  const companion = companionView(subject);
   const [progress, setProgress] = useState(0);
   const frameRef = useRef<number | null>(null);
 
@@ -146,6 +150,7 @@ export function AmbientToDepartureTransition({
               <PrototypeCharacter subjectId={subject.id} size="100%" wingMotion="off" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} />
             </div>
           </div>
+          {companion.active ? <div data-checkout-moving-companion={companion.displayName} style={{ position: "absolute", right: "-8%", bottom: "-3%", width: "42%", zIndex: 40, filter: "drop-shadow(0 10px 14px rgba(0,0,0,.2))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
           <div data-checkout-moving-full style={{ position: "absolute", inset: 0, opacity: fullOpacity }}>
             <PrototypeCharacter
               subjectId={subject.id}
