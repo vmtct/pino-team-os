@@ -5,7 +5,22 @@ import { DEFAULT_ENERGY_SEED_REWARD, EnergySeedScene } from "../../energy-seed-s
 const subject = {
   id: "bo",
   name: "Bơ",
-  companion: "Bùm · Ploo · Cấp 2",
+  // Deliberately stale legacy value: structured projection must win in review.
+  companion: "Chưa có Hộ Linh",
+  companionState: {
+    subjectId: "bo",
+    active: {
+      id: "bum",
+      displayName: "Bùm",
+      species: "Ploo",
+      level: 2,
+      formLabel: "Hiện hình II",
+      visualId: "ploo-form-2",
+    },
+    collectionIds: ["bum"],
+    revision: 1,
+    updatedAt: 0,
+  },
 };
 
 export default function EnergySeedReviewPage() {

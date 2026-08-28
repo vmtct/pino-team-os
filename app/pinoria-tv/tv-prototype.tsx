@@ -104,7 +104,7 @@ const defaultSubject: TVSubject = {
   name: "Bơ",
   path: "ArtChitect · Màu nước II",
   room: "Phòng Họa",
-  companion: "Bùm · Ploo · Cấp 2",
+  companion: "Chưa có Hộ Linh",
   pls: 420,
   fruit: 2,
 };

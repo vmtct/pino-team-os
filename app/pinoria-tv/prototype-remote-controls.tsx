@@ -21,6 +21,8 @@ type MockStudent = {
   fruit: number;
 };
 
+// These legacy companion strings intentionally mimic stale controller payloads.
+// TV relay projects canonical companionState by learner id; this fixture must never become source of truth.
 const MOCK_STUDENTS: MockStudent[] = [
   { id: "bo", name: "Bơ", path: "ArtChitect · Màu nước II", room: "Phòng Họa", companion: "Bùm · Ploo · Cấp 2", pls: 420, fruit: 2 },
   { id: "tri", name: "Trí", path: "PianoHouse · Cấp 4", room: "Piano House", companion: "Mây · Ploo · Cấp 2", pls: 680, fruit: 4 },
