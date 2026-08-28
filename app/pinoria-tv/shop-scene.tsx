@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
+import { JourneyRankPanel } from "./journey-rank";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -36,7 +37,7 @@ function ShopCharacterPreview({ subjectId, selected }: { subjectId: string; sele
     : undefined;
 
   return (
-    <div style={{ position: "relative", width: "min(480px,38.5vw)", aspectRatio: "1 / 1" }}>
+    <div style={{ position: "relative", width: "min(448px,35.5vw)", aspectRatio: "1 / 1" }}>
       <div
         style={{
           position: "absolute",
@@ -206,7 +207,7 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
         @keyframes pinoriaShopPreviewNudge { 0% { transform:scale(.985); filter:brightness(.96) } 45% { transform:scale(1.012); filter:brightness(1.04) } 100% { transform:scale(1); filter:brightness(1) } }
       `}</style>
 
-      <div style={{ position: "absolute", inset: "28px 46px 32px", display: "grid", gridTemplateColumns: "41% 59%", gridTemplateRows: "92px 1fr", gap: "15px 24px", animation: "pinoriaShopEnter .48s ease-out both" }}>
+      <div style={{ position: "absolute", inset: "28px 46px 32px", display: "grid", gridTemplateColumns: "42% 58%", gridTemplateRows: "92px 1fr", gap: "15px 24px", animation: "pinoriaShopEnter .48s ease-out both" }}>
         <header style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "300px minmax(0,1fr) 150px", alignItems: "center", gap: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <img src={PINORIA_SHOP_LOGO} alt="Pinoria" style={{ width: 150, maxHeight: 60, objectFit: "contain", objectPosition: "left center", filter: "drop-shadow(0 7px 18px rgba(0,0,0,.32))" }} />
@@ -235,11 +236,11 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
           </div>
         </header>
 
-        <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.2)", background: "linear-gradient(180deg,rgba(46,30,25,.61),rgba(24,16,14,.76))", boxShadow: "0 30px 60px rgba(0,0,0,.28)" }}>
+        <section style={{ position: "relative", minHeight: 0, borderRadius: 26, overflow: "hidden", border: "1px solid rgba(236,194,115,.2)", background: "radial-gradient(circle at 22% 12%,rgba(38,65,105,.14),transparent 32%),linear-gradient(180deg,rgba(43,31,29,.68),rgba(22,16,16,.82))", boxShadow: "0 30px 60px rgba(0,0,0,.28)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 41%,rgba(143,78,195,.14),transparent 50%)" }} />
-          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "1fr auto", alignItems: "center", justifyItems: "center", padding: "15px 17px 17px" }}>
+          <div style={{ position: "relative", height: "100%", display: "grid", gridTemplateRows: "auto minmax(0,1fr) auto", alignItems: "center", justifyItems: "center", padding: "12px 17px 17px" }}>
+            <JourneyRankPanel subjectId={session?.subject.id ?? "bo"} style={{ width: "100%", boxSizing: "border-box", padding: "3px 10px 8px", borderBottom: "1px solid rgba(236,199,126,.09)" }} />
             <div style={{ position: "relative", display: "grid", placeItems: "center", alignSelf: "stretch", width: "100%" }}>
-              <div style={{ position: "absolute", left: 12, top: 12, zIndex: 80, padding: "7px 11px", borderRadius: 999, border: "1px solid rgba(239,195,110,.18)", background: "rgba(23,15,13,.64)", color: "rgba(248,232,204,.68)", fontSize: 10, fontWeight: 950, letterSpacing: ".11em" }}>ĐANG THỬ</div>
               <div key={selected?.assetId ?? "empty"} style={{ position: "relative", display: "grid", placeItems: "center", animation: "pinoriaShopPreviewNudge .5s ease-out both" }}>
                 <ShopCharacterPreview subjectId={session?.subject.id ?? "bo"} selected={selected} />
                 {selected ? (
@@ -250,13 +251,14 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
                   </div>
                 ) : null}
               </div>
-              <div data-shop-companion style={{ position: "absolute", right: "clamp(24px,4vw,64px)", bottom: "clamp(34px,6vh,58px)", width: "clamp(142px,9.4vw,176px)", zIndex: 82 }}>
+              <div data-shop-companion style={{ position: "absolute", right: "clamp(18px,3.2vw,50px)", bottom: "clamp(22px,4.4vh,44px)", width: "clamp(132px,8.8vw,164px)", zIndex: 82 }}>
                 <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 18px 22px rgba(0,0,0,.36))" }} />
               </div>
             </div>
             <div data-shop-preview-info style={{ width: "100%", padding: "14px 16px", borderRadius: 17, background: "rgba(20,13,11,.72)", border: "1px solid rgba(240,196,112,.17)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 21, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
+                <span style={{ flex: "0 0 auto", padding: "5px 8px", borderRadius: 999, border: "1px solid rgba(239,195,110,.18)", background: "rgba(46,31,24,.72)", color: "rgba(248,232,204,.62)", fontSize: 9, fontWeight: 950, letterSpacing: ".09em" }}>ĐANG THỬ</span>
+                <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 19, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>
                 {owned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", width: 19, height: 19, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(91,146,73,.22)", border: "1px solid rgba(142,203,118,.42)", color: "#a7df92", fontSize: 12, fontWeight: 950 }}>✓</span> : null}
               </div>
               <p style={{ margin: "7px 0 0", color: "rgba(246,235,217,.62)", fontSize: 12, lineHeight: 1.45 }}>{descriptionFor(selected)}</p>
