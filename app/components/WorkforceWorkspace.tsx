@@ -3,7 +3,7 @@ import{useEffect,useMemo,useState}from"react";
 import{TosShell}from"@/app/components/tos-shell";
 import{workforceApi,WorkforceApiError,type Assignment,type Availability,type ShiftTemplate,type StaffProfile,type TimekeepingSession,type WorkforceContext}from"@/lib/workforce-api";
 
-const footer=[{id:"home",label:"Home",href:"/dashboard"},{id:"shift",label:"Ca làm",href:"/check-in"},{id:"history",label:"Lịch sử",href:"/timesheet"}];
+const footer=[{id:"home",label:"Home",href:"/dashboard"},{id:"classroom",label:"Lớp học",href:"/classroom"},{id:"shift",label:"Ca làm",href:"/check-in"},{id:"history",label:"Lịch sử",href:"/timesheet"}];
 type View="dashboard"|"profile"|"check-in"|"history";
 function today(){return new Date().toISOString().slice(0,10);}function offset(days:number){const date=new Date();date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10);}
 function weekDates(week:WorkforceContext["termWeeks"][number]){const dates:string[]=[];const cursor=new Date(`${week.startDate}T00:00:00Z`);const end=new Date(`${week.endDate}T00:00:00Z`);while(cursor<=end){dates.push(cursor.toISOString().slice(0,10));cursor.setUTCDate(cursor.getUTCDate()+1);}return dates;}
