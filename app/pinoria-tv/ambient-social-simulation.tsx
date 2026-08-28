@@ -11,6 +11,8 @@ import {
   type AmbientMotionGraphRaw,
 } from "./ambient-house-motion-graph";
 import { PinoriaStage } from "./pinoria-stage";
+import { activatedMarkIdsFromEarned, characterLayerOverridesFromEquipment } from "./character-frame";
+import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
 import { PrototypeCharacter } from "./prototype-assets";
 
 const MINI_WIDTH = 164;
@@ -36,6 +38,7 @@ export type AmbientSocialSubject = {
   name: string;
   path: string;
   room: string;
+  character?: CharacterProjectionSnapshot;
 };
 type AreaSnapshot = {
   canvas: { width: number; height: number };
@@ -391,7 +394,7 @@ function zoneLabel(zoneId: ZoneId) {
   return AREAS.areas.find((area) => area.id === zoneId)?.label ?? zoneId;
 }
 
-export function AmbientSocialSimulation({ subjects = [], debug = false, hiddenSubjectId = null }: { subjects?: readonly AmbientSocialSubject[]; debug?: boolean; hiddenSubjectId?: string | null }) {
+export function AmbientSocialSimulation({ subjects = [], catalog = [], debug = false, hiddenSubjectId = null }: { subjects?: readonly AmbientSocialSubject[]; catalog?: readonly ShopCatalogItem[]; debug?: boolean; hiddenSubjectId?: string | null }) {
   const subjectSignature = useMemo(() => subjects.map((subject) => `${subject.id}:${subject.name}:${subject.path}:${subject.room}`).join("|"), [subjects]);
   const [world, setWorld] = useState<WorldState>(() => ({ agents: seedSubjects(subjects), conversations: [] }));
   const cooldownRef = useRef<CooldownMap>({});
@@ -425,6 +428,7 @@ export function AmbientSocialSimulation({ subjects = [], debug = false, hiddenSu
   }, []);
 
   const { agents, conversations } = world;
+  const subjectById = useMemo(() => new Map(subjects.map((subject) => [subject.id, subject])), [subjects]);
   const blockers = useMemo(() => buildBlockers(agents, conversations), [agents, conversations]);
   const activeZoneCounts = useMemo(() => conversations.reduce<Record<string, number>>((acc, conversation) => {
     acc[conversation.zoneId] = (acc[conversation.zoneId] ?? 0) + 1;
@@ -437,13 +441,13 @@ export function AmbientSocialSimulation({ subjects = [], debug = false, hiddenSu
         <img src={ASSETS.back} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 0, pointerEvents: "none" }} />
 
         {agents.filter((agent) => laneById(agent.laneId).midLayer === "behind").map((agent) => (
-          <SocialMini key={agent.id} agent={agent} hidden={agent.id === hiddenSubjectId} />
+          <SocialMini key={agent.id} agent={agent} subject={subjectById.get(agent.id)} catalog={catalog} hidden={agent.id === hiddenSubjectId} />
         ))}
 
         <img src={ASSETS.mid} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 500000000, pointerEvents: "none" }} />
 
         {agents.filter((agent) => laneById(agent.laneId).midLayer === "front").map((agent) => (
-          <SocialMini key={agent.id} agent={agent} hidden={agent.id === hiddenSubjectId} />
+          <SocialMini key={agent.id} agent={agent} subject={subjectById.get(agent.id)} catalog={catalog} hidden={agent.id === hiddenSubjectId} />
         ))}
 
         <img src={ASSETS.front} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 1100000000, pointerEvents: "none" }} />
@@ -553,7 +557,9 @@ export function AmbientSocialSimulation({ subjects = [], debug = false, hiddenSu
   );
 }
 
-function SocialMini({ agent, hidden = false }: { agent: SocialAgent; hidden?: boolean }) {
+function SocialMini({ agent, subject, catalog, hidden = false }: { agent: SocialAgent; subject?: AmbientSocialSubject; catalog: readonly ShopCatalogItem[]; hidden?: boolean }) {
+  const layerOverrides = characterLayerOverridesFromEquipment(subject?.character?.equipment, catalog);
+  const prestigeMarkIds = activatedMarkIdsFromEarned(subject?.character?.earnedAchievementIds);
   const lane = laneById(agent.laneId);
   const localZ = Math.round(agent.y * 100) * 4096 + Math.round(agent.x) * 2;
   const zIndex = (lane.midLayer === "behind" ? 1000 : 600000000) + localZ;
@@ -579,7 +585,7 @@ function SocialMini({ agent, hidden = false }: { agent: SocialAgent; hidden?: bo
         data-ambient-mini-body="on"
         style={{ position: "absolute", inset: 0, ["--ambient-mini-name" as string]: JSON.stringify(agent.name) }}
       >
-        <PrototypeCharacter subjectId={agent.id} size={164} wingMotion="off" />
+        <PrototypeCharacter subjectId={agent.id} size={164} wingMotion="off" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} />
       </div>
     </div>
   );

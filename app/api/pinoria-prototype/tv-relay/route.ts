@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listHousePresence, markHouseArrival, markHouseDeparture } from "../../../../lib/pinoria-prototype/house-presence";
+import { getCharacterProjection } from "../../../../lib/pinoria-prototype/character-projection";
 import {
   closeSurfaceInteractive,
   getSurfaceSessionSnapshot,
@@ -7,6 +8,7 @@ import {
   setSurfaceSubject,
 } from "../../../../lib/pinoria-prototype/surface-session";
 import type {
+  CharacterProjectionSnapshot,
   EnergySeedReward,
   LearningSpotlightPayload,
   PinoriaSurfaceBaseMode,
@@ -23,6 +25,7 @@ type TVSubject = {
   companion: string;
   pls: number;
   fruit: number;
+  character?: CharacterProjectionSnapshot;
 };
 
 type RelayEvent = {
@@ -95,6 +98,15 @@ function nextQueuedEventFor(surfaceId: string) {
     ?? null;
 }
 
+function projectedSubject(subject?: TVSubject | null): TVSubject | undefined {
+  if (!subject) return undefined;
+  return { ...subject, character: getCharacterProjection(subject.id) };
+}
+
+function projectedEvent(event: RelayEvent | null) {
+  if (!event) return null;
+  return { ...event, subject: projectedSubject(event.subject) };
+}
 function relaySurfaceSnapshot(surfaceId: string, now: number) {
   const surface = getSurfaceSessionSnapshot(surfaceId, now);
   const active = activeEventFor(surfaceId);
@@ -111,7 +123,7 @@ function relaySurfaceSnapshot(surfaceId: string, now: number) {
     worldState: pendingWorldTransition?.worldTransition?.from ?? surface.worldState,
     mode: surface.baseMode,
     queuedCount: store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued").length,
-    housePresence: listHousePresence(surfaceId),
+    housePresence: listHousePresence(surfaceId).map((subject) => projectedSubject(subject)),
     activeEvent: active ? {
       id: active.id,
       kind: active.kind,
@@ -152,7 +164,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     surface: relaySurfaceSnapshot(surfaceId, now),
-    event,
+    event: projectedEvent(event),
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -218,7 +230,7 @@ export async function POST(request: NextRequest) {
       expiresAt: now + (body.replay ? 5 : 15) * 60 * 1000,
     };
     store.events.push(event);
-    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event: projectedEvent(event), surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "enqueue-control") {
@@ -232,7 +244,7 @@ export async function POST(request: NextRequest) {
       expiresAt: now + 5 * 60 * 1000,
     };
     store.events.push(event);
-    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event: projectedEvent(event), surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "claim") {
@@ -249,7 +261,7 @@ export async function POST(request: NextRequest) {
     event.claimedAt = now;
     if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
     applyPresenceOnClaim(event, now);
-    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event: projectedEvent(event), surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "complete") {
@@ -261,7 +273,7 @@ export async function POST(request: NextRequest) {
       event.completedAt = now;
       applyPresenceOnComplete(event);
     }
-    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event: projectedEvent(event), surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   if (body.op === "ack") {
@@ -274,7 +286,7 @@ export async function POST(request: NextRequest) {
       if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
       applyPresenceOnClaim(event, now);
     }
-    return NextResponse.json({ ok: true, event, surface: relaySurfaceSnapshot(surfaceId, now) });
+    return NextResponse.json({ ok: true, event: projectedEvent(event), surface: relaySurfaceSnapshot(surfaceId, now) });
   }
 
   return NextResponse.json({ ok: false, error: "UNSUPPORTED_OPERATION" }, { status: 400 });

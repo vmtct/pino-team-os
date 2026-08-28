@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PinoriaCharacterFrame, mockCharacterAccessories } from "./character-frame";
+import { activatedMarkIdsFromEarned, characterAccessoriesFromEquipment, characterLayerOverridesFromEquipment, PinoriaCharacterFrame } from "./character-frame";
+import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
 import {
   AMBIENT_HOUSE_ARRIVAL_ASSETS,
   DEFAULT_ARRIVAL_BACKGROUND,
@@ -22,6 +23,7 @@ type ArrivalSubject = {
   name: string;
   path: string;
   companion: string;
+  character?: CharacterProjectionSnapshot;
 };
 
 const HOUSE_COVER_SECONDS = .72;
@@ -130,7 +132,7 @@ function OrbitingMarks() {
   );
 }
 
-export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
+export function ArrivalScene({ subject, catalog = [] }: { subject: ArrivalSubject; catalog?: readonly ShopCatalogItem[] }) {
   const [backgroundVariant, setBackgroundVariant] = useState<ArrivalBackgroundVariant>(DEFAULT_ARRIVAL_BACKGROUND);
 
   useEffect(() => {
@@ -154,6 +156,9 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
     };
   }, []);
 
+  const characterAccessories = characterAccessoriesFromEquipment(subject.character?.equipment);
+  const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
+  const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
   const houseBackground = backgroundVariant === "ambient-house-blur";
   const foregroundDelay = houseBackground ? HOUSE_COVER_SECONDS : 0;
 
@@ -250,7 +255,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
         </section>
 
         <section aria-hidden="true" className="pinoriaArrivalCharacter" style={{ position: "relative", width: "min(650px,50vw)", height: "min(590px,76vh)", justifySelf: "end", display: "grid", placeItems: "center", animation: `pinoriaArrivalCharacter 6.2s ${foregroundDelay}s cubic-bezier(.18,.8,.2,1) both` }}>
-          <PinoriaCharacterFrame subjectId={subject.id} subjectName={subject.name} accessories={mockCharacterAccessories(subject.id)} style={{ width: "100%", height: "100%" }} identityStyle={{ padding: "5px 8px 10px" }}>
+          <PinoriaCharacterFrame subjectId={subject.id} subjectName={subject.name} accessories={characterAccessories} style={{ width: "100%", height: "100%" }} identityStyle={{ padding: "5px 8px 10px" }}>
             <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center" }}>
           <OrbitingMarks />
 
@@ -319,7 +324,7 @@ export function ArrivalScene({ subject }: { subject: ArrivalSubject }) {
             }}
           />
 
-          <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" size="min(430px,36vw,52vh)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
+          <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} size="min(430px,36vw,52vh)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
           <div
             data-pinoria-full-character-companion

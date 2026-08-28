@@ -125,6 +125,14 @@ export type InventoryEquipmentState = {
   achievements: Partial<Record<InventoryAchievementSlot, string>>;
 };
 
+export type CharacterProjectionSnapshot = {
+  subjectId: string;
+  ownedAssetIds: string[];
+  earnedAchievementIds: string[];
+  equipment: InventoryEquipmentState;
+  revision: number;
+  updatedAt: number;
+};
 export type ShopSessionSnapshot = {
   surfaceId: string;
   open: boolean;

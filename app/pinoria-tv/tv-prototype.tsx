@@ -22,10 +22,13 @@ import { getLostArtifact } from "./lost-artifact-data";
 import { LOST_ARTIFACT_BROADCAST_MS, LostArtifactScene } from "./lost-artifact-scene";
 import {
   DEFAULT_PINORIA_WORLD_STATE,
+  PINORIA_SHOP_CATALOG_URL,
+  type CharacterProjectionSnapshot,
   type EnergySeedReward,
   type LearningSpotlightPayload,
   type PinoriaSurfaceSessionSnapshot,
   type PinoriaWorldStateSnapshot,
+  type ShopCatalogItem,
   type WorldBroadcastPayload,
   type WorldStateTransitionPayload,
 } from "./shop-types";
@@ -51,6 +54,7 @@ type TVSubject = {
   companion: string;
   pls: number;
   fruit: number;
+  character?: CharacterProjectionSnapshot;
 };
 
 type RelayEvent = {
@@ -167,6 +171,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
   const [ambientHiddenSubjectId, setAmbientHiddenSubjectId] = useState<string | null>(null);
   const [choiceAmbientTarget, setChoiceAmbientTarget] = useState<AmbientHandoffTarget | null>(null);
+  const [characterCatalog, setCharacterCatalog] = useState<ShopCatalogItem[]>([]);
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
   const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
@@ -182,6 +187,16 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   const busyRef = useRef(false);
   const pollingRef = useRef(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(PINORIA_SHOP_CATALOG_URL, { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { items?: ShopCatalogItem[] }) => {
+        if (!cancelled && Array.isArray(data.items)) setCharacterCatalog(data.items);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
@@ -219,7 +234,8 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
             && item.id === candidate.id
             && item.name === candidate.name
             && item.path === candidate.path
-            && item.room === candidate.room;
+            && item.room === candidate.room
+            && item.character?.revision === candidate.character?.revision;
         });
         return unchanged ? current : next;
       });
@@ -484,9 +500,9 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   }
   const activeLostArtifact = broadcast.kind === "lost-artifact" ? getLostArtifact(broadcast.artifactId ?? "") : undefined;
   const ambientSubjects = useMemo<AmbientSocialSubject[]>(() => {
-    if (housePresenceLoaded) return housePresence.map(({ id, name, path, room }) => ({ id, name, path, room }));
-    return [{ id: ambientSubject.id, name: ambientSubject.name, path: ambientSubject.path, room: ambientSubject.room }];
-  }, [ambientSubject.id, ambientSubject.name, ambientSubject.path, ambientSubject.room, housePresence, housePresenceLoaded]);
+    if (housePresenceLoaded) return housePresence.map(({ id, name, path, room, character }) => ({ id, name, path, room, character }));
+    return [{ id: ambientSubject.id, name: ambientSubject.name, path: ambientSubject.path, room: ambientSubject.room, character: ambientSubject.character }];
+  }, [ambientSubject.id, ambientSubject.name, ambientSubject.path, ambientSubject.room, ambientSubject.character, housePresence, housePresenceLoaded]);
 
 
   const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
@@ -508,7 +524,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
         }}
       >
         <style>{`[data-ambient-backplane][data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
-        <AmbientSocialSimulation subjects={ambientSubjects} hiddenSubjectId={ambientHiddenSubjectId} />
+        <AmbientSocialSimulation subjects={ambientSubjects} catalog={characterCatalog} hiddenSubjectId={ambientHiddenSubjectId} />
         <WorldStateAmbientOverlay state={worldState} />
       </div>
 
@@ -519,15 +535,15 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
         {replayLabel ?? "TV PROTOTYPE · SURFACE SESSION · RECEPTION_TV"}
       </div> : null}
 
-      {mode === "arrival" ? <Arrival subject={subject} /> : null}
-      {mode === "choice" ? <ChoiceToAmbientScene subject={subject} ambientTarget={choiceAmbientTarget} /> : null}
+      {mode === "arrival" ? <Arrival subject={subject} catalog={characterCatalog} /> : null}
+      {mode === "choice" ? <ChoiceToAmbientScene subject={subject} ambientTarget={choiceAmbientTarget} catalog={characterCatalog} /> : null}
       {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
       {mode === "broadcast" ? (activeLostArtifact ? <LostArtifactScene artifact={activeLostArtifact} /> : <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} />) : null}
       {mode === "world-transition" ? <WorldStateTransitionScene transition={worldTransition} replay={!!replayLabel} /> : null}
       {mode === "ritual" ? <Ritual /> : null}
-      {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
-      {mode === "departure" ? <Departure subject={subject} /> : null}
+      {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} catalog={characterCatalog} /> : null}
+      {mode === "departure" ? <Departure subject={subject} catalog={characterCatalog} /> : null}
 
       {reviewEnabled ? <button
         data-pinoria-review-toggle
@@ -550,14 +566,14 @@ function Artifact({ label, muted = false }: { label: string; muted?: boolean }) 
   return <div className={`${styles.artifact} ${muted ? styles.artifactMuted : ""}`}><span>✦</span><strong>{label}</strong></div>;
 }
 
-function Arrival({ subject }: { subject: TVSubject }) {
-  return <ArrivalScene subject={subject} />;
+function Arrival({ subject, catalog }: { subject: TVSubject; catalog: readonly ShopCatalogItem[] }) {
+  return <ArrivalScene subject={subject} catalog={catalog} />;
 }
 
 function Ritual() {
   return <SpotlightShell><div className={styles.ritualLayout}><div className={styles.ritualIngredients}><Artifact label="Fruit ×5" /><Artifact label="Thủy Ấn" /></div><div className={styles.ritualCenter}><div className={styles.rings}><i /><i /><i /></div><div className={styles.companionHero}><div className={styles.companionVisual}><PrototypeCompanion size="100%" /></div><strong>Bùm</strong><small>Ploo · Cấp 2 → Cấp 3</small></div><h1>Bùm đang hiện hình rõ hơn</h1><p>Hình thái mới đã được ghi nhận. Phát lại luôn hiển thị cùng kết quả.</p></div><div className={styles.ritualResult}><span className={styles.kicker}>HÌNH THÁI MỚI</span><strong>Hiện hình III</strong><small>Kết quả đã chốt · Không reroll</small></div></div></SpotlightShell>;
 }
 
-function Departure({ subject }: { subject: TVSubject }) {
-  return <DepartureScene subject={subject} />;
+function Departure({ subject, catalog }: { subject: TVSubject; catalog: readonly ShopCatalogItem[] }) {
+  return <DepartureScene subject={subject} catalog={catalog} />;
 }

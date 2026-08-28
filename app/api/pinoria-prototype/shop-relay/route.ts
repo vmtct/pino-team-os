@@ -5,6 +5,12 @@ import {
   openSurfaceInteractive,
   setSurfaceInteractiveView,
 } from "../../../../lib/pinoria-prototype/surface-session";
+import {
+  getCharacterProjection,
+  grantCharacterAsset,
+  setCharacterAchievement,
+  setCharacterWearable,
+} from "../../../../lib/pinoria-prototype/character-projection";
 import type {
   InventoryAchievementSlot,
   InventoryEquipmentState,
@@ -34,119 +40,38 @@ const VALID_ACHIEVEMENT_SLOTS = new Set<InventoryAchievementSlot>([
   "achievement-8",
 ]);
 
-const SUBJECT_STARTING_OWNED: Record<string, string[]> = {
-  bo: ["asset_hologram_wings", "asset_painting_outfit_01", "asset_hair_01", "asset_face_01", "asset_birthday_hat", "asset_star_glasses"],
-  tri: ["asset_piano_outfit_01", "asset_hair_01", "asset_face_02", "asset_conical_hat", "asset_party_glasses"],
-  an: ["asset_hologram_wings", "asset_painting_outfit_02", "asset_hair_01", "asset_face_03", "asset_conical_hat"],
-  mai: ["asset_base_body_01", "asset_hair_01", "asset_face_04", "asset_birthday_hat", "asset_party_glasses"],
-};
-
-// Achievement IDs model current family levels, not a history stack. When a
-// learner levels up a family, Core will replace the current ID rather than add
-// another card for the same family.
-const SUBJECT_STARTING_ACHIEVEMENTS: Record<string, string[]> = {
-  bo: ["achievement-brush-l2", "achievement-scroll-l3", "achievement-palette-l2", "achievement-maker-l1", "badge-artchitect-l3", "badge-pianohouse-l2", "badge-house-helper-l1"],
-  tri: ["achievement-scroll-l3", "achievement-maker-l2", "badge-pianohouse-l3", "badge-house-helper-l1"],
-  an: ["achievement-brush-l3", "achievement-palette-l2", "badge-artchitect-l3", "badge-house-helper-l2"],
-  mai: ["achievement-brush-l1", "achievement-scroll-l1", "badge-artchitect-l1"],
-};
-
-const SUBJECT_STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
-  bo: {
-    wearables: {
-      back: "asset_hologram_wings",
-      body: "asset_painting_outfit_01",
-      hair: "asset_hair_01",
-      face: "asset_face_01",
-      headwear: "asset_birthday_hat",
-      eyewear: "asset_star_glasses",
-    },
-    achievements: {
-      "achievement-1": "achievement-brush-l2",
-      "achievement-2": "achievement-palette-l2",
-    },
-  },
-  tri: {
-    wearables: {
-      body: "asset_piano_outfit_01",
-      hair: "asset_hair_01",
-      face: "asset_face_02",
-      headwear: "asset_conical_hat",
-      eyewear: "asset_party_glasses",
-    },
-    achievements: {
-      "achievement-1": "achievement-scroll-l3",
-      "achievement-2": "achievement-maker-l2",
-    },
-  },
-  an: {
-    wearables: {
-      back: "asset_hologram_wings",
-      body: "asset_painting_outfit_02",
-      hair: "asset_hair_01",
-      face: "asset_face_03",
-      headwear: "asset_conical_hat",
-    },
-    achievements: {
-      "achievement-1": "achievement-brush-l3",
-      "achievement-2": "achievement-palette-l2",
-    },
-  },
-  mai: {
-    wearables: {
-      body: "asset_base_body_01",
-      hair: "asset_hair_01",
-      face: "asset_face_04",
-      headwear: "asset_birthday_hat",
-      eyewear: "asset_party_glasses",
-    },
-    achievements: {
-      "achievement-1": "achievement-brush-l1",
-    },
-  },
-};
-
 type MutableShopSession = ShopSessionSnapshot & { purchaseSeq: number };
 type ShopRelayStore = { sessions: Record<string, MutableShopSession> };
 
 declare global {
-  // eslint-disable-next-line no-var
   var __pinoriaPrototypeShopRelay: ShopRelayStore | undefined;
 }
 
 const store = globalThis.__pinoriaPrototypeShopRelay ?? { sessions: {} };
 globalThis.__pinoriaPrototypeShopRelay = store;
 
-function initialOwned(subjectId: string) {
-  return [...(SUBJECT_STARTING_OWNED[subjectId] ?? [])];
-}
-
-function initialAchievements(subjectId: string) {
-  return [...(SUBJECT_STARTING_ACHIEVEMENTS[subjectId] ?? [])];
-}
-
-function initialEquipment(subjectId: string): InventoryEquipmentState {
-  const source = SUBJECT_STARTING_EQUIPMENT[subjectId] ?? { wearables: {}, achievements: {} };
-  const achievements = { ...source.achievements };
-  for (const slot of Object.keys(achievements) as InventoryAchievementSlot[]) {
-    if (achievements[slot]?.startsWith("badge-")) delete achievements[slot];
-  }
-  return { wearables: { ...source.wearables }, achievements };
+function syncSessionCharacter(session: MutableShopSession, subjectId = session.subject.id) {
+  const projection = getCharacterProjection(subjectId);
+  session.ownedAssetIds = [...projection.ownedAssetIds];
+  session.earnedAchievementIds = [...projection.earnedAchievementIds];
+  session.equipment = {
+    wearables: { ...projection.equipment.wearables },
+    achievements: { ...projection.equipment.achievements },
+  };
 }
 
 function resetSubjectInventory(session: MutableShopSession, subjectId: string) {
   session.view = "shop";
-  session.ownedAssetIds = initialOwned(subjectId);
-  session.earnedAchievementIds = initialAchievements(subjectId);
+  syncSessionCharacter(session, subjectId);
   session.inventoryFilter = "outfit";
   session.inventorySelectedId = null;
-  session.equipment = initialEquipment(subjectId);
   session.selectedAssetId = null;
   session.category = "all";
 }
 
 function getSession(surfaceId: string): MutableShopSession {
   if (!store.sessions[surfaceId]) {
+    const projection = getCharacterProjection(DEFAULT_SUBJECT.id);
     store.sessions[surfaceId] = {
       surfaceId,
       open: false,
@@ -155,11 +80,11 @@ function getSession(surfaceId: string): MutableShopSession {
       category: "all",
       selectedAssetId: null,
       pendingPurchaseAssetId: null,
-      ownedAssetIds: initialOwned(DEFAULT_SUBJECT.id),
-      earnedAchievementIds: initialAchievements(DEFAULT_SUBJECT.id),
+      ownedAssetIds: [...projection.ownedAssetIds],
+      earnedAchievementIds: [...projection.earnedAchievementIds],
       inventoryFilter: "outfit",
       inventorySelectedId: null,
-      equipment: initialEquipment(DEFAULT_SUBJECT.id),
+      equipment: { wearables: { ...projection.equipment.wearables }, achievements: { ...projection.equipment.achievements } },
       purchaseResult: null,
       updatedAt: Date.now(),
       purchaseSeq: 0,
@@ -169,10 +94,10 @@ function getSession(surfaceId: string): MutableShopSession {
   // Backfill hot-reloaded prototype sessions created before the inventory view.
   const session = store.sessions[surfaceId];
   session.view ??= "shop";
-  session.earnedAchievementIds ??= initialAchievements(session.subject.id);
+  session.earnedAchievementIds ??= [];
   session.inventoryFilter ??= "outfit";
   session.inventorySelectedId ??= null;
-  session.equipment ??= initialEquipment(session.subject.id);
+  session.equipment ??= { wearables: {}, achievements: {} };
   session.equipment.wearables ??= {};
   session.equipment.achievements ??= {};
 
@@ -188,6 +113,7 @@ function getSession(surfaceId: string): MutableShopSession {
     if (session.equipment.achievements[slot]?.startsWith("badge-")) delete session.equipment.achievements[slot];
   }
 
+  syncSessionCharacter(session);
   return session;
 }
 
@@ -364,7 +290,8 @@ export async function POST(request: NextRequest) {
     const slot = body.slot as InventoryWearableSlot;
     if (!itemId || !session.ownedAssetIds.includes(itemId)) return NextResponse.json({ ok: false, error: "ITEM_NOT_OWNED" }, { status: 400 });
     if (!VALID_WEARABLE_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
-    session.equipment.wearables[slot] = itemId;
+    setCharacterWearable(session.subject.id, slot, itemId);
+    syncSessionCharacter(session);
     session.inventorySelectedId = itemId;
     touch(session);
     return response(session);
@@ -373,7 +300,8 @@ export async function POST(request: NextRequest) {
   if (body.op === "unequip-wearable") {
     const slot = body.slot as InventoryWearableSlot;
     if (!VALID_WEARABLE_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
-    delete session.equipment.wearables[slot];
+    setCharacterWearable(session.subject.id, slot, null);
+    syncSessionCharacter(session);
     touch(session);
     return response(session);
   }
@@ -384,10 +312,8 @@ export async function POST(request: NextRequest) {
     if (!itemId || !session.earnedAchievementIds.includes(itemId)) return NextResponse.json({ ok: false, error: "ACHIEVEMENT_NOT_EARNED" }, { status: 400 });
     if (itemId.startsWith("badge-")) return NextResponse.json({ ok: false, error: "MARK_AUTO_EQUIPPED" }, { status: 400 });
     if (!VALID_ACHIEVEMENT_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
-    for (const existingSlot of VALID_ACHIEVEMENT_SLOTS) {
-      if (session.equipment.achievements[existingSlot] === itemId) delete session.equipment.achievements[existingSlot];
-    }
-    session.equipment.achievements[slot] = itemId;
+    setCharacterAchievement(session.subject.id, slot, itemId);
+    syncSessionCharacter(session);
     session.inventorySelectedId = itemId;
     touch(session);
     return response(session);
@@ -396,7 +322,8 @@ export async function POST(request: NextRequest) {
   if (body.op === "unequip-achievement") {
     const slot = body.slot as InventoryAchievementSlot;
     if (!VALID_ACHIEVEMENT_SLOTS.has(slot)) return NextResponse.json({ ok: false, error: "INVALID_SLOT" }, { status: 400 });
-    delete session.equipment.achievements[slot];
+    setCharacterAchievement(session.subject.id, slot, null);
+    syncSessionCharacter(session);
     touch(session);
     return response(session);
   }
@@ -429,7 +356,8 @@ export async function POST(request: NextRequest) {
       status = "insufficient-pls";
     } else {
       session.subject.pls -= price;
-      session.ownedAssetIds.push(assetId);
+      grantCharacterAsset(session.subject.id, assetId);
+      syncSessionCharacter(session);
     }
 
     session.purchaseResult = { id: ++session.purchaseSeq, assetId, status, at: Date.now() };

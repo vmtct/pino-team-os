@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { DEPARTURE_HERO_TARGET } from "./departure-layout";
 import { PinoriaStage } from "./pinoria-stage";
+import { activatedMarkIdsFromEarned, characterLayerOverridesFromEquipment } from "./character-frame";
+import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
 import { PrototypeCharacter } from "./prototype-assets";
 
 export const AMBIENT_TO_DEPARTURE_MS = 6200;
@@ -18,6 +20,7 @@ export type FrozenAmbientActor = {
 type DepartureTransitionSubject = {
   id: string;
   name: string;
+  character?: CharacterProjectionSnapshot;
 };
 
 function clamp01(value: number) {
@@ -36,10 +39,14 @@ function smoothstep(t: number) {
 export function AmbientToDepartureTransition({
   subject,
   actors,
+  catalog = [],
 }: {
   subject: DepartureTransitionSubject;
   actors: FrozenAmbientActor[];
+  catalog?: readonly ShopCatalogItem[];
 }) {
+  const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
+  const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
   const [progress, setProgress] = useState(0);
   const frameRef = useRef<number | null>(null);
 
@@ -136,7 +143,7 @@ export function AmbientToDepartureTransition({
                 ["--ambient-mini-name" as string]: '""',
               }}
             >
-              <PrototypeCharacter subjectId={subject.id} size="100%" wingMotion="off" />
+              <PrototypeCharacter subjectId={subject.id} size="100%" wingMotion="off" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} />
             </div>
           </div>
           <div data-checkout-moving-full style={{ position: "absolute", inset: 0, opacity: fullOpacity }}>
@@ -144,6 +151,8 @@ export function AmbientToDepartureTransition({
               subjectId={subject.id}
               size="100%"
               wingMotion="idle"
+              layerOverrides={layerOverrides}
+              prestigeMarkIds={prestigeMarkIds}
               style={{ filter: "drop-shadow(0 24px 28px rgba(0,0,0,.28))" }}
             />
           </div>

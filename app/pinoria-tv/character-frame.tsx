@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { JourneyRankPanel } from "./journey-rank";
-import { prototypeFloatingProps } from "./prototype-assets";
-import type { InventoryAchievementSlot, InventoryEquipmentState } from "./shop-types";
+import { prototypeFloatingProps, type PrototypeCharacterLayerOverrides, type PrototypeCharacterSlot } from "./prototype-assets";
+import type { InventoryAchievementSlot, InventoryEquipmentState, InventoryWearableSlot, ShopCatalogItem } from "./shop-types";
 
 export const CHARACTER_ACCESSORY_SLOTS: readonly InventoryAchievementSlot[] = [
   "achievement-1", "achievement-2", "achievement-3", "achievement-4",
@@ -21,12 +21,7 @@ const ACHIEVEMENT_VISUALS = [
   ["achievement-maker", prototypeFloatingProps[3]?.src],
 ] as const;
 
-const MOCK_EQUIPPED: Record<string, Partial<Record<InventoryAchievementSlot, string>>> = {
-  bo: { "achievement-1": "achievement-brush-l2", "achievement-2": "achievement-palette-l2" },
-  tri: { "achievement-1": "achievement-scroll-l3", "achievement-2": "achievement-maker-l2" },
-  an: { "achievement-1": "achievement-brush-l3", "achievement-2": "achievement-palette-l2" },
-  mai: { "achievement-1": "achievement-brush-l1" },
-};function visualFromId(id?: string): CharacterAccessoryVisual | undefined {
+function visualFromId(id?: string): CharacterAccessoryVisual | undefined {
   if (!id) return undefined;
   const levelMatch = id.match(/-l(\d+)$/);
   const level = levelMatch ? Number(levelMatch[1]) : undefined;
@@ -38,9 +33,24 @@ export function characterAccessoriesFromEquipment(equipment?: InventoryEquipment
   return CHARACTER_ACCESSORY_SLOTS.map((slot) => visualFromId(equipment?.achievements?.[slot]) ?? { id: slot });
 }
 
-export function mockCharacterAccessories(subjectId: string): CharacterAccessoryVisual[] {
-  const equipment = MOCK_EQUIPPED[subjectId] ?? {};
-  return CHARACTER_ACCESSORY_SLOTS.map((slot) => visualFromId(equipment[slot]) ?? { id: slot });
+const WEARABLE_SLOTS: readonly InventoryWearableSlot[] = ["back", "body", "hair", "face", "headwear", "eyewear"];
+
+export function characterLayerOverridesFromEquipment(
+  equipment: InventoryEquipmentState | undefined,
+  catalog: readonly ShopCatalogItem[] = [],
+): PrototypeCharacterLayerOverrides | undefined {
+  if (!equipment) return undefined;
+  const overrides: PrototypeCharacterLayerOverrides = {};
+  for (const slot of WEARABLE_SLOTS) {
+    const assetId = equipment.wearables[slot];
+    if (!assetId) {
+      overrides[slot as PrototypeCharacterSlot] = null;
+      continue;
+    }
+    const item = catalog.find((candidate) => candidate.assetId === assetId);
+    if (item?.layerUrl) overrides[slot as PrototypeCharacterSlot] = item.layerUrl;
+  }
+  return overrides;
 }
 
 export function activatedMarkIdsFromEarned(earned: string[] = []) {
@@ -54,7 +64,9 @@ export function activatedMarkIdsFromEarned(earned: string[] = []) {
 function roman(level?: number) {
   if (!level) return null;
   return ["", "I", "II", "III", "IV", "V"][level] ?? String(level);
-}function AccessorySlot({ item, index }: { item?: CharacterAccessoryVisual; index: number }) {
+}
+
+function AccessorySlot({ item, index }: { item?: CharacterAccessoryVisual; index: number }) {
   const empty = !item?.imageUrl;
   const level = roman(item?.level);
   return (
@@ -84,7 +96,7 @@ type CharacterFrameProps = {
   stageStyle?: CSSProperties;
   identityStyle?: CSSProperties;
 };export function PinoriaCharacterFrame({ subjectId, subjectName, accessories, children, companion, footer, style, stageStyle, identityStyle }: CharacterFrameProps) {
-  const slots = accessories?.length === 8 ? accessories : mockCharacterAccessories(subjectId);
+  const slots = accessories?.length === 8 ? accessories : CHARACTER_ACCESSORY_SLOTS.map((slot) => ({ id: slot }));
   return (
     <div data-pinoria-character-frame style={{ position: "relative", height: "100%", minHeight: 0, display: "grid", gridTemplateRows: footer ? "auto minmax(0,1fr) auto" : "auto minmax(0,1fr)", ...style }}>
       <JourneyRankPanel subjectId={subjectId} subjectName={subjectName} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px 11px", borderBottom: "1px solid rgba(236,199,126,.09)", ...identityStyle }} />

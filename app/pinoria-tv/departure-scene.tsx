@@ -2,7 +2,8 @@
 
 import { DEPARTURE_HERO_TARGET } from "./departure-layout";
 import { PinoriaStage } from "./pinoria-stage";
-import { PinoriaCharacterFrame, mockCharacterAccessories } from "./character-frame";
+import { activatedMarkIdsFromEarned, characterAccessoriesFromEquipment, characterLayerOverridesFromEquipment, PinoriaCharacterFrame } from "./character-frame";
+import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
 import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 
 type DepartureSubject = {
@@ -13,6 +14,7 @@ type DepartureSubject = {
   companion: string;
   pls: number;
   fruit: number;
+  character?: CharacterProjectionSnapshot;
 };
 
 function companionLabel(value: string) {
@@ -37,8 +39,12 @@ function DepartureHouseScrim() {
   );
 }
 
-export function DepartureScene({ subject }: { subject: DepartureSubject }) {
+export function DepartureScene({ subject, catalog = [] }: { subject: DepartureSubject; catalog?: readonly ShopCatalogItem[] }) {
   const hasCompanion = !!subject.companion && !subject.companion.startsWith("Chưa có");
+  const characterAccessories = characterAccessoriesFromEquipment(subject.character?.equipment);
+  const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
+  const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
+
 
   return (
     <div data-pinoria-departure-reveal style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent", color: "#fff" }}>
@@ -108,7 +114,7 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
           <PinoriaCharacterFrame
             subjectId={subject.id}
             subjectName={subject.name}
-            accessories={mockCharacterAccessories(subject.id)}
+            accessories={characterAccessories}
             style={{ width: "100%", height: "100%" }}
             identityStyle={{ padding: "5px 8px 10px" }}
             companion={hasCompanion ? <div data-departure-companion style={{ position: "absolute", right: "clamp(70px,6vw,96px)", bottom: "8%", width: "clamp(112px,8vw,150px)", zIndex: 5 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.24))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} /></div> : undefined}
@@ -116,7 +122,7 @@ export function DepartureScene({ subject }: { subject: DepartureSubject }) {
             <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center" }}>
               <div style={{ position: "absolute", inset: "12%", borderRadius: "50%", border: "1px solid rgba(236,216,146,.16)", boxShadow: "0 0 70px rgba(223,205,119,.14),inset 0 0 60px rgba(255,255,255,.025)" }} />
               <div style={{ position: "absolute", left: "20%", right: "5%", bottom: "8%", height: "7%", borderRadius: "50%", background: "rgba(4,8,5,.55)", filter: "blur(16px)" }} />
-              <PrototypeCharacter subjectId={subject.id} wingMotion="idle" size="min(88%,52vh)" style={{ position: "relative", zIndex: 2, filter: "drop-shadow(0 30px 30px rgba(0,0,0,.30))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} />
+              <PrototypeCharacter subjectId={subject.id} wingMotion="idle" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} size="min(88%,52vh)" style={{ position: "relative", zIndex: 2, filter: "drop-shadow(0 30px 30px rgba(0,0,0,.30))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} />
             </div>
           </PinoriaCharacterFrame>
         </section>
