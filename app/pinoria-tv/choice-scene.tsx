@@ -6,7 +6,6 @@ import type { CompanionProjectionSnapshot } from "./shop-types";
 
 type ChoiceSubject = {
   name: string;
-  pls: number;
   companion?: string;
   companionState?: CompanionProjectionSnapshot;
 };
@@ -27,7 +26,7 @@ type ChoiceItem = {
   featured?: boolean;
 };
 
-const items = (pls: number): ChoiceItem[] => [
+const items = (): ChoiceItem[] => [
   {
     number: 1,
     title: prototypeChoiceAssets.A1.displayName,
@@ -182,7 +181,7 @@ function ChoiceGroup({ title, meta, kind, children }: { title: string; meta: str
 
 export function ChoiceScene({ subject }: { subject: ChoiceSubject }) {
   const companion = companionView(subject);
-  const all = items(subject.pls);
+  const all = items();
   const owned = all.slice(0, 3);
   const shop = all.slice(3);
 
@@ -226,7 +225,7 @@ export function ChoiceScene({ subject }: { subject: ChoiceSubject }) {
 
         <div style={{ minHeight: 0, width: "100%", maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateRows: "1fr 1fr", gap: 15 }}>
           <ChoiceGroup title="TÚI ĐỒ CỦA CON" meta="Con đang có sẵn" kind="bag">{owned.map((item) => <ChoiceCard key={item.number} item={item} />)}</ChoiceGroup>
-          <ChoiceGroup title="CỬA HÀNG HÔM NAY" meta={`Đổi bằng PLS · ${subject.pls} PLS hiện có`} kind="shop">{shop.map((item) => <ChoiceCard key={item.number} item={item} />)}</ChoiceGroup>
+          <ChoiceGroup title="CỬA HÀNG HÔM NAY" meta="Đổi bằng PLS" kind="shop">{shop.map((item) => <ChoiceCard key={item.number} item={item} />)}</ChoiceGroup>
         </div>
       </div>
     </div>

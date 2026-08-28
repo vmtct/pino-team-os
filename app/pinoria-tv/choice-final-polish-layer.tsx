@@ -236,8 +236,7 @@ export function ChoiceFinalPolishLayer({ children }: { children: ReactNode }) {
         shopSection.classList.add("pinoriaChoiceGroup", "pinoriaChoiceGroupShop");
         const shopMeta = shopTitle.parentElement?.querySelector<HTMLElement>(":scope > span");
         if (shopMeta) {
-          const balanceMatch = shopMeta.textContent?.match(/\d[\d.]*/u)?.[0] ?? "";
-          shopMeta.textContent = balanceMatch ? `Đổi bằng PLS · ${balanceMatch} PLS hiện có` : "Đổi bằng PLS";
+          shopMeta.textContent = "Đổi bằng PLS";
           shopMeta.style.display = "inline-flex";
           shopMeta.style.padding = "4px 8px";
           shopMeta.style.borderRadius = "999px";
