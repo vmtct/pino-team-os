@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { markHouseArrival, markHouseDeparture } from "../../../../lib/pinoria-prototype/house-presence";
+import { listHousePresence, markHouseArrival, markHouseDeparture } from "../../../../lib/pinoria-prototype/house-presence";
 import {
   closeSurfaceInteractive,
   getSurfaceSessionSnapshot,
@@ -50,7 +50,6 @@ type RelayStore = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
   var __pinoriaPrototypeTvRelay: (RelayStore & { surfaces?: Record<string, unknown> }) | undefined;
 }
 
@@ -112,6 +111,7 @@ function relaySurfaceSnapshot(surfaceId: string, now: number) {
     worldState: pendingWorldTransition?.worldTransition?.from ?? surface.worldState,
     mode: surface.baseMode,
     queuedCount: store.events.filter((event) => event.surfaceId === surfaceId && event.status === "queued").length,
+    housePresence: listHousePresence(surfaceId),
     activeEvent: active ? {
       id: active.id,
       kind: active.kind,

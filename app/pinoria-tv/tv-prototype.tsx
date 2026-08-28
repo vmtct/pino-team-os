@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AmbientSocialSimulation, type AmbientSocialSubject } from "./ambient-social-simulation";
 import { AmbientToDepartureTransition, AMBIENT_TO_DEPARTURE_MS, type FrozenAmbientActor } from "./ambient-to-departure-transition";
 import { ArrivalScene } from "./arrival-scene";
 import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS } from "./choice-to-ambient-scene";
@@ -66,10 +66,12 @@ type RelayEvent = {
   action?: "ambient";
 };
 
+type RelaySurfaceSnapshot = PinoriaSurfaceSessionSnapshot & { housePresence?: TVSubject[] };
+
 type RelayMutationResponse = {
   ok?: boolean;
   event?: RelayEvent;
-  surface?: PinoriaSurfaceSessionSnapshot;
+  surface?: RelaySurfaceSnapshot;
 };
 
 const SURFACE_ID = "RECEPTION_TV";
@@ -149,6 +151,8 @@ export function PinoriaTVPrototype() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
   const [ambientSubject, setAmbientSubject] = useState<TVSubject>(defaultSubject);
+  const [housePresence, setHousePresence] = useState<TVSubject[]>([]);
+  const [housePresenceLoaded, setHousePresenceLoaded] = useState(false);
   const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
@@ -191,6 +195,23 @@ export function PinoriaTVPrototype() {
       }
     }
 
+    function applyHousePresence(next: TVSubject[] | undefined) {
+      if (!next) return;
+      setHousePresenceLoaded(true);
+      setHousePresence((current) => {
+        if (current.length !== next.length) return next;
+        const unchanged = current.every((item, index) => {
+          const candidate = next[index];
+          return candidate
+            && item.id === candidate.id
+            && item.name === candidate.name
+            && item.path === candidate.path
+            && item.room === candidate.room;
+        });
+        return unchanged ? current : next;
+      });
+    }
+
     async function heartbeat() {
       const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current;
       const currentSubject = subjectRef.current;
@@ -200,8 +221,9 @@ export function PinoriaTVPrototype() {
         mode: relayMode,
         subject: { id: currentSubject.id, name: currentSubject.name },
       });
-      if (!stopped && response?.surface?.worldState && modeRef.current === "ambient") {
-        setWorldState(response.surface.worldState);
+      if (!stopped && response?.surface) {
+        if (response.surface.worldState && modeRef.current === "ambient") setWorldState(response.surface.worldState);
+        if (response.surface.housePresence) applyHousePresence(response.surface.housePresence);
       }
     }
 
@@ -212,6 +234,7 @@ export function PinoriaTVPrototype() {
       busyRef.current = false;
       if (!stopped) {
         if (completed?.surface?.worldState) setWorldState(completed.surface.worldState);
+        if (completed?.surface?.housePresence) applyHousePresence(completed.surface.housePresence);
         setReplayLabel(null);
         setAmbientCharacterVisible(true);
         setMode("ambient");
@@ -355,10 +378,11 @@ export function PinoriaTVPrototype() {
       try {
         const response = await fetch(`${RELAY_URL}?surfaceId=${SURFACE_ID}&includeEvent=1`, { cache: "no-store" });
         if (!response.ok) return;
-        const data = await response.json() as { event?: RelayEvent | null; surface?: PinoriaSurfaceSessionSnapshot };
+        const data = await response.json() as { event?: RelayEvent | null; surface?: RelaySurfaceSnapshot };
         const event = data.event;
         if (!event) {
           if (!stopped && data.surface?.worldState && modeRef.current === "ambient") setWorldState(data.surface.worldState);
+          if (!stopped && data.surface?.housePresence) applyHousePresence(data.surface.housePresence);
           return;
         }
 
@@ -370,6 +394,7 @@ export function PinoriaTVPrototype() {
 
         const claimed = await post({ op: "claim", surfaceId: SURFACE_ID, id: event.id });
         if (!claimed?.ok) return;
+        if (!stopped && claimed.surface?.housePresence) applyHousePresence(claimed.surface.housePresence);
         const claimedEvent = claimed.event ?? event;
         busyRef.current = true;
         activeEventId.current = claimedEvent.id;
@@ -437,6 +462,10 @@ export function PinoriaTVPrototype() {
     setMode(next);
   }
   const activeLostArtifact = broadcast.kind === "lost-artifact" ? getLostArtifact(broadcast.artifactId ?? "") : undefined;
+  const ambientSubjects = useMemo<AmbientSocialSubject[]>(() => {
+    if (housePresenceLoaded) return housePresence.map(({ id, name, path, room }) => ({ id, name, path, room }));
+    return [{ id: ambientSubject.id, name: ambientSubject.name, path: ambientSubject.path, room: ambientSubject.room }];
+  }, [ambientSubject.id, ambientSubject.name, ambientSubject.path, ambientSubject.room, housePresence, housePresenceLoaded]);
 
 
   const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
@@ -458,7 +487,7 @@ export function PinoriaTVPrototype() {
         }}
       >
         <style>{`[data-ambient-backplane][data-ambient-character-visible="false"] [data-ambient-runtime-character]{display:none!important}`}</style>
-        <AmbientHouseRuntime subject={ambientSubject} />
+        <AmbientSocialSimulation subjects={ambientSubjects} />
         <WorldStateAmbientOverlay state={worldState} />
       </div>
 

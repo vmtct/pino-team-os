@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- House layers are pixel-registered to the canonical 1920x1080 stage. */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import savedAreas from "./ambient-house-areas.saved.json";
@@ -30,6 +31,12 @@ const ZONE_BUBBLE_HARD_CAP = 1;
 
 type ZoneId = "reception" | "artchitect" | "little-piner" | "pianohouse";
 type Point = { x: number; y: number };
+export type AmbientSocialSubject = {
+  id: string;
+  name: string;
+  path: string;
+  room: string;
+};
 type AreaSnapshot = {
   canvas: { width: number; height: number };
   areas: { id: ZoneId; label: string; points: Point[] }[];
@@ -146,6 +153,14 @@ function zonePolygon(zoneId: ZoneId) {
   return AREAS.areas.find((area) => area.id === zoneId)?.points ?? [];
 }
 
+function inferZone(subject: AmbientSocialSubject): ZoneId {
+  const value = `${subject.path} ${subject.room}`.toLocaleLowerCase("vi-VN");
+  if (value.includes("artchitect") || value.includes("phòng họa") || value.includes("mỹ thuật")) return "artchitect";
+  if (value.includes("piano") || value.includes("phòng đàn")) return "pianohouse";
+  if (value.includes("little piner") || value.includes("mầm non")) return "little-piner";
+  return "reception";
+}
+
 function laneSegmentsInZone(zoneId: ZoneId): ZoneLaneSegment[] {
   const polygon = zonePolygon(zoneId);
   if (polygon.length < 3) return [];
@@ -192,64 +207,38 @@ function preferredSegment(zoneId: ZoneId, preferredLaneIds: string[]) {
   return [...(preferred.length ? preferred : source)].sort((a, b) => (b.x2 - b.x1) - (a.x2 - a.x1))[0];
 }
 
-function seedPair(
-  zoneId: ZoneId,
-  preferredLaneIds: string[],
-  first: { id: string; name: string; speed: number },
-  second: { id: string; name: string; speed: number },
-): SocialAgent[] {
-  const segment = preferredSegment(zoneId, preferredLaneIds);
-  if (!segment) return [];
-  const minX = segment.x1 + HALF_W;
-  const maxX = segment.x2 - HALF_W;
-  const span = Math.max(1, maxX - minX);
-  return [
-    {
-      ...first,
-      zoneId,
-      laneId: segment.laneId,
-      x: minX + span * .24,
-      y: segment.y,
-      minX,
-      maxX,
-      direction: 1,
-      pauseUntil: 0,
-    },
-    {
-      ...second,
-      zoneId,
-      laneId: segment.laneId,
-      x: minX + span * .76,
-      y: segment.y,
-      minX,
-      maxX,
-      direction: -1,
-      pauseUntil: 0,
-    },
-  ];
+function preferredLaneIdsForZone(zoneId: ZoneId) {
+  if (zoneId === "artchitect") return ["lane-04", "lane-01"];
+  if (zoneId === "pianohouse") return ["lane-10", "lane-11"];
+  if (zoneId === "little-piner") return ["lane-04", "lane-01", "lane-07"];
+  return ["lane-01", "lane-04"];
 }
 
-function seedAgents(): SocialAgent[] {
-  return [
-    ...seedPair(
-      "artchitect",
-      ["lane-04", "lane-01"],
-      { id: "bo", name: "Bơ", speed: 76 },
-      { id: "mai", name: "Mai", speed: 72 },
-    ),
-    ...seedPair(
-      "pianohouse",
-      ["lane-10", "lane-11"],
-      { id: "tri", name: "Trí", speed: 78 },
-      { id: "an", name: "An", speed: 74 },
-    ),
-    ...seedPair(
-      "little-piner",
-      ["lane-04", "lane-01", "lane-07"],
-      { id: "lan", name: "Lan", speed: 70 },
-      { id: "nhi", name: "Nhi", speed: 68 },
-    ),
-  ];
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+  return Math.abs(hash);
+}
+
+function seedSubjects(subjects: readonly AmbientSocialSubject[]): SocialAgent[] {
+  const grouped = new Map<ZoneId, AmbientSocialSubject[]>();
+  for (const subject of subjects) {
+    const zoneId = inferZone(subject);
+    grouped.set(zoneId, [...(grouped.get(zoneId) ?? []), subject]);
+  }
+
+  return Array.from(grouped.entries()).flatMap(([zoneId, entries]) => {
+    const segment = preferredSegment(zoneId, preferredLaneIdsForZone(zoneId));
+    if (!segment) return [];
+    const minX = segment.x1 + HALF_W;
+    const maxX = segment.x2 - HALF_W;
+    const span = Math.max(1, maxX - minX);
+    return entries.map((subject, index) => {
+      const hash = hashString(subject.id);
+      const fraction = (index + 1) / (entries.length + 1);
+      return { id: subject.id, name: subject.name, zoneId, laneId: segment.laneId, x: minX + span * fraction, y: segment.y, minX, maxX, direction: hash % 2 ? 1 : -1, speed: 68 + (hash % 13), pauseUntil: 0 } satisfies SocialAgent;
+    });
+  });
 }
 
 function intersectsBlocker(x: number, y: number, blocker: Blocker) {
@@ -387,11 +376,18 @@ function zoneLabel(zoneId: ZoneId) {
   return AREAS.areas.find((area) => area.id === zoneId)?.label ?? zoneId;
 }
 
-export function AmbientSocialSimulation() {
-  const [world, setWorld] = useState<WorldState>(() => ({ agents: seedAgents(), conversations: [] }));
+export function AmbientSocialSimulation({ subjects = [], debug = false }: { subjects?: readonly AmbientSocialSubject[]; debug?: boolean }) {
+  const subjectSignature = useMemo(() => subjects.map((subject) => `${subject.id}:${subject.name}:${subject.path}:${subject.room}`).join("|"), [subjects]);
+  const [world, setWorld] = useState<WorldState>(() => ({ agents: seedSubjects(subjects), conversations: [] }));
   const cooldownRef = useRef<CooldownMap>({});
   const lastFrameRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setWorld({ agents: seedSubjects(subjects), conversations: [] });
+    cooldownRef.current = {};
+    lastFrameRef.current = null;
+  }, [subjectSignature, subjects]);
 
   useEffect(() => {
     const tick = (now: number) => {
@@ -437,7 +433,7 @@ export function AmbientSocialSimulation() {
         <svg
           aria-hidden="true"
           viewBox="0 0 1920 1080"
-          style={{ position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 1130000000, pointerEvents: "none", opacity: .34 }}
+          style={{ display: debug ? undefined : "none", position: "absolute", inset: 0, width: 1920, height: 1080, zIndex: 1130000000, pointerEvents: "none", opacity: .34 }}
         >
           {AREAS.areas.map((area) => (
             <g key={area.id}>
@@ -527,13 +523,13 @@ export function AmbientSocialSimulation() {
           );
         })}
 
-        <div style={{ position: "absolute", left: 18, top: 18, zIndex: 1200000000, padding: "9px 11px", borderRadius: 10, background: "rgba(10,16,11,.76)", color: "#e7eee8", fontSize: 11, lineHeight: 1.45, backdropFilter: "blur(8px)" }}>
+        {debug ? <div style={{ display: debug ? undefined : "none", position: "absolute", left: 18, top: 18, zIndex: 1200000000, padding: "9px 11px", borderRadius: 10, background: "rgba(10,16,11,.76)", color: "#e7eee8", fontSize: 11, lineHeight: 1.45, backdropFilter: "blur(8px)" }}>
           <strong style={{ display: "block" }}>SOCIAL SIM · ZONE BOUNDARY</strong>
           <span>{conversations.length}/{Math.min(GLOBAL_BUBBLE_HARD_CAP, DIALOGUES.maxConcurrentBubbles)} bubble · {blockers.length} blocker · overlap {REQUIRED_OVERLAP_PX}px</span>
           <span style={{ display: "block", opacity: .72 }}>
             Artchitect {activeZoneCounts.artchitect ?? 0}/{ZONE_BUBBLE_HARD_CAP} · Piano {activeZoneCounts.pianohouse ?? 0}/{ZONE_BUBBLE_HARD_CAP} · Little Piner {activeZoneCounts["little-piner"] ?? 0}/{ZONE_BUBBLE_HARD_CAP}
           </span>
-        </div>
+        </div> : null}
       </PinoriaStage>
     </div>
   );
