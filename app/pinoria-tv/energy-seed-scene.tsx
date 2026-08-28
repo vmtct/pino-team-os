@@ -1,7 +1,8 @@
 "use client";
 
+import { companionView } from "./companion-view";
 import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
-import type { EnergySeedReward } from "./shop-types";
+import type { CompanionProjectionSnapshot, EnergySeedReward } from "./shop-types";
 import styles from "./energy-seed.module.css";
 
 export const ENERGY_SEED_SCENE_MS = 10_000;
@@ -10,6 +11,7 @@ export type EnergySeedSubject = {
   id: string;
   name: string;
   companion: string;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 export const DEFAULT_ENERGY_SEED_REWARD: EnergySeedReward = {
@@ -29,9 +31,6 @@ function rewardGlyph(reward: EnergySeedReward) {
   return "✧";
 }
 
-function companionName(companion: string) {
-  return companion.split("·")[0]?.trim() || "Companion";
-}
 
 const motes = [
   ["18%", "23%", "0ms"],
@@ -53,7 +52,7 @@ export function EnergySeedScene({
   reward?: EnergySeedReward;
   replay?: boolean;
 }) {
-  const companion = companionName(subject.companion);
+  const companion = companionView(subject);
 
   return (
     <section className={styles.scene} data-pinoria-energy-seed>
@@ -64,7 +63,7 @@ export function EnergySeedScene({
       <div className={styles.titleBlock}>
         <span>{replay ? "PHÁT LẠI · NGHI THỨC" : "PINORIA · NGHI THỨC"}</span>
         <h1>Hạt Năng Lượng Pinoria</h1>
-        <p>Dành cho {subject.name} · {companion}</p>
+        <p>Dành cho {subject.name}{companion.active ? ` · ${companion.displayName}` : ""}</p>
       </div>
 
       <div className={styles.characterWrap}>
@@ -76,11 +75,11 @@ export function EnergySeedScene({
         />
       </div>
 
-      <div className={styles.companionReaction} aria-label={companion}>
+      {companion.active ? <div className={styles.companionReaction} data-pinoria-energy-seed-companion={companion.displayName} aria-label={companion.displayName}>
         <div className={styles.companionHalo} />
-        <div className={styles.companionOrb}><PrototypeCompanion size="100%" /></div>
-        <strong>{companion}</strong>
-      </div>
+        <div className={styles.companionOrb}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div>
+        <strong>{companion.displayName}</strong>
+      </div> : null}
 
       <div className={styles.seedStage}>
         <div className={styles.regionPulse} data-region={reward.region ?? "Pinoria"} />

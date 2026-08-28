@@ -6,6 +6,7 @@ import { AmbientToDepartureTransition, AMBIENT_TO_DEPARTURE_MS, type FrozenAmbie
 import { ArrivalScene } from "./arrival-scene";
 import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS, type AmbientHandoffTarget } from "./choice-to-ambient-scene";
 import { DepartureScene } from "./departure-scene";
+import { companionView } from "./companion-view";
 import {
   DEFAULT_ENERGY_SEED_REWARD,
   ENERGY_SEED_SCENE_MS,
@@ -24,6 +25,7 @@ import {
   DEFAULT_PINORIA_WORLD_STATE,
   PINORIA_SHOP_CATALOG_URL,
   type CharacterProjectionSnapshot,
+  type CompanionProjectionSnapshot,
   type EnergySeedReward,
   type LearningSpotlightPayload,
   type PinoriaSurfaceSessionSnapshot,
@@ -55,6 +57,7 @@ type TVSubject = {
   pls: number;
   fruit: number;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 type RelayEvent = {
@@ -235,7 +238,8 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
             && item.name === candidate.name
             && item.path === candidate.path
             && item.room === candidate.room
-            && item.character?.revision === candidate.character?.revision;
+            && item.character?.revision === candidate.character?.revision
+            && item.companionState?.revision === candidate.companionState?.revision;
         });
         return unchanged ? current : next;
       });
@@ -500,9 +504,9 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   }
   const activeLostArtifact = broadcast.kind === "lost-artifact" ? getLostArtifact(broadcast.artifactId ?? "") : undefined;
   const ambientSubjects = useMemo<AmbientSocialSubject[]>(() => {
-    if (housePresenceLoaded) return housePresence.map(({ id, name, path, room, character }) => ({ id, name, path, room, character }));
-    return [{ id: ambientSubject.id, name: ambientSubject.name, path: ambientSubject.path, room: ambientSubject.room, character: ambientSubject.character }];
-  }, [ambientSubject.id, ambientSubject.name, ambientSubject.path, ambientSubject.room, ambientSubject.character, housePresence, housePresenceLoaded]);
+    if (housePresenceLoaded) return housePresence.map(({ id, name, path, room, companion, character, companionState }) => ({ id, name, path, room, companion, character, companionState }));
+    return [{ id: ambientSubject.id, name: ambientSubject.name, path: ambientSubject.path, room: ambientSubject.room, companion: ambientSubject.companion, character: ambientSubject.character, companionState: ambientSubject.companionState }];
+  }, [ambientSubject.id, ambientSubject.name, ambientSubject.path, ambientSubject.room, ambientSubject.companion, ambientSubject.character, ambientSubject.companionState, housePresence, housePresenceLoaded]);
 
 
   const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
@@ -541,7 +545,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
       {mode === "broadcast" ? (activeLostArtifact ? <LostArtifactScene artifact={activeLostArtifact} /> : <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} />) : null}
       {mode === "world-transition" ? <WorldStateTransitionScene transition={worldTransition} replay={!!replayLabel} /> : null}
-      {mode === "ritual" ? <Ritual /> : null}
+      {mode === "ritual" ? <Ritual subject={subject} /> : null}
       {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} catalog={characterCatalog} /> : null}
       {mode === "departure" ? <Departure subject={subject} catalog={characterCatalog} /> : null}
 
@@ -570,8 +574,12 @@ function Arrival({ subject, catalog }: { subject: TVSubject; catalog: readonly S
   return <ArrivalScene subject={subject} catalog={catalog} />;
 }
 
-function Ritual() {
-  return <SpotlightShell><div className={styles.ritualLayout}><div className={styles.ritualIngredients}><Artifact label="Fruit ×5" /><Artifact label="Thủy Ấn" /></div><div className={styles.ritualCenter}><div className={styles.rings}><i /><i /><i /></div><div className={styles.companionHero}><div className={styles.companionVisual}><PrototypeCompanion size="100%" /></div><strong>Bùm</strong><small>Ploo · Cấp 2 → Cấp 3</small></div><h1>Bùm đang hiện hình rõ hơn</h1><p>Hình thái mới đã được ghi nhận. Phát lại luôn hiển thị cùng kết quả.</p></div><div className={styles.ritualResult}><span className={styles.kicker}>HÌNH THÁI MỚI</span><strong>Hiện hình III</strong><small>Kết quả đã chốt · Không reroll</small></div></div></SpotlightShell>;
+function Ritual({ subject }: { subject: TVSubject }) {
+  const companion = companionView(subject);
+  const companionMeta = companion.active
+    ? [companion.species, companion.level ? `Cấp ${companion.level}` : ""].filter(Boolean).join(" · ")
+    : "Chưa kích hoạt";
+  return <SpotlightShell><div className={styles.ritualLayout}><div className={styles.ritualIngredients}><Artifact label="Trạng thái hiện tại" /><Artifact label="Đã được ghi nhận" /></div><div className={styles.ritualCenter}><div className={styles.rings}><i /><i /><i /></div><div className={styles.companionHero}>{companion.active ? <div className={styles.companionVisual}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}<strong>{companion.active ? companion.displayName : "Chưa có Hộ Linh"}</strong><small>{companionMeta}</small></div><h1>{companion.active ? `${companion.displayName} đang đồng hành cùng ${subject.name}` : `${subject.name} chưa có Hộ Linh`}</h1><p>Pinoria hiển thị đúng trạng thái Hộ Linh đã được ghi nhận.</p></div><div className={styles.ritualResult}><span className={styles.kicker}>HÌNH THÁI HIỆN TẠI</span><strong>{companion.active ? companion.formLabel || companionMeta : "Chưa kích hoạt"}</strong><small>Projection chỉ đọc · Không tự tiến hoá</small></div></div></SpotlightShell>;
 }
 
 function Departure({ subject, catalog }: { subject: TVSubject; catalog: readonly ShopCatalogItem[] }) {

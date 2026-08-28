@@ -12,8 +12,9 @@ import {
 } from "./ambient-house-motion-graph";
 import { PinoriaStage } from "./pinoria-stage";
 import { activatedMarkIdsFromEarned, characterLayerOverridesFromEquipment } from "./character-frame";
-import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
-import { PrototypeCharacter } from "./prototype-assets";
+import { companionView } from "./companion-view";
+import type { CharacterProjectionSnapshot, CompanionProjectionSnapshot, ShopCatalogItem } from "./shop-types";
+import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 
 const MINI_WIDTH = 164;
 const MINI_HEIGHT = 115;
@@ -38,7 +39,9 @@ export type AmbientSocialSubject = {
   name: string;
   path: string;
   room: string;
+  companion?: string;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 type AreaSnapshot = {
   canvas: { width: number; height: number };
@@ -560,6 +563,7 @@ export function AmbientSocialSimulation({ subjects = [], catalog = [], debug = f
 function SocialMini({ agent, subject, catalog, hidden = false }: { agent: SocialAgent; subject?: AmbientSocialSubject; catalog: readonly ShopCatalogItem[]; hidden?: boolean }) {
   const layerOverrides = characterLayerOverridesFromEquipment(subject?.character?.equipment, catalog);
   const prestigeMarkIds = activatedMarkIdsFromEarned(subject?.character?.earnedAchievementIds);
+  const companion = companionView(subject ?? {});
   const lane = laneById(agent.laneId);
   const localZ = Math.round(agent.y * 100) * 4096 + Math.round(agent.x) * 2;
   const zIndex = (lane.midLayer === "behind" ? 1000 : 600000000) + localZ;
@@ -586,6 +590,7 @@ function SocialMini({ agent, subject, catalog, hidden = false }: { agent: Social
         style={{ position: "absolute", inset: 0, ["--ambient-mini-name" as string]: JSON.stringify(agent.name) }}
       >
         <PrototypeCharacter subjectId={agent.id} size={164} wingMotion="off" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} />
+        {companion.active ? <div data-ambient-mini-companion={companion.displayName} style={{ position: "absolute", right: -22, bottom: -2, width: 66, zIndex: 20, opacity: .92, filter: "drop-shadow(0 7px 9px rgba(0,0,0,.18))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
       </div>
     </div>
   );

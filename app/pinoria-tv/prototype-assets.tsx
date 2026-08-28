@@ -634,9 +634,19 @@ export function PrototypeCharacter({
   );
 }
 
-export function PrototypeCompanion({ size = "100%", style }: { size?: number | string; style?: CSSProperties }) {
+export function PrototypeCompanion({
+  size = "100%",
+  style,
+  displayName = prototypeCompanionManifest.displayName,
+  visualId = prototypeCompanionManifest.id,
+}: {
+  size?: number | string;
+  style?: CSSProperties;
+  displayName?: string;
+  visualId?: string;
+}) {
   return (
-    <div aria-label={prototypeCompanionManifest.displayName} style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}>
+    <div aria-label={displayName} data-pinoria-companion={displayName} data-pinoria-companion-visual={visualId} style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}>
       <img src={prototypeCompanionManifest.src} alt="" draggable={false} decoding="async" loading="eager" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none" }} />
     </div>
   );

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { activatedMarkIdsFromEarned, characterAccessoriesFromEquipment, characterLayerOverridesFromEquipment, PinoriaCharacterFrame } from "./character-frame";
-import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
+import { companionView } from "./companion-view";
+import type { CharacterProjectionSnapshot, CompanionProjectionSnapshot, ShopCatalogItem } from "./shop-types";
 import {
   AMBIENT_HOUSE_ARRIVAL_ASSETS,
   DEFAULT_ARRIVAL_BACKGROUND,
@@ -15,7 +16,6 @@ import {
   PrototypeCharacter,
   PrototypeCompanion,
   prototypeCharacterEffects,
-  prototypeCompanionManifest,
 } from "./prototype-assets";
 
 type ArrivalSubject = {
@@ -24,6 +24,7 @@ type ArrivalSubject = {
   path: string;
   companion: string;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 const HOUSE_COVER_SECONDS = .72;
@@ -159,6 +160,7 @@ export function ArrivalScene({ subject, catalog = [] }: { subject: ArrivalSubjec
   const characterAccessories = characterAccessoriesFromEquipment(subject.character?.equipment);
   const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
   const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
+  const companion = companionView(subject);
   const houseBackground = backgroundVariant === "ambient-house-blur";
   const foregroundDelay = houseBackground ? HOUSE_COVER_SECONDS : 0;
 
@@ -247,10 +249,10 @@ export function ArrivalScene({ subject, catalog = [] }: { subject: ArrivalSubjec
         <section className="pinoriaArrivalCopy" style={{ maxWidth: 560, animation: `pinoriaArrivalCopy 6.2s ${foregroundDelay}s cubic-bezier(.2,.75,.2,1) both` }}>
           <span style={{ display: "block", marginBottom: 12, color: "#e7c77a", fontSize: 11, fontWeight: 900, letterSpacing: ".18em" }}>CHÀO ĐẾN · {subject.name.toUpperCase()}</span>
           <h1 style={{ margin: "0 0 16px", fontSize: "clamp(50px,5.2vw,72px)", lineHeight: .94, letterSpacing: "-.05em" }}>Chào {subject.name} ✦</h1>
-          <p style={{ margin: 0, maxWidth: 520, color: "#eee6d7", fontSize: "clamp(19px,1.75vw,24px)", lineHeight: 1.42 }}>{`“Hôm nay ${prototypeCompanionManifest.displayName} đi cùng mình!”`}</p>
+          <p style={{ margin: 0, maxWidth: 520, color: "#eee6d7", fontSize: "clamp(19px,1.75vw,24px)", lineHeight: 1.42 }}>{companion.active ? `“Hôm nay ${companion.displayName} đi cùng mình!”` : "“Hôm nay mình cùng khám phá Pinoria nhé!”"}</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 26 }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 30, padding: "6px 10px", borderRadius: 999, background: "#ffffff0b", border: "1px solid #ffffff1b", color: "#dfe4da", fontSize: 10 }}><strong style={{ color: "#f0d58d", fontSize: 9, letterSpacing: ".06em" }}>HÀNH TRÌNH</strong>{subject.path}</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 30, padding: "6px 10px", borderRadius: 999, background: "#ffffff0b", border: "1px solid #ffffff1b", color: "#dfe4da", fontSize: 10 }}><strong style={{ color: "#f0d58d", fontSize: 9, letterSpacing: ".06em" }}>HỘ LINH</strong>{prototypeCompanionManifest.displayName}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 30, padding: "6px 10px", borderRadius: 999, background: "#ffffff0b", border: "1px solid #ffffff1b", color: "#dfe4da", fontSize: 10 }}><strong style={{ color: "#f0d58d", fontSize: 9, letterSpacing: ".06em" }}>HỘ LINH</strong>{companion.fullLabel}</span>
           </div>
         </section>
 
@@ -326,8 +328,9 @@ export function ArrivalScene({ subject, catalog = [] }: { subject: ArrivalSubjec
 
           <PrototypeCharacter subjectId={subject.id} wingMotion="arrival" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} size="min(430px,36vw,52vh)" style={{ position: "relative", zIndex: 2, marginRight: 22, filter: "drop-shadow(0 28px 28px rgba(0,0,0,.28))" }} />
 
-          <div
+          {companion.active ? <div
             data-pinoria-full-character-companion
+            data-pinoria-companion-name={companion.displayName}
             style={{
               position: "absolute",
               zIndex: 8,
@@ -340,9 +343,8 @@ export function ArrivalScene({ subject, catalog = [] }: { subject: ArrivalSubjec
               animation: `pinoriaArrivalCompanion 6.2s ${foregroundDelay}s cubic-bezier(.18,.82,.2,1) both`,
             }}
           >
-            <PrototypeCompanion size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
-          </div>
-
+            <PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" style={{ animation: "pinoriaArrivalFloat 3.2s ease-in-out infinite", filter: "drop-shadow(0 14px 18px rgba(0,0,0,.20))" }} />
+          </div> : null}
           <div
             data-pinoria-full-character-glow
             style={{

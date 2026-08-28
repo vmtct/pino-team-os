@@ -3,7 +3,8 @@
 import { DEPARTURE_HERO_TARGET } from "./departure-layout";
 import { PinoriaStage } from "./pinoria-stage";
 import { activatedMarkIdsFromEarned, characterAccessoriesFromEquipment, characterLayerOverridesFromEquipment, PinoriaCharacterFrame } from "./character-frame";
-import type { CharacterProjectionSnapshot, ShopCatalogItem } from "./shop-types";
+import { companionView } from "./companion-view";
+import type { CharacterProjectionSnapshot, CompanionProjectionSnapshot, ShopCatalogItem } from "./shop-types";
 import { PrototypeCharacter, PrototypeCompanion } from "./prototype-assets";
 
 type DepartureSubject = {
@@ -15,12 +16,9 @@ type DepartureSubject = {
   pls: number;
   fruit: number;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 
-function companionLabel(value: string) {
-  if (!value || value.startsWith("Chưa có")) return "Chưa có Hộ Linh";
-  return value;
-}
 
 function DepartureHouseScrim() {
   return (
@@ -40,7 +38,8 @@ function DepartureHouseScrim() {
 }
 
 export function DepartureScene({ subject, catalog = [] }: { subject: DepartureSubject; catalog?: readonly ShopCatalogItem[] }) {
-  const hasCompanion = !!subject.companion && !subject.companion.startsWith("Chưa có");
+  const companion = companionView(subject);
+  const hasCompanion = companion.active;
   const characterAccessories = characterAccessoriesFromEquipment(subject.character?.equipment);
   const layerOverrides = characterLayerOverridesFromEquipment(subject.character?.equipment, catalog);
   const prestigeMarkIds = activatedMarkIdsFromEarned(subject.character?.earnedAchievementIds);
@@ -99,7 +98,7 @@ export function DepartureScene({ subject, catalog = [] }: { subject: DepartureSu
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 28, maxWidth: 650 }}>
             <SummaryCard label="HÀNH TRÌNH" value={subject.path} delay=".18s" />
             <SummaryCard label="KHU VỰC" value={subject.room} delay=".26s" />
-            <SummaryCard label="HỘ LINH" value={companionLabel(subject.companion)} delay=".34s" />
+            <SummaryCard label="HỘ LINH" value={companion.fullLabel} delay=".34s" />
             <SummaryCard label="NHẬT KÝ" value="Khoảnh khắc hôm nay đã được lưu" delay=".42s" />
           </div>
 
@@ -117,7 +116,7 @@ export function DepartureScene({ subject, catalog = [] }: { subject: DepartureSu
             accessories={characterAccessories}
             style={{ width: "100%", height: "100%" }}
             identityStyle={{ padding: "5px 8px 10px" }}
-            companion={hasCompanion ? <div data-departure-companion style={{ position: "absolute", right: "clamp(70px,6vw,96px)", bottom: "8%", width: "clamp(112px,8vw,150px)", zIndex: 5 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.24))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} /></div> : undefined}
+            companion={hasCompanion ? <div data-departure-companion style={{ position: "absolute", right: "clamp(70px,6vw,96px)", bottom: "8%", width: "clamp(112px,8vw,150px)", zIndex: 5 }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.24))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} /></div> : undefined}
           >
             <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center" }}>
               <div style={{ position: "absolute", inset: "12%", borderRadius: "50%", border: "1px solid rgba(236,216,146,.16)", boxShadow: "0 0 70px rgba(223,205,119,.14),inset 0 0 60px rgba(255,255,255,.025)" }} />
