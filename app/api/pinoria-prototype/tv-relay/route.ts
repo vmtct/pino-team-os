@@ -38,6 +38,7 @@ type RelayEvent = {
   mode?: "arrival" | "departure" | "reward" | "learning" | "broadcast" | "world-transition";
   replay?: boolean;
   subject?: TVSubject;
+  subjectSnapshot?: TVSubject;
   reward?: EnergySeedReward;
   spotlight?: LearningSpotlightPayload;
   broadcast?: WorldBroadcastPayload;
@@ -110,9 +111,15 @@ function projectedSubject(subject?: TVSubject | null): TVSubject | undefined {
   };
 }
 
+function captureEventSubject(event: RelayEvent) {
+  if (!event.subject || event.subjectSnapshot) return;
+  event.subjectSnapshot = projectedSubject(event.subject);
+}
+
 function projectedEvent(event: RelayEvent | null) {
   if (!event) return null;
-  return { ...event, subject: projectedSubject(event.subject) };
+  const { subjectSnapshot, ...rest } = event;
+  return { ...rest, subject: subjectSnapshot ?? projectedSubject(event.subject) };
 }
 
 function relaySurfaceSnapshot(surfaceId: string, now: number) {
@@ -265,6 +272,7 @@ export async function POST(request: NextRequest) {
     if (activeEventFor(surfaceId)) {
       return NextResponse.json({ ok: false, error: "SURFACE_BUSY" }, { status: 409 });
     }
+    captureEventSubject(event);
     event.status = "claimed";
     event.claimedAt = now;
     if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
@@ -289,6 +297,7 @@ export async function POST(request: NextRequest) {
     const event = store.events.find((item) => item.id === id && item.surfaceId === surfaceId);
     if (!event) return NextResponse.json({ ok: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
     if (event.status === "queued" && !activeEventFor(surfaceId)) {
+      captureEventSubject(event);
       event.status = "claimed";
       event.claimedAt = now;
       if (event.subject) setSurfaceSubject(surfaceId, event.subject, now);
