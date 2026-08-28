@@ -1,0 +1,18 @@
+.actionFeedbackRoot :global([class*="compactState"]),
+.actionFeedbackRoot :global([class*="successCard"]) {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  width: min(520px, calc(100vw - 32px));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 640px) {
+  .actionFeedbackRoot :global([class*="compactState"]),
+  .actionFeedbackRoot :global([class*="successCard"]) {
+    right: 16px;
+    bottom: 16px;
+    width: calc(100vw - 32px);
+  }
+}
