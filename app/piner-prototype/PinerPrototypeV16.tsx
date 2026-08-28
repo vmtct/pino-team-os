@@ -97,7 +97,7 @@ const exactText: Record<string, string> = {
 
 const phraseReplacements: Array<[RegExp, string]> = [
   [/Journey glance/g, "Tổng quan hành trình"],
-  [/Fresh \/ meaningful/g, "Mới / đáng chú ý"],
+  [/Fresh \/ meaningful/g, "Mới gần đây"],
   [/Return to PINO/g, "Quay lại PINO"],
   [/Progression locked/g, "Tiến trình đang tạm dừng"],
   [/Trial Premium · real Journey/g, "Trải nghiệm · hành trình thật"],

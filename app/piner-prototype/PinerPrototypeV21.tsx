@@ -11,16 +11,16 @@ const CONTENT_AVATAR_URL = "https://assets.pinohouse.art/draft/Whiteboard%20(2).
 const PINO_LOGO_URL = "https://assets.pinohouse.art/site/core/Pino%20Sigil.png";
 
 const PIANO_LEVELS = [
-  "Sing",
-  "Play",
-  "Melody",
-  "Two Hands",
-  "Perform",
-  "Arpeggio",
-  "New Key",
-  "Harmony",
-  "Expression",
-  "Perform+",
+  "Hát",
+  "Tay phải",
+  "Giai điệu",
+  "Hai tay",
+  "Biểu diễn",
+  "Rải hợp âm",
+  "Đổi giọng",
+  "Hòa âm",
+  "Biểu cảm",
+  "Biểu diễn+",
 ] as const;
 
 const RESOURCE_TAGS = [
@@ -626,7 +626,7 @@ function polishSessionAvatars(root: HTMLElement) {
     const headingMeta = heading?.parentElement?.querySelector<HTMLElement>("span");
     if (headingMeta) headingMeta.textContent = "SẮP DIỄN RA";
     const headingSmall = heading?.parentElement?.parentElement?.querySelector<HTMLElement>(":scope > small");
-    if (headingSmall) headingSmall.textContent = "Đăng ký theo cùng một luồng";
+    if (headingSmall) headingSmall.textContent = "Đăng ký tại đây";
 
     const legend = Array.from(section.querySelectorAll<HTMLElement>("div")).find((candidate) => {
       const directSpans = candidate.querySelectorAll(":scope > span");

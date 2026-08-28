@@ -138,14 +138,14 @@ export const scenarios: StudentScenario[] = [
         key: "PIANOHOUSE",
         label: "PianoHouse",
         eyebrow: "Journey",
-        summary: "Always With Me · L4 Fundamental",
+        summary: "Always With Me · L4 Cơ bản",
         package: { start: "15/08/2026", end: "07/11/2026", status: "ACTIVE", note: "Gói 12 tuần · fixed slot" },
       },
       {
         key: "ARTCHITECT",
         label: "ArtChitect",
         eyebrow: "Specialization",
-        summary: "Character cluster · L1",
+        summary: "Character · L1",
         package: { start: "15/08/2026", end: "07/11/2026", status: "ACTIVE", note: "Gói 12 tuần · flexible studio window" },
       },
     ],
@@ -323,7 +323,7 @@ export const scenarios: StudentScenario[] = [
     avatar: "L",
     mode: "EXPIRED_PREMIUM",
     membershipLabel: "Trải nghiệm đã kết thúc",
-    membershipNote: "Progression locked · history retained",
+    membershipNote: "PianoHouse",
     paths: [
       {
         key: "PIANOHOUSE",

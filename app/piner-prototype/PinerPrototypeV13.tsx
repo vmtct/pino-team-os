@@ -60,7 +60,7 @@ const sessionCatalog: ExploreSession[] = [
   {
     id: "premium-session-film-music",
     path: "PianoHouse",
-    title: "Film Music Lab · Ghibli Evening",
+    title: "Nhạc phim Lab · Ghibli Evening",
     time: "Thứ Bảy · 18:00",
     age: "7+",
     emoji: "🎬",

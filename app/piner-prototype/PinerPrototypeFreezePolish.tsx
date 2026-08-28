@@ -5,6 +5,13 @@ import PinerPrototypeV23 from "./PinerPrototypeV23";
 import { usePrototypePolish } from "./usePrototypePolish";
 
 const EXACT_COPY: Record<string, string> = {
+  "MỚI / ĐÁNG CHÚ Ý": "MỚI GẦN ĐÂY",
+  "Đăng ký tại cùng một nơi": "Đăng ký tại đây",
+  "Xem Khám Phá <> Premium": "So sánh quyền lợi",
+  "Premium mở thêm các buổi Khám Phá ngoài Hành trình chính.": "Thêm các buổi chuyên sâu ngoài Hành trình chính.",
+  "Tiếp tục chơi": "Tiếp tục luyện",
+  "Fresh / meaningful": "Mới gần đây",
+  "Premium đang mở thêm quyền lợi": "Premium đang mở thêm các buổi chuyên sâu",
   "Group theo outcome/item. Khám Phá/Premium gating có thể nằm ở từng media bên trong item.": "Mỗi Thành quả có thể chứa nhiều ảnh, bản ghi và cột mốc. Nội dung đã thuộc về con vẫn được giữ lại khi quyền truy cập thay đổi.",
   "Access expires. Achievement does not.": "Quyền truy cập có thể kết thúc. Thành quả vẫn còn.",
   "Đã sở hữu historical media vẫn được giữ; gating chỉ áp vào nội dung chưa có quyền truy cập.": "Ảnh, bản ghi và cột mốc con đã sở hữu vẫn được giữ lại. Chỉ nội dung chưa mở mới phụ thuộc vào quyền truy cập hiện tại.",
@@ -228,8 +235,8 @@ function polishExplorePolicyCopy(root: HTMLElement) {
     const strong = band.querySelector<HTMLElement>("strong");
     const detail = band.querySelector<HTMLElement>("span");
     const text = strong?.textContent ?? band.textContent ?? "";
-    if (/Trải nghiệm|Trial/i.test(text)) { if (strong) strong.textContent = "Trải nghiệm · có thể đăng ký nhiều buổi"; if (detail) detail.textContent = "Trong thời gian Trải nghiệm, gia đình có thể đăng ký cả Khám Phá và Premium trong cùng tuần."; return; }
-    if (/Premium/i.test(text) && !/Free|đã kết thúc/i.test(text) && !text.includes("Khám Phá /")) { if (strong) strong.textContent = "Premium · tối đa 1 đăng ký đang hoạt động trong tuần"; if (detail) detail.textContent = "Khám Phá và Premium dùng chung một lượt đăng ký trong tuần."; return; }
+    if (/Trải nghiệm|Trial/i.test(text)) { if (strong) strong.textContent = "Trải nghiệm · linh hoạt trong tuần"; if (detail) detail.textContent = "Có thể đăng ký nhiều buổi Khám Phá và Premium."; return; }
+    if (/Premium/i.test(text) && !/Free|đã kết thúc/i.test(text) && !text.includes("Khám Phá /")) { if (strong) strong.textContent = "Premium · 1 đăng ký mỗi tuần"; if (detail) detail.textContent = "Lượt đăng ký dùng chung cho Khám Phá và Premium."; return; }
     if (strong) strong.textContent = "Khám Phá · theo điều kiện tham gia hiện tại";
     if (detail) detail.textContent = "Buổi Premium cần quyền Premium; các buổi Khám Phá vẫn theo điều kiện tham gia hiện tại.";
   });
@@ -255,16 +262,13 @@ function polishPremiumExperienceCards(root: HTMLElement) {
 }
 
 function markCollectionDetail(root: HTMLElement) {
-  const sections = Array.from(root.querySelectorAll<HTMLElement>("section"));
-  sections.forEach((section) => {
-    const text = section.textContent ?? "";
-    if (!text.includes("Ảnh tác phẩm") || !text.includes("Ảnh con cùng tác phẩm")) return;
-    section.dataset.freezeCollectionDetail = "true";
-    const cards = Array.from(section.querySelectorAll<HTMLElement>("article"));
-    const grid = cards[0]?.parentElement;
-    if (grid && cards.length >= 3) grid.dataset.freezeCollectionMediaGrid = "true";
-    cards.forEach((card) => card.dataset.freezeCollectionMediaCard = "true");
-  });
+  const cards = Array.from(root.querySelectorAll<HTMLElement>("[class*='mediaTile']"));
+  if (!cards.length) return;
+  const grid = cards[0]?.parentElement;
+  if (grid) grid.dataset.freezeCollectionMediaGrid = "true";
+  cards.forEach((card) => card.dataset.freezeCollectionMediaCard = "true");
+  const detail = grid?.closest<HTMLElement>("[class*='sheetContent']");
+  if (detail) detail.dataset.freezeCollectionDetail = "true";
 }
 
 function markPrimarySurfaces(root: HTMLElement) {
@@ -272,7 +276,14 @@ function markPrimarySurfaces(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>("[class*='glanceCard']").forEach((node) => node.dataset.freezeGlanceCard = "true");
   root.querySelectorAll<HTMLElement>("[class*='freshCard']").forEach((node) => node.dataset.freezeFreshCard = "true");
   root.querySelectorAll<HTMLElement>("[class*='studentButton']").forEach((node) => node.dataset.freezeStudentButton = "true");
-  root.querySelectorAll<HTMLElement>("[class*='filterRow'] button").forEach((node) => node.dataset.freezeFilterButton = "true");
+  root.querySelectorAll<HTMLElement>("[class*='filterRow'] button").forEach((node) => {
+    node.dataset.freezeFilterButton = "true";
+    node.style.setProperty("font-size", "12px", "important");
+  });
+  root.querySelectorAll<HTMLElement>("[class*='noticeCard']").forEach((node) => {
+    const text = node.textContent ?? "";
+    if (text.includes("Trải nghiệm đã kết thúc") && text.includes("Tiến trình")) node.dataset.freezeExpiredDuplicate = "true";
+  });
 }
 
 const ICON_BASE = "https://assets.pinohouse.art/site/shared/piner-space-icon-";
