@@ -22,7 +22,7 @@ type ArrivalSubject = {
   id: string;
   name: string;
   path: string;
-  companion: string;
+  companion?: string;
   character?: CharacterProjectionSnapshot;
   companionState?: CompanionProjectionSnapshot;
 };

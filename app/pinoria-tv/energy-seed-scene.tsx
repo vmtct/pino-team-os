@@ -10,7 +10,7 @@ export const ENERGY_SEED_SCENE_MS = 10_000;
 export type EnergySeedSubject = {
   id: string;
   name: string;
-  companion: string;
+  companion?: string;
   companionState?: CompanionProjectionSnapshot;
 };
 

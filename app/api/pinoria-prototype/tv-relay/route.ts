@@ -31,7 +31,7 @@ type TVSubject = {
   companionState?: CompanionProjectionSnapshot;
 };
 
-type TVSurfaceSubject = Omit<TVSubject, "pls" | "fruit">;
+type TVSurfaceSubject = Omit<TVSubject, "pls" | "fruit" | "companion">;
 
 type RelayEvent = {
   id: number;
@@ -111,7 +111,6 @@ function projectedSubject(subject?: TVSubject | null): TVSurfaceSubject | undefi
     name: subject.name,
     path: subject.path,
     room: subject.room,
-    companion: subject.companion,
     character: getCharacterProjection(subject.id),
     companionState: getCompanionProjection(subject.id),
   };

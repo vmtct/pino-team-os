@@ -53,7 +53,7 @@ type TVSubject = {
   name: string;
   path: string;
   room: string;
-  companion: string;
+  companion?: string;
   character?: CharacterProjectionSnapshot;
   companionState?: CompanionProjectionSnapshot;
 };
@@ -102,7 +102,6 @@ const defaultSubject: TVSubject = {
   name: "Bơ",
   path: "ArtChitect · Màu nước II",
   room: "Phòng Họa",
-  companion: "Chưa có Hộ Linh",
 };
 
 function replayTitle(event: RelayEvent) {
