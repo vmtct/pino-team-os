@@ -91,9 +91,11 @@ function fakeCore(coreState: F3BootstrapState, initialFutureDays?: number) {
   }
   let created = 0;
   let policyWrites = 0;
+  let calls = 0;
   let policy: { stream: { revision: number }; versions: Array<{ id: string; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: { maxDaysAhead: number } }> } | null = initialFutureDays === undefined ? null : { stream: { revision: 2 }, versions: [{ id: "00000000-0000-7000-a001-000000000001", storedState: "PUBLISHED", effectiveFrom: "2026-08-27T14:00:00.000Z", effectiveUntil: null, value: { maxDaysAhead: initialFutureDays } }] };
   const binding: BoAccessCoreBinding = {
     async execute(request: BoAccessRequest) {
+      calls += 1;
       if (request.method === "GET" && request.path === "policies/delivery/future_reservation.v1/stream") return ok(policy);
       if (request.method === "POST" && request.path === "policies/delivery/future_reservation.v1/versions") {
         if (policy !== null) return { status: 409, body: { error: { message: "unexpected existing policy" } }, requestId: "fake-policy-conflict" };
@@ -109,6 +111,28 @@ function fakeCore(coreState: F3BootstrapState, initialFutureDays?: number) {
         if (!policy || !version || version.storedState !== "DRAFT") return { status: 404, body: { error: { message: "policy draft missing" } }, requestId: "fake-policy-404" };
         policyWrites += 1; version.storedState = "PUBLISHED"; version.effectiveFrom = body.effectiveFrom; policy.stream.revision = 2;
         return ok({ published: true });
+      }
+      if (request.method === "POST" && request.path === "enrollments/bulk-preflight") {
+        const body = request.body as { subscriptions: Array<{ subscriptionId: string; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string }> };
+        const total = body.subscriptions.reduce((sum, item) => sum + item.placements.length, 0);
+        let reused = 0;
+        for (const group of body.subscriptions) for (const placement of group.placements) {
+          if ((enrollments.get(group.subscriptionId) ?? []).some((item) => item.runningClassId === placement.runningClassId && item.effectiveFromLocalDate === placement.effectiveFromLocalDate && item.plannedEntryLocalTime === placement.plannedEntryLocalTime && item.plannedDurationMinutes === placement.plannedDurationMinutes)) reused += 1;
+        }
+        return ok({ placedSubscriptions: body.subscriptions.length, pendingSubscriptions: body.pendingSubscriptions.length, enrollments: total, missing: total - reused, reused });
+      }
+      if (request.method === "POST" && request.path === "enrollments/bulk-place") {
+        const body = request.body as { subscriptions: Array<{ subscriptionId: string; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string }> };
+        let bulkCreated = 0, reused = 0, total = 0;
+        for (const group of body.subscriptions) for (const placement of group.placements) {
+          total += 1;
+          const current = enrollments.get(group.subscriptionId) ?? [];
+          const exact = current.some((item) => item.runningClassId === placement.runningClassId && item.effectiveFromLocalDate === placement.effectiveFromLocalDate && item.plannedEntryLocalTime === placement.plannedEntryLocalTime && item.plannedDurationMinutes === placement.plannedDurationMinutes);
+          if (exact) { reused += 1; continue; }
+          const item: StoredEnrollment = { id: `00000000-0000-7000-9001-${String(++created).padStart(12, "0")}`, subscriptionId: group.subscriptionId, runningClassId: placement.runningClassId, effectiveFromLocalDate: placement.effectiveFromLocalDate, effectiveUntilExclusiveLocalDate: null, plannedEntryLocalTime: placement.plannedEntryLocalTime, plannedDurationMinutes: placement.plannedDurationMinutes };
+          enrollments.set(group.subscriptionId, [...current, item]); bulkCreated += 1;
+        }
+        return ok({ placedSubscriptions: body.subscriptions.length, pendingSubscriptions: body.pendingSubscriptions.length, enrollments: total, created: bulkCreated, reused }, 201);
       }
       if (request.method === "GET" && request.path === "delivery/bootstrap-state") return ok(coreState);
       if (request.method === "GET" && request.path === "enrollments/capacity") {
@@ -146,7 +170,7 @@ function fakeCore(coreState: F3BootstrapState, initialFutureDays?: number) {
       return { status: 404, body: { error: { message: `unexpected ${request.method} ${request.path}` } }, requestId: "fake-404" };
     },
   };
-  return { binding, enrollments, created: () => created, policyWrites: () => policyWrites };
+  return { binding, enrollments, created: () => created, policyWrites: () => policyWrites, calls: () => calls };
 }
 function ok(data: unknown, status = 200) {
   return { status, body: { data }, requestId: `fake-${status}` };
@@ -166,6 +190,7 @@ test("reviewed Enrollment activation places 62 deterministic seats and is retry-
   });
   assert.equal(core.created(), 62);
   assert.equal(core.policyWrites(), 2);
+  assert.equal(core.calls(), 7);
   for (const item of REVIEWED_ENROLLMENT_UNRESOLVED) assert.equal((core.enrollments.get(item.subscriptionId) ?? []).length, 0);
 
   const second = await handleReviewedEnrollmentActivation(request(auth.token), env, auth.resolver);
@@ -175,6 +200,7 @@ test("reviewed Enrollment activation places 62 deterministic seats and is retry-
   assert.equal(secondBody.data.reused, 62);
   assert.equal(core.created(), 62);
   assert.equal(core.policyWrites(), 2);
+  assert.equal(core.calls(), 11);
 });
 
 test("reviewed Enrollment activation rejects a conflicting active future-reservation policy before Enrollment writes", async () => {
