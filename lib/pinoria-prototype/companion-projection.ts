@@ -10,7 +10,7 @@ const STARTING_ACTIVE: Record<string, ActiveCompanionSnapshot | null> = {
     species: "Ploo",
     level: 2,
     formLabel: "Hiện hình II",
-    visualId: "ploo-default",
+    visualId: "ploo-form-2",
   },
   tri: {
     id: "may",
@@ -18,7 +18,7 @@ const STARTING_ACTIVE: Record<string, ActiveCompanionSnapshot | null> = {
     species: "Ploo",
     level: 2,
     formLabel: "Hiện hình II",
-    visualId: "ploo-default",
+    visualId: "ploo-form-2",
   },
   an: {
     id: "mam",
@@ -26,7 +26,7 @@ const STARTING_ACTIVE: Record<string, ActiveCompanionSnapshot | null> = {
     species: "Ploo",
     level: 1,
     formLabel: "Hiện hình I",
-    visualId: "ploo-default",
+    visualId: "ploo-form-1",
   },
   mai: null,
 };

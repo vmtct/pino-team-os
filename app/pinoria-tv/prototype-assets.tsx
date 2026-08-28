@@ -5,6 +5,7 @@ import {
   prototypeCharacterProfileAssetUrls,
   prototypeCharacterProfileForSubject,
 } from "./prototype-character-profiles";
+import { companionVisualRegistry, resolveCompanionVisual } from "./companion-visual-registry";
 
 export type PrototypeCharacterSlot = "back" | "body" | "hair" | "face" | "headwear" | "eyewear";
 export type PrototypeCharacterMotion = "off" | "idle" | "walk" | "arrival" | "celebrate" | "shop-preview";
@@ -33,11 +34,13 @@ export const prototypeCharacterManifest = {
   ] satisfies CharacterLayer[],
 } as const;
 
+const prototypeCompanionDefaultVisual = companionVisualRegistry["ploo-form-2"];
+
 export const prototypeCompanionManifest = {
-  id: "mori-v1",
-  displayName: "Mori",
-  canvas: { width: 1487, height: 1487 },
-  src: "https://assets.pinohouse.art/draft/Mori.png",
+  id: prototypeCompanionDefaultVisual.id,
+  displayName: "Hộ Linh",
+  canvas: prototypeCompanionDefaultVisual.canvas,
+  src: prototypeCompanionDefaultVisual.src,
 } as const;
 
 export const prototypeCharacterEffects = {
@@ -117,7 +120,7 @@ export const prototypeChoiceAssets = {
 export const prototypeAssetUrls = [
   ...prototypeCharacterManifest.layers.map((layer) => layer.src),
   ...prototypeCharacterProfileAssetUrls,
-  prototypeCompanionManifest.src,
+  ...Array.from(new Set(Object.values(companionVisualRegistry).map((visual) => visual.src))),
   prototypeCharacterEffects.aura.src,
   ...prototypeCharacterEffects.glows.map((glow) => glow.src),
   ...prototypeCharacterEffects.marks.map((mark) => mark.src),
@@ -645,9 +648,44 @@ export function PrototypeCompanion({
   displayName?: string;
   visualId?: string;
 }) {
+  const visual = resolveCompanionVisual(visualId);
+  const fallback = resolveCompanionVisual(null).definition;
+  const [src, setSrc] = useState(visual.definition.src);
+
+  useEffect(() => {
+    setSrc(visual.definition.src);
+  }, [visual.definition.src]);
+
   return (
-    <div aria-label={displayName} data-pinoria-companion={displayName} data-pinoria-companion-visual={visualId} style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}>
-      <img src={prototypeCompanionManifest.src} alt="" draggable={false} decoding="async" loading="eager" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none" }} />
+    <div
+      aria-label={displayName}
+      data-pinoria-companion={displayName}
+      data-pinoria-companion-visual={visual.requestedVisualId}
+      data-pinoria-companion-visual-resolved={visual.resolvedVisualId}
+      data-pinoria-companion-visual-fallback={visual.usedFallback ? "true" : "false"}
+      data-pinoria-companion-asset={visual.definition.src}
+      style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}
+    >
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        decoding="async"
+        loading="eager"
+        onError={() => { if (src !== fallback.src) setSrc(fallback.src); }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          pointerEvents: "none",
+          userSelect: "none",
+          transform: `translateY(${visual.definition.translateYPercent}%) scale(${visual.definition.scale})`,
+          transformOrigin: "50% 70%",
+          filter: visual.definition.filter,
+        }}
+      />
     </div>
   );
 }
