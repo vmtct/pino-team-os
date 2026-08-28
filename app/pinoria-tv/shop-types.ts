@@ -133,6 +133,24 @@ export type CharacterProjectionSnapshot = {
   revision: number;
   updatedAt: number;
 };
+
+export type ActiveCompanionSnapshot = {
+  id: string;
+  displayName: string;
+  species: string;
+  level: number;
+  formLabel: string;
+  visualId: string;
+};
+
+export type CompanionProjectionSnapshot = {
+  subjectId: string;
+  active: ActiveCompanionSnapshot | null;
+  collectionIds: string[];
+  revision: number;
+  updatedAt: number;
+};
+
 export type ShopSessionSnapshot = {
   surfaceId: string;
   open: boolean;

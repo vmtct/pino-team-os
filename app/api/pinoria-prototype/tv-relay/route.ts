@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listHousePresence, markHouseArrival, markHouseDeparture } from "../../../../lib/pinoria-prototype/house-presence";
 import { getCharacterProjection } from "../../../../lib/pinoria-prototype/character-projection";
+import { getCompanionProjection } from "../../../../lib/pinoria-prototype/companion-projection";
 import {
   closeSurfaceInteractive,
   getSurfaceSessionSnapshot,
@@ -9,6 +10,7 @@ import {
 } from "../../../../lib/pinoria-prototype/surface-session";
 import type {
   CharacterProjectionSnapshot,
+  CompanionProjectionSnapshot,
   EnergySeedReward,
   LearningSpotlightPayload,
   PinoriaSurfaceBaseMode,
@@ -26,6 +28,7 @@ type TVSubject = {
   pls: number;
   fruit: number;
   character?: CharacterProjectionSnapshot;
+  companionState?: CompanionProjectionSnapshot;
 };
 
 type RelayEvent = {
@@ -100,13 +103,18 @@ function nextQueuedEventFor(surfaceId: string) {
 
 function projectedSubject(subject?: TVSubject | null): TVSubject | undefined {
   if (!subject) return undefined;
-  return { ...subject, character: getCharacterProjection(subject.id) };
+  return {
+    ...subject,
+    character: getCharacterProjection(subject.id),
+    companionState: getCompanionProjection(subject.id),
+  };
 }
 
 function projectedEvent(event: RelayEvent | null) {
   if (!event) return null;
   return { ...event, subject: projectedSubject(event.subject) };
 }
+
 function relaySurfaceSnapshot(surfaceId: string, now: number) {
   const surface = getSurfaceSessionSnapshot(surfaceId, now);
   const active = activeEventFor(surfaceId);
