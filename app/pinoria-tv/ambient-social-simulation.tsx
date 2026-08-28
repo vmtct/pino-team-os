@@ -279,9 +279,9 @@ function buildBlockers(agents: SocialAgent[], conversations: Conversation[]): Bl
   });
 }
 
-function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: CooldownMap): WorldState {
-  const conversations = current.conversations.filter((conversation) => conversation.until > now);
-  const expired = current.conversations.filter((conversation) => conversation.until <= now);
+function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: CooldownMap, frozenSubjectId: string | null): WorldState {
+  const conversations = current.conversations.filter((conversation) => conversation.until > now && conversation.aId !== frozenSubjectId && conversation.bId !== frozenSubjectId);
+  const expired = current.conversations.filter((conversation) => conversation.until <= now || conversation.aId === frozenSubjectId || conversation.bId === frozenSubjectId);
   for (const conversation of expired) {
     cooldowns[pairKey(conversation.aId, conversation.bId)] = now + CHAT_COOLDOWN_MS;
   }
@@ -290,6 +290,7 @@ function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: C
   const blockers = buildBlockers(current.agents, conversations);
 
   let agents: SocialAgent[] = current.agents.map<SocialAgent>((agent) => {
+    if (agent.id === frozenSubjectId) return agent;
     if (activeIds.has(agent.id)) return agent;
     if (now < agent.pauseUntil) return agent;
 
@@ -326,6 +327,7 @@ function advanceWorld(current: WorldState, now: number, dt: number, cooldowns: C
       for (let j = i + 1; j < agents.length; j += 1) {
         const a = agents[i];
         const b = agents[j];
+        if (a.id === frozenSubjectId || b.id === frozenSubjectId) continue;
         if (activeIds.has(a.id) || activeIds.has(b.id)) continue;
         if (a.zoneId !== b.zoneId) continue;
         if (activeZones.has(a.zoneId)) continue;
@@ -395,17 +397,22 @@ export function AmbientSocialSimulation({ subjects = [], debug = false, hiddenSu
   const cooldownRef = useRef<CooldownMap>({});
   const lastFrameRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
+  const frozenSubjectRef = useRef<string | null>(hiddenSubjectId);
 
   useEffect(() => {
     setWorld((current) => reconcileSubjects(current, subjects));
   }, [subjectSignature, subjects]);
 
   useEffect(() => {
+    frozenSubjectRef.current = hiddenSubjectId;
+  }, [hiddenSubjectId]);
+
+  useEffect(() => {
     const tick = (now: number) => {
       const previous = lastFrameRef.current ?? now;
       const dt = Math.min(MAX_STEP_MS, Math.max(0, now - previous));
       lastFrameRef.current = now;
-      setWorld((current) => advanceWorld(current, now, dt, cooldownRef.current));
+      setWorld((current) => advanceWorld(current, now, dt, cooldownRef.current, frozenSubjectRef.current));
       frameRef.current = window.requestAnimationFrame(tick);
     };
 

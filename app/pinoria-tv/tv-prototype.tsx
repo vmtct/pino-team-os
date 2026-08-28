@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AmbientSocialSimulation, type AmbientSocialSubject } from "./ambient-social-simulation";
 import { AmbientToDepartureTransition, AMBIENT_TO_DEPARTURE_MS, type FrozenAmbientActor } from "./ambient-to-departure-transition";
 import { ArrivalScene } from "./arrival-scene";
-import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS } from "./choice-to-ambient-scene";
+import { ChoiceToAmbientScene, CHOICE_TO_AMBIENT_MS, type AmbientHandoffTarget } from "./choice-to-ambient-scene";
 import { DepartureScene } from "./departure-scene";
 import {
   DEFAULT_ENERGY_SEED_REWARD,
@@ -16,7 +16,7 @@ import {
   LEARNING_SPOTLIGHT_MS,
   LearningSpotlightScene,
 } from "./learning-spotlight-scene";
-import { fitPinoriaStageRect } from "./pinoria-stage";
+import { fitPinoriaStageRect, PINORIA_STAGE_HEIGHT, PINORIA_STAGE_WIDTH } from "./pinoria-stage";
 import { PrototypeCompanion } from "./prototype-assets";
 import { getLostArtifact } from "./lost-artifact-data";
 import { LOST_ARTIFACT_BROADCAST_MS, LostArtifactScene } from "./lost-artifact-scene";
@@ -146,6 +146,17 @@ function captureAmbientActors(): FrozenAmbientActor[] {
     .filter((value): value is FrozenAmbientActor => value !== null);
 }
 
+function captureAmbientHandoffTarget(subjectId: string): AmbientHandoffTarget | null {
+  const element = Array.from(document.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
+    .find((candidate) => candidate.dataset.ambientRuntimeCharacter === subjectId);
+  if (!element) return null;
+  const left = Number.parseFloat(element.style.left);
+  const top = Number.parseFloat(element.style.top);
+  const width = Number.parseFloat(element.style.width);
+  if (![left, top, width].every(Number.isFinite)) return null;
+  return { leftPct: (left / PINORIA_STAGE_WIDTH) * 100, topPct: (top / PINORIA_STAGE_HEIGHT) * 100, widthPct: (width / PINORIA_STAGE_WIDTH) * 100 };
+}
+
 export function PinoriaTVPrototype() {
   const [mode, setMode] = useState<Mode>("ambient");
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -155,6 +166,7 @@ export function PinoriaTVPrototype() {
   const [housePresenceLoaded, setHousePresenceLoaded] = useState(false);
   const [ambientCharacterVisible, setAmbientCharacterVisible] = useState(true);
   const [ambientHiddenSubjectId, setAmbientHiddenSubjectId] = useState<string | null>(null);
+  const [choiceAmbientTarget, setChoiceAmbientTarget] = useState<AmbientHandoffTarget | null>(null);
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
   const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
@@ -239,6 +251,7 @@ export function PinoriaTVPrototype() {
         setReplayLabel(null);
         setAmbientCharacterVisible(true);
         setAmbientHiddenSubjectId(null);
+        setChoiceAmbientTarget(null);
         setMode("ambient");
       }
     }
@@ -336,6 +349,7 @@ export function PinoriaTVPrototype() {
         setMode("arrival");
         sequenceTimer.current = window.setTimeout(() => {
           if (stopped || activeEventId.current !== event.id) return;
+          setChoiceAmbientTarget(captureAmbientHandoffTarget(event.subject!.id));
           setMode("choice");
           setReplayLabel(null);
 
@@ -348,7 +362,6 @@ export function PinoriaTVPrototype() {
             if (stopped || activeEventId.current !== event.id) return;
             setAmbientSubject(event.subject!);
             setAmbientCharacterVisible(true);
-            setAmbientHiddenSubjectId(null);
             void finishEvent(event.id);
           }, CHOICE_TO_AMBIENT_MS);
         }, ARRIVAL_MS);
@@ -458,6 +471,7 @@ export function PinoriaTVPrototype() {
     }
     setReplayLabel(null);
     setAmbientHiddenSubjectId(null);
+    setChoiceAmbientTarget(null);
     if (next === "reward") setReward(DEFAULT_ENERGY_SEED_REWARD);
     if (next === "learning") setSpotlight(DEFAULT_LEARNING_SPOTLIGHT);
     if (next === "broadcast") setBroadcast(DEFAULT_WORLD_BROADCAST);
@@ -506,7 +520,7 @@ export function PinoriaTVPrototype() {
       </div>
 
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
-      {mode === "choice" ? <ChoiceToAmbientScene subject={subject} /> : null}
+      {mode === "choice" ? <ChoiceToAmbientScene subject={subject} ambientTarget={choiceAmbientTarget} /> : null}
       {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
       {mode === "broadcast" ? (activeLostArtifact ? <LostArtifactScene artifact={activeLostArtifact} /> : <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} />) : null}

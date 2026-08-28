@@ -9,6 +9,8 @@ export const CHOICE_SELECTION_MS = 8000;
 export const CHOICE_SETTLE_MS = 5200;
 export const CHOICE_TO_AMBIENT_MS = CHOICE_SELECTION_MS + CHOICE_SETTLE_MS;
 
+export type AmbientHandoffTarget = { leftPct: number; topPct: number; widthPct: number };
+
 type ChoiceTransitionSubject = {
   id: string;
   name: string;
@@ -30,12 +32,16 @@ const MINI_CENTER_Y = 57.5;
 const emergeLeftPct = ((EMERGENCE.x - MINI_CENTER_X) / 1920) * 100;
 const emergeTopPct = ((EMERGENCE.y - MINI_CENTER_Y) / 1080) * 100;
 const emergeWidthPct = (MINI_WIDTH / 1920) * 100;
+const DEFAULT_AMBIENT_TARGET: AmbientHandoffTarget = { leftPct: emergeLeftPct, topPct: emergeTopPct, widthPct: emergeWidthPct };
 
-export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSubject }) {
+export function ChoiceToAmbientScene({ subject, ambientTarget = null }: { subject: ChoiceTransitionSubject; ambientTarget?: AmbientHandoffTarget | null }) {
+  const target = ambientTarget ?? DEFAULT_AMBIENT_TARGET;
   return (
     <div
       data-pinoria-choice-to-ambient
       data-emergence-lane={EMERGENCE.laneId}
+      data-emergence-source={ambientTarget ? "ambient-agent" : "saved-pin"}
+      data-emergence-target={`${target.leftPct.toFixed(2)},${target.topPct.toFixed(2)},${target.widthPct.toFixed(2)}`}
       style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent", color: "#fff" }}
     >
       <style>{`
@@ -47,7 +53,7 @@ export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSub
           0%,8% { opacity:0; left:39%; top:21%; width:22%; transform:scale(.94); }
           20% { opacity:1; left:39%; top:21%; width:22%; transform:scale(1.06); }
           48% { opacity:1; left:39%; top:21%; width:22%; transform:scale(1); }
-          100% { opacity:1; left:${emergeLeftPct}%; top:${emergeTopPct}%; width:${emergeWidthPct}%; transform:scale(1); }
+          100% { opacity:1; left:${target.leftPct}%; top:${target.topPct}%; width:${target.widthPct}%; transform:scale(1); }
         }
         @keyframes pinoriaChoiceGreeting {
           0%,10% { opacity:0; transform:translate(-50%,14px); }
@@ -72,7 +78,7 @@ export function ChoiceToAmbientScene({ subject }: { subject: ChoiceTransitionSub
       <PinoriaStage dataStage="choice-to-ambient" style={{ zIndex: 30, pointerEvents: "none" }}>
         <div data-transition-glow aria-hidden="true" style={{ position: "absolute", zIndex: 1, left: "50%", top: "47%", width: "33%", aspectRatio: "1 / 1", borderRadius: "50%", background: "radial-gradient(circle,rgba(248,224,150,.34) 0,rgba(218,207,144,.12) 42%,transparent 72%)", boxShadow: "0 0 90px rgba(235,213,139,.14)" }} />
 
-        <div data-transition-character aria-label={`Nhân vật ${subject.name} trở về Nhà PINO`} style={{ position: "absolute", zIndex: 4, left: `${emergeLeftPct}%`, top: `${emergeTopPct}%`, width: `${emergeWidthPct}%`, aspectRatio: "1 / 1", transformOrigin: "50% 50%", willChange: "left,top,width,transform,opacity" }}>
+        <div data-transition-character aria-label={`Nhân vật ${subject.name} trở về Nhà PINO`} style={{ position: "absolute", zIndex: 4, left: `${target.leftPct}%`, top: `${target.topPct}%`, width: `${target.widthPct}%`, aspectRatio: "1 / 1", transformOrigin: "50% 50%", willChange: "left,top,width,transform,opacity" }}>
           <PrototypeCharacter subjectId={subject.id} wingMotion="idle" size="100%" style={{ filter: "drop-shadow(0 14px 18px rgba(0,0,0,.22))" }} />
         </div>
 
