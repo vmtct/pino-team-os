@@ -5,13 +5,15 @@ import shopPolish from "./shop-polish.module.css";
 import { ShopTvOverlay } from "./shop-tv-overlay";
 import { PinoriaTVPrototype } from "./tv-prototype";
 
-export default function PinoriaTVPage() {
+export default async function PinoriaTVPage({ searchParams }: { searchParams: Promise<{ review?: string }> }) {
+  const params = await searchParams;
+  const reviewEnabled = params.review === "1";
   return (
     <PinoriaVietnameseLocale>
       <div className={`${fontStyles.vnFont} ${shopPolish.shopPolish}`} lang="vi">
-        <PinoriaTVPrototype />
+        <PinoriaTVPrototype reviewEnabled={reviewEnabled} />
         <ShopTvOverlay />
-        <OperationalTvRemoteControl />
+        {reviewEnabled ? <OperationalTvRemoteControl /> : null}
       </div>
     </PinoriaVietnameseLocale>
   );

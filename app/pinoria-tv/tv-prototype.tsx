@@ -157,7 +157,7 @@ function captureAmbientHandoffTarget(subjectId: string): AmbientHandoffTarget | 
   return { leftPct: (left / PINORIA_STAGE_WIDTH) * 100, topPct: (top / PINORIA_STAGE_HEIGHT) * 100, widthPct: (width / PINORIA_STAGE_WIDTH) * 100 };
 }
 
-export function PinoriaTVPrototype() {
+export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: boolean }) {
   const [mode, setMode] = useState<Mode>("ambient");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
@@ -512,12 +512,12 @@ export function PinoriaTVPrototype() {
         <WorldStateAmbientOverlay state={worldState} />
       </div>
 
-      <div
+      {reviewEnabled ? <div
         className={styles.prototypeTag}
         style={learnerChrome ? { top: 14, left: 18, padding: "4px 7px", fontSize: 8, letterSpacing: ".1em", opacity: .32, background: "#161a15aa" } : undefined}
       >
         {replayLabel ?? "TV PROTOTYPE · SURFACE SESSION · RECEPTION_TV"}
-      </div>
+      </div> : null}
 
       {mode === "arrival" ? <Arrival subject={subject} /> : null}
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} ambientTarget={choiceAmbientTarget} /> : null}
@@ -529,14 +529,15 @@ export function PinoriaTVPrototype() {
       {mode === "departure-transition" ? <AmbientToDepartureTransition subject={subject} actors={frozenActors} /> : null}
       {mode === "departure" ? <Departure subject={subject} /> : null}
 
-      <button
+      {reviewEnabled ? <button
+        data-pinoria-review-toggle
         className={styles.reviewToggle}
         style={learnerChrome ? { right: 10, bottom: 9, padding: "5px 8px", fontSize: 8, opacity: reviewOpen ? 1 : .28, background: reviewOpen ? "#f2e8dc" : "#172019cc", color: reviewOpen ? "#3a312a" : "#d9d3c8", border: "1px solid #ffffff18" } : undefined}
         onClick={() => setReviewOpen((open) => !open)}
       >
         {reviewOpen ? "Hide review controls" : learnerChrome ? "Duyệt" : "Review controls"}
-      </button>
-      {reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV projects one scoped SurfaceSession. Review controls never change business truth.</small></aside> : null}
+      </button> : null}
+      {reviewEnabled && reviewOpen ? <aside className={styles.reviewPanel}><strong>Review mode</strong><span>Use these only during Founder sign-off.</span><div>{modes.map((item) => <button key={item.id} className={mode === item.id ? styles.active : ""} onClick={() => selectReviewMode(item.id)}>{item.label}</button>)}</div><small>Prototype TV projects one scoped SurfaceSession. Review controls never change business truth.</small></aside> : null}
     </main>
   );
 }
