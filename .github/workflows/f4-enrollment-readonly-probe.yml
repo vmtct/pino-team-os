@@ -1,0 +1,93 @@
+name: Team F4 Enrollment Readonly Probe
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: team-f4-enrollment-readonly-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: github.event.issue.title == '[GPT] Team F4 enrollment readonly probe' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      PROD_DB_ID: 2f26900d-ffa0-40aa-9d4e-01b72eb4bd71
+
+    steps:
+      - name: Query production roster aggregates read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_F4_ENROLLMENT_PROBE: **FAIL_SAFE**\n\n$1\n\nNo production mutation was attempted."
+            exit 1
+          }
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable."
+          sql=$(cat <<'SQL'
+          WITH active AS (
+            SELECT id, weekly_session_commitment FROM subscriptions WHERE lifecycle = 'ACTIVE'
+          ), effective AS (
+            SELECT e.* FROM enrollments e
+            WHERE e.effective_from_local_date <= '2026-08-27'
+              AND (e.effective_until_exclusive_local_date IS NULL OR '2026-08-27' < e.effective_until_exclusive_local_date)
+          ), states AS (
+            SELECT a.id, a.weekly_session_commitment, COUNT(e.id) AS enrollment_count
+            FROM active a LEFT JOIN effective e ON e.subscription_id = a.id
+            GROUP BY a.id, a.weekly_session_commitment
+          ), duplicate_groups AS (
+            SELECT COUNT(*) AS count FROM (
+              SELECT subscription_id, running_class_id, effective_from_local_date,
+                     COALESCE(planned_entry_local_time, '') AS planned_entry_local_time,
+                     COALESCE(planned_duration_minutes, -1) AS planned_duration_minutes,
+                     COUNT(*) AS copies
+              FROM effective
+              GROUP BY subscription_id, running_class_id, effective_from_local_date,
+                       COALESCE(planned_entry_local_time, ''), COALESCE(planned_duration_minutes, -1)
+              HAVING copies > 1
+            )
+          )
+          SELECT
+            (SELECT COUNT(*) FROM active) AS active_subscriptions,
+            (SELECT COALESCE(SUM(weekly_session_commitment), 0) FROM active) AS active_weekly_commitments,
+            (SELECT COUNT(*) FROM enrollments) AS enrollments_total,
+            (SELECT COUNT(*) FROM effective) AS enrollments_effective,
+            (SELECT COUNT(DISTINCT subscription_id) FROM effective) AS subscriptions_with_effective_enrollment,
+            SUM(CASE WHEN enrollment_count = weekly_session_commitment THEN 1 ELSE 0 END) AS placed_subscriptions,
+            SUM(CASE WHEN enrollment_count = 0 THEN 1 ELSE 0 END) AS pending_subscriptions,
+            SUM(CASE WHEN enrollment_count > 0 AND enrollment_count < weekly_session_commitment THEN 1 ELSE 0 END) AS partial_subscriptions,
+            SUM(CASE WHEN enrollment_count > weekly_session_commitment THEN 1 ELSE 0 END) AS exceeded_subscriptions,
+            (SELECT COUNT(*) FROM effective WHERE subscription_id IN ('01a03b5d-d400-7949-ae00-d95553479873','01a03b5d-d400-7641-9caa-a538be562cf4')) AS unresolved_effective_enrollments,
+            (SELECT COUNT(*) FROM enrollments WHERE subscription_id IN ('01a03b5d-d400-7949-ae00-d95553479873','01a03b5d-d400-7641-9caa-a538be562cf4')) AS unresolved_total_enrollments,
+            (SELECT COUNT(*) FROM active WHERE id IN ('01a03b5d-d400-7949-ae00-d95553479873','01a03b5d-d400-7641-9caa-a538be562cf4')) AS unresolved_active_subscriptions,
+            (SELECT COALESCE(SUM(weekly_session_commitment),0) FROM active WHERE id IN ('01a03b5d-d400-7949-ae00-d95553479873','01a03b5d-d400-7641-9caa-a538be562cf4')) AS unresolved_weekly_commitments,
+            (SELECT count FROM duplicate_groups) AS duplicate_seat_groups
+          FROM states;
+          SQL
+          )
+          payload="$(jq -nc --arg sql "$sql" '{sql:$sql}')"
+          response="$(curl -sS -w '\n%{http_code}' -X POST "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${PROD_DB_ID}/query" -H "Authorization: Bearer ${CF_API_TOKEN}" -H 'Content-Type: application/json' -d "$payload")"
+          code="${response##*$'\n'}"; body="${response%$'\n'*}"
+          [ "$code" = "200" ] || fail "Cloudflare D1 query returned HTTP ${code}."
+          jq -e '.success==true and all(.result[]?; .success==true and (.meta.changed_db==false) and (.meta.changes==0))' <<<"$body" >/dev/null || fail "D1 response was not proven SELECT-only."
+          row="$(jq -c '[.result[].results[]?][0]' <<<"$body")"
+          [ "$row" != "null" ] || fail "No aggregate row returned."
+          pre="$(jq -r '.active_subscriptions==33 and .active_weekly_commitments==66 and .enrollments_total==0 and .enrollments_effective==0 and .placed_subscriptions==0 and .pending_subscriptions==33 and .partial_subscriptions==0 and .exceeded_subscriptions==0 and .unresolved_total_enrollments==0 and .duplicate_seat_groups==0' <<<"$row")"
+          post="$(jq -r '.active_subscriptions==33 and .active_weekly_commitments==66 and .enrollments_total==62 and .enrollments_effective==62 and .subscriptions_with_effective_enrollment==31 and .placed_subscriptions==31 and .pending_subscriptions==2 and .partial_subscriptions==0 and .exceeded_subscriptions==0 and .unresolved_effective_enrollments==0 and .unresolved_total_enrollments==0 and .unresolved_active_subscriptions==2 and .unresolved_weekly_commitments==4 and .duplicate_seat_groups==0' <<<"$row")"
+          state="FAIL_MISMATCH"
+          [ "$pre" = "true" ] && state="READY_PREACTIVATION"
+          [ "$post" = "true" ] && state="PASS_POSTACTIVATION"
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_F4_ENROLLMENT_PROBE: **${state}**\n\n- metrics: \`${row}\`\n- D1: SELECT-only, changed_db=false, changes=0\n\nNo production mutation was performed by this probe."
+          [ "$state" != "FAIL_MISMATCH" ] || exit 1
