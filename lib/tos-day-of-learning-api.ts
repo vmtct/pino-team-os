@@ -112,4 +112,39 @@ export const tosDayOfLearningApi = {
       method: "POST", headers: { "idempotency-key": idempotencyKey }, body: JSON.stringify(body),
     });
   },
+  openStudioDay: (centerId: string, localDate: string) =>
+    request<{ data: { centerId: string; localDate: string; claims: OpenStudioDayClaim[] } }>(`open-studio/day?centerId=${encodeURIComponent(centerId)}&localDate=${encodeURIComponent(localDate)}`),
+  settleOpenStudioOwner: (input: { claimId: string; attendanceStatus: AttendanceStatus; syllabusId?: string; learningNote?: string; observation?: string }, idempotencyKey: string) => {
+    const body: Record<string, unknown> = { attendanceStatus: input.attendanceStatus, recordedAt: new Date().toISOString() };
+    if (input.attendanceStatus === "PRESENT" && input.syllabusId) body.diary = {
+      syllabusId: input.syllabusId,
+      ...(input.learningNote?.trim() ? { learningNote: input.learningNote.trim() } : {}),
+      ...(input.observation?.trim() ? { observation: input.observation.trim() } : {}),
+    };
+    return request<{ data: unknown }>(`open-studio/claims/${encodeURIComponent(input.claimId)}/outcome`, {
+      method: "POST", headers: { "idempotency-key": idempotencyKey }, body: JSON.stringify(body),
+    });
+  },
 };
+
+export interface OpenStudioDayClaim {
+  id: string;
+  passId: string;
+  listingId: string;
+  participantMode: "OWNER" | "SIBLING" | "GUEST";
+  status: "RESERVED" | "CONSUMED" | "RELEASED";
+  bookingId: string | null;
+  registrationId: string | null;
+  studentProfileId: string | null;
+  studentDisplayName: string | null;
+  passClass: "MONTHLY_PATH" | "BRING_A_FRIEND";
+  sessionId: string;
+  centerId: string;
+  localDate: string;
+  scheduledStartsLocal: string;
+  scheduledEndsLocal: string;
+  experienceType: string;
+  reservationStatus: string | null;
+  participantOutcome: string | null;
+  settlementState: string;
+}
