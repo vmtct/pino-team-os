@@ -44,6 +44,10 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/workforce/staff-records",
     "/api/bo/workforce/staff-onboarding",
     "/api/bo/access/assignments",
+    "/api/bo/access/assignments/remove",
+    "/api/bo/access/users/status",
+    "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345",
+    "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345/status",
     "/api/staff-pin/configure",
     "/api/bo/sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations",
     "/_next/static/app.js",
@@ -76,6 +80,8 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/delivery/enrollment-activation/anything",
     "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
     "/api/bo/sessions/not-a-canonical-id/registrations",
+    "/api/bo/workforce/staff-records/not-a-canonical-id",
+    "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345/anything",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }

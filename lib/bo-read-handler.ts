@@ -43,6 +43,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/roles"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
