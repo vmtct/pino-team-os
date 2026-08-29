@@ -6,7 +6,7 @@ import type {
 } from "../../app/pinoria-tv/shop-types";
 
 const STARTING_OWNED: Record<string, string[]> = {
-  bo: ["asset_hologram_wings", "asset_painting_outfit_01", "asset_hair_01", "asset_face_01", "asset_birthday_hat", "asset_star_glasses"],
+  bo: ["asset_hologram_wings", "asset_painting_outfit_01", "asset_hair_long_brown_wavy_headband", "asset_face_01", "asset_birthday_hat", "asset_star_glasses"],
   tri: ["asset_piano_outfit_01", "asset_hair_01", "asset_face_02", "asset_conical_hat", "asset_party_glasses"],
   an: ["asset_hologram_wings", "asset_painting_outfit_02", "asset_hair_01", "asset_face_03", "asset_conical_hat"],
   mai: ["asset_base_body_01", "asset_hair_01", "asset_face_04", "asset_birthday_hat", "asset_party_glasses"],
@@ -21,7 +21,7 @@ const STARTING_ACHIEVEMENTS: Record<string, string[]> = {
 
 const STARTING_EQUIPMENT: Record<string, InventoryEquipmentState> = {
   bo: {
-    wearables: { back: "asset_hologram_wings", body: "asset_painting_outfit_01", hair: "asset_hair_01", face: "asset_face_01", headwear: "asset_birthday_hat", eyewear: "asset_star_glasses" },
+    wearables: { back: "asset_hologram_wings", body: "asset_painting_outfit_01", hair: "asset_hair_long_brown_wavy_headband", face: "asset_face_01", headwear: "asset_birthday_hat", eyewear: "asset_star_glasses" },
     achievements: { "achievement-1": "achievement-brush-l2", "achievement-2": "achievement-palette-l2" },
   },
   tri: {

@@ -27,7 +27,7 @@ export const prototypeCharacterProfiles: Record<string, PrototypeCharacterProfil
     layers: {
       back: asset("pinoria/assets/hologram-wings/v001/layer.png"),
       body: asset("pinoria/assets/painting-outfit-01/v001/layer.png"),
-      hair: asset("pinoria/assets/hair-01/v001/layer.png"),
+      hair: asset("pinoria/assets/hair-long-brown-wavy-headband/v001/layer.png"),
       face: asset("pinoria/assets/face-01/v001/layer.png"),
       headwear: asset("pinoria/assets/birthday-hat/v001/layer.png"),
       eyewear: asset("pinoria/assets/star-glasses/v001/layer.png"),
