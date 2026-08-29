@@ -205,3 +205,54 @@ test("Learning Owner facade rejects mutation without Idempotency-Key before Core
   assert.equal(response.status, 400);
   assert.equal(called, false);
 });
+
+const parentId = "0198d050-56c1-7ac5-b9ab-b0e45d912399";
+
+test("Parent PIN facade forwards only exact issue/reset commands with an empty body", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = {
+    async execute(coreRequest) {
+      forwarded.push(coreRequest);
+      return { status: 201, body: { data: { command: "ISSUE_INITIAL_PARENT_PIN", temporaryPin: "123456" } }, requestId: "core-parent-pin" };
+    },
+  };
+  for (const action of ["issue-initial", "reset"] as const) {
+    const pinPath = `identity/parents/${parentId}/pin/${action}`;
+    const response = await handleBoStaffOnboardingRequest(
+      request(f.token, { body: "{}" }), env(binding), pinPath, f.resolver,
+    );
+    assert.equal(response.status, 201);
+    assert.equal(response.headers.get("x-request-id"), "core-parent-pin");
+  }
+  assert.deepEqual(forwarded, [
+    { method: "POST", path: `identity/parents/${parentId}/pin/issue-initial`, body: {} },
+    { method: "POST", path: `identity/parents/${parentId}/pin/reset`, body: {} },
+  ]);
+});
+test("Parent PIN facade rejects non-empty payloads before Core", async () => {
+  const f = await fixture();
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const response = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: JSON.stringify({ temporaryPin: "000000" }) }),
+    env(binding), `identity/parents/${parentId}/pin/issue-initial`, f.resolver,
+  );
+  assert.equal(response.status, 400);
+  assert.equal(called, false);
+  assert.deepEqual(await response.json(), {
+    error: { code: "PLATFORM_INVALID_INPUT", message: "Parent PIN command body must be empty" },
+  });
+});
+
+test("Parent PIN facade keeps neighboring identity routes fail-closed", async () => {
+  const f = await fixture();
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const response = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: "{}" }), env(binding),
+    `identity/parents/${parentId}/pin/export`, f.resolver,
+  );
+  assert.equal(response.status, 404);
+  assert.equal(called, false);
+});
