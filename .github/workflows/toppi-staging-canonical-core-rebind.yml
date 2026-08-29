@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          latest="$(npx wrangler versions list --name pino-team-os-toppi-staging --json | jq -r '.[0].id')"
+          latest="$(npx wrangler deployments list --name pino-team-os-toppi-staging --json | jq -r '.[-1].versions[] | select(.percentage == 100) | .version_id' | head -1)"
           details="$(npx wrangler versions view "$latest" --name pino-team-os-toppi-staging --json)"
           jq -e '[.resources.bindings[]? | select(.name == "PINO_BO_CORE" and .service == "pino-core-staging" and .entrypoint == "BoAccessControlPlane" and (.service_deleted // false) == false)] | length == 1' <<<"$details" >/dev/null
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$STAGING_URL/api/health")" = "200"
