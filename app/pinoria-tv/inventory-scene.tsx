@@ -5,6 +5,7 @@ import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
 import { EggWaterCompanion } from "./egg-water-companion";
 import { MoriSigilCompanion } from "./mori-sigil-companion";
 import { MoriSleepCompanion } from "./mori-sleep-companion";
+import { SecretButterflyCharacter } from "./secret-butterfly-character";
 import { CharacterCompanionAnchor, PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
 import {
   PrototypeCharacter,
@@ -181,7 +182,7 @@ function WearableSlot({ slot, imageUrl }: { slot: InventoryWearableSlot; imageUr
   );
 }
 
-export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID, companionVariant = "default" }: { surfaceId?: string; companionVariant?: "default" | "egg-water" | "sigil-mori" | "mori-sleep" }) {
+export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID, companionVariant = "default", characterVariant = "default" }: { surfaceId?: string; companionVariant?: "default" | "egg-water" | "sigil-mori" | "mori-sleep"; characterVariant?: "default" | "secret-butterfly" }) {
   const [catalog, setCatalog] = useState<ShopCatalogItem[]>([]);
   const [session, setSession] = useState<ShopSessionSnapshot | null>(null);
 
@@ -341,8 +342,8 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID, companionV
             footer={inventoryFilter === "outfit" ? undefined : <div style={{ borderRadius: 17, padding: "9px 12px 11px", background: "rgba(19,12,10,.7)", border: "1px solid rgba(240,196,112,.16)" }}><div style={{ marginBottom: 7, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>PHỤ KIỆN ĐANG DÙNG</div><div style={{ display: "grid", gridTemplateColumns: `repeat(${visibleEquippedSlots.length},58px)`, justifyContent: "center", gap: 8 }}>{visibleEquippedSlots.map((slot) => { const assetId = session?.equipment?.wearables?.[slot]; const item = assetId ? catalog.find((candidate) => candidate.assetId === assetId) : undefined; return <WearableSlot key={slot} slot={slot} imageUrl={item?.imageUrl} />; })}</div></div>}
           >
             <div style={{ position: "relative", width: "min(440px,34vw,56vh)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
-              <PrototypeCharacter subjectId={session?.subject.id ?? "bo"} motion="shop-preview" layerOverrides={layerOverrides} prestigeMarkIds={activatedMarkIds} size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />
-              <CharacterCompanionAnchor surface="inventory">{companionVariant === "egg-water" ? <EggWaterCompanion size="100%" /> : companionVariant === "sigil-mori" ? <MoriSigilCompanion size="100%" /> : companionVariant === "mori-sleep" ? <MoriSleepCompanion size="100%" /> : <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} />}</CharacterCompanionAnchor>
+              {characterVariant === "secret-butterfly" ? <SecretButterflyCharacter /> : <PrototypeCharacter subjectId={session?.subject.id ?? "bo"} motion="shop-preview" layerOverrides={layerOverrides} prestigeMarkIds={activatedMarkIds} size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />}
+              {characterVariant === "default" ? <CharacterCompanionAnchor surface="inventory">{companionVariant === "egg-water" ? <EggWaterCompanion size="100%" /> : companionVariant === "sigil-mori" ? <MoriSigilCompanion size="100%" /> : companionVariant === "mori-sleep" ? <MoriSleepCompanion size="100%" /> : <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} />}</CharacterCompanionAnchor> : null}
             </div>
           </PinoriaCharacterFrame>        </section>
 
