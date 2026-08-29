@@ -83,7 +83,7 @@ jobs:
           jq -e --arg g "$google_id" --arg o "$otp_id" '((.allowed_idps // []) | sort) == ([$g,$o] | sort) and (.auto_redirect_to_identity // false)==false' <<<"$tos_after" >/dev/null || fail "TOS allowed IdPs do not equal Google + OTP after update."
           [ "$(jq -c '.allowed_idps // []' <<<"$bo_after")" = "$(jq -c '.allowed_idps // []' <<<"$(jq -c '.[0]' <<<"$bo")")" ] || fail "BO allowed_idps changed unexpectedly."
           policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies."
-          jq -e '.success==true and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0) and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("external_evaluation")))] | length>=1)' <<<"$policies" >/dev/null || fail "TOS policy invariants failed after IdP update."
+          jq -e '.success==true and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0) and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("email")) and any(.require[]?; has("external_evaluation")))] | length>=1)' <<<"$policies" >/dev/null || fail "TOS policy invariants failed after IdP update."
           headers="$RUNNER_TEMP/tos-google-idp.headers"
           html="$RUNNER_TEMP/tos-google-idp.html"
           code="$(curl -sS -L --max-redirs 3 -D "$headers" -o "$html" -w '%{http_code}' 'https://tos.pinohouse.art/staff-login' || true)"
