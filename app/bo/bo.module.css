@@ -157,3 +157,10 @@
 
 .headingActions { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
 .headingActions .primaryButton { display: inline-flex; width: auto; text-decoration: none; }
+
+.staffPinPanel { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #ececf2; }
+.staffPinPanel > div:first-child { display: grid; gap: 3px; }
+.staffPinPanel strong { font-size: 12px; color: #292936; }
+.staffPinPanel p, .staffPinPanel small { margin: 0; color: #737380; font-size: 11px; line-height: 1.45; }
+.staffPinFields { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(120px, .7fr) auto; gap: 10px; align-items: end; }
+@media (max-width: 760px) { .staffPinFields { grid-template-columns: 1fr; } }
