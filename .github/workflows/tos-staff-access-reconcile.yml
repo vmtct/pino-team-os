@@ -22,6 +22,7 @@ jobs:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       ZONE_ID: 48b2809afabf3d65d30f80f346126213
       TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
       TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
       BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
       POLICY_NAME: PINO Staff Core-gated OTP
@@ -71,27 +72,57 @@ jobs:
           [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
 
           account_apps="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
-          if jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1; then
-            app="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$account_apps" | head -1)"
-            if [ -n "$app" ]; then scope="account"; base="accounts/${CF_ACCOUNT_ID}"; fi
+          zone_apps="$(curl -fsS "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
+          account_ok=false; zone_ok=false
+          jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1 && account_ok=true || true
+          jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1 && zone_ok=true || true
+          [ "$account_ok" = true ] || [ "$zone_ok" = true ] || fail "Cannot read Access applications in either account or zone scope."
+
+          resolution=""
+          if [ "$account_ok" = true ]; then
+            matches="$(jq -c --arg aud "$TOS_AUD" '[.result[]? | select((.aud // "") == $aud)]' <<<"$account_apps")"
+            count="$(jq 'length' <<<"$matches")"
+            [ "$count" -le 1 ] || fail "Pinned TOS audience resolves to multiple account-scoped Access apps."
+            if [ "$count" -eq 1 ]; then app="$(jq -c '.[0]' <<<"$matches")"; scope="account"; base="accounts/${CF_ACCOUNT_ID}"; resolution="aud"; fi
+          fi
+          if [ -z "${app:-}" ] && [ "$zone_ok" = true ]; then
+            matches="$(jq -c --arg aud "$TOS_AUD" '[.result[]? | select((.aud // "") == $aud)]' <<<"$zone_apps")"
+            count="$(jq 'length' <<<"$matches")"
+            [ "$count" -le 1 ] || fail "Pinned TOS audience resolves to multiple zone-scoped Access apps."
+            if [ "$count" -eq 1 ]; then app="$(jq -c '.[0]' <<<"$matches")"; scope="zone"; base="zones/${ZONE_ID}"; resolution="aud"; fi
           fi
 
-          if [ -z "${app:-}" ]; then
-            zone_apps="$(curl -fsS "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
-            if jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1; then
-              app="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$zone_apps" | head -1)"
-              if [ -n "$app" ]; then scope="zone"; base="zones/${ZONE_ID}"; fi
-            fi
+          # Legacy/zone-scoped Access records can protect the hostname while omitting aud
+          # from list projections. Fall back only to one unique hostname-bearing record,
+          # then prove its identity against the live Access challenge before any mutation.
+          if [ -z "${app:-}" ] && [ "$account_ok" = true ]; then
+            matches="$(jq -c --arg h "$TOS_HOST" '[.result[]? | select(((.domain // "") == $h) or (tojson | contains($h)))]' <<<"$account_apps")"
+            count="$(jq 'length' <<<"$matches")"
+            [ "$count" -le 1 ] || fail "TOS hostname resolves to multiple account-scoped Access apps."
+            if [ "$count" -eq 1 ]; then app="$(jq -c '.[0]' <<<"$matches")"; scope="account"; base="accounts/${CF_ACCOUNT_ID}"; resolution="hostname"; fi
           fi
-
-          [ -n "${app:-}" ] || fail "Cannot resolve the TOS Access application by its pinned audience in account or zone scope."
+          if [ -z "${app:-}" ] && [ "$zone_ok" = true ]; then
+            matches="$(jq -c --arg h "$TOS_HOST" '[.result[]? | select(((.domain // "") == $h) or (tojson | contains($h)))]' <<<"$zone_apps")"
+            count="$(jq 'length' <<<"$matches")"
+            [ "$count" -le 1 ] || fail "TOS hostname resolves to multiple zone-scoped Access apps."
+            if [ "$count" -eq 1 ]; then app="$(jq -c '.[0]' <<<"$matches")"; scope="zone"; base="zones/${ZONE_ID}"; resolution="hostname"; fi
+          fi
+          [ -n "${app:-}" ] || fail "Cannot resolve one TOS Access application by pinned audience or hostname in account/zone scope."
 
           app_id="$(jq -r '.id // empty' <<<"$app")"
           app_name="$(jq -r '.name // .app_launcher_visible // "TOS Access app"' <<<"$app")"
           app_aud="$(jq -r '.aud // empty' <<<"$app")"
           [ -n "$app_id" ] || fail "Resolved TOS app has no ID."
-          [ "$app_aud" = "$TOS_AUD" ] || fail "Resolved app audience drifted from pinned TOS audience."
           [ "$app_aud" != "$BO_AUD" ] || fail "Resolved TOS app collides with BO audience."
+          [ -z "$app_aud" ] || [ "$app_aud" = "$TOS_AUD" ] || fail "Resolved app audience drifted from pinned TOS audience."
+          jq -e --arg bo "$BO_HOST" '((tojson | contains($bo)) | not)' <<<"$app" >/dev/null || fail "Resolved Access app also contains the BO hostname; refusing to broaden BO admission."
+
+          headers="$RUNNER_TEMP/tos-access-preflight.txt"
+          code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${TOS_HOST}/staff-login" || true)"
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          [ "$code" = 302 ] || [ "$code" = 303 ] || [ "$code" = 307 ] || fail "TOS preflight no longer returns a Cloudflare Access redirect (HTTP ${code})."
+          [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/${TOS_HOST}"* ]] || fail "TOS preflight is not the expected Cloudflare Access challenge."
+          [[ "$location" == *"kid=${TOS_AUD}"* ]] || fail "Resolved hostname is not protected by the pinned TOS audience."
 
           idps="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers" "${auth[@]}")" || fail "Cannot read Access identity providers."
           jq -e '.success==true' <<<"$idps" >/dev/null || fail "Identity provider API returned failure."
@@ -130,4 +161,4 @@ jobs:
           created_policy_id=""
           state="reused"
           [ "$policy_id" = "$(jq -r '.id // empty' <<<"${existing:-{}}")" ] || state="created"
-          comment "TOS_STAFF_ACCESS_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS Access scope: ${scope}\n- TOS app: ${app_name} (${app_id})\n- TOS audience: ${TOS_AUD}\n- One-time PIN IdP: allowed\n- Core-gated Staff allow policy: ${state} (${policy_id})\n- Existing Founder policies: untouched\n- TOS /staff-login: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the email identity; pino-core remains canonical for active Access User, active StaffMember, role and scope authorization. BO policy, D1, Staff data, Worker runtime, routes and domains were not mutated."
+          comment "TOS_STAFF_ACCESS_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS Access scope: ${scope} (${resolution})\n- TOS app: ${app_name} (${app_id})\n- TOS audience: ${TOS_AUD}\n- One-time PIN IdP: allowed\n- Core-gated Staff allow policy: ${state} (${policy_id})\n- Existing Founder policies: untouched\n- TOS /staff-login: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the email identity; pino-core remains canonical for active Access User, active StaffMember, role and scope authorization. BO policy, D1, Staff data, Worker runtime, routes and domains were not mutated."
