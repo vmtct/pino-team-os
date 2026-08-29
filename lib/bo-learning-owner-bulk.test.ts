@@ -17,7 +17,7 @@ const owner = (sessionId: string): BoSessionLearningOwner => ({
   assignmentSource: "OPERATOR", changeReason: null, updatedAt: "2026-08-29T00:00:00Z", version: 1,
 });
 
-test("groups only unassigned Sessions by Running Class", () => {
+test("groups only unassigned syllabus-ready Sessions by Running Class", () => {
   const groups = buildUnassignedOwnerGroups([session("s1", "class-a"), session("s2", "class-a"), session("s3", "class-b")], { s2: owner("s2") });
   assert.deepEqual(groups.map((item) => [item.key, item.sessionIds]), [["class:class-a", ["s1"]], ["class:class-b", ["s3"]]]);
 });
@@ -30,5 +30,11 @@ test("unlinked Sessions stay separate so bulk never joins unrelated occurrences"
 test("bulk readiness ignores non-SCHEDULED Sessions", () => {
   const completed = { ...session("s4", "class-a"), status: "COMPLETED" };
   const groups = buildUnassignedOwnerGroups([completed], {});
+  assert.deepEqual(groups, []);
+});
+
+test("bulk readiness excludes Sessions without primary Syllabus", () => {
+  const blocked = { ...session("s5", "class-piano"), syllabusId: null };
+  const groups = buildUnassignedOwnerGroups([blocked], {});
   assert.deepEqual(groups, []);
 });
