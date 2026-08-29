@@ -263,8 +263,9 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
       : item.kind === "achievement" || (item.kind === "wearable" && item.slot !== "body")),
     [inventoryFilter, inventoryItems],
   );
-  const selected = filteredInventoryItems.find((item) => item.id === session?.inventorySelectedId);
-  const inventoryColumns = filteredInventoryItems.length <= 2 ? 3 : filteredInventoryItems.length <= 10 ? 5 : filteredInventoryItems.length <= 14 ? 7 : filteredInventoryItems.length > 28 ? 9 : 8;
+  const selected = filteredInventoryItems.find((item) => item.id === session?.inventorySelectedId) ?? filteredInventoryItems[0];
+  const sparseInventory = filteredInventoryItems.length <= 2;
+  const inventoryColumns = filteredInventoryItems.length <= 10 ? 5 : filteredInventoryItems.length <= 14 ? 7 : filteredInventoryItems.length > 28 ? 9 : 8;
   const visibleEquippedSlots = inventoryFilter === "outfit" ? (["body"] as const) : WEARABLE_SLOTS.filter((slot) => slot !== "body");
 
   const layerOverrides = useMemo<PrototypeCharacterLayerOverrides | undefined>(() => {
@@ -333,11 +334,11 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
             subjectName={session?.subject.name ?? "Bơ"}
             accessories={characterAccessories}
             style={{ padding: "12px 16px 15px" }}
-            companion={<div data-inventory-companion style={{ position: "absolute", right: "clamp(92px,7.8vw,122px)", bottom: "clamp(34px,5.8vh,56px)", width: "clamp(118px,8vw,148px)", zIndex: 32 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></div>}
             footer={<div style={{ borderRadius: 17, padding: "9px 12px 11px", background: "rgba(19,12,10,.7)", border: "1px solid rgba(240,196,112,.16)" }}><div style={{ marginBottom: 7, color: "rgba(243,229,204,.4)", fontSize: 8.2, fontWeight: 950, letterSpacing: ".12em" }}>{inventoryFilter === "outfit" ? "TRANG PHỤC ĐANG MẶC" : "PHỤ KIỆN ĐANG DÙNG"}</div><div style={{ display: "grid", gridTemplateColumns: `repeat(${visibleEquippedSlots.length},58px)`, justifyContent: "center", gap: 8 }}>{visibleEquippedSlots.map((slot) => { const assetId = session?.equipment?.wearables?.[slot]; const item = assetId ? catalog.find((candidate) => candidate.assetId === assetId) : undefined; return <WearableSlot key={slot} slot={slot} imageUrl={item?.imageUrl} />; })}</div></div>}
           >
-            <div style={{ width: "min(390px,30.5vw,50vh)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
+            <div style={{ position: "relative", width: "min(440px,34vw,56vh)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
               <PrototypeCharacter subjectId={session?.subject.id ?? "bo"} motion="shop-preview" layerOverrides={layerOverrides} prestigeMarkIds={activatedMarkIds} size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />
+              <div data-inventory-companion style={{ position: "absolute", right: "-3%", bottom: "2%", width: "38%", zIndex: 32, pointerEvents: "none" }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></div>
             </div>
           </PinoriaCharacterFrame>        </section>
 
@@ -347,7 +348,7 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
             <span style={{ color: "rgba(247,233,210,.42)", fontSize: 9 }}>Chỉ vào món con muốn dùng</span>
           </div>
 
-          <div data-inventory-grid data-filter={inventoryFilter} style={{ minHeight: 0, display: "grid", gridTemplateColumns: `repeat(${inventoryColumns},minmax(0,1fr))`, alignContent: "start", gap: 8 }}>
+          <div data-inventory-grid data-filter={inventoryFilter} data-layout={sparseInventory ? "sparse" : "dense"} style={{ minHeight: 0, display: "grid", gridTemplateColumns: sparseInventory ? `repeat(${Math.max(1, filteredInventoryItems.length)},minmax(210px,240px))` : `repeat(${inventoryColumns},minmax(0,1fr))`, justifyContent: "start", alignContent: "start", gap: 8 }}>
             {filteredInventoryItems.map((item) => {
               const active = selected?.id === item.id;
               return (
@@ -406,10 +407,10 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
           <div style={{ minHeight: 70, borderRadius: 18, border: "1px solid rgba(239,196,112,.17)", background: "rgba(29,19,16,.76)", padding: "10px 15px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 18, boxShadow: "0 12px 28px rgba(0,0,0,.12)" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 15.5, color: "#f0c878" }}>{selected?.displayName ?? "Chỉ vào một món trong túi"}</strong>
+                <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 18, color: "#f0c878" }}>{selected?.displayName ?? "Chỉ vào một món trong túi"}</strong>
                 {selected?.kind === "achievement" ? <span style={{ color: "#e8bd69", fontSize: 9, fontWeight: 950 }}>CẤP {levelRoman(selected.level)}</span> : null}
               </div>
-              <div style={{ marginTop: 4, color: "rgba(247,235,215,.47)", fontSize: 9.5 }}>
+              <div style={{ marginTop: 4, color: "rgba(247,235,215,.52)", fontSize: 11 }}>
                 {selected?.kind === "achievement"
                   ? `${selected.description} Staff có thể đặt thành quả này vào một ô đang mang.`
                   : selected
