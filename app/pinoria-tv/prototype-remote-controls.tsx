@@ -10,6 +10,7 @@ import {
   type ShopCategoryId,
   type ShopSessionSnapshot,
 } from "./shop-types";
+import { PINORIA_WISH_REVEAL_URL } from "./wish-reveal-types";
 
 type MockStudent = {
   id: string;
@@ -95,6 +96,16 @@ export function OperationalTvRemoteControl() {
     finally { setBusy(false); }
   }
 
+  async function enqueueWish(variant: "single" | "five" | "perfect") {
+    setBusy(true);
+    setStatus("Đang đưa kết quả Gieo Ước mẫu vào hàng đợi…");
+    try {
+      const response = await fetch(PINORIA_WISH_REVEAL_URL, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ op: "enqueue-demo", surfaceId: SURFACE_ID, variant }) });
+      setStatus(response.ok ? `Wish ${variant === "single" ? "×1" : variant === "five" ? "×5" : "Perfect Memory"} đã vào hàng đợi.` : "Không enqueue được Wish demo.");
+    } catch { setStatus("Wish demo tạm mất kết nối."); }
+    finally { setBusy(false); }
+  }
+
   async function ambient() {
     setBusy(true);
     try {
@@ -111,6 +122,12 @@ export function OperationalTvRemoteControl() {
       <button disabled={busy} data-remote-checkout style={{ ...actionStyle, background: "rgba(178,93,82,.16)", color: "#f0c1b9", borderColor: "rgba(222,130,117,.28)" }} onClick={() => void enqueue("departure")}>Check-out</button>
     </div>
     <button disabled={busy} style={{ ...actionStyle, width: "100%", marginTop: 8 }} onClick={() => void ambient()}>Trở về Ambient</button>
+    <span style={sectionLabel}>WISH · FIXTURE ONLY</span>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+      <button disabled={busy} style={actionStyle} onClick={() => void enqueueWish("single")}>Gieo ×1</button>
+      <button disabled={busy} style={actionStyle} onClick={() => void enqueueWish("five")}>Gieo ×5</button>
+      <button disabled={busy} style={{ ...actionStyle, color: "#f0d183", borderColor: "rgba(231,194,106,.25)" }} onClick={() => void enqueueWish("perfect")}>Perfect</button>
+    </div>
     <p style={{ minHeight: 17, margin: "9px 0 0", color: "rgba(235,229,218,.56)", fontSize: 10, lineHeight: 1.45 }}>{status}</p>
   </RemoteShell>;
 }

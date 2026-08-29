@@ -40,6 +40,9 @@ import {
   WorldBroadcastScene,
 } from "./world-broadcast-scene";
 import { WorldStateAmbientOverlay } from "./world-state-ambient-overlay";
+import { claimWishReveal, completeWishReveal } from "./wish-reveal-client";
+import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
+import type { WishRevealProjection } from "./wish-reveal-types";
 import {
   WORLD_STATE_TRANSITION_MS,
   WorldStateTransitionScene,
@@ -47,7 +50,7 @@ import {
 import { DEFAULT_WORLD_STATE_TRANSITION } from "./world-state-transition-data";
 import styles from "./tv.module.css";
 
-type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "learning" | "broadcast" | "world-transition" | "departure-transition" | "departure";
+type Mode = "ambient" | "arrival" | "choice" | "ritual" | "reward" | "wish" | "learning" | "broadcast" | "world-transition" | "departure-transition" | "departure";
 type TVSubject = {
   id: string;
   name: string;
@@ -71,7 +74,7 @@ type RelayEvent = {
   action?: "ambient";
 };
 
-type RelaySurfaceSnapshot = PinoriaSurfaceSessionSnapshot & { housePresence?: TVSubject[] };
+type RelaySurfaceSnapshot = PinoriaSurfaceSessionSnapshot & { housePresence?: TVSubject[]; activeEvent?: { id: number } | null };
 
 type RelayMutationResponse = {
   ok?: boolean;
@@ -172,6 +175,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   const [characterCatalog, setCharacterCatalog] = useState<ShopCatalogItem[]>([]);
   const [frozenActors, setFrozenActors] = useState<FrozenAmbientActor[]>([]);
   const [reward, setReward] = useState<EnergySeedReward>(DEFAULT_ENERGY_SEED_REWARD);
+  const [wishReveal, setWishReveal] = useState<WishRevealProjection | null>(null);
   const [spotlight, setSpotlight] = useState<LearningSpotlightPayload>(DEFAULT_LEARNING_SPOTLIGHT);
   const [broadcast, setBroadcast] = useState<WorldBroadcastPayload>(DEFAULT_WORLD_BROADCAST);
   const [worldTransition, setWorldTransition] = useState<WorldStateTransitionPayload>(DEFAULT_WORLD_STATE_TRANSITION);
@@ -182,6 +186,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   const modeRef = useRef<Mode>("ambient");
   const subjectRef = useRef<TVSubject>(defaultSubject);
   const activeEventId = useRef<number | null>(null);
+  const activeWishRevealId = useRef<string | null>(null);
   const busyRef = useRef(false);
   const pollingRef = useRef(false);
 
@@ -241,7 +246,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
     }
 
     async function heartbeat() {
-      const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current;
+      const relayMode = modeRef.current === "departure-transition" ? "departure" : modeRef.current === "wish" ? "ambient" : modeRef.current;
       const currentSubject = subjectRef.current;
       const response = await post({
         op: "heartbeat",
@@ -269,6 +274,32 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
         setChoiceAmbientTarget(null);
         setMode("ambient");
       }
+    }
+
+    async function finishWishReveal(revealId: string) {
+      if (activeWishRevealId.current !== revealId) return;
+      try {
+        await completeWishReveal(SURFACE_ID, revealId);
+      } catch {
+        sequenceTimer.current = window.setTimeout(() => { void finishWishReveal(revealId); }, 1500);
+        return;
+      }
+      activeWishRevealId.current = null;
+      busyRef.current = false;
+      modeRef.current = "ambient";
+      setWishReveal(null);
+      setAmbientCharacterVisible(true);
+      setMode("ambient");
+    }
+
+    function playWishReveal(reveal: WishRevealProjection) {
+      clearSequenceTimers();
+      busyRef.current = true;
+      activeWishRevealId.current = reveal.revealId;
+      setWishReveal(reveal);
+      setAmbientCharacterVisible(false);
+      setMode("wish");
+      sequenceTimer.current = window.setTimeout(() => { void finishWishReveal(reveal.revealId); }, wishRevealSceneMs(reveal));
     }
 
     function clearSequenceTimers() {
@@ -417,6 +448,10 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
         if (!event) {
           if (!stopped && data.surface?.worldState && modeRef.current === "ambient") setWorldState(data.surface.worldState);
           if (!stopped && data.surface?.housePresence) applyHousePresence(data.surface.housePresence);
+          if (!stopped && !data.surface?.activeEvent && modeRef.current === "ambient") {
+            const claimedWish = await claimWishReveal(SURFACE_ID).catch(() => null);
+            if (claimedWish && !busyRef.current) playWishReveal(claimedWish.projection);
+          }
           return;
         }
 
@@ -454,7 +489,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   }, []);
 
   useEffect(() => {
-    const relayMode = mode === "departure-transition" ? "departure" : mode;
+    const relayMode = mode === "departure-transition" ? "departure" : mode === "wish" ? "ambient" : mode;
     void fetch(RELAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -473,6 +508,13 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
     if (ambientSubjectTimer.current) window.clearTimeout(ambientSubjectTimer.current);
     sequenceTimer.current = null;
     ambientSubjectTimer.current = null;
+    const wishId = activeWishRevealId.current;
+    if (wishId !== null) {
+      activeWishRevealId.current = null;
+      busyRef.current = false;
+      setWishReveal(null);
+      void completeWishReveal(SURFACE_ID, wishId).catch(() => undefined);
+    }
     const id = activeEventId.current;
     if (id !== null) {
       activeEventId.current = null;
@@ -494,7 +536,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
       setWorldTransition(DEFAULT_WORLD_STATE_TRANSITION);
       setWorldState(DEFAULT_WORLD_STATE_TRANSITION.from);
     }
-    setAmbientCharacterVisible(next !== "reward" && next !== "learning");
+    setAmbientCharacterVisible(next !== "reward" && next !== "learning" && next !== "wish");
     setMode(next);
   }
   const activeLostArtifact = broadcast.kind === "lost-artifact" ? getLostArtifact(broadcast.artifactId ?? "") : undefined;
@@ -504,8 +546,8 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
   }, [ambientSubject.id, ambientSubject.name, ambientSubject.path, ambientSubject.room, ambientSubject.companion, ambientSubject.character, ambientSubject.companionState, housePresence, housePresenceLoaded]);
 
 
-  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
-  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
+  const learnerChrome = mode === "choice" || mode === "arrival" || mode === "reward" || mode === "wish" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
+  const ambientBackplaneVisible = mode === "ambient" || mode === "arrival" || mode === "choice" || mode === "reward" || mode === "wish" || mode === "learning" || mode === "broadcast" || mode === "world-transition" || mode === "departure-transition" || mode === "departure";
 
   return (
     <main data-pinoria-tv-screen className={styles.screen}>
@@ -538,6 +580,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
       {mode === "choice" ? <ChoiceToAmbientScene subject={subject} ambientTarget={choiceAmbientTarget} catalog={characterCatalog} /> : null}
       {mode === "learning" ? <LearningSpotlightScene subject={subject} spotlight={spotlight} replay={!!replayLabel} /> : null}
       {mode === "reward" ? <EnergySeedScene subject={subject} reward={reward} replay={!!replayLabel} /> : null}
+      {mode === "wish" && wishReveal ? <WishRevealScene reveal={wishReveal} /> : null}
       {mode === "broadcast" ? (activeLostArtifact ? <LostArtifactScene artifact={activeLostArtifact} /> : <WorldBroadcastScene broadcast={broadcast} replay={!!replayLabel} />) : null}
       {mode === "world-transition" ? <WorldStateTransitionScene transition={worldTransition} replay={!!replayLabel} /> : null}
       {mode === "ritual" ? <Ritual subject={subject} /> : null}
