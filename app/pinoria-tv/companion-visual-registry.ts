@@ -1,6 +1,8 @@
 export type CompanionVisualDefinition = {
   id: string;
   src: string;
+  mediaType?: "image" | "video";
+  fallbackSrc?: string;
   canvas: { width: number; height: number };
   scale: number;
   translateYPercent: number;
@@ -8,6 +10,7 @@ export type CompanionVisualDefinition = {
 };
 
 const APPROVED_PLOO_BASE = "https://assets.pinohouse.art/draft/Mori.png";
+const MORI_ANIMATION = "https://assets.pinohouse.art/pinoria/Companion/Mori%20Animation.webm";
 
 const DEFAULT_VISUAL_ID = "ploo-form-2";
 
@@ -22,21 +25,27 @@ export const companionVisualRegistry: Readonly<Record<string, CompanionVisualDef
   },
   "ploo-form-2": {
     id: "ploo-form-2",
-    src: APPROVED_PLOO_BASE,
+    src: MORI_ANIMATION,
+    mediaType: "video",
+    fallbackSrc: APPROVED_PLOO_BASE,
     canvas: { width: 1487, height: 1487 },
     scale: 1,
     translateYPercent: 0,
   },  // Backward-compatible aliases while old prototype snapshots still exist.
   "ploo-default": {
     id: "ploo-form-2",
-    src: APPROVED_PLOO_BASE,
+    src: MORI_ANIMATION,
+    mediaType: "video",
+    fallbackSrc: APPROVED_PLOO_BASE,
     canvas: { width: 1487, height: 1487 },
     scale: 1,
     translateYPercent: 0,
   },
   "mori-v1": {
     id: "ploo-form-2",
-    src: APPROVED_PLOO_BASE,
+    src: MORI_ANIMATION,
+    mediaType: "video",
+    fallbackSrc: APPROVED_PLOO_BASE,
     canvas: { width: 1487, height: 1487 },
     scale: 1,
     translateYPercent: 0,

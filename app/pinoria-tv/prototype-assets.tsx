@@ -649,12 +649,28 @@ export function PrototypeCompanion({
   visualId?: string;
 }) {
   const visual = resolveCompanionVisual(visualId);
-  const fallback = resolveCompanionVisual(null).definition;
-  const [src, setSrc] = useState(visual.definition.src);
+  const [videoFailed, setVideoFailed] = useState(false);
 
   useEffect(() => {
-    setSrc(visual.definition.src);
-  }, [visual.definition.src]);
+    setVideoFailed(false);
+  }, [visual.definition.mediaType, visual.definition.src]);
+
+  const mediaStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    pointerEvents: "none",
+    userSelect: "none",
+    transform: `translateY(${visual.definition.translateYPercent}%) scale(${visual.definition.scale})`,
+    transformOrigin: "50% 70%",
+    filter: visual.definition.filter,
+  };
+  const renderVideo = visual.definition.mediaType === "video" && !videoFailed;
+  const imageSrc = videoFailed && visual.definition.fallbackSrc
+    ? visual.definition.fallbackSrc
+    : visual.definition.src;
 
   return (
     <div
@@ -664,28 +680,33 @@ export function PrototypeCompanion({
       data-pinoria-companion-visual-resolved={visual.resolvedVisualId}
       data-pinoria-companion-visual-fallback={visual.usedFallback ? "true" : "false"}
       data-pinoria-companion-asset={visual.definition.src}
+      data-pinoria-companion-media={renderVideo ? "video" : "image"}
       style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}
     >
-      <img
-        src={src}
-        alt=""
-        draggable={false}
-        decoding="async"
-        loading="eager"
-        onError={() => { if (src !== fallback.src) setSrc(fallback.src); }}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          pointerEvents: "none",
-          userSelect: "none",
-          transform: `translateY(${visual.definition.translateYPercent}%) scale(${visual.definition.scale})`,
-          transformOrigin: "50% 70%",
-          filter: visual.definition.filter,
-        }}
-      />
+      {renderVideo ? (
+        <video
+          src={visual.definition.src}
+          aria-hidden="true"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster={visual.definition.fallbackSrc}
+          disablePictureInPicture
+          onError={() => setVideoFailed(true)}
+          style={mediaStyle}
+        />
+      ) : (
+        <img
+          src={imageSrc}
+          alt=""
+          draggable={false}
+          decoding="async"
+          loading="eager"
+          style={mediaStyle}
+        />
+      )}
     </div>
   );
 }
