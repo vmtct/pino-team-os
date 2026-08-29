@@ -256,3 +256,21 @@ test("Parent PIN facade keeps neighboring identity routes fail-closed", async ()
   assert.equal(response.status, 404);
   assert.equal(called, false);
 });
+test("Learner lifecycle writes remain bounded and forward replay evidence to Core", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 201, body: { data: { ok: true } }, requestId: "core-lifecycle" }; } };
+  const subscriptionId = "0198d050-56c1-7ac5-b9ab-b0e45d912410";
+  const enrollmentId = "0198d050-56c1-7ac5-b9ab-b0e45d912411";
+  const cases = [
+    { route: "subscriptions", key: "sub-create", body: { studentProfileId: parentId, pathProgramId: parentId, serviceStartsOn: "2026-09-01", weeklyCommitment: 2, purchasedUnits: 24 } },
+    { route: `subscriptions/${subscriptionId}/renew`, key: "sub-renew", body: { weeklyCommitment: 2, purchasedUnits: 24 } },
+    { route: "enrollments", key: "enrollment-place", body: { subscriptionId, runningClassId: parentId, effectiveFromLocalDate: "2026-09-01", commandEffectiveLocalDate: "2026-08-29", policyEffectiveAt: "2026-08-29T12:00:00.000Z" } },
+    { route: `enrollments/${enrollmentId}/end`, key: "enrollment-end", body: { effectiveUntilExclusiveLocalDate: "2026-10-01", expectedVersion: 1, reason: "Schedule ended" } },
+  ];
+  for (const item of cases) {
+    const response = await handleBoStaffOnboardingRequest(request(f.token, { idempotencyKey: item.key, body: JSON.stringify(item.body) }), env(binding), item.route, f.resolver);
+    assert.ok(response.status >= 200 && response.status < 300);
+  }
+  assert.deepEqual(forwarded.map((item) => ({ path: item.path, idempotencyKey: item.idempotencyKey })), cases.map((item) => ({ path: item.route, idempotencyKey: item.key })));
+});

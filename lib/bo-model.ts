@@ -164,3 +164,51 @@ export interface BoContext {
   surface: "BO";
   entitled: true;
 }
+
+export interface BoLearnerDirectoryItem {
+  id: string;
+  displayName: string;
+  birthYear: number | null;
+  birthPrecision: string;
+  status: string;
+  houseMember: boolean;
+  activeSubscriptions: number;
+  activePaths: Array<{ id: string; displayName: string }>;
+}
+
+export interface BoLearnerSubscription {
+  id: string;
+  studentProfileId: string;
+  pathProgramId: string;
+  pathDisplayName: string;
+  lifecycle: string;
+  serviceStartsOn: string | null;
+  weeklyCommitment: number;
+  predecessorSubscriptionId: string | null;
+  transitionType: string | null;
+  commercialReference: string | null;
+  completedAt: string | null;
+  version: number;
+  historicalBalance: number;
+  effectiveAvailableUnits: number;
+}
+export interface BoLearnerEnrollment {
+  id: string;
+  subscriptionId: string;
+  runningClassId: string;
+  runningClassName: string;
+  effectiveFromLocalDate: string;
+  effectiveUntilExclusiveLocalDate: string | null;
+  plannedEntryLocalTime: string | null;
+  plannedDurationMinutes: number | null;
+  predecessorEnrollmentId: string | null;
+  transitionType: string | null;
+  version: number;
+}
+
+export interface BoLearnerLifecycle {
+  student: BoLearnerDirectoryItem & { birthMonth: number | null; birthDay: number | null; version: number };
+  houseMembership: { id: string; joinedAt: string } | null;
+  guardians: Array<{ relationshipId: string; relationshipType: string; parent: { id: string; displayName: string | null; status: string; contacts: Array<{ id: string; type: string; value: string; primary: boolean; verifiedAt: string | null }> } }>;
+  subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
+}
