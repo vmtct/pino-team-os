@@ -31,8 +31,13 @@ export function StaffManagementView() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  // Initial directory load only; mutations call refresh explicitly.
-  useEffect(() => { void refresh(); }, []);
+  // Initial directory load plus refresh after onboarding mutations.
+  useEffect(() => {
+    void refresh();
+    const onStaffUpdated = () => { void refresh(); };
+    window.addEventListener("bo:staff-updated", onStaffUpdated);
+    return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
+  }, []);
   useEffect(() => {
     if (!selectedId) { setProfile(null); return; }
     setError("");
@@ -94,8 +99,8 @@ export function StaffManagementView() {
   }
 
   return (
-    <section className={styles.page}>
-      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Staff management</h1><p>Canonical directory, operational profile, Staff status và Access role/scope. Không thay thế HRM.</p></header>
+    <section id="staff-management" className={styles.page}>
+      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a></div></header>
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
       <div className={styles.staffManagementGrid}>
         <aside className={styles.staffDirectory}>

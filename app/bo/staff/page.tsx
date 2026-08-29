@@ -6,8 +6,8 @@ export default function StaffPage() {
   return (
     <>
       <StaffManagementView />
-      <F2LearningOperatorActivation />
       <StaffOnboardingView />
+      <F2LearningOperatorActivation />
     </>
   );
 }
