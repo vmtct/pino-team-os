@@ -15,7 +15,8 @@
     {"binding":"PINO_BO_CORE","service":"pino-core","entrypoint":"BoAccessControlPlane"},
     {"binding":"PINO_TOS_LEARNING_CORE","service":"pino-core","entrypoint":"TosLearningControlPlane"},
     {"binding":"PINO_STAFF_PIN_CORE","service":"pino-core","entrypoint":"StaffPinControlPlane"},
-    {"binding":"PINO_PINORIA_TV_CORE","service":"pino-core","entrypoint":"PinoriaTvControlPlane"}
+    {"binding":"PINO_PINORIA_TV_CORE","service":"pino-core","entrypoint":"PinoriaTvControlPlane"},
+    {"binding":"PINO_ACCESS_SYNC","service":"pino-access-evaluator","entrypoint":"AccessSyncControlPlane"}
   ],
   "keep_vars":true
 }

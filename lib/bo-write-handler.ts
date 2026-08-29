@@ -1,11 +1,13 @@
 import type { JWTVerifyGetKey } from "jose";
 import { authenticateBo, BoAuthError } from "./bo-auth";
 import { callBoAccessCore, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { reconcileCanonicalTosAccess, type TosAccessSyncBinding } from "./tos-access-sync";
 
 export interface BoWriteEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
   CF_ACCESS_TEAM_DOMAIN: string;
   CF_ACCESS_BO_AUD: string;
+  PINO_ACCESS_SYNC?: TosAccessSyncBinding;
 }
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
@@ -13,6 +15,7 @@ const ACCESS_ROLE_PATH = "access/roles";
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
+const ACCESS_PERIMETER_RECONCILE_PATH = "access/perimeter-reconcile";
 const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const DELIVERY_POST_PATHS = new Set([
@@ -58,6 +61,11 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Parent PIN command body must be empty" } }, 400);
     }
 
+    if (path === ACCESS_PERIMETER_RECONCILE_PATH) {
+      if (!env.PINO_ACCESS_SYNC) return json({ error: { code: "PLATFORM_NOT_CONFIGURED", message: "TOS Access sync is not configured" } }, 503);
+      const syncResult = await reconcileCanonicalTosAccess(env.PINO_BO_CORE, env.PINO_ACCESS_SYNC, identity);
+      return json({ data: syncResult }, 200, { "x-tos-access-sync": "ok" });
+    }
     const coreRequest: BoAccessRequest = {
       method: "POST",
       path,
@@ -65,7 +73,17 @@ export async function handleBoWriteRequest(
       ...((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path)) ? { idempotencyKey } : {}),
     };
     const result = await callBoAccessCore(env.PINO_BO_CORE, coreRequest, identity);
-    return json(result.body, result.status, { "x-request-id": result.requestId });
+    let syncState = "not_required";
+    if (result.status >= 200 && result.status < 300 && env.PINO_ACCESS_SYNC && shouldReconcileTosAccess(path)) {
+      try {
+        await reconcileCanonicalTosAccess(env.PINO_BO_CORE, env.PINO_ACCESS_SYNC, identity);
+        syncState = "ok";
+      } catch (syncError) {
+        syncState = "failed";
+        console.error("TOS Access perimeter reconciliation failed", syncError instanceof Error ? syncError.message : "unknown");
+      }
+    }
+    return json(result.body, result.status, { "x-request-id": result.requestId, "x-tos-access-sync": syncState });
   } catch (error) {
     if (error instanceof BoAuthError) {
       return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
@@ -75,8 +93,18 @@ export async function handleBoWriteRequest(
   }
 }
 
+export function shouldReconcileTosAccess(path: string): boolean {
+  return path === ACCESS_PERIMETER_RECONCILE_PATH
+    || path === STAFF_ONBOARDING_PATH
+    || path === ACCESS_ASSIGNMENT_PATH
+    || path === ACCESS_ASSIGNMENT_REMOVE_PATH
+    || path === ACCESS_USER_STATUS_PATH
+    || STAFF_STATUS_PATH.test(path);
+}
+
 export function isAllowedPostPath(path: string): boolean {
-  return path === STAFF_ONBOARDING_PATH
+  return path === ACCESS_PERIMETER_RECONCILE_PATH
+    || path === STAFF_ONBOARDING_PATH
     || path === ACCESS_ROLE_PATH
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH

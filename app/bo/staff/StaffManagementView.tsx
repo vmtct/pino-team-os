@@ -55,6 +55,15 @@ export function StaffManagementView() {
     setSelectedId(nextId);
   }
 
+  async function syncTosPerimeter() {
+    setBusy("perimeter"); setError(""); setMessage("");
+    try {
+      const result = await boApi.reconcileTosAccess();
+      setMessage(`Đã đồng bộ TOS Access cho ${result.emailCount} staff active.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể đồng bộ TOS Access."); }
+    finally { setBusy(""); }
+  }
+
   async function saveProfile() {
     if (!selectedId) return;
     setBusy("profile"); setError(""); setMessage("");
@@ -100,7 +109,7 @@ export function StaffManagementView() {
 
   return (
     <section id="staff-management" className={styles.page}>
-      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a></div></header>
+      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
       <div className={styles.staffManagementGrid}>
         <aside className={styles.staffDirectory}>
