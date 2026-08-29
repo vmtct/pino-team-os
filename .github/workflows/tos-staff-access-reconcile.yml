@@ -1,0 +1,133 @@
+name: TOS Staff Access Reconcile
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: tos-staff-access-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.issue.title == '[GPT] TOS staff Access reconcile' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      TOS_HOST: tos.pinohouse.art
+      TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
+      BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
+      POLICY_NAME: PINO Staff Core-gated OTP
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile TOS staff admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN:-}" -H 'Content-Type: application/json')
+          repo="$GITHUB_REPOSITORY"
+          created_policy_id=""
+          scope=""
+          app_id=""
+          app_name=""
+          base=""
+
+          comment() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
+          rollback() {
+            if [ -n "$created_policy_id" ] && [ -n "$base" ] && [ -n "$app_id" ]; then
+              curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${created_policy_id}" "${auth[@]}" >/dev/null 2>&1 || true
+            fi
+          }
+          fail() {
+            rollback
+            comment "TOS_STAFF_ACCESS_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny policy created by this run was deleted again. No D1, Staff, BO policy, Worker, route, or domain mutation was authorized."
+            exit 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable."
+          target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          [ "$confirm" = "RECONCILE_TOS_STAFF_ACCESS" ] || fail "Exact confirmation missing."
+          [ -n "$target_sha" ] || fail "TEAM_SHA missing."
+          current_main="$(git rev-parse origin/main)"
+          [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
+          [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
+
+          account_apps="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
+          if jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1; then
+            app="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$account_apps" | head -1)"
+            if [ -n "$app" ]; then scope="account"; base="accounts/${CF_ACCOUNT_ID}"; fi
+          fi
+
+          if [ -z "${app:-}" ]; then
+            zone_apps="$(curl -fsS "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
+            if jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1; then
+              app="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$zone_apps" | head -1)"
+              if [ -n "$app" ]; then scope="zone"; base="zones/${ZONE_ID}"; fi
+            fi
+          fi
+
+          [ -n "${app:-}" ] || fail "Cannot resolve the TOS Access application by its pinned audience in account or zone scope."
+
+          app_id="$(jq -r '.id // empty' <<<"$app")"
+          app_name="$(jq -r '.name // .app_launcher_visible // "TOS Access app"' <<<"$app")"
+          app_aud="$(jq -r '.aud // empty' <<<"$app")"
+          [ -n "$app_id" ] || fail "Resolved TOS app has no ID."
+          [ "$app_aud" = "$TOS_AUD" ] || fail "Resolved app audience drifted from pinned TOS audience."
+          [ "$app_aud" != "$BO_AUD" ] || fail "Resolved TOS app collides with BO audience."
+
+          idps="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers" "${auth[@]}")" || fail "Cannot read Access identity providers."
+          jq -e '.success==true' <<<"$idps" >/dev/null || fail "Identity provider API returned failure."
+          otp_ids="$(jq -r '.result[]? | select(.type=="onetimepin") | .id' <<<"$idps")"
+          [ -n "$otp_ids" ] || fail "No One-time PIN identity provider exists."
+          allowed_idps="$(jq -c '.allowed_idps // []' <<<"$app")"
+          otp_allowed=false
+          if [ "$(jq 'length' <<<"$allowed_idps")" -eq 0 ]; then otp_allowed=true; fi
+          for oid in $otp_ids; do jq -e --arg oid "$oid" 'index($oid)!=null' <<<"$allowed_idps" >/dev/null && otp_allowed=true || true; done
+          [ "$otp_allowed" = true ] || fail "TOS Access app does not allow the One-time PIN IdP."
+
+          policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot read TOS Access policies."
+          jq -e '.success==true' <<<"$policies" >/dev/null || fail "TOS policy API returned failure."
+          existing="$(jq -c --arg name "$POLICY_NAME" '.result[]? | select(.name==$name and .decision=="allow" and any(.include[]?; has("everyone")))' <<<"$policies" | head -1)"
+          if [ -n "$existing" ]; then
+            policy_id="$(jq -r '.id' <<<"$existing")"
+          else
+            payload="$(jq -nc --arg name "$POLICY_NAME" '{name:$name,decision:"allow",precedence:50,include:[{everyone:{}}],exclude:[],require:[]}')"
+            created="$(curl -fsS -X POST "${api}/${base}/access/apps/${app_id}/policies" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected the TOS Staff allow policy."
+
+            jq -e '.success==true and (.result.id|length>0)' <<<"$created" >/dev/null || fail "Cloudflare did not report successful policy creation."
+            created_policy_id="$(jq -r '.result.id' <<<"$created")"
+            policy_id="$created_policy_id"
+          fi
+
+          verify="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS Access policies after reconcile."
+          jq -e --arg id "$policy_id" --arg name "$POLICY_NAME" '[.result[]? | select(.id==$id and .name==$name and .decision=="allow" and any(.include[]?; has("everyone")))] | length==1' <<<"$verify" >/dev/null || fail "Core-gated OTP policy is not present exactly once after reconcile."
+
+          headers="$RUNNER_TEMP/tos-access-headers.txt"
+          code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${TOS_HOST}/staff-login" || true)"
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          [ "$code" = 302 ] || [ "$code" = 303 ] || [ "$code" = 307 ] || fail "TOS perimeter no longer returns a Cloudflare Access redirect (HTTP ${code})."
+          [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/${TOS_HOST}"* ]] || fail "TOS redirect is not the expected Cloudflare Access challenge."
+          [[ "$location" == *"kid=${TOS_AUD}"* ]] || fail "TOS challenge audience changed after reconcile."
+
+          created_policy_id=""
+          state="reused"
+          [ "$policy_id" = "$(jq -r '.id // empty' <<<"${existing:-{}}")" ] || state="created"
+          comment "TOS_STAFF_ACCESS_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS Access scope: ${scope}\n- TOS app: ${app_name} (${app_id})\n- TOS audience: ${TOS_AUD}\n- One-time PIN IdP: allowed\n- Core-gated Staff allow policy: ${state} (${policy_id})\n- Existing Founder policies: untouched\n- TOS /staff-login: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the email identity; pino-core remains canonical for active Access User, active StaffMember, role and scope authorization. BO policy, D1, Staff data, Worker runtime, routes and domains were not mutated."
