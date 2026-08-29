@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
-import { PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
+import { CharacterCompanionAnchor, PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -93,6 +93,7 @@ function ShopCharacterPreview({ subjectId, selected, prestigeMarkIds }: { subjec
         style={{ position: "absolute", inset: 0, zIndex: 10, filter: "drop-shadow(0 18px 20px rgba(0,0,0,.18))" }}
       />
       <div style={{ position: "absolute", left: "50%", bottom: "1%", width: "48%", height: 22, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(ellipse,rgba(9,6,5,.56),transparent 70%)", filter: "blur(7px)", zIndex: 5 }} />
+      <CharacterCompanionAnchor surface="shop"><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></CharacterCompanionAnchor>
     </div>
   );
 }
@@ -246,7 +247,6 @@ export function ShopScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?:
             subjectName={session?.subject.name ?? "Bơ"}
             accessories={characterAccessories}
             style={{ padding: "12px 17px 17px" }}
-            companion={<div data-shop-companion style={{ position: "absolute", right: "clamp(94px,8vw,124px)", bottom: "clamp(36px,6vh,58px)", width: "clamp(118px,8vw,150px)", zIndex: 82 }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 18px 22px rgba(0,0,0,.36))" }} /></div>}
             footer={<div data-shop-preview-info style={{ width: "100%", padding: "14px 16px", borderRadius: 17, background: "rgba(20,13,11,.72)", border: "1px solid rgba(240,196,112,.17)", boxSizing: "border-box", boxShadow: "0 12px 30px rgba(0,0,0,.15)" }}><div style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ flex: "0 0 auto", padding: "5px 8px", borderRadius: 999, border: "1px solid rgba(239,195,110,.18)", background: "rgba(46,31,24,.72)", color: "rgba(248,232,204,.62)", fontSize: 9, fontWeight: 950, letterSpacing: ".09em" }}>ĐANG THỬ</span><strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 19, color: "#f4cf86" }}>{selected?.displayName ?? "Chọn một món để thử"}</strong>{owned ? <span aria-label="Đã sở hữu" style={{ flex: "0 0 auto", width: 19, height: 19, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(91,146,73,.22)", border: "1px solid rgba(142,203,118,.42)", color: "#a7df92", fontSize: 12, fontWeight: 950 }}>✓</span> : null}</div><p style={{ margin: "7px 0 0", color: "rgba(246,235,217,.62)", fontSize: 12, lineHeight: 1.45 }}>{descriptionFor(selected)}</p></div>}
           >
             <div key={selected?.assetId ?? "empty"} style={{ position: "relative", display: "grid", placeItems: "center", animation: "pinoriaShopPreviewNudge .5s ease-out both" }}>

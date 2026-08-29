@@ -85,6 +85,10 @@ function AccessoryRail({ items, side }: { items: CharacterAccessoryVisual[]; sid
   );
 }
 
+export function CharacterCompanionAnchor({ children, surface, style }: { children: ReactNode; surface: "inventory" | "shop"; style?: CSSProperties }) {
+  return <div data-pinoria-character-companion-anchor data-pinoria-character-companion-surface={surface} style={{ position: "absolute", right: "-3%", bottom: "2%", width: "38%", zIndex: 32, pointerEvents: "none", ...style }}>{children}</div>;
+}
+
 type CharacterFrameProps = {
   subjectId: string;
   subjectName: string;

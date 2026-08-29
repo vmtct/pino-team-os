@@ -4,7 +4,7 @@ import { categoryForAsset, type ShopCatalogItem } from "../../../pinoria-tv/shop
 const PUBLISHER_ORIGIN = "https://pino-asset-publisher.minhtri-van42.workers.dev";
 const REGISTRY_URL = `${PUBLISHER_ORIGIN}/registry`;
 const ASSET_BASE = `${PUBLISHER_ORIGIN}/assets/`;
-const ANIMATED_LAYER_SLUGS = new Set(["hair-long-brown-wavy-headband", "painting-outfit-01"]);
+const ANIMATED_LAYER_SLUGS = new Set(["hair-long-brown-wavy-headband"]);
 
 function animateUrlFor(slug: string, layerUrl?: string) {
   if (!layerUrl || !ANIMATED_LAYER_SLUGS.has(slug)) return undefined;

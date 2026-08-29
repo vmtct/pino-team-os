@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
-import { PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
+import { CharacterCompanionAnchor, PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
 import {
   PrototypeCharacter,
   PrototypeCompanion,
@@ -339,7 +339,7 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
           >
             <div style={{ position: "relative", width: "min(440px,34vw,56vh)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
               <PrototypeCharacter subjectId={session?.subject.id ?? "bo"} motion="shop-preview" layerOverrides={layerOverrides} prestigeMarkIds={activatedMarkIds} size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />
-              <div data-inventory-companion style={{ position: "absolute", right: "-3%", bottom: "2%", width: "38%", zIndex: 32, pointerEvents: "none" }}><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></div>
+              <CharacterCompanionAnchor surface="inventory"><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></CharacterCompanionAnchor>
             </div>
           </PinoriaCharacterFrame>        </section>
 

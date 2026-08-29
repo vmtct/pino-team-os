@@ -36,7 +36,7 @@ export const prototypeCharacterManifest = {
   ] satisfies CharacterLayer[],
 } as const;
 
-const ANIMATED_CHARACTER_LAYER_SLUGS = new Set(["hair-long-brown-wavy-headband", "painting-outfit-01"]);
+const ANIMATED_CHARACTER_LAYER_SLUGS = new Set(["hair-long-brown-wavy-headband"]);
 function animatedUpgradeFor(src: string) {
   const match = src.match(/\/pinoria\/assets\/([^/]+)\/[^/]+\/layer\.png$/);
   return match && ANIMATED_CHARACTER_LAYER_SLUGS.has(match[1]) ? src.replace(/\/layer\.png$/, "/animate.webm") : undefined;
@@ -140,7 +140,8 @@ function StandardLayer({ layer }: { layer: CharacterLayer }) {
   const [videoFailed, setVideoFailed] = useState(false);
   useEffect(() => { setStillSrc(layer.src); setVideoFailed(false); }, [layer.src, layer.animateSrc]);
   const renderVideo = !!layer.animateSrc && !videoFailed;
-  const mediaStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: renderVideo ? "cover" : "contain", objectPosition: "50% 50%", pointerEvents: "none", userSelect: "none" };
+  const breathingBody = layer.slot === "body" && !renderVideo;
+  const mediaStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: renderVideo ? "cover" : "contain", objectPosition: "50% 50%", transformOrigin: breathingBody ? "50% 74%" : undefined, animation: breathingBody ? "pinoriaBodyBreath 5.8s cubic-bezier(.45,.05,.55,.95) infinite" : undefined, willChange: breathingBody ? "transform" : undefined, pointerEvents: "none", userSelect: "none" };
   if (renderVideo) return <video data-pinoria-character-slot={layer.slot} data-pinoria-character-media="video" data-pinoria-character-animate-src={layer.animateSrc} src={layer.animateSrc} poster={stillSrc} aria-hidden="true" autoPlay loop muted playsInline preload="auto" disablePictureInPicture onError={() => setVideoFailed(true)} style={mediaStyle} />;
   return <img data-pinoria-character-slot={layer.slot} data-pinoria-character-media="image" src={stillSrc} alt="" draggable={false} decoding="async" loading="eager" onError={() => { if (layer.fallbackSrc && stillSrc !== layer.fallbackSrc) setStillSrc(layer.fallbackSrc); }} style={mediaStyle} />;
 }
@@ -462,6 +463,10 @@ export function PrototypeCharacter({
       style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", overflow: "hidden", flex: "0 0 auto", ...style }}
     >
       <style>{`
+        @keyframes pinoriaBodyBreath {
+          0%,100% { transform:scale3d(1,1,1); }
+          50% { transform:scale3d(1.002,1.0045,1); }
+        }
         @keyframes pinoriaCharacterIdle {
           0%,100% { transform:translate3d(0,0,0) rotate(-.05deg) scale(1); }
           48% { transform:translate3d(0,-2.4px,0) rotate(.06deg) scale(1.001,1.004); }
@@ -581,6 +586,7 @@ export function PrototypeCharacter({
 
         @media (prefers-reduced-motion: reduce) {
           [data-pinoria-character-motion] > [data-pinoria-character-motion-shell],
+          [data-pinoria-character-slot="body"],
           [data-pinoria-character-motion] [data-pinoria-wing-half],
           [data-pinoria-character-effect="aura"] img,
           [data-pinoria-character-effect="glows"] img {
