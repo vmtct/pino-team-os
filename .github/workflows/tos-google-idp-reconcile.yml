@@ -36,9 +36,9 @@ jobs:
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_TOKEN:-}" -H 'Content-Type: application/json')
-          mutated=false; app_id=""; old_allowed="[]"; old_auto=false
+          mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
-          rollback() { if [ "$mutated" = true ] && [ -n "$app_id" ]; then rb="$(jq -nc --argjson ids "$old_allowed" --argjson auto "$old_auto" '{allowed_idps:$ids,auto_redirect_to_identity:$auto}')"; curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$rb" >/dev/null 2>&1 || true; fi; }
+          rollback() { if [ "$mutated" = true ] && [ -n "$app_id" ]; then rb="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$old_allowed" --argjson auto "$old_auto" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:$auto}')"; curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$rb" >/dev/null 2>&1 || true; fi; }
           fail() { rollback; comment "TOS_GOOGLE_IDP_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny TOS IdP selection changed by this run was rolled back. No BO policy, Core/D1 data, route, domain, or runtime mutation was authorized."; exit 1; }
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
           [ -n "${CF_ACCESS_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
@@ -64,11 +64,16 @@ jobs:
           [ "$(jq 'length' <<<"$tos")" -eq 1 ] || fail "Pinned TOS audience must resolve uniquely."
           [ "$(jq 'length' <<<"$bo")" -eq 1 ] || fail "Pinned BO audience must resolve uniquely."
           app="$(jq -c '.[0]' <<<"$tos")"; app_id="$(jq -r '.id' <<<"$app")"
+          app_domain="$(jq -r '.domain // empty' <<<"$app")"
+          app_type="$(jq -r '.type // empty' <<<"$app")"
+          [ -n "$app_domain" ] && [ -n "$app_type" ] || fail "Resolved TOS app is missing required domain/type."
           old_allowed="$(jq -c '.allowed_idps // []' <<<"$app")"
           old_auto="$(jq -r '.auto_redirect_to_identity // false' <<<"$app")"
           desired="$(jq -nc --arg g "$google_id" --arg o "$otp_id" '[$g,$o]')"
-          payload="$(jq -nc --argjson ids "$desired" '{allowed_idps:$ids,auto_redirect_to_identity:false}')"
-          updated="$(curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected TOS IdP update."
+          payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$desired" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:false}')"
+          update_response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$payload" || true)"
+          update_code="${update_response##*$'\n'}"; updated="${update_response%$'\n'*}"
+          [ "$update_code" = 200 ] || fail "Cloudflare rejected TOS IdP update (HTTP ${update_code:-000}; errors=$(jq -c '[.errors[]? | {code,message}]' <<<"${updated:-}" 2>/dev/null || printf '[]'))."
           jq -e '.success==true' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful TOS IdP update."
           mutated=true
           verify="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot verify Access applications after TOS update."
