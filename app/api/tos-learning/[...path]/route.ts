@@ -1,17 +1,27 @@
 import{getCloudflareContext}from"@opennextjs/cloudflare";
 import{authenticateWorkforce,WorkforceAuthError}from"@/lib/workforce-auth";
+import{isTosStagingBypassRequest,type TosStagingAuthEnv}from"@/lib/tos-staging-auth";
 import{callTosLearningCore,callTosLearningCoreWithStaffPin,type TosLearningCoreBinding}from"@/lib/tos-learning-core";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
 type Context={params:Promise<{path:string[]}>};
-type TosLearningEnv={PINO_TOS_LEARNING_CORE:TosLearningCoreBinding;CF_ACCESS_TEAM_DOMAIN:string;CF_ACCESS_TOS_AUD:string};
+type TosLearningEnv=TosStagingAuthEnv&{
+  PINO_TOS_LEARNING_CORE:TosLearningCoreBinding;
+  CF_ACCESS_TEAM_DOMAIN:string;
+  CF_ACCESS_TOS_AUD:string;
+};
 
 async function handle(request:Request,context:Context){
   try{
     const{env}=await getCloudflareContext({async:true}) as unknown as{env:TosLearningEnv};
-    const identity=await authenticateWorkforce(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_TOS_AUD});
+    const staffToken=cookie(request,"pino_staff_session");
+    const stagingBypass=isTosStagingBypassRequest(request,env);
+    if(stagingBypass&&!staffToken){
+      return Response.json({error:{code:"STAFF_PIN_REQUIRED",message:"Staff PIN login is required"}},{status:401,headers:{"cache-control":"no-store"}});
+    }
+    const identity=stagingBypass?null:await authenticateWorkforce(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_TOS_AUD});
     const{path}=await context.params;
     let body:Record<string,unknown>={};
     const url=new URL(request.url);
@@ -21,8 +31,10 @@ async function handle(request:Request,context:Context){
       if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))body={...body,...parsed};
     }
     const idempotencyKey=request.headers.get("idempotency-key")??undefined;
-    const coreRequest={method:request.method,path:`/${path.join("/")}`,body,...(idempotencyKey?{idempotencyKey}:{})},staffToken=cookie(request,"pino_staff_session");
-    const result=staffToken?await callTosLearningCoreWithStaffPin(env.PINO_TOS_LEARNING_CORE,coreRequest,staffToken):await callTosLearningCore(env.PINO_TOS_LEARNING_CORE,coreRequest,identity);
+    const coreRequest={method:request.method,path:`/${path.join("/")}`,body,...(idempotencyKey?{idempotencyKey}:{})};
+    const result=staffToken
+      ?await callTosLearningCoreWithStaffPin(env.PINO_TOS_LEARNING_CORE,coreRequest,staffToken)
+      :await callTosLearningCore(env.PINO_TOS_LEARNING_CORE,coreRequest,identity!);
     return Response.json(result.body,{status:result.status,headers:{"cache-control":"no-store","x-request-id":result.requestId}});
   }catch(error){
     if(error instanceof WorkforceAuthError)return Response.json({error:{code:"IDENTITY_AUTHENTICATION_FAILED",message:error.message}},{status:error.status,headers:{"cache-control":"no-store"}});
