@@ -114,7 +114,7 @@ export function DepartureScene({ subject, catalog = [] }: { subject: DepartureSu
             accessories={characterAccessories}
             style={{ width: "100%", height: "100%" }}
             identityStyle={{ padding: "5px 8px 10px" }}
-            companion={hasCompanion ? <div data-departure-companion style={{ position: "absolute", right: "clamp(70px,6vw,96px)", bottom: "8%", width: "clamp(112px,8vw,150px)", zIndex: 5 }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.24))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} /></div> : undefined}
+            companion={hasCompanion ? <div data-departure-companion style={{ position: "absolute", right: "clamp(94px,8vw,124px)", bottom: "10%", width: "clamp(112px,8vw,150px)", zIndex: 5 }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" style={{ filter: "drop-shadow(0 16px 18px rgba(0,0,0,.24))", animation: "pinoriaDepartureFloat 3.8s ease-in-out infinite" }} /></div> : undefined}
           >
             <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center" }}>
               <div style={{ position: "absolute", inset: "12%", borderRadius: "50%", border: "1px solid rgba(236,216,146,.16)", boxShadow: "0 0 70px rgba(223,205,119,.14),inset 0 0 60px rgba(255,255,255,.025)" }} />

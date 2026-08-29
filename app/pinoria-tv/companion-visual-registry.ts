@@ -10,7 +10,7 @@ export type CompanionVisualDefinition = {
 };
 
 const APPROVED_PLOO_BASE = "https://assets.pinohouse.art/draft/Mori.png";
-const MORI_ANIMATION = "https://assets.pinohouse.art/pinoria/Companion/Mori%20Animation.webm";
+const MORI_ANIMATION = "https://assets.pinohouse.art/pinoria/Companion/Mori%20Animate.webm";
 
 const DEFAULT_VISUAL_ID = "ploo-form-2";
 

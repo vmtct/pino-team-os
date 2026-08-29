@@ -473,7 +473,7 @@ export function PrototypeCharacter({
       data-pinoria-character-subject={resolvedSubjectId ?? "default"}
       data-pinoria-character-profile={profile?.id ?? "golden-slice-character-v1"}
       data-pinoria-character-motion={resolvedMotion}
-      style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}
+      style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", overflow: "hidden", flex: "0 0 auto", ...style }}
     >
       <style>{`
         @keyframes pinoriaCharacterIdle {
@@ -660,7 +660,8 @@ export function PrototypeCompanion({
     inset: 0,
     width: "100%",
     height: "100%",
-    objectFit: "contain",
+    objectFit: "cover",
+    objectPosition: "50% 50%",
     pointerEvents: "none",
     userSelect: "none",
     transform: `translateY(${visual.definition.translateYPercent}%) scale(${visual.definition.scale})`,
@@ -681,7 +682,7 @@ export function PrototypeCompanion({
       data-pinoria-companion-visual-fallback={visual.usedFallback ? "true" : "false"}
       data-pinoria-companion-asset={visual.definition.src}
       data-pinoria-companion-media={renderVideo ? "video" : "image"}
-      style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", flex: "0 0 auto", ...style }}
+      style={{ position: "relative", width: size, maxWidth: "100%", aspectRatio: "1 / 1", overflow: "hidden", flex: "0 0 auto", ...style }}
     >
       {renderVideo ? (
         <video

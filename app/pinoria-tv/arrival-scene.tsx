@@ -334,8 +334,8 @@ export function ArrivalScene({ subject, catalog = [] }: { subject: ArrivalSubjec
             style={{
               position: "absolute",
               zIndex: 8,
-              right: "13%",
-              bottom: "calc(-6% + 10px)",
+              right: "18%",
+              bottom: "3%",
               width: "min(212px,16.8vw)",
               display: "grid",
               justifyItems: "center",

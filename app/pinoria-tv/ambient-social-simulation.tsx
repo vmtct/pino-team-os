@@ -590,7 +590,7 @@ function SocialMini({ agent, subject, catalog, hidden = false }: { agent: Social
         style={{ position: "absolute", inset: 0, ["--ambient-mini-name" as string]: JSON.stringify(agent.name) }}
       >
         <PrototypeCharacter subjectId={agent.id} size={164} wingMotion="off" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} />
-        {companion.active ? <div data-ambient-mini-companion={companion.displayName} style={{ position: "absolute", right: -22, bottom: -2, width: 66, zIndex: 20, opacity: .92, filter: "drop-shadow(0 7px 9px rgba(0,0,0,.18))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
+        {companion.active ? <div data-ambient-mini-companion={companion.displayName} style={{ position: "absolute", right: -10, bottom: 2, width: 66, zIndex: 20, opacity: .92, filter: "drop-shadow(0 7px 9px rgba(0,0,0,.18))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
       </div>
     </div>
   );

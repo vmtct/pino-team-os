@@ -150,7 +150,7 @@ export function AmbientToDepartureTransition({
               <PrototypeCharacter subjectId={subject.id} size="100%" wingMotion="off" layerOverrides={layerOverrides} prestigeMarkIds={prestigeMarkIds} />
             </div>
           </div>
-          {companion.active ? <div data-checkout-moving-companion={companion.displayName} style={{ position: "absolute", right: "-8%", bottom: "-3%", width: "42%", zIndex: 40, filter: "drop-shadow(0 10px 14px rgba(0,0,0,.2))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
+          {companion.active ? <div data-checkout-moving-companion={companion.displayName} style={{ position: "absolute", right: "-2%", bottom: "1%", width: "42%", zIndex: 40, filter: "drop-shadow(0 10px 14px rgba(0,0,0,.2))" }}><PrototypeCompanion displayName={companion.displayName} visualId={companion.visualId ?? undefined} size="100%" /></div> : null}
           <div data-checkout-moving-full style={{ position: "absolute", inset: 0, opacity: fullOpacity }}>
             <PrototypeCharacter
               subjectId={subject.id}
