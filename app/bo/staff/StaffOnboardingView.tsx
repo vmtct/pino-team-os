@@ -52,14 +52,12 @@ export function StaffOnboardingView() {
   useEffect(() => {
     let active = true;
     void Promise.all([
-      boApi.centers(),
-      boApi.pathPrograms(),
-      boApi.runningClasses(),
+      boApi.scopeCatalog(),
       boApi.accessRoles(),
       boApi.accessUsers(),
       boApi.staffRecords(),
-    ]).then(([centers, paths, classes, roles, users, staff]) => {
-      if (active) setLoad({ status: "ready", centers, paths, classes, roles, users, staff });
+    ]).then(([catalog, roles, users, staff]) => {
+      if (active) setLoad({ status: "ready", centers: catalog.centers, paths: catalog.paths, classes: catalog.classes, roles, users, staff });
     }).catch((error: unknown) => {
       if (active) setLoad({ status: "error", message: error instanceof Error ? error.message : "Staff onboarding data could not be loaded.", requestId: error instanceof BoApiError ? error.requestId : null });
     });

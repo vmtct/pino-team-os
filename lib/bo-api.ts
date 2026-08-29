@@ -53,7 +53,21 @@ function apiError(response: Response, body: { error?: { message?: string; reques
   return new BoApiError(response.status, body.error?.message ?? fallback, response.headers.get("x-request-id") ?? body.error?.requestId ?? null);
 }
 
+type BoScopeBootstrap = {
+  centers: Array<{ id: string; centerKey: string; displayName: string; timeZone: string; status: string }>;
+  paths: Array<{ id: string; code: string; displayName: string; status: string }>;
+  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; optimalConcurrentCapacity: number; status: string }>;
+};
+
 export const boApi = {
+  scopeCatalog: async () => {
+    const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
+    return {
+      centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
+      paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, status: item.status })),
+    };
+  },
   centers: () => read<BoCenter>("centers"),
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
