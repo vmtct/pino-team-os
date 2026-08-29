@@ -56,6 +56,7 @@ const PAGES: PracticePage[] = [
 ];
 
 function resourceFromButton(button: HTMLButtonElement, mode: ViewerMode, premiumAccess: boolean): ViewerResource | null {
+  if (button.dataset.productPracticeLauncher === "journey") return { family: "JOURNEY", title: "Always With Me", context: "L4 · Cơ bản", mode, premiumAccess };
   if (button.dataset.v21PracticeCard !== "true" || button.dataset.v18Access === "locked") return null;
   const text = button.textContent ?? "";
   const family = button.dataset.v18Family;

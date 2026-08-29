@@ -250,11 +250,11 @@ function polishPremiumExperienceCards(root: HTMLElement) {
     const action = card.querySelector<HTMLButtonElement>(":scope > button:last-child");
     const actionLabel = action?.querySelector<HTMLElement>(":scope > span");
 
-    if (locked && accessLock) accessLock.textContent = "Chỉ trong Trải nghiệm";
+    if (locked && accessLock) accessLock.textContent = "Cần Premium";
     if (!locked) accessLock?.remove();
 
     if (action) {
-      const label = locked ? "Xem điều kiện" : "Đăng ký";
+      const label = locked ? "Xem Premium" : "Đăng ký";
       action.setAttribute("aria-label", label);
       if (actionLabel) actionLabel.textContent = label;
     }

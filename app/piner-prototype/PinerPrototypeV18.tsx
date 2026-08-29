@@ -42,6 +42,7 @@ function syncPracticeFamilies(root: HTMLElement) {
   if (!currentJourney?.parentElement) return;
 
   const list = currentJourney.parentElement;
+  currentJourney.dataset.productCurrentPracticeCard = "true";
   const pianoSection = currentJourney.closest("section") as HTMLElement | null;
   if (!pianoSection) return;
 
@@ -78,6 +79,7 @@ function syncPracticeFamilies(root: HTMLElement) {
   starter.disabled = false;
   starter.removeAttribute("disabled");
   starter.removeAttribute("aria-disabled");
+  currentJourney.insertAdjacentElement("afterend", starter);
 
   const starterChildren = Array.from(starter.children) as HTMLElement[];
   if (starterChildren[0]) starterChildren[0].textContent = "KHỞI HÀNH";
@@ -126,7 +128,7 @@ function syncPracticeFamilies(root: HTMLElement) {
 
   note.innerHTML = ended
     ? "<strong>Khởi Hành vẫn mở</strong><span>Hành Trình và Chuyên Đề được giữ để nhận biết lịch sử đã có, nhưng nội dung luyện tập đang khóa. Trong Khởi Hành, tay phải vẫn mở và hướng dẫn tay trái vẫn thuộc Premium.</span>"
-    : "<strong>3 loại tài liệu luyện tập</strong><span>Khởi Hành · Hành Trình · Chuyên Đề dùng chung một trình luyện tập; quyền mở phụ thuộc trạng thái thành viên và tiến trình.</span>";
+    : "<strong>Ưu tiên bài đang học</strong><span>Hành Trình hiện tại ở đầu danh sách. Khởi Hành luôn mở; Chuyên Đề mở theo quyền hiện tại.</span>";
 
   const intro = Array.from(pianoSection.children).find((child) => child.tagName === "P") as HTMLParagraphElement | undefined;
   if (intro) intro.textContent = "Khởi Hành, Hành Trình và Chuyên Đề dùng chung một trình luyện tập; khác nhau ở mục đích và quyền truy cập.";

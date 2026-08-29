@@ -859,3 +859,68 @@
 .root :global([data-freeze-session-hero="true"] > span:first-of-type) {
   display: none !important;
 }
+
+/* Product UX round: make the Journey surface action-oriented. */
+.root :global([data-product-journey-preview="true"]) {
+  display: grid;
+  gap: 14px;
+  padding: 18px !important;
+}
+.root :global([data-product-preview-steps="true"]) {
+  display: grid;
+  gap: 9px;
+}
+.root :global([data-product-preview-steps="true"] > div) {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 11px;
+  border: 1px solid rgba(31, 42, 39, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 253, 247, 0.72);
+}
+.root :global([data-product-preview-steps="true"] b) {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e8eee7;
+  color: #31433a;
+  font-size: 12px;
+  font-weight: 750;
+}
+.root :global([data-product-preview-steps="true"] span) {
+  display: grid;
+  gap: 2px;
+}
+.root :global([data-product-preview-steps="true"] strong) {
+  font-size: 13.5px;
+  line-height: 1.25;
+}
+.root :global([data-product-preview-steps="true"] small) {
+  color: #68736e;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.root :global([data-product-current-practice="true"]) {
+  margin-top: 14px;
+  min-height: 42px;
+  width: 100%;
+  justify-content: center;
+}
+.root :global([data-product-current-practice-card="true"]) {
+  border-color: rgba(83, 99, 90, 0.32) !important;
+  box-shadow: 0 8px 22px rgba(31, 42, 39, 0.07) !important;
+}
+/* Surface age relevance before the registration modal. */
+.root :global([data-v23-age-badge="true"]) { border: 1px solid rgba(111, 91, 55, 0.18); border-radius: 999px; background: #f4efe3; color: #776544; padding: 3px 7px; font-size: 9.5px !important; line-height: 1.1; font-weight: 700 !important; white-space: nowrap; }
+.root :global([data-v23-age-mismatch="true"]) { background: #fbfaf6 !important; border-style: dashed !important; opacity: 1 !important; }
+.root :global([data-v23-age-mismatch="true"] [data-v21-session-copy="true"] > strong) { color: #52605a !important; }
+.root :global([data-v23-age-mismatch="true"] > button:last-child) { background: #e3eee7 !important; color: #26453a !important; border: 1px solid #b7cabe !important; opacity: 1 !important; }
+.root :global([data-v23-age-mismatch="true"] > button:last-child > span) { color: #26453a !important; }
+
+.root :global([data-product-current-practice="true"]) { border: 0 !important; background: #1f322b !important; color: #fffdf8 !important; box-shadow: 0 8px 20px rgba(31, 50, 43, 0.14) !important; }
+.root :global([data-product-current-practice="true"]:hover) { background: #263d34 !important; }
+.root :global([data-product-journey-preview="true"] > button) { border: 0 !important; background: #1f322b !important; color: #fffdf8 !important; box-shadow: 0 8px 20px rgba(31, 50, 43, 0.12) !important; }

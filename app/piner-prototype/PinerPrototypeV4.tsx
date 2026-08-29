@@ -313,12 +313,6 @@ export default function PinerPrototypeV4() {
     setOverlay(null);
   }, [student.key, student.defaultPath]);
 
-  useEffect(() => {
-    if (activeTab !== "explore") return;
-    const timer = window.setInterval(() => setCampaignIndex((index) => (index + 1) % campaigns.length), 6000);
-    return () => window.clearInterval(timer);
-  }, [activeTab]);
-
   function goTo(tab: AppTab) {
     setActiveTab(tab);
     setOverlay(null);
@@ -471,7 +465,7 @@ function JourneyScreen({ student, activePath, setActivePath, onPremium, onPracti
   onPractice: (resource: PracticeResource) => void;
 }) {
   if (!student.paths.length || !activePath) {
-    return <div className={base.stack}><div className={base.pageTitle}><span className={base.eyebrow}>Journey</span><h2>Hành trình dài hạn bắt đầu với Premium.</h2><p>Open Studio là Explore — không tạo curriculum progress giả cho Free.</p></div><section className={base.aspirationCard}><h3>Preview Journey</h3><p>Journey thật bám theo Path, package và canonical progress của Student.</p><button type="button" className={base.primaryButton} onClick={onPremium}>Khám phá Premium →</button></section></div>;
+    return <div className={base.stack}><div className={base.pageTitle}><span className={base.eyebrow}>Hành trình</span><h2>Xem trước một Hành trình Premium.</h2><p>Khám Phá không tạo tiến trình học. Đây là bản xem trước cách Premium nối buổi học, luyện tập và Thành quả.</p></div><section className={base.aspirationCard} data-product-journey-preview="true"><span className={base.eyebrow}>XEM TRƯỚC</span><h3>Từ bài đang học đến cột mốc</h3><div data-product-preview-steps="true"><div><b>1</b><span><strong>Bài đang học</strong><small>Biết con đang ở đâu trong chương trình.</small></span></div><div><b>2</b><span><strong>Luyện tại nhà</strong><small>Mở bản nhạc, nghe mẫu và ghi lại phần luyện tập.</small></span></div><div><b>3</b><span><strong>Thành quả</strong><small>Giữ tác phẩm, bản ghi và cột mốc theo thời gian.</small></span></div></div><button type="button" className={base.primaryButton} onClick={onPremium}>Khám phá Premium →</button></section></div>;
   }
 
   const path = student.paths.find((candidate) => candidate.key === activePath) ?? student.paths[0];
@@ -564,7 +558,7 @@ function PianoJourney({ expired, onPremium, onPractice }: { expired: boolean; on
   return (
     <>
       {expired && <section className={base.lockBanner}><span>🔒</span><div><strong>Progression mới đang khóa</strong><p>L4 và achievement cũ vẫn giữ. L5+ cần Premium active.</p><button type="button" onClick={onPremium}>Mở lại Journey →</button></div></section>}
-      <section className={base.journeyHero}><span className={base.eyebrow}>Current repertoire</span><div className={base.journeyHeroRow}><div><h3>Always With Me</h3><p>{expired ? "L4 · retained" : "L4 · Fundamental · active"}</p></div><span className={base.bigGlyph}>♬</span></div><div className={base.levelLadder}>{Array.from({ length: 10 }, (_, index) => { const level = index + 1; return <div key={level} className={`${base.levelNode} ${level <= 4 ? base.levelDone : ""} ${level === 4 ? base.levelCurrent : ""} ${expired && level > 4 ? base.levelLocked : ""}`}><strong>L{level}</strong><small>{expired && level > 4 ? "🔒" : level <= 5 ? "Fund." : "Exp."}</small></div>; })}</div></section>
+      <section className={base.journeyHero}><span className={base.eyebrow}>Current repertoire</span><div className={base.journeyHeroRow}><div><h3>Always With Me</h3><p>{expired ? "L4 · retained" : "L4 · Fundamental · active"}</p></div><span className={base.bigGlyph}>♬</span></div><div className={base.levelLadder}>{Array.from({ length: 10 }, (_, index) => { const level = index + 1; return <div key={level} className={`${base.levelNode} ${level <= 4 ? base.levelDone : ""} ${level === 4 ? base.levelCurrent : ""} ${expired && level > 4 ? base.levelLocked : ""}`}><strong>L{level}</strong><small>{expired && level > 4 ? "🔒" : level <= 5 ? "Fund." : "Exp."}</small></div>; })}</div>{!expired && <button type="button" className={base.primaryButton} data-product-current-practice="true" data-product-practice-launcher="journey" onClick={() => onPractice(pianoPracticeResources[0])}>Luyện bài này →</button>}</section>
       <PracticeSupport title="Practice support" description="Journey Sheet và Specialty Sheet dùng cùng một player; khác nhau ở resource family và unlock context." resources={pianoPracticeResources} expired={expired} onOpen={onPractice} />
     </>
   );

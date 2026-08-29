@@ -119,7 +119,7 @@ export default function PinerPrototypeV23() {
       return;
     }
 
-    if (mode === "ACTIVE_PREMIUM" || mode === "EXPIRED_PREMIUM") {
+    if (mode) {
       event.preventDefault();
       event.stopPropagation();
       setGuestName("");
@@ -327,6 +327,9 @@ function applyExploreView(root: HTMLElement, filter: ExploreFilter, direction: S
   if (!cards.length) return;
 
   const ranked = [...cards].sort((a, b) => {
+    const priority = (card: HTMLElement) => card.dataset.v23AgeMismatch === "true" ? 2 : card.dataset.v23PremiumLocked === "true" ? 1 : 0;
+    const priorityDelta = priority(a) - priority(b);
+    if (priorityDelta !== 0) return priorityDelta;
     const delta = sessionSortValue(a) - sessionSortValue(b);
     return direction === "ASC" ? delta : -delta;
   });
@@ -342,20 +345,41 @@ function applyExploreView(root: HTMLElement, filter: ExploreFilter, direction: S
 }
 
 function polishExploreAccess(root: HTMLElement) {
-  const mode = currentScenario(root)?.mode;
+  const scenario = currentScenario(root);
+  const mode = scenario?.mode;
+  const studentAge = parseStudentAge(scenario?.ageLabel) ?? 0;
   const premiumAllowed = mode === "TRIAL_PREMIUM" || mode === "ACTIVE_PREMIUM";
   const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-v22-session-card='true']"));
 
   cards.forEach((card) => {
     const premium = card.dataset.v21SessionPremium === "true";
-    if (!premium) return;
-    card.dataset.v23PremiumLocked = premiumAllowed ? "false" : "true";
+    const session = snapshotSession(card);
+    const ageMismatch = !premium && Boolean(session) && studentAge > 0 && !ageMatches(studentAge, session?.ageLabel ?? "");
+    card.dataset.v23AgeMismatch = ageMismatch ? "true" : "false";
+
     const button = card.querySelector<HTMLButtonElement>(":scope > button:last-child");
     const buttonLabel = button?.querySelector<HTMLElement>(":scope > span");
-    const nextLabel = premiumAllowed ? "Đăng ký" : "Xem điều kiện";
+    const topline = card.querySelector<HTMLElement>("[data-v21-session-topline='true']");
+    let ageBadge = topline?.querySelector<HTMLElement>("[data-v23-age-badge='true']") ?? null;
+    if (ageMismatch && topline && !ageBadge) {
+      ageBadge = document.createElement("span");
+      ageBadge.dataset.v23AgeBadge = "true";
+      ageBadge.textContent = "Khác nhóm tuổi";
+      topline.appendChild(ageBadge);
+    }
+    if (!ageMismatch) ageBadge?.remove();
+
+    if (!premium) {
+      const nextLabel = ageMismatch ? (mode === "TRIAL_PREMIUM" ? "Xem độ tuổi" : "Cho bé khác") : "Đăng ký";
+      if (buttonLabel && buttonLabel.textContent !== nextLabel) buttonLabel.textContent = nextLabel;
+      if (button && button.getAttribute("aria-label") !== nextLabel) button.setAttribute("aria-label", nextLabel);
+      return;
+    }
+
+    card.dataset.v23PremiumLocked = premiumAllowed ? "false" : "true";
+    const nextLabel = premiumAllowed ? "Đăng ký" : "Xem Premium";
     if (buttonLabel && buttonLabel.textContent !== nextLabel) buttonLabel.textContent = nextLabel;
     if (button && button.getAttribute("aria-label") !== nextLabel) button.setAttribute("aria-label", nextLabel);
-    const topline = card.querySelector<HTMLElement>("[data-v21-session-topline='true']");
     if (!topline) return;
     let lock = topline.querySelector<HTMLElement>("[data-v23-access-lock='true']");
     if (!premiumAllowed && !lock) {
