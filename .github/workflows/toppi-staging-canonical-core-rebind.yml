@@ -1,4 +1,4 @@
-﻿name: Toppi Staging Canonical Core Rebind
+name: Toppi Staging Canonical Core Rebind
 
 on:
   push:
@@ -39,4 +39,4 @@ jobs:
           details="$(npx wrangler versions view "$latest" --name pino-team-os-toppi-staging --json)"
           jq -e '[.resources.bindings[]? | select(.name == "PINO_BO_CORE" and .service == "pino-core-staging" and .entrypoint == "BoAccessControlPlane" and (.service_deleted // false) == false)] | length == 1' <<<"$details" >/dev/null
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$STAGING_URL/api/health")" = "200"
-          test "$(curl -sS -o /dev/null -w '%{http_code}' "$STAGING_URL/api/toppi-staging/students")" = "200"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$STAGING_URL/api/toppi-staging/students?centerId=00000000-0000-7000-8000-000000000001")" = "200"
