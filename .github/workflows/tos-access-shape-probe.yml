@@ -33,13 +33,14 @@ jobs:
             local url="$2"
             local headers="$RUNNER_TEMP/${label}.headers"
             local body="$RUNNER_TEMP/${label}.body"
-            local code ctype bytes shape
+            local code ctype bytes shape envelope
             code="$(curl -sS -D "$headers" -o "$body" -w '%{http_code}' "$url" "${auth[@]}" || true)"
             ctype="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
             bytes="$(wc -c < "$body" | tr -d ' ')"
             shape="$(jq -sc 'map(if type=="object" then {type:"object",keys:(keys|sort)} elif type=="array" then {type:"array",length:length} else {type:type} end)' "$body" 2>/dev/null || printf 'invalid-json')"
-            printf '%s|%s|%s|%s|%s\n' "$label" "$code" "${ctype:-none}" "$bytes" "$shape"
+            envelope="$(jq -sc 'if length==1 and (.[0]|type)=="object" then {success:(.[0].success // null),result_type:(.[0].result|type),result_count:(if (.[0].result|type)=="array" then (.[0].result|length) else null end),errors_count:((.[0].errors // [])|length),messages_count:((.[0].messages // [])|length)} else {documents:length} end' "$body" 2>/dev/null || printf 'invalid-json')"
+            printf '%s|%s|%s|%s|shape=%s|envelope=%s\n' "$label" "$code" "${ctype:-none}" "$bytes" "$shape" "$envelope"
           }
           account="$(inspect account "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100")"
           zone="$(inspect zone "${api}/zones/${ZONE_ID}/access/apps?per_page=100")"
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_ACCESS_SHAPE_PROBE: **PASS**\n\n- ${account}\n- ${zone}\n\nRead-only metadata only: HTTP code, Content-Type, byte length, and JSON top-level type/keys. No response values, credentials, Access policy, Worker, D1, Staff, route, or domain mutation."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_ACCESS_SHAPE_PROBE: **PASS**\n\n- ${account}\n- ${zone}\n\nRead-only metadata only: HTTP code, Content-Type, byte length, JSON type/keys, success boolean, result type/count, and error/message counts. No response values, credentials, Access policy, Worker, D1, Staff, route, or domain mutation."
