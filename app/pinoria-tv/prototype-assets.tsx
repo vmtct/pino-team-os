@@ -465,7 +465,7 @@ export function PrototypeCharacter({
       <style>{`
         @keyframes pinoriaBodyBreath {
           0%,100% { transform:scale3d(1,1,1); }
-          50% { transform:scale3d(1.005,1.011,1); }
+          50% { transform:scale3d(1.05,1.11,1); }
         }
         @keyframes pinoriaCharacterIdle {
           0%,100% { transform:translate3d(0,0,0) rotate(-.05deg) scale(1); }
