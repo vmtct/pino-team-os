@@ -2,6 +2,7 @@ import{getCloudflareContext}from"@opennextjs/cloudflare";
 import{authenticateWorkforce,WorkforceAuthError}from"@/lib/workforce-auth";
 import{stagingWorkforceIdentity,type TosStagingAuthEnv}from"@/lib/tos-staging-auth";
 import{callTosLearningCore,callTosLearningCoreWithStaffPin,type TosLearningCoreBinding}from"@/lib/tos-learning-core";
+import{tosQueryParamValue}from"@/lib/tos-query-params";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -22,7 +23,7 @@ async function handle(request:Request,context:Context){
     const{path}=await context.params;
     let body:Record<string,unknown>={};
     const url=new URL(request.url);
-    for(const[key,value]of url.searchParams)if(key!=="t")body[key]=value;
+    for(const[key,value]of url.searchParams)if(key!=="t")body[key]=tosQueryParamValue(key,value);
     if(request.method!=="GET"&&request.method!=="HEAD"){const parsed=await request.json().catch(()=>({}));if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))body={...body,...parsed};}
     const idempotencyKey=request.headers.get("idempotency-key")??undefined;
     const coreRequest={method:request.method,path:`/${path.join("/")}`,body,...(idempotencyKey?{idempotencyKey}:{})};
