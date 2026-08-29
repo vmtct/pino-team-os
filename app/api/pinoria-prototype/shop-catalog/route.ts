@@ -4,6 +4,12 @@ import { categoryForAsset, type ShopCatalogItem } from "../../../pinoria-tv/shop
 const PUBLISHER_ORIGIN = "https://pino-asset-publisher.minhtri-van42.workers.dev";
 const REGISTRY_URL = `${PUBLISHER_ORIGIN}/registry`;
 const ASSET_BASE = `${PUBLISHER_ORIGIN}/assets/`;
+const ANIMATED_LAYER_SLUGS = new Set(["hair-long-brown-wavy-headband", "painting-outfit-01"]);
+
+function animateUrlFor(slug: string, layerUrl?: string) {
+  if (!layerUrl || !ANIMATED_LAYER_SLUGS.has(slug)) return undefined;
+  return layerUrl.replace(/\/layer\.png$/, "/animate.webm");
+}
 
 type RegistryEntry = {
   assetId?: string;
@@ -205,6 +211,7 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
     .map((group): ShopCatalogItem | null => {
       const category = categoryForAsset(group.slot, group.family);
       const layerUrl = toAssetUrl(group.layer);
+      const animateUrl = animateUrlFor(group.slug, layerUrl);
       const imageUrl = toAssetUrl(group.standalone) ?? layerUrl;
       if (!category || !imageUrl) return null;
       return {
@@ -219,6 +226,7 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
         registrationProfile: group.registrationProfile,
         imageUrl,
         layerUrl,
+        animateUrl,
         pricePls: prototypePrice(group.slug),
         previewable: !!layerUrl && ["hair", "face", "headwear", "eyewear", "back", "body"].includes(group.slot),
         attention: group.slug === "face-02" ? "hot" : undefined,
@@ -261,6 +269,7 @@ function fallbackCatalog(): ShopCatalogItem[] {
   return rows.map(([assetId, slug, slot, family, previewable]) => {
     const category = categoryForAsset(slot, family) ?? "all";
     const layerUrl = `${ASSET_BASE}pinoria/assets/${slug}/v001/layer.png`;
+    const animateUrl = animateUrlFor(slug, layerUrl);
     return {
       assetId,
       slug,
@@ -273,6 +282,7 @@ function fallbackCatalog(): ShopCatalogItem[] {
       registrationProfile: "learner-v1",
       imageUrl: `${ASSET_BASE}pinoria/assets/${slug}/v001/standalone.png`,
       layerUrl,
+      animateUrl,
       pricePls: prototypePrice(slug),
       previewable,
       attention: slug === "face-02" ? "hot" : undefined,

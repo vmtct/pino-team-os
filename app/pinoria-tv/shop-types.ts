@@ -102,6 +102,7 @@ export type ShopCatalogItem = {
   registrationProfile: string;
   imageUrl: string;
   layerUrl?: string;
+  animateUrl?: string;
   pricePls: number;
   previewable: boolean;
   attention?: "hot" | "featured" | "new";

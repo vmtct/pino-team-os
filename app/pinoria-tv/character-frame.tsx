@@ -48,7 +48,7 @@ export function characterLayerOverridesFromEquipment(
       continue;
     }
     const item = catalog.find((candidate) => candidate.assetId === assetId);
-    if (item?.layerUrl) overrides[slot as PrototypeCharacterSlot] = item.layerUrl;
+    if (item?.layerUrl) overrides[slot as PrototypeCharacterSlot] = { layerUrl: item.layerUrl, animateUrl: item.animateUrl };
   }
   return overrides;
 }

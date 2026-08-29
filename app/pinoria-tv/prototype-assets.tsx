@@ -11,7 +11,8 @@ export type PrototypeCharacterSlot = "back" | "body" | "hair" | "face" | "headwe
 export type PrototypeCharacterMotion = "off" | "idle" | "walk" | "arrival" | "celebrate" | "shop-preview";
 /** Compatibility shim for older surfaces. New code should use `motion`. */
 export type PrototypeWingMotion = "off" | "idle" | "arrival";
-export type PrototypeCharacterLayerOverrides = Partial<Record<PrototypeCharacterSlot, string | null>>;
+export type PrototypeCharacterLayerMedia = { layerUrl: string; animateUrl?: string | null };
+export type PrototypeCharacterLayerOverrides = Partial<Record<PrototypeCharacterSlot, string | PrototypeCharacterLayerMedia | null>>;
 
 type CharacterLayer = {
   slot: PrototypeCharacterSlot;
@@ -19,6 +20,7 @@ type CharacterLayer = {
   src: string;
   order: number;
   fallbackSrc?: string;
+  animateSrc?: string;
 };
 
 export const prototypeCharacterManifest = {
@@ -33,6 +35,12 @@ export const prototypeCharacterManifest = {
     { slot: "eyewear", displayName: "Kính Sao", src: "https://assets.pinohouse.art/draft/Char_Glasses%20Star.png", order: 60 },
   ] satisfies CharacterLayer[],
 } as const;
+
+const ANIMATED_CHARACTER_LAYER_SLUGS = new Set(["hair-long-brown-wavy-headband", "painting-outfit-01"]);
+function animatedUpgradeFor(src: string) {
+  const match = src.match(/\/pinoria\/assets\/([^/]+)\/[^/]+\/layer\.png$/);
+  return match && ANIMATED_CHARACTER_LAYER_SLUGS.has(match[1]) ? src.replace(/\/layer\.png$/, "/animate.webm") : undefined;
+}
 
 const prototypeCompanionDefaultVisual = companionVisualRegistry["ploo-form-2"];
 
@@ -128,34 +136,13 @@ export const prototypeAssetUrls = [
 ];
 
 function StandardLayer({ layer }: { layer: CharacterLayer }) {
-  const [src, setSrc] = useState(layer.src);
-
-  useEffect(() => {
-    setSrc(layer.src);
-  }, [layer.src]);
-
-  return (
-    <img
-      data-pinoria-character-slot={layer.slot}
-      src={src}
-      alt=""
-      draggable={false}
-      decoding="async"
-      loading="eager"
-      onError={() => {
-        if (layer.fallbackSrc && src !== layer.fallbackSrc) setSrc(layer.fallbackSrc);
-      }}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-        pointerEvents: "none",
-        userSelect: "none",
-      }}
-    />
-  );
+  const [stillSrc, setStillSrc] = useState(layer.src);
+  const [videoFailed, setVideoFailed] = useState(false);
+  useEffect(() => { setStillSrc(layer.src); setVideoFailed(false); }, [layer.src, layer.animateSrc]);
+  const renderVideo = !!layer.animateSrc && !videoFailed;
+  const mediaStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: renderVideo ? "cover" : "contain", objectPosition: "50% 50%", pointerEvents: "none", userSelect: "none" };
+  if (renderVideo) return <video data-pinoria-character-slot={layer.slot} data-pinoria-character-media="video" data-pinoria-character-animate-src={layer.animateSrc} src={layer.animateSrc} poster={stillSrc} aria-hidden="true" autoPlay loop muted playsInline preload="auto" disablePictureInPicture onError={() => setVideoFailed(true)} style={mediaStyle} />;
+  return <img data-pinoria-character-slot={layer.slot} data-pinoria-character-media="image" src={stillSrc} alt="" draggable={false} decoding="async" loading="eager" onError={() => { if (layer.fallbackSrc && stillSrc !== layer.fallbackSrc) setStillSrc(layer.fallbackSrc); }} style={mediaStyle} />;
 }
 
 function WingHalf({
@@ -449,17 +436,16 @@ export function PrototypeCharacter({
       const profileSrc = profileOverride === null ? null : profileOverride || baseLayer.src;
       const surfaceOverride = layerOverrides?.[baseLayer.slot];
       if (surfaceOverride === null) return null;
-
-      const src = typeof surfaceOverride === "string" ? surfaceOverride : profileSrc;
+      const surfaceMedia = typeof surfaceOverride === "object" ? surfaceOverride : undefined;
+      const src = typeof surfaceOverride === "string" ? surfaceOverride : surfaceMedia?.layerUrl ?? profileSrc;
       if (!src) return null;
-
-      const fallbackSrc = typeof surfaceOverride === "string"
+      const fallbackSrc = surfaceOverride !== undefined
         ? profileSrc ?? baseLayer.src
-        : profileOverride && profileOverride !== baseLayer.src
-          ? baseLayer.src
-          : undefined;
-
-      return { ...baseLayer, src, fallbackSrc };
+        : profileOverride && profileOverride !== baseLayer.src ? baseLayer.src : undefined;
+      const animateSrc = surfaceMedia && Object.prototype.hasOwnProperty.call(surfaceMedia, "animateUrl")
+        ? surfaceMedia.animateUrl ?? undefined
+        : animatedUpgradeFor(src);
+      return { ...baseLayer, src, fallbackSrc, animateSrc };
     })
     .filter((layer): layer is CharacterLayer => !!layer);
   const bodyAnimation = bodyAnimationFor(resolvedMotion);

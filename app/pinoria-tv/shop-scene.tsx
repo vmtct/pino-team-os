@@ -33,7 +33,7 @@ const SPARKLES = [
 
 function ShopCharacterPreview({ subjectId, selected, prestigeMarkIds }: { subjectId: string; selected?: ShopCatalogItem; prestigeMarkIds?: string[] }) {
   const layerOverrides: PrototypeCharacterLayerOverrides | undefined = selected?.previewable && selected.layerUrl
-    ? { [selected.slot as PrototypeCharacterSlot]: selected.layerUrl }
+    ? { [selected.slot as PrototypeCharacterSlot]: { layerUrl: selected.layerUrl, animateUrl: selected.animateUrl } }
     : undefined;
 
   return (
