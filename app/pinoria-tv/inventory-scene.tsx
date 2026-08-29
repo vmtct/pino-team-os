@@ -274,7 +274,8 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
     for (const slot of WEARABLE_SLOTS) {
       const assetId = session.equipment?.wearables?.[slot];
       const item = assetId ? catalog.find((candidate) => candidate.assetId === assetId) : undefined;
-      overrides[slot as PrototypeCharacterSlot] = item?.layerUrl ?? null;
+      if (!assetId) overrides[slot as PrototypeCharacterSlot] = null;
+      else if (item?.layerUrl) overrides[slot as PrototypeCharacterSlot] = item.layerUrl;
     }
     return overrides;
   }, [catalog, session]);

@@ -242,6 +242,7 @@ function catalogFromRegistry(registry: RegistryPayload): ShopCatalogItem[] {
 function fallbackCatalog(): ShopCatalogItem[] {
   const rows: Array<[string, string, string, string, boolean]> = [
     ["asset_hair_01", "hair-01", "hair", "cosmetic", true],
+    ["asset_hair_long_brown_wavy_headband", "hair-long-brown-wavy-headband", "hair", "cosmetic", true],
     ["asset_face_01", "face-01", "face", "cosmetic", true],
     ["asset_face_02", "face-02", "face", "cosmetic", true],
     ["asset_face_03", "face-03", "face", "cosmetic", true],
