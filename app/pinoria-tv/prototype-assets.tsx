@@ -322,7 +322,7 @@ function OrbitingCharacterMarks({ motion, markIds }: { motion: PrototypeCharacte
   );
 }
 
-function CharacterPrestigeEffects({ motion, markIds }: { motion: PrototypeCharacterMotion; markIds?: readonly string[] }) {
+export function PrototypeCharacterPrestigeEffects({ motion, markIds }: { motion: PrototypeCharacterMotion; markIds?: readonly string[] }) {
   const auraBreathDuration = motion === "arrival" ? "4.8s" : "5.8s";
   const radianceDuration = motion === "arrival" ? "7.6s" : "8.4s";
   const glowDuration = motion === "arrival" ? 6.4 : 7.2;
@@ -598,7 +598,7 @@ export function PrototypeCharacter({
         }
       `}</style>
 
-      {showPrestigeEffects ? <CharacterPrestigeEffects motion={resolvedMotion} markIds={prestigeMarkIds} /> : null}
+      {showPrestigeEffects ? <PrototypeCharacterPrestigeEffects motion={resolvedMotion} markIds={prestigeMarkIds} /> : null}
 
       <div
         data-pinoria-character-motion-shell
