@@ -1,0 +1,42 @@
+name: TOS Access Response Shape Probe
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    if: github.event.issue.title == '[GPT] TOS Access shape probe' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+
+    steps:
+      - name: Inspect safe response metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "${CF_ACCESS_API_TOKEN:-}" ] || { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_ACCESS_SHAPE_PROBE: **FAIL_SAFE** — dedicated Access token unavailable."; exit 1; }
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
+          inspect() {
+            local label="$1" url="$2" headers="$RUNNER_TEMP/${label}.headers" body="$RUNNER_TEMP/${label}.body"
+            local code ctype bytes shape
+            code="$(curl -sS -D "$headers" -o "$body" -w '%{http_code}' "$url" "${auth[@]}" || true)"
+            ctype="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            bytes="$(wc -c < "$body" | tr -d ' ')"
+            shape="$(jq -sc 'map(if type=="object" then {type:"object",keys:(keys|sort)} elif type=="array" then {type:"array",length:length} else {type:type} end)' "$body" 2>/dev/null || printf 'invalid-json')"
+            printf '%s|%s|%s|%s|%s\n' "$label" "$code" "${ctype:-none}" "$bytes" "$shape"
+          }
+          account="$(inspect account "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100")"
+          zone="$(inspect zone "${api}/zones/${ZONE_ID}/access/apps?per_page=100")"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_ACCESS_SHAPE_PROBE: **PASS**\n\n- ${account}\n- ${zone}\n\nRead-only metadata only: HTTP code, Content-Type, byte length, and JSON top-level type/keys. No response values, credentials, Access policy, Worker, D1, Staff, route, or domain mutation."
