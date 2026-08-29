@@ -141,7 +141,7 @@ function StandardLayer({ layer }: { layer: CharacterLayer }) {
   useEffect(() => { setStillSrc(layer.src); setVideoFailed(false); }, [layer.src, layer.animateSrc]);
   const renderVideo = !!layer.animateSrc && !videoFailed;
   const breathingBody = layer.slot === "body" && !renderVideo;
-  const mediaStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: renderVideo ? "cover" : "contain", objectPosition: "50% 50%", transformOrigin: breathingBody ? "50% 74%" : undefined, animation: breathingBody ? "pinoriaBodyBreath 5.8s cubic-bezier(.45,.05,.55,.95) infinite" : undefined, willChange: breathingBody ? "transform" : undefined, pointerEvents: "none", userSelect: "none" };
+  const mediaStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: renderVideo ? "cover" : "contain", objectPosition: "50% 50%", transformOrigin: breathingBody ? "50% 74%" : undefined, animation: breathingBody ? "pinoriaBodyBreath 3.8s cubic-bezier(.45,.05,.55,.95) infinite" : undefined, willChange: breathingBody ? "transform" : undefined, pointerEvents: "none", userSelect: "none" };
   if (renderVideo) return <video data-pinoria-character-slot={layer.slot} data-pinoria-character-media="video" data-pinoria-character-animate-src={layer.animateSrc} src={layer.animateSrc} poster={stillSrc} aria-hidden="true" autoPlay loop muted playsInline preload="auto" disablePictureInPicture onError={() => setVideoFailed(true)} style={mediaStyle} />;
   return <img data-pinoria-character-slot={layer.slot} data-pinoria-character-media="image" src={stillSrc} alt="" draggable={false} decoding="async" loading="eager" onError={() => { if (layer.fallbackSrc && stillSrc !== layer.fallbackSrc) setStillSrc(layer.fallbackSrc); }} style={mediaStyle} />;
 }
@@ -465,7 +465,7 @@ export function PrototypeCharacter({
       <style>{`
         @keyframes pinoriaBodyBreath {
           0%,100% { transform:scale3d(1,1,1); }
-          50% { transform:scale3d(1.002,1.0045,1); }
+          50% { transform:scale3d(1.005,1.011,1); }
         }
         @keyframes pinoriaCharacterIdle {
           0%,100% { transform:translate3d(0,0,0) rotate(-.05deg) scale(1); }
