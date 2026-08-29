@@ -52,6 +52,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/access/assignments",
     "/api/bo/access/assignments/remove",
     "/api/bo/access/users/status",
+    "/api/bo/access/perimeter-reconcile",
     "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345",
     "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345/status",
     "/api/staff-pin/configure",
