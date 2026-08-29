@@ -87,6 +87,16 @@
 .ownerControls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) auto; gap: 10px; align-items: end; }
 .ownerControls .primaryButton { min-height: 40px; }
 .ownerError { margin: 0; color: #9b3838; font-size: 11px; }
+.ownerBulk { display: grid; gap: 10px; padding: 14px; border: 1px solid #dcd8ef; border-radius: 14px; background: #f8f6ff; }
+.ownerBulkHead { display: flex; justify-content: space-between; gap: 12px; }
+.ownerBulkHead div { display: grid; gap: 4px; }
+.ownerBulkHead strong { color: #37324d; font-size: 13px; }
+.ownerBulkHead small { color: #777285; font-size: 10px; }
+.ownerBulkRow { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(220px, .9fr) auto; gap: 10px; align-items: end; padding-top: 10px; border-top: 1px solid #e7e2f5; }
+.ownerBulkRow > div { display: grid; gap: 3px; }
+.ownerBulkRow > div strong { font-size: 12px; }
+.ownerBulkRow > div small, .ownerBulkStatus { color: #777285; font-size: 10px; }
+.ownerBulkStatus { grid-column: 1 / -1; }
 
 .filterLabel { display: grid; grid-template-columns: 90px minmax(240px, 520px); align-items: center; gap: 10px; margin-bottom: 16px; color: #656674; font-size: 12px; font-weight: 750; }
 .filterLabel select { width: 100%; padding: 9px 11px; border: 1px solid #d9d9e3; border-radius: 9px; background: #fff; color: #24242e; }
@@ -124,7 +134,7 @@
 
 @media (max-width: 1050px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .modeGrid, .formGrid, .ownerControls { grid-template-columns: 1fr; }
+  .modeGrid, .formGrid, .ownerControls, .ownerBulkRow { grid-template-columns: 1fr; }
   .assignmentRow { grid-template-columns: 1fr; }
   .commandBar { align-items: stretch; flex-direction: column; }
   .primaryButton { width: 100%; }
