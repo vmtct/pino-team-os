@@ -85,5 +85,6 @@ export const boApi = {
   assignAccessRole: (body: { userId: string; roleId: string; scopeType: "GLOBAL" | "CENTER" | "PATH" | "RUNNING_CLASS"; scopeId: string | null }) => write<{ id: string }>("access/assignments", body, crypto.randomUUID()),
   removeAccessAssignment: (assignmentId: string) => write<{ assignmentId: string; status: string }>("access/assignments/remove", { assignmentId }, crypto.randomUUID()),
   setAccessUserStatus: (userId: string, status: "active" | "suspended", reason?: string) => write<{ status: string }>("access/users/status", { userId, status, ...(reason ? { reason } : {}) }, crypto.randomUUID()),
+  reconcileTosAccess: () => write<{ state: string; emailCount: number; policyId: string | null }>("access/perimeter-reconcile", {}, crypto.randomUUID()),
   onboardStaff: (command: BoStaffOnboardingCommand, idempotencyKey: string) => write<BoStaffOnboardingResult>("workforce/staff-onboarding", command, idempotencyKey),
 };
