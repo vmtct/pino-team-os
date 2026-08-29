@@ -22,7 +22,11 @@ export async function handleBoOperationalReadRequest(
       { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
       keyResolver,
     );
-    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path }, identity);
+    const url = new URL(request.url);
+    const readBody = path === "learners"
+      ? { ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}), ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}) }
+      : undefined;
+    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path, ...(readBody ? { body: readBody } : {}) }, identity);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof BoAuthError) {
@@ -43,6 +47,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/roles"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || path === "learners"
+    || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);

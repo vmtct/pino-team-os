@@ -164,3 +164,32 @@
 .staffPinPanel p, .staffPinPanel small { margin: 0; color: #737380; font-size: 11px; line-height: 1.45; }
 .staffPinFields { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(120px, .7fr) auto; gap: 10px; align-items: end; }
 @media (max-width: 760px) { .staffPinFields { grid-template-columns: 1fr; } }
+
+.learnerWorkspace { display: grid; grid-template-columns: minmax(250px, .72fr) minmax(0, 1.7fr); gap: 16px; align-items: start; }
+.learnerDirectory { position: sticky; top: 18px; display: grid; gap: 9px; max-height: calc(100vh - 56px); overflow: auto; padding: 14px; border: 1px solid #e4e4ec; border-radius: 14px; background: #fafafd; }
+.learnerSearch { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.learnerSearch input { min-width: 0; padding: 9px 11px; border: 1px solid #d9d9e3; border-radius: 9px; background: #fff; }
+.learnerDirectory > small, .muted { color: #797985; font-size: 11px; }
+.learnerCard { display: grid; gap: 3px; padding: 12px; border: 1px solid #e3e3eb; border-radius: 11px; background: white; color: #292936; text-align: left; cursor: pointer; }
+.learnerCard span, .learnerCard small { color: #737380; font-size: 10px; }
+.learnerCardActive { border-color: #aaa1d8; background: #f6f3ff; box-shadow: 0 0 0 1px rgba(102,89,169,.08); }
+.learnerDetail, .learnerDetailStack, .subscriptionList, .enrollmentList { display: grid; gap: 12px; }
+.learnerFacts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.learnerFacts div { display: grid; gap: 4px; padding: 10px; border: 1px solid #ececf2; border-radius: 10px; background: #fafafd; }
+.learnerFacts span { color: #7b7b87; font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
+.learnerFacts strong { overflow-wrap: anywhere; font-size: 11px; }
+.guardianRow, .enrollmentRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #e7e7ee; border-radius: 11px; background: #fbfbfd; }
+.guardianRow > div, .enrollmentRow > div { display: grid; gap: 3px; }
+.guardianRow strong, .enrollmentRow strong { font-size: 12px; }
+.guardianRow span, .guardianRow small, .enrollmentRow span, .enrollmentRow small { color: #747480; font-size: 10px; }
+.subscriptionCreate { display: grid; grid-template-columns: 1.2fr .85fr .65fr .65fr auto; gap: 10px; align-items: end; margin-bottom: 16px; }
+.subscriptionCard { display: grid; gap: 10px; padding: 14px; border: 1px solid #dfddea; border-radius: 13px; background: #fbfaff; }
+.subscriptionHead { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.subscriptionHead > div:first-child { display: grid; gap: 3px; }
+.subscriptionHead strong { font-size: 13px; } .subscriptionHead span, .subscriptionCard > small { color: #747480; font-size: 10px; }
+.unitBalance { display: grid; justify-items: end; gap: 1px; }
+.unitBalance strong { font-size: 20px; color: #5546aa; } .unitBalance span { font-size: 9px; color: #777285; }
+.subscriptionActions { display: flex; gap: 8px; }
+.placementComposer { display: grid; grid-template-columns: 1.4fr .8fr auto; gap: 10px; align-items: end; padding-top: 10px; border-top: 1px solid #e9e6f2; }
+@media (max-width: 900px) { .learnerWorkspace { grid-template-columns: 1fr; } .learnerDirectory { position: static; max-height: none; } .subscriptionCreate { grid-template-columns: repeat(2,minmax(0,1fr)); } .learnerFacts { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 620px) { .subscriptionCreate, .placementComposer, .learnerFacts { grid-template-columns: 1fr; } .guardianRow, .enrollmentRow { align-items: stretch; flex-direction: column; } }
