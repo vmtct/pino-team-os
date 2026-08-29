@@ -17,7 +17,7 @@ export function SecretButterflyCharacter({ style }: { style?: CSSProperties }) {
       playsInline
       preload="auto"
       disablePictureInPicture
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "50% 50%", pointerEvents: "none", filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))", ...style }}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 50%", pointerEvents: "none", filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))", ...style }}
     />
   );
 }
