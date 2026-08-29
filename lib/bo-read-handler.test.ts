@@ -96,3 +96,19 @@ test("unknown routes and every non-read method fail without calling Core", async
   assert.equal(mutation.status, 405);
   assert.equal(called, false);
 });
+
+test("Learner directory query and lifecycle detail stay on the private BO read contract", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 200, body: { data: [] }, requestId: "core-learners" }; } };
+  const learnerRequest = new Request("https://bo.pinohouse.art/api/bo/learners?query=Mai&limit=20&userId=forged", { headers: { "cf-access-jwt-assertion": f.token } });
+  const learner = await handleBoOperationalReadRequest(learnerRequest, env(binding), "learners", f.resolver);
+  const studentId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const lifecycle = await handleBoOperationalReadRequest(request(`students/${studentId}/lifecycle`, f.token), env(binding), `students/${studentId}/lifecycle`, f.resolver);
+  assert.equal(learner.status, 200);
+  assert.equal(lifecycle.status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "learners", body: { query: "Mai", limit: 20 } },
+    { method: "GET", path: `students/${studentId}/lifecycle` },
+  ]);
+});

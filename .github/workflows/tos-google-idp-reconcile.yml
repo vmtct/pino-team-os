@@ -1,0 +1,94 @@
+name: TOS Google IdP Reconcile
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: tos-google-idp-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.issue.title == '[GPT] TOS Google IdP reconcile' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_ACCESS_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
+      BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconcile Google + OTP login methods on TOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_TOKEN:-}" -H 'Content-Type: application/json')
+          mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false
+          comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
+          rollback() { if [ "$mutated" = true ] && [ -n "$app_id" ]; then rb="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$old_allowed" --argjson auto "$old_auto" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:$auto}')"; curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$rb" >/dev/null 2>&1 || true; fi; }
+          fail() { rollback; comment "TOS_GOOGLE_IDP_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny TOS IdP selection changed by this run was rolled back. No BO policy, Core/D1 data, route, domain, or runtime mutation was authorized."; exit 1; }
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_ACCESS_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
+          target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          [ "$confirm" = "RECONCILE_TOS_GOOGLE_IDP" ] || fail "Exact confirmation missing."
+          [ -n "$target_sha" ] || fail "TEAM_SHA missing."
+          current_main="$(git rev-parse origin/main)"
+          [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
+          [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
+          idps="$(curl -fsS "${api}/access/identity_providers" "${auth[@]}")" || fail "Cannot read identity providers."
+          apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot read Access applications."
+          jq -e '.success==true' <<<"$idps" >/dev/null || fail "Identity provider API returned failure."
+          jq -e '.success==true' <<<"$apps" >/dev/null || fail "Access applications API returned failure."
+          google="$(jq -c '[.result[]? | select(.type=="google")]' <<<"$idps")"
+          otp="$(jq -c '[.result[]? | select(.type=="onetimepin")]' <<<"$idps")"
+          [ "$(jq 'length' <<<"$google")" -eq 1 ] || fail "Expected exactly one generic Google IdP."
+          [ "$(jq 'length' <<<"$otp")" -eq 1 ] || fail "Expected exactly one One-time PIN IdP."
+          google_id="$(jq -r '.[0].id' <<<"$google")"
+          otp_id="$(jq -r '.[0].id' <<<"$otp")"
+          tos="$(jq -c --arg aud "$TOS_AUD" '[.result[]? | select((.aud // "") == $aud)]' <<<"$apps")"
+          bo="$(jq -c --arg aud "$BO_AUD" '[.result[]? | select((.aud // "") == $aud)]' <<<"$apps")"
+          [ "$(jq 'length' <<<"$tos")" -eq 1 ] || fail "Pinned TOS audience must resolve uniquely."
+          [ "$(jq 'length' <<<"$bo")" -eq 1 ] || fail "Pinned BO audience must resolve uniquely."
+          app="$(jq -c '.[0]' <<<"$tos")"; app_id="$(jq -r '.id' <<<"$app")"
+          app_domain="$(jq -r '.domain // empty' <<<"$app")"
+          app_type="$(jq -r '.type // empty' <<<"$app")"
+          [ -n "$app_domain" ] && [ -n "$app_type" ] || fail "Resolved TOS app is missing required domain/type."
+          old_allowed="$(jq -c '.allowed_idps // []' <<<"$app")"
+          old_auto="$(jq -r '.auto_redirect_to_identity // false' <<<"$app")"
+          desired="$(jq -nc --arg g "$google_id" --arg o "$otp_id" '[$g,$o]')"
+          payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$desired" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:false}')"
+          update_response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$payload" || true)"
+          update_code="${update_response##*$'\n'}"; updated="${update_response%$'\n'*}"
+          [ "$update_code" = 200 ] || fail "Cloudflare rejected TOS IdP update (HTTP ${update_code:-000}; errors=$(jq -c '[.errors[]? | {code,message}]' <<<"${updated:-}" 2>/dev/null || printf '[]'))."
+          jq -e '.success==true' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful TOS IdP update."
+          mutated=true
+          verify="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot verify Access applications after TOS update."
+          jq -e '.success==true' <<<"$verify" >/dev/null || fail "Access application verification API failed."
+          tos_after="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$verify" | head -1)"
+          bo_after="$(jq -c --arg aud "$BO_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$verify" | head -1)"
+          jq -e --arg g "$google_id" --arg o "$otp_id" '((.allowed_idps // []) | sort) == ([$g,$o] | sort) and (.auto_redirect_to_identity // false)==false' <<<"$tos_after" >/dev/null || fail "TOS allowed IdPs do not equal Google + OTP after update."
+          [ "$(jq -c '.allowed_idps // []' <<<"$bo_after")" = "$(jq -c '.allowed_idps // []' <<<"$(jq -c '.[0]' <<<"$bo")")" ] || fail "BO allowed_idps changed unexpectedly."
+          policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies."
+          jq -e '.success==true and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0) and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("email")) and any(.require[]?; has("external_evaluation")))] | length>=1)' <<<"$policies" >/dev/null || fail "TOS policy invariants failed after IdP update."
+          headers="$RUNNER_TEMP/tos-google-idp.headers"
+          code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' 'https://tos.pinohouse.art/staff-login' || true)"
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          [ "$code" = 302 ] || [ "$code" = 303 ] || [ "$code" = 307 ] || fail "TOS perimeter no longer returns a Cloudflare Access redirect (HTTP $code)."
+          [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/tos.pinohouse.art"* ]] || fail "TOS redirect is not the expected Cloudflare Access challenge."
+          [[ "$location" == *"kid=$TOS_AUD"* ]] || fail "TOS Access challenge audience changed after IdP update."
+          mutated=false
+          comment "TOS_GOOGLE_IDP_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS IdPs: Google + One-time PIN fallback\n- Instant redirect: disabled (chooser preserved)\n- Canonical External Evaluation: preserved\n- Allow Everyone policies: 0\n- BO allowed_idps: unchanged\n- TOS Access challenge: preserved on pinned audience\n\nAuthentication method changed only at the TOS Cloudflare perimeter. pino-core remains canonical authorization authority; BO/Core/D1/runtime/routes/domains were not mutated."

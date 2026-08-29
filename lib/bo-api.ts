@@ -7,6 +7,8 @@ import type {
   BoSessionLearningOwner,
   BoSessionLearningOwnerCommand,
   BoSessionLearningOwnerProjection,
+  BoLearnerDirectoryItem,
+  BoLearnerLifecycle,
   BoRunningClass,
   BoSession,
   BoStaffOnboardingCommand,
@@ -44,7 +46,10 @@ async function write<T>(path: string, body: unknown, idempotencyKey: string): Pr
     headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
     body: JSON.stringify(body),
   });
-  const payload = await response.json() as { data?: T; error?: { message?: string; requestId?: string } };
+  const text = await response.text();
+  let payload: { data?: T; error?: { message?: string; requestId?: string } };
+  try { payload = JSON.parse(text) as typeof payload; }
+  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id")); }
   if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Back Office command could not be completed.");
   return payload.data;
 }
@@ -74,6 +79,14 @@ export const boApi = {
   syllabi: () => read<BoSyllabus>("syllabi"),
   sessions: () => read<BoSession>("sessions"),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
+  learners: (query = "") => read<BoLearnerDirectoryItem>(`learners${query ? `?query=${encodeURIComponent(query)}` : ""}`),
+  learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
+  createSubscription: (body: { studentProfileId: string; pathProgramId: string; serviceStartsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }) => write<unknown>("subscriptions", body, crypto.randomUUID()),
+  renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, crypto.randomUUID()),
+  cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, crypto.randomUUID()),
+  placeEnrollment: (body: { subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null; commandEffectiveLocalDate: string; policyEffectiveAt: string }) => write<unknown>("enrollments", body, crypto.randomUUID()),
+  endEnrollment: (enrollmentId: string, body: { effectiveUntilExclusiveLocalDate: string; expectedVersion: number; reason: string }) => write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/end`, body, crypto.randomUUID()),
+  resetParentPin: (parentUserId: string) => write<{ command: string; temporaryPin: string; expiresAt: string; credentialVersion: number }>(`identity/parents/${encodeURIComponent(parentUserId)}/pin/reset`, {}, crypto.randomUUID()),
   learningOwner: (sessionId: string) => readOne<BoSessionLearningOwnerProjection>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`),
   assignLearningOwner: (sessionId: string, command: BoSessionLearningOwnerCommand, idempotencyKey: string) => write<BoSessionLearningOwner>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`, command, idempotencyKey),
   accessRoles: () => read<BoAccessRole>("access/roles"),
@@ -85,5 +98,15 @@ export const boApi = {
   assignAccessRole: (body: { userId: string; roleId: string; scopeType: "GLOBAL" | "CENTER" | "PATH" | "RUNNING_CLASS"; scopeId: string | null }) => write<{ id: string }>("access/assignments", body, crypto.randomUUID()),
   removeAccessAssignment: (assignmentId: string) => write<{ assignmentId: string; status: string }>("access/assignments/remove", { assignmentId }, crypto.randomUUID()),
   setAccessUserStatus: (userId: string, status: "active" | "suspended", reason?: string) => write<{ status: string }>("access/users/status", { userId, status, ...(reason ? { reason } : {}) }, crypto.randomUUID()),
+  reconcileTosAccess: () => write<{ state: string; emailCount: number; policyId: string | null }>("access/perimeter-reconcile", {}, crypto.randomUUID()),
+  configureStaffPin: async (userId: string, pin: string) => {
+    const response = await fetch("/api/staff-pin/configure", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId, pin }) });
+    const text = await response.text();
+    let payload: { data?: { userId: string; loginIdentifier: string; version: number }; error?: { message?: string; requestId?: string } };
+    try { payload = JSON.parse(text) as typeof payload; }
+    catch { throw new BoApiError(response.status, text.trim() || "Staff PIN command returned an invalid response.", response.headers.get("x-request-id")); }
+    if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Không thể cập nhật Staff PIN.");
+    return payload.data;
+  },
   onboardStaff: (command: BoStaffOnboardingCommand, idempotencyKey: string) => write<BoStaffOnboardingResult>("workforce/staff-onboarding", command, idempotencyKey),
 };

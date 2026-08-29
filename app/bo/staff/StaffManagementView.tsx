@@ -27,6 +27,8 @@ export function StaffManagementView() {
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
   const [scopeId, setScopeId] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
+  const [staffPin, setStaffPin] = useState("");
+  const [staffPinConfirm, setStaffPinConfirm] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -39,6 +41,7 @@ export function StaffManagementView() {
     return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
   }, []);
   useEffect(() => {
+    setStaffPin(""); setStaffPinConfirm("");
     if (!selectedId) { setProfile(null); return; }
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { setProfile(next); setForm(profileForm(next)); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."));
@@ -53,6 +56,15 @@ export function StaffManagementView() {
     setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
     const nextId = preferId && staff.some((item) => item.id === preferId) ? preferId : staff[0]?.id ?? "";
     setSelectedId(nextId);
+  }
+
+  async function syncTosPerimeter() {
+    setBusy("perimeter"); setError(""); setMessage("");
+    try {
+      const result = await boApi.reconcileTosAccess();
+      setMessage(`Đã đồng bộ TOS Access cho ${result.emailCount} staff active.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể đồng bộ TOS Access."); }
+    finally { setBusy(""); }
   }
 
   async function saveProfile() {
@@ -88,6 +100,19 @@ export function StaffManagementView() {
     finally { setBusy(""); }
   }
 
+  async function configurePin() {
+    if (!accessUser) return;
+    if (!/^\d{6}$/.test(staffPin)) { setError("Staff PIN phải gồm đúng 6 chữ số."); return; }
+    if (staffPin !== staffPinConfirm) { setError("Hai lần nhập Staff PIN chưa khớp."); return; }
+    if (!confirm(`Đặt lại Staff PIN cho ${profile?.displayLabel ?? "nhân viên này"}? Mọi session TOS cũ của staff sẽ bị thu hồi.`)) return;
+    setBusy("staff-pin"); setError(""); setMessage("");
+    try {
+      await boApi.configureStaffPin(accessUser.id, staffPin);
+      setStaffPin(""); setStaffPinConfirm("");
+      setMessage("Đã cập nhật Staff PIN. Mọi session TOS cũ của staff đã bị thu hồi.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể cập nhật Staff PIN."); }
+    finally { setBusy(""); }
+  }
   async function changeAccessStatus(status: "active" | "suspended") {
     if (!accessUser) return;
     if (status === "suspended" && !suspendReason.trim()) { setError("Cần lý do khi suspend Access."); return; }
@@ -100,7 +125,7 @@ export function StaffManagementView() {
 
   return (
     <section id="staff-management" className={styles.page}>
-      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a></div></header>
+      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
       <div className={styles.staffManagementGrid}>
         <aside className={styles.staffDirectory}>
@@ -147,6 +172,15 @@ export function StaffManagementView() {
                 </div>
                 <div className={styles.staffAccessStatus}>
                   {accessUser.status === "active" ? <><label className={styles.field}>Suspend reason<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Required to suspend" /></label><button type="button" className={styles.secondaryButton} disabled={!suspendReason.trim() || busy === "access-status"} onClick={() => void changeAccessStatus("suspended")}>Suspend Access</button></> : <button type="button" className={styles.secondaryButton} disabled={busy === "access-status"} onClick={() => void changeAccessStatus("active")}>Reactivate Access</button>}
+                </div>
+                <div className={styles.staffPinPanel}>
+                  <div><strong>Staff PIN</strong><p>Đặt hoặc reset PIN 6 số dùng sau Google login. Reset sẽ thu hồi toàn bộ Staff-PIN session cũ.</p></div>
+                  <div className={styles.staffPinFields}>
+                    <label className={styles.field}>PIN mới<input inputMode="numeric" type="password" autoComplete="new-password" value={staffPin} maxLength={6} onChange={(event) => setStaffPin(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
+                    <label className={styles.field}>Nhập lại PIN<input inputMode="numeric" type="password" autoComplete="new-password" value={staffPinConfirm} maxLength={6} onChange={(event) => setStaffPinConfirm(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
+                    <button type="button" className={styles.primaryButton} disabled={profile.status !== "active" || accessUser.status !== "active" || staffPin.length !== 6 || staffPin !== staffPinConfirm || busy === "staff-pin"} onClick={() => void configurePin()}>{busy === "staff-pin" ? "Đang cập nhật…" : "Đặt / Reset Staff PIN"}</button>
+                  </div>
+                  {profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ có thể đặt PIN khi Staff và Access đều active.</small> : null}
                 </div>
               </>}
             </section>
