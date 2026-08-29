@@ -11,6 +11,10 @@ export interface BoWriteEnv {
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
 const ACCESS_ROLE_PATH = "access/roles";
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
+const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
+const ACCESS_USER_STATUS_PATH = "access/users/status";
+const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
+const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const DELIVERY_POST_PATHS = new Set([
   "delivery/learning-spaces",
   "delivery/running-classes",
@@ -70,6 +74,10 @@ export function isAllowedPostPath(path: string): boolean {
   return path === STAFF_ONBOARDING_PATH
     || path === ACCESS_ROLE_PATH
     || path === ACCESS_ASSIGNMENT_PATH
+    || path === ACCESS_ASSIGNMENT_REMOVE_PATH
+    || path === ACCESS_USER_STATUS_PATH
+    || STAFF_RECORD_PATH.test(path)
+    || STAFF_STATUS_PATH.test(path)
     || DELIVERY_POST_PATHS.has(path)
     || MATERIALIZATION_PUBLISH.test(path)
     || LEARNING_OWNER_PATH.test(path);

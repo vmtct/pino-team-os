@@ -58,10 +58,13 @@ test("BO access admin facade forwards only whitelisted role and assignment POSTs
   assert.equal(roleResponse.status, 201);
   assert.equal(assignmentResponse.status, 201);
   assert.equal(forwarded.length, 2);
-  assert.deepEqual(forwarded.map((item) => item.request), [
-    { method: "POST", path: "access/roles", body: roleBody },
-    { method: "POST", path: "access/assignments", body: assignmentBody },
-  ]);
+  assert.deepEqual(
+    forwarded.map((item) => item.request).sort((left, right) => left.path.localeCompare(right.path)),
+    [
+      { method: "POST", path: "access/assignments", body: assignmentBody },
+      { method: "POST", path: "access/roles", body: roleBody },
+    ],
+  );
   for (const item of forwarded) {
     assert.equal(item.identity.subject, "verified-founder-subject");
     assert.equal(item.identity.email, "founder@example.com");

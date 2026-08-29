@@ -128,6 +128,15 @@ export interface BoStaffRecord {
   roleLabel: string | null;
 }
 
+export interface BoStaffProfile extends BoStaffRecord {
+  email: string | null;
+  mobile: string | null;
+  employmentType: string | null;
+  startDate: string | null;
+}
+
+export type BoStaffProfilePatch = Partial<Pick<BoStaffProfile, "displayLabel" | "email" | "mobile" | "employmentType" | "department" | "roleLabel" | "startDate">>;
+
 export type BoStaffOnboardingCommand =
   | { commandType: "ONBOARD_STAFF_RECORD_ONLY"; staff: { displayLabel: string; email?: string; mobile?: string; department?: string; roleLabel?: string; employmentType?: string; startDate?: string } }
   | { commandType: "ONBOARD_STAFF_WITH_ACCESS"; staff: { displayLabel: string; email?: string; mobile?: string; department?: string; roleLabel?: string; employmentType?: string; startDate?: string }; email: string; assignments: BoStaffAccessAssignmentInput[]; pin?: string }
