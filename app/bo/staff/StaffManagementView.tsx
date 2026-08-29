@@ -49,8 +49,8 @@ export function StaffManagementView() {
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
 
   async function refresh(preferId = "") {
-    const [staff, users, roles, centers, paths, classes] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.centers(), boApi.pathPrograms(), boApi.runningClasses()]);
-    setData({ staff, users, roles, centers, paths, classes });
+    const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
+    setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
     const nextId = preferId && staff.some((item) => item.id === preferId) ? preferId : staff[0]?.id ?? "";
     setSelectedId(nextId);
   }

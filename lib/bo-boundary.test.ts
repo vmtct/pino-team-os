@@ -48,3 +48,16 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
   assert.match(apiSource, /onboardStaff:[\s\S]*write<BoStaffOnboardingResult>\("workforce\/staff-onboarding"/);
   assert.match(apiSource, /assignLearningOwner:[\s\S]*write<BoSessionLearningOwner>/);
 });
+
+
+test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap", async () => {
+  const apiSource = await readFile("lib/bo-api.ts", "utf8");
+  const staffSources = await Promise.all([
+    readFile("app/bo/staff/StaffManagementView.tsx", "utf8"),
+    readFile("app/bo/staff/StaffOnboardingView.tsx", "utf8"),
+  ]).then((items) => items.join("\n"));
+
+  assert.match(apiSource, /scopeCatalog:[\s\S]*delivery\/bootstrap-state/);
+  assert.equal((staffSources.match(/boApi\.scopeCatalog\(\)/g) ?? []).length, 2);
+  assert.doesNotMatch(staffSources, /boApi\.(?:centers|pathPrograms|runningClasses)\(/);
+});
