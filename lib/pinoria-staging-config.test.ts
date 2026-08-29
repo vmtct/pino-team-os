@@ -13,9 +13,11 @@ test("Pinoria Team staging is isolated from production Core", () => {
   assert.equal(staging.preview_urls, false);
   assert.equal(staging.vars.PINORIA_TV_STAGING_BYPASS, "enabled");
   assert.equal(staging.vars.PINORIA_TOS_STAGING_BYPASS, "enabled");
+  assert.equal(staging.vars.PINORIA_BO_STAGING_BYPASS, "enabled");
   assert.match(staging.vars.PINORIA_STAGING_STAFF_EMAIL, /@pino\.invalid$/);
   assert.equal(productionRaw.includes("PINORIA_TV_STAGING_BYPASS"), false);
   assert.equal(productionRaw.includes("PINORIA_TOS_STAGING_BYPASS"), false);
+  assert.equal(productionRaw.includes("PINORIA_BO_STAGING_BYPASS"), false);
   assert.equal(productionRaw.includes("PINORIA_STAGING_STAFF_EMAIL"), false);
 
   assert.equal(staging.services.length, 6);

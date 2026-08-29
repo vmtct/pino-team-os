@@ -12,6 +12,7 @@
     "FOUNDER_EMAIL": "minhtri.van42@gmail.com,chuthhang@gmail.com",
     "PINORIA_TV_STAGING_BYPASS": "enabled",
     "PINORIA_TOS_STAGING_BYPASS": "enabled",
+    "PINORIA_BO_STAGING_BYPASS": "enabled",
     "PINORIA_STAGING_STAFF_EMAIL": "workforce-with-access-fa12eb40e2ae@pino.invalid"
   },
   "services": [

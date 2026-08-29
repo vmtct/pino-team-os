@@ -1,15 +1,16 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { authenticateFounder, FounderAuthError } from "@/lib/founder-auth";
+import { stagingFounderActor, type FounderStagingAuthEnv } from "@/lib/founder-staging-auth";
 import { callFounderCore, type PinoCoreBinding } from "@/lib/founder-core";
 
 export const runtime="nodejs";
 type Context={params:Promise<{path:string[]}>};
-type FounderEnv={PINO_CORE:PinoCoreBinding;CF_ACCESS_TEAM_DOMAIN:string;CF_ACCESS_AUDIENCE:string;FOUNDER_EMAIL:string};
+type FounderEnv=FounderStagingAuthEnv&{PINO_CORE:PinoCoreBinding;CF_ACCESS_TEAM_DOMAIN:string;CF_ACCESS_AUDIENCE:string;FOUNDER_EMAIL:string};
 
 async function handle(request:Request,context:Context):Promise<Response>{
   try{
     const {env}=await getCloudflareContext({async:true}) as unknown as {env:FounderEnv};
-    const actor=await authenticateFounder(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_AUDIENCE,founderEmail:env.FOUNDER_EMAIL});
+    const actor=stagingFounderActor(request,env)??await authenticateFounder(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_AUDIENCE,founderEmail:env.FOUNDER_EMAIL});
     const {path}=await context.params;
     const contentType=request.headers.get("content-type")??"";
     let body:unknown=undefined;
