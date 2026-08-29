@@ -22,7 +22,7 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       ISSUE_BODY: ${{ github.event.issue.body }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-      CF_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCESS_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
 
     steps:
       - name: Read live Access configuration
@@ -31,12 +31,12 @@ jobs:
           set -euo pipefail
           fail() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "ACCESS_OTP_READINESS_PROBE: **FAIL_SAFE**\n\n$1\n\nRead-only probe; no Access or production mutation was attempted."; exit 1; }
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
-          [ -n "${CF_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable."
+          [ -n "${CF_ACCESS_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
           target_hash="$(sed -nE 's/^TARGET_EMAIL_SHA256:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
           target_domain="$(sed -nE 's/^TARGET_DOMAIN:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY" | tr '[:upper:]' '[:lower:]')"
           [ -n "$target_hash" ] && [ -n "$target_domain" ] || fail "Missing target hash/domain."
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
-          auth=(-H "Authorization: Bearer ${CF_TOKEN}" -H 'Content-Type: application/json')
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_TOKEN}" -H 'Content-Type: application/json')
           apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot read account-scoped Access applications."
           idps="$(curl -fsS "${api}/access/identity_providers" "${auth[@]}")" || fail "Cannot read Access identity providers."
           jq -e '.success==true' <<<"$apps" >/dev/null || fail "Access applications API returned failure."

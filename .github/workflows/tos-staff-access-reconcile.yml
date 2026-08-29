@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 8
     env:
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
       ZONE_ID: 48b2809afabf3d65d30f80f346126213
       TOS_HOST: tos.pinohouse.art
       BO_HOST: bo.pinohouse.art
@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4"
-          auth=(-H "Authorization: Bearer ${CF_API_TOKEN:-}" -H 'Content-Type: application/json')
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
           repo="$GITHUB_REPOSITORY"
           created_policy_id=""
           scope=""
@@ -62,7 +62,7 @@ jobs:
           }
 
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
-          [ -n "${CF_API_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable."
+          [ -n "${CF_ACCESS_API_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable. Add the dedicated Zero Trust credential before retrying."
           target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
           confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
           [ "$confirm" = "RECONCILE_TOS_STAFF_ACCESS" ] || fail "Exact confirmation missing."
