@@ -1,0 +1,124 @@
+name: BO Manager Access Reconcile
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bo-manager-access-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.issue.title == '[GPT] BO manager Access reconcile' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+      BO_HOST: bo.pinohouse.art
+      BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
+      MANAGER_EMAIL: vmtct97@gmail.com
+      POLICY_NAME: PINO BO COO Manager
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile manager BO admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
+          repo="$GITHUB_REPOSITORY"
+          created_policy_id=""
+          base=""
+          app_id=""
+          comment() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
+          rollback() {
+            if [ -n "$created_policy_id" ] && [ -n "$base" ] && [ -n "$app_id" ]; then
+              curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${created_policy_id}" "${auth[@]}" >/dev/null 2>&1 || true
+            fi
+          }
+          fail() {
+            rollback
+            comment "BO_MANAGER_ACCESS_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny policy created by this run was deleted again. Existing BO policies, Core/D1, Worker runtime, routes and domains were not changed."
+            exit 1
+          }
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_ACCESS_API_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
+          target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          [ "$confirm" = "RECONCILE_BO_MANAGER_ACCESS" ] || fail "Exact confirmation missing."
+          [ -n "$target_sha" ] || fail "TEAM_SHA missing."
+          current_main="$(git rev-parse origin/main)"
+          [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
+          [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
+
+          normalize_list() {
+            jq -sc 'if any(.[]; type=="object" and .success==true) then [.[] | select(type=="object" and .success==true)][0] elif (length==1 and (.[0]|type)=="object" and (.[0]|has("result"))) then .[0] + {success:true} elif (length==1 and (.[0]|type)=="array") then {success:true,result:.[0]} elif (length>0 and all(.[]; type=="object" and has("id"))) then {success:true,result:.} else {} end'
+          }
+
+          account_raw="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100" "${auth[@]}" || true)"
+          account_apps="$(normalize_list <<<"${account_raw:-}" 2>/dev/null || printf '{}')"
+          zone_raw="$(curl -fsS "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" || true)"
+          zone_apps="$(normalize_list <<<"${zone_raw:-}" 2>/dev/null || printf '{}')"
+          jq -e '.success==true' <<<"$account_apps" >/dev/null 2>&1 || account_apps='{"success":false,"result":[]}'
+          jq -e '.success==true' <<<"$zone_apps" >/dev/null 2>&1 || zone_apps='{"success":false,"result":[]}'
+
+          app="$(jq -c --arg aud "$BO_AUD" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$account_apps")"
+          if [ -n "$app" ]; then base="accounts/${CF_ACCOUNT_ID}"; fi
+          if [ -z "$app" ]; then
+            app="$(jq -c --arg aud "$BO_AUD" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$zone_apps")"
+            if [ -n "$app" ]; then base="zones/${ZONE_ID}"; fi
+          fi
+          if [ -z "$app" ]; then
+            app="$(jq -c --arg h "$BO_HOST" '[.result[]? | select(((.domain // "") == $h) or (tojson | contains($h)))] | if length==1 then .[0] else empty end' <<<"$account_apps")"
+            if [ -n "$app" ]; then base="accounts/${CF_ACCOUNT_ID}"; fi
+          fi
+          if [ -z "$app" ]; then
+            app="$(jq -c --arg h "$BO_HOST" '[.result[]? | select(((.domain // "") == $h) or (tojson | contains($h)))] | if length==1 then .[0] else empty end' <<<"$zone_apps")"
+            if [ -n "$app" ]; then base="zones/${ZONE_ID}"; fi
+          fi
+          [ -n "$app" ] || fail "Cannot resolve exactly one BO Access application."
+          app_id="$(jq -r '.id // empty' <<<"$app")"
+          app_aud="$(jq -r '.aud // empty' <<<"$app")"
+          [ -n "$app_id" ] || fail "Resolved BO app has no ID."
+          [ -z "$app_aud" ] || [ "$app_aud" = "$BO_AUD" ] || fail "Resolved BO audience drifted."
+
+          policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot read BO Access policies."
+          jq -e '.success==true' <<<"$policies" >/dev/null || fail "BO policy API returned failure."
+          jq -e '[.result[]? | select(.decision=="allow") | .include[]? | select(has("everyone"))] | length==0' <<<"$policies" >/dev/null || fail "BO contains Allow Everyone; refusing mutation."
+          existing="$(jq -c --arg name "$POLICY_NAME" --arg email "$MANAGER_EMAIL" '.result[]? | select(.name==$name and .decision=="allow" and any(.include[]?; .email.email==$email))' <<<"$policies" | head -1)"
+          if [ -n "$existing" ]; then policy_id="$(jq -r '.id' <<<"$existing")"; else
+            payload="$(jq -nc --arg name "$POLICY_NAME" --arg email "$MANAGER_EMAIL" '{name:$name,decision:"allow",precedence:60,include:[{email:{email:$email}}],exclude:[],require:[]}')"
+            created="$(curl -fsS -X POST "${api}/${base}/access/apps/${app_id}/policies" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected BO manager policy creation."
+            jq -e '.success==true and (.result.id|length>0)' <<<"$created" >/dev/null || fail "Cloudflare did not report successful BO manager policy creation."
+            created_policy_id="$(jq -r '.result.id' <<<"$created")"
+            policy_id="$created_policy_id"
+          fi
+
+          verify="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify BO policies."
+          jq -e --arg id "$policy_id" --arg name "$POLICY_NAME" --arg email "$MANAGER_EMAIL" '[.result[]? | select(.id==$id and .name==$name and .decision=="allow" and any(.include[]?; .email.email==$email))] | length==1' <<<"$verify" >/dev/null || fail "Manager email policy is not present exactly once."
+          jq -e '[.result[]? | select(.decision=="allow") | .include[]? | select(has("everyone"))] | length==0' <<<"$verify" >/dev/null || fail "BO Allow Everyone appeared after reconcile."
+
+          headers="$RUNNER_TEMP/bo-access-headers.txt"
+          code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${BO_HOST}/bo" || true)"
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          [ "$code" = 302 ] || [ "$code" = 303 ] || [ "$code" = 307 ] || fail "BO perimeter no longer returns an Access redirect (HTTP ${code})."
+          [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/${BO_HOST}"* ]] || fail "BO redirect is not the expected Cloudflare Access challenge."
+          [[ "$location" == *"kid=${BO_AUD}"* ]] || fail "BO challenge audience changed."
+
+          created_policy_id=""
+          comment "BO_MANAGER_ACCESS_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- BO app: ${app_id}\n- BO audience: ${BO_AUD}\n- Manager admission: explicit email policy ${POLICY_NAME} (${policy_id})\n- Allow Everyone: 0\n- Existing Founder policies: untouched\n- BO /bo: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the manager email; pino-core team.bo.access remains canonical BO authorization."

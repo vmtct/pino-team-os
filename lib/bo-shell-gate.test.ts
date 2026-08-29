@@ -25,29 +25,30 @@ function context(identity: VerifiedBoIdentity) {
   return { status: 200, body: { data: { userId: "founder-user", email: identity.email, staffMemberId: null, surface: "BO", entitled: true } }, requestId: "context" };
 }
 
-function users(roleKey = "founder") {
-  return { status: 200, body: { data: [{ id: "founder-user", status: "active", email: "founder@example.com", assignments: [{ roleKey, scopeType: "GLOBAL", scopeId: null, effectiveFrom: "2025-01-01T00:00:00.000Z", effectiveUntil: null }] }] }, requestId: "users" };
-}
-
-test("valid Founder must receive BO context and active canonical Founder proof before shell render", async () => {
+test("valid BO-entitled principal is authorized by canonical Core context before shell render", async () => {
   const f = await fixture();
   const requests: BoAccessRequest[] = []; let identity: VerifiedBoIdentity | undefined;
   const binding: BoAccessCoreBinding = { async execute(request, actor) {
     requests.push(request); identity = actor;
-    return request.path === "context" ? context(actor) : users();
+    return context(actor);
   } };
   const result = await authorizeBoShell(f.headers, env(binding), f.resolver);
-  assert.deepEqual(requests, [{ method: "GET", path: "context" }, { method: "GET", path: "access/users" }]);
+  assert.deepEqual(requests, [{ method: "GET", path: "context" }]);
   assert.equal(identity?.subject, "bo-shell-subject");
   assert.equal(result.entitled, true);
 });
-test("BO-entitled non-Founder is denied even if Cloudflare admitted the identity", async () => {
-  const f = await fixture();
-  const binding: BoAccessCoreBinding = { async execute(request, actor) { return request.path === "context" ? context(actor) : users("bo-operator"); } };
-  await assert.rejects(authorizeBoShell(f.headers, env(binding), f.resolver), (error: unknown) => error instanceof BoShellGateError && error.status === 403);
+
+test("COO-style BO entitlement is accepted without Founder role proof", async () => {
+  const f = await fixture(boAudience, "coo@example.com");
+  const binding: BoAccessCoreBinding = { async execute(_request, actor) {
+    return { status: 200, body: { data: { userId: "coo-user", email: actor.email, staffMemberId: "staff-coo", surface: "BO", entitled: true } }, requestId: "context" };
+  } };
+  const result = await authorizeBoShell(f.headers, env(binding), f.resolver);
+  assert.equal(result.userId, "coo-user");
+  assert.equal(result.staffMemberId, "staff-coo");
 });
 
-test("Core BO entitlement denial fails before Founder proof", async () => {
+test("Core BO entitlement denial fails closed", async () => {
   const f = await fixture(); let calls = 0;
   const binding: BoAccessCoreBinding = { async execute() { calls += 1; return { status: 403, body: { error: { code: "ACCESS_SURFACE_DENIED" } }, requestId: "denied" }; } };
   await assert.rejects(authorizeBoShell(f.headers, env(binding), f.resolver), (error: unknown) => error instanceof BoShellGateError && error.status === 403);
@@ -70,7 +71,7 @@ test("malformed successful Core projection cannot authorize the BO shell", async
   const f = await fixture();
   const binding: BoAccessCoreBinding = { async execute(request, actor) {
     if (request.path === "context") return { ...context(actor), body: { data: { userId: "founder-user", email: "other@example.com", surface: "BO", entitled: true } } };
-    return users();
+    throw new Error("unexpected second Core read");
   } };
   await assert.rejects(authorizeBoShell(f.headers, env(binding), f.resolver), (error: unknown) => error instanceof BoShellGateError && error.status === 403);
 });
