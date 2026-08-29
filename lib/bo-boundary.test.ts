@@ -62,3 +62,12 @@ test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap"
   assert.equal((staffSources.match(/boApi\.scopeCatalog\(\)/g) ?? []).length, 2);
   assert.doesNotMatch(staffSources, /boApi\.(?:centers|pathPrograms|runningClasses)\(/);
 });
+
+test("BO layout gates canonical authorization before rendering the shell", async () => {
+  const source = await readFile("app/bo/layout.tsx", "utf8");
+  assert.match(source, /dynamic\s*=\s*["']force-dynamic["']/);
+  assert.match(source, /authorizeBoShell/);
+  assert.match(source, /forbidden\(\)/);
+  assert.match(source, /PINO_BO_CORE|BoShellGateEnv/);
+  assert.ok(source.indexOf("authorizeBoShell") < source.indexOf("<BoShell"));
+});
