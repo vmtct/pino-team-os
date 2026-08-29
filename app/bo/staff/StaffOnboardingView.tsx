@@ -89,6 +89,7 @@ export function StaffOnboardingView() {
       const response = await boApi.onboardStaff(command, idempotencyKey);
       setResult(response);
       setAttempt(null);
+      window.dispatchEvent(new Event("bo:staff-updated"));
     } catch (error) {
       setSubmitError({ message: error instanceof Error ? error.message : "Staff onboarding failed.", requestId: error instanceof BoApiError ? error.requestId : null });
     } finally {
@@ -148,17 +149,17 @@ export function StaffOnboardingView() {
   }
 
   return (
-    <section className={styles.page}>
+    <section id="add-staff" className={styles.page}>
       <header className={styles.heading}>
         <span>PINO TEAM · BACK OFFICE</span>
-        <h1>Staff onboarding</h1>
-        <p>Create native Workforce records and explicitly provision Access. No Notion identity import, inferred roles, or roleless Access users.</p>
+        <h1>Thêm nhân viên & cấp quyền</h1>
+        <p>Tạo StaffMember canonical và cấp quyền TOS bằng role + scope rõ ràng. Không tạo user không có role.</p>
       </header>
 
       <div className={styles.modeGrid}>
-        <ModeButton active={mode === "record"} title="Staff record only" text="Create canonical StaffMember without login." onClick={() => setMode("record")} />
-        <ModeButton active={mode === "with-access"} title="Staff + Access" text="Create StaffMember and full Access graph atomically." onClick={() => setMode("with-access")} />
-        <ModeButton active={mode === "provision"} title="Provision existing Staff" text="Add Access to an active StaffMember without recreating it." onClick={() => setMode("provision")} />
+        <ModeButton active={mode === "with-access"} title="Tạo staff + quyền" text="Flow mặc định: tạo nhân viên và quyền TOS trong một lần." onClick={() => setMode("with-access")} />
+        <ModeButton active={mode === "record"} title="Chỉ tạo hồ sơ" text="Tạo StaffMember nhưng chưa cấp quyền đăng nhập." onClick={() => setMode("record")} />
+        <ModeButton active={mode === "provision"} title="Cấp quyền staff có sẵn" text="Gắn Access cho StaffMember đã tồn tại." onClick={() => setMode("provision")} />
       </div>
 
       <section className={styles.panel}>
@@ -193,7 +194,7 @@ export function StaffOnboardingView() {
 
       {accessMode ? (
         <section className={styles.panel}>
-          <div className={styles.panelHeading}><div><h2>Access provisioning</h2><p>At least one explicit active non-Founder role is mandatory.</p></div><span className={styles.writePill}>Role required</span></div>
+          <div className={styles.panelHeading}><div><h2>Quyền truy cập TOS</h2><p>Chọn ít nhất một role và phạm vi áp dụng. Founder role không thể cấp từ flow này.</p></div><span className={styles.writePill}>Role bắt buộc</span></div>
           <Field required label="Access email" type="email" value={accessEmail} onChange={setAccessEmail} />
           <div className={styles.assignmentList}>
             {assignments.map((assignment, index) => (
