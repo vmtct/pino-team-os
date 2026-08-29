@@ -84,8 +84,8 @@ jobs:
           zone_raw="${zone_response%$'\n'*}"
           zone_apps="$(normalize_list <<<"${zone_raw:-}" 2>/dev/null || printf '{}')"
           account_ok=false; zone_ok=false
-          [ "$account_code" = "200" ] && jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1 && account_ok=true || true
-          [ "$zone_code" = "200" ] && jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1 && zone_ok=true || true
+          [ "$account_code" = "200" ] && jq -e '.success==true' <<<"$account_apps" >/dev/null 2>&1 && account_ok=true || true
+          [ "$zone_code" = "200" ] && jq -e '.success==true' <<<"$zone_apps" >/dev/null 2>&1 && zone_ok=true || true
           if [ "$account_ok" != true ] && [ "$zone_ok" != true ]; then
             account_errors="$(jq -sc '[.[]?.errors[]? | {code,message}]' <<<"${account_raw:-}" 2>/dev/null || printf '[]')"
             zone_errors="$(jq -sc '[.[]?.errors[]? | {code,message}]' <<<"${zone_raw:-}" 2>/dev/null || printf '[]')"
@@ -174,5 +174,5 @@ jobs:
 
           created_policy_id=""
           state="reused"
-          [ "$policy_id" = "$(jq -r '.id // empty' <<<"${existing:-{}}")" ] || state="created"
+          [ "$policy_id" = "$(jq -r '.id // empty' <<<"${existing:-}")" ] || state="created"
           comment "TOS_STAFF_ACCESS_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS Access scope: ${scope} (${resolution})\n- TOS app: ${app_name} (${app_id})\n- TOS audience: ${TOS_AUD}\n- One-time PIN IdP: allowed\n- Core-gated Staff allow policy: ${state} (${policy_id})\n- Existing Founder policies: untouched\n- TOS /staff-login: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the email identity; pino-core remains canonical for active Access User, active StaffMember, role and scope authorization. BO policy, D1, Staff data, Worker runtime, routes and domains were not mutated."
