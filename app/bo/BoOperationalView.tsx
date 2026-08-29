@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import { buildUnassignedOwnerGroups, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSessionLearningOwner, BoStaffRecord, BoSyllabus } from "@/lib/bo-model";
 import styles from "./bo.module.css";
 
@@ -97,6 +98,9 @@ function Sessions({ data }: { data: Data }) {
   const [loadingOwners, setLoadingOwners] = useState(true);
   const [ownerLoadError, setOwnerLoadError] = useState("");
   const [savingSessionId, setSavingSessionId] = useState<string | null>(null);
+  const [bulkSelections, setBulkSelections] = useState<Record<string, string>>({});
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+  const [bulkStatus, setBulkStatus] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -126,6 +130,30 @@ function Sessions({ data }: { data: Data }) {
     return ownerDelta || left.startsAt.localeCompare(right.startsAt);
   }), [data.sessions, owners]);
   const unassignedCount = data.sessions.filter((session) => !owners[session.id]).length;
+  const ownerGroups = useMemo(() => buildUnassignedOwnerGroups(data.sessions, owners), [data.sessions, owners]);
+
+  async function assignGroup(group: BoLearningOwnerBulkGroup) {
+    const selected = bulkSelections[group.key] ?? "";
+    if (!selected || !group.sessionIds.length) return;
+    const first = data.sessions.find((item) => item.id === group.sessionIds[0]);
+    const label = group.runningClassId ? className(data.classes, group.runningClassId) : first ? sessionLabel(first, data) : "Session";
+    if (!confirm(`Gán ${selectedStaffLabel(staff, selected)} làm Learning Owner cho ${group.sessionIds.length} Session chưa được gán của ${label}?`)) return;
+    setBulkBusy(group.key);
+    setBulkStatus((value) => ({ ...value, [group.key]: "" }));
+    const successes: Record<string, BoSessionLearningOwner> = {};
+    const failures: Record<string, string> = {};
+    for (const sessionId of group.sessionIds) {
+      try { successes[sessionId] = await boApi.assignLearningOwner(sessionId, { staffMemberId: selected, reason: "Assigned from BO Running Class bulk queue" }, `learning-owner-bulk:${group.key}:${sessionId}:${selected}:${crypto.randomUUID()}`); }
+      catch (error) { failures[sessionId] = error instanceof Error ? error.message : "Learning Owner could not be saved."; }
+    }
+    setOwners((value) => ({ ...value, ...successes }));
+    setSelections((value) => ({ ...value, ...Object.fromEntries(Object.keys(successes).map((sessionId) => [sessionId, selected])) }));
+    const cleared = Object.fromEntries(Object.keys(successes).map((sessionId) => [sessionId, ""]));
+    setRowErrors((value) => ({ ...value, ...cleared, ...failures }));
+    const failed = Object.keys(failures).length;
+    setBulkStatus((value) => ({ ...value, [group.key]: failed ? `${Object.keys(successes).length}/${group.sessionIds.length} đã gán · ${failed} Session cần xử lý riêng` : `${group.sessionIds.length} Session đã được gán` }));
+    setBulkBusy(null);
+  }
 
   async function saveOwner(session: BoSession) {
     const selected = selections[session.id] ?? "";
@@ -159,6 +187,7 @@ function Sessions({ data }: { data: Data }) {
       <Panel title={`Learning Owner readiness · ${unassignedCount} unassigned`} hint="Assign exactly one active StaffMember per Session before PRESENT Attendance can create its Diary." mode="write">
         {loadingOwners ? <Loading compact /> : ownerLoadError ? <ErrorState message={ownerLoadError} requestId={null} compact /> : !staff.length ? <Empty text="No active StaffMember is available for Learning Owner assignment." /> : (
           <div className={styles.ownerQueue}>
+            {ownerGroups.length ? <section className={styles.ownerBulk}><div className={styles.ownerBulkHead}><div><strong>Gán nhanh theo lớp</strong><small>Chỉ áp dụng cho Session chưa có owner; owner hiện hữu không bị đổi.</small></div></div>{ownerGroups.map((group) => { const label = group.runningClassId ? className(data.classes, group.runningClassId) : "Session độc lập"; const selected = bulkSelections[group.key] ?? ""; return <div className={styles.ownerBulkRow} key={group.key}><div><strong>{label}</strong><small>{pathName(data.paths, group.pathProgramId)} · {group.sessionIds.length} Session chưa gán</small></div><label className={styles.field}>Learning Owner<select value={selected} onChange={(event) => setBulkSelections((value) => ({ ...value, [group.key]: event.target.value }))}><option value="">Chọn owner…</option>{staff.map((item) => <option key={item.id} value={item.id}>{item.displayLabel}{item.roleLabel ? ` · ${item.roleLabel}` : ""}</option>)}</select></label><button className={styles.secondaryButton} disabled={!selected || bulkBusy === group.key} onClick={() => void assignGroup(group)}>{bulkBusy === group.key ? "Đang gán…" : `Gán ${group.sessionIds.length} Session`}</button>{bulkStatus[group.key] ? <small className={styles.ownerBulkStatus}>{bulkStatus[group.key]}</small> : null}</div>; })}</section> : null}
             {orderedSessions.map((session) => {
               const current = owners[session.id] ?? null;
               const selected = selections[session.id] ?? "";
@@ -300,4 +329,5 @@ function className(classes: BoRunningClass[], id: string | null) { return classe
 function syllabusName(syllabi: BoSyllabus[], id: string | null) { return syllabi.find((item) => item.id === id)?.title ?? "Unlinked syllabus"; }
 function dateTime(value: string) { return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 function sessionLabel(session: BoSession, data: Data) { return `${dateTime(session.startsAt)} · ${className(data.classes, session.runningClassId)}`; }
+function selectedStaffLabel(staff: BoStaffRecord[], id: string) { return staff.find((item) => item.id === id)?.displayLabel ?? "StaffMember đã chọn"; }
 function ageRange(item: BoSyllabus) { if (item.ageMin === null && item.ageMax === null) return "—"; return `${item.ageMin ?? "?"}–${item.ageMax ?? "?"}`; }
