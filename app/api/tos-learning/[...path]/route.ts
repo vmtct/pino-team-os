@@ -1,6 +1,6 @@
 import{getCloudflareContext}from"@opennextjs/cloudflare";
 import{authenticateWorkforce,WorkforceAuthError}from"@/lib/workforce-auth";
-import{isTosStagingBypassRequest,type TosStagingAuthEnv}from"@/lib/tos-staging-auth";
+import{stagingWorkforceIdentity,type TosStagingAuthEnv}from"@/lib/tos-staging-auth";
 import{callTosLearningCore,callTosLearningCoreWithStaffPin,type TosLearningCoreBinding}from"@/lib/tos-learning-core";
 
 export const runtime="nodejs";
@@ -17,19 +17,13 @@ async function handle(request:Request,context:Context){
   try{
     const{env}=await getCloudflareContext({async:true}) as unknown as{env:TosLearningEnv};
     const staffToken=cookie(request,"pino_staff_session");
-    const stagingBypass=isTosStagingBypassRequest(request,env);
-    if(stagingBypass&&!staffToken){
-      return Response.json({error:{code:"STAFF_PIN_REQUIRED",message:"Staff PIN login is required"}},{status:401,headers:{"cache-control":"no-store"}});
-    }
-    const identity=stagingBypass?null:await authenticateWorkforce(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_TOS_AUD});
+    const stagingIdentity=stagingWorkforceIdentity(request,env);
+    const identity=stagingIdentity??(staffToken?null:await authenticateWorkforce(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_TOS_AUD}));
     const{path}=await context.params;
     let body:Record<string,unknown>={};
     const url=new URL(request.url);
     for(const[key,value]of url.searchParams)if(key!=="t")body[key]=value;
-    if(request.method!=="GET"&&request.method!=="HEAD"){
-      const parsed=await request.json().catch(()=>({}));
-      if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))body={...body,...parsed};
-    }
+    if(request.method!=="GET"&&request.method!=="HEAD"){const parsed=await request.json().catch(()=>({}));if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))body={...body,...parsed};}
     const idempotencyKey=request.headers.get("idempotency-key")??undefined;
     const coreRequest={method:request.method,path:`/${path.join("/")}`,body,...(idempotencyKey?{idempotencyKey}:{})};
     const result=staffToken

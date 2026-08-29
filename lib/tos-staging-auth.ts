@@ -1,3 +1,5 @@
+import type { VerifiedWorkforceIdentity } from "./workforce-auth";
+
 export type TosStagingAuthEnv = {
   PINORIA_TOS_STAGING_BYPASS?: string;
   PINORIA_STAGING_STAFF_EMAIL?: string;
@@ -10,8 +12,14 @@ export function isTosStagingBypassRequest(request: Request, env: TosStagingAuthE
   return hostname.endsWith(".workers.dev");
 }
 
-export function stagingStaffEmail(request: Request, env: TosStagingAuthEnv) {
+export function stagingWorkforceIdentity(request: Request, env: TosStagingAuthEnv): VerifiedWorkforceIdentity | null {
   if (!isTosStagingBypassRequest(request, env)) return null;
   const email = env.PINORIA_STAGING_STAFF_EMAIL?.trim().toLowerCase() ?? "";
-  return email && email.includes("@") ? email : null;
+  if (!email || !email.includes("@")) return null;
+  return { provider:"cloudflare_access", subject:"pinoria-tos-staging-bypass-v1", email,
+    issuer:"https://pinoria-staging.invalid", audience:["pinoria-staging"], expiresAt:4_102_444_800 };
+}
+
+export function stagingStaffEmail(request: Request, env: TosStagingAuthEnv) {
+  return stagingWorkforceIdentity(request, env)?.email ?? null;
 }
