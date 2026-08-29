@@ -1,0 +1,128 @@
+name: TOS Canonical External Evaluation
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: tos-canonical-external-eval
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.issue.title == '[GPT] TOS canonical external evaluation' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
+      BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
+      OLD_POLICY: PINO Staff Core-gated OTP
+      NEW_POLICY: PINO Staff Canonical External Evaluation
+      EVALUATE_URL: https://pino-access-evaluator.minhtri-van42.workers.dev/evaluate
+      KEYS_URL: https://pino-access-evaluator.minhtri-van42.workers.dev/keys
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Replace TOS everyone policy with canonical evaluator
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
+          mutated=false
+          original_payload=""
+          app_id=""
+          policy_id=""
+          comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
+          rollback() {
+            if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$policy_id" ] && [ -n "$original_payload" ]; then
+              curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original_payload" >/dev/null 2>&1 || true
+            fi
+          }
+          fail() {
+            rollback
+            comment "TOS_CANONICAL_EXTERNAL_EVAL: **FAIL_SAFE**\n\n$1\n\nIf this run changed the TOS staff policy, the previous policy payload was restored. BO policy, D1, Staff data, Worker routes and domains were not authorized for mutation."
+            exit 1
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_ACCESS_API_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
+          target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          [ "$confirm" = "RECONCILE_TOS_EXTERNAL_EVAL" ] || fail "Exact confirmation missing."
+          [ -n "$target_sha" ] || fail "TEAM_SHA missing."
+          current_main="$(git rev-parse origin/main)"
+          [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
+          [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
+
+          health_code="$(curl -sS -o /dev/null -w '%{http_code}' "${EVALUATE_URL%/evaluate}/health")"
+          keys="$(curl -fsS "$KEYS_URL")" || fail "Evaluator keys endpoint is unavailable."
+          [ "$health_code" = 200 ] || fail "Evaluator health endpoint is not HTTP 200."
+          jq -e '.keys | length == 1 and .[0].kty == "RSA" and .[0].alg == "RS256"' <<<"$keys" >/dev/null || fail "Evaluator keys endpoint is invalid."
+
+          apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot read Access applications."
+          jq -e '.success==true' <<<"$apps" >/dev/null || fail "Access applications API returned failure."
+          matches="$(jq -c --arg aud "$TOS_AUD" '[.result[]? | select((.aud // "") == $aud)]' <<<"$apps")"
+          [ "$(jq 'length' <<<"$matches")" -eq 1 ] || fail "Pinned TOS audience must resolve to exactly one Access app."
+          app="$(jq -c '.[0]' <<<"$matches")"
+          app_id="$(jq -r '.id // empty' <<<"$app")"
+          app_aud="$(jq -r '.aud // empty' <<<"$app")"
+          [ -n "$app_id" ] && [ "$app_aud" = "$TOS_AUD" ] || fail "Resolved TOS app is invalid."
+          [ "$app_aud" != "$BO_AUD" ] || fail "TOS app collides with BO audience."
+
+          policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot read TOS policies."
+          jq -e '.success==true' <<<"$policies" >/dev/null || fail "TOS policy API returned failure."
+          everyone_count="$(jq '[.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length' <<<"$policies")"
+          [ "$everyone_count" -le 1 ] || fail "More than one TOS allow-everyone policy exists; refusing ambiguous mutation."
+
+          existing_external="$(jq -c --arg name "$NEW_POLICY" '.result[]? | select(.name==$name and .decision=="allow" and any(.include[]?; has("external_evaluation")))' <<<"$policies" | head -1)"
+          old="$(jq -c --arg name "$OLD_POLICY" '.result[]? | select(.name==$name and .decision=="allow" and any(.include[]?; has("everyone")))' <<<"$policies" | head -1)"
+          if [ -n "$existing_external" ]; then
+            policy_id="$(jq -r '.id' <<<"$existing_external")"
+          else
+            [ -n "$old" ] || fail "Expected legacy TOS Staff allow-everyone policy was not found."
+            policy_id="$(jq -r '.id' <<<"$old")"
+            original_payload="$(jq -c '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$old")"
+            payload="$(jq -nc --arg name "$NEW_POLICY" --arg eval "$EVALUATE_URL" --arg keys "$KEYS_URL" '{name:$name,decision:"allow",precedence:50,include:[{external_evaluation:{evaluate_url:$eval,keys_url:$keys}}],exclude:[],require:[]}')"
+            updated="$(curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected External Evaluation policy update."
+            jq -e '.success==true and (.result.id|length>0)' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful policy update."
+            mutated=true
+          fi
+
+          verify="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies after update."
+          jq -e '.success==true' <<<"$verify" >/dev/null || fail "TOS policy verification API failed."
+          jq -e --arg id "$policy_id" --arg name "$NEW_POLICY" --arg eval "$EVALUATE_URL" --arg keys "$KEYS_URL" '
+            [.result[]? | select(.id==$id and .name==$name and .decision=="allow"
+              and any(.include[]?; .external_evaluation.evaluate_url? == $eval and .external_evaluation.keys_url? == $keys))] | length==1
+          ' <<<"$verify" >/dev/null || fail "Canonical External Evaluation policy is not present exactly once."
+          jq -e '[.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0' <<<"$verify" >/dev/null || fail "TOS still contains an allow-everyone policy."
+
+          bo="$(jq -c --arg aud "$BO_AUD" '[.result[]? | select((.aud // "") == $aud)]' <<<"$apps")"
+          [ "$(jq 'length' <<<"$bo")" -eq 1 ] || fail "BO audience no longer resolves uniquely."
+          bo_id="$(jq -r '.[0].id' <<<"$bo")"
+          bo_policies="$(curl -fsS "${api}/access/apps/${bo_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify BO policies."
+          jq -e '.success==true and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0)' <<<"$bo_policies" >/dev/null || fail "BO policy invariant failed."
+          headers="$RUNNER_TEMP/tos-external-eval-headers.txt"
+          code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' 'https://tos.pinohouse.art/staff-login' || true)"
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+          [ "$code" = 302 ] || [ "$code" = 303 ] || [ "$code" = 307 ] || fail "TOS perimeter no longer redirects to Cloudflare Access (HTTP ${code})."
+          [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/tos.pinohouse.art"* ]] || fail "TOS challenge endpoint drifted."
+          [[ "$location" == *"kid=${TOS_AUD}"* ]] || fail "TOS audience drifted after policy update."
+
+          mutated=false
+          state="reused"
+          [ -z "$old" ] || state="replaced"
+          comment "TOS_CANONICAL_EXTERNAL_EVAL: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS app: ${app_id}\n- TOS audience: ${TOS_AUD}\n- Staff perimeter policy: ${state} (${policy_id})\n- Allow Everyone policies on TOS: 0\n- Evaluator: ${EVALUATE_URL}\n- Evaluator key: RSA/RS256 ready\n- BO allow-everyone policies: 0\n- TOS challenge preserved (HTTP ${code})\n\nCloudflare now asks the canonical evaluator after OTP; evaluator fails closed unless pino-core authorizes an active TOS Staff principal. BO policy, D1, Staff data, Team/Core runtime, routes and domains were not mutated by this operator."
