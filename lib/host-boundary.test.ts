@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { BO_HOSTNAME, decideHostBoundary, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
-  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/tos-learning/sessions/day", "/founder", "/api/founder/sessions"]) {
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);
   }
 });
 
 test("TOS operational pages require a Staff session cookie", () => {
-  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
   for (const pathname of ["/staff-login", "/api/staff-pin/login", "/api/workforce/context", "/companion", "/_next/static/app.js"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), false, pathname);
   assert.equal(requiresTosStaffSession(BO_HOSTNAME, "/dashboard"), false);
 });
@@ -27,6 +27,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/bo/",
     "/bo/staff",
     "/bo/learners",
+    "/bo/open-studio",
     "/bo/delivery-activation",
     "/bo/running-classes",
     "/bo/sessions",
@@ -34,6 +35,13 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/bo/syllabus",
     "/api/bo/context",
     "/api/bo/learners",
+    "/api/bo/open-studio/operations",
+    "/api/bo/open-studio/passes",
+    "/api/bo/open-studio/listings",
+    "/api/bo/open-studio/member-path-centers/assign",
+    "/api/bo/open-studio/passes/issue-monthly-path",
+    "/api/bo/open-studio/admission",
+    "/api/bo/open-studio/passes/0198d050-56c1-7ac5-b9ab-b0e45d912345/claim-eligibility",
     "/api/bo/students/0198d050-56c1-7ac5-b9ab-b0e45d912345/lifecycle",
     "/api/bo/identity/parents/0198d050-56c1-7ac5-b9ab-b0e45d912345/pin/reset",
     "/api/bo/subscriptions",
@@ -82,6 +90,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/companion",
     "/api/workforce/context",
     "/api/tos-learning/sessions/day",
+    "/api/tos-learning/open-studio/day",
     "/api/companion/login",
     "/founder",
     "/founder/sessions",

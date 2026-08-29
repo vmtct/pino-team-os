@@ -23,9 +23,7 @@ export async function handleBoOperationalReadRequest(
       keyResolver,
     );
     const url = new URL(request.url);
-    const readBody = path === "learners"
-      ? { ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}), ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}) }
-      : undefined;
+    const readBody = readQueryBody(path, url);
     const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path, ...(readBody ? { body: readBody } : {}) }, identity);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
@@ -48,12 +46,28 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/users"
     || path === "workforce/staff-records"
     || path === "learners"
+    || path === "open-studio/operations"
+    || path === "open-studio/passes"
+    || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
 
+function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "learners") return {
+    ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
+    ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
+  };
+  if (path === "open-studio/operations") return url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : undefined;
+  if (path === "open-studio/passes") return { houseMembershipId: url.searchParams.get("houseMembershipId"), effectiveAt: url.searchParams.get("effectiveAt") };
+  if (/^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)) return {
+    listingId: url.searchParams.get("listingId"), participantMode: url.searchParams.get("participantMode"),
+    studentProfileId: url.searchParams.get("studentProfileId"), effectiveAt: url.searchParams.get("effectiveAt"),
+  };
+  return undefined;
+}
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {
   return Response.json(body, { status, headers: { "cache-control": "no-store", ...headers } });
 }

@@ -212,3 +212,62 @@ export interface BoLearnerLifecycle {
   guardians: Array<{ relationshipId: string; relationshipType: string; parent: { id: string; displayName: string | null; status: string; contacts: Array<{ id: string; type: string; value: string; primary: boolean; verifiedAt: string | null }> } }>;
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
 }
+
+export interface BoOpenStudioListing {
+  id: string;
+  sessionId: string;
+  syllabusId: string;
+  experienceType: "KHAM_PHA" | "CAO_CAP" | "CHUYEN_DE";
+  status: "DRAFT" | "PUBLISHED" | "CLOSED" | "CANCELLED";
+  version: number;
+  bookingOpensAt: string | null;
+  bookingClosesAt: string | null;
+  centerId: string;
+  localDate: string;
+  scheduledStartsLocal: string;
+  scheduledEndsLocal: string;
+  pathProgramId: string;
+  pathDisplayName: string;
+  syllabusTitle: string;
+  claimCount: number;
+}
+export interface BoOpenStudioClaim {
+  id: string;
+  passId: string;
+  listingId: string;
+  participantMode: "OWNER" | "SIBLING" | "GUEST";
+  status: "RESERVED" | "CONSUMED" | "RELEASED";
+  bookingId: string | null;
+  registrationId: string | null;
+  studentProfileId: string | null;
+  studentDisplayName: string | null;
+  passClass: "MONTHLY_PATH" | "BRING_A_FRIEND";
+  sessionId: string;
+  centerId: string;
+  localDate: string;
+  scheduledStartsLocal: string;
+  scheduledEndsLocal: string;
+  experienceType: string;
+  reservationStatus: string | null;
+  participantOutcome: string | null;
+  settlementState: string;
+}
+export interface BoOpenStudioOperations {
+  listings: BoOpenStudioListing[];
+  claims: BoOpenStudioClaim[];
+}
+export interface BoOpenStudioPass {
+  pass: {
+    id: string;
+    passClass: "MONTHLY_PATH" | "BRING_A_FRIEND";
+    houseMembershipId: string;
+    ownerStudentProfileId: string | null;
+    pathProgramId: string | null;
+    issuanceCenterId: string;
+    issuancePeriodKey: string;
+    validFrom: string;
+    validUntilExclusive: string;
+    revokedAt: string | null;
+  };
+  effectiveNow: boolean;
+}

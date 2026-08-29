@@ -35,6 +35,12 @@ const RENEWAL_GRACE_REVOKE_PATH = /^renewal-grace\/[0-9a-f-]{36}\/revoke$/;
 const ENROLLMENT_CREATE_PATH = "enrollments";
 const ENROLLMENT_COMMAND_PATH = /^enrollments\/[0-9a-f-]{36}\/(transfer|end)$/;
 const ENROLLMENT_BULK_PATHS = new Set(["enrollments/bulk-preflight", "enrollments/bulk-place"]);
+const OPEN_STUDIO_LISTING_CREATE = "open-studio/listings";
+const OPEN_STUDIO_LISTING_COMMAND = /^open-studio\/listings\/[0-9a-f-]{36}\/(publish|close|cancel)$/;
+const OPEN_STUDIO_CENTER_COMMAND = /^open-studio\/(member-path-centers|member-centers)\/(assign|reassign)$/;
+const OPEN_STUDIO_PASS_ISSUE = new Set(["open-studio/passes/issue-monthly-path", "open-studio/passes/issue-bring-a-friend"]);
+const OPEN_STUDIO_PASS_REVOKE = /^open-studio\/passes\/[0-9a-f-]{36}\/revoke$/;
+const OPEN_STUDIO_ADMISSION = "open-studio/admission";
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -128,7 +134,13 @@ export function isAllowedPostPath(path: string): boolean {
     || RENEWAL_GRACE_REVOKE_PATH.test(path)
     || path === ENROLLMENT_CREATE_PATH
     || ENROLLMENT_COMMAND_PATH.test(path)
-    || ENROLLMENT_BULK_PATHS.has(path);
+    || ENROLLMENT_BULK_PATHS.has(path)
+    || path === OPEN_STUDIO_LISTING_CREATE
+    || OPEN_STUDIO_LISTING_COMMAND.test(path)
+    || OPEN_STUDIO_CENTER_COMMAND.test(path)
+    || OPEN_STUDIO_PASS_ISSUE.has(path)
+    || OPEN_STUDIO_PASS_REVOKE.test(path)
+    || path === OPEN_STUDIO_ADMISSION;
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */
