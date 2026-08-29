@@ -71,12 +71,20 @@ jobs:
           [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
           [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
 
-          account_apps="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
-          zone_apps="$(curl -fsS "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null || true)"
+          account_response="$(curl -sS -w '\n%{http_code}' "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100" "${auth[@]}" || true)"
+          account_code="${account_response##*$'\n'}"
+          account_apps="${account_response%$'\n'*}"
+          zone_response="$(curl -sS -w '\n%{http_code}' "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" || true)"
+          zone_code="${zone_response##*$'\n'}"
+          zone_apps="${zone_response%$'\n'*}"
           account_ok=false; zone_ok=false
-          jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1 && account_ok=true || true
-          jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1 && zone_ok=true || true
-          [ "$account_ok" = true ] || [ "$zone_ok" = true ] || fail "Cannot read Access applications in either account or zone scope."
+          [ "$account_code" = "200" ] && jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1 && account_ok=true || true
+          [ "$zone_code" = "200" ] && jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1 && zone_ok=true || true
+          if [ "$account_ok" != true ] && [ "$zone_ok" != true ]; then
+            account_errors="$(jq -c '[.errors[]? | {code,message}]' <<<"${account_apps:-{}}" 2>/dev/null || printf '[]')"
+            zone_errors="$(jq -c '[.errors[]? | {code,message}]' <<<"${zone_apps:-{}}" 2>/dev/null || printf '[]')"
+            fail "Cannot read Access applications. account_http=${account_code:-000} account_errors=${account_errors}; zone_http=${zone_code:-000} zone_errors=${zone_errors}."
+          fi
 
           resolution=""
           if [ "$account_ok" = true ]; then
