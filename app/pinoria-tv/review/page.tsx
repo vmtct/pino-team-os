@@ -1,63 +1,9 @@
 import Link from "next/link";
 import fontStyles from "../../pinoria-vietnamese-font.module.css";
 import { PinoriaVietnameseLocale } from "../../pinoria-vietnamese-locale";
+import { PINORIA_REVIEW_LIBRARY } from "./review-library";
 
-const routes = [
-  {
-    href: "/pinoria-tv",
-    title: "Operational TV",
-    meta: "Full loop · Ambient / Arrival / Choice / transient / Shop overlay",
-    badge: "LIVE FLOW",
-  },
-  {
-    href: "/pinoria-tv/review/shop",
-    title: "Pinoria Shop",
-    meta: "Cosmetic catalog · live character preview · PLS purchase flow",
-    badge: "INTERACTIVE · SHOP",
-  },
-  {
-    href: "/pinoria-tv/review/inventory",
-    title: "Túi Hành Trang",
-    meta: "Inventory grid · equipped rails · companion · character preview",
-    badge: "INTERACTIVE",
-  },
-  {
-    href: "/pinoria-tv/review/companion",
-    title: "Hộ Linh Visual Registry",
-    meta: "visualId → resolved form · asset fallback · presentation treatment",
-    badge: "COMPANION · VISUAL",
-  },
-  {
-    href: "/pinoria-tv/review/energy-seed",
-    title: "Hạt Năng Lượng",
-    meta: "Reward reveal · committed result · ~10s ritual",
-    badge: "REVEAL",
-  },
-  {
-    href: "/pinoria-tv/review/learning-spotlight",
-    title: "Learning Spotlight",
-    meta: "Milestone reveal · previous / current / next · ~8.6s",
-    badge: "LEARNING",
-  },
-  {
-    href: "/pinoria-tv/review/world-broadcast",
-    title: "World Broadcast",
-    meta: "House-wide announcement · subjectless takeover · ~9.4s",
-    badge: "WORLD",
-  },
-  {
-    href: "/pinoria-tv/review/lost-artifact",
-    title: "Thần Khí Thất Lạc",
-    meta: "4 artifact dossiers · hero-derived palette · generic adaptive icon family",
-    badge: "WORLD · LOST ARTIFACT",
-  },
-  {
-    href: "/pinoria-tv/review/world-state-transition",
-    title: "World State Transition",
-    meta: "Persistent world mutation · old → new Ambient state · ~10.2s",
-    badge: "WORLD STATE",
-  },
-] as const;
+
 
 export default function PinoriaReviewHubPage() {
   return (
@@ -79,10 +25,10 @@ export default function PinoriaReviewHubPage() {
                 PINORIA · FOUNDER REVIEW
               </span>
               <h1 style={{ margin: "8px 0 6px", fontSize: "clamp(34px,5vw,66px)", lineHeight: .95, letterSpacing: "-.045em" }}>
-                Prototype Review Hub
+                Prototype Review Library
               </h1>
               <p style={{ margin: 0, maxWidth: 720, color: "rgba(240,235,224,.58)", fontSize: 15, lineHeight: 1.55 }}>
-                Dùng các route dưới để duyệt từng surface riêng. Operational TV vẫn là nơi duyệt orchestration thật trên cùng một URL.
+                Mỗi review surface mới phải được đăng ký vào library này. Operational TV vẫn là nơi duyệt orchestration thật trên cùng một URL.
               </p>
             </div>
             <Link
@@ -109,7 +55,7 @@ export default function PinoriaReviewHubPage() {
               gap: 14,
             }}
           >
-            {routes.map((route, index) => (
+            {PINORIA_REVIEW_LIBRARY.map((route, index) => (
               <Link
                 key={route.href}
                 href={route.href}
@@ -155,7 +101,7 @@ export default function PinoriaReviewHubPage() {
               lineHeight: 1.6,
             }}
           >
-            Review order recommend: <strong style={{ color: "#f5f0e7" }}>Operational TV → Pinoria Shop → Túi Hành Trang → Hộ Linh Visual Registry → Hạt Năng Lượng → Learning Spotlight → World Broadcast → Thần Khí Thất Lạc → World State Transition</strong>. Với Operational TV, mở Review controls để duyệt Arrival / Quick Choice / Companion Ritual / Departure trên cùng surface.
+            Library hiện có <strong style={{ color: "#f5f0e7" }}>{PINORIA_REVIEW_LIBRARY.length} surfaces</strong>. Khi thêm review/slide mới, đăng ký metadata trong <strong style={{ color: "#f5f0e7" }}>review-library.ts</strong> để surface tự xuất hiện tại đây.
           </aside>
         </div>
       </main>
