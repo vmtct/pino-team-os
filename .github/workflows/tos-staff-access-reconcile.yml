@@ -71,14 +71,18 @@ jobs:
           [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
           [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
 
+          normalize_list() {
+            jq -sc 'if any(.[]; type=="object" and .success==true) then [.[] | select(type=="object" and .success==true)][0] elif (length==1 and (.[0]|type)=="object" and (.[0]|has("result"))) then .[0] + {success:true} elif (length==1 and (.[0]|type)=="array") then {success:true,result:.[0]} elif (length>0 and all(.[]; type=="object" and has("id"))) then {success:true,result:.} else {} end'
+          }
+
           account_response="$(curl -sS -w '\n%{http_code}' "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=100" "${auth[@]}" || true)"
           account_code="${account_response##*$'\n'}"
           account_raw="${account_response%$'\n'*}"
-          account_apps="$(jq -sc '[.[] | select(.success==true)] | .[0] // {}' <<<"${account_raw:-}" 2>/dev/null || printf '{}')"
+          account_apps="$(normalize_list <<<"${account_raw:-}" 2>/dev/null || printf '{}')"
           zone_response="$(curl -sS -w '\n%{http_code}' "${api}/zones/${ZONE_ID}/access/apps?per_page=100" "${auth[@]}" || true)"
           zone_code="${zone_response##*$'\n'}"
           zone_raw="${zone_response%$'\n'*}"
-          zone_apps="$(jq -sc '[.[] | select(.success==true)] | .[0] // {}' <<<"${zone_raw:-}" 2>/dev/null || printf '{}')"
+          zone_apps="$(normalize_list <<<"${zone_raw:-}" 2>/dev/null || printf '{}')"
           account_ok=false; zone_ok=false
           [ "$account_code" = "200" ] && jq -e '.success==true' <<<"${account_apps:-{}}" >/dev/null 2>&1 && account_ok=true || true
           [ "$zone_code" = "200" ] && jq -e '.success==true' <<<"${zone_apps:-{}}" >/dev/null 2>&1 && zone_ok=true || true
