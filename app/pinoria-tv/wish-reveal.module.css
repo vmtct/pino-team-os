@@ -20,3 +20,7 @@
 .heroImage{position:absolute;z-index:2;inset:4% 3% 0;width:94%;height:96%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 34px 40px #0008);mask-image:linear-gradient(#000 72%,transparent 98%)}
 .learnerBadge{display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:5px 12px 5px 6px;border-radius:999px;border:1px solid #ffffff15;background:#07100d80}.learnerMini{position:relative;width:44px;height:44px;overflow:hidden;border-radius:50%;background:#27352e;flex:0 0 auto}.learnerBadge span{display:block;color:#cbd4c9;font-size:8px;letter-spacing:.1em}.learnerBadge strong{display:block;margin-top:1px;font-size:12px}.pullGrid[data-single="true"]{grid-template-columns:minmax(250px,340px);justify-content:start}.pullGrid[data-perfect="true"]{grid-template-columns:minmax(310px,390px)}
 .learnerCharacter{position:absolute!important;inset:0;width:100%;height:100%}.learnerCharacter img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:50% 50%}
+
+.configuredBackground{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;opacity:.32;filter:saturate(.9) contrast(1.05)}
+.scene[data-theme="aerin-sky"] .configuredBackground{opacity:.38}
+.music{display:none}

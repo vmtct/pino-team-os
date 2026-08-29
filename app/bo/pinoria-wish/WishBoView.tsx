@@ -2,18 +2,19 @@
 import { useEffect, useMemo, useState } from "react";
 import bo from "../bo.module.css";
 import styles from "./pinoria-wish.module.css";
+import {CatalogManager} from "./CatalogManager";
 
 type Bearer={id:string;key:string;displayName:string;title:string;status:string};
 type SetRow={id:string;key:string;bearerId:string;displayName:string;status:string};
 type Wearable={id:string;key:string;displayName:string;slot:string;rarity:"COMMON"|"RARE"|"MYTHIC";setId:string|null;status:string;metadata:unknown};
 type Variant={id:string;wearableId:string;key:string;displayName:string;status:string};
 type Catalog={bearers:Bearer[];sets:SetRow[];wearables:Wearable[];variants:Variant[]};
-type Banner={id:string;key:string;familyKey:string;bearerId:string;signatureSetId:string;rulesVersion:string;status:"DRAFT"|"SCHEDULED"|"ACTIVE"|"RETIRED";startsAt:string;endsAt:string;displayName:string;storyHook:string;heroAssetKey:string;regionKey:string;definitionHash:string|null;version:number};
+type Banner={id:string;key:string;familyKey:string;bearerId:string;signatureSetId:string;rulesVersion:string;status:"DRAFT"|"SCHEDULED"|"ACTIVE"|"RETIRED";startsAt:string;endsAt:string;displayName:string;storyHook:string;heroAssetKey:string;regionKey:string;presentation?:{profileKey:string;themeKey:string;backgroundAssetKey:string|null;vfxProfileKey:string|null;musicAssetKey:string|null}|null;definitionHash:string|null;version:number};
 type Envelope<T>={data?:T;error?:{message?:string}};
-type FormState={bannerKey:string;displayName:string;storyHook:string;heroAssetKey:string;regionKey:string;bearerId:string;signatureSetId:string;offBannerId:string;rareId:string;commonId:string;startsAt:string;endsAt:string};
+type FormState={bannerKey:string;displayName:string;storyHook:string;heroAssetKey:string;regionKey:string;bearerId:string;signatureSetId:string;offBannerId:string;rareId:string;commonId:string;startsAt:string;endsAt:string;profileKey:string;themeKey:string;backgroundAssetKey:string;vfxProfileKey:string;musicAssetKey:string};
 
 function localValue(date:Date){const offset=date.getTimezoneOffset()*60000;return new Date(date.getTime()-offset).toISOString().slice(0,16);}
-function initialForm():FormState{const start=new Date(Date.now()-5*60_000),end=new Date(Date.now()+30*86400_000);return{bannerKey:`aerin-${Date.now()}`,displayName:"Dư Âm của Aerin",storyHook:"Aerin vẫn nhớ lối về.",heroAssetKey:"pinoria/wish/aerin/hero/v001",regionKey:"sky-garden",bearerId:"",signatureSetId:"",offBannerId:"",rareId:"",commonId:"",startsAt:localValue(start),endsAt:localValue(end)};}
+function initialForm():FormState{const start=new Date(Date.now()-5*60_000),end=new Date(Date.now()+30*86400_000);return{bannerKey:`aerin-${Date.now()}`,displayName:"Dư Âm của Aerin",storyHook:"Aerin vẫn nhớ lối về.",heroAssetKey:"pinoria/wish/aerin/hero/v001",regionKey:"sky-garden",bearerId:"",signatureSetId:"",offBannerId:"",rareId:"",commonId:"",startsAt:localValue(start),endsAt:localValue(end),profileKey:"wish-reveal-v1",themeKey:"aerin-sky",backgroundAssetKey:"",vfxProfileKey:"sky-memory-v1",musicAssetKey:""};}
 
 async function request<T>(path:string,init?:RequestInit){const response=await fetch(`/api/founder/${path}`,{cache:"no-store",...init});const json=await response.json() as Envelope<T>;if(!response.ok||!json.data)throw new Error(json.error?.message??"BO operation failed");return json.data;}
 export function WishBoView(){
@@ -27,7 +28,7 @@ export function WishBoView(){
   function field<K extends keyof FormState>(key:K,value:FormState[K]){setForm(current=>({...current,[key]:value}));if(key==="bearerId"&&catalog){const signatureSetId=catalog.sets.find(item=>item.bearerId===value&&item.status==="ACTIVE")?.id||"";setForm(current=>({...current,bearerId:String(value),signatureSetId}));}}
   async function createBanner(){
     setBusy("create");setError("");setMessage("");
-    try{const body={bannerKey:form.bannerKey,familyKey:"LIMITED_WARDROBE",bearerId:form.bearerId,signatureSetId:form.signatureSetId,rulesVersion:"pinoria-wish-v1-draft",startsAt:new Date(form.startsAt).toISOString(),endsAt:new Date(form.endsAt).toISOString(),displayName:form.displayName,storyHook:form.storyHook,heroAssetKey:form.heroAssetKey,regionKey:form.regionKey,pools:{offBannerMythic:[{wearableId:form.offBannerId}],rare:[{wearableId:form.rareId}],common:[{wearableId:form.commonId}]}};
+    try{const body={bannerKey:form.bannerKey,familyKey:"LIMITED_WARDROBE",bearerId:form.bearerId,signatureSetId:form.signatureSetId,rulesVersion:"pinoria-wish-v1-draft",startsAt:new Date(form.startsAt).toISOString(),endsAt:new Date(form.endsAt).toISOString(),displayName:form.displayName,storyHook:form.storyHook,heroAssetKey:form.heroAssetKey,regionKey:form.regionKey,presentation:{profileKey:form.profileKey,themeKey:form.themeKey,backgroundAssetKey:form.backgroundAssetKey||null,vfxProfileKey:form.vfxProfileKey||null,musicAssetKey:form.musicAssetKey||null},pools:{offBannerMythic:[{wearableId:form.offBannerId}],rare:[{wearableId:form.rareId}],common:[{wearableId:form.commonId}]}};
       const banner=await request<Banner>("pinoria/wish/banners",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});setMessage(`Đã tạo draft ${banner.displayName}`);setBanners(current=>[banner,...current]);setForm(initialForm());await load();
     }catch(cause){setError(cause instanceof Error?cause.message:"Không tạo được banner");}finally{setBusy("");}
   }
@@ -48,6 +49,7 @@ export function WishBoView(){
     </section>
     {error?<div className={`${bo.card} ${bo.denied}`}><strong>Lỗi</strong><span>{error}</span></div>:null}
     {message?<div className={bo.successCard}><span>Pinoria BO</span><strong>{message}</strong></div>:null}
+    <CatalogManager onChanged={()=>void load()}/>
     <section className={bo.panel}>
       <div className={bo.panelHeading}><div><h2>Tạo Wish banner</h2><p>Không nhập UUID tay — chọn từ catalog hiện có.</p></div><span className={bo.writePill}>STAGING WRITE</span></div>
       <div className={bo.formGrid}>
@@ -59,6 +61,11 @@ export function WishBoView(){
         <label className={bo.field}>Rare pool<select value={form.rareId} onChange={event=>field("rareId",event.target.value)}>{rare.map(item=><option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
         <label className={bo.field}>Common pool<select value={form.commonId} onChange={event=>field("commonId",event.target.value)}>{common.map(item=><option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
         <label className={bo.field}>Region key<input value={form.regionKey} onChange={event=>field("regionKey",event.target.value)}/></label>
+        <label className={bo.field}>TV profile<input value={form.profileKey} onChange={event=>field("profileKey",event.target.value)}/></label>
+        <label className={bo.field}>Theme key<input value={form.themeKey} onChange={event=>field("themeKey",event.target.value)}/></label>
+        <label className={bo.field}>VFX profile<input value={form.vfxProfileKey} onChange={event=>field("vfxProfileKey",event.target.value)}/></label>
+        <label className={bo.field}>Background asset<input value={form.backgroundAssetKey} onChange={event=>field("backgroundAssetKey",event.target.value)} placeholder="optional"/></label>
+        <label className={bo.field}>Music asset<input value={form.musicAssetKey} onChange={event=>field("musicAssetKey",event.target.value)} placeholder="optional"/></label>
         <label className={bo.field}>Bắt đầu<input type="datetime-local" value={form.startsAt} onChange={event=>field("startsAt",event.target.value)}/></label>
         <label className={bo.field}>Kết thúc<input type="datetime-local" value={form.endsAt} onChange={event=>field("endsAt",event.target.value)}/></label>
         <label className={`${bo.field} ${styles.full}`}>Story hook<input value={form.storyHook} onChange={event=>field("storyHook",event.target.value)}/></label>
@@ -70,7 +77,7 @@ export function WishBoView(){
       <div className={bo.panelHeading}><div><h2>Banner lifecycle</h2><p>Draft → validate → scheduled → active → retired.</p></div><button className={bo.secondaryButton} onClick={()=>void load()}>Refresh</button></div>
       <div className={styles.bannerList}>{banners.length===0?<div className={bo.empty}>Chưa có banner nào.</div>:banners.map(banner=><article className={styles.bannerCard} key={banner.id}>
         <div className={styles.bannerHead}><div><span className={bo.statusPill}>{banner.status}</span><h3>{banner.displayName}</h3><p>{banner.storyHook}</p></div><code>{banner.key}</code></div>
-        <div className={styles.bannerMeta}><span>{new Date(banner.startsAt).toLocaleString("vi-VN")}</span><span>→</span><span>{new Date(banner.endsAt).toLocaleString("vi-VN")}</span><span>v{banner.version}</span></div>
+        <div className={styles.bannerMeta}><span>{new Date(banner.startsAt).toLocaleString("vi-VN")}</span><span>→</span><span>{new Date(banner.endsAt).toLocaleString("vi-VN")}</span><span>v{banner.version}</span><span>{banner.presentation?.profileKey ?? "legacy visual"}</span><span>{banner.presentation?.themeKey ?? "default"}</span></div>
         <div className={styles.actions}>
           {banner.status==="DRAFT"?<button className={bo.secondaryButton} disabled={!!busy} onClick={()=>void validate(banner)}>Validate</button>:null}
           {banner.status==="DRAFT"?<button className={bo.primaryButton} disabled={!!busy} onClick={()=>void lifecycle(banner,"schedule")}>Schedule</button>:null}

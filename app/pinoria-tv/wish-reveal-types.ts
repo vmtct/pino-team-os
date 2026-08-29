@@ -41,6 +41,7 @@ export type WishRevealProjection = {
     storyHook: string;
     heroAssetKey: string;
     regionKey: string;
+    experience?: { profileKey: string; themeKey: string; backgroundAssetKey: string | null; vfxProfileKey: string | null; musicAssetKey: string | null };
     bearer: { id: string; key: string; displayName: string; title: string };
     signatureSet: { id: string; key: string; displayName: string; pieces: WishRevealItem[] };
   };

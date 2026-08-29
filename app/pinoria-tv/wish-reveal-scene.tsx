@@ -77,6 +77,9 @@ export function WishRevealScene({ reveal }: { reveal: WishRevealProjection }) {
   const featured = reveal.pulls.some((pull) => pull.revealKind === "FEATURED_MEMORY" || pull.revealKind === "PERFECT_MEMORY");
   const lastPull = reveal.pulls.at(-1);
   const heroUrl = pinoriaAssetUrl(reveal.banner.heroAssetKey);
+  const experience = reveal.banner.experience;
+  const backgroundUrl = pinoriaAssetUrl(experience?.backgroundAssetKey);
+  const musicUrl = pinoriaAssetUrl(experience?.musicAssetKey);
   const initial = reveal.banner.bearer.displayName.trim().charAt(0).toUpperCase() || "✦";
   const gridStyle = { "--pull-count": Math.max(1, reveal.pulls.length) } as CSSProperties;
 
@@ -85,7 +88,12 @@ export function WishRevealScene({ reveal }: { reveal: WishRevealProjection }) {
     data-pinoria-wish-reveal
     data-wish-reveal-id={reveal.revealId}    data-wish-pull-count={reveal.pulls.length}
     data-perfect={perfect ? "true" : "false"}
+    data-profile={experience?.profileKey ?? "wish-reveal-v1"}
+    data-theme={experience?.themeKey ?? "default"}
+    data-vfx={experience?.vfxProfileKey ?? "default"}
   >
+    {backgroundUrl ? <div className={styles.configuredBackground} style={{ backgroundImage: `url("${backgroundUrl}")` }} /> : null}
+    {musicUrl ? <audio className={styles.music} src={musicUrl} autoPlay loop /> : null}
     <div className={styles.mist} /><div className={styles.vignette} />
     <header className={styles.header}>
       <div>
