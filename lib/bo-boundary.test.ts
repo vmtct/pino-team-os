@@ -39,12 +39,13 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
   assert.doesNotMatch(sources, /founderApi|WorkforceWorkspace|\/founder|\/api\/workforce|NOTION|PINO_CORE|PINO_WORKFORCE_CORE/);
   assert.doesNotMatch(readSources, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
   assert.doesNotMatch(apiSource, /method:\s*["'](?:PUT|PATCH|DELETE)["']/);
-  assert.equal((apiSource.match(/method:\s*["']POST["']/g) ?? []).length, 1);
+  assert.equal((apiSource.match(/method:\s*["']POST["']/g) ?? []).length, 2);
   assert.match(apiSource, /updateStaff:[\s\S]*workforce\/staff-records/);
   assert.match(apiSource, /setStaffStatus:[\s\S]*\/status/);
   assert.match(apiSource, /assignAccessRole:[\s\S]*access\/assignments/);
   assert.match(apiSource, /removeAccessAssignment:[\s\S]*access\/assignments\/remove/);
   assert.match(apiSource, /setAccessUserStatus:[\s\S]*access\/users\/status/);
+  assert.match(apiSource, /configureStaffPin:[\s\S]*\/api\/staff-pin\/configure/);
   assert.match(apiSource, /onboardStaff:[\s\S]*write<BoStaffOnboardingResult>\("workforce\/staff-onboarding"/);
   assert.match(apiSource, /assignLearningOwner:[\s\S]*write<BoSessionLearningOwner>/);
 });
