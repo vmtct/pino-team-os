@@ -1,6 +1,10 @@
-import{getCloudflareContext}from"@opennextjs/cloudflare";
-import{authenticateWorkforce,WorkforceAuthError}from"@/lib/workforce-auth";
-import type{StaffPinCoreBinding}from"@/lib/staff-pin-core";
-export const runtime="nodejs";export const dynamic="force-dynamic";
-type Env={PINO_STAFF_PIN_CORE:StaffPinCoreBinding;CF_ACCESS_TEAM_DOMAIN:string;CF_ACCESS_TOS_AUD:string};
-export async function POST(request:Request){try{const{env}=await getCloudflareContext({async:true})as unknown as{env:Env};await authenticateWorkforce(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_TOS_AUD});const input=await request.json()as{loginIdentifier?:string;pin?:string},result=await env.PINO_STAFF_PIN_CORE.login({loginIdentifier:input.loginIdentifier??"",pin:input.pin??""}),headers=new Headers({"cache-control":"no-store","x-request-id":result.requestId});if(result.status===200){const token=((result.body as{data?:{token?:string}}).data?.token)??"";headers.append("set-cookie",`pino_staff_session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=43200`);}return Response.json(result.body,{status:result.status,headers});}catch(error){if(error instanceof WorkforceAuthError)return Response.json({error:{code:"IDENTITY_AUTHENTICATION_FAILED",message:error.message}},{status:error.status});return Response.json({error:{code:"PLATFORM_INTERNAL_ERROR",message:"Không thể đăng nhập bằng PIN"}},{status:500});}}
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { handleStaffPinLogin, type StaffPinLoginEnv } from "@/lib/staff-pin-login-handler";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(request: Request) {
+  const { env } = await getCloudflareContext({ async: true }) as unknown as { env: StaffPinLoginEnv };
+  return handleStaffPinLogin(request, env);
+}

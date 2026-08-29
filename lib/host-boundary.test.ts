@@ -1,11 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BO_HOSTNAME, decideHostBoundary, RETIRED_TEAM_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
+import { BO_HOSTNAME, decideHostBoundary, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
   for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/tos-learning/sessions/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);
   }
+});
+
+test("TOS operational pages require a Staff session cookie", () => {
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
+  for (const pathname of ["/staff-login", "/api/staff-pin/login", "/api/workforce/context", "/companion", "/_next/static/app.js"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), false, pathname);
+  assert.equal(requiresTosStaffSession(BO_HOSTNAME, "/dashboard"), false);
 });
 
 test("TOS cannot reach BO routes or the BO API", () => {
