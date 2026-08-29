@@ -13,7 +13,7 @@ export function buildUnassignedOwnerGroups(
 ): BoLearningOwnerBulkGroup[] {
   const groups = new Map<string, BoLearningOwnerBulkGroup>();
   for (const session of sessions) {
-    if (session.status !== "SCHEDULED" || owners[session.id]) continue;
+    if (session.status !== "SCHEDULED" || !session.syllabusId || owners[session.id]) continue;
     const key = session.runningClassId ? `class:${session.runningClassId}` : `session:${session.id}`;
     const current = groups.get(key) ?? {
       key,
