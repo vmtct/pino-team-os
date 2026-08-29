@@ -3,6 +3,7 @@ export const PINORIA_REVIEW_LIBRARY = [
   { href: "/pinoria-tv/review/shop", title: "Pinoria Shop", meta: "Cosmetic catalog · live character preview · PLS purchase flow", badge: "INTERACTIVE · SHOP" },
   { href: "/pinoria-tv/review/inventory", title: "Túi Hành Trang", meta: "Inventory grid · equipped rails · companion · character preview", badge: "INTERACTIVE" },
   { href: "/pinoria-tv/review/secret-butterfly", title: "Túi Hành Trang · Secret Butterfly", meta: "Inventory shell · center-cropped Secret Butterfly WebM · aura / ambient / orbit marks", badge: "INTERACTIVE · CHARACTER" },
+  { href: "/pinoria-tv/review/piano-teacher", title: "Túi Hành Trang · Giáo viên Piano", meta: "Inventory shell · piano teacher WebM · legacy aura · music mark only · companion", badge: "INTERACTIVE · CHARACTER" },
   { href: "/pinoria-tv/review/companion", title: "Hộ Linh Visual Registry", meta: "visualId → resolved form · asset fallback · presentation treatment", badge: "COMPANION · VISUAL" },
   { href: "/pinoria-tv/review/egg-water", title: "Trứng Nước", meta: "Egg state · intermittent shake · shared companion anchor", badge: "COMPANION · EGG" },
   { href: "/pinoria-tv/review/sigil", title: "Ấn Mori", meta: "Sigil state · body-matched breathing · linked HSL glow", badge: "COMPANION · SIGIL" },
