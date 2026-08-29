@@ -1,0 +1,56 @@
+name: Access OTP Suppression Probe
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    if: github.event.issue.title == '[GPT] Access OTP suppression probe' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+
+    steps:
+      - name: Probe suppression list without exposing address
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_hash="$(sed -nE 's/^TARGET_EMAIL_SHA256:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          [ -n "$target_hash" ] || { echo 'Missing target hash' >&2; exit 1; }
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/email/sending/suppressions?per_page=100"
+          summary=""
+          probe_token() {
+            local label="$1" token="$2" body code found reason ro expires h
+            if [ -z "$token" ]; then summary+="- ${label}: token_unavailable\n"; return; fi
+            body="$(mktemp)"
+            code="$(curl -sS -o "$body" -w '%{http_code}' "$api" -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' || true)"
+            if [ "$code" != "200" ]; then summary+="- ${label}: http_${code}\n"; return; fi
+            if ! jq -e '.success==true' "$body" >/dev/null 2>&1; then summary+="- ${label}: api_failure\n"; return; fi
+            found=false; reason=""; ro=""; expires=""
+            while IFS=$'\t' read -r email row_reason row_ro row_expires; do
+              [ -n "$email" ] || continue
+              h="$(printf '%s' "$(tr '[:upper:]' '[:lower:]' <<<"$email")" | sha256sum | awk '{print $1}')"
+              if [ "$h" = "$target_hash" ]; then
+                found=true; reason="$row_reason"; ro="$row_ro"; expires="$row_expires"; break
+              fi
+            done < <(jq -r '.result[]? | [.email, (.reason // ""), (.read_only|tostring), (.expires_at // "")] | @tsv' "$body")
+            if [ "$found" = "true" ]; then
+              summary+="- ${label}: match=true, reason=${reason:-unknown}, read_only=${ro:-unknown}, expires=${expires:-none}\n"
+            else
+              summary+="- ${label}: match=false\n"
+            fi
+          }
+          probe_token CF_API_TOKEN "${CF_API_TOKEN:-}"
+          probe_token CF_ACCESS_API_TOKEN "${CF_ACCESS_API_TOKEN:-}"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "ACCESS_OTP_SUPPRESSION_PROBE: **PASS**\n\n${summary}\nTarget address was compared only by SHA-256 and was never printed. Read-only Cloudflare API probe; no suppression, policy, Worker, D1, Staff, route, or domain mutation performed."
