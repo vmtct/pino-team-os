@@ -223,3 +223,61 @@
 @media (max-width: 620px) {
   .boNav { grid-template-columns: 1fr; }
 }
+
+
+.boWorkspaceSwitcher {
+  margin: 0 4px 22px;
+  border: 1px solid #30323f;
+  border-radius: 12px;
+  background: #1e2029;
+}
+.boWorkspaceSwitcher summary {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  padding: 11px 12px;
+  list-style: none;
+  cursor: pointer;
+}
+.boWorkspaceSwitcher summary::-webkit-details-marker { display: none; }
+.boWorkspaceSwitcher summary span {
+  grid-column: 1 / -1;
+  color: #797b89;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.boWorkspaceSwitcher summary strong { font-size: 13px; }
+.boWorkspaceSwitcher summary b { color: #8d8f9c; font-size: 14px; }
+
+.boWorkspaceMenu {
+  display: grid;
+  gap: 4px;
+  padding: 5px;
+  border-top: 1px solid #30323f;
+}
+.boWorkspaceMenu a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #bdbdc7;
+  font-size: 12px;
+}
+.boWorkspaceMenu a:hover,
+.boWorkspaceMenu a:focus-visible,
+.boWorkspaceActive {
+  background: #2a2c39;
+  color: #fff !important;
+}
+.boWorkspaceMenu small {
+  color: #838594;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
