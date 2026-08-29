@@ -29,7 +29,10 @@ jobs:
           api="https://api.cloudflare.com/client/v4"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
           inspect() {
-            local label="$1" url="$2" headers="$RUNNER_TEMP/${label}.headers" body="$RUNNER_TEMP/${label}.body"
+            local label="$1"
+            local url="$2"
+            local headers="$RUNNER_TEMP/${label}.headers"
+            local body="$RUNNER_TEMP/${label}.body"
             local code ctype bytes shape
             code="$(curl -sS -D "$headers" -o "$body" -w '%{http_code}' "$url" "${auth[@]}" || true)"
             ctype="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
