@@ -24,6 +24,7 @@ const DELIVERY_POST_PATHS = new Set([
 ]);
 const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
+const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -53,6 +54,10 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A JSON request body is required" } }, 400);
     }
 
+    if (PARENT_PIN_PATH.test(path) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Parent PIN command body must be empty" } }, 400);
+    }
+
     const coreRequest: BoAccessRequest = {
       method: "POST",
       path,
@@ -80,7 +85,8 @@ export function isAllowedPostPath(path: string): boolean {
     || STAFF_STATUS_PATH.test(path)
     || DELIVERY_POST_PATHS.has(path)
     || MATERIALIZATION_PUBLISH.test(path)
-    || LEARNING_OWNER_PATH.test(path);
+    || LEARNING_OWNER_PATH.test(path)
+    || PARENT_PIN_PATH.test(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */
