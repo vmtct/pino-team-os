@@ -15,6 +15,6 @@
     "TOPPI_STAGING_CENTER_ID": "00000000-0000-7000-8000-000000000001"
   },
   "services": [
-    { "binding": "PINO_BO_CORE", "service": "pino-core-toppi-staging", "entrypoint": "BoAccessControlPlane" }
+    { "binding": "PINO_BO_CORE", "service": "pino-core-staging", "entrypoint": "BoAccessControlPlane" }
   ]
 }

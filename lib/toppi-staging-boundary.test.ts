@@ -22,7 +22,7 @@ test("synthetic Toppi staging bindings never leak into production Wrangler confi
     assert.equal(production.includes(marker), false, marker);
   }
   assert.match(staging, /"TOPPI_STAGING_MODE": "canonical-synthetic"/);
-  assert.match(staging, /"service": "pino-core-toppi-staging"/);
+  assert.match(staging, /"service": "pino-core-staging"/);
   assert.match(staging, /"entrypoint": "BoAccessControlPlane"/);
 });
 

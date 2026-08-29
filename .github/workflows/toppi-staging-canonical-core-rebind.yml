@@ -1,0 +1,42 @@
+﻿name: Toppi Staging Canonical Core Rebind
+
+on:
+  push:
+    branches: [fix/toppi-staging-canonical-core-rebind]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toppi-staging-canonical-core-rebind
+  cancel-in-progress: false
+
+jobs:
+  rebind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      STAGING_URL: https://pino-team-os-toppi-staging.minhtri-van42.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --import tsx --test lib/toppi-staging-boundary.test.ts
+      - run: npx opennextjs-cloudflare build
+      - name: Deploy staging only
+        run: npx wrangler deploy --config wrangler.toppi-staging.jsonc
+      - name: Verify canonical Core binding and smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="$(npx wrangler versions list --name pino-team-os-toppi-staging --json | jq -r '.[0].id')"
+          details="$(npx wrangler versions view "$latest" --name pino-team-os-toppi-staging --json)"
+          jq -e '[.resources.bindings[]? | select(.name == "PINO_BO_CORE" and .service == "pino-core-staging" and .entrypoint == "BoAccessControlPlane" and (.service_deleted // false) == false)] | length == 1' <<<"$details" >/dev/null
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$STAGING_URL/api/health")" = "200"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$STAGING_URL/api/toppi-staging/students")" = "200"
