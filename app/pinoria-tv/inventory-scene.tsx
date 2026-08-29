@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AMBIENT_HOUSE_ARRIVAL_ASSETS } from "./arrival-visual-config";
+import { EggWaterCompanion } from "./egg-water-companion";
 import { CharacterCompanionAnchor, PinoriaCharacterFrame, activatedMarkIdsFromEarned, characterAccessoriesFromEquipment } from "./character-frame";
 import {
   PrototypeCharacter,
@@ -178,7 +179,7 @@ function WearableSlot({ slot, imageUrl }: { slot: InventoryWearableSlot; imageUr
   );
 }
 
-export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfaceId?: string }) {
+export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID, companionVariant = "default" }: { surfaceId?: string; companionVariant?: "default" | "egg-water" }) {
   const [catalog, setCatalog] = useState<ShopCatalogItem[]>([]);
   const [session, setSession] = useState<ShopSessionSnapshot | null>(null);
 
@@ -339,7 +340,7 @@ export function InventoryScene({ surfaceId = PINORIA_SHOP_SURFACE_ID }: { surfac
           >
             <div style={{ position: "relative", width: "min(440px,34vw,56vh)", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
               <PrototypeCharacter subjectId={session?.subject.id ?? "bo"} motion="shop-preview" layerOverrides={layerOverrides} prestigeMarkIds={activatedMarkIds} size="100%" style={{ filter: "drop-shadow(0 19px 22px rgba(0,0,0,.2))" }} />
-              <CharacterCompanionAnchor surface="inventory"><PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} /></CharacterCompanionAnchor>
+              <CharacterCompanionAnchor surface="inventory">{companionVariant === "egg-water" ? <EggWaterCompanion size="100%" /> : <PrototypeCompanion size="100%" style={{ filter: "drop-shadow(0 20px 20px rgba(0,0,0,.42)) drop-shadow(0 7px 8px rgba(0,0,0,.28))" }} />}</CharacterCompanionAnchor>
             </div>
           </PinoriaCharacterFrame>        </section>
 
