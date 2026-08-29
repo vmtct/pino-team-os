@@ -44,7 +44,10 @@ async function write<T>(path: string, body: unknown, idempotencyKey: string): Pr
     headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
     body: JSON.stringify(body),
   });
-  const payload = await response.json() as { data?: T; error?: { message?: string; requestId?: string } };
+  const text = await response.text();
+  let payload: { data?: T; error?: { message?: string; requestId?: string } };
+  try { payload = JSON.parse(text) as typeof payload; }
+  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id")); }
   if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Back Office command could not be completed.");
   return payload.data;
 }
