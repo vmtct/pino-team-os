@@ -64,6 +64,14 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized);
 }
 
+export function requiresTosStaffSession(host: string, pathname: string): boolean {
+  if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
+  const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  if (normalized === "/") return true;
+  return ["/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
+    .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
+}
+
 function isFrameworkAsset(pathname: string): boolean {
   return pathname.startsWith("/_next/");
 }
