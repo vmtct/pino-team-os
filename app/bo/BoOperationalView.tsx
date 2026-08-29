@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import { buildUnassignedOwnerGroups, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
+import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSessionLearningOwner, BoStaffRecord, BoSyllabus } from "@/lib/bo-model";
 import styles from "./bo.module.css";
 
@@ -131,6 +131,7 @@ function Sessions({ data }: { data: Data }) {
   }), [data.sessions, owners]);
   const unassignedCount = data.sessions.filter((session) => !owners[session.id]).length;
   const ownerGroups = useMemo(() => buildUnassignedOwnerGroups(data.sessions, owners), [data.sessions, owners]);
+  const readinessCounts = useMemo(() => attendanceReadinessCounts(data.sessions, owners), [data.sessions, owners]);
 
   async function assignGroup(group: BoLearningOwnerBulkGroup) {
     const selected = bulkSelections[group.key] ?? "";
@@ -184,15 +185,16 @@ function Sessions({ data }: { data: Data }) {
 
   return (
     <Page title="Sessions" subtitle="Dated occurrences with capacity, linked curriculum, and Learning Owner readiness.">
-      <Panel title={`Learning Owner readiness · ${unassignedCount} unassigned`} hint="Assign exactly one active StaffMember per Session before PRESENT Attendance can create its Diary." mode="write">
+      <Panel title={`Attendance unlock · ${readinessCounts.needsOwnerOnly} chỉ thiếu Owner`} hint={`${readinessCounts.presentReady} ready · ${readinessCounts.needsSyllabus} blocked bởi Syllabus · ${unassignedCount} Session chưa có owner tổng cộng.`} mode="write">
         {loadingOwners ? <Loading compact /> : ownerLoadError ? <ErrorState message={ownerLoadError} requestId={null} compact /> : !staff.length ? <Empty text="No active StaffMember is available for Learning Owner assignment." /> : (
           <div className={styles.ownerQueue}>
-            {ownerGroups.length ? <section className={styles.ownerBulk}><div className={styles.ownerBulkHead}><div><strong>Gán nhanh theo lớp</strong><small>Chỉ áp dụng cho Session chưa có owner; owner hiện hữu không bị đổi.</small></div></div>{ownerGroups.map((group) => { const label = group.runningClassId ? className(data.classes, group.runningClassId) : "Session độc lập"; const selected = bulkSelections[group.key] ?? ""; return <div className={styles.ownerBulkRow} key={group.key}><div><strong>{label}</strong><small>{pathName(data.paths, group.pathProgramId)} · {group.sessionIds.length} Session chưa gán</small></div><label className={styles.field}>Learning Owner<select value={selected} onChange={(event) => setBulkSelections((value) => ({ ...value, [group.key]: event.target.value }))}><option value="">Chọn owner…</option>{staff.map((item) => <option key={item.id} value={item.id}>{item.displayLabel}{item.roleLabel ? ` · ${item.roleLabel}` : ""}</option>)}</select></label><button className={styles.secondaryButton} disabled={!selected || bulkBusy === group.key} onClick={() => void assignGroup(group)}>{bulkBusy === group.key ? "Đang gán…" : `Gán ${group.sessionIds.length} Session`}</button>{bulkStatus[group.key] ? <small className={styles.ownerBulkStatus}>{bulkStatus[group.key]}</small> : null}</div>; })}</section> : null}
+            {ownerGroups.length ? <section className={styles.ownerBulk}><div className={styles.ownerBulkHead}><div><strong>Gán nhanh để mở Attendance</strong><small>Chỉ gồm Session có primary Syllabus và chưa có owner; Syllabus-blocked Session không xuất hiện ở đây.</small></div></div>{ownerGroups.map((group) => { const label = group.runningClassId ? className(data.classes, group.runningClassId) : "Session độc lập"; const selected = bulkSelections[group.key] ?? ""; return <div className={styles.ownerBulkRow} key={group.key}><div><strong>{label}</strong><small>{pathName(data.paths, group.pathProgramId)} · {group.sessionIds.length} Session chưa gán</small></div><label className={styles.field}>Learning Owner<select value={selected} onChange={(event) => setBulkSelections((value) => ({ ...value, [group.key]: event.target.value }))}><option value="">Chọn owner…</option>{staff.map((item) => <option key={item.id} value={item.id}>{item.displayLabel}{item.roleLabel ? ` · ${item.roleLabel}` : ""}</option>)}</select></label><button className={styles.secondaryButton} disabled={!selected || bulkBusy === group.key} onClick={() => void assignGroup(group)}>{bulkBusy === group.key ? "Đang gán…" : `Gán ${group.sessionIds.length} Session`}</button>{bulkStatus[group.key] ? <small className={styles.ownerBulkStatus}>{bulkStatus[group.key]}</small> : null}</div>; })}</section> : null}
             {orderedSessions.map((session) => {
               const current = owners[session.id] ?? null;
               const selected = selections[session.id] ?? "";
               const changing = Boolean(current && current.staffMemberId !== selected);
               const currentStaff = current ? staff.find((item) => item.id === current.staffMemberId) : null;
+              const readiness = attendanceReadinessState(session, current);
               const disabled = !selected || savingSessionId === session.id || selected === current?.staffMemberId || (changing && !(reasons[session.id] ?? "").trim());
               return (
                 <article className={styles.ownerRow} key={session.id}>
@@ -200,6 +202,7 @@ function Sessions({ data }: { data: Data }) {
                     <strong>{sessionLabel(session, data)}</strong>
                     <span>{pathName(data.paths, session.pathProgramId)} · {syllabusName(data.syllabi, session.syllabusId)}</span>
                     <small>{current ? `Owner: ${currentStaff?.displayLabel ?? current.staffMemberId} · v${current.version}` : "Owner chưa được gán"}</small>
+                    <small className={styles.ownerReadiness}>{readiness === "PRESENT_READY" ? "Attendance PRESENT ready" : readiness === "NEEDS_OWNER" ? "Attendance PRESENT · chỉ còn thiếu Learning Owner" : readiness === "NEEDS_SYLLABUS" ? "Attendance PRESENT blocked · thiếu primary Syllabus" : "Ngoài upcoming Attendance scope"}</small>
                   </div>
                   <div className={styles.ownerControls}>
                     <label className={styles.field}>Learning Owner

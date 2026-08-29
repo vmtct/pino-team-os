@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildUnassignedOwnerGroups } from "./bo-learning-owner-bulk";
+import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups } from "./bo-learning-owner-bulk";
 import type { BoSession, BoSessionLearningOwner } from "./bo-model";
 
 function session(id: string, runningClassId: string | null): BoSession {
@@ -29,12 +29,23 @@ test("unlinked Sessions stay separate so bulk never joins unrelated occurrences"
 
 test("bulk readiness ignores non-SCHEDULED Sessions", () => {
   const completed = { ...session("s4", "class-a"), status: "COMPLETED" };
-  const groups = buildUnassignedOwnerGroups([completed], {});
-  assert.deepEqual(groups, []);
+  assert.deepEqual(buildUnassignedOwnerGroups([completed], {}), []);
 });
 
 test("bulk readiness excludes Sessions without primary Syllabus", () => {
   const blocked = { ...session("s5", "class-piano"), syllabusId: null };
-  const groups = buildUnassignedOwnerGroups([blocked], {});
-  assert.deepEqual(groups, []);
+  assert.deepEqual(buildUnassignedOwnerGroups([blocked], {}), []);
+});
+
+test("Attendance readiness separates owner-only from Syllabus-blocked Sessions", () => {
+  const ready = session("ready", "class-a");
+  const needsOwner = session("owner", "class-a");
+  const needsSyllabus = { ...session("syllabus", "class-piano"), syllabusId: null };
+  const owners = { ready: owner("ready") };
+  assert.equal(attendanceReadinessState(ready, owners.ready), "PRESENT_READY");
+  assert.equal(attendanceReadinessState(needsOwner, null), "NEEDS_OWNER");
+  assert.equal(attendanceReadinessState(needsSyllabus, null), "NEEDS_SYLLABUS");
+  assert.deepEqual(attendanceReadinessCounts([ready, needsOwner, needsSyllabus], owners), {
+    presentReady: 1, needsOwnerOnly: 1, needsSyllabus: 1,
+  });
 });

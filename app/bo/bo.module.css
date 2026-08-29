@@ -87,6 +87,7 @@
 .ownerControls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) auto; gap: 10px; align-items: end; }
 .ownerControls .primaryButton { min-height: 40px; }
 .ownerError { margin: 0; color: #9b3838; font-size: 11px; }
+.ownerReadiness { color: #5d5677 !important; font-weight: 800; }
 .ownerBulk { display: grid; gap: 10px; padding: 14px; border: 1px solid #dcd8ef; border-radius: 14px; background: #f8f6ff; }
 .ownerBulkHead { display: flex; justify-content: space-between; gap: 12px; }
 .ownerBulkHead div { display: grid; gap: 4px; }
