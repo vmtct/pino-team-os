@@ -6,8 +6,8 @@
   "compatibility_flags":["nodejs_compat"],
   "assets":{"binding":"ASSETS","directory":".open-next/assets"},
   "observability":{"enabled":true},
-  "vars":{"FOUNDER_EMAIL":"minhtri.van42@gmail.com,chuthhang@gmail.com"},
-  "services":[{"binding":"PINO_CORE","service":"pino-core","entrypoint":"FounderControlPlane"}],
+  "vars":{"FOUNDER_EMAIL":"minhtri.van42@gmail.com,chuthhang@gmail.com","PINORIA_CENTER_ID":"01a02354-6be1-7c77-a2dd-513052a18b98"},
+  "services":[{"binding":"PINO_CORE","service":"pino-core","entrypoint":"FounderControlPlane"},{"binding":"PINO_TOS_CORE","service":"pino-core","entrypoint":"TosLearningControlPlane"},{"binding":"PINO_STAFF_PIN_CORE","service":"pino-core","entrypoint":"StaffPinControlPlane"},{"binding":"PINO_TV_CORE","service":"pino-core","entrypoint":"PinoriaTvControlPlane"}],
   "routes":[
     {"pattern":"tos.pinohouse.art","custom_domain":true},
     {"pattern":"team.pinohouse.art","custom_domain":true}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PINORIA_SHOP_RELAY_URL, PINORIA_SHOP_SURFACE_ID, type EnergySeedReward, type PinoriaSurfaceSessionSnapshot } from "../pinoria-tv/shop-types";
 import { PinoriaStaffController } from "./pinoria-staff-controller";
+import { PinoriaWishController } from "./pinoria-wish-controller";
 
 const CONTROLLER_SESSION_URL = "/api/pinoria-prototype/controller-session";
 const CONTROLLER_COMMAND_URL = "/api/pinoria-prototype/controller-command";
@@ -368,6 +369,7 @@ export function PinoriaControllerGate({ staffToken, staff }: { staffToken: strin
 
         {error ? <div className="p2-controller-error">{error}</div> : null}
       </section>
+      <PinoriaWishController staffToken={staffToken} clientId={clientId} ownsLease={ownsLease} />
       <PinoriaStaffController />
     </div>
   );

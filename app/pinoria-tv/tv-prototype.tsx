@@ -42,7 +42,7 @@ import {
 import { WorldStateAmbientOverlay } from "./world-state-ambient-overlay";
 import { claimWishReveal, completeWishReveal } from "./wish-reveal-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
-import type { WishRevealProjection } from "./wish-reveal-types";
+import { PINORIA_WISH_REVEAL_DEMO_URL, PINORIA_WISH_REVEAL_URL, type WishRevealProjection } from "./wish-reveal-types";
 import {
   WORLD_STATE_TRANSITION_MS,
   WorldStateTransitionScene,
@@ -163,6 +163,7 @@ function captureAmbientHandoffTarget(subjectId: string): AmbientHandoffTarget | 
 }
 
 export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: boolean }) {
+  const wishRevealEndpoint = reviewEnabled ? PINORIA_WISH_REVEAL_DEMO_URL : PINORIA_WISH_REVEAL_URL;
   const [mode, setMode] = useState<Mode>("ambient");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [subject, setSubject] = useState<TVSubject>(defaultSubject);
@@ -279,7 +280,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
     async function finishWishReveal(revealId: string) {
       if (activeWishRevealId.current !== revealId) return;
       try {
-        await completeWishReveal(SURFACE_ID, revealId);
+        await completeWishReveal(SURFACE_ID, revealId, wishRevealEndpoint);
       } catch {
         sequenceTimer.current = window.setTimeout(() => { void finishWishReveal(revealId); }, 1500);
         return;
@@ -449,7 +450,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
           if (!stopped && data.surface?.worldState && modeRef.current === "ambient") setWorldState(data.surface.worldState);
           if (!stopped && data.surface?.housePresence) applyHousePresence(data.surface.housePresence);
           if (!stopped && !data.surface?.activeEvent && modeRef.current === "ambient") {
-            const claimedWish = await claimWishReveal(SURFACE_ID).catch(() => null);
+            const claimedWish = await claimWishReveal(SURFACE_ID, wishRevealEndpoint).catch(() => null);
             if (claimedWish && !busyRef.current) playWishReveal(claimedWish.projection);
           }
           return;
@@ -486,7 +487,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
       window.clearInterval(pollTimer);
       clearSequenceTimers();
     };
-  }, []);
+  }, [wishRevealEndpoint]);
 
   useEffect(() => {
     const relayMode = mode === "departure-transition" ? "departure" : mode === "wish" ? "ambient" : mode;
@@ -513,7 +514,7 @@ export function PinoriaTVPrototype({ reviewEnabled = false }: { reviewEnabled?: 
       activeWishRevealId.current = null;
       busyRef.current = false;
       setWishReveal(null);
-      void completeWishReveal(SURFACE_ID, wishId).catch(() => undefined);
+      void completeWishReveal(SURFACE_ID, wishId, wishRevealEndpoint).catch(() => undefined);
     }
     const id = activeEventId.current;
     if (id !== null) {

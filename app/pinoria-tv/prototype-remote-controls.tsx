@@ -10,7 +10,7 @@ import {
   type ShopCategoryId,
   type ShopSessionSnapshot,
 } from "./shop-types";
-import { PINORIA_WISH_REVEAL_URL } from "./wish-reveal-types";
+import { PINORIA_WISH_REVEAL_DEMO_URL } from "./wish-reveal-types";
 
 type MockStudent = {
   id: string;
@@ -100,7 +100,7 @@ export function OperationalTvRemoteControl() {
     setBusy(true);
     setStatus("Đang đưa kết quả Gieo Ước mẫu vào hàng đợi…");
     try {
-      const response = await fetch(PINORIA_WISH_REVEAL_URL, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ op: "enqueue-demo", surfaceId: SURFACE_ID, variant }) });
+      const response = await fetch(PINORIA_WISH_REVEAL_DEMO_URL, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ op: "enqueue-demo", surfaceId: SURFACE_ID, variant }) });
       setStatus(response.ok ? `Wish ${variant === "single" ? "×1" : variant === "five" ? "×5" : "Perfect Memory"} đã vào hàng đợi.` : "Không enqueue được Wish demo.");
     } catch { setStatus("Wish demo tạm mất kết nối."); }
     finally { setBusy(false); }

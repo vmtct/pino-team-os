@@ -53,4 +53,5 @@ export type ClaimedWishReveal = {
 };
 
 export const PINORIA_WISH_REVEAL_URL = "/api/pinoria-prototype/wish-reveal";
+export const PINORIA_WISH_REVEAL_DEMO_URL = "/api/pinoria-prototype/wish-reveal-demo";
 export const PINORIA_WISH_SURFACE_CENTER = "RECEPTION_TV";
