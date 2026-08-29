@@ -3,9 +3,10 @@
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
-import { claimWishReveal, completeWishReveal } from "./wish-reveal-client";
+import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
-import type { WishRevealProjection } from "./wish-reveal-types";
+import type { PinoriaPresentation } from "./presentation-types";
+import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
 import styles from "./reception-tv.module.css";
 
 type Presence = {
@@ -39,10 +40,10 @@ export function ReceptionTv() {
   const [connected, setConnected] = useState(false);
   const [inside, setInside] = useState<Presence[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [wishReveal, setWishReveal] = useState<WishRevealProjection | null>(null);
+  const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
   const cursor = useRef(0);
   const wasConnected = useRef(false);
-  const wishBusy = useRef(false);
+  const presentationBusy = useRef(false);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search).get("centerId")?.trim() ?? "";
@@ -115,53 +116,54 @@ export function ReceptionTv() {
     const timer = window.setInterval(() => void pollHouse(), 750);
     return () => window.clearInterval(timer);
   }, [centerId, pollHouse]);
-  const pollWish = useCallback(async () => {
-    if (!centerId || wishBusy.current || wishReveal || scenes.length > 0) return;
-    wishBusy.current = true;
+  const pollPresentation = useCallback(async () => {
+    if (!centerId || presentationBusy.current || presentation || scenes.length > 0) return;
+    presentationBusy.current = true;
     try {
-      const claimed = await claimWishReveal(centerId);
-      if (claimed) setWishReveal(claimed.projection);
+      const claimed = await claimPresentation(centerId);
+      if (claimed) setPresentation(claimed);
     } catch {
       // House presence remains usable if the Wish relay is temporarily unavailable.
     } finally {
-      wishBusy.current = false;
+      presentationBusy.current = false;
     }
-  }, [centerId, scenes.length, wishReveal]);
+  }, [centerId, scenes.length, presentation]);
 
   useEffect(() => {
     if (!centerId) return;
-    void pollWish();
-    const timer = window.setInterval(() => void pollWish(), 1000);
+    void pollPresentation();
+    const timer = window.setInterval(() => void pollPresentation(), 1000);
     return () => window.clearInterval(timer);
-  }, [centerId, pollWish]);
+  }, [centerId, pollPresentation]);
 
   useEffect(() => {
-    if (!scenes.length || wishReveal) return;
+    if (!scenes.length || presentation) return;
     const timer = window.setTimeout(() => setScenes((queue) => queue.slice(1)), 5200);
     return () => window.clearTimeout(timer);
-  }, [scenes, wishReveal]);
+  }, [scenes, presentation]);
 
   useEffect(() => {
-    if (!wishReveal || !centerId) return;
-    const revealId = wishReveal.revealId;
+    if (!presentation || !centerId) return;
+    const presentationId = presentation.id;
     let cancelled = false;
     let timer = 0;
 
     const finish = async () => {      try {
-        await completeWishReveal(centerId, revealId);
+        await completePresentation(centerId, presentationId);
         if (cancelled) return;
-        setWishReveal((current) => current?.revealId === revealId ? null : current);
+        setPresentation((current) => current?.id === presentationId ? null : current);
       } catch {
         if (!cancelled) timer = window.setTimeout(() => void finish(), 1500);
       }
     };
 
-    timer = window.setTimeout(() => void finish(), wishRevealSceneMs(wishReveal));
+    const duration = presentation.kind === "WISH_REVEAL" ? wishRevealSceneMs(presentation.projection) : EGG_HATCH_SCENE_MS;
+    timer = window.setTimeout(() => void finish(), duration);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [centerId, wishReveal]);
+  }, [centerId, presentation]);
 
   function saveCenter() {
     const value = draft.trim();
@@ -171,7 +173,7 @@ export function ReceptionTv() {
     wasConnected.current = false;
     setInside([]);
     setScenes([]);
-    setWishReveal(null);
+    setPresentation(null);
     setCenterId(value);
   }
 
@@ -181,7 +183,7 @@ export function ReceptionTv() {
     wasConnected.current = false;
     setInside([]);
     setScenes([]);
-    setWishReveal(null);
+    setPresentation(null);
     setCenterId("");
   }
   if (!centerId) {
@@ -197,7 +199,7 @@ export function ReceptionTv() {
   }
 
   const scene = scenes[0] ?? null;
-  const active = Boolean(scene || wishReveal);
+  const active = Boolean(scene || presentation);
   return <main className={`${styles.stage} ${active ? styles.active : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
@@ -235,14 +237,15 @@ export function ReceptionTv() {
         <p>{scene.kind === "arrival" ? "Pinoria đã nhận ra bạn ✦" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
-    {!scene && !wishReveal ? <section className={styles.idle}>
+    {!scene && !presentation ? <section className={styles.idle}>
       <div className={styles.sigil}>P</div>
       <span>PINORIA HOUSE IS ALIVE</span>
       <h1>Chào mừng đến PINO House</h1>
       <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
     </section> : null}
 
-    {wishReveal ? <WishRevealScene reveal={wishReveal} /> : null}
+    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
+    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
 
     <footer>
       <span>{new Date().toLocaleDateString("vi-VN", {
