@@ -17,7 +17,7 @@ export function stagingBoWorkforceIdentity(
   if (!email || !email.includes("@")) return null;
   return {
     provider: "cloudflare_access",
-    subject: "workforce-bo-staging-probe-v1",
+    subject: "workforce-planning-staging-probe-v1",
     email,
     issuer: "https://workforce-staging.invalid",
     audience: ["workforce-bo-staging"],

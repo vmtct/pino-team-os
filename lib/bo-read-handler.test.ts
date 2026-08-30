@@ -144,7 +144,7 @@ test("workers.dev Workforce staging identity can read allowlisted BO operations 
   }, "delivery/bootstrap-state");
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-request-id"), "staging-bootstrap");
-  assert.equal(identity?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(identity?.subject, "workforce-planning-staging-probe-v1");
   assert.equal(identity?.email, "workforce-planning-staging-probe@pino.invalid");
 });
 
