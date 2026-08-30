@@ -1,11 +1,10 @@
 import type { JWTVerifyGetKey } from "jose";
-import { authenticateWorkforce, WorkforceAuthError } from "./workforce-auth";
+import { authenticateGoogleCredential, GoogleAuthError } from "./google-auth";
 import type { StaffPinCoreBinding } from "./staff-pin-core";
 
 export type StaffPinLoginEnv = {
   PINO_STAFF_PIN_CORE: StaffPinCoreBinding;
-  CF_ACCESS_TEAM_DOMAIN: string;
-  CF_ACCESS_TOS_AUD: string;
+  GOOGLE_SSO_CLIENT_ID: string;
 };
 
 export async function handleStaffPinLogin(
@@ -14,22 +13,42 @@ export async function handleStaffPinLogin(
   keyResolver?: JWTVerifyGetKey,
 ): Promise<Response> {
   try {
-    const identity = await authenticateWorkforce(
-      request.headers,
-      { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_TOS_AUD },
+    const input = await request.json() as { credential?: string; pin?: string };
+    const identity = await authenticateGoogleCredential(
+      input.credential ?? "",
+      env.GOOGLE_SSO_CLIENT_ID,
       keyResolver,
     );
-    const input = await request.json() as { pin?: string };
-    const result = await env.PINO_STAFF_PIN_CORE.login({ loginIdentifier: identity.email, pin: input.pin ?? "" });    const headers = new Headers({ "cache-control": "no-store", "x-request-id": result.requestId });
+    const result = await env.PINO_STAFF_PIN_CORE.login({
+      loginIdentifier: identity.email,
+      pin: input.pin ?? "",
+    });
+    const headers = new Headers({
+      "cache-control": "no-store",
+      "x-request-id": result.requestId,
+    });
     if (result.status === 200) {
       const token = ((result.body as { data?: { token?: string } }).data?.token) ?? "";
-      headers.append("set-cookie", `pino_staff_session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=43200`);
+      if (!token) return Response.json(
+        { error: { code: "PLATFORM_INTERNAL_ERROR", message: "Staff session was not issued" } },
+        { status: 500, headers },
+      );
+      headers.append(
+        "set-cookie",
+        `pino_staff_session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=43200`,
+      );
     }
     return Response.json(result.body, { status: result.status, headers });
   } catch (error) {
-    if (error instanceof WorkforceAuthError) {
-      return Response.json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, { status: error.status });
+    if (error instanceof GoogleAuthError) {
+      return Response.json(
+        { error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } },
+        { status: error.status, headers: { "cache-control": "no-store" } },
+      );
     }
-    return Response.json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "Không thể đăng nhập bằng PIN" } }, { status: 500 });
+    return Response.json(
+      { error: { code: "PLATFORM_INTERNAL_ERROR", message: "Không thể đăng nhập bằng Google + PIN" } },
+      { status: 500, headers: { "cache-control": "no-store" } },
+    );
   }
 }
