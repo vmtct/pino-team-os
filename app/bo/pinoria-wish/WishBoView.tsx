@@ -17,6 +17,14 @@ type FormState={bannerKey:string;displayName:string;storyHook:string;heroAssetKe
 function localValue(date:Date){const offset=date.getTimezoneOffset()*60000;return new Date(date.getTime()-offset).toISOString().slice(0,16);}
 function initialForm():FormState{const start=new Date(Date.now()-5*60_000),end=new Date(Date.now()+30*86400_000);return{bannerKey:`aerin-${Date.now()}`,displayName:"Dư Âm của Aerin",storyHook:"Aerin vẫn nhớ lối về.",heroAssetKey:"pinoria/wish/aerin/hero/v001",regionKey:"sky-garden",bearerId:"",signatureSetId:"",rulesVersion:"",offBannerId:"",rareId:"",commonId:"",startsAt:localValue(start),endsAt:localValue(end),profileKey:"wish-reveal-v1",themeKey:"aerin-sky",backgroundAssetKey:"",vfxProfileKey:"sky-memory-v1",musicAssetKey:""};}
 
+type ReleasePreset={key:string;label:string;displayName:string;storyHook:string;heroAssetKey:string;regionKey:string;themeKey:string;vfxProfileKey:string};
+const RELEASE_PRESETS:ReleasePreset[]=[
+  {key:"mid-autumn-female-2026",label:"Trung Thu · Nữ",displayName:"Trung Thu · Nữ",storyHook:"Một ký ức dưới trăng rằm, kể qua Original Bearer của bộ trang phục.",heroAssetKey:"pinoria/wish/mid-autumn-female/hero/v001",regionKey:"moon-festival",themeKey:"mid-autumn-female",vfxProfileKey:"moon-festival-v1"},
+  {key:"mid-autumn-male-2026",label:"Trung Thu · Nam",displayName:"Trung Thu · Nam",storyHook:"Một ký ức dưới trăng rằm, kể qua Original Bearer của bộ trang phục.",heroAssetKey:"pinoria/wish/mid-autumn-male/hero/v001",regionKey:"moon-festival",themeKey:"mid-autumn-male",vfxProfileKey:"moon-festival-v1"},
+  {key:"autumn-phase-b-2026",label:"Thu · Phase B",displayName:"Dư Âm Mùa Thu",storyHook:"Seasonal owner tiếp nối sau spotlight Trung Thu.",heroAssetKey:"pinoria/wish/autumn/hero/v001",regionKey:"autumn",themeKey:"autumn-seasonal",vfxProfileKey:"autumn-v1"},
+];
+function overlaps(aStart:string,aEnd:string,bStart:string,bEnd:string){const a0=new Date(aStart).getTime(),a1=new Date(aEnd).getTime(),b0=new Date(bStart).getTime(),b1=new Date(bEnd).getTime();return Number.isFinite(a0+a1+b0+b1)&&a0<b1&&b0<a1;}
+
 async function request<T>(path:string,init?:RequestInit){const response=await fetch(`/api/founder/${path}`,{cache:"no-store",...init});const json=await response.json() as Envelope<T>;if(!response.ok||!json.data)throw new Error(json.error?.message??"BO operation failed");return json.data;}
 export function WishBoView(){
   const[catalog,setCatalog]=useState<Catalog|null>(null),[banners,setBanners]=useState<Banner[]>([]),[rules,setRules]=useState<RuleVersion[]>([]),[form,setForm]=useState<FormState>(initialForm),[busy,setBusy]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState("");
@@ -24,12 +32,16 @@ export function WishBoView(){
   const offBanner=useMemo(()=>catalog?.wearables.filter(item=>item.rarity==="MYTHIC"&&item.setId===null&&item.status==="ACTIVE")??[],[catalog]);
   const rare=useMemo(()=>catalog?.wearables.filter(item=>item.rarity==="RARE"&&item.status==="ACTIVE")??[],[catalog]);
   const common=useMemo(()=>catalog?.wearables.filter(item=>item.rarity==="COMMON"&&item.status==="ACTIVE")??[],[catalog]);
+  const phasePeers=useMemo(()=>banners.filter(item=>item.familyKey==="LIMITED_WARDROBE"&&(item.status==="SCHEDULED"||item.status==="ACTIVE")&&overlaps(form.startsAt,form.endsAt,item.startsAt,item.endsAt)),[banners,form.startsAt,form.endsAt]);
+  const mismatchedPeers=useMemo(()=>phasePeers.filter(item=>item.rulesVersion!==form.rulesVersion),[phasePeers,form.rulesVersion]);
+  const phaseIssue=mismatchedPeers.length?"Banner cùng phase phải dùng cùng Economy Rule Version.":phasePeers.length>=2?"Phase đã đủ 2 featured Wearable banners; Autumn phải sang Phase B.":"";
   async function load(){setError("");try{const[c,b,r]=await Promise.all([request<Catalog>("pinoria/wish/catalog"),request<Banner[]>("pinoria/wish/banners"),request<RuleVersion[]>("pinoria/wish/rules")]);setCatalog(c);setBanners(b);setRules(r);setForm(current=>{const bearerId=current.bearerId||c.bearers.find(item=>item.status==="ACTIVE")?.id||"";const signatureSetId=current.signatureSetId||c.sets.find(item=>item.bearerId===bearerId&&item.status==="ACTIVE")?.id||"";const rulesVersion=r.some(rule=>rule.status==="PUBLISHED"&&rule.key===current.rulesVersion)?current.rulesVersion:r.find(rule=>rule.status==="PUBLISHED")?.key||"";return{...current,bearerId,signatureSetId,rulesVersion,offBannerId:current.offBannerId||c.wearables.find(item=>item.rarity==="MYTHIC"&&item.setId===null&&item.status==="ACTIVE")?.id||"",rareId:current.rareId||c.wearables.find(item=>item.rarity==="RARE"&&item.status==="ACTIVE")?.id||"",commonId:current.commonId||c.wearables.find(item=>item.rarity==="COMMON"&&item.status==="ACTIVE")?.id||""};});}catch(cause){setError(cause instanceof Error?cause.message:"Không tải được Wish BO");}}
   useEffect(()=>{void load();},[]);
   function field<K extends keyof FormState>(key:K,value:FormState[K]){setForm(current=>({...current,[key]:value}));if(key==="bearerId"&&catalog){const signatureSetId=catalog.sets.find(item=>item.bearerId===value&&item.status==="ACTIVE")?.id||"";setForm(current=>({...current,bearerId:String(value),signatureSetId}));}}
+  function applyReleasePreset(preset:ReleasePreset){setForm(current=>({...current,bannerKey:preset.key,displayName:preset.displayName,storyHook:preset.storyHook,heroAssetKey:preset.heroAssetKey,regionKey:preset.regionKey,profileKey:"wish-reveal-v1",themeKey:preset.themeKey,vfxProfileKey:preset.vfxProfileKey}));setMessage(`Đã nạp preset ${preset.label}. Chọn Bearer/Set thật và verify asset trước khi publish.`);}
   async function createBanner(){
     setBusy("create");setError("");setMessage("");
-    try{const body={bannerKey:form.bannerKey,familyKey:"LIMITED_WARDROBE",bearerId:form.bearerId,signatureSetId:form.signatureSetId,rulesVersion:form.rulesVersion,startsAt:new Date(form.startsAt).toISOString(),endsAt:new Date(form.endsAt).toISOString(),displayName:form.displayName,storyHook:form.storyHook,heroAssetKey:form.heroAssetKey,regionKey:form.regionKey,presentation:{profileKey:form.profileKey,themeKey:form.themeKey,backgroundAssetKey:form.backgroundAssetKey||null,vfxProfileKey:form.vfxProfileKey||null,musicAssetKey:form.musicAssetKey||null},pools:{offBannerMythic:[{wearableId:form.offBannerId}],rare:[{wearableId:form.rareId}],common:[{wearableId:form.commonId}]}};
+    try{if(phaseIssue)throw new Error(phaseIssue);const body={bannerKey:form.bannerKey,familyKey:"LIMITED_WARDROBE",bearerId:form.bearerId,signatureSetId:form.signatureSetId,rulesVersion:form.rulesVersion,startsAt:new Date(form.startsAt).toISOString(),endsAt:new Date(form.endsAt).toISOString(),displayName:form.displayName,storyHook:form.storyHook,heroAssetKey:form.heroAssetKey,regionKey:form.regionKey,presentation:{profileKey:form.profileKey,themeKey:form.themeKey,backgroundAssetKey:form.backgroundAssetKey||null,vfxProfileKey:form.vfxProfileKey||null,musicAssetKey:form.musicAssetKey||null},pools:{offBannerMythic:[{wearableId:form.offBannerId}],rare:[{wearableId:form.rareId}],common:[{wearableId:form.commonId}]}};
       const banner=await request<Banner>("pinoria/wish/banners",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});setMessage(`Đã tạo draft ${banner.displayName}`);setBanners(current=>[banner,...current]);setForm(initialForm());await load();
     }catch(cause){setError(cause instanceof Error?cause.message:"Không tạo được banner");}finally{setBusy("");}
   }
@@ -53,6 +65,12 @@ export function WishBoView(){
     <CatalogManager onChanged={()=>void load()}/>
     <RuleManager rules={rules} onChanged={load}/>
     <section className={bo.panel}>
+      <div className={bo.panelHeading}><div><h2>Release planner</h2><p>BO preflight cho seasonal release; Core release-phase enforcement vẫn là bước canonical sau.</p></div><span className={bo.writePill}>CONFIG READY</span></div>
+      <div className={styles.releasePresets}>{RELEASE_PRESETS.map(preset=><button key={preset.key} className={bo.secondaryButton} onClick={()=>applyReleasePreset(preset)}>{preset.label}</button>)}</div>
+      <div className={styles.releaseRules}><span><b>Phase A</b> · tối đa 2 Wearable banners · cùng window + exact Economy Rule.</span><span><b>Companion</b> · chạy lane riêng bằng Egg/Hatch/Ritual, không ăn Wearable pity.</span><span><b>Phase B</b> · Autumn chỉ rotate vào sau spotlight Trung Thu.</span><span><b>Sex-neutral</b> · không khóa banner Nam/Nữ theo giới tính học viên.</span></div>
+      <div className={phaseIssue?styles.releaseIssue:styles.releaseReady}><strong>{phaseIssue?"Preflight BLOCK":"Preflight READY"}</strong><span>{phaseIssue||`Window hiện có ${phasePeers.length}/2 featured slot; Economy Rule ${form.rulesVersion||"chưa chọn"}.`}</span></div>
+    </section>
+    <section className={bo.panel}>
       <div className={bo.panelHeading}><div><h2>Tạo Wish banner</h2><p>Không nhập UUID tay — chọn từ catalog hiện có.</p></div><span className={bo.writePill}>STAGING WRITE</span></div>
       <div className={bo.formGrid}>
         <label className={bo.field}>Banner key<input value={form.bannerKey} onChange={event=>field("bannerKey",event.target.value)}/></label>
@@ -74,7 +92,7 @@ export function WishBoView(){
         <label className={`${bo.field} ${styles.full}`}>Story hook<input value={form.storyHook} onChange={event=>field("storyHook",event.target.value)}/></label>
         <label className={`${bo.field} ${styles.full}`}>Hero asset key<input value={form.heroAssetKey} onChange={event=>field("heroAssetKey",event.target.value)}/></label>
       </div>
-      <div className={bo.commandBar}><div><strong>Rules: {form.rulesVersion||"chưa chọn"}</strong><span>Banner snapshot khóa rule version đã publish; đổi economy bằng version mới, không sửa draw cũ.</span></div><button className={bo.primaryButton} disabled={!!busy||!form.bearerId||!form.signatureSetId||!form.rulesVersion||!form.offBannerId||!form.rareId||!form.commonId} onClick={()=>void createBanner()}>{busy==="create"?"Đang tạo…":"Tạo Draft"}</button></div>
+      <div className={bo.commandBar}><div><strong>Rules: {form.rulesVersion||"chưa chọn"}</strong><span>Banner snapshot khóa rule version đã publish; đổi economy bằng version mới, không sửa draw cũ.</span></div><button className={bo.primaryButton} disabled={!!busy||!!phaseIssue||!form.bearerId||!form.signatureSetId||!form.rulesVersion||!form.offBannerId||!form.rareId||!form.commonId} onClick={()=>void createBanner()}>{busy==="create"?"Đang tạo…":"Tạo Draft"}</button></div>
     </section>
     <section className={bo.panel}>
       <div className={bo.panelHeading}><div><h2>Banner lifecycle</h2><p>Draft → validate → scheduled → active → retired.</p></div><button className={bo.secondaryButton} onClick={()=>void load()}>Refresh</button></div>
