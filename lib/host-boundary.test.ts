@@ -19,7 +19,7 @@ test("TOS operational pages and APIs require a Staff session cookie", () => {
 });
 
 test("TOS cannot reach BO routes, the BO API, or PIN configuration", () => {
-  for (const pathname of ["/bo", "/bo/", "/bo/anything", "/api/bo", "/api/bo/context", "/api/bo/access/roles", "/api/staff-pin/configure"]) {
+  for (const pathname of ["/bo", "/bo/", "/bo/anything", "/api/bo", "/api/bo/context", "/api/bo/access/roles", "/api/staff-pin/configure", "/api/staff-pin/configure/", "/api/staff-pin/configure/anything"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }
 });
