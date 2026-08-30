@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { pinoriaReadinessApi, type PinoriaReadinessState } from "@/lib/pinoria-readiness-api";
+import { WishProgressCard } from "./WishProgressCard";
+import { CompanionProgressCard } from "./CompanionProgressCard";
 import styles from "./wish-activity.module.css";
 
 type ActivityAction = {
@@ -17,7 +19,7 @@ type WishContext = {
   bearer: { resonanceLevel: number };
   signatureSet: { progress: { owned: number; total: number } };
   banner: {
-    displayName: string; rulesVersion: string;
+    id: string; displayName: string; storyHook?: string; rulesVersion: string;
     guarantees: { rareBaseRate:number;rareWithin:number;mythicBaseRate:number;mythicSoftPityStartsAt:number;mythicWithin:number;mythicRateByPity:Array<{pity:number;rate:number}>;featuredMythicRate:number;perfectMemoryRate:number };
     bearer: { displayName: string };
     signatureSet: { displayName: string };
@@ -31,9 +33,9 @@ type RitualContext = {
   companion: { id: string; speciesId: string; status: string } | null;
   progression: {
     materializationLevel: number;
-    state: string;
+    state: "GROWING" | "READY_FOR_RITUAL";
     stageFeedCount: number;
-    readinessRuleKey: string | null;
+    readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null;
     version: number;
   } | null;
   species: { id: string; key: string; displayName: string; companionAssetKey: string; sigilAssetKey: string | null } | null;
@@ -63,11 +65,6 @@ function isEggContext(value: AvailableActivity["context"]): value is EggContext 
 
 function isRitualContext(value: AvailableActivity["context"]): value is RitualContext {
   return Boolean(value && "companion" in value && "progression" in value && "species" in value);
-}
-function readinessLabel(key: string | null | undefined) {
-  if (key === "FEED_2") return "2 lần nuôi";
-  if (key === "FEED_5_AND_WATER_SIGIL") return "5 lần nuôi + Thủy Ấn";
-  return "Đang tích lũy";
 }
 export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }: Props) {
   const [activities, setActivities] = useState<AvailableActivity[]>([]);
@@ -137,29 +134,16 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
     const egg = isEggContext(activity.context) ? activity.context : null;
     const ritual = isRitualContext(activity.context) ? activity.context : null;
     const coreProgress = ritual?.companion ? readiness?.companions.find((item) => item.companionId === ritual.companion?.id) ?? null : null;
-    const resonance = wish ? (wish.bearer.resonanceLevel < 0 ? "Chưa cộng hưởng" : `C${wish.bearer.resonanceLevel}`) : null;
     return <section className={styles.panel} key={activity.activityId} aria-label={`Pinoria activity for ${displayName}`}>
       <div className={styles.copy}>
         <span>PINORIA · HOẠT ĐỘNG</span>
         <strong>{activity.staffName}</strong>
         <small>{activity.learnerName}{wish ? ` · ${wish.banner.bearer.displayName}` : egg?.species ? ` · ${egg.species.displayName}` : ritual?.species ? ` · ${ritual.species.displayName}` : ""}</small>
       </div>
-      {wish ? <div className={styles.state}>
-        <b>✦ {wish.energySeedBalance}</b>
-        <span>{resonance}</span>
-        <span>{wish.signatureSet.progress.owned}/{wish.signatureSet.progress.total} set</span>
-        <span>Mythic P{wish.pity.nextMythicPityPosition}/{wish.pity.mythicGuaranteedWithin} · soft từ P{wish.pity.mythicSoftPityStartsAt}</span>
-        <span>{wish.pity.featuredGuarantee ? "Featured kế tiếp ✓" : `Featured ${(wish.banner.guarantees.featuredMythicRate*100).toFixed(0)}%`} · Rare P{wish.pity.nextRarePityPosition}/{wish.pity.rareGuaranteedWithin}</span>
-        <span>{wish.banner.rulesVersion} · base Mythic {(wish.banner.guarantees.mythicBaseRate*100).toFixed(1)}%</span>
-      </div> : egg ? <div className={styles.state}>
+      {wish ? <WishProgressCard centerId={centerId} studentProfileId={studentProfileId} banner={wish.banner} energySeedBalance={wish.energySeedBalance} pity={wish.pity} resonanceLevel={wish.bearer.resonanceLevel} setProgress={wish.signatureSet.progress} /> : egg ? <div className={styles.state}>
         <b>{egg.egg ? "🥚 Sẵn sàng" : "🥚 Chưa sẵn sàng"}</b>
         <span>{egg.species?.displayName ?? "Hộ Linh"}</span>
-      </div> : ritual ? <div className={styles.state}>
-        <b>{ritual.species?.displayName ?? "Hộ Linh"} · Cấp {coreProgress?.materializationLevel ?? ritual.progression?.materializationLevel ?? "—"}</b>
-        <span>🍎 {readiness?.fruitBalance ?? 0} Quả · {readiness?.waterSigil ? "Thủy Ấn ✓" : "Chưa có Thủy Ấn"}</span>
-        <span>{coreProgress ? `${coreProgress.stageFeedCount} tiến độ · ${readinessLabel(coreProgress.readinessRuleKey)}` : ritual.progression ? `${ritual.progression.stageFeedCount} tiến độ · ${readinessLabel(ritual.progression.readinessRuleKey)}` : "Chưa có tiến trình"}</span>
-        <span>{coreProgress?.state === "READY_FOR_RITUAL" || ritual.progression?.state === "READY_FOR_RITUAL" ? "✦ Sẵn sàng Nghi thức" : activity.reason?.message ?? "Đang trưởng thành"}</span>
-      </div> : <div className={styles.state}><span>{activity.reason?.message ?? "Chưa khả dụng"}</span></div>}
+      </div> : ritual ? <CompanionProgressCard name={ritual.species?.displayName ?? "Hộ Linh"} assetKey={ritual.species?.companionAssetKey ?? ""} sigilAssetKey={ritual.species?.sigilAssetKey ?? null} progress={coreProgress ?? ritual.progression} readiness={readiness} /> : <div className={styles.state}><span>{activity.reason?.message ?? "Chưa khả dụng"}</span></div>}
       <div className={styles.actions}>
         {ritual?.companion && coreProgress ? <button disabled={!!busy || readiness?.fruitBalance === 0 || coreProgress.state !== "GROWING"} onClick={() => void feedCompanion(ritual.companion!.id)}>{busy === `feed:${ritual.companion.id}` ? "…" : "Dùng 1 Quả"}</button> : null}
         {activity.actions.map((action) => {

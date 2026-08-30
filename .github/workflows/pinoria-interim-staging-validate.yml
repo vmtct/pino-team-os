@@ -2,7 +2,9 @@ name: Pinoria Interim Staging Validate
 
 on:
   push:
-    branches: [feat/pinoria-interim-ui-e2e]
+    branches: [feat/pinoria-interim-ui-e2e, feat/pinoria-interim-ui-config-v2]
+  pull_request:
+    branches: [feat/pinoria-staging-tv-wish-v1]
   workflow_dispatch:
 
 permissions:
