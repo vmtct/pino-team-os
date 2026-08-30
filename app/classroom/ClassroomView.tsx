@@ -5,6 +5,7 @@ import { TosShell } from "@/app/components/tos-shell";
 import { workforceApi, WorkforceApiError, type StaffProfile, type WorkforceContext } from "@/lib/workforce-api";
 import { tosLearningApi, TosLearningApiError, type DaySession, type LearningOptions, type ResolvedParticipation, type RosterEntry, type SessionRoster } from "@/lib/tos-learning-api";
 import { canSettleSource, tosDayOfLearningApi, TosDayOfLearningApiError, type SessionLearningOwner, type StudentVisit } from "@/lib/tos-day-of-learning-api";
+import { pinoriaReadinessApi } from "@/lib/pinoria-readiness-api";
 import styles from "./classroom.module.css";
 
 const footer = [
@@ -213,6 +214,18 @@ export default function ClassroomView() {
       }, crypto.randomUUID());
     }, `${entry.studentDisplayName}: Attendance đã được correction sang ${nextStatus === "PRESENT" ? "Có mặt" : "Vắng"}.`);
   }
+  async function grantFruit(entry: ResolvedParticipation) {
+    if (!entry.diaryId || entry.attendanceStatus !== "PRESENT" || entry.diaryRecordState !== "ACTIVE") return;
+    await runAction(`fruit:${entry.diaryId}`, async () => {
+      await pinoriaReadinessApi.grantFruit(centerId, entry.studentProfileId, entry.diaryId!);
+    }, `${entry.studentDisplayName}: Core đã ghi nhận 1 Quả từ evidence này.`);
+  }
+  async function awardWaterSigil(entry: ResolvedParticipation) {
+    if (!entry.diaryId || entry.attendanceStatus !== "PRESENT" || entry.diaryRecordState !== "ACTIVE") return;
+    await runAction(`sigil:${entry.diaryId}`, async () => {
+      await pinoriaReadinessApi.awardWaterSigil(centerId, entry.studentProfileId, entry.diaryId!);
+    }, `${entry.studentDisplayName}: Core đã ghi nhận Thủy Ấn từ evidence này.`);
+  }
 
   const selectedCenter = context?.centers.find((item) => item.id === centerId) ?? null;
   const presentReady = Boolean(owner && lessonPlan);
@@ -271,6 +284,7 @@ export default function ClassroomView() {
             const note = notes[entry.studentProfileId] ?? { learningNote: "", observation: "" };
             const nextStatus = entry.attendanceStatus === "PRESENT" ? "ABSENT" : "PRESENT";
             const correctionBlocked = nextStatus === "PRESENT" ? !presentReady : !entry.diaryVersion;
+            const pinoriaEvidenceReady = entry.attendanceStatus === "PRESENT" && entry.diaryRecordState === "ACTIVE" && Boolean(entry.diaryId);
             return <article className={styles.learnerCard} key={entry.attendanceId}>
               <div className={styles.learnerTop}><div className={styles.avatar}>{entry.studentDisplayName.charAt(0).toUpperCase()}</div><div className={styles.identity}><strong>{entry.studentDisplayName}</strong><small>{entry.basis} · {entry.commercialConsequence === "CONSUME_SERVICE_UNIT" ? "trừ 1 Service Unit" : "không trừ buổi"}</small></div><span className={entry.attendanceStatus === "PRESENT" ? styles.presentBadge : styles.absentBadge}>{entry.attendanceStatus === "PRESENT" ? "Có mặt" : "Vắng"}</span></div>
               <div className={styles.stepRow}><button className={styles.visitButton} disabled={!arrivalEnabled || !!busy} onClick={() => visit ? void checkOut(entry.studentProfileId, entry.studentDisplayName) : void checkIn(entry)}>{busy.startsWith("visit-") && busy.endsWith(entry.studentProfileId) ? "…" : visit ? "Check-out House" : "Check-in House"}</button><span>{visit ? `Check-in ${new Date(visit.checkedInAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Không có open Visit"}</span></div>
@@ -279,6 +293,13 @@ export default function ClassroomView() {
                 <span>{entry.diaryId ? `Evidence saved · Diary v${entry.diaryVersion}` : "Không có Diary"}</span>
                 <button className={styles.correctionButton} disabled={correctionBlocked || !!busy} onClick={() => void correct(entry, nextStatus)}>{busy === `correct:${entry.attendanceId}` ? "Đang sửa…" : `Sửa thành ${nextStatus === "PRESENT" ? "Có mặt" : "Vắng"}`}</button>
               </div>
+              {pinoriaEvidenceReady ? <div className={styles.correctionRow}>
+                <span>PINORIA · reward từ evidence canonical</span>
+                <div>
+                  <button className={styles.correctionButton} disabled={!!busy} onClick={() => void grantFruit(entry)}>{busy === `fruit:${entry.diaryId}` ? "…" : "Trao 1 Quả"}</button>
+                  <button className={styles.correctionButton} disabled={!!busy} onClick={() => void awardWaterSigil(entry)}>{busy === `sigil:${entry.diaryId}` ? "…" : "Trao Thủy Ấn"}</button>
+                </div>
+              </div> : null}
             </article>;
           })}
         </section>

@@ -66,3 +66,18 @@ test("Wish economy control stays in BO while TOS only discloses authoritative pi
   assert.match(tos, /wish\.banner\.guarantees\.featuredMythicRate/);
   assert.doesNotMatch(tos, /pinoria\/wish\/rules/);
 });
+test("Companion readiness stays Core-authoritative and adds no TV scene", () => {
+  const classroom=read("app/classroom/ClassroomView.tsx");
+  const tos=read("app/pinoria/activity-panel.tsx");
+  const api=read("lib/pinoria-readiness-api.ts");
+  const reception=read("app/pinoria-tv/reception-tv.tsx");
+  assert.match(classroom,/diaryRecordState === "ACTIVE"/);
+  assert.match(classroom,/pinoriaReadinessApi\.grantFruit/);
+  assert.match(classroom,/pinoriaReadinessApi\.awardWaterSigil/);
+  assert.match(tos,/pinoriaReadinessApi\.state/);
+  assert.match(tos,/pinoriaReadinessApi\.feed/);
+  assert.match(tos,/coreProgress\.state !== "GROWING"/);
+  assert.match(api,/pinoria\/companions\/feed/);
+  assert.doesNotMatch(api,/READY_FOR_RITUAL.*=/);
+  assert.doesNotMatch(reception,/FRUIT_GRANTED|COMPANION_FRUIT_FED|WATER_SIGIL/);
+});
