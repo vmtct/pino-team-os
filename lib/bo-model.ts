@@ -258,6 +258,11 @@ export interface BoOpenStudioOperations {
   listings: BoOpenStudioListing[];
   claims: BoOpenStudioClaim[];
 }
+export interface BoOpenStudioListingCatalog {
+  sessions: Array<{ id: string; centerId: string; pathProgramId: string; localDate: string; scheduledStartsAt: string; scheduledEndsAt: string; status: string; version: number }>;
+  syllabi: Array<{ id: string; pathProgramId: string; title: string; publicationStatus: string; specialtyModuleId: string | null; specialtyConflict: boolean }>;
+}
+
 export interface BoOpenStudioPass {
   pass: {
     id: string;
