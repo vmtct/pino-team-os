@@ -40,7 +40,7 @@ export async function offboardStaff(
       await actions.deactivateStaff();
       staffDeactivated = true;
     } catch (cause) {
-      if (accessSuspended) {
+      if (state.accessActive && accessSuspended) {
         const detail = cause instanceof Error ? cause.message : "Không thể deactivate Staff.";
         throw new Error(`Access đã suspended nhưng Staff chưa deactivate: ${detail}`);
       }
