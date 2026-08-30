@@ -126,7 +126,7 @@ test("staging BO Workforce bypass is workers.dev-only and forwards fixed fixture
   const response = await handleBoWorkforcePlanningRequest(staging, stagingEnv, "workforce/planning/weekly");
   assert.equal(response.status, 200);
   assert.equal(forwarded[0]?.email, "workforce-planning-staging-probe@pino.invalid");
-  assert.equal(forwarded[0]?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(forwarded[0]?.subject, "workforce-planning-staging-probe-v1");
 
   const production = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/weekly?centerId=c&termWeekId=w");
   const denied = await handleBoWorkforcePlanningRequest(production, stagingEnv, "workforce/planning/weekly");
