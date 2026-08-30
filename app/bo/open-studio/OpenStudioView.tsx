@@ -212,16 +212,13 @@ function PassAdmissionDesk({ learners, listings, centers, onChanged }: { learner
         <button className={styles.primaryButton} disabled={!pathId || !!busy} onClick={() => void issueMonthlyPass()}>{busy === "issue-monthly" ? "Đang issue…" : "Resolve / Issue Monthly Path"}</button>
         <button className={styles.primaryButton} disabled={!!busy} onClick={() => void issueBringAFriendPass()}>{busy === "issue-friend" ? "Đang issue…" : "Resolve / Issue Bring-a-Friend"}</button>
       </div>
-      <div className={styles.panelHeading}><div><h3>Pass inventory</h3><p>Effective state và usage được đọc lại từ Core sau mỗi command.</p></div><span className={styles.readOnly}>{passes.length} pass</span></div>
+      <div className={styles.panelHeading}><div><h3>Pass inventory</h3><p>Effective state được đọc lại từ Core sau mỗi command.</p></div><span className={styles.readOnly}>{passes.length} pass</span></div>
       <div className={styles.osPassGrid}>{passes.map((item) => {
         const state = passState(item);
-        const usage = item.usageSummary ?? { ownerCount: 0, siblingCount: 0, guestCount: 0, totalCount: item.uses.length };
         const scopedPath = item.pass.pathProgramId ? lifecycle.student.activePaths.find((path) => path.id === item.pass.pathProgramId)?.displayName ?? "Path scoped" : "Household scoped";
         return <article className={styles.osPassCard} key={item.pass.id}>
           <div className={styles.osCardHead}><div><strong>{passClassLabel(item.pass.passClass)}</strong><span>{scopedPath} · {item.pass.issuancePeriodKey}</span></div><span className={`${styles.statusPill} ${state === "REVOKED" ? styles.osDangerPill : ""}`}>{state}</span></div>
-          <div className={styles.osMeta}><span>{validityLabel(item.pass.validFrom, item.pass.validUntilExclusive)}</span><span>{usage.totalCount} use</span><span>{item.pass.issuanceCenterId ? `Center ${item.pass.issuanceCenterId.slice(0, 8)}` : "Household"}</span></div>
-          <small>OWNER {usage.ownerCount} · SIBLING {usage.siblingCount} · GUEST {usage.guestCount}</small>
-          {item.pass.revokeReason ? <small className={styles.osRevokeReason}>Revoke: {item.pass.revokeReason}</small> : null}
+          <div className={styles.osMeta}><span>{validityLabel(item.pass.validFrom, item.pass.validUntilExclusive)}</span><span>{item.pass.issuanceCenterId ? `Center ${item.pass.issuanceCenterId.slice(0, 8)}` : "Household"}</span></div>
           {!item.pass.revokedAt ? <button className={styles.dangerButton} disabled={!!busy} onClick={() => void revokePass(item)}>{busy === `revoke:${item.pass.id}` ? "Đang revoke…" : "Revoke Pass"}</button> : null}
         </article>;
       })}</div>
