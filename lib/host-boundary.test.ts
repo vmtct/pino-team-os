@@ -82,7 +82,9 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/access/perimeter-reconcile",
     "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345",
     "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345/status",
-    "/api/staff-pin/configure",
+    "/staff-pin/change",
+    "/api/staff-pin/status",
+    "/api/staff-pin/change",
     "/api/bo/sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations",
     "/_next/static/app.js",
     "/favicon.ico",
@@ -122,6 +124,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/workforce/planning/anything",
     "/api/bo/workforce/planning/assignment/cancel/anything",
     "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345/anything",
+    "/api/staff-pin/configure",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }

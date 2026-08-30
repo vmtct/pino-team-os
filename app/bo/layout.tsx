@@ -1,8 +1,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
-import { forbidden } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 import { BoShell, type BoNavGroup } from "@/app/components/tos-shell";
-import { authorizeBoShell, type BoShellGateEnv } from "@/lib/bo-shell-gate";
+import { authorizeBoShell, BoShellGateError, type BoShellGateEnv } from "@/lib/bo-shell-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +47,7 @@ export default async function BoLayout({ children }: { children: React.ReactNode
     const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoShellGateEnv };
     await authorizeBoShell(requestHeaders, env);
   } catch (error) {
+    if (error instanceof BoShellGateError && error.code === "ACCESS_STAFF_PIN_ROTATION_REQUIRED") redirect("/staff-pin/change");
     console.error("BO shell authorization denied", error instanceof Error ? error.message : "unknown");
     forbidden();
   }
