@@ -1,5 +1,6 @@
 import type { JWTVerifyGetKey } from "jose";
 import { authenticateBo, BoAuthError, type VerifiedBoIdentity } from "./bo-auth";
+import { stagingBoWorkforceIdentity, type BoWorkforceStagingAuthEnv } from "./bo-workforce-staging-auth";
 
 export interface WorkforcePlanningRequest {
   method: string;
@@ -18,7 +19,7 @@ export interface WorkforcePlanningCoreBinding {
   executePlanning(request: WorkforcePlanningRequest, identity: VerifiedBoIdentity): Promise<WorkforcePlanningResponse>;
 }
 
-export interface BoWorkforcePlanningEnv {
+export interface BoWorkforcePlanningEnv extends BoWorkforceStagingAuthEnv {
   PINO_WORKFORCE_CORE: WorkforcePlanningCoreBinding;
   CF_ACCESS_TEAM_DOMAIN: string;
   CF_ACCESS_BO_AUD: string;
@@ -42,7 +43,7 @@ export async function handleBoWorkforcePlanningRequest(
       return json({ error: { code: method === "GET" || method === "POST" ? "PLATFORM_NOT_FOUND" : "PLATFORM_METHOD_NOT_ALLOWED", message: method === "GET" || method === "POST" ? "BO workforce planning operation not found" : "Method not allowed" } }, method === "GET" || method === "POST" ? 404 : 405);
     }
 
-    const identity = await authenticateBo(
+    const identity = stagingBoWorkforceIdentity(request, env) ?? await authenticateBo(
       request.headers,
       { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
       keyResolver,

@@ -110,3 +110,26 @@ test("Core authorization denial and request ID pass through unchanged", async ()
   assert.equal(response.headers.get("x-request-id"), "core-denied");
   assert.equal((await response.json() as { error: { code: string } }).error.code, "ACCESS_PERMISSION_DENIED");
 });
+
+test("staging BO Workforce bypass is workers.dev-only and forwards fixed fixture identity", async () => {
+  const forwarded: VerifiedBoIdentity[] = [];
+  const binding: WorkforcePlanningCoreBinding = { async executePlanning(_request, identity) {
+    forwarded.push(identity);
+    return { status: 200, body: { data: { staff: [] } }, requestId: "staging-weekly" };
+  } };
+  const stagingEnv: BoWorkforcePlanningEnv = {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  };
+  const staging = new Request("https://pino-team-os-staging.minhtri-van42.workers.dev/api/bo/workforce/planning/weekly?centerId=c&termWeekId=w");
+  const response = await handleBoWorkforcePlanningRequest(staging, stagingEnv, "workforce/planning/weekly");
+  assert.equal(response.status, 200);
+  assert.equal(forwarded[0]?.email, "workforce-planning-staging-probe@pino.invalid");
+  assert.equal(forwarded[0]?.subject, "workforce-bo-staging-probe-v1");
+
+  const production = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/weekly?centerId=c&termWeekId=w");
+  const denied = await handleBoWorkforcePlanningRequest(production, stagingEnv, "workforce/planning/weekly");
+  assert.equal(denied.status, 401);
+  assert.equal(forwarded.length, 1);
+});
