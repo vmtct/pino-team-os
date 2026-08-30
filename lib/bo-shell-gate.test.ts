@@ -89,7 +89,7 @@ test("workers.dev Workforce staging identity still requires canonical BO entitle
     WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
   });
   assert.deepEqual(requests, [{ method: "GET", path: "context" }]);
-  assert.equal(identity?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(identity?.subject, "workforce-planning-staging-probe-v1");
   assert.equal(result.email, "workforce-planning-staging-probe@pino.invalid");
   assert.equal(result.entitled, true);
 });
@@ -130,6 +130,6 @@ test("Workforce staging shell accepts OpenNext forwarded host and still calls Co
     WORKFORCE_BO_STAGING_BYPASS: "enabled",
     WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
   });
-  assert.equal(identity?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(identity?.subject, "workforce-planning-staging-probe-v1");
   assert.equal(result.entitled, true);
 });
