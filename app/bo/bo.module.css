@@ -221,3 +221,27 @@
 .dangerButton:disabled { opacity: .4; cursor: not-allowed; }
 @media (max-width: 1050px) { .osPassGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 760px) { .osControlColumns, .osPassGrid { grid-template-columns: 1fr; } .osPassActions > button { width: 100%; } }
+
+.plannerPage { width: min(100%, 1320px); }
+.plannerFilters { display: grid; grid-template-columns: repeat(2,minmax(220px,1fr)); gap: 12px; }
+.plannerLayout { display: grid; grid-template-columns: minmax(0,1.8fr) minmax(280px,.72fr); gap: 16px; align-items: start; }
+.plannerTableWrap { width: 100%; overflow: auto; border: 1px solid #e7e7ee; border-radius: 12px; }
+.plannerTableWrap table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 11px; }
+.plannerTableWrap th, .plannerTableWrap td { padding: 8px; border-right: 1px solid #ececf2; border-bottom: 1px solid #ececf2; vertical-align: top; }
+.plannnerTableWrap thead th { background: #f7f7fa; color: #696a77; font-size: 10px; white-space: nowrap; }
+.plannerTableWrap tbody th { min-width: 150px; background: #fbfbfd; color: #292936; text-align: left; }
+.plannerCell { display: grid; width: 100%; min-height: 62px; gap: 4px; padding: 8px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #555765; text-align: left; cursor: pointer; }
+.plannerCell strong { color: #4e43a0; font-size: 10px; }
+.plannerCell span { font-size: 9px; line-height: 1.35; }
+.plannerCell:hover, .plannerCellActive { border-color: #b8afe4; background: #f6f3ff; }
+.plannerSide { position: sticky; top: 18px; display: grid; gap: 14px; padding: 18px; border: 1px solid #dedee8; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgba(30,28,50,.045); }
+.plannerLegend { display: grid; gap: 5px; padding: 10px; border-radius: 10px; background: #f7f7fa; color: #696a77; font-size: 10px; }
+.plannerAssignmentCard { display: grid; gap: 10px; padding: 12px; border: 1px solid #e4e2ec; border-radius: 11px; background: #fbfbfe; }
+.plannerAssignmentCard > div:first-child { display: grid; gap: 3px; }
+.plannerAssignmentCard strong { font-size: 12px; }
+.plannerAssignmentCard span { color: #777783; font-size: 10px; }
+.plannerHistory { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid #ececf2; }
+.plannerHistory strong { font-size: 11px; }
+.plannerHistory span { color: #777783; font-size: 9px; line-height: 1.4; }
+@media (max-width: 980px) { .plannerLayout { grid-template-columns: 1fr; } .plannerSide { position: static; } }
+@media (max-width: 620px) { .plannerFilters { grid-template-columns: 1fr; } }

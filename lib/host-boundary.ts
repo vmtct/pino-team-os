@@ -31,6 +31,7 @@ function isApprovedBoPath(pathname: string): boolean {
   if ([
     "/bo",
     "/bo/staff",
+    "/bo/workforce",
     "/bo/learners",
     "/bo/open-studio",
     "/bo/delivery-activation",
@@ -66,6 +67,9 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/access/users",
     "/api/bo/workforce/staff-records",
     "/api/bo/workforce/staff-onboarding",
+    "/api/bo/workforce/planning/weekly",
+    "/api/bo/workforce/planning/assignment",
+    "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments",
     "/api/bo/access/assignments/remove",
     "/api/bo/access/users/status",
