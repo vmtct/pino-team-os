@@ -47,6 +47,20 @@ test("offboarding reports safe partial completion when Staff deactivation fails"
   );
 });
 
+test("offboarding preserves Staff error when Access was already inactive", async () => {
+  await assert.rejects(
+    offboardStaff(
+      { staffActive: true, accessActive: false },
+      "",
+      {
+        async suspendAccess() { throw new Error("unexpected"); },
+        async deactivateStaff() { throw new Error("Staff command failed"); },
+      },
+    ),
+    (cause: unknown) => cause instanceof Error && cause.message === "Staff command failed",
+  );
+});
+
 test("offboarding can finish an already-inactive Staff with active Access", async () => {
   const calls: string[] = [];
   const result = await offboardStaff(
