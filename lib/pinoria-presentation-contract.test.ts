@@ -33,3 +33,21 @@ test("Egg Hatch presentation preserves the approved Mori visual recipe", () => {
   assert.match(companions, /pinoria\/Companion\/Egg-water\.png/);
   assert.match(companions, /pinoria\/Companion\/mori-sleep\.png/);
 });
+test("Companion Ritual stays on the generic Activity and TV presentation contracts", () => {
+  const scene = read("app/pinoria-tv/companion-ritual-scene.tsx");
+  const reception = read("app/pinoria-tv/reception-tv.tsx");
+  const activities = read("app/bo/pinoria-activities/PinoriaActivitiesView.tsx");
+  const tos = read("app/pinoria/activity-panel.tsx");
+  const binding = read("lib/staff-pin-core.ts");
+  assert.match(scene, /ritual\.companion\.assetKey/);
+  assert.match(scene, /ritual\.companion\.sigilAssetKey/);
+  assert.match(scene, /ritual\.companion\.fromLevel/);
+  assert.match(scene, /ritual\.companion\.toLevel/);
+  assert.match(scene, /CORE COMMITTED · TV PRESENTATION ONLY/);
+  assert.match(reception, /COMPANION_RITUAL/);
+  assert.match(activities, /COMPANION_RITUAL/);
+  assert.match(activities, /companion-ritual-v1/);
+  assert.match(tos, /ADVANCE_COMPANION_MATERIALIZATION/);
+  assert.match(tos, /\/api\/tos-learning\/pinoria\/activities\/execute/);
+  assert.match(binding, /"COMPANION_RITUAL"/);
+});

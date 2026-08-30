@@ -9,7 +9,7 @@ type Species = { id: string; key: string; displayName: string; status: "DRAFT" |
 type Activity = {
   id: string;
   key: string;
-  handlerKey: "WISH_DRAW" | "EGG_HATCH";
+  handlerKey: "WISH_DRAW" | "EGG_HATCH" | "COMPANION_RITUAL";
   staffName: string;
   learnerName: string;
   iconAssetKey: string | null;
@@ -25,7 +25,7 @@ type Activity = {
 type Envelope<T> = { data?: T; error?: { message?: string } };
 type FormState = {
   key: string;
-  handlerKey: "WISH_DRAW" | "EGG_HATCH";
+  handlerKey: "WISH_DRAW" | "EGG_HATCH" | "COMPANION_RITUAL";
   staffName: string;
   learnerName: string;
   iconAssetKey: string;
@@ -107,6 +107,13 @@ export function PinoriaActivitiesView() {
   function field<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
+  function selectHandler(handlerKey: FormState["handlerKey"]) {
+    setForm((current) => handlerKey === "WISH_DRAW"
+      ? { ...current, handlerKey, staffName: "Gieo Hạt Năng Lượng", learnerName: "Ước nguyện Hạt Năng Lượng", presentationProfileKey: "wish-reveal-v1" }
+      : handlerKey === "EGG_HATCH"
+        ? { ...current, handlerKey, staffName: "Ấp nở Hộ Linh", learnerName: "Trứng Hộ Linh sẵn sàng", presentationProfileKey: "egg-water-v1" }
+        : { ...current, handlerKey, staffName: "Nghi thức Tiến hóa", learnerName: "Hộ Linh sắp tiến hóa", presentationProfileKey: "companion-ritual-v1" });
+  }
   function reset() {
     setEditing(null);
     setForm(initialForm());
@@ -168,13 +175,13 @@ export function PinoriaActivitiesView() {
     <header className={bo.heading}>
       <span>PINORIA · STAGING CONFIG</span>
       <h1>Pinoria Activities</h1>
-      <p>Định nghĩa hoạt động trong BO. TOS chỉ đọc eligibility/action từ Core; handler hiện có Wish Draw và Egg Hatch.</p>
+      <p>Định nghĩa hoạt động trong BO. TOS chỉ đọc eligibility/action từ Core; handler hiện có Wish Draw, Egg Hatch và Companion Ritual.</p>
     </header>
     <section className={bo.metrics}>
       <div className={bo.metric}><span>Definitions</span><strong>{activities.length}</strong></div>
       <div className={bo.metric}><span>Active</span><strong>{activities.filter((item) => item.status === "ACTIVE").length}</strong></div>
       <div className={bo.metric}><span>Centers</span><strong>{centers.length}</strong></div>
-      <div className={bo.metric}><span>Handlers</span><strong>2</strong></div>
+      <div className={bo.metric}><span>Handlers</span><strong>3</strong></div>
     </section>
     {error ? <div className={`${bo.card} ${bo.denied}`}><strong>Lỗi</strong><span>{error}</span></div> : null}
     {message ? <div className={bo.successCard}><span>Pinoria Activities</span><strong>{message}</strong></div> : null}
@@ -186,7 +193,7 @@ export function PinoriaActivitiesView() {
       </div>
       <div className={bo.formGrid}>
         <label className={bo.field}>Activity key<input value={form.key} disabled={!!editing} onChange={(event) => field("key", event.target.value)} /></label>
-        <label className={bo.field}>Handler<select value={form.handlerKey} onChange={(event) => field("handlerKey", event.target.value as FormState["handlerKey"])}><option value="WISH_DRAW">WISH_DRAW</option><option value="EGG_HATCH">EGG_HATCH</option></select></label>
+        <label className={bo.field}>Handler<select value={form.handlerKey} onChange={(event) => selectHandler(event.target.value as FormState["handlerKey"])}><option value="WISH_DRAW">WISH_DRAW</option><option value="EGG_HATCH">EGG_HATCH</option><option value="COMPANION_RITUAL">COMPANION_RITUAL</option></select></label>
         <label className={bo.field}>Tên staff<input value={form.staffName} onChange={(event) => field("staffName", event.target.value)} /></label>
         <label className={bo.field}>Tên học viên thấy<input value={form.learnerName} onChange={(event) => field("learnerName", event.target.value)} /></label>
         <label className={bo.field}>Center scope<select value={form.centerId} onChange={(event) => field("centerId", event.target.value)}>
@@ -200,7 +207,7 @@ export function PinoriaActivitiesView() {
         <label className={bo.field}>Kết thúc<input type="datetime-local" value={form.endsAt} onChange={(event) => field("endsAt", event.target.value)} /></label>
       </div>
       <div className={bo.commandBar}>
-        <div><strong>Handler registry: WISH_DRAW · EGG_HATCH</strong><span>Core quyết định eligibility, state và result; BO chỉ publish definition.</span></div>
+        <div><strong>Handler registry: WISH_DRAW · EGG_HATCH · COMPANION_RITUAL</strong><span>Core quyết định eligibility, state và result; BO chỉ publish definition.</span></div>
         <div className={bo.headingActions}>
           {editing ? <button className={bo.secondaryButton} onClick={reset}>Hủy sửa</button> : null}
           <button className={bo.primaryButton} disabled={!!busy} onClick={() => void save()}>{busy === "save" ? "Đang lưu…" : editing ? "Lưu Draft" : "Tạo Draft"}</button>
