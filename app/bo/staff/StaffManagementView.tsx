@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi } from "@/lib/bo-api";
+import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -41,7 +42,7 @@ export function StaffManagementView() {
     return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
   }, []);
   useEffect(() => {
-    setStaffPin(""); setStaffPinConfirm("");
+    setStaffPin(""); setStaffPinConfirm(("");
     if (!selectedId) { setProfile(null); return; }
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { setProfile(next); setForm(profileForm(next)); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."));
@@ -78,7 +79,7 @@ export function StaffManagementView() {
   }
 
   async function changeStaffStatus(status: "active" | "inactive") {
-    if (!selectedId || !confirm(status === "inactive" ? "Deactivate nhân viên này? Access không tự bị suspend." : "Reactivate nhân viên này?")) return;
+    if (!selectedId || !confirm(status === "inactive" ? "Chỉ deactivate Staff? Access sẽ không tự bị suspend." : "Reactivate nhân viên này?")) return;
     setBusy("staff-status"); setError(""); setMessage("");
     try { await boApi.setStaffStatus(selectedId, status); await refresh(selectedId); setProfile((value) => value ? { ...value, status } : value); setMessage(status === "inactive" ? "Staff đã inactive." : "Staff đã active lại."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể đổi trạng thái Staff."); }
@@ -123,6 +124,43 @@ export function StaffManagementView() {
     finally { setBusy(""); }
   }
 
+  async function runOffboarding() {
+    if (!selectedId || !profile) return;
+    const staffActive = profile.status === "active";
+    const accessActive = accessUser?.status === "active";
+    if (!staffActive && !accessActive) return;
+    if (accessActive && !suspendReason.trim()) { setError("Nhập lý do offboarding để suspend Access trước."); return; }
+
+    const plan = accessActive && staffActive
+      ? "Access sẽ được suspend trước, sau đó Staff mới được deactivate. Đây là hai canonical command riêng và có thể báo partial failure."
+      : accessActive
+        ? "Staff đã inactive; thao tác này sẽ hoàn tất offboarding bằng cách suspend Access."
+        : "Access không active; thao tác này chỉ deactivate Staff.";
+    if (!confirm(`Offboard ${profile.displayLabel}?\n\n${plan}`)) return;
+
+    setBusy("offboarding"); setError(""); setMessage("");
+    try {
+      const result = await offboardStaff(
+        { staffActive, accessActive },
+        suspendReason,
+        {
+          suspendAccess: async (reason) => {
+            if (!accessUser) throw new Error("Staff chưa có Access user.");
+            await boApi.setAccessUserStatus(accessUser.id, "suspended", reason);
+          },
+          deactivateStaff: async () => { await boApi.setStaffStatus(selectedId, "inactive"); },
+        },
+      );
+      await refresh(selectedId);
+      if (result.staffDeactivated) setProfile((value) => value ? { ...value, status: "inactive" } : value);
+      setSuspendReason("");
+      setMessage(result.accessSuspended ? "Offboarding hoàn tất: Access đã suspended và Staff đã inactive." : "Offboarding hoàn tất: Staff đã inactive.");
+    } catch (cause) {
+      try { await refresh(selectedId); } catch { /* keep original command error */ }
+      setError(cause instanceof Error ? cause.message : "Không thể hoàn tất offboarding.");
+    } finally { setBusy(""); }
+  }
+
   return (
     <section id="staff-management" className={styles.page}>
       <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>
@@ -153,9 +191,14 @@ export function StaffManagementView() {
               </div>
               <div className={styles.staffActions}>
                 <button type="button" className={styles.primaryButton} disabled={busy === "profile" || !(form.displayLabel ?? "").trim()} onClick={() => void saveProfile()}>{busy === "profile" ? "Đang lưu…" : "Lưu hồ sơ"}</button>
-                <button type="button" className={styles.secondaryButton} disabled={busy === "staff-status"} onClick={() => void changeStaffStatus(profile.status === "active" ? "inactive" : "active")}>{profile.status === "active" ? "Deactivate staff" : "Reactivate staff"}</button>
+                <button type="button" className={styles.secondaryButton} disabled={busy === "staff-status" || busy === "offboarding"} onClick={() => void changeStaffStatus(profile.status === "active" ? "inactive" : "active")}>{profile.status === "active" ? "Deactivate Staff only" : "Reactivate Staff"}</button>
               </div>
-              {profile.status === "inactive" && accessUser?.status === "active" ? <p className={styles.staffWarning}>Staff đã inactive nhưng Access vẫn active. Suspend Access bên dưới nếu đây là offboarding.</p> : null}
+              {profile.status === "inactive" && accessUser?.status === "active" ? <p className={styles.staffWarning}>Staff đã inactive nhưng Access vẫn active. Dùng “Hoàn tất offboarding” bên dưới để đóng quyền truy cập.</p> : null}
+              {(profile.status === "active" || accessUser?.status === "active") ? <div className={styles.staffAccessStatus}>
+                <div><strong>Offboarding</strong><p>Luôn suspend Access trước rồi mới deactivate Staff để partial failure vẫn fail-safe.</p></div>
+                {accessUser?.status === "active" ? <label className={styles.field}>Lý do offboarding<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Ví dụ: kết thúc hợp tác" /></label> : null}
+                <button type="button" className={styles.secondaryButton} disabled={busy === "offboarding" || Boolean(busy && busy !== "offboarding") || (accessUser?.status === "active" && !suspendReason.trim())} onClick={() => void runOffboarding()}>{busy === "offboarding" ? "Đang offboard…" : profile.status === "inactive" ? "Hoàn tất offboarding" : "Offboard an toàn"}</button>
+              </div> : null}
             </section>
 
             <section className={styles.panel}>
@@ -171,10 +214,10 @@ export function StaffManagementView() {
                   <button type="button" className={styles.secondaryButton} disabled={!roleId || (scopeType !== "GLOBAL" && !scopeId) || busy === "role"} onClick={() => void assignRole()}>+ Add role</button>
                 </div>
                 <div className={styles.staffAccessStatus}>
-                  {accessUser.status === "active" ? <><label className={styles.field}>Suspend reason<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Required to suspend" /></label><button type="button" className={styles.secondaryButton} disabled={!suspendReason.trim() || busy === "access-status"} onClick={() => void changeAccessStatus("suspended")}>Suspend Access</button></> : <button type="button" className={styles.secondaryButton} disabled={busy === "access-status"} onClick={() => void changeAccessStatus("active")}>Reactivate Access</button>}
+                  {accessUser.status === "active" ? <><label className={styles.field}>Suspend reason<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Required to suspend" /></label><button type="button" className={styles.secondaryButton} disabled={!suspendReason.trim() || busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("suspended")}>Suspend Access only</button></> : <button type="button" className={styles.secondaryButton} disabled={busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("active")}>Reactivate Access</button>}
                 </div>
                 <div className={styles.staffPinPanel}>
-                  <div><strong>Staff PIN</strong><p>Đặt hoặc reset PIN 6 số dùng sau Google login. Reset sẽ thu hồi toàn bộ Staff-PIN session cũ.</p></div>
+                  <div><strong>Staff PIN</strong><p>Đặt hoặc reset PIN 6 số dùng sau khi qua Cloudflare Access. Reset sẽ thu hồi toàn bộ Staff-PIN session cũ.</p></div>
                   <div className={styles.staffPinFields}>
                     <label className={styles.field}>PIN mới<input inputMode="numeric" type="password" autoComplete="new-password" value={staffPin} maxLength={6} onChange={(event) => setStaffPin(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
                     <label className={styles.field}>Nhập lại PIN<input inputMode="numeric" type="password" autoComplete="new-password" value={staffPinConfirm} maxLength={6} onChange={(event) => setStaffPinConfirm(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
