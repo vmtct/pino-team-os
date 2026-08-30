@@ -42,7 +42,7 @@ export function StaffManagementView() {
     return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
   }, []);
   useEffect(() => {
-    setStaffPin(""); setStaffPinConfirm(("");
+    setStaffPin(""); setStaffPinConfirm("");
     if (!selectedId) { setProfile(null); return; }
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { setProfile(next); setForm(profileForm(next)); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."));
@@ -154,7 +154,7 @@ export function StaffManagementView() {
       await refresh(selectedId);
       if (result.staffDeactivated) setProfile((value) => value ? { ...value, status: "inactive" } : value);
       setSuspendReason("");
-      setMessage(result.accessSuspended ? "Offboarding hoàn tất: Access đã suspended và Staff đã inactive." : "Offboarding hoàn tất: Staff đã inactive.");
+      setMessage(accessActive ? "Offboarding hoàn tất: Access đã suspended và Staff đã inactive." : "Offboarding hoàn tất: Staff đã inactive.");
     } catch (cause) {
       try { await refresh(selectedId); } catch { /* keep original command error */ }
       setError(cause instanceof Error ? cause.message : "Không thể hoàn tất offboarding.");
@@ -197,7 +197,7 @@ export function StaffManagementView() {
               {(profile.status === "active" || accessUser?.status === "active") ? <div className={styles.staffAccessStatus}>
                 <div><strong>Offboarding</strong><p>Luôn suspend Access trước rồi mới deactivate Staff để partial failure vẫn fail-safe.</p></div>
                 {accessUser?.status === "active" ? <label className={styles.field}>Lý do offboarding<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Ví dụ: kết thúc hợp tác" /></label> : null}
-                <button type="button" className={styles.secondaryButton} disabled={busy === "offboarding" || Boolean(busy && busy !== "offboarding") || (accessUser?.status === "active" && !suspendReason.trim())} onClick={() => void runOffboarding()}>{busy === "offboarding" ? "Đang offboard…" : profile.status === "inactive" ? "Hoàn tất offboarding" : "Offboard an toàn"}</button>
+                <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || (accessUser?.status === "active" && !suspendReason.trim())} onClick={() => void runOffboarding()}>{busy === "offboarding" ? "Đang offboard…" : profile.status === "inactive" ? "Hoàn tất offboarding" : "Offboard an toàn"}</button>
               </div> : null}
             </section>
 
