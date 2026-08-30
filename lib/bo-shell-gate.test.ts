@@ -75,3 +75,45 @@ test("malformed successful Core projection cannot authorize the BO shell", async
   } };
   await assert.rejects(authorizeBoShell(f.headers, env(binding), f.resolver), (error: unknown) => error instanceof BoShellGateError && error.status === 403);
 });
+
+test("workers.dev Workforce staging identity still requires canonical BO entitlement", async () => {
+  const requests: BoAccessRequest[] = []; let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(request, actor) {
+    requests.push(request); identity = actor;
+    return context(actor);
+  } };
+  const headers = new Headers({ host: "pino-team-os-staging.example.workers.dev" });
+  const result = await authorizeBoShell(headers, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  });
+  assert.deepEqual(requests, [{ method: "GET", path: "context" }]);
+  assert.equal(identity?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(result.email, "workforce-planning-staging-probe@pino.invalid");
+  assert.equal(result.entitled, true);
+});
+
+test("Workforce staging shell identity cannot activate on production BO host", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const headers = new Headers({ host: "bo.pinohouse.art" });
+  await assert.rejects(authorizeBoShell(headers, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  }), BoShellGateError);
+  assert.equal(called, false);
+});
+
+test("Workforce staging shell identity fails closed when canonical Core denies BO", async () => {
+  const binding: BoAccessCoreBinding = { async execute() {
+    return { status: 403, body: { error: { code: "ACCESS_SURFACE_DENIED" } }, requestId: "denied" };
+  } };
+  const headers = new Headers({ host: "pino-team-os-staging.example.workers.dev" });
+  await assert.rejects(authorizeBoShell(headers, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  }), (error: unknown) => error instanceof BoShellGateError && error.status === 403);
+});

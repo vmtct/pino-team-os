@@ -1,8 +1,9 @@
 import type { JWTVerifyGetKey } from "jose";
 import { authenticateBo, type VerifiedBoIdentity } from "./bo-auth";
 import { callBoAccessCore, type BoAccessCoreBinding } from "./bo-core";
+import { stagingBoWorkforceIdentity, type BoWorkforceStagingAuthEnv } from "./bo-workforce-staging-auth";
 
-export interface BoShellGateEnv {
+export interface BoShellGateEnv extends BoWorkforceStagingAuthEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
   CF_ACCESS_TEAM_DOMAIN: string;
   CF_ACCESS_BO_AUD: string;
@@ -29,7 +30,9 @@ export async function authorizeBoShell(
 ): Promise<BoShellContext> {
   let identity: VerifiedBoIdentity;
   try {
-    identity = await authenticateBo(headers, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD }, keyResolver);
+    const host = headers.get("host")?.trim();
+    const stagingIdentity = host ? stagingBoWorkforceIdentity(new Request(`https://${host}/bo`, { headers }), env) : null;
+    identity = stagingIdentity ?? await authenticateBo(headers, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD }, keyResolver);
   } catch (error) {
     throw new BoShellGateError(error instanceof Error && "status" in error ? Number((error as { status: number }).status) : 401, "BO identity was not authenticated");
   }
