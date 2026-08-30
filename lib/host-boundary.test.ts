@@ -26,6 +26,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/bo",
     "/bo/",
     "/bo/staff",
+    "/bo/workforce",
     "/bo/learners",
     "/bo/open-studio",
     "/bo/delivery-activation",
@@ -65,6 +66,9 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/access/users",
     "/api/bo/workforce/staff-records",
     "/api/bo/workforce/staff-onboarding",
+    "/api/bo/workforce/planning/weekly",
+    "/api/bo/workforce/planning/assignment",
+    "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments",
     "/api/bo/access/assignments/remove",
     "/api/bo/access/users/status",
@@ -105,6 +109,8 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
     "/api/bo/sessions/not-a-canonical-id/registrations",
     "/api/bo/workforce/staff-records/not-a-canonical-id",
+    "/api/bo/workforce/planning/anything",
+    "/api/bo/workforce/planning/assignment/cancel/anything",
     "/api/bo/workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345/anything",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
