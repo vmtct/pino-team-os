@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoCenter, BoLearnerDirectoryItem, BoLearnerLifecycle, BoOpenStudioOperations, BoOpenStudioPass, BoSession, BoSyllabus } from "@/lib/bo-model";
+import { OpenStudioPolicyControl } from "./OpenStudioPolicyControl";
 import styles from "../bo.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -50,6 +51,7 @@ export function OpenStudioView() {
     {operations.state === "loading" ? <State text="Đang tải Open Studio control plane…" /> : null}
     {operations.state === "error" ? <State text={operations.message} error /> : null}
     {data ? <>
+      <OpenStudioPolicyControl centerId={centerId} />
       <ListingComposer sessions={visibleSessions} syllabi={syllabi} onChanged={async (text) => { setNotice(text); await refresh(); }} />
       <ListingBoard data={data} onChanged={async (text) => { setNotice(text); await refresh(); }} />
       <PassAdmissionDesk learners={learners} listings={data.listings.filter((item) => item.status === "PUBLISHED")} centers={centers} onChanged={async (text) => { setNotice(text); await refresh(); }} />
@@ -61,15 +63,23 @@ function ListingComposer({ sessions, syllabi, onChanged }: { sessions: BoSession
   const [sessionId, setSessionId] = useState("");
   const [syllabusId, setSyllabusId] = useState("");
   const [experienceType, setExperienceType] = useState<Experience>("KHAM_PHA");
+  const [bookingOpensAt, setBookingOpensAt] = useState("");
+  const [bookingClosesAt, setBookingClosesAt] = useState("");
   const [busy, setBusy] = useState(false);
   const session = sessions.find((item) => item.id === sessionId) ?? null;
   const eligibleSyllabi = syllabi.filter((item) => item.publicationStatus === "PUBLISHED" && (!session?.pathProgramId || item.pathProgramId === session.pathProgramId));
 
   async function create() {
     if (!sessionId || !syllabusId) return;
+    const opens = bookingOpensAt ? new Date(bookingOpensAt).toISOString() : undefined;
+    const closes = bookingClosesAt ? new Date(bookingClosesAt).toISOString() : undefined;
+    if (opens && closes && Date.parse(opens) >= Date.parse(closes)) { alert("Booking opens phải trước booking closes."); return; }
     setBusy(true);
-    try { await boApi.createOpenStudioListing({ sessionId, syllabusId, experienceType }); await onChanged("Open Studio Listing draft đã được tạo."); setSessionId(""); setSyllabusId(""); }
-    catch (error) { alert(message(error)); } finally { setBusy(false); }
+    try {
+      await boApi.createOpenStudioListing({ sessionId, syllabusId, experienceType, ...(opens ? { bookingOpensAt: opens } : {}), ...(closes ? { bookingClosesAt: closes } : {}) });
+      await onChanged("Open Studio Listing draft đã được tạo với booking window canonical.");
+      setSessionId(""); setSyllabusId(""); setBookingOpensAt(""); setBookingClosesAt("");
+    } catch (error) { alert(message(error)); } finally { setBusy(false); }
   }
   return <section className={styles.panel}>
     <div className={styles.panelHeading}><div><h2>Tạo Listing</h2><p>Chỉ Session + Syllabus canonical cùng Path mới publish được.</p></div><span className={styles.writePill}>Write</span></div>
@@ -78,6 +88,11 @@ function ListingComposer({ sessions, syllabi, onChanged }: { sessions: BoSession
       <label className={styles.field}>Syllabus<select value={syllabusId} onChange={(event) => setSyllabusId(event.target.value)}><option value="">Chọn Syllabus…</option>{eligibleSyllabi.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
       <label className={styles.field}>Experience<select value={experienceType} onChange={(event) => setExperienceType(event.target.value as Experience)}><option value="KHAM_PHA">Khám phá</option><option value="CAO_CAP">Cao cấp</option><option value="CHUYEN_DE">Chuyên đề</option></select></label>
       <button className={styles.primaryButton} disabled={!sessionId || !syllabusId || busy} onClick={() => void create()}>{busy ? "Đang tạo…" : "Tạo Listing"}</button>
+    </div>
+    <div className={styles.osBookingGrid}>
+      <label className={styles.field}>Booking opens (optional)<input type="datetime-local" value={bookingOpensAt} onChange={(event) => setBookingOpensAt(event.target.value)} /></label>
+      <label className={styles.field}>Booking closes (optional)<input type="datetime-local" value={bookingClosesAt} onChange={(event) => setBookingClosesAt(event.target.value)} /></label>
+      <p className={styles.muted}>Để trống = Core dùng lifecycle mặc định của Listing. Nếu nhập cả hai, opens phải trước closes.</p>
     </div>
   </section>;
 }
@@ -99,7 +114,7 @@ function ListingBoard({ data, onChanged }: { data: BoOpenStudioOperations; onCha
     <div className={styles.panelHeading}><div><h2>Listings</h2><p>Lifecycle và reservation count từ Core.</p></div><span className={styles.readOnly}>{data.listings.length} listing</span></div>
     <div className={styles.osGrid}>{data.listings.map((listing) => <article className={styles.osCard} key={listing.id}>
       <div className={styles.osCardHead}><div><strong>{listing.syllabusTitle}</strong><span>{listing.localDate} · {clockLocal(listing.scheduledStartsLocal)}–{clockLocal(listing.scheduledEndsLocal)} · {listing.pathDisplayName}</span></div><span className={styles.statusPill}>{listing.status}</span></div>
-      <div className={styles.osMeta}><span>{experienceLabel(listing.experienceType)}</span><span>{listing.claimCount} claim</span><span>v{listing.version}</span></div>
+      <div className={styles.osMeta}><span>{experienceLabel(listing.experienceType)}</span><span>{listing.claimCount} claim</span><span>v{listing.version}</span><span>Open {listing.bookingOpensAt ? shortDate(listing.bookingOpensAt) : "default"}</span><span>Close {listing.bookingClosesAt ? shortDate(listing.bookingClosesAt) : "default"}</span></div>
       <div className={styles.subscriptionActions}>
         {listing.status === "DRAFT" ? <button className={styles.primaryButton} disabled={!!busy} onClick={() => void command(listing, "publish")}>{busy === `publish:${listing.id}` ? "…" : "Publish"}</button> : null}
         {listing.status === "PUBLISHED" ? <><button className={styles.secondaryButton} disabled={!!busy} onClick={() => void command(listing, "close")}>Close</button><button className={styles.secondaryButton} disabled={!!busy} onClick={() => void command(listing, "cancel")}>Cancel</button></> : null}

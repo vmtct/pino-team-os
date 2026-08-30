@@ -41,6 +41,8 @@ const OPEN_STUDIO_CENTER_COMMAND = /^open-studio\/(member-path-centers|member-ce
 const OPEN_STUDIO_PASS_ISSUE = new Set(["open-studio/passes/issue-monthly-path", "open-studio/passes/issue-bring-a-friend"]);
 const OPEN_STUDIO_PASS_REVOKE = /^open-studio\/passes\/[0-9a-f-]{36}\/revoke$/;
 const OPEN_STUDIO_ADMISSION = "open-studio/admission";
+const OPEN_STUDIO_POLICY_VERSION = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions$/;
+const OPEN_STUDIO_POLICY_PUBLISH = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -140,7 +142,9 @@ export function isAllowedPostPath(path: string): boolean {
     || OPEN_STUDIO_CENTER_COMMAND.test(path)
     || OPEN_STUDIO_PASS_ISSUE.has(path)
     || OPEN_STUDIO_PASS_REVOKE.test(path)
-    || path === OPEN_STUDIO_ADMISSION;
+    || path === OPEN_STUDIO_ADMISSION
+    || OPEN_STUDIO_POLICY_VERSION.test(path)
+    || OPEN_STUDIO_POLICY_PUBLISH.test(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */

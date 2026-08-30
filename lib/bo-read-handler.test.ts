@@ -159,3 +159,21 @@ test("Workforce staging BO read identity cannot activate on production host", as
   assert.equal(response.status, 401);
   assert.equal(called, false);
 });
+
+
+test("Open Studio policy reads expose only target and effective-time query fields", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 200, body: { data: {} }, requestId: "core-open-studio-policy-read" }; } };
+  const centerId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const streamPath = "policies/open_studio/monthly_path_pass.v1/stream";
+  const effectivePath = "policies/open_studio/cancellation.v1/effective";
+  const streamRequest = new Request(`https://bo.pinohouse.art/api/bo/${streamPath}?targetType=CENTER&targetId=${centerId}&userId=forged`, { headers: { "cf-access-jwt-assertion": f.token } });
+  const effectiveRequest = new Request(`https://bo.pinohouse.art/api/bo/${effectivePath}?targetType=GLOBAL&targetId=forged&effectiveAt=2026-08-30T13%3A00%3A00.000Z&email=attacker`, { headers: { "cf-access-jwt-assertion": f.token } });
+  assert.equal((await handleBoOperationalReadRequest(streamRequest, env(binding), streamPath, f.resolver)).status, 200);
+  assert.equal((await handleBoOperationalReadRequest(effectiveRequest, env(binding), effectivePath, f.resolver)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: streamPath, body: { targetType: "CENTER", targetId: centerId } },
+    { method: "GET", path: effectivePath, body: { targetType: "GLOBAL", targetId: null, effectiveAt: "2026-08-30T13:00:00.000Z" } },
+  ]);
+});
