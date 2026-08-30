@@ -48,9 +48,16 @@ Do **not** run four equal top-level banners (`female Mid-Autumn`, `male Mid-Autu
 
 Use: **2 Mid-Autumn Wearable banners + optional 1 Companion banner** during the festival phase. Move the Autumn Wearable banner to the following phase. This preserves choice without fragmenting attention, while Wearable pity remains continuous across the owner rotation.
 
-## BO constraints to implement next
+## BO/Core constraints to implement next
 
-Add release-group knowledge so BO can validate: maximum featured slots per family/phase, overlap conflicts, exact pity family, immutable rules version, release priority, and phase dates. TOS should disclose the active family/rule/pity; TV remains reveal-only and must never decide banner availability or outcomes.
+Introduce a canonical `WishReleasePhase`, not UI-only scheduling metadata:
+- `phaseKey`, `familyKey`, `startsAt`, `endsAt`, exact published `rulesVersion/rulesHash`.
+- primary Wearable family allows `maxFeaturedSlots=2`; a banner occupies slot 1 or 2.
+- all banners in one phase inherit the same family/window/economy; Core rejects a third featured slot, mismatched window, or mismatched rules.
+- release role (`NEW`, `RERUN`, `SEASONAL`) is merchandising metadata only and must not alter pity/outcome logic.
+- retiring/replacing a banner never mutates learner family pity.
+
+BO configures and validates the phase. TOS discloses active family/rule/pity and may show both eligible Wish activities. TV remains reveal-only and must never decide banner availability or outcomes.
 
 ## Source audit notes
 
