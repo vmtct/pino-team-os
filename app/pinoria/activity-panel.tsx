@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { pinoriaReadinessApi, type PinoriaReadinessState } from "@/lib/pinoria-readiness-api";
 import styles from "./wish-activity.module.css";
 
 type ActivityAction = {
@@ -70,6 +71,7 @@ function readinessLabel(key: string | null | undefined) {
 }
 export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }: Props) {
   const [activities, setActivities] = useState<AvailableActivity[]>([]);
+  const [readiness, setReadiness] = useState<PinoriaReadinessState | null>(null);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -81,7 +83,9 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
     );
     const json = await response.json() as Envelope<AvailableActivity[]>;
     if (!response.ok || !json.data) throw new Error(json.error?.message ?? "Không tải được hoạt động Pinoria");
+    const nextReadiness = await pinoriaReadinessApi.state(centerId, studentProfileId);
     setActivities(json.data);
+    setReadiness(nextReadiness);
   }, [centerId, studentProfileId]);
 
   useEffect(() => {
@@ -115,12 +119,24 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
     }
   }
 
+  async function feedCompanion(companionId:string) {
+    if (busy) return;
+    setBusy(`feed:${companionId}`); setError(""); setNotice("");
+    try {
+      await pinoriaReadinessApi.feed(centerId, studentProfileId, companionId);
+      setNotice(`${displayName}: đã dùng 1 Quả cho Hộ Linh. Core đã cập nhật tiến độ; TV chưa chạy scene.`);
+      await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể cập nhật Hộ Linh"); }
+    finally { setBusy(""); }
+  }
+
   if (error) return <div className={styles.error}>{error}</div>;
   if (!activities.length) return <div className={styles.empty}>Chưa có hoạt động Pinoria đang mở.</div>;
   return <>{activities.map((activity) => {
     const wish = isWishContext(activity.context) ? activity.context : null;
     const egg = isEggContext(activity.context) ? activity.context : null;
     const ritual = isRitualContext(activity.context) ? activity.context : null;
+    const coreProgress = ritual?.companion ? readiness?.companions.find((item) => item.companionId === ritual.companion?.id) ?? null : null;
     const resonance = wish ? (wish.bearer.resonanceLevel < 0 ? "Chưa cộng hưởng" : `C${wish.bearer.resonanceLevel}`) : null;
     return <section className={styles.panel} key={activity.activityId} aria-label={`Pinoria activity for ${displayName}`}>
       <div className={styles.copy}>
@@ -139,11 +155,13 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
         <b>{egg.egg ? "🥚 Sẵn sàng" : "🥚 Chưa sẵn sàng"}</b>
         <span>{egg.species?.displayName ?? "Hộ Linh"}</span>
       </div> : ritual ? <div className={styles.state}>
-        <b>{ritual.species?.displayName ?? "Hộ Linh"} · Cấp {ritual.progression?.materializationLevel ?? "—"}</b>
-        <span>{ritual.progression ? `${ritual.progression.stageFeedCount} tiến độ · ${readinessLabel(ritual.progression.readinessRuleKey)}` : "Chưa có tiến trình"}</span>
-        <span>{ritual.progression?.state === "READY_FOR_RITUAL" ? "✦ Sẵn sàng Nghi thức" : activity.reason?.message ?? "Đang trưởng thành"}</span>
+        <b>{ritual.species?.displayName ?? "Hộ Linh"} · Cấp {coreProgress?.materializationLevel ?? ritual.progression?.materializationLevel ?? "—"}</b>
+        <span>🍎 {readiness?.fruitBalance ?? 0} Quả · {readiness?.waterSigil ? "Thủy Ấn ✓" : "Chưa có Thủy Ấn"}</span>
+        <span>{coreProgress ? `${coreProgress.stageFeedCount} tiến độ · ${readinessLabel(coreProgress.readinessRuleKey)}` : ritual.progression ? `${ritual.progression.stageFeedCount} tiến độ · ${readinessLabel(ritual.progression.readinessRuleKey)}` : "Chưa có tiến trình"}</span>
+        <span>{coreProgress?.state === "READY_FOR_RITUAL" || ritual.progression?.state === "READY_FOR_RITUAL" ? "✦ Sẵn sàng Nghi thức" : activity.reason?.message ?? "Đang trưởng thành"}</span>
       </div> : <div className={styles.state}><span>{activity.reason?.message ?? "Chưa khả dụng"}</span></div>}
       <div className={styles.actions}>
+        {ritual?.companion && coreProgress ? <button disabled={!!busy || readiness?.fruitBalance === 0 || coreProgress.state !== "GROWING"} onClick={() => void feedCompanion(ritual.companion!.id)}>{busy === `feed:${ritual.companion.id}` ? "…" : "Dùng 1 Quả"}</button> : null}
         {activity.actions.map((action) => {
           const key = `${activity.activityId}:${action.key}`;
           return <button key={action.key} disabled={!!busy || !action.enabled} title={action.reason?.message ?? undefined} onClick={() => void execute(activity, action)}>{busy === key ? "…" : action.label}</button>;
