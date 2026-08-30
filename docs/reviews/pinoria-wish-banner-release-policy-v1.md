@@ -18,7 +18,7 @@ Status: product/canonical design knowledge for staging implementation. This docu
 - A banner spotlights the lore owner of one signature wearable set. Drops remain item-level: individual signature pieces, whole-set completion through protection, off-banner wearables and duplicate/resonance outcomes.
 - Do not hard-filter male/female banners by learner sex. Both are discoverable. Ordering may follow avatar compatibility or explicit learner choice, but eligibility and pity must not depend on sex.
 - At one time, show at most **two featured Wearable banners** in the primary release surface. They share the same `LIMITED_WARDROBE` pity family.
-- A **Companion banner** may run in parallel only as an orthogonal fantasy/family. It must not silently consume or reset Wearable pity.
+- A **Companion campaign/banner surface** may run in parallel only as an orthogonal acquisition fantasy. Today Companion authority is Egg/Hatch/Ritual, not the Wearable Wish engine; therefore the UI must not silently make Companion a Wish drop. If Companion gacha is ever introduced, it requires its own canonical family/economy first and must not consume or reset Wearable pity.
 - Do not launch an additional generic seasonal Wearable banner simultaneously when two festival Wearable banners are already active. Rotate it into the next phase instead.
 
 ## Recommended seasonal cadence
@@ -50,3 +50,12 @@ Use: **2 Mid-Autumn Wearable banners + optional 1 Companion banner** during the 
 ## BO constraints to implement next
 
 Add release-group knowledge so BO can validate: maximum featured slots per family/phase, overlap conflicts, exact pity family, immutable rules version, release priority, and phase dates. TOS should disclose the active family/rule/pity; TV remains reveal-only and must never decide banner availability or outcomes.
+
+## Source audit notes
+
+Official HoYoLAB references checked for this policy:
+- Character Event Wish-2 Mechanics Description (Genshin Impact Official, article 1387602): Character Event Wish and Wish-2 share pity and featured guarantee across rotations; other Wish types are independent.
+- Version 5.7 Event Wishes Notice – Phase I (Genshin Impact Official, article 39353510): two Character Event Wish lanes run in the same phase, alongside the separate Weapon Event Wish.
+- Chronicled Wish Rules & FAQ (Genshin Impact Official, article_pre/18014398241032513): Chronicled pity carries within its own type while Fate Points reset per period; archive eligibility was later relaxed to at least two prior Character Event Wish appearances plus not recent.
+
+These are reference mechanics, not Pinoria requirements. Pinoria intentionally keeps the primary Wearable family simpler: family pity and featured guarantee remain durable across owner rotations, while release-slot limits and seasonal sequencing are Pinoria product policy.
