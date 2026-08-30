@@ -7,6 +7,7 @@ import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
+import { CompanionRitualScene, COMPANION_RITUAL_SCENE_MS } from "./companion-ritual-scene";
 import styles from "./reception-tv.module.css";
 
 type Presence = {
@@ -157,7 +158,11 @@ export function ReceptionTv() {
       }
     };
 
-    const duration = presentation.kind === "WISH_REVEAL" ? wishRevealSceneMs(presentation.projection) : EGG_HATCH_SCENE_MS;
+    const duration = presentation.kind === "WISH_REVEAL"
+      ? wishRevealSceneMs(presentation.projection)
+      : presentation.kind === "EGG_HATCH"
+        ? EGG_HATCH_SCENE_MS
+        : COMPANION_RITUAL_SCENE_MS;
     timer = window.setTimeout(() => void finish(), duration);
     return () => {
       cancelled = true;
@@ -246,6 +251,7 @@ export function ReceptionTv() {
 
     {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
     {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
+    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={presentation.projection} /> : null}
 
     <footer>
       <span>{new Date().toLocaleDateString("vi-VN", {

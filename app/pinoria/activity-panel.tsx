@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import styles from "./wish-activity.module.css";
 
 type ActivityAction = {
-  key: "DRAW_ONE" | "DRAW_FIVE" | "HATCH";
+  key: "DRAW_ONE" | "DRAW_FIVE" | "HATCH" | "ADVANCE_COMPANION_MATERIALIZATION";
   label: string;
   enabled: boolean;
   cost: number;
@@ -24,10 +24,21 @@ type EggContext = {
   egg: { id: string; readyAt: string; assetKey: string } | null;
   species: { id: string; key: string; displayName: string; companionAssetKey: string } | null;
 };
+type RitualContext = {
+  companion: { id: string; speciesId: string; status: string } | null;
+  progression: {
+    materializationLevel: number;
+    state: string;
+    stageFeedCount: number;
+    readinessRuleKey: string | null;
+    version: number;
+  } | null;
+  species: { id: string; key: string; displayName: string; companionAssetKey: string; sigilAssetKey: string | null } | null;
+};
 type AvailableActivity = {
   activityId: string;
   key: string;
-  handlerKey: "WISH_DRAW" | "EGG_HATCH";
+  handlerKey: "WISH_DRAW" | "EGG_HATCH" | "COMPANION_RITUAL";
   staffName: string;
   learnerName: string;
   iconAssetKey: string | null;
@@ -35,7 +46,7 @@ type AvailableActivity = {
   eligible: boolean;
   reason: { code: string; message: string } | null;
   actions: ActivityAction[];
-  context: WishContext | EggContext | null;
+  context: WishContext | EggContext | RitualContext | null;
 };
 type Envelope<T> = { data?: T; error?: { message?: string } };
 type Props = { centerId: string; studentProfileId: string; displayName: string };
@@ -47,6 +58,14 @@ function isEggContext(value: AvailableActivity["context"]): value is EggContext 
   return Boolean(value && "egg" in value && "species" in value);
 }
 
+function isRitualContext(value: AvailableActivity["context"]): value is RitualContext {
+  return Boolean(value && "companion" in value && "progression" in value && "species" in value);
+}
+function readinessLabel(key: string | null | undefined) {
+  if (key === "FEED_2") return "2 lần nuôi";
+  if (key === "FEED_5_AND_WATER_SIGIL") return "5 lần nuôi + Thủy Ấn";
+  return "Đang tích lũy";
+}
 export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }: Props) {
   const [activities, setActivities] = useState<AvailableActivity[]>([]);
   const [busy, setBusy] = useState("");
@@ -99,12 +118,13 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
   return <>{activities.map((activity) => {
     const wish = isWishContext(activity.context) ? activity.context : null;
     const egg = isEggContext(activity.context) ? activity.context : null;
+    const ritual = isRitualContext(activity.context) ? activity.context : null;
     const resonance = wish ? (wish.bearer.resonanceLevel < 0 ? "Chưa cộng hưởng" : `C${wish.bearer.resonanceLevel}`) : null;
     return <section className={styles.panel} key={activity.activityId} aria-label={`Pinoria activity for ${displayName}`}>
       <div className={styles.copy}>
         <span>PINORIA · HOẠT ĐỘNG</span>
         <strong>{activity.staffName}</strong>
-        <small>{activity.learnerName}{wish ? ` · ${wish.banner.bearer.displayName}` : egg?.species ? ` · ${egg.species.displayName}` : ""}</small>
+        <small>{activity.learnerName}{wish ? ` · ${wish.banner.bearer.displayName}` : egg?.species ? ` · ${egg.species.displayName}` : ritual?.species ? ` · ${ritual.species.displayName}` : ""}</small>
       </div>
       {wish ? <div className={styles.state}>
         <b>✦ {wish.energySeedBalance}</b>
@@ -113,6 +133,10 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
       </div> : egg ? <div className={styles.state}>
         <b>{egg.egg ? "🥚 Sẵn sàng" : "🥚 Chưa sẵn sàng"}</b>
         <span>{egg.species?.displayName ?? "Hộ Linh"}</span>
+      </div> : ritual ? <div className={styles.state}>
+        <b>{ritual.species?.displayName ?? "Hộ Linh"} · Cấp {ritual.progression?.materializationLevel ?? "—"}</b>
+        <span>{ritual.progression ? `${ritual.progression.stageFeedCount} tiến độ · ${readinessLabel(ritual.progression.readinessRuleKey)}` : "Chưa có tiến trình"}</span>
+        <span>{ritual.progression?.state === "READY_FOR_RITUAL" ? "✦ Sẵn sàng Nghi thức" : activity.reason?.message ?? "Đang trưởng thành"}</span>
       </div> : <div className={styles.state}><span>{activity.reason?.message ?? "Chưa khả dụng"}</span></div>}
       <div className={styles.actions}>
         {activity.actions.map((action) => {
