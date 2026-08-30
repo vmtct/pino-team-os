@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { decideHostBoundary, requiresTosStaffSession } from "@/lib/host-boundary";
 
 export function middleware(request: NextRequest) {
-  const decision = decideHostBoundary(request.headers.get("host") ?? request.nextUrl.hostname, request.nextUrl.pathname);
+  const host = request.headers.get("host") ?? request.nextUrl.hostname;
+  const pathname = request.nextUrl.pathname;
+  const decision = decideHostBoundary(host, pathname);
 
   if (decision.action === "next") {
-    if (requiresTosStaffSession(request.headers.get("host") ?? request.nextUrl.hostname, request.nextUrl.pathname) && !request.cookies.get("pino_staff_session")?.value) {
-      const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
+    if (requiresTosStaffSession(host, pathname) && !request.cookies.get("pino_staff_session")?.value) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: { code: "STAFF_SESSION_REQUIRED", message: "Staff session is required" } },
+          { status: 401, headers: { "cache-control": "no-store" } },
+        );
+      }
+      const login = new URL(request.url);
+      login.pathname = "/staff-login";
+      login.search = "";
       return NextResponse.redirect(login, 307);
     }
     return NextResponse.next();
@@ -16,7 +26,7 @@ export function middleware(request: NextRequest) {
   }
 
   const destination = new URL(request.url);
-  destination.host = request.headers.get("host") ?? request.nextUrl.host;
+  destination.host = host;
   destination.pathname = decision.pathname;
   destination.search = "";
   return NextResponse.redirect(destination, 307);
