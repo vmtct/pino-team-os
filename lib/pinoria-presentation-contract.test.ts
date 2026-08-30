@@ -56,14 +56,17 @@ test("Wish economy control stays in BO while TOS only discloses authoritative pi
   const boView = read("app/bo/pinoria-wish/WishBoView.tsx");
   const rules = read("app/bo/pinoria-wish/RuleManager.tsx");
   const tos = read("app/pinoria/activity-panel.tsx");
+  const wishProgress = read("app/pinoria/WishProgressCard.tsx");
   assert.match(boView, /pinoria\/wish\/rules/);
   assert.match(boView, /form\.rulesVersion/);
   assert.match(rules, /\/simulate/);
   assert.match(rules, /lifecycle\(rule,"publish"\)/);
   assert.match(rules, /Simulate 50k/);
-  assert.match(tos, /wish\.pity\.nextMythicPityPosition/);
-  assert.match(tos, /wish\.pity\.featuredGuarantee/);
-  assert.match(tos, /wish\.banner\.guarantees\.featuredMythicRate/);
+  assert.match(tos, /<WishProgressCard/);
+  assert.match(wishProgress, /props\.pity\.nextMythicPityPosition/);
+  assert.match(wishProgress, /props\.pity\.featuredGuarantee/);
+  assert.match(wishProgress, /props\.banner\.guarantees\.featuredMythicRate/);
+  assert.match(wishProgress, /pinoria\/wish\/history/);
   assert.doesNotMatch(tos, /pinoria\/wish\/rules/);
 });
 test("Companion readiness stays Core-authoritative and adds no TV scene", () => {
