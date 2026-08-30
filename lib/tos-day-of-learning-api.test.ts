@@ -48,3 +48,20 @@ test("Day of Learning only auto-settles roster sources with complete authority s
   }
   for (const basis of ["AUTHORIZED_EXCEPTION", "OCCURRENCE_SWAP", "ADVANCE_UNIT"]) assert.equal(canSettleSource(source(basis)), false);
 });
+
+test("Open Studio Desk uses the bounded day projection and claim outcome command", async () => {
+  const calls: Array<[string, RequestInit]> = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => { calls.push([String(url), init ?? {}]); return Response.json({ data: { claims: [] } }); }) as typeof fetch;
+  try {
+    await tosDayOfLearningApi.openStudioDay("center-1", "2026-08-30");
+    await tosDayOfLearningApi.settleOpenStudioOwner({ claimId: "claim-1", attendanceStatus: "PRESENT", syllabusId: "syllabus-1", learningNote: "Ổn định", observation: "Chủ động" }, "claim-key");
+  } finally { globalThis.fetch = original; }
+  assert.equal(calls[0]![0], "/api/tos-learning/open-studio/day?centerId=center-1&localDate=2026-08-30");
+  assert.equal(calls[1]![0], "/api/tos-learning/open-studio/claims/claim-1/outcome");
+  assert.equal(new Headers(calls[1]![1].headers).get("idempotency-key"), "claim-key");
+  const body = JSON.parse(String(calls[1]![1].body));
+  assert.equal(body.attendanceStatus, "PRESENT");
+  assert.equal(typeof body.recordedAt, "string");
+  assert.deepEqual(body.diary, { syllabusId: "syllabus-1", learningNote: "Ổn định", observation: "Chủ động" });
+});

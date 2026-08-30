@@ -10,6 +10,7 @@ import styles from "./classroom.module.css";
 const footer = [
   { id: "home", label: "Home", href: "/dashboard" },
   { id: "classroom", label: "Lớp học", href: "/classroom" },
+  { id: "open-studio", label: "Open Studio", href: "/open-studio" },
   { id: "shift", label: "Ca làm", href: "/check-in" },
   { id: "history", label: "Lịch sử", href: "/timesheet" },
 ];

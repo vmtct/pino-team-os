@@ -112,3 +112,20 @@ test("Learner directory query and lifecycle detail stay on the private BO read c
     { method: "GET", path: `students/${studentId}/lifecycle` },
   ]);
 });
+
+test("Open Studio operational reads forward only canonical query fields", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 200, body: { data: {} }, requestId: "core-open-studio-read" }; } };
+  const centerId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const passId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
+  const listingId = "0198d050-56c1-7ac5-b9ab-b0e45d912347";
+  const operationsRequest = new Request(`https://bo.pinohouse.art/api/bo/open-studio/operations?centerId=${centerId}&userId=forged`, { headers: { "cf-access-jwt-assertion": f.token } });
+  const eligibilityRequest = new Request(`https://bo.pinohouse.art/api/bo/open-studio/passes/${passId}/claim-eligibility?listingId=${listingId}&participantMode=OWNER&studentProfileId=${centerId}&effectiveAt=2026-08-30T12%3A00%3A00.000Z&userId=forged`, { headers: { "cf-access-jwt-assertion": f.token } });
+  assert.equal((await handleBoOperationalReadRequest(operationsRequest, env(binding), "open-studio/operations", f.resolver)).status, 200);
+  assert.equal((await handleBoOperationalReadRequest(eligibilityRequest, env(binding), `open-studio/passes/${passId}/claim-eligibility`, f.resolver)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "open-studio/operations", body: { centerId } },
+    { method: "GET", path: `open-studio/passes/${passId}/claim-eligibility`, body: { listingId, participantMode: "OWNER", studentProfileId: centerId, effectiveAt: "2026-08-30T12:00:00.000Z" } },
+  ]);
+});

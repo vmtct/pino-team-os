@@ -32,6 +32,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo",
     "/bo/staff",
     "/bo/learners",
+    "/bo/open-studio",
     "/bo/delivery-activation",
     "/bo/running-classes",
     "/bo/sessions",
@@ -39,6 +40,16 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/syllabus",
     "/api/bo/context",
     "/api/bo/learners",
+    "/api/bo/open-studio/operations",
+    "/api/bo/open-studio/passes",
+    "/api/bo/open-studio/listings",
+    "/api/bo/open-studio/member-path-centers/assign",
+    "/api/bo/open-studio/member-path-centers/reassign",
+    "/api/bo/open-studio/member-centers/assign",
+    "/api/bo/open-studio/member-centers/reassign",
+    "/api/bo/open-studio/passes/issue-monthly-path",
+    "/api/bo/open-studio/passes/issue-bring-a-friend",
+    "/api/bo/open-studio/admission",
     "/api/bo/centers",
     "/api/bo/delivery/bootstrap-state",
     "/api/bo/delivery/enrollment-activation",
@@ -70,14 +81,16 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/subscriptions(?:\/[0-9a-f-]{36}\/(?:activate|renew|supersede|cancel|service-grants|pauses|renewal-grace))?$/.test(normalized)
     || /^\/api\/bo\/subscription-pauses\/[0-9a-f-]{36}\/cancel$/.test(normalized)
     || /^\/api\/bo\/renewal-grace\/[0-9a-f-]{36}\/revoke$/.test(normalized)
-    || /^\/api\/bo\/enrollments(?:\/(?:bulk-preflight|bulk-place|[0-9a-f-]{36}\/(?:transfer|end)))?$/.test(normalized);
+    || /^\/api\/bo\/enrollments(?:\/(?:bulk-preflight|bulk-place|[0-9a-f-]{36}\/(?:transfer|end)))?$/.test(normalized)
+    || /^\/api\/bo\/open-studio\/listings\/[0-9a-f-]{36}\/(?:publish|close|cancel)$/.test(normalized)
+    || /^\/api\/bo\/open-studio\/passes\/[0-9a-f-]{36}\/(?:revoke|claim-eligibility)$/.test(normalized);
 }
 
 export function requiresTosStaffSession(host: string, pathname: string): boolean {
   if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;
-  return ["/dashboard", "/schedule", "/classroom", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
+  return ["/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
     .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
 }
 

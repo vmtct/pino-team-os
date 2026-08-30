@@ -274,3 +274,21 @@ test("Learner lifecycle writes remain bounded and forward replay evidence to Cor
   }
   assert.deepEqual(forwarded.map((item) => ({ path: item.path, idempotencyKey: item.idempotencyKey })), cases.map((item) => ({ path: item.route, idempotencyKey: item.key })));
 });
+
+test("Open Studio BO writes stay on the explicit facade allowlist with replay evidence", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 201, body: { data: { ok: true } }, requestId: "core-open-studio-write" }; } };
+  const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const cases = [
+    { route: "open-studio/listings", key: "listing-create", body: { sessionId: id, syllabusId: id, experienceType: "KHAM_PHA" } },
+    { route: "open-studio/member-path-centers/assign", key: "center-assign", body: { houseMembershipId: id, pathProgramId: id, centerId: id, effectiveFrom: "2026-08-30T00:00:00.000Z" } },
+    { route: "open-studio/passes/issue-monthly-path", key: "pass-issue", body: { houseMembershipId: id, pathProgramId: id, effectiveAt: "2026-08-30T00:00:00.000Z" } },
+    { route: "open-studio/admission", key: "owner-admission", body: { passId: id, listingId: id, participantMode: "OWNER", studentProfileId: id, effectiveAt: "2026-08-30T00:00:00.000Z" } },
+  ];
+  for (const item of cases) {
+    const response = await handleBoStaffOnboardingRequest(request(f.token, { idempotencyKey: item.key, body: JSON.stringify(item.body) }), env(binding), item.route, f.resolver);
+    assert.equal(response.status, 201);
+  }
+  assert.deepEqual(forwarded.map((item) => ({ path: item.path, idempotencyKey: item.idempotencyKey })), cases.map((item) => ({ path: item.route, idempotencyKey: item.key })));
+});
