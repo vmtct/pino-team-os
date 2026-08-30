@@ -9,6 +9,8 @@ export interface BoReadEnv extends BoWorkforceStagingAuthEnv {
   CF_ACCESS_BO_AUD: string;
 }
 
+const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
+
 export async function handleBoOperationalReadRequest(
   request: Request,
   env: BoReadEnv,
@@ -49,6 +51,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "learners"
     || path === "open-studio/operations"
     || path === "open-studio/passes"
+    || OPEN_STUDIO_POLICY_READ.test(path)
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
@@ -67,6 +70,15 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     listingId: url.searchParams.get("listingId"), participantMode: url.searchParams.get("participantMode"),
     studentProfileId: url.searchParams.get("studentProfileId"), effectiveAt: url.searchParams.get("effectiveAt"),
   };
+  if (OPEN_STUDIO_POLICY_READ.test(path)) {
+    const targetType = url.searchParams.get("targetType");
+    const targetId = url.searchParams.get("targetId");
+    return {
+      targetType,
+      targetId: targetType === "CENTER" ? targetId : null,
+      ...(path.endsWith("/effective") ? { effectiveAt: url.searchParams.get("effectiveAt") } : {}),
+    };
+  }
   return undefined;
 }
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {

@@ -292,3 +292,22 @@ test("Open Studio BO writes stay on the explicit facade allowlist with replay ev
   }
   assert.deepEqual(forwarded.map((item) => ({ path: item.path, idempotencyKey: item.idempotencyKey })), cases.map((item) => ({ path: item.route, idempotencyKey: item.key })));
 });
+
+test("Open Studio policy draft and publish commands stay on the governed BO facade", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 200, body: { data: { ok: true } }, requestId: "core-open-studio-policy-write" }; } };
+  const versionId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const draftPath = "policies/open_studio/monthly_path_pass.v1/versions";
+  const publishPath = `policies/open_studio/monthly_path_pass.v1/versions/${versionId}/publish`;
+  const target = { targetType: "GLOBAL", targetId: null };
+  const value = { quantityPerPath: 2, periodKind: "CALENDAR_MONTH", carryForwardPeriods: 1, allowedParticipantModes: ["OWNER"], allowedExperienceTypes: ["KHAM_PHA", "CHUYEN_DE"] };
+  const draftBody = { ...target, value, changeReason: "September Open Studio policy", expectedRevision: 3 };
+  const publishBody = { ...target, effectiveFrom: "2026-09-01T00:00:00.000Z", expectedRevision: 4 };
+  assert.equal((await handleBoStaffOnboardingRequest(request(f.token, { idempotencyKey: "policy-draft", body: JSON.stringify(draftBody) }), env(binding), draftPath, f.resolver)).status, 200);
+  assert.equal((await handleBoStaffOnboardingRequest(request(f.token, { idempotencyKey: "policy-publish", body: JSON.stringify(publishBody) }), env(binding), publishPath, f.resolver)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "POST", path: draftPath, body: draftBody, idempotencyKey: "policy-draft" },
+    { method: "POST", path: publishPath, body: publishBody, idempotencyKey: "policy-publish" },
+  ]);
+});
