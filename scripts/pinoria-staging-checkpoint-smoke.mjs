@@ -7,7 +7,10 @@ function invariant(condition, message) {
 }
 
 async function read(path) {
-  const response = await fetch(`${baseUrl}${path}`, { headers: { accept: "application/json" } });
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(15_000),
+  });
   const json = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${path} -> ${response.status}: ${JSON.stringify(json)}`);
   invariant(json && typeof json === "object" && "data" in json, `${path} missing data envelope`);
