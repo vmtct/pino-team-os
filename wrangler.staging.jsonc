@@ -15,6 +15,8 @@
     "PINORIA_BO_STAGING_BYPASS": "enabled",
     "WORKFORCE_BO_STAGING_BYPASS": "enabled",
     "WORKFORCE_STAGING_BO_EMAIL": "workforce-planning-staging-probe@pino.invalid",
+    "OPEN_STUDIO_BO_STAGING_BYPASS": "enabled",
+    "OPEN_STUDIO_STAGING_BO_EMAIL": "open-studio-control-loop-staging-probe@pino.invalid",
     "PINORIA_STAGING_STAFF_EMAIL": "workforce-with-access-fa12eb40e2ae@pino.invalid"
   },
   "services": [

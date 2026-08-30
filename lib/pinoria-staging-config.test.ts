@@ -14,11 +14,15 @@ test("Pinoria Team staging is isolated from production Core", () => {
   assert.equal(staging.vars.PINORIA_TV_STAGING_BYPASS, "enabled");
   assert.equal(staging.vars.PINORIA_TOS_STAGING_BYPASS, "enabled");
   assert.equal(staging.vars.PINORIA_BO_STAGING_BYPASS, "enabled");
+  assert.equal(staging.vars.OPEN_STUDIO_BO_STAGING_BYPASS, "enabled");
+  assert.equal(staging.vars.OPEN_STUDIO_STAGING_BO_EMAIL, "open-studio-control-loop-staging-probe@pino.invalid");
   assert.match(staging.vars.PINORIA_STAGING_STAFF_EMAIL, /@pino\.invalid$/);
   assert.equal(productionRaw.includes("PINORIA_TV_STAGING_BYPASS"), false);
   assert.equal(productionRaw.includes("PINORIA_TOS_STAGING_BYPASS"), false);
   assert.equal(productionRaw.includes("PINORIA_BO_STAGING_BYPASS"), false);
   assert.equal(productionRaw.includes("PINORIA_STAGING_STAFF_EMAIL"), false);
+  assert.equal(productionRaw.includes("OPEN_STUDIO_BO_STAGING_BYPASS"), false);
+  assert.equal(productionRaw.includes("OPEN_STUDIO_STAGING_BO_EMAIL"), false);
 
   assert.equal(staging.services.length, 6);
   for (const service of staging.services) assert.equal(service.service, "pino-core-staging");

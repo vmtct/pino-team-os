@@ -1,9 +1,10 @@
 import type { JWTVerifyGetKey } from "jose";
 import { authenticateBo, BoAuthError } from "./bo-auth";
 import { callBoAccessCore, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { stagingBoOpenStudioIdentity, type BoOpenStudioStagingAuthEnv } from "./bo-open-studio-staging-auth";
 import { reconcileCanonicalTosAccess, type TosAccessSyncBinding } from "./tos-access-sync";
 
-export interface BoWriteEnv {
+export interface BoWriteEnv extends BoOpenStudioStagingAuthEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
   CF_ACCESS_TEAM_DOMAIN: string;
   CF_ACCESS_BO_AUD: string;
@@ -54,7 +55,8 @@ export async function handleBoWriteRequest(
     if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
-    const identity = await authenticateBo(
+    const stagingIdentity = isOpenStudioPostPath(path) ? stagingBoOpenStudioIdentity(request, env) : null;
+    const identity = stagingIdentity ?? await authenticateBo(
       request.headers,
       { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
       keyResolver,
@@ -117,6 +119,17 @@ export function shouldReconcileTosAccess(path: string): boolean {
     || STAFF_STATUS_PATH.test(path);
 }
 
+export function isOpenStudioPostPath(path: string): boolean {
+  return path === OPEN_STUDIO_LISTING_CREATE
+    || OPEN_STUDIO_LISTING_COMMAND.test(path)
+    || OPEN_STUDIO_CENTER_COMMAND.test(path)
+    || OPEN_STUDIO_PASS_ISSUE.has(path)
+    || OPEN_STUDIO_PASS_REVOKE.test(path)
+    || path === OPEN_STUDIO_ADMISSION
+    || OPEN_STUDIO_POLICY_VERSION.test(path)
+    || OPEN_STUDIO_POLICY_PUBLISH.test(path);
+}
+
 export function isAllowedPostPath(path: string): boolean {
   return path === ACCESS_PERIMETER_RECONCILE_PATH
     || path === STAFF_ONBOARDING_PATH
@@ -137,14 +150,7 @@ export function isAllowedPostPath(path: string): boolean {
     || path === ENROLLMENT_CREATE_PATH
     || ENROLLMENT_COMMAND_PATH.test(path)
     || ENROLLMENT_BULK_PATHS.has(path)
-    || path === OPEN_STUDIO_LISTING_CREATE
-    || OPEN_STUDIO_LISTING_COMMAND.test(path)
-    || OPEN_STUDIO_CENTER_COMMAND.test(path)
-    || OPEN_STUDIO_PASS_ISSUE.has(path)
-    || OPEN_STUDIO_PASS_REVOKE.test(path)
-    || path === OPEN_STUDIO_ADMISSION
-    || OPEN_STUDIO_POLICY_VERSION.test(path)
-    || OPEN_STUDIO_POLICY_PUBLISH.test(path);
+    || isOpenStudioPostPath(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */
