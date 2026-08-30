@@ -206,3 +206,18 @@
 .osAdmissionGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; align-items: end; margin: 12px 0; }
 @media (max-width: 900px) { .osComposer, .osAdmissionGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } .osGrid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .osComposer, .osAdmissionGrid { grid-template-columns: 1fr; } }
+
+.osControlColumns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+.osControlBlock { display: grid; gap: 8px; padding: 13px; border: 1px solid #e4e2ec; border-radius: 12px; background: #fafafd; }
+.osControlBlock > strong { font-size: 12px; }
+.osControlBlock > span { color: #777783; font-size: 10px; line-height: 1.45; }
+.osPassActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; }
+.osPassGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-bottom: 18px; }
+.osPassCard { display: grid; gap: 9px; padding: 13px; border: 1px solid #e4e2ec; border-radius: 12px; background: #fff; }
+.osPassCard small { color: #777783; font-size: 10px; }
+.osDangerPill { background: #fff0ed; color: #a9483b; }
+.osRevokeReason { color: #a9483b !important; }
+.dangerButton { min-height: 36px; padding: 8px 11px; border: 1px solid #e7beb8; border-radius: 9px; background: #fff7f5; color: #a13e33; font-weight: 800; cursor: pointer; }
+.dangerButton:disabled { opacity: .4; cursor: not-allowed; }
+@media (max-width: 1050px) { .osPassGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 760px) { .osControlColumns, .osPassGrid { grid-template-columns: 1fr; } .osPassActions > button { width: 100%; } }

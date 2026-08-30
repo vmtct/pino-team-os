@@ -119,23 +119,67 @@ function PassAdmissionDesk({ learners, listings, centers, onChanged }: { learner
 
   useEffect(() => { if (!centerId && centers[0]) setCenterId(centers[0].id); }, [centerId, centers]);
   async function chooseLearner(id: string) {
-    setStudentId(id); setLifecycle(null); setPasses([]); setPassId(""); setPathId("");
+    setStudentId(id); setLifecycle(null); setPasses([]); setPassId(""); setPathId(""); setListingId("");
     if (!id) return;
-    try { const value = await boApi.learnerLifecycle(id); setLifecycle(value); setPathId(value.student.activePaths[0]?.id ?? ""); if (value.houseMembership) setPasses(await boApi.openStudioPasses(value.houseMembership.id, new Date().toISOString())); }
-    catch (error) { alert(message(error)); }
+    try {
+      const value = await boApi.learnerLifecycle(id);
+      setLifecycle(value); setPathId(value.student.activePaths[0]?.id ?? "");
+      if (value.houseMembership) setPasses(await boApi.openStudioPasses(value.houseMembership.id, new Date().toISOString()));
+    } catch (error) { alert(message(error)); }
   }
-  async function reloadPasses() { if (lifecycle?.houseMembership) setPasses(await boApi.openStudioPasses(lifecycle.houseMembership.id, new Date().toISOString())); }
-  async function assignAuthority() {
+  async function reloadPasses() {
+    if (lifecycle?.houseMembership) setPasses(await boApi.openStudioPasses(lifecycle.houseMembership.id, new Date().toISOString()));
+  }
+  async function assignPathAuthority() {
     if (!lifecycle?.houseMembership || !pathId || !centerId) return;
-    setBusy("authority");
-    try { await boApi.assignOpenStudioPathCenter({ houseMembershipId: lifecycle.houseMembership.id, pathProgramId: pathId, centerId, effectiveFrom: new Date().toISOString() }); await onChanged("Open Studio Path Center authority đã được gán."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
+    setBusy("path-authority");
+    try {
+      await boApi.assignOpenStudioPathCenter({ houseMembershipId: lifecycle.houseMembership.id, pathProgramId: pathId, centerId, effectiveFrom: new Date().toISOString() });
+      await onChanged("Path Center authority đã được gán cho Monthly Path Pass.");
+    } catch (error) { alert(message(error)); } finally { setBusy(""); }
   }
-  async function issuePass() {
+  async function assignHouseholdAuthority(reassign: boolean) {
+    if (!lifecycle?.houseMembership || !centerId) return;
+    let assignmentReason = "";
+    if (reassign) {
+      assignmentReason = prompt("Lý do chuyển Household Center")?.trim() ?? "";
+      if (!assignmentReason) return;
+    }
+    setBusy(reassign ? "household-reassign" : "household-assign");
+    try {
+      const body = { houseMembershipId: lifecycle.houseMembership.id, centerId, effectiveFrom: new Date().toISOString() };
+      if (reassign) await boApi.reassignOpenStudioMemberCenter({ ...body, assignmentReason });
+      else await boApi.assignOpenStudioMemberCenter(body);
+      await onChanged(reassign ? "Household Center authority đã được chuyển." : "Household Center authority đã được gán.");
+    } catch (error) { alert(message(error)); } finally { setBusy(""); }
+  }
+  async function issueMonthlyPass() {
     if (!lifecycle?.houseMembership || !pathId) return;
-    setBusy("issue");
-    try { await boApi.issueOpenStudioMonthlyPass({ houseMembershipId: lifecycle.houseMembership.id, pathProgramId: pathId, effectiveAt: new Date().toISOString() }); await reloadPasses(); await onChanged("Monthly Path Pass đã resolve/issue theo policy."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
+    setBusy("issue-monthly");
+    try {
+      await boApi.issueOpenStudioMonthlyPass({ houseMembershipId: lifecycle.houseMembership.id, pathProgramId: pathId, effectiveAt: new Date().toISOString() });
+      await reloadPasses(); await onChanged("Monthly Path Pass đã resolve/issue theo policy.");
+    } catch (error) { alert(message(error)); } finally { setBusy(""); }
+  }
+  async function issueBringAFriendPass() {
+    if (!lifecycle?.houseMembership) return;
+    setBusy("issue-friend");
+    try {
+      await boApi.issueOpenStudioBringAFriendPass({ houseMembershipId: lifecycle.houseMembership.id, effectiveAt: new Date().toISOString() });
+      await reloadPasses(); await onChanged("Bring-a-Friend Pass đã resolve/issue theo household policy.");
+    } catch (error) { alert(message(error)); } finally { setBusy(""); }
+  }
+  async function revokePass(item: BoOpenStudioPass) {
+    if (item.pass.revokedAt) return;
+    const reason = prompt("Lý do revoke Pass")?.trim() ?? "";
+    if (!reason) return;
+    if (!confirm(`Revoke ${passClassLabel(item.pass.passClass)} · ${item.pass.issuancePeriodKey}?`)) return;
+    setBusy(`revoke:${item.pass.id}`);
+    try {
+      await boApi.revokeOpenStudioPass(item.pass.id, { revokedAt: new Date().toISOString(), reason });
+      await reloadPasses(); await onChanged(`${passClassLabel(item.pass.passClass)} đã được revoke.`);
+      if (passId === item.pass.id) setPassId("");
+    } catch (error) { alert(message(error)); } finally { setBusy(""); }
   }
   async function admit() {
     if (!passId || !listingId || !studentId) return;
@@ -150,26 +194,59 @@ function PassAdmissionDesk({ learners, listings, centers, onChanged }: { learner
   }
 
   const pathListings = listings.filter((item) => !pathId || item.pathProgramId === pathId);
+  const ownerPasses = passes.filter((item) => item.pass.passClass === "MONTHLY_PATH" && item.pass.pathProgramId === pathId && item.effectiveNow && !item.pass.revokedAt);
+  const pathName = lifecycle?.student.activePaths.find((item) => item.id === pathId)?.displayName ?? "Path";
   return <section className={styles.panel}>
-    <div className={styles.panelHeading}><div><h2>Pass & OWNER admission</h2><p>BO chuẩn bị commercial authority; TOS settle outcome.</p></div><span className={styles.writePill}>Write</span></div>
+    <div className={styles.panelHeading}><div><h2>Pass Control Desk</h2><p>Center authority, Pass issuance/revoke và OWNER admission đều dùng Core authority.</p></div><span className={styles.writePill}>Write</span></div>
     <div className={styles.osAdmissionGrid}>
       <label className={styles.field}>Learner<select value={studentId} onChange={(event) => void chooseLearner(event.target.value)}><option value="">Chọn learner…</option>{learners.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
-      <label className={styles.field}>Path<select value={pathId} onChange={(event) => setPathId(event.target.value)} disabled={!lifecycle}><option value="">Chọn Path…</option>{lifecycle?.student.activePaths.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
-      <label className={styles.field}>Issuance Center<select value={centerId} onChange={(event) => setCenterId(event.target.value)}><option value="">Chọn Center…</option>{centers.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
+      <label className={styles.field}>Path<select value={pathId} onChange={(event) => { setPathId(event.target.value); setPassId(""); setListingId(""); }} disabled={!lifecycle}><option value="">Chọn Path…</option>{lifecycle?.student.activePaths.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
+      <label className={styles.field}>Authority Center<select value={centerId} onChange={(event) => setCenterId(event.target.value)}><option value="">Chọn Center…</option>{centers.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
     </div>
-    {!lifecycle ? <p className={styles.muted}>Chọn learner để resolve House Membership và active Paths.</p> : !lifecycle.houseMembership ? <p className={styles.muted}>Learner này chưa có House Membership nên không thể issue Member Pass.</p> : <>
-      <div className={styles.subscriptionActions}>
-        <button className={styles.secondaryButton} disabled={!pathId || !centerId || !!busy} onClick={() => void assignAuthority()}>{busy === "authority" ? "Đang gán…" : "Assign Path Center"}</button>
-        <button className={styles.primaryButton} disabled={!pathId || !!busy} onClick={() => void issuePass()}>{busy === "issue" ? "Đang issue…" : "Resolve / Issue Monthly Pass"}</button>
+    {!lifecycle ? <p className={styles.muted}>Chọn learner để resolve House Membership, active Paths và Pass inventory.</p> : !lifecycle.houseMembership ? <p className={styles.muted}>Learner này chưa có House Membership nên không thể issue Member Pass.</p> : <>
+      <div className={styles.osControlColumns}>
+        <div className={styles.osControlBlock}><strong>Path authority</strong><span>Monthly Path Pass dùng Center authority theo từng Path.</span><button className={styles.secondaryButton} disabled={!pathId || !centerId || !!busy} onClick={() => void assignPathAuthority()}>{busy === "path-authority" ? "Đang gán…" : `Assign ${pathName} Center`}</button></div>
+        <div className={styles.osControlBlock}><strong>Household authority</strong><span>Bring-a-Friend dùng Household Center, không phụ thuộc Path.</span><div className={styles.subscriptionActions}><button className={styles.secondaryButton} disabled={!centerId || !!busy} onClick={() => void assignHouseholdAuthority(false)}>{busy === "household-assign" ? "Đang gán…" : "Assign Center"}</button><button className={styles.secondaryButton} disabled={!centerId || !!busy} onClick={() => void assignHouseholdAuthority(true)}>{busy === "household-reassign" ? "Đang chuyển…" : "Move Center"}</button></div></div>
       </div>
+      <div className={styles.osPassActions}>
+        <button className={styles.primaryButton} disabled={!pathId || !!busy} onClick={() => void issueMonthlyPass()}>{busy === "issue-monthly" ? "Đang issue…" : "Resolve / Issue Monthly Path"}</button>
+        <button className={styles.primaryButton} disabled={!!busy} onClick={() => void issueBringAFriendPass()}>{busy === "issue-friend" ? "Đang issue…" : "Resolve / Issue Bring-a-Friend"}</button>
+      </div>
+      <div className={styles.panelHeading}><div><h3>Pass inventory</h3><p>Effective state và usage được đọc lại từ Core sau mỗi command.</p></div><span className={styles.readOnly}>{passes.length} pass</span></div>
+      <div className={styles.osPassGrid}>{passes.map((item) => {
+        const state = passState(item);
+        const usage = item.usageSummary ?? { ownerCount: 0, siblingCount: 0, guestCount: 0, totalCount: item.uses.length };
+        const scopedPath = item.pass.pathProgramId ? lifecycle.student.activePaths.find((path) => path.id === item.pass.pathProgramId)?.displayName ?? "Path scoped" : "Household scoped";
+        return <article className={styles.osPassCard} key={item.pass.id}>
+          <div className={styles.osCardHead}><div><strong>{passClassLabel(item.pass.passClass)}</strong><span>{scopedPath} · {item.pass.issuancePeriodKey}</span></div><span className={`${styles.statusPill} ${state === "REVOKED" ? styles.osDangerPill : ""}`}>{state}</span></div>
+          <div className={styles.osMeta}><span>{validityLabel(item.pass.validFrom, item.pass.validUntilExclusive)}</span><span>{usage.totalCount} use</span><span>{item.pass.issuanceCenterId ? `Center ${item.pass.issuanceCenterId.slice(0, 8)}` : "Household"}</span></div>
+          <small>OWNER {usage.ownerCount} · SIBLING {usage.siblingCount} · GUEST {usage.guestCount}</small>
+          {item.pass.revokeReason ? <small className={styles.osRevokeReason}>Revoke: {item.pass.revokeReason}</small> : null}
+          {!item.pass.revokedAt ? <button className={styles.dangerButton} disabled={!!busy} onClick={() => void revokePass(item)}>{busy === `revoke:${item.pass.id}` ? "Đang revoke…" : "Revoke Pass"}</button> : null}
+        </article>;
+      })}</div>
+      <div className={styles.panelHeading}><div><h3>OWNER admission</h3><p>Chỉ Monthly Path Pass đang effective mới được đưa vào OWNER flow.</p></div><span className={styles.readOnly}>Canonical</span></div>
       <div className={styles.osAdmissionGrid}>
-        <label className={styles.field}>Pass<select value={passId} onChange={(event) => setPassId(event.target.value)}><option value="">Chọn Pass…</option>{passes.filter((item) => item.pass.pathProgramId === pathId).map((item) => <option key={item.pass.id} value={item.pass.id}>{item.pass.issuancePeriodKey} · {item.effectiveNow ? "effective" : "not effective"} · {item.pass.id.slice(0, 8)}</option>)}</select></label>
+        <label className={styles.field}>Effective Monthly Pass<select value={passId} onChange={(event) => setPassId(event.target.value)}><option value="">Chọn Pass…</option>{ownerPasses.map((item) => <option key={item.pass.id} value={item.pass.id}>{item.pass.issuancePeriodKey} · {item.pass.id.slice(0, 8)}</option>)}</select></label>
         <label className={styles.field}>Published Listing<select value={listingId} onChange={(event) => setListingId(event.target.value)}><option value="">Chọn Listing…</option>{pathListings.map((item) => <option key={item.id} value={item.id}>{item.localDate} · {clockLocal(item.scheduledStartsLocal)} · {item.syllabusTitle}</option>)}</select></label>
         <button className={styles.primaryButton} disabled={!passId || !listingId || !!busy} onClick={() => void admit()}>{busy === "admit" ? "Đang xử lý…" : "Check eligibility + OWNER"}</button>
       </div>
+      <p className={styles.muted}>Bring-a-Friend được quản lý ở Pass inventory nhưng chưa được đưa vào participant admission UI khi Core chưa expose bounded Guest/Sibling flow cho BO.</p>
     </>}
   </section>;
 }
+
+function passClassLabel(value: BoOpenStudioPass["pass"]["passClass"]) { return value === "MONTHLY_PATH" ? "Monthly Path" : "Bring-a-Friend"; }
+function passState(item: BoOpenStudioPass) {
+  if (item.pass.revokedAt) return "REVOKED";
+  const now = Date.now(), starts = Date.parse(item.pass.validFrom), ends = item.pass.validUntilExclusive ? Date.parse(item.pass.validUntilExclusive) : null;
+  if (Number.isFinite(starts) && now < starts) return "FUTURE";
+  if (ends !== null && Number.isFinite(ends) && now >= ends) return "EXPIRED";
+  return item.effectiveNow ? "EFFECTIVE" : "INACTIVE";
+}
+function validityLabel(from: string, until: string | null) { return `${shortDate(from)} → ${until ? shortDate(until) : "∞"}`; }
+function shortDate(value: string) { return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(value)); }
+
 function ClaimBoard({ data }: { data: BoOpenStudioOperations }) {
   return <section className={styles.panel}>
     <div className={styles.panelHeading}><div><h2>Claims & outcomes</h2><p>Reservation/settlement truth. Outcome mutation nằm ở TOS Open Studio Desk.</p></div><span className={styles.readOnly}>{data.claims.length} claim</span></div>

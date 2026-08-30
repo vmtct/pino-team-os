@@ -27,3 +27,24 @@ test("configureStaffPin surfaces a non-JSON backend failure without a parser err
     );
   } finally { globalThis.fetch = original; }
 });
+
+test("Open Studio Pass control posts only canonical Core command fields", async () => {
+  const original = globalThis.fetch;
+  const calls: Array<{ path: string; body: unknown }> = [];
+  globalThis.fetch = async (input, init) => {
+    calls.push({ path: String(input), body: JSON.parse(String(init?.body)) });
+    return Response.json({ data: {} });
+  };
+  try {
+    await boApi.assignOpenStudioMemberCenter({ houseMembershipId: "house-1", centerId: "center-1", effectiveFrom: "2026-08-30T02:00:00.000Z" });
+    await boApi.reassignOpenStudioMemberCenter({ houseMembershipId: "house-1", centerId: "center-2", effectiveFrom: "2026-08-30T03:00:00.000Z", assignmentReason: "Center move" });
+    await boApi.issueOpenStudioBringAFriendPass({ houseMembershipId: "house-1", effectiveAt: "2026-08-30T04:00:00.000Z" });
+    await boApi.revokeOpenStudioPass("pass-1", { revokedAt: "2026-08-30T05:00:00.000Z", reason: "Administrative correction" });
+  } finally { globalThis.fetch = original; }
+  assert.deepEqual(calls, [
+    { path: "/api/bo/open-studio/member-centers/assign", body: { houseMembershipId: "house-1", centerId: "center-1", effectiveFrom: "2026-08-30T02:00:00.000Z" } },
+    { path: "/api/bo/open-studio/member-centers/reassign", body: { houseMembershipId: "house-1", centerId: "center-2", effectiveFrom: "2026-08-30T03:00:00.000Z", assignmentReason: "Center move" } },
+    { path: "/api/bo/open-studio/passes/issue-bring-a-friend", body: { houseMembershipId: "house-1", effectiveAt: "2026-08-30T04:00:00.000Z" } },
+    { path: "/api/bo/open-studio/passes/pass-1/revoke", body: { revokedAt: "2026-08-30T05:00:00.000Z", reason: "Administrative correction" } },
+  ]);
+});
