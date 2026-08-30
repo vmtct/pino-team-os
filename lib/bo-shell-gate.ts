@@ -30,7 +30,7 @@ export async function authorizeBoShell(
 ): Promise<BoShellContext> {
   let identity: VerifiedBoIdentity;
   try {
-    const host = headers.get("host")?.trim();
+    const host = resolveRequestHost(headers);
     const stagingIdentity = host ? stagingBoWorkforceIdentity(new Request(`https://${host}/bo`, { headers }), env) : null;
     identity = stagingIdentity ?? await authenticateBo(headers, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD }, keyResolver);
   } catch (error) {
@@ -46,6 +46,11 @@ export async function authorizeBoShell(
 
   return { userId: data.userId, email: data.email, staffMemberId: typeof data.staffMemberId === "string" ? data.staffMemberId : null, surface: "BO", entitled: true };
 }
+function resolveRequestHost(headers: Headers): string | null {
+  const raw = headers.get("host") ?? headers.get("x-forwarded-host") ?? headers.get("x-original-host");
+  return raw?.split(",")[0]?.trim() || null;
+}
+
 async function coreRead(binding: BoAccessCoreBinding, request: { method: "GET"; path: string }, identity: VerifiedBoIdentity) {
   try {
     return await callBoAccessCore(binding, request, identity);
