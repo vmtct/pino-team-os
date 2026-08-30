@@ -18,6 +18,7 @@ Status: product/canonical design knowledge for staging implementation. This docu
 - A banner spotlights the lore owner of one signature wearable set. Drops remain item-level: individual signature pieces, whole-set completion through protection, off-banner wearables and duplicate/resonance outcomes.
 - Do not hard-filter male/female banners by learner sex. Both are discoverable. Ordering may follow avatar compatibility or explicit learner choice, but eligibility and pity must not depend on sex.
 - At one time, show at most **two featured Wearable banners** in the primary release surface. They share the same `LIMITED_WARDROBE` pity family.
+- Two featured Wearable banners in the same release phase must use the **same phase window and exact published Rule Version/hash**. Switching owner must be a fantasy choice, never an economy trap.
 - A **Companion campaign/banner surface** may run in parallel only as an orthogonal acquisition fantasy. Today Companion authority is Egg/Hatch/Ritual, not the Wearable Wish engine; therefore the UI must not silently make Companion a Wish drop. If Companion gacha is ever introduced, it requires its own canonical family/economy first and must not consume or reset Wearable pity.
 - Do not launch an additional generic seasonal Wearable banner simultaneously when two festival Wearable banners are already active. Rotate it into the next phase instead.
 
@@ -34,7 +35,7 @@ For an 8-10 week Pinoria arc, use two marketing phases rather than four equal co
 
 `TEASE -> PREVIEW/TRY-ON -> ACTIVE -> CLOSING -> RETIRED -> RERUN/ARCHIVE_ELIGIBLE`
 
-- Preview/try-on is presentation only and grants no ownership.
+- Preview/try-on is presentation only and grants no ownership. Every primary featured Wearable banner should expose a safe avatar try-on/story preview, analogous to Genshin's Test Run: experience the fantasy before spending, without changing odds or state.
 - Banner activation must reference an exact immutable published Rule Version/hash.
 - Historical draws keep their original rule snapshot even after later economy versions publish.
 - Retiring a banner never resets family pity or featured guarantee.
