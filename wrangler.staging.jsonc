@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pino-team-os-staging",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
+  "observability": { "enabled": true },
+  "vars": {
+    "FOUNDER_EMAIL": "minhtri.van42@gmail.com,chuthhang@gmail.com",
+    "PINORIA_TV_STAGING_BYPASS": "enabled",
+    "PINORIA_TOS_STAGING_BYPASS": "enabled",
+    "PINORIA_BO_STAGING_BYPASS": "enabled",
+    "PINORIA_STAGING_STAFF_EMAIL": "workforce-with-access-fa12eb40e2ae@pino.invalid"
+  },
+  "services": [
+    { "binding": "PINO_CORE", "service": "pino-core-staging", "entrypoint": "FounderControlPlane" },
+    { "binding": "PINO_WORKFORCE_CORE", "service": "pino-core-staging", "entrypoint": "WorkforceControlPlane" },
+    { "binding": "PINO_BO_CORE", "service": "pino-core-staging", "entrypoint": "BoAccessControlPlane" },
+    { "binding": "PINO_TOS_LEARNING_CORE", "service": "pino-core-staging", "entrypoint": "TosLearningControlPlane" },
+    { "binding": "PINO_STAFF_PIN_CORE", "service": "pino-core-staging", "entrypoint": "StaffPinControlPlane" },
+    { "binding": "PINO_PINORIA_TV_CORE", "service": "pino-core-staging", "entrypoint": "PinoriaTvControlPlane" }
+  ],
+  "keep_vars": true
+}

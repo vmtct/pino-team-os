@@ -1,0 +1,55 @@
+export type WishRevealRarity = "COMMON" | "RARE" | "MYTHIC";
+export type WishRevealSource = "FEATURED" | "OFF_BANNER" | "RARE_POOL" | "COMMON_POOL";
+export type WishRevealKind = "PERFECT_MEMORY" | "FEATURED_MEMORY" | "WEARABLE" | "VARIANT" | "DUPLICATE";
+
+export type WishRevealItem = {
+  id: string;
+  key: string;
+  displayName: string;
+  slot: "HEADWEAR" | "WINGS" | "OUTFIT";
+  rarity: WishRevealRarity;
+  layerAssetKey: string | null;
+};
+
+export type WishRevealPull = {
+  pullIndex: number;
+  rarity: WishRevealRarity;
+  source: WishRevealSource;
+  revealKind: WishRevealKind;
+  resonanceBefore: number;
+  resonanceAfter: number;
+  setProgressAfter: { owned: number; total: 3 };
+  wearables: WishRevealItem[];
+  variantIds: string[];
+  entitlementIds: string[];
+};
+export type WishRevealProjection = {
+  schemaVersion: 1;
+  revealId: string;
+  drawId: string;
+  centerId: string;
+  visitId: string;
+  subject: {
+    studentProfileId: string;
+    displayName: string;
+    character: { id: string; config: Record<string, string> };
+  };
+  banner: {
+    id: string;
+    key: string;
+    displayName: string;
+    storyHook: string;
+    heroAssetKey: string;
+    regionKey: string;
+    experience?: { profileKey: string; themeKey: string; backgroundAssetKey: string | null; vfxProfileKey: string | null; musicAssetKey: string | null };
+    bearer: { id: string; key: string; displayName: string; title: string };
+    signatureSet: { id: string; key: string; displayName: string; pieces: WishRevealItem[] };
+  };
+  pulls: WishRevealPull[];
+};
+export type ClaimedWishReveal = {
+  projection: WishRevealProjection;
+  claimedAt: string;
+};
+
+export const PINORIA_WISH_REVEAL_URL = "/api/pinoria-tv/wish-reveal";

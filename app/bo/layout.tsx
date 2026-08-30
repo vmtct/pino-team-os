@@ -27,6 +27,14 @@ const groups: BoNavGroup[] = [
     items: [{ href: "/bo/staff", label: "Staff onboarding" }, { href: "/bo/workforce", label: "Lịch ca tuần" }],
   },
   {
+    label: "Pinoria",
+    items: [
+      { href: "/bo/pinoria-activities", label: "Pinoria Activities" },
+      { href: "/bo/pinoria-companions", label: "Companion / Eggs" },
+      { href: "/bo/pinoria-wish", label: "Wish / Hạt Năng Lượng" },
+    ],
+  },
+  {
     label: "Content",
     items: [{ href: "/bo/syllabus", label: "Syllabus / Programs" }],
   },

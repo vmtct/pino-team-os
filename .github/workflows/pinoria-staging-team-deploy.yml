@@ -1,0 +1,80 @@
+name: Pinoria staging Team deploy
+
+on:
+  push:
+    branches:
+      - feat/pinoria-staging-tv-wish-v1
+  workflow_dispatch:
+
+concurrency:
+  group: pinoria-staging-team-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
+      SMOKE_CENTER_ID: 019d0000-0001-7000-8000-000000000001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install and verify
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
+          npm run typecheck
+          node --import tsx --test lib/pinoria-staging-config.test.ts lib/pinoria-tv-auth.test.ts
+
+      - name: Build OpenNext on Linux
+        run: |
+          set -euo pipefail
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+
+      - name: Assert staging-only bindings
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const c = JSON.parse(fs.readFileSync('wrangler.staging.jsonc','utf8'));
+          if (c.name !== 'pino-team-os-staging') throw new Error('wrong staging worker');
+          if (c.workers_dev !== true) throw new Error('workers_dev must be true');
+          if (c.vars?.PINORIA_TV_STAGING_BYPASS !== 'enabled') throw new Error('missing staging TV bypass');
+          const services = c.services ?? [];
+          if (services.length !== 6) throw new Error(`expected 6 services, got ${services.length}`);
+          for (const s of services) if (s.service !== 'pino-core-staging') throw new Error(`non-staging Core binding: ${s.binding}`);
+          NODE
+      - name: Deploy staging Worker
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:12}"
+          npx wrangler deploy -c wrangler.staging.jsonc \
+            --tag "pinoria-staging-${short_sha}" \
+            --message "Pinoria staging ${GITHUB_SHA}"
+
+      - name: Smoke staging TV and Core bridge
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            code="$(curl -sS -o /tmp/tv.html -w '%{http_code}' "${STAGING_URL}/pinoria-tv")"
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          [ "$code" = "200" ] || { cat /tmp/tv.html; exit 1; }
+          snapshot="$(curl -fsS "${STAGING_URL}/api/pinoria-tv/snapshot?centerId=${SMOKE_CENTER_ID}")"
+          node -e 'const x=JSON.parse(process.argv[1]); if(!x.data) process.exit(1)' "$snapshot"
+          wish="$(curl -fsS -X POST "${STAGING_URL}/api/pinoria-tv/wish-reveal" \
+            -H 'content-type: application/json' \
+            --data "{\"op\":\"claim\",\"centerId\":\"${SMOKE_CENTER_ID}\"}")"
+          node -e 'const x=JSON.parse(process.argv[1]); if(!Object.hasOwn(x,"reveal")) process.exit(1)' "$wish"
+          echo "STAGING_SMOKE_PASS"
