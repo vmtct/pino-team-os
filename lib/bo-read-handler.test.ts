@@ -129,3 +129,33 @@ test("Open Studio operational reads forward only canonical query fields", async 
     { method: "GET", path: `open-studio/passes/${passId}/claim-eligibility`, body: { listingId, participantMode: "OWNER", studentProfileId: centerId, effectiveAt: "2026-08-30T12:00:00.000Z" } },
   ]);
 });
+test("workers.dev Workforce staging identity can read allowlisted BO operations through canonical Core", async () => {
+  let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
+    identity = actor;
+    assert.deepEqual(coreRequest, { method: "GET", path: "delivery/bootstrap-state" });
+    return { status: 200, body: { data: { centers: [], terms: [], termWeeks: [] } }, requestId: "staging-bootstrap" };
+  } };
+  const stagingRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/delivery/bootstrap-state");
+  const response = await handleBoOperationalReadRequest(stagingRequest, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  }, "delivery/bootstrap-state");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-request-id"), "staging-bootstrap");
+  assert.equal(identity?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(identity?.email, "workforce-planning-staging-probe@pino.invalid");
+});
+
+test("Workforce staging BO read identity cannot activate on production host", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const response = await handleBoOperationalReadRequest(request("delivery/bootstrap-state"), {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  }, "delivery/bootstrap-state");
+  assert.equal(response.status, 401);
+  assert.equal(called, false);
+});
