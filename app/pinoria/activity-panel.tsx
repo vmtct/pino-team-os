@@ -12,10 +12,12 @@ type ActivityAction = {
 };
 type WishContext = {
   energySeedBalance: number;
+  pity: { mythicSinceLastHit:number;nextMythicPityPosition:number;mythicSoftPityStartsAt:number;mythicGuaranteedWithin:number;rareSinceLastHit:number;nextRarePityPosition:number;rareGuaranteedWithin:number;featuredGuarantee:boolean };
   bearer: { resonanceLevel: number };
   signatureSet: { progress: { owned: number; total: number } };
   banner: {
-    displayName: string;
+    displayName: string; rulesVersion: string;
+    guarantees: { rareBaseRate:number;rareWithin:number;mythicBaseRate:number;mythicSoftPityStartsAt:number;mythicWithin:number;mythicRateByPity:Array<{pity:number;rate:number}>;featuredMythicRate:number;perfectMemoryRate:number };
     bearer: { displayName: string };
     signatureSet: { displayName: string };
   };
@@ -130,6 +132,9 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
         <b>✦ {wish.energySeedBalance}</b>
         <span>{resonance}</span>
         <span>{wish.signatureSet.progress.owned}/{wish.signatureSet.progress.total} set</span>
+        <span>Mythic P{wish.pity.nextMythicPityPosition}/{wish.pity.mythicGuaranteedWithin} · soft từ P{wish.pity.mythicSoftPityStartsAt}</span>
+        <span>{wish.pity.featuredGuarantee ? "Featured kế tiếp ✓" : `Featured ${(wish.banner.guarantees.featuredMythicRate*100).toFixed(0)}%`} · Rare P{wish.pity.nextRarePityPosition}/{wish.pity.rareGuaranteedWithin}</span>
+        <span>{wish.banner.rulesVersion} · base Mythic {(wish.banner.guarantees.mythicBaseRate*100).toFixed(1)}%</span>
       </div> : egg ? <div className={styles.state}>
         <b>{egg.egg ? "🥚 Sẵn sàng" : "🥚 Chưa sẵn sàng"}</b>
         <span>{egg.species?.displayName ?? "Hộ Linh"}</span>

@@ -51,3 +51,18 @@ test("Companion Ritual stays on the generic Activity and TV presentation contrac
   assert.match(tos, /\/api\/tos-learning\/pinoria\/activities\/execute/);
   assert.match(binding, /"COMPANION_RITUAL"/);
 });
+
+test("Wish economy control stays in BO while TOS only discloses authoritative pity", () => {
+  const boView = read("app/bo/pinoria-wish/WishBoView.tsx");
+  const rules = read("app/bo/pinoria-wish/RuleManager.tsx");
+  const tos = read("app/pinoria/activity-panel.tsx");
+  assert.match(boView, /pinoria\/wish\/rules/);
+  assert.match(boView, /form\.rulesVersion/);
+  assert.match(rules, /\/simulate/);
+  assert.match(rules, /lifecycle\(rule,"publish"\)/);
+  assert.match(rules, /Simulate 50k/);
+  assert.match(tos, /wish\.pity\.nextMythicPityPosition/);
+  assert.match(tos, /wish\.pity\.featuredGuarantee/);
+  assert.match(tos, /wish\.banner\.guarantees\.featuredMythicRate/);
+  assert.doesNotMatch(tos, /pinoria\/wish\/rules/);
+});
