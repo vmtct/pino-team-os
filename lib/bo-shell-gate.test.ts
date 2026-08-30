@@ -117,3 +117,19 @@ test("Workforce staging shell identity fails closed when canonical Core denies B
     WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
   }), (error: unknown) => error instanceof BoShellGateError && error.status === 403);
 });
+
+test("Workforce staging shell accepts OpenNext forwarded host and still calls Core context", async () => {
+  let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(_request, actor) {
+    identity = actor;
+    return context(actor);
+  } };
+  const headers = new Headers({ "x-forwarded-host": "pino-team-os-staging.example.workers.dev" });
+  const result = await authorizeBoShell(headers, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  });
+  assert.equal(identity?.subject, "workforce-bo-staging-probe-v1");
+  assert.equal(result.entitled, true);
+});

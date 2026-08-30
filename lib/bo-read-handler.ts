@@ -1,8 +1,9 @@
 import type { JWTVerifyGetKey } from "jose";
 import { authenticateBo, BoAuthError } from "./bo-auth";
 import { callBoAccessCore, type BoAccessCoreBinding } from "./bo-core";
+import { stagingBoWorkforceIdentity, type BoWorkforceStagingAuthEnv } from "./bo-workforce-staging-auth";
 
-export interface BoReadEnv {
+export interface BoReadEnv extends BoWorkforceStagingAuthEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
   CF_ACCESS_TEAM_DOMAIN: string;
   CF_ACCESS_BO_AUD: string;
@@ -17,7 +18,7 @@ export async function handleBoOperationalReadRequest(
   try {
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isOperationalReadPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
-    const identity = await authenticateBo(
+    const identity = stagingBoWorkforceIdentity(request, env) ?? await authenticateBo(
       request.headers,
       { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
       keyResolver,
