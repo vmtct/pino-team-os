@@ -177,3 +177,34 @@ test("Open Studio policy reads expose only target and effective-time query field
     { method: "GET", path: effectivePath, body: { targetType: "GLOBAL", targetId: null, effectiveAt: "2026-08-30T13:00:00.000Z" } },
   ]);
 });
+
+test("workers.dev Open Studio BO reads use the dedicated staging principal", async () => {
+  let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
+    identity = actor;
+    assert.deepEqual(coreRequest, { method: "GET", path: "open-studio/operations" });
+    return { status: 200, body: { data: { listings: [] } }, requestId: "open-studio-staging-read" };
+  } };
+  const stagingRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/open-studio/operations");
+  const response = await handleBoOperationalReadRequest(stagingRequest, {
+    ...env(binding),
+    OPEN_STUDIO_BO_STAGING_BYPASS: "enabled",
+    OPEN_STUDIO_STAGING_BO_EMAIL: "open-studio-control-loop-staging-probe@pino.invalid",
+  }, "open-studio/operations");
+  assert.equal(response.status, 200);
+  assert.equal(identity?.subject, "open-studio-control-loop-staging-probe-v1");
+  assert.equal(identity?.email, "open-studio-control-loop-staging-probe@pino.invalid");
+});
+
+test("Open Studio staging identity is not reused for non-Open-Studio BO reads", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const stagingRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/delivery/bootstrap-state");
+  const response = await handleBoOperationalReadRequest(stagingRequest, {
+    ...env(binding),
+    OPEN_STUDIO_BO_STAGING_BYPASS: "enabled",
+    OPEN_STUDIO_STAGING_BO_EMAIL: "open-studio-control-loop-staging-probe@pino.invalid",
+  }, "delivery/bootstrap-state");
+  assert.equal(response.status, 401);
+  assert.equal(called, false);
+});

@@ -99,3 +99,21 @@ test("the Team OS BO facade exposes no feature operation", async () => {
   await handleBoContextRequest(request(f.token), env(binding), f.resolver);
   assert.deepEqual(paths, ["GET context"]);
 });
+
+test("workers.dev BO context uses the bounded Workforce staging shell principal", async () => {
+  let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
+    identity = actor;
+    assert.deepEqual(coreRequest, { method: "GET", path: "context" });
+    return { status: 200, body: { data: { userId: "staging", email: actor.email, staffMemberId: null, surface: "BO", entitled: true } }, requestId: "staging-context" };
+  } };
+  const stagingRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/context");
+  const response = await handleBoContextRequest(stagingRequest, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  });
+  assert.equal(response.status, 200);
+  assert.equal(identity?.subject, "workforce-planning-staging-probe-v1");
+  assert.equal(identity?.email, "workforce-planning-staging-probe@pino.invalid");
+});

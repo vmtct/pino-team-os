@@ -311,3 +311,42 @@ test("Open Studio policy draft and publish commands stay on the governed BO faca
     { method: "POST", path: publishPath, body: publishBody, idempotencyKey: "policy-publish" },
   ]);
 });
+
+test("workers.dev Open Studio BO writes use the dedicated staging principal", async () => {
+  let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
+    identity = actor;
+    assert.equal(coreRequest.path, "open-studio/listings");
+    return { status: 201, body: { data: { ok: true } }, requestId: "open-studio-staging-write" };
+  } };
+  const stagingRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/open-studio/listings", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "staging-listing-create" },
+    body: JSON.stringify({ sessionId: parentId, syllabusId: parentId, experienceType: "KHAM_PHA" }),
+  });
+  const response = await handleBoStaffOnboardingRequest(stagingRequest, {
+    ...env(binding),
+    OPEN_STUDIO_BO_STAGING_BYPASS: "enabled",
+    OPEN_STUDIO_STAGING_BO_EMAIL: "open-studio-control-loop-staging-probe@pino.invalid",
+  }, "open-studio/listings");
+  assert.equal(response.status, 201);
+  assert.equal(identity?.subject, "open-studio-control-loop-staging-probe-v1");
+  assert.equal(identity?.email, "open-studio-control-loop-staging-probe@pino.invalid");
+});
+
+test("Open Studio staging identity is not reused for non-Open-Studio BO writes", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const stagingRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/delivery/learning-spaces", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ centerId: parentId, code: "room", displayName: "Room", optimalConcurrentCapacity: 4, hardConcurrentCapacity: 6, status: "ACTIVE" }),
+  });
+  const response = await handleBoStaffOnboardingRequest(stagingRequest, {
+    ...env(binding),
+    OPEN_STUDIO_BO_STAGING_BYPASS: "enabled",
+    OPEN_STUDIO_STAGING_BO_EMAIL: "open-studio-control-loop-staging-probe@pino.invalid",
+  }, "delivery/learning-spaces");
+  assert.equal(response.status, 401);
+  assert.equal(called, false);
+});

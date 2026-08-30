@@ -1,0 +1,144 @@
+name: Open Studio Team staging deploy
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: open-studio-team-staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event.issue.title == '[GPT] Open Studio Team staging deploy' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+      STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
+    steps:
+      - name: Validate reviewed Team staging request
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          reject() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "OPEN_STUDIO_TEAM_STAGING_DEPLOY: REJECTED\n\n$1\n\nNo staging or production deploy was attempted."; exit 1; }
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          mapfile -t pr_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^SOURCE_PR:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
+          [ "${#pr_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one SOURCE_PR line."
+          team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          source_pr="${pr_lines[0]}"
+          grep -Eq '^CONFIRM:[[:space:]]*DEPLOY_OPEN_STUDIO_TEAM_STAGING[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing explicit staging deploy confirmation."
+          main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$team_sha" = "$main_sha" ] || reject "Requested SHA is not current Team main."
+          pr="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${source_pr}")"
+          [ "$(jq -r '.base.ref' <<<"$pr")" = "main" ] || reject "Source PR does not target main."
+          [ "$(jq -r '.merged_at // empty' <<<"$pr")" != "" ] || reject "Source PR is not merged."
+          [ "$(jq -r '.merge_commit_sha // empty' <<<"$pr")" = "$team_sha" ] || reject "Source PR merge SHA does not equal requested Team SHA."
+          head_sha="$(jq -r '.head.sha' <<<"$pr")"
+          [ -n "$head_sha" ] || reject "Cannot resolve source PR head SHA."
+          runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${head_sha}&event=pull_request&status=completed&per_page=20")"
+          jq -e '[.workflow_runs[] | select(.name == "PR Validation" and .conclusion == "success")] | length >= 1' <<<"$runs" >/dev/null || reject "No successful PR Validation exists for source PR head."
+          echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
+          echo "source_pr=$source_pr" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "TEAM_SHA=$team_sha" >> "$GITHUB_ENV"
+
+      - name: Check out exact merged Team SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.gate.outputs.team_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Re-run source validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TEAM_SHA"
+          test -z "$(git status --porcelain)"
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Build OpenNext staging artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+
+      - name: Assert staging-only Open Studio identity boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const staging=JSON.parse(fs.readFileSync('wrangler.staging.jsonc','utf8'));
+          const production=fs.readFileSync('wrangler.jsonc','utf8');
+          if(staging.name!=='pino-team-os-staging'||staging.workers_dev!==true) throw new Error('wrong staging worker boundary');
+          if(staging.vars?.OPEN_STUDIO_BO_STAGING_BYPASS!=='enabled') throw new Error('Open Studio staging bypass disabled');
+          if(staging.vars?.OPEN_STUDIO_STAGING_BO_EMAIL!=='open-studio-control-loop-staging-probe@pino.invalid') throw new Error('Open Studio staging identity drift');
+          if(production.includes('OPEN_STUDIO_BO_STAGING_BYPASS')||production.includes('OPEN_STUDIO_STAGING_BO_EMAIL')) throw new Error('Open Studio staging identity leaked into production config');
+          for(const service of staging.services??[]) if(service.service!=='pino-core-staging') throw new Error(`non-staging Core binding: ${service.binding}`);
+          NODE
+
+      - name: Deploy exact Team source to staging Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "CF_API_TOKEN unavailable" >&2; exit 1; }
+          short_sha="${TEAM_SHA:0:12}"
+          npx wrangler deploy -c wrangler.staging.jsonc --tag "open-studio-staging-${short_sha}" --message "Open Studio staging ${TEAM_SHA}"
+
+      - name: Smoke Open Studio BO staging bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe() {
+            local path="$1" out="$2" code=""
+            for _ in $(seq 1 12); do
+              code="$(curl -sS --max-time 15 -o "$out" -w '%{http_code}' "${STAGING_URL}${path}")"
+              [ "$code" = "200" ] && return 0
+              sleep 2
+            done
+            echo "Smoke failed: ${path} -> ${code}" >&2
+            cat "$out" >&2 || true
+            return 1
+          }
+          probe "/api/bo/context" /tmp/bo-context.json
+          probe "/api/bo/open-studio/operations" /tmp/open-studio-operations.json
+          probe "/api/bo/policies/open_studio/monthly_path_pass.v1/stream?targetType=GLOBAL" /tmp/open-studio-policy.json
+          node -e 'for(const f of process.argv.slice(1)){const x=JSON.parse(require("fs").readFileSync(f,"utf8"));if(!Object.hasOwn(x,"data"))process.exit(1)}' /tmp/bo-context.json /tmp/open-studio-operations.json /tmp/open-studio-policy.json
+          echo "OPEN_STUDIO_TEAM_STAGING_SMOKE=PASS"
+
+      - name: Report staging PASS
+        if: success()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "OPEN_STUDIO_TEAM_STAGING_DEPLOY: PASS\n\nTeam source: ${TEAM_SHA}\nSource PR: #${{ steps.gate.outputs.source_pr }}\nWorker: pino-team-os-staging\nBO context + Open Studio operations + Open Studio policy stream: PASS\n\nProduction Team Worker, production routes/domains, and production Core were not changed."
+
+      - name: Report failure
+        if: failure()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "OPEN_STUDIO_TEAM_STAGING_DEPLOY: FAIL_SAFE\n\nTeam source: ${TEAM_SHA:-unknown}\nNo production Team Worker, production route/domain, or production Core mutation was authorized by this workflow."
