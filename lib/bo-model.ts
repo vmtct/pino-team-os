@@ -271,3 +271,57 @@ export interface BoOpenStudioPass {
   };
   effectiveNow: boolean;
 }
+
+export interface BoWorkforceShiftTemplate {
+  id: string;
+  centerId: string;
+  code: string;
+  displayLabel: string;
+  startLocalTime: string;
+  endLocalTime: string;
+  status: "ACTIVE" | "INACTIVE";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoWorkforceAvailability {
+  id: string;
+  staffMemberId: string;
+  centerId: string;
+  termWeekId: string;
+  status: "DRAFT" | "SUBMITTED";
+  version: number;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: Array<{ workDate: string; shiftTemplateId: string }>;
+}
+
+export interface BoWorkforceAssignment {
+  id: string;
+  staffMemberId: string;
+  centerId: string;
+  workDate: string;
+  shiftTemplateId: string;
+  termWeekId: string | null;
+  status: "ACTIVE" | "CANCELLED";
+  assignedByUserId: string;
+  assignedAt: string;
+  cancelledByUserId: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  replacesAssignmentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoWorkforceWeeklyPlanning {
+  centerId: string;
+  termWeekId: string;
+  startDate: string;
+  endDate: string;
+  staff: Array<{ id: string; displayLabel: string }>;
+  templates: BoWorkforceShiftTemplate[];
+  availability: BoWorkforceAvailability[];
+  assignments: BoWorkforceAssignment[];
+}
