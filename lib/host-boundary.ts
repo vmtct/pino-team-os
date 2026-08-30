@@ -22,7 +22,7 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
     if (
       isPathWithin(pathname, "/bo") ||
       isPathWithin(pathname, "/api/bo") ||
-      pathname === "/api/staff-pin/configure"
+      isPathWithin(pathname, "/api/staff-pin/configure")
     ) return { action: "not_found" };
     return { action: "next" };
   }
