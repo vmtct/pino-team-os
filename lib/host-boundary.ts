@@ -19,7 +19,11 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
   }
 
   if (hostname === TOS_HOSTNAME) {
-    if (isPathWithin(pathname, "/bo") || isPathWithin(pathname, "/api/bo")) return { action: "not_found" };
+    if (
+      isPathWithin(pathname, "/bo") ||
+      isPathWithin(pathname, "/api/bo") ||
+      pathname === "/api/staff-pin/configure"
+    ) return { action: "not_found" };
     return { action: "next" };
   }
 
@@ -90,8 +94,21 @@ export function requiresTosStaffSession(host: string, pathname: string): boolean
   if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;
-  return ["/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
-    .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
+  return [
+    "/dashboard",
+    "/schedule",
+    "/classroom",
+    "/open-studio",
+    "/pinoria",
+    "/pinoria-tv",
+    "/timesheet",
+    "/check-in",
+    "/info",
+    "/api/workforce",
+    "/api/tos-learning",
+    "/api/pinoria-tv",
+    "/api/staff-pin/logout",
+  ].some(prefix => normalized === prefix || normalized.startsWith(prefix + "/"));
 }
 
 function isFrameworkAsset(pathname: string): boolean {
