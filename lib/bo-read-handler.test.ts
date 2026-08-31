@@ -178,6 +178,24 @@ test("Open Studio policy reads expose only target and effective-time query field
   ]);
 });
 
+test("Open Studio config dependencies use dedicated canonical read paths", async () => {
+  const f = await fixture();
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 200, body: { data: {} }, requestId: "open-studio-config-read" }; } };
+  const centerId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const studentId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
+  const catalogRequest = new Request(`https://bo.pinohouse.art/api/bo/open-studio/listing-catalog?centerId=${centerId}&effectiveAt=2026-08-30T15%3A00%3A00.000Z&userId=forged`, { headers: { "cf-access-jwt-assertion": f.token } });
+  const learnersRequest = new Request("https://bo.pinohouse.art/api/bo/open-studio/learners?query=Mai&limit=20&email=forged", { headers: { "cf-access-jwt-assertion": f.token } });
+  assert.equal((await handleBoOperationalReadRequest(catalogRequest, env(binding), "open-studio/listing-catalog", f.resolver)).status, 200);
+  assert.equal((await handleBoOperationalReadRequest(learnersRequest, env(binding), "open-studio/learners", f.resolver)).status, 200);
+  assert.equal((await handleBoOperationalReadRequest(request(`open-studio/students/${studentId}/lifecycle`, f.token), env(binding), `open-studio/students/${studentId}/lifecycle`, f.resolver)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "open-studio/listing-catalog", body: { centerId, effectiveAt: "2026-08-30T15:00:00.000Z" } },
+    { method: "GET", path: "open-studio/learners", body: { query: "Mai", limit: 20 } },
+    { method: "GET", path: `open-studio/students/${studentId}/lifecycle` },
+  ]);
+});
+
 test("workers.dev Open Studio BO reads use the dedicated staging principal", async () => {
   let identity: VerifiedBoIdentity | undefined;
   const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoCenter, BoLearnerDirectoryItem, BoLearnerLifecycle, BoOpenStudioOperations, BoOpenStudioPass, BoSession, BoSyllabus } from "@/lib/bo-model";
+import type { BoCenter, BoLearnerDirectoryItem, BoLearnerLifecycle, BoOpenStudioListingCatalog, BoOpenStudioOperations, BoOpenStudioPass } from "@/lib/bo-model";
 import { OpenStudioPolicyControl } from "./OpenStudioPolicyControl";
 import styles from "../bo.module.css";
 
@@ -11,10 +11,11 @@ type Experience = "KHAM_PHA" | "CAO_CAP" | "CHUYEN_DE";
 
 export function OpenStudioView() {
   const [operations, setOperations] = useState<Load<BoOpenStudioOperations>>({ state: "loading" });
-  const [sessions, setSessions] = useState<BoSession[]>([]);
-  const [syllabi, setSyllabi] = useState<BoSyllabus[]>([]);
+  const [catalog, setCatalog] = useState<Load<BoOpenStudioListingCatalog>>({ state: "loading" });
   const [centers, setCenters] = useState<BoCenter[]>([]);
   const [learners, setLearners] = useState<BoLearnerDirectoryItem[]>([]);
+  const [learnerError, setLearnerError] = useState("");
+  const [centerError, setCenterError] = useState("");
   const [centerId, setCenterId] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -23,22 +24,36 @@ export function OpenStudioView() {
     try { setOperations({ state: "ready", data: await boApi.openStudioOperations(nextCenter || undefined) }); }
     catch (error) { setOperations({ state: "error", message: message(error) }); }
   }
+  async function refreshCatalog(nextCenter = centerId) {
+    setCatalog({ state: "loading" });
+    try { setCatalog({ state: "ready", data: await boApi.openStudioListingCatalog(nextCenter || undefined) }); }
+    catch (error) { setCatalog({ state: "error", message: message(error) }); }
+  }
+  async function refreshLearners() {
+    setLearnerError("");
+    try { setLearners(await boApi.openStudioLearners("")); }
+    catch (error) { setLearnerError(message(error)); }
+  }
   useEffect(() => {
     let active = true;
-    void Promise.all([boApi.centers(), boApi.sessions(), boApi.syllabi(), boApi.learners("")]).then(([nextCenters, nextSessions, nextSyllabi, nextLearners]) => {
+    void refresh("");
+    void refreshCatalog("");
+    void refreshLearners();
+    void boApi.centers().then((nextCenters) => {
       if (!active) return;
-      setCenters(nextCenters); setSessions(nextSessions); setSyllabi(nextSyllabi); setLearners(nextLearners);
+      setCenters(nextCenters);
       const firstCenter = nextCenters.find((item) => item.status === "active")?.id ?? nextCenters[0]?.id ?? "";
       setCenterId(firstCenter);
-      void refresh(firstCenter);
-    }).catch((error: unknown) => { if (active) setOperations({ state: "error", message: message(error) }); });
+      if (firstCenter) { void refresh(firstCenter); void refreshCatalog(firstCenter); }
+    }).catch((error: unknown) => { if (active) setCenterError(message(error)); });
     return () => { active = false; };
     // bootstrap once; later changes are explicit operator actions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const data = operations.state === "ready" ? operations.data : null;
-  const visibleSessions = sessions.filter((item) => item.status === "SCHEDULED");
+  const visibleSessions = catalog.state === "ready" ? catalog.data.sessions.filter((item) => item.status === "SCHEDULED") : [];
+  const visibleSyllabi = catalog.state === "ready" ? catalog.data.syllabi : [];
 
   return <main className={styles.page}>
     <header className={styles.heading}>
@@ -46,20 +61,24 @@ export function OpenStudioView() {
       <h1>Open Studio Operations</h1>
       <p>Listing, Pass và admission dùng authority canonical từ pino-core. Outcome được settle ở TOS.</p>
     </header>
-    <label className={styles.field}>Center<select value={centerId} onChange={(event) => { setCenterId(event.target.value); void refresh(event.target.value); }}><option value="">Tất cả Center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
+    <label className={styles.field}>Center<select value={centerId} onChange={(event) => { setCenterId(event.target.value); void refresh(event.target.value); void refreshCatalog(event.target.value); }}><option value="">Tất cả Center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
+    {centerError ? <State text={`Center directory unavailable: ${centerError}`} error /> : null}
     {notice ? <div className={styles.successCard}><span>Command completed</span><strong>{notice}</strong></div> : null}
     {operations.state === "loading" ? <State text="Đang tải Open Studio control plane…" /> : null}
     {operations.state === "error" ? <State text={operations.message} error /> : null}
     {data ? <>
       <OpenStudioPolicyControl centerId={centerId} />
-      <ListingComposer sessions={visibleSessions} syllabi={syllabi} onChanged={async (text) => { setNotice(text); await refresh(); }} />
+      {catalog.state === "loading" ? <State text="Loading Open Studio Listing catalog..." /> : null}
+      {catalog.state === "error" ? <State text={`Listing config unavailable: ${catalog.message}`} error /> : null}
+      {catalog.state === "ready" ? <ListingComposer sessions={visibleSessions} syllabi={visibleSyllabi} onChanged={async (text) => { setNotice(text); await refresh(); await refreshCatalog(); }} /> : null}
       <ListingBoard data={data} onChanged={async (text) => { setNotice(text); await refresh(); }} />
-      <PassAdmissionDesk learners={learners} listings={data.listings.filter((item) => item.status === "PUBLISHED")} centers={centers} onChanged={async (text) => { setNotice(text); await refresh(); }} />
+      {learnerError ? <State text={`Admission learner directory unavailable: ${learnerError}`} error /> : null}
+      {!learnerError ? <PassAdmissionDesk learners={learners} listings={data.listings.filter((item) => item.status === "PUBLISHED")} centers={centers} onChanged={async (text) => { setNotice(text); await refresh(); }} /> : null}
       <ClaimBoard data={data} />
     </> : null}
   </main>;
 }
-function ListingComposer({ sessions, syllabi, onChanged }: { sessions: BoSession[]; syllabi: BoSyllabus[]; onChanged: (text: string) => Promise<void> }) {
+function ListingComposer({ sessions, syllabi, onChanged }: { sessions: BoOpenStudioListingCatalog["sessions"]; syllabi: BoOpenStudioListingCatalog["syllabi"]; onChanged: (text: string) => Promise<void> }) {
   const [sessionId, setSessionId] = useState("");
   const [syllabusId, setSyllabusId] = useState("");
   const [experienceType, setExperienceType] = useState<Experience>("KHAM_PHA");
@@ -84,7 +103,7 @@ function ListingComposer({ sessions, syllabi, onChanged }: { sessions: BoSession
   return <section className={styles.panel}>
     <div className={styles.panelHeading}><div><h2>Tạo Listing</h2><p>Chỉ Session + Syllabus canonical cùng Path mới publish được.</p></div><span className={styles.writePill}>Write</span></div>
     <div className={styles.osComposer}>
-      <label className={styles.field}>Session<select value={sessionId} onChange={(event) => { setSessionId(event.target.value); setSyllabusId(""); }}><option value="">Chọn Session…</option>{sessions.map((item) => <option key={item.id} value={item.id}>{item.localDate ?? "—"} · {time(item.startsAt)} · {item.pathProgramId ?? "Path"}</option>)}</select></label>
+      <label className={styles.field}>Session<select value={sessionId} onChange={(event) => { setSessionId(event.target.value); setSyllabusId(""); }}><option value="">Chọn Session…</option>{sessions.map((item) => <option key={item.id} value={item.id}>{item.localDate ?? "—"} · {time(item.scheduledStartsAt)} · {item.pathProgramId ?? "Path"}</option>)}</select></label>
       <label className={styles.field}>Syllabus<select value={syllabusId} onChange={(event) => setSyllabusId(event.target.value)}><option value="">Chọn Syllabus…</option>{eligibleSyllabi.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
       <label className={styles.field}>Experience<select value={experienceType} onChange={(event) => setExperienceType(event.target.value as Experience)}><option value="KHAM_PHA">Khám phá</option><option value="CAO_CAP">Cao cấp</option><option value="CHUYEN_DE">Chuyên đề</option></select></label>
       <button className={styles.primaryButton} disabled={!sessionId || !syllabusId || busy} onClick={() => void create()}>{busy ? "Đang tạo…" : "Tạo Listing"}</button>
@@ -137,7 +156,7 @@ function PassAdmissionDesk({ learners, listings, centers, onChanged }: { learner
     setStudentId(id); setLifecycle(null); setPasses([]); setPassId(""); setPathId(""); setListingId("");
     if (!id) return;
     try {
-      const value = await boApi.learnerLifecycle(id);
+      const value = await boApi.openStudioLearnerLifecycle(id);
       setLifecycle(value); setPathId(value.student.activePaths[0]?.id ?? "");
       if (value.houseMembership) setPasses(await boApi.openStudioPasses(value.houseMembership.id, new Date().toISOString()));
     } catch (error) { alert(message(error)); }

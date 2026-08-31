@@ -58,9 +58,12 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-records"
     || path === "learners"
     || path === "open-studio/operations"
+    || path === "open-studio/listing-catalog"
+    || path === "open-studio/learners"
     || path === "open-studio/passes"
     || OPEN_STUDIO_POLICY_READ.test(path)
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
+    || /^open-studio\/students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
@@ -68,11 +71,12 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
-  if (path === "learners") return {
+  if (path === "learners" || path === "open-studio/learners") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
     ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
   };
   if (path === "open-studio/operations") return url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : undefined;
+  if (path === "open-studio/listing-catalog") return { ...(url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : {}), ...(url.searchParams.get("effectiveAt") ? { effectiveAt: url.searchParams.get("effectiveAt")! } : {}) };
   if (path === "open-studio/passes") return { houseMembershipId: url.searchParams.get("houseMembershipId"), effectiveAt: url.searchParams.get("effectiveAt") };
   if (/^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)) return {
     listingId: url.searchParams.get("listingId"), participantMode: url.searchParams.get("participantMode"),
