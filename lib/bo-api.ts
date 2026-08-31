@@ -23,7 +23,7 @@ import type {
   BoWorkforceWeeklyPlanning,
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
-import type { BoPracticeCreateCommand, BoPracticeResourceDetail, BoPracticeResourceSummary, BoPracticeSaveDraftCommand } from "./bo-practice-model";
+import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
 import { BoApiError } from "./bo-api-error";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
 export { BoApiError } from "./bo-api-error";
@@ -94,11 +94,14 @@ export const boApi = {
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
   syllabi: () => read<BoSyllabus>("syllabi"),
-  practiceResources: () => read<BoPracticeResourceSummary>("practice/resources"),
+  practiceAuthoringContext: () => readOne<BoPracticeAuthoringContext>("practice/authoring-context"),
+  practiceResources: (pathProgramId: string) => read<BoPracticeResourceDetail>(`practice/resources?pathProgramId=${encodeURIComponent(pathProgramId)}`),
   practiceResource: (resourceId: string) => readOne<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}`),
-  createPracticeResource: (body: BoPracticeCreateCommand) => write<BoPracticeResourceDetail>("practice/resources", body, crypto.randomUUID()),
-  savePracticeDraft: (resourceId: string, body: BoPracticeSaveDraftCommand) => write<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}/draft`, body, crypto.randomUUID()),
-  publishPracticeResource: (resourceId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}/publish`, { expectedRevision }, crypto.randomUUID()),
+  createPracticeResource: (body: BoPracticeCreateCommand, idempotencyKey: string) => write<BoPracticeResourceDetail>("practice/resources", body, idempotencyKey),
+  ensurePracticeDraft: (resourceId: string) => write<BoPracticeResourceVersion>(`practice/resources/${encodeURIComponent(resourceId)}/drafts`, {}, crypto.randomUUID()),
+  updatePracticeDraft: (versionId: string, title: string, expectedRevision: number) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}`, { title, expectedRevision }, crypto.randomUUID()),
+  replacePracticePages: (versionId: string, expectedRevision: number, pages: Array<{ sheetMediaAssetId: string; worksheetMediaAssetId: string | null }>) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}/pages`, { expectedRevision, pages }, crypto.randomUUID()),
+  publishPracticeVersion: (versionId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/versions/${encodeURIComponent(versionId)}/publish`, { expectedRevision }, crypto.randomUUID()),
   uploadPracticeMedia,
   sessions: () => read<BoSession>("sessions"),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
@@ -125,7 +128,7 @@ export const boApi = {
   issueOpenStudioMonthlyPass: (body: { houseMembershipId: string; pathProgramId: string; effectiveAt: string }) => write<unknown[]>("open-studio/passes/issue-monthly-path", body, crypto.randomUUID()),
   issueOpenStudioBringAFriendPass: (body: { houseMembershipId: string; effectiveAt: string }) => write<unknown[]>("open-studio/passes/issue-bring-a-friend", body, crypto.randomUUID()),
   revokeOpenStudioPass: (passId: string, body: { revokedAt: string; reason: string }) => write<unknown>(`open-studio/passes/${encodeURIComponent(passId)}/revoke`, body, crypto.randomUUID()),
-  openStudioPolicyStream: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget) => readOne<OpenStudioPolicyInspection<T> | null>(`policies/open_studio/${key}/stream?${policyTargetQuery(target)}`),
+  openStudioPolicyStream: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget) => readOne<BoOpenStudioPolicyInspection<T> | null>(`policies/open_studio/${key}/stream?${policyTargetQuery(target)}`),
   openStudioPolicyEffective: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget, effectiveAt: string) => readOne<OpenStudioResolvedPolicy<T>>(`policies/open_studio/${key}/effective?${policyTargetQuery(target)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
   createOpenStudioPolicyDraft: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget, value: T, changeReason: string, expectedRevision: number) => write<OpenStudioPolicyDraft>(`policies/open_studio/${key}/versions`, { ...target, value, changeReason, expectedRevision }, crypto.randomUUID()),
   publishOpenStudioPolicy: (key: OpenStudioPolicyKey, versionId: string, target: OpenStudioPolicyTarget, effectiveFrom: string, expectedRevision: number) => write<{ published: boolean }>(`policies/open_studio/${key}/versions/${encodeURIComponent(versionId)}/publish`, { ...target, effectiveFrom, expectedRevision }, crypto.randomUUID()),
