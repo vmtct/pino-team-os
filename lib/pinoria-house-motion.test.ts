@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   ambientAgentIsInsideLane,
   createAmbientAgents,
@@ -38,6 +40,18 @@ test("ambient movement stays on governed lanes", () => {
     for (let index = 1; index < peers.length; index += 1) {
       const gap = peers[index]!.x - peers[index - 1]!.x;
       assert.ok(gap >= 71.9, `lane ${lane.id} gap ${gap}`);
+    }
+  }
+});
+
+test("actual House graph keeps forty learners above minimum spacing", () => {
+  const actual = JSON.parse(readFileSync(join(process.cwd(), "app/pinoria-tv/ambient-house-motion-graph.saved.json"), "utf8")) as AmbientMotionGraph;
+  let agents = createAmbientAgents(ids, actual);
+  for (let tick = 0; tick < 400; tick += 1) agents = stepAmbientAgents(agents, actual, 40);
+  for (const lane of actual.horizontalLanes) {
+    const peers = agents.filter((agent) => agent.laneId === lane.id).sort((a, b) => a.x - b.x);
+    for (let index = 1; index < peers.length; index += 1) {
+      assert.ok(peers[index]!.x - peers[index - 1]!.x >= 71.9, `actual lane ${lane.id} stacks learners`);
     }
   }
 });
