@@ -1,12 +1,13 @@
 import { BoApiError } from "./bo-api-error";
 import type { BoPracticeMediaUpload } from "./bo-practice-model";
 
-export async function uploadPracticeMedia(file: File): Promise<BoPracticeMediaUpload> {
+export async function uploadPracticeMedia(file: File, pathProgramId: string, idempotencyKey: string): Promise<BoPracticeMediaUpload> {
   const form = new FormData();
   form.set("file", file);
+  form.set("pathProgramId", pathProgramId);
   const response = await fetch("/api/bo/practice/media", {
     method: "POST",
-    headers: { "idempotency-key": crypto.randomUUID() },
+    headers: { "idempotency-key": idempotencyKey },
     body: form,
   });
   const text = await response.text();
