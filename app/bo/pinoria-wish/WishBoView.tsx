@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import bo from "../bo.module.css";
 import styles from "./pinoria-wish.module.css";
 import {CatalogManager} from "./CatalogManager";
+import {ReleasePhaseManager} from "./ReleasePhaseManager";
 
 type Bearer={id:string;key:string;displayName:string;title:string;status:string};
 type SetRow={id:string;key:string;bearerId:string;displayName:string;status:string};
@@ -50,6 +51,7 @@ export function WishBoView(){
     {error?<div className={`${bo.card} ${bo.denied}`}><strong>Lỗi</strong><span>{error}</span></div>:null}
     {message?<div className={bo.successCard}><span>Pinoria BO</span><strong>{message}</strong></div>:null}
     <CatalogManager onChanged={()=>void load()}/>
+    <ReleasePhaseManager onChanged={()=>void load()}/>
     <section className={bo.panel}>
       <div className={bo.panelHeading}><div><h2>Tạo Wish banner</h2><p>Không nhập UUID tay — chọn từ catalog hiện có.</p></div><span className={bo.writePill}>STAGING WRITE</span></div>
       <div className={bo.formGrid}>
