@@ -35,13 +35,15 @@ export async function handleStaffPinChange(request: Request, env: StaffPinAccess
 
 async function authenticatedIdentity(request: Request, env: StaffPinAccessEnv, keyResolver?: JWTVerifyGetKey): Promise<VerifiedWorkforceIdentity> {
   const host = (request.headers.get("host") ?? new URL(request.url).hostname).split(":")[0]!.trim().toLowerCase();
-  if (host === "bo.pinohouse.art" || (host.endsWith(".workers.dev") && env.WORKFORCE_BO_STAGING_BYPASS === "enabled")) {
-    const staged = stagingBoWorkforceIdentity(request, env);
-    if (staged) return staged;
+  if (host === "bo.pinohouse.art") {
     return authenticateBo(request.headers, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD }, keyResolver);
   }
   const staged = stagingWorkforceIdentity(request, env);
   if (staged) return staged;
+  if (host.endsWith(".workers.dev") && env.WORKFORCE_BO_STAGING_BYPASS === "enabled") {
+    const stagedBo = stagingBoWorkforceIdentity(request, env);
+    if (stagedBo) return stagedBo;
+  }
   return authenticateWorkforce(request.headers, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_TOS_AUD }, keyResolver);
 }
 

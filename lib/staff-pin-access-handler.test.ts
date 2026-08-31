@@ -31,6 +31,19 @@ test("Staff PIN status forwards only the Cloudflare/staging identity to Core", a
   assert.equal(response.headers.get("x-request-id"), "req-status");
 });
 
+test("workers.dev Staff PIN APIs prefer the dedicated TOS fixture when BO staging is also enabled", async () => {
+  let seenEmail = "";
+  let seenSubject = "";
+  const response = await handleStaffPinStatus(new Request("https://team-preview.workers.dev/api/staff-pin/status"), {
+    ...env({ status: async identity => { seenEmail = identity.email; seenSubject = identity.subject; return { status: 200, body: { data: { state: "ROTATION_REQUIRED" } }, requestId: "tos-principal" }; } }),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "manager@pino.invalid",
+  });
+  assert.equal(response.status, 200);
+  assert.equal(seenEmail, "staff@pino.invalid");
+  assert.equal(seenSubject, "pinoria-tos-staging-bypass-v1:staff@pino.invalid");
+});
+
 test("first-login PIN change requires current bootstrap PIN and forwards the new PIN to Core", async () => {
   let seenEmail = "";
   let seenCurrentPin = "";
