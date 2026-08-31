@@ -7,7 +7,7 @@
 Before changing material business behavior, protected data flow, or a Core-owned capability:
 
 1. read this repository's `docs/architecture.md`, `PROJECT.md`, and relevant local data/source/tests;
-2. resolve the canonical Core `featureId` in `pino-core/docs/features/feature-registry.json`;
+2. resolve the canonical Core `featureCode` + `featureId` in `pino-core/docs/features/feature-registry.json`;
 3. read `pino-core/docs/feature-governance.md` and `pino-core/docs/platform-foundations.md`;
 4. read the registered feature spec and relevant accepted ADRs;
 5. if the Core registry says `READY_FOR_CODEX`, read and obey the registered handoff before runtime integration;
@@ -15,6 +15,11 @@ Before changing material business behavior, protected data flow, or a Core-owned
 7. for any staff UI work, read `docs/tos-adaptive-workspace-doctrine-v1.md` before choosing TOS/BO placement, navigation, mobile/desktop composition, or shell usage.
 
 If the required Core governance/spec material is unavailable, stop before inventing material business behavior and report the missing dependency.
+## Mandatory continuation entry gate
+
+Conversation history is non-authoritative delivery memory. For terse continuation instructions such as `continue`, `tiếp tục`, `triển`, `ok triển`, `finish`, or equivalent, do not resume from remembered chat state.
+
+Run `npm run delivery:enter -- --core <current-pino-core-worktree>` (or set `PINO_CORE_PATH`) before material edits. The Core gate must resolve `featureCode` + `featureId`, inspect this Team worktree against current `main`, reconcile persisted checkpoint drift, and identify the first unproven gate. If Core governance is unavailable or feature resolution is ambiguous, fail closed.
 
 ## Feature readiness is implementation authority
 
@@ -128,7 +133,7 @@ Do not make backend/schema/API design decisions solely because they are convenie
 
 For a material cross-repository feature:
 
-1. identify the Core `featureId` in the PR/implementation notes;
+1. identify the Core `featureCode` + `featureId` in the PR/implementation notes;
 2. verify registry readiness before runtime work;
 3. preserve F1–F7 decisions from the canonical spec;
 4. keep UI adaptation separate from canonical business semantics;
