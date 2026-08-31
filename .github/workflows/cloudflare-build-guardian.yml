@@ -177,10 +177,10 @@ jobs:
           echo "Cloudflare build outcome: ${{ steps.cf.outputs.build_outcome }}" >&2
           exit 1
 
-      - name: Fail runtime commit that is built but not serving
+      - name: Report runtime commit awaiting governed promotion
         if: steps.delta.outputs.runtime_affecting == 'true' && steps.cf.outputs.build_outcome == 'success' && steps.cf.outputs.serving != 'true'
         shell: bash
         run: |
-          echo "Runtime commit built successfully but is NOT the active 100% Worker version." >&2
-          echo "A separately approved production promotion is required. Production smoke was intentionally not run." >&2
-          exit 1
+          echo "Runtime commit built successfully but is NOT the active 100% Worker version."
+          echo "Status: built_not_deployed. A separately approved production promotion is required."
+          echo "Production smoke was intentionally not run."
