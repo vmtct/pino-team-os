@@ -26,9 +26,9 @@ test("BO root redirects on the same host and only governed BO routes are availab
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/"), { action: "redirect", pathname: "/bo" });
   for (const pathname of [
     "/bo", "/bo/", "/bo/staff", "/bo/workforce", "/bo/learners", "/bo/open-studio", "/bo/delivery-activation",
-    "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus",
+    "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice",
     "/bo/system/users", "/bo/system/roles", "/bo/system/audit",
-    "/api/bo/context", "/api/bo/learners", "/api/bo/open-studio/operations", "/api/bo/open-studio/passes", "/api/bo/open-studio/listings",
+    "/api/bo/context", "/api/bo/learners", "/api/bo/practice/resources", "/api/bo/practice/media", `/api/bo/practice/resources/${roleId}`, `/api/bo/practice/resources/${roleId}/draft`, `/api/bo/practice/resources/${roleId}/publish`, "/api/bo/open-studio/operations", "/api/bo/open-studio/passes", "/api/bo/open-studio/listings",
     "/api/bo/open-studio/member-path-centers/assign", "/api/bo/open-studio/passes/issue-monthly-path", "/api/bo/open-studio/admission",
     `/api/bo/open-studio/passes/${roleId}/claim-eligibility`, `/api/bo/students/${roleId}/lifecycle`, `/api/bo/identity/parents/${roleId}/pin/reset`,
     "/api/bo/subscriptions", `/api/bo/subscriptions/${roleId}/renew`, "/api/bo/enrollments", `/api/bo/enrollments/${roleId}/end`,

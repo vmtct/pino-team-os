@@ -48,6 +48,8 @@ const OPEN_STUDIO_PASS_REVOKE = /^open-studio\/passes\/[0-9a-f-]{36}\/revoke$/;
 const OPEN_STUDIO_ADMISSION = "open-studio/admission";
 const OPEN_STUDIO_POLICY_VERSION = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions$/;
 const OPEN_STUDIO_POLICY_PUBLISH = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/;
+const PRACTICE_RESOURCE_CREATE = "practice/resources";
+const PRACTICE_RESOURCE_COMMAND = /^practice\/resources\/[0-9a-f-]{36}\/(draft|publish)$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -71,7 +73,7 @@ export async function handleBoWriteRequest(
     );
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path) || isPracticeWritePath(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -129,6 +131,10 @@ export function shouldReconcileTosAccess(path: string): boolean {
     || STAFF_STATUS_PATH.test(path);
 }
 
+export function isPracticeWritePath(path: string): boolean {
+  return path === PRACTICE_RESOURCE_CREATE || PRACTICE_RESOURCE_COMMAND.test(path);
+}
+
 export function isOpenStudioPostPath(path: string): boolean {
   return path === OPEN_STUDIO_LISTING_CREATE
     || OPEN_STUDIO_LISTING_COMMAND.test(path)
@@ -162,6 +168,7 @@ export function isAllowedPostPath(path: string): boolean {
     || RENEWAL_GRACE_REVOKE_PATH.test(path)
     || path === ENROLLMENT_CREATE_PATH
     || ENROLLMENT_COMMAND_PATH.test(path)
+    || isPracticeWritePath(path)
     || ENROLLMENT_BULK_PATHS.has(path)
     || isOpenStudioPostPath(path);
 }

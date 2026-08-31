@@ -23,13 +23,10 @@ import type {
   BoWorkforceWeeklyPlanning,
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
-
-export class BoApiError extends Error {
-  constructor(readonly status: number, message: string, readonly requestId: string | null) {
-    super(message);
-    this.name = "BoApiError";
-  }
-}
+import type { BoPracticeCreateCommand, BoPracticeResourceDetail, BoPracticeResourceSummary, BoPracticeSaveDraftCommand } from "./bo-practice-model";
+import { BoApiError } from "./bo-api-error";
+import { uploadPracticeMedia } from "./bo-practice-media-client";
+export { BoApiError } from "./bo-api-error";
 
 export type OpenStudioPolicyKey = "monthly_path_pass.v1" | "bring_a_friend.v1" | "public_acquisition.v1" | "cancellation.v1";
 export type OpenStudioPolicyTarget = { targetType: "GLOBAL"; targetId: null } | { targetType: "CENTER"; targetId: string };
@@ -97,6 +94,12 @@ export const boApi = {
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
   syllabi: () => read<BoSyllabus>("syllabi"),
+  practiceResources: () => read<BoPracticeResourceSummary>("practice/resources"),
+  practiceResource: (resourceId: string) => readOne<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}`),
+  createPracticeResource: (body: BoPracticeCreateCommand) => write<BoPracticeResourceDetail>("practice/resources", body, crypto.randomUUID()),
+  savePracticeDraft: (resourceId: string, body: BoPracticeSaveDraftCommand) => write<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}/draft`, body, crypto.randomUUID()),
+  publishPracticeResource: (resourceId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}/publish`, { expectedRevision }, crypto.randomUUID()),
+  uploadPracticeMedia,
   sessions: () => read<BoSession>("sessions"),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "") => read<BoLearnerDirectoryItem>(`learners${query ? `?query=${encodeURIComponent(query)}` : ""}`),

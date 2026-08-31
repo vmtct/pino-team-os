@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
-import { handleBoStaffOnboardingRequest, type BoWriteEnv } from "./bo-write-handler";
+import { handleBoStaffOnboardingRequest, isPracticeWritePath, type BoWriteEnv } from "./bo-write-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 import type { VerifiedBoIdentity } from "./bo-auth";
 
@@ -394,4 +394,54 @@ test("Open Studio staging identity is not reused for non-Open-Studio BO writes",
   }, "delivery/learning-spaces");
   assert.equal(response.status, 401);
   assert.equal(called, false);
+});
+
+test("Practice write allowlist accepts only create, draft save, and publish commands", () => {
+  const resourceId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  assert.equal(isPracticeWritePath("practice/resources"), true);
+  assert.equal(isPracticeWritePath(`practice/resources/${resourceId}/draft`), true);
+  assert.equal(isPracticeWritePath(`practice/resources/${resourceId}/publish`), true);
+  assert.equal(isPracticeWritePath(`practice/resources/${resourceId}`), false);
+  assert.equal(isPracticeWritePath("practice/media"), false);
+  assert.equal(isPracticeWritePath("practice/resources/not-a-canonical-id/draft"), false);
+});
+
+test("Practice BO commands require idempotency and preserve exact bounded payload", async () => {
+  const f = await fixture();
+  const resourceId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const practicePath = `practice/resources/${resourceId}/draft`;
+  const body = {
+    title: "Always With Me",
+    family: "JOURNEY",
+    pathId: null,
+    contextKey: "always-with-me",
+    formatDefinitionKey: "PIANO_SHEET_176X250_8ROW_V1",
+    expectedRevision: 3,
+    pages: [
+      { order: 1, sheetMediaRef: "sheet-1", worksheetMediaRef: "worksheet-1" },
+      { order: 2, sheetMediaRef: "sheet-2", worksheetMediaRef: null },
+    ],
+  };
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) {
+    forwarded.push(coreRequest);
+    return { status: 200, body: { data: { id: resourceId } }, requestId: "core-practice-draft" };
+  } };
+  const ok = await handleBoStaffOnboardingRequest(
+    request(f.token, { idempotencyKey: "practice-draft-1", body: JSON.stringify(body) }),
+    env(binding),
+    practicePath,
+    f.resolver,
+  );
+  assert.equal(ok.status, 200);
+  assert.deepEqual(forwarded, [{ method: "POST", path: practicePath, body, idempotencyKey: "practice-draft-1" }]);
+
+  const missingKey = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: JSON.stringify(body) }),
+    env(binding),
+    practicePath,
+    f.resolver,
+  );
+  assert.equal(missingKey.status, 400);
+  assert.equal(forwarded.length, 1);
 });

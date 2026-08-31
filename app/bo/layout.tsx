@@ -23,6 +23,10 @@ const groups: BoNavGroup[] = [
     ],
   },
   {
+    label: "Learning",
+    items: [{ href: "/bo/practice", label: "Piano Practice" }],
+  },
+  {
     label: "Workforce",
     items: [{ href: "/bo/staff", label: "Staff onboarding" }, { href: "/bo/workforce", label: "Lịch ca tuần" }],
   },

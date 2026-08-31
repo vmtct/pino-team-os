@@ -39,12 +39,15 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/sessions",
     "/bo/registrations",
     "/bo/syllabus",
+    "/bo/practice",
     "/bo/system/users",
     "/bo/system/roles",
     "/bo/system/audit",
     "/staff-pin/change",
     "/api/bo/context",
     "/api/bo/learners",
+    "/api/bo/practice/resources",
+    "/api/bo/practice/media",
     "/api/bo/open-studio/operations",
     "/api/bo/open-studio/passes",
     "/api/bo/open-studio/listings",
@@ -84,7 +87,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
-  return /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
+  return /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/(?:draft|publish))?$/.test(normalized)
+    || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
     || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)

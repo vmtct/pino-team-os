@@ -11,6 +11,7 @@ export interface BoReadEnv extends BoWorkforceStagingAuthEnv, BoOpenStudioStagin
 }
 
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
+const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -23,7 +24,9 @@ export async function handleBoOperationalReadRequest(
     if (!isOperationalReadPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
     const stagingIdentity = isOpenStudioReadPath(path)
       ? stagingBoOpenStudioIdentity(request, env)
-      : stagingBoWorkforceIdentity(request, env);
+      : isPracticeReadPath(path)
+        ? null
+        : stagingBoWorkforceIdentity(request, env);
     const identity = stagingIdentity ?? await authenticateBo(
       request.headers,
       { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
@@ -40,6 +43,10 @@ export async function handleBoOperationalReadRequest(
     console.error("BO operational read facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
+}
+
+export function isPracticeReadPath(path: string): boolean {
+  return path === "practice/resources" || PRACTICE_RESOURCE_READ.test(path);
 }
 
 export function isOpenStudioReadPath(path: string): boolean {
@@ -59,6 +66,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/users"
     || path === "workforce/staff-records"
     || path === "learners"
+    || path === "practice/resources"
+    || PRACTICE_RESOURCE_READ.test(path)
     || path === "open-studio/operations"
     || path === "open-studio/listing-catalog"
     || path === "open-studio/learners"
