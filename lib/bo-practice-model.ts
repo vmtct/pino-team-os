@@ -1,76 +1,76 @@
 export type BoPracticeFamily = "STARTER" | "JOURNEY" | "SPECIALTY";
-export type BoPracticeLifecycle = "DRAFT" | "PUBLISHED";
+export type BoPracticeVersionStatus = "DRAFT" | "PUBLISHED";
+export type BoPianoRepertoireClass = "KHOI_HANH" | "HANH_TRINH" | "CHUYEN_DE";
+
+export interface BoPracticeCatalogItem {
+  id: string;
+  code: string;
+  title: string;
+  repertoireClass: BoPianoRepertoireClass;
+  status: "DRAFT" | "PUBLISHED";
+}
+
+export interface BoPracticeCatalogPath {
+  id: string;
+  code: string;
+  displayName: string;
+  repertoireItems: BoPracticeCatalogItem[];
+}
+
+export interface BoPracticeAuthoringContext {
+  paths: BoPracticeCatalogPath[];
+}
 
 export interface BoPracticePage {
   id: string;
+  versionId: string;
   order: number;
-  sheetMediaRef: string;
-  worksheetMediaRef: string | null;
-  sheetPreviewUrl?: string | null;
-  worksheetPreviewUrl?: string | null;
+  sheetMediaAssetId: string;
+  worksheetMediaAssetId: string | null;
+  revision: number;
 }
 
-export interface BoPracticeDraft {
+export interface BoPracticeResourceVersion {
   id: string;
-  version: number;
+  resourceId: string;
+  versionNumber: number;
+  title: string;
+  formatDefinition: typeof PIANO_PRACTICE_FORMAT_V1;
+  status: BoPracticeVersionStatus;
   revision: number;
+  publishedAt: string | null;
   pages: BoPracticePage[];
 }
 
-export interface BoPracticePublishedVersion {
+export interface BoPracticeResourceDetail {
   id: string;
-  version: number;
-  publishedAt: string;
-  pages?: BoPracticePage[];
-}
-
-export interface BoPracticeResourceSummary {
-  id: string;
-  title: string;
+  pathProgramId: string;
+  pianoRepertoireItemId: string;
   family: BoPracticeFamily;
-  pathId: string | null;
-  contextKey: string | null;
-  formatDefinitionKey: string;
-  lifecycle: BoPracticeLifecycle;
-  draftVersion: number | null;
-  publishedVersion: number | null;
-  updatedAt: string;
-}
-
-export interface BoPracticeResourceDetail extends BoPracticeResourceSummary {
-  draft: BoPracticeDraft | null;
-  currentPublished: BoPracticePublishedVersion | null;
+  title: string;
+  currentPublishedVersionId: string | null;
+  revision: number;
+  draft: BoPracticeResourceVersion | null;
+  currentPublished: BoPracticeResourceVersion | null;
 }
 
 export interface BoPracticeCreateCommand {
   title: string;
   family: BoPracticeFamily;
-  pathId: string | null;
-  contextKey: string | null;
-  formatDefinitionKey: string;
+  pathProgramId: string;
+  pianoRepertoireItemId: string;
 }
 
 export interface BoPracticeDraftPageCommand {
-  id?: string;
-  order: number;
-  sheetMediaRef: string;
-  worksheetMediaRef: string | null;
-}
-
-export interface BoPracticeSaveDraftCommand extends BoPracticeCreateCommand {
-  expectedRevision: number;
-  pages: BoPracticeDraftPageCommand[];
-}
-export interface BoPracticePublishCommand {
-  expectedRevision: number;
+  sheetMediaAssetId: string;
+  worksheetMediaAssetId: string | null;
 }
 
 export interface BoPracticeMediaUpload {
-  mediaRef: string;
+  mediaAssetId: string;
   fileName: string;
-  mimeType: string;
+  mimeType: "image/webp" | "image/png" | "image/jpeg";
   byteSize: number;
-  previewUrl?: string | null;
 }
 
 export const PIANO_PRACTICE_FORMAT_V1 = "PIANO_SHEET_176X250_8ROW_V1" as const;
