@@ -14,6 +14,9 @@ export interface BoWriteEnv extends BoOpenStudioStagingAuthEnv, BoWorkforceStagi
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
 const ACCESS_ROLE_PATH = "access/roles";
+const ACCESS_ROLE_DUPLICATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/duplicate$/;
+const ACCESS_ROLE_UPDATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/update$/;
+const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
@@ -118,6 +121,8 @@ export async function handleBoWriteRequest(
 export function shouldReconcileTosAccess(path: string): boolean {
   return path === ACCESS_PERIMETER_RECONCILE_PATH
     || path === STAFF_ONBOARDING_PATH
+    || ACCESS_ROLE_UPDATE_PATH.test(path)
+    || ACCESS_ROLE_ARCHIVE_PATH.test(path)
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH
     || path === ACCESS_USER_STATUS_PATH
@@ -139,6 +144,9 @@ export function isAllowedPostPath(path: string): boolean {
   return path === ACCESS_PERIMETER_RECONCILE_PATH
     || path === STAFF_ONBOARDING_PATH
     || path === ACCESS_ROLE_PATH
+    || ACCESS_ROLE_DUPLICATE_PATH.test(path)
+    || ACCESS_ROLE_UPDATE_PATH.test(path)
+    || ACCESS_ROLE_ARCHIVE_PATH.test(path)
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH
     || path === ACCESS_USER_STATUS_PATH
