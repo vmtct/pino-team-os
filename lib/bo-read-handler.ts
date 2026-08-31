@@ -34,7 +34,8 @@ export async function handleBoOperationalReadRequest(
     );
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
-    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path, ...(readBody ? { body: readBody } : {}) }, identity);
+    const corePath = practiceCorePath(path, url);
+    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readBody ? { body: readBody } : {}) }, identity);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof BoAuthError) {
@@ -46,7 +47,7 @@ export async function handleBoOperationalReadRequest(
 }
 
 export function isPracticeReadPath(path: string): boolean {
-  return path === "practice/resources" || PRACTICE_RESOURCE_READ.test(path);
+  return path === "practice/authoring-context" || path === "practice/resources" || PRACTICE_RESOURCE_READ.test(path);
 }
 
 export function isOpenStudioReadPath(path: string): boolean {
@@ -66,6 +67,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/users"
     || path === "workforce/staff-records"
     || path === "learners"
+    || path === "practice/authoring-context"
     || path === "practice/resources"
     || PRACTICE_RESOURCE_READ.test(path)
     || path === "open-studio/operations"
@@ -80,6 +82,12 @@ export function isOperationalReadPath(path: string): boolean {
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
+}
+
+function practiceCorePath(path: string, url: URL): string {
+  if (path !== "practice/resources") return path;
+  const pathProgramId = url.searchParams.get("pathProgramId")?.trim() ?? "";
+  return pathProgramId ? `${path}?pathProgramId=${encodeURIComponent(pathProgramId)}` : path;
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
