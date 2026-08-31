@@ -10,7 +10,7 @@ Before changing material business behavior, protected data flow, or a Core-owned
 2. resolve the canonical Core `featureCode` + `featureId` in `pino-core/docs/features/feature-registry.json`;
 3. read `pino-core/docs/feature-governance.md` and `pino-core/docs/platform-foundations.md`;
 4. read the registered feature spec and relevant accepted ADRs;
-5. if the Core registry says `READY_FOR_CODEX`, read and obey the registered handoff before runtime integration;
+5. if the Core registry says `READY_FOR_IMPLEMENTATION`, read and obey the registered handoff before runtime integration;
 6. when protected staff behavior is involved, read the approved Access Control spec/greenfield bootstrap/handoff in Core;
 7. for any staff UI work, read `docs/tos-adaptive-workspace-doctrine-v1.md` before choosing TOS/BO placement, navigation, mobile/desktop composition, or shell usage.
 
@@ -33,7 +33,7 @@ Care ownership is coordination metadata only; it never authorizes staging or pro
 
 ## Feature readiness is implementation authority
 
-- `READY_FOR_CODEX` — implementation may proceed against the registered approved spec/handoff.
+- `READY_FOR_IMPLEMENTATION` — implementation may proceed against the registered approved spec/handoff.
 - `READY_WITH_PREREQUISITES` — prototype/review may continue, but blocked runtime integration waits for named prerequisites.
 - `PROPOSAL_ONLY` — prototype/product exploration only; do not turn mock logic into canonical backend behavior.
 - `RECONSTRUCTED_ONLY` — current-state evidence only; not future implementation authority.
