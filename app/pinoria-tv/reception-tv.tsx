@@ -1,8 +1,9 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
+import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import { selectUnseenHouseEvents } from "./house-event-sequence";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
@@ -43,6 +44,7 @@ export function ReceptionTv() {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
   const cursor = useRef(0);
+  const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
   const presentationBusy = useRef(false);
 
@@ -61,6 +63,7 @@ export function ReceptionTv() {
     const json = await response.json() as { data?: HouseSnapshot };
     if (!response.ok || !json.data) throw new Error("offline");
     cursor.current = json.data.cursor;
+    presentedSequence.current = json.data.cursor;
     setInside(json.data.learners);
     setConnected(true);
     wasConnected.current = true;
@@ -77,8 +80,12 @@ export function ReceptionTv() {
       const json = await response.json() as { data?: EventPage };
       if (!response.ok || !json.data) throw new Error("offline");
       const page = json.data;
+      const unseen = selectUnseenHouseEvents(page.events, presentedSequence.current);
       cursor.current = page.cursor;
-      if (page.events.length) enqueueHouseEvents(page.events);
+      if (unseen.events.length) {
+        presentedSequence.current = unseen.lastSequence;
+        enqueueHouseEvents(unseen.events);
+      }
       setConnected(true);
     } catch {
       setConnected(false);
@@ -175,6 +182,7 @@ export function ReceptionTv() {
     if (!value) return;
     localStorage.setItem(CENTER_STORAGE, value);
     cursor.current = 0;
+    presentedSequence.current = 0;
     wasConnected.current = false;
     setInside([]);
     setScenes([]);
@@ -185,12 +193,14 @@ export function ReceptionTv() {
   function resetCenter() {
     localStorage.removeItem(CENTER_STORAGE);
     cursor.current = 0;
+    presentedSequence.current = 0;
     wasConnected.current = false;
     setInside([]);
     setScenes([]);
     setPresentation(null);
     setCenterId("");
   }
+  const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, name: learner.displayName, config: learner.character.config })), [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
       <div>
@@ -215,22 +225,7 @@ export function ReceptionTv() {
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <div className={styles.ambient} aria-label={`${inside.length} learners in House`}>
-      {inside.slice(0, 60).map((learner, index) => (
-        <div
-          key={learner.studentProfileId}
-          className={styles.ambientCharacter}
-          style={{
-            "--x": `${6 + (index * 37) % 88}%`,
-            "--y": `${20 + (index * 53) % 60}%`,
-            "--delay": `${-(index % 11) * .7}s`,
-            "--scale": `${.55 + (index % 5) * .07}`,
-          } as CSSProperties}
-        >
-          <LayeredCharacter config={learner.character.config} style={{ width: "100%", height: "100%" }} />
-          <span>{learner.displayName}</span>
-        </div>
-      ))}    </div>
+    </header>    <AmbientHouseRuntime learners={ambientLearners} />
 
     {scene ? <section key={scene.id} className={`${styles.scene} ${scene.kind === "departure" ? styles.departure : ""}`}>
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
