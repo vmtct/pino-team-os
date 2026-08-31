@@ -130,15 +130,6 @@ export const boApi = {
   removeAccessAssignment: (assignmentId: string) => write<{ assignmentId: string; status: string }>("access/assignments/remove", { assignmentId }, crypto.randomUUID()),
   setAccessUserStatus: (userId: string, status: "active" | "suspended", reason?: string) => write<{ status: string }>("access/users/status", { userId, status, ...(reason ? { reason } : {}) }, crypto.randomUUID()),
   reconcileTosAccess: () => write<{ state: string; emailCount: number; policyId: string | null }>("access/perimeter-reconcile", {}, crypto.randomUUID()),
-  configureStaffPin: async (userId: string, pin: string) => {
-    const response = await fetch("/api/staff-pin/configure", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId, pin }) });
-    const text = await response.text();
-    let payload: { data?: { userId: string; loginIdentifier: string; version: number }; error?: { message?: string; requestId?: string } };
-    try { payload = JSON.parse(text) as typeof payload; }
-    catch { throw new BoApiError(response.status, text.trim() || "Staff PIN command returned an invalid response.", response.headers.get("x-request-id")); }
-    if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Không thể cập nhật Staff PIN.");
-    return payload.data;
-  },
   onboardStaff: (command: BoStaffOnboardingCommand, idempotencyKey: string) => write<BoStaffOnboardingResult>("workforce/staff-onboarding", command, idempotencyKey),
 };
 

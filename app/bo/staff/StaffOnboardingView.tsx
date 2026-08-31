@@ -2,25 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type {
-  BoAccessRole,
-  BoAccessUser,
-  BoCenter,
-  BoPathProgram,
-  BoRunningClass,
-  BoStaffAccessAssignmentInput,
-  BoStaffOnboardingCommand,
-  BoStaffOnboardingResult,
-  BoStaffRecord,
-} from "@/lib/bo-model";
+import type { BoAccessRole, BoCenter, BoPathProgram, BoRunningClass, BoStaffAccessAssignmentInput, BoStaffOnboardingResult } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
-type Mode = "record" | "with-access" | "provision";
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string; requestId: string | null }
-  | { status: "ready"; centers: BoCenter[]; paths: BoPathProgram[]; classes: BoRunningClass[]; roles: BoAccessRole[]; users: BoAccessUser[]; staff: BoStaffRecord[] };
-
+  | { status: "ready"; centers: BoCenter[]; paths: BoPathProgram[]; classes: BoRunningClass[]; roles: BoAccessRole[] };
 type AssignmentDraft = { key: string; roleId: string; scopeType: BoStaffAccessAssignmentInput["scopeType"]; scopeId: string };
 type Attempt = { serialized: string; key: string };
 
@@ -28,118 +16,52 @@ const emptyAssignment = (): AssignmentDraft => ({ key: crypto.randomUUID(), role
 
 export function StaffOnboardingView() {
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
-  const [mode, setMode] = useState<Mode>("with-access");
   const [displayLabel, setDisplayLabel] = useState("");
-  const [profileEmail, setProfileEmail] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [department, setDepartment] = useState("");
-  const [roleLabel, setRoleLabel] = useState("");
-  const [employmentType, setEmploymentType] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [existingStaffId, setExistingStaffId] = useState("");
-  const [accessEmail, setAccessEmail] = useState("");
+  const [email, setEmail] = useState("");
   const [assignments, setAssignments] = useState<AssignmentDraft[]>([emptyAssignment()]);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BoStaffOnboardingResult | null>(null);
   const [submitError, setSubmitError] = useState<{ message: string; requestId: string | null } | null>(null);
-  const [staffPin, setStaffPin] = useState("");
-  const [pinStatus, setPinStatus] = useState("");
-  const [importCsv, setImportCsv] = useState("");
-  const [importRoleId, setImportRoleId] = useState("");
-  const [importStatus, setImportStatus] = useState("");
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      boApi.scopeCatalog(),
-      boApi.accessRoles(),
-      boApi.accessUsers(),
-      boApi.staffRecords(),
-    ]).then(([catalog, roles, users, staff]) => {
-      if (active) setLoad({ status: "ready", centers: catalog.centers, paths: catalog.paths, classes: catalog.classes, roles, users, staff });
-    }).catch((error: unknown) => {
-      if (active) setLoad({ status: "error", message: error instanceof Error ? error.message : "Staff onboarding data could not be loaded.", requestId: error instanceof BoApiError ? error.requestId : null });
-    });
+    void Promise.all([boApi.scopeCatalog(), boApi.accessRoles()])
+      .then(([catalog, roles]) => {
+        if (active) setLoad({ status: "ready", centers: catalog.centers, paths: catalog.paths, classes: catalog.classes, roles });
+      })
+      .catch((error: unknown) => {
+        if (active) setLoad({ status: "error", message: error instanceof Error ? error.message : "Không thể tải dữ liệu thêm nhân viên.", requestId: error instanceof BoApiError ? error.requestId : null });
+      });
     return () => { active = false; };
   }, []);
 
   const availableRoles = useMemo(() => load.status === "ready" ? load.roles.filter((role) => role.status === "active" && role.roleKey !== "founder") : [], [load]);
-  const linkedStaffIds = useMemo(() => load.status === "ready" ? new Set(load.users.map((user) => user.staffMemberId).filter((id): id is string => Boolean(id))) : new Set<string>(), [load]);
-  const provisionCandidates = useMemo(() => load.status === "ready" ? load.staff.filter((staff) => staff.status === "active" && !linkedStaffIds.has(staff.id)) : [], [load, linkedStaffIds]);
+  if (load.status === "loading") return <State title="Đang tải…" message="Đang lấy role và scope canonical từ Core." />;
+  if (load.status === "error") return <State error title="Không thể mở Add Staff" message={load.message} requestId={load.requestId} />;
 
-  if (load.status === "loading") return <State title="Loading Workforce onboarding…" message="Resolving canonical Staff, Access roles, and scope catalogs." />;
-  if (load.status === "error") return <State error title="Unable to load Workforce onboarding" message={load.message} requestId={load.requestId} />;
-
-  const accessMode = mode !== "record";
-  const command = buildCommand();
-  const canSubmit = command !== null && (!accessMode || assignments.length > 0) && !submitting;
+  const normalizedAssignments = assignments.map(normalizeAssignment);
+  const canSubmit = Boolean(displayLabel.trim() && email.trim() && normalizedAssignments.length > 0 && normalizedAssignments.every(Boolean) && !submitting);
 
   async function submit() {
-    if (!command || !canSubmit) return;
-    setSubmitError(null);
-    setResult(null);
-    setSubmitting(true);
+    if (!canSubmit) return;
+    const command = {
+      commandType: "ONBOARD_STAFF_WITH_ACCESS" as const,
+      staff: { displayLabel: displayLabel.trim(), email: email.trim() },
+      email: email.trim(),
+      assignments: normalizedAssignments as BoStaffAccessAssignmentInput[],
+    };
     const serialized = JSON.stringify(command);
     const idempotencyKey = attempt?.serialized === serialized ? attempt.key : crypto.randomUUID();
     setAttempt({ serialized, key: idempotencyKey });
+    setSubmitting(true); setSubmitError(null); setResult(null);
     try {
       const response = await boApi.onboardStaff(command, idempotencyKey);
-      setResult(response);
-      setAttempt(null);
+      setResult(response); setAttempt(null);
       window.dispatchEvent(new Event("bo:staff-updated"));
     } catch (error) {
-      setSubmitError({ message: error instanceof Error ? error.message : "Staff onboarding failed.", requestId: error instanceof BoApiError ? error.requestId : null });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function configurePin() {
-    if (!result?.userId || !/^\d{6}$/.test(staffPin)) return;
-    setPinStatus("Đang lưu PIN…");
-    const response = await fetch("/api/staff-pin/configure", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: result.userId, pin: staffPin }) });
-    const body = await response.json() as { error?: { message?: string } };
-    setPinStatus(response.ok ? "PIN đã được lưu; các session cũ đã bị thu hồi." : body.error?.message ?? "Không thể lưu PIN.");
-    if (response.ok) setStaffPin("");
-  }
-
-  async function importStaff() {
-    const rows = importCsv.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => line.split(",").map((cell) => cell.trim()));
-    if (!importRoleId || !rows.length || rows.some((row) => row.length < 3 || !row[0] || !row[1] || !/^\d{6}$/.test(row[2]))) { setImportStatus("Mỗi dòng cần: tên,email,PIN-6-số và một role."); return; }
-    setImportStatus(`Đang import 0/${rows.length}…`);
-    for (let index = 0; index < rows.length; index++) {
-      const [name, email, pin] = rows[index];
-      try {
-        const created = await boApi.onboardStaff({ commandType: "ONBOARD_STAFF_WITH_ACCESS", staff: { displayLabel: name, email }, email, assignments: [{ roleId: importRoleId, scopeType: "GLOBAL", scopeId: null }], pin }, crypto.randomUUID());
-        if (!created.userId) throw new Error("Core did not return an Access user");
-        setImportStatus(`Đang import ${index + 1}/${rows.length}…`);
-      } catch (error) { setImportStatus(`Dừng ở dòng ${index + 1}: ${error instanceof Error ? error.message : "Import thất bại"}`); return; }
-    }
-    setImportCsv(""); setImportStatus(`Đã import ${rows.length} staff và cấu hình PIN.`);
-  }
-
-  function buildCommand(): BoStaffOnboardingCommand | null {
-    const staff = profile();
-    if (mode === "record") return displayLabel.trim() ? { commandType: "ONBOARD_STAFF_RECORD_ONLY", staff } : null;
-    const accessAssignments = assignments.map(normalizeAssignment).filter((item): item is BoStaffAccessAssignmentInput => item !== null);
-    if (!accessEmail.trim() || accessAssignments.length !== assignments.length || accessAssignments.length === 0) return null;
-    if (mode === "with-access") return displayLabel.trim() ? { commandType: "ONBOARD_STAFF_WITH_ACCESS", staff, email: accessEmail.trim(), assignments: accessAssignments } : null;
-    return existingStaffId ? { commandType: "PROVISION_ACCESS_FOR_STAFF", staffMemberId: existingStaffId, email: accessEmail.trim(), assignments: accessAssignments } : null;
-  }
-
-  function profile() {
-    return compact({
-      displayLabel: displayLabel.trim(),
-      email: profileEmail.trim(), mobile: mobile.trim(), department: department.trim(), roleLabel: roleLabel.trim(), employmentType: employmentType.trim(), startDate: startDate.trim(),
-    });
-  }
-
-  function normalizeAssignment(draft: AssignmentDraft): BoStaffAccessAssignmentInput | null {
-    if (!draft.roleId) return null;
-    if (draft.scopeType === "GLOBAL") return { roleId: draft.roleId, scopeType: "GLOBAL", scopeId: null };
-    if (!draft.scopeId) return null;
-    return { roleId: draft.roleId, scopeType: draft.scopeType, scopeId: draft.scopeId };
+      setSubmitError({ message: error instanceof Error ? error.message : "Không thể thêm nhân viên.", requestId: error instanceof BoApiError ? error.requestId : null });
+    } finally { setSubmitting(false); }
   }
 
   function patchAssignment(key: string, patch: Partial<AssignmentDraft>) {
@@ -150,83 +72,66 @@ export function StaffOnboardingView() {
     <section id="add-staff" className={styles.page}>
       <header className={styles.heading}>
         <span>PINO TEAM · BACK OFFICE</span>
-        <h1>Thêm nhân viên & cấp quyền</h1>
-        <p>Tạo StaffMember canonical và cấp quyền TOS bằng role + scope rõ ràng. Không tạo user không có role.</p>
+        <h1>Thêm nhân viên</h1>
+        <p>Manager nhập tên + email. Core tạo StaffMember, Access identity và PIN tạm; staff phải đăng nhập Google qua Cloudflare Access rồi đổi PIN trước khi dùng hệ thống.</p>
       </header>
 
-      <div className={styles.modeGrid}>
-        <ModeButton active={mode === "with-access"} title="Tạo staff + quyền" text="Flow mặc định: tạo nhân viên và quyền TOS trong một lần." onClick={() => setMode("with-access")} />
-        <ModeButton active={mode === "record"} title="Chỉ tạo hồ sơ" text="Tạo StaffMember nhưng chưa cấp quyền đăng nhập." onClick={() => setMode("record")} />
-        <ModeButton active={mode === "provision"} title="Cấp quyền staff có sẵn" text="Gắn Access cho StaffMember đã tồn tại." onClick={() => setMode("provision")} />
-      </div>
-
       <section className={styles.panel}>
-        <div className={styles.panelHeading}><div><h2>Quick CSV import</h2><p>Một staff mỗi dòng: <code>tên,email,PIN-6-số</code>. Import tuần tự và dừng đúng dòng lỗi.</p></div><span className={styles.writePill}>Manual import</span></div>
-        <label className={styles.field}>TOS role<select value={importRoleId} onChange={(event) => setImportRoleId(event.target.value)}><option value="">Select role…</option>{availableRoles.map((role) => <option value={role.id} key={role.id}>{role.displayName}</option>)}</select></label>
-        <label className={styles.field}>CSV rows<textarea rows={5} value={importCsv} onChange={(event) => setImportCsv(event.target.value)} placeholder="Nguyễn An,an@pino.vn,246810" /></label>
-        <button type="button" className={styles.secondaryButton} disabled={!importCsv.trim() || !importRoleId} onClick={() => void importStaff()}>Import staff</button>{importStatus ? <span>{importStatus}</span> : null}
+        <div className={styles.panelHeading}><div><h2>Thông tin nhân viên</h2><p>Email này là canonical identity để bind lần đăng nhập Cloudflare đầu tiên.</p></div><span className={styles.writePill}>Manager add</span></div>
+        <div className={styles.formGrid}>
+          <Field required label="Tên nhân viên" value={displayLabel} onChange={setDisplayLabel} />
+          <Field required label="Email Google" type="email" value={email} onChange={setEmail} />
+        </div>
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.panelHeading}><div><h2>{mode === "provision" ? "Existing StaffMember" : "Staff record"}</h2><p>Canonical Workforce identity. Fields are explicit; no legacy mapping is created.</p></div><span className={styles.writePill}>Write</span></div>
-        {mode === "provision" ? (
-          <label className={styles.field}>StaffMember
-            <select value={existingStaffId} onChange={(event) => setExistingStaffId(event.target.value)}>
-              <option value="">Select active Staff without Access…</option>
-              {provisionCandidates.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayLabel}{staff.department ? ` · ${staff.department}` : ""}</option>)}
-            </select>
-            <small>{provisionCandidates.length} candidate(s); already linked Staff are excluded.</small>
-          </label>
-        ) : (
-          <div className={styles.formGrid}>
-            <Field required label="Display name" value={displayLabel} onChange={setDisplayLabel} />
-            <Field label="Profile email" type="email" value={profileEmail} onChange={setProfileEmail} />
-            <Field label="Mobile" value={mobile} onChange={setMobile} />
-            <Field label="Department" value={department} onChange={setDepartment} />
-            <Field label="Role label" value={roleLabel} onChange={setRoleLabel} />
-            <Field label="Employment type" value={employmentType} onChange={setEmploymentType} />
-            <Field label="Start date" type="date" value={startDate} onChange={setStartDate} />
-          </div>
-        )}
+        <div className={styles.panelHeading}><div><h2>Quyền truy cập</h2><p>Role/scope vẫn bắt buộc và được Core re-authorize; flow không tự suy đoán quyền.</p></div><span className={styles.writePill}>Role bắt buộc</span></div>
+        <div className={styles.assignmentList}>
+          {assignments.map((assignment, index) => (
+            <div className={styles.assignmentRow} key={assignment.key}>
+              <label className={styles.field}>Role
+                <select value={assignment.roleId} onChange={(event) => patchAssignment(assignment.key, { roleId: event.target.value })}>
+                  <option value="">Select role…</option>
+                  {availableRoles.map((role) => <option value={role.id} key={role.id}>{role.displayName}</option>)}
+                </select>
+              </label>
+              <label className={styles.field}>Scope
+                <select value={assignment.scopeType} onChange={(event) => patchAssignment(assignment.key, { scopeType: event.target.value as AssignmentDraft["scopeType"], scopeId: "" })}>
+                  <option value="GLOBAL">Global</option><option value="CENTER">Center</option><option value="PATH">Path</option><option value="RUNNING_CLASS">Running Class</option>
+                </select>
+              </label>
+              {assignment.scopeType !== "GLOBAL" ? <ScopeSelect assignment={assignment} centers={load.centers} paths={load.paths} classes={load.classes} onChange={(scopeId) => patchAssignment(assignment.key, { scopeId })} /> : <div />}
+              <button type="button" className={styles.secondaryButton} disabled={assignments.length === 1} onClick={() => setAssignments((items) => items.filter((item) => item.key !== assignment.key))}>Remove</button>
+              <span className={styles.assignmentIndex}>#{index + 1}</span>
+            </div>
+          ))}
+        </div>
+        <button type="button" className={styles.secondaryButton} onClick={() => setAssignments((items) => [...items, emptyAssignment()])}>+ Add role assignment</button>
       </section>
-
-      {accessMode ? (
-        <section className={styles.panel}>
-          <div className={styles.panelHeading}><div><h2>Quyền truy cập TOS</h2><p>Chọn ít nhất một role và phạm vi áp dụng. Founder role không thể cấp từ flow này.</p></div><span className={styles.writePill}>Role bắt buộc</span></div>
-          <Field required label="Access email" type="email" value={accessEmail} onChange={setAccessEmail} />
-          <div className={styles.assignmentList}>
-            {assignments.map((assignment, index) => (
-              <div className={styles.assignmentRow} key={assignment.key}>
-                <label className={styles.field}>Role
-                  <select value={assignment.roleId} onChange={(event) => patchAssignment(assignment.key, { roleId: event.target.value })}>
-                    <option value="">Select role…</option>
-                    {availableRoles.map((role) => <option value={role.id} key={role.id}>{role.displayName}</option>)}
-                  </select>
-                </label>
-                <label className={styles.field}>Scope
-                  <select value={assignment.scopeType} onChange={(event) => patchAssignment(assignment.key, { scopeType: event.target.value as AssignmentDraft["scopeType"], scopeId: "" })}>
-                    <option value="GLOBAL">Global</option><option value="CENTER">Center</option><option value="PATH">Path</option><option value="RUNNING_CLASS">Running Class</option>
-                  </select>
-                </label>
-                {assignment.scopeType !== "GLOBAL" ? <ScopeSelect assignment={assignment} centers={load.centers} paths={load.paths} classes={load.classes} onChange={(scopeId) => patchAssignment(assignment.key, { scopeId })} /> : <div />}
-                <button type="button" className={styles.secondaryButton} disabled={assignments.length === 1} onClick={() => setAssignments((items) => items.filter((item) => item.key !== assignment.key))}>Remove</button>
-                <span className={styles.assignmentIndex}>#{index + 1}</span>
-              </div>
-            ))}
-          </div>
-          <button type="button" className={styles.secondaryButton} onClick={() => setAssignments((items) => [...items, emptyAssignment()])}>+ Add role assignment</button>
-        </section>
-      ) : null}
 
       <section className={styles.commandBar}>
-        <div><strong>{modeLabel(mode)}</strong><span>{accessMode ? "Core will re-verify role, scope, authorization, uniqueness, and Staff state at commit time." : "Creates one native StaffMember only."}</span></div>
-        <button type="button" className={styles.primaryButton} disabled={!canSubmit} onClick={() => void submit()}>{submitting ? "Submitting…" : "Confirm & execute"}</button>
+        <div><strong>ADD STAFF</strong><span>Core atomically creates Staff + Access + temporary PIN. No CSV import and no manager-selected PIN.</span></div>
+        <button type="button" className={styles.primaryButton} disabled={!canSubmit} onClick={() => void submit()}>{submitting ? "Đang tạo…" : "Thêm nhân viên"}</button>
       </section>
 
-      {submitError ? <State compact error title="Command failed" message={submitError.message} requestId={submitError.requestId} /> : null}
-      {result ? <section className={styles.successCard}><strong>Command committed</strong><span>{result.accessState.replaceAll("_", " ")}</span><code>{result.staffMemberId}</code>{result.userId ? <><code>{result.userId}</code><label className={styles.field}>Staff PIN (6 số)<input inputMode="numeric" type="password" value={staffPin} maxLength={6} onChange={(event) => setStaffPin(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label><button type="button" className={styles.primaryButton} disabled={staffPin.length !== 6} onClick={() => void configurePin()}>Set staff PIN</button>{pinStatus ? <span>{pinStatus}</span> : null}</> : null}</section> : null}
+      {submitError ? <State compact error title="Add Staff failed" message={submitError.message} requestId={submitError.requestId} /> : null}
+      {result ? (
+        <section className={styles.successCard}>
+          <strong>Đã tạo nhân viên</strong>
+          <span>{result.staffPinState === "ROTATION_REQUIRED" ? "PIN tạm đã được tạo. Gửi PIN này cho staff qua kênh phù hợp; staff bắt buộc đổi PIN sau Google login." : result.accessState.replaceAll("_", " ")}</span>
+          <code>{result.staffMemberId}</code>
+          {result.initialPin ? <><span>PIN tạm</span><code>{result.initialPin}</code></> : null}
+        </section>
+      ) : null}
     </section>
   );
+}
+
+function normalizeAssignment(draft: AssignmentDraft): BoStaffAccessAssignmentInput | null {
+  if (!draft.roleId) return null;
+  if (draft.scopeType === "GLOBAL") return { roleId: draft.roleId, scopeType: "GLOBAL", scopeId: null };
+  if (!draft.scopeId) return null;
+  return { roleId: draft.roleId, scopeType: draft.scopeType, scopeId: draft.scopeId };
 }
 
 function ScopeSelect({ assignment, centers, paths, classes, onChange }: { assignment: AssignmentDraft; centers: BoCenter[]; paths: BoPathProgram[]; classes: BoRunningClass[]; onChange: (value: string) => void }) {
@@ -238,20 +143,6 @@ function Field({ label, value, onChange, required = false, type = "text" }: { la
   return <label className={styles.field}>{label}{required ? " *" : ""}<input type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
-function ModeButton({ active, title, text, onClick }: { active: boolean; title: string; text: string; onClick: () => void }) {
-  return <button type="button" className={`${styles.modeButton} ${active ? styles.modeButtonActive : ""}`} onClick={onClick}><strong>{title}</strong><span>{text}</span></button>;
-}
-
 function State({ title, message, requestId, error = false, compact = false }: { title: string; message: string; requestId?: string | null; error?: boolean; compact?: boolean }) {
   return <div className={`${styles.state} ${error ? styles.errorState : ""} ${compact ? styles.compactState : ""}`}><strong>{title}</strong><span>{message}</span>{requestId ? <code className={styles.id}>Request {requestId}</code> : null}</div>;
-}
-
-function compact<T extends Record<string, string>>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== "")) as T;
-}
-
-function modeLabel(mode: Mode) {
-  if (mode === "record") return "ONBOARD_STAFF_RECORD_ONLY";
-  if (mode === "with-access") return "ONBOARD_STAFF_WITH_ACCESS";
-  return "PROVISION_ACCESS_FOR_STAFF";
 }

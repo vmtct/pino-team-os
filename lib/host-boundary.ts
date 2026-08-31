@@ -32,6 +32,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo",
     "/bo/staff",
     "/bo/workforce",
+    "/staff-pin/change",
     "/bo/learners",
     "/bo/open-studio",
     "/bo/delivery-activation",
@@ -74,7 +75,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/access/assignments/remove",
     "/api/bo/access/users/status",
     "/api/bo/access/perimeter-reconcile",
-    "/api/staff-pin/configure",
+    "/api/staff-pin/status",
+    "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
   return /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)

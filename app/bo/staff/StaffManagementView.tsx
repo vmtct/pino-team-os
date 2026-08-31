@@ -28,8 +28,6 @@ export function StaffManagementView() {
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
   const [scopeId, setScopeId] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
-  const [staffPin, setStaffPin] = useState("");
-  const [staffPinConfirm, setStaffPinConfirm] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +40,6 @@ export function StaffManagementView() {
     return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
   }, []);
   useEffect(() => {
-    setStaffPin(""); setStaffPinConfirm("");
     if (!selectedId) { setProfile(null); return; }
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { setProfile(next); setForm(profileForm(next)); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."));
@@ -101,19 +98,6 @@ export function StaffManagementView() {
     finally { setBusy(""); }
   }
 
-  async function configurePin() {
-    if (!accessUser) return;
-    if (!/^\d{6}$/.test(staffPin)) { setError("Staff PIN phải gồm đúng 6 chữ số."); return; }
-    if (staffPin !== staffPinConfirm) { setError("Hai lần nhập Staff PIN chưa khớp."); return; }
-    if (!confirm(`Đặt lại Staff PIN cho ${profile?.displayLabel ?? "nhân viên này"}? Mọi session TOS cũ của staff sẽ bị thu hồi.`)) return;
-    setBusy("staff-pin"); setError(""); setMessage("");
-    try {
-      await boApi.configureStaffPin(accessUser.id, staffPin);
-      setStaffPin(""); setStaffPinConfirm("");
-      setMessage("Đã cập nhật Staff PIN. Mọi session TOS cũ của staff đã bị thu hồi.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể cập nhật Staff PIN."); }
-    finally { setBusy(""); }
-  }
   async function changeAccessStatus(status: "active" | "suspended") {
     if (!accessUser) return;
     if (status === "suspended" && !suspendReason.trim()) { setError("Cần lý do khi suspend Access."); return; }
@@ -215,15 +199,6 @@ export function StaffManagementView() {
                 </div>
                 <div className={styles.staffAccessStatus}>
                   {accessUser.status === "active" ? <><label className={styles.field}>Suspend reason<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Required to suspend" /></label><button type="button" className={styles.secondaryButton} disabled={!suspendReason.trim() || busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("suspended")}>Suspend Access only</button></> : <button type="button" className={styles.secondaryButton} disabled={busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("active")}>Reactivate Access</button>}
-                </div>
-                <div className={styles.staffPinPanel}>
-                  <div><strong>Staff PIN</strong><p>Đặt hoặc reset PIN 6 số dùng sau khi qua Cloudflare Access. Reset sẽ thu hồi toàn bộ Staff-PIN session cũ.</p></div>
-                  <div className={styles.staffPinFields}>
-                    <label className={styles.field}>PIN mới<input inputMode="numeric" type="password" autoComplete="new-password" value={staffPin} maxLength={6} onChange={(event) => setStaffPin(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
-                    <label className={styles.field}>Nhập lại PIN<input inputMode="numeric" type="password" autoComplete="new-password" value={staffPinConfirm} maxLength={6} onChange={(event) => setStaffPinConfirm(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
-                    <button type="button" className={styles.primaryButton} disabled={profile.status !== "active" || accessUser.status !== "active" || staffPin.length !== 6 || staffPin !== staffPinConfirm || busy === "staff-pin"} onClick={() => void configurePin()}>{busy === "staff-pin" ? "Đang cập nhật…" : "Đặt / Reset Staff PIN"}</button>
-                  </div>
-                  {profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ có thể đặt PIN khi Staff và Access đều active.</small> : null}
                 </div>
               </>}
             </section>
