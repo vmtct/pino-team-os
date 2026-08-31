@@ -86,6 +86,51 @@ test("missing BO Access identity fails before Core", async () => {
   assert.equal(called, false);
 });
 
+test("workers.dev Staff onboarding uses the bounded Workforce staging Manager identity", async () => {
+  let identity: VerifiedBoIdentity | undefined;
+  const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
+    identity = actor;
+    assert.equal(coreRequest.path, path);
+    return { status: 201, body: { data: { staffMemberId: "00000000-0000-7000-8000-000000000011" } }, requestId: "workforce-staging-write" };
+  } };
+  const stagingRequest = new Request(`https://pino-team-os-staging.example.workers.dev/api/bo/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "staging-onboarding" },
+    body: JSON.stringify(onboardingBody),
+  });
+  const response = await handleBoStaffOnboardingRequest(stagingRequest, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  }, path);
+  assert.equal(response.status, 201);
+  assert.equal(identity?.subject, "workforce-planning-staging-probe-v1");
+  assert.equal(identity?.email, "workforce-planning-staging-probe@pino.invalid");
+});
+
+test("Workforce staging Manager identity stays fail-closed on production and unrelated BO writes", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const stagedEnv: BoWriteEnv = {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  };
+  const productionRequest = new Request(`https://bo.pinohouse.art/api/bo/${path}`, {
+    method: "POST", headers: { "content-type": "application/json", "idempotency-key": "production-rejected" }, body: JSON.stringify(onboardingBody),
+  });
+  const unrelatedRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/access/roles", {
+    method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+  });
+  const [production, unrelated] = await Promise.all([
+    handleBoStaffOnboardingRequest(productionRequest, stagedEnv, path),
+    handleBoStaffOnboardingRequest(unrelatedRequest, stagedEnv, "access/roles"),
+  ]);
+  assert.equal(production.status, 401);
+  assert.equal(unrelated.status, 401);
+  assert.equal(called, false);
+});
+
 test("missing idempotency key and invalid JSON fail without calling Core", async () => {
   const f = await fixture();
   let called = false;

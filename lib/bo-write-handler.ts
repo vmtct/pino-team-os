@@ -2,9 +2,10 @@ import type { JWTVerifyGetKey } from "jose";
 import { authenticateBo, BoAuthError } from "./bo-auth";
 import { callBoAccessCore, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { stagingBoOpenStudioIdentity, type BoOpenStudioStagingAuthEnv } from "./bo-open-studio-staging-auth";
+import { stagingBoWorkforceIdentity, type BoWorkforceStagingAuthEnv } from "./bo-workforce-staging-auth";
 import { reconcileCanonicalTosAccess, type TosAccessSyncBinding } from "./tos-access-sync";
 
-export interface BoWriteEnv extends BoOpenStudioStagingAuthEnv {
+export interface BoWriteEnv extends BoOpenStudioStagingAuthEnv, BoWorkforceStagingAuthEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
   CF_ACCESS_TEAM_DOMAIN: string;
   CF_ACCESS_BO_AUD: string;
@@ -55,7 +56,11 @@ export async function handleBoWriteRequest(
     if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
-    const stagingIdentity = isOpenStudioPostPath(path) ? stagingBoOpenStudioIdentity(request, env) : null;
+    const stagingIdentity = isOpenStudioPostPath(path)
+      ? stagingBoOpenStudioIdentity(request, env)
+      : path === STAFF_ONBOARDING_PATH
+        ? stagingBoWorkforceIdentity(request, env)
+        : null;
     const identity = stagingIdentity ?? await authenticateBo(
       request.headers,
       { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
