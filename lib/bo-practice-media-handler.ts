@@ -9,6 +9,7 @@ export interface BoPracticeMediaEnv {
 }
 
 const PRACTICE_MEDIA_PATH = "practice/media";
+const ALLOWED_MIME_TYPES = new Set(["image/webp", "image/png", "image/jpeg"]);
 
 export async function handleBoPracticeMediaUpload(
   request: Request,
@@ -36,9 +37,15 @@ export async function handleBoPracticeMediaUpload(
     } catch {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A multipart form body is required" } }, 400);
     }
-    const file = form.get("file");
+    const file = form.get("file"), pathProgramId = form.get("pathProgramId");
     if (!(file instanceof File) || file.size < 1) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A non-empty file is required" } }, 400);
+    }
+    if (typeof pathProgramId !== "string" || !/^[0-9a-f-]{36}$/.test(pathProgramId)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A canonical Path is required" } }, 400);
+    }
+    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Practice media must be PNG, JPEG, or WebP" } }, 400);
     }
 
     const bytes = await file.arrayBuffer();
@@ -46,8 +53,9 @@ export async function handleBoPracticeMediaUpload(
       method: "POST",
       path: PRACTICE_MEDIA_PATH,
       body: {
+        pathProgramId,
         fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
+        mimeType: file.type,
         byteSize: file.size,
         bytes,
       },
