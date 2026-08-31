@@ -24,9 +24,10 @@ const HOUSE_ASSETS = {
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ learners }: { learners: readonly AmbientHouseLearner[] }) {
+export function AmbientHouseRuntime({ learners, departingId = null }: { learners: readonly AmbientHouseLearner[]; departingId?: string | null }) {
   const idsKey = learners.map((learner) => learner.id).sort().join("|");
   const byId = useMemo(() => new Map(learners.map((learner) => [learner.id, learner])), [learners]);
+  const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const [agents, setAgents] = useState<AmbientAgent[]>(() => createAmbientAgents(learners.map((learner) => learner.id), GRAPH));
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
@@ -43,14 +44,14 @@ export function AmbientHouseRuntime({ learners }: { learners: readonly AmbientHo
       previousFrame.current = now;
       if (now - lastCommit.current >= 40) {
         const elapsed = now - previous;
-        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed));
+        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing }));
         lastCommit.current = now;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [departing]);
 
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");
@@ -63,7 +64,7 @@ export function AmbientHouseRuntime({ learners }: { learners: readonly AmbientHo
       top: `${(agent.y / GRAPH.canvas.height) * 100}%`,
       "--agent-scale": `${scale}`,
     } as CSSProperties;
-    return <div key={agent.id} className={styles.agent} style={style} data-lane={agent.laneId} data-motion-state={agent.motionState}>
+    return <div key={agent.id} className={styles.agent} style={style} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
       <LayeredCharacter className={styles.character} config={learner.config} />
       <span>{learner.name}</span>
     </div>;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence";
+import { advanceHouseSnapshotCursor, selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence";
 
 type Event = { sequence: number; type: "ARRIVAL" | "DEPARTURE"; learner: string };
 
@@ -37,4 +37,17 @@ test("new events are ordered by canonical sequence", () => {
 
 test("invalid sequence fails closed", () => {
   assert.throws(() => selectUnseenHouseEvents([{ ...arrival, sequence: 0 }], 0), /INVALID_HOUSE_EVENT_SEQUENCE/);
+});
+
+test("out-of-order reconnect snapshot cannot regress cursor or replay history", () => {
+  const newer = advanceHouseSnapshotCursor(15, 12, 12);
+  assert.deepEqual(newer, { applySnapshot: true, cursor: 15, presentedSequence: 15 });
+  const stale = advanceHouseSnapshotCursor(10, newer.cursor, newer.presentedSequence);
+  assert.deepEqual(stale, { applySnapshot: false, cursor: 15, presentedSequence: 15 });
+  const replay = selectUnseenHouseEvents([
+    { sequence: 11, type: "ARRIVAL", learner: "old" },
+    { sequence: 12, type: "DEPARTURE", learner: "old" },
+    { sequence: 15, type: "ARRIVAL", learner: "present" },
+  ], stale.presentedSequence);
+  assert.deepEqual(replay.events, []);
 });

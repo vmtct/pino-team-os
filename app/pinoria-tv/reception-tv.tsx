@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
-import { selectUnseenHouseEvents } from "./house-event-sequence";
+import { advanceHouseSnapshotCursor, selectUnseenHouseEvents } from "./house-event-sequence";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
@@ -32,6 +32,9 @@ type Scene = {
   kind: "arrival" | "departure";
   name: string;
   config: PinoriaCharacterConfig;
+  studentProfileId: string;
+  phase: "transition" | "performance";
+  visitId: string;
 };
 
 const CENTER_STORAGE = "pino.arrival.centerId";
@@ -47,6 +50,8 @@ export function ReceptionTv() {
   const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
   const presentationBusy = useRef(false);
+  const housePollInFlight = useRef(false);
+  const houseGeneration = useRef(0);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search).get("centerId")?.trim() ?? "";
@@ -57,41 +62,51 @@ export function ReceptionTv() {
     setDraft(value);
     if (query) localStorage.setItem(CENTER_STORAGE, query);
   }, []);
-  const reconcile = useCallback(async () => {
-    if (!centerId) return;
-    const response = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
-    const json = await response.json() as { data?: HouseSnapshot };
-    if (!response.ok || !json.data) throw new Error("offline");
-    cursor.current = json.data.cursor;
-    presentedSequence.current = json.data.cursor;
-    setInside(json.data.learners);
-    setConnected(true);
-    wasConnected.current = true;
-  }, [centerId]);
-
   const pollHouse = useCallback(async () => {
-    if (!centerId) return;
+    if (!centerId || housePollInFlight.current) return;
+    housePollInFlight.current = true;
+    const generation = houseGeneration.current;
     try {
       if (!wasConnected.current) {
-        await reconcile();
+        const response = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const json = await response.json() as { data?: HouseSnapshot };
+        if (!response.ok || !json.data) throw new Error("offline");
+        if (generation !== houseGeneration.current) return;
+        const advanced = advanceHouseSnapshotCursor(json.data.cursor, cursor.current, presentedSequence.current);
+        if (advanced.applySnapshot) {
+          cursor.current = advanced.cursor;
+          presentedSequence.current = advanced.presentedSequence;
+          setInside(json.data.learners);
+        }
+        setConnected(true);
+        wasConnected.current = true;
         return;
       }
       const response = await fetch(`/api/pinoria-tv/events?centerId=${encodeURIComponent(centerId)}&after=${cursor.current}&t=${Date.now()}`, { cache: "no-store" });
       const json = await response.json() as { data?: EventPage };
       if (!response.ok || !json.data) throw new Error("offline");
+      if (generation !== houseGeneration.current) return;
       const page = json.data;
+      if (page.cursor < cursor.current) {
+        setConnected(true);
+        return;
+      }
       const unseen = selectUnseenHouseEvents(page.events, presentedSequence.current);
-      cursor.current = page.cursor;
+      cursor.current = Math.max(cursor.current, page.cursor);
       if (unseen.events.length) {
-        presentedSequence.current = unseen.lastSequence;
+        presentedSequence.current = Math.max(presentedSequence.current, unseen.lastSequence);
         enqueueHouseEvents(unseen.events);
       }
       setConnected(true);
     } catch {
-      setConnected(false);
-      wasConnected.current = false;
+      if (generation === houseGeneration.current) {
+        setConnected(false);
+        wasConnected.current = false;
+      }
+    } finally {
+      if (generation === houseGeneration.current) housePollInFlight.current = false;
     }
-  }, [centerId, reconcile]);
+  }, [centerId]);
   function enqueueHouseEvents(events: HouseEvent[]) {
     setScenes((queue) => [
       ...queue,
@@ -100,13 +115,15 @@ export function ReceptionTv() {
         kind: event.type === "ARRIVAL" ? "arrival" as const : "departure" as const,
         name: event.payload.displayName,
         config: event.payload.character,
+        studentProfileId: event.studentProfileId,
+        phase: event.type === "DEPARTURE" ? "transition" as const : "performance" as const,
+        visitId: event.visitId,
       })),
     ]);
     setInside((current) => {
       const next = new Map(current.map((item) => [item.studentProfileId, item]));
       for (const event of events) {
-        if (event.type === "DEPARTURE") next.delete(event.studentProfileId);
-        else next.set(event.studentProfileId, {
+        if (event.type === "ARRIVAL") next.set(event.studentProfileId, {
           studentProfileId: event.studentProfileId,
           displayName: event.payload.displayName,
           visit: { id: event.visitId, checkedInAt: event.occurredAt, version: 1 },
@@ -119,10 +136,17 @@ export function ReceptionTv() {
 
   useEffect(() => {
     if (!centerId) return;
+    houseGeneration.current += 1;
+    const generation = houseGeneration.current;
+    housePollInFlight.current = false;
     wasConnected.current = false;
     void pollHouse();
     const timer = window.setInterval(() => void pollHouse(), 750);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      if (houseGeneration.current === generation) houseGeneration.current += 1;
+      housePollInFlight.current = false;
+    };
   }, [centerId, pollHouse]);
   const pollPresentation = useCallback(async () => {
     if (!centerId || presentationBusy.current || presentation || scenes.length > 0) return;
@@ -145,8 +169,21 @@ export function ReceptionTv() {
   }, [centerId, pollPresentation]);
 
   useEffect(() => {
-    if (!scenes.length || presentation) return;
-    const timer = window.setTimeout(() => setScenes((queue) => queue.slice(1)), 5200);
+    const scene = scenes[0];
+    if (!scene || presentation) return;
+    const duration = scene.kind === "departure" && scene.phase === "transition" ? 1200 : 5200;
+    const timer = window.setTimeout(() => {
+      if (scene.kind === "departure" && scene.phase === "transition") {
+        setScenes((queue) => queue[0]?.id === scene.id
+          ? [{ ...queue[0], phase: "performance" }, ...queue.slice(1)]
+          : queue);
+        return;
+      }
+      if (scene.kind === "departure") {
+        setInside((current) => current.filter((learner) => learner.studentProfileId !== scene.studentProfileId || learner.visit.id !== scene.visitId));
+      }
+      setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
+    }, duration);
     return () => window.clearTimeout(timer);
   }, [scenes, presentation]);
 
@@ -181,6 +218,8 @@ export function ReceptionTv() {
     const value = draft.trim();
     if (!value) return;
     localStorage.setItem(CENTER_STORAGE, value);
+    houseGeneration.current += 1;
+    housePollInFlight.current = false;
     cursor.current = 0;
     presentedSequence.current = 0;
     wasConnected.current = false;
@@ -192,6 +231,8 @@ export function ReceptionTv() {
 
   function resetCenter() {
     localStorage.removeItem(CENTER_STORAGE);
+    houseGeneration.current += 1;
+    housePollInFlight.current = false;
     cursor.current = 0;
     presentedSequence.current = 0;
     wasConnected.current = false;
@@ -214,7 +255,9 @@ export function ReceptionTv() {
   }
 
   const scene = scenes[0] ?? null;
-  const active = Boolean(scene || presentation);
+  const performanceScene = scene?.phase === "performance" ? scene : null;
+  const departingId = scene?.kind === "departure" && scene.phase === "transition" ? scene.studentProfileId : null;
+  const active = Boolean(performanceScene || presentation);
   return <main className={`${styles.stage} ${active ? styles.active : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
@@ -225,16 +268,16 @@ export function ReceptionTv() {
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <AmbientHouseRuntime learners={ambientLearners} />
+    </header>    <AmbientHouseRuntime learners={ambientLearners} departingId={departingId} />
 
-    {scene ? <section key={scene.id} className={`${styles.scene} ${scene.kind === "departure" ? styles.departure : ""}`}>
+    {performanceScene ? <section key={performanceScene.id} className={`${styles.scene} ${performanceScene.kind === "departure" ? styles.departure : ""}`}>
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
-      <LayeredCharacter className={styles.character} config={scene.config} />
+      <LayeredCharacter className={styles.character} config={performanceScene.config} />
       <img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt="" />
       <div className={styles.copy}>
-        <span>{scene.kind === "arrival" ? "CHÀO ĐẾN PINO HOUSE" : "HẸN GẶP LẠI"}</span>
-        <h1>{scene.name}</h1>
-        <p>{scene.kind === "arrival" ? "Pinoria đã nhận ra bạn ✦" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
+        <span>{performanceScene.kind === "arrival" ? "CHÀO ĐẾN PINO HOUSE" : "HẸN GẶP LẠI"}</span>
+        <h1>{performanceScene.name}</h1>
+        <p>{performanceScene.kind === "arrival" ? "Pinoria đã nhận ra bạn ✦" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
     {!scene && !presentation ? <section className={styles.idle}>

@@ -17,3 +17,21 @@ export function selectUnseenHouseEvents<T extends SequencedHouseEvent>(
     lastSequence: unseen.at(-1)?.sequence ?? afterSequence,
   };
 }
+export function advanceHouseSnapshotCursor(
+  snapshotCursor: number,
+  currentCursor: number,
+  presentedSequence: number,
+): { applySnapshot: boolean; cursor: number; presentedSequence: number } {
+  for (const value of [snapshotCursor, currentCursor, presentedSequence]) {
+    if (!Number.isSafeInteger(value) || value < 0) throw new Error("INVALID_HOUSE_EVENT_CURSOR");
+  }
+  const floor = Math.max(currentCursor, presentedSequence);
+  if (snapshotCursor < floor) {
+    return { applySnapshot: false, cursor: currentCursor, presentedSequence };
+  }
+  return {
+    applySnapshot: true,
+    cursor: snapshotCursor,
+    presentedSequence: Math.max(presentedSequence, snapshotCursor),
+  };
+}
