@@ -78,9 +78,9 @@ function readinessLabel(key: string | null | undefined) {
   return "Đang tích lũy";
 }
 function releaseRoleLabel(role: "NEW" | "RERUN" | "SEASONAL") {
-  if (role === "NEW") return "M?i";
-  if (role === "RERUN") return "Tr? l?i";
-  return "Theo m?a";
+  if (role === "NEW") return "Mới";
+  if (role === "RERUN") return "Trở lại";
+  return "Theo mùa";
 }
 export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }: Props) {
   const [activities, setActivities] = useState<AvailableActivity[]>([]);
@@ -143,15 +143,15 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
     const wishBearer = selectedChoice?.bearer ?? wish?.bearer ?? null;
     const wishSet = selectedChoice?.signatureSet ?? wish?.signatureSet ?? null;
     const wishBanner = selectedChoice?.banner ?? wish?.banner ?? null;
-    const resonance = wishBearer ? (wishBearer.resonanceLevel < 0 ? "Ch?a c?ng h??ng" : `C${wishBearer.resonanceLevel}`) : null;
+    const resonance = wishBearer ? (wishBearer.resonanceLevel < 0 ? "Chưa cộng hưởng" : `C${wishBearer.resonanceLevel}`) : null;
     return <section className={styles.panel} key={activity.activityId} aria-label={`Pinoria activity for ${displayName}`}>
       <div className={styles.copy}>
         <span>PINORIA · HOẠT ĐỘNG</span>
         <strong>{activity.staffName}</strong>
-        <small>{activity.learnerName}{wish ? ` · ${wish.banner.bearer.displayName}` : egg?.species ? ` · ${egg.species.displayName}` : ritual?.species ? ` · ${ritual.species.displayName}` : ""}</small>
+        <small>{activity.learnerName}{wish && wishBanner ? ` · ${wishBanner.bearer.displayName}` : egg?.species ? ` · ${egg.species.displayName}` : ritual?.species ? ` · ${ritual.species.displayName}` : ""}</small>
       </div>
       {wish ? <div className={styles.state}>
-        <b>✦ {wish.energySeedBalance}</b>
+        <b>✦ {wishBalance}</b>
         <span>{resonance}</span>
         <span>{wishSet?.progress.owned ?? 0}/{wishSet?.progress.total ?? 0} set</span>
       </div> : egg ? <div className={styles.state}>
@@ -162,21 +162,21 @@ export function PinoriaActivityPanel({ centerId, studentProfileId, displayName }
         <span>{ritual.progression ? `${ritual.progression.stageFeedCount} tiến độ · ${readinessLabel(ritual.progression.readinessRuleKey)}` : "Chưa có tiến trình"}</span>
         <span>{ritual.progression?.state === "READY_FOR_RITUAL" ? "✦ Sẵn sàng Nghi thức" : activity.reason?.message ?? "Đang trưởng thành"}</span>
       </div> : <div className={styles.state}><span>{activity.reason?.message ?? "Chưa khả dụng"}</span></div>}
-      {wish && choices.length > 1 ? <div className={styles.choices} role="group" aria-label="Ch?n banner Wish">
+      {wish && choices.length > 1 ? <div className={styles.choices} role="group" aria-label="Chọn banner Wish">
         {choices.map((choice) => {
           const selected = choice.selectionKey === selectedChoice?.selectionKey;
           const slot = choice.banner.releasePhase?.featuredSlot;
           const role = choice.banner.releasePhase?.releaseRole;
           return <button key={choice.selectionKey} type="button" className={selected ? styles.choiceSelected : undefined} aria-pressed={selected} disabled={!!busy} onClick={() => setWishSelections((current) => ({ ...current, [activity.activityId]: choice.selectionKey }))}>
             <strong>{choice.banner.displayName}</strong>
-            <small>{slot ? `Banner ${slot}` : "Banner"}{role ? ` ? ${releaseRoleLabel(role)}` : ""}</small>
+            <small>{slot ? `Banner ${slot}` : "Banner"}{role ? ` · ${releaseRoleLabel(role)}` : ""}</small>
           </button>;
         })}
       </div> : null}
       <div className={styles.actions}>
         {activity.actions.map((action) => {
           const key = `${activity.activityId}:${action.key}`;
-          return <button key={action.key} disabled={!!busy || !action.enabled} title={action.reason?.message ?? undefined} onClick={() => void execute(activity, action, selectedChoice?.selectionKey)}>{busy === key ? "?" : action.label}</button>;
+          return <button key={action.key} disabled={!!busy || !action.enabled} title={action.reason?.message ?? undefined} onClick={() => void execute(activity, action, selectedChoice?.selectionKey)}>{busy === key ? "…" : action.label}</button>;
         })}
       </div>
       {!activity.eligible && activity.reason ? <p className={styles.notice}>{activity.reason.message}</p> : null}
