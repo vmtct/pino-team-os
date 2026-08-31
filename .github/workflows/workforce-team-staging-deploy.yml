@@ -102,8 +102,14 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           const fs = require('fs');
-          const staging = JSON.parse(fs.readFileSync('wrangler.staging.jsonc', 'utf8'));
-          const production = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          const ts = require('typescript');
+          const readJsonc = file => {
+            const parsed = ts.parseConfigFileTextToJson(file, fs.readFileSync(file, 'utf8'));
+            if (parsed.error || !parsed.config) throw new Error(`invalid JSONC config: ${file}`);
+            return parsed.config;
+          };
+          const staging = readJsonc('wrangler.staging.jsonc');
+          const production = readJsonc('wrangler.jsonc');
           if (staging.name !== 'pino-team-os-staging' || staging.workers_dev !== true) throw new Error('wrong Team staging Worker boundary');
           if (staging.vars?.WORKFORCE_BO_STAGING_BYPASS !== 'enabled') throw new Error('Workforce BO staging bypass disabled');
           if (staging.vars?.WORKFORCE_STAGING_BO_EMAIL !== 'workforce-planning-staging-probe@pino.invalid') throw new Error('Workforce BO staging identity drift');
@@ -114,7 +120,13 @@ jobs:
             required.delete(service.binding);
           }
           if (required.size) throw new Error(`missing staging Core bindings: ${[...required].join(',')}`);
-          for (const service of production.services ?? []) if (service.service !== 'pino-core') throw new Error(`production Core binding drift: ${service.binding}`);
+          const productionCore = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
+          for (const service of production.services ?? []) {
+            if (!productionCore.has(service.binding)) continue;
+            if (service.service !== 'pino-core') throw new Error(`production Core binding drift: ${service.binding}`);
+            productionCore.delete(service.binding);
+          }
+          if (productionCore.size) throw new Error(`missing production Core bindings: ${[...productionCore].join(',')}`);
           const productionRaw = fs.readFileSync('wrangler.jsonc', 'utf8');
           for (const name of ['WORKFORCE_BO_STAGING_BYPASS', 'WORKFORCE_STAGING_BO_EMAIL', 'PINORIA_TOS_STAGING_BYPASS', 'PINORIA_STAGING_STAFF_EMAIL']) {
             if (productionRaw.includes(name)) throw new Error(`staging variable leaked into production config: ${name}`);
