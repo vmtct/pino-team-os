@@ -9,6 +9,7 @@ const wrapper = readFileSync("scripts/delivery-entry.mjs", "utf8");
 
 test("Team exposes the Core-owned delivery entry wrapper", () => {
   assert.equal(pkg.scripts["delivery:enter"], "node scripts/delivery-entry.mjs");
+  assert.equal(pkg.scripts["pino:resume"], "node scripts/delivery-entry.mjs");
   assert.match(wrapper, /PINO_CORE_PATH/);
   assert.match(wrapper, /--worktree/);
 });
@@ -17,6 +18,7 @@ test("Team working contract requires continuation reconciliation", () => {
   assert.match(agents, /Mandatory continuation entry gate/);
   assert.match(agents, /featureCode.*featureId/);
   assert.match(agents, /non-authoritative delivery memory/);
+  assert.match(agents, /NONE[\s\S]*SAFE[\s\S]*CONTRACT[\s\S]*DESTRUCTIVE/);
 });
 
 test("Team wrapper fails closed when Core governance is unavailable", () => {

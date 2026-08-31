@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
     "test:e2e": "playwright test",
-    "delivery:enter": "node scripts/delivery-entry.mjs"
+    "delivery:enter": "node scripts/delivery-entry.mjs",
+    "pino:resume": "node scripts/delivery-entry.mjs",
+    "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@notionhq/client": "^5.6.0",

@@ -19,7 +19,9 @@ If the required Core governance/spec material is unavailable, stop before invent
 
 Conversation history is non-authoritative delivery memory. For terse continuation instructions such as `continue`, `tiếp tục`, `triển`, `ok triển`, `finish`, or equivalent, do not resume from remembered chat state.
 
-Run `npm run delivery:enter -- --core <current-pino-core-worktree>` (or set `PINO_CORE_PATH`) before material edits. The Core gate must resolve `featureCode` + `featureId`, inspect this Team worktree against current `main`, reconcile persisted checkpoint drift, and identify the first unproven gate. If Core governance is unavailable or feature resolution is ambiguous, fail closed.
+Run `npm run pino:resume -- --core <current-pino-core-worktree>` (or set `PINO_CORE_PATH`) before material edits; `delivery:enter` remains a compatibility alias. The Core gate must resolve `featureCode` + `featureId`, inspect this Team worktree against current `main`, and classify Drift Protocol state before resuming the first unproven gate.
+
+Obey the result: `NONE` continues; `SAFE` continues without a forced sync; `CONTRACT` is reconciled by the coding agent in the same work session and the gate is rerun; `DESTRUCTIVE` or genuinely ambiguous state requires human review. Do not ask the Founder to reconcile merely because `main` advanced. If Core governance is unavailable or feature resolution is ambiguous, fail closed.
 
 ## Feature readiness is implementation authority
 
