@@ -21,11 +21,13 @@ test.describe("Open Studio BO staging acceptance", () => {
     await expect(card).toBeVisible();
 
     const createDraft = card.getByRole("button", { name: "Create Draft" });
-    await expect(createDraft).toBeVisible();
+    await expect(createDraft).toBeEnabled();
     const cutoff = card.getByLabel("Release cutoff (phút)");
     const currentCutoff = await cutoff.inputValue();
     await cutoff.fill(currentCutoff);
-    await card.getByLabel("Change reason").fill(`Open Studio staging browser E2E ${Date.now()}`);
+    const reason = `Open Studio staging browser E2E ${Date.now()}`;
+    await card.getByLabel("Change reason").fill(reason);
+    await expect(card.getByLabel("Change reason")).toHaveValue(reason);
     await createDraft.click();
 
     await expect(card.getByText("Draft canonical đã được tạo. Review rồi Publish.")).toBeVisible();
