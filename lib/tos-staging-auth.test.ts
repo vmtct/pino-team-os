@@ -19,7 +19,11 @@ test("TOS staging staff identity comes only from explicit staging config", () =>
 
 test("TOS staging Workforce identity is workers.dev-only and fixed by staging config", () => {
   const identity = stagingWorkforceIdentity(new Request("https://pino-team-os-staging.example.workers.dev/api/workforce/profile"), env);
-  assert.equal(identity?.subject, "pinoria-tos-staging-bypass-v1");
+  assert.equal(identity?.subject, "pinoria-tos-staging-bypass-v1:operator@pino.invalid");
   assert.equal(identity?.email, "operator@pino.invalid");
+  assert.equal(
+    stagingWorkforceIdentity(new Request("https://pino-team-os-staging.example.workers.dev/api/workforce/profile"), { ...env, PINORIA_STAGING_STAFF_EMAIL: "other@pino.invalid" })?.subject,
+    "pinoria-tos-staging-bypass-v1:other@pino.invalid",
+  );
   assert.equal(stagingWorkforceIdentity(new Request("https://tos.pinohouse.art/api/workforce/profile"), env), null);
 });
