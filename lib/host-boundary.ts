@@ -32,7 +32,6 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo",
     "/bo/staff",
     "/bo/workforce",
-    "/staff-pin/change",
     "/bo/learners",
     "/bo/open-studio",
     "/bo/delivery-activation",
@@ -40,6 +39,10 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/sessions",
     "/bo/registrations",
     "/bo/syllabus",
+    "/bo/system/users",
+    "/bo/system/roles",
+    "/bo/system/audit",
+    "/staff-pin/change",
     "/api/bo/context",
     "/api/bo/learners",
     "/api/bo/open-studio/operations",
@@ -65,6 +68,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/syllabi",
     "/api/bo/sessions",
     "/api/bo/access/roles",
+    "/api/bo/access/permissions",
+    "/api/bo/access/audit",
     "/api/bo/access/users",
     "/api/bo/workforce/staff-records",
     "/api/bo/workforce/staff-onboarding",
@@ -79,7 +84,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
-  return /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)
+  return /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)

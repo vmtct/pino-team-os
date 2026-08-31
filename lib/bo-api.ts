@@ -1,6 +1,5 @@
 import type {
   BoAccessRole,
-  BoAccessUser,
   BoCenter,
   BoPathProgram,
   BoRegistration,
@@ -23,6 +22,7 @@ import type {
   BoWorkforceAssignment,
   BoWorkforceWeeklyPlanning,
 } from "./bo-model";
+import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 
 export class BoApiError extends Error {
   constructor(readonly status: number, message: string, readonly requestId: string | null) {
@@ -75,6 +75,15 @@ type BoScopeBootstrap = {
   runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; optimalConcurrentCapacity: number; status: string }>;
 };
 
+type AccessAssignmentCommand = {
+  userId: string;
+  roleId: string;
+  scopeType: "GLOBAL" | "CENTER" | "PATH" | "RUNNING_CLASS";
+  scopeId: string | null;
+  effectiveFrom?: string;
+  effectiveUntil?: string | null;
+};
+
 export const boApi = {
   scopeCatalog: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
@@ -122,7 +131,10 @@ export const boApi = {
   learningOwner: (sessionId: string) => readOne<BoSessionLearningOwnerProjection>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`),
   assignLearningOwner: (sessionId: string, command: BoSessionLearningOwnerCommand, idempotencyKey: string) => write<BoSessionLearningOwner>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`, command, idempotencyKey),
   accessRoles: () => read<BoAccessRole>("access/roles"),
-  accessUsers: () => read<BoAccessUser>("access/users"),
+  accessRole: (roleId: string) => readOne<BoAccessRoleDetail>(`access/roles/${encodeURIComponent(roleId)}`),
+  accessPermissions: () => read<BoAccessPermission>("access/permissions"),
+  accessAudit: (limit = 100) => read<BoAccessAuditEvent>(`access/audit?limit=${encodeURIComponent(String(limit))}`),
+  accessUsers: () => read<BoAccessSystemUser>("access/users"),
   staffRecords: () => read<BoStaffRecord>("workforce/staff-records"),
   staffRecord: (staffMemberId: string) => readOne<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`),
   workforcePlanning: (centerId: string, termWeekId: string) => readOne<BoWorkforceWeeklyPlanning>(`workforce/planning/weekly?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),
@@ -130,7 +142,11 @@ export const boApi = {
   cancelWorkforceAssignment: (assignmentId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment/cancel", { assignmentId, reason }, idempotencyKey),
   updateStaff: (staffMemberId: string, patch: BoStaffProfilePatch) => write<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`, patch, crypto.randomUUID()),
   setStaffStatus: (staffMemberId: string, status: "active" | "inactive") => write<{ status: string }>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}/status`, { status }, crypto.randomUUID()),
-  assignAccessRole: (body: { userId: string; roleId: string; scopeType: "GLOBAL" | "CENTER" | "PATH" | "RUNNING_CLASS"; scopeId: string | null }) => write<{ id: string }>("access/assignments", body, crypto.randomUUID()),
+  createAccessRole: (body: { roleKey: string; displayName: string; description?: string | null; permissionKeys: string[] }) => write<{ id: string }>("access/roles", body, crypto.randomUUID()),
+  duplicateAccessRole: (roleId: string, body: { roleKey: string; displayName: string; description?: string | null }) => write<{ id: string }>(`access/roles/${encodeURIComponent(roleId)}/duplicate`, body, crypto.randomUUID()),
+  updateAccessRole: (roleId: string, body: { displayName: string; description?: string | null; permissionKeys: string[]; expectedUpdatedAt: string }) => write<{ id: string }>(`access/roles/${encodeURIComponent(roleId)}/update`, body, crypto.randomUUID()),
+  archiveAccessRole: (roleId: string) => write<{ id: string; status: string }>(`access/roles/${encodeURIComponent(roleId)}/archive`, {}, crypto.randomUUID()),
+  assignAccessRole: (body: AccessAssignmentCommand) => write<{ id: string }>("access/assignments", body, crypto.randomUUID()),
   removeAccessAssignment: (assignmentId: string) => write<{ assignmentId: string; status: string }>("access/assignments/remove", { assignmentId }, crypto.randomUUID()),
   setAccessUserStatus: (userId: string, status: "active" | "suspended", reason?: string) => write<{ status: string }>("access/users/status", { userId, status, ...(reason ? { reason } : {}) }, crypto.randomUUID()),
   reconcileTosAccess: () => write<{ state: string; emailCount: number; policyId: string | null }>("access/perimeter-reconcile", {}, crypto.randomUUID()),

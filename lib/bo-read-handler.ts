@@ -54,6 +54,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "syllabi"
     || path === "sessions"
     || path === "access/roles"
+    || path === "access/permissions"
+    || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
     || path === "learners"
@@ -65,12 +67,17 @@ export function isOperationalReadPath(path: string): boolean {
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
     || /^open-studio\/students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
+    || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "access/audit") {
+    const limit = url.searchParams.get("limit");
+    return limit ? { limit: Number(limit) } : undefined;
+  }
   if (path === "learners" || path === "open-studio/learners") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
     ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),

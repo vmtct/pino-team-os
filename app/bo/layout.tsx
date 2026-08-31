@@ -35,6 +35,14 @@ const groups: BoNavGroup[] = [
     ],
   },
   {
+    label: "System",
+    items: [
+      { href: "/bo/system/users", label: "Users" },
+      { href: "/bo/system/roles", label: "Roles" },
+      { href: "/bo/system/audit", label: "Audit" },
+    ],
+  },
+  {
     label: "Content",
     items: [{ href: "/bo/syllabus", label: "Syllabus / Programs" }],
   },
