@@ -18,6 +18,26 @@ test("invalid character projection fails visibly instead of throwing", () => {
   assert.match(html, /Nhân vật chưa sẵn sàng/);
 });
 
+test("partial canonical character projections fail visibly", () => {
+  const partials: Array<Record<string, string>> = [
+    { hair: "draft/Hair.png" },
+    { back: "draft/Back.png" },
+    { hair: "draft/Hair.png", face: "draft/Face.png" },
+    { hair: "draft/Hair.png", outfit: "draft/Body.png" },
+    { face: "draft/Face.png", outfit: "draft/Body.png" },
+  ];
+  for (const config of partials) {
+    assert.equal(hasRenderableCharacterConfig(config), false);
+    const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config }));
+    assert.match(html, /data-character-state="invalid"/);
+  }
+});
+
+test("blank required canonical layers fail visibly", () => {
+  const config = { hair: "draft/Hair.png", face: " ", outfit: "draft/Body.png" };
+  assert.equal(hasRenderableCharacterConfig(config), false);
+});
+
 test("canonical character layers remain renderable", () => {
   const config = { hair: "draft/Hair.png", face: "draft/Face.png", outfit: "draft/Body.png" };
   assert.equal(hasRenderableCharacterConfig(config), true);

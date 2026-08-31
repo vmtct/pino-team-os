@@ -13,8 +13,7 @@ export function pinoriaAssetUrl(path: unknown) {
 export function hasRenderableCharacterConfig(config: unknown) {
   if (!config || typeof config !== "object" || Array.isArray(config)) return false;
   const source = config as Record<string, unknown>;
-  return ["back", "outfit", "body", "hair", "face", "headwear", "eyewear"]
-    .some((key) => pinoriaAssetUrl(source[key]) !== null);
+  return ["hair", "face", "outfit"].every((key) => pinoriaAssetUrl(source[key]) !== null);
 }
 
 export function LayeredCharacter({
