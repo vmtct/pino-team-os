@@ -12,8 +12,12 @@
     "test:e2e": "playwright test",
     "delivery:enter": "node scripts/delivery-entry.mjs",
     "pino:resume": "node scripts/delivery-entry.mjs",
-    "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build"
-  },
+    "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "delivery:care": "node scripts/delivery-care.mjs",
+    "delivery:claim": "node scripts/delivery-care.mjs claim",
+    "delivery:heartbeat": "node scripts/delivery-care.mjs heartbeat",
+    "delivery:release": "node scripts/delivery-care.mjs release",
+    "delivery:care:list": "node scripts/delivery-care.mjs list"  },
   "dependencies": {
     "@notionhq/client": "^5.6.0",
     "jose": "^6.1.0",
