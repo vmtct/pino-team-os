@@ -136,12 +136,12 @@ function PolicyCard({ policyKey, state, onPatch, onState, onDraft, onPublish }: 
       <div><strong>{LABELS[policyKey].title}</strong><span>{LABELS[policyKey].note}</span></div>
       <span className={styles.statusPill}>{state.loading ? "LOADING" : draft ? `DRAFT v${draft.version}` : inherited ? `INHERIT GLOBAL v${published?.version}` : published ? `LIVE v${published.version}` : "UNSET"}</span>
     </div>
-    {policyKey === "monthly_path_pass.v1" ? <MonthlyFields value={state.value as MonthlyPolicy} disabled={locked || state.busy} onChange={(patch) => onPatch<MonthlyPolicy>(policyKey, patch)} /> : null}
-    {policyKey === "bring_a_friend.v1" ? <FriendFields value={state.value as FriendPolicy} disabled={locked || state.busy} onChange={(patch) => onPatch<FriendPolicy>(policyKey, patch)} /> : null}
-    {policyKey === "public_acquisition.v1" ? <PublicFields value={state.value as PublicPolicy} disabled={locked || state.busy} onChange={(patch) => onPatch<PublicPolicy>(policyKey, patch)} /> : null}
-    {policyKey === "cancellation.v1" ? <CancellationFields value={state.value as CancellationPolicy} disabled={locked || state.busy} onChange={(patch) => onPatch<CancellationPolicy>(policyKey, patch)} /> : null}
-    <label className={styles.field}>Change reason<input value={state.reason} disabled={locked || state.busy} onChange={(event) => onState(policyKey, { reason: event.target.value, error: "", notice: "" })} placeholder="Vì sao thay đổi policy này?" /></label>
-    {draft ? <label className={styles.field}>Effective from<input type="datetime-local" value={state.effectiveFrom} disabled={state.busy} onChange={(event) => onState(policyKey, { effectiveFrom: event.target.value, error: "", notice: "" })} /></label> : null}
+    {policyKey === "monthly_path_pass.v1" ? <MonthlyFields value={state.value as MonthlyPolicy} disabled={state.loading || locked || state.busy} onChange={(patch) => onPatch<MonthlyPolicy>(policyKey, patch)} /> : null}
+    {policyKey === "bring_a_friend.v1" ? <FriendFields value={state.value as FriendPolicy} disabled={state.loading || locked || state.busy} onChange={(patch) => onPatch<FriendPolicy>(policyKey, patch)} /> : null}
+    {policyKey === "public_acquisition.v1" ? <PublicFields value={state.value as PublicPolicy} disabled={state.loading || locked || state.busy} onChange={(patch) => onPatch<PublicPolicy>(policyKey, patch)} /> : null}
+    {policyKey === "cancellation.v1" ? <CancellationFields value={state.value as CancellationPolicy} disabled={state.loading || locked || state.busy} onChange={(patch) => onPatch<CancellationPolicy>(policyKey, patch)} /> : null}
+    <label className={styles.field}>Change reason<input value={state.reason} disabled={state.loading || locked || state.busy} onChange={(event) => onState(policyKey, { reason: event.target.value, error: "", notice: "" })} placeholder="Vì sao thay đổi policy này?" /></label>
+    {draft ? <label className={styles.field}>Effective from<input type="datetime-local" value={state.effectiveFrom} disabled={state.loading || state.busy} onChange={(event) => onState(policyKey, { effectiveFrom: event.target.value, error: "", notice: "" })} /></label> : null}
     {state.error ? <div className={styles.errorState}>{state.error}</div> : null}
     {state.notice ? <div className={styles.successCard}><span>Policy</span><strong>{state.notice}</strong></div> : null}
     <div className={styles.osPolicyActions}>
