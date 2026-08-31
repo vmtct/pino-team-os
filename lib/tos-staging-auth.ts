@@ -16,7 +16,7 @@ export function stagingWorkforceIdentity(request: Request, env: TosStagingAuthEn
   if (!isTosStagingBypassRequest(request, env)) return null;
   const email = env.PINORIA_STAGING_STAFF_EMAIL?.trim().toLowerCase() ?? "";
   if (!email || !email.includes("@")) return null;
-  return { provider:"cloudflare_access", subject:"pinoria-tos-staging-bypass-v1", email,
+  return { provider:"cloudflare_access", subject:`pinoria-tos-staging-bypass-v1:${email}`, email,
     issuer:"https://pinoria-staging.invalid", audience:["pinoria-staging"], expiresAt:4_102_444_800 };
 }
 
