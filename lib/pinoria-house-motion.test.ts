@@ -29,6 +29,15 @@ test("ambient placement is deterministic for forty learners", () => {
   assert.deepEqual(first, second);
   assert.ok(first.every((agent) => ambientAgentIsInsideLane(agent, graph)));
 });
+test("ambient learners alternate deterministic walk and idle states", () => {
+  let agents = createAmbientAgents(ids, graph);
+  const seen = new Map(agents.map((agent) => [agent.id, new Set([agent.motionState])]));
+  for (let tick = 0; tick < 400; tick += 1) {
+    agents = stepAmbientAgents(agents, graph, 40);
+    for (const agent of agents) seen.get(agent.id)!.add(agent.motionState);
+  }
+  assert.ok([...seen.values()].every((states) => states.has("walk") && states.has("idle")));
+});
 test("ambient movement stays on governed lanes", () => {
   let agents = createAmbientAgents(ids, graph);
   for (let tick = 0; tick < 400; tick += 1) {

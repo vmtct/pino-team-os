@@ -22,6 +22,9 @@ export type AmbientAgent = {
   direction: -1 | 1;
   speed: number;
   depth: AmbientLaneDepth;
+  motionState: "walk" | "idle";
+  activityEpoch: number;
+  activityRemainingMs: number;
 };
 
 const MIN_LANE_PX = 220;
@@ -43,6 +46,11 @@ function motionBounds(lane: AmbientLane) {
 function laneCapacity(lane: AmbientLane) {
   const bounds = motionBounds(lane);
   return Math.max(1, Math.floor((bounds.x2 - bounds.x1) / MIN_GAP_PX) + 1);
+}
+
+function activityDurationMs(id: string, state: "walk" | "idle", epoch: number) {
+  const seed = hash(`${id}:${state}:${epoch}`);
+  return state === "walk" ? 1200 + (seed % 2800) : 600 + (seed % 800);
 }
 
 function usableLanes(graph: AmbientMotionGraph) {
@@ -83,6 +91,9 @@ export function createAmbientAgents(ids: readonly string[], graph: AmbientMotion
         direction: seed % 2 === 0 ? 1 : -1,
         speed: 18 + (seed % 15),
         depth: lane.midLayer,
+        motionState: "walk",
+        activityEpoch: 0,
+        activityRemainingMs: activityDurationMs(id, "walk", 0),
       });
     });
   }
@@ -95,16 +106,26 @@ export function stepAmbientAgents(
   elapsedMs: number,
 ): AmbientAgent[] {
   const lanes = new Map(usableLanes(graph).map((lane) => [lane.id, lane]));
-  const seconds = Math.min(Math.max(elapsedMs, 0), 80) / 1000;
+  const elapsed = Math.min(Math.max(elapsedMs, 0), 80);
+  const seconds = elapsed / 1000;
   const next = previous.map((agent) => {
+    let motionState = agent.motionState;
+    let activityEpoch = agent.activityEpoch;
+    let activityRemainingMs = agent.activityRemainingMs - elapsed;
+    if (activityRemainingMs <= 0) {
+      activityEpoch += 1;
+      motionState = motionState === "walk" ? "idle" : "walk";
+      activityRemainingMs += activityDurationMs(agent.id, motionState, activityEpoch);
+    }
+    const activity = { motionState, activityEpoch, activityRemainingMs };
     const lane = lanes.get(agent.laneId);
-    if (!lane) return agent;
+    if (!lane || motionState === "idle") return { ...agent, ...activity };
     const bounds = motionBounds(lane);
     let direction = agent.direction;
     let x = agent.x + direction * agent.speed * seconds;
     if (x <= bounds.x1) { x = bounds.x1; direction = 1; }
     if (x >= bounds.x2) { x = bounds.x2; direction = -1; }
-    return { ...agent, x, direction };
+    return { ...agent, ...activity, x, direction };
   });
 
   for (const lane of lanes.values()) {

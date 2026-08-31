@@ -63,7 +63,7 @@ export function AmbientHouseRuntime({ learners }: { learners: readonly AmbientHo
       top: `${(agent.y / GRAPH.canvas.height) * 100}%`,
       "--agent-scale": `${scale}`,
     } as CSSProperties;
-    return <div key={agent.id} className={styles.agent} style={style} data-lane={agent.laneId}>
+    return <div key={agent.id} className={styles.agent} style={style} data-lane={agent.laneId} data-motion-state={agent.motionState}>
       <LayeredCharacter className={styles.character} config={learner.config} />
       <span>{learner.name}</span>
     </div>;
