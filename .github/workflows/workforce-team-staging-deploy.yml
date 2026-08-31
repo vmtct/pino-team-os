@@ -59,7 +59,7 @@ jobs:
 
           pr_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${head_sha}&event=pull_request&status=completed&per_page=30")"
           jq -e '[.workflow_runs[] | select(.name == "PR Validation" and .conclusion == "success")] | length >= 1' <<<"$pr_runs" >/dev/null || reject "No successful PR Validation exists for source PR head."
-          main_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&event=push&status=completed&per_page=30")"
+          main_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&status=completed&per_page=30")"
           jq -e '[.workflow_runs[] | select(.name == "Cloudflare Build + Serving Truth" and .conclusion == "success")] | length >= 1' <<<"$main_runs" >/dev/null || reject "Exact Team main has no successful build/serving-truth run."
 
           echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
