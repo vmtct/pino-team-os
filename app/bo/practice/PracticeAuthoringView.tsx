@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import bo from "../bo.module.css";
 import styles from "./practice.module.css";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import { canAdoptEnsuredDraft, patchPageByClientKey } from "@/lib/bo-practice-authoring-state";
+import { canAdoptEnsuredDraft, finishPracticeOperation, patchPageByClientKey, tryStartPracticeOperation } from "@/lib/bo-practice-authoring-state";
 import {
   PIANO_PRACTICE_FORMAT_V1,
   type BoPracticeAuthoringContext,
@@ -68,12 +68,11 @@ export function PracticeAuthoringView() {
   const [previewing, setPreviewing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const createReplay = useRef<ReplayKey | null>(null);
   const uploadReplay = useRef<Record<string, ReplayKey>>({});
-  const uploadInFlight = useRef(false);
+  const operationInFlight = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -91,7 +90,18 @@ export function PracticeAuthoringView() {
     return () => { active = false; };
   }, []);
 
+  function beginOperation(operation: string): boolean {
+    if (!tryStartPracticeOperation(operationInFlight, operation)) return false;
+    setBusy(operation);
+    return true;
+  }
+
+  function endOperation(operation: string) {
+    if (finishPracticeOperation(operationInFlight, operation)) setBusy("");
+  }
+
   async function changePath(pathProgramId: string) {
+    if (operationInFlight.current) return;
     setActivePathId(pathProgramId);
     setSelected(null);
     setCreating(false);
@@ -105,7 +115,8 @@ export function PracticeAuthoringView() {
   }
 
   async function selectResource(resourceId: string) {
-    setBusy("loading");
+    const operation = "loading";
+    if (!beginOperation(operation)) return;
     setError("");
     try {
       const detail = await boApi.practiceResource(resourceId);
@@ -115,10 +126,11 @@ export function PracticeAuthoringView() {
       setCreating(false);
       setPreviewing(false);
     } catch (cause) { showError(cause); }
-    finally { setBusy(""); }
+    finally { endOperation(operation); }
   }
 
   function startCreate() {
+    if (operationInFlight.current) return;
     createReplay.current = null;
     setSelected(null);
     setForm(blankForm(context, activePathId));
@@ -144,7 +156,9 @@ export function PracticeAuthoringView() {
     const payload = { title: form.title.trim(), family: form.family, pathProgramId: form.pathProgramId, pianoRepertoireItemId: form.pianoRepertoireItemId };
     const signature = JSON.stringify(payload);
     if (createReplay.current?.signature !== signature) createReplay.current = { signature, key: crypto.randomUUID() };
-    setBusy("create"); setError("");
+    const operation = "create";
+    if (!beginOperation(operation)) return;
+    setError("");
     try {
       const detail = await boApi.createPracticeResource(payload, createReplay.current.key);
       createReplay.current = null;
@@ -152,16 +166,16 @@ export function PracticeAuthoringView() {
       setMessage("Đã tạo canonical draft. Có thể attach Sheet / Worksheet.");
       await refreshLibrary(detail.pathProgramId);
     } catch (cause) { showError(cause); }
-    finally { setBusy(""); }
+    finally { endOperation(operation); }
   }
 
   function patchPage(clientKey: string, patch: Partial<PageForm>) {
     setForm(current => ({ ...current, pages: patchPageByClientKey(current.pages, clientKey, patch) }));
   }
-  function addPage() { if (!uploadInFlight.current) setForm(current => ({ ...current, pages: [...current.pages, blankPage()] })); }
-  function removePage(index: number) { if (!uploadInFlight.current) setForm(current => ({ ...current, pages: current.pages.filter((_, pageIndex) => pageIndex !== index) })); }
+  function addPage() { if (!operationInFlight.current) setForm(current => ({ ...current, pages: [...current.pages, blankPage()] })); }
+  function removePage(index: number) { if (!operationInFlight.current) setForm(current => ({ ...current, pages: current.pages.filter((_, pageIndex) => pageIndex !== index) })); }
   function movePage(index: number, direction: -1 | 1) {
-    if (uploadInFlight.current) return;
+    if (operationInFlight.current) return;
     setForm(current => {
       const target = index + direction; if (target < 0 || target >= current.pages.length) return current;
       const pages = [...current.pages]; [pages[index], pages[target]] = [pages[target]!, pages[index]!]; return { ...current, pages };
@@ -169,13 +183,14 @@ export function PracticeAuthoringView() {
   }
 
   async function upload(clientKey: string, kind: "sheet" | "worksheet", file: File) {
-    if (!selected || uploadInFlight.current) return;
+    if (!selected) return;
     const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
     if (!allowed.has(file.type)) return setError("Practice media chỉ hỗ trợ PNG, JPEG hoặc WebP.");
     const slot = `${selected.id}:${clientKey}:${kind}`, signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
     if (uploadReplay.current[slot]?.signature !== signature) uploadReplay.current[slot] = { signature, key: crypto.randomUUID() };
-    uploadInFlight.current = true; setUploading(true);
-    setBusy(`upload-${clientKey}-${kind}`); setError("");
+    const operation = `upload-${clientKey}-${kind}`;
+    if (!beginOperation(operation)) return;
+    setError("");
     try {
       const media = await boApi.uploadPracticeMedia(file, selected.pathProgramId, uploadReplay.current[slot]!.key);
       delete uploadReplay.current[slot];
@@ -185,7 +200,7 @@ export function PracticeAuthoringView() {
         : { worksheetMediaAssetId: media.mediaAssetId, worksheetPreviewUrl: previewUrl, worksheetName: file.name });
       setMessage(`${kind === "sheet" ? "Sheet" : "Worksheet"} đã ingest thành opaque media asset.`);
     } catch (cause) { showError(cause); }
-    finally { uploadInFlight.current = false; setUploading(false); setBusy(""); }
+    finally { endOperation(operation); }
   }
 
   function validateDraft(): string | null {
@@ -220,7 +235,9 @@ export function PracticeAuthoringView() {
 
   async function saveDraft() {
     const validation = validateDraft(); if (validation) return setError(validation);
-    setBusy("save"); setError("");
+    const operation = "save";
+    if (!beginOperation(operation)) return;
+    setError("");
     try {
       await persistDisplayedDraft();
       const detail = await boApi.practiceResource(selected!.id);
@@ -228,12 +245,14 @@ export function PracticeAuthoringView() {
       setMessage("Draft đã lưu theo revision mới nhất.");
       await refreshLibrary(detail.pathProgramId);
     } catch (cause) { showError(cause); }
-    finally { setBusy(""); }
+    finally { endOperation(operation); }
   }
 
   async function publish() {
     const validation = validateDraft(); if (validation) return setError(validation);
-    setBusy("publish"); setError("");
+    const operation = "publish";
+    if (!beginOperation(operation)) return;
+    setError("");
     try {
       const saved = await persistDisplayedDraft();
       const detail = await boApi.publishPracticeVersion(saved.id, saved.revision);
@@ -241,7 +260,7 @@ export function PracticeAuthoringView() {
       setMessage(`Published v${detail.currentPublished?.versionNumber ?? "?"}. Displayed draft và published version là cùng canonical revision.`);
       await refreshLibrary(detail.pathProgramId);
     } catch (cause) { showError(cause); }
-    finally { setBusy(""); }
+    finally { endOperation(operation); }
   }
 
   function showError(cause: unknown) {
@@ -256,7 +275,7 @@ export function PracticeAuthoringView() {
   return <main className={`${bo.page} ${styles.practicePage}`}>
     <header className={styles.header}>
       <div className={bo.heading}><span>Learning · PSP-PIANO / F0</span><h1>Piano Practice</h1><p>BO là thin authoring client; Core giữ identity, permission, media, revision và publication truth.</p></div>
-      <button className={bo.primaryButton} disabled={!activePathId} onClick={startCreate}>+ New Practice</button>
+      <button className={bo.primaryButton} disabled={!activePathId || !!busy} onClick={startCreate}>+ New Practice</button>
     </header>
     {error ? <div className={`${bo.card} ${bo.denied}`}><strong>Không thể hoàn tất</strong><span>{error}</span></div> : null}
     {message ? <div className={bo.successCard}><span>Practice</span><strong>{message}</strong></div> : null}
@@ -265,12 +284,12 @@ export function PracticeAuthoringView() {
       <aside className={styles.library}>
         <div className={styles.libraryHead}><strong>Practice library</strong><span>{resources.length}</span></div>
         <label className={bo.field}>Path
-          <select value={activePathId} onChange={event => void changePath(event.target.value)}>
+          <select value={activePathId} disabled={!!busy} onChange={event => void changePath(event.target.value)}>
             {context?.paths.map(path => <option key={path.id} value={path.id}>{path.displayName}</option>)}
           </select>
         </label>
         {resources.length === 0 ? <small>{currentPath ? "Chưa có Practice Resource trong Path này." : "Không có Path được Practice permission cho phép."}</small> : resources.map(resource => (
-          <button key={resource.id} className={`${styles.resourceButton} ${selected?.id === resource.id ? styles.resourceActive : ""}`} onClick={() => void selectResource(resource.id)}>
+          <button key={resource.id} className={`${styles.resourceButton} ${selected?.id === resource.id ? styles.resourceActive : ""}`} disabled={!!busy} onClick={() => void selectResource(resource.id)}>
             <strong>{resource.draft?.title ?? resource.title}</strong>
             <span>{resource.family} · {resource.draft ? "DRAFT" : "PUBLISHED"}</span>
             <small>draft {resource.draft?.versionNumber ?? "—"} · published {resource.currentPublished?.versionNumber ?? "—"}</small>
@@ -282,7 +301,7 @@ export function PracticeAuthoringView() {
         {!creating && !selected ? <div className={bo.empty}>Chọn một Practice hoặc tạo mới.</div> : <>
           <div className={styles.editorHead}>
             <div><span className={bo.status}>{creating ? "NEW DRAFT" : selected?.draft ? "DRAFT" : "PUBLISHED"}</span><h2>{form.title || "Create Practice Resource"}</h2>{selected ? <small>resource {selected.id} · draft revision {selected.draft?.revision ?? "—"}</small> : null}</div>
-            {selected ? <button className={bo.secondaryButton} onClick={() => setPreviewing(value => !value)}>{previewing ? "Edit draft" : "Preview draft"}</button> : null}
+            {selected ? <button className={bo.secondaryButton} disabled={!!busy} onClick={() => setPreviewing(value => !value)}>{previewing ? "Edit draft" : "Preview draft"}</button> : null}
           </div>
 
           <div className={styles.metaGrid}>
@@ -299,12 +318,12 @@ export function PracticeAuthoringView() {
           {creating ? <div className={styles.createGate}><div><strong>Tạo resource trước khi attach media</strong><span>Resource context được Core validate theo Path + canonical repertoire.</span></div><button className={bo.primaryButton} disabled={!!busy} onClick={() => void createResource()}>{busy === "create" ? "Đang tạo…" : "Create draft"}</button></div>
           : previewing ? <DraftPreview title={form.title} pages={form.pages} />
           : <div className={styles.pageStack}>
-              <div className={styles.pageStackHead}><div><strong>Ordered pages</strong><span>Sheet bắt buộc · Worksheet tùy chọn</span></div><button className={bo.secondaryButton} disabled={uploading} onClick={addPage}>+ Add page</button></div>
+              <div className={styles.pageStackHead}><div><strong>Ordered pages</strong><span>Sheet bắt buộc · Worksheet tùy chọn</span></div><button className={bo.secondaryButton} disabled={!!busy} onClick={addPage}>+ Add page</button></div>
               {form.pages.map((page, index) => <article className={styles.pageCard} key={page.clientKey}>
-                <div className={styles.pageTop}><div><span>Page {index + 1}</span><small>{page.id ?? "new page"}</small></div><div className={styles.pageActions}><button className={bo.secondaryButton} disabled={uploading || index === 0} onClick={() => movePage(index, -1)}>↑</button><button className={bo.secondaryButton} disabled={uploading || index === form.pages.length - 1} onClick={() => movePage(index, 1)}>↓</button><button className={styles.removeButton} disabled={uploading || form.pages.length === 1} onClick={() => removePage(index)}>Remove</button></div></div>
+                <div className={styles.pageTop}><div><span>Page {index + 1}</span><small>{page.id ?? "new page"}</small></div><div className={styles.pageActions}><button className={bo.secondaryButton} disabled={!!busy || index === 0} onClick={() => movePage(index, -1)}>↑</button><button className={bo.secondaryButton} disabled={!!busy || index === form.pages.length - 1} onClick={() => movePage(index, 1)}>↓</button><button className={styles.removeButton} disabled={!!busy || form.pages.length === 1} onClick={() => removePage(index)}>Remove</button></div></div>
                 <div className={styles.mediaGrid}>
-                  <MediaSlot label="Sheet" required mediaAssetId={page.sheetMediaAssetId} fileName={page.sheetName} previewUrl={page.sheetPreviewUrl} busy={busy === `upload-${page.clientKey}-sheet`} disabled={uploading} onFile={file => void upload(page.clientKey, "sheet", file)} />
-                  <MediaSlot label="Worksheet" mediaAssetId={page.worksheetMediaAssetId ?? ""} fileName={page.worksheetName} previewUrl={page.worksheetPreviewUrl} busy={busy === `upload-${page.clientKey}-worksheet`} disabled={uploading} onFile={file => void upload(page.clientKey, "worksheet", file)} onRemove={() => patchPage(page.clientKey, { worksheetMediaAssetId: null, worksheetPreviewUrl: null, worksheetName: undefined })} />
+                  <MediaSlot label="Sheet" required mediaAssetId={page.sheetMediaAssetId} fileName={page.sheetName} previewUrl={page.sheetPreviewUrl} busy={busy === `upload-${page.clientKey}-sheet`} disabled={!!busy} onFile={file => void upload(page.clientKey, "sheet", file)} />
+                  <MediaSlot label="Worksheet" mediaAssetId={page.worksheetMediaAssetId ?? ""} fileName={page.worksheetName} previewUrl={page.worksheetPreviewUrl} busy={busy === `upload-${page.clientKey}-worksheet`} disabled={!!busy} onFile={file => void upload(page.clientKey, "worksheet", file)} onRemove={() => patchPage(page.clientKey, { worksheetMediaAssetId: null, worksheetPreviewUrl: null, worksheetName: undefined })} />
                 </div>
               </article>)}
             </div>}

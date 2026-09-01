@@ -2,6 +2,21 @@ import type { BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-p
 
 export type StableClientPage = { clientKey: string };
 
+export type PracticeOperationFence = { current: string | null };
+
+export function tryStartPracticeOperation(fence: PracticeOperationFence, operation: string): boolean {
+  if (fence.current !== null) return false;
+  fence.current = operation;
+  return true;
+}
+
+export function finishPracticeOperation(fence: PracticeOperationFence, operation: string): boolean {
+  if (fence.current !== operation) return false;
+  fence.current = null;
+  return true;
+}
+
+
 export function patchPageByClientKey<T extends StableClientPage>(
   pages: readonly T[],
   clientKey: string,
