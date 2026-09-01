@@ -31,7 +31,8 @@ export async function handleBoOperationalReadRequest(
     );
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
-    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path, ...(readBody ? { body: readBody } : {}) }, identity);
+    const corePath = readCorePath(path, url);
+    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readBody ? { body: readBody } : {}) }, identity);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof BoAuthError) {
@@ -52,6 +53,9 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "path-programs"
     || path === "running-classes"
     || path === "syllabi"
+    || path === "learning/syllabi"
+    || path === "learning/syllabi/owners"
+    || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
     || path === "sessions"
     || path === "access/roles"
     || path === "access/permissions"
@@ -71,6 +75,17 @@ export function isOperationalReadPath(path: string): boolean {
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
+}
+
+function readCorePath(path: string, url: URL): string {
+  if (path !== "learning/syllabi") return path;
+  const params = new URLSearchParams();
+  const ownerType = url.searchParams.get("ownerType");
+  const ownerId = url.searchParams.get("ownerId");
+  if (ownerType !== null) params.set("ownerType", ownerType);
+  if (ownerId !== null) params.set("ownerId", ownerId);
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
