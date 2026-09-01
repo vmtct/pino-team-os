@@ -1,37 +1,39 @@
 import { expect, test } from "@playwright/test";
 
-const storageKey = "pino.prototype.pnr-ward.f1-team.v1";
-test.beforeEach(async ({ page }) => {
-  await page.goto("/pinoria/wardrobe-prototype");
-  await page.evaluate((key) => localStorage.removeItem(key), storageKey);
+const SESSION_KEY = "pino.prototype.pnr-ward.session-choice.v1";
+const ADMIN_KEY = "pino.prototype.pnr-ward.f1-team.v1";
+
+test("TOS session choice is fixed to one mutation per visit", async ({ page }) => {
+  await page.goto("/pinoria/wardrobe-prototype?learnerId=lrn_bo&learnerName=B%C6%A1&visitId=visit_e2e_001");
+  await page.evaluate((key) => localStorage.removeItem(key), SESSION_KEY);
   await page.reload();
-  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("Phiếu chọn 1 món")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Chọn số/ })).toHaveCount(3);
+  await page.getByRole("button", { name: "Chọn số 2" }).click();
+  await expect(page.getByText(/Đã áp dụng món số 2/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Chọn số 1" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Chọn số 3" })).toBeDisabled();
+  await page.reload();
+  await expect(page.getByText(/Đã áp dụng món số 2/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Đã chọn" })).toBeDisabled();
 });
 
-test("staff can try, equip, unequip and grant without auto-equip", async ({ page }) => {
-  await page.getByRole("button", { name: /Bơ/ }).click();
-  await expect(page).toHaveURL(/learnerId=lrn_bo/);
-  await expect(page.getByText("5 slot đang dùng")).toBeVisible();
+test("a new visit gets an unused session choice", async ({ page }) => {
+  await page.goto("/pinoria/wardrobe-prototype?learnerId=lrn_bo&learnerName=B%C6%A1&visitId=visit_e2e_002");
+  await expect(page.getByRole("button", { name: "Chọn số 1" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Chọn số 2" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Chọn số 3" })).toBeEnabled();
+});
+
+test("BO wardrobe keeps flexible admin operations separate from TOS session limit", async ({ page }) => {
+  await page.goto("/pinoria/wardrobe-admin-prototype?learnerId=lrn_bo");
+  await page.evaluate((key) => localStorage.removeItem(key), ADMIN_KEY);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Wardrobe Admin · Bơ" })).toBeVisible();
   await page.getByRole("button", { name: /Gương mặt Mỉm Cười/ }).click();
-  await expect(page.getByText("ĐANG THỬ", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Trang bị" }).click();
   await expect(page.getByText(/đã được trang bị/)).toBeVisible();
-  await page.getByRole("button", { name: /Nón Sinh Nhật/ }).click();
-  await page.getByRole("button", { name: "Gỡ" }).click();
-  await expect(page.getByText(/đã được gỡ khỏi loadout/)).toBeVisible();
-  await page.getByRole("button", { name: /Cấp món/ }).click();
-  await page.locator("article").filter({ hasText: "Gương mặt Tinh Nghịch" }).getByRole("button", { name: "Cấp" }).click();
-  await expect(page.getByText(/Loadout không thay đổi/)).toBeVisible();
-  await page.reload();
-  await expect(page.getByText("Gương mặt Tinh Nghịch", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Nón Sinh Nhật/ })).not.toContainText("Đang dùng");
-});
-test("switching learner never reuses the previous wardrobe state", async ({ page }) => {
-  await page.getByRole("button", { name: /An/ }).click();
-  await expect(page.getByText("3 wearable", { exact: true })).toBeVisible();
-  await expect(page.getByText("Nón Sinh Nhật", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: /An.*Đổi học viên/ }).click();
-  await page.getByRole("button", { name: /Minh/ }).click();
-  await expect(page.getByText("0 wearable", { exact: true })).toBeVisible();
-  await expect(page.getByText("Chưa sở hữu món nào trong nhóm này.")).toBeVisible();
+  await page.getByRole("button", { name: /Tóc Cơ Bản/ }).click();
+  await page.getByRole("button", { name: "Trang bị" }).click();
+  await expect(page.getByText(/Tóc Cơ Bản đã được trang bị/)).toBeVisible();
 });
