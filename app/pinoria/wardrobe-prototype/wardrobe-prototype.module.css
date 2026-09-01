@@ -36,3 +36,18 @@
   .choiceCard { grid-template-columns:38px 72px minmax(0,1fr) 94px; }
   .choiceCard button { grid-column:auto; min-height:48px; }
 }
+
+.pendingChoice { border-color:#8a68dd; background:#fbf9ff; box-shadow:0 0 0 2px rgba(112,80,199,.12); }
+.pendingChoice .number { background:#f2eaff; color:#5b3eae; box-shadow:0 0 0 2px #8a68dd33; }
+.pendingChoice button:not(:disabled) { background:#5f40b7; }
+.confirmState { display:grid; gap:12px; padding:15px; border:1px solid #d7c8f2; border-radius:18px; background:#f9f6ff; box-shadow:0 12px 28px rgba(69,44,105,.08); }
+.confirmState>div:first-child { display:grid; gap:5px; }
+.confirmState strong { font-size:15px; }
+.confirmState p { margin:0; color:#6e6679; font-size:11px; line-height:1.45; }
+.confirmActions { display:grid; grid-template-columns:1fr 1.4fr; gap:8px; }
+.cancelButton,.confirmButton { min-height:44px; border-radius:12px; font:inherit; font-size:11px; font-weight:900; cursor:pointer; }
+.cancelButton { border:1px solid #d9d0e6; background:#fff; color:#625a6c; }
+.confirmButton { border:0; background:#6544bd; color:#fff; }
+@media (max-width:350px) { .confirmActions { grid-template-columns:1fr; } }
+
+.confirmState { position:sticky; bottom:88px; z-index:16; background:rgba(249,246,255,.98); backdrop-filter:blur(10px); box-shadow:0 16px 38px rgba(54,34,82,.18); }
