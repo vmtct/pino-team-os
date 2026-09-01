@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  ambientMinimumVisibleSeparation,
   createAmbientAgents,
   resolveAmbientConnectors,
   stepAmbientAgents,
@@ -40,4 +41,31 @@ test("connector-02 crossing keeps Euclidean clearance from lane-04 peers", () =>
     }
   }
   assert.equal(crossedLaneBand, true, "connector-02 never crossed the lane-04 collision band");
+});
+
+
+test("actual graph keeps forty visible learners at 2D social spacing across overlapping lanes", () => {
+  const ids = Array.from({ length: 40 }, (_, index) => `learner-${String(index + 1).padStart(2, "0")}`);
+  let agents = createAmbientAgents(ids, actual);
+  let sawLane10And11 = false;
+  for (let tick = 0; tick < 5000; tick += 1) {
+    agents = stepAmbientAgents(agents, actual, 40);
+    sawLane10And11 ||= agents.some((agent) => !agent.connectorId && agent.laneId === "lane-10")
+      && agents.some((agent) => !agent.connectorId && agent.laneId === "lane-11");
+    assert.ok(ambientMinimumVisibleSeparation(agents) >= 71.999, `tick ${tick} visible separation regressed`);
+  }
+  assert.equal(sawLane10And11, true, "test never exercised simultaneous lane-10/lane-11 occupancy");
+});
+
+test("forty-learner departure transition remains collision-safe", () => {
+  const ids = Array.from({ length: 40 }, (_, index) => `learner-${String(index + 1).padStart(2, "0")}`);
+  let agents = createAmbientAgents(ids, actual);
+  const departingAgent = agents.find((agent) => agent.laneId === "lane-04")!;
+  const startX = departingAgent.x;
+  const departing = new Set([departingAgent.id]);
+  for (let tick = 0; tick < 30; tick += 1) {
+    agents = stepAmbientAgents(agents, actual, 40, { departingIds: departing });
+    assert.ok(ambientMinimumVisibleSeparation(agents) >= 71.999, `departure tick ${tick} visible separation regressed`);
+  }
+  assert.notEqual(agents.find((agent) => agent.id === departingAgent.id)!.x, startX);
 });

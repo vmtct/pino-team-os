@@ -56,6 +56,9 @@ const CONNECTOR_SNAP_PX = 120;
 const CONNECTOR_SPEED_PX_PER_SECOND = 132;
 const CONNECTOR_COOLDOWN_MS = 1800;
 const DEPARTURE_SPEED_PX_PER_SECOND = 700;
+const SAFE_CLEARANCE_PX = MIN_GAP_PX + 0.001;
+const SAFE_SLOT_STEP_PX = 6;
+const SAFE_SLOT_SEED = 1090;
 
 function hash(value: string) {
   let result = 2166136261;
@@ -214,100 +217,95 @@ function laneSlotsAroundBlockers(lane: AmbientLane, blockerXs: readonly number[]
   return slots;
 }
 
-type LaneExclusion = { x1: number; x2: number };
-
-function mergeLaneExclusions(lane: AmbientLane, exclusions: readonly LaneExclusion[]) {
-  const bounds = motionBounds(lane);
-  const normalized = exclusions
-    .map((item) => ({ x1: Math.max(bounds.x1, Math.min(item.x1, item.x2)), x2: Math.min(bounds.x2, Math.max(item.x1, item.x2)) }))
-    .filter((item) => item.x1 <= item.x2)
-    .sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2);
-  const merged: LaneExclusion[] = [];
-  for (const item of normalized) {
-    const previous = merged.at(-1);
-    if (!previous || item.x1 > previous.x2 + 0.001) merged.push({ ...item });
-    else previous.x2 = Math.max(previous.x2, item.x2);
-  }
-  return merged;
+function pointToSegmentDistance(
+  point: { x: number; y: number },
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 0.000001) return Math.hypot(point.x - from.x, point.y - from.y);
+  const t = Math.min(1, Math.max(0, ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (from.x + dx * t), point.y - (from.y + dy * t));
 }
 
-function laneSlotsAroundExclusions(lane: AmbientLane, exclusions: readonly LaneExclusion[]) {
-  const bounds = motionBounds(lane);
-  const merged = mergeLaneExclusions(lane, exclusions);
-  const slots: number[] = [];
-  let previous = Number.NEGATIVE_INFINITY;
-  const addSafeInterval = (start: number, end: number) => {
-    if (end < start) return;
-    let x = Number.isFinite(previous) ? Math.max(start, previous + MIN_GAP_PX) : start;
-    while (x <= end + 0.001) {
-      const rounded = Math.round(x * 1_000_000) / 1_000_000;
-      slots.push(rounded);
-      previous = rounded;
-      x = previous + MIN_GAP_PX;
+function pointIsClear(point: { x: number; y: number }, agents: readonly AmbientAgent[], agentId: string) {
+  return agents.every((other) => other.id === agentId
+    || Math.hypot(point.x - other.x, point.y - other.y) >= SAFE_CLEARANCE_PX);
+}
+
+function pathIsClear(path: readonly { x: number; y: number }[], agents: readonly AmbientAgent[], agentId: string) {
+  for (const other of agents) {
+    if (other.id === agentId) continue;
+    for (let index = 1; index < path.length; index += 1) {
+      if (pointToSegmentDistance({ x: other.x, y: other.y }, path[index - 1]!, path[index]!) < SAFE_CLEARANCE_PX) return false;
     }
-  };
-  let start = bounds.x1;
-  for (const exclusion of merged) {
-    addSafeInterval(start, exclusion.x1 - 0.001);
-    start = exclusion.x2 + 0.001;
-  }
-  addSafeInterval(start, bounds.x2);
-  return slots;
-}
-
-function connectorPathLaneExclusions(connector: DirectedConnector, lanes: Iterable<AmbientLane>) {
-  const result = new Map<string, LaneExclusion[]>();
-  for (const lane of lanes) {
-    const exclusions: LaneExclusion[] = [];
-    for (let index = 1; index < connector.path.length; index += 1) {
-      const from = connector.path[index - 1]!;
-      const to = connector.path[index]!;
-      const low = lane.y - MIN_GAP_PX;
-      const high = lane.y + MIN_GAP_PX;
-      const dy = to.y - from.y;
-      if (Math.abs(dy) < 0.001) {
-        if (from.y < low || from.y > high) continue;
-        exclusions.push({ x1: Math.min(from.x, to.x) - MIN_GAP_PX, x2: Math.max(from.x, to.x) + MIN_GAP_PX });
-        continue;
-      }
-      const ta = (low - from.y) / dy;
-      const tb = (high - from.y) / dy;
-      const start = Math.max(0, Math.min(ta, tb));
-      const end = Math.min(1, Math.max(ta, tb));
-      if (start > end) continue;
-      const x1 = from.x + (to.x - from.x) * start;
-      const x2 = from.x + (to.x - from.x) * end;
-      exclusions.push({ x1: Math.min(x1, x2) - MIN_GAP_PX, x2: Math.max(x1, x2) + MIN_GAP_PX });
-    }
-    if (exclusions.length) result.set(lane.id, mergeLaneExclusions(lane, exclusions));
-  }
-  return result;
-}
-
-function activeConnectorLaneExclusions(agents: readonly AmbientAgent[], connectors: readonly DirectedConnector[], lanes: ReadonlyMap<string, AmbientLane>) {
-  const result = new Map<string, LaneExclusion[]>();
-  for (const agent of agents) {
-    if (!agent.connectorId) continue;
-    const connector = connectorForAgent(agent, connectors);
-    if (!connector) continue;
-    const next = connectorPathLaneExclusions(connector, lanes.values());
-    for (const [laneId, exclusions] of next) result.set(laneId, [...(result.get(laneId) ?? []), ...exclusions]);
-  }
-  for (const [laneId, exclusions] of result) {
-    const lane = lanes.get(laneId);
-    if (lane) result.set(laneId, mergeLaneExclusions(lane, exclusions));
-  }
-  return result;
-}
-
-function connectorPathCanReserve(target: DirectedConnector, agents: readonly AmbientAgent[], lanes: ReadonlyMap<string, AmbientLane>, agentId: string) {
-  const exclusions = connectorPathLaneExclusions(target, lanes.values());
-  for (const lane of lanes.values()) {
-    const peers = agents.filter((other) => other.id !== agentId && !other.connectorId && other.laneId === lane.id);
-    const laneExclusions = exclusions.get(lane.id) ?? [];
-    if (laneExclusions.length && laneSlotsAroundExclusions(lane, laneExclusions).length < peers.length) return false;
   }
   return true;
+}
+
+function furthestClearX(currentX: number, proposedX: number, y: number, agents: readonly AmbientAgent[], agentId: string) {
+  if (currentX === proposedX || pointIsClear({ x: proposedX, y }, agents, agentId)) return proposedX;
+  let safe = currentX;
+  let low = 0;
+  let high = 1;
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const ratio = (low + high) / 2;
+    const x = currentX + (proposedX - currentX) * ratio;
+    if (pointIsClear({ x, y }, agents, agentId)) {
+      safe = x;
+      low = ratio;
+    } else {
+      high = ratio;
+    }
+  }
+  return safe;
+}
+
+function furthestClearProgress(path: readonly { x: number; y: number }[], current: number, proposed: number, agents: readonly AmbientAgent[], agentId: string) {
+  if (current === proposed || pointIsClear(pointOnPath(path, proposed), agents, agentId)) return proposed;
+  let safe = current;
+  let low = current;
+  let high = proposed;
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const progress = (low + high) / 2;
+    if (pointIsClear(pointOnPath(path, progress), agents, agentId)) { safe = progress; low = progress; }
+    else high = progress;
+  }
+  return safe;
+}
+
+function collisionSafeSlots(graph: AmbientMotionGraph) {
+  const candidates = usableLanes(graph).flatMap((lane) => {
+    const bounds = motionBounds(lane);
+    const points: Array<{ lane: AmbientLane; x: number; y: number }> = [];
+    for (let x = bounds.x1; x <= bounds.x2 + 0.001; x += SAFE_SLOT_STEP_PX) {
+      points.push({ lane, x: Math.round(x * 1000) / 1000, y: lane.y });
+    }
+    return points;
+  });
+  candidates.sort((a, b) =>
+    hash(`${SAFE_SLOT_SEED}:${a.lane.id}:${a.x}`) - hash(`${SAFE_SLOT_SEED}:${b.lane.id}:${b.x}`)
+    || a.y - b.y || a.x - b.x || a.lane.id.localeCompare(b.lane.id));
+  const selected: typeof candidates = [];
+  for (const candidate of candidates) {
+    if (selected.every((slot) => Math.hypot(candidate.x - slot.x, candidate.y - slot.y) >= SAFE_CLEARANCE_PX)) {
+      selected.push(candidate);
+    }
+  }
+  return selected;
+}
+
+function connectorPathCanReserve(target: DirectedConnector, agents: readonly AmbientAgent[], agentId: string) {
+  return pathIsClear(target.path, agents, agentId);
+}
+
+function chooseClearConnector(agent: AmbientAgent, connectors: readonly DirectedConnector[], agents: readonly AmbientAgent[]) {
+  const options = connectors.filter((connector) => connector.fromLaneId === agent.laneId && connectorPathCanReserve(connector, agents, agent.id));
+  if (!options.length) return undefined;
+  const index = hash(`${agent.id}:${agent.laneId}:${agent.activityEpoch}:clear-connector`) % options.length;
+  return options[index];
 }
 
 function connectorEndpointsAreClear(
@@ -338,43 +336,30 @@ function connectorEndpointsAreClear(
 }
 
 export function createAmbientAgents(ids: readonly string[], graph: AmbientMotionGraph): AmbientAgent[] {
+  const slots = collisionSafeSlots(graph);
+  const orderedIds = [...ids].sort();
   const lanes = usableLanes(graph);
-  if (!lanes.length) return [];
-  const grouped = new Map<string, string[]>();
-  const remaining = new Map<string, number>();
-  for (const lane of lanes) { grouped.set(lane.id, []); remaining.set(lane.id, laneCapacity(lane)); }
-  for (const id of [...ids].sort()) {
-    const candidates = lanes.filter((lane) => (remaining.get(lane.id) ?? 0) > 0);
-    const pool = candidates.length ? candidates : lanes;
-    const total = pool.reduce((sum, lane) => sum + Math.max(remaining.get(lane.id) ?? 0, 1), 0);
-    let ticket = hash(`${id}:lane`) % total;
-    let lane = pool[0]!;
-    for (const candidate of pool) { ticket -= Math.max(remaining.get(candidate.id) ?? 0, 1); if (ticket < 0) { lane = candidate; break; } }
-    grouped.get(lane.id)!.push(id);
-    remaining.set(lane.id, Math.max((remaining.get(lane.id) ?? 0) - 1, 0));
-  }
-  const agents: AmbientAgent[] = [];
-  for (const lane of lanes) {
-    const members = grouped.get(lane.id)!;
-    members.forEach((id, index) => {
-      const bounds = motionBounds(lane);
-      const ratio = members.length === 1 ? 0.5 : index / (members.length - 1);
-      const seed = hash(`${id}:motion`);
-      agents.push({
-        id,
-        laneId: lane.id,
-        x: bounds.x1 + (bounds.x2 - bounds.x1) * ratio,
-        y: lane.y,
-        direction: seed % 2 === 0 ? 1 : -1,
-        speed: 18 + (seed % 15),
-        depth: lane.midLayer,
-        motionState: "walk",
-        activityEpoch: 0,
-        activityRemainingMs: activityDurationMs(id, "walk", 0),
-      });
-    });
-  }
-  return agents.sort((a, b) => a.id.localeCompare(b.id));
+  return orderedIds.map((id, index) => {
+    const fallbackLane = lanes[index % Math.max(lanes.length, 1)];
+    const fallbackBounds = fallbackLane ? motionBounds(fallbackLane) : null;
+    const slot = slots[index] ?? (fallbackLane && fallbackBounds
+      ? { lane: fallbackLane, x: fallbackBounds.x1 + (hash(`${id}:overflow`) % 1000) / 1000 * (fallbackBounds.x2 - fallbackBounds.x1), y: fallbackLane.y }
+      : null);
+    if (!slot) throw new Error("AMBIENT_HOUSE_GRAPH_EMPTY");
+    const seed = hash(`${id}:motion`);
+    return {
+      id,
+      laneId: slot.lane.id,
+      x: slot.x,
+      y: slot.y,
+      direction: seed % 2 === 0 ? 1 : -1,
+      speed: 18 + (seed % 15),
+      depth: slot.lane.midLayer,
+      motionState: "walk" as const,
+      activityEpoch: 0,
+      activityRemainingMs: activityDurationMs(id, "walk", 0),
+    };
+  });
 }
 
 export function stepAmbientAgents(
@@ -390,7 +375,9 @@ export function stepAmbientAgents(
   const seconds = elapsed / 1000;
   const reservations = new Map(laneList.map((lane) => [lane.id, 0]));
   const endpointReservations = endpointReservationsForAgents(previous, connectors);
-  let connectorTraversalClaimed = previous.some((agent) => Boolean(agent.connectorId));
+  const activeConnectorAgent = previous.find((agent) => Boolean(agent.connectorId));
+  let connectorTraversalClaimed = Boolean(activeConnectorAgent);
+
   for (const agent of previous) {
     if (agent.connectorId) {
       for (const reservedLane of new Set([agent.connectorFromLaneId, agent.connectorToLaneId])) {
@@ -401,12 +388,23 @@ export function stepAmbientAgents(
     if (reservations.has(agent.laneId)) reservations.set(agent.laneId, (reservations.get(agent.laneId) ?? 0) + 1);
   }
 
+  const departingOwner = previous.find((agent) => options.departingIds?.has(agent.id) && !agent.connectorId);
+  const connectorMover = activeConnectorAgent ? undefined : [...previous]
+    .filter((agent) => !agent.connectorId)
+    .sort((a, b) => hash(`${a.id}:${a.activityEpoch}:connector-move`) - hash(`${b.id}:${b.activityEpoch}:connector-move`) || a.id.localeCompare(b.id))
+    .find((agent) => Boolean(agent.targetConnectorId || chooseClearConnector(agent, connectors, previous)));
+  const movementOwnerId = activeConnectorAgent
+    ? null
+    : departingOwner?.id ?? connectorMover?.id ?? [...previous]
+      .filter((agent) => !agent.connectorId)
+      .sort((a, b) => hash(`${a.id}:${a.activityEpoch}:move`) - hash(`${b.id}:${b.activityEpoch}:move`) || a.id.localeCompare(b.id))[0]?.id ?? null;
+
   const next = previous.map((agent) => {
     const departing = options.departingIds?.has(agent.id) ?? false;
-    let motionState = departing ? "walk" as const : agent.motionState;
+    let motionState = departing || agent.connectorId ? "walk" as const : agent.motionState;
     let activityEpoch = agent.activityEpoch;
     let activityRemainingMs = departing ? Math.max(agent.activityRemainingMs, 250) : agent.activityRemainingMs - elapsed;
-    if (!departing && activityRemainingMs <= 0) {
+    if (!departing && !agent.connectorId && activityRemainingMs <= 0) {
       activityEpoch += 1;
       motionState = motionState === "walk" ? "idle" : "walk";
       activityRemainingMs += activityDurationMs(agent.id, motionState, activityEpoch);
@@ -417,15 +415,14 @@ export function stepAmbientAgents(
     if (agent.connectorId) {
       const connector = connectorForAgent(agent, connectors);
       if (!connector) return { ...agent, ...activity, connectorId: undefined, connectorFromLaneId: undefined, connectorToLaneId: undefined, connectorProgress: undefined };
-      if (motionState === "idle") return { ...agent, ...activity };
       const speed = departing ? DEPARTURE_SPEED_PX_PER_SECOND : CONNECTOR_SPEED_PX_PER_SECOND;
-      const progress = Math.min(1, (agent.connectorProgress ?? 0) + (speed * seconds) / connector.length);
+      const currentProgress = agent.connectorProgress ?? 0;
+      const proposedProgress = Math.min(1, currentProgress + (speed * seconds) / connector.length);
+      const progress = furthestClearProgress(connector.path, currentProgress, proposedProgress, previous, agent.id);
       const destination = lanes.get(connector.toLaneId)!;
       const source = lanes.get(connector.fromLaneId)!;
       const point = pointOnPath(connector.path, progress);
-      const x = point.x;
-      const y = point.y;
-      if (progress < 1) return { ...agent, ...activity, x, y, connectorProgress: progress, depth: progress < 0.5 ? source.midLayer : destination.midLayer };
+      if (progress < 1) return { ...agent, ...activity, x: point.x, y: point.y, connectorProgress: progress, depth: progress < 0.5 ? source.midLayer : destination.midLayer };
       return {
         ...agent,
         ...activity,
@@ -443,22 +440,25 @@ export function stepAmbientAgents(
     }
 
     const lane = lanes.get(agent.laneId);
-    if (!lane || motionState === "idle") return { ...agent, ...activity };
+    if (!lane || motionState === "idle" || agent.id !== movementOwnerId) return { ...agent, ...activity };
     const bounds = motionBounds(lane);
+
     if (departing) {
       let targetX = hash(`${agent.id}:departure`) % 2 === 0 ? bounds.x1 : bounds.x2;
       if (Math.abs(targetX - agent.x) < 48) targetX = targetX === bounds.x1 ? bounds.x2 : bounds.x1;
       const direction: -1 | 1 = targetX < agent.x ? -1 : 1;
-      const x = direction < 0
+      const proposed = direction < 0
         ? Math.max(targetX, agent.x - DEPARTURE_SPEED_PX_PER_SECOND * seconds)
         : Math.min(targetX, agent.x + DEPARTURE_SPEED_PX_PER_SECOND * seconds);
+      const x = furthestClearX(agent.x, proposed, lane.y, previous, agent.id);
       return { ...agent, ...activity, x, direction, targetConnectorId: undefined };
     }
 
     let target = agent.targetConnectorId
       ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId)
       : undefined;
-    if (!target && connectorCooldownMs <= 0) target = chooseConnector({ ...agent, activityEpoch }, connectors);
+    if (!target && connectorCooldownMs <= 0) target = chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
+
     if (target) {
       const delta = target.from.x - agent.x;
       const direction: -1 | 1 = delta < 0 ? -1 : 1;
@@ -469,7 +469,7 @@ export function stepAmbientAgents(
         const connectorClear = !connectorTraversalClaimed
           && !(options.departingIds?.size)
           && connectorEndpointsAreClear(target, previous, connectors, lanes, endpointReservations, agent.id)
-          && connectorPathCanReserve(target, previous, lanes, agent.id);
+          && connectorPathCanReserve(target, previous, agent.id);
         if (connectorClear && destinationCount < laneCapacity(destination)) {
           connectorTraversalClaimed = true;
           reservations.set(target.toLaneId, destinationCount + 1);
@@ -491,67 +491,33 @@ export function stepAmbientAgents(
           };
         }
       }
-      const x = direction < 0 ? Math.max(target.from.x, agent.x - distance) : Math.min(target.from.x, agent.x + distance);
+      const proposed = direction < 0 ? Math.max(target.from.x, agent.x - distance) : Math.min(target.from.x, agent.x + distance);
+      const x = furthestClearX(agent.x, proposed, lane.y, previous, agent.id);
       return { ...agent, ...activity, x, direction, targetConnectorId: target.id };
     }
 
     let direction = agent.direction;
-    let x = agent.x + direction * agent.speed * seconds;
-    if (x <= bounds.x1) { x = bounds.x1; direction = 1; }
-    if (x >= bounds.x2) { x = bounds.x2; direction = -1; }
+    let proposed = agent.x + direction * agent.speed * seconds;
+    if (proposed <= bounds.x1) { proposed = bounds.x1; direction = 1; }
+    if (proposed >= bounds.x2) { proposed = bounds.x2; direction = -1; }
+    const x = furthestClearX(agent.x, proposed, lane.y, previous, agent.id);
     return { ...agent, ...activity, x, direction };
   });
 
-  const connectorExclusions = activeConnectorLaneExclusions(next, connectors, lanes);
-  for (const lane of lanes.values()) {
-    const laneExclusions = connectorExclusions.get(lane.id) ?? [];
-    const peers = next
-      .filter((agent) => !agent.connectorId && agent.laneId === lane.id && (!options.departingIds?.has(agent.id) || laneExclusions.length > 0))
-      .sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
-    const blockers = endpointReservationsForAgents(next, connectors)
-      .filter((reservation) => reservation.laneId === lane.id)
-      .map((reservation) => reservation.x);
-    const bounds = motionBounds(lane);
-
-    if (laneExclusions.length || blockers.length) {
-      const endpointExclusions = blockers.map((x) => ({ x1: x - MIN_GAP_PX, x2: x + MIN_GAP_PX }));
-      const slots = laneSlotsAroundExclusions(lane, [...laneExclusions, ...endpointExclusions]);
-      if (slots.length >= peers.length) {
-        let slotCursor = 0;
-        for (let index = 0; index < peers.length; index += 1) {
-          const maxSlotIndex = slots.length - (peers.length - index);
-          let bestSlotIndex = slotCursor;
-          let bestDistance = Number.POSITIVE_INFINITY;
-          for (let candidate = slotCursor; candidate <= maxSlotIndex; candidate += 1) {
-            const distance = Math.abs(slots[candidate]! - peers[index]!.x);
-            if (distance < bestDistance) { bestDistance = distance; bestSlotIndex = candidate; }
-          }
-          peers[index]!.x = slots[bestSlotIndex]!;
-          slotCursor = bestSlotIndex + 1;
-        }
-        continue;
-      }
-    }
-
-    for (const peer of peers) peer.x = Math.min(Math.max(peer.x, bounds.x1), bounds.x2);
-    for (let index = 1; index < peers.length; index += 1) {
-      peers[index]!.x = Math.max(peers[index]!.x, peers[index - 1]!.x + MIN_GAP_PX);
-    }
-    if (peers.length && peers.at(-1)!.x > bounds.x2) {
-      peers.at(-1)!.x = bounds.x2;
-      for (let index = peers.length - 2; index >= 0; index -= 1) {
-        peers[index]!.x = Math.min(peers[index]!.x, peers[index + 1]!.x - MIN_GAP_PX);
-      }
-    }
-    if (peers.length && peers[0]!.x < bounds.x1) {
-      peers[0]!.x = bounds.x1;
-      for (let index = 1; index < peers.length; index += 1) {
-        peers[index]!.x = Math.max(peers[index]!.x, peers[index - 1]!.x + MIN_GAP_PX);
-      }
-    }
-    for (const peer of peers) peer.x = Math.round(peer.x * 1_000_000) / 1_000_000;
+  for (const agent of next) {
+    if (!agent.connectorId) agent.x = Math.round(agent.x * 1_000_000) / 1_000_000;
   }
   return next;
+}
+
+export function ambientMinimumVisibleSeparation(agents: readonly AmbientAgent[]) {
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < agents.length; left += 1) {
+    for (let right = left + 1; right < agents.length; right += 1) {
+      minimum = Math.min(minimum, Math.hypot(agents[left]!.x - agents[right]!.x, agents[left]!.y - agents[right]!.y));
+    }
+  }
+  return minimum;
 }
 
 export function ambientLaneReservationPoints(
