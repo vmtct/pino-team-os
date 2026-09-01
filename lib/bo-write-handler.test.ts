@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
-import { handleBoStaffOnboardingRequest, type BoWriteEnv } from "./bo-write-handler";
+import { handleBoStaffOnboardingRequest, isPracticeWritePath, type BoWriteEnv } from "./bo-write-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 import type { VerifiedBoIdentity } from "./bo-auth";
 
@@ -394,4 +394,54 @@ test("Open Studio staging identity is not reused for non-Open-Studio BO writes",
   }, "delivery/learning-spaces");
   assert.equal(response.status, 401);
   assert.equal(called, false);
+});
+
+test("Practice write allowlist accepts only exact Core authoring commands", () => {
+  const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  assert.equal(isPracticeWritePath("practice/resources"), true);
+  assert.equal(isPracticeWritePath(`practice/resources/${id}/drafts`), true);
+  assert.equal(isPracticeWritePath(`practice/versions/${id}`), true);
+  assert.equal(isPracticeWritePath(`practice/versions/${id}/pages`), true);
+  assert.equal(isPracticeWritePath(`practice/versions/${id}/publish`), true);
+  assert.equal(isPracticeWritePath(`practice/resources/${id}/draft`), false);
+  assert.equal(isPracticeWritePath(`practice/resources/${id}/publish`), false);
+  assert.equal(isPracticeWritePath("practice/media"), false);
+  assert.equal(isPracticeWritePath("practice/resources/not-a-canonical-id/drafts"), false);
+});
+
+test("Practice BO commands require idempotency and preserve exact bounded payload", async () => {
+  const f = await fixture();
+  const versionId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const sheetId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
+  const worksheetId = "0198d050-56c1-7ac5-b9ab-b0e45d912347";
+  const practicePath = `practice/versions/${versionId}/pages`;
+  const body = {
+    expectedRevision: 3,
+    pages: [
+      { sheetMediaAssetId: sheetId, worksheetMediaAssetId: worksheetId },
+      { sheetMediaAssetId: sheetId, worksheetMediaAssetId: null },
+    ],
+  };
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) {
+    forwarded.push(coreRequest);
+    return { status: 200, body: { data: { id: versionId, revision: 4 } }, requestId: "core-practice-pages" };
+  } };
+  const ok = await handleBoStaffOnboardingRequest(
+    request(f.token, { idempotencyKey: "practice-pages-1", body: JSON.stringify(body) }),
+    env(binding),
+    practicePath,
+    f.resolver,
+  );
+  assert.equal(ok.status, 200);
+  assert.deepEqual(forwarded, [{ method: "POST", path: practicePath, body, idempotencyKey: "practice-pages-1" }]);
+
+  const missingKey = await handleBoStaffOnboardingRequest(
+    request(f.token, { body: JSON.stringify(body) }),
+    env(binding),
+    practicePath,
+    f.resolver,
+  );
+  assert.equal(missingKey.status, 400);
+  assert.equal(forwarded.length, 1);
 });

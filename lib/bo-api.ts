@@ -30,13 +30,10 @@ import type {
   BoWorkforceWeeklyPlanning,
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
-
-export class BoApiError extends Error {
-  constructor(readonly status: number, message: string, readonly requestId: string | null) {
-    super(message);
-    this.name = "BoApiError";
-  }
-}
+import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
+import { BoApiError } from "./bo-api-error";
+import { uploadPracticeMedia } from "./bo-practice-media-client";
+export { BoApiError } from "./bo-api-error";
 
 export type OpenStudioPolicyKey = "monthly_path_pass.v1" | "bring_a_friend.v1" | "public_acquisition.v1" | "cancellation.v1";
 export type OpenStudioPolicyTarget = { targetType: "GLOBAL"; targetId: null } | { targetType: "CENTER"; targetId: string };
@@ -104,6 +101,15 @@ export const boApi = {
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
   syllabi: () => read<BoSyllabus>("syllabi"),
+  practiceAuthoringContext: () => readOne<BoPracticeAuthoringContext>("practice/authoring-context"),
+  practiceResources: (pathProgramId: string) => read<BoPracticeResourceDetail>(`practice/resources?pathProgramId=${encodeURIComponent(pathProgramId)}`),
+  practiceResource: (resourceId: string) => readOne<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}`),
+  createPracticeResource: (body: BoPracticeCreateCommand, idempotencyKey: string) => write<BoPracticeResourceDetail>("practice/resources", body, idempotencyKey),
+  ensurePracticeDraft: (resourceId: string) => write<BoPracticeResourceVersion>(`practice/resources/${encodeURIComponent(resourceId)}/drafts`, {}, crypto.randomUUID()),
+  updatePracticeDraft: (versionId: string, title: string, expectedRevision: number) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}`, { title, expectedRevision }, crypto.randomUUID()),
+  replacePracticePages: (versionId: string, expectedRevision: number, pages: Array<{ sheetMediaAssetId: string; worksheetMediaAssetId: string | null }>) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}/pages`, { expectedRevision, pages }, crypto.randomUUID()),
+  publishPracticeVersion: (versionId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/versions/${encodeURIComponent(versionId)}/publish`, { expectedRevision }, crypto.randomUUID()),
+  uploadPracticeMedia,
   learningSyllabusOwners: () => readOne<BoLearningSyllabusOwnerCatalog>("learning/syllabi/owners"),
   learningSyllabi: (owner?: BoLearningSyllabusOwner) => read<BoLearningSyllabusSummary>(`learning/syllabi${owner ? `?ownerType=${encodeURIComponent(owner.type)}&ownerId=${encodeURIComponent(owner.id)}` : ""}`),
   learningSyllabus: (syllabusId: string) => readOne<BoLearningSyllabusDetail>(`learning/syllabi/${encodeURIComponent(syllabusId)}`),

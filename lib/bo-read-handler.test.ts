@@ -44,7 +44,7 @@ test("BO operational facade forwards only exact GET paths and the verified ident
       return { status: 200, body: { data: [] }, requestId: `request-${forwarded.length}` };
     },
   };
-  const paths = ["delivery/bootstrap-state", "path-programs", "running-classes", "syllabi", "sessions", "workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345", "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations", "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/learning-owner"];
+  const paths = ["delivery/bootstrap-state", "path-programs", "running-classes", "syllabi", "practice/resources", "practice/resources/0198d050-56c1-7ac5-b9ab-b0e45d912345", "sessions", "workforce/staff-records/0198d050-56c1-7ac5-b9ab-b0e45d912345", "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/registrations", "sessions/0198d050-56c1-7ac5-b9ab-b0e45d912345/learning-owner"];
 
   const responses = await Promise.all(paths.map((path) => handleBoOperationalReadRequest(request(path, f.token), env(binding), path, f.resolver)));
 
@@ -223,6 +223,19 @@ test("Open Studio staging identity is not reused for non-Open-Studio BO reads", 
     OPEN_STUDIO_BO_STAGING_BYPASS: "enabled",
     OPEN_STUDIO_STAGING_BO_EMAIL: "open-studio-control-loop-staging-probe@pino.invalid",
   }, "delivery/bootstrap-state");
+  assert.equal(response.status, 401);
+  assert.equal(called, false);
+});
+
+test("Practice reads never inherit the Workforce workers.dev staging identity", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const practiceRequest = new Request("https://pino-team-os-staging.example.workers.dev/api/bo/practice/resources");
+  const response = await handleBoOperationalReadRequest(practiceRequest, {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  }, "practice/resources");
   assert.equal(response.status, 401);
   assert.equal(called, false);
 });
