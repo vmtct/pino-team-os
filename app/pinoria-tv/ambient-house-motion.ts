@@ -214,6 +214,102 @@ function laneSlotsAroundBlockers(lane: AmbientLane, blockerXs: readonly number[]
   return slots;
 }
 
+type LaneExclusion = { x1: number; x2: number };
+
+function mergeLaneExclusions(lane: AmbientLane, exclusions: readonly LaneExclusion[]) {
+  const bounds = motionBounds(lane);
+  const normalized = exclusions
+    .map((item) => ({ x1: Math.max(bounds.x1, Math.min(item.x1, item.x2)), x2: Math.min(bounds.x2, Math.max(item.x1, item.x2)) }))
+    .filter((item) => item.x1 <= item.x2)
+    .sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2);
+  const merged: LaneExclusion[] = [];
+  for (const item of normalized) {
+    const previous = merged.at(-1);
+    if (!previous || item.x1 > previous.x2 + 0.001) merged.push({ ...item });
+    else previous.x2 = Math.max(previous.x2, item.x2);
+  }
+  return merged;
+}
+
+function laneSlotsAroundExclusions(lane: AmbientLane, exclusions: readonly LaneExclusion[]) {
+  const bounds = motionBounds(lane);
+  const merged = mergeLaneExclusions(lane, exclusions);
+  const slots: number[] = [];
+  let previous = Number.NEGATIVE_INFINITY;
+  const addSafeInterval = (start: number, end: number) => {
+    if (end < start) return;
+    let x = Number.isFinite(previous) ? Math.max(start, previous + MIN_GAP_PX) : start;
+    while (x <= end + 0.001) {
+      const rounded = Math.round(x * 1_000_000) / 1_000_000;
+      slots.push(rounded);
+      previous = rounded;
+      x = previous + MIN_GAP_PX;
+    }
+  };
+  let start = bounds.x1;
+  for (const exclusion of merged) {
+    addSafeInterval(start, exclusion.x1 - 0.001);
+    start = exclusion.x2 + 0.001;
+  }
+  addSafeInterval(start, bounds.x2);
+  return slots;
+}
+
+function connectorPathLaneExclusions(connector: DirectedConnector, lanes: Iterable<AmbientLane>) {
+  const result = new Map<string, LaneExclusion[]>();
+  for (const lane of lanes) {
+    const exclusions: LaneExclusion[] = [];
+    for (let index = 1; index < connector.path.length; index += 1) {
+      const from = connector.path[index - 1]!;
+      const to = connector.path[index]!;
+      const low = lane.y - MIN_GAP_PX;
+      const high = lane.y + MIN_GAP_PX;
+      const dy = to.y - from.y;
+      if (Math.abs(dy) < 0.001) {
+        if (from.y < low || from.y > high) continue;
+        exclusions.push({ x1: Math.min(from.x, to.x) - MIN_GAP_PX, x2: Math.max(from.x, to.x) + MIN_GAP_PX });
+        continue;
+      }
+      const ta = (low - from.y) / dy;
+      const tb = (high - from.y) / dy;
+      const start = Math.max(0, Math.min(ta, tb));
+      const end = Math.min(1, Math.max(ta, tb));
+      if (start > end) continue;
+      const x1 = from.x + (to.x - from.x) * start;
+      const x2 = from.x + (to.x - from.x) * end;
+      exclusions.push({ x1: Math.min(x1, x2) - MIN_GAP_PX, x2: Math.max(x1, x2) + MIN_GAP_PX });
+    }
+    if (exclusions.length) result.set(lane.id, mergeLaneExclusions(lane, exclusions));
+  }
+  return result;
+}
+
+function activeConnectorLaneExclusions(agents: readonly AmbientAgent[], connectors: readonly DirectedConnector[], lanes: ReadonlyMap<string, AmbientLane>) {
+  const result = new Map<string, LaneExclusion[]>();
+  for (const agent of agents) {
+    if (!agent.connectorId) continue;
+    const connector = connectorForAgent(agent, connectors);
+    if (!connector) continue;
+    const next = connectorPathLaneExclusions(connector, lanes.values());
+    for (const [laneId, exclusions] of next) result.set(laneId, [...(result.get(laneId) ?? []), ...exclusions]);
+  }
+  for (const [laneId, exclusions] of result) {
+    const lane = lanes.get(laneId);
+    if (lane) result.set(laneId, mergeLaneExclusions(lane, exclusions));
+  }
+  return result;
+}
+
+function connectorPathCanReserve(target: DirectedConnector, agents: readonly AmbientAgent[], lanes: ReadonlyMap<string, AmbientLane>, agentId: string) {
+  const exclusions = connectorPathLaneExclusions(target, lanes.values());
+  for (const lane of lanes.values()) {
+    const peers = agents.filter((other) => other.id !== agentId && !other.connectorId && other.laneId === lane.id);
+    const laneExclusions = exclusions.get(lane.id) ?? [];
+    if (laneExclusions.length && laneSlotsAroundExclusions(lane, laneExclusions).length < peers.length) return false;
+  }
+  return true;
+}
+
 function connectorEndpointsAreClear(
   target: DirectedConnector,
   agents: readonly AmbientAgent[],
@@ -294,6 +390,7 @@ export function stepAmbientAgents(
   const seconds = elapsed / 1000;
   const reservations = new Map(laneList.map((lane) => [lane.id, 0]));
   const endpointReservations = endpointReservationsForAgents(previous, connectors);
+  let connectorTraversalClaimed = previous.some((agent) => Boolean(agent.connectorId));
   for (const agent of previous) {
     if (agent.connectorId) {
       for (const reservedLane of new Set([agent.connectorFromLaneId, agent.connectorToLaneId])) {
@@ -369,8 +466,12 @@ export function stepAmbientAgents(
       if (Math.abs(delta) <= distance + 0.5) {
         const destination = lanes.get(target.toLaneId)!;
         const destinationCount = reservations.get(target.toLaneId) ?? 0;
-        const connectorClear = connectorEndpointsAreClear(target, previous, connectors, lanes, endpointReservations, agent.id);
+        const connectorClear = !connectorTraversalClaimed
+          && !(options.departingIds?.size)
+          && connectorEndpointsAreClear(target, previous, connectors, lanes, endpointReservations, agent.id)
+          && connectorPathCanReserve(target, previous, lanes, agent.id);
         if (connectorClear && destinationCount < laneCapacity(destination)) {
+          connectorTraversalClaimed = true;
           reservations.set(target.toLaneId, destinationCount + 1);
           endpointReservations.push(
             { agentId: agent.id, laneId: target.fromLaneId, x: target.from.x },
@@ -401,17 +502,20 @@ export function stepAmbientAgents(
     return { ...agent, ...activity, x, direction };
   });
 
+  const connectorExclusions = activeConnectorLaneExclusions(next, connectors, lanes);
   for (const lane of lanes.values()) {
+    const laneExclusions = connectorExclusions.get(lane.id) ?? [];
     const peers = next
-      .filter((agent) => !agent.connectorId && agent.laneId === lane.id && !options.departingIds?.has(agent.id))
+      .filter((agent) => !agent.connectorId && agent.laneId === lane.id && (!options.departingIds?.has(agent.id) || laneExclusions.length > 0))
       .sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
     const blockers = endpointReservationsForAgents(next, connectors)
       .filter((reservation) => reservation.laneId === lane.id)
       .map((reservation) => reservation.x);
     const bounds = motionBounds(lane);
 
-    if (blockers.length) {
-      const slots = laneSlotsAroundBlockers(lane, blockers);
+    if (laneExclusions.length || blockers.length) {
+      const endpointExclusions = blockers.map((x) => ({ x1: x - MIN_GAP_PX, x2: x + MIN_GAP_PX }));
+      const slots = laneSlotsAroundExclusions(lane, [...laneExclusions, ...endpointExclusions]);
       if (slots.length >= peers.length) {
         let slotCursor = 0;
         for (let index = 0; index < peers.length; index += 1) {

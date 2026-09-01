@@ -3,7 +3,8 @@ export type SequencedHouseEvent = { sequence: number };
 export function selectUnseenHouseEvents<T extends SequencedHouseEvent>(
   events: readonly T[],
   afterSequence: number,
-): { events: T[]; lastSequence: number } {
+  pageCursor?: number,
+): { events: T[]; lastSequence: number; hasGap: boolean } {
   if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) throw new Error("INVALID_HOUSE_EVENT_CURSOR");
   const bySequence = new Map<number, T>();
   for (const event of events) {
@@ -12,10 +13,18 @@ export function selectUnseenHouseEvents<T extends SequencedHouseEvent>(
     bySequence.set(event.sequence, event);
   }
   const unseen = [...bySequence.values()].sort((a, b) => a.sequence - b.sequence);
-  return {
-    events: unseen,
-    lastSequence: unseen.at(-1)?.sequence ?? afterSequence,
-  };
+  let expected = afterSequence + 1;
+  let hasGap = false;
+  for (const event of unseen) {
+    if (event.sequence !== expected) { hasGap = true; break; }
+    expected += 1;
+  }
+  const lastSequence = unseen.at(-1)?.sequence ?? afterSequence;
+  if (pageCursor !== undefined) {
+    if (!Number.isSafeInteger(pageCursor) || pageCursor < afterSequence) throw new Error("INVALID_HOUSE_EVENT_CURSOR");
+    if (pageCursor > lastSequence) hasGap = true;
+  }
+  return { events: unseen, lastSequence, hasGap };
 }
 export function advanceHouseSnapshotCursor(
   snapshotCursor: number,

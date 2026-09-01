@@ -58,3 +58,24 @@ test("stale departure transition cannot target a newer visit", () => {
   assert.equal(houseDepartureMatchesVisit("learner-a", "visit-b", "learner-a", "visit-a"), false);
   assert.equal(houseDepartureMatchesVisit("learner-b", "visit-a", "learner-a", "visit-a"), false);
 });
+
+test("event page sequence gap fails closed before cursor advance", () => {
+  const result = selectUnseenHouseEvents([
+    { sequence: 11, type: "ARRIVAL", learner: "a" },
+    { sequence: 13, type: "DEPARTURE", learner: "a" },
+  ], 10, 13);
+  assert.equal(result.hasGap, true);
+  assert.deepEqual(result.events.map((event) => event.sequence), [11, 13]);
+});
+
+test("event page cursor cannot skip payload sequences", () => {
+  const result = selectUnseenHouseEvents([], 10, 12);
+  assert.equal(result.hasGap, true);
+  assert.equal(result.lastSequence, 10);
+});
+
+test("contiguous event page remains eligible for presentation", () => {
+  const result = selectUnseenHouseEvents([arrival, departure], 10, 12);
+  assert.equal(result.hasGap, false);
+  assert.equal(result.lastSequence, 12);
+});

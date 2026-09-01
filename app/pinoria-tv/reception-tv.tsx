@@ -91,7 +91,12 @@ export function ReceptionTv() {
         setConnected(true);
         return;
       }
-      const unseen = selectUnseenHouseEvents(page.events, presentedSequence.current);
+      const unseen = selectUnseenHouseEvents(page.events, presentedSequence.current, page.cursor);
+      if (unseen.hasGap) {
+        setConnected(false);
+        wasConnected.current = false;
+        return;
+      }
       cursor.current = Math.max(cursor.current, page.cursor);
       if (unseen.events.length) {
         presentedSequence.current = Math.max(presentedSequence.current, unseen.lastSequence);
