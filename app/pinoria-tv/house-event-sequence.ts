@@ -35,3 +35,12 @@ export function advanceHouseSnapshotCursor(
     presentedSequence: Math.max(presentedSequence, snapshotCursor),
   };
 }
+
+export function houseDepartureMatchesVisit(
+  learnerStudentProfileId: string,
+  learnerVisitId: string,
+  departureStudentProfileId: string,
+  departureVisitId: string,
+) {
+  return learnerStudentProfileId === departureStudentProfileId && learnerVisitId === departureVisitId;
+}

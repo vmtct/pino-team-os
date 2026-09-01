@@ -27,6 +27,7 @@ export type AmbientResolvedConnector = {
   toLaneId: string;
   from: { x: number; y: number };
   to: { x: number; y: number };
+  path: { x: number; y: number }[];
 };
 
 export type AmbientAgent = {
@@ -48,8 +49,8 @@ export type AmbientAgent = {
   connectorCooldownMs?: number;
 };
 
-const MIN_LANE_PX = 220;
 const MIN_GAP_PX = 72;
+const MIN_TRAVERSABLE_LANE_PX = MIN_GAP_PX;
 const EDGE_GAP_PX = MIN_GAP_PX / 2;
 const CONNECTOR_SNAP_PX = 120;
 const CONNECTOR_SPEED_PX_PER_SECOND = 132;
@@ -82,7 +83,7 @@ function activityDurationMs(id: string, state: "walk" | "idle", epoch: number) {
 function usableLanes(graph: AmbientMotionGraph) {
   return graph.horizontalLanes
     .map((lane) => ({ ...lane, x1: Math.min(lane.x1, lane.x2), x2: Math.max(lane.x1, lane.x2) }))
-    .filter((lane) => lane.x2 - lane.x1 >= MIN_LANE_PX)
+    .filter((lane) => lane.x2 - lane.x1 >= MIN_TRAVERSABLE_LANE_PX)
     .sort((a, b) => a.y - b.y || a.id.localeCompare(b.id));
 }
 
@@ -107,12 +108,17 @@ export function resolveAmbientConnectors(graph: AmbientMotionGraph): AmbientReso
     const to = nearest(connector.to);
     if (!from || !to || from.distance > CONNECTOR_SNAP_PX || to.distance > CONNECTOR_SNAP_PX) continue;
     if (from.lane.id === to.lane.id) continue;
+    const fromAnchor = snapToLane(connector.from, from.lane);
+    const toAnchor = snapToLane(connector.to, to.lane);
+    const path = [fromAnchor, connector.from, connector.to, toAnchor].filter((point, index, points) =>
+      index === 0 || Math.hypot(point.x - points[index - 1]!.x, point.y - points[index - 1]!.y) > 0.01);
     resolved.push({
       id: connector.id,
       fromLaneId: from.lane.id,
       toLaneId: to.lane.id,
-      from: snapToLane(connector.from, from.lane),
-      to: snapToLane(connector.to, to.lane),
+      from: fromAnchor,
+      to: toAnchor,
+      path,
     });
   }
   return resolved;
@@ -120,9 +126,33 @@ export function resolveAmbientConnectors(graph: AmbientMotionGraph): AmbientReso
 
 type DirectedConnector = AmbientResolvedConnector & { length: number };
 
+function pathLength(path: readonly { x: number; y: number }[]) {
+  let total = 0;
+  for (let index = 1; index < path.length; index += 1) {
+    total += Math.hypot(path[index]!.x - path[index - 1]!.x, path[index]!.y - path[index - 1]!.y);
+  }
+  return total;
+}
+
+function pointOnPath(path: readonly { x: number; y: number }[], progress: number) {
+  const total = Math.max(pathLength(path), 0.001);
+  let remaining = Math.min(Math.max(progress, 0), 1) * total;
+  for (let index = 1; index < path.length; index += 1) {
+    const from = path[index - 1]!;
+    const to = path[index]!;
+    const segment = Math.hypot(to.x - from.x, to.y - from.y);
+    if (remaining <= segment || index === path.length - 1) {
+      const ratio = segment <= 0.001 ? 1 : Math.min(remaining / segment, 1);
+      return { x: from.x + (to.x - from.x) * ratio, y: from.y + (to.y - from.y) * ratio };
+    }
+    remaining -= segment;
+  }
+  return path.at(-1)!;
+}
+
 function directedConnectors(graph: AmbientMotionGraph): DirectedConnector[] {
   return resolveAmbientConnectors(graph).flatMap((connector) => {
-    const length = Math.max(1, Math.hypot(connector.to.x - connector.from.x, connector.to.y - connector.from.y));
+    const length = Math.max(1, pathLength(connector.path));
     return [
       { ...connector, length },
       {
@@ -131,6 +161,7 @@ function directedConnectors(graph: AmbientMotionGraph): DirectedConnector[] {
         toLaneId: connector.fromLaneId,
         from: connector.to,
         to: connector.from,
+        path: [...connector.path].reverse(),
         length,
       },
     ];
@@ -148,6 +179,66 @@ function chooseConnector(agent: AmbientAgent, connectors: readonly DirectedConne
   if (!options.length) return undefined;
   const index = hash(`${agent.id}:${agent.laneId}:${agent.activityEpoch}:connector`) % options.length;
   return options[index];
+}
+
+type ConnectorEndpointReservation = { agentId: string; laneId: string; x: number };
+
+function endpointReservationsForAgents(agents: readonly AmbientAgent[], connectors: readonly DirectedConnector[]) {
+  const reservations: ConnectorEndpointReservation[] = [];
+  for (const agent of agents) {
+    if (!agent.connectorId) continue;
+    const connector = connectorForAgent(agent, connectors);
+    if (!connector) continue;
+    reservations.push({ agentId: agent.id, laneId: connector.fromLaneId, x: connector.from.x });
+    reservations.push({ agentId: agent.id, laneId: connector.toLaneId, x: connector.to.x });
+  }
+  return reservations;
+}
+
+function laneSlotsAroundBlockers(lane: AmbientLane, blockerXs: readonly number[]) {
+  const bounds = motionBounds(lane);
+  const blockers = [...new Set(blockerXs)].sort((a, b) => a - b);
+  for (let index = 1; index < blockers.length; index += 1) {
+    if (blockers[index]! - blockers[index - 1]! < MIN_GAP_PX - 0.001) return [];
+  }
+  const slots: number[] = [];
+  const addInterval = (start: number, end: number) => {
+    for (let x = start; x <= end + 0.001; x += MIN_GAP_PX) slots.push(Math.round(x * 1000) / 1000);
+  };
+  let start = bounds.x1;
+  for (const blocker of blockers) {
+    addInterval(start, blocker - MIN_GAP_PX);
+    start = blocker + MIN_GAP_PX;
+  }
+  addInterval(start, bounds.x2);
+  return slots;
+}
+
+function connectorEndpointsAreClear(
+  target: DirectedConnector,
+  agents: readonly AmbientAgent[],
+  connectors: readonly DirectedConnector[],
+  lanes: ReadonlyMap<string, AmbientLane>,
+  endpointReservations: readonly ConnectorEndpointReservation[],
+  agentId: string,
+) {
+  const checks = [
+    { laneId: target.fromLaneId, x: target.from.x },
+    { laneId: target.toLaneId, x: target.to.x },
+  ];
+  for (const check of checks) {
+    const lane = lanes.get(check.laneId);
+    if (!lane) return false;
+    const blockers = endpointReservations.filter((reservation) => reservation.agentId !== agentId && reservation.laneId === check.laneId).map((reservation) => reservation.x);
+    blockers.push(check.x);
+    blockers.sort((a, b) => a - b);
+    for (let index = 1; index < blockers.length; index += 1) {
+      if (blockers[index]! - blockers[index - 1]! < MIN_GAP_PX - 0.001) return false;
+    }
+    const movableCount = agents.filter((other) => other.id !== agentId && !other.connectorId && other.laneId === check.laneId).length;
+    if (laneSlotsAroundBlockers(lane, blockers).length < movableCount) return false;
+  }
+  return true;
 }
 
 export function createAmbientAgents(ids: readonly string[], graph: AmbientMotionGraph): AmbientAgent[] {
@@ -202,9 +293,15 @@ export function stepAmbientAgents(
   const elapsed = Math.min(Math.max(elapsedMs, 0), 80);
   const seconds = elapsed / 1000;
   const reservations = new Map(laneList.map((lane) => [lane.id, 0]));
+  const endpointReservations = endpointReservationsForAgents(previous, connectors);
   for (const agent of previous) {
-    const reservedLane = agent.connectorId ? agent.connectorToLaneId : agent.laneId;
-    if (reservedLane && reservations.has(reservedLane)) reservations.set(reservedLane, (reservations.get(reservedLane) ?? 0) + 1);
+    if (agent.connectorId) {
+      for (const reservedLane of new Set([agent.connectorFromLaneId, agent.connectorToLaneId])) {
+        if (reservedLane && reservations.has(reservedLane)) reservations.set(reservedLane, (reservations.get(reservedLane) ?? 0) + 1);
+      }
+      continue;
+    }
+    if (reservations.has(agent.laneId)) reservations.set(agent.laneId, (reservations.get(agent.laneId) ?? 0) + 1);
   }
 
   const next = previous.map((agent) => {
@@ -228,8 +325,9 @@ export function stepAmbientAgents(
       const progress = Math.min(1, (agent.connectorProgress ?? 0) + (speed * seconds) / connector.length);
       const destination = lanes.get(connector.toLaneId)!;
       const source = lanes.get(connector.fromLaneId)!;
-      const x = connector.from.x + (connector.to.x - connector.from.x) * progress;
-      const y = connector.from.y + (connector.to.y - connector.from.y) * progress;
+      const point = pointOnPath(connector.path, progress);
+      const x = point.x;
+      const y = point.y;
       if (progress < 1) return { ...agent, ...activity, x, y, connectorProgress: progress, depth: progress < 0.5 ? source.midLayer : destination.midLayer };
       return {
         ...agent,
@@ -271,9 +369,13 @@ export function stepAmbientAgents(
       if (Math.abs(delta) <= distance + 0.5) {
         const destination = lanes.get(target.toLaneId)!;
         const destinationCount = reservations.get(target.toLaneId) ?? 0;
-        if (destinationCount < laneCapacity(destination)) {
-          reservations.set(agent.laneId, Math.max(0, (reservations.get(agent.laneId) ?? 0) - 1));
+        const connectorClear = connectorEndpointsAreClear(target, previous, connectors, lanes, endpointReservations, agent.id);
+        if (connectorClear && destinationCount < laneCapacity(destination)) {
           reservations.set(target.toLaneId, destinationCount + 1);
+          endpointReservations.push(
+            { agentId: agent.id, laneId: target.fromLaneId, x: target.from.x },
+            { agentId: agent.id, laneId: target.toLaneId, x: target.to.x },
+          );
           return {
             ...agent,
             ...activity,
@@ -300,8 +402,33 @@ export function stepAmbientAgents(
   });
 
   for (const lane of lanes.values()) {
-    const peers = next.filter((agent) => !agent.connectorId && agent.laneId === lane.id && !options.departingIds?.has(agent.id)).sort((a, b) => a.x - b.x);
+    const peers = next
+      .filter((agent) => !agent.connectorId && agent.laneId === lane.id && !options.departingIds?.has(agent.id))
+      .sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
+    const blockers = endpointReservationsForAgents(next, connectors)
+      .filter((reservation) => reservation.laneId === lane.id)
+      .map((reservation) => reservation.x);
     const bounds = motionBounds(lane);
+
+    if (blockers.length) {
+      const slots = laneSlotsAroundBlockers(lane, blockers);
+      if (slots.length >= peers.length) {
+        let slotCursor = 0;
+        for (let index = 0; index < peers.length; index += 1) {
+          const maxSlotIndex = slots.length - (peers.length - index);
+          let bestSlotIndex = slotCursor;
+          let bestDistance = Number.POSITIVE_INFINITY;
+          for (let candidate = slotCursor; candidate <= maxSlotIndex; candidate += 1) {
+            const distance = Math.abs(slots[candidate]! - peers[index]!.x);
+            if (distance < bestDistance) { bestDistance = distance; bestSlotIndex = candidate; }
+          }
+          peers[index]!.x = slots[bestSlotIndex]!;
+          slotCursor = bestSlotIndex + 1;
+        }
+        continue;
+      }
+    }
+
     for (const peer of peers) peer.x = Math.min(Math.max(peer.x, bounds.x1), bounds.x2);
     for (let index = 1; index < peers.length; index += 1) {
       peers[index]!.x = Math.max(peers[index]!.x, peers[index - 1]!.x + MIN_GAP_PX);
@@ -312,14 +439,35 @@ export function stepAmbientAgents(
         peers[index]!.x = Math.min(peers[index]!.x, peers[index + 1]!.x - MIN_GAP_PX);
       }
     }
-    for (let index = 1; index < peers.length; index += 1) {
-      if (peers[index]!.x - peers[index - 1]!.x < MIN_GAP_PX - 0.001) {
-        peers[index - 1]!.direction = -1;
-        peers[index]!.direction = 1;
+    if (peers.length && peers[0]!.x < bounds.x1) {
+      peers[0]!.x = bounds.x1;
+      for (let index = 1; index < peers.length; index += 1) {
+        peers[index]!.x = Math.max(peers[index]!.x, peers[index - 1]!.x + MIN_GAP_PX);
       }
     }
+    for (const peer of peers) peer.x = Math.round(peer.x * 1_000_000) / 1_000_000;
   }
   return next;
+}
+
+export function ambientLaneReservationPoints(
+  agents: readonly AmbientAgent[],
+  graph: AmbientMotionGraph,
+  laneId: string,
+) {
+  const connectors = directedConnectors(graph);
+  const points: Array<{ agentId: string; x: number; kind: "lane" | "connector-from" | "connector-to" }> = [];
+  for (const agent of agents) {
+    if (!agent.connectorId) {
+      if (agent.laneId === laneId) points.push({ agentId: agent.id, x: agent.x, kind: "lane" });
+      continue;
+    }
+    const connector = connectorForAgent(agent, connectors);
+    if (!connector) continue;
+    if (connector.fromLaneId === laneId) points.push({ agentId: agent.id, x: connector.from.x, kind: "connector-from" });
+    if (connector.toLaneId === laneId) points.push({ agentId: agent.id, x: connector.to.x, kind: "connector-to" });
+  }
+  return points.sort((a, b) => a.x - b.x || a.agentId.localeCompare(b.agentId));
 }
 
 export function ambientAgentIsInsideLane(agent: AmbientAgent, graph: AmbientMotionGraph) {
@@ -333,7 +481,8 @@ export function ambientAgentIsInsideGraph(agent: AmbientAgent, graph: AmbientMot
   const connector = connectorForAgent(agent, directedConnectors(graph));
   const progress = agent.connectorProgress ?? -1;
   if (!connector || progress < 0 || progress > 1) return false;
-  const expectedX = connector.from.x + (connector.to.x - connector.from.x) * progress;
-  const expectedY = connector.from.y + (connector.to.y - connector.from.y) * progress;
+  const expected = pointOnPath(connector.path, progress);
+  const expectedX = expected.x;
+  const expectedY = expected.y;
   return Math.abs(agent.x - expectedX) < 0.01 && Math.abs(agent.y - expectedY) < 0.01;
 }

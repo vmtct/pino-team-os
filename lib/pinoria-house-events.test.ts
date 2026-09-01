@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { advanceHouseSnapshotCursor, selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence";
+import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence";
 
 type Event = { sequence: number; type: "ARRIVAL" | "DEPARTURE"; learner: string };
 
@@ -50,4 +50,11 @@ test("out-of-order reconnect snapshot cannot regress cursor or replay history", 
     { sequence: 15, type: "ARRIVAL", learner: "present" },
   ], stale.presentedSequence);
   assert.deepEqual(replay.events, []);
+});
+
+
+test("stale departure transition cannot target a newer visit", () => {
+  assert.equal(houseDepartureMatchesVisit("learner-a", "visit-a", "learner-a", "visit-a"), true);
+  assert.equal(houseDepartureMatchesVisit("learner-a", "visit-b", "learner-a", "visit-a"), false);
+  assert.equal(houseDepartureMatchesVisit("learner-b", "visit-a", "learner-a", "visit-a"), false);
 });

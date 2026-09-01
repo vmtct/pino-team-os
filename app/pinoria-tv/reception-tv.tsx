@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
-import { advanceHouseSnapshotCursor, selectUnseenHouseEvents } from "./house-event-sequence";
+import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "./house-event-sequence";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
@@ -256,7 +256,10 @@ export function ReceptionTv() {
 
   const scene = scenes[0] ?? null;
   const performanceScene = scene?.phase === "performance" ? scene : null;
-  const departingId = scene?.kind === "departure" && scene.phase === "transition" ? scene.studentProfileId : null;
+  const departingId = scene?.kind === "departure" && scene.phase === "transition"
+    && inside.some((learner) => houseDepartureMatchesVisit(learner.studentProfileId, learner.visit.id, scene.studentProfileId, scene.visitId))
+    ? scene.studentProfileId
+    : null;
   const active = Boolean(performanceScene || presentation);
   return <main className={`${styles.stage} ${active ? styles.active : ""}`}>
     <div className={styles.sky} />
