@@ -26,7 +26,7 @@ const catalog: Variant[] = [
   v("hologram-wings", "Cánh Hologram", "BACK", `${ASSET}/hologram-wings/v001/layer.png`, { back: `${ASSET}/hologram-wings/v001/layer.png` }),
 ];
 const fixtures: Learner[] = [
-  { id: "lrn_bo", name: "Bơ", meta: "Dẫn Lộ · II", state: { owned: ["hair-basic", "hair-long", "face-smile", "face-playful", "face-stars", "birthday-hat", "painting-outfit", "hologram-wings"], loadout: loadout("hair-long", "face-stars", "birthday-hat", "painting-outfit", "hologram-wings") } },
+  { id: "lrn_bo", name: "Bơ", meta: "Dẫn Lộ · II", state: { owned: ["hair-basic", "hair-long", "face-smile", "face-playful", "face-stars", "birthday-hat", "painting-outfit", "hologram-wings"], loadout: loadout("hair-long", "face-stars", null, "painting-outfit", "hologram-wings") } },
   { id: "lrn_an", name: "An", meta: "Mầm Xanh · I", state: { owned: ["hair-basic", "face-smile", "painting-outfit"], loadout: loadout("hair-basic", "face-smile", null, "painting-outfit", null) } },
   { id: "lrn_minh", name: "Minh", meta: "Khởi Hành · I", state: { owned: [], loadout: loadout(null, null, null, null, null) } },
 ];

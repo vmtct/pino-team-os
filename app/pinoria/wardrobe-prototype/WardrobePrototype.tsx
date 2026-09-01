@@ -11,7 +11,7 @@ type SessionChoice = { learnerId: string; learnerName: string; visitId: string; 
 const STORAGE = "pino.prototype.pnr-ward.session-choice.v1";
 const ASSET = "https://pino-asset-publisher.minhtri-van42.workers.dev/assets/pinoria/assets";
 const catalog: Candidate[] = [
-  { id: "hair-basic", name: "Tóc Cơ Bản", slot: "Tóc", replaces: "Tóc Dài Nâu Gợn Sóng", asset: `${ASSET}/hair-01/v001/standalone.png` },
+  { id: "birthday-hat", name: "Nón Sinh Nhật", slot: "Nón", replaces: "Đang trống", asset: `${ASSET}/birthday-hat/v001/layer.png` },
   { id: "face-smile", name: "Gương mặt Mỉm Cười", slot: "Mặt · kính", replaces: "Kính Sao + Mỉm Cười", asset: `${ASSET}/face-01/v001/standalone.png` },
   { id: "face-playful", name: "Gương mặt Tinh Nghịch", slot: "Mặt · kính", replaces: "Kính Sao + Mỉm Cười", asset: `${ASSET}/face-02/v001/standalone.png` },
 ];

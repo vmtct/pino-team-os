@@ -29,9 +29,9 @@ test("a new visit gets an unused stable session choice", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Chọn số 1" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Chọn số 2" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Chọn số 3" })).toBeEnabled();
-  await expect(page.getByText("Tóc Cơ Bản", { exact: true })).toBeVisible();
+  await expect(page.getByText("Nón Sinh Nhật", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Tóc Cơ Bản", { exact: true })).toBeVisible();
+  await expect(page.getByText("Nón Sinh Nhật", { exact: true })).toBeVisible();
 });
 
 test("BO wardrobe keeps flexible admin operations separate from TOS session limit", async ({ page }) => {
