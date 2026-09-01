@@ -47,8 +47,8 @@ const groups: BoNavGroup[] = [
     ],
   },
   {
-    label: "Content",
-    items: [{ href: "/bo/syllabus", label: "Syllabus / Programs" }],
+    label: "Learning",
+    items: [{ href: "/bo/syllabus", label: "Syllabus" }],
   },
 ];
 

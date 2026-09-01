@@ -13,6 +13,8 @@ export interface BoWriteEnv extends BoOpenStudioStagingAuthEnv, BoWorkforceStagi
 }
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
+const LEARNING_SYLLABUS_CREATE = "learning/syllabi";
+const LEARNING_SYLLABUS_COMMAND = /^learning\/syllabi\/[0-9a-f-]{36}\/(draft|publish|next-draft|archive)$/;
 const ACCESS_ROLE_PATH = "access/roles";
 const ACCESS_ROLE_DUPLICATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/duplicate$/;
 const ACCESS_ROLE_UPDATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/update$/;
@@ -74,7 +76,7 @@ export async function handleBoWriteRequest(
     );
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path) || isPracticeWritePath(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -136,6 +138,10 @@ export function isPracticeWritePath(path: string): boolean {
   return path === PRACTICE_RESOURCE_CREATE || PRACTICE_RESOURCE_DRAFT.test(path) || PRACTICE_VERSION_COMMAND.test(path);
 }
 
+export function isLearningSyllabusPostPath(path: string): boolean {
+  return path === LEARNING_SYLLABUS_CREATE || LEARNING_SYLLABUS_COMMAND.test(path);
+}
+
 export function isOpenStudioPostPath(path: string): boolean {
   return path === OPEN_STUDIO_LISTING_CREATE
     || OPEN_STUDIO_LISTING_COMMAND.test(path)
@@ -171,6 +177,7 @@ export function isAllowedPostPath(path: string): boolean {
     || ENROLLMENT_COMMAND_PATH.test(path)
     || isPracticeWritePath(path)
     || ENROLLMENT_BULK_PATHS.has(path)
+    || isLearningSyllabusPostPath(path)
     || isOpenStudioPostPath(path);
 }
 
