@@ -24,10 +24,10 @@ test("TV and TOS share the same fixed 1-2-3 session choice", async ({ context })
   await tos.getByRole("button", { name: "Xác nhận số 2" }).click();
   await expect(tos.getByText(/Đã áp dụng món số 2/)).toBeVisible();
   await expect(tv.getByText("ĐÃ CHỌN", { exact: true })).toBeVisible();
-  await expect(tv.getByText("Món số 2 đã được áp dụng.")).toBeVisible();
+  await expect(tv.getByText(/Tủ đồ đã cập nhật/)).toBeVisible();
   await expect(cards.nth(1)).toContainText("Gương mặt Mỉm Cười");
 
   await tv.reload();
   await expect(tv.getByText("ĐÃ CHỌN", { exact: true })).toBeVisible();
-  await expect(tv.getByText("Wardrobe đã cập nhật")).toBeVisible();
+  await expect(tv.getByText("Đã cập nhật nhân vật")).toBeVisible();
 });

@@ -17,11 +17,10 @@ type Candidate = { id: string; name: string; slot: string; asset: string };
 const STORAGE = "pino.prototype.pnr-ward.session-choice.v1";
 const ASSET = "https://pino-asset-publisher.minhtri-van42.workers.dev/assets/pinoria/assets";
 const candidates: Candidate[] = [
-  { id: "birthday-hat", name: "Nón Sinh Nhật", slot: "Nón", asset: `${ASSET}/birthday-hat/v001/layer.png` },
+  { id: "birthday-hat", name: "Nón Sinh Nhật", slot: "Nón", asset: `${ASSET}/birthday-hat/v001/standalone.png` },
   { id: "face-smile", name: "Gương mặt Mỉm Cười", slot: "Mặt · kính", asset: `${ASSET}/face-01/v001/standalone.png` },
   { id: "face-playful", name: "Gương mặt Tinh Nghịch", slot: "Mặt · kính", asset: `${ASSET}/face-02/v001/standalone.png` },
 ];
-
 const baseConfig: PinoriaCharacterConfig = {
   back: `${ASSET}/hologram-wings/v001/layer.png`,
   outfit: `${ASSET}/painting-outfit-01/v001/layer.png`,
@@ -48,9 +47,14 @@ export function WardrobeTvPrototype() {
   const learnerId = params.get("learnerId") || "lrn_bo";
   const learnerName = params.get("learnerName") || "Bơ";
   const visitId = params.get("visitId") || "visit_bo_001";
-  const [session, setSession] = useState<SessionChoice>(() => ({ learnerId, learnerName, visitId, candidateIds: candidates.map((item) => item.id), selected: null }));
+  const [session, setSession] = useState<SessionChoice>(() => ({
+    learnerId, learnerName, visitId,
+    candidateIds: candidates.map((item) => item.id),
+    selected: null,
+  }));
   const ordered = useMemo(() => session.candidateIds.map(candidate), [session.candidateIds]);
   const selectedItem = session.selected === null ? null : ordered[session.selected - 1];
+
   useEffect(() => {
     function read() {
       try {
@@ -58,7 +62,11 @@ export function WardrobeTvPrototype() {
         const current = saved[visitId];
         if (current) setSession(current);
         else {
-          const next: SessionChoice = { learnerId, learnerName, visitId, candidateIds: candidates.map((item) => item.id), selected: null };
+          const next: SessionChoice = {
+            learnerId, learnerName, visitId,
+            candidateIds: candidates.map((item) => item.id),
+            selected: null,
+          };
           localStorage.setItem(STORAGE, JSON.stringify({ ...saved, [visitId]: next }));
           setSession(next);
         }
@@ -67,46 +75,76 @@ export function WardrobeTvPrototype() {
     read();
     const timer = window.setInterval(read, 350);
     window.addEventListener("storage", read);
-    return () => { window.clearInterval(timer); window.removeEventListener("storage", read); };
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("storage", read);
+    };
   }, [learnerId, learnerName, visitId]);
 
   const character = configAfterSelection(session.selected, session.candidateIds);
   return <main className={`${styles.stage} ${selectedItem ? styles.resolved : ""}`}>
-    <div className={styles.glowOne} /><div className={styles.glowTwo} />
-    <header className={styles.status}>
-      <div><span>PINORIA HOUSE</span><strong>Wardrobe</strong></div>
-      <div className={styles.live}><i /> LIVE · {visitId}</div>
+    <div className={styles.aurora} aria-hidden="true" />
+    <div className={styles.stars} aria-hidden="true" />
+
+    <header className={styles.topbar}>
+      <div className={styles.brand}>
+        <span>PINORIA HOUSE</span>
+        <strong>TỦ ĐỒ</strong>
+      </div>
+      <div className={styles.ready}><i /> Sẵn sàng</div>
     </header>
-    <section className={styles.hero}>
-      <div className={styles.characterSide}>
-        <span className={styles.eyebrow}>{selectedItem ? "ĐÃ XÁC NHẬN" : "PHIÊN CHECK-IN"}</span>
-        <h1>{selectedItem ? `${learnerName} đã chọn` : `${learnerName} ơi, chọn một món`}</h1>
-        <p>{selectedItem ? `Món số ${session.selected} đã được áp dụng.` : "Nhớ số của món con thích rồi báo cho staff nhé."}</p>
+
+    <section className={styles.scene}>
+      <div className={styles.avatarColumn}>
+        <div className={styles.greeting}>
+          <span>{selectedItem ? "ĐÃ CHỌN XONG" : "PHIÊN CHECK-IN"}</span>
+          <h1>{selectedItem ? `Số ${session.selected} là của ${learnerName} ✦` : `${learnerName}, chọn món con thích`}</h1>
+          <p>{selectedItem ? "Tủ đồ đã cập nhật. Nhân vật của con đã sẵn sàng!" : "Nhớ số 1, 2 hoặc 3 rồi báo cho staff nhé."}</p>
+        </div>
         <div className={styles.avatarStage}>
+          <div className={styles.orbitOne} />
+          <div className={styles.orbitTwo} />
+          <div className={styles.pedestal} />
           <LayeredCharacter config={character} className={styles.character} />
+          {selectedItem ? <div className={styles.sparkBurst} aria-hidden="true">✦ ✧ ✦</div> : null}
         </div>
       </div>
-      <div className={styles.choiceSide}>
-        <div className={styles.choiceHead}>
-          <span className={styles.eyebrow}>3 MÓN HÔM NAY</span>
-          <strong>{selectedItem ? `Số ${session.selected} · ${selectedItem.name}` : "Chọn #1 · #2 · #3"}</strong>
+
+      <div className={styles.choiceColumn}>
+        <div className={styles.choiceIntro}>
+          <span>BA MÓN DÀNH CHO CON HÔM NAY</span>
+          <strong>{selectedItem ? `Con đã chọn món số ${session.selected}` : "Con thích món nào?"}</strong>
         </div>
+
         <div className={styles.cards}>
           {ordered.map((item, index) => {
-            const number = index + 1, chosen = session.selected === number;
-            return <article key={item.id} className={`${styles.card} ${chosen ? styles.chosen : ""} ${selectedItem && !chosen ? styles.dimmed : ""}`}>
-              <span className={styles.number}>{number}</span>
+            const number = index + 1;
+            const chosen = session.selected === number;
+            return <article
+              key={item.id}
+              className={`${styles.card} ${chosen ? styles.chosen : ""} ${selectedItem && !chosen ? styles.dimmed : ""}`}
+            >
+              <div className={styles.number}><small>SỐ</small><b>{number}</b></div>
               <div className={styles.itemImage}><img src={item.asset} alt="" /></div>
-              <div className={styles.itemCopy}><strong>{item.name}</strong><small>{item.slot}</small></div>
+              <div className={styles.itemCopy}>
+                <strong>{item.name}</strong>
+                <small>{item.slot}</small>
+              </div>
               {chosen ? <b className={styles.pickBadge}>ĐÃ CHỌN</b> : null}
             </article>;
           })}
         </div>
+
+        <div className={styles.reminder}>
+          <span className={styles.reminderNumbers}>1 · 2 · 3</span>
+          <span>{selectedItem ? "Lựa chọn đã được staff xác nhận" : "Chỉ cần nhớ số — staff sẽ giúp con đổi món"}</span>
+        </div>
       </div>
     </section>
+
     <footer className={styles.footer}>
-      <span>PNR-HOUSE-VIS · prototype projection only</span>
-      <span>{selectedItem ? "Wardrobe đã cập nhật" : "Đang chờ staff xác nhận lựa chọn"}</span>
+      <span>PINORIA · WARDROBE</span>
+      <span>{selectedItem ? "Đã cập nhật nhân vật" : "Đang chờ staff xác nhận"}</span>
     </footer>
   </main>;
 }
