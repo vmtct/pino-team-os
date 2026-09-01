@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import bo from "../bo.module.css";
 import styles from "./practice.module.css";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import { canAdoptEnsuredDraft, patchPageByClientKey } from "@/lib/bo-practice-authoring-state";
 import {
   PIANO_PRACTICE_FORMAT_V1,
   type BoPracticeAuthoringContext,
@@ -18,6 +19,7 @@ import {
 
 type PageForm = {
   id?: string;
+  clientKey: string;
   sheetMediaAssetId: string;
   worksheetMediaAssetId: string | null;
   sheetPreviewUrl?: string | null;
@@ -34,11 +36,11 @@ type FormState = {
 };
 type ReplayKey = { signature: string; key: string };
 
-const blankPage = (): PageForm => ({ sheetMediaAssetId: "", worksheetMediaAssetId: null });
+const blankPage = (): PageForm => ({ clientKey: crypto.randomUUID(), sheetMediaAssetId: "", worksheetMediaAssetId: null });
 const classForFamily = (family: BoPracticeFamily) => family === "STARTER" ? "KHOI_HANH" : family === "JOURNEY" ? "HANH_TRINH" : "CHUYEN_DE";
 
 function pageToForm(page: BoPracticePage): PageForm {
-  return { id: page.id, sheetMediaAssetId: page.sheetMediaAssetId, worksheetMediaAssetId: page.worksheetMediaAssetId };
+  return { id: page.id, clientKey: page.id, sheetMediaAssetId: page.sheetMediaAssetId, worksheetMediaAssetId: page.worksheetMediaAssetId };
 }
 function formFromDetail(detail: BoPracticeResourceDetail): FormState {
   const version = detail.draft ?? detail.currentPublished;
@@ -151,8 +153,8 @@ export function PracticeAuthoringView() {
     finally { setBusy(""); }
   }
 
-  function patchPage(index: number, patch: Partial<PageForm>) {
-    setForm(current => ({ ...current, pages: current.pages.map((page, pageIndex) => pageIndex === index ? { ...page, ...patch } : page) }));
+  function patchPage(clientKey: string, patch: Partial<PageForm>) {
+    setForm(current => ({ ...current, pages: patchPageByClientKey(current.pages, clientKey, patch) }));
   }
   function addPage() { setForm(current => ({ ...current, pages: [...current.pages, blankPage()] })); }
   function removePage(index: number) { setForm(current => ({ ...current, pages: current.pages.filter((_, pageIndex) => pageIndex !== index) })); }
@@ -163,18 +165,18 @@ export function PracticeAuthoringView() {
     });
   }
 
-  async function upload(index: number, kind: "sheet" | "worksheet", file: File) {
+  async function upload(clientKey: string, kind: "sheet" | "worksheet", file: File) {
     if (!selected) return;
     const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
     if (!allowed.has(file.type)) return setError("Practice media chỉ hỗ trợ PNG, JPEG hoặc WebP.");
-    const slot = `${selected.id}:${index}:${kind}`, signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
+    const slot = `${selected.id}:${clientKey}:${kind}`, signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
     if (uploadReplay.current[slot]?.signature !== signature) uploadReplay.current[slot] = { signature, key: crypto.randomUUID() };
-    setBusy(`upload-${index}-${kind}`); setError("");
+    setBusy(`upload-${clientKey}-${kind}`); setError("");
     try {
       const media = await boApi.uploadPracticeMedia(file, selected.pathProgramId, uploadReplay.current[slot]!.key);
       delete uploadReplay.current[slot];
       const previewUrl = URL.createObjectURL(file);
-      patchPage(index, kind === "sheet"
+      patchPage(clientKey, kind === "sheet"
         ? { sheetMediaAssetId: media.mediaAssetId, sheetPreviewUrl: previewUrl, sheetName: file.name }
         : { worksheetMediaAssetId: media.mediaAssetId, worksheetPreviewUrl: previewUrl, worksheetName: file.name });
       setMessage(`${kind === "sheet" ? "Sheet" : "Worksheet"} đã ingest thành opaque media asset.`);
@@ -192,7 +194,17 @@ export function PracticeAuthoringView() {
   async function persistDisplayedDraft(): Promise<BoPracticeResourceVersion> {
     if (!selected) throw new Error("Practice Resource chưa được chọn.");
     let draft = selected.draft;
-    if (!draft) draft = await boApi.ensurePracticeDraft(selected.id);
+    if (!draft) {
+      const ensured = await boApi.ensurePracticeDraft(selected.id);
+      if (!canAdoptEnsuredDraft(selected, ensured)) {
+        const latest = await boApi.practiceResource(selected.id);
+        setSelected(latest);
+        setForm(formFromDetail(latest));
+        setPreviewing(false);
+        throw new Error("Draft đã thay đổi ở phiên khác. Canonical draft mới nhất đã được tải lại; hãy kiểm tra trước khi lưu hoặc publish.");
+      }
+      draft = ensured;
+    }
     const titled = await boApi.updatePracticeDraft(draft.id, form.title.trim(), draft.revision);
     const paged = await boApi.replacePracticePages(titled.id, titled.revision, form.pages.map(page => ({
       sheetMediaAssetId: page.sheetMediaAssetId,
@@ -284,11 +296,11 @@ export function PracticeAuthoringView() {
           : previewing ? <DraftPreview title={form.title} pages={form.pages} />
           : <div className={styles.pageStack}>
               <div className={styles.pageStackHead}><div><strong>Ordered pages</strong><span>Sheet bắt buộc · Worksheet tùy chọn</span></div><button className={bo.secondaryButton} onClick={addPage}>+ Add page</button></div>
-              {form.pages.map((page, index) => <article className={styles.pageCard} key={page.id ?? `new-${index}`}>
+              {form.pages.map((page, index) => <article className={styles.pageCard} key={page.clientKey}>
                 <div className={styles.pageTop}><div><span>Page {index + 1}</span><small>{page.id ?? "new page"}</small></div><div className={styles.pageActions}><button className={bo.secondaryButton} disabled={index === 0} onClick={() => movePage(index, -1)}>↑</button><button className={bo.secondaryButton} disabled={index === form.pages.length - 1} onClick={() => movePage(index, 1)}>↓</button><button className={styles.removeButton} disabled={form.pages.length === 1} onClick={() => removePage(index)}>Remove</button></div></div>
                 <div className={styles.mediaGrid}>
-                  <MediaSlot label="Sheet" required mediaAssetId={page.sheetMediaAssetId} fileName={page.sheetName} previewUrl={page.sheetPreviewUrl} busy={busy === `upload-${index}-sheet`} onFile={file => void upload(index, "sheet", file)} />
-                  <MediaSlot label="Worksheet" mediaAssetId={page.worksheetMediaAssetId ?? ""} fileName={page.worksheetName} previewUrl={page.worksheetPreviewUrl} busy={busy === `upload-${index}-worksheet`} onFile={file => void upload(index, "worksheet", file)} onRemove={() => patchPage(index, { worksheetMediaAssetId: null, worksheetPreviewUrl: null, worksheetName: undefined })} />
+                  <MediaSlot label="Sheet" required mediaAssetId={page.sheetMediaAssetId} fileName={page.sheetName} previewUrl={page.sheetPreviewUrl} busy={busy === `upload-${page.clientKey}-sheet`} onFile={file => void upload(page.clientKey, "sheet", file)} />
+                  <MediaSlot label="Worksheet" mediaAssetId={page.worksheetMediaAssetId ?? ""} fileName={page.worksheetName} previewUrl={page.worksheetPreviewUrl} busy={busy === `upload-${page.clientKey}-worksheet`} onFile={file => void upload(page.clientKey, "worksheet", file)} onRemove={() => patchPage(page.clientKey, { worksheetMediaAssetId: null, worksheetPreviewUrl: null, worksheetName: undefined })} />
                 </div>
               </article>)}
             </div>}
@@ -305,7 +317,7 @@ function MediaSlot({ label, required, mediaAssetId, fileName, previewUrl, busy, 
   return <div className={styles.mediaSlot}><div className={styles.mediaHead}><strong>{label}{required ? " *" : ""}</strong><span>{mediaAssetId ? "READY" : required ? "REQUIRED" : "OPTIONAL"}</span></div>{previewUrl ? <img className={styles.assetPreview} src={previewUrl} alt={`${label} preview`} /> : <div className={styles.assetEmpty}>{mediaAssetId ? "Opaque media asset ready" : `No ${label}`}</div>}<small>{fileName ?? (mediaAssetId || (required ? "Upload required" : "Missing Worksheet is valid"))}</small><div className={styles.mediaActions}><label className={bo.secondaryButton}>{busy ? "Uploading…" : mediaAssetId ? "Replace" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; if (file) onFile(file); event.currentTarget.value = ""; }} /></label>{onRemove && mediaAssetId ? <button className={styles.removeButton} disabled={busy} onClick={onRemove}>Remove Worksheet</button> : null}</div></div>;
 }
 function DraftPreview({ title, pages }: { title:string;pages:PageForm[] }) {
-  return <section className={styles.previewPanel}><div><span className={bo.status}>DRAFT PREVIEW</span><h3>{title || "Untitled Practice"}</h3></div><div className={styles.previewGrid}>{pages.map((page, index) => <article className={styles.previewPage} key={page.id ?? index}><strong>Page {index + 1}</strong><PreviewAsset label="Sheet" previewUrl={page.sheetPreviewUrl} mediaAssetId={page.sheetMediaAssetId} />{page.worksheetMediaAssetId ? <PreviewAsset label="Worksheet" previewUrl={page.worksheetPreviewUrl} mediaAssetId={page.worksheetMediaAssetId} /> : null}</article>)}</div></section>;
+  return <section className={styles.previewPanel}><div><span className={bo.status}>DRAFT PREVIEW</span><h3>{title || "Untitled Practice"}</h3></div><div className={styles.previewGrid}>{pages.map((page, index) => <article className={styles.previewPage} key={page.clientKey}><strong>Page {index + 1}</strong><PreviewAsset label="Sheet" previewUrl={page.sheetPreviewUrl} mediaAssetId={page.sheetMediaAssetId} />{page.worksheetMediaAssetId ? <PreviewAsset label="Worksheet" previewUrl={page.worksheetPreviewUrl} mediaAssetId={page.worksheetMediaAssetId} /> : null}</article>)}</div></section>;
 }
 function PreviewAsset({ label, previewUrl, mediaAssetId }: { label:string;previewUrl?:string|null;mediaAssetId:string }) {
   return <div className={styles.previewAsset}><span>{label}</span>{previewUrl ? <img src={previewUrl} alt={`${label} draft preview`} /> : <small>{mediaAssetId || "Missing media"}</small>}</div>;
