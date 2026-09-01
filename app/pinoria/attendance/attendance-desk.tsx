@@ -16,6 +16,7 @@ const footer = [
   { id: "home", label: "Home", href: "/dashboard" },
   { id: "presence", label: "Hiện diện", href: "/pinoria" },
   { id: "attendance", label: "Điểm danh", href: "/pinoria/attendance" },
+  { id: "wardrobe", label: "Tủ đồ", href: "/pinoria/wardrobe-prototype" },
 ];
 
 function todayAtHouse() {
