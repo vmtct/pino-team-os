@@ -7,6 +7,7 @@ import type { VerifiedBoIdentity } from "./bo-auth";
 
 const domain = "team.cloudflareaccess.com";
 const audience = "bo-audience";
+const pathProgramId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
 
 async function fixture() {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
@@ -30,6 +31,7 @@ function env(binding: BoAccessCoreBinding): BoPracticeMediaEnv {
 function uploadRequest(token?: string, idempotencyKey = "media-command-1", file?: File) {
   const form = new FormData();
   if (file) form.set("file", file);
+  form.set("pathProgramId", pathProgramId);
   const headers: Record<string, string> = {};
   if (token) headers["cf-access-jwt-assertion"] = token;
   if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
@@ -41,7 +43,7 @@ test("Practice media facade forwards bytes only through the private Core binding
   const forwarded: Array<{ request: BoAccessRequest; identity: VerifiedBoIdentity }> = [];
   const binding: BoAccessCoreBinding = { async execute(request, identity) {
     forwarded.push({ request, identity });
-    return { status: 201, body: { data: { mediaRef: "0198d050-56c1-7ac5-b9ab-b0e45d912345", fileName: "sheet.png", mimeType: "image/png", byteSize: 3 } }, requestId: "core-media" };
+    return { status: 201, body: { data: { mediaAssetId: "0198d050-56c1-7ac5-b9ab-b0e45d912345", fileName: "sheet.png", mimeType: "image/png", byteSize: 3 } }, requestId: "core-media" };
   } };
   const file = new File([new Uint8Array([1, 2, 3])], "sheet.png", { type: "image/png" });
   const response = await handleBoPracticeMediaUpload(uploadRequest(f.token, "media-command-1", file), env(binding), f.resolver);
@@ -51,10 +53,10 @@ test("Practice media facade forwards bytes only through the private Core binding
   assert.equal(forwarded[0]!.request.method, "POST");
   assert.equal(forwarded[0]!.request.path, "practice/media");
   assert.equal(forwarded[0]!.request.idempotencyKey, "media-command-1");
-  const body = forwarded[0]!.request.body as { fileName: string; mimeType: string; byteSize: number; bytes: ArrayBuffer };
+  const body = forwarded[0]!.request.body as { pathProgramId: string; fileName: string; mimeType: string; bytes: ArrayBuffer };
+  assert.equal(body.pathProgramId, pathProgramId);
   assert.equal(body.fileName, "sheet.png");
   assert.equal(body.mimeType, "image/png");
-  assert.equal(body.byteSize, 3);
   assert.deepEqual([...new Uint8Array(body.bytes)], [1, 2, 3]);
   assert.equal(forwarded[0]!.identity.subject, "verified-founder-subject");
   assert.equal(forwarded[0]!.identity.email, "founder@example.com");

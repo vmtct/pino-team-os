@@ -56,7 +56,6 @@ export async function handleBoPracticeMediaUpload(
         pathProgramId,
         fileName: file.name,
         mimeType: file.type,
-        byteSize: file.size,
         bytes,
       },
       idempotencyKey,

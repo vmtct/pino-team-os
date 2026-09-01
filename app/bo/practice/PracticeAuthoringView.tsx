@@ -85,7 +85,6 @@ export function PracticeAuthoringView() {
       .catch(cause => { if (active) showError(cause); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function changePath(pathProgramId: string) {
