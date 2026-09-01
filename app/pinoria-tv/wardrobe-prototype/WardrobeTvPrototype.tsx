@@ -48,8 +48,7 @@ export function WardrobeTvPrototype() {
   const learnerId = params.get("learnerId") || "lrn_bo";
   const learnerName = params.get("learnerName") || "Bơ";
   const visitId = params.get("visitId") || "visit_bo_001";
-  const initial: SessionChoice = { learnerId, learnerName, visitId, candidateIds: candidates.map((item) => item.id), selected: null };
-  const [session, setSession] = useState<SessionChoice>(initial);
+  const [session, setSession] = useState<SessionChoice>(() => ({ learnerId, learnerName, visitId, candidateIds: candidates.map((item) => item.id), selected: null }));
   const ordered = useMemo(() => session.candidateIds.map(candidate), [session.candidateIds]);
   const selectedItem = session.selected === null ? null : ordered[session.selected - 1];
   useEffect(() => {
@@ -59,7 +58,7 @@ export function WardrobeTvPrototype() {
         const current = saved[visitId];
         if (current) setSession(current);
         else {
-          const next = { ...initial };
+          const next: SessionChoice = { learnerId, learnerName, visitId, candidateIds: candidates.map((item) => item.id), selected: null };
           localStorage.setItem(STORAGE, JSON.stringify({ ...saved, [visitId]: next }));
           setSession(next);
         }
