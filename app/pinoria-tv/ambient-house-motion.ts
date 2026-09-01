@@ -367,7 +367,7 @@ export function stepAmbientAgents(
   previous: readonly AmbientAgent[],
   graph: AmbientMotionGraph,
   elapsedMs: number,
-  options: { departingIds?: ReadonlySet<string> } = {},
+  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string> } = {},
 ): AmbientAgent[] {
   const laneList = usableLanes(graph);
   const lanes = new Map(laneList.map((lane) => [lane.id, lane]));
@@ -391,6 +391,7 @@ export function stepAmbientAgents(
 
   const next = previous.map((agent) => {
     const departing = options.departingIds?.has(agent.id) ?? false;
+    if (options.frozenIds?.has(agent.id)) return { ...agent, motionState: "idle" as const };
     let motionState = departing || agent.connectorId ? "walk" as const : agent.motionState;
     let activityEpoch = agent.activityEpoch;
     let activityRemainingMs = departing ? Math.max(agent.activityRemainingMs, 250) : agent.activityRemainingMs - elapsed;

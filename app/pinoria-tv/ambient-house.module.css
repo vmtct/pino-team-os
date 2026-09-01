@@ -71,3 +71,5 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.agent[data-suppressed="true"] { opacity: 0; }

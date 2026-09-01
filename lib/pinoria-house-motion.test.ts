@@ -143,3 +143,15 @@ test("departure transition moves the learner toward a lane exit while staying bo
   assert.equal(agent.motionState, "walk");
   assert.ok(ambientAgentIsInsideGraph(agent, graph));
 });
+
+test("arrival handoff can freeze a reserved ambient actor without moving it", () => {
+  const [agent] = createAmbientAgents(["arriving-learner"], graph);
+  const frozen = new Set([agent.id]);
+  const [next] = stepAmbientAgents([agent], graph, 2000, { frozenIds: frozen });
+  assert.equal(next.x, agent.x);
+  assert.equal(next.y, agent.y);
+  assert.equal(next.laneId, agent.laneId);
+  assert.equal(next.connectorId, agent.connectorId);
+  assert.equal(next.motionState, "idle");
+  assert.ok(ambientAgentIsInsideGraph(next, graph));
+});
