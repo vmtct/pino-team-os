@@ -56,18 +56,24 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
 }
-.brand span {
-  font-size: clamp(10px, .72vw, 13px);
-  font-weight: 950;
-  letter-spacing: .22em;
-  color: #d2c0ff;
+.brand img {
+  width: clamp(108px, 8.6vw, 158px);
+  max-height: clamp(34px, 3.5vw, 58px);
+  object-fit: contain;
+  object-position: left center;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,.3));
+}
+.brand > i {
+  width: 1px;
+  height: clamp(27px, 2.4vw, 42px);
+  background: rgba(234,211,255,.2);
 }
 .brand strong {
-  font-size: clamp(12px, .82vw, 15px);
-  letter-spacing: .12em;
-  color: rgba(255,250,242,.7);
+  font-size: clamp(11px, .78vw, 14px);
+  letter-spacing: .14em;
+  color: rgba(255,250,242,.66);
 }
 .ready {
   display: flex;

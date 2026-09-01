@@ -12,6 +12,13 @@ test("TV and TOS share the same fixed 1-2-3 session choice", async ({ context })
   await tv.reload();
   const cards = tv.locator("article");
   await expect(cards).toHaveCount(3);
+  await expect(tv.getByRole("img", { name: "Pinoria" })).toHaveAttribute("src", /Pinoria%20Logo\.png/);
+  await expect(tv.locator("[data-character-accessory-slot]")).toHaveCount(8);
+  await expect(tv.locator('[data-pinoria-character-effect="aura-back"]')).toBeVisible();
+  await expect(tv.locator('[data-pinoria-character-effect="aura-ground"]')).toBeVisible();
+  await expect(tv.locator('[data-pinoria-character-effect="marks"]')).toBeVisible();
+  await expect(tv.getByText(/Thầy Cô/).first()).toBeVisible();
+  await expect(tv.getByText(/staff/i)).toHaveCount(0);
   await expect(cards.nth(0)).toContainText("Nón Sinh Nhật");
   await expect(cards.nth(1)).toContainText("Gương mặt Mỉm Cười");
   await expect(cards.nth(2)).toContainText("Gương mặt Tinh Nghịch");

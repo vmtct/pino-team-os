@@ -1,0 +1,156 @@
+.stage {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  pointer-events: none;
+}
+.auraBack {
+  position: absolute;
+  z-index: 0;
+  inset: 1%;
+  width: 98%;
+  height: 98%;
+  object-fit: contain;
+  opacity: .78;
+  filter: drop-shadow(0 0 34px rgba(182,111,255,.2));
+  animation: auraBreath 5.8s ease-in-out infinite, auraRadiance 8.4s ease-in-out infinite;
+}
+.auraGround {
+  position: absolute;
+  z-index: 5;
+  left: 25%;
+  right: 25%;
+  bottom: 8%;
+  height: 10%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(208,180,255,.4), rgba(124,87,192,.14) 48%, transparent 72%);
+  filter: blur(5px);
+  box-shadow: 0 18px 58px rgba(0,0,0,.32);
+}
+.marks {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+}
+.marks img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 82px;
+  height: 82px;
+  object-fit: contain;
+  opacity: 0;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
+}
+.glows {
+  position: absolute;
+  z-index: 20;
+  inset: 5%;
+  opacity: .33;
+  mix-blend-mode: screen;
+}
+.glows img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: glowBreath 7.2s ease-in-out infinite;
+}
+.mirrored { transform: scaleX(-1); }
+.characterCore {
+  position: absolute;
+  z-index: 10;
+  inset: 3% 10% 0;
+}
+.character {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 30px 30px rgba(0,0,0,.48));
+  animation: characterFloat 5.5s ease-in-out infinite;
+}
+.character img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.accessoryRail {
+  position: absolute;
+  z-index: 28;
+  top: 53%;
+  transform: translateY(-50%);
+  display: grid;
+  grid-template-rows: repeat(4, clamp(42px, 3.55vw, 58px));
+  gap: clamp(6px, .62vw, 10px);
+}
+.left { left: 0; }
+.right { right: 0; }
+.accessorySlot {
+  position: relative;
+  width: clamp(42px, 3.55vw, 58px);
+  aspect-ratio: 1;
+  border-radius: clamp(11px, .85vw, 14px);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(8px);
+}
+.accessoryFilled {
+  background: radial-gradient(circle, rgba(240,198,111,.13), rgba(42,28,23,.76) 70%);
+  border: 1px solid rgba(236,191,104,.28);
+  box-shadow: 0 9px 22px rgba(0,0,0,.18), inset 0 0 16px rgba(234,188,95,.05);
+}
+.accessoryEmpty {
+  background: rgba(255,255,255,.012);
+  border: 1px dashed rgba(238,208,153,.16);
+}
+.accessorySlot img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 8px rgba(0,0,0,.24));
+}
+.accessoryEmpty > span { color: rgba(242,225,194,.15); font-size: 13px; }
+.accessorySlot > b {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  background: #d7ab55;
+  border: 2px solid #281a15;
+  color: #281a15;
+  font-size: 6.5px;
+  font-weight: 950;
+}
+@keyframes auraBreath {
+  0%,100% { opacity: .68; transform: scale(.98); }
+  50% { opacity: .86; transform: scale(1.025); }
+}
+@keyframes auraRadiance {
+  0%,100% { filter: brightness(.98) saturate(.98) drop-shadow(0 0 28px rgba(182,111,255,.14)); }
+  50% { filter: brightness(1.08) saturate(1.06) drop-shadow(0 0 42px rgba(182,111,255,.24)); }
+}
+@keyframes glowBreath {
+  0%,100% { opacity: .42; }
+  50% { opacity: .72; }
+}
+@keyframes characterFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+@media (max-aspect-ratio: 4/3) {
+  .characterCore { left: 12%; right: 12%; }
+  .accessoryRail { top: 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auraBack,
+  .glows img,
+  .character { animation: none; }
+}

@@ -2,7 +2,8 @@
 /* eslint-disable @next/next/no-img-element -- prototype composes current Pinoria layer assets */
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { LayeredCharacter, type PinoriaCharacterConfig } from "../layered-character";
+import type { PinoriaCharacterConfig } from "../layered-character";
+import { WardrobeCharacterProjection } from "./WardrobeCharacterProjection";
 import styles from "./wardrobe-tv-prototype.module.css";
 
 type SessionChoice = {
@@ -16,6 +17,7 @@ type Candidate = { id: string; name: string; slot: string; asset: string };
 
 const STORAGE = "pino.prototype.pnr-ward.session-choice.v1";
 const ASSET = "https://pino-asset-publisher.minhtri-van42.workers.dev/assets/pinoria/assets";
+const PINORIA_LOGO = "https://assets.pinohouse.art/pinoria/Pinoria%20Logo.png";
 const candidates: Candidate[] = [
   { id: "birthday-hat", name: "Nón Sinh Nhật", slot: "Nón", asset: `${ASSET}/birthday-hat/v001/standalone.png` },
   { id: "face-smile", name: "Gương mặt Mỉm Cười", slot: "Mặt · kính", asset: `${ASSET}/face-01/v001/standalone.png` },
@@ -88,7 +90,8 @@ export function WardrobeTvPrototype() {
 
     <header className={styles.topbar}>
       <div className={styles.brand}>
-        <span>PINORIA HOUSE</span>
+        <img data-pinoria-logo src={PINORIA_LOGO} alt="Pinoria" />
+        <i />
         <strong>TỦ ĐỒ</strong>
       </div>
       <div className={styles.ready}><i /> Sẵn sàng</div>
@@ -99,13 +102,10 @@ export function WardrobeTvPrototype() {
         <div className={styles.greeting}>
           <span>{selectedItem ? "ĐÃ CHỌN XONG" : "PHIÊN CHECK-IN"}</span>
           <h1>{selectedItem ? `Số ${session.selected} là của ${learnerName} ✦` : `${learnerName}, chọn món con thích`}</h1>
-          <p>{selectedItem ? "Tủ đồ đã cập nhật. Nhân vật của con đã sẵn sàng!" : "Nhớ số 1, 2 hoặc 3 rồi báo cho staff nhé."}</p>
+          <p>{selectedItem ? "Tủ đồ đã cập nhật. Nhân vật của con đã sẵn sàng!" : "Nhớ số 1, 2 hoặc 3 rồi báo cho Thầy Cô nhé."}</p>
         </div>
         <div className={styles.avatarStage}>
-          <div className={styles.orbitOne} />
-          <div className={styles.orbitTwo} />
-          <div className={styles.pedestal} />
-          <LayeredCharacter config={character} className={styles.character} />
+          <WardrobeCharacterProjection config={character} celebrate={!!selectedItem} />
           {selectedItem ? <div className={styles.sparkBurst} aria-hidden="true">✦ ✧ ✦</div> : null}
         </div>
       </div>
@@ -137,14 +137,14 @@ export function WardrobeTvPrototype() {
 
         <div className={styles.reminder}>
           <span className={styles.reminderNumbers}>1 · 2 · 3</span>
-          <span>{selectedItem ? "Lựa chọn đã được staff xác nhận" : "Chỉ cần nhớ số — staff sẽ giúp con đổi món"}</span>
+          <span>{selectedItem ? "Lựa chọn đã được Thầy Cô xác nhận" : "Chỉ cần nhớ số — Thầy Cô sẽ giúp con đổi món"}</span>
         </div>
       </div>
     </section>
 
     <footer className={styles.footer}>
       <span>PINORIA · WARDROBE</span>
-      <span>{selectedItem ? "Đã cập nhật nhân vật" : "Đang chờ staff xác nhận"}</span>
+      <span>{selectedItem ? "Đã cập nhật nhân vật" : "Đang chờ Thầy Cô xác nhận"}</span>
     </footer>
   </main>;
 }
