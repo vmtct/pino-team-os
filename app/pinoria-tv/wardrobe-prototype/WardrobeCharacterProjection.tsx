@@ -11,6 +11,7 @@ type AccessoryVisual = {
 };
 
 const AURA = "https://assets.pinohouse.art/draft/AuraLv3.png";
+const COMPANION = "https://assets.pinohouse.art/draft/Mori.png";
 const MARKS = [
   "https://assets.pinohouse.art/draft/Mark/Char%20Base%20(2).png",
   "https://assets.pinohouse.art/draft/Mark/Char%20Base%20(3).png",
@@ -29,7 +30,7 @@ const ACCESSORY_ASSETS = {
   maker: "https://assets.pinohouse.art/draft/Pinoria_accessories4.png",
 } as const;
 
-// Mirrors the standardized staging Bơ review fixture: 8 slots, 2 currently equipped.
+// Mirrors the standardized staging Bơ fixture: all 8 slots visible, two equipped.
 const ACCESSORIES: AccessoryVisual[] = [
   { id: "achievement-brush-l2", imageUrl: ACCESSORY_ASSETS.brush, level: 2 },
   { id: "achievement-palette-l2", imageUrl: ACCESSORY_ASSETS.palette, level: 2 },
@@ -45,6 +46,7 @@ function roman(level?: number) {
   if (!level) return null;
   return ["", "I", "II", "III", "IV", "V"][level] ?? String(level);
 }
+
 function AccessorySlot({ item, index }: { item: AccessoryVisual; index: number }) {
   const level = roman(item.level);
   return <div
@@ -60,57 +62,77 @@ function AccessorySlot({ item, index }: { item: AccessoryVisual; index: number }
 
 function AccessoryRail({ side }: { side: "left" | "right" }) {
   const start = side === "left" ? 0 : 4;
-  return <div className={`${styles.accessoryRail} ${styles[side]}`} data-character-accessory-rail={side}>
+  return <div
+    className={`${styles.accessoryRail} ${styles[side]}`}
+    data-character-accessory-rail={side}
+  >
     {ACCESSORIES.slice(start, start + 4).map((item, index) => (
       <AccessorySlot key={item.id} item={item} index={start + index} />
     ))}
   </div>;
 }
+
 function OrbitingMarks({ celebrate }: { celebrate: boolean }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const markRefs = useRef<Array<HTMLImageElement | null>>([]);
-
   useEffect(() => {
     let frame = 0;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const periodMs = celebrate ? 7200 : 12600;
+
     const renderFrame = (now: number) => {
       const stage = stageRef.current;
       if (!stage) return;
-      const width = stage.clientWidth, height = stage.clientHeight;
-      if (!width || !height) { frame = requestAnimationFrame(renderFrame); return; }
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
+      if (!width || !height) {
+        frame = requestAnimationFrame(renderFrame);
+        return;
+      }
+
       const size = Math.min(82, width * .15);
-      const centerX = width * .5, centerY = height * .61;
-      const radiusX = Math.min(190, width * .34), radiusY = Math.min(66, height * .12);
+      const centerX = width * .5;
+      const centerY = height * .61;
+      const radiusX = Math.min(190, width * .34);
+      const radiusY = Math.min(66, height * .12);
       const base = reducedMotion ? 0 : ((now % periodMs) / periodMs) * Math.PI * 2;
+
       MARKS.forEach((_, index) => {
         const element = markRefs.current[index];
         if (!element) return;
         const angle = base + index * Math.PI * 2 / 3;
-        const sin = Math.sin(angle), depth = (sin + 1) / 2;
+        const sin = Math.sin(angle);
+        const depth = (sin + 1) / 2;
+        const frontHalf = sin >= 0;
         const x = centerX + radiusX * Math.cos(angle) - size / 2;
         const y = centerY + radiusY * sin - size / 2;
         element.style.width = `${size}px`;
         element.style.height = `${size}px`;
         element.style.transform = `translate3d(${x}px,${y}px,0) scale(${.88 + depth * .15})`;
         element.style.opacity = `${.58 + depth * .36}`;
-        element.style.zIndex = sin >= 0 ? "16" : "6";
+        element.style.zIndex = frontHalf ? "36" : "12";
         element.style.filter = `brightness(${.91 + depth * .16}) blur(${(1 - depth) * .7}px) drop-shadow(0 8px 13px rgba(0,0,0,.18))`;
-        element.dataset.pinoriaCharacterOrbitDepth = sin >= 0 ? "front" : "behind";
+        element.dataset.pinoriaCharacterOrbitDepth = frontHalf ? "front" : "behind";
       });
       if (!reducedMotion) frame = requestAnimationFrame(renderFrame);
     };
+
     frame = requestAnimationFrame(renderFrame);
     return () => cancelAnimationFrame(frame);
   }, [celebrate]);
 
   return <div ref={stageRef} className={styles.marks} data-pinoria-character-effect="marks">
     {MARKS.map((src, index) => <img
-      key={src} ref={(node) => { markRefs.current[index] = node; }}
-      data-pinoria-character-orbit-mark={index + 1} src={src} alt="" draggable={false}
+      key={src}
+      ref={(node) => { markRefs.current[index] = node; }}
+      data-pinoria-character-orbit-mark={index + 1}
+      src={src}
+      alt=""
+      draggable={false}
     />)}
   </div>;
 }
+
 export function WardrobeCharacterProjection({
   config,
   celebrate,
@@ -126,12 +148,18 @@ export function WardrobeCharacterProjection({
       {GLOWS.map((glow, index) => <img
         key={`${glow.src}:${index}`}
         className={glow.mirrored ? styles.mirrored : undefined}
-        src={glow.src} alt="" draggable={false}
+        src={glow.src}
+        alt=""
+        draggable={false}
       />)}
     </div>
     <AccessoryRail side="left" />
-    <div className={styles.characterCore}>
+    <div className={styles.characterCore} data-pinoria-character-core>
       <LayeredCharacter config={config} className={styles.character} />
+    </div>
+    <div className={styles.companion} data-pinoria-character-companion aria-label="Mori">
+      <div className={styles.companionHalo} />
+      <img src={COMPANION} alt="" draggable={false} />
     </div>
     <AccessoryRail side="right" />
   </div>;

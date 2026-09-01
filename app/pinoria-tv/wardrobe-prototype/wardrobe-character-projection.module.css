@@ -17,7 +17,7 @@
 }
 .auraGround {
   position: absolute;
-  z-index: 5;
+  z-index: 4;
   left: 25%;
   right: 25%;
   bottom: 8%;
@@ -29,8 +29,8 @@
 }
 .marks {
   position: absolute;
-  z-index: 6;
   inset: 0;
+  z-index: auto;
 }
 .marks img {
   position: absolute;
@@ -45,7 +45,7 @@
 }
 .glows {
   position: absolute;
-  z-index: 20;
+  z-index: 8;
   inset: 5%;
   opacity: .33;
   mix-blend-mode: screen;
@@ -61,7 +61,7 @@
 .mirrored { transform: scaleX(-1); }
 .characterCore {
   position: absolute;
-  z-index: 10;
+  z-index: 20;
   inset: 3% 10% 0;
 }
 .character {
@@ -77,9 +77,36 @@
   height: 100%;
   object-fit: contain;
 }
-.accessoryRail {
+.companion {
   position: absolute;
   z-index: 28;
+  right: 9%;
+  bottom: 7%;
+  width: clamp(88px, 7.2vw, 132px);
+  aspect-ratio: 1;
+  animation: companionFloat 3.9s ease-in-out infinite;
+  filter: drop-shadow(0 18px 22px rgba(0,0,0,.34));
+}
+.companionHalo {
+  position: absolute;
+  z-index: 0;
+  inset: -16%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(174,229,255,.2), rgba(131,117,255,.08) 48%, transparent 72%);
+  filter: blur(6px);
+  animation: companionGlow 2.8s ease-in-out infinite;
+}
+.companion > img {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.accessoryRail {
+  position: absolute;
+  z-index: 42;
   top: 53%;
   transform: translateY(-50%);
   display: grid;
@@ -112,7 +139,10 @@
   object-fit: contain;
   filter: drop-shadow(0 6px 8px rgba(0,0,0,.24));
 }
-.accessoryEmpty > span { color: rgba(242,225,194,.15); font-size: 13px; }
+.accessoryEmpty > span {
+  color: rgba(242,225,194,.15);
+  font-size: 13px;
+}
 .accessorySlot > b {
   position: absolute;
   right: -3px;
@@ -145,12 +175,25 @@
   0%,100% { transform: translateY(0); }
   50% { transform: translateY(-9px); }
 }
+@keyframes companionFloat {
+  0%,100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-10px) rotate(1.5deg); }
+}
+@keyframes companionGlow {
+  0%,100% { opacity: .5; transform: scale(.94); }
+  50% { opacity: .86; transform: scale(1.08); }
+}
 @media (max-aspect-ratio: 4/3) {
   .characterCore { left: 12%; right: 12%; }
   .accessoryRail { top: 50%; }
+  .companion { right: 11%; bottom: 8%; width: clamp(82px, 11vw, 122px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .auraBack,
   .glows img,
-  .character { animation: none; }
+  .character,
+  .companion,
+  .companionHalo {
+    animation: none;
+  }
 }
