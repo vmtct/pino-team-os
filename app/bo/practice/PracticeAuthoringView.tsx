@@ -68,10 +68,12 @@ export function PracticeAuthoringView() {
   const [previewing, setPreviewing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const createReplay = useRef<ReplayKey | null>(null);
   const uploadReplay = useRef<Record<string, ReplayKey>>({});
+  const uploadInFlight = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -156,9 +158,10 @@ export function PracticeAuthoringView() {
   function patchPage(clientKey: string, patch: Partial<PageForm>) {
     setForm(current => ({ ...current, pages: patchPageByClientKey(current.pages, clientKey, patch) }));
   }
-  function addPage() { setForm(current => ({ ...current, pages: [...current.pages, blankPage()] })); }
-  function removePage(index: number) { setForm(current => ({ ...current, pages: current.pages.filter((_, pageIndex) => pageIndex !== index) })); }
+  function addPage() { if (!uploadInFlight.current) setForm(current => ({ ...current, pages: [...current.pages, blankPage()] })); }
+  function removePage(index: number) { if (!uploadInFlight.current) setForm(current => ({ ...current, pages: current.pages.filter((_, pageIndex) => pageIndex !== index) })); }
   function movePage(index: number, direction: -1 | 1) {
+    if (uploadInFlight.current) return;
     setForm(current => {
       const target = index + direction; if (target < 0 || target >= current.pages.length) return current;
       const pages = [...current.pages]; [pages[index], pages[target]] = [pages[target]!, pages[index]!]; return { ...current, pages };
@@ -166,11 +169,12 @@ export function PracticeAuthoringView() {
   }
 
   async function upload(clientKey: string, kind: "sheet" | "worksheet", file: File) {
-    if (!selected) return;
+    if (!selected || uploadInFlight.current) return;
     const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
     if (!allowed.has(file.type)) return setError("Practice media chỉ hỗ trợ PNG, JPEG hoặc WebP.");
     const slot = `${selected.id}:${clientKey}:${kind}`, signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
     if (uploadReplay.current[slot]?.signature !== signature) uploadReplay.current[slot] = { signature, key: crypto.randomUUID() };
+    uploadInFlight.current = true; setUploading(true);
     setBusy(`upload-${clientKey}-${kind}`); setError("");
     try {
       const media = await boApi.uploadPracticeMedia(file, selected.pathProgramId, uploadReplay.current[slot]!.key);
@@ -181,7 +185,7 @@ export function PracticeAuthoringView() {
         : { worksheetMediaAssetId: media.mediaAssetId, worksheetPreviewUrl: previewUrl, worksheetName: file.name });
       setMessage(`${kind === "sheet" ? "Sheet" : "Worksheet"} đã ingest thành opaque media asset.`);
     } catch (cause) { showError(cause); }
-    finally { setBusy(""); }
+    finally { uploadInFlight.current = false; setUploading(false); setBusy(""); }
   }
 
   function validateDraft(): string | null {
@@ -295,12 +299,12 @@ export function PracticeAuthoringView() {
           {creating ? <div className={styles.createGate}><div><strong>Tạo resource trước khi attach media</strong><span>Resource context được Core validate theo Path + canonical repertoire.</span></div><button className={bo.primaryButton} disabled={!!busy} onClick={() => void createResource()}>{busy === "create" ? "Đang tạo…" : "Create draft"}</button></div>
           : previewing ? <DraftPreview title={form.title} pages={form.pages} />
           : <div className={styles.pageStack}>
-              <div className={styles.pageStackHead}><div><strong>Ordered pages</strong><span>Sheet bắt buộc · Worksheet tùy chọn</span></div><button className={bo.secondaryButton} onClick={addPage}>+ Add page</button></div>
+              <div className={styles.pageStackHead}><div><strong>Ordered pages</strong><span>Sheet bắt buộc · Worksheet tùy chọn</span></div><button className={bo.secondaryButton} disabled={uploading} onClick={addPage}>+ Add page</button></div>
               {form.pages.map((page, index) => <article className={styles.pageCard} key={page.clientKey}>
-                <div className={styles.pageTop}><div><span>Page {index + 1}</span><small>{page.id ?? "new page"}</small></div><div className={styles.pageActions}><button className={bo.secondaryButton} disabled={index === 0} onClick={() => movePage(index, -1)}>↑</button><button className={bo.secondaryButton} disabled={index === form.pages.length - 1} onClick={() => movePage(index, 1)}>↓</button><button className={styles.removeButton} disabled={form.pages.length === 1} onClick={() => removePage(index)}>Remove</button></div></div>
+                <div className={styles.pageTop}><div><span>Page {index + 1}</span><small>{page.id ?? "new page"}</small></div><div className={styles.pageActions}><button className={bo.secondaryButton} disabled={uploading || index === 0} onClick={() => movePage(index, -1)}>↑</button><button className={bo.secondaryButton} disabled={uploading || index === form.pages.length - 1} onClick={() => movePage(index, 1)}>↓</button><button className={styles.removeButton} disabled={uploading || form.pages.length === 1} onClick={() => removePage(index)}>Remove</button></div></div>
                 <div className={styles.mediaGrid}>
-                  <MediaSlot label="Sheet" required mediaAssetId={page.sheetMediaAssetId} fileName={page.sheetName} previewUrl={page.sheetPreviewUrl} busy={busy === `upload-${page.clientKey}-sheet`} onFile={file => void upload(page.clientKey, "sheet", file)} />
-                  <MediaSlot label="Worksheet" mediaAssetId={page.worksheetMediaAssetId ?? ""} fileName={page.worksheetName} previewUrl={page.worksheetPreviewUrl} busy={busy === `upload-${page.clientKey}-worksheet`} onFile={file => void upload(page.clientKey, "worksheet", file)} onRemove={() => patchPage(page.clientKey, { worksheetMediaAssetId: null, worksheetPreviewUrl: null, worksheetName: undefined })} />
+                  <MediaSlot label="Sheet" required mediaAssetId={page.sheetMediaAssetId} fileName={page.sheetName} previewUrl={page.sheetPreviewUrl} busy={busy === `upload-${page.clientKey}-sheet`} disabled={uploading} onFile={file => void upload(page.clientKey, "sheet", file)} />
+                  <MediaSlot label="Worksheet" mediaAssetId={page.worksheetMediaAssetId ?? ""} fileName={page.worksheetName} previewUrl={page.worksheetPreviewUrl} busy={busy === `upload-${page.clientKey}-worksheet`} disabled={uploading} onFile={file => void upload(page.clientKey, "worksheet", file)} onRemove={() => patchPage(page.clientKey, { worksheetMediaAssetId: null, worksheetPreviewUrl: null, worksheetName: undefined })} />
                 </div>
               </article>)}
             </div>}
@@ -312,9 +316,9 @@ export function PracticeAuthoringView() {
   </main>;
 }
 
-type MediaSlotProps = { label:string;required?:boolean;mediaAssetId:string;fileName?:string;previewUrl?:string|null;busy:boolean;onFile:(file:File)=>void;onRemove?:()=>void };
-function MediaSlot({ label, required, mediaAssetId, fileName, previewUrl, busy, onFile, onRemove }: MediaSlotProps) {
-  return <div className={styles.mediaSlot}><div className={styles.mediaHead}><strong>{label}{required ? " *" : ""}</strong><span>{mediaAssetId ? "READY" : required ? "REQUIRED" : "OPTIONAL"}</span></div>{previewUrl ? <img className={styles.assetPreview} src={previewUrl} alt={`${label} preview`} /> : <div className={styles.assetEmpty}>{mediaAssetId ? "Opaque media asset ready" : `No ${label}`}</div>}<small>{fileName ?? (mediaAssetId || (required ? "Upload required" : "Missing Worksheet is valid"))}</small><div className={styles.mediaActions}><label className={bo.secondaryButton}>{busy ? "Uploading…" : mediaAssetId ? "Replace" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; if (file) onFile(file); event.currentTarget.value = ""; }} /></label>{onRemove && mediaAssetId ? <button className={styles.removeButton} disabled={busy} onClick={onRemove}>Remove Worksheet</button> : null}</div></div>;
+type MediaSlotProps = { label:string;required?:boolean;mediaAssetId:string;fileName?:string;previewUrl?:string|null;busy:boolean;disabled?:boolean;onFile:(file:File)=>void;onRemove?:()=>void };
+function MediaSlot({ label, required, mediaAssetId, fileName, previewUrl, busy, disabled, onFile, onRemove }: MediaSlotProps) {
+  return <div className={styles.mediaSlot}><div className={styles.mediaHead}><strong>{label}{required ? " *" : ""}</strong><span>{mediaAssetId ? "READY" : required ? "REQUIRED" : "OPTIONAL"}</span></div>{previewUrl ? <img className={styles.assetPreview} src={previewUrl} alt={`${label} preview`} /> : <div className={styles.assetEmpty}>{mediaAssetId ? "Opaque media asset ready" : `No ${label}`}</div>}<small>{fileName ?? (mediaAssetId || (required ? "Upload required" : "Missing Worksheet is valid"))}</small><div className={styles.mediaActions}><label className={bo.secondaryButton}>{busy ? "Uploading…" : mediaAssetId ? "Replace" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || disabled} onChange={event => { const file = event.target.files?.[0]; if (file) onFile(file); event.currentTarget.value = ""; }} /></label>{onRemove && mediaAssetId ? <button className={styles.removeButton} disabled={busy || disabled} onClick={onRemove}>Remove Worksheet</button> : null}</div></div>;
 }
 function DraftPreview({ title, pages }: { title:string;pages:PageForm[] }) {
   return <section className={styles.previewPanel}><div><span className={bo.status}>DRAFT PREVIEW</span><h3>{title || "Untitled Practice"}</h3></div><div className={styles.previewGrid}>{pages.map((page, index) => <article className={styles.previewPage} key={page.clientKey}><strong>Page {index + 1}</strong><PreviewAsset label="Sheet" previewUrl={page.sheetPreviewUrl} mediaAssetId={page.sheetMediaAssetId} />{page.worksheetMediaAssetId ? <PreviewAsset label="Worksheet" previewUrl={page.worksheetPreviewUrl} mediaAssetId={page.worksheetMediaAssetId} /> : null}</article>)}</div></section>;

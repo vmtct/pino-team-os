@@ -64,3 +64,17 @@ test("delayed upload patches the same logical page after reorder and no-ops afte
   assert.deepEqual(patched.map(page => [page.clientKey, page.sheetMediaAssetId]), [["page-b", "b"], ["page-a", "uploaded"]]);
   assert.deepEqual(patchPageByClientKey([second], "page-a", { sheetMediaAssetId: "late" }), [second]);
 });
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+test("production authoring UI freezes structural edits during an in-flight upload", () => {
+  const source = readFileSync(join(process.cwd(), "app/bo/practice/PracticeAuthoringView.tsx"), "utf8");
+  assert.match(source, /if \(!selected \|\| uploadInFlight\.current\) return;/);
+  assert.match(source, /uploadInFlight\.current = true; setUploading\(true\);/);
+  assert.match(source, /finally \{ uploadInFlight\.current = false; setUploading\(false\); setBusy\(""\); \}/);
+  assert.match(source, /disabled=\{uploading\} onClick=\{addPage\}/);
+  assert.match(source, /disabled=\{uploading \|\| index === 0\}/);
+  assert.match(source, /disabled=\{uploading \|\| form\.pages\.length === 1\}/);
+  assert.match(source, /disabled=\{uploading\} onFile=/);
+});
