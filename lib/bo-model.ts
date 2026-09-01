@@ -39,6 +39,15 @@ export interface BoSyllabus {
   publicationStatus: string;
 }
 
+export type BoLearningSyllabusOwnerType = "HOUSE_PATH" | "TOPPI_PROGRAM";
+export interface BoLearningSyllabusOwner { type: BoLearningSyllabusOwnerType; id: string }
+export interface BoLearningSyllabus { id:string; owner:BoLearningSyllabusOwner; code:string; lifecycle:"ACTIVE"|"ARCHIVED"; revision:number; createdByUserId:string; createdAt:string; archivedByUserId:string|null; archivedAt:string|null; archiveReason:string|null }
+export interface BoLearningSyllabusVersion { id:string; syllabusId:string; versionNumber:number; state:"DRAFT"|"PUBLISHED"; title:string; shortDescription:string|null; publicDescription:string|null; tags:string[]; thumbnailMediaId:string|null; coverMediaId:string|null; sourceType:string|null; sourceRef:string|null; provenance:Record<string,unknown>|null; revision:number; createdByUserId:string; createdAt:string; updatedAt:string; publishedByUserId:string|null; publishedAt:string|null }
+export interface BoLearningSyllabusSummary { syllabus:BoLearningSyllabus; currentDraftVersionNumber:number|null; latestPublishedVersionNumber:number|null; latestPublishedTitle:string|null }
+export interface BoLearningSyllabusDetail { syllabus:BoLearningSyllabus; versions:BoLearningSyllabusVersion[]; currentDraft:BoLearningSyllabusVersion|null; latestPublished:BoLearningSyllabusVersion|null }
+export interface BoLearningSyllabusOwnerCatalog { housePaths:Array<{id:string;code:string;displayName:string;status:string}>; toppiPrograms:Array<{id:string;code:string}> }
+export interface BoLearningSyllabusDraftInput { title:string; shortDescription?:string|null; publicDescription?:string|null; tags?:string[]; thumbnailMediaId?:string|null; coverMediaId?:string|null; sourceType?:string|null; sourceRef?:string|null; provenance?:Record<string,unknown>|null }
+
 export interface BoSession {
   id: string;
   runningClassId: string | null;

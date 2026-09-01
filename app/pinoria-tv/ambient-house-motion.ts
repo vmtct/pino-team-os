@@ -246,14 +246,15 @@ function pathIsClear(path: readonly { x: number; y: number }[], agents: readonly
 }
 
 function furthestClearX(currentX: number, proposedX: number, y: number, agents: readonly AmbientAgent[], agentId: string) {
-  if (currentX === proposedX || pointIsClear({ x: proposedX, y }, agents, agentId)) return proposedX;
+  const path = (x: number) => [{ x: currentX, y }, { x, y }];
+  if (currentX === proposedX || pathIsClear(path(proposedX), agents, agentId)) return proposedX;
   let safe = currentX;
   let low = 0;
   let high = 1;
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const ratio = (low + high) / 2;
     const x = currentX + (proposedX - currentX) * ratio;
-    if (pointIsClear({ x, y }, agents, agentId)) {
+    if (pathIsClear(path(x), agents, agentId)) {
       safe = x;
       low = ratio;
     } else {
@@ -388,17 +389,6 @@ export function stepAmbientAgents(
     if (reservations.has(agent.laneId)) reservations.set(agent.laneId, (reservations.get(agent.laneId) ?? 0) + 1);
   }
 
-  const departingOwner = previous.find((agent) => options.departingIds?.has(agent.id) && !agent.connectorId);
-  const connectorMover = activeConnectorAgent ? undefined : [...previous]
-    .filter((agent) => !agent.connectorId)
-    .sort((a, b) => hash(`${a.id}:${a.activityEpoch}:connector-move`) - hash(`${b.id}:${b.activityEpoch}:connector-move`) || a.id.localeCompare(b.id))
-    .find((agent) => Boolean(agent.targetConnectorId || chooseClearConnector(agent, connectors, previous)));
-  const movementOwnerId = activeConnectorAgent
-    ? null
-    : departingOwner?.id ?? connectorMover?.id ?? [...previous]
-      .filter((agent) => !agent.connectorId)
-      .sort((a, b) => hash(`${a.id}:${a.activityEpoch}:move`) - hash(`${b.id}:${b.activityEpoch}:move`) || a.id.localeCompare(b.id))[0]?.id ?? null;
-
   const next = previous.map((agent) => {
     const departing = options.departingIds?.has(agent.id) ?? false;
     let motionState = departing || agent.connectorId ? "walk" as const : agent.motionState;
@@ -440,7 +430,7 @@ export function stepAmbientAgents(
     }
 
     const lane = lanes.get(agent.laneId);
-    if (!lane || motionState === "idle" || agent.id !== movementOwnerId) return { ...agent, ...activity };
+    if (!lane || motionState === "idle") return { ...agent, ...activity };
     const bounds = motionBounds(lane);
 
     if (departing) {
@@ -504,6 +494,29 @@ export function stepAmbientAgents(
     return { ...agent, ...activity, x, direction };
   });
 
+  // Every proposal is checked against the previous collision-free frame. Two peers
+  // can still propose points toward each other in the same tick, so deterministically
+  // roll back the later proposal. A previous-frame point is safe against every other
+  // accepted proposal because each proposal was checked against all previous points.
+  for (let left = 0; left < next.length; left += 1) {
+    for (let right = left + 1; right < next.length; right += 1) {
+      if (Math.hypot(next[left]!.x - next[right]!.x, next[left]!.y - next[right]!.y) >= SAFE_CLEARANCE_PX) continue;
+      const before = previous[right]!;
+      next[right] = {
+        ...next[right]!,
+        laneId: before.laneId,
+        x: before.x,
+        y: before.y,
+        direction: before.direction,
+        depth: before.depth,
+        targetConnectorId: before.targetConnectorId,
+        connectorId: before.connectorId,
+        connectorFromLaneId: before.connectorFromLaneId,
+        connectorToLaneId: before.connectorToLaneId,
+        connectorProgress: before.connectorProgress,
+      };
+    }
+  }
   for (const agent of next) {
     if (!agent.connectorId) agent.x = Math.round(agent.x * 1_000_000) / 1_000_000;
   }

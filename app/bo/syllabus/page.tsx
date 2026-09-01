@@ -1,3 +1,3 @@
-import { BoOperationalView } from "../BoOperationalView";
+﻿import { LearningSyllabusDesk } from "./LearningSyllabusDesk";
 
-export default function BoSyllabusPage() { return <BoOperationalView view="syllabus" />; }
+export default function BoSyllabusPage() { return <LearningSyllabusDesk />; }

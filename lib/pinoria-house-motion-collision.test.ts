@@ -57,6 +57,15 @@ test("actual graph keeps forty visible learners at 2D social spacing across over
   assert.equal(sawLane10And11, true, "test never exercised simultaneous lane-10/lane-11 occupancy");
 });
 
+test("forty visible learners retain concurrent ambient movement", () => {
+  const ids = Array.from({ length: 40 }, (_, index) => `learner-${String(index + 1).padStart(2, "0")}`);
+  const before = createAmbientAgents(ids, actual);
+  const after = stepAmbientAgents(before, actual, 40);
+  const moved = after.filter((agent, index) => Math.hypot(agent.x - before[index]!.x, agent.y - before[index]!.y) > 0.0001);
+  assert.ok(moved.length > 1, `ambient motion serialized to ${moved.length} mover(s)`);
+  assert.ok(ambientMinimumVisibleSeparation(after) >= 71.999);
+});
+
 test("forty-learner departure transition remains collision-safe", () => {
   const ids = Array.from({ length: 40 }, (_, index) => `learner-${String(index + 1).padStart(2, "0")}`);
   let agents = createAmbientAgents(ids, actual);
