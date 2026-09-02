@@ -163,6 +163,10 @@
 .staffPinPanel strong { font-size: 12px; color: #292936; }
 .staffPinPanel p, .staffPinPanel small { margin: 0; color: #737380; font-size: 11px; line-height: 1.45; }
 .staffPinFields { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(120px, .7fr) auto; gap: 10px; align-items: end; }
+.staffPinReveal { display: grid; gap: 8px; padding: 14px; border: 1px solid #d9d2f4; border-radius: 12px; background: #faf8ff; }
+.staffPinReveal > span { color: #6e6785; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.staffPinReveal > code { width: fit-content; padding: 8px 12px; border-radius: 9px; background: #2d2840; color: #fff; font-size: 22px; font-weight: 850; letter-spacing: .16em; }
+.staffPinReveal > div { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 760px) { .staffPinFields { grid-template-columns: 1fr; } }
 
 .learnerWorkspace { display: grid; grid-template-columns: minmax(250px, .72fr) minmax(0, 1.7fr); gap: 16px; align-items: start; }

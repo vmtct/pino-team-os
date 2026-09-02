@@ -46,6 +46,7 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
   assert.match(apiSource, /removeAccessAssignment:[\s\S]*access\/assignments\/remove/);
   assert.match(apiSource, /setAccessUserStatus:[\s\S]*access\/users\/status/);
   assert.doesNotMatch(apiSource, /configureStaffPin|\/api\/staff-pin\/configure/);
+  assert.match(apiSource, /resetStaffPin:[\s\S]*access\/users\/\$\{encodeURIComponent\(userId\)\}\/staff-pin\/reset/);
   assert.match(apiSource, /onboardStaff:[\s\S]*write<BoStaffOnboardingResult>\("workforce\/staff-onboarding"/);
   assert.match(apiSource, /assignLearningOwner:[\s\S]*write<BoSessionLearningOwner>/);
 });
