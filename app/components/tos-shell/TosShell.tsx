@@ -11,16 +11,6 @@ export type TosFooterItem = {
   icon?: ReactNode;
 };
 
-export type BoNavItem = {
-  label: string;
-  href: string;
-};
-
-export type BoNavGroup = {
-  label: string;
-  items: BoNavItem[];
-};
-
 function assertFooterLimit(items: TosFooterItem[]) {
   if (items.length > 5) {
     throw new Error("TOS contextual footer navigation is limited to 5 items by Team Surface Doctrine v1.");
@@ -102,50 +92,3 @@ export function TosShell({
   );
 }
 
-export function BoShell({
-  children,
-  title = "PINO Team",
-  subtitle = "Back Office",
-  groups,
-  activeHref,
-}: {
-  children: ReactNode;
-  title?: string;
-  subtitle?: string;
-  groups: BoNavGroup[];
-  activeHref?: string;
-}) {
-  return (
-    <div className={styles.boShell}>
-      <aside className={styles.boSidebar}>
-        <div className={styles.boBrand}>
-          <span className={styles.boMark}>P</span>
-          <div>
-            <strong>{title}</strong>
-            <small>{subtitle}</small>
-          </div>
-        </div>
-
-        <nav className={styles.boNav} aria-label="Điều hướng Back Office">
-          {groups.map((group) => (
-            <section key={group.label} className={styles.boNavGroup}>
-              <span>{group.label}</span>
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={item.href === activeHref ? styles.boNavActive : undefined}
-                  aria-current={item.href === activeHref ? "page" : undefined}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </section>
-          ))}
-        </nav>
-      </aside>
-
-      <main className={styles.boMain}>{children}</main>
-    </div>
-  );
-}
