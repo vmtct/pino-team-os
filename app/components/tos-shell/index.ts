@@ -1,9 +1,3 @@
-export {
-  BoShell,
-  TosShell,
-  type BoNavGroup,
-  type BoNavItem,
-  type TosAppTheme,
-  type TosFooterItem,
-} from "./TosShell";
+export { TosShell, type TosAppTheme, type TosFooterItem } from "./TosShell";
+export { BoShell, type BoNavChild, type BoNavGroup, type BoNavItem } from "./BoShell";
 export * from "./navigation";
