@@ -1,0 +1,218 @@
+name: Train1 PLT-TOS + PLT-BO Candidate Staging
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: train1-plt-tos-bo-staging
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    if: github.event.issue.title == '[GPT] Train1 PLT-TOS BO staging' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      TARGET_SHA: 77bab97d9b49b6aa681e658ba6688222d436d63d
+      PROD_BASE: c6e1085e0ff1882e05c4ed768c7a4731d6ae8301
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
+
+    steps:
+      - name: Validate Founder staging request
+        shell: bash
+        run: |
+          set -euo pipefail
+          reject() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TRAIN1_PLT_TOS_BO_STAGING: **REJECTED**\n\n$1\n\nNo staging or production mutation was attempted."
+            exit 1
+          }
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CANDIDATE_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CANDIDATE_SHA line."
+          requested="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          [ "$requested" = "$TARGET_SHA" ] || reject "Requested SHA is not the frozen Train 1 candidate."
+          grep -Eq '^CONFIRM:[[:space:]]*STAGE_TRAIN1_PLT_TOS_BO[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing explicit staging confirmation."
+          [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
+
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact candidate boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git merge-base "$PROD_BASE" "$TARGET_SHA")" = "$PROD_BASE"
+          test "$(git rev-list --count "$PROD_BASE..$TARGET_SHA")" = "4"
+          git diff --check "$PROD_BASE" "$TARGET_SHA"
+          cat > /tmp/expected-files.txt <<'EOF'
+          app/TosHome.tsx
+          app/availability/page.tsx
+          app/bo/BoOperationalView.tsx
+          app/bo/layout.tsx
+          app/bo/navigation.ts
+          app/classroom/ClassroomView.tsx
+          app/components/WorkforceWorkspace.tsx
+          app/components/tos-shell/BoShell.tsx
+          app/components/tos-shell/TosShell.tsx
+          app/components/tos-shell/bo-shell.module.css
+          app/components/tos-shell/index.ts
+          app/components/tos-shell/navigation.ts
+          app/open-studio/OpenStudioDesk.tsx
+          app/page.tsx
+          app/pinoria/arrival-desk.tsx
+          app/pinoria/attendance/attendance-desk.tsx
+          app/schedule/page.tsx
+          app/tasks/page.tsx
+          app/tasks/tasks.module.css
+          app/tos-home.module.css
+          docs/tos-surface-reconcile-v1.md
+          lib/bo-access-system-contract.test.ts
+          lib/bo-shell-presentation.test.ts
+          lib/host-boundary.ts
+          lib/tos-reception-attendance-api.test.ts
+          lib/tos-surface-navigation.test.ts
+          EOF
+          sed -i 's/^          //' /tmp/expected-files.txt
+          git diff --name-only "$PROD_BASE" "$TARGET_SHA" | sort > /tmp/actual-files.txt
+          sort /tmp/expected-files.txt > /tmp/expected-sorted.txt
+          diff -u /tmp/expected-sorted.txt /tmp/actual-files.txt
+          if git diff --name-only "$PROD_BASE" "$TARGET_SHA" | grep -Eq '(^|/)(wfm|staff-pin-reset|practice|piano|pinoria-tv/ambient|wardrobe)'; then
+            echo "Unexpected Train 1 dependency leaked into candidate." >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Re-run exact candidate validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run pino:verify
+          test -z "$(git status --porcelain)"
+
+      - name: Build OpenNext staging artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+
+      - name: Assert staging-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const ts = require('typescript');
+          const readJsonc = file => {
+            const parsed = ts.parseConfigFileTextToJson(file, fs.readFileSync(file, 'utf8'));
+            if (parsed.error || !parsed.config) throw new Error(`invalid JSONC config: ${file}`);
+            return parsed.config;
+          };
+          const staging = readJsonc('wrangler.staging.jsonc');
+          const production = readJsonc('wrangler.jsonc');
+          if (staging.name !== 'pino-team-os-staging' || staging.workers_dev !== true) throw new Error('wrong staging Worker boundary');
+          const required = new Set(['PINO_CORE','PINO_WORKFORCE_CORE','PINO_BO_CORE','PINO_TOS_LEARNING_CORE','PINO_STAFF_PIN_CORE','PINO_PINORIA_TV_CORE']);
+          for (const service of staging.services ?? []) {
+            if (required.has(service.binding)) {
+              if (service.service !== 'pino-core-staging') throw new Error(`non-staging Core binding: ${service.binding}`);
+              required.delete(service.binding);
+            }
+          }
+          if (required.size) throw new Error(`missing staging bindings: ${[...required].join(',')}`);
+          const raw = fs.readFileSync('wrangler.jsonc','utf8');
+          for (const marker of ['WORKFORCE_BO_STAGING_BYPASS','PINORIA_TOS_STAGING_BYPASS','OPEN_STUDIO_BO_STAGING_BYPASS']) {
+            if (raw.includes(marker)) throw new Error(`staging marker leaked to production config: ${marker}`);
+          }
+          if (production.name !== 'pino-team-os') throw new Error('production Worker identity drift');
+          NODE
+
+      - name: Deploy exact candidate to staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="${TARGET_SHA:0:12}"
+          CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+            npx wrangler deploy -c wrangler.staging.jsonc --tag "train1-${short_sha}" --message "Train1 staging ${TARGET_SHA}"
+
+      - name: Resolve active staging version
+        id: deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+            npx wrangler deployments list -c wrangler.staging.jsonc --json > deployments.json
+          deployment="$(jq -c --arg m "Train1 staging ${TARGET_SHA}" '[.[] | select(.annotations["workers/message"] == $m)] | last' deployments.json)"
+          [ "$deployment" != "null" ] || { echo "Exact staging provenance not found" >&2; exit 1; }
+          version_id="$(jq -r '.versions[] | select(.percentage == 100) | .version_id // empty' <<<"$deployment")"
+          [ -n "$version_id" ] || { echo "Exact Train 1 staging version is not active at 100%" >&2; exit 1; }
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+
+      - name: Install browser for FULL E2E
+        shell: bash
+        run: npx playwright install chromium
+
+      - name: Run TOS + BO staging browser E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { chromium } from '@playwright/test';
+          const base = process.env.STAGING_URL;
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+          const root = await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+          if (!root || root.status() !== 200) throw new Error(`TOS root status ${root?.status()}`);
+          const rootText = await page.locator('body').innerText();
+          for (const text of ['Hôm nay bạn làm gì?', 'Ca làm', 'Lớp học', 'Việc', 'Pinoria']) if (!rootText.includes(text)) throw new Error(`missing TOS text: ${text}`);
+          for (const path of ['/availability','/tasks']) {
+            const res = await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
+            if (!res || res.status() !== 200) throw new Error(`${path} status ${res?.status()}`);
+          }
+          const bo = await page.goto(`${base}/bo`, { waitUntil: 'domcontentloaded' });
+          if (!bo || bo.status() !== 200) throw new Error(`BO status ${bo?.status()}`);
+          const boText = await page.locator('body').innerText();
+          for (const text of ['PINO House', 'Back Office', 'Workspace', 'Operations', 'Workforce', 'System']) if (!boText.includes(text)) throw new Error(`missing BO text: ${text}`);
+          await page.keyboard.press('Control+K');
+          await page.getByLabel('Tìm màn hình Back Office').waitFor({ state: 'visible' });
+          await page.keyboard.press('Escape');
+          const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+          const mobileBo = await mobile.goto(`${base}/bo`, { waitUntil: 'domcontentloaded' });
+          if (!mobileBo || mobileBo.status() !== 200) throw new Error(`mobile BO status ${mobileBo?.status()}`);
+          await mobile.getByLabel('Mở menu').click();
+          await mobile.getByRole('navigation', { name: 'Điều hướng Back Office' }).waitFor({ state: 'visible' });
+          await browser.close();
+          console.log('TRAIN1_PLT_TOS_BO_FULL_E2E=PASS');
+          NODE
+
+      - name: Report staging PASS
+        if: success()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TRAIN1_PLT_TOS_BO_STAGING: **PASS**\n\n- Candidate: ${TARGET_SHA}\n- Production base: ${PROD_BASE}\n- Staging Worker: pino-team-os-staging\n- Active staging version: ${{ steps.deployment.outputs.version_id }}\n- Exact pino:verify: PASS\n- TOS + BO browser FULL E2E: PASS\n\nNo production Team Worker, production route/domain, Core runtime, D1, Access policy, Staff, learner, Visit, Attendance, or reward mutation was performed."
+
+      - name: Report fail-safe
+        if: failure()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TRAIN1_PLT_TOS_BO_STAGING: **FAIL_SAFE**\n\nCandidate: ${TARGET_SHA}\n\nNo production Team Worker, production route/domain, Core runtime, D1, Access policy, Staff, learner, Visit, Attendance, or reward mutation was authorized."
