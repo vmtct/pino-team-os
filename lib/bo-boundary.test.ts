@@ -46,10 +46,29 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
   assert.match(apiSource, /removeAccessAssignment:[\s\S]*access\/assignments\/remove/);
   assert.match(apiSource, /setAccessUserStatus:[\s\S]*access\/users\/status/);
   assert.doesNotMatch(apiSource, /configureStaffPin|\/api\/staff-pin\/configure/);
+  assert.match(apiSource, /resetStaffPin:[\s\S]*access\/users\/\$\{encodeURIComponent\(userId\)\}\/staff-pin\/reset/);
   assert.match(apiSource, /onboardStaff:[\s\S]*write<BoStaffOnboardingResult>\("workforce\/staff-onboarding"/);
   assert.match(apiSource, /assignLearningOwner:[\s\S]*write<BoSessionLearningOwner>/);
 });
 
+
+test("Staff PIN reset UI binds the loaded profile to the selected Staff target", async () => {
+  const source = await readFile("app/bo/staff/StaffManagementView.tsx", "utf8");
+  assert.match(source, /let current = true/);
+  assert.ok(source.includes("return () => { current = false; };"));
+  assert.match(source, /profile.id !== selectedId/);
+  assert.match(source, /accessUser.staffMemberId !== selectedId/);
+  assert.match(source, /selectedIdRef\.current !== targetStaffId/);
+  assert.match(source, /pinResetAttempts\[targetUserId\]/);
+  assert.match(source, /disabled=\{busy === "pin-reset"\}/);
+  assert.match(source, /pinResetInFlightRef\.current = targetStaffId/);
+  assert.match(source, /lockedId && !staff\.some/);
+  assert.match(source, /const nextId = lockedId \?\?/);
+  assert.match(source, /const refreshFence = refreshFenceRef\.current/);
+  assert.match(source, /refreshFence !== refreshFenceRef\.current/);
+  assert.ok((source.match(/refreshFenceRef\.current \+= 1/g) ?? []).length >= 2);
+  assert.doesNotMatch(source, /setPinResetAttempt\(null\)/);
+});
 
 test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap", async () => {
   const apiSource = await readFile("lib/bo-api.ts", "utf8");

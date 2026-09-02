@@ -41,6 +41,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/path-programs", "/api/bo/running-classes", "/api/bo/syllabi", "/api/bo/sessions",
     "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/access/users",
     `/api/bo/access/roles/${roleId}`, `/api/bo/access/roles/${roleId}/duplicate`, `/api/bo/access/roles/${roleId}/update`, `/api/bo/access/roles/${roleId}/archive`,
+    `/api/bo/access/users/${roleId}/staff-pin/reset`,
     "/api/bo/workforce/staff-records", "/api/bo/workforce/staff-onboarding", "/api/bo/workforce/planning/weekly", "/api/bo/workforce/planning/assignment", "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments", "/api/bo/access/assignments/remove", "/api/bo/access/users/status", "/api/bo/access/perimeter-reconcile",
     `/api/bo/workforce/staff-records/${roleId}`, `/api/bo/workforce/staff-records/${roleId}/status`,
@@ -62,7 +63,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/open_studio/unknown.v1/stream",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
     "/api/bo/workforce/staff-records/not-a-canonical-id", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything",
-    `/api/bo/workforce/staff-records/${roleId}/anything`, "/api/staff-pin/configure",
+    `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/access/users/${roleId}/staff-pin/reset/again`, "/api/staff-pin/configure",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }

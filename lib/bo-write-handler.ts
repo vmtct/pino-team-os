@@ -22,6 +22,7 @@ const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
+const STAFF_PIN_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/;
 const ACCESS_PERIMETER_RECONCILE_PATH = "access/perimeter-reconcile";
 const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
@@ -76,7 +77,7 @@ export async function handleBoWriteRequest(
     );
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || LEARNING_OWNER_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -87,8 +88,8 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A JSON request body is required" } }, 400);
     }
 
-    if (PARENT_PIN_PATH.test(path) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
-      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Parent PIN command body must be empty" } }, 400);
+    if ((PARENT_PIN_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path)) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: STAFF_PIN_RESET_PATH.test(path) ? "Staff PIN reset body must be empty" : "Parent PIN command body must be empty" } }, 400);
     }
 
     if (path === ACCESS_PERIMETER_RECONCILE_PATH) {
@@ -163,6 +164,7 @@ export function isAllowedPostPath(path: string): boolean {
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH
     || path === ACCESS_USER_STATUS_PATH
+    || STAFF_PIN_RESET_PATH.test(path)
     || STAFF_RECORD_PATH.test(path)
     || STAFF_STATUS_PATH.test(path)
     || DELIVERY_POST_PATHS.has(path)
