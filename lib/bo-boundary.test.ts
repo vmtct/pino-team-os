@@ -64,6 +64,9 @@ test("Staff PIN reset UI binds the loaded profile to the selected Staff target",
   assert.match(source, /pinResetInFlightRef\.current = targetStaffId/);
   assert.match(source, /lockedId && !staff\.some/);
   assert.match(source, /const nextId = lockedId \?\?/);
+  assert.match(source, /const refreshFence = refreshFenceRef\.current/);
+  assert.match(source, /refreshFence !== refreshFenceRef\.current/);
+  assert.ok((source.match(/refreshFenceRef\.current \+= 1/g) ?? []).length >= 2);
   assert.doesNotMatch(source, /setPinResetAttempt\(null\)/);
 });
 
