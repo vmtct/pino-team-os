@@ -135,3 +135,37 @@ test("same learner replacement visit never receives a stale arrival handoff", as
   }))).not.toEqual({ left: "", top: "", width: "" });
   await expect(actor).toHaveAttribute("data-suppressed", "true");
 });
+test("later arrivals do not restart the active arrival timer", async ({ page }) => {
+  let eventCalls = 0;
+  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }) });
+  });
+  await page.route("**/api/pinoria-tv/events**", async (route) => {
+    eventCalls += 1;
+    const after = Number(new URL(route.request().url()).searchParams.get("after") ?? "0");
+    const shouldDeliver = after < 5 && (after === 0 || eventCalls % 2 === 1);
+    const sequence = shouldDeliver ? after + 1 : after;
+    const events = shouldDeliver ? [{
+      sequence,
+      type: "ARRIVAL",
+      studentProfileId: `learner-stream-${sequence}`,
+      visitId: `visit-stream-${sequence}`,
+      characterId: `character-stream-${sequence}`,
+      occurredAt: `2026-09-02T00:00:0${sequence}.000Z`,
+      payload: { displayName: `Arrival ${sequence}`, character },
+    }] : [];
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: sequence, events } }) });
+  });
+  await page.route("**/api/pinoria-tv/presentation", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
+  });
+
+  await page.goto("/pinoria-tv?centerId=review-sustained-arrivals");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const firstActor = page.locator('[data-ambient-runtime-character="learner-stream-1"]');
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Arrival 1", { timeout: 5_000 });
+  await expect(firstActor).toHaveAttribute("data-suppressed", "true");
+  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 6_500 });
+  await expect.poll(() => eventCalls).toBeGreaterThanOrEqual(5);
+  await expect(firstActor).toHaveAttribute("data-suppressed", "true");
+});

@@ -183,10 +183,13 @@ export function ReceptionTv() {
     return () => window.clearInterval(timer);
   }, [centerId, pollPresentation]);
 
+  const scene = scenes[0] ?? null;
+  const arrivalSceneIsCurrent = scene?.kind !== "arrival"
+    || inside.some((learner) => learner.studentProfileId === scene.studentProfileId && learner.visit.id === scene.visitId);
+
   useEffect(() => {
-    const scene = scenes[0];
     if (!scene || presentation) return;
-    if (scene.kind === "arrival" && !inside.some((learner) => learner.studentProfileId === scene.studentProfileId && learner.visit.id === scene.visitId)) {
+    if (!arrivalSceneIsCurrent) {
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
       return;
     }
@@ -212,10 +215,9 @@ export function ReceptionTv() {
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [inside, scenes, presentation]);
+  }, [arrivalSceneIsCurrent, presentation, scene]);
 
   useLayoutEffect(() => {
-    const scene = scenes[0];
     if (!scene || scene.kind !== "arrival" || scene.phase !== "handoff") {
       setArrivalHandoffTarget(null);
       return;
@@ -238,7 +240,7 @@ export function ReceptionTv() {
       width: `${targetRect.width}px`,
       height: `${targetRect.height}px`,
     });
-  }, [scenes]);
+  }, [scene]);
   useEffect(() => {
     if (!presentation || !centerId) return;
     const presentationId = presentation.id;
@@ -306,7 +308,6 @@ export function ReceptionTv() {
     </main>;
   }
 
-  const scene = scenes[0] ?? null;
   const visualScene = scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff") ? scene : null;
   const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.studentProfileId);
   const departingId = scene?.kind === "departure" && scene.phase === "transition"
