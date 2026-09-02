@@ -52,6 +52,14 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
 });
 
 
+test("Staff PIN reset UI binds the loaded profile to the selected Staff target", async () => {
+  const source = await readFile("app/bo/staff/StaffManagementView.tsx", "utf8");
+  assert.match(source, /let current = true/);
+  assert.ok(source.includes("return () => { current = false; };"));
+  assert.match(source, /profile.id !== selectedId/);
+  assert.match(source, /accessUser.staffMemberId !== selectedId/);
+});
+
 test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap", async () => {
   const apiSource = await readFile("lib/bo-api.ts", "utf8");
   const staffSources = await Promise.all([

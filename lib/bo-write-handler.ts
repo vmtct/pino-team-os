@@ -67,7 +67,7 @@ export async function handleBoWriteRequest(
 
     const stagingIdentity = isOpenStudioPostPath(path)
       ? stagingBoOpenStudioIdentity(request, env)
-      : path === STAFF_ONBOARDING_PATH || STAFF_PIN_RESET_PATH.test(path)
+      : path === STAFF_ONBOARDING_PATH
         ? stagingBoWorkforceIdentity(request, env)
         : null;
     const identity = stagingIdentity ?? await authenticateBo(

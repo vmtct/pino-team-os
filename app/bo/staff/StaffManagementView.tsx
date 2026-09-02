@@ -43,10 +43,12 @@ export function StaffManagementView() {
     return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
   }, []);
   useEffect(() => {
-    setPinReset(null); setPinCopied(false); setPinResetAttempt(null);
-    if (!selectedId) { setProfile(null); return; }
+    let current = true;
+    setPinReset(null); setPinCopied(false); setPinResetAttempt(null); setProfile(null);
+    if (!selectedId) return () => { current = false; };
     setError("");
-    void boApi.staffRecord(selectedId).then((next) => { setProfile(next); setForm(profileForm(next)); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."));
+    void boApi.staffRecord(selectedId).then((next) => { if (current) { setProfile(next); setForm(profileForm(next)); } }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."); });
+    return () => { current = false; };
   }, [selectedId]);
 
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
@@ -103,7 +105,7 @@ export function StaffManagementView() {
   }
 
   async function resetStaffPin() {
-    if (!accessUser || !profile || profile.status !== "active" || accessUser.status !== "active") return;
+    if (!accessUser || !profile || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active") return;
     if (!confirm(`Reset PIN cho ${profile.displayLabel}?\n\nPIN hiện tại và tất cả phiên Staff PIN đang mở sẽ bị vô hiệu ngay. Core sẽ tự sinh PIN tạm; Manager không được chọn PIN mới.`)) return;
     const idempotencyKey = pinResetAttempt?.userId === accessUser.id ? pinResetAttempt.key : crypto.randomUUID();
     setPinResetAttempt({ userId: accessUser.id, key: idempotencyKey });
@@ -218,7 +220,7 @@ export function StaffManagementView() {
                 <div className={styles.staffPinPanel}>
                   <div><strong>Staff PIN</strong><p>Reset chỉ phát PIN tạm do Core sinh. PIN hiện tại và mọi Staff PIN session sẽ bị vô hiệu ngay; staff phải đổi PIN tạm trước lần dùng TOS tiếp theo.</p></div>
                   <div className={styles.staffActions}>
-                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.status !== "active" || accessUser.status !== "active"} onClick={() => void resetStaffPin()}>{busy === "pin-reset" ? "Đang reset…" : "Reset PIN"}</button>
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active"} onClick={() => void resetStaffPin()}>{busy === "pin-reset" ? "Đang reset…" : "Reset PIN"}</button>
                     {profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ reset khi Staff và Access đều active.</small> : null}
                   </div>
                   {pinReset?.userId === accessUser.id ? <div className={styles.staffPinReveal} data-testid="staff-pin-reset-reveal">
