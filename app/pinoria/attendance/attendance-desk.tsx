@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell/TosShell";
+import { TOS_PINORIA_FOOTER } from "@/app/components/tos-shell/navigation";
 import { workforceApi } from "@/lib/workforce-api";
 import { tosLearningApi, type DaySession, type RosterEntry, type SessionRoster } from "@/lib/tos-learning-api";
 import {
@@ -12,12 +13,6 @@ import {
 import styles from "./attendance.module.css";
 
 const CENTER_STORAGE = "pino.arrival.centerId";
-const footer = [
-  { id: "home", label: "Home", href: "/dashboard" },
-  { id: "presence", label: "Hiện diện", href: "/pinoria" },
-  { id: "attendance", label: "Điểm danh", href: "/pinoria/attendance" },
-];
-
 function todayAtHouse() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -164,7 +159,7 @@ export function AttendanceDesk() {
   const resolved = roster?.resolvedParticipations ?? [];
 
   return (
-    <TosShell title="Điểm danh" subtitle="Reception · Session Attendance" theme="pinoria" footerItems={footer} activeFooterId="attendance">
+    <TosShell title="Điểm danh" subtitle="Reception · Session Attendance" theme="pinoria" footerItems={TOS_PINORIA_FOOTER} activeFooterId="attendance">
       <div className={styles.page}>
         <section className={styles.notice}>
           <strong>Hiện diện House ≠ Điểm danh lớp</strong>
