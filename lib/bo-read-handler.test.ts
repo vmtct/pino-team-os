@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
-import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
+import { handleBoOperationalReadRequest, isPracticeReadPath, type BoReadEnv } from "./bo-read-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 import type { VerifiedBoIdentity } from "./bo-auth";
 
@@ -238,4 +238,10 @@ test("Practice reads never inherit the Workforce workers.dev staging identity", 
   }, "practice/resources");
   assert.equal(response.status, 401);
   assert.equal(called, false);
+});
+
+test("Practice read allowlist includes only bounded F1 access projections", () => {
+  assert.equal(isPracticeReadPath("practice/repertoire-access/context"), true);
+  assert.equal(isPracticeReadPath("practice/repertoire-access"), true);
+  assert.equal(isPracticeReadPath("practice/repertoire-access/grants"), false);
 });

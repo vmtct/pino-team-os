@@ -396,8 +396,11 @@ test("Open Studio staging identity is not reused for non-Open-Studio BO writes",
   assert.equal(called, false);
 });
 
-test("Practice write allowlist accepts only exact Core authoring commands", () => {
+test("Practice write allowlist accepts exact Core authoring and F1 access commands", () => {
   const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  assert.equal(isPracticeWritePath("practice/repertoire-access/grants"), true);
+  assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`), true);
+  assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}`), false);
   assert.equal(isPracticeWritePath("practice/resources"), true);
   assert.equal(isPracticeWritePath(`practice/resources/${id}/drafts`), true);
   assert.equal(isPracticeWritePath(`practice/versions/${id}`), true);

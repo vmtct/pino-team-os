@@ -1,5 +1,5 @@
-import { PracticeAuthoringView } from "./PracticeAuthoringView";
+import { PracticeWorkspace } from "./PracticeWorkspace";
 
 export default function PracticePage() {
-  return <PracticeAuthoringView />;
+  return <PracticeWorkspace />;
 }
