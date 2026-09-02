@@ -149,7 +149,8 @@ export type BoStaffProfilePatch = Partial<Pick<BoStaffProfile, "displayLabel" | 
 export type BoStaffOnboardingCommand =
   | { commandType: "ONBOARD_STAFF_RECORD_ONLY"; staff: { displayLabel: string; email?: string; mobile?: string; department?: string; roleLabel?: string; employmentType?: string; startDate?: string } }
   | { commandType: "ONBOARD_STAFF_WITH_ACCESS"; staff: { displayLabel: string; email?: string; mobile?: string; department?: string; roleLabel?: string; employmentType?: string; startDate?: string }; email: string; assignments: BoStaffAccessAssignmentInput[] }
-  | { commandType: "PROVISION_ACCESS_FOR_STAFF"; staffMemberId: string; email: string; assignments: BoStaffAccessAssignmentInput[] };
+  | { commandType: "PROVISION_ACCESS_FOR_STAFF"; staffMemberId: string; email: string; assignments: BoStaffAccessAssignmentInput[] }
+  | { commandType: "RESET_STAFF_PIN"; userId: string };
 
 export interface BoStaffAccessAssignmentInput {
   roleId: string;
@@ -163,7 +164,7 @@ export interface BoStaffOnboardingResult {
   userId?: string;
   externalIdentityId?: string;
   assignmentIds: string[];
-  accessState: "NOT_PROVISIONED" | "PROVISIONED_AWAITING_LOGIN";
+  accessState: "NOT_PROVISIONED" | "PROVISIONED_AWAITING_LOGIN" | "PIN_RESET_REQUIRED";
   staffPinState?: "ROTATION_REQUIRED" | "ACTIVE";
   initialPin?: string;
 }
