@@ -1,1 +1,7 @@
-import{redirect}from"next/navigation";export default function Page(){redirect("/dashboard")}
+import TosHome from "./TosHome";
+
+export const dynamic = "force-dynamic";
+
+export default function Page() {
+  return <TosHome />;
+}

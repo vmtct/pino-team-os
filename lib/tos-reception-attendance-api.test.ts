@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { canSettleFromRosterSource, tosReceptionAttendanceApi } from "./tos-reception-attendance-api";
+import { TOS_PINORIA_FOOTER } from "../app/components/tos-shell/navigation";
 
 test("Reception Attendance keeps Visit and Attendance on separate Pinoria surfaces", () => {
   const arrival = readFileSync(resolve(process.cwd(), "app/pinoria/arrival-desk.tsx"), "utf8");
   const attendance = readFileSync(resolve(process.cwd(), "app/pinoria/attendance/attendance-desk.tsx"), "utf8");
   assert.equal(arrival.includes("participation/settle"), false);
-  assert.equal(arrival.includes('href:"/pinoria/attendance"'), true);
+  assert.equal(arrival.includes("TOS_PINORIA_FOOTER"), true);
+  assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.href), ["/pinoria", "/pinoria/attendance"]);
   assert.equal(attendance.includes("Hiện diện House ≠ Điểm danh lớp"), true);
   for (const visitMutation of ["visits/open", "check-out", "pinoria/learners/search"]) assert.equal(attendance.includes(visitMutation), false, visitMutation);
   assert.equal(attendance.includes("tosReceptionAttendanceApi.settle"), true);

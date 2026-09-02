@@ -2,18 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell";
+import { TOS_CLASSROOM_FOOTER } from "@/app/components/tos-shell/navigation";
 import { workforceApi, WorkforceApiError, type StaffProfile, type WorkforceContext } from "@/lib/workforce-api";
 import { tosLearningApi, TosLearningApiError, type DaySession, type LearningOptions, type ResolvedParticipation, type RosterEntry, type SessionRoster } from "@/lib/tos-learning-api";
 import { canSettleSource, tosDayOfLearningApi, TosDayOfLearningApiError, type SessionLearningOwner, type StudentVisit } from "@/lib/tos-day-of-learning-api";
 import styles from "./classroom.module.css";
-
-const footer = [
-  { id: "home", label: "Home", href: "/dashboard" },
-  { id: "classroom", label: "Lớp học", href: "/classroom" },
-  { id: "open-studio", label: "Open Studio", href: "/open-studio" },
-  { id: "shift", label: "Ca làm", href: "/check-in" },
-  { id: "history", label: "Lịch sử", href: "/timesheet" },
-];
 
 type Notes = Record<string, { learningNote: string; observation: string }>;
 type VisitState = Record<string, StudentVisit | null>;
@@ -216,7 +209,7 @@ export default function ClassroomView() {
 
   const selectedCenter = context?.centers.find((item) => item.id === centerId) ?? null;
   const presentReady = Boolean(owner && lessonPlan);
-  return <TosShell title="Day of Learning" subtitle={selectedCenter?.displayName ?? profile?.displayLabel ?? "PINO Team"} theme="classroom" footerItems={footer} activeFooterId="classroom">
+  return <TosShell title="Day of Learning" subtitle={selectedCenter?.displayName ?? profile?.displayLabel ?? "PINO Team"} theme="classroom" footerItems={TOS_CLASSROOM_FOOTER} activeFooterId="today">
     <div className={styles.page}>
       <section className={styles.toolbar}>
         <label>Center<select value={centerId} onChange={(event) => void changeCenter(event.target.value)}>{context?.centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
