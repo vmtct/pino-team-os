@@ -2,17 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell";
+import { TOS_OPEN_STUDIO_FOOTER } from "@/app/components/tos-shell/navigation";
 import { workforceApi, WorkforceApiError, type WorkforceContext } from "@/lib/workforce-api";
 import { tosLearningApi, TosLearningApiError, type LearningOptions } from "@/lib/tos-learning-api";
 import { tosDayOfLearningApi, TosDayOfLearningApiError, type OpenStudioDayClaim, type SessionLearningOwner } from "@/lib/tos-day-of-learning-api";
 import styles from "./open-studio.module.css";
-
-const footer = [
-  { id: "home", label: "Home", href: "/dashboard" },
-  { id: "classroom", label: "Lớp học", href: "/classroom" },
-  { id: "open-studio", label: "Open Studio", href: "/open-studio" },
-  { id: "shift", label: "Ca làm", href: "/check-in" },
-];
 
 type Readiness = { owner: SessionLearningOwner | null; options: LearningOptions | null };
 type Notes = Record<string, { learningNote: string; observation: string }>;
@@ -85,7 +79,7 @@ export default function OpenStudioDesk() {
   const reserved = useMemo(() => claims.filter((item) => item.status === "RESERVED"), [claims]);
   const resolved = useMemo(() => claims.filter((item) => item.status !== "RESERVED"), [claims]);
 
-  return <TosShell title="Open Studio Desk" subtitle={selectedCenter?.displayName ?? "PINO Team"} theme="classroom" footerItems={footer} activeFooterId="open-studio">
+  return <TosShell title="Open Studio Desk" subtitle={selectedCenter?.displayName ?? "PINO Team"} theme="classroom" footerItems={TOS_OPEN_STUDIO_FOOTER} activeFooterId="desk">
     <main className={styles.page}>
       <section className={styles.toolbar}>
         <label>Center<select value={centerId} onChange={(event) => { setCenterId(event.target.value); void loadDay(event.target.value, localDate); }}>{context?.centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>

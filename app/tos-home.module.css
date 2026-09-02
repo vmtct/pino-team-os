@@ -1,0 +1,18 @@
+.page { display: grid; gap: 16px; }
+.intro { padding: 4px 2px 2px; }
+.intro > span { display: block; color: #5947bc; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
+.intro h2 { margin: 6px 0 7px; font-size: 24px; letter-spacing: -.035em; }
+.intro p { margin: 0; color: #6f6f7a; font-size: 14px; line-height: 1.55; }
+.launcher { display: grid; gap: 10px; }
+.appCard { min-height: 94px; display: grid; grid-template-columns: 48px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 15px; border: 1px solid #e2deef; border-radius: 18px; background: #fff; color: #24232d; box-shadow: 0 8px 28px rgba(36, 30, 66, .055); }
+.appCard:hover, .appCard:focus-visible { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(36, 30, 66, .09); }
+.appIcon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 15px; font-size: 23px; font-weight: 900; background: var(--app-tint); color: var(--app-accent); }
+.appCopy { min-width: 0; display: grid; gap: 4px; }
+.appCopy strong { font-size: 16px; }
+.appCopy small { color: #74737e; font-size: 12px; line-height: 1.35; }
+.arrow { color: var(--app-accent); font-size: 28px; font-weight: 700; }
+.shift { --app-accent: #3478bd; --app-tint: #eaf4ff; }
+.classroom { --app-accent: #3d8b63; --app-tint: #eaf7ef; }
+.tasks { --app-accent: #c67a33; --app-tint: #fff1e3; }
+.pinoria { --app-accent: #7753c7; --app-tint: #f2ebff; }
+.profileLink { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 12px 14px; border: 1px solid #e5e1ee; border-radius: 14px; background: #fff; color: #5b4bb5; font-size: 13px; font-weight: 800; }
