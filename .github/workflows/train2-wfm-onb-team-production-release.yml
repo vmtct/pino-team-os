@@ -150,6 +150,16 @@ jobs:
           jq -r '[.result.resources.bindings[]?.name] | sort | unique | .[]' <<<"$old_detail" > "$RUNNER_TEMP/old-bindings.txt"
           jq -r '[.result.resources.bindings[]?.name] | sort | unique | .[]' <<<"$detail" > "$RUNNER_TEMP/new-bindings.txt"
           diff -u "$RUNNER_TEMP/old-bindings.txt" "$RUNNER_TEMP/new-bindings.txt" || fail "Uploaded candidate binding-name set drifted from current production."
+          for binding in CF_ACCESS_TEAM_DOMAIN CF_ACCESS_TOS_AUD CF_ACCESS_BO_AUD FOUNDER_EMAIL; do
+            old_value="$(jq -r --arg b "$binding" '.result.resources.bindings[]? | select(.name==$b) | .text // empty' <<<"$old_detail")"
+            new_value="$(jq -r --arg b "$binding" '.result.resources.bindings[]? | select(.name==$b) | .text // empty' <<<"$detail")"
+            [ -n "$old_value" ] && [ "$new_value" = "$old_value" ] || fail "Critical plain-text binding ${binding} drifted during upload."
+          done
+          for binding in PINO_CORE PINO_WORKFORCE_CORE PINO_BO_CORE PINO_TOS_LEARNING_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE PINO_ACCESS_SYNC; do
+            old_service="$(jq -c --arg b "$binding" '.result.resources.bindings[]? | select(.name==$b) | {service,entrypoint,environment}' <<<"$old_detail")"
+            new_service="$(jq -c --arg b "$binding" '.result.resources.bindings[]? | select(.name==$b) | {service,entrypoint,environment}' <<<"$detail")"
+            [ -n "$old_service" ] && [ "$new_service" = "$old_service" ] || fail "Critical service binding ${binding} drifted during upload."
+          done
 
           after_upload="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify no-traffic upload."
           still_active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$after_upload" | head -1)"
@@ -170,6 +180,11 @@ jobs:
           auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
           repo="$GITHUB_REPOSITORY"
           serving_changed=0
+          core_now="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-check Core dependency before Team promotion."
+          core_now_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$core_now" | head -1)"
+          core_now_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/versions/${core_now_version}" "${auth[@]}")" || fail "Cannot inspect Core dependency before Team promotion."
+          core_now_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$core_now_detail")"
+          [ "$core_now_message" = "Train2 WFM-ONB Core production 840fed2f548f9b08db914bd3086b43a7b150283e base e9949c3da0106ad0973fff8fc8ae71d7fd68a135" ] || fail "Core drifted before Team traffic promotion: ${core_now_message:-unknown}."
           rollback() {
             if [ "$serving_changed" -eq 1 ] && [ -n "$OLD_VERSION" ]; then
               WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/rollback.ndjson" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
@@ -212,5 +227,10 @@ jobs:
               *) fail "${host} perimeter smoke returned unexpected HTTP ${code}." ;;
             esac
           done
+          core_after="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-check Core dependency after Team rollout."
+          core_after_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$core_after" | head -1)"
+          core_after_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/versions/${core_after_version}" "${auth[@]}")" || fail "Cannot inspect Core dependency after Team rollout."
+          core_after_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$core_after_detail")"
+          [ "$core_after_message" = "Train2 WFM-ONB Core production 840fed2f548f9b08db914bd3086b43a7b150283e base e9949c3da0106ad0973fff8fc8ae71d7fd68a135" ] || fail "Core serving state changed during Team rollout: ${core_after_message:-unknown}."
           serving_changed=0
           gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TRAIN2_WFM_ONB_TEAM_RELEASE: **PASS**\n\n- Production base: ${PROD_BASE}\n- Candidate: ${TARGET_SHA}\n- Staging evidence mirror: #${{ steps.gate.outputs.evidence_issue }} PASS\n- Team Worker version: ${TARGET_VERSION}\n- Traffic: 100%\n- TOS + BO custom domains: preserved\n- Cloudflare Access perimeter smoke: PASS\n- Required private Core/Access bindings: preserved\n- workers.dev/previews: disabled\n\nHuman-authenticated production UX smoke remains an explicit post-release boundary. No Core runtime, D1, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward mutation was performed by this Team operator."
