@@ -5,13 +5,13 @@ import { BO_HOSTNAME, decideHostBoundary, requiresTosStaffSession, RETIRED_TEAM_
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
-  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/workforce/training/self", "/api/workforce/training/assignments/0198d050-56c1-7ac5-b9ab-b0e45d912345/lessons/complete", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);
   }
 });
 
 test("TOS operational pages require a Staff session cookie", () => {
-  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
   for (const pathname of ["/staff-login", "/api/staff-pin/login", "/api/workforce/context", "/companion", "/_next/static/app.js"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), false, pathname);
   assert.equal(requiresTosStaffSession(BO_HOSTNAME, "/dashboard"), false);
 });
@@ -25,7 +25,7 @@ test("TOS cannot reach BO routes or the BO API", () => {
 test("BO root redirects on the same host and only governed BO routes are available", () => {
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/"), { action: "redirect", pathname: "/bo" });
   for (const pathname of [
-    "/bo", "/bo/", "/bo/staff", "/bo/workforce", "/bo/learners", "/bo/open-studio", "/bo/delivery-activation",
+    "/bo", "/bo/", "/bo/staff", "/bo/workforce", "/bo/training", "/bo/learners", "/bo/open-studio", "/bo/delivery-activation",
     "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice",
     "/bo/system/users", "/bo/system/roles", "/bo/system/audit",
     "/api/bo/context", "/api/bo/learners", "/api/bo/practice/authoring-context", "/api/bo/practice/repertoire-access/context", "/api/bo/practice/repertoire-access", "/api/bo/practice/repertoire-access/grants", `/api/bo/practice/repertoire-access/grants/${roleId}/revoke`, "/api/bo/practice/resources", "/api/bo/practice/media", `/api/bo/practice/resources/${roleId}`, `/api/bo/practice/resources/${roleId}/drafts`, `/api/bo/practice/versions/${roleId}`, `/api/bo/practice/versions/${roleId}/pages`, `/api/bo/practice/versions/${roleId}/publish`, "/api/bo/open-studio/operations", "/api/bo/open-studio/passes", "/api/bo/open-studio/listings",
@@ -42,7 +42,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/access/users",
     `/api/bo/access/roles/${roleId}`, `/api/bo/access/roles/${roleId}/duplicate`, `/api/bo/access/roles/${roleId}/update`, `/api/bo/access/roles/${roleId}/archive`,
     `/api/bo/access/users/${roleId}/staff-pin/reset`,
-    "/api/bo/workforce/staff-records", "/api/bo/workforce/staff-onboarding", "/api/bo/workforce/staff-registration-settings", "/api/bo/workforce/staff-registration-requests", `/api/bo/workforce/staff-registration-requests/${roleId}/approve`, `/api/bo/workforce/staff-registration-requests/${roleId}/reject`, "/api/bo/workforce/planning/weekly", "/api/bo/workforce/planning/assignment", "/api/bo/workforce/planning/assignment/cancel",
+    "/api/bo/workforce/staff-records", "/api/bo/workforce/staff-onboarding", "/api/bo/workforce/staff-registration-settings", "/api/bo/workforce/staff-registration-requests", `/api/bo/workforce/staff-registration-requests/${roleId}/approve`, `/api/bo/workforce/staff-registration-requests/${roleId}/reject`, "/api/bo/workforce/training/catalog", "/api/bo/workforce/training/modules", `/api/bo/workforce/training/modules/${roleId}/next-draft`, `/api/bo/workforce/training/modules/${roleId}/retire`, `/api/bo/workforce/training/assignments/${roleId}/signoff`, `/api/bo/workforce/training/qualifications/${roleId}/revoke`, "/api/bo/workforce/planning/weekly", "/api/bo/workforce/planning/assignment", "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments", "/api/bo/access/assignments/remove", "/api/bo/access/users/status", "/api/bo/access/perimeter-reconcile",
     `/api/bo/workforce/staff-records/${roleId}`, `/api/bo/workforce/staff-records/${roleId}/status`,
     "/staff-pin/change", "/api/staff-pin/status", "/api/staff-pin/change", `/api/bo/sessions/${roleId}/registrations`,
@@ -62,7 +62,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/open_studio/unknown.v1/stream",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
-    "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything",
+    "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/training/delete-all", "/api/bo/workforce/training/modules/not-a-canonical-id/retire", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything",
     `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/access/users/${roleId}/staff-pin/reset/again`, "/api/staff-pin/configure",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
