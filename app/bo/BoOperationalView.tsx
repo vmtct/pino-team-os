@@ -52,14 +52,14 @@ export function BoOperationalView({ view }: { view: BoView }) {
 function Overview({ data }: { data: Data }) {
   const upcoming = data.sessions.slice(0, 8);
   return (
-    <Page title="Operational overview" subtitle="Canonical Catalog and Delivery state, read directly through the private BO contract.">
+    <Page title="Hôm nay" subtitle="Canonical operational state cần để định hướng công việc Back Office hiện tại.">
       <div className={styles.metrics}>
-        <Metric label="Path programs" value={data.paths.length} />
-        <Metric label="Running classes" value={data.classes.length} />
-        <Metric label="Upcoming sessions" value={data.sessions.length} />
+        <Metric label="Programs" value={data.paths.length} />
+        <Metric label="Lớp đang chạy" value={data.classes.length} />
+        <Metric label="Sessions sắp tới" value={data.sessions.length} />
         <Metric label="Registrations" value={data.sessions.reduce((sum, session) => sum + session.registrationCount, 0)} />
       </div>
-      <Panel title="Next sessions" hint="PINO local time · canonical IDs retained">
+      <Panel title="Lịch vận hành sắp tới" hint="PINO local time · canonical IDs retained">
         {upcoming.length ? <SessionTable sessions={upcoming} data={data} /> : <Empty text="No upcoming sessions." />}
       </Panel>
     </Page>
