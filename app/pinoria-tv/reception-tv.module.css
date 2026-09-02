@@ -107,3 +107,12 @@
 @keyframes arrivalMoriShadowExit{to{opacity:0;transform:translateX(-50%) scale(.68);filter:blur(10px)}}
 .arrivalScene.arrivalHandoff .moriShadow{animation:arrivalMoriShadowExit 520ms ease both}
 @media(prefers-reduced-motion:reduce){.moriShadow{animation:none;opacity:.42}.arrivalScene.arrivalHandoff .moriShadow{animation:none;opacity:0}}
+
+/* Fourth-pass polish: bind the hero group to the House and guide the eye without adding UI. */
+.heroLight{position:absolute;z-index:1;left:68.2%;top:51.5%;width:min(42vw,690px);height:min(72vh,690px);transform:translate(-50%,-50%);pointer-events:none;opacity:.58;background:radial-gradient(ellipse at 50% 66%,rgba(238,193,142,.16),rgba(210,155,113,.055) 30%,transparent 62%);filter:blur(10px);animation:heroLightBreath 6.8s ease-in-out infinite}
+@keyframes heroLightBreath{0%,100%{opacity:.48;transform:translate(-50%,-50%) scale(.985)}52%{opacity:.64;transform:translate(-50%,-50%) scale(1.015)}}
+.arrivalScene .mori{left:79.15%;top:61.4%;width:min(13.7vw,176px)}
+.moriShadow{left:79.15%;top:68.25%;width:min(9.5vw,122px);opacity:.46}
+.arrivalScene .copy p{max-width:405px;letter-spacing:.005em}
+.arrivalScene.arrivalHandoff .heroLight{animation:arrivalAuxExit 620ms ease both}
+@media(prefers-reduced-motion:reduce){.heroLight{animation:none;opacity:.54}.arrivalScene.arrivalHandoff .heroLight{animation:none;opacity:0}}
