@@ -50,3 +50,25 @@
 .arrivalScene.arrivalHandoff .footShadow,.arrivalScene.arrivalHandoff .radiance{animation:arrivalAuxExit 520ms ease both}
 @keyframes arrivalBackdropExit{to{opacity:0;filter:blur(8px)}}
 @media(prefers-reduced-motion:reduce){.arrivalScene.arrivalHandoff .character{animation:none;left:var(--arrival-target-left,50%);top:var(--arrival-target-top,68%);width:var(--arrival-target-width,8.55vw);height:var(--arrival-target-height,6vw);transform:translate(-50%,-50%)}.arrivalScene.arrivalHandoff .aura,.arrivalScene.arrivalHandoff .mori,.arrivalScene.arrivalHandoff .copy,.arrivalScene.arrivalHandoff .arrivalBackdrop,.arrivalScene.arrivalHandoff .footShadow,.arrivalScene.arrivalHandoff .radiance{animation:none;opacity:0}}
+
+
+/* Second-pass arrival polish: quieter chrome, tighter hero grouping, and stronger grounding. */
+.arrivalActive .status,.arrivalActive footer{opacity:.28;transition:opacity 520ms ease}
+.arrivalActive .live{background:#17130f55;border-color:#ffffff10;box-shadow:none}
+.arrivalScene:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(13,10,9,.14),transparent 20%,transparent 76%,rgba(11,8,7,.22)),radial-gradient(ellipse at 68% 48%,rgba(221,184,132,.08),transparent 31%)}
+.arrivalScene .aura{left:67.7%;top:47.5%;width:min(35vw,53vh,530px)}
+.arrivalScene .aura img{filter:brightness(.96) saturate(.92) drop-shadow(0 0 32px rgba(173,123,255,.34))}
+.arrivalScene .character{left:67.7%;top:47.5%;width:min(35vw,53vh,530px);filter:drop-shadow(0 30px 30px rgba(0,0,0,.30))}
+.arrivalScene .mori{left:81.2%;top:64.5%;width:min(15.4vw,196px);filter:drop-shadow(0 16px 20px rgba(0,0,0,.24))}
+.arrivalScene .copy{left:7.4vw;top:47.5%;width:min(35.5vw,550px)}
+.arrivalScene .copy h1{text-shadow:0 8px 30px rgba(0,0,0,.28)}
+.arrivalScene .copy p{font-size:clamp(18px,1.55vw,22px);line-height:1.48;color:#f4ece1;text-shadow:0 3px 18px rgba(0,0,0,.25)}
+.footShadow{left:67.7%;top:71%;width:min(14vw,220px);height:28px;opacity:.9}
+.contactShadow{position:absolute;z-index:2;left:67.7%;top:71.6%;width:min(8.5vw,136px);height:12px;transform:translateX(-50%);border-radius:50%;background:rgba(12,8,6,.38);filter:blur(5px);pointer-events:none}
+.radiance{left:67.7%;top:47.5%;width:min(35vw,53vh,530px);background:radial-gradient(circle,transparent 43%,rgba(183,104,255,.055) 55%,rgba(183,104,255,.12) 63%,transparent 74%)}
+@keyframes violetRadiancePolished{0%,100%{opacity:.08;transform:translate(-50%,-50%) scale(.99)}28%{opacity:.24}50%{opacity:.12;transform:translate(-50%,-50%) scale(1.014)}67%{opacity:.29}82%{opacity:.14}}
+.arrivalScene .radiance{animation:violetRadiancePolished 7.2s linear infinite}
+.arrivalScene.arrivalHandoff .character{animation:arrivalCharacterHandoff 1800ms cubic-bezier(.18,.76,.16,1) both}
+@keyframes arrivalCharacterHandoff{0%{left:67.7%;top:47.5%;width:min(35vw,53vh,530px);height:min(35vw,53vh,530px);transform:translate(-50%,-50%) scale(1)}14%{transform:translate(-50%,-50%) scale(1.035)}100%{left:var(--arrival-target-left,50%);top:var(--arrival-target-top,68%);width:var(--arrival-target-width,8.55vw);height:var(--arrival-target-height,6vw);transform:translate(-50%,-50%) scale(1)}}
+.arrivalScene.arrivalHandoff .contactShadow{animation:arrivalAuxExit 520ms ease both}
+@media(prefers-reduced-motion:reduce){.arrivalScene .radiance{animation:none}.arrivalScene.arrivalHandoff .character{animation:none;left:var(--arrival-target-left,50%);top:var(--arrival-target-top,68%);width:var(--arrival-target-width,8.55vw);height:var(--arrival-target-height,6vw);transform:translate(-50%,-50%)}.arrivalScene.arrivalHandoff .aura,.arrivalScene.arrivalHandoff .mori,.arrivalScene.arrivalHandoff .copy,.arrivalScene.arrivalHandoff .arrivalBackdrop,.arrivalScene.arrivalHandoff .footShadow,.arrivalScene.arrivalHandoff .contactShadow,.arrivalScene.arrivalHandoff .radiance{animation:none;opacity:0}}
