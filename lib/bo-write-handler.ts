@@ -51,6 +51,8 @@ const OPEN_STUDIO_PASS_REVOKE = /^open-studio\/passes\/[0-9a-f-]{36}\/revoke$/;
 const OPEN_STUDIO_ADMISSION = "open-studio/admission";
 const OPEN_STUDIO_POLICY_VERSION = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions$/;
 const OPEN_STUDIO_POLICY_PUBLISH = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/;
+const PRACTICE_REPERTOIRE_GRANT = "practice/repertoire-access/grants";
+const PRACTICE_REPERTOIRE_REVOKE = /^practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/;
 const PRACTICE_RESOURCE_CREATE = "practice/resources";
 const PRACTICE_RESOURCE_DRAFT = /^practice\/resources\/[0-9a-f-]{36}\/drafts$/;
 const PRACTICE_VERSION_COMMAND = /^practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/;
@@ -136,7 +138,7 @@ export function shouldReconcileTosAccess(path: string): boolean {
 }
 
 export function isPracticeWritePath(path: string): boolean {
-  return path === PRACTICE_RESOURCE_CREATE || PRACTICE_RESOURCE_DRAFT.test(path) || PRACTICE_VERSION_COMMAND.test(path);
+  return path === PRACTICE_REPERTOIRE_GRANT || PRACTICE_REPERTOIRE_REVOKE.test(path) || path === PRACTICE_RESOURCE_CREATE || PRACTICE_RESOURCE_DRAFT.test(path) || PRACTICE_VERSION_COMMAND.test(path);
 }
 
 export function isLearningSyllabusPostPath(path: string): boolean {

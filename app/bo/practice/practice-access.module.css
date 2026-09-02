@@ -1,0 +1,51 @@
+.workspaceTabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e4e4ec;
+  background: rgba(248, 248, 251, .96);
+  backdrop-filter: blur(12px);
+}
+.tab, .tabActive {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #d9d9e4;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.tab { background: #fff; color: #5c5c69; }
+.tabActive { border-color: #7567c7; background: #f0edff; color: #4e43a0; }
+.accessLayout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.learnerPane { position: sticky; top: 78px; display: grid; gap: 10px; max-height: calc(100vh - 96px); }
+.searchRow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.searchRow input, .field input, .field select {
+  width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #dcdce6; border-radius: 10px; background: #fff;
+}
+.learnerList { display: grid; gap: 8px; overflow: auto; padding-right: 3px; }
+.learner, .learnerActive {
+  display: grid; gap: 4px; width: 100%; padding: 12px; border: 1px solid #e0e0e9; border-radius: 12px; text-align: left; cursor: pointer;
+}
+.learner { background: #fff; }
+.learnerActive { border-color: #7466c8; background: #f4f1ff; }
+.learner span, .learner small, .learnerActive span, .learnerActive small { color: #737380; font-size: 11px; }
+.accessStack { display: grid; gap: 14px; min-width: 0; }
+.grantForm { display: grid; grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.6fr) minmax(180px, .9fr) auto; gap: 10px; align-items: end; }
+.field { display: grid; gap: 6px; color: #666674; font-size: 11px; font-weight: 800; }
+.authorityNote { display: grid; gap: 4px; margin-top: 12px; padding: 12px; border: 1px solid #e3e3eb; border-radius: 12px; background: #fbfbfd; }
+.authorityNote span { color: #737380; font-size: 11px; }
+.repertoireList { display: grid; gap: 8px; }
+.repertoireRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid #e3e3eb; border-radius: 12px; background: #fff; }
+.repertoireCopy { display: grid; gap: 4px; min-width: 0; }
+.repertoireCopy > span, .repertoireCopy > small { color: #737380; font-size: 11px; }
+.repertoireTitle { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.effectivePill { display: inline-flex; min-height: 22px; align-items: center; padding: 0 8px; border-radius: 999px; background: #f0f0f4; color: #5f5f6b; font-size: 9px; font-weight: 900; letter-spacing: .04em; }
+.effectivePill[data-state="FULL"] { background: #e6f4ea; color: #24653a; }
+.effectivePill[data-state="BASELINE"], .effectivePill[data-state="PARTIAL_PREVIEW"] { background: #eef1ff; color: #4e53a0; }
+.effectivePill[data-state="LOCKED_DISCOVERABLE"] { background: #fff1df; color: #895715; }
+.effectivePill[data-state="HIDDEN"] { background: #f4e8e8; color: #8a3b3b; }
+@media (max-width: 980px) { .accessLayout { grid-template-columns: 1fr; } .learnerPane { position: static; max-height: none; } .grantForm { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .workspaceTabs { padding: 10px 12px; } .grantForm { grid-template-columns: 1fr; } .repertoireRow { grid-template-columns: 1fr; } }
