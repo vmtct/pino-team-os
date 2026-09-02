@@ -36,6 +36,7 @@ export function StaffManagementView() {
   const [pinCopied, setPinCopied] = useState(false);
   const selectedIdRef = useRef("");
   const pinResetInFlightRef = useRef<string | null>(null);
+  const refreshFenceRef = useRef(0);
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -59,7 +60,9 @@ export function StaffManagementView() {
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
 
   async function refresh(preferId = "") {
+    const refreshFence = refreshFenceRef.current;
     const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
+    if (refreshFence !== refreshFenceRef.current) return;
     const currentId = selectedIdRef.current;
     const lockedId = pinResetInFlightRef.current;
     if (lockedId && !staff.some((item) => item.id === lockedId)) return;
@@ -117,6 +120,7 @@ export function StaffManagementView() {
     const targetUserId = accessUser.id;
     const targetStaffId = selectedId;
     const idempotencyKey = pinResetAttempts[targetUserId] ?? crypto.randomUUID();
+    refreshFenceRef.current += 1;
     pinResetInFlightRef.current = targetStaffId;
     setPinResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
     setBusy("pin-reset"); setError(""); setMessage(""); setPinReset(null); setPinCopied(false);
@@ -131,6 +135,7 @@ export function StaffManagementView() {
       if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset Staff PIN.");
     } finally {
       if (pinResetInFlightRef.current === targetStaffId) pinResetInFlightRef.current = null;
+      refreshFenceRef.current += 1;
       setBusy("");
     }
   }
