@@ -54,7 +54,7 @@ test("arrival heroes hand off sequentially into reserved ambient actors", async 
     width: (element as HTMLElement).style.getPropertyValue("--arrival-target-width"),
   }))).not.toEqual({ left: "", top: "", width: "" });
 
-  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chây", { timeout: 4_000 });
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào Chây ✦", { timeout: 4_000 });
   await expect(actor).toHaveAttribute("data-suppressed", "false");
   await expect(queuedActor).toHaveAttribute("data-suppressed", "true");
 });
@@ -124,7 +124,7 @@ test("same learner replacement visit never receives a stale arrival handoff", as
   await page.goto("/pinoria-tv?centerId=review-replacement-visit");
   const scene = page.locator('[data-arrival-scene="true"]');
   const actor = page.locator('[data-ambient-runtime-character="same-learner"]');
-  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("New visit", { timeout: 9_000 });
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào New visit ✦", { timeout: 9_000 });
   await expect(scene).toHaveAttribute("data-arrival-visit", "visit-new");
   await expect(actor).toHaveAttribute("data-ambient-runtime-visit", "visit-new");
   await expect(actor).toHaveAttribute("data-suppressed", "true");  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
@@ -163,7 +163,7 @@ test("later arrivals do not restart the active arrival timer or move its reserve
   await page.goto("/pinoria-tv?centerId=review-sustained-arrivals");
   const scene = page.locator('[data-arrival-scene="true"]');
   const firstActor = page.locator('[data-ambient-runtime-character="zz-head"]');
-  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Arrival 1", { timeout: 5_000 });
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào Arrival 1 ✦", { timeout: 5_000 });
   await expect(firstActor).toHaveAttribute("data-suppressed", "true");
   const reserved = await firstActor.boundingBox();
   expect(reserved).not.toBeNull();

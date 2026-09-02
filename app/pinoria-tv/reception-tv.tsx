@@ -339,16 +339,18 @@ export function ReceptionTv() {
       data-arrival-scene={visualScene.kind === "arrival" ? "true" : undefined}
       data-arrival-phase={visualScene.kind === "arrival" ? visualScene.phase : undefined}
       data-arrival-visit={visualScene.kind === "arrival" ? visualScene.visitId : undefined}
-      className={`${styles.scene} ${visualScene.kind === "departure" ? styles.departure : ""} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
+      className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
       style={handoffStyle}
     >
+      {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} /> : null}
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
+      {visualScene.kind === "arrival" ? <><div className={styles.footShadow} /><div className={styles.radiance} /></> : null}
       <LayeredCharacter className={styles.character} config={visualScene.config} />
       <img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt="" />
       <div className={styles.copy}>
-        <span>{visualScene.kind === "arrival" ? "CHÀO ĐẾN PINO HOUSE" : "HẸN GẶP LẠI"}</span>
-        <h1>{visualScene.name}</h1>
-        <p>{visualScene.kind === "arrival" ? "Pinoria đã nhận ra bạn ✦" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
+        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
+        <h1>{visualScene.kind === "arrival" ? `Chào ${visualScene.name} ✦` : visualScene.name}</h1>
+        <p>{visualScene.kind === "arrival" ? "Hôm nay Mori đi cùng mình!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
     {!scene && !presentation ? <section className={styles.idle}>
