@@ -1,0 +1,203 @@
+name: Train1 PLT-TOS + PLT-BO Production Release
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: train1-plt-tos-bo-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.issue.title == '[GPT] Train1 PLT-TOS BO production release' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      TARGET_SHA: 77bab97d9b49b6aa681e658ba6688222d436d63d
+      PROD_BASE: c6e1085e0ff1882e05c4ed768c7a4731d6ae8301
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      TEAM_WORKER: pino-team-os
+      CORE_WORKER: pino-core
+      TOS_HOST: tos.pinohouse.art
+      BO_HOST: bo.pinohouse.art
+      ZONE_ID: 48b2809afabf3d65d30f80f346126213
+
+    steps:
+      - name: Validate Founder release request and staging evidence
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          reject() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TRAIN1_PLT_TOS_BO_PRODUCTION_RELEASE: **REJECTED**\n\n$1\n\nNo production mutation was attempted."
+            exit 1
+          }
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CANDIDATE_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          mapfile -t stage_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^STAGING_ISSUE:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CANDIDATE_SHA line."
+          [ "${#stage_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one STAGING_ISSUE line."
+          requested="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          staging_issue="${stage_lines[0]}"
+          [ "$requested" = "$TARGET_SHA" ] || reject "Requested SHA is not the frozen Train 1 candidate."
+          grep -Eq '^CONFIRM:[[:space:]]*RELEASE_TRAIN1_PLT_TOS_BO[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing explicit production confirmation."
+          [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
+          stage="$(gh api --paginate "/repos/${GITHUB_REPOSITORY}/issues/${staging_issue}/comments")" || reject "Cannot read staging evidence issue."
+          jq -e --arg sha "$TARGET_SHA" '[.[] | .body // "" | select(contains("TRAIN1_PLT_TOS_BO_STAGING: **PASS**") and contains("Candidate: " + $sha))] | length >= 1' <<<"$stage" >/dev/null || reject "Exact candidate has no accepted Train 1 staging PASS."
+          echo "staging_issue=$staging_issue" >> "$GITHUB_OUTPUT"
+
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact candidate and rebuild artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git merge-base "$PROD_BASE" "$TARGET_SHA")" = "$PROD_BASE"
+          test "$(git rev-list --count "$PROD_BASE..$TARGET_SHA")" = "4"
+          git diff --check "$PROD_BASE" "$TARGET_SHA"
+          test "$(git diff --name-only "$PROD_BASE" "$TARGET_SHA" | wc -l | tr -d ' ')" = "26"
+          if git diff --name-only "$PROD_BASE" "$TARGET_SHA" | grep -Eq '(^|/)(wfm|staff-pin-reset|practice|piano|pinoria-tv/ambient|wardrobe)'; then
+            echo "Unexpected Train 1 dependency leaked into candidate." >&2
+            exit 1
+          fi
+          npm ci
+          npm run pino:verify
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+          test -z "$(git status --porcelain)"
+
+      - name: Production preflight and upload exact version
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          release_message="Train1 PLT-TOS BO production ${TARGET_SHA}"
+          release_tag="train1-plt-tos-bo-${TARGET_SHA:0:12}"
+          fail() {
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TRAIN1_PLT_TOS_BO_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nNo Team production traffic was changed."
+            exit 1
+          }
+
+          deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Team deployment."
+          old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
+          [ -n "$old_version" ] || fail "Cannot resolve current 100% Team version."
+          old_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${old_version}" "${auth[@]}")" || fail "Cannot inspect current Team version."
+          old_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$old_detail")"
+          if [ "$old_message" = "$release_message" ]; then
+            echo "already_active=true" >> "$GITHUB_OUTPUT"
+            echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
+            echo "version_id=$old_version" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${old_version}" "${auth[@]}")" || fail "Cannot inspect active Team build provenance."
+          active_commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
+          [ "$active_commit" = "$PROD_BASE" ] || fail "Active Team source drifted from reviewed production base: ${active_commit:-unknown}."
+
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker domains."
+          for host in "$TOS_HOST" "$BO_HOST"; do
+            jq -e --arg h "$host" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "${host} is not attached exactly once to Team OS."
+          done
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core unexpectedly owns a custom domain."
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
+          subdomain="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/subdomain" "${auth[@]}")" || fail "Cannot inspect Team workers.dev state."
+          jq -e '.result.enabled == false and .result.previews_enabled == false' <<<"$subdomain" >/dev/null || fail "Production Team workers.dev or previews are enabled."
+
+          upload_output="$RUNNER_TEMP/version-upload.ndjson"
+          rm -f "$upload_output"
+          WRANGLER_OUTPUT_FILE_PATH="$upload_output" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+            npx wrangler versions upload -c wrangler.jsonc --tag "$release_tag" --message "$release_message" >/dev/null \
+            || fail "Exact Train 1 candidate upload failed before traffic changed."
+          version_id="$(jq -r 'select(.type == "version-upload") | .version_id // empty' "$upload_output" | tail -1)"
+          [ -n "$version_id" ] || fail "Candidate upload returned no version ID."
+          detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${version_id}" "${auth[@]}")" || fail "Cannot inspect uploaded candidate."
+          [ "$(jq -r '.result.annotations["workers/message"] // empty' <<<"$detail")" = "$release_message" ] || fail "Uploaded version annotation mismatch."
+          for binding in PINO_CORE PINO_WORKFORCE_CORE PINO_BO_CORE PINO_TOS_LEARNING_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE PINO_ACCESS_SYNC; do
+            jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$detail" >/dev/null || fail "Uploaded candidate lost required binding ${binding}."
+          done
+          jq -r '[.result.resources.bindings[]?.name] | sort | unique | .[]' <<<"$old_detail" > "$RUNNER_TEMP/old-bindings.txt"
+          jq -r '[.result.resources.bindings[]?.name] | sort | unique | .[]' <<<"$detail" > "$RUNNER_TEMP/new-bindings.txt"
+          diff -u "$RUNNER_TEMP/old-bindings.txt" "$RUNNER_TEMP/new-bindings.txt" || fail "Uploaded candidate binding-name set drifted from current production."
+
+          after_upload="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify no-traffic upload."
+          still_active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$after_upload" | head -1)"
+          [ "$still_active" = "$old_version" ] || fail "Traffic changed during version upload."
+          echo "already_active=false" >> "$GITHUB_OUTPUT"
+          echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+
+      - name: Promote exact version with rollback
+        shell: bash
+        env:
+          OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
+          TARGET_VERSION: ${{ steps.preflight.outputs.version_id }}
+          ALREADY_ACTIVE: ${{ steps.preflight.outputs.already_active }}
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          repo="$GITHUB_REPOSITORY"
+          serving_changed=0
+          rollback() {
+            if [ "$serving_changed" -eq 1 ] && [ -n "$OLD_VERSION" ]; then
+              WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/rollback.ndjson" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+                npx wrangler versions deploy "${OLD_VERSION}@100%" -c wrangler.jsonc -y >/dev/null 2>&1 || true
+            fi
+          }
+          fail() {
+            rollback
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TRAIN1_PLT_TOS_BO_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nPrevious Team version rollback was attempted if traffic may have changed. No Core, D1, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward mutation was authorized."
+            exit 1
+          }
+
+          if [ "$ALREADY_ACTIVE" != "true" ]; then
+            serving_changed=1
+            WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/version-deploy.ndjson" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+              npx wrangler versions deploy "${TARGET_VERSION}@100%" -c wrangler.jsonc -y >/dev/null \
+              || fail "Exact Train 1 traffic promotion failed."
+          fi
+
+          current="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify post-promotion Team traffic."
+          active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$current" | head -1)"
+          [ "$active" = "$TARGET_VERSION" ] || fail "Exact Train 1 Team version is not active at 100%."
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot verify post-promotion domains."
+          for host in "$TOS_HOST" "$BO_HOST"; do
+            jq -e --arg h "$host" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "${host} attachment changed unexpectedly."
+          done
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core gained a custom domain."
+          subdomain="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/subdomain" "${auth[@]}")" || fail "Cannot verify workers.dev state."
+          jq -e '.result.enabled == false and .result.previews_enabled == false' <<<"$subdomain" >/dev/null || fail "Production Team workers.dev state changed."
+
+          for host in "$TOS_HOST" "$BO_HOST"; do
+            headers="$RUNNER_TEMP/${host}.headers"; : > "$headers"
+            code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}/" || true)"
+            location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            challenge="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            case "$code" in
+              302|303|307) [[ "$location" =~ cloudflareaccess\.com ]] || fail "${host} redirects outside Cloudflare Access." ;;
+              401|403) [[ "$challenge" == *Cloudflare-Access* || -n "$challenge" ]] || fail "${host} denial lacks a recognizable Access challenge." ;;
+              200) fail "${host} became publicly reachable without Cloudflare Access." ;;
+              *) fail "${host} perimeter smoke returned unexpected HTTP ${code}." ;;
+            esac
+          done
+          serving_changed=0
+          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TRAIN1_PLT_TOS_BO_PRODUCTION_RELEASE: **PASS**\n\n- Production base: ${PROD_BASE}\n- Candidate: ${TARGET_SHA}\n- Staging evidence: #${{ steps.gate.outputs.staging_issue }} PASS\n- Team Worker version: ${TARGET_VERSION}\n- Traffic: 100%\n- TOS + BO custom domains: preserved\n- Cloudflare Access perimeter smoke: PASS\n- Required private Core/Access bindings: preserved\n- workers.dev/previews: disabled\n\nHuman-authenticated production UX smoke remains an explicit post-release boundary. No Core runtime, D1, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward mutation was performed by this operator."
