@@ -61,6 +61,9 @@ test("Staff PIN reset UI binds the loaded profile to the selected Staff target",
   assert.match(source, /selectedIdRef\.current !== targetStaffId/);
   assert.match(source, /pinResetAttempts\[targetUserId\]/);
   assert.match(source, /disabled=\{busy === "pin-reset"\}/);
+  assert.match(source, /pinResetInFlightRef\.current = targetStaffId/);
+  assert.match(source, /lockedId && !staff\.some/);
+  assert.match(source, /const nextId = lockedId \?\?/);
   assert.doesNotMatch(source, /setPinResetAttempt\(null\)/);
 });
 

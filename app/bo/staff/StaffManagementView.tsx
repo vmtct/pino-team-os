@@ -35,6 +35,7 @@ export function StaffManagementView() {
   const [pinReset, setPinReset] = useState<{ userId: string; initialPin: string } | null>(null);
   const [pinCopied, setPinCopied] = useState(false);
   const selectedIdRef = useRef("");
+  const pinResetInFlightRef = useRef<string | null>(null);
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -59,9 +60,11 @@ export function StaffManagementView() {
 
   async function refresh(preferId = "") {
     const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
-    setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
     const currentId = selectedIdRef.current;
-    const nextId = preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "";
+    const lockedId = pinResetInFlightRef.current;
+    if (lockedId && !staff.some((item) => item.id === lockedId)) return;
+    setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
+    const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
     selectedIdRef.current = nextId;
     setSelectedId(nextId);
   }
@@ -114,6 +117,7 @@ export function StaffManagementView() {
     const targetUserId = accessUser.id;
     const targetStaffId = selectedId;
     const idempotencyKey = pinResetAttempts[targetUserId] ?? crypto.randomUUID();
+    pinResetInFlightRef.current = targetStaffId;
     setPinResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
     setBusy("pin-reset"); setError(""); setMessage(""); setPinReset(null); setPinCopied(false);
     try {
@@ -125,7 +129,10 @@ export function StaffManagementView() {
       setMessage("PIN cũ và các phiên Staff PIN đã bị vô hiệu. Staff phải đổi PIN tạm trước khi dùng TOS.");
     } catch (cause) {
       if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset Staff PIN.");
-    } finally { setBusy(""); }
+    } finally {
+      if (pinResetInFlightRef.current === targetStaffId) pinResetInFlightRef.current = null;
+      setBusy("");
+    }
   }
 
   async function copyTemporaryPin() {
