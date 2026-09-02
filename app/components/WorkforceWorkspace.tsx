@@ -1,25 +1,140 @@
 "use client";
-import{useEffect,useMemo,useState}from"react";
-import{TosShell}from"@/app/components/tos-shell";
-import{workforceApi,WorkforceApiError,type Assignment,type Availability,type ShiftTemplate,type StaffProfile,type TimekeepingSession,type WorkforceContext}from"@/lib/workforce-api";
 
-const footer=[{id:"home",label:"Home",href:"/dashboard"},{id:"classroom",label:"Lớp học",href:"/classroom"},{id:"shift",label:"Ca làm",href:"/check-in"},{id:"history",label:"Lịch sử",href:"/timesheet"}];
-type View="dashboard"|"profile"|"check-in"|"history";
-function today(){return new Date().toISOString().slice(0,10);}function offset(days:number){const date=new Date();date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10);}
-function weekDates(week:WorkforceContext["termWeeks"][number]){const dates:string[]=[];const cursor=new Date(`${week.startDate}T00:00:00Z`);const end=new Date(`${week.endDate}T00:00:00Z`);while(cursor<=end){dates.push(cursor.toISOString().slice(0,10));cursor.setUTCDate(cursor.getUTCDate()+1);}return dates;}
-function message(error:unknown){if(error instanceof WorkforceApiError){if(error.code.includes("POLICY")||error.status===503)return"Chính sách vận hành hiện chưa sẵn sàng. Không có thao tác nào được cho phép mặc định.";if(error.status===401)return"Phiên Cloudflare Access không hợp lệ. Vui lòng đăng nhập lại.";if(error.status===403)return"Tài khoản chưa có quyền hoặc chưa liên kết với nhân sự đang hoạt động.";if(error.status===409)return"Dữ liệu đã thay đổi. Vui lòng tải lại và thử lại.";}return error instanceof Error?error.message:"Không thể tải dữ liệu từ Core.";}
-export default function WorkforceWorkspace({view}:{view:View}){
- const[context,setContext]=useState<WorkforceContext|null>(null),[profile,setProfile]=useState<StaffProfile|null>(null),[assignments,setAssignments]=useState<Assignment[]>([]),[current,setCurrent]=useState<TimekeepingSession|null>(null),[history,setHistory]=useState<TimekeepingSession[]>([]),[availability,setAvailability]=useState<Availability|null>(null),[templates,setTemplates]=useState<ShiftTemplate[]>([]),[error,setError]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false);
- const center=context?.centers[0]??null;const week=useMemo(()=>context?.termWeeks.find(w=>w.centerId===center?.id&&today()>=w.startDate&&today()<=w.endDate)??context?.termWeeks.find(w=>w.centerId===center?.id)??null,[context,center]);
- async function load(){setLoading(true);setError("");try{const[c,p,t]=await Promise.all([workforceApi.context(),workforceApi.profile(),workforceApi.currentTimekeeping()]);setContext(c.data);setProfile(p.data);setCurrent(t.data);const selected=c.data.centers[0];if(selected){const[s,h]=await Promise.all([workforceApi.schedule({centerId:selected.id,startDate:offset(-30),endDate:offset(60)}),workforceApi.history({centerId:selected.id,startDate:offset(-90),endDate:today()})]);setAssignments(s.data);setHistory(h.data);}}catch(e){setError(message(e));}finally{setLoading(false);}}
- useEffect(()=>{void load();},[]);
- async function clock(action:"in"|"out"){if(!center)return;setSaving(true);setError("");try{if(action==="in")await workforceApi.checkIn(center.id,assignments.find(a=>a.workDate===today())?.id);else await workforceApi.checkOut();await load();}catch(e){setError(message(e));}finally{setSaving(false);}}
- async function openAvailability(){if(!week)return;setSaving(true);setError("");try{const result=await workforceApi.availabilityDraft(week.id);setAvailability(result.data.submission);setTemplates(result.data.templates);}catch(e){setError(message(e));}finally{setSaving(false);}}
- async function toggle(date:string,templateId:string){if(!availability||availability.status!=="DRAFT")return;const exists=availability.items.some(i=>i.workDate===date&&i.shiftTemplateId===templateId);const items=exists?availability.items.filter(i=>!(i.workDate===date&&i.shiftTemplateId===templateId)):[...availability.items,{workDate:date,shiftTemplateId:templateId}];setSaving(true);try{const result=await workforceApi.replaceAvailability({submissionId:availability.id,expectedVersion:availability.version,items});setAvailability(result.data);}catch(e){setError(message(e));}finally{setSaving(false);}}
- async function submitAvailability(){if(!availability)return;setSaving(true);try{const result=await workforceApi.submitAvailability({submissionId:availability.id,expectedVersion:availability.version});setAvailability(result.data);}catch(e){setError(message(e));}finally{setSaving(false);}}
- const title=view==="profile"?"Hồ sơ của tôi":view==="history"?"Lịch sử chấm công":view==="check-in"?"Ca làm":"Tôi hôm nay";const active=view==="history"?"history":view==="check-in"?"shift":"home";
- return <TosShell title={title} subtitle={profile?.displayLabel??"PINO Team"} theme="shift" footerItems={footer} activeFooterId={active}>{loading?<p>Đang tải dữ liệu an toàn từ Core…</p>:<>{error?<div className="alert">{error}</div>:null}{profile&&view==="profile"?<Profile profile={profile} onSaved={setProfile}/>:null}{view==="check-in"?<section className="card section"><h2>{current?"Đang làm việc":"Chưa check-in"}</h2><p className="muted">{current?`Bắt đầu ${new Date(current.checkInAt).toLocaleString("vi-VN")}`:"Core sẽ xác định ngày làm việc theo múi giờ của Center."}</p><button className="button" disabled={saving||!center} onClick={()=>clock(current?"out":"in")}>{current?"CHECK OUT":"CHECK IN"}</button></section>:null}{view==="history"?<History rows={history}/>:null}{view==="dashboard"?<><Schedule rows={assignments}/><section className="card section" style={{marginTop:16}}><h2>Đăng ký khả dụng</h2><p className="muted">{week?`${week.code} · ${week.startDate} — ${week.endDate}`:"Chưa có TermWeek khả dụng."}</p>{!availability?<button className="button" disabled={saving||!week} onClick={openAvailability}>Mở bản đăng ký</button>:<><p><strong>{availability.status}</strong> · phiên bản {availability.version}</p>{availability.status==="DRAFT"?<><div className="grid">{weekDates(week!).flatMap(date=>templates.map(template=><button key={`${date}:${template.id}`} className="button" disabled={saving} onClick={()=>toggle(date,template.id)}>{availability.items.some(i=>i.workDate===date&&i.shiftTemplateId===template.id)?"✓ ":""}{date} · {template.displayLabel} · {template.startLocalTime}–{template.endLocalTime}</button>))}</div><button className="button" disabled={saving} onClick={submitAvailability} style={{marginTop:12}}>Gửi đăng ký</button></>:<p>Đăng ký đã gửi và không thể sửa trong v1.</p>}</>}</section></>:null}</>}</TosShell>;
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { TosShell } from "@/app/components/tos-shell";
+import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
+import {
+  workforceApi,
+  WorkforceApiError,
+  type Assignment,
+  type Availability,
+  type ShiftTemplate,
+  type StaffProfile,
+  type TimekeepingSession,
+  type WorkforceContext,
+} from "@/lib/workforce-api";
+
+type View = "dashboard" | "schedule" | "availability" | "profile" | "check-in" | "history";
+
+function today() { return new Date().toISOString().slice(0, 10); }
+function offset(days: number) { const date = new Date(); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); }
+function weekDates(week: WorkforceContext["termWeeks"][number]) {
+  const dates: string[] = [];
+  const cursor = new Date(`${week.startDate}T00:00:00Z`);
+  const end = new Date(`${week.endDate}T00:00:00Z`);
+  while (cursor <= end) { dates.push(cursor.toISOString().slice(0, 10)); cursor.setUTCDate(cursor.getUTCDate() + 1); }
+  return dates;
 }
- function Schedule({rows}:{rows:Assignment[]}){return <section className="card section"><h2>Ca được phân công</h2>{rows.length?<div className="list">{rows.map(row=><div className="list-item" key={row.id}><strong>{row.workDate} · {row.shift?.displayLabel??"Ca làm"}</strong><div className="muted">{row.shift?`${row.shift.startLocalTime}–${row.shift.endLocalTime} · ${row.shift.code}`:row.status}</div></div>)}</div>:<p className="muted">Chưa có ca cuối cùng được phân công.</p>}</section>}
-function History({rows}:{rows:TimekeepingSession[]}){return <section className="card section">{rows.length?<div className="list">{rows.map(row=><div className="list-item" key={row.id}><strong>{row.workDate}</strong><div>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt?new Date(row.checkOutAt).toLocaleString("vi-VN"):"Đang mở"}</div></div>)}</div>:<p className="muted">Chưa có phiên chấm công.</p>}</section>}
-function Profile({profile,onSaved}:{profile:StaffProfile;onSaved:(value:StaffProfile)=>void}){const[email,setEmail]=useState(profile.email??""),[mobile,setMobile]=useState(profile.mobile??""),[legalAddress,setAddress]=useState(profile.legalAddress??""),[error,setError]=useState("");async function save(){try{const result=await workforceApi.updateProfile({email,mobile,legalAddress});onSaved(result.data);}catch(e){setError(message(e));}}return <section className="card section"><h2>{profile.displayLabel}</h2><p className="muted">Only self-editable Core fields are shown.</p>{error?<div className="alert">{error}</div>:null}<div className="grid"><label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Điện thoại<input value={mobile} onChange={e=>setMobile(e.target.value)}/></label><label>Địa chỉ<input value={legalAddress} onChange={e=>setAddress(e.target.value)}/></label></div><button className="button" onClick={save}>Lưu hồ sơ</button></section>}
+function message(error: unknown) {
+  if (error instanceof WorkforceApiError) {
+    if (error.code.includes("POLICY") || error.status === 503) return "Chính sách vận hành hiện chưa sẵn sàng. Không có thao tác nào được cho phép mặc định.";
+    if (error.status === 401) return "Phiên Cloudflare Access không hợp lệ. Vui lòng đăng nhập lại.";
+    if (error.status === 403) return "Tài khoản chưa có quyền hoặc chưa liên kết với nhân sự đang hoạt động.";
+    if (error.status === 409) return "Dữ liệu đã thay đổi. Vui lòng tải lại và thử lại.";
+  }
+  return error instanceof Error ? error.message : "Không thể tải dữ liệu từ Core.";
+}
+
+export default function WorkforceWorkspace({ view }: { view: View }) {
+  const [context, setContext] = useState<WorkforceContext | null>(null);
+  const [profile, setProfile] = useState<StaffProfile | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [current, setCurrent] = useState<TimekeepingSession | null>(null);
+  const [history, setHistory] = useState<TimekeepingSession[]>([]);
+  const [availability, setAvailability] = useState<Availability | null>(null);
+  const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const center = context?.centers[0] ?? null;
+  const week = useMemo(() => context?.termWeeks.find((w) => w.centerId === center?.id && today() >= w.startDate && today() <= w.endDate) ?? context?.termWeeks.find((w) => w.centerId === center?.id) ?? null, [context, center]);
+
+  async function load() {
+    setLoading(true); setError("");
+    try {
+      const [c, p, t] = await Promise.all([workforceApi.context(), workforceApi.profile(), workforceApi.currentTimekeeping()]);
+      setContext(c.data); setProfile(p.data); setCurrent(t.data);
+      const selected = c.data.centers[0];
+      if (selected) {
+        const [s, h] = await Promise.all([
+          workforceApi.schedule({ centerId: selected.id, startDate: offset(-30), endDate: offset(60) }),
+          workforceApi.history({ centerId: selected.id, startDate: offset(-90), endDate: today() }),
+        ]);
+        setAssignments(s.data); setHistory(h.data);
+      }
+    } catch (e) { setError(message(e)); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function clock(action: "in" | "out") {
+    if (!center) return;
+    setSaving(true); setError("");
+    try {
+      if (action === "in") await workforceApi.checkIn(center.id, assignments.find((a) => a.workDate === today())?.id);
+      else await workforceApi.checkOut();
+      await load();
+    } catch (e) { setError(message(e)); }
+    finally { setSaving(false); }
+  }
+  async function openAvailability() {
+    if (!week) return;
+    setSaving(true); setError("");
+    try {
+      const result = await workforceApi.availabilityDraft(week.id);
+      setAvailability(result.data.submission); setTemplates(result.data.templates);
+    } catch (e) { setError(message(e)); }
+    finally { setSaving(false); }
+  }
+  async function toggle(date: string, templateId: string) {
+    if (!availability || availability.status !== "DRAFT") return;
+    const exists = availability.items.some((i) => i.workDate === date && i.shiftTemplateId === templateId);
+    const items = exists
+      ? availability.items.filter((i) => !(i.workDate === date && i.shiftTemplateId === templateId))
+      : [...availability.items, { workDate: date, shiftTemplateId: templateId }];
+    setSaving(true);
+    try { const result = await workforceApi.replaceAvailability({ submissionId: availability.id, expectedVersion: availability.version, items }); setAvailability(result.data); }
+    catch (e) { setError(message(e)); }
+    finally { setSaving(false); }
+  }
+  async function submitAvailability() {
+    if (!availability) return;
+    setSaving(true);
+    try { const result = await workforceApi.submitAvailability({ submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
+    catch (e) { setError(message(e)); }
+    finally { setSaving(false); }
+  }
+
+  const title = view === "profile" ? "Hồ sơ của tôi" : view === "history" ? "Chấm công" : view === "check-in" ? "Check-in/out" : view === "schedule" ? "Lịch của tôi" : view === "availability" ? "Đăng ký ca" : "Hôm nay";
+  const active = view === "history" ? "history" : view === "check-in" ? "check" : view === "schedule" ? "schedule" : view === "availability" ? "register" : view === "dashboard" ? "today" : undefined;
+  const todayAssignments = assignments.filter((row) => row.workDate === today());
+
+  return <TosShell title={title} subtitle={profile?.displayLabel ?? "PINO Team"} theme="shift" footerItems={TOS_SHIFT_FOOTER} activeFooterId={active}>
+    {loading ? <p>Đang tải dữ liệu an toàn từ Core…</p> : <>
+      {error ? <div className="alert">{error}</div> : null}
+      {profile && view === "profile" ? <Profile profile={profile} onSaved={setProfile} /> : null}
+      {view === "dashboard" ? <>
+        <section className="card section">
+          <h2>{current ? "Đang làm việc" : "Chưa check-in"}</h2>
+          <p className="muted">{current ? `Bắt đầu ${new Date(current.checkInAt).toLocaleString("vi-VN")}` : "Mở Check-in/out khi bắt đầu ca."}</p>
+          <Link className="button" href="/check-in">Mở Check-in/out</Link>
+        </section>
+        <Schedule rows={todayAssignments} title="Ca hôm nay" />
+      </> : null}
+      {view === "schedule" ? <Schedule rows={assignments} title="Ca được phân công" /> : null}
+      {view === "availability" ? <AvailabilityPanel week={week} availability={availability} templates={templates} saving={saving} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
+      {view === "check-in" ? <section className="card section"><h2>{current ? "Đang làm việc" : "Chưa check-in"}</h2><p className="muted">{current ? `Bắt đầu ${new Date(current.checkInAt).toLocaleString("vi-VN")}` : "Core sẽ xác định ngày làm việc theo múi giờ của Center."}</p><button className="button" disabled={saving || !center} onClick={() => clock(current ? "out" : "in")}>{current ? "CHECK OUT" : "CHECK IN"}</button></section> : null}
+      {view === "history" ? <History rows={history} /> : null}
+    </>}
+  </TosShell>;
+}
+
+function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {
+  return <section className="card section" style={{ marginTop: 16 }}><h2>{title}</h2>{rows.length ? <div className="list">{rows.map((row) => <div className="list-item" key={row.id}><strong>{row.workDate} · {row.shift?.displayLabel ?? "Ca làm"}</strong><div className="muted">{row.shift ? `${row.shift.startLocalTime}–${row.shift.endLocalTime} · ${row.shift.code}` : row.status}</div></div>)}</div> : <p className="muted">Chưa có ca được phân công.</p>}</section>;
+}
+function AvailabilityPanel({ week, availability, templates, saving, onOpen, onToggle, onSubmit }: { week: WorkforceContext["termWeeks"][number] | null; availability: Availability | null; templates: ShiftTemplate[]; saving: boolean; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
+  return <section className="card section"><h2>Đăng ký khả dụng</h2><p className="muted">{week ? `${week.code} · ${week.startDate} — ${week.endDate}` : "Chưa có TermWeek khả dụng."}</p>{!availability ? <button className="button" disabled={saving || !week} onClick={() => void onOpen()}>Mở bản đăng ký</button> : <><p><strong>{availability.status}</strong> · phiên bản {availability.version}</p>{availability.status === "DRAFT" ? <><div className="grid">{weekDates(week!).flatMap((date) => templates.map((template) => <button key={`${date}:${template.id}`} className="button" disabled={saving} onClick={() => void onToggle(date, template.id)}>{availability.items.some((i) => i.workDate === date && i.shiftTemplateId === template.id) ? "✓ " : ""}{date} · {template.displayLabel} · {template.startLocalTime}–{template.endLocalTime}</button>))}</div><button className="button" disabled={saving} onClick={() => void onSubmit()} style={{ marginTop: 12 }}>Gửi đăng ký</button></> : <p>Đăng ký đã gửi và không thể sửa trong v1.</p>}</>}</section>;
+}
+function History({ rows }: { rows: TimekeepingSession[] }) { return <section className="card section">{rows.length ? <div className="list">{rows.map((row) => <div className="list-item" key={row.id}><strong>{row.workDate}</strong><div>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "Đang mở"}</div></div>)}</div> : <p className="muted">Chưa có phiên chấm công.</p>}</section>; }
+function Profile({ profile, onSaved }: { profile: StaffProfile; onSaved: (value: StaffProfile) => void }) { const [email, setEmail] = useState(profile.email ?? ""), [mobile, setMobile] = useState(profile.mobile ?? ""), [legalAddress, setAddress] = useState(profile.legalAddress ?? ""), [error, setError] = useState(""); async function save() { try { const result = await workforceApi.updateProfile({ email, mobile, legalAddress }); onSaved(result.data); } catch (e) { setError(message(e)); } } return <section className="card section"><h2>{profile.displayLabel}</h2><p className="muted">Chỉ hiển thị các thông tin bạn được phép tự cập nhật.</p>{error ? <div className="alert">{error}</div> : null}<div className="grid"><label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} /></label><label>Điện thoại<input value={mobile} onChange={(e) => setMobile(e.target.value)} /></label><label>Địa chỉ<input value={legalAddress} onChange={(e) => setAddress(e.target.value)} /></label></div><button className="button" onClick={save}>Lưu hồ sơ</button></section>; }
