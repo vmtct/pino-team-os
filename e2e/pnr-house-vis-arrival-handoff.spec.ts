@@ -135,7 +135,7 @@ test("same learner replacement visit never receives a stale arrival handoff", as
   }))).not.toEqual({ left: "", top: "", width: "" });
   await expect(actor).toHaveAttribute("data-suppressed", "true");
 });
-test("later arrivals do not restart the active arrival timer", async ({ page }) => {
+test("later arrivals do not restart the active arrival timer or move its reserved actor", async ({ page }) => {
   let eventCalls = 0;
   await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }) });
@@ -148,7 +148,7 @@ test("later arrivals do not restart the active arrival timer", async ({ page }) 
     const events = shouldDeliver ? [{
       sequence,
       type: "ARRIVAL",
-      studentProfileId: `learner-stream-${sequence}`,
+      studentProfileId: sequence === 1 ? "zz-head" : `aa-tail-${String(sequence).padStart(2, "0")}`,
       visitId: `visit-stream-${sequence}`,
       characterId: `character-stream-${sequence}`,
       occurredAt: `2026-09-02T00:00:0${sequence}.000Z`,
@@ -162,10 +162,17 @@ test("later arrivals do not restart the active arrival timer", async ({ page }) 
 
   await page.goto("/pinoria-tv?centerId=review-sustained-arrivals");
   const scene = page.locator('[data-arrival-scene="true"]');
-  const firstActor = page.locator('[data-ambient-runtime-character="learner-stream-1"]');
+  const firstActor = page.locator('[data-ambient-runtime-character="zz-head"]');
   await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Arrival 1", { timeout: 5_000 });
   await expect(firstActor).toHaveAttribute("data-suppressed", "true");
-  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 6_500 });
+  const reserved = await firstActor.boundingBox();
+  expect(reserved).not.toBeNull();
   await expect.poll(() => eventCalls).toBeGreaterThanOrEqual(5);
+  await expect(scene).toHaveAttribute("data-arrival-phase", "performance");
+  const afterTailArrivals = await firstActor.boundingBox();
+  expect(afterTailArrivals).not.toBeNull();
+  expect(Math.abs(afterTailArrivals!.x - reserved!.x)).toBeLessThan(1);
+  expect(Math.abs(afterTailArrivals!.y - reserved!.y)).toBeLessThan(1);
+  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 6_500 });
   await expect(firstActor).toHaveAttribute("data-suppressed", "true");
 });

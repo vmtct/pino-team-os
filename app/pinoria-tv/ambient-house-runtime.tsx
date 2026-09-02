@@ -6,6 +6,7 @@ import graphData from "./ambient-house-motion-graph.saved.json";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
 import {
   createAmbientAgents,
+  reconcileAmbientAgents,
   stepAmbientAgents,
   type AmbientAgent,
   type AmbientMotionGraph,
@@ -36,9 +37,10 @@ export function AmbientHouseRuntime({ learners, departingId = null, suppressedId
   const lastCommit = useRef(0);
 
   useEffect(() => {
-    setAgents(createAmbientAgents(learners.map((learner) => learner.id), GRAPH));
+    const desiredIds = idsKey ? idsKey.split("|") : [];
+    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH));
     previousFrame.current = null;
-  }, [idsKey, learners]);
+  }, [idsKey]);
 
   useEffect(() => {
     const frozen = new Set(JSON.parse(frozenKey) as string[]);
