@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 const character = {
-  hair: "draft/Hair01.png",
-  face: "draft/Face01.png",
-  outfit: "draft/Outfit01.png",
+  hair: "https://assets.pinohouse.art/draft/Char_hair_girl_short.png",
+  face: "https://assets.pinohouse.art/draft/Char_face_smiley.png",
+  outfit: "https://assets.pinohouse.art/draft/Char_body_painting_girl.png",
 };
 
 test("arrival heroes hand off sequentially into reserved ambient actors", async ({ page }) => {
