@@ -285,7 +285,11 @@ function GuardianPanel({ lifecycle, retryKeys, onChanged }: { lifecycle: BoLearn
       const key = retryKeys.getOrCreate(retryTarget, () => crypto.randomUUID());
       const result = await boApi.resetParentPin(parentId, key);
       retryKeys.clear(retryTarget);
-      await onChanged(`Parent PIN tạm thời: ${result.temporaryPin} · hết hạn ${new Date(result.expiresAt).toLocaleString("vi-VN")}`);
+      if (result.replayed || !result.temporaryPin) {
+        await onChanged("Reset PIN trước đó đã hoàn tất. PIN tạm chỉ hiển thị một lần; nếu chưa ghi nhận PIN, bấm Reset PIN lần nữa để tạo PIN mới.");
+      } else {
+        await onChanged(`Parent PIN tạm thời: ${result.temporaryPin} · hết hạn ${new Date(result.expiresAt).toLocaleString("vi-VN")}`);
+      }
     } catch (error) { alert(message(error)); }
     finally { setBusy(null); }
   }

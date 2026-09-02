@@ -41,6 +41,9 @@ test("School Students binds targets, current Student and replay context explicit
   assert.match(view, /selectedIdRef/);
   assert.match(view, /window\.sessionStorage/);
   assert.match(view, /replayContext/);
+  assert.match(view, /result\.replayed \|\| !result\.temporaryPin/);
+  assert.match(view, /PIN tạm chỉ hiển thị một lần/);
+  assert.match(api, /temporaryPin: string \| null/);
   assert.doesNotMatch(api, /createSubscription:[^\n]*crypto\.randomUUID/);
   assert.doesNotMatch(api, /renewSubscription:[^\n]*crypto\.randomUUID/);
   assert.doesNotMatch(api, /placeEnrollment:[^\n]*crypto\.randomUUID/);
