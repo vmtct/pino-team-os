@@ -110,7 +110,7 @@ export function requiresTosStaffSession(host: string, pathname: string): boolean
   if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;
-  return ["/dashboard", "/schedule", "/classroom", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
+  return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
     .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
 }
 
