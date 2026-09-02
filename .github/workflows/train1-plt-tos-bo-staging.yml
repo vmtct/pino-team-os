@@ -196,6 +196,10 @@ jobs:
           const desktopNav = page.getByRole('navigation', { name: 'Điều hướng Back Office' });
           await desktopNav.waitFor({ state: 'visible' });
           for (const link of ['Hôm nay', 'Learners', 'Staff', 'Access']) await desktopNav.getByRole('link', { name: link, exact: true }).waitFor({ state: 'visible' });
+          const commandButton = page.getByRole('button', { name: 'Mở điều hướng nhanh' });
+          await commandButton.click();
+          await page.getByLabel('Tìm màn hình Back Office').waitFor({ state: 'visible' });
+          await page.keyboard.press('Escape');
           await page.keyboard.press('Control+K');
           await page.getByLabel('Tìm màn hình Back Office').waitFor({ state: 'visible' });
           await page.keyboard.press('Escape');
