@@ -8,6 +8,7 @@ export default function StaffPage() {
   return (
     <>
       <StaffRegistrationIntakeToggle />
+      <StaffRegistrationReviewQueue />
       <StaffManagementView />
       <StaffOnboardingView />
       <F2LearningOperatorActivation />

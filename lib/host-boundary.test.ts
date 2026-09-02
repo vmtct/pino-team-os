@@ -76,7 +76,7 @@ test("the retired team hostname always returns not found without a redirect", ()
 });
 
 test("join host is bounded to the employee registration surface", () => {
-  for (const pathname of ["/staff/register", "/api/staff-registration", "/_next/static/app.js", "/favicon.ico"]) assert.deepEqual(decideHostBoundary(STAFF_REGISTRATION_HOSTNAME, pathname), { action: "next" }, pathname);
+  for (const pathname of ["/staff/register", "/staff/register/", "/api/staff-registration", "/api/staff-registration/", "/_next/static/app.js", "/favicon.ico"]) assert.deepEqual(decideHostBoundary(STAFF_REGISTRATION_HOSTNAME, pathname), { action: "next" }, pathname);
   for (const pathname of ["/", "/bo", "/bo/staff", "/api/bo/workforce/staff-registration-requests", "/staff-login"]) assert.deepEqual(decideHostBoundary(STAFF_REGISTRATION_HOSTNAME, pathname), { action: "not_found" }, pathname);
 });
 

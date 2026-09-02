@@ -14,7 +14,8 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
 
   if (hostname === STAFF_REGISTRATION_HOSTNAME) {
-    if (pathname === "/staff/register" || pathname === "/api/staff-registration" || pathname === "/favicon.ico" || isFrameworkAsset(pathname)) return { action: "next" };
+    const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    if (normalized === "/staff/register" || normalized === "/api/staff-registration" || normalized === "/favicon.ico" || isFrameworkAsset(normalized)) return { action: "next" };
     return { action: "not_found" };
   }
 

@@ -131,7 +131,7 @@ export async function handleBoWriteRequest(
 export function shouldReconcileTosAccess(path: string): boolean {
   return path === ACCESS_PERIMETER_RECONCILE_PATH
     || path === STAFF_ONBOARDING_PATH
-    || path === STAFF_REGISTRATION_SETTINGS_PATH
+    || (STAFF_REGISTRATION_REVIEW_PATH.test(path) && path.endsWith("/approve"))
     || ACCESS_ROLE_UPDATE_PATH.test(path)
     || ACCESS_ROLE_ARCHIVE_PATH.test(path)
     || path === ACCESS_ASSIGNMENT_PATH

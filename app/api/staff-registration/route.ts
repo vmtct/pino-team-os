@@ -56,18 +56,21 @@ async function document(form: FormData, key: string, label: string): Promise<Sta
   if (!(value instanceof File) || value.size === 0) throw new ValidationError(`Vui lòng tải ${label}.`);
   if (value.size > 5 * 1024 * 1024) throw new ValidationError(`Ảnh ${label} phải nhỏ hơn 5 MB.`);
   if (!isImageType(value.type)) throw new ValidationError(`Ảnh ${label} phải là JPG, PNG hoặc WEBP.`);
-  return { fileName: value.name.slice(0, 180), mimeType: value.type, byteSize: value.size, body: await value.arrayBuffer() };
+  if (value.name.trim().length > 180) throw new ValidationError("Tên tệp CCCD quá dài.");
+  return { fileName: value.name, mimeType: value.type, byteSize: value.size, body: await value.arrayBuffer() };
 }
 function required(form: FormData, key: string, max: number, message: string): string {
   const value = form.get(key);
-  const normalized = typeof value === "string" ? value.trim().slice(0, max) : "";
-  if (!normalized) throw new ValidationError(message);
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!normalized || normalized.length > max) throw new ValidationError(message);
   return normalized;
 }
 
 function optional(form: FormData, key: string, max: number): string | null {
   const value = form.get(key);
-  const normalized = typeof value === "string" ? value.trim().slice(0, max) : "";
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (normalized.length > max) throw new ValidationError("Thông tin vượt quá giới hạn cho phép.");
   return normalized || null;
 }
 
