@@ -186,6 +186,10 @@ export function ReceptionTv() {
   useEffect(() => {
     const scene = scenes[0];
     if (!scene || presentation) return;
+    if (scene.kind === "arrival" && !inside.some((learner) => learner.studentProfileId === scene.studentProfileId && learner.visit.id === scene.visitId)) {
+      setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
+      return;
+    }
     const duration = scene.kind === "arrival"
       ? scene.phase === "performance" ? ARRIVAL_PERFORMANCE_MS : ARRIVAL_HANDOFF_MS
       : scene.phase === "transition" ? DEPARTURE_TRANSITION_MS : DEPARTURE_PERFORMANCE_MS;
@@ -208,7 +212,7 @@ export function ReceptionTv() {
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [scenes, presentation]);
+  }, [inside, scenes, presentation]);
 
   useLayoutEffect(() => {
     const scene = scenes[0];
@@ -219,8 +223,12 @@ export function ReceptionTv() {
     const stage = stageRef.current;
     if (!stage) return;
     const target = Array.from(stage.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
-      .find((element) => element.dataset.ambientRuntimeCharacter === scene.studentProfileId);
-    if (!target) return;
+      .find((element) => element.dataset.ambientRuntimeCharacter === scene.studentProfileId
+        && element.dataset.ambientRuntimeVisit === scene.visitId);
+    if (!target) {
+      setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
+      return;
+    }
     const stageRect = stage.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     if (!stageRect.width || !stageRect.height || !targetRect.width || !targetRect.height) return;
@@ -285,7 +293,7 @@ export function ReceptionTv() {
     setPresentation(null);
     setCenterId("");
   }
-  const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, name: learner.displayName, config: learner.character.config })), [inside]);
+  const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, visitId: learner.visit.id, name: learner.displayName, config: learner.character.config })), [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
       <div>
@@ -329,6 +337,7 @@ export function ReceptionTv() {
       key={visualScene.id}
       data-arrival-scene={visualScene.kind === "arrival" ? "true" : undefined}
       data-arrival-phase={visualScene.kind === "arrival" ? visualScene.phase : undefined}
+      data-arrival-visit={visualScene.kind === "arrival" ? visualScene.visitId : undefined}
       className={`${styles.scene} ${visualScene.kind === "departure" ? styles.departure : ""} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
       style={handoffStyle}
     >

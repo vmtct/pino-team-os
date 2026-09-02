@@ -14,6 +14,7 @@ import styles from "./ambient-house.module.css";
 
 export type AmbientHouseLearner = {
   id: string;
+  visitId: string;
   name: string;
   config: PinoriaCharacterConfig;
 };
@@ -67,7 +68,7 @@ export function AmbientHouseRuntime({ learners, departingId = null, suppressedId
       top: `${(agent.y / GRAPH.canvas.height) * 100}%`,
       "--agent-scale": `${scale}`,
     } as CSSProperties;
-    return <div key={agent.id} className={styles.agent} style={style} data-ambient-runtime-character={agent.id} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
+    return <div key={agent.id} className={styles.agent} style={style} data-ambient-runtime-character={agent.id} data-ambient-runtime-visit={learner.visitId} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
       <LayeredCharacter className={styles.character} config={learner.config} />
       <span>{learner.name}</span>
     </div>;

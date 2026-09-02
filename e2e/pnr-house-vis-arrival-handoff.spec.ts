@@ -101,3 +101,37 @@ test("newer reconnect snapshot cancels a stale arrival before handoff", async ({
   await page.waitForTimeout(3_500);
   await expect(scene).toHaveCount(0);
 });
+
+
+test("same learner replacement visit never receives a stale arrival handoff", async ({ page }) => {
+  let delivered = false;
+  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }) });
+  });
+  await page.route("**/api/pinoria-tv/events**", async (route) => {
+    const events = delivered ? [] : [
+      { sequence: 1, type: "ARRIVAL", studentProfileId: "same-learner", visitId: "visit-old", characterId: "character-old", occurredAt: "2026-09-02T00:00:01.000Z", payload: { displayName: "Old visit", character } },
+      { sequence: 2, type: "DEPARTURE", studentProfileId: "same-learner", visitId: "visit-old", characterId: "character-old", occurredAt: "2026-09-02T00:00:02.000Z", payload: { displayName: "Old visit", character } },
+      { sequence: 3, type: "ARRIVAL", studentProfileId: "same-learner", visitId: "visit-new", characterId: "character-new", occurredAt: "2026-09-02T00:00:03.000Z", payload: { displayName: "New visit", character } },
+    ];
+    delivered = true;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 3, events } }) });
+  });
+  await page.route("**/api/pinoria-tv/presentation", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
+  });
+
+  await page.goto("/pinoria-tv?centerId=review-replacement-visit");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const actor = page.locator('[data-ambient-runtime-character="same-learner"]');
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("New visit", { timeout: 9_000 });
+  await expect(scene).toHaveAttribute("data-arrival-visit", "visit-new");
+  await expect(actor).toHaveAttribute("data-ambient-runtime-visit", "visit-new");
+  await expect(actor).toHaveAttribute("data-suppressed", "true");  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
+  await expect.poll(async () => scene.evaluate((element) => ({
+    left: (element as HTMLElement).style.getPropertyValue("--arrival-target-left"),
+    top: (element as HTMLElement).style.getPropertyValue("--arrival-target-top"),
+    width: (element as HTMLElement).style.getPropertyValue("--arrival-target-width"),
+  }))).not.toEqual({ left: "", top: "", width: "" });
+  await expect(actor).toHaveAttribute("data-suppressed", "true");
+});
