@@ -192,7 +192,10 @@ jobs:
           const bo = await page.goto(`${base}/bo`, { waitUntil: 'domcontentloaded' });
           if (!bo || bo.status() !== 200) throw new Error(`BO status ${bo?.status()}`);
           const boText = await page.locator('body').innerText();
-          for (const text of ['PINO House', 'Back Office', 'Workspace', 'Operations', 'Workforce', 'System']) if (!boText.includes(text)) throw new Error(`missing BO text: ${text}`);
+          for (const text of ['PINO House', 'Back Office']) if (!boText.includes(text)) throw new Error(`missing BO text: ${text}`);
+          const desktopNav = page.getByRole('navigation', { name: 'Điều hướng Back Office' });
+          await desktopNav.waitFor({ state: 'visible' });
+          for (const link of ['Hôm nay', 'Learners', 'Staff', 'Access']) await desktopNav.getByRole('link', { name: link, exact: true }).waitFor({ state: 'visible' });
           await page.keyboard.press('Control+K');
           await page.getByLabel('Tìm màn hình Back Office').waitFor({ state: 'visible' });
           await page.keyboard.press('Escape');
