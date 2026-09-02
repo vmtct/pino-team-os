@@ -69,6 +69,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || path === "workforce/staff-registration-settings"
+    || path === "workforce/staff-registration-requests"
     || path === "learners"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"

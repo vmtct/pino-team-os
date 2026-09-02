@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BO_HOSTNAME, decideHostBoundary, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
+import { BO_HOSTNAME, decideHostBoundary, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
@@ -42,7 +42,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/access/users",
     `/api/bo/access/roles/${roleId}`, `/api/bo/access/roles/${roleId}/duplicate`, `/api/bo/access/roles/${roleId}/update`, `/api/bo/access/roles/${roleId}/archive`,
     `/api/bo/access/users/${roleId}/staff-pin/reset`,
-    "/api/bo/workforce/staff-records", "/api/bo/workforce/staff-onboarding", "/api/bo/workforce/planning/weekly", "/api/bo/workforce/planning/assignment", "/api/bo/workforce/planning/assignment/cancel",
+    "/api/bo/workforce/staff-records", "/api/bo/workforce/staff-onboarding", "/api/bo/workforce/staff-registration-settings", "/api/bo/workforce/staff-registration-requests", `/api/bo/workforce/staff-registration-requests/${roleId}/approve`, `/api/bo/workforce/staff-registration-requests/${roleId}/reject`, "/api/bo/workforce/planning/weekly", "/api/bo/workforce/planning/assignment", "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments", "/api/bo/access/assignments/remove", "/api/bo/access/users/status", "/api/bo/access/perimeter-reconcile",
     `/api/bo/workforce/staff-records/${roleId}`, `/api/bo/workforce/staff-records/${roleId}/status`,
     "/staff-pin/change", "/api/staff-pin/status", "/api/staff-pin/change", `/api/bo/sessions/${roleId}/registrations`,
@@ -73,6 +73,11 @@ test("the retired team hostname always returns not found without a redirect", ()
   for (const pathname of ["/", "/dashboard", "/bo", "/founder"]) {
     assert.deepEqual(decideHostBoundary(RETIRED_TEAM_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }
+});
+
+test("join host is bounded to the employee registration surface", () => {
+  for (const pathname of ["/staff/register", "/api/staff-registration", "/_next/static/app.js", "/favicon.ico"]) assert.deepEqual(decideHostBoundary(STAFF_REGISTRATION_HOSTNAME, pathname), { action: "next" }, pathname);
+  for (const pathname of ["/", "/bo", "/bo/staff", "/api/bo/workforce/staff-registration-requests", "/staff-login"]) assert.deepEqual(decideHostBoundary(STAFF_REGISTRATION_HOSTNAME, pathname), { action: "not_found" }, pathname);
 });
 
 test("local and preview hosts retain existing development behavior", () => {
