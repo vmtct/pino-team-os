@@ -58,6 +58,10 @@ test("Staff PIN reset UI binds the loaded profile to the selected Staff target",
   assert.ok(source.includes("return () => { current = false; };"));
   assert.match(source, /profile.id !== selectedId/);
   assert.match(source, /accessUser.staffMemberId !== selectedId/);
+  assert.match(source, /selectedIdRef\.current !== targetStaffId/);
+  assert.match(source, /pinResetAttempts\[targetUserId\]/);
+  assert.match(source, /disabled=\{busy === "pin-reset"\}/);
+  assert.doesNotMatch(source, /setPinResetAttempt\(null\)/);
 });
 
 test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap", async () => {
