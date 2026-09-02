@@ -7,6 +7,7 @@ import {
   ambientAgentIsInsideLane,
   ambientLaneReservationPoints,
   createAmbientAgents,
+  reconcileAmbientAgents,
   resolveAmbientConnectors,
   stepAmbientAgents,
   type AmbientAgent,
@@ -142,4 +143,41 @@ test("departure transition moves the learner toward a lane exit while staying bo
   assert.notEqual(agent.x, startX);
   assert.equal(agent.motionState, "walk");
   assert.ok(ambientAgentIsInsideGraph(agent, graph));
+});
+
+test("arrival handoff can freeze a reserved ambient actor without moving it", () => {
+  const [agent] = createAmbientAgents(["arriving-learner"], graph);
+  const frozen = new Set([agent.id]);
+  const [next] = stepAmbientAgents([agent], graph, 2000, { frozenIds: frozen });
+  assert.equal(next.x, agent.x);
+  assert.equal(next.y, agent.y);
+  assert.equal(next.laneId, agent.laneId);
+  assert.equal(next.connectorId, agent.connectorId);
+  assert.equal(next.motionState, "idle");
+  assert.ok(ambientAgentIsInsideGraph(next, graph));
+});
+
+
+test("population reconcile preserves an existing frozen reservation while later learners join", () => {
+  const frozenId = "zz-head";
+  const frozen = new Set([frozenId]);
+  let agents = createAmbientAgents([frozenId], graph);
+  agents = stepAmbientAgents(agents, graph, 40, { frozenIds: frozen });
+  const anchor = agents.find((agent) => agent.id === frozenId)!;
+  const expected = { x: anchor.x, y: anchor.y, laneId: anchor.laneId, connectorId: anchor.connectorId };
+  const desired = [frozenId];
+
+  for (let index = 2; index <= 12; index += 1) {
+    desired.push(`aa-tail-${String(index).padStart(2, "0")}`);
+    agents = reconcileAmbientAgents(agents, desired, graph);
+    const current = agents.find((agent) => agent.id === frozenId)!;
+    assert.deepEqual(
+      { x: current.x, y: current.y, laneId: current.laneId, connectorId: current.connectorId },
+      expected,
+      `reconcile ${index} moved the reserved actor`,
+    );
+    assert.ok(agents.every((agent) => ambientAgentIsInsideGraph(agent, graph)));
+    assertLaneReservations(agents, graph, `reconcile ${index}`);
+    agents = stepAmbientAgents(agents, graph, 40, { frozenIds: frozen });
+  }
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "./house-event-sequence";
@@ -33,11 +33,15 @@ type Scene = {
   name: string;
   config: PinoriaCharacterConfig;
   studentProfileId: string;
-  phase: "transition" | "performance";
+  phase: "transition" | "performance" | "handoff";
   visitId: string;
 };
 
 const CENTER_STORAGE = "pino.arrival.centerId";
+const ARRIVAL_PERFORMANCE_MS = 5200;
+const ARRIVAL_HANDOFF_MS = 1800;
+const DEPARTURE_TRANSITION_MS = 1200;
+const DEPARTURE_PERFORMANCE_MS = 5200;
 
 export function ReceptionTv() {
   const [centerId, setCenterId] = useState("");
@@ -52,6 +56,8 @@ export function ReceptionTv() {
   const presentationBusy = useRef(false);
   const housePollInFlight = useRef(false);
   const houseGeneration = useRef(0);
+  const stageRef = useRef<HTMLElement | null>(null);
+  const [arrivalHandoffTarget, setArrivalHandoffTarget] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search).get("centerId")?.trim() ?? "";
@@ -76,7 +82,11 @@ export function ReceptionTv() {
         if (advanced.applySnapshot) {
           cursor.current = advanced.cursor;
           presentedSequence.current = advanced.presentedSequence;
-          setInside(json.data.learners);
+          const snapshotLearners = json.data.learners;
+          const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
+          setInside(snapshotLearners);
+          setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
+            || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
         }
         setConnected(true);
         wasConnected.current = true;
@@ -173,11 +183,26 @@ export function ReceptionTv() {
     return () => window.clearInterval(timer);
   }, [centerId, pollPresentation]);
 
+  const scene = scenes[0] ?? null;
+  const arrivalSceneIsCurrent = scene?.kind !== "arrival"
+    || inside.some((learner) => learner.studentProfileId === scene.studentProfileId && learner.visit.id === scene.visitId);
+
   useEffect(() => {
-    const scene = scenes[0];
     if (!scene || presentation) return;
-    const duration = scene.kind === "departure" && scene.phase === "transition" ? 1200 : 5200;
+    if (!arrivalSceneIsCurrent) {
+      setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
+      return;
+    }
+    const duration = scene.kind === "arrival"
+      ? scene.phase === "performance" ? ARRIVAL_PERFORMANCE_MS : ARRIVAL_HANDOFF_MS
+      : scene.phase === "transition" ? DEPARTURE_TRANSITION_MS : DEPARTURE_PERFORMANCE_MS;
     const timer = window.setTimeout(() => {
+      if (scene.kind === "arrival" && scene.phase === "performance") {
+        setScenes((queue) => queue[0]?.id === scene.id
+          ? [{ ...queue[0], phase: "handoff" }, ...queue.slice(1)]
+          : queue);
+        return;
+      }
       if (scene.kind === "departure" && scene.phase === "transition") {
         setScenes((queue) => queue[0]?.id === scene.id
           ? [{ ...queue[0], phase: "performance" }, ...queue.slice(1)]
@@ -190,8 +215,32 @@ export function ReceptionTv() {
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [scenes, presentation]);
+  }, [arrivalSceneIsCurrent, presentation, scene]);
 
+  useLayoutEffect(() => {
+    if (!scene || scene.kind !== "arrival" || scene.phase !== "handoff") {
+      setArrivalHandoffTarget(null);
+      return;
+    }
+    const stage = stageRef.current;
+    if (!stage) return;
+    const target = Array.from(stage.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
+      .find((element) => element.dataset.ambientRuntimeCharacter === scene.studentProfileId
+        && element.dataset.ambientRuntimeVisit === scene.visitId);
+    if (!target) {
+      setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
+      return;
+    }
+    const stageRect = stage.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    if (!stageRect.width || !stageRect.height || !targetRect.width || !targetRect.height) return;
+    setArrivalHandoffTarget({
+      left: `${((targetRect.left + targetRect.width / 2 - stageRect.left) / stageRect.width) * 100}%`,
+      top: `${((targetRect.top + targetRect.height / 2 - stageRect.top) / stageRect.height) * 100}%`,
+      width: `${targetRect.width}px`,
+      height: `${targetRect.height}px`,
+    });
+  }, [scene]);
   useEffect(() => {
     if (!presentation || !centerId) return;
     const presentationId = presentation.id;
@@ -246,7 +295,7 @@ export function ReceptionTv() {
     setPresentation(null);
     setCenterId("");
   }
-  const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, name: learner.displayName, config: learner.character.config })), [inside]);
+  const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, visitId: learner.visit.id, name: learner.displayName, config: learner.character.config })), [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
       <div>
@@ -259,14 +308,22 @@ export function ReceptionTv() {
     </main>;
   }
 
-  const scene = scenes[0] ?? null;
-  const performanceScene = scene?.phase === "performance" ? scene : null;
+  const visualScene = scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff") ? scene : null;
+  const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.studentProfileId);
   const departingId = scene?.kind === "departure" && scene.phase === "transition"
     && inside.some((learner) => houseDepartureMatchesVisit(learner.studentProfileId, learner.visit.id, scene.studentProfileId, scene.visitId))
     ? scene.studentProfileId
     : null;
-  const active = Boolean(performanceScene || presentation);
-  return <main className={`${styles.stage} ${active ? styles.active : ""}`}>
+  const isArrivalHandoff = visualScene?.kind === "arrival" && visualScene.phase === "handoff";
+  const handoffStyle = isArrivalHandoff && arrivalHandoffTarget ? ({
+    "--arrival-target-left": arrivalHandoffTarget.left,
+    "--arrival-target-top": arrivalHandoffTarget.top,
+    "--arrival-target-width": arrivalHandoffTarget.width,
+    "--arrival-target-height": arrivalHandoffTarget.height,
+  } as CSSProperties) : undefined;
+  const active = Boolean(visualScene || presentation);
+  const arrivalActive = visualScene?.kind === "arrival";
+  return <main ref={stageRef} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
     <div className={styles.orbTwo} />
@@ -276,16 +333,26 @@ export function ReceptionTv() {
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <AmbientHouseRuntime learners={ambientLearners} departingId={departingId} />
+    </header>    <AmbientHouseRuntime learners={ambientLearners} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
 
-    {performanceScene ? <section key={performanceScene.id} className={`${styles.scene} ${performanceScene.kind === "departure" ? styles.departure : ""}`}>
+    {visualScene ? <section
+      key={visualScene.id}
+      data-arrival-scene={visualScene.kind === "arrival" ? "true" : undefined}
+      data-arrival-phase={visualScene.kind === "arrival" ? visualScene.phase : undefined}
+      data-arrival-visit={visualScene.kind === "arrival" ? visualScene.visitId : undefined}
+      className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
+      style={handoffStyle}
+    >
+      {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} /> : null}
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
-      <LayeredCharacter className={styles.character} config={performanceScene.config} />
+      {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
+      <LayeredCharacter className={styles.character} config={visualScene.config} />
+      <div className={styles.moriShadow} />
       <img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt="" />
       <div className={styles.copy}>
-        <span>{performanceScene.kind === "arrival" ? "CHÀO ĐẾN PINO HOUSE" : "HẸN GẶP LẠI"}</span>
-        <h1>{performanceScene.name}</h1>
-        <p>{performanceScene.kind === "arrival" ? "Pinoria đã nhận ra bạn ✦" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
+        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
+        <h1>{visualScene.kind === "arrival" ? `Chào ${visualScene.name} ✦` : visualScene.name}</h1>
+        <p>{visualScene.kind === "arrival" ? "Hôm nay Mori đi cùng mình!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
     {!scene && !presentation ? <section className={styles.idle}>
