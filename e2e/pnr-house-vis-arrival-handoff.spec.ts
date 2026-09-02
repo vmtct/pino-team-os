@@ -176,3 +176,37 @@ test("later arrivals do not restart the active arrival timer or move its reserve
   await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 6_500 });
   await expect(firstActor).toHaveAttribute("data-suppressed", "true");
 });
+
+test("reduced motion lands the arrival hero directly on its reserved actor", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  let delivered = false;
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }),
+  }));
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    const events = delivered ? [] : [{ sequence: 1, type: "ARRIVAL", studentProfileId: "reduced-learner",
+      visitId: "reduced-visit", characterId: "reduced-character", occurredAt: "2026-09-02T00:00:00.000Z",
+      payload: { displayName: "Reduced", character } }];
+    delivered = true;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events } }) });
+  });
+  await page.route("**/api/pinoria-tv/presentation", (route) => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }),
+  }));
+  await page.goto("/pinoria-tv?centerId=review-reduced-motion");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const actor = page.locator('[data-ambient-runtime-character="reduced-learner"]');
+  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
+  await expect(actor).toHaveAttribute("data-suppressed", "true");
+  await expect.poll(() => scene.evaluate((element) => (element as HTMLElement).style.getPropertyValue("--arrival-target-left"))).not.toBe("");
+  const result = await scene.evaluate((element) => {
+    const hero = Array.from(element.children).find((child) => child.querySelectorAll("img").length >= 3) as HTMLElement;
+    const target = document.querySelector('[data-ambient-runtime-character="reduced-learner"]') as HTMLElement;
+    const h = hero.getBoundingClientRect(); const t = target.getBoundingClientRect(); const style = getComputedStyle(hero);
+    return { animationName: style.animationName, animationDuration: style.animationDuration,
+      delta: Math.max(Math.abs(h.x - t.x), Math.abs(h.y - t.y), Math.abs(h.width - t.width), Math.abs(h.height - t.height)) };
+  });
+  expect(result.animationName).toBe("none");
+  expect(result.animationDuration).toBe("0s");
+  expect(result.delta).toBeLessThan(1);
+});
