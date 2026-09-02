@@ -76,7 +76,7 @@ function apiError(response: Response, body: { error?: { message?: string; reques
 type BoScopeBootstrap = {
   centers: Array<{ id: string; centerKey: string; displayName: string; timeZone: string; status: string }>;
   paths: Array<{ id: string; code: string; displayName: string; status: string }>;
-  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; optimalConcurrentCapacity: number; status: string }>;
+  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: "FIXED_COHORT" | "FLEXIBLE_STUDIO" | "OVERLAPPING_COHORT"; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; status: string }>;
 };
 
 type AccessAssignmentCommand = {
@@ -94,7 +94,7 @@ export const boApi = {
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
-      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
   centers: () => read<BoCenter>("centers"),
@@ -124,13 +124,14 @@ export const boApi = {
   archiveLearningSyllabus: (syllabusId: string, expectedRevision: number, reason: string) => write<BoLearningSyllabus>(`learning/syllabi/${encodeURIComponent(syllabusId)}/archive`, { expectedRevision, reason }, crypto.randomUUID()),
   sessions: () => read<BoSession>("sessions"),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
-  learners: (query = "") => read<BoLearnerDirectoryItem>(`learners${query ? `?query=${encodeURIComponent(query)}` : ""}`),
+  learners: (query = "", limit = 200) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   createSubscription: (body: { studentProfileId: string; pathProgramId: string; serviceStartsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }) => write<unknown>("subscriptions", body, crypto.randomUUID()),
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, crypto.randomUUID()),
   cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, crypto.randomUUID()),
   placeEnrollment: (body: { subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null; commandEffectiveLocalDate: string; policyEffectiveAt: string }) => write<unknown>("enrollments", body, crypto.randomUUID()),
   endEnrollment: (enrollmentId: string, body: { effectiveUntilExclusiveLocalDate: string; expectedVersion: number; reason: string }) => write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/end`, body, crypto.randomUUID()),
+  transferEnrollment: (enrollmentId: string, body: { destinationRunningClassId: string; transferLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null; commandEffectiveLocalDate: string; policyEffectiveAt: string; reason: string }) => write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/transfer`, body, crypto.randomUUID()),
   resetParentPin: (parentUserId: string) => write<{ command: string; temporaryPin: string; expiresAt: string; credentialVersion: number }>(`identity/parents/${encodeURIComponent(parentUserId)}/pin/reset`, {}, crypto.randomUUID()),
   openStudioOperations: (centerId?: string) => readOne<BoOpenStudioOperations>(`open-studio/operations${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
   openStudioListingCatalog: (centerId?: string) => readOne<BoOpenStudioListingCatalog>(`open-studio/listing-catalog?effectiveAt=${encodeURIComponent(new Date().toISOString())}${centerId ? `&centerId=${encodeURIComponent(centerId)}` : ""}`),

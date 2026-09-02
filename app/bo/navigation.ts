@@ -6,12 +6,13 @@ export const boNavigation: BoNavGroup[] = [
     items: [{ href: "/bo", label: "Hôm nay" }],
   },
   {
-    label: "Operations",
+    label: "School",
     items: [
-      { href: "/bo/learners", label: "Learners" },
+      { href: "/bo/learners", label: "Students" },
+      { label: "Subscriptions" },
       {
         href: "/bo/running-classes",
-        label: "Delivery",
+        label: "Classes",
         children: [
           { href: "/bo/running-classes", label: "Lớp đang chạy" },
           { href: "/bo/sessions", label: "Sessions" },
@@ -19,9 +20,14 @@ export const boNavigation: BoNavGroup[] = [
           { href: "/bo/delivery-activation", label: "Activation" },
         ],
       },
-      { href: "/bo/open-studio", label: "Open Studio" },
+      { label: "Schedule" },
     ],
-  },  {
+  },
+  {
+    label: "Operations",
+    items: [{ href: "/bo/open-studio", label: "Open Studio" }],
+  },
+  {
     label: "Learning",
     items: [
       { href: "/bo/syllabus", label: "Programs & Syllabus" },
@@ -52,7 +58,8 @@ export const boNavigation: BoNavGroup[] = [
         children: [{ href: "/bo/pinoria-companions", label: "Companions" }],
       },
     ],
-  },  {
+  },
+  {
     label: "System",
     items: [
       {

@@ -22,6 +22,8 @@ export interface BoRunningClass {
   startLocalTime: string;
   endLocalTime: string;
   defaultCapacity: number;
+  deliveryTopology?: "FIXED_COHORT" | "FLEXIBLE_STUDIO" | "OVERLAPPING_COHORT";
+  defaultParticipationMinutes?: number | null;
   status: string;
 }
 
