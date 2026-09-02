@@ -1,6 +1,5 @@
 export interface StaffRegistrationIntakeState {
   enabled: boolean;
-  updatedAt: string | null;
 }
 
 export interface StaffRegistrationDocumentInput {

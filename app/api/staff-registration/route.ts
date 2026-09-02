@@ -8,9 +8,9 @@ export async function GET(): Promise<Response> {
   try {
     const env = await registrationEnv();
     const state = await env.PINO_STAFF_REGISTRATION_CORE.status();
-    return json({ data: state }, 200);
+    return json({ data: { enabled: state.enabled } }, 200);
   } catch (cause) {
-    if (isLocalPreview()) return json({ data: { enabled: true, updatedAt: null, preview: true } }, 200);
+    if (isLocalPreview()) return json({ data: { enabled: true, preview: true } }, 200);
     return publicFailure(cause);
   }
 }
