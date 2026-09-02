@@ -32,6 +32,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo",
     "/bo/staff",
     "/bo/workforce",
+    "/bo/training",
     "/bo/learners",
     "/bo/open-studio",
     "/bo/delivery-activation",
@@ -97,6 +98,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
     || /^\/api\/bo\/access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/.test(normalized)
     || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/training\/(?:catalog|modules|assignments|staff\/[0-9a-f-]{36}|versions\/[0-9a-f-]{36}\/(?:draft|publish)|modules\/[0-9a-f-]{36}\/(?:next-draft|retire)|assignments\/[0-9a-f-]{36}\/signoff|qualifications\/[0-9a-f-]{36}\/revoke)$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
@@ -115,7 +117,7 @@ export function requiresTosStaffSession(host: string, pathname: string): boolean
   if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;
-  return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
+  return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/training", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
     .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
 }
 

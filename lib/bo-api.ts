@@ -31,6 +31,7 @@ import type {
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
+import type { StaffQualification, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
 export { BoApiError } from "./bo-api-error";
@@ -160,6 +161,16 @@ export const boApi = {
   accessPermissions: () => read<BoAccessPermission>("access/permissions"),
   accessAudit: (limit = 100) => read<BoAccessAuditEvent>(`access/audit?limit=${encodeURIComponent(String(limit))}`),
   accessUsers: () => read<BoAccessSystemUser>("access/users"),
+  trainingCatalog: () => read<TrainingModule>("workforce/training/catalog"),
+  trainingStaffAssignments: (staffMemberId: string) => read<TrainingAssignmentDetail>(`workforce/training/staff/${encodeURIComponent(staffMemberId)}`),
+  createTrainingModule: (moduleKey: string, draft: TrainingDraftInput) => write<TrainingModule>("workforce/training/modules", { moduleKey, ...draft }, crypto.randomUUID()),
+  saveTrainingDraft: (versionId: string, expectedRevision: number, draft: TrainingDraftInput) => write<TrainingModuleVersion>(`workforce/training/versions/${encodeURIComponent(versionId)}/draft`, { expectedRevision, ...draft }, crypto.randomUUID()),
+  publishTrainingVersion: (versionId: string, expectedRevision: number) => write<TrainingModuleVersion>(`workforce/training/versions/${encodeURIComponent(versionId)}/publish`, { expectedRevision }, crypto.randomUUID()),
+  createNextTrainingDraft: (moduleId: string) => write<TrainingModuleVersion>(`workforce/training/modules/${encodeURIComponent(moduleId)}/next-draft`, {}, crypto.randomUUID()),
+  retireTrainingModule: (moduleId: string, reason: string) => write<TrainingModule>(`workforce/training/modules/${encodeURIComponent(moduleId)}/retire`, { reason }, crypto.randomUUID()),
+  assignTraining: (body: { staffMemberId: string; moduleVersionId: string; dueDate?: string | null; reason: string }) => write<TrainingAssignmentDetail>("workforce/training/assignments", body, crypto.randomUUID()),
+  signOffTraining: (assignmentId: string, note?: string | null) => write<TrainingAssignmentDetail>(`workforce/training/assignments/${encodeURIComponent(assignmentId)}/signoff`, { note: note ?? null }, crypto.randomUUID()),
+  revokeTrainingQualification: (qualificationId: string, reason: string) => write<StaffQualification>(`workforce/training/qualifications/${encodeURIComponent(qualificationId)}/revoke`, { reason }, crypto.randomUUID()),
   staffRecords: () => read<BoStaffRecord>("workforce/staff-records"),
   staffRecord: (staffMemberId: string) => readOne<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`),
   workforcePlanning: (centerId: string, termWeekId: string) => readOne<BoWorkforceWeeklyPlanning>(`workforce/planning/weekly?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),

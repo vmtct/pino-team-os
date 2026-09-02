@@ -33,6 +33,7 @@ export const boNavigation: BoNavGroup[] = [
     items: [
       { href: "/bo/staff", label: "Staff" },
       { href: "/bo/workforce", label: "Schedule & Time" },
+      { href: "/bo/training", label: "Training" },
     ],
   },
   {

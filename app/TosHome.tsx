@@ -7,6 +7,7 @@ const apps = [
   { id: "shift", title: "Ca làm", copy: "Check-in/out, lịch, đăng ký và chấm công của bạn.", href: "/dashboard", icon: "◷", tone: styles.shift },
   { id: "classroom", title: "Lớp học", copy: "Lớp hôm nay, học viên, giáo án, journal và thành tựu.", href: "/classroom", icon: "▤", tone: styles.classroom },
   { id: "tasks", title: "Việc", copy: "Những việc cần xử lý theo đúng ngữ cảnh công việc.", href: "/tasks", icon: "◌", tone: styles.tasks },
+  { id: "training", title: "Học & Chứng nhận", copy: "Training bắt buộc, skill passport và qualification của bạn.", href: "/training", icon: "◇", tone: styles.tasks },
   { id: "pinoria", title: "Pinoria", copy: "Hiện diện House và các thao tác Pinoria được phân quyền.", href: "/pinoria", icon: "◈", tone: styles.pinoria },
 ] as const;
 
