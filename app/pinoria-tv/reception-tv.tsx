@@ -347,6 +347,7 @@ export function ReceptionTv() {
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
       {visualScene.kind === "arrival" ? <><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
       <LayeredCharacter className={styles.character} config={visualScene.config} />
+      <div className={styles.moriShadow} />
       <img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt="" />
       <div className={styles.copy}>
         <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
