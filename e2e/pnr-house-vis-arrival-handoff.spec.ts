@@ -58,3 +58,46 @@ test("arrival heroes hand off sequentially into reserved ambient actors", async 
   await expect(actor).toHaveAttribute("data-suppressed", "false");
   await expect(queuedActor).toHaveAttribute("data-suppressed", "true");
 });
+
+test("newer reconnect snapshot cancels a stale arrival before handoff", async ({ page }) => {
+  let snapshotCalls = 0;
+  let eventCalls = 0;
+  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
+    snapshotCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { cursor: snapshotCalls === 1 ? 0 : 2, learners: [] } }),
+    });
+  });
+  await page.route("**/api/pinoria-tv/events**", async (route) => {
+    eventCalls += 1;
+    if (eventCalls === 1) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events: [{
+        sequence: 1,
+        type: "ARRIVAL",
+        studentProfileId: "learner-stale-arrival",
+        visitId: "visit-stale-arrival",
+        characterId: "character-stale-arrival",
+        occurredAt: "2026-09-02T00:00:00.000Z",
+        payload: { displayName: "Gone", character },
+      }] } }) });
+      return;
+    }
+    await route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+  });
+  await page.route("**/api/pinoria-tv/presentation", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
+  });
+
+  await page.goto("/pinoria-tv?centerId=review-reconnect");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const actor = page.locator('[data-ambient-runtime-character="learner-stale-arrival"]');
+  await expect(scene).toHaveAttribute("data-arrival-phase", "performance", { timeout: 5_000 });
+  await expect(actor).toHaveAttribute("data-suppressed", "true");
+  await expect.poll(() => snapshotCalls, { timeout: 5_000 }).toBeGreaterThan(1);
+  await expect(scene).toHaveCount(0, { timeout: 3_000 });
+  await expect(actor).toHaveCount(0);
+  await page.waitForTimeout(3_500);
+  await expect(scene).toHaveCount(0);
+});

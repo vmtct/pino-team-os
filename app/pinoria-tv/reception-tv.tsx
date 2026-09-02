@@ -82,7 +82,11 @@ export function ReceptionTv() {
         if (advanced.applySnapshot) {
           cursor.current = advanced.cursor;
           presentedSequence.current = advanced.presentedSequence;
-          setInside(json.data.learners);
+          const snapshotLearners = json.data.learners;
+          const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
+          setInside(snapshotLearners);
+          setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
+            || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
         }
         setConnected(true);
         wasConnected.current = true;
