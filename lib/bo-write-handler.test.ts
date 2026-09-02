@@ -93,6 +93,16 @@ test("Staff PIN reset facade forwards an empty replay-protected command and reje
   assert.equal(forwarded.length, 1);
 });
 
+test("workers.dev staging bypass cannot authorize Staff PIN reset", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const resetPath = "access/users/0198d050-56c1-7ac5-b9ab-b0e45d912345/staff-pin/reset";
+  const stagingRequest = new Request(`https://pino-team-os-staging.example.workers.dev/api/bo/${resetPath}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "staging-reset" }, body: "{}" });
+  const response = await handleBoStaffOnboardingRequest(stagingRequest, { ...env(binding), WORKFORCE_BO_STAGING_BYPASS: "enabled", WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid" }, resetPath);
+  assert.equal(response.status, 401);
+  assert.equal(called, false);
+});
+
 test("missing BO Access identity fails before Core", async () => {
   let called = false;
   const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
