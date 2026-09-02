@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
+import { LatestRequestFence, RetryKeyStore, initialEnrollmentId, initialSubscriptionId, type BoStudentActionIntent } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type Filter = "active" | "inactive" | "all";
-type Action = "add" | "renew" | "place" | "transfer" | null;
+type Action = BoStudentActionIntent | null;
 
 type ActionSheetProps = {
   action: Exclude<Action, null>;
@@ -27,6 +28,7 @@ export function BoLearnersView() {
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<Action>(null);
   const [notice, setNotice] = useState("");
+  const detailRequestFence = useRef(new LatestRequestFence());
 
   async function loadDirectory() {
     setDirectory({ state: "loading" });
@@ -40,9 +42,14 @@ export function BoLearnersView() {
   }
 
   async function loadDetail(id: string) {
+    const requestSeq = detailRequestFence.current.begin();
     setDetail({ state: "loading" });
-    try { setDetail({ state: "ready", data: await boApi.learnerLifecycle(id) }); }
-    catch (error) { setDetail({ state: "error", message: message(error) }); }
+    try {
+      const data = await boApi.learnerLifecycle(id);
+      if (detailRequestFence.current.isCurrent(requestSeq)) setDetail({ state: "ready", data });
+    } catch (error) {
+      if (detailRequestFence.current.isCurrent(requestSeq)) setDetail({ state: "error", message: message(error) });
+    }
   }
 
   useEffect(() => {
@@ -91,7 +98,7 @@ export function BoLearnersView() {
         <h1>Học viên</h1>
         <p>Manager nhìn ngay ai đang học, học chương trình nào, còn bao nhiêu buổi và đang ở lớp nào.</p>
       </div>
-      <button className={styles.primaryButton} type="button" disabled={detail?.state !== "ready"} onClick={() => setAction("add")}>+ Chương trình</button>
+      <button className={styles.primaryButton} type="button" disabled={detail?.state !== "ready"} onClick={() => setAction({ kind: "add" })}>+ Chương trình</button>
     </header>
 
     <section className={styles.metrics}>
@@ -179,9 +186,9 @@ function StudentHero({ lifecycle, activeCount, onAction }: { lifecycle: BoLearne
       <div><span className={styles.eyebrow}>Student profile</span><h2>{student.displayName}</h2><p>{ageLabel(student.birthYear)}</p></div>
     </div>
     <div className={styles.heroActions}>
-      <button type="button" className={styles.secondaryButton} disabled={!hasEnrollment} onClick={() => onAction("transfer")}>Chuyển lớp</button>
-      <button type="button" className={styles.secondaryButton} disabled={!activeCount} onClick={() => onAction("renew")}>Gia hạn</button>
-      <button type="button" className={styles.primaryButton} onClick={() => onAction("add")}>+ Chương trình</button>
+      <button type="button" className={styles.secondaryButton} disabled={!hasEnrollment} onClick={() => onAction({ kind: "transfer" })}>Chuyển lớp</button>
+      <button type="button" className={styles.secondaryButton} disabled={!activeCount} onClick={() => onAction({ kind: "renew" })}>Gia hạn</button>
+      <button type="button" className={styles.primaryButton} onClick={() => onAction({ kind: "add" })}>+ Chương trình</button>
     </div>
     <div className={styles.heroStatus}>
       <span className={activeCount ? styles.statusActive : styles.statusMuted}>{activeCount ? "Đang học" : "Chưa active"}</span>
@@ -209,10 +216,10 @@ function LearningSection({ lifecycle, catalog, onAction }: { lifecycle: BoLearne
   return <section className={styles.sectionCard}>
     <div className={styles.sectionHeading}>
       <div><span className={styles.eyebrow}>Current learning</span><h3>Chương trình đang học</h3></div>
-      <button type="button" className={styles.linkButton} onClick={() => onAction("add")}>+ Thêm chương trình</button>
+      <button type="button" className={styles.linkButton} onClick={() => onAction({ kind: "add" })}>+ Thêm chương trình</button>
     </div>
     {active.length ? <div className={styles.learningGrid}>{active.map((entry) => <LearningCard key={entry.subscription.id} entry={entry} catalog={catalog} onAction={onAction} />)}</div> : <div className={styles.emptyState}>
-      <strong>Chưa có Subscription active</strong><span>Tạo chương trình học trước, sau đó place học viên vào lớp.</span><button type="button" className={styles.primaryButton} onClick={() => onAction("add")}>Tạo Subscription</button>
+      <strong>Chưa có Subscription active</strong><span>Tạo chương trình học trước, sau đó place học viên vào lớp.</span><button type="button" className={styles.primaryButton} onClick={() => onAction({ kind: "add" })}>Tạo Subscription</button>
     </div>}
   </section>;
 }
@@ -238,19 +245,24 @@ function LearningCard({ entry, catalog, onAction }: { entry: BoLearnerLifecycle[
       }) : <p>Chưa có class placement hiệu lực.</p>}
     </div>
     <div className={styles.cardActions}>
-      <button type="button" onClick={() => onAction(current.length ? "transfer" : "place")}>{current.length ? "Chuyển lớp" : "Xếp lớp"}</button>
-      <button type="button" onClick={() => onAction("renew")}>Gia hạn</button>
+      <button type="button" onClick={() => onAction(current.length
+          ? { kind: "transfer", enrollmentId: current[0]!.id }
+          : { kind: "place", subscriptionId: subscription.id })}>{current.length ? "Chuyển lớp" : "Xếp lớp"}</button>
+      <button type="button" onClick={() => onAction({ kind: "renew", subscriptionId: subscription.id })}>Gia hạn</button>
     </div>
   </article>;
 }
 
 function GuardianPanel({ lifecycle, onChanged }: { lifecycle: BoLearnerLifecycle; onChanged: (text?: string) => Promise<void> }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const resetKeys = useRef(new RetryKeyStore());
   async function resetPin(parentId: string, name: string) {
     if (!confirm(`Reset Parent PIN cho ${name}?`)) return;
     setBusy(parentId);
     try {
-      const result = await boApi.resetParentPin(parentId);
+      const key = resetKeys.current.getOrCreate(parentId, () => crypto.randomUUID());
+      const result = await boApi.resetParentPin(parentId, key);
+      resetKeys.current.clear(parentId);
       await onChanged(`Parent PIN tạm thời: ${result.temporaryPin} · hết hạn ${new Date(result.expiresAt).toLocaleString("vi-VN")}`);
     } catch (error) { alert(message(error)); }
     finally { setBusy(null); }
@@ -294,8 +306,10 @@ function SystemDetails({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
 function ActionSheet({ action, lifecycle, catalog, onClose, onChanged }: ActionSheetProps) {
   const active = lifecycle.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE");
   const enrollments = active.flatMap((entry) => entry.enrollments.filter(isCurrentEnrollment).map((enrollment) => ({ enrollment, subscription: entry.subscription })));
-  const [subscriptionId, setSubscriptionId] = useState(active[0]?.subscription.id ?? "");
-  const [sourceEnrollmentId, setSourceEnrollmentId] = useState(enrollments[0]?.enrollment.id ?? "");
+  const [subscriptionId, setSubscriptionId] = useState(() =>
+    initialSubscriptionId(action, active.map((entry) => entry.subscription.id)));
+  const [sourceEnrollmentId, setSourceEnrollmentId] = useState(() =>
+    initialEnrollmentId(action, enrollments.map((item) => item.enrollment.id)));
   const [pathId, setPathId] = useState(catalog.paths.find((path) => path.status === "ACTIVE")?.id ?? "");
   const [runningClassId, setRunningClassId] = useState("");
   const [date, setDate] = useState(today());
@@ -305,57 +319,61 @@ function ActionSheet({ action, lifecycle, catalog, onClose, onChanged }: ActionS
   const [entryTime, setEntryTime] = useState("");
   const [duration, setDuration] = useState(90);
   const [busy, setBusy] = useState(false);
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [commandEffectiveLocalDate] = useState(today);
+  const [policyEffectiveAt] = useState(() => new Date().toISOString());
+  const kind = action.kind;
   const selectedSubscription = active.find((entry) => entry.subscription.id === subscriptionId)?.subscription;
   const source = enrollments.find((item) => item.enrollment.id === sourceEnrollmentId);
-  const commandPathId = action === "add" ? pathId : action === "transfer" ? source?.subscription.pathProgramId ?? "" : selectedSubscription?.pathProgramId ?? "";
-  const eligibleClasses = catalog.classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === commandPathId && (action !== "transfer" || item.id !== source?.enrollment.runningClassId));
+  const commandPathId = kind === "add" ? pathId : kind === "transfer" ? source?.subscription.pathProgramId ?? "" : selectedSubscription?.pathProgramId ?? "";
+  const eligibleClasses = catalog.classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === commandPathId && (kind !== "transfer" || item.id !== source?.enrollment.runningClassId));
   const destination = eligibleClasses.find((item) => item.id === runningClassId);
   async function submit() {
     setBusy(true);
     try {
-      if (action === "add") {
-        await boApi.createSubscription({ studentProfileId: lifecycle.student.id, pathProgramId: pathId, serviceStartsOn: date, weeklyCommitment: weekly, purchasedUnits: units });
+      if (kind === "add") {
+        await boApi.createSubscription({ studentProfileId: lifecycle.student.id, pathProgramId: pathId, serviceStartsOn: date, weeklyCommitment: weekly, purchasedUnits: units }, idempotencyKey);
         await onChanged("Subscription đã được tạo và activate.");
-      } else if (action === "renew" && selectedSubscription) {
-        await boApi.renewSubscription(selectedSubscription.id, { serviceStartsOn: date, weeklyCommitment: selectedSubscription.weeklyCommitment, purchasedUnits: units });
+      } else if (kind === "renew" && selectedSubscription) {
+        await boApi.renewSubscription(selectedSubscription.id, { serviceStartsOn: date, weeklyCommitment: selectedSubscription.weeklyCommitment, purchasedUnits: units }, idempotencyKey);
         await onChanged("Renewal đã được tạo theo commercial lineage.");
-      } else if (action === "place" && selectedSubscription && destination) {
-        await boApi.placeEnrollment({ subscriptionId: selectedSubscription.id, runningClassId: destination.id, effectiveFromLocalDate: date, ...placementFields(destination, entryTime, duration), commandEffectiveLocalDate: today(), policyEffectiveAt: new Date().toISOString() });
+      } else if (kind === "place" && selectedSubscription && destination) {
+        await boApi.placeEnrollment({ subscriptionId: selectedSubscription.id, runningClassId: destination.id, effectiveFromLocalDate: date, ...placementFields(destination, entryTime, duration), commandEffectiveLocalDate, policyEffectiveAt }, idempotencyKey);
         await onChanged("Enrollment đã được place vào lớp.");
-      } else if (action === "transfer" && source && destination) {
-        await boApi.transferEnrollment(source.enrollment.id, { destinationRunningClassId: destination.id, transferLocalDate: date, ...placementFields(destination, entryTime, duration), commandEffectiveLocalDate: today(), policyEffectiveAt: new Date().toISOString(), reason });
+      } else if (kind === "transfer" && source && destination) {
+        await boApi.transferEnrollment(source.enrollment.id, { destinationRunningClassId: destination.id, transferLocalDate: date, ...placementFields(destination, entryTime, duration), commandEffectiveLocalDate, policyEffectiveAt, reason }, idempotencyKey);
         await onChanged("Enrollment đã được chuyển lớp atomically.");
       }
     } catch (error) { alert(message(error)); }
     finally { setBusy(false); }
   }
 
-  const copy = action === "add" ? ["Thêm chương trình", "Tạo Subscription mới cho Student hiện tại."]
-    : action === "renew" ? ["Gia hạn Subscription", "Tạo renewal giữ nguyên commercial lineage."]
-      : action === "place" ? ["Xếp lớp", "Place Subscription vào Running Class phù hợp."]
+  const copy = kind === "add" ? ["Thêm chương trình", "Tạo Subscription mới cho Student hiện tại."]
+    : kind === "renew" ? ["Gia hạn Subscription", "Tạo renewal giữ nguyên commercial lineage."]
+      : kind === "place" ? ["Xếp lớp", "Place Subscription vào Running Class phù hợp."]
         : ["Chuyển lớp", "Atomic schedule transfer giữ canonical Enrollment history."];
 
   const invalidFlexible = destination?.deliveryTopology === "FLEXIBLE_STUDIO" && (!entryTime || duration < 1);
-  const disabled = busy || (action === "add" && !pathId) || (action === "renew" && !selectedSubscription)
-    || (action === "place" && (!selectedSubscription || !destination || invalidFlexible))
-    || (action === "transfer" && (!source || !destination || !reason.trim() || invalidFlexible));
+  const disabled = busy || (kind === "add" && !pathId) || (kind === "renew" && !selectedSubscription)
+    || (kind === "place" && (!selectedSubscription || !destination || invalidFlexible))
+    || (kind === "transfer" && (!source || !destination || !reason.trim() || invalidFlexible));
 
   return <div className={styles.sheetScrim} onMouseDown={onClose}>
     <section className={styles.sheet} onMouseDown={(event) => event.stopPropagation()}>
       <header><div><span className={styles.eyebrow}>Manager command · Canonical</span><h3>{copy[0]}</h3><p>{lifecycle.student.displayName} · {copy[1]}</p></div><button type="button" onClick={onClose}>×</button></header>
       <div className={styles.sheetFields}>
-        {action === "add" ? <label>Path<select value={pathId} onChange={(event) => setPathId(event.target.value)}>{catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}</select></label> : null}
-        {action === "renew" || action === "place" ? <label>Subscription<select value={subscriptionId} onChange={(event) => { setSubscriptionId(event.target.value); setRunningClassId(""); }}>{active.map((entry) => <option key={entry.subscription.id} value={entry.subscription.id}>{entry.subscription.pathDisplayName} · {entry.subscription.effectiveAvailableUnits} buổi</option>)}</select></label> : null}
-        {action === "transfer" ? <label>Enrollment hiện tại<select value={sourceEnrollmentId} onChange={(event) => { setSourceEnrollmentId(event.target.value); setRunningClassId(""); }}>{enrollments.map((item) => <option key={item.enrollment.id} value={item.enrollment.id}>{item.subscription.pathDisplayName} · {item.enrollment.runningClassName}</option>)}</select></label> : null}
-        {action === "add" ? <label>Cam kết / tuần<input type="number" min={1} max={7} value={weekly} onChange={(event) => setWeekly(Number(event.target.value))} /></label> : null}
-        {action === "add" || action === "renew" ? <label>Service Units<input type="number" min={1} value={units} onChange={(event) => setUnits(Number(event.target.value))} /></label> : null}
-        {action === "place" || action === "transfer" ? <label>Lớp mới<select value={runningClassId} onChange={(event) => setRunningClassId(event.target.value)}><option value="">Chọn lớp…</option>{eligibleClasses.map((item) => <option key={item.id} value={item.id}>{item.name} · {scheduleLabel(item)}</option>)}</select></label> : null}
-        <label>{action === "transfer" ? "Hiệu lực từ" : "Ngày bắt đầu"}<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-        {(action === "place" || action === "transfer") && destination?.deliveryTopology === "FLEXIBLE_STUDIO" ? <>
+        {kind === "add" ? <label>Path<select value={pathId} onChange={(event) => setPathId(event.target.value)}>{catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}</select></label> : null}
+        {kind === "renew" || kind === "place" ? <label>Subscription<select value={subscriptionId} onChange={(event) => { setSubscriptionId(event.target.value); setRunningClassId(""); }}>{active.map((entry) => <option key={entry.subscription.id} value={entry.subscription.id}>{entry.subscription.pathDisplayName} · {entry.subscription.effectiveAvailableUnits} buổi</option>)}</select></label> : null}
+        {kind === "transfer" ? <label>Enrollment hiện tại<select value={sourceEnrollmentId} onChange={(event) => { setSourceEnrollmentId(event.target.value); setRunningClassId(""); }}>{enrollments.map((item) => <option key={item.enrollment.id} value={item.enrollment.id}>{item.subscription.pathDisplayName} · {item.enrollment.runningClassName}</option>)}</select></label> : null}
+        {kind === "add" ? <label>Cam kết / tuần<input type="number" min={1} max={7} value={weekly} onChange={(event) => setWeekly(Number(event.target.value))} /></label> : null}
+        {kind === "add" || kind === "renew" ? <label>Service Units<input type="number" min={1} value={units} onChange={(event) => setUnits(Number(event.target.value))} /></label> : null}
+        {kind === "place" || kind === "transfer" ? <label>Lớp mới<select value={runningClassId} onChange={(event) => setRunningClassId(event.target.value)}><option value="">Chọn lớp…</option>{eligibleClasses.map((item) => <option key={item.id} value={item.id}>{item.name} · {scheduleLabel(item)}</option>)}</select></label> : null}
+        <label>{kind === "transfer" ? "Hiệu lực từ" : "Ngày bắt đầu"}<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        {(kind === "place" || kind === "transfer") && destination?.deliveryTopology === "FLEXIBLE_STUDIO" ? <>
           <label>Giờ vào<input type="time" value={entryTime} onChange={(event) => setEntryTime(event.target.value)} /></label>
           <label>Thời lượng<input type="number" min={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
         </> : null}
-        {action === "transfer" ? <label>Lý do<input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="VD: đổi lịch học" /></label> : null}
+        {kind === "transfer" ? <label>Lý do<input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="VD: đổi lịch học" /></label> : null}
       </div>
       <div className={styles.sheetNote}><strong>Canonical command</strong><span>Command này gọi owner facade và ghi canonical Core khi xác nhận. Permission/validation vẫn do owner kiểm soát.</span></div>
       <footer><button type="button" className={styles.secondaryButton} onClick={onClose}>Huỷ</button><button type="button" disabled={disabled} className={styles.primaryButton} onClick={() => void submit()}>{busy ? "Đang xử lý…" : "Xác nhận"}</button></footer>

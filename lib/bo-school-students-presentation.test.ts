@@ -26,3 +26,19 @@ test("School Students delegates placement and transfer to owner commands", async
   assert.doesNotMatch(view, /endEnrollment[\s\S]{0,300}placeEnrollment/);
   assert.match(api, /enrollments\/\$\{encodeURIComponent\(enrollmentId\)\}\/transfer/);
 });
+
+test("School Students binds card commands to explicit targets and caller-owned replay keys", async () => {
+  const [view, api] = await Promise.all([
+    read("app/bo/learners/BoLearnersView.tsx"),
+    read("lib/bo-api.ts"),
+  ]);
+  assert.match(view, /kind: "renew", subscriptionId: subscription\.id/);
+  assert.match(view, /kind: "place", subscriptionId: subscription\.id/);
+  assert.match(view, /kind: "transfer", enrollmentId: current\[0\]!\.id/);
+  assert.match(view, /LatestRequestFence/);
+  assert.match(view, /idempotencyKey/);
+  assert.doesNotMatch(api, /createSubscription:[^\n]*crypto\.randomUUID/);
+  assert.doesNotMatch(api, /renewSubscription:[^\n]*crypto\.randomUUID/);
+  assert.doesNotMatch(api, /placeEnrollment:[^\n]*crypto\.randomUUID/);
+  assert.doesNotMatch(api, /transferEnrollment:[^\n]*crypto\.randomUUID/);
+});
