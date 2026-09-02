@@ -124,7 +124,7 @@ export const boApi = {
   archiveLearningSyllabus: (syllabusId: string, expectedRevision: number, reason: string) => write<BoLearningSyllabus>(`learning/syllabi/${encodeURIComponent(syllabusId)}/archive`, { expectedRevision, reason }, crypto.randomUUID()),
   sessions: () => read<BoSession>("sessions"),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
-  learners: (query = "", limit = 200) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
+  learners: (query = "", limit = 200, offset = 0) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   createSubscription: (body: { studentProfileId: string; pathProgramId: string; serviceStartsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>("subscriptions", body, idempotencyKey),
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, idempotencyKey),

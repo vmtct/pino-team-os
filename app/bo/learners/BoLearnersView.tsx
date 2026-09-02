@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
-import { LatestRequestFence, RetryKeyStore, initialEnrollmentId, initialSubscriptionId, type BoStudentActionIntent } from "@/lib/bo-school-students-state";
+import { LatestRequestFence, RetryKeyStore, clearReplayContext, collectPagedDirectory, initialEnrollmentId, initialSubscriptionId, replayContext, type BoStudentActionIntent } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
@@ -17,6 +17,7 @@ type ActionSheetProps = {
   catalog: Catalog;
   onClose: () => void;
   onChanged: (text: string) => Promise<void>;
+  retryKeys: RetryKeyStore;
 };
 
 export function BoLearnersView() {
@@ -29,35 +30,54 @@ export function BoLearnersView() {
   const [action, setAction] = useState<Action>(null);
   const [notice, setNotice] = useState("");
   const detailRequestFence = useRef(new LatestRequestFence());
+  const selectedIdRef = useRef<string | null>(null);
+  const retryKeysRef = useRef<RetryKeyStore | null>(null);
+  if (!retryKeysRef.current) retryKeysRef.current = new RetryKeyStore(typeof window === "undefined" ? undefined : window.sessionStorage);
+  const retryKeys = retryKeysRef.current;
+
+  async function readDirectory() {
+    return collectPagedDirectory((offset, limit) => boApi.learners("", limit, offset));
+  }
+
+  function selectStudent(id: string | null) {
+    selectedIdRef.current = id;
+    detailRequestFence.current.invalidate();
+    setSelectedId(id);
+    setAction(null);
+  }
 
   async function loadDirectory() {
-    setDirectory({ state: "loading" });
     try {
-      const rows = await boApi.learners("", 200);
+      const rows = await readDirectory();
       setDirectory({ state: "ready", data: rows });
-      setSelectedId((current) => current ?? rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null);
+      const current = selectedIdRef.current;
+      if (!current || !rows.some((item) => item.id === current)) {
+        selectStudent(rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null);
+      }
     } catch (error) {
       setDirectory({ state: "error", message: message(error) });
     }
   }
 
   async function loadDetail(id: string) {
-    const requestSeq = detailRequestFence.current.begin();
+    const ticket = detailRequestFence.current.begin(id);
     setDetail({ state: "loading" });
     try {
       const data = await boApi.learnerLifecycle(id);
-      if (detailRequestFence.current.isCurrent(requestSeq)) setDetail({ state: "ready", data });
+      if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "ready", data });
     } catch (error) {
-      if (detailRequestFence.current.isCurrent(requestSeq)) setDetail({ state: "error", message: message(error) });
+      if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "error", message: message(error) });
     }
   }
 
   useEffect(() => {
     let active = true;
-    void boApi.learners("", 200).then((rows) => {
+    void collectPagedDirectory((offset, limit) => boApi.learners("", limit, offset)).then((rows) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
-      setSelectedId(rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null);
+      const next = rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null;
+      selectedIdRef.current = next;
+      setSelectedId(next);
     }).catch((error: unknown) => { if (active) setDirectory({ state: "error", message: message(error) }); });
     void boApi.scopeCatalog().then((value) => { if (active) setCatalog({ paths: value.paths, classes: value.classes }); }).catch(() => undefined);
     return () => { active = false; };
@@ -79,13 +99,14 @@ export function BoLearnersView() {
   function switchFilter(next: Filter) {
     setFilter(next);
     const first = rows.find((student) => next === "all" || (next === "active" ? student.activeSubscriptions > 0 : student.activeSubscriptions === 0));
-    if (first) setSelectedId(first.id);
+    if (first) selectStudent(first.id);
   }
 
   async function refresh(text?: string) {
     if (text) setNotice(text);
-    if (selectedId) await loadDetail(selectedId);
+    const current = selectedIdRef.current;
     await loadDirectory();
+    if (current && selectedIdRef.current === current) await loadDetail(current);
   }
 
   if (directory.state === "loading" && !selectedId) return <State text="Đang tải danh sách học viên…" />;
@@ -119,17 +140,17 @@ export function BoLearnersView() {
         </div>
         <div className={styles.directoryMeta}><span>{filtered.length} học viên</span><small>Live canonical read</small></div>
         <div className={styles.studentList}>
-          {filtered.map((student) => <StudentButton key={student.id} student={student} active={selectedId === student.id} onClick={() => { setSelectedId(student.id); setNotice(""); }} />)}
+          {filtered.map((student) => <StudentButton key={student.id} student={student} active={selectedId === student.id} onClick={() => { selectStudent(student.id); setNotice(""); }} />)}
           {!filtered.length ? <div className={styles.emptyInline}>Không có học viên phù hợp.</div> : null}
         </div>
       </aside>
 
       <section className={styles.detail}>
-        {selectedId ? <LearnerDetail load={detail} catalog={catalog} onAction={setAction} onChanged={refresh} /> : <State text="Chọn học viên để mở hồ sơ." />}
+        {selectedId ? <LearnerDetail load={detail} catalog={catalog} retryKeys={retryKeys} onAction={setAction} onChanged={refresh} /> : <State text="Chọn học viên để mở hồ sơ." />}
       </section>
     </section>
 
-    {action && detail?.state === "ready" ? <ActionSheet action={action} lifecycle={detail.data} catalog={catalog} onClose={() => setAction(null)} onChanged={async (text) => { setAction(null); await refresh(text); }} /> : null}
+    {action && detail?.state === "ready" ? <ActionSheet action={action} lifecycle={detail.data} catalog={catalog} retryKeys={retryKeys} onClose={() => setAction(null)} onChanged={async (text) => { setAction(null); await refresh(text); }} /> : null}
   </main>;
 }
 
@@ -154,9 +175,10 @@ function StudentButton({ student, active, onClick }: { student: BoLearnerDirecto
   </button>;
 }
 
-function LearnerDetail({ load, catalog, onAction, onChanged }: {
+function LearnerDetail({ load, catalog, retryKeys, onAction, onChanged }: {
   load: Load<BoLearnerLifecycle> | null;
   catalog: Catalog;
+  retryKeys: RetryKeyStore;
   onAction: (action: Action) => void;
   onChanged: (text?: string) => Promise<void>;
 }) {
@@ -170,7 +192,7 @@ function LearnerDetail({ load, catalog, onAction, onChanged }: {
     <AttentionCard lifecycle={data} />
     <LearningSection lifecycle={data} catalog={catalog} onAction={onAction} />
     <section className={styles.lowerGrid}>
-      <GuardianPanel lifecycle={data} onChanged={onChanged} />
+      <GuardianPanel lifecycle={data} retryKeys={retryKeys} onChanged={onChanged} />
       <MembershipPanel lifecycle={data} units={units} />
     </section>
     <SystemDetails lifecycle={data} />
@@ -253,16 +275,16 @@ function LearningCard({ entry, catalog, onAction }: { entry: BoLearnerLifecycle[
   </article>;
 }
 
-function GuardianPanel({ lifecycle, onChanged }: { lifecycle: BoLearnerLifecycle; onChanged: (text?: string) => Promise<void> }) {
+function GuardianPanel({ lifecycle, retryKeys, onChanged }: { lifecycle: BoLearnerLifecycle; retryKeys: RetryKeyStore; onChanged: (text?: string) => Promise<void> }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const resetKeys = useRef(new RetryKeyStore());
   async function resetPin(parentId: string, name: string) {
     if (!confirm(`Reset Parent PIN cho ${name}?`)) return;
     setBusy(parentId);
     try {
-      const key = resetKeys.current.getOrCreate(parentId, () => crypto.randomUUID());
+      const retryTarget = `parent-pin:${parentId}`;
+      const key = retryKeys.getOrCreate(retryTarget, () => crypto.randomUUID());
       const result = await boApi.resetParentPin(parentId, key);
-      resetKeys.current.clear(parentId);
+      retryKeys.clear(retryTarget);
       await onChanged(`Parent PIN tạm thời: ${result.temporaryPin} · hết hạn ${new Date(result.expiresAt).toLocaleString("vi-VN")}`);
     } catch (error) { alert(message(error)); }
     finally { setBusy(null); }
@@ -303,7 +325,7 @@ function SystemDetails({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
   </details>;
 }
 
-function ActionSheet({ action, lifecycle, catalog, onClose, onChanged }: ActionSheetProps) {
+function ActionSheet({ action, lifecycle, catalog, retryKeys, onClose, onChanged }: ActionSheetProps) {
   const active = lifecycle.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE");
   const enrollments = active.flatMap((entry) => entry.enrollments.filter(isCurrentEnrollment).map((enrollment) => ({ enrollment, subscription: entry.subscription })));
   const [subscriptionId, setSubscriptionId] = useState(() =>
@@ -319,9 +341,6 @@ function ActionSheet({ action, lifecycle, catalog, onClose, onChanged }: ActionS
   const [entryTime, setEntryTime] = useState("");
   const [duration, setDuration] = useState(90);
   const [busy, setBusy] = useState(false);
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
-  const [commandEffectiveLocalDate] = useState(today);
-  const [policyEffectiveAt] = useState(() => new Date().toISOString());
   const kind = action.kind;
   const selectedSubscription = active.find((entry) => entry.subscription.id === subscriptionId)?.subscription;
   const source = enrollments.find((item) => item.enrollment.id === sourceEnrollmentId);
@@ -332,16 +351,32 @@ function ActionSheet({ action, lifecycle, catalog, onClose, onChanged }: ActionS
     setBusy(true);
     try {
       if (kind === "add") {
-        await boApi.createSubscription({ studentProfileId: lifecycle.student.id, pathProgramId: pathId, serviceStartsOn: date, weeklyCommitment: weekly, purchasedUnits: units }, idempotencyKey);
+        const body = { studentProfileId: lifecycle.student.id, pathProgramId: pathId, serviceStartsOn: date, weeklyCommitment: weekly, purchasedUnits: units };
+        const target = JSON.stringify({ kind, body });
+        const replay = replayContext(retryKeys, target, () => crypto.randomUUID(), today, () => new Date().toISOString());
+        await boApi.createSubscription(body, replay.idempotencyKey);
+        clearReplayContext(retryKeys, target);
         await onChanged("Subscription đã được tạo và activate.");
       } else if (kind === "renew" && selectedSubscription) {
-        await boApi.renewSubscription(selectedSubscription.id, { serviceStartsOn: date, weeklyCommitment: selectedSubscription.weeklyCommitment, purchasedUnits: units }, idempotencyKey);
+        const body = { serviceStartsOn: date, weeklyCommitment: selectedSubscription.weeklyCommitment, purchasedUnits: units };
+        const target = JSON.stringify({ kind, subscriptionId: selectedSubscription.id, body });
+        const replay = replayContext(retryKeys, target, () => crypto.randomUUID(), today, () => new Date().toISOString());
+        await boApi.renewSubscription(selectedSubscription.id, body, replay.idempotencyKey);
+        clearReplayContext(retryKeys, target);
         await onChanged("Renewal đã được tạo theo commercial lineage.");
       } else if (kind === "place" && selectedSubscription && destination) {
-        await boApi.placeEnrollment({ subscriptionId: selectedSubscription.id, runningClassId: destination.id, effectiveFromLocalDate: date, ...placementFields(destination, entryTime, duration), commandEffectiveLocalDate, policyEffectiveAt }, idempotencyKey);
+        const intent = { subscriptionId: selectedSubscription.id, runningClassId: destination.id, effectiveFromLocalDate: date, ...placementFields(destination, entryTime, duration) };
+        const target = JSON.stringify({ kind, intent });
+        const replay = replayContext(retryKeys, target, () => crypto.randomUUID(), today, () => new Date().toISOString());
+        await boApi.placeEnrollment({ ...intent, commandEffectiveLocalDate: replay.commandEffectiveLocalDate, policyEffectiveAt: replay.policyEffectiveAt }, replay.idempotencyKey);
+        clearReplayContext(retryKeys, target);
         await onChanged("Enrollment đã được place vào lớp.");
       } else if (kind === "transfer" && source && destination) {
-        await boApi.transferEnrollment(source.enrollment.id, { destinationRunningClassId: destination.id, transferLocalDate: date, ...placementFields(destination, entryTime, duration), commandEffectiveLocalDate, policyEffectiveAt, reason }, idempotencyKey);
+        const intent = { destinationRunningClassId: destination.id, transferLocalDate: date, ...placementFields(destination, entryTime, duration), reason };
+        const target = JSON.stringify({ kind, enrollmentId: source.enrollment.id, intent });
+        const replay = replayContext(retryKeys, target, () => crypto.randomUUID(), today, () => new Date().toISOString());
+        await boApi.transferEnrollment(source.enrollment.id, { ...intent, commandEffectiveLocalDate: replay.commandEffectiveLocalDate, policyEffectiveAt: replay.policyEffectiveAt }, replay.idempotencyKey);
+        clearReplayContext(retryKeys, target);
         await onChanged("Enrollment đã được chuyển lớp atomically.");
       }
     } catch (error) { alert(message(error)); }
