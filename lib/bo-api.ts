@@ -30,7 +30,7 @@ import type {
   BoWorkforceWeeklyPlanning,
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
-import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
+import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
 import { BoApiError } from "./bo-api-error";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
 export { BoApiError } from "./bo-api-error";
@@ -102,6 +102,10 @@ export const boApi = {
   runningClasses: () => read<BoRunningClass>("running-classes"),
   syllabi: () => read<BoSyllabus>("syllabi"),
   practiceAuthoringContext: () => readOne<BoPracticeAuthoringContext>("practice/authoring-context"),
+  practiceRepertoireAccessContext: () => readOne<BoPracticeRepertoireAccessContext>("practice/repertoire-access/context"),
+  practiceRepertoireAccess: (studentProfileId: string, pathProgramId: string, effectiveAt = new Date().toISOString()) => readOne<BoPracticeRepertoireAccessProjection>(`practice/repertoire-access?studentProfileId=${encodeURIComponent(studentProfileId)}&pathProgramId=${encodeURIComponent(pathProgramId)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
+  grantPracticeRepertoireAccess: (body: BoPracticeRepertoireGrantCommand) => write<BoPracticeRepertoireAccessGrant>("practice/repertoire-access/grants", body, crypto.randomUUID()),
+  revokePracticeRepertoireAccess: (grantId: string, reason: string) => write<BoPracticeRepertoireAccessGrant>(`practice/repertoire-access/grants/${encodeURIComponent(grantId)}/revoke`, { reason }, crypto.randomUUID()),
   practiceResources: (pathProgramId: string) => read<BoPracticeResourceDetail>(`practice/resources?pathProgramId=${encodeURIComponent(pathProgramId)}`),
   practiceResource: (resourceId: string) => readOne<BoPracticeResourceDetail>(`practice/resources/${encodeURIComponent(resourceId)}`),
   createPracticeResource: (body: BoPracticeCreateCommand, idempotencyKey: string) => write<BoPracticeResourceDetail>("practice/resources", body, idempotencyKey),

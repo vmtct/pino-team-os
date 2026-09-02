@@ -74,3 +74,49 @@ export interface BoPracticeMediaUpload {
 }
 
 export const PIANO_PRACTICE_FORMAT_V1 = "PIANO_SHEET_176X250_8ROW_V1" as const;
+
+export interface BoPracticeRepertoireAccessGrant {
+  id: string;
+  studentProfileId: string;
+  pianoRepertoireItemId: string;
+  validFrom: string;
+  validUntilExclusive: string | null;
+  grantedByUserId: string;
+  grantReason: string;
+  grantedAt: string;
+  revokedAt: string | null;
+  revokedByUserId: string | null;
+  revokeReason: string | null;
+  createdAt: string;
+}
+
+export interface BoPracticeRepertoireAccessContext {
+  paths: BoPracticeCatalogPath[];
+}
+export type BoPracticeEffectiveAccessState = "HIDDEN" | "BASELINE" | "PARTIAL_PREVIEW" | "LOCKED_DISCOVERABLE" | "FULL";
+export type BoPracticeCapabilityDecision = "ALLOWED" | "LOCKED" | "HIDDEN";
+
+export interface BoPracticeEffectiveAccess {
+  pianoRepertoireItemId: string;
+  state: BoPracticeEffectiveAccessState;
+  capabilities: Record<string, BoPracticeCapabilityDecision>;
+  recommendedAction: "NONE" | "UPGRADE_PREMIUM" | "RENEW_SUBSCRIPTION" | "ADD_SPECIALTY";
+  authorityReasons: string[];
+}
+
+export interface BoPracticeRepertoireAccessProjection {
+  studentProfileId: string;
+  pathProgramId: string;
+  effectiveAt: string;
+  activeGrants: BoPracticeRepertoireAccessGrant[];
+  history: BoPracticeRepertoireAccessGrant[];
+  effectiveAccess: BoPracticeEffectiveAccess[];
+}
+
+export interface BoPracticeRepertoireGrantCommand {
+  studentProfileId: string;
+  pianoRepertoireItemId: string;
+  validFrom?: string;
+  validUntilExclusive?: string | null;
+  grantReason: string;
+}

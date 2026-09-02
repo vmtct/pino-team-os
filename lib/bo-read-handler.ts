@@ -47,7 +47,7 @@ export async function handleBoOperationalReadRequest(
 }
 
 export function isPracticeReadPath(path: string): boolean {
-  return path === "practice/authoring-context" || path === "practice/resources" || PRACTICE_RESOURCE_READ.test(path);
+  return path === "practice/authoring-context" || path === "practice/repertoire-access/context" || path === "practice/repertoire-access" || path === "practice/resources" || PRACTICE_RESOURCE_READ.test(path);
 }
 
 export function isOpenStudioReadPath(path: string): boolean {
@@ -71,6 +71,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-records"
     || path === "learners"
     || path === "practice/authoring-context"
+    || path === "practice/repertoire-access/context"
+    || path === "practice/repertoire-access"
     || path === "practice/resources"
     || PRACTICE_RESOURCE_READ.test(path)
     || path === "open-studio/operations"
@@ -88,6 +90,15 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readCorePath(path: string, url: URL): string {
+  if (path === "practice/repertoire-access") {
+    const params = new URLSearchParams();
+    for (const key of ["studentProfileId", "pathProgramId", "effectiveAt"] as const) {
+      const value = url.searchParams.get(key);
+      if (value !== null) params.set(key, value);
+    }
+    const query = params.toString();
+    return query ? `${path}?${query}` : path;
+  }
   if (path === "practice/resources") {
     const pathProgramId = url.searchParams.get("pathProgramId")?.trim() ?? "";
     return pathProgramId ? `${path}?pathProgramId=${encodeURIComponent(pathProgramId)}` : path;
