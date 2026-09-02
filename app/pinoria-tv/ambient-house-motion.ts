@@ -277,10 +277,12 @@ function furthestClearProgress(path: readonly { x: number; y: number }[], curren
   return safe;
 }
 
-function collisionSafeSlots(graph: AmbientMotionGraph) {
+type AmbientPlacementSlot = { lane: AmbientLane; x: number; y: number };
+
+function placementCandidates(graph: AmbientMotionGraph): AmbientPlacementSlot[] {
   const candidates = usableLanes(graph).flatMap((lane) => {
     const bounds = motionBounds(lane);
-    const points: Array<{ lane: AmbientLane; x: number; y: number }> = [];
+    const points: AmbientPlacementSlot[] = [];
     for (let x = bounds.x1; x <= bounds.x2 + 0.001; x += SAFE_SLOT_STEP_PX) {
       points.push({ lane, x: Math.round(x * 1000) / 1000, y: lane.y });
     }
@@ -289,6 +291,11 @@ function collisionSafeSlots(graph: AmbientMotionGraph) {
   candidates.sort((a, b) =>
     hash(`${SAFE_SLOT_SEED}:${a.lane.id}:${a.x}`) - hash(`${SAFE_SLOT_SEED}:${b.lane.id}:${b.x}`)
     || a.y - b.y || a.x - b.x || a.lane.id.localeCompare(b.lane.id));
+  return candidates;
+}
+
+function collisionSafeSlots(graph: AmbientMotionGraph) {
+  const candidates = placementCandidates(graph);
   const selected: typeof candidates = [];
   for (const candidate of candidates) {
     if (selected.every((slot) => Math.hypot(candidate.x - slot.x, candidate.y - slot.y) >= SAFE_CLEARANCE_PX)) {
@@ -297,7 +304,6 @@ function collisionSafeSlots(graph: AmbientMotionGraph) {
   }
   return selected;
 }
-
 function connectorPathCanReserve(target: DirectedConnector, agents: readonly AmbientAgent[], agentId: string) {
   return pathIsClear(target.path, agents, agentId);
 }
@@ -336,6 +342,28 @@ function connectorEndpointsAreClear(
   return true;
 }
 
+function createAmbientAgentAtSlot(id: string, slot: AmbientPlacementSlot): AmbientAgent {
+  const seed = hash(`${id}:motion`);
+  return {
+    id,
+    laneId: slot.lane.id,
+    x: slot.x,
+    y: slot.y,
+    direction: seed % 2 === 0 ? 1 : -1,
+    speed: 18 + (seed % 15),
+    depth: slot.lane.midLayer,
+    motionState: "walk" as const,
+    activityEpoch: 0,
+    activityRemainingMs: activityDurationMs(id, "walk", 0),
+  };
+}
+
+function slotCanReserve(slot: AmbientPlacementSlot, agents: readonly AmbientAgent[], graph: AmbientMotionGraph) {
+  if (!pointIsClear(slot, agents, "__new__")) return false;
+  return ambientLaneReservationPoints(agents, graph, slot.lane.id)
+    .every((reservation) => Math.abs(reservation.x - slot.x) >= MIN_GAP_PX - 0.001);
+}
+
 export function createAmbientAgents(ids: readonly string[], graph: AmbientMotionGraph): AmbientAgent[] {
   const slots = collisionSafeSlots(graph);
   const orderedIds = [...ids].sort();
@@ -347,27 +375,33 @@ export function createAmbientAgents(ids: readonly string[], graph: AmbientMotion
       ? { lane: fallbackLane, x: fallbackBounds.x1 + (hash(`${id}:overflow`) % 1000) / 1000 * (fallbackBounds.x2 - fallbackBounds.x1), y: fallbackLane.y }
       : null);
     if (!slot) throw new Error("AMBIENT_HOUSE_GRAPH_EMPTY");
-    const seed = hash(`${id}:motion`);
-    return {
-      id,
-      laneId: slot.lane.id,
-      x: slot.x,
-      y: slot.y,
-      direction: seed % 2 === 0 ? 1 : -1,
-      speed: 18 + (seed % 15),
-      depth: slot.lane.midLayer,
-      motionState: "walk" as const,
-      activityEpoch: 0,
-      activityRemainingMs: activityDurationMs(id, "walk", 0),
-    };
+    return createAmbientAgentAtSlot(id, slot);
   });
 }
 
+export function reconcileAmbientAgents(
+  previous: readonly AmbientAgent[],
+  ids: readonly string[],
+  graph: AmbientMotionGraph,
+): AmbientAgent[] {
+  const desired = new Set(ids);
+  const retained = previous.filter((agent) => desired.has(agent.id));
+  const retainedIds = new Set(retained.map((agent) => agent.id));
+  const missing = [...desired].filter((id) => !retainedIds.has(id)).sort();
+  const next = [...retained];
+  const candidates = placementCandidates(graph);
+  for (const id of missing) {
+    const slot = candidates.find((candidate) => slotCanReserve(candidate, next, graph));
+    if (!slot) throw new Error("AMBIENT_HOUSE_CAPACITY_EXCEEDED");
+    next.push(createAmbientAgentAtSlot(id, slot));
+  }
+  return next;
+}
 export function stepAmbientAgents(
   previous: readonly AmbientAgent[],
   graph: AmbientMotionGraph,
   elapsedMs: number,
-  options: { departingIds?: ReadonlySet<string> } = {},
+  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string> } = {},
 ): AmbientAgent[] {
   const laneList = usableLanes(graph);
   const lanes = new Map(laneList.map((lane) => [lane.id, lane]));
@@ -391,6 +425,7 @@ export function stepAmbientAgents(
 
   const next = previous.map((agent) => {
     const departing = options.departingIds?.has(agent.id) ?? false;
+    if (options.frozenIds?.has(agent.id)) return { ...agent, motionState: "idle" as const };
     let motionState = departing || agent.connectorId ? "walk" as const : agent.motionState;
     let activityEpoch = agent.activityEpoch;
     let activityRemainingMs = departing ? Math.max(agent.activityRemainingMs, 250) : agent.activityRemainingMs - elapsed;

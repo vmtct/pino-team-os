@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -31,6 +31,12 @@ export function StaffManagementView() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [pinResetAttempts, setPinResetAttempts] = useState<Record<string, string>>({});
+  const [pinReset, setPinReset] = useState<{ userId: string; initialPin: string } | null>(null);
+  const [pinCopied, setPinCopied] = useState(false);
+  const selectedIdRef = useRef("");
+  const pinResetInFlightRef = useRef<string | null>(null);
+  const refreshFenceRef = useRef(0);
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -40,9 +46,13 @@ export function StaffManagementView() {
     return () => window.removeEventListener("bo:staff-updated", onStaffUpdated);
   }, []);
   useEffect(() => {
-    if (!selectedId) { setProfile(null); return; }
+    let current = true;
+    selectedIdRef.current = selectedId;
+    setPinReset(null); setPinCopied(false); setProfile(null);
+    if (!selectedId) return () => { current = false; };
     setError("");
-    void boApi.staffRecord(selectedId).then((next) => { setProfile(next); setForm(profileForm(next)); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."));
+    void boApi.staffRecord(selectedId).then((next) => { if (current) { setProfile(next); setForm(profileForm(next)); } }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."); });
+    return () => { current = false; };
   }, [selectedId]);
 
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
@@ -50,9 +60,15 @@ export function StaffManagementView() {
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
 
   async function refresh(preferId = "") {
+    const refreshFence = refreshFenceRef.current;
     const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
+    if (refreshFence !== refreshFenceRef.current) return;
+    const currentId = selectedIdRef.current;
+    const lockedId = pinResetInFlightRef.current;
+    if (lockedId && !staff.some((item) => item.id === lockedId)) return;
     setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
-    const nextId = preferId && staff.some((item) => item.id === preferId) ? preferId : staff[0]?.id ?? "";
+    const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
+    selectedIdRef.current = nextId;
     setSelectedId(nextId);
   }
 
@@ -96,6 +112,38 @@ export function StaffManagementView() {
     try { await boApi.removeAccessAssignment(assignmentId); await refresh(selectedId); setMessage("Đã gỡ role assignment."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể gỡ role."); }
     finally { setBusy(""); }
+  }
+
+  async function resetStaffPin() {
+    if (!accessUser || !profile || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active") return;
+    if (!confirm(`Reset PIN cho ${profile.displayLabel}?\n\nPIN hiện tại và tất cả phiên Staff PIN đang mở sẽ bị vô hiệu ngay. Core sẽ tự sinh PIN tạm; Manager không được chọn PIN mới.`)) return;
+    const targetUserId = accessUser.id;
+    const targetStaffId = selectedId;
+    const idempotencyKey = pinResetAttempts[targetUserId] ?? crypto.randomUUID();
+    refreshFenceRef.current += 1;
+    pinResetInFlightRef.current = targetStaffId;
+    setPinResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
+    setBusy("pin-reset"); setError(""); setMessage(""); setPinReset(null); setPinCopied(false);
+    try {
+      const result = await boApi.resetStaffPin(targetUserId, idempotencyKey);
+      if (selectedIdRef.current !== targetStaffId) return;
+      setPinResetAttempts((value) => { const next = { ...value }; delete next[targetUserId]; return next; });
+      if (!result.initialPin) { setError("Reset đã hoàn tất nhưng PIN tạm không còn được trả lại. Bấm Reset PIN lần nữa để phát một PIN tạm mới."); return; }
+      setPinReset({ userId: targetUserId, initialPin: result.initialPin });
+      setMessage("PIN cũ và các phiên Staff PIN đã bị vô hiệu. Staff phải đổi PIN tạm trước khi dùng TOS.");
+    } catch (cause) {
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset Staff PIN.");
+    } finally {
+      if (pinResetInFlightRef.current === targetStaffId) pinResetInFlightRef.current = null;
+      refreshFenceRef.current += 1;
+      setBusy("");
+    }
+  }
+
+  async function copyTemporaryPin() {
+    if (!pinReset) return;
+    try { await navigator.clipboard.writeText(pinReset.initialPin); setPinCopied(true); }
+    catch { setError("Không thể copy PIN tự động. Hãy copy trực tiếp từ màn hình."); }
   }
 
   async function changeAccessStatus(status: "active" | "suspended") {
@@ -154,7 +202,7 @@ export function StaffManagementView() {
           <div className={styles.panelHeading}><div><h2>{data.staff.length} nhân viên</h2><p>Chọn một người để quản lý.</p></div></div>
           {data.staff.map((item) => {
             const user = data.users.find((entry) => entry.staffMemberId === item.id);
-            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} onClick={() => setSelectedId(item.id)}>
+            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "pin-reset"} onClick={() => { if (busy !== "pin-reset") { selectedIdRef.current = item.id; setSelectedId(item.id); } }}>
               <strong>{item.displayLabel}</strong><span>{item.roleLabel ?? item.department ?? "Chưa phân loại"}</span><small>{item.status} · Access {user?.status ?? "none"}</small>
             </button>;
           })}
@@ -189,6 +237,17 @@ export function StaffManagementView() {
               <div className={styles.panelHeading}><div><h2>Access</h2><p>Role, scope và login state là canonical Access state riêng với Staff status.</p></div><span className={styles.writePill}>{accessUser?.status ?? "not provisioned"}</span></div>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
                 <p className={styles.staffAccessMeta}>{accessUser.email ?? "No email"} · {accessUser.assignments.length} assignment(s)</p>
+                <div className={styles.staffPinPanel}>
+                  <div><strong>Staff PIN</strong><p>Reset chỉ phát PIN tạm do Core sinh. PIN hiện tại và mọi Staff PIN session sẽ bị vô hiệu ngay; staff phải đổi PIN tạm trước lần dùng TOS tiếp theo.</p></div>
+                  <div className={styles.staffActions}>
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active"} onClick={() => void resetStaffPin()}>{busy === "pin-reset" ? "Đang reset…" : "Reset PIN"}</button>
+                    {profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ reset khi Staff và Access đều active.</small> : null}
+                  </div>
+                  {pinReset?.userId === accessUser.id ? <div className={styles.staffPinReveal} data-testid="staff-pin-reset-reveal">
+                    <span>PIN tạm · hiển thị một lần</span><code data-testid="staff-pin-reset-value">{pinReset.initialPin}</code>
+                    <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPin()}>{pinCopied ? "Đã copy" : "Copy PIN"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPinReset(null); setPinCopied(false); }}>Ẩn PIN</button></div>
+                  </div> : null}
+                </div>
                 <div className={styles.staffAssignmentList}>{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={assignment.roleKey === "founder" || busy === `revoke:${assignment.assignmentId}`} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>

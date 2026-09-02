@@ -1,6 +1,8 @@
 .viewport {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100dvh;
   overflow: hidden;
   background: #211a17;
   isolation: isolate;
@@ -15,7 +17,7 @@
 }
 
 .houseLayer {
-  object-fit: cover;
+  object-fit: fill;
   pointer-events: none;
   user-select: none;
 }
@@ -71,3 +73,5 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.agent[data-suppressed="true"] { opacity: 0; }
