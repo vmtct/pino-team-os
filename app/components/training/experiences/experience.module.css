@@ -143,3 +143,39 @@
   .phone { border-radius: 20px; }
   .pill { justify-self: start; }
 }
+
+.photoHero { background: linear-gradient(145deg, #20251f 0%, #343d31 100%); }
+.photoPrinciples { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 16px; }
+.photoPrinciples span { padding: 8px 9px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; color: #e5e9df; font-size: 10px; font-weight: 800; }
+.photoChoiceGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.photoChoiceGrid > button { padding: 0; overflow: hidden; border: 1px solid #d8d1c8; border-radius: 14px; background: #faf8f3; color: inherit; text-align: left; cursor: pointer; }
+.photoChoiceGrid > button:hover, .photoChoiceGrid > button.photoSelected { border-color: #343932; box-shadow: 0 0 0 2px #e3e8df; }
+.photoChoiceGrid strong, .photoChoiceGrid small { display: block; padding: 0 10px; }
+.photoChoiceGrid strong { margin-top: 9px; font-size: 13px; }
+.photoChoiceGrid small { min-height: 43px; padding-top: 3px; padding-bottom: 10px; color: #71695f; font-size: 10px; line-height: 1.35; }
+.viewfinder { position: relative; height: 148px; overflow: hidden; background: #d9d2c5; }
+.cameraTop { position: absolute; z-index: 8; top: 8px; left: 8px; padding: 4px 6px; border-radius: 6px; background: rgba(24,25,22,.72); color: white; font-size: 8px; font-weight: 800; }
+.learnerHead, .bigHead { position: absolute; z-index: 3; display: block; border-radius: 50% 50% 45% 45%; background: #9a725e; box-shadow: 0 14px 0 6px #7c8873; }
+.artBoard { position: absolute; z-index: 2; display: block; width: 78px; height: 53px; border: 5px solid #e6dfd2; border-radius: 3px; background: linear-gradient(135deg, #c08767, #5f7780 52%, #d4b36e); transform: rotate(-6deg); }
+.focusBox { position: absolute; z-index: 7; display: block; width: 86px; height: 74px; border: 1px solid rgba(255,255,255,.86); border-radius: 3px; }
+.highAngle .learnerHead { width: 42px; height: 42px; left: 61px; top: 60px; box-shadow: 0 9px 0 5px #7c8873; }
+.highAngle .artBoard { right: 15px; bottom: 10px; transform: scale(.75) rotate(-4deg); }
+.clutterOne { position: absolute; right: 5px; top: 42px; width: 24px; height: 54px; border-radius: 5px; background: #b6aaa0; box-shadow: -150px 40px 0 3px #857b71; }
+.eyeAngle { background: linear-gradient(165deg, #d7d1c4 0 58%, #8d7968 58%); }
+.eyeAngle .learnerHead { width: 56px; height: 59px; left: 35px; top: 45px; }
+.eyeAngle .artBoard { right: 32px; bottom: 14px; }
+.eyeAngle .focusBox { left: 24px; top: 37px; }
+.tightFrame { background: #c9bdb0; }
+.bigHead { width: 116px; height: 120px; left: 43px; top: 34px; box-shadow: 0 30px 0 26px #7c8873; }
+.storyFrame { background: linear-gradient(160deg, #d9d2c6 0 66%, #8f7968 66%); }
+.storyFrame .learnerHead { width: 52px; height: 55px; left: 30px; top: 47px; }
+.storyFrame .artBoard { right: 27px; bottom: 13px; transform: rotate(5deg); }
+.storyFrame .focusBox { left: 22px; top: 40px; }
+.brandStrip { position: absolute; z-index: 1; display: block; right: 0; top: 0; width: 27px; height: 100%; background: repeating-linear-gradient(0deg, #9fa78e 0 10px, #c9c1aa 10px 20px); opacity: .8; }
+.photoTip { margin-top: 12px; padding: 11px; border-radius: 11px; background: #f0ede6; color: #5e574e; font-size: 12px; line-height: 1.45; }
+
+@media (max-width: 420px) {
+  .photoChoiceGrid { grid-template-columns: 1fr; }
+  .viewfinder { height: 180px; }
+  .eyeAngle .artBoard, .storyFrame .artBoard { right: 50px; }
+}
