@@ -36,6 +36,7 @@ const DELIVERY_POST_PATHS = new Set([
 const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
+const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const SUBSCRIPTION_CREATE_PATH = "subscriptions";
 const SUBSCRIPTION_COMMAND_PATH = /^subscriptions\/[0-9a-f-]{36}\/(activate|renew|supersede|cancel|service-grants|pauses|renewal-grace)$/;
 const SUBSCRIPTION_PAUSE_CANCEL_PATH = /^subscription-pauses\/[0-9a-f-]{36}\/cancel$/;
@@ -79,7 +80,7 @@ export async function handleBoWriteRequest(
     );
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -173,6 +174,7 @@ export function isAllowedPostPath(path: string): boolean {
     || MATERIALIZATION_PUBLISH.test(path)
     || LEARNING_OWNER_PATH.test(path)
     || PARENT_PIN_PATH.test(path)
+    || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === SUBSCRIPTION_CREATE_PATH
     || SUBSCRIPTION_COMMAND_PATH.test(path)
     || SUBSCRIPTION_PAUSE_CANCEL_PATH.test(path)

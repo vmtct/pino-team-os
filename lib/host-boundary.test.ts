@@ -30,7 +30,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/bo/system/users", "/bo/system/roles", "/bo/system/audit",
     "/api/bo/context", "/api/bo/learners", "/api/bo/practice/authoring-context", "/api/bo/practice/repertoire-access/context", "/api/bo/practice/repertoire-access", "/api/bo/practice/repertoire-access/grants", `/api/bo/practice/repertoire-access/grants/${roleId}/revoke`, "/api/bo/practice/resources", "/api/bo/practice/media", `/api/bo/practice/resources/${roleId}`, `/api/bo/practice/resources/${roleId}/drafts`, `/api/bo/practice/versions/${roleId}`, `/api/bo/practice/versions/${roleId}/pages`, `/api/bo/practice/versions/${roleId}/publish`, "/api/bo/open-studio/operations", "/api/bo/open-studio/passes", "/api/bo/open-studio/listings",
     "/api/bo/open-studio/member-path-centers/assign", "/api/bo/open-studio/passes/issue-monthly-path", "/api/bo/open-studio/admission",
-    `/api/bo/open-studio/passes/${roleId}/claim-eligibility`, `/api/bo/students/${roleId}/lifecycle`, `/api/bo/identity/parents/${roleId}/pin/reset`,
+    `/api/bo/open-studio/passes/${roleId}/claim-eligibility`, `/api/bo/students/${roleId}/lifecycle`, `/api/bo/students/${roleId}/pinoria`, `/api/bo/students/${roleId}/pinoria/companions/${roleId}/feed`, `/api/bo/identity/parents/${roleId}/pin/reset`,
     "/api/bo/subscriptions", `/api/bo/subscriptions/${roleId}/renew`, "/api/bo/enrollments", `/api/bo/enrollments/${roleId}/end`,
     "/api/bo/centers", "/api/bo/delivery/bootstrap-state", "/api/bo/delivery/enrollment-activation", "/api/bo/delivery/learning-spaces",
     "/api/bo/delivery/running-classes", "/api/bo/delivery/running-class-blocks", "/api/bo/delivery/materializations",
@@ -62,7 +62,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/open_studio/unknown.v1/stream",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
-    "/api/bo/workforce/staff-records/not-a-canonical-id", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything",
+    "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything",
     `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/access/users/${roleId}/staff-pin/reset/again`, "/api/staff-pin/configure",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);

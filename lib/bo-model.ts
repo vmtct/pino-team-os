@@ -225,6 +225,19 @@ export interface BoLearnerLifecycle {
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
 }
 
+export type BoCompanionFeedUnavailableReason = "NO_OPEN_VISIT" | "MULTIPLE_OPEN_VISITS" | "NO_FRUIT" | "RITUAL_READY" | "FEED_LIMIT_REACHED" | "LEVEL_UNDEFINED" | "NOT_AUTHORIZED" | null;
+export interface BoStudentPinoriaSummary {
+  fruitBalance: number;
+  waterSigil: { credentialId: string; awardedAt: string } | null;
+  operationContext: { visitState: "NONE" | "OPEN" | "AMBIGUOUS"; openVisit: { visitId: string; centerId: string; checkedInAt: string } | null; feedAuthorized: boolean };
+  companions: Array<{
+    companionId: string; acquiredAt: string; status: string;
+    species: { id: string; key: string; displayName: string; companionAssetKey: string; sigilAssetKey: string | null };
+    materializationLevel: number; state: string; stageFeedCount: number; readinessRuleKey: string | null; version: number;
+    actions: { feed: { available: boolean; reason: BoCompanionFeedUnavailableReason } };
+  }>;
+}
+
 export interface BoOpenStudioListing {
   id: string;
   sessionId: string;
