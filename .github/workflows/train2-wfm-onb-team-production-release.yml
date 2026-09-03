@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
   issues: write
 
 concurrency:
@@ -180,11 +182,7 @@ jobs:
           auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
           repo="$GITHUB_REPOSITORY"
           serving_changed=0
-          core_now="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-check Core dependency before Team promotion."
-          core_now_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$core_now" | head -1)"
-          core_now_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/versions/${core_now_version}" "${auth[@]}")" || fail "Cannot inspect Core dependency before Team promotion."
-          core_now_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$core_now_detail")"
-          [ "$core_now_message" = "Train2 WFM-ONB Core production 840fed2f548f9b08db914bd3086b43a7b150283e base e9949c3da0106ad0973fff8fc8ae71d7fd68a135" ] || fail "Core drifted before Team traffic promotion: ${core_now_message:-unknown}."
+
           rollback() {
             if [ "$serving_changed" -eq 1 ] && [ -n "$OLD_VERSION" ]; then
               WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/rollback.ndjson" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
@@ -196,6 +194,11 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TRAIN2_WFM_ONB_TEAM_RELEASE: **FAIL_SAFE**\n\n$1\n\nPrevious Team version rollback was attempted if traffic may have changed. No Core, D1, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward mutation was authorized."
             exit 1
           }
+          core_now="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-check Core dependency before Team promotion."
+          core_now_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage==100) | .version_id // empty' <<<"$core_now" | head -1)"
+          core_now_detail="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_WORKER}/versions/${core_now_version}" "${auth[@]}")" || fail "Cannot inspect Core dependency before Team promotion."
+          core_now_message="$(jq -r '.result.annotations["workers/message"] // empty' <<<"$core_now_detail")"
+          [ "$core_now_message" = "Train2 WFM-ONB Core production 840fed2f548f9b08db914bd3086b43a7b150283e base e9949c3da0106ad0973fff8fc8ae71d7fd68a135" ] || fail "Core drifted before Team traffic promotion: ${core_now_message:-unknown}."
 
           if [ "$ALREADY_ACTIVE" != "true" ]; then
             serving_changed=1
