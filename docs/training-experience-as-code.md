@@ -36,3 +36,13 @@ qualification or permission directly.
 
 Do not extract a generic training builder because two experiences look similar. Reusable primitives
 should emerge only after repeated real use demonstrates a stable pattern.
+
+## Artifact submission rule
+
+An experience may request a Staff artifact such as a photo, but it must not upload directly to arbitrary storage or send raw file bytes to Core.
+
+The host adapter owns upload/storage and returns a durable submission receipt. The experience may then emit `SUBMISSION_CREATED(submissionId, submissionKey)` and render the canonical review projection.
+
+Required review states are `WAITING_REVIEW`, `PASS`, and `RETRY`. If review is required, completion stays locked until `PASS`; `RETRY` keeps feedback visible and creates a new submission attempt rather than overwriting history.
+
+Training artifacts remain WFM-TRAIN evidence only. They do not become Classroom Diary/Evidence records, and the experience does not invent consent/privacy eligibility for learner photography.

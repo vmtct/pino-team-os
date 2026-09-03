@@ -1,6 +1,8 @@
 "use client";
 
 import type {
+  TrainingArtifactDraft,
+  TrainingArtifactReceipt,
   TrainingExperienceContext,
   TrainingExperienceRef,
   TrainingExperienceSignal,
@@ -12,23 +14,30 @@ export function TrainingExperienceHost({
   experienceRef,
   context,
   onSignal,
+  onArtifactSubmit,
 }: {
   experienceRef: TrainingExperienceRef;
   context: TrainingExperienceContext;
   onSignal: (signal: TrainingExperienceSignal) => void | Promise<void>;
+  onArtifactSubmit?: (artifact: TrainingArtifactDraft) => Promise<TrainingArtifactReceipt>;
 }) {
-  const resolved = trainingExperienceRegistry.resolve(experienceRef);
-
-  if (!resolved.ok) {
+  const resolution = trainingExperienceRegistry.resolve(experienceRef);
+  if (!resolution.ok) {
     return (
-      <section className={styles.unavailable} role="alert">
-        <strong>Training experience chưa khả dụng trên TOS này.</strong>
-        <p>{resolved.message}</p>
-        <code>{resolved.code}</code>
+      <section className={styles.unavailable}>
+        <strong>Training experience unavailable.</strong>
+        <p>{resolution.message}</p>
+        <code>{resolution.code}</code>
       </section>
     );
   }
 
-  const Experience = resolved.definition.Component;
-  return <Experience context={context} onSignal={onSignal} />;
+  const Component = resolution.definition.Component;
+  return (
+    <Component
+      context={context}
+      onSignal={onSignal}
+      onArtifactSubmit={onArtifactSubmit}
+    />
+  );
 }

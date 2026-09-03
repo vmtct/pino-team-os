@@ -1,74 +1,113 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   TRAINING_EXPERIENCE_CONTRACT_V1,
+  type TrainingArtifactReceipt,
   type TrainingExperienceDefinition,
   type TrainingExperienceProps,
 } from "@/lib/training-experience";
 import styles from "./experience.module.css";
 
-type AngleChoice = "adult" | "eye-level";
-type ContextChoice = "tight" | "story";
+type ShotChoice = "A" | "B";
+
+type SubmissionState = {
+  receipt: TrainingArtifactReceipt;
+  fileName: string;
+  previewUrl: string;
+};
 
 const scanItems = [
-  ["light", "Mặt học viên sáng hơn background, không ngược sáng gắt"],
-  ["moment", "Đang có hành động thật: vẽ, đàn, nhìn tác phẩm, tương tác"],
-  ["clean", "Background sạch; bỏ chai nước, túi nilon, ghế thừa khỏi frame"],
-  ["crop", "Không cắt ngang bàn tay, nhạc cụ hoặc tác phẩm một cách khó chịu"],
-  ["privacy", "Người trong frame hợp lệ để chụp theo quy định hiện hành"],
+  "Ánh sáng đủ và mặt trẻ không bị chìm",
+  "Khoảnh khắc thật, không ép tạo dáng",
+  "Background sạch, không có vật thừa gây xao nhãng",
+  "Crop không cắt tay, đầu hoặc tác phẩm khó chịu",
+  "Đã kiểm tra eligibility/privacy theo rule hiện hành",
 ] as const;
 
-type ScanKey = (typeof scanItems)[number][0];
-
-export function PinoPhotoMissionV1({ context, onSignal }: TrainingExperienceProps) {
+export function PinoPhotoMissionV1({ context, onSignal, onArtifactSubmit }: TrainingExperienceProps) {
   const [started, setStarted] = useState(false);
-  const [angle, setAngle] = useState<AngleChoice | null>(null);
-  const [brandContext, setBrandContext] = useState<ContextChoice | null>(null);
-  const [scan, setScan] = useState<Record<ScanKey, boolean>>({
-    light: false, moment: false, clean: false, crop: false, privacy: false,
-  });
-  const [requested, setRequested] = useState(false);
+  const [angle, setAngle] = useState<ShotChoice | null>(null);
+  const [contextChoice, setContextChoice] = useState<ShotChoice | null>(null);
+  const [checks, setChecks] = useState<boolean[]>(scanItems.map(() => false));
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [submission, setSubmission] = useState<SubmissionState | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [completionRequested, setCompletionRequested] = useState(false);
 
-  const anglePassed = angle === "eye-level";
-  const contextPassed = brandContext === "story";
-  const scanPassed = scanItems.every(([key]) => scan[key]);
-  const canComplete = anglePassed && contextPassed && scanPassed;
+  const review = context.artifactSubmissions?.find((item) => item.submissionKey === "photo-practice") ?? null;
+  const learned = angle === "B" && contextChoice === "B";
+  const allChecked = checks.every(Boolean);
+  const readyToSubmit = learned && allChecked && Boolean(file) && !submission;
+  const readyToComplete = review?.status === "PASS" && !completionRequested;
+
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   async function start() {
     setStarted(true);
     await onSignal({ type: "STARTED" });
   }
 
-  async function chooseAngle(value: AngleChoice) {
+  async function chooseAngle(value: ShotChoice) {
     setAngle(value);
-    if (value === "eye-level") {
-      await onSignal({ type: "CHECKPOINT_COMPLETED", checkpointKey: "eye-level-story" });
+    if (value === "B") await onSignal({ type: "CHECKPOINT_COMPLETED", checkpointKey: "eye-level-story" });
+  }
+  async function chooseContext(value: ShotChoice) {
+    setContextChoice(value);
+    if (value === "B") await onSignal({ type: "CHECKPOINT_COMPLETED", checkpointKey: "pino-context" });
+  }
+
+  async function submitPhoto() {
+    if (!file || !onArtifactSubmit) {
+      setError("Submission adapter chưa sẵn sàng cho experience này.");
+      return;
+    }
+    setUploading(true);
+    setError("");
+    try {
+      await onSignal({ type: "CHECKPOINT_COMPLETED", checkpointKey: "pre-shutter-scan" });
+      const receipt = await onArtifactSubmit({ submissionKey: "photo-practice", kind: "IMAGE", file });
+      setSubmission({ receipt, fileName: file.name, previewUrl });
+      await onSignal({ type: "SUBMISSION_CREATED", submissionId: receipt.submissionId, submissionKey: receipt.submissionKey });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể submit ảnh.");
+    } finally {
+      setUploading(false);
     }
   }
 
-  async function chooseContext(value: ContextChoice) {
-    setBrandContext(value);
-    if (value === "story") {
-      await onSignal({ type: "CHECKPOINT_COMPLETED", checkpointKey: "pino-context" });
-    }
+  function retryPhoto() {
+    setFile(null);
+    setPreviewUrl("");
+    setSubmission(null);
+    setCompletionRequested(false);
   }
-
-  async function complete() {
-    setRequested(true);
-    await onSignal({ type: "CHECKPOINT_COMPLETED", checkpointKey: "pre-shutter-scan" });
+  async function requestCompletion() {
+    if (review?.status !== "PASS") return;
+    setCompletionRequested(true);
     await onSignal({ type: "COMPLETION_REQUESTED" });
   }
 
+  const selectedFileLabel = useMemo(() => file ? `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB` : "Chưa chọn ảnh", [file]);
+
   return (
     <article className={styles.experience}>
-      <header className={`${styles.hero} ${styles.photoHero}`}>
+      <header className={styles.hero}>
         <p className={styles.kicker}>Photo mission · 8 phút</p>
         <h2>Chụp PINO đẹp</h2>
         <p>Bắt khoảnh khắc, không bắt tạo dáng. Mục tiêu là nhìn ảnh và cảm thấy “đang ở PINO”.</p>
-        <div className={styles.photoPrinciples}>
-          <span>01 · ngang tầm trẻ</span><span>02 · hành động thật</span>
-          <span>03 · có bối cảnh</span><span>04 · frame sạch</span>
+        <div className={styles.meta}>
+          <span>01 · ngang tầm trẻ</span>
+          <span>02 · hành động thật</span>
+          <span>03 · có bối cảnh</span>
+          <span>04 · frame sạch</span>
         </div>
       </header>
 
@@ -78,94 +117,122 @@ export function PinoPhotoMissionV1({ context, onSignal }: TrainingExperienceProp
           <p>Bạn không cần máy xịn. Training này tập mắt trước khi tập camera.</p>
           <button className={styles.primary} type="button" onClick={() => void start()}>Mở camera</button>
         </section>
-      ) : null}
+      ) : (
+        <>
+          <section className={styles.stage}>
+            <div className={styles.step}>01 · CAMERA HEIGHT</div>
+            <h3>Học viên đang vẽ, bạn chọn góc nào?</h3>
+            <div className={styles.shotGrid}>
+              <button type="button" className={angle === "A" ? styles.selectedShot : styles.shot} onClick={() => void chooseAngle("A")}>
+                <span className={`${styles.viewfinder} ${styles.viewfinderHigh}`}><i /><b>Shot A</b></span>
+                <strong>Đứng cao chụp xuống</strong>
+                <small>Thấy bàn và đầu trẻ nhiều hơn biểu cảm.</small>
+              </button>
+              <button type="button" className={angle === "B" ? styles.selectedShot : styles.shot} onClick={() => void chooseAngle("B")}>
+                <span className={`${styles.viewfinder} ${styles.viewfinderEye}`}><i /><b>Shot B</b></span>
+                <strong>Hạ ngang tầm trẻ</strong>
+                <small>Thấy mắt, tay và tác phẩm cùng lúc.</small>
+              </button>
+            </div>
+            {angle ? <div className={angle === "B" ? styles.good : styles.warn}>
+              {angle === "B" ? "Hạ camera xuống ngang tầm trẻ: ảnh có người, hành động và cảm xúc." : "Ảnh đủ để document, nhưng chưa kể được câu chuyện của học viên."}
+            </div> : null}
+          </section>
+          {angle === "B" ? <section className={styles.stage}>
+            <div className={styles.step}>02 · PINO CONTEXT</div>
+            <h3>Giữ bao nhiêu bối cảnh?</h3>
+            <div className={styles.shotGrid}>
+              <button type="button" className={contextChoice === "A" ? styles.selectedShot : styles.shot} onClick={() => void chooseContext("A")}>
+                <span className={`${styles.viewfinder} ${styles.viewfinderTight}`}><i /><b>Shot A</b></span>
+                <strong>Crop thật sát</strong>
+                <small>Đẹp như portrait nhưng không biết đang ở đâu.</small>
+              </button>
+              <button type="button" className={contextChoice === "B" ? styles.selectedShot : styles.shot} onClick={() => void chooseContext("B")}>
+                <span className={`${styles.viewfinder} ${styles.viewfinderContext}`}><i /><b>Shot B</b></span>
+                <strong>Giữ 20–30% bối cảnh</strong>
+                <small>Thấy vật liệu, bàn học hoặc một dấu hiệu PINO vừa đủ.</small>
+              </button>
+            </div>
+            {contextChoice ? <div className={contextChoice === "B" ? styles.good : styles.warn}>
+              {contextChoice === "B" ? "Một ít bàn học, vật liệu hoặc không gian đủ để ảnh có PINO context mà không lấn nhân vật chính." : "Portrait có thể đẹp, nhưng thiếu context sẽ khó kể câu chuyện PINO."}
+            </div> : null}
+          </section> : null}
+          {learned ? <section className={styles.stage}>
+            <div className={styles.step}>03 · PRE-SHUTTER SCAN</div>
+            <h3>5 điểm trước khi bấm</h3>
+            <p>Tick như một thói quen 5 giây, không phải checklist hành chính.</p>
+            {scanItems.map((item, index) => (
+              <label className={styles.check} key={item}>
+                <input type="checkbox" checked={checks[index]} onChange={(event) => setChecks((items) => items.map((value, i) => i === index ? event.target.checked : value))} />
+                {item}
+              </label>
+            ))}
+          </section> : null}
 
-      {started ? (
-        <section className={styles.stage}>
-          <div className={styles.step}>01 · GÓC MÁY</div>
-          <h3>Một học viên đang hoàn thiện tranh. Shot nào “có đời” hơn?</h3>
-          <div className={styles.photoChoiceGrid}>
-            <button type="button" className={angle === "adult" ? styles.photoSelected : ""} onClick={() => void chooseAngle("adult")}>
-              <div className={`${styles.viewfinder} ${styles.highAngle}`}>
-                <span className={styles.cameraTop}>A · đứng chụp từ trên xuống</span>
-                <i className={styles.learnerHead} /><i className={styles.artBoard} /><i className={styles.clutterOne} />
-              </div>
-              <strong>Shot A</strong><small>Thấy “một đứa trẻ ở cái bàn”.</small>
-            </button>
-            <button type="button" className={angle === "eye-level" ? styles.photoSelected : ""} onClick={() => void chooseAngle("eye-level")}>
-              <div className={`${styles.viewfinder} ${styles.eyeAngle}`}>
-                <span className={styles.cameraTop}>B · ngang tầm mắt / tay</span>
-                <i className={styles.learnerHead} /><i className={styles.artBoard} /><i className={styles.focusBox} />
-              </div>
-              <strong>Shot B</strong><small>Thấy mặt + tay + tác phẩm cùng kể chuyện.</small>
-            </button>
-          </div>
-          {angle ? <div className={anglePassed ? styles.good : styles.warn}>{anglePassed
-            ? "Đúng. Hạ camera xuống ngang tầm trẻ làm người xem bước vào hoạt động thay vì đứng ngoài quan sát."
-            : "Chưa đẹp. Góc người lớn nhìn xuống thường làm trẻ nhỏ đi và background lấn át câu chuyện."}</div> : null}
-        </section>
-      ) : null}
-
-      {anglePassed ? (
-        <section className={styles.stage}>
-          <div className={styles.step}>02 · “PINO” NẰM Ở ĐÂU?</div>
-          <h3>Không cần dí logo vào giữa ảnh. Chọn lượng bối cảnh vừa đủ.</h3>
-          <div className={styles.photoChoiceGrid}>
-            <button type="button" className={brandContext === "tight" ? styles.photoSelected : ""} onClick={() => void chooseContext("tight")}>
-              <div className={`${styles.viewfinder} ${styles.tightFrame}`}>
-                <span className={styles.cameraTop}>A · zoom kín mặt</span><i className={styles.bigHead} />
-              </div>
-              <strong>Shot A</strong><small>Đẹp mặt, nhưng không biết đang ở đâu.</small>
-            </button>
-            <button type="button" className={brandContext === "story" ? styles.photoSelected : ""} onClick={() => void chooseContext("story")}>
-              <div className={`${styles.viewfinder} ${styles.storyFrame}`}>
-                <span className={styles.cameraTop}>B · giữ 25% context</span>
-                <i className={styles.learnerHead} /><i className={styles.artBoard} /><i className={styles.brandStrip} /><i className={styles.focusBox} />
-              </div>
-              <strong>Shot B</strong><small>Nhân vật vẫn là chính; không gian PINO làm nền.</small>
-            </button>
-          </div>
-          {brandContext ? <div className={contextPassed ? styles.good : styles.warn}>{contextPassed
-            ? "Đúng. Một ít bàn học, vật liệu, màu không gian hoặc chi tiết nhận diện đủ để ảnh mang DNA PINO."
-            : "Chưa đủ câu chuyện. Portrait quá kín dùng được, nhưng không phải shot tốt nhất để kể trải nghiệm PINO."}</div> : null}
-        </section>
-      ) : null}
-
-      {contextPassed ? (
-        <section className={styles.stage}>
-          <div className={styles.step}>03 · SCAN TRƯỚC KHI BẤM</div>
-          <h3>5 giây cuối: đừng sửa hậu kỳ thứ có thể sửa ngay trong frame.</h3>
-          <p>Tick khi bạn đã chủ động kiểm tra từng điểm.</p>
-          {scanItems.map(([key, label]) => (
-            <label className={styles.check} key={key}>
-              <input type="checkbox" checked={scan[key]} onChange={(event) => setScan((value) => ({ ...value, [key]: event.target.checked }))} />
-              {label}
+          {learned && allChecked ? <section className={styles.stage}>
+            <div className={styles.step}>04 · PHOTO EVIDENCE</div>
+            <h3>Chụp một ảnh thật của PINO</h3>
+            <p>Áp dụng ngay những gì vừa học. Trên điện thoại, nút này có thể mở camera sau.</p>
+            <label className={styles.uploadBox}>
+              <input data-testid="photo-input" type="file" accept="image/*" capture="environment" disabled={Boolean(submission)}
+                onChange={(event) => { setFile(event.target.files?.[0] ?? null); setSubmission(null); setError(""); }} />
+              <strong>{submission ? "Ảnh đã submit" : "Chụp / chọn ảnh"}</strong>
+              <small>{submission?.fileName ?? selectedFileLabel}</small>
             </label>
-          ))}
-          <div className={styles.photoTip}><strong>Nhớ nhanh:</strong> Light → Moment → Context → Clean → Crop.</div>
-          <button className={styles.primary} type="button" disabled={!canComplete || requested} onClick={() => void complete()}>
-            {requested ? "Đã gửi completion request" : "Tôi sẵn sàng chụp"}
-          </button>
-        </section>
-      ) : null}
+            {previewUrl ? <div className={styles.photoPreview}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl} alt="Ảnh training Staff chuẩn bị submit" />
+              <span>Preview · training evidence</span>
+            </div> : null}
+            {error ? <div className={styles.warn}>{error}</div> : null}
+            {!submission ? <button className={styles.primary} type="button" disabled={!readyToSubmit || uploading} onClick={() => void submitPhoto()}>
+              {uploading ? "Đang submit…" : "Submit để Manager review"}
+            </button> : null}
 
-      {requested ? (
-        <div className={styles.finish}>
-          <strong>Mission hoàn tất.</strong>
-          <p>Ảnh đẹp ở PINO = trẻ là nhân vật chính, hoạt động là câu chuyện, PINO là bối cảnh — không phải ảnh pose cạnh logo.</p>
-        </div>
-      ) : null}
+            {review?.status === "WAITING_REVIEW" ? <div className={styles.reviewState}>
+              <strong>WAITING REVIEW</strong>
+              <span>Submission {review.submissionId}</span>
+              <p>Manager chưa đánh giá. Completion đang khóa.</p>
+            </div> : null}
+            {review?.status === "RETRY" ? <div className={styles.retryState}>
+              <strong>NEEDS RETRY</strong>
+              <p>{review.feedback || "Manager yêu cầu chụp lại."}</p>
+              <button className={styles.secondaryAction} type="button" onClick={retryPhoto}>Chụp lại</button>
+            </div> : null}
+            {review?.status === "PASS" ? <div className={styles.passState}>
+              <strong>PHOTO PASS</strong>
+              <p>{review.feedback || "Ảnh đạt yêu cầu thực hành."}</p>
+            </div> : null}
+          </section> : null}
+          {review?.status === "PASS" ? <section className={styles.stage}>
+            <div className={styles.step}>05 · COMPLETION</div>
+            <h3>Manager đã duyệt ảnh</h3>
+            <p>Review PASS mới mở completion request.</p>
+            <button className={styles.primary} type="button" disabled={!readyToComplete} onClick={() => void requestCompletion()}>
+              {completionRequested ? "Đã gửi completion request" : "Hoàn tất training"}
+            </button>
+          </section> : null}
+        </>
+      )}
+
+      {completionRequested ? <div className={styles.finish}>
+        <strong>Mission hoàn tất.</strong>
+        <p>Core mới là nơi quyết định COMPLETED/sign-off/qualification.</p>
+      </div> : null}
+
+      {context.completedCheckpointKeys.length ? <footer className={styles.resume}>
+        Core đã giữ {context.completedCheckpointKeys.length} checkpoint từ lần trước.
+      </footer> : null}
     </article>
   );
 }
-
 export const pinoPhotoMissionV1: TrainingExperienceDefinition = {
   contractVersion: TRAINING_EXPERIENCE_CONTRACT_V1,
   experienceKey: "pino-photo-mission",
   experienceRevision: 1,
   title: "Chụp PINO đẹp · Photo Mission",
-  summary: "Visual decision training để Staff chụp học viên tự nhiên và giữ đúng cảm giác PINO.",
+  summary: "Visual mission: chọn frame, pre-shutter scan, submit ảnh thật và chờ Manager review.",
   estimatedMinutes: 8,
-  capabilities: ["visual-comparison", "decision-feedback", "pre-shutter-scan", "completion-request"],
+  capabilities: ["visual-compare", "photo-capture", "artifact-submission", "manager-review", "checkpoint", "completion-request"],
   Component: PinoPhotoMissionV1,
 };
