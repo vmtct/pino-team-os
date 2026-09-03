@@ -22,6 +22,13 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
 
     steps:
+      - name: Reject retired cross-repo Core production mutator
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "ARRIVAL_V0_CORE_BUILD: **REJECTED**\n\nThis cross-repository Core production promoter is retired. Core production mutation must run through a Core-owned PLT-RELEASE operator so it participates in the canonical `pino-core-production` lock.\n\nNo Cloudflare mutation was attempted."
+          exit 1
+
       - name: Trigger exact Core production build
         shell: bash
         run: |

@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: a-d-team-production-release
+  group: pino-team-os-production
   cancel-in-progress: false
 
 jobs:
