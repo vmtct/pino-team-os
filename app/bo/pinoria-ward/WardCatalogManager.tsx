@@ -5,9 +5,11 @@ import styles from "./pinoria-ward.module.css";
 
 type Status="DRAFT"|"ACTIVE"|"ARCHIVED";
 type Gender="ALL"|"FEMALE"|"MALE";
+type ItemType="WEARABLE"|"ACCESSORY";
+type WearableKind="STANDARD"|"AURA_BACK"|"AURA_GROUND"|"PATH_MARK";
 type Slot="HEAD/HAIR"|"FACE"|"HEADWEAR"|"OUTFIT"|"BACK";
 type Mode="LAYER"|"STANDALONE"|"WEBM";
-type Item={id:string;key:string;displayName:string;descriptionText:string;slot:Slot;collectionKey:string|null;seasonKey:string|null;gender:Gender;rarityStars:number;tags:string[];status:Status;version:number;defaultVariantId:string|null;variantCount:number;wishBannerCount:number;ownerCount:number};
+type Item={id:string;key:string;displayName:string;descriptionText:string;itemType:ItemType;wearableKind:WearableKind|null;slot:Slot|null;collectionKey:string|null;seasonKey:string|null;gender:Gender;rarityStars:number;tags:string[];status:Status;version:number;defaultVariantId:string|null;variantCount:number;wishBannerCount:number;ownerCount:number};
 type Variant={id:string;wearableId:string;key:string;displayName:string;renderMode:Mode;assetKey:string|null;posterAssetKey:string|null;renderMetadata:Record<string,unknown>;assetRevision:string|null;assetChecksum:string|null;status:Status;version:number};
 type Catalog={items:Item[];variants:Variant[]};
 type Envelope<T>={data?:T;error?:{message?:string}};
@@ -23,9 +25,9 @@ async function request<T>(path:string,init?:RequestInit){
 }
 export function WardCatalogManager(){
   const[catalog,setCatalog]=useState<Catalog>({items:[],variants:[]});
-  const[selectedId,setSelectedId]=useState<string|null>(null),[selectedVariantId,setSelectedVariantId]=useState<string|null>(null),[query,setQuery]=useState(""),[slot,setSlot]=useState("ALL"),[tab,setTab]=useState<Tab>("OVERVIEW");
+  const[selectedId,setSelectedId]=useState<string|null>(null),[selectedVariantId,setSelectedVariantId]=useState<string|null>(null),[query,setQuery]=useState(""),[typeFilter,setTypeFilter]=useState("ALL"),[kindFilter,setKindFilter]=useState("ALL"),[slot,setSlot]=useState("ALL"),[tab,setTab]=useState<Tab>("OVERVIEW");
   const[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
-  const[form,setForm]=useState({displayName:"",descriptionText:"",slot:"HEADWEAR" as Slot,collectionKey:"",seasonKey:"",gender:"ALL" as Gender,rarityStars:3,tags:""});
+  const[form,setForm]=useState({displayName:"",descriptionText:"",itemType:"WEARABLE" as ItemType,wearableKind:"STANDARD" as WearableKind|null,slot:"HEADWEAR" as Slot|null,collectionKey:"",seasonKey:"",gender:"ALL" as Gender,rarityStars:3,tags:""});
   const[variantForm,setVariantForm]=useState({displayName:"",renderMode:"LAYER" as Mode,assetKey:"",posterAssetKey:"",assetRevision:"",assetChecksum:""});
 
   async function load(){
@@ -37,11 +39,11 @@ export function WardCatalogManager(){
   const selectedVariants=selected?catalog.variants.filter(variant=>variant.wearableId===selected.id):[];
   const filtered=useMemo(()=>catalog.items.filter(item=>{
     const q=query.trim().toLowerCase();
-    return(!q||`${item.displayName} ${item.key} ${item.collectionKey??""}`.toLowerCase().includes(q))&&(slot==="ALL"||item.slot===slot);
-  }),[catalog.items,query,slot]);
+    return(!q||`${item.displayName} ${item.key} ${item.collectionKey??""}`.toLowerCase().includes(q))&&(typeFilter==="ALL"||item.itemType===typeFilter)&&(kindFilter==="ALL"||item.wearableKind===kindFilter)&&(slot==="ALL"||item.slot===slot);
+  }),[catalog.items,query,typeFilter,kindFilter,slot]);
   function openItem(item:Item){
     setSelectedId(item.id);setTab("OVERVIEW");setMessage("");setError("");
-    setForm({displayName:item.displayName,descriptionText:item.descriptionText,slot:item.slot,collectionKey:item.collectionKey??"",seasonKey:item.seasonKey??"",gender:item.gender,rarityStars:item.rarityStars,tags:item.tags.join(", ")});
+    setForm({displayName:item.displayName,descriptionText:item.descriptionText,itemType:item.itemType,wearableKind:item.wearableKind,slot:item.slot,collectionKey:item.collectionKey??"",seasonKey:item.seasonKey??"",gender:item.gender,rarityStars:item.rarityStars,tags:item.tags.join(", ")});
     const variant=catalog.variants.find(entry=>entry.id===item.defaultVariantId)??catalog.variants.find(entry=>entry.wearableId===item.id);
     if(variant){setSelectedVariantId(variant.id);setVariantForm({displayName:variant.displayName,renderMode:variant.renderMode,assetKey:variant.assetKey??"",posterAssetKey:variant.posterAssetKey??"",assetRevision:variant.assetRevision??"",assetChecksum:variant.assetChecksum??""});}
   }
@@ -54,11 +56,11 @@ export function WardCatalogManager(){
   async function saveItem(status:Status){
     if(!selected)return;
     const defaultVariantId=selected.defaultVariantId??selectedVariants.find(v=>v.status==="ACTIVE")?.id??null;
-    await mutate(`pinoria/ward/catalog/items/${selected.id}`,"PATCH",{expectedVersion:selected.version,displayName:form.displayName,descriptionText:form.descriptionText,slot:form.slot,collectionKey:form.collectionKey||null,seasonKey:form.seasonKey||null,gender:form.gender,rarityStars:Number(form.rarityStars),tags:form.tags.split(",").map(v=>v.trim()).filter(Boolean),metadata:{},status,defaultVariantId},status==="ACTIVE"?"Wearable đã publish":"Wearable đã lưu");
+    await mutate(`pinoria/ward/catalog/items/${selected.id}`,"PATCH",{expectedVersion:selected.version,displayName:form.displayName,descriptionText:form.descriptionText,itemType:form.itemType,wearableKind:form.itemType==="ACCESSORY"?null:form.wearableKind,slot:form.itemType==="WEARABLE"&&form.wearableKind==="STANDARD"?form.slot:null,collectionKey:form.collectionKey||null,seasonKey:form.seasonKey||null,gender:form.gender,rarityStars:Number(form.rarityStars),tags:form.tags.split(",").map(v=>v.trim()).filter(Boolean),metadata:{},status,defaultVariantId},status==="ACTIVE"?"Item đã publish":"Item đã lưu");
   }
   async function createItem(){
     const key=`ward-${Date.now()}`;
-    await mutate("pinoria/ward/catalog/items","POST",{key,displayName:"Untitled wearable",descriptionText:"",slot:"HEADWEAR",collectionKey:null,seasonKey:null,gender:"ALL",rarityStars:3,tags:[],metadata:{}},"Đã tạo wearable draft");
+    await mutate("pinoria/ward/catalog/items","POST",{key,displayName:"Untitled item",descriptionText:"",itemType:"WEARABLE",wearableKind:"STANDARD",slot:"HEADWEAR",collectionKey:null,seasonKey:null,gender:"ALL",rarityStars:3,tags:[],metadata:{}},"Đã tạo item draft");
   }
   async function createVariant(){
     if(!selected)return;
@@ -70,14 +72,14 @@ export function WardCatalogManager(){
   }
 
   return <main className={styles.shell}>
-    <header className={styles.topbar}><div><p className={styles.eyebrow}>PINORIA · BACK OFFICE</p><h1>Wearable Catalog</h1></div><button className={styles.create} disabled={busy} onClick={()=>void createItem()}>＋ New item</button></header>
-    <section className={styles.toolbar}><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search wearable, code, collection…"/><select value={slot} onChange={e=>setSlot(e.target.value)}><option value="ALL">All slots</option><option>HEAD/HAIR</option><option>FACE</option><option>HEADWEAR</option><option>OUTFIT</option><option>BACK</option></select></section>
+    <header className={styles.topbar}><div><p className={styles.eyebrow}>PINORIA · BACK OFFICE</p><h1>Ward Catalog</h1></div><button className={styles.create} disabled={busy} onClick={()=>void createItem()}>＋ New item</button></header>
+    <section className={styles.toolbar}><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search item, code, collection…"/><select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="ALL">All types</option><option value="WEARABLE">Wearable</option><option value="ACCESSORY">Accessory</option></select><select value={kindFilter} onChange={e=>setKindFilter(e.target.value)}><option value="ALL">All wearable kinds</option><option value="STANDARD">Standard</option><option value="AURA_BACK">Aura Back</option><option value="AURA_GROUND">Aura Ground</option><option value="PATH_MARK">Path Mark</option></select><select value={slot} onChange={e=>setSlot(e.target.value)}><option value="ALL">All slots</option><option>HEAD/HAIR</option><option>FACE</option><option>HEADWEAR</option><option>OUTFIT</option><option>BACK</option></select></section>
     {error?<div className={styles.advancedBox}>{error}</div>:null}{message?<div className={styles.statusStrip}><b>{message}</b></div>:null}
     <section className={styles.catalogPage}>
-      <div className={styles.listHead}><span>Item</span><span>Slot</span><span>Gender</span><span>Rarity</span><span>Variants</span><span>Status</span><span>Collection</span></div>
+      <div className={styles.listHead}><span>Item</span><span>Type / Kind</span><span>Slot</span><span>Gender</span><span>Rarity</span><span>Variants</span><span>Status</span><span>Collection</span></div>
       <div className={styles.rows}>{filtered.map(item=><button key={item.id} className={styles.row} onClick={()=>openItem(item)}>
         <span className={styles.itemCell}><i className={styles.thumb}>✦</i><b>{item.displayName}</b><small>{item.key}</small></span>
-        <span>{item.slot}</span><span>{item.gender}</span><span>{stars(item.rarityStars)}</span><span>{item.variantCount}</span>
+        <span><b>{item.itemType}</b><small>{item.wearableKind?` · ${item.wearableKind.replaceAll("_"," ")}`:""}</small></span><span>{item.slot??"—"}</span><span>{item.gender}</span><span>{stars(item.rarityStars)}</span><span>{item.variantCount}</span>
         <span><i className={styles.status} data-status={item.status}>{item.status}</i></span><span>{item.collectionKey??"—"}</span>
       </button>)}</div>
     </section>
@@ -85,13 +87,13 @@ export function WardCatalogManager(){
     {selected&&<div className={styles.backdrop} onClick={()=>setSelectedId(null)}/>} 
     {selected&&<aside className={styles.peek}>
       <div className={styles.peekTop}><button onClick={()=>setSelectedId(null)}>✕</button><span>Ward catalog side peek</span><button>•••</button></div>
-      <div className={styles.detailHead}><div><p>{selected.key}</p><h2>{selected.displayName}</h2><small>{selected.gender} · {stars(selected.rarityStars)}</small></div><span className={styles.slotBadge}>{selected.slot}</span></div>
+      <div className={styles.detailHead}><div><p>{selected.key}</p><h2>{selected.displayName}</h2><small>{selected.gender} · {stars(selected.rarityStars)}</small></div><span className={styles.slotBadge}>{selected.itemType==="ACCESSORY"?"ACCESSORY":selected.wearableKind==="STANDARD"?selected.slot:selected.wearableKind?.replaceAll("_"," ")}</span></div>
       <nav className={styles.tabs}>{(["OVERVIEW","VARIANTS","PREVIEW","USAGE"] as Tab[]).map(name=><button key={name} onClick={()=>setTab(name)} className={tab===name?styles.tabActive:""}>{name}</button>)}</nav>
       <div className={styles.peekBody}>
         {tab==="OVERVIEW"&&<div className={styles.formGrid}>
           <label>Name<input value={form.displayName} onChange={e=>setForm(v=>({...v,displayName:e.target.value}))}/></label>
           <label>Code<input value={selected.key} disabled/></label>
-          <label>Slot<select value={form.slot} onChange={e=>setForm(v=>({...v,slot:e.target.value as Slot}))}><option>HEAD/HAIR</option><option>FACE</option><option>HEADWEAR</option><option>OUTFIT</option><option>BACK</option></select></label>
+          <label>Type<select value={form.itemType} onChange={e=>{const itemType=e.target.value as ItemType;setForm(v=>({...v,itemType,wearableKind:itemType==="ACCESSORY"?null:(v.wearableKind??"STANDARD"),slot:itemType==="ACCESSORY"?null:(v.slot??"HEADWEAR")}));}}><option value="WEARABLE">Wearable</option><option value="ACCESSORY">Accessory</option></select></label>{form.itemType==="WEARABLE"?<label>Wearable kind<select value={form.wearableKind??"STANDARD"} onChange={e=>{const wearableKind=e.target.value as WearableKind;setForm(v=>({...v,wearableKind,slot:wearableKind==="STANDARD"?(v.slot??"HEADWEAR"):null}));}}><option value="STANDARD">Standard</option><option value="AURA_BACK">Aura Back</option><option value="AURA_GROUND">Aura Ground</option><option value="PATH_MARK">Path Mark</option></select></label>:null}{form.itemType==="WEARABLE"&&form.wearableKind==="STANDARD"?<label>Slot<select value={form.slot??"HEADWEAR"} onChange={e=>setForm(v=>({...v,slot:e.target.value as Slot}))}><option>HEAD/HAIR</option><option>FACE</option><option>HEADWEAR</option><option>OUTFIT</option><option>BACK</option></select></label>:null}
           <label>Collection<input value={form.collectionKey} onChange={e=>setForm(v=>({...v,collectionKey:e.target.value}))}/></label>
           <label>Gender<select value={form.gender} onChange={e=>setForm(v=>({...v,gender:e.target.value as Gender}))}><option value="ALL">All</option><option value="FEMALE">Female</option><option value="MALE">Male</option></select></label>
           <label>Rarity<select value={form.rarityStars} onChange={e=>setForm(v=>({...v,rarityStars:Number(e.target.value)}))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{stars(n)}</option>)}</select></label>
