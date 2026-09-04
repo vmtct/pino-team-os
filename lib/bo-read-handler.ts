@@ -75,6 +75,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-records"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || path === "pinoria/ward/catalog"
     || path === "learners"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"

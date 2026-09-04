@@ -33,8 +33,7 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/syllabus", label: "Programs & Syllabus" },
       { href: "/bo/practice", label: "Practice" },
     ],
-  },
-  {
+  }  ,{
     label: "Workforce",
     items: [
       { href: "/bo/staff", label: "Staff" },
@@ -58,12 +57,12 @@ export const boNavigation: BoNavGroup[] = [
         label: "Collection",
         children: [{ href: "/bo/pinoria-companions", label: "Companions" }],
       },
+      { href: "/bo/pinoria-ward", label: "Wardrobe Catalog" },
     ],
   },
   {
     label: "System",
-    items: [
-      {
+    items: [      {
         href: "/bo/system/users",
         label: "Access",
         children: [

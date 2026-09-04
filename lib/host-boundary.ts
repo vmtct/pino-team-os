@@ -48,6 +48,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/registrations",
     "/bo/syllabus",
     "/bo/practice",
+    "/bo/pinoria-ward",
     "/bo/system/users",
     "/bo/system/roles",
     "/bo/system/audit",
@@ -101,7 +102,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
-  return /^\/api\/bo\/practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/.test(normalized)
+  return /^\/api\/bo\/pinoria\/ward\/catalog(?:\/(?:items|variants)(?:\/[0-9a-f-]{36})?)?$/.test(normalized)
+    || /^\/api\/bo\/practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/drafts)?$/.test(normalized)
     || /^\/api\/bo\/practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/.test(normalized)
     || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)

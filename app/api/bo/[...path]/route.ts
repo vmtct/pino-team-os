@@ -29,3 +29,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   if (joined === "practice/media") return handleBoPracticeMediaUpload(request, env);
   return handleBoWriteRequest(request, env, joined);
 }
+
+export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
+  const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
+  const { path } = await context.params;
+  return handleBoWriteRequest(request, env, path.join("/"));
+}

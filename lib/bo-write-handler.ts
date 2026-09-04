@@ -59,6 +59,7 @@ const PRACTICE_REPERTOIRE_REVOKE = /^practice\/repertoire-access\/grants\/[0-9a-
 const PRACTICE_RESOURCE_CREATE = "practice/resources";
 const PRACTICE_RESOURCE_DRAFT = /^practice\/resources\/[0-9a-f-]{36}\/drafts$/;
 const PRACTICE_VERSION_COMMAND = /^practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/;
+const WARD_CATALOG_WRITE = /^pinoria\/ward\/catalog\/(items|variants)(?:\/[0-9a-f-]{36})?$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -67,7 +68,7 @@ export async function handleBoWriteRequest(
   keyResolver?: JWTVerifyGetKey,
 ): Promise<Response> {
   try {
-    if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    if (request.method !== "POST" && !(request.method === "PATCH" && WARD_CATALOG_WRITE.test(path))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const stagingIdentity = isOpenStudioPostPath(path)
@@ -103,7 +104,7 @@ export async function handleBoWriteRequest(
       return json({ data: syncResult }, 200, { "x-tos-access-sync": "ok" });
     }
     const coreRequest: BoAccessRequest = {
-      method: "POST",
+      method: request.method,
       path,
       body,
       ...(idempotencyKey ? { idempotencyKey } : {}),
@@ -189,7 +190,8 @@ export function isAllowedPostPath(path: string): boolean {
     || isPracticeWritePath(path)
     || ENROLLMENT_BULK_PATHS.has(path)
     || isLearningSyllabusPostPath(path)
-    || isOpenStudioPostPath(path);
+    || isOpenStudioPostPath(path)
+    || WARD_CATALOG_WRITE.test(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */
