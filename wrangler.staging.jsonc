@@ -17,11 +17,13 @@
     "WORKFORCE_STAGING_BO_EMAIL": "workforce-planning-staging-probe@pino.invalid",
     "OPEN_STUDIO_BO_STAGING_BYPASS": "enabled",
     "OPEN_STUDIO_STAGING_BO_EMAIL": "open-studio-control-loop-staging-probe@pino.invalid",
-    "PINORIA_STAGING_STAFF_EMAIL": "workforce-tos-final-1788152650000@pino.invalid"
+    "PINORIA_STAGING_STAFF_EMAIL": "workforce-tos-final-1788152650000@pino.invalid",
+    "WORKFORCE_CENTER_NETWORK_STAGING_INGRESS": "enabled"
   },
   "services": [
     { "binding": "PINO_CORE", "service": "pino-core-staging", "entrypoint": "FounderControlPlane" },
     { "binding": "PINO_WORKFORCE_CORE", "service": "pino-core-staging", "entrypoint": "WorkforceControlPlane" },
+    { "binding": "PINO_WORKFORCE_NETWORK_CORE", "service": "pino-core-staging", "entrypoint": "WorkforceNetworkPresenceControlPlane" },
     { "binding": "PINO_BO_CORE", "service": "pino-core-staging", "entrypoint": "BoAccessControlPlane" },
     { "binding": "PINO_STAFF_REGISTRATION_CORE", "service": "pino-core-staging", "entrypoint": "StaffRegistrationControlPlane" },
     { "binding": "PINO_TOS_LEARNING_CORE", "service": "pino-core-staging", "entrypoint": "TosLearningControlPlane" },
