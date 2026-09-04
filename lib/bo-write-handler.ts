@@ -56,6 +56,7 @@ const WARD_CATALOG_WRITE = /^pinoria\/ward\/catalog\/(items|variants)(?:\/[0-9a-
 const WARD_SET_WRITE = /^pinoria\/ward\/sets(?:\/[0-9a-f-]{36}(?:\/members)?)?$/;
 const WARD_SET_MEDIA = "pinoria/ward/set-webm-assets";
 const WEB_CMS_WRITE = /^web-cms\/slots\/[0-9a-f-]{36}\/(draft|publish|rollback)$/;
+const WARD_LEARNER_WRITE = /^pinoria\/ward\/learners\/[0-9a-f-]{36}\/(grants|revocations|loadout)$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -64,7 +65,7 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
-    if (request.method !== "POST" && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path))) && !(request.method === "PUT" && WARD_SET_WRITE.test(path))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    if (request.method !== "POST" && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path))) && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path)))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
@@ -168,6 +169,7 @@ export function isAllowedPostPath(path: string): boolean {
     || isOpenStudioPostPath(path)
     || WARD_CATALOG_WRITE.test(path)
     || WARD_SET_WRITE.test(path)
+    || WARD_LEARNER_WRITE.test(path)
     || path === WARD_SET_MEDIA
     || WEB_CMS_WRITE.test(path);
 }
