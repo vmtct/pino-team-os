@@ -9,8 +9,8 @@ type ItemType="WEARABLE"|"ACCESSORY";
 type WearableKind="STANDARD"|"AURA_BACK"|"AURA_GROUND"|"PATH_MARK";
 type Slot="HEAD/HAIR"|"FACE"|"HEADWEAR"|"OUTFIT"|"BACK"|"AURA_BACK"|"AURA_GROUND"|"PATH_MARK";
 type Mode="LAYER"|"STANDALONE"|"WEBM";
-type Item={id:string;key:string;displayName:string;descriptionText:string;itemType:ItemType;wearableKind:WearableKind|null;slot:Slot|null;collectionKey:string|null;seasonKey:string|null;gender:Gender;rarityStars:number;tags:string[];status:Status;version:number;defaultVariantId:string|null;variantCount:number;wishBannerCount:number;ownerCount:number};
-type Variant={id:string;wearableId:string;key:string;displayName:string;renderMode:Mode;assetKey:string|null;posterAssetKey:string|null;renderMetadata:Record<string,unknown>;assetRevision:string|null;assetChecksum:string|null;status:Status;version:number};
+type Item={id:string;key:string;displayName:string;descriptionText:string;itemType:ItemType;wearableKind:WearableKind|null;slot:Slot|null;collectionKey:string|null;seasonKey:string|null;gender:Gender;rarityStars:number;tags:string[];status:Status;version:number;defaultVariantId:string|null;variantCount:number;wishBannerCount:number;ownerCount:number;metadata:Record<string,unknown>};
+type Variant={id:string;wearableId:string;key:string;displayName:string;renderMode:Mode;assetKey:string|null;posterAssetKey:string|null;renderMetadata:Record<string,unknown>;assetRevision:string|null;assetChecksum:string|null;status:Status;version:number;metadata:Record<string,unknown>};
 type Catalog={items:Item[];variants:Variant[]};
 type Envelope<T>={data?:T;error?:{message?:string}};
 type Tab="OVERVIEW"|"VARIANTS"|"PREVIEW"|"USAGE";
@@ -61,7 +61,7 @@ export function WardCatalogManager(){
   async function saveItem(status:Status){
     if(!selected)return;
     const defaultVariantId=selected.defaultVariantId??selectedVariants.find(v=>v.status==="ACTIVE")?.id??null;
-    await mutate(`pinoria/ward/catalog/items/${selected.id}`,"PATCH",{expectedVersion:selected.version,displayName:form.displayName,descriptionText:form.descriptionText,itemType:form.itemType,wearableKind:form.itemType==="ACCESSORY"?null:form.wearableKind,slot:form.itemType==="ACCESSORY"?null:form.wearableKind==="STANDARD"?form.slot:form.wearableKind,collectionKey:form.collectionKey||null,seasonKey:form.seasonKey||null,gender:form.gender,rarityStars:Number(form.rarityStars),tags:form.tags.split(",").map(v=>v.trim()).filter(Boolean),metadata:{},status,defaultVariantId},status==="ACTIVE"?"Item đã publish":"Item đã lưu");
+    await mutate(`pinoria/ward/catalog/items/${selected.id}`,"PATCH",{expectedVersion:selected.version,displayName:form.displayName,descriptionText:form.descriptionText,itemType:form.itemType,wearableKind:form.itemType==="ACCESSORY"?null:form.wearableKind,slot:form.itemType==="ACCESSORY"?null:form.wearableKind==="STANDARD"?form.slot:form.wearableKind,collectionKey:form.collectionKey||null,seasonKey:form.seasonKey||null,gender:form.gender,rarityStars:Number(form.rarityStars),tags:form.tags.split(",").map(v=>v.trim()).filter(Boolean),metadata:selected.metadata,status,defaultVariantId},status==="ACTIVE"?"Item đã publish":"Item đã lưu");
   }
   async function createItem(){
     const key=`ward-${Date.now()}`;
@@ -73,7 +73,7 @@ export function WardCatalogManager(){
     await mutate("pinoria/ward/catalog/variants","POST",{key,wearableId:selected.id,displayName:`${selected.displayName} Variant ${selectedVariants.length+1}`,renderMode:"LAYER",assetKey:null,posterAssetKey:null,renderMetadata:{},assetRevision:null,assetChecksum:null,metadata:{}},"Đã tạo variant draft");
   }
   async function saveVariant(variant:Variant,status:Status){
-    await mutate(`pinoria/ward/catalog/variants/${variant.id}`,"PATCH",{expectedVersion:variant.version,displayName:variantForm.displayName||variant.displayName,renderMode:variantForm.renderMode,assetKey:variantForm.assetKey||null,posterAssetKey:variantForm.posterAssetKey||null,renderMetadata:{...(variant.renderMetadata??{}),transform:{offsetX:calibration.offsetX,offsetY:calibration.offsetY,scale:calibration.scale,rotation:calibration.rotation},layer:{zIndex:calibration.zIndex}},assetRevision:variantForm.assetRevision||null,assetChecksum:variantForm.assetChecksum||null,metadata:{},status},status==="ACTIVE"?"Variant đã publish":"Variant đã lưu");
+    await mutate(`pinoria/ward/catalog/variants/${variant.id}`,"PATCH",{expectedVersion:variant.version,displayName:variantForm.displayName||variant.displayName,renderMode:variantForm.renderMode,assetKey:variantForm.assetKey||null,posterAssetKey:variantForm.posterAssetKey||null,renderMetadata:{...(variant.renderMetadata??{}),transform:{...((variant.renderMetadata?.transform??{}) as Record<string,unknown>),offsetX:calibration.offsetX,offsetY:calibration.offsetY,scale:calibration.scale,rotation:calibration.rotation},layer:{...((variant.renderMetadata?.layer??{}) as Record<string,unknown>),zIndex:calibration.zIndex}},assetRevision:variantForm.assetRevision||null,assetChecksum:variantForm.assetChecksum||null,metadata:variant.metadata,status},status==="ACTIVE"?"Variant đã publish":"Variant đã lưu");
   }
 
   return <main className={styles.shell}>
