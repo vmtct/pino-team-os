@@ -83,6 +83,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
     || /^open-studio\/students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
+    || /^students\/[0-9a-f-]{36}\/pinoria$/.test(path)
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
