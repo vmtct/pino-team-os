@@ -6,6 +6,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
+import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -162,6 +163,7 @@ function LearnerDetail({ load, catalog }: { load: Load<BoLearnerLifecycle> | nul
     <StudentHero lifecycle={data} activeCount={active.length} />
     <AttentionCard lifecycle={data} />
     <LearningSection lifecycle={data} catalog={catalog} />
+    <StudentPinoriaPanel studentId={data.student.id} />
     <section className={styles.lowerGrid}>
       <GuardianPanel lifecycle={data} />
       <MembershipPanel lifecycle={data} units={units} />

@@ -112,6 +112,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/students\/[0-9a-f-]{36}\/lifecycle$/.test(normalized)
+    || /^\/api\/bo\/students\/[0-9a-f-]{36}\/pinoria(?:\/companions\/[0-9a-f-]{36}\/feed)?$/.test(normalized)
     || /^\/api\/bo\/identity\/parents\/[0-9a-f-]{36}\/pin\/reset$/.test(normalized)
     || /^\/api\/bo\/subscriptions(?:\/[0-9a-f-]{36}\/(?:activate|renew|supersede|cancel|service-grants|pauses|renewal-grace))?$/.test(normalized)
     || /^\/api\/bo\/subscription-pauses\/[0-9a-f-]{36}\/cancel$/.test(normalized)

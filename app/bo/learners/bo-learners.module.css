@@ -169,3 +169,37 @@
 .primaryButton:disabled, .linkButton:disabled { opacity: .42; cursor: not-allowed; }
 .errorState { border-color: #e8c2c2; background: #fff8f8; color: #8b3030; }
 .errorState span { color: #8b5b5b; }
+
+.readOnlyBadge { align-self: start; padding: 5px 8px; border: 1px solid #ddd8f6; border-radius: 999px; background: #f7f5ff; color: #6958b3; font-size: 7px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.pinoriaFacts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.pinoriaFacts > div { display: grid; gap: 3px; padding: 11px; border: 1px solid #e5e0f3; border-radius: 11px; background: linear-gradient(145deg,#fbfaff,#f7f5ff); }
+.pinoriaFacts span { color: #7d758d; font-size: 8px; }
+.pinoriaFacts strong { color: #42385c; font-size: 18px; }
+.pinoriaFacts small { color: #aaa2b7; font-size: 7px; }
+.companionList { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; margin-top: 10px; }
+.companionCard { display: grid; gap: 9px; padding: 12px; border: 1px solid #e5e0ed; border-radius: 12px; background: #fff; }
+.companionHead { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 9px; align-items: center; }
+.companionGlyph { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: #efeaff; color: #725fd0; font-size: 15px; }
+.companionHead > div { display: grid; gap: 2px; }
+.companionHead strong { font-size: 11px; }
+.companionHead span { color: #817a88; font-size: 8px; }
+.companionHead b { color: #6757ae; font-size: 8px; }
+.progressTrack { height: 6px; overflow: hidden; border-radius: 999px; background: #eeeaf2; }
+.progressTrack span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#8d79ea,#beaefa); }
+.companionMeta { display: flex; justify-content: space-between; gap: 10px; color: #6e6875; font-size: 8px; }
+.companionMeta small { color: #a09aa5; }
+.pinoriaBoundary { margin: 10px 0 0; color: #918b96; font-size: 8px; line-height: 1.5; }
+@media (max-width:650px) { .pinoriaFacts, .companionList { grid-template-columns: 1fr; } }
+
+/* PLT-BO F4a · Student Companion routine actions */
+.operatorBadge { align-self: start; padding: 5px 8px; border: 1px solid #cfe6d7; border-radius: 999px; background: #f3fbf6; color: #47765a; font-size: 7px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.pinoriaNotice { margin-bottom: 9px; padding: 9px 10px; border: 1px solid #ded8ee; border-radius: 9px; background: #faf8ff; color: #625a70; font-size: 8px; line-height: 1.45; }
+.companionActions { display: grid; gap: 5px; padding-top: 2px; }
+.companionActions .primaryButton { min-height: 34px; width: 100%; }
+.companionActions small { color: #928b98; font-size: 7px; line-height: 1.4; }
+.pinoriaSheet { gap: 14px; }
+.pinoriaCommandPreview { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.pinoriaCommandPreview > div { display: grid; gap: 4px; padding: 12px; border: 1px solid #e5e0ed; border-radius: 11px; background: #fbfaff; }
+.pinoriaCommandPreview span { color: #8b8493; font-size: 8px; }
+.pinoriaCommandPreview strong { color: #443b52; font-size: 14px; }
+@media (max-width:650px) { .pinoriaCommandPreview { grid-template-columns: 1fr; } .pinoriaSheet { height: auto; min-height: 55vh; margin-top: auto; border-radius: 18px 18px 0 0; } .sheetScrim { align-items: end; } }
