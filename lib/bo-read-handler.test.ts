@@ -148,6 +148,24 @@ test("workers.dev Workforce staging identity can read allowlisted BO operations 
   assert.equal(identity?.email, "workforce-planning-staging-probe@pino.invalid");
 });
 
+
+
+test("WFM-ONB protected reads never inherit the Workforce workers.dev staging identity", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const stagedEnv: BoReadEnv = {
+    ...env(binding),
+    WORKFORCE_BO_STAGING_BYPASS: "enabled",
+    WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid",
+  };
+  for (const protectedPath of ["workforce/staff-registration-settings", "workforce/staff-registration-requests"]) {
+    const stagedRequest = new Request(`https://pino-team-os-staging.example.workers.dev/api/bo/${protectedPath}`);
+    const response = await handleBoOperationalReadRequest(stagedRequest, stagedEnv, protectedPath);
+    assert.equal(response.status, 401, protectedPath);
+  }
+  assert.equal(called, false);
+});
+
 test("Workforce staging BO read identity cannot activate on production host", async () => {
   let called = false;
   const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };

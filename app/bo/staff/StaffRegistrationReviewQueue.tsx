@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type {
   BoAccessRole,
@@ -16,6 +16,7 @@ import styles from "../bo.module.css";
 type ScopeType = BoStaffAccessAssignmentInput["scopeType"];
 type Draft = { key: string; roleId: string; scopeType: ScopeType; scopeId: string };
 type Catalog = { centers: BoCenter[]; paths: BoPathProgram[]; classes: BoRunningClass[] };
+type ReviewAttempt = { requestId: string; fingerprint: string; key: string };
 
 const blankDraft = (): Draft => ({ key: crypto.randomUUID(), roleId: "", scopeType: "GLOBAL", scopeId: "" });
 
@@ -29,11 +30,15 @@ export function StaffRegistrationReviewQueue() {
   const [error, setError] = useState("");
   const [approval, setApproval] = useState<BoStaffRegistrationApprovalResult | null>(null);
   const [pinCopied, setPinCopied] = useState(false);
+  const approveAttempt = useRef<ReviewAttempt | null>(null);
+  const rejectAttempt = useRef<ReviewAttempt | null>(null);
 
   useEffect(() => { void refresh(); }, []);
   useEffect(() => {
     setAssignments([blankDraft()]);
     setRejectReason(""); setError("");
+    approveAttempt.current = null;
+    rejectAttempt.current = null;
   }, [selectedId]);
 
   const selected = requests.find((item) => item.id === selectedId) ?? requests[0] ?? null;
@@ -74,7 +79,14 @@ export function StaffRegistrationReviewQueue() {
     if (!confirm(`Duyệt hồ sơ của ${selected.displayLabel} và tạo Staff + Access?`)) return;
     setBusy("approve"); setError(""); setApproval(null);
     try {
-      const result = await boApi.approveStaffRegistration(selected.id, normalized, crypto.randomUUID());
+      const fingerprint = JSON.stringify(normalized);
+      const attempt = approveAttempt.current;
+      const idempotencyKey = attempt?.requestId === selected.id && attempt.fingerprint === fingerprint
+        ? attempt.key
+        : crypto.randomUUID();
+      approveAttempt.current = { requestId: selected.id, fingerprint, key: idempotencyKey };
+      const result = await boApi.approveStaffRegistration(selected.id, normalized, idempotencyKey);
+      approveAttempt.current = null;
       setApproval(result);
       setRequests((items) => items.filter((item) => item.id !== selected.id));
       setSelectedId("");
@@ -89,7 +101,14 @@ export function StaffRegistrationReviewQueue() {
     if (!confirm(`Từ chối hồ sơ của ${selected.displayLabel}?`)) return;
     setBusy("reject"); setError("");
     try {
-      await boApi.rejectStaffRegistration(selected.id, rejectReason.trim(), crypto.randomUUID());
+      const reason = rejectReason.trim();
+      const attempt = rejectAttempt.current;
+      const idempotencyKey = attempt?.requestId === selected.id && attempt.fingerprint === reason
+        ? attempt.key
+        : crypto.randomUUID();
+      rejectAttempt.current = { requestId: selected.id, fingerprint: reason, key: idempotencyKey };
+      await boApi.rejectStaffRegistration(selected.id, reason, idempotencyKey);
+      rejectAttempt.current = null;
       setRequests((items) => items.filter((item) => item.id !== selected.id));
       setSelectedId("");
     } catch (cause) { setError(formatError(cause, "Không thể từ chối hồ sơ.")); }

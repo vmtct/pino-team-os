@@ -115,6 +115,26 @@ test("missing BO Access identity fails before Core", async () => {
   assert.equal(called, false);
 });
 
+
+
+test("WFM-ONB protected writes never inherit the Workforce workers.dev staging identity", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const stagedEnv: BoWriteEnv = { ...env(binding), WORKFORCE_BO_STAGING_BYPASS: "enabled", WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid" };
+  const requestId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const cases = [
+    ["workforce/staff-registration-settings", { enabled: true }],
+    [`workforce/staff-registration-requests/${requestId}/approve`, { assignments: [{ roleId: "0198d050-56c1-7ac5-b9ab-b0e45d912346", scopeType: "GLOBAL", scopeId: null }] }],
+    [`workforce/staff-registration-requests/${requestId}/reject`, { reason: "not approved" }],
+  ] as const;
+  for (const [protectedPath, body] of cases) {
+    const stagedRequest = new Request(`https://pino-team-os-staging.example.workers.dev/api/bo/${protectedPath}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "protected-review" }, body: JSON.stringify(body) });
+    const response = await handleBoStaffOnboardingRequest(stagedRequest, stagedEnv, protectedPath);
+    assert.equal(response.status, 401, protectedPath);
+  }
+  assert.equal(called, false);
+});
+
 test("workers.dev Staff onboarding uses the bounded Workforce staging Manager identity", async () => {
   let identity: VerifiedBoIdentity | undefined;
   const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
