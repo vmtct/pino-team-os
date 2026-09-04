@@ -123,6 +123,7 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
   if (path === "learners" || path === "open-studio/learners") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
     ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
+    ...(url.searchParams.get("offset") ? { offset: Number(url.searchParams.get("offset")) } : {}),
   };
   if (path === "open-studio/operations") return url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : undefined;
   if (path === "open-studio/listing-catalog") return { ...(url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : {}), ...(url.searchParams.get("effectiveAt") ? { effectiveAt: url.searchParams.get("effectiveAt")! } : {}) };

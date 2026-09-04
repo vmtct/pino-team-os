@@ -1,183 +1,284 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
-import styles from "../bo.module.css";
+import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
+import styles from "./bo-learners.module.css";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
+type Filter = "active" | "inactive" | "all";
 
 export function BoLearnersView() {
-  const [query, setQuery] = useState("");
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [catalog, setCatalog] = useState<Catalog>({ paths: [], classes: [] });
-  const [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState<Filter>("active");
+  const [query, setQuery] = useState("");
+  const detailRequestFence = useRef(new LatestRequestFence());
+  const selectedIdRef = useRef<string | null>(null);
 
-  async function loadDirectory(search = query) {
-    setDirectory({ state: "loading" });
+  async function readDirectory() {
+    return collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId));
+  }
+
+  function selectStudent(id: string | null) {
+    selectedIdRef.current = id;
+    detailRequestFence.current.invalidate();
+    setSelectedId(id);
+  }
+
+  async function loadDirectory() {
     try {
-      const rows = await boApi.learners(search);
+      const rows = await readDirectory();
       setDirectory({ state: "ready", data: rows });
-      if (!selectedId && rows[0]) setSelectedId(rows[0].id);
-    } catch (error) { setDirectory({ state: "error", message: message(error) }); }
+      const current = selectedIdRef.current;
+      if (!current || !rows.some((item) => item.id === current)) {
+        selectStudent(rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null);
+      }
+    } catch (error) {
+      setDirectory({ state: "error", message: message(error) });
+    }
   }
+
   async function loadDetail(id: string) {
+    const ticket = detailRequestFence.current.begin(id);
     setDetail({ state: "loading" });
-    try { setDetail({ state: "ready", data: await boApi.learnerLifecycle(id) }); }
-    catch (error) { setDetail({ state: "error", message: message(error) }); }
+    try {
+      const data = await boApi.learnerLifecycle(id);
+      if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "ready", data });
+    } catch (error) {
+      if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "error", message: message(error) });
+    }
   }
+
   useEffect(() => {
     let active = true;
-    void boApi.learners("").then((rows) => {
+    void collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId)).then((rows) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
-      if (rows[0]) setSelectedId((current) => current ?? rows[0]!.id);
+      const next = rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null;
+      selectedIdRef.current = next;
+      setSelectedId(next);
     }).catch((error: unknown) => { if (active) setDirectory({ state: "error", message: message(error) }); });
     void boApi.scopeCatalog().then((value) => { if (active) setCatalog({ paths: value.paths, classes: value.classes }); }).catch(() => undefined);
     return () => { active = false; };
   }, []);
   useEffect(() => { if (selectedId) void loadDetail(selectedId); }, [selectedId]);
 
-  async function refresh() {
-    if (selectedId) await loadDetail(selectedId);
-    await loadDirectory(query);
+  const rows = useMemo(() => directory.state === "ready" ? directory.data : [], [directory]);
+  const activeRows = useMemo(() => rows.filter((student) => student.activeSubscriptions > 0), [rows]);
+  const filtered = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase("vi");
+    return rows.filter((student) => {
+      if (filter === "active" && student.activeSubscriptions === 0) return false;
+      if (filter === "inactive" && student.activeSubscriptions > 0) return false;
+      if (!term) return true;
+      return `${student.displayName} ${student.activePaths.map((path) => path.displayName).join(" ")}`.toLocaleLowerCase("vi").includes(term);
+    });
+  }, [filter, query, rows]);
+
+  function switchFilter(next: Filter) {
+    setFilter(next);
+    const first = rows.find((student) => next === "all" || (next === "active" ? student.activeSubscriptions > 0 : student.activeSubscriptions === 0));
+    if (first) selectStudent(first.id);
   }
 
-  if (directory.state === "loading" && !selectedId) return <State text="Đang tải learner directory…" />;
+
+  if (directory.state === "loading" && !selectedId) return <State text="Đang tải danh sách học viên…" />;
   if (directory.state === "error") return <State text={directory.message} error />;
-  const rows = directory.state === "ready" ? directory.data : [];
 
   return <main className={styles.page}>
     <header className={styles.heading}>
-      <span>Back Office · Learner Lifecycle</span>
-      <h1>Learners</h1>
-      <p>Canonical Student → Guardian → Membership → Subscription → Enrollment. Mọi mutation chạy qua pino-core.</p>
+      <div>
+        <span>School · Student management</span>
+        <h1>Học viên</h1>
+        <p>Manager nhìn ngay ai đang học, học chương trình nào, còn bao nhiêu buổi và đang ở lớp nào.</p>
+      </div>
+      <Link className={styles.primaryButton} href="/bo/running-classes">Mở Classes</Link>
     </header>
-    {notice ? <div className={styles.successCard}><span>Command completed</span><strong>{notice}</strong></div> : null}
-    <section className={styles.learnerWorkspace}>
-      <aside className={styles.learnerDirectory}>
-        <form className={styles.learnerSearch} onSubmit={(event) => { event.preventDefault(); void loadDirectory(query); }}>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên learner…" />
-          <button className={styles.secondaryButton}>Tìm</button>
-        </form>
-        <small>{rows.length} learner</small>
-        {rows.map((learner) => <button key={learner.id} className={`${styles.learnerCard} ${selectedId === learner.id ? styles.learnerCardActive : ""}`} onClick={() => { setNotice(""); setSelectedId(learner.id); }}>
-          <strong>{learner.displayName}</strong>
-          <span>{learner.birthYear ?? "—"} · {learner.houseMember ? "House Member" : "Pre-member"}</span>
-          <small>{learner.activePaths.map((path) => path.displayName).join(" · ") || "Chưa có active Path"}</small>
-        </button>)}
-      </aside>
-      <section className={styles.learnerDetail}>{selectedId ? <LearnerDetail load={detail} catalog={catalog} onChanged={async (text) => { setNotice(text); await refresh(); }} /> : <State text="Chọn một learner để mở lifecycle." />}</section>
+
+    <section className={styles.metrics}>
+      <Metric label="Tổng hồ sơ" value={rows.length} note="canonical Student" />
+      <Metric label="Đang học" value={activeRows.length} note="có active Path" />
+      <Metric label="House Member" value={rows.filter((item) => item.houseMember).length} note="membership hiện có" />
+      <Metric label="Chưa active" value={rows.filter((item) => item.activeSubscriptions === 0).length} note="chưa có active Path" />
     </section>
+
+    <section className={styles.workspace}>
+      <aside className={styles.directory}>
+        <div className={styles.searchWrap}><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên, chương trình…" /></div>
+        <div className={styles.tabs}>
+          <FilterButton active={filter === "active"} onClick={() => switchFilter("active")}>Đang học <b>{activeRows.length}</b></FilterButton>
+          <FilterButton active={filter === "inactive"} onClick={() => switchFilter("inactive")}>Chưa active <b>{rows.length - activeRows.length}</b></FilterButton>
+          <FilterButton active={filter === "all"} onClick={() => switchFilter("all")}>Tất cả <b>{rows.length}</b></FilterButton>
+        </div>
+        <div className={styles.directoryMeta}><span>{filtered.length} học viên</span><small>Live canonical read</small></div>
+        <div className={styles.studentList}>
+          {filtered.map((student) => <StudentButton key={student.id} student={student} active={selectedId === student.id} onClick={() => selectStudent(student.id)} />)}
+          {!filtered.length ? <div className={styles.emptyInline}>Không có học viên phù hợp.</div> : null}
+        </div>
+      </aside>
+
+      <section className={styles.detail}>
+        {selectedId ? <LearnerDetail load={detail} catalog={catalog} /> : <State text="Chọn học viên để mở hồ sơ." />}
+      </section>
+    </section>
+
   </main>;
 }
-function LearnerDetail({ load, catalog, onChanged }: { load: Load<BoLearnerLifecycle> | null; catalog: Catalog; onChanged: (text: string) => Promise<void> }) {
-  const [busy, setBusy] = useState("");
-  const [pathId, setPathId] = useState("");
-  const [startsOn, setStartsOn] = useState(today());
-  const [weekly, setWeekly] = useState(2);
-  const [units, setUnits] = useState(24);
+
+function Metric({ label, value, note }: { label: string; value: number; note: string }) {
+  return <article className={styles.metric}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
+}
+
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return <button type="button" className={active ? styles.tabActive : ""} onClick={onClick}>{children}</button>;
+}
+
+function StudentButton({ student, active, onClick }: { student: BoLearnerDirectoryItem; active: boolean; onClick: () => void }) {
+  const learning = student.activeSubscriptions > 0;
+  return <button type="button" className={`${styles.studentCard} ${active ? styles.studentCardActive : ""}`} onClick={onClick}>
+    <span className={styles.avatarSmall}>{initials(student.displayName)}</span>
+    <span className={styles.studentCardBody}>
+      <span className={styles.studentNameRow}><strong>{student.displayName}</strong></span>
+      <small>{ageLabel(student.birthYear)}</small>
+      <span className={styles.studentMeta}>{learning ? student.activePaths.map((path) => path.displayName).join(" · ") : "Chưa có active Path"}</span>
+    </span>
+    <span className={styles.unitBadge}>{learning ? <><b>{student.activeSubscriptions}</b><small>path</small></> : <small>—</small>}</span>
+  </button>;
+}
+
+function LearnerDetail({ load, catalog }: { load: Load<BoLearnerLifecycle> | null; catalog: Catalog }) {
   if (!load || load.state === "loading") return <State text="Đang tải lifecycle…" />;
   if (load.state === "error") return <State text={load.message} error />;
   const data = load.data;
-
-  async function createSubscription() {
-    if (!pathId) return;
-    setBusy("create-subscription");
-    try { await boApi.createSubscription({ studentProfileId: data.student.id, pathProgramId: pathId, serviceStartsOn: startsOn, weeklyCommitment: weekly, purchasedUnits: units }); await onChanged("Subscription đã được tạo và activate."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
-  }
-
-  return <div className={styles.learnerDetailStack}>
-    <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><h2>{data.student.displayName}</h2><p>{data.student.status} · birth {data.student.birthYear ?? "—"} · {data.houseMembership ? `House Member từ ${shortDate(data.houseMembership.joinedAt)}` : "Chưa là House Member"}</p></div><span className={styles.statusPill}>{data.student.activeSubscriptions} active</span></div>
-      <div className={styles.learnerFacts}><Fact label="Student ID" value={data.student.id} /><Fact label="Birth precision" value={data.student.birthPrecision} /><Fact label="Guardians" value={String(data.guardians.length)} /><Fact label="Subscriptions" value={String(data.subscriptions.length)} /></div>
+  const active = data.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE");
+  const units = active.reduce((sum, entry) => sum + entry.subscription.effectiveAvailableUnits, 0);
+  return <>
+    <StudentHero lifecycle={data} activeCount={active.length} />
+    <AttentionCard lifecycle={data} />
+    <LearningSection lifecycle={data} catalog={catalog} />
+    <section className={styles.lowerGrid}>
+      <GuardianPanel lifecycle={data} />
+      <MembershipPanel lifecycle={data} units={units} />
     </section>
-
-    <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><h2>Guardian / Parent access</h2><p>Parent PIN reset dùng canonical Parent credential service.</p></div><span className={styles.writePill}>Write</span></div>
-      {data.guardians.length ? data.guardians.map((guardian) => <Guardian key={guardian.relationshipId} guardian={guardian} busy={busy} setBusy={setBusy} onChanged={onChanged} />) : <p className={styles.muted}>Chưa có Guardian relationship.</p>}
-    </section>
-    <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><h2>Subscriptions</h2><p>Commercial lifecycle + Service Unit balance + recurring Enrollment.</p></div><span className={styles.writePill}>Write</span></div>
-      <div className={styles.subscriptionCreate}>
-        <label className={styles.field}>Path<select value={pathId} onChange={(event) => setPathId(event.target.value)}><option value="">Chọn Path…</option>{catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}</select></label>
-        <label className={styles.field}>Bắt đầu<input type="date" value={startsOn} onChange={(event) => setStartsOn(event.target.value)} /></label>
-        <label className={styles.field}>Buổi / tuần<input type="number" min={1} max={7} value={weekly} onChange={(event) => setWeekly(Number(event.target.value))} /></label>
-        <label className={styles.field}>Service Units<input type="number" min={1} value={units} onChange={(event) => setUnits(Number(event.target.value))} /></label>
-        <button className={styles.primaryButton} disabled={!pathId || busy === "create-subscription"} onClick={() => void createSubscription()}>{busy === "create-subscription" ? "Đang tạo…" : "Tạo Subscription"}</button>
-      </div>
-      <div className={styles.subscriptionList}>{data.subscriptions.length ? data.subscriptions.map((entry) => <SubscriptionCard key={entry.subscription.id} entry={entry} classes={catalog.classes} busy={busy} setBusy={setBusy} onChanged={onChanged} />) : <p className={styles.muted}>Chưa có Subscription.</p>}</div>
-    </section>
-  </div>;
+    <SystemDetails lifecycle={data} />
+  </>;
 }
 
-function Guardian({ guardian, busy, setBusy, onChanged }: { guardian: BoLearnerLifecycle["guardians"][number]; busy: string; setBusy: (value: string) => void; onChanged: (text: string) => Promise<void> }) {
-  async function resetPin() {
-    if (!confirm(`Reset Parent PIN cho ${guardian.parent.displayName ?? guardian.parent.id}?`)) return;
-    setBusy(`parent-${guardian.parent.id}`);
-    try { const result = await boApi.resetParentPin(guardian.parent.id); await onChanged(`Temporary Parent PIN: ${result.temporaryPin} · hết hạn ${new Date(result.expiresAt).toLocaleString("vi-VN")}`); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
-  }
-  return <article className={styles.guardianRow}><div><strong>{guardian.parent.displayName ?? "Parent"}</strong><span>{guardian.relationshipType} · {guardian.parent.status}</span><small>{guardian.parent.contacts.map((contact) => `${contact.type}: ${contact.value}`).join(" · ") || "Không có active contact"}</small></div><button className={styles.secondaryButton} disabled={busy === `parent-${guardian.parent.id}`} onClick={() => void resetPin()}>{busy === `parent-${guardian.parent.id}` ? "Đang reset…" : "Reset Parent PIN"}</button></article>;
+function StudentHero({ lifecycle, activeCount }: { lifecycle: BoLearnerLifecycle; activeCount: number }) {
+  const student = lifecycle.student;
+  return <section className={styles.heroCard}>
+    <div className={styles.heroIdentity}>
+      <span className={styles.avatarLarge}>{initials(student.displayName)}</span>
+      <div><span className={styles.eyebrow}>Student profile</span><h2>{student.displayName}</h2><p>{ageLabel(student.birthYear)}</p></div>
+    </div>
+    <div className={styles.heroActions}><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
+    <div className={styles.heroStatus}>
+      <span className={activeCount ? styles.statusActive : styles.statusMuted}>{activeCount ? "Đang học" : "Chưa active"}</span>
+      {lifecycle.houseMembership ? <span>House Member</span> : null}
+      {activeCount > 1 ? <span>{activeCount} chương trình</span> : null}
+    </div>
+  </section>;
 }
-function SubscriptionCard({ entry, classes, busy, setBusy, onChanged }: { entry: BoLearnerLifecycle["subscriptions"][number]; classes: BoRunningClass[]; busy: string; setBusy: (value: string) => void; onChanged: (text: string) => Promise<void> }) {
+
+function AttentionCard({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
+  const active = lifecycle.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE");
+  const alerts: string[] = [];
+  if (!active.length) alerts.push("Chưa có chương trình đang học — cần tạo Subscription trước khi xếp lớp.");
+  const low = active.filter((entry) => entry.subscription.effectiveAvailableUnits <= 4);
+  if (low.length) alerts.push(`${low.map((entry) => entry.subscription.pathDisplayName).join(", ")} còn ≤ 4 buổi — nên xử lý renewal sớm.`);
+  const unplaced = active.filter((entry) => !entry.enrollments.some(isCurrentEnrollment));
+  if (unplaced.length) alerts.push(`${unplaced.map((entry) => entry.subscription.pathDisplayName).join(", ")} chưa có lớp đang hiệu lực.`);
+  if (!lifecycle.guardians.length) alerts.push("Chưa có Guardian active trên hồ sơ.");
+  if (!alerts.length) return <section className={styles.goodCard}><span>✓</span><div><strong>Hồ sơ đang ổn</strong><p>Không có exception vận hành rõ ràng trong lifecycle hiện tại.</p></div></section>;
+  return <section className={styles.attentionCard}><span>!</span><div><strong>Cần chú ý</strong>{alerts.map((alert) => <p key={alert}>{alert}</p>)}</div></section>;
+}
+
+function LearningSection({ lifecycle, catalog }: { lifecycle: BoLearnerLifecycle; catalog: Catalog }) {
+  const active = lifecycle.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE");
+  return <section className={styles.sectionCard}>
+    <div className={styles.sectionHeading}>
+      <div><span className={styles.eyebrow}>Current learning</span><h3>Chương trình đang học</h3></div>
+      <span className={styles.linkButton}>Read-only</span>
+    </div>
+    {active.length ? <div className={styles.learningGrid}>{active.map((entry) => <LearningCard key={entry.subscription.id} entry={entry} catalog={catalog} />)}</div> : <div className={styles.emptyState}><strong>Chưa có Subscription active</strong><span>Quản lý Subscription ở owner surface độc lập.</span></div>}
+  </section>;
+}
+
+function LearningCard({ entry, catalog }: { entry: BoLearnerLifecycle["subscriptions"][number]; catalog: Catalog }) {
   const subscription = entry.subscription;
-  const [runningClassId, setRunningClassId] = useState("");
-  const [placementDate, setPlacementDate] = useState(today());
-  const eligibleClasses = classes.filter((item) => item.pathProgramId === subscription.pathProgramId && item.status === "ACTIVE");
-
-  async function renew() {
-    const unitsText = prompt("Service Units cho renewal", String(Math.max(subscription.weeklyCommitment * 12, 1)));
-    if (!unitsText) return;
-    const starts = prompt("Ngày bắt đầu YYYY-MM-DD (để trống nếu activate sau)", "") ?? "";
-    setBusy(`renew-${subscription.id}`);
-    try { await boApi.renewSubscription(subscription.id, { ...(starts ? { serviceStartsOn: starts } : {}), weeklyCommitment: subscription.weeklyCommitment, purchasedUnits: Number(unitsText) }); await onChanged("Renewal draft đã được tạo."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
-  }
-  async function cancel() {
-    const reason = prompt("Lý do cancel Subscription"); if (!reason) return;
-    if (!confirm("Cancel Subscription này?")) return;
-    setBusy(`cancel-${subscription.id}`);
-    try { await boApi.cancelSubscription(subscription.id, { expectedVersion: subscription.version, reason }); await onChanged("Subscription đã cancel."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
-  }
-  async function place() {
-    if (!runningClassId) return;
-    setBusy(`place-${subscription.id}`);
-    try { await boApi.placeEnrollment({ subscriptionId: subscription.id, runningClassId, effectiveFromLocalDate: placementDate, commandEffectiveLocalDate: today(), policyEffectiveAt: new Date().toISOString() }); await onChanged("Enrollment đã được place vào Running Class."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
-  }
-  async function endEnrollment(enrollmentId: string, version: number) {
-    const endDate = prompt("Ngày kết thúc exclusive YYYY-MM-DD", today()); if (!endDate) return;
-    const reason = prompt("Lý do kết thúc Enrollment"); if (!reason) return;
-    setBusy(`end-${enrollmentId}`);
-    try { await boApi.endEnrollment(enrollmentId, { effectiveUntilExclusiveLocalDate: endDate, expectedVersion: version, reason }); await onChanged("Enrollment đã kết thúc."); }
-    catch (error) { alert(message(error)); } finally { setBusy(""); }
-  }
-
-  return <article className={styles.subscriptionCard}>
-    <div className={styles.subscriptionHead}>
-      <div><strong>{subscription.pathDisplayName}</strong><span>{subscription.lifecycle} · {subscription.weeklyCommitment} buổi/tuần</span></div>
-      <div className={styles.unitBalance}><strong>{subscription.effectiveAvailableUnits}</strong><span>units còn hiệu lực</span></div>
+  const current = entry.enrollments.filter(isCurrentEnrollment);
+  const low = subscription.effectiveAvailableUnits <= Math.max(4, subscription.weeklyCommitment * 2);
+  return <article className={`${styles.learningCard} ${low ? styles.learningCardLow : ""}`}>
+    <div className={styles.learningCardHead}>
+      <div><span>ACTIVE SUBSCRIPTION</span><strong>{subscription.pathDisplayName}</strong><small>{subscription.weeklyCommitment} buổi / tuần</small></div>
+      <div className={`${styles.balance} ${low ? styles.balanceLow : ""}`}><strong>{subscription.effectiveAvailableUnits}</strong><span>buổi còn lại</span><small>~ {weeksLeft(subscription.effectiveAvailableUnits, subscription.weeklyCommitment)}</small></div>
     </div>
-    <small>{subscription.serviceStartsOn ?? "Chưa activate"} · v{subscription.version} · ledger {subscription.historicalBalance}</small>
-    <div className={styles.subscriptionActions}>
-      {subscription.lifecycle === "ACTIVE" ? <><button className={styles.secondaryButton} disabled={busy === `renew-${subscription.id}`} onClick={() => void renew()}>Renew</button><button className={styles.secondaryButton} disabled={busy === `cancel-${subscription.id}`} onClick={() => void cancel()}>Cancel</button></> : null}
+    <div className={styles.learningFacts}>
+      <div><span>Bắt đầu</span><strong>{subscription.serviceStartsOn ?? "—"}</strong></div>
+      <div><span>Commercial ref</span><strong>{subscription.commercialReference ?? "—"}</strong></div>
     </div>
-    {subscription.lifecycle === "ACTIVE" ? <div className={styles.placementComposer}>
-      <label className={styles.field}>Running Class<select value={runningClassId} onChange={(event) => setRunningClassId(event.target.value)}><option value="">Chọn lớp…</option>{eligibleClasses.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.startLocalTime}</option>)}</select></label>
-      <label className={styles.field}>Effective from<input type="date" value={placementDate} onChange={(event) => setPlacementDate(event.target.value)} /></label>
-      <button className={styles.secondaryButton} disabled={!runningClassId || busy === `place-${subscription.id}`} onClick={() => void place()}>Place Enrollment</button>
-    </div> : null}
-    <div className={styles.enrollmentList}>{entry.enrollments.map((enrollment) => <div className={styles.enrollmentRow} key={enrollment.id}><div><strong>{enrollment.runningClassName}</strong><span>{enrollment.effectiveFromLocalDate} → {enrollment.effectiveUntilExclusiveLocalDate ?? "ongoing"}</span><small>{enrollment.plannedEntryLocalTime ? `${enrollment.plannedEntryLocalTime} · ${enrollment.plannedDurationMinutes}m` : "Theo class schedule"}</small></div>{!enrollment.effectiveUntilExclusiveLocalDate ? <button className={styles.secondaryButton} disabled={busy === `end-${enrollment.id}`} onClick={() => void endEnrollment(enrollment.id, enrollment.version)}>End</button> : null}</div>)}</div>
+    <div className={styles.classList}>
+      <span className={styles.eyebrow}>Lớp hiện tại</span>
+      {current.length ? current.map((enrollment) => {
+        const runningClass = catalog.classes.find((item) => item.id === enrollment.runningClassId);
+        return <div key={enrollment.id}><strong>{enrollment.runningClassName}</strong><span>{runningClass ? scheduleLabel(runningClass) : "Theo class schedule"}</span></div>;
+      }) : <p>Chưa có class placement hiệu lực.</p>}
+    </div>
+    <div className={styles.cardActions}><Link href="/bo/running-classes">Mở Classes</Link></div>
   </article>;
 }
-function Fact({ label, value }: { label: string; value: string }) { return <div><span>{label}</span><strong>{value}</strong></div>; }
-function State({ text, error = false }: { text: string; error?: boolean }) { return <div className={`${styles.state} ${error ? styles.errorState : ""}`}><strong>{error ? "Không thể tải" : "PINO BO"}</strong><span>{text}</span></div>; }
+
+function GuardianPanel({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
+  return <section className={styles.sectionCard}>
+    <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>Family</span><h3>Guardian</h3></div><span className={styles.linkButton}>Read-only</span></div>
+    {lifecycle.guardians.length ? <div className={styles.guardianList}>{lifecycle.guardians.map((guardian) => {
+      const name = guardian.parent.displayName ?? "Guardian";
+      return <article key={guardian.relationshipId}><span className={styles.avatarSmall}>{initials(name)}</span><div><strong>{name}</strong><span>{guardian.relationshipType} · {guardian.parent.status}</span><small>{guardian.parent.contacts.map((contact) => `${contact.type}: ${contact.value}`).join(" · ") || "Không có active contact"}</small></div></article>;
+    })}</div> : <div className={styles.emptyInline}>Chưa có Guardian active.</div>}
+  </section>;
+}
+
+function MembershipPanel({ lifecycle, units }: { lifecycle: BoLearnerLifecycle; units: number }) {
+  const member = Boolean(lifecycle.houseMembership);
+  const active = lifecycle.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE").length;
+  return <section className={styles.sectionCard}>
+    <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>House</span><h3>Membership</h3></div></div>
+    <div className={styles.membershipState}>
+      <span className={member ? styles.memberMark : styles.memberMarkMuted}>{member ? "P" : "—"}</span>
+      <div><strong>{member ? "House Member" : "Chưa là House Member"}</strong><span>{member ? `Canonical membership · từ ${shortDate(lifecycle.houseMembership!.joinedAt)}` : "Membership được tạo theo canonical promotion flow"}</span></div>
+    </div>
+    <div className={styles.miniFacts}><div><span>Active paths</span><strong>{active}</strong></div><div><span>Units hiện có</span><strong>{units}</strong></div></div>
+  </section>;
+}
+
+function SystemDetails({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
+  return <details className={styles.systemDetails}>
+    <summary>System details</summary>
+    <div><span>Student ID</span><code>{lifecycle.student.id}</code></div>
+    <div><span>Status</span><code>{lifecycle.student.status}</code></div>
+    <div><span>Birth precision</span><code>{lifecycle.student.birthPrecision}</code></div>
+    <div><span>Source</span><code>canonical private BO lifecycle projection</code></div>
+  </details>;
+}
+
+function isCurrentEnrollment(enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) {
+  const now = today();
+  return enrollment.effectiveFromLocalDate <= now && (enrollment.effectiveUntilExclusiveLocalDate === null || enrollment.effectiveUntilExclusiveLocalDate > now);
+}
+function scheduleLabel(item: BoRunningClass) {
+  const day = ["", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
+  return `${day[item.recurrenceWeekdays[0] ?? 0] ?? ""} · ${item.startLocalTime}`;
+}
+function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(-2).map((part) => part[0]).join("").toUpperCase(); }
+function ageLabel(year: number | null) { return year ? `${year} · ~${Math.max(0, new Date().getFullYear() - year)} tuổi` : "Chưa có năm sinh"; }
+function weeksLeft(units: number, weekly: number) { if (!weekly) return "—"; const weeks = units / weekly; return weeks < 1 ? "< 1 tuần" : `${weeks.toFixed(weeks < 3 ? 1 : 0)} tuần`; }
 function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
 function shortDate(value: string) { return new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "medium" }).format(new Date(value)); }
-function message(error: unknown) { return error instanceof BoApiError ? `${error.message}${error.requestId ? ` · ${error.requestId}` : ""}` : error instanceof Error ? error.message : "Command failed."; }
+function State({ text, error = false }: { text: string; error?: boolean }) { return <div className={`${styles.emptyState} ${error ? styles.errorState : ""}`}><strong>{error ? "Không thể tải" : "PINO BO"}</strong><span>{text}</span></div>; }
+function message(error: unknown) { return error instanceof BoApiError ? `${error.message}${error.requestId ? ` · ${error.requestId}` : ""}` : error instanceof Error ? error.message : "Read failed."; }

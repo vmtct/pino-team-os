@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const read=(path:string)=>readFile(path,"utf8");
+
+test("School Students uses descending keyset canonical reads and no review snapshot",async()=>{const [view,api]=await Promise.all([read("app/bo/learners/BoLearnersView.tsx"),read("lib/bo-api.ts")]);assert.match(view,/collectPagedDirectory/);assert.match(view,/boApi\.learners\("", limit, beforeStudentId\)/);assert.match(view,/boApi\.learnerLifecycle/);assert.doesNotMatch(view,/student-snapshot|Production D1 snapshot|school-students-review/);assert.match(api,/beforeStudentId=/);assert.doesNotMatch(api,/offset=/);});
+
+test("School Students is read-only and links to independently governed owner surfaces",async()=>{const view=await read("app/bo/learners/BoLearnersView.tsx");for(const command of ["createSubscription","renewSubscription","cancelSubscription","placeEnrollment","endEnrollment","transferEnrollment","resetParentPin","replayContext"])assert.doesNotMatch(view,new RegExp(`boApi\.${command}|${command}`));assert.match(view,/href="\/bo\/running-classes"/);assert.match(view,/Read-only/);});
+
+test("School Students keeps selected-Student request fencing",async()=>{const view=await read("app/bo/learners/BoLearnersView.tsx");assert.match(view,/LatestRequestFence/);assert.match(view,/selectedIdRef/);assert.doesNotMatch(view,/window\.sessionStorage|ActionSheet|Manager command/);});
