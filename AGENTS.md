@@ -23,6 +23,8 @@ Run `npm run pino:resume -- --core <current-pino-core-worktree>` (or set `PINO_C
 
 Obey the result: `NONE` continues; `SAFE` continues without a forced sync; `CONTRACT` is reconciled by the coding agent in the same work session and the gate is rerun; `DESTRUCTIVE` or genuinely ambiguous state requires human review. Do not ask the Founder to reconcile merely because `main` advanced. If Core governance is unavailable or feature resolution is ambiguous, fail closed.
 
+For implementation/builder work, the terminal state is `DEV_HANDOFF_READY`: implementation complete, local verification complete, immutable candidate pushed, and exact-head CI requested/proven. Stop there. Authoritative PRE-MAIN audit, final current-main reconcile, `MERGE_READY`, and merge execution are owned downstream by Core `PLT-MERGE`.
+
 ### Cross-Project slice care
 
 Material Team work must identify the coordinating ChatGPT Project with one canonical Project Code: `PRJ-TPP`, `PRJ-PSP`, `PRJ-PNR`, `PRJ-WFM`, or `PRJ-PLT`. Pass it through `--project` or `PINO_PROJECT_CODE`.
@@ -151,7 +153,7 @@ For a material cross-repository feature:
 6. compose the approved surface shell instead of inventing parallel navigation;
 7. add/update app-boundary tests;
 8. surface any spec/code/layout mismatch instead of silently choosing one side;
-9. require independent spec ↔ Core/app code ↔ tests review before staging/production readiness.
+9. hand off at `DEV_HANDOFF_READY`; Core `PLT-MERGE` owns current-main reconcile, exact candidate CI, authoritative independent PRE-MAIN review, freshness, and `MERGE_READY`.
 
 Before approving a material staff UI PR, independently verify:
 
@@ -162,5 +164,9 @@ Before approving a material staff UI PR, independently verify:
 - app theme/orientation preserved;
 - pedagogy/domain boundaries preserved;
 - surface entry and feature visibility derive from canonical Access Control, not UI-local assumptions.
+
+## Codex hard limit
+
+Codex is permitted only as the fresh independent PRE-MAIN reviewer launched by the canonical Core audit runner. GPT owns implementation, bug/audit-finding fixes, reconcile/restack/rebase, conflict resolution, evidence repair, merge orchestration, and release preparation. Do not invoke Codex for any of those non-audit activities.
 
 Production deployment remains an explicit release action. A green build or merged PR does not itself authorize production.
