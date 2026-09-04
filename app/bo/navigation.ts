@@ -3,7 +3,7 @@ import type { BoNavGroup } from "@/app/components/tos-shell";
 export const boNavigation: BoNavGroup[] = [
   {
     label: "Workspace",
-    items: [{ href: "/bo", label: "Hôm nay" }],
+    items: [{ href: "/bo", label: "HÃ´m nay" }],
   },
   {
     label: "School",
@@ -14,7 +14,7 @@ export const boNavigation: BoNavGroup[] = [
         href: "/bo/running-classes",
         label: "Classes",
         children: [
-          { href: "/bo/running-classes", label: "Lớp đang chạy" },
+          { href: "/bo/running-classes", label: "Lá»›p Ä‘ang cháº¡y" },
           { href: "/bo/sessions", label: "Sessions" },
           { href: "/bo/registrations", label: "Registrations" },
           { href: "/bo/delivery-activation", label: "Activation" },
@@ -58,6 +58,7 @@ export const boNavigation: BoNavGroup[] = [
         label: "Collection",
         children: [{ href: "/bo/pinoria-companions", label: "Companions" }],
       },
+      { href: "/bo/pinoria-ward", label: "Wardrobe Catalog" },
     ],
   },
   {
