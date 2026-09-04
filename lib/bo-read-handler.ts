@@ -65,6 +65,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-registration-requests"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
+    || path === "pinoria/ward/learners"
+    || /^pinoria\/ward\/learners\/[0-9a-f-]{36}$/.test(path)
     || path === "pinoria/ward/set-webm-assets"
     || path === "web-cms/slots"
     || WEB_CMS_SLOT_READ.test(path)
