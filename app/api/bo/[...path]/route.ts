@@ -3,12 +3,13 @@ import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-ha
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
 import { handleBoWorkforcePlanningRequest, isBoWorkforcePlanningPath, type BoWorkforcePlanningEnv } from "@/lib/bo-workforce-planning-handler";
+import { handleBoWorkforceTrainingRequest, isBoWorkforceTrainingPath, type BoWorkforceTrainingEnv } from "@/lib/bo-workforce-training-handler";
 import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH, type ReviewedEnrollmentEnv } from "@/lib/f4-reviewed-enrollment-handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv;
+type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
