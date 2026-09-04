@@ -60,6 +60,8 @@ const PRACTICE_RESOURCE_CREATE = "practice/resources";
 const PRACTICE_RESOURCE_DRAFT = /^practice\/resources\/[0-9a-f-]{36}\/drafts$/;
 const PRACTICE_VERSION_COMMAND = /^practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/;
 const WARD_CATALOG_WRITE = /^pinoria\/ward\/catalog\/(items|variants)(?:\/[0-9a-f-]{36})?$/;
+const WARD_SET_WRITE = /^pinoria\/ward\/sets(?:\/[0-9a-f-]{36}(?:\/members)?)?$/;
+const WARD_SET_MEDIA = "pinoria/ward/set-webm-assets";
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -68,7 +70,7 @@ export async function handleBoWriteRequest(
   keyResolver?: JWTVerifyGetKey,
 ): Promise<Response> {
   try {
-    if (request.method !== "POST" && !(request.method === "PATCH" && WARD_CATALOG_WRITE.test(path))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    if (request.method !== "POST" && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path))) && !(request.method === "PUT" && WARD_SET_WRITE.test(path))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const stagingIdentity = isOpenStudioPostPath(path)
@@ -191,7 +193,9 @@ export function isAllowedPostPath(path: string): boolean {
     || ENROLLMENT_BULK_PATHS.has(path)
     || isLearningSyllabusPostPath(path)
     || isOpenStudioPostPath(path)
-    || WARD_CATALOG_WRITE.test(path);
+    || WARD_CATALOG_WRITE.test(path)
+    || WARD_SET_WRITE.test(path)
+    || path === WARD_SET_MEDIA;
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */
