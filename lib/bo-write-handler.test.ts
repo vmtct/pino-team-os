@@ -115,6 +115,26 @@ test("missing BO Access identity fails before Core", async () => {
   assert.equal(called, false);
 });
 
+
+
+test("WFM-ONB protected writes never inherit the Workforce workers.dev staging identity", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async execute() { called = true; throw new Error("unexpected"); } };
+  const stagedEnv: BoWriteEnv = { ...env(binding), WORKFORCE_BO_STAGING_BYPASS: "enabled", WORKFORCE_STAGING_BO_EMAIL: "workforce-planning-staging-probe@pino.invalid" };
+  const requestId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const cases = [
+    ["workforce/staff-registration-settings", { enabled: true }],
+    [`workforce/staff-registration-requests/${requestId}/approve`, { assignments: [{ roleId: "0198d050-56c1-7ac5-b9ab-b0e45d912346", scopeType: "GLOBAL", scopeId: null }] }],
+    [`workforce/staff-registration-requests/${requestId}/reject`, { reason: "not approved" }],
+  ] as const;
+  for (const [protectedPath, body] of cases) {
+    const stagedRequest = new Request(`https://pino-team-os-staging.example.workers.dev/api/bo/${protectedPath}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "protected-review" }, body: JSON.stringify(body) });
+    const response = await handleBoStaffOnboardingRequest(stagedRequest, stagedEnv, protectedPath);
+    assert.equal(response.status, 401, protectedPath);
+  }
+  assert.equal(called, false);
+});
+
 test("workers.dev Staff onboarding uses the bounded Workforce staging Manager identity", async () => {
   let identity: VerifiedBoIdentity | undefined;
   const binding: BoAccessCoreBinding = { async execute(coreRequest, actor) {
@@ -476,4 +496,29 @@ test("Practice BO commands require idempotency and preserve exact bounded payloa
   );
   assert.equal(missingKey.status, 400);
   assert.equal(forwarded.length, 1);
+});
+
+
+test("Staff registration review facade is exact, replay-protected, and forwards only Manager review commands", async () => {
+  const f = await fixture();
+  const requestId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const reviewPath = `workforce/staff-registration-requests/${requestId}/approve`;
+  const body = { assignments: [{ roleId: "0198d050-56c1-7ac5-b9ab-b0e45d912346", scopeType: "GLOBAL", scopeId: null }] };
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 201, body: { data: { status: "APPROVED" } }, requestId: "core-registration-review" }; } };
+  const make = (key?: string) => new Request(`https://bo.pinohouse.art/api/bo/${reviewPath}`, { method: "POST", headers: { "cf-access-jwt-assertion": f.token, "content-type": "application/json", ...(key ? { "idempotency-key": key } : {}) }, body: JSON.stringify(body) });
+  assert.equal((await handleBoStaffOnboardingRequest(make(), env(binding), reviewPath, f.resolver)).status, 400);
+  const ok = await handleBoStaffOnboardingRequest(make("registration-review-1"), env(binding), reviewPath, f.resolver);
+  assert.equal(ok.status, 201);
+  assert.deepEqual(forwarded, [{ method: "POST", path: reviewPath, body, idempotencyKey: "registration-review-1" }]);
+});
+
+test("Staff registration intake toggle stays on its single governed BO path", async () => {
+  const f = await fixture();
+  const settingsPath = "workforce/staff-registration-settings";
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async execute(coreRequest) { forwarded.push(coreRequest); return { status: 200, body: { data: { enabled: true } }, requestId: "core-registration-toggle" }; } };
+  const req = new Request(`https://bo.pinohouse.art/api/bo/${settingsPath}`, { method: "POST", headers: { "cf-access-jwt-assertion": f.token, "content-type": "application/json", "idempotency-key": "toggle-1" }, body: JSON.stringify({ enabled: true }) });
+  assert.equal((await handleBoStaffOnboardingRequest(req, env(binding), settingsPath, f.resolver)).status, 200);
+  assert.deepEqual(forwarded, [{ method: "POST", path: settingsPath, body: { enabled: true }, idempotencyKey: "toggle-1" }]);
 });

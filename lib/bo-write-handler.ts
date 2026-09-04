@@ -13,6 +13,8 @@ export interface BoWriteEnv extends BoOpenStudioStagingAuthEnv, BoWorkforceStagi
 }
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
+const STAFF_REGISTRATION_SETTINGS_PATH = "workforce/staff-registration-settings";
+const STAFF_REGISTRATION_REVIEW_PATH = /^workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(approve|reject)$/;
 const LEARNING_SYLLABUS_CREATE = "learning/syllabi";
 const LEARNING_SYLLABUS_COMMAND = /^learning\/syllabi\/[0-9a-f-]{36}\/(draft|publish|next-draft|archive)$/;
 const ACCESS_ROLE_PATH = "access/roles";
@@ -80,7 +82,7 @@ export async function handleBoWriteRequest(
     );
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -130,6 +132,7 @@ export async function handleBoWriteRequest(
 export function shouldReconcileTosAccess(path: string): boolean {
   return path === ACCESS_PERIMETER_RECONCILE_PATH
     || path === STAFF_ONBOARDING_PATH
+    || (STAFF_REGISTRATION_REVIEW_PATH.test(path) && path.endsWith("/approve"))
     || ACCESS_ROLE_UPDATE_PATH.test(path)
     || ACCESS_ROLE_ARCHIVE_PATH.test(path)
     || path === ACCESS_ASSIGNMENT_PATH
@@ -160,6 +163,8 @@ export function isOpenStudioPostPath(path: string): boolean {
 export function isAllowedPostPath(path: string): boolean {
   return path === ACCESS_PERIMETER_RECONCILE_PATH
     || path === STAFF_ONBOARDING_PATH
+    || path === STAFF_REGISTRATION_SETTINGS_PATH
+    || STAFF_REGISTRATION_REVIEW_PATH.test(path)
     || path === ACCESS_ROLE_PATH
     || ACCESS_ROLE_DUPLICATE_PATH.test(path)
     || ACCESS_ROLE_UPDATE_PATH.test(path)

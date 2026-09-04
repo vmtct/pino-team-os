@@ -169,6 +169,31 @@ export interface BoStaffOnboardingResult {
   initialPin?: string;
 }
 
+export interface BoStaffRegistrationRequest {
+  id: string;
+  status: "PENDING";
+  displayLabel: string;
+  email: string;
+  mobile: string | null;
+  governmentIdLast4: string;
+  bankAccountLast4: string;
+  documents: { front: boolean; back: boolean };
+  submittedAt: string;
+  version: number;
+}
+
+export interface BoStaffRegistrationApprovalResult {
+  registrationRequestId: string;
+  status: "APPROVED";
+  staffMemberId: string;
+  userId: string;
+  externalIdentityId: string;
+  assignmentIds: string[];
+  accessState: "PROVISIONED_AWAITING_LOGIN";
+  staffPinState: "ROTATION_REQUIRED" | "ACTIVE";
+  initialPin?: string;
+}
+
 export interface BoContext {
   userId: string;
   email: string;

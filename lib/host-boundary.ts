@@ -1,5 +1,6 @@
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
+export const STAFF_REGISTRATION_HOSTNAME = "join.pinohouse.art";
 export const RETIRED_TEAM_HOSTNAME = "team.pinohouse.art";
 
 export type HostBoundaryDecision =
@@ -11,6 +12,12 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
   const hostname = normalizeHostname(host);
 
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
+
+  if (hostname === STAFF_REGISTRATION_HOSTNAME) {
+    const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    if (normalized === "/staff/register" || normalized === "/api/staff-registration" || normalized === "/favicon.ico" || isFrameworkAsset(normalized)) return { action: "next" };
+    return { action: "not_found" };
+  }
 
   if (hostname === BO_HOSTNAME) {
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
@@ -80,6 +87,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/access/users",
     "/api/bo/workforce/staff-records",
     "/api/bo/workforce/staff-onboarding",
+    "/api/bo/workforce/staff-registration-settings",
+    "/api/bo/workforce/staff-registration-requests",
     "/api/bo/workforce/planning/weekly",
     "/api/bo/workforce/planning/assignment",
     "/api/bo/workforce/planning/assignment/cancel",
@@ -97,6 +106,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
     || /^\/api\/bo\/access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/.test(normalized)
     || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(?:approve|reject)$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)

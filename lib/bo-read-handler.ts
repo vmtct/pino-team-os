@@ -24,7 +24,7 @@ export async function handleBoOperationalReadRequest(
     if (!isOperationalReadPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
     const stagingIdentity = isOpenStudioReadPath(path)
       ? stagingBoOpenStudioIdentity(request, env)
-      : isPracticeReadPath(path)
+      : isPracticeReadPath(path) || isStaffRegistrationProtectedReadPath(path)
         ? null
         : stagingBoWorkforceIdentity(request, env);
     const identity = stagingIdentity ?? await authenticateBo(
@@ -54,6 +54,10 @@ export function isOpenStudioReadPath(path: string): boolean {
   return path.startsWith("open-studio/") || OPEN_STUDIO_POLICY_READ.test(path);
 }
 
+export function isStaffRegistrationProtectedReadPath(path: string): boolean {
+  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests";
+}
+
 export function isOperationalReadPath(path: string): boolean {
   return path === "centers"
     || path === "delivery/bootstrap-state"
@@ -69,6 +73,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || path === "workforce/staff-registration-settings"
+    || path === "workforce/staff-registration-requests"
     || path === "learners"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
