@@ -14,8 +14,11 @@ type Variant={id:string;wearableId:string;key:string;displayName:string;renderMo
 type Catalog={items:Item[];variants:Variant[]};
 type Envelope<T>={data?:T;error?:{message?:string}};
 type Tab="OVERVIEW"|"VARIANTS"|"PREVIEW"|"USAGE";
+type Calibration={offsetX:number;offsetY:number;scale:number;rotation:number;zIndex:number;baseOpacity:number;baseVisible:boolean};
+const DEFAULT_CAL:Calibration={offsetX:0,offsetY:0,scale:1,rotation:0,zIndex:60,baseOpacity:.32,baseVisible:true};
 
 const stars=(value:number)=>"⭐️".repeat(Math.max(1,Math.min(5,value)));
+function readCalibration(metadata:Record<string,unknown>):Calibration{const transform=(metadata.transform??{}) as Record<string,unknown>,layer=(metadata.layer??{}) as Record<string,unknown>;return{...DEFAULT_CAL,offsetX:Number(transform.offsetX??0),offsetY:Number(transform.offsetY??0),scale:Number(transform.scale??1),rotation:Number(transform.rotation??0),zIndex:Number(layer.zIndex??60)};}
 
 async function request<T>(path:string,init?:RequestInit){
   const response=await fetch(`/api/bo/${path}`,{cache:"no-store",...init});
@@ -29,6 +32,8 @@ export function WardCatalogManager(){
   const[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
   const[form,setForm]=useState({displayName:"",descriptionText:"",itemType:"WEARABLE" as ItemType,wearableKind:"STANDARD" as WearableKind|null,slot:"HEADWEAR" as Slot|null,collectionKey:"",seasonKey:"",gender:"ALL" as Gender,rarityStars:3,tags:""});
   const[variantForm,setVariantForm]=useState({displayName:"",renderMode:"LAYER" as Mode,assetKey:"",posterAssetKey:"",assetRevision:"",assetChecksum:""});
+  const[calibration,setCalibration]=useState<Calibration>(DEFAULT_CAL);
+  const[previewAssetUrl,setPreviewAssetUrl]=useState("");
 
   async function load(){
     try{const data=await request<Catalog>("pinoria/ward/catalog");setCatalog(data);setError("");}
@@ -45,7 +50,7 @@ export function WardCatalogManager(){
     setSelectedId(item.id);setTab("OVERVIEW");setMessage("");setError("");
     setForm({displayName:item.displayName,descriptionText:item.descriptionText,itemType:item.itemType,wearableKind:item.wearableKind,slot:item.slot,collectionKey:item.collectionKey??"",seasonKey:item.seasonKey??"",gender:item.gender,rarityStars:item.rarityStars,tags:item.tags.join(", ")});
     const variant=catalog.variants.find(entry=>entry.id===item.defaultVariantId)??catalog.variants.find(entry=>entry.wearableId===item.id);
-    if(variant){setSelectedVariantId(variant.id);setVariantForm({displayName:variant.displayName,renderMode:variant.renderMode,assetKey:variant.assetKey??"",posterAssetKey:variant.posterAssetKey??"",assetRevision:variant.assetRevision??"",assetChecksum:variant.assetChecksum??""});}
+    if(variant){setSelectedVariantId(variant.id);setVariantForm({displayName:variant.displayName,renderMode:variant.renderMode,assetKey:variant.assetKey??"",posterAssetKey:variant.posterAssetKey??"",assetRevision:variant.assetRevision??"",assetChecksum:variant.assetChecksum??""});setCalibration(readCalibration(variant.renderMetadata));setPreviewAssetUrl("");}
   }
   async function mutate(path:string,method:"POST"|"PATCH",body:unknown,label:string){
     setBusy(true);setError("");setMessage("");
@@ -68,7 +73,7 @@ export function WardCatalogManager(){
     await mutate("pinoria/ward/catalog/variants","POST",{key,wearableId:selected.id,displayName:`${selected.displayName} Variant ${selectedVariants.length+1}`,renderMode:"LAYER",assetKey:null,posterAssetKey:null,renderMetadata:{},assetRevision:null,assetChecksum:null,metadata:{}},"Đã tạo variant draft");
   }
   async function saveVariant(variant:Variant,status:Status){
-    await mutate(`pinoria/ward/catalog/variants/${variant.id}`,"PATCH",{expectedVersion:variant.version,displayName:variantForm.displayName||variant.displayName,renderMode:variantForm.renderMode,assetKey:variantForm.assetKey||null,posterAssetKey:variantForm.posterAssetKey||null,renderMetadata:variant.renderMetadata??{},assetRevision:variantForm.assetRevision||null,assetChecksum:variantForm.assetChecksum||null,metadata:{},status},status==="ACTIVE"?"Variant đã publish":"Variant đã lưu");
+    await mutate(`pinoria/ward/catalog/variants/${variant.id}`,"PATCH",{expectedVersion:variant.version,displayName:variantForm.displayName||variant.displayName,renderMode:variantForm.renderMode,assetKey:variantForm.assetKey||null,posterAssetKey:variantForm.posterAssetKey||null,renderMetadata:{...(variant.renderMetadata??{}),transform:{offsetX:calibration.offsetX,offsetY:calibration.offsetY,scale:calibration.scale,rotation:calibration.rotation},layer:{zIndex:calibration.zIndex}},assetRevision:variantForm.assetRevision||null,assetChecksum:variantForm.assetChecksum||null,metadata:{},status},status==="ACTIVE"?"Variant đã publish":"Variant đã lưu");
   }
 
   return <main className={styles.shell}>
@@ -103,7 +108,7 @@ export function WardCatalogManager(){
           <div className={styles.statusStrip}><span>Lifecycle</span><b>{selected.status}</b>{selected.status!=="ARCHIVED"?<button disabled={busy} onClick={()=>void saveItem("ARCHIVED")}>Archive</button>:null}</div>
         </div>}
         {tab==="VARIANTS"&&<div className={styles.variantLayout}>
-          <div className={styles.variantList}>{selectedVariants.map((variant,index)=><button key={variant.id} onClick={()=>{setSelectedVariantId(variant.id);setVariantForm({displayName:variant.displayName,renderMode:variant.renderMode,assetKey:variant.assetKey??"",posterAssetKey:variant.posterAssetKey??"",assetRevision:variant.assetRevision??"",assetChecksum:variant.assetChecksum??""});}}><span>{String(index+1).padStart(2,"0")}</span><div><b>{variant.displayName}</b><small>{variant.status} · {variant.renderMode}</small></div></button>)}<button className={styles.addVariant} onClick={()=>void createVariant()}>＋ Add variant</button></div>
+          <div className={styles.variantList}>{selectedVariants.map((variant,index)=><button key={variant.id} onClick={()=>{setSelectedVariantId(variant.id);setVariantForm({displayName:variant.displayName,renderMode:variant.renderMode,assetKey:variant.assetKey??"",posterAssetKey:variant.posterAssetKey??"",assetRevision:variant.assetRevision??"",assetChecksum:variant.assetChecksum??""});setCalibration(readCalibration(variant.renderMetadata));setPreviewAssetUrl("");}}><span>{String(index+1).padStart(2,"0")}</span><div><b>{variant.displayName}</b><small>{variant.status} · {variant.renderMode}</small></div></button>)}<button className={styles.addVariant} onClick={()=>void createVariant()}>＋ Add variant</button></div>
           <div className={styles.editor}>
             <div className={styles.modeSwitch}>{(["LAYER","STANDALONE","WEBM"] as Mode[]).map(mode=><button key={mode} onClick={()=>setVariantForm(v=>({...v,renderMode:mode}))} className={variantForm.renderMode===mode?styles.modeActive:""}>{mode}</button>)}</div>
             <label>Name<input value={variantForm.displayName} onChange={e=>setVariantForm(v=>({...v,displayName:e.target.value}))}/></label>
@@ -114,10 +119,14 @@ export function WardCatalogManager(){
             {selectedVariants.find(v=>v.id===selectedVariantId)?<div className={styles.statusStrip}><button disabled={busy} onClick={()=>void saveVariant(selectedVariants.find(v=>v.id===selectedVariantId)!,"DRAFT")}>Save variant</button><button disabled={busy} onClick={()=>void saveVariant(selectedVariants.find(v=>v.id===selectedVariantId)!,"ACTIVE")}>Publish variant</button></div>:null}
           </div>
         </div>}
-        {(tab==="PREVIEW"||tab==="VARIANTS")&&<section className={styles.previewCard}>
-          <div className={styles.previewTop}><span>Canonical renderer preview</span><small>{selected.gender} · {variantForm.renderMode}</small></div>
-          <div className={styles.stage}><div className={styles.aura}/><div className={styles.character}>◕‿◕<span>◢█◣</span></div><div className={styles.wearable}>{variantForm.renderMode==="WEBM"?"🌙✨":"🌙"}</div></div>
-          <div className={styles.previewFoot}><span>{stars(selected.rarityStars)}</span><span>{variantForm.assetKey?"Asset bound":"Asset missing"}</span><span>{selected.defaultVariantId?"Default set":"No default"}</span></div>
+        {(tab==="PREVIEW"||tab==="VARIANTS")&&<section className={styles.calibrationCard}>
+          <div className={styles.previewTop}><span>Asset calibration</span><small>{selected.slot??"ACCESSORY"} · {variantForm.renderMode}</small></div>
+          <div className={styles.assetIngest}><div><b>Preview asset</b><small>PNG / JPEG / WebP local preview. Canonical persistence remains assetKey + render metadata.</small></div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(previewAssetUrl.startsWith("blob:"))URL.revokeObjectURL(previewAssetUrl);setPreviewAssetUrl(URL.createObjectURL(file));}}/></div>
+          <div className={styles.calibrationWorkspace}>
+            <div className={styles.previewColumn}><div className={styles.calibrationStage}>{variantForm.renderMode!=="STANDALONE"&&calibration.baseVisible?<div className={styles.baseCharacter} style={{opacity:calibration.baseOpacity}}/>:null}{previewAssetUrl?<div className={styles.calibrationAsset} style={{backgroundImage:`url(${previewAssetUrl})`,transform:`translate(calc(-50% + ${calibration.offsetX}px), calc(-50% + ${calibration.offsetY}px)) scale(${calibration.scale}) rotate(${calibration.rotation}deg)`}}/>:null}</div>{variantForm.renderMode==="STANDALONE"?<small className={styles.modeHint}>Base character hidden in Standalone mode.</small>:<div className={styles.baseControls}><button type="button" onClick={()=>setCalibration(v=>({...v,baseVisible:!v.baseVisible}))}>{calibration.baseVisible?"Hide base":"Show base"}</button><label>Base opacity<input type="range" min="0" max="0.7" step="0.02" value={calibration.baseOpacity} onChange={e=>setCalibration(v=>({...v,baseOpacity:Number(e.target.value)}))}/><span>{Math.round(calibration.baseOpacity*100)}%</span></label></div>}</div>
+            <div className={styles.calibrationControls}>{([["Offset X","offsetX",-160,160,1,"px"],["Offset Y","offsetY",-160,160,1,"px"],["Scale","scale",.2,2.5,.05,"×"],["Rotation","rotation",-180,180,1,"°"],["Z-index","zIndex",0,100,1,""]] as const).map(([label,key,min,max,step,suffix])=><label key={key}><span>{label}</span><input type="range" min={min} max={max} step={step} value={calibration[key]} onChange={e=>setCalibration(v=>({...v,[key]:Number(e.target.value)}))}/><small>{calibration[key]}{suffix}</small></label>)}<label><span>Slot</span><input value={selected.slot??"ACCESSORY"} disabled/></label><div className={styles.calibrationActions}><button type="button" onClick={()=>setCalibration(v=>({...DEFAULT_CAL,baseOpacity:v.baseOpacity,baseVisible:v.baseVisible}))}>Reset calibration</button></div></div>
+          </div>
+          <pre className={styles.renderMeta}>{JSON.stringify({slot:selected.slot,renderMode:variantForm.renderMode,transform:{offsetX:calibration.offsetX,offsetY:calibration.offsetY,scale:calibration.scale,rotation:calibration.rotation},layer:{zIndex:calibration.zIndex}},null,2)}</pre>
         </section>}
         {tab==="USAGE"&&<div className={styles.usage}><div><b>{selected.wishBannerCount}</b><span>Wish banners</span></div><div><b>{selected.variantCount}</b><span>Variants</span></div><div><b>{selected.ownerCount}</b><span>Learner owners</span></div></div>}
       </div>
