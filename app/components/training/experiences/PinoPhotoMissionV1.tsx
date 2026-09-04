@@ -42,6 +42,7 @@ export function PinoPhotoMissionV1({ context, onSignal, onArtifactSubmit }: Trai
   const allChecked = checks.every(Boolean);
   const readyToSubmit = learned && allChecked && Boolean(file) && !submission;
   const readyToComplete = review?.status === "PASS" && !completionRequested;
+  const progressStep = completionRequested ? 5 : review?.status === "PASS" ? 5 : submission ? 4 : learned && allChecked ? 4 : learned ? 3 : angle === "B" ? 2 : started ? 1 : 0;
 
   useEffect(() => {
     if (!file) return;
@@ -99,15 +100,21 @@ export function PinoPhotoMissionV1({ context, onSignal, onArtifactSubmit }: Trai
 
   return (
     <article className={styles.experience}>
-      <header className={styles.hero}>
-        <p className={styles.kicker}>Photo mission · 8 phút</p>
+      <header className={`${styles.hero} ${styles.photoHero}`}>
+        <div className={styles.heroTopline}>
+          <p className={styles.kicker}>Photo mission · 8 phút</p>
+          <span className={styles.heroBadge}>THỰC HÀNH</span>
+        </div>
         <h2>Chụp PINO đẹp</h2>
-        <p>Bắt khoảnh khắc, không bắt tạo dáng. Mục tiêu là nhìn ảnh và cảm thấy “đang ở PINO”.</p>
-        <div className={styles.meta}>
-          <span>01 · ngang tầm trẻ</span>
-          <span>02 · hành động thật</span>
-          <span>03 · có bối cảnh</span>
-          <span>04 · frame sạch</span>
+        <p className={styles.heroLead}>Đừng chỉ ghi lại một lớp học. Hãy bắt khoảnh khắc khiến người xem cảm thấy mình đang ở PINO.</p>
+        <div className={styles.photoPrinciples}>
+          <span>👁 Ngang tầm trẻ</span>
+          <span>✦ Khoảnh khắc thật</span>
+          <span>⌂ Có PINO context</span>
+          <span>▣ Frame sạch</span>
+        </div>
+        <div className={styles.progressRail} aria-label={`Tiến độ ${progressStep}/5`}>
+          {[1, 2, 3, 4, 5].map((step) => <i key={step} className={step <= progressStep ? styles.progressDone : ""} />)}
         </div>
       </header>
 

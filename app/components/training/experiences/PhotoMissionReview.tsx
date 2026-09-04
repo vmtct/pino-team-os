@@ -21,6 +21,7 @@ export function PhotoMissionReview() {
   const [signals, setSignals] = useState<TrainingExperienceSignal[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [submission, setSubmission] = useState<ReviewSubmission | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<"STAFF" | "MANAGER">("STAFF");
   useEffect(() => setHydrated(true), []);
 
   const definition = trainingExperienceRegistry.list().find((item) => item.experienceKey === "pino-photo-mission")!;
@@ -63,8 +64,13 @@ export function PhotoMissionReview() {
         <span className={styles.pill}>8 phút · Staff mobile</span>
       </header>
 
+      <div className={styles.reviewTabs} role="tablist" aria-label="Preview role">
+        <button type="button" className={mobilePanel === "STAFF" ? styles.activeReviewTab : ""} onClick={() => setMobilePanel("STAFF")}>Staff experience</button>
+        <button type="button" className={mobilePanel === "MANAGER" ? styles.activeReviewTab : ""} onClick={() => setMobilePanel("MANAGER")}>Manager review</button>
+      </div>
+
       <div className={styles.reviewGrid}>
-        <section className={styles.phone}>
+        <section className={`${styles.phone} ${mobilePanel === "MANAGER" ? styles.mobileHidden : ""}`}>
           <div className={styles.phoneTop}><span>Học & Chứng nhận</span><small>Preview as Staff</small></div>
           <TrainingExperienceHost
             experienceRef={experienceRef}
@@ -81,7 +87,7 @@ export function PhotoMissionReview() {
             onArtifactSubmit={submitArtifact}
           />
         </section>
-        <aside className={styles.inspector}>
+        <aside className={`${styles.inspector} ${mobilePanel === "STAFF" ? styles.mobileHidden : ""}`}>
           <section>
             <p className={styles.kicker}>Manager review</p>
             <h2>Ảnh thực hành</h2>
