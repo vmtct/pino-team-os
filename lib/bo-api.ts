@@ -20,6 +20,7 @@ import type {
   BoPianoSyllabusProfile,
   BoLittlePinerSyllabusProfile,
   BoSyllabusRichContent,
+  BoSyllabusWorksheetMedia,
   BoOpenStudioOperations,
   BoOpenStudioListingCatalog,
   BoOpenStudioPass,
@@ -42,6 +43,7 @@ import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRep
 import type { StaffQualification, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
+import { syllabusWorksheetPreviewUrl, uploadSyllabusWorksheetMedia } from "./bo-syllabus-media-client";
 export { BoApiError } from "./bo-api-error";
 
 export type OpenStudioPolicyKey = "monthly_path_pass.v1" | "bring_a_friend.v1" | "public_acquisition.v1" | "cancellation.v1";
@@ -123,6 +125,9 @@ export const boApi = {
   replacePracticePages: (versionId: string, expectedRevision: number, pages: Array<{ sheetMediaAssetId: string; worksheetMediaAssetId: string | null }>) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}/pages`, { expectedRevision, pages }, crypto.randomUUID()),
   publishPracticeVersion: (versionId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/versions/${encodeURIComponent(versionId)}/publish`, { expectedRevision }, crypto.randomUUID()),
   uploadPracticeMedia,
+  syllabusWorksheetMedia: () => read<BoSyllabusWorksheetMedia>("learning/syllabi/media"),
+  uploadSyllabusWorksheetMedia,
+  syllabusWorksheetPreviewUrl,
   learningSyllabusOwners: () => readOne<BoLearningSyllabusOwnerCatalog>("learning/syllabi/owners"),
   learningSyllabi: (owner?: BoLearningSyllabusOwner) => read<BoLearningSyllabusSummary>(`learning/syllabi${owner ? `?ownerType=${encodeURIComponent(owner.type)}&ownerId=${encodeURIComponent(owner.id)}` : ""}`),
   learningSyllabus: (syllabusId: string) => readOne<BoLearningSyllabusDetail>(`learning/syllabi/${encodeURIComponent(syllabusId)}`),

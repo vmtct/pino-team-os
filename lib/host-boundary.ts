@@ -103,7 +103,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
-  return /^\/api\/bo\/web-cms\/slots(?:\/[0-9a-f-]{36}(?:\/(?:history|draft|publish|rollback))?)?$/.test(normalized)
+  return /^\/api\/bo\/learning\/syllabi(?:\/owners|\/media(?:\/[0-9a-f-]{36}\/preview)?|\/[0-9a-f-]{36}(?:\/(?:draft|publish|next-draft|archive))?|\/versions\/[0-9a-f-]{36}\/(?:artchitect-profile|pianohouse-profile|little-piner-profile))?$/.test(normalized)
+    || /^\/api\/bo\/web-cms\/slots(?:\/[0-9a-f-]{36}(?:\/(?:history|draft|publish|rollback))?)?$/.test(normalized)
     || /^\/api\/bo\/pinoria\/ward\/catalog(?:\/(?:items|variants)(?:\/[0-9a-f-]{36})?)?$/.test(normalized)
     || /^\/api\/bo\/practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/drafts)?$/.test(normalized)
