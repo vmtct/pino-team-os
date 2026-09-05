@@ -12,6 +12,7 @@ export interface StaffRegistrationDocumentInput {
 export interface StaffRegistrationSubmissionInput {
   displayLabel: string;
   email: string;
+  password: string;
   mobile: string;
   dateOfBirth: string;
   currentAddress: string;
