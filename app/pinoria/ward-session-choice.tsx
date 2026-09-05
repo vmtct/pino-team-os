@@ -48,12 +48,12 @@ export function WardSessionChoice({
 function WardCandidateCard({ candidate, index, selected, locked, onSelect }: { candidate: WardSessionCandidate; index: number; selected: boolean; locked: boolean; onSelect: () => void }) {
   const asset = wardAssetUrl(candidate.render.assetKey);
   const poster = wardAssetUrl(candidate.render.posterAssetKey);
-  const renderStyle = candidate.render.mode === "LAYER" ? wardRenderTransformStyle(candidate.render.metadata) : undefined;
+  const renderStyle = wardRenderTransformStyle(candidate.render.metadata);
   return <button type="button" className={`${styles.wardChoice} ${selected ? styles.wardChoiceSelected : ""}`} onClick={onSelect} disabled={locked && !selected} aria-pressed={selected}>
     <div className={styles.wardChoiceVisual}>
       <span className={styles.wardChoiceNumber}>0{index + 1}</span>
       {candidate.render.mode === "WEBM" && asset
-        ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline />
+        ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline style={renderStyle} />
         : asset ? <Image src={asset} alt="" width={420} height={420} unoptimized draggable={false} style={renderStyle} /> : <span className={styles.wardFallback}>✦</span>}
       {selected ? <span className={styles.wardSelectedMark}>✓</span> : null}
     </div>
