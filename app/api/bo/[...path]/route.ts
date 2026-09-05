@@ -18,6 +18,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const { path } = await context.params;
   const joined = path.join("/");
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
+  if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   return handleBoOperationalReadRequest(request, env, joined);
 }
 
@@ -26,6 +27,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { path } = await context.params;
   const joined = path.join("/");
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
+  if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   if (joined === REVIEWED_ENROLLMENT_ACTIVATION_PATH) return handleReviewedEnrollmentActivation(request, env);
   if (joined === "practice/media") return handleBoPracticeMediaUpload(request, env);
   if (joined === "pinoria/ward/set-webm-assets") return handleBoWardSetMediaUpload(request, env);

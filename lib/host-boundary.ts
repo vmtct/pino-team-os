@@ -19,6 +19,8 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
     return { action: "not_found" };
   }
 
+  if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
+
   if (hostname === BO_HOSTNAME) {
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if (isApprovedBoPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
@@ -134,6 +136,16 @@ export function requiresTosStaffSession(host: string, pathname: string): boolean
   if (normalized === "/") return true;
   return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/training", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
     .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
+}
+
+
+function isStaffRegistrationPath(pathname: string): boolean {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  return normalized === "/staff/register" || normalized === "/api/staff-registration";
+}
+
+function isLocalOrPreviewHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname.endsWith(".workers.dev");
 }
 
 function isFrameworkAsset(pathname: string): boolean {
