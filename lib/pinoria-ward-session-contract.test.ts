@@ -27,6 +27,8 @@ test("F3 TV renders the shared persisted Ward session and has no mutation path",
   assert.match(reception, /wardSession\?: WardSession/);
   assert.match(reception, /WardSessionTv/);
   assert.match(reception, /learner\.wardSession\?\.status === "OPEN"/);
+  assert.match(reception, /houseSnapshotRefreshedAt/);
+  assert.match(reception, /Date\.now\(\) - houseSnapshotRefreshedAt\.current >= 1500/);
   assert.match(tv, /session\.candidates\.map/);
   assert.match(tv, /session\.selectedVariantId/);
   assert.doesNotMatch(tv, /fetch\(/);
@@ -43,4 +45,7 @@ test("F3 choice surfaces consume Core render references instead of local asset d
   assert.match(contract, /posterAssetKey: string \| null/);
   assert.match(choice, /candidate\.render\.assetKey/);
   assert.match(tv, /candidate\.render\.assetKey/);
+  assert.match(choice, /wardRenderTransformStyle\(candidate\.render\.metadata\)/);
+  assert.match(tv, /wardRenderTransformStyle\(candidate\.render\.metadata\)/);
+  assert.match(contract, /transformOrigin/);
 });

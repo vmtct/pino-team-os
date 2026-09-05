@@ -58,6 +58,7 @@ export function ReceptionTv() {
   const wasConnected = useRef(false);
   const presentationBusy = useRef(false);
   const housePollInFlight = useRef(false);
+      const houseSnapshotRefreshedAt = useRef(0);
   const houseGeneration = useRef(0);
   const stageRef = useRef<HTMLElement | null>(null);
   const [arrivalHandoffTarget, setArrivalHandoffTarget] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
@@ -88,6 +89,7 @@ export function ReceptionTv() {
           const snapshotLearners = json.data.learners;
           const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
           setInside(snapshotLearners);
+          houseSnapshotRefreshedAt.current = Date.now();
           setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
             || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
         }
@@ -114,6 +116,23 @@ export function ReceptionTv() {
       if (unseen.events.length) {
         presentedSequence.current = Math.max(presentedSequence.current, unseen.lastSequence);
         enqueueHouseEvents(unseen.events);
+      }
+      if (Date.now() - houseSnapshotRefreshedAt.current >= 1500) {
+        const snapshotResponse = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const snapshotJson = await snapshotResponse.json() as { data?: HouseSnapshot };
+        if (!snapshotResponse.ok || !snapshotJson.data) throw new Error("offline");
+        if (generation !== houseGeneration.current) return;
+        const advanced = advanceHouseSnapshotCursor(snapshotJson.data.cursor, cursor.current, presentedSequence.current);
+        if (advanced.applySnapshot) {
+          cursor.current = advanced.cursor;
+          presentedSequence.current = advanced.presentedSequence;
+          const snapshotLearners = snapshotJson.data.learners;
+          const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
+          setInside(snapshotLearners);
+          setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
+            || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
+        }
+        houseSnapshotRefreshedAt.current = Date.now();
       }
       setConnected(true);
     } catch {
@@ -280,6 +299,7 @@ export function ReceptionTv() {
     cursor.current = 0;
     presentedSequence.current = 0;
     wasConnected.current = false;
+        houseSnapshotRefreshedAt.current = 0;
     setInside([]);
     setScenes([]);
     setPresentation(null);
@@ -293,6 +313,7 @@ export function ReceptionTv() {
     cursor.current = 0;
     presentedSequence.current = 0;
     wasConnected.current = false;
+        houseSnapshotRefreshedAt.current = 0;
     setInside([]);
     setScenes([]);
     setPresentation(null);
