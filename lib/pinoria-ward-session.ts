@@ -41,3 +41,13 @@ export function wardAssetUrl(path: string | null) {
   if (/^https?:\/\//i.test(value)) return value;
   return `https://assets.pinohouse.art/${value.replace(/^\/+/, "")}`;
 }
+
+export function wardRenderTransformStyle(metadata: unknown) {
+  const root = metadata && typeof metadata === "object" ? metadata as Record<string, unknown> : {};
+  const transform = root.transform && typeof root.transform === "object" ? root.transform as Record<string, unknown> : {};
+  const anchor = root.anchor && typeof root.anchor === "object" ? root.anchor as Record<string, unknown> : {};
+  const number = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  const offsetX = number(transform.offsetX, 0), offsetY = number(transform.offsetY, 0), scale = number(transform.scale, 1), rotation = number(transform.rotation, 0);
+  const anchorX = number(anchor.x, 50), anchorY = number(anchor.y, 50);
+  return { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale}) rotate(${rotation}deg)`, transformOrigin: `${anchorX}% ${anchorY}%` };
+}
