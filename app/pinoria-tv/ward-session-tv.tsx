@@ -13,9 +13,9 @@ export function WardSessionTv({ learnerName, session }: { learnerName: string; s
 function WardTvCandidate({ candidate, index, selected }: { candidate: WardSessionCandidate; index: number; selected: boolean }) {
   const asset = wardAssetUrl(candidate.render.assetKey);
   const poster = wardAssetUrl(candidate.render.posterAssetKey);
-  const renderStyle = candidate.render.mode === "LAYER" ? wardRenderTransformStyle(candidate.render.metadata) : undefined;
+  const renderStyle = wardRenderTransformStyle(candidate.render.metadata);
   return <div className={`${styles.wardSessionTvCard} ${selected ? styles.wardSessionTvSelected : ""}`}>
-    <div>{candidate.render.mode === "WEBM" && asset ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline /> : asset ? <Image src={asset} alt="" width={320} height={320} unoptimized style={renderStyle} /> : <span>✦</span>}{selected ? <i>✓</i> : <em>0{index + 1}</em>}</div>
+    <div>{candidate.render.mode === "WEBM" && asset ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline style={renderStyle} /> : asset ? <Image src={asset} alt="" width={320} height={320} unoptimized style={renderStyle} /> : <span>✦</span>}{selected ? <i>✓</i> : <em>0{index + 1}</em>}</div>
     <small>{candidate.slot.replace("HEAD/HAIR", "HAIR")}</small><strong>{candidate.displayName}</strong>
   </div>;
 }

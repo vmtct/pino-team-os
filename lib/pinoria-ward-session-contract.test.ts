@@ -47,5 +47,9 @@ test("F3 choice surfaces consume Core render references instead of local asset d
   assert.match(tv, /candidate\.render\.assetKey/);
   assert.match(choice, /wardRenderTransformStyle\(candidate\.render\.metadata\)/);
   assert.match(tv, /wardRenderTransformStyle\(candidate\.render\.metadata\)/);
+  assert.doesNotMatch(choice, /candidate\.render\.mode === "LAYER" \? wardRenderTransformStyle/);
+  assert.doesNotMatch(tv, /candidate\.render\.mode === "LAYER" \? wardRenderTransformStyle/);
+  assert.match(choice, /<video[^>]+style=\{renderStyle\}/);
+  assert.match(tv, /<video[^>]+style=\{renderStyle\}/);
   assert.match(contract, /transformOrigin/);
 });
