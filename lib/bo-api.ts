@@ -46,6 +46,7 @@ import type {
   BoTimekeepingMissedCheckoutResult,
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
+import type { BoDutyExceptionReview, BoDutyExceptionRecord } from "./bo-workforce-duty-exception";
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
 import type { StaffQualification, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
@@ -217,6 +218,8 @@ export const boApi = {
   timekeeping: (params: { centerId: string; workDate?: string; startDate?: string; endDate?: string; staffMemberId?: string; status?: "OPEN" | "CLOSED"; limit?: number; cursor?: string }) => { const query = new URLSearchParams(); Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); }); return readOne<BoTimekeepingPage>(`workforce/timekeeping?${query.toString()}`); },
   correctTimekeeping: (sessionId: string, body: { correctionType: "CHECK_IN_AT" | "CHECK_OUT_AT"; correctedAt: string; reason: string; expectedLatestCorrectionId: string | null }, idempotencyKey: string) => write<BoTimekeepingCorrectionResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/corrections`, body, idempotencyKey),
   resolveMissedCheckout: (sessionId: string, body: { checkOutAt: string; reason: string }, idempotencyKey: string) => write<BoTimekeepingMissedCheckoutResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/resolve-missed-checkout`, body, idempotencyKey),
+  dutyExceptions: (centerId: string) => read<BoDutyExceptionReview>(`workforce/duty/checkout-exceptions?centerId=${encodeURIComponent(centerId)}`),
+  approveDutyException: (exceptionId: string, centerId: string, expectedVersion: number, password: string) => write<BoDutyExceptionRecord>(`workforce/duty/checkout-exceptions/${encodeURIComponent(exceptionId)}/approve?centerId=${encodeURIComponent(centerId)}`, { expectedVersion, password }, crypto.randomUUID()),
   assignWorkforceShift: (body: { staffMemberId: string; centerId: string; workDate: string; shiftTemplateId: string; termWeekId?: string; replacesAssignmentId?: string }, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment", body, idempotencyKey),
   cancelWorkforceAssignment: (assignmentId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment/cancel", { assignmentId, reason }, idempotencyKey),
   updateStaff: (staffMemberId: string, patch: BoStaffProfilePatch) => write<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`, patch, crypto.randomUUID()),

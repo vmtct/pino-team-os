@@ -40,6 +40,7 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/workforce", label: "Schedule & Time" },
       { href: "/bo/workforce/check-in-exceptions", label: "Check-in Exceptions" },
             { href: "/bo/workforce/timekeeping", label: "Timekeeping" },
+      { href: "/bo/workforce/duty-exceptions", label: "Duty Exceptions" },
       { href: "/bo/training", label: "Training" },
     ],
   },
