@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { WardSession, WardSessionCandidate } from "@/lib/pinoria-ward-session";
 import { wardAssetUrl } from "@/lib/pinoria-ward-session";
@@ -52,7 +53,7 @@ function WardCandidateCard({ candidate, index, selected, locked, onSelect }: { c
       <span className={styles.wardChoiceNumber}>0{index + 1}</span>
       {candidate.render.mode === "WEBM" && asset
         ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline />
-        : asset ? <img src={asset} alt="" draggable={false} /> : <span className={styles.wardFallback}>✦</span>}
+        : asset ? <Image src={asset} alt="" width={420} height={420} unoptimized draggable={false} /> : <span className={styles.wardFallback}>✦</span>}
       {selected ? <span className={styles.wardSelectedMark}>✓</span> : null}
     </div>
     <div className={styles.wardChoiceCopy}><small>{candidate.slot.replace("HEAD/HAIR", "HAIR")} · {candidate.rarity}</small><strong>{candidate.displayName}</strong><span>{candidate.wearableName}</span></div>

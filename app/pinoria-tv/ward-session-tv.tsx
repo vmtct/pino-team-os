@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { WardSession, WardSessionCandidate } from "@/lib/pinoria-ward-session";
 import { wardAssetUrl } from "@/lib/pinoria-ward-session";
 import styles from "./reception-tv.module.css";
@@ -13,7 +14,7 @@ function WardTvCandidate({ candidate, index, selected }: { candidate: WardSessio
   const asset = wardAssetUrl(candidate.render.assetKey);
   const poster = wardAssetUrl(candidate.render.posterAssetKey);
   return <div className={`${styles.wardSessionTvCard} ${selected ? styles.wardSessionTvSelected : ""}`}>
-    <div>{candidate.render.mode === "WEBM" && asset ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline /> : asset ? <img src={asset} alt="" /> : <span>✦</span>}{selected ? <i>✓</i> : <em>0{index + 1}</em>}</div>
+    <div>{candidate.render.mode === "WEBM" && asset ? <video src={asset} poster={poster ?? undefined} autoPlay loop muted playsInline /> : asset ? <Image src={asset} alt="" width={320} height={320} unoptimized /> : <span>✦</span>}{selected ? <i>✓</i> : <em>0{index + 1}</em>}</div>
     <small>{candidate.slot.replace("HEAD/HAIR", "HAIR")}</small><strong>{candidate.displayName}</strong>
   </div>;
 }
