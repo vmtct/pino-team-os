@@ -70,6 +70,43 @@ export interface BoSession {
   status: string;
 }
 
+export type BoSessionSyllabusBindingState = "UNBOUND" | "READY" | "FROZEN";
+export type BoSessionSyllabusOwner =
+  | { type: "HOUSE_PATH"; id: string }
+  | { type: "HOUSE_CURRICULUM"; id: string };
+export interface BoSessionSyllabusVersionSummary {
+  learningSyllabusVersionId: string;
+  learningSyllabusId: string;
+  versionNumber: number;
+  title: string;
+  publishedAt: string | null;
+  owner: BoSessionSyllabusOwner;
+}
+export interface BoSessionSyllabusBindingProjection {
+  sessionId: string;
+  pathProgramId: string;
+  sessionVersion: number;
+  sessionStatus: string;
+  bindingState: BoSessionSyllabusBindingState;
+  hasParticipation: boolean;
+  learningSyllabusVersionId: string | null;
+  current: BoSessionSyllabusVersionSummary | null;
+  candidates: BoSessionSyllabusVersionSummary[];
+}
+export interface BoSessionSyllabusBindingCommand {
+  learningSyllabusVersionId: string;
+  expectedSessionVersion: number;
+  correctionReason?: string;
+}
+export interface BoSessionSyllabusBindingResult {
+  sessionId: string;
+  previousLearningSyllabusVersionId: string | null;
+  learningSyllabusVersionId: string;
+  sessionVersion: number;
+  owner: BoSessionSyllabusOwner;
+  correctionReason: string | null;
+}
+
 export interface BoSessionLearningOwner {
   sessionId: string;
   staffMemberId: string;

@@ -30,6 +30,7 @@ const DELIVERY_POST_PATHS = new Set([
 ]);
 const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
+const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const SUBSCRIPTION_CREATE_PATH = "subscriptions";
@@ -70,7 +71,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -154,6 +155,7 @@ export function isAllowedPostPath(path: string): boolean {
     || DELIVERY_POST_PATHS.has(path)
     || MATERIALIZATION_PUBLISH.test(path)
     || LEARNING_OWNER_PATH.test(path)
+    || SESSION_SYLLABUS_BINDING_PATH.test(path)
     || PARENT_PIN_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === SUBSCRIPTION_CREATE_PATH
