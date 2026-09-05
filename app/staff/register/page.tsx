@@ -90,13 +90,22 @@ export default function StaffRegistrationPage() {
           </div>
         </section>
 
+        <section className={styles.section}>
+          <div className={styles.sectionHead}><span>04</span><div><h2>Tài khoản đăng nhập</h2><p>Tự đặt mật khẩu dùng để đăng nhập PINO Team sau khi hồ sơ được duyệt.</p></div></div>
+          <div className={styles.grid}>
+            <label>Mật khẩu<input name="password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></label>
+            <label>Xác nhận mật khẩu<input name="confirmPassword" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></label>
+          </div>
+          <p className={styles.privateNote}>Mật khẩu không được lưu dưới dạng văn bản thuần. Hồ sơ chờ duyệt chỉ giữ thông tin xác thực đã được Core chuẩn bị an toàn.</p>
+        </section>
+
         <label className={styles.consent}>
           <input type="checkbox" name="confirmAccuracy" value="yes" required />
           <span>Tôi xác nhận các thông tin trên là chính xác và đồng ý để PINO House sử dụng cho mục đích quản lý nhân sự, xác minh hồ sơ và thanh toán liên quan đến công việc.</span>
         </label>
         {error ? <div className={styles.error} role="alert">{error}</div> : null}
         <button className={styles.submit} disabled={busy}>{busy ? "Đang gửi hồ sơ…" : "Gửi hồ sơ nhân sự"}<span>→</span></button>
-        <small className={styles.submitNote}>Việc gửi hồ sơ không tự động tạo tài khoản hoặc cấp quyền truy cập hệ thống.</small>
+        <small className={styles.submitNote}>Việc gửi hồ sơ chưa tạo tài khoản hoặc cấp quyền. Tài khoản chỉ được provision khi Manager duyệt hồ sơ.</small>
       </form> : null}
 
       <footer className={styles.footer}>Đã có tài khoản? <a href="/staff-login">Đăng nhập Staff</a></footer>

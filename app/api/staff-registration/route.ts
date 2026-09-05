@@ -35,6 +35,9 @@ async function registrationEnv(): Promise<StaffRegistrationEnv> {
 async function validate(form: FormData): Promise<StaffRegistrationSubmissionInput> {
   const displayLabel = required(form, "legalName", 160, "Vui lòng nhập họ và tên theo CCCD.");
   const email = required(form, "email", 320, "Vui lòng nhập email.").toLowerCase();
+  const password = registrationPassword(form, "password");
+  const confirmPassword = registrationPassword(form, "confirmPassword");
+  if (password !== confirmPassword) throw new ValidationError("Mật khẩu xác nhận không khớp.");
   const mobile = required(form, "mobile", 30, "Vui lòng nhập số điện thoại.");
   const dateOfBirth = required(form, "dateOfBirth", 10, "Vui lòng nhập ngày sinh.");
   const currentAddress = required(form, "currentAddress", 500, "Vui lòng nhập địa chỉ hiện tại.");
@@ -48,7 +51,7 @@ async function validate(form: FormData): Promise<StaffRegistrationSubmissionInpu
   if (form.get("confirmAccuracy") !== "yes") throw new ValidationError("Vui lòng xác nhận tính chính xác của hồ sơ.");
   const governmentIdFront = await document(form, "governmentIdFront", "mặt trước CCCD");
   const governmentIdBack = await document(form, "governmentIdBack", "mặt sau CCCD");
-  return { displayLabel, email, mobile, dateOfBirth, currentAddress, governmentIdNumber, bankName, bankAccountNumber, bankAccountHolder, bankBranch, governmentIdFront, governmentIdBack };
+  return { displayLabel, email, password, mobile, dateOfBirth, currentAddress, governmentIdNumber, bankName, bankAccountNumber, bankAccountHolder, bankBranch, governmentIdFront, governmentIdBack };
 }
 
 async function document(form: FormData, key: string, label: string): Promise<StaffRegistrationDocumentInput> {
@@ -64,6 +67,14 @@ function required(form: FormData, key: string, max: number, message: string): st
   const normalized = typeof value === "string" ? value.trim() : "";
   if (!normalized || normalized.length > max) throw new ValidationError(message);
   return normalized;
+}
+
+function registrationPassword(form: FormData, key: string): string {
+  const value = form.get(key);
+  if (typeof value !== "string" || value.length < 10 || value.length > 128) {
+    throw new ValidationError("Mật khẩu phải có từ 10 đến 128 ký tự.");
+  }
+  return value;
 }
 
 function optional(form: FormData, key: string, max: number): string | null {
