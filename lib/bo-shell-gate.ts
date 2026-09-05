@@ -1,7 +1,7 @@
-import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
-import { LocalStaffSessionError, staffPasswordSessionFromHeaders } from "./local-staff-session";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding } from "./bo-core";
+import { teamCredentialFromHeaders, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
-export interface BoShellGateEnv {
+export interface BoShellGateEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -21,14 +21,14 @@ export class BoShellGateError extends Error {
 }
 
 export async function authorizeBoShell(headers: Headers, env: BoShellGateEnv, _legacyKeyResolver?: unknown): Promise<BoShellContext> {
-  let token: string;
-  try { token = staffPasswordSessionFromHeaders(headers); }
+  let credential;
+  try { credential = await teamCredentialFromHeaders(headers, env, "BO"); }
   catch (error) {
-    if (error instanceof LocalStaffSessionError) throw new BoShellGateError(401, error.message);
+    if (error instanceof TeamAuthError) throw new BoShellGateError(error.status, error.message);
     throw error;
   }
 
-  const contextResult = await corePasswordRead(env.PINO_BO_CORE, { method: "GET", path: "context" }, token);
+  const contextResult = await coreRead(env.PINO_BO_CORE, { method: "GET", path: "context" }, credential);
   if (contextResult.status !== 200) {
     const code = (contextResult.body as { error?: { code?: unknown } } | null)?.error?.code;
     throw new BoShellGateError(contextResult.status, "Canonical BO authorization denied", typeof code === "string" ? code : null);
@@ -46,7 +46,7 @@ export async function authorizeBoShell(headers: Headers, env: BoShellGateEnv, _l
   };
 }
 
-async function corePasswordRead(binding: BoAccessCoreBinding, request: { method: "GET"; path: string }, token: string) {
-  try { return await callBoAccessCoreWithStaffPassword(binding, request, token); }
+async function coreRead(binding: BoAccessCoreBinding, request: { method: "GET"; path: string }, credential: import("./team-auth").TeamCredential) {
+  try { return await callBoAccessCoreWithCredential(binding, request, credential); }
   catch { throw new BoShellGateError(503, "BO authorization service is unavailable"); }
 }

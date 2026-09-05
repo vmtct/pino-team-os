@@ -1,7 +1,7 @@
-import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
-import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
-export interface BoWriteEnv {
+export interface BoWriteEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -67,7 +67,7 @@ export async function handleBoWriteRequest(
     if (request.method !== "POST" && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path))) && !(request.method === "PUT" && WARD_SET_WRITE.test(path))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
-    const passwordToken = staffPasswordSession(request);
+    const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
     if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path)) && !idempotencyKey) {
@@ -91,11 +91,11 @@ export async function handleBoWriteRequest(
       body,
       ...(idempotencyKey ? { idempotencyKey } : {}),
     };
-    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, coreRequest, passwordToken);
+    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, coreRequest, credential);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
-    if (error instanceof LocalStaffSessionError) {
-      return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
+    if (error instanceof TeamAuthError) {
+      return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     }
     console.error("BO write facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);

@@ -1,7 +1,7 @@
-import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
-import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding } from "./bo-core";
+import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
-export interface BoPracticeMediaEnv {
+export interface BoPracticeMediaEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -15,7 +15,7 @@ export async function handleBoPracticeMediaUpload(
 ): Promise<Response> {
   try {
     if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    const token = staffPasswordSession(request);
+    const credential = await teamCredential(request, env, "BO");
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
     if (!idempotencyKey) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
 
@@ -28,15 +28,15 @@ export async function handleBoPracticeMediaUpload(
     if (typeof pathProgramId !== "string" || !/^[0-9a-f-]{36}$/.test(pathProgramId)) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A canonical Path is required" } }, 400);
     if (!ALLOWED_MIME_TYPES.has(file.type)) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Practice media must be PNG, JPEG, or WebP" } }, 400);
 
-    const bytes = await file.arrayBuffer();    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, {
+    const bytes = await file.arrayBuffer();    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, {
       method: "POST",
       path: PRACTICE_MEDIA_PATH,
       body: { pathProgramId, fileName: file.name, mimeType: file.type, bytes },
       idempotencyKey,
-    }, token);
+    }, credential);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
-    if (error instanceof LocalStaffSessionError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
+    if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     console.error("BO Practice media facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
