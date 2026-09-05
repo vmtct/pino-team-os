@@ -1,5 +1,5 @@
-import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
-import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { teamCredential, TeamAuthError, type TeamAccessEnv, type TeamCredential } from "./team-auth";
 import type { F3BootstrapState, F3RunningClass } from "./f3-delivery-api";
 import { REVIEWED_ENROLLMENT_PLAN, REVIEWED_ENROLLMENT_UNRESOLVED, type ReviewedEnrollmentPlacement } from "./f4-reviewed-enrollment-plan";
 
@@ -8,7 +8,7 @@ export const REVIEWED_ENROLLMENT_EFFECTIVE_FROM = "2026-08-27";
 export const REVIEWED_ENROLLMENT_FUTURE_MAX_DAYS = 0;
 export const REVIEWED_ENROLLMENT_ACTIVATION_PATH = "delivery/enrollment-activation";
 
-export interface ReviewedEnrollmentEnv {
+export interface ReviewedEnrollmentEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -32,13 +32,13 @@ export async function handleReviewedEnrollmentActivation(
 ): Promise<Response> {
   try {
     if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    const token = staffPasswordSession(request);
+    const credential = await teamCredential(request, env, "BO");
     const activationKey = request.headers.get("idempotency-key")?.trim();
     if (!activationKey) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     const body = await parseBody(request);
     const centerId = requiredUuid(body.centerId, "centerId");
     if (centerId !== REVIEWED_ENROLLMENT_CENTER_ID) throw new Error("Reviewed Enrollment activation is locked to the canonical PINO House Center.");
-    const core = <T>(coreRequest: BoAccessRequest) => coreData<T>(env.PINO_BO_CORE, coreRequest, token);
+    const core = <T>(coreRequest: BoAccessRequest) => coreData<T>(env.PINO_BO_CORE, coreRequest, credential);
 
     const state = await core<F3BootstrapState>({ method: "GET", path: "delivery/bootstrap-state" });
     const center = state.centers.find((item) => item.id === centerId);
@@ -69,7 +69,7 @@ export async function handleReviewedEnrollmentActivation(
       unresolvedSubscriptions: REVIEWED_ENROLLMENT_UNRESOLVED.length,
     } }, 200);
   } catch (error) {
-    if (error instanceof LocalStaffSessionError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
+    if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     if (error instanceof CoreFailure) return json({ error: { code: "CORE_COMMAND_FAILED", message: error.message, requestId: error.requestId } }, error.status, error.requestId ? { "x-request-id": error.requestId } : {});
     console.error("Reviewed Enrollment activation stopped", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_CONFLICT", message: error instanceof Error ? error.message : "Reviewed Enrollment activation stopped" } }, 409);
@@ -118,8 +118,8 @@ async function ensureFutureReservationPolicy(
 function activeFutureReservationVersions(state: FutureReservationPolicyInspection) {
   return state.versions.filter((version) => version.storedState === "PUBLISHED" && version.effectiveUntil === null);
 }
-async function coreData<T>(binding: BoAccessCoreBinding, request: BoAccessRequest, token: string): Promise<T> {
-  const result = await callBoAccessCoreWithStaffPassword(binding, request, token);
+async function coreData<T>(binding: BoAccessCoreBinding, request: BoAccessRequest, credential: TeamCredential): Promise<T> {
+  const result = await callBoAccessCoreWithCredential(binding, request, credential);
   const payload = result.body as { data?: T; error?: { message?: string } };
   if (result.status < 200 || result.status >= 300 || payload.data === undefined) {
     throw new CoreFailure(result.status, payload.error?.message ?? `Core command failed: ${request.method} ${request.path}`, result.requestId ?? null);

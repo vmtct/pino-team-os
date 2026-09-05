@@ -1,6 +1,8 @@
 export interface StaffPinResponse{status:number;body:unknown;requestId:string}
 export interface StaffPinCoreBinding{
   login(input:{loginIdentifier:string;pin:string}):Promise<StaffPinResponse>;
+  status?(identity:import("./team-auth").VerifiedTeamIdentity):Promise<StaffPinResponse>;
+  rotate?(identity:import("./team-auth").VerifiedTeamIdentity,input:{currentPin:string;pin:string}):Promise<StaffPinResponse>;
   statusWithStaffPassword(token:string):Promise<StaffPinResponse>;
   configureWithStaffPassword(token:string,input:{pin:string}):Promise<StaffPinResponse>;
   rotateWithStaffPassword(token:string,input:{currentPin:string;pin:string}):Promise<StaffPinResponse>;

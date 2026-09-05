@@ -21,3 +21,15 @@ test("Workforce PIN flow remains explicit", async () => {
   assert.equal((await callWorkforceCoreWithStaffPin(binding, { method: "GET", path: "/context" }, "shared-device-session")).status, 200);
   assert.equal(seen, "shared-device-session");
 });
+
+test("Workforce compatibility credential dispatches verified Cloudflare identity to legacy Core execute", async () => {
+  let subject="",ip="";
+  const binding:WorkforceCoreBinding={
+    async execute(_request,identity,transport){subject=identity.subject;ip=transport?.serverObservedIp??"";return{status:200,body:{data:{}},requestId:"legacy"};},
+    async executeWithStaffPassword(){throw new Error("unexpected password");},
+    async executeWithStaffPin(){throw new Error("unexpected pin");},
+  };
+  const {callWorkforceCoreWithCredential}=await import("./workforce-core");
+  const response=await callWorkforceCoreWithCredential(binding,{method:"GET",path:"/context"},{kind:"cloudflare",identity:{provider:"cloudflare_access",subject:"cf-subject",email:"staff@pino.invalid",issuer:"https://team.pino.invalid",audience:["tos"],expiresAt:2_000_000_000}},{serverObservedIp:"203.0.113.91"});
+  assert.equal(response.status,200);assert.equal(subject,"cf-subject");assert.equal(ip,"203.0.113.91");
+});

@@ -1,15 +1,14 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "@/lib/founder-core";
-import { LocalStaffSessionError, staffPasswordSession } from "@/lib/local-staff-session";
+import { callFounderCore, callFounderCoreWithStaffPassword, type PinoCoreBinding } from "@/lib/founder-core";
+import { authenticateCloudflareAccess, TeamAuthError } from "@/lib/team-auth";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ path: string[] }> };
-type FounderEnv = { PINO_CORE: PinoCoreBinding };
+type FounderEnv = { PINO_CORE: PinoCoreBinding; CF_ACCESS_TEAM_DOMAIN?:string; CF_ACCESS_AUDIENCE?:string; FOUNDER_EMAIL?:string };
 
 async function handle(request: Request, context: Context): Promise<Response> {
   try {
     const { env } = await getCloudflareContext({ async: true }) as unknown as { env: FounderEnv };
-    const token = staffPasswordSession(request);
     const { path } = await context.params;
     const contentType = request.headers.get("content-type") ?? "";
     let body: unknown = undefined;
@@ -21,18 +20,31 @@ async function handle(request: Request, context: Context): Promise<Response> {
         body = { bytes: await file.arrayBuffer(), mimeType: file.type, syllabusId: form.get("syllabusId"), role: form.get("role"), altText: form.get("altText") };
       } else body = contentType.includes("application/json") ? await request.json() : undefined;
     }
-    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, {
+    const coreRequest = {
       method: request.method,
       path: `/${path.join("/")}`,
       body,
       idempotencyKey: request.headers.get("idempotency-key") ?? undefined,
-    }, token);    return json(result.body, result.status, { "x-request-id": result.requestId });
+    };
+    const passwordToken = cookie(request.headers, "pino_staff_password_session");
+    const result = passwordToken
+      ? await callFounderCoreWithStaffPassword(env.PINO_CORE, coreRequest, passwordToken)
+      : await callFounderCore(env.PINO_CORE, coreRequest, await founderActor(request, env));
+    return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
-    if (error instanceof LocalStaffSessionError) return json({ error: { code: "IDENTITY_UNAUTHORIZED", message: error.message } }, 401);
+    if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_UNAUTHORIZED", message: error.message } }, error.status);
     console.error("Founder facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
 }
+
+async function founderActor(request:Request, env:FounderEnv){
+  const identity=await authenticateCloudflareAccess(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_AUDIENCE});
+  const approved=(env.FOUNDER_EMAIL??"").split(",").map(value=>value.trim().toLowerCase()).filter(Boolean);
+  if(!approved.includes(identity.email)) throw new TeamAuthError(401,"Founder authentication is required");
+  return {actorType:"founder" as const,subject:identity.subject,email:identity.email};
+}
+function cookie(headers:Headers,name:string){return headers.get("cookie")?.split(";").map(value=>value.trim()).find(value=>value.startsWith(`${name}=`))?.slice(name.length+1)??"";}
 
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {
   return Response.json(body, { status, headers: { "cache-control": "no-store", ...headers } });
