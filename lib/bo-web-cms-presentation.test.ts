@@ -12,5 +12,10 @@ test("Website CMS page covers approved editorial workflow without a page builder
   const source = `${await readFile("app/bo/content/WebsiteCmsView.tsx", "utf8")}\n${await readFile("lib/bo-web-cms-model.ts", "utf8")}`;
   for (const label of ["PINO House", "Toppi", "Afterwork", "Published", "Current draft", "Save Draft", "Publish", "HISTORY", "Canonical media asset ID", "Alt text · VI", "Alt text · EN"]) assert.match(source, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(source, /boWebCmsApi\.rollback/);
+  assert.match(source, /hasUnsavedChanges/);
+  assert.match(source, /Save Draft before publishing/);
+  assert.match(source, /replayKeys/);
+  assert.match(source, /replayKey\(signature\)/);
+  assert.match(source, /!selected\.draft \|\| hasUnsavedChanges/);
   assert.doesNotMatch(source, /type=["']url["']|manifest.*sync|page builder/i);
 });

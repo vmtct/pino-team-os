@@ -16,17 +16,16 @@ async function readOne<T>(path: string): Promise<T> {
   return body.data;
 }
 
-async function command<T>(path: string, body: unknown): Promise<T> {
+async function command<T>(path: string, body: unknown, idempotencyKey: string): Promise<T> {
   const response = await fetch(`/api/bo/${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
     body: JSON.stringify(body),
   });
   const payload = await response.json() as Payload<T>;
   if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Website CMS command could not be completed.");
   return payload.data;
 }
-
 function apiError(response: Response, body: Payload<unknown>, fallback: string) {
   return new BoApiError(
     response.status,
@@ -43,10 +42,10 @@ export const boWebCmsApi = {
   },
   detail: (slotId: string) => readOne<BoWebCmsSlotDetail>(`web-cms/slots/${encodeURIComponent(slotId)}`),
   history: (slotId: string) => readOne<BoWebCmsRevision[]>(`web-cms/slots/${encodeURIComponent(slotId)}/history`),
-  saveDraft: (slotId: string, expectedRevision: number, value: BoWebCmsValue) =>
-    command<BoWebCmsRevision>(`web-cms/slots/${encodeURIComponent(slotId)}/draft`, { expectedRevision, value }),
-  publish: (slotId: string, expectedRevision: number) =>
-    command<BoWebCmsRevision>(`web-cms/slots/${encodeURIComponent(slotId)}/publish`, { expectedRevision }),
-  rollback: (slotId: string, expectedRevision: number, targetRevisionId: string) =>
-    command<BoWebCmsRevision>(`web-cms/slots/${encodeURIComponent(slotId)}/rollback`, { expectedRevision, targetRevisionId }),
+  saveDraft: (slotId: string, expectedRevision: number, value: BoWebCmsValue, idempotencyKey: string) =>
+    command<BoWebCmsRevision>(`web-cms/slots/${encodeURIComponent(slotId)}/draft`, { expectedRevision, value }, idempotencyKey),
+  publish: (slotId: string, expectedRevision: number, idempotencyKey: string) =>
+    command<BoWebCmsRevision>(`web-cms/slots/${encodeURIComponent(slotId)}/publish`, { expectedRevision }, idempotencyKey),
+  rollback: (slotId: string, expectedRevision: number, targetRevisionId: string, idempotencyKey: string) =>
+    command<BoWebCmsRevision>(`web-cms/slots/${encodeURIComponent(slotId)}/rollback`, { expectedRevision, targetRevisionId }, idempotencyKey),
 };

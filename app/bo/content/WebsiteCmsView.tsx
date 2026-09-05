@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BoApiError } from "@/lib/bo-api-error";
 import { boWebCmsApi } from "@/lib/bo-web-cms-api";
 import { BO_WEB_CMS_SITES, type BoWebCmsLocale, type BoWebCmsRevision, type BoWebCmsSite, type BoWebCmsSlotDetail, type BoWebCmsSlotSummary, type BoWebCmsValue } from "@/lib/bo-web-cms-model";
@@ -22,6 +22,8 @@ function valueFor(slot: BoWebCmsSlotDetail, editor: EditorValue): BoWebCmsValue 
     : { type: "TEXT", values: { vi: editor.vi.trim() || null, en: editor.en.trim() || null } };
 }
 
+function sameValue(left: BoWebCmsValue, right: BoWebCmsValue) { return JSON.stringify(left) === JSON.stringify(right); }
+
 function errorMessage(error: unknown) {
   if (error instanceof BoApiError) return `${error.message}${error.requestId ? ` · request ${error.requestId}` : ""}`;
   return error instanceof Error ? error.message : "Website CMS operation failed.";
@@ -40,8 +42,11 @@ export function WebsiteCmsView() {
   const [notice, setNotice] = useState("");
   const [publishOpen, setPublishOpen] = useState(false);
   const [rollbackTarget, setRollbackTarget] = useState<BoWebCmsRevision | null>(null);
+  const replayKeys = useRef(new Map<string, string>());
 
   const pages = useMemo(() => Array.from(new Set(slots.map(slot => slot.page))), [slots]);
+  const editorValue = selected ? valueFor(selected, editor) : null;
+  const hasUnsavedChanges = Boolean(selected && editorValue && !sameValue(editorValue, selected.draft?.value ?? selected.published?.value ?? selected.sourceFallback));
 
   useEffect(() => { void loadSite(site); }, [site]);
 
@@ -66,6 +71,11 @@ export function WebsiteCmsView() {
     setSelected(detail); setHistory(revisions); setSlots(nextSlots); setEditor(toEditor(detail.draft?.value ?? detail.published?.value ?? detail.sourceFallback));
   }
 
+  function replayKey(signature: string) {
+    const existing = replayKeys.current.get(signature); if (existing) return existing;
+    const created = crypto.randomUUID(); replayKeys.current.set(signature, created); return created;
+  }
+
   function validate(): string | null {
     if (!selected) return "Select a registered slot first.";
     if (selected.kind === "IMAGE" && (!editor.mediaAssetId.trim() || !editor.altVi.trim() || !editor.altEn.trim())) return "Canonical media asset ID and VI/EN alt text are required.";
@@ -76,7 +86,8 @@ export function WebsiteCmsView() {
   async function saveDraft() {
     const invalid = validate(); if (invalid || !selected) return setError(invalid ?? "Invalid draft.");
     setBusy("save"); setError(""); setNotice("");
-    try { await boWebCmsApi.saveDraft(selected.id, selected.currentRevision, valueFor(selected, editor)); await refresh(selected.id); setNotice("Draft saved. Public websites are unchanged."); }
+    const value = valueFor(selected, editor); const signature = `save:${selected.id}:${selected.currentRevision}:${JSON.stringify(value)}`;
+    try { await boWebCmsApi.saveDraft(selected.id, selected.currentRevision, value, replayKey(signature)); replayKeys.current.delete(signature); await refresh(selected.id); setNotice("Draft saved. Public websites are unchanged."); }
     catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(""); }
   }
@@ -84,7 +95,8 @@ export function WebsiteCmsView() {
   async function publish() {
     if (!selected) return;
     setBusy("publish"); setError("");
-    try { await boWebCmsApi.publish(selected.id, selected.currentRevision); await refresh(selected.id); setNotice("Published as a new immutable revision."); setPublishOpen(false); }
+    const signature = `publish:${selected.id}:${selected.currentRevision}:${selected.draft?.id ?? "none"}`;
+    try { await boWebCmsApi.publish(selected.id, selected.currentRevision, replayKey(signature)); replayKeys.current.delete(signature); await refresh(selected.id); setNotice("Published as a new immutable revision."); setPublishOpen(false); }
     catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(""); }
   }
@@ -92,7 +104,8 @@ export function WebsiteCmsView() {
   async function rollback() {
     if (!selected || !rollbackTarget) return;
     setBusy("rollback"); setError("");
-    try { await boWebCmsApi.rollback(selected.id, selected.currentRevision, rollbackTarget.id); await refresh(selected.id); setNotice(`Rolled back through a new published revision based on r${rollbackTarget.revision}.`); setRollbackTarget(null); }
+    const signature = `rollback:${selected.id}:${selected.currentRevision}:${rollbackTarget.id}`;
+    try { await boWebCmsApi.rollback(selected.id, selected.currentRevision, rollbackTarget.id, replayKey(signature)); replayKeys.current.delete(signature); await refresh(selected.id); setNotice(`Rolled back through a new published revision based on r${rollbackTarget.revision}.`); setRollbackTarget(null); }
     catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(""); }
   }
@@ -114,7 +127,7 @@ export function WebsiteCmsView() {
           <div className={styles.editorHead}><div><span>{selected.page}</span><h2>{selected.key}</h2><small>{selected.kind} · revision {selected.currentRevision} · {selected.status}</small></div><div className={styles.locales}><button className={locale === "vi" ? styles.localeActive : ""} onClick={() => setLocale("vi")}>VI</button><button className={locale === "en" ? styles.localeActive : ""} onClick={() => setLocale("en")}>EN</button></div></div>
           <section className={styles.comparison}>
             <ValueCard title="Published" badge={selected.published ? `r${selected.published.revision}` : "SOURCE FALLBACK"} value={selected.published?.value ?? selected.sourceFallback} locale={locale} />
-            <ValueCard title="Current draft" badge={selected.draft ? `r${selected.draft.revision}` : "UNSAVED"} value={valueFor(selected, editor)} locale={locale} draft />
+            <ValueCard title={hasUnsavedChanges ? "Editor preview" : "Current draft"} badge={hasUnsavedChanges ? "UNSAVED CHANGES" : selected.draft ? `r${selected.draft.revision}` : "UNSAVED"} value={editorValue!} locale={locale} draft />
           </section>
           <section className={styles.form}>
             <div className={styles.formTitle}><div><span>EDITOR</span><strong>{selected.kind === "IMAGE" ? "Canonical image reference" : `${locale.toUpperCase()} content`}</strong></div><span className={styles.safeChip}>No URLs · No layout</span></div>
@@ -125,7 +138,7 @@ export function WebsiteCmsView() {
             </> : <div className={styles.twoCol}><label>Nội dung · VI<textarea rows={6} value={editor.vi} onChange={event => setEditor(current => ({ ...current, vi: event.target.value }))} /></label><label>Content · EN<textarea rows={6} value={editor.en} onChange={event => setEditor(current => ({ ...current, en: event.target.value }))} /></label></div>}
           </section>
           <section className={styles.history}><div className={styles.formTitle}><div><span>HISTORY</span><strong>Immutable revisions</strong></div></div>{history.length ? history.map(revision => <article key={revision.id}><div><strong>r{revision.revision} · {revision.state}</strong><small>{new Date(revision.publishedAt ?? revision.createdAt).toLocaleString("vi-VN")}{revision.rollbackSourceRevisionId ? " · rollback" : ""}</small></div>{revision.state === "PUBLISHED" && revision.id !== selected.publishedRevisionId ? <button disabled={!!busy} onClick={() => setRollbackTarget(revision)}>Roll back to this</button> : null}</article>) : <p className={styles.empty}>No revision history yet.</p>}</section>
-          <footer className={styles.actions}><span>Writes use expected revision {selected.currentRevision}; stale changes fail closed.</span><div><button disabled={!!busy} onClick={() => void saveDraft()}>{busy === "save" ? "Saving…" : "Save Draft"}</button><button className={styles.primary} disabled={!!busy || !selected.draft} onClick={() => setPublishOpen(true)}>Publish</button></div></footer>
+          <footer className={styles.actions}><span>{hasUnsavedChanges ? "Save Draft before publishing. Unsaved editor changes are never published." : `Writes use expected revision ${selected.currentRevision}; stale changes fail closed.`}</span><div><button disabled={!!busy} onClick={() => void saveDraft()}>{busy === "save" ? "Saving…" : "Save Draft"}</button><button className={styles.primary} disabled={!!busy || !selected.draft || hasUnsavedChanges} title={hasUnsavedChanges ? "Save Draft before publishing" : undefined} onClick={() => setPublishOpen(true)}>Publish</button></div></footer>
         </>}
       </main>
     </div>
