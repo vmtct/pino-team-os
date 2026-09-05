@@ -5,12 +5,13 @@ import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-p
 import { handleBoWardSetMediaUpload, type BoWardSetMediaEnv } from "@/lib/bo-ward-set-media-handler";
 import { handleBoWorkforcePlanningRequest, isBoWorkforcePlanningPath, type BoWorkforcePlanningEnv } from "@/lib/bo-workforce-planning-handler";
 import { handleBoWorkforceTrainingRequest, isBoWorkforceTrainingPath, type BoWorkforceTrainingEnv } from "@/lib/bo-workforce-training-handler";
+import { handleBoWorkforceDutyExceptionRequest, isBoWorkforceDutyExceptionPath, type BoWorkforceDutyExceptionEnv } from "@/lib/bo-workforce-duty-exception-handler";
 import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH, type ReviewedEnrollmentEnv } from "@/lib/f4-reviewed-enrollment-handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoWardSetMediaEnv;
+type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoWardSetMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -18,6 +19,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const { path } = await context.params;
   const joined = path.join("/");
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
+  if (isBoWorkforceDutyExceptionPath(joined)) return handleBoWorkforceDutyExceptionRequest(request, env, joined);
   return handleBoOperationalReadRequest(request, env, joined);
 }
 
@@ -26,6 +28,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { path } = await context.params;
   const joined = path.join("/");
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
+  if (isBoWorkforceDutyExceptionPath(joined)) return handleBoWorkforceDutyExceptionRequest(request, env, joined);
   if (joined === REVIEWED_ENROLLMENT_ACTIVATION_PATH) return handleReviewedEnrollmentActivation(request, env);
   if (joined === "practice/media") return handleBoPracticeMediaUpload(request, env);
   if (joined === "pinoria/ward/set-webm-assets") return handleBoWardSetMediaUpload(request, env);
