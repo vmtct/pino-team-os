@@ -24,8 +24,9 @@ test("Pinoria Team staging is isolated from production Core", () => {
   assert.equal(productionRaw.includes("OPEN_STUDIO_BO_STAGING_BYPASS"), false);
   assert.equal(productionRaw.includes("OPEN_STUDIO_STAGING_BO_EMAIL"), false);
 
-  assert.equal(staging.services.length, 8);
+  assert.equal(staging.services.length, 9);
   assert.deepEqual(staging.services.find((service: { binding: string }) => service.binding === "PINO_STAFF_REGISTRATION_CORE"), { binding: "PINO_STAFF_REGISTRATION_CORE", service: "pino-core-staging", entrypoint: "StaffRegistrationControlPlane" });
+  assert.deepEqual(staging.services.find((service: { binding: string }) => service.binding === "PINO_STAFF_PASSWORD_CORE"), { binding: "PINO_STAFF_PASSWORD_CORE", service: "pino-core-staging", entrypoint: "StaffPasswordControlPlane" });
   assert.deepEqual(staging.services.find((service: { binding: string }) => service.binding === "PINO_WORKFORCE_NETWORK_CORE"), { binding: "PINO_WORKFORCE_NETWORK_CORE", service: "pino-core-staging", entrypoint: "WorkforceNetworkPresenceControlPlane" });
   for (const service of staging.services) assert.equal(service.service, "pino-core-staging");
   assert.equal(staging.services.some((service: { service: string }) => service.service === "pino-core"), false);
