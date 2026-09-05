@@ -52,3 +52,20 @@
 @media (max-width: 460px) {
   .closeoutCard { padding: 16px; }
 }
+
+.exceptionRequest, .exceptionStatus { margin-top: 12px; padding: 12px; border-radius: 14px; }
+.exceptionRequest { border: 1px solid #ead6ad; background: #fff9ec; }
+.exceptionRequest > button, .exceptionActions button { border: 0; border-radius: 11px; padding: 10px 12px; font-weight: 850; }
+.exceptionRequest > button, .exceptionActions button:last-child { color: #fff; background: #8a671d; }
+.exceptionRequest label { display: grid; gap: 7px; color: #6f6245; font-size: 11px; font-weight: 750; }
+.exceptionRequest textarea { width: 100%; min-height: 92px; box-sizing: border-box; resize: vertical; border: 1px solid #e4d7bb; border-radius: 11px; padding: 10px; background: #fff; color: #28312c; font: inherit; }
+.exceptionRequest small, .exceptionStatus small { display: block; margin-top: 8px; color: #887b62; font-size: 10px; }
+.exceptionActions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 9px; }
+.exceptionActions .exceptionCancel { color: #6e6759; background: #fff; border: 1px solid #ddd5c5; }
+.exceptionActions button:disabled, .exceptionRequest > button:disabled { opacity: .5; }
+.exceptionStatus { border: 1px solid #e4d5b7; background: #fff9ed; }
+.exceptionStatus[data-status='APPROVED'] { border-color: #cfe0d4; background: #f2faf4; }
+.exceptionStatus div { display: grid; gap: 3px; }
+.exceptionStatus span { color: #80652b; font-size: 9px; font-weight: 900; letter-spacing: .11em; }
+.exceptionStatus[data-status='APPROVED'] span { color: #2f6d50; }
+.exceptionStatus p { margin: 7px 0 0; color: #5f665f; font-size: 11px; line-height: 1.45; }

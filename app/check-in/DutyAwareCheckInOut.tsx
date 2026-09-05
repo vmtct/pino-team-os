@@ -59,6 +59,8 @@ export default function DutyAwareCheckInOut() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [exceptionOpen, setExceptionOpen] = useState(false);
+  const [exceptionReason, setExceptionReason] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true); setError(""); setBoard(null);
@@ -100,6 +102,8 @@ export default function DutyAwareCheckInOut() {
   const acknowledged = isCurrentBriefingAcknowledged(briefing, acknowledgement);
   const checkInReady = briefingCheckInReady({ boardLoaded: Boolean(!current && board), briefing, acknowledgement });
   const closeout = closeoutGuidanceState(current ? board : null);
+  const checkoutException = current ? board?.checkoutException ?? null : null;
+  const canRequestException = Boolean(current && board && closeout.outstanding.length > 0 && !closeout.ambiguous && !checkoutException);
 
   async function acknowledge() {
     if (!briefing) return;
@@ -122,6 +126,18 @@ export default function DutyAwareCheckInOut() {
     try {
       await workforceApi.checkIn(center.id, assignment?.id ?? null);
       router.push("/tasks");
+    } catch (cause) { setError(apiMessage(cause)); }
+    finally { setBusy(""); }
+  }
+
+  async function requestException() {
+    const reason = exceptionReason.trim();
+    if (!canRequestException || !reason) return;
+    setBusy("exception"); setError("");
+    try {
+      await workforceApi.requestCheckoutException(reason);
+      setExceptionReason(""); setExceptionOpen(false);
+      await load();
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setBusy(""); }
   }
@@ -194,6 +210,22 @@ export default function DutyAwareCheckInOut() {
             : <p className={styles.empty}>Core không trả duty nào cho CHECK_OUT.</p>
             : <p className={styles.empty}>CHECK_OUT duty context chưa sẵn sàng; Checkout giữ khóa.</p>}
           {closeout.ambiguous && board ? <div className={styles.closeoutWarning}>Duty truth đang unavailable hoặc ambiguous. Không suy đoán completion.</div> : null}
+          {checkoutException ? <div className={styles.exceptionStatus} data-status={checkoutException.status}>
+            <div><span>CHECKOUT EXCEPTION</span><strong>{checkoutException.status === "APPROVED" ? "Đã được Manager duyệt" : "Đang chờ Manager duyệt"}</strong></div>
+            <p>{checkoutException.reason}</p>
+            <small>{checkoutException.obligationRefs.length} unresolved refs · request {new Date(checkoutException.requestedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</small>
+          </div> : canRequestException ? <div className={styles.exceptionRequest}>
+            {!exceptionOpen ? <button disabled={Boolean(busy)} onClick={() => setExceptionOpen(true)}>Xin ngoại lệ checkout</button> : <>
+              <label>Lý do cần rời ca
+                <textarea maxLength={500} value={exceptionReason} onChange={(event) => setExceptionReason(event.target.value)} placeholder="Nêu ngắn gọn lý do cần checkout khi duty còn mở…" />
+              </label>
+              <div className={styles.exceptionActions}>
+                <button type="button" className={styles.exceptionCancel} disabled={Boolean(busy)} onClick={() => { setExceptionOpen(false); setExceptionReason(""); }}>Huỷ</button>
+                <button type="button" disabled={!exceptionReason.trim() || Boolean(busy)} onClick={() => void requestException()}>{busy === "exception" ? "Đang gửi…" : "Gửi xin ngoại lệ"}</button>
+              </div>
+              <small>{exceptionReason.length}/500 · Staff/Center/TimekeepingSession và unresolved set do Core tự bind.</small>
+            </>}
+          </div> : null}
         </section>
 
         <section className={styles.actionCard}>

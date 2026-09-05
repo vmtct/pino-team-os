@@ -37,7 +37,14 @@ export const boNavigation: BoNavGroup[] = [
     label: "Workforce",
     items: [
       { href: "/bo/staff", label: "Staff" },
-      { href: "/bo/workforce", label: "Schedule & Time" },
+      {
+        href: "/bo/workforce",
+        label: "Schedule & Time",
+        children: [
+          { href: "/bo/workforce", label: "Lịch ca tuần" },
+          { href: "/bo/workforce/duty-exceptions", label: "Duty Exceptions" },
+        ],
+      },
       { href: "/bo/training", label: "Training" },
     ],
   },
