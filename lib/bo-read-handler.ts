@@ -53,6 +53,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "syllabi"
     || path === "learning/syllabi"
     || path === "learning/syllabi/owners"
+    || path === "learning/syllabi/media"
     || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
     || /^learning\/syllabi\/versions\/[0-9a-f-]{36}\/(artchitect-profile|pianohouse-profile|little-piner-profile)$/.test(path)
     || path === "sessions"
