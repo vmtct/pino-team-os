@@ -1,6 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { WorkforceAuthError } from "@/lib/workforce-auth";
-import { authenticatePinoriaTvRequest, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
+import { authenticatePinoriaTvRequest, PinoriaTvAuthError, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
 import type { PinoriaTvCoreBinding } from "@/lib/staff-pin-core";
 
 export const runtime = "nodejs";
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
 
     return json({ ok: false, error: "UNSUPPORTED_OPERATION" }, 400);
   } catch (error) {
-    if (error instanceof WorkforceAuthError) return json({ error: { message: error.message } }, error.status);
+    if (error instanceof PinoriaTvAuthError) return json({ error: { message: error.message } }, error.status);
     console.error("Pinoria Wish reveal bridge failure", error instanceof Error ? error.message : "unknown");
     return json({ ok: false, error: "WISH_REVEAL_CORE_UNAVAILABLE" }, 503);
   }

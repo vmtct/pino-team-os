@@ -1,2 +1,15 @@
-import test from"node:test";import assert from"node:assert/strict";import{callFounderCore,type PinoCoreBinding}from"./founder-core";
-test("founder facade uses only PINO_CORE binding and preserves response",async()=>{let called=false;const binding:PinoCoreBinding={async execute(request,actor){called=true;assert.equal(request.path,"/running-classes");assert.equal(actor.subject,"subject");return{status:200,body:{data:[]},requestId:"request"};}};const result=await callFounderCore(binding,{method:"GET",path:"/running-classes"},{actorType:"founder",subject:"subject"});assert.equal(called,true);assert.equal(result.status,200);});
+﻿import test from "node:test";
+import assert from "node:assert/strict";
+import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
+
+test("Founder facade calls only local-password Core binding", async () => {
+  let token = "";
+  const binding: PinoCoreBinding = { async executeWithStaffPassword(request, value) {
+    token = value;
+    assert.equal(request.path, "/running-classes");
+    return { status: 200, body: { data: [] }, requestId: "request" };
+  } };
+  const result = await callFounderCoreWithStaffPassword(binding, { method: "GET", path: "/running-classes" }, "founder-session");
+  assert.equal(token, "founder-session");
+  assert.equal(result.status, 200);
+});

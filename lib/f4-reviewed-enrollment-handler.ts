@@ -1,6 +1,5 @@
-import type { JWTVerifyGetKey } from "jose";
-import { authenticateBo, BoAuthError } from "./bo-auth";
-import { callBoAccessCore, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
 import type { F3BootstrapState, F3RunningClass } from "./f3-delivery-api";
 import { REVIEWED_ENROLLMENT_PLAN, REVIEWED_ENROLLMENT_UNRESOLVED, type ReviewedEnrollmentPlacement } from "./f4-reviewed-enrollment-plan";
 
@@ -11,8 +10,6 @@ export const REVIEWED_ENROLLMENT_ACTIVATION_PATH = "delivery/enrollment-activati
 
 export interface ReviewedEnrollmentEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
-  CF_ACCESS_TEAM_DOMAIN: string;
-  CF_ACCESS_BO_AUD: string;
 }
 
 interface BulkEnrollmentPlacement { runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime: string | null; plannedDurationMinutes: number | null }
@@ -31,17 +28,17 @@ class CoreFailure extends Error {
 export async function handleReviewedEnrollmentActivation(
   request: Request,
   env: ReviewedEnrollmentEnv,
-  keyResolver?: JWTVerifyGetKey,
+  _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
     if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    const identity = await authenticateBo(request.headers, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD }, keyResolver);
+    const token = staffPasswordSession(request);
     const activationKey = request.headers.get("idempotency-key")?.trim();
     if (!activationKey) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     const body = await parseBody(request);
     const centerId = requiredUuid(body.centerId, "centerId");
     if (centerId !== REVIEWED_ENROLLMENT_CENTER_ID) throw new Error("Reviewed Enrollment activation is locked to the canonical PINO House Center.");
-    const core = <T>(coreRequest: BoAccessRequest) => coreData<T>(env.PINO_BO_CORE, coreRequest, identity);
+    const core = <T>(coreRequest: BoAccessRequest) => coreData<T>(env.PINO_BO_CORE, coreRequest, token);
 
     const state = await core<F3BootstrapState>({ method: "GET", path: "delivery/bootstrap-state" });
     const center = state.centers.find((item) => item.id === centerId);
@@ -72,7 +69,7 @@ export async function handleReviewedEnrollmentActivation(
       unresolvedSubscriptions: REVIEWED_ENROLLMENT_UNRESOLVED.length,
     } }, 200);
   } catch (error) {
-    if (error instanceof BoAuthError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
+    if (error instanceof LocalStaffSessionError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
     if (error instanceof CoreFailure) return json({ error: { code: "CORE_COMMAND_FAILED", message: error.message, requestId: error.requestId } }, error.status, error.requestId ? { "x-request-id": error.requestId } : {});
     console.error("Reviewed Enrollment activation stopped", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_CONFLICT", message: error instanceof Error ? error.message : "Reviewed Enrollment activation stopped" } }, 409);
@@ -121,8 +118,8 @@ async function ensureFutureReservationPolicy(
 function activeFutureReservationVersions(state: FutureReservationPolicyInspection) {
   return state.versions.filter((version) => version.storedState === "PUBLISHED" && version.effectiveUntil === null);
 }
-async function coreData<T>(binding: BoAccessCoreBinding, request: BoAccessRequest, identity: Awaited<ReturnType<typeof authenticateBo>>): Promise<T> {
-  const result = await callBoAccessCore(binding, request, identity);
+async function coreData<T>(binding: BoAccessCoreBinding, request: BoAccessRequest, token: string): Promise<T> {
+  const result = await callBoAccessCoreWithStaffPassword(binding, request, token);
   const payload = result.body as { data?: T; error?: { message?: string } };
   if (result.status < 200 || result.status >= 300 || payload.data === undefined) {
     throw new CoreFailure(result.status, payload.error?.message ?? `Core command failed: ${request.method} ${request.path}`, result.requestId ?? null);

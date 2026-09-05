@@ -1,6 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { WorkforceAuthError } from "@/lib/workforce-auth";
-import { authenticatePinoriaTvRequest, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
+import { authenticatePinoriaTvRequest, PinoriaTvAuthError, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
 import type { PinoriaTvCoreBinding } from "@/lib/staff-pin-core";
 
 export const runtime = "nodejs";
@@ -34,7 +33,7 @@ export async function POST(request: Request) {
 
     return json({ ok: false, error: "UNSUPPORTED_OPERATION" }, 400);
   } catch (error) {
-    if (error instanceof WorkforceAuthError) return json({ error: { message: error.message } }, error.status);
+    if (error instanceof PinoriaTvAuthError) return json({ error: { message: error.message } }, error.status);
     console.error("Pinoria presentation bridge failure", error instanceof Error ? error.message : "unknown");
     return json({ ok: false, error: "PINORIA_PRESENTATION_CORE_UNAVAILABLE" }, 503);
   }

@@ -1,6 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { WorkforceAuthError } from "@/lib/workforce-auth";
-import { authenticatePinoriaTvRequest, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
+import { authenticatePinoriaTvRequest, PinoriaTvAuthError, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
 import type { PinoriaTvCoreBinding } from "@/lib/staff-pin-core";
 
 export const runtime = "nodejs";
@@ -18,7 +17,7 @@ export async function GET(request: Request) {
       { headers: { "cache-control": "no-store" } },
     );
   } catch (error) {
-    if (error instanceof WorkforceAuthError) return Response.json({ error: { message: error.message } }, { status: error.status });
+    if (error instanceof PinoriaTvAuthError) return Response.json({ error: { message: error.message } }, { status: error.status });
     return Response.json({ error: { message: "Không tải được Pinoria House" } }, { status: 500 });
   }
 }
