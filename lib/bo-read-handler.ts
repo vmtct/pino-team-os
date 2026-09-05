@@ -7,6 +7,7 @@ export interface BoReadEnv {
 
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
+const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -64,6 +65,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
     || path === "pinoria/ward/set-webm-assets"
+    || path === "web-cms/slots"
+    || WEB_CMS_SLOT_READ.test(path)
     || path === "learners"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
@@ -86,6 +89,12 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readCorePath(path: string, url: URL): string {
+  if (path === "web-cms/slots") {
+    const params = new URLSearchParams();
+    for (const key of ["site", "page", "includeRetired"] as const) { const value = url.searchParams.get(key); if (value !== null) params.set(key, value); }
+    const query = params.toString();
+    return query ? `${path}?${query}` : path;
+  }
   if (path === "practice/repertoire-access") {
     const params = new URLSearchParams();
     for (const key of ["studentProfileId", "pathProgramId", "effectiveAt"] as const) {

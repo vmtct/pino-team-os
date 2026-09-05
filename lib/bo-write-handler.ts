@@ -54,6 +54,7 @@ const PRACTICE_VERSION_COMMAND = /^practice\/versions\/[0-9a-f-]{36}(?:\/(?:page
 const WARD_CATALOG_WRITE = /^pinoria\/ward\/catalog\/(items|variants)(?:\/[0-9a-f-]{36})?$/;
 const WARD_SET_WRITE = /^pinoria\/ward\/sets(?:\/[0-9a-f-]{36}(?:\/members)?)?$/;
 const WARD_SET_MEDIA = "pinoria/ward/set-webm-assets";
+const WEB_CMS_WRITE = /^web-cms\/slots\/[0-9a-f-]{36}\/(draft|publish|rollback)$/;
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -68,7 +69,7 @@ export async function handleBoWriteRequest(
     const passwordToken = staffPasswordSession(request);
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -161,7 +162,8 @@ export function isAllowedPostPath(path: string): boolean {
     || isOpenStudioPostPath(path)
     || WARD_CATALOG_WRITE.test(path)
     || WARD_SET_WRITE.test(path)
-    || path === WARD_SET_MEDIA;
+    || path === WARD_SET_MEDIA
+    || WEB_CMS_WRITE.test(path);
 }
 
 /** Compatibility export for the existing onboarding facade tests/callers. */

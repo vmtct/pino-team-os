@@ -6,7 +6,7 @@ const read = (path: string) => readFile(path, "utf8");
 
 test("PLT-BO F2 navigation composes School without absorbing domain authority", async () => {
   const source = await read("app/bo/navigation.ts");
-  for (const group of ["Workspace", "School", "Operations", "Learning", "Workforce", "Pinoria", "System"]) {
+  for (const group of ["Workspace", "School", "Operations", "Learning", "Workforce", "Pinoria", "Content", "System"]) {
     assert.match(source, new RegExp(`label: [\\\"']${group}[\\\"']`));
   }
   for (const item of ["Hôm nay", "Students", "Subscriptions", "Classes", "Schedule", "Open Studio", "Programs & Syllabus", "Practice", "Staff", "Schedule & Time", "Economy", "Collection", "Access", "Policies", "Audit"]) {
