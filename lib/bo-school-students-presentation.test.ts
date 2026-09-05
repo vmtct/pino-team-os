@@ -24,3 +24,8 @@ test("School Student Pinoria composes canonical readiness and only the governed 
   assert.match(readHandler, /students\\\/\[0-9a-f-\]\{36\}\\\/pinoria/);
   assert.match(writeHandler, /STUDENT_COMPANION_FEED_PATH/);
 });
+
+
+test("School Students fails visibly when canonical scope catalog cannot load",async()=>{const view=await read("app/bo/learners/BoLearnersView.tsx");assert.match(view,/setCatalog\(\{ state: "error", message: message\(error\) \}\)/);assert.match(view,/catalog\.state === "error"/);assert.match(view,/catalog\.message/);assert.match(view,/error\.requestId/);assert.doesNotMatch(view,/scopeCatalog\(\)[\s\S]{0,220}catch\(\(\) => undefined\)/);});
+
+test("School Student Pinoria fences Feed completion to the initiating student and request generation",async()=>{const panel=await read("app/bo/learners/StudentPinoriaPanel.tsx");assert.match(panel,/studentGeneration/);assert.match(panel,/feedGeneration/);assert.match(panel,/initiatingStudentId=studentId/);assert.match(panel,/const current=\(\)=>studentGeneration\.current===studentTicket&&feedGeneration\.current===requestTicket/);assert.match(panel,/if\(!current\(\)\)return/);assert.match(panel,/await refresh\(current\)/);});

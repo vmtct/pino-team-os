@@ -85,6 +85,10 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: STAFF_PIN_RESET_PATH.test(path) ? "Staff PIN reset body must be empty" : "Parent PIN command body must be empty" } }, 400);
     }
 
+    if (STUDENT_COMPANION_FEED_PATH.test(path) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Companion Feed request body must be empty" } }, 400);
+    }
+
     const coreRequest: BoAccessRequest = {
       method: request.method,
       path,

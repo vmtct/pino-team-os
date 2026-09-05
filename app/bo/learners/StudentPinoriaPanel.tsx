@@ -14,26 +14,32 @@ export function StudentPinoriaPanel({ studentId }: { studentId:string }) {
   const [busy,setBusy]=useState<string|null>(null);
   const [notice,setNotice]=useState("");
   const retryKeys=useRef(new Map<string,string>());
+  const studentGeneration=useRef(0);
+  const feedGeneration=useRef(0);
 
   const refresh=useCallback(async (active:()=>boolean=()=>true)=>{
     try { const data=await boApi.learnerPinoria(studentId); if(active())setLoad({state:"ready",data}); }
     catch(error){if(active())setLoad({state:"error",message:message(error)});}
   },[studentId]);
   useEffect(()=>{
-    let active=true; setLoad({state:"loading"});setConfirming(null);setNotice("");
-    void refresh(()=>active); return()=>{active=false;};
+    let active=true; studentGeneration.current+=1;feedGeneration.current+=1;setLoad({state:"loading"});setConfirming(null);setBusy(null);setNotice("");
+    void refresh(()=>active); return()=>{active=false;studentGeneration.current+=1;feedGeneration.current+=1;};
   },[refresh]);
 
   async function feed(companion:Companion){
-    const target=`feed:${studentId}:${companion.companionId}`,key=retryKeys.current.get(target)??crypto.randomUUID();
+    const initiatingStudentId=studentId,studentTicket=studentGeneration.current,requestTicket=++feedGeneration.current;
+    const target=`feed:${initiatingStudentId}:${companion.companionId}`,key=retryKeys.current.get(target)??crypto.randomUUID();
+    const current=()=>studentGeneration.current===studentTicket&&feedGeneration.current===requestTicket;
     retryKeys.current.set(target,key);setBusy(companion.companionId);setNotice("");
     try{
-      const result=await boApi.feedLearnerCompanion(studentId,companion.companionId,key);
-      retryKeys.current.delete(target);setConfirming(null);
+      const result=await boApi.feedLearnerCompanion(initiatingStudentId,companion.companionId,key);
+      retryKeys.current.delete(target);
+      if(!current())return;
+      setConfirming(null);
       setNotice(`${companion.species.displayName} đã nhận 1 Trái · ${result.stageFeedCount} lần nuôi ở cấp này.`);
-      await refresh();
-    }catch(error){setNotice(message(error));}
-    finally{setBusy(null);}
+      await refresh(current);
+    }catch(error){if(current())setNotice(message(error));}
+    finally{if(current())setBusy(null);}
   }
 
   return <section className={styles.sectionCard}>

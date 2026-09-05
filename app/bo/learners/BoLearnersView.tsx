@@ -16,7 +16,7 @@ export function BoLearnersView() {
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Load<BoLearnerLifecycle> | null>(null);
-  const [catalog, setCatalog] = useState<Catalog>({ paths: [], classes: [] });
+  const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [filter, setFilter] = useState<Filter>("active");
   const [query, setQuery] = useState("");
   const detailRequestFence = useRef(new LatestRequestFence());
@@ -65,7 +65,7 @@ export function BoLearnersView() {
       selectedIdRef.current = next;
       setSelectedId(next);
     }).catch((error: unknown) => { if (active) setDirectory({ state: "error", message: message(error) }); });
-    void boApi.scopeCatalog().then((value) => { if (active) setCatalog({ paths: value.paths, classes: value.classes }); }).catch(() => undefined);
+    void boApi.scopeCatalog().then((value) => { if (active) setCatalog({ state: "ready", data: { paths: value.paths, classes: value.classes } }); }).catch((error: unknown) => { if (active) setCatalog({ state: "error", message: message(error) }); });
     return () => { active = false; };
   }, []);
   useEffect(() => { if (selectedId) void loadDetail(selectedId); }, [selectedId]);
@@ -91,6 +91,8 @@ export function BoLearnersView() {
 
   if (directory.state === "loading" && !selectedId) return <State text="Đang tải danh sách học viên…" />;
   if (directory.state === "error") return <State text={directory.message} error />;
+  if (catalog.state === "loading") return <State text="Đang tải scope catalog…" />;
+  if (catalog.state === "error") return <State text={catalog.message} error />;
 
   return <main className={styles.page}>
     <header className={styles.heading}>
@@ -125,7 +127,7 @@ export function BoLearnersView() {
       </aside>
 
       <section className={styles.detail}>
-        {selectedId ? <LearnerDetail load={detail} catalog={catalog} /> : <State text="Chọn học viên để mở hồ sơ." />}
+        {selectedId ? <LearnerDetail load={detail} catalog={catalog.data} /> : <State text="Chọn học viên để mở hồ sơ." />}
       </section>
     </section>
 

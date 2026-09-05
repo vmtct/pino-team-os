@@ -81,6 +81,14 @@ test("join host is bounded to the employee registration surface", () => {
   for (const pathname of ["/", "/bo", "/bo/staff", "/api/bo/workforce/staff-registration-requests", "/staff-login"]) assert.deepEqual(decideHostBoundary(STAFF_REGISTRATION_HOSTNAME, pathname), { action: "not_found" }, pathname);
 });
 
+test("staff registration paths are denied outside join while local and preview development remain usable", () => {
+  for (const host of [TOS_HOSTNAME, BO_HOSTNAME, RETIRED_TEAM_HOSTNAME, "www.pinohouse.art"]) {
+    for (const pathname of ["/staff/register", "/api/staff-registration"]) assert.deepEqual(decideHostBoundary(host, pathname), { action: "not_found" }, `${host}${pathname}`);
+  }
+  assert.deepEqual(decideHostBoundary("localhost:3000", "/staff/register"), { action: "next" });
+  assert.deepEqual(decideHostBoundary("preview.example.workers.dev", "/api/staff-registration"), { action: "next" });
+});
+
 test("local and preview hosts retain existing development behavior", () => {
   assert.deepEqual(decideHostBoundary("localhost:3000", "/dashboard"), { action: "next" });
   assert.deepEqual(decideHostBoundary("preview.example.workers.dev", "/bo"), { action: "next" });
