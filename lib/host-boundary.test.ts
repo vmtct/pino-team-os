@@ -45,7 +45,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/workforce/staff-records", "/api/bo/workforce/staff-onboarding", "/api/bo/workforce/staff-registration-settings", "/api/bo/workforce/staff-registration-requests", `/api/bo/workforce/staff-registration-requests/${roleId}/approve`, `/api/bo/workforce/staff-registration-requests/${roleId}/reject`, "/api/bo/workforce/training/catalog", "/api/bo/workforce/training/modules", `/api/bo/workforce/training/modules/${roleId}/next-draft`, `/api/bo/workforce/training/modules/${roleId}/retire`, `/api/bo/workforce/training/assignments/${roleId}/signoff`, `/api/bo/workforce/training/qualifications/${roleId}/revoke`, "/api/bo/workforce/planning/weekly", "/api/bo/workforce/planning/assignment", "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments", "/api/bo/access/assignments/remove", "/api/bo/access/users/status", "/api/bo/access/perimeter-reconcile",
     `/api/bo/workforce/staff-records/${roleId}`, `/api/bo/workforce/staff-records/${roleId}/status`,
-    "/staff-pin/change", "/api/staff-pin/status", "/api/staff-pin/change", `/api/bo/sessions/${roleId}/registrations`,
+    "/staff-pin/change", "/api/staff-pin/status", "/api/staff-pin/change", `/api/bo/sessions/${roleId}/registrations`, `/api/bo/delivery/sessions/${roleId}/syllabus-binding`,
     "/_next/static/app.js", "/favicon.ico",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "next" }, pathname);
@@ -60,7 +60,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/web-cms/manifests/sync", "/api/bo/web-cms/slots/not-a-canonical-id", `/api/bo/web-cms/slots/${roleId}/retire`, `/api/bo/web-cms/slots/${roleId}/draft/extra`,
     "/api/bo/access/permissions/export", "/api/bo/access/audit/export", `/api/bo/access/roles/${roleId}/delete`,
     "/api/bo/delivery/learning-spaces/anything", "/api/bo/delivery/enrollment-activation/anything", `/api/bo/practice/resources/${roleId}/draft`, `/api/bo/practice/resources/${roleId}/publish`, `/api/bo/practice/versions/${roleId}/delete`,
-    "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
+    "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish", "/api/bo/delivery/sessions/not-a-canonical-id/syllabus-binding", `/api/bo/delivery/sessions/${roleId}/syllabus-binding/extra`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/open_studio/unknown.v1/stream",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
     "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/training/delete-all", "/api/bo/workforce/training/modules/not-a-canonical-id/retire", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything",

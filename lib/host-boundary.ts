@@ -116,6 +116,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(?:approve|reject)$/.test(normalized)
     || /^\/api\/bo\/workforce\/training\/(?:catalog|modules|assignments|staff\/[0-9a-f-]{36}|versions\/[0-9a-f-]{36}\/(?:draft|publish)|modules\/[0-9a-f-]{36}\/(?:next-draft|retire)|assignments\/[0-9a-f-]{36}\/signoff|qualifications\/[0-9a-f-]{36}\/revoke)$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
+    || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
