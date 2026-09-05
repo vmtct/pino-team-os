@@ -5,7 +5,7 @@ import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-charact
 import type { WardSession } from "@/lib/pinoria-ward-session";
 import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
-import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "./house-event-sequence";
+import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
@@ -122,10 +122,7 @@ export function ReceptionTv() {
         const snapshotJson = await snapshotResponse.json() as { data?: HouseSnapshot };
         if (!snapshotResponse.ok || !snapshotJson.data) throw new Error("offline");
         if (generation !== houseGeneration.current) return;
-        const advanced = advanceHouseSnapshotCursor(snapshotJson.data.cursor, cursor.current, presentedSequence.current);
-        if (advanced.applySnapshot) {
-          cursor.current = advanced.cursor;
-          presentedSequence.current = advanced.presentedSequence;
+        if (houseRefreshSnapshotIsCurrent(snapshotJson.data.cursor, cursor.current, presentedSequence.current)) {
           const snapshotLearners = snapshotJson.data.learners;
           const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
           setInside(snapshotLearners);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence";
+import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence";
 
 type Event = { sequence: number; type: "ARRIVAL" | "DEPARTURE"; learner: string };
 
@@ -37,6 +37,14 @@ test("new events are ordered by canonical sequence", () => {
 
 test("invalid sequence fails closed", () => {
   assert.throws(() => selectUnseenHouseEvents([{ ...arrival, sequence: 0 }], 0), /INVALID_HOUSE_EVENT_SEQUENCE/);
+});
+
+test("periodic refresh snapshot never consumes unseen ordered events", () => {
+  assert.equal(houseRefreshSnapshotIsCurrent(12, 10, 10), true);
+  const unseen = selectUnseenHouseEvents([arrival, departure], 10, 12);
+  assert.equal(unseen.hasGap, false);
+  assert.deepEqual(unseen.events.map((event) => event.sequence), [11, 12]);
+  assert.equal(houseRefreshSnapshotIsCurrent(9, 10, 10), false);
 });
 
 test("out-of-order reconnect snapshot cannot regress cursor or replay history", () => {
