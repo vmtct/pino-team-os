@@ -38,7 +38,7 @@ function sourceLabel(entry: RosterEntry) {
   return `Booking · ${source.basis}`;
 }
 
-export default function ClassroomView() {
+export default function ClassroomView({ initialSessionId = "" }: { initialSessionId?: string }) {
   const [context, setContext] = useState<WorkforceContext | null>(null);
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [centerId, setCenterId] = useState("");
@@ -106,7 +106,8 @@ export default function ClassroomView() {
     try {
       const result = await tosLearningApi.sessionsDay(nextCenter, nextDate);
       setSessions(result.data.sessions);
-      await loadSession(result.data.sessions[0]?.id ?? "", nextCenter);
+      const preferredSessionId = result.data.sessions.some((item) => item.id === initialSessionId) ? initialSessionId : result.data.sessions[0]?.id ?? "";
+      await loadSession(preferredSessionId, nextCenter);
     } catch (cause) {
       setError(apiMessage(cause)); setSessions([]); setRoster(null); setOptions(null); setOwner(null); setVisits({});
     } finally { setLoading(false); }
