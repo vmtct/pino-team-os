@@ -1,1 +1,7 @@
-import WorkforceWorkspace from"@/app/components/WorkforceWorkspace";export default function Page(){return <WorkforceWorkspace view="check-in"/>}
+import DutyAwareCheckInOut from "./DutyAwareCheckInOut";
+
+export const dynamic = "force-dynamic";
+
+export default function Page() {
+  return <DutyAwareCheckInOut />;
+}
