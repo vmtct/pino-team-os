@@ -4,6 +4,8 @@
   gap: 24px;
 }
 
+.page, .page > *, .panel, .panel > *, .panelHeading, .panelHeading > *, .ownerQueue, .ownerRow, .ownerRow > *, .ownerMeta, .ownerControls, .ownerControls > *, .field { min-width: 0; }
+
 .heading span,
 .status {
   color: #6655c7;
@@ -135,6 +137,7 @@
 
 @media (max-width: 1050px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
+  .panelHeading { flex-wrap: wrap; }
   .modeGrid, .formGrid, .ownerControls, .ownerBulkRow { grid-template-columns: 1fr; }
   .assignmentRow { grid-template-columns: 1fr; }
   .commandBar { align-items: stretch; flex-direction: column; }
