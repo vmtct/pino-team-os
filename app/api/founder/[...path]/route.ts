@@ -4,7 +4,7 @@ import { authenticateCloudflareAccess, TeamAuthError } from "@/lib/team-auth";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ path: string[] }> };
-type FounderEnv = { PINO_CORE: PinoCoreBinding; CF_ACCESS_TEAM_DOMAIN?:string; CF_ACCESS_AUDIENCE?:string; FOUNDER_EMAIL?:string };
+type FounderEnv = { PINO_CORE: PinoCoreBinding; CF_ACCESS_TEAM_DOMAIN?:string; CF_ACCESS_AUDIENCE?:string };
 
 async function handle(request: Request, context: Context): Promise<Response> {
   try {
@@ -29,7 +29,7 @@ async function handle(request: Request, context: Context): Promise<Response> {
     const passwordToken = cookie(request.headers, "pino_staff_password_session");
     const result = passwordToken
       ? await callFounderCoreWithStaffPassword(env.PINO_CORE, coreRequest, passwordToken)
-      : await callFounderCore(env.PINO_CORE, coreRequest, await founderActor(request, env));
+      : await callFounderCore(env.PINO_CORE, coreRequest, await founderIdentity(request, env));
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_UNAUTHORIZED", message: error.message } }, error.status);
@@ -38,11 +38,8 @@ async function handle(request: Request, context: Context): Promise<Response> {
   }
 }
 
-async function founderActor(request:Request, env:FounderEnv){
-  const identity=await authenticateCloudflareAccess(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_AUDIENCE});
-  const approved=(env.FOUNDER_EMAIL??"").split(",").map(value=>value.trim().toLowerCase()).filter(Boolean);
-  if(!approved.includes(identity.email)) throw new TeamAuthError(401,"Founder authentication is required");
-  return {actorType:"founder" as const,subject:identity.subject,email:identity.email};
+async function founderIdentity(request:Request, env:FounderEnv){
+  return authenticateCloudflareAccess(request.headers,{teamDomain:env.CF_ACCESS_TEAM_DOMAIN,audience:env.CF_ACCESS_AUDIENCE});
 }
 function cookie(headers:Headers,name:string){return headers.get("cookie")?.split(";").map(value=>value.trim()).find(value=>value.startsWith(`${name}=`))?.slice(name.length+1)??"";}
 

@@ -14,13 +14,14 @@ test("Founder facade calls only local-password Core binding", async () => {
   assert.equal(result.status, 200);
 });
 
-test("Founder compatibility path preserves the bounded legacy actor contract", async () => {
+test("Founder compatibility path forwards verified Cloudflare identity for canonical Core authorization", async () => {
   const {callFounderCore}=await import("./founder-core");
-  let subject="";
+  let identitySeen:unknown;
   const binding:PinoCoreBinding={
-    async execute(_request,actor){subject=actor.subject;return{status:200,body:{data:{}},requestId:"legacy-founder"};},
+    async execute(_request,identity){identitySeen=identity;return{status:200,body:{data:{}},requestId:"verified-founder"};},
     async executeWithStaffPassword(){throw new Error("unexpected password");},
   };
-  const result=await callFounderCore(binding,{method:"GET",path:"/running-classes"},{actorType:"founder",subject:"cf-founder",email:"founder@pino.invalid"});
-  assert.equal(result.status,200);assert.equal(subject,"cf-founder");
+  const identity={provider:"cloudflare_access" as const,subject:"cf-founder",email:"founder@pino.invalid",issuer:"https://team.pino.invalid",audience:["founder-aud"],expiresAt:2_000_000_000};
+  const result=await callFounderCore(binding,{method:"GET",path:"/running-classes"},identity);
+  assert.equal(result.status,200);assert.deepEqual(identitySeen,identity);
 });
