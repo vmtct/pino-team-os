@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell/TosShell";
 import { TOS_PINORIA_FOOTER } from "@/app/components/tos-shell/navigation";
 import { workforceApi } from "@/lib/workforce-api";
@@ -29,6 +29,7 @@ export function ArrivalDesk() {
   const [wardChoice, setWardChoice] = useState<WardChoiceState | null>(null);
   const [wardBusy, setWardBusy] = useState(false);
   const [wardError, setWardError] = useState("");
+  const wardConfirmCommand = useRef<{ candidateSetId: string; variantId: string; key: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -141,13 +142,19 @@ export function ArrivalDesk() {
     setWardBusy(true);
     setWardError("");
     try {
+      const currentCommand = wardConfirmCommand.current;
+      const commandKey = currentCommand?.candidateSetId === wardChoice.session.id && currentCommand.variantId === candidate.id
+        ? currentCommand.key
+        : crypto.randomUUID();
+      wardConfirmCommand.current = { candidateSetId: wardChoice.session.id, variantId: candidate.id, key: commandKey };
       const response = await fetch("/api/tos-learning/pinoria/wardrobe/session/select", {
         method: "POST",
-        headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+        headers: { "content-type": "application/json", "idempotency-key": commandKey },
         body: JSON.stringify({ candidateSetId: wardChoice.session.id, studentProfileId: wardChoice.studentProfileId, centerId, variantId: candidate.id }),
       });
       const json = await response.json() as WardSessionEnvelope<{ session: WardSession }>;
       if (!response.ok || !json.data) throw new Error(json.error?.message ?? "Không áp dụng được Ward choice");
+      wardConfirmCommand.current = null;
       setWardChoice((current) => current ? { ...current, session: json.data!.session } : current);
       await search(query);
     } catch (cause) {
