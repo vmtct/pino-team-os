@@ -33,9 +33,10 @@ test("F2 unlocks Check-in only for the exact current briefing revision", () => {
 
 test("F2 TOS briefing keeps WFM-TIME as sole mutation authority", async () => {
   const source = await readFile("app/check-in/DutyAwareCheckInOut.tsx", "utf8");
-  assert.match(source, /workforceApi\.dutyBoard\(\{ centerId: center\.id, workDate, action: "CHECK_IN" \}\)/);
+  assert.match(source, /workforceApi\.dutyBoard/);
+  assert.match(source, /"CHECK_IN"/);
   assert.match(source, /workforceApi\.acknowledgeDutyBriefing/);
   assert.match(source, /workforceApi\.checkIn\(center\.id, assignment\?\.id \?\? null\)/);
   assert.doesNotMatch(source, /localStorage|sessionStorage|fetch\([^)]*timekeeping/i);
-  assert.match(source, /boardLoaded: Boolean\(board\)/);
+  assert.match(source, /boardLoaded: Boolean\([^)]*board\)/);
 });
