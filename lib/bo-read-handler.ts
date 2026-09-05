@@ -1,13 +1,8 @@
-import type { JWTVerifyGetKey } from "jose";
-import { authenticateBo, BoAuthError } from "./bo-auth";
-import { callBoAccessCore, type BoAccessCoreBinding } from "./bo-core";
-import { stagingBoOpenStudioIdentity, type BoOpenStudioStagingAuthEnv } from "./bo-open-studio-staging-auth";
-import { stagingBoWorkforceIdentity, type BoWorkforceStagingAuthEnv } from "./bo-workforce-staging-auth";
+import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
+import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
 
-export interface BoReadEnv extends BoWorkforceStagingAuthEnv, BoOpenStudioStagingAuthEnv {
+export interface BoReadEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
-  CF_ACCESS_TEAM_DOMAIN: string;
-  CF_ACCESS_BO_AUD: string;
 }
 
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
@@ -17,29 +12,20 @@ export async function handleBoOperationalReadRequest(
   request: Request,
   env: BoReadEnv,
   path: string,
-  keyResolver?: JWTVerifyGetKey,
+  _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isOperationalReadPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
-    const stagingIdentity = isOpenStudioReadPath(path)
-      ? stagingBoOpenStudioIdentity(request, env)
-      : isPracticeReadPath(path) || isStaffRegistrationProtectedReadPath(path)
-        ? null
-        : stagingBoWorkforceIdentity(request, env);
-    const identity = stagingIdentity ?? await authenticateBo(
-      request.headers,
-      { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
-      keyResolver,
-    );
+    const passwordToken = staffPasswordSession(request);
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
     const corePath = readCorePath(path, url);
-    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readBody ? { body: readBody } : {}) }, identity);
+    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readBody ? { body: readBody } : {}) }, passwordToken);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
-    if (error instanceof BoAuthError) {
-      return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
+    if (error instanceof LocalStaffSessionError) {
+      return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
     }
     console.error("BO operational read facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);

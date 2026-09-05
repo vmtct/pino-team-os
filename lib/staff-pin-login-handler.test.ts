@@ -1,47 +1,48 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
 import { handleStaffPinLogin, type StaffPinLoginEnv } from "./staff-pin-login-handler";
 
-const domain = "team.cloudflareaccess.com";
-const audience = "tos-audience";
-
-async function authFixture(email = "staff@example.com") {
-  const { privateKey, publicKey } = await generateKeyPair("RS256");
-  const jwk = await exportJWK(publicKey); jwk.kid = "staff-pin";
-  const resolver = createLocalJWKSet({ keys: [jwk] });
-  const token = await new SignJWT({ email })
-    .setProtectedHeader({ alg: "RS256", kid: "staff-pin" })
-    .setIssuer(`https://${domain}`).setAudience(audience).setSubject("staff-subject")
-    .setIssuedAt().setExpirationTime("5m").sign(privateKey);
-  return { resolver, token };
+function env(onLogin?: StaffPinLoginEnv["PINO_STAFF_PIN_CORE"]["login"]): StaffPinLoginEnv {
+  return {
+    PINO_STAFF_PIN_CORE: {
+      login: onLogin ?? (async () => ({ status: 200, body: { data: { token: "opaque-session" } }, requestId: "pin-login" })),
+      statusWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "status" }),
+      configureWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "configure" }),
+      rotateWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "rotate" }),
+      logout: async () => ({ status: 204, body: null, requestId: "logout" }),
+    },
+  };
 }
 
-test("staff PIN login is bound to the verified Cloudflare email", async () => {
-  const auth = await authFixture("verified.staff@example.com");
-  let loginIdentifier = "";
-  const env: StaffPinLoginEnv = {
-    CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_TOS_AUD: audience,
-    PINO_STAFF_PIN_CORE: { login: async input => { loginIdentifier = input.loginIdentifier; return { status: 403, body: { error: {} }, requestId: "req-1" }; }, status: async () => ({ status: 200, body: { data: { state: "ACTIVE" } }, requestId: "status" }), rotate: async () => ({ status: 200, body: { data: { state: "ACTIVE" } }, requestId: "rotate" }), logout: async () => ({ status: 200, body: {}, requestId: "x" }) },
-  };  const request = new Request("https://tos.pinohouse.art/api/staff-pin/login", {
+test("shared-device PIN login uses caller-supplied normalized Staff email without external IdP", async () => {
+  let seen: { loginIdentifier: string; pin: string } | null = null;
+  const response = await handleStaffPinLogin(new Request("https://tos.pinohouse.art/api/staff-pin/login", {
     method: "POST",
-    headers: { "content-type": "application/json", "cf-access-jwt-assertion": auth.token },
-    body: JSON.stringify({ loginIdentifier: "other.staff@example.com", pin: "123456" }),
-  });
-  const response = await handleStaffPinLogin(request, env, auth.resolver);
-  assert.equal(response.status, 403);
-  assert.equal(loginIdentifier, "verified.staff@example.com");
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "  STAFF@PINO.INVALID ", pin: "123456" }),
+  }), env(async input => {
+    seen = input;
+    return { status: 200, body: { data: { token: "shared-device-token" } }, requestId: "req-greenfield" };
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(seen, { loginIdentifier: "staff@pino.invalid", pin: "123456" });
+  const cookie = response.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /pino_staff_session=shared-device-token/);
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /Secure/);
+  assert.doesNotMatch(cookie, /pino_staff_password_session/);
 });
 
-test("successful staff PIN login sets a protected session cookie", async () => {
-  const auth = await authFixture();
-  const env: StaffPinLoginEnv = {
-    CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_TOS_AUD: audience,
-    PINO_STAFF_PIN_CORE: { login: async () => ({ status: 200, body: { data: { token: "opaque-session" } }, requestId: "req-2" }), status: async () => ({ status: 200, body: { data: { state: "ACTIVE" } }, requestId: "status" }), rotate: async () => ({ status: 200, body: { data: { state: "ACTIVE" } }, requestId: "rotate" }), logout: async () => ({ status: 200, body: {}, requestId: "x" }) },
-  };
-  const request = new Request("https://tos.pinohouse.art/api/staff-pin/login", { method: "POST", headers: { "content-type": "application/json", "cf-access-jwt-assertion": auth.token }, body: JSON.stringify({ pin: "123456" }) });
-  const response = await handleStaffPinLogin(request, env, auth.resolver);
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("set-cookie") ?? "", /pino_staff_session=opaque-session/);
-  assert.match(response.headers.get("set-cookie") ?? "", /HttpOnly/);
+test("shared-device PIN login requires Staff email", async () => {
+  let called = false;
+  const response = await handleStaffPinLogin(new Request("https://tos.pinohouse.art/api/staff-pin/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ pin: "123456" }),
+  }), env(async () => {
+    called = true;
+    return { status: 200, body: {}, requestId: "unexpected" };
+  }));
+  assert.equal(response.status, 400);
+  assert.equal(called, false);
 });

@@ -18,7 +18,7 @@ test("BO facade uses only BO auth and PINO_BO_CORE", async () => {
     readFile("lib/bo-core.ts", "utf8"),
   ]).then((items) => items.join("\n"));
   assert.match(sources, /PINO_BO_CORE/);
-  assert.match(sources, /CF_ACCESS_BO_AUD/);
+  assert.doesNotMatch(sources, /CF_ACCESS_|cloudflare_access|cf-access-jwt-assertion/i);
   assert.doesNotMatch(sources, /FOUNDER_EMAIL/);
   assert.doesNotMatch(sources, /FounderControlPlane|PINO_WORKFORCE_CORE|targetStaffMemberId|userId=|staffMemberId=/);
 });
@@ -74,7 +74,7 @@ test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap"
   const apiSource = await readFile("lib/bo-api.ts", "utf8");
   const staffSources = await Promise.all([
     readFile("app/bo/staff/StaffManagementView.tsx", "utf8"),
-    readFile("app/bo/staff/StaffOnboardingView.tsx", "utf8"),
+    readFile("app/bo/staff/StaffRegistrationReviewQueue.tsx", "utf8"),
   ]).then((items) => items.join("\n"));
 
   assert.match(apiSource, /scopeCatalog:[\s\S]*delivery\/bootstrap-state/);

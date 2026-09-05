@@ -170,7 +170,7 @@ export function DeliveryActivationView() {
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><h2>Reviewed F3 seed</h2><p>Founder-approved production seed: 3 Learning Spaces, 28 topology-aware Running Classes, reviewed blocks for Fixed/Overlapping classes, CENTER materialization policy 14 days, then immediate bounded Session materialization.</p></div><span className={styles.writePill}>One-click governed write</span></div>
-        <p>This action is retry-safe and fail-safe: exact existing records are reused, mismatches stop the command, and all writes remain same-origin BO → verified Cloudflare Access identity → private Core.</p>
+        <p>This action is retry-safe and fail-safe: exact existing records are reused, mismatches stop the command, and all writes remain same-origin BO → verified local password session → private Core.</p>
         <button className={styles.primaryButton} type="button" disabled={!centerId || action.status === "running"} onClick={activateReviewedSeed}>Activate reviewed F3 seed · 14 days</button>
       </section>
 

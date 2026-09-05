@@ -1,5 +1,3 @@
-import type { VerifiedBoIdentity } from "./bo-auth";
-
 export interface BoAccessRequest {
   method: string;
   path: string;
@@ -19,13 +17,13 @@ export interface BoAccessResponse {
 }
 
 export interface BoAccessCoreBinding {
-  execute(request: BoAccessRequest, identity: VerifiedBoIdentity): Promise<BoAccessResponse>;
+  executeWithStaffPassword(request: BoAccessRequest, token: string): Promise<BoAccessResponse>;
 }
 
-export function callBoAccessCore(
+export function callBoAccessCoreWithStaffPassword(
   binding: BoAccessCoreBinding,
   request: BoAccessRequest,
-  identity: VerifiedBoIdentity,
+  token: string,
 ): Promise<BoAccessResponse> {
-  return binding.execute(request, identity);
+  return binding.executeWithStaffPassword(request, token);
 }

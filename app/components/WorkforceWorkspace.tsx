@@ -29,7 +29,7 @@ function weekDates(week: WorkforceContext["termWeeks"][number]) {
 function message(error: unknown) {
   if (error instanceof WorkforceApiError) {
     if (error.code.includes("POLICY") || error.status === 503) return "Chính sách vận hành hiện chưa sẵn sàng. Không có thao tác nào được cho phép mặc định.";
-    if (error.status === 401) return "Phiên Cloudflare Access không hợp lệ. Vui lòng đăng nhập lại.";
+    if (error.status === 401) return "Phiên đăng nhập local không hợp lệ. Vui lòng đăng nhập lại.";
     if (error.status === 403) return "Tài khoản chưa có quyền hoặc chưa liên kết với nhân sự đang hoạt động.";
     if (error.status === 409) return "Dữ liệu đã thay đổi. Vui lòng tải lại và thử lại.";
   }

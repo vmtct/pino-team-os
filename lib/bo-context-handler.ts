@@ -1,38 +1,37 @@
-import type { JWTVerifyGetKey } from "jose";
-import { authenticateBo, BoAuthError } from "./bo-auth";
-import { callBoAccessCore, type BoAccessCoreBinding } from "./bo-core";
-import { stagingBoWorkforceIdentity, type BoWorkforceStagingAuthEnv } from "./bo-workforce-staging-auth";
+import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 
-export interface BoContextEnv extends BoWorkforceStagingAuthEnv {
+export interface BoContextEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
-  CF_ACCESS_TEAM_DOMAIN: string;
-  CF_ACCESS_BO_AUD: string;
+  /** @deprecated greenfield runtime ignores external-IdP configuration. */
 }
 
 export async function handleBoContextRequest(
   request: Request,
   env: BoContextEnv,
-  keyResolver?: JWTVerifyGetKey,
+  _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    const identity = stagingBoWorkforceIdentity(request, env) ?? await authenticateBo(
-      request.headers,
-      { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_BO_AUD },
-      keyResolver,
+    const passwordToken = requiredSession(request);
+    const result = await callBoAccessCoreWithStaffPassword(
+      env.PINO_BO_CORE,
+      { method: "GET", path: "context" },
+      passwordToken,
     );
-    const result = await callBoAccessCore(env.PINO_BO_CORE, { method: "GET", path: "context" }, identity);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
-    if (error instanceof BoAuthError) {
-      return json(
-        { error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } },
-        error.status,
-      );
-    }
+    if (error instanceof LocalSessionError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
     console.error("BO context facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
+}
+class LocalSessionError extends Error {}
+
+function requiredSession(request: Request): string {
+  const token = request.headers.get("cookie")?.split(";").map(v => v.trim())
+    .find(v => v.startsWith("pino_staff_password_session="))?.slice("pino_staff_password_session=".length) ?? "";
+  if (!token) throw new LocalSessionError("Staff password session is required");
+  return token;
 }
 
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {

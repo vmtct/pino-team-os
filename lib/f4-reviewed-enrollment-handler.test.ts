@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 import type { F3BootstrapState, F3RunningClass } from "./f3-delivery-api";
 import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_CENTER_ID, REVIEWED_ENROLLMENT_EFFECTIVE_FROM } from "./f4-reviewed-enrollment-handler";
@@ -21,21 +20,12 @@ const spaceIds: Record<string, string> = {
   artchitect: "00000000-0000-7000-8000-000000000022",
   pianohouse: "00000000-0000-7000-8000-000000000023",
 };
-async function authFixture() {
-  const { privateKey, publicKey } = await generateKeyPair("RS256");
-  const jwk = await exportJWK(publicKey); jwk.kid = "f4-enrollment";
-  const resolver = createLocalJWKSet({ keys: [jwk] });
-  const token = await new SignJWT({ email: "founder@example.com" })
-    .setProtectedHeader({ alg: "RS256", kid: "f4-enrollment" })
-    .setIssuer(`https://${domain}`).setAudience(audience).setSubject("founder-subject")
-    .setIssuedAt().setExpirationTime("5m").sign(privateKey);
-  return { resolver, token };
-}
+async function authFixture() { return { resolver: undefined, token: "local-session-token" }; }
 
 function request(token: string) {
   return new Request("https://bo.pinohouse.art/api/bo/delivery/enrollment-activation", {
     method: "POST",
-    headers: { "cf-access-jwt-assertion": token, "content-type": "application/json", "idempotency-key": "reviewed-v1" },
+    headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "reviewed-v1" },
     body: JSON.stringify({ centerId }),
   });
 }
@@ -94,7 +84,7 @@ function fakeCore(coreState: F3BootstrapState, initialFutureDays?: number) {
   let calls = 0;
   let policy: { stream: { revision: number }; versions: Array<{ id: string; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: { maxDaysAhead: number } }> } | null = initialFutureDays === undefined ? null : { stream: { revision: 2 }, versions: [{ id: "00000000-0000-7000-a001-000000000001", storedState: "PUBLISHED", effectiveFrom: "2026-08-27T14:00:00.000Z", effectiveUntil: null, value: { maxDaysAhead: initialFutureDays } }] };
   const binding: BoAccessCoreBinding = {
-    async execute(request: BoAccessRequest) {
+    async executeWithStaffPassword(request: BoAccessRequest) {
       calls += 1;
       if (request.method === "GET" && request.path === "policies/delivery/future_reservation.v1/stream") return ok(policy);
       if (request.method === "POST" && request.path === "policies/delivery/future_reservation.v1/versions") {
@@ -179,7 +169,7 @@ function ok(data: unknown, status = 200) {
 test("reviewed Enrollment activation places 62 deterministic seats and is retry-safe", async () => {
   const auth = await authFixture();
   const core = fakeCore(state());
-  const env = { PINO_BO_CORE: core.binding, CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_BO_AUD: audience };
+  const env = { PINO_BO_CORE: core.binding };
 
   const first = await handleReviewedEnrollmentActivation(request(auth.token), env, auth.resolver);
   assert.equal(first.status, 200);
@@ -206,7 +196,7 @@ test("reviewed Enrollment activation places 62 deterministic seats and is retry-
 test("reviewed Enrollment activation rejects a conflicting active future-reservation policy before Enrollment writes", async () => {
   const auth = await authFixture();
   const core = fakeCore(state(), 14);
-  const env = { PINO_BO_CORE: core.binding, CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_BO_AUD: audience };
+  const env = { PINO_BO_CORE: core.binding };
   const response = await handleReviewedEnrollmentActivation(request(auth.token), env, auth.resolver);
   assert.equal(response.status, 409);
   assert.equal(core.created(), 0);
@@ -216,9 +206,9 @@ test("reviewed Enrollment activation rejects a conflicting active future-reserva
 test("reviewed Enrollment activation requires authenticated BO identity and idempotency", async () => {
   const auth = await authFixture();
   const core = fakeCore(state());
-  const env = { PINO_BO_CORE: core.binding, CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_BO_AUD: audience };
+  const env = { PINO_BO_CORE: core.binding };
   const unauthenticated = new Request("https://bo.pinohouse.art/api/bo/delivery/enrollment-activation", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "reviewed-v1" }, body: JSON.stringify({ centerId }) });
-  const missingKey = new Request("https://bo.pinohouse.art/api/bo/delivery/enrollment-activation", { method: "POST", headers: { "cf-access-jwt-assertion": auth.token, "content-type": "application/json" }, body: JSON.stringify({ centerId }) });
+  const missingKey = new Request("https://bo.pinohouse.art/api/bo/delivery/enrollment-activation", { method: "POST", headers: { cookie: `pino_staff_password_session=${auth.token}`, "content-type": "application/json" }, body: JSON.stringify({ centerId }) });
   assert.equal((await handleReviewedEnrollmentActivation(unauthenticated, env, auth.resolver)).status, 401);
   assert.equal((await handleReviewedEnrollmentActivation(missingKey, env, auth.resolver)).status, 400);
   assert.equal(core.created(), 0);
@@ -227,10 +217,10 @@ test("reviewed Enrollment activation requires authenticated BO identity and idem
 test("reviewed Enrollment activation is locked to the canonical PINO House Center", async () => {
   const auth = await authFixture();
   const core = fakeCore(state());
-  const env = { PINO_BO_CORE: core.binding, CF_ACCESS_TEAM_DOMAIN: domain, CF_ACCESS_BO_AUD: audience };
+  const env = { PINO_BO_CORE: core.binding };
   const wrongCenter = new Request("https://bo.pinohouse.art/api/bo/delivery/enrollment-activation", {
     method: "POST",
-    headers: { "cf-access-jwt-assertion": auth.token, "content-type": "application/json", "idempotency-key": "reviewed-v1" },
+    headers: { cookie: `pino_staff_password_session=${auth.token}`, "content-type": "application/json", "idempotency-key": "reviewed-v1" },
     body: JSON.stringify({ centerId: "00000000-0000-7000-8000-000000000099" }),
   });
   const response = await handleReviewedEnrollmentActivation(wrongCenter, env, auth.resolver);
