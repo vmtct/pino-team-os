@@ -10,6 +10,7 @@ const STAFF_REGISTRATION_SETTINGS_PATH = "workforce/staff-registration-settings"
 const STAFF_REGISTRATION_REVIEW_PATH = /^workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(approve|reject)$/;
 const LEARNING_SYLLABUS_CREATE = "learning/syllabi";
 const LEARNING_SYLLABUS_COMMAND = /^learning\/syllabi\/[0-9a-f-]{36}\/(draft|publish|next-draft|archive)$/;
+const LEARNING_SYLLABUS_PROFILE = /^learning\/syllabi\/versions\/[0-9a-f-]{36}\/(artchitect-profile|pianohouse-profile|little-piner-profile)$/;
 const ACCESS_ROLE_PATH = "access/roles";
 const ACCESS_ROLE_DUPLICATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/duplicate$/;
 const ACCESS_ROLE_UPDATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/update$/;
@@ -117,7 +118,8 @@ export function isPracticeWritePath(path: string): boolean {
 }
 
 export function isLearningSyllabusPostPath(path: string): boolean {
-  return path === LEARNING_SYLLABUS_CREATE || LEARNING_SYLLABUS_COMMAND.test(path);
+  return path === LEARNING_SYLLABUS_CREATE || LEARNING_SYLLABUS_COMMAND.test(path)
+    || LEARNING_SYLLABUS_PROFILE.test(path);
 }
 
 export function isOpenStudioPostPath(path: string): boolean {

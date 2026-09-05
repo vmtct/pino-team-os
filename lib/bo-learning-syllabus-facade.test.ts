@@ -18,6 +18,9 @@ test("Learning Syllabus reads forward governed paths through local password sess
     ["learning/syllabi/owners", "learning/syllabi/owners"],
     [`learning/syllabi?ownerType=HOUSE_PATH&ownerId=${id}&userId=forged`, `learning/syllabi?ownerType=HOUSE_PATH&ownerId=${id}`],
     [`learning/syllabi/${id}`, `learning/syllabi/${id}`],
+    [`learning/syllabi/versions/${id}/artchitect-profile`, `learning/syllabi/versions/${id}/artchitect-profile`],
+    [`learning/syllabi/versions/${id}/pianohouse-profile`, `learning/syllabi/versions/${id}/pianohouse-profile`],
+    [`learning/syllabi/versions/${id}/little-piner-profile`, `learning/syllabi/versions/${id}/little-piner-profile`],
   ] as const;
   for (const [browserPath, corePath] of cases) {
     const path = browserPath.split("?")[0]!;
@@ -41,6 +44,9 @@ test("Learning Syllabus writes require replay evidence and use local password Co
     [`learning/syllabi/${id}/publish`, { expectedRevision: 2 }],
     [`learning/syllabi/${id}/next-draft`, {}],
     [`learning/syllabi/${id}/archive`, { expectedRevision: 1, reason: "Retired" }],
+    [`learning/syllabi/versions/${id}/artchitect-profile`, { richContent: { type: "doc", content: [{ type: "paragraph" }] }, worksheetMediaIds: [id], toolTags: ["Brush"], expectedRevision: null }],
+    [`learning/syllabi/versions/${id}/pianohouse-profile`, { practiceResourceId: id, practiceResourceVersionId: id, practicePageId: id, expectedRevision: null }],
+    [`learning/syllabi/versions/${id}/little-piner-profile`, { richContent: { type: "doc", content: [{ type: "paragraph" }] }, worksheetMediaIds: [id], toolTags: ["Paper"], practiceResourceId: id, practiceResourceVersionId: id, practicePageId: id, expectedRevision: null }],
   ] as const;
   for (const [path, body] of cases) {
     const response = await handleBoWriteRequest(new Request(`https://bo.pinohouse.art/api/bo/${path}`, {

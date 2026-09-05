@@ -39,14 +39,20 @@ export interface BoSyllabus {
   publicationStatus: string;
 }
 
-export type BoLearningSyllabusOwnerType = "HOUSE_PATH" | "TOPPI_PROGRAM";
+export type BoLearningSyllabusOwnerType = "HOUSE_PATH" | "HOUSE_CURRICULUM" | "TOPPI_PROGRAM";
 export interface BoLearningSyllabusOwner { type: BoLearningSyllabusOwnerType; id: string }
 export interface BoLearningSyllabus { id:string; owner:BoLearningSyllabusOwner; code:string; lifecycle:"ACTIVE"|"ARCHIVED"; revision:number; createdByUserId:string; createdAt:string; archivedByUserId:string|null; archivedAt:string|null; archiveReason:string|null }
 export interface BoLearningSyllabusVersion { id:string; syllabusId:string; versionNumber:number; state:"DRAFT"|"PUBLISHED"; title:string; shortDescription:string|null; publicDescription:string|null; tags:string[]; thumbnailMediaId:string|null; coverMediaId:string|null; sourceType:string|null; sourceRef:string|null; provenance:Record<string,unknown>|null; revision:number; createdByUserId:string; createdAt:string; updatedAt:string; publishedByUserId:string|null; publishedAt:string|null }
 export interface BoLearningSyllabusSummary { syllabus:BoLearningSyllabus; currentDraftVersionNumber:number|null; latestPublishedVersionNumber:number|null; latestPublishedTitle:string|null }
 export interface BoLearningSyllabusDetail { syllabus:BoLearningSyllabus; versions:BoLearningSyllabusVersion[]; currentDraft:BoLearningSyllabusVersion|null; latestPublished:BoLearningSyllabusVersion|null }
-export interface BoLearningSyllabusOwnerCatalog { housePaths:Array<{id:string;code:string;displayName:string;status:string}>; toppiPrograms:Array<{id:string;code:string}> }
+export interface BoLearningSyllabusOwnerCatalog { housePaths:Array<{id:string;code:string;displayName:string;status:string}>; houseCurricula:Array<{id:string;code:string;lifecycle:string}>; toppiPrograms:Array<{id:string;code:string}> }
 export interface BoLearningSyllabusDraftInput { title:string; shortDescription?:string|null; publicDescription?:string|null; tags?:string[]; thumbnailMediaId?:string|null; coverMediaId?:string|null; sourceType?:string|null; sourceRef?:string|null; provenance?:Record<string,unknown>|null }
+
+export type BoLearningSyllabusProfileKind = "ARTCHITECT" | "PIANOHOUSE" | "LITTLE_PINER";
+export interface BoSyllabusRichContent { type:"doc"; content:Array<Record<string,unknown>> }
+export interface BoArtSyllabusProfile { syllabusVersionId:string; richContent:BoSyllabusRichContent; toolTags:string[]; worksheetMediaIds:string[]; revision:number; updatedAt:string }
+export interface BoPianoSyllabusProfile { syllabusVersionId:string; practiceResourceId:string; practiceResourceVersionId:string; practicePageId:string; revision:number; updatedAt:string }
+export interface BoLittlePinerSyllabusProfile extends BoArtSyllabusProfile { practiceResourceId:string; practiceResourceVersionId:string; practicePageId:string }
 
 export interface BoSession {
   id: string;
