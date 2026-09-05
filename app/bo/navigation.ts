@@ -63,6 +63,7 @@ export const boNavigation: BoNavGroup[] = [
         children: [
           { href: "/bo/pinoria-ward", label: "Catalog" },
           { href: "/bo/pinoria-ward/sets", label: "Sets" },
+          { href: "/bo/pinoria-ward/learners", label: "Loadouts" },
         ],
       },
     ],
