@@ -1,0 +1,37 @@
+.page { display: grid; gap: 16px; padding-bottom: 28px; }
+.loading, .empty { padding: 20px; border: 1px dashed #d8ddd9; border-radius: 18px; color: #68716b; background: #fafcfb; }
+.error { padding: 13px 15px; border: 1px solid #edb4ac; border-radius: 16px; color: #8d3024; background: #fff0ee; }
+.shiftCard, .briefingCard, .actionCard { padding: 18px; border: 1px solid #dce5df; border-radius: 22px; background: #fff; }
+.shiftCard { background: linear-gradient(180deg, #f5fbf7 0%, #fff 100%); }
+.shiftCard > span, .sectionHeader span, .actionCard span { color: #337054; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
+.shiftCard h1 { margin: 6px 0 4px; font-size: 25px; letter-spacing: -.04em; }
+.shiftCard p { margin: 0; color: #52625a; }
+.shiftCard small { display: block; margin-top: 8px; color: #7a867f; }
+.sectionHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sectionHeader h2 { margin: 5px 0 0; font-size: 21px; letter-spacing: -.03em; }
+.done, .pending { padding: 6px 8px; border-radius: 999px; font-size: 10px; }
+.done { color: #236742; background: #e8f5ed; }
+.pending { color: #8c5c00; background: #fff0cf; }
+.briefingList { display: grid; gap: 9px; margin-top: 15px; }
+.briefingItem { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 12px; border-radius: 15px; background: #f8faf8; border: 1px solid #edf1ee; }
+.briefingItem div { display: grid; gap: 3px; }
+.briefingItem small { color: #849087; font-size: 10px; }
+.briefingItem > span { align-self: center; font-weight: 800; }
+.briefingItem em { grid-column: 1 / -1; width: max-content; color: #6b756e; font-size: 10px; font-style: normal; }
+.revision { margin-top: 12px; color: #7f8882; font-size: 11px; }
+.revision code { font-family: inherit; font-weight: 800; }
+.ackButton, .checkInButton, .checkoutButton { width: 100%; margin-top: 14px; border: 0; border-radius: 15px; padding: 13px 15px; font-weight: 850; }
+.ackButton { color: #fff; background: #446f59; }
+.checkInButton { color: #fff; background: #2f7654; }
+.checkoutButton { color: #fff; background: #3f6652; }
+.ackButton:disabled, .checkInButton:disabled, .checkoutButton:disabled { opacity: .48; }
+.actionCard { display: grid; gap: 8px; }
+.actionCard > div { display: grid; gap: 4px; }
+.actionCard strong { font-size: 17px; }
+.actionCard p { margin: 0; color: #7b847e; font-size: 11px; line-height: 1.5; }
+@media (max-width: 460px) {
+  .shiftCard, .briefingCard, .actionCard { padding: 16px; }
+  .shiftCard h1 { font-size: 23px; }
+  .briefingItem { grid-template-columns: 1fr; }
+  .briefingItem > span { justify-self: start; }
+}
