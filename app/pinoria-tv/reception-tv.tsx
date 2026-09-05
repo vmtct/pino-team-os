@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
+import type { WardSession } from "@/lib/pinoria-ward-session";
+import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "./house-event-sequence";
 import { claimPresentation, completePresentation } from "./presentation-client";
@@ -16,6 +18,7 @@ type Presence = {
   displayName: string;
   visit: { id: string; checkedInAt: string; version: number };
   character: { id: string; config: PinoriaCharacterConfig };
+  wardSession?: WardSession;
 };
 type HouseSnapshot = { cursor: number; learners: Presence[] };
 type HouseEvent = {
@@ -296,6 +299,7 @@ export function ReceptionTv() {
     setCenterId("");
   }
   const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, visitId: learner.visit.id, name: learner.displayName, config: learner.character.config })), [inside]);
+  const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((learner) => learner.wardSession?.status === "OPEN") ?? newest.find((learner) => learner.wardSession) ?? null; }, [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
       <div>
@@ -365,6 +369,7 @@ export function ReceptionTv() {
     {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
     {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
     {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={presentation.projection} /> : null}
+    {!scene && !presentation && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
 
     <footer>
       <span>{new Date().toLocaleDateString("vi-VN", {
