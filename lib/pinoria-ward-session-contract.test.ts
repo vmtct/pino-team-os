@@ -13,6 +13,11 @@ test("F3 TOS opens or resumes the visit-bound Ward session and confirms through 
   assert.match(arrival, /pinoria\/wardrobe\/session\/open/);
   assert.match(arrival, /pinoria\/wardrobe\/session\/select/);
   assert.match(arrival, /idempotency-key/);
+  assert.match(arrival, /wardConfirmCommand/);
+  assert.match(arrival, /currentCommand\?\.candidateSetId === wardChoice\.session\.id/);
+  assert.match(arrival, /currentCommand\.variantId === candidate\.id/);
+  assert.match(arrival, /"idempotency-key": commandKey/);
+  assert.match(arrival, /wardConfirmCommand\.current = null/);
   assert.match(arrival, /openWardChoice\(learner, true\)/);
   assert.match(arrival, /Check-in đã thành công\. Ward choice chưa mở được/);
   assert.match(arrival, /resumeWard/);
