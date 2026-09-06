@@ -22,6 +22,7 @@ const STAFF_PIN_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/;
 const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const TIMEKEEPING_CORRECTION_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/corrections$/;
+const TIMEKEEPING_MISSED_CHECKOUT_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/resolve-missed-checkout$/;
 const DELIVERY_POST_PATHS = new Set([
   "delivery/learning-spaces",
   "delivery/running-classes",
@@ -71,7 +72,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -153,6 +154,7 @@ export function isAllowedPostPath(path: string): boolean {
     || STAFF_RECORD_PATH.test(path)
     || STAFF_STATUS_PATH.test(path)
     || TIMEKEEPING_CORRECTION_PATH.test(path)
+    || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)
     || DELIVERY_POST_PATHS.has(path)
     || MATERIALIZATION_PUBLISH.test(path)
     || LEARNING_OWNER_PATH.test(path)
