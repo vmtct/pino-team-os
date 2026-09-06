@@ -133,6 +133,9 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   const [correctionType, setCorrectionType] = useState<"CHECK_IN_AT" | "CHECK_OUT_AT">("CHECK_IN_AT");
   const [correctedAt, setCorrectedAt] = useState(row.effective.checkInAt);
   const [reason, setReason] = useState("");
+  const [resolving, setResolving] = useState(false);
+  const [resolvedCheckOutAt, setResolvedCheckOutAt] = useState("");
+  const [resolveReason, setResolveReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const correctionAttempt = useRef<{ signature: string; key: string } | null>(null);
@@ -142,6 +145,9 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
     setCorrectionType("CHECK_IN_AT");
     setCorrectedAt(row.effective.checkInAt);
     setReason("");
+    setResolving(false);
+    setResolvedCheckOutAt("");
+    setResolveReason("");
     setNotice("");
     correctionAttempt.current = null;
   }, [row.id]);
@@ -149,6 +155,22 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   function changeType(next: "CHECK_IN_AT" | "CHECK_OUT_AT") {
     setCorrectionType(next);
     setCorrectedAt(next === "CHECK_IN_AT" ? row.effective.checkInAt : (row.effective.checkOutAt ?? ""));
+  }
+
+  async function resolveMissingCheckout() {
+    if (!resolveReason.trim() || !resolvedCheckOutAt) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      await boApi.resolveMissedCheckout(row.id, { checkOutAt: resolvedCheckOutAt, reason: resolveReason.trim() }, crypto.randomUUID());
+      await onSaved();
+      setResolving(false);
+      setNotice("Missing checkout resolved. Core was refetched before this status changed.");
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function save() {
@@ -228,7 +250,16 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
         <button className={styles.saveCorrection} disabled={busy || !reason.trim() || !correctedAt} onClick={() => void save()}>{busy ? "Saving…" : "Save correction"}</button>
       </div>}
       {notice ? <p className={styles.correctionNotice}>{notice}</p> : null}
-    </section> : <p className={styles.readOnlyNote}>OPEN session correction is not available here. Missing checkout is owned by the bounded F4 flow.</p>}
+    </section> : <section className={styles.correctionSection}>
+      {!resolving ? <button className={styles.correctButton} onClick={() => setResolving(true)}>Resolve missing checkout</button> : <div className={styles.correctionForm}>
+        <div className={styles.correctionHeading}><div><strong>Resolve missing checkout</strong><span>Closes this exact OPEN session in Core. Enter the actual checkout time; PINO will not infer it.</span></div><button onClick={() => setResolving(false)}>Cancel</button></div>
+        <div className={styles.resultPreview}><span>Recorded check-in</span><strong>{datetime(row.recorded.checkInAt, timeZone)}</strong></div>
+        <label>Actual checkout timestamp (UTC ISO)<input value={resolvedCheckOutAt} onChange={(event) => setResolvedCheckOutAt(event.target.value)} placeholder="2026-09-06T04:30:00.000Z" /></label>
+        <label>Reason<textarea value={resolveReason} onChange={(event) => setResolveReason(event.target.value)} rows={3} placeholder="How was the actual checkout time confirmed?" /></label>
+        <button className={styles.saveCorrection} disabled={busy || !resolveReason.trim() || !resolvedCheckOutAt} onClick={() => void resolveMissingCheckout()}>{busy ? "Resolving…" : "Resolve checkout"}</button>
+      </div>}
+      {notice ? <p className={styles.correctionNotice}>{notice}</p> : null}
+    </section>}
   </>;
 }
 

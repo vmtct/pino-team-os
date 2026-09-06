@@ -18,9 +18,10 @@ test("WFM-TIME-BO F3 clearly separates Recorded and Corrected and refetches afte
   assert.match(view, /await boApi\.correctTimekeeping\(row\.id, command, idempotencyKey\)/);
   assert.ok(view.indexOf("correctionAttempt.current = null", view.indexOf("await onSaved()")) > view.indexOf("await onSaved()"));
   assert.ok(view.indexOf("await boApi.correctTimekeeping") < view.indexOf("await onSaved()"));
+
   assert.doesNotMatch(view, /setLoad\([^\n]*effective|setSelected[^\n]*correct/i);
   assert.match(view, /row\.status === "CLOSED"/);
-  assert.match(view, /Missing checkout is owned by the bounded F4 flow/);
+  assert.match(view, /row\.status === "CLOSED"/);
   assert.match(api, /correctTimekeeping:[\s\S]*workforce\/timekeeping\/\$\{encodeURIComponent\(sessionId\)\}\/corrections/);
   assert.match(write, /TIMEKEEPING_CORRECTION_PATH/);
   assert.match(model, /recorded:[\s\S]*effective:[\s\S]*latestCorrection/);
