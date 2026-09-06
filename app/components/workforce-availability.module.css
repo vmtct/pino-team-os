@@ -1,0 +1,151 @@
+.wrap {
+  display: grid;
+  gap: 14px;
+}
+.summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.summary h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.summary p {
+  margin: 5px 0 0;
+  color: #77736f;
+  font-size: 12px;
+}
+.status {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f0ede8;
+  color: #69615a;
+  font-size: 10px;
+  font-weight: 850;
+}
+.draft {
+  background: #fff3dc;
+  color: #805b18;
+}
+.submitted {
+  background: #e7f2ea;
+  color: #37634a;
+}
+.days {
+  display: grid;
+  gap: 10px;
+}
+.day {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.date {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+.date strong {
+  font-size: 20px;
+  line-height: 1;
+}
+.date span {
+  font-size: 10px;
+  color: #7d766f;
+  text-transform: capitalize;
+}
+.shifts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.shift {
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid #ddd7cf;
+  border-radius: 11px;
+  background: #faf8f5;
+  color: #514b46;
+  text-align: left;
+  cursor: pointer;
+}
+.shift strong,
+.shift span {
+  display: block;
+}
+.shift strong {
+  font-size: 11px;
+}
+.shift span {
+  margin-top: 2px;
+  font-size: 9px;
+  color: #7d766f;
+}
+.selected {
+  border-color: #55715f;
+  background: #edf5ef;
+  color: #31543f;
+}
+.selected span {
+  color: #55715f;
+}
+.shift:disabled {
+  cursor: default;
+  opacity: 0.78;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+.actions p {
+  margin: 0;
+  color: #77736f;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.submit {
+  min-width: 150px;
+}
+.empty {
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  color: #77736f;
+  font-size: 12px;
+  text-align: center;
+}
+@media (max-width: 560px) {
+  .summary {
+    align-items: center;
+  }
+  .day {
+    grid-template-columns: 62px minmax(0, 1fr);
+    padding: 10px;
+  }
+  .date strong {
+    font-size: 18px;
+  }
+  .shifts {
+    display: grid;
+  }
+  .shift {
+    width: 100%;
+  }
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .submit {
+    width: 100%;
+  }
+}
