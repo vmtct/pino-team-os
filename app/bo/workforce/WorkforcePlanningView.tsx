@@ -20,6 +20,7 @@ export function WorkforcePlanningView() {
   const [templateId, setTemplateId] = useState("");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
+  const [reason, setReason] = useState("");
 
   const weeks = useMemo<CenterWeek[]>(() => {
     if (!bootstrap) return [];
@@ -69,7 +70,7 @@ export function WorkforcePlanningView() {
 
   function changeCenter(nextCenter: string) {
     setCenterId(nextCenter);
-    setSelection(null); setNotice("");
+    setSelection(null); setNotice(""); setReason("");
     const candidates = weeks.filter((week) => week.centerId === nextCenter);
     setTermWeekId(chooseWeek(candidates)?.id ?? "");
   }
@@ -94,24 +95,24 @@ export function WorkforcePlanningView() {
   }
 
   async function cancel(assignment: BoWorkforceAssignment) {
-    const reason = prompt("Lý do huỷ ca")?.trim() ?? "";
-    if (!reason) return;
+    const cancellationReason = reason.trim();
+    if (!cancellationReason) return;
     setBusy(`cancel:${assignment.id}`); setNotice("");
     try {
-      await boApi.cancelWorkforceAssignment(assignment.id, reason, crypto.randomUUID());
-      setNotice("Ca đã huỷ; lịch sử assignment được giữ nguyên.");
+      await boApi.cancelWorkforceAssignment(assignment.id, cancellationReason, crypto.randomUUID());
+      setNotice("Ca đã huỷ; lịch sử assignment được giữ nguyên."); setReason("");
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
 
   async function correct(assignment: BoWorkforceAssignment) {
     if (!data || !templateId) return;
-    const reason = prompt("Lý do điều chỉnh ca")?.trim() ?? "";
-    if (!reason) return;
+    const correctionReason = reason.trim();
+    if (!correctionReason) return;
     setBusy(`correct:${assignment.id}`); setNotice("");
     try {
       const result = await correctWorkforceAssignment(
-        () => boApi.cancelWorkforceAssignment(assignment.id, reason, crypto.randomUUID()),
+        () => boApi.cancelWorkforceAssignment(assignment.id, correctionReason, crypto.randomUUID()),
         () => boApi.assignWorkforceShift({
           staffMemberId: assignment.staffMemberId, centerId: assignment.centerId, workDate: assignment.workDate,
           shiftTemplateId: templateId, termWeekId: data.termWeekId, replacesAssignmentId: assignment.id,
@@ -119,6 +120,7 @@ export function WorkforcePlanningView() {
       );
       if (result.state === "CANCELLED_ONLY") setNotice("Ca cũ đã huỷ; ca thay thế chưa được tạo.");
       else setNotice("Điều chỉnh hoàn tất: ca cũ đã huỷ và ca thay thế đã được tạo.");
+      setReason("");
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
@@ -138,7 +140,7 @@ export function WorkforcePlanningView() {
           </select>
         </label>
         <label className={styles.field}>TermWeek
-          <select value={termWeekId} onChange={(event) => { setTermWeekId(event.target.value); setSelection(null); setNotice(""); }}>
+          <select value={termWeekId} onChange={(event) => { setTermWeekId(event.target.value); setSelection(null); setNotice(""); setReason(""); }}>
             {centerWeeks.map((week) => <option key={week.id} value={week.id}>{week.code} · {week.startDate} → {week.endDate}</option>)}
           </select>
         </label>
@@ -165,7 +167,7 @@ export function WorkforcePlanningView() {
                 const available = data.availability.some((item) => item.staffMemberId === staff.id && item.items.some((entry) => entry.workDate === date));
                 const selected = selection?.staffMemberId === staff.id && selection.workDate === date;
                 return <td key={date}>
-                  <button className={`${styles.plannerCell} ${selected ? styles.plannerCellActive : ""}`} onClick={() => { setSelection({ staffMemberId: staff.id, workDate: date }); setTemplateId(assigned[0]?.shiftTemplateId ?? ""); }}>
+                  <button className={`${styles.plannerCell} ${selected ? styles.plannerCellActive : ""}`} onClick={() => { setSelection({ staffMemberId: staff.id, workDate: date }); setTemplateId(assigned[0]?.shiftTemplateId ?? ""); setReason(""); }}>
                     {assigned.length ? <><strong>Đã xếp</strong>{assigned.map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)}</span>)}</> : available ? <><strong>Có thể</strong><span>{availableCount(data, staff.id, date)} ca đăng ký</span></> : <span>—</span>}
                   </button>
                 </td>;
@@ -189,13 +191,18 @@ export function WorkforcePlanningView() {
             </select>
             <small>✓ = Staff đã submit availability. Manager vẫn là authority xếp ca final.</small>
           </label>
-          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || !!busy} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Assign ca"}</button> : null}
+          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || !!busy} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận & xếp ca"}</button> : null}
+
+          {activeAssignments.length ? <label className={styles.field}>Lý do thay đổi
+            <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Bắt buộc khi huỷ hoặc điều chỉnh" />
+            <small>Lý do được gửi vào canonical assignment audit; không dùng ghi chú cục bộ ở BO.</small>
+          </label> : null}
 
           {activeAssignments.map((assignment) => <article className={styles.plannerAssignmentCard} key={assignment.id}>
             <div><strong>{templateLabel(data, assignment.shiftTemplateId)}</strong><span>{assignment.status} · {assignment.id.slice(0, 8)}</span></div>
             <div className={styles.subscriptionActions}>
-              <button className={styles.secondaryButton} disabled={!!busy} onClick={() => void cancel(assignment)}>{busy === `cancel:${assignment.id}` ? "…" : "Cancel"}</button>
-              <button className={styles.primaryButton} disabled={!templateId || templateId === assignment.shiftTemplateId || !!busy} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Correct → selected"}</button>
+              <button className={styles.secondaryButton} disabled={!reason.trim() || !!busy} onClick={() => void cancel(assignment)}>{busy === `cancel:${assignment.id}` ? "…" : "Huỷ ca"}</button>
+              <button className={styles.primaryButton} disabled={!reason.trim() || !templateId || templateId === assignment.shiftTemplateId || !!busy} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Đổi sang ca đã chọn"}</button>
             </div>
           </article>)}
 
