@@ -61,6 +61,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
+        || path === "workforce/timekeeping"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
     || path === "pinoria/ward/catalog"
@@ -122,6 +123,13 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "workforce/timekeeping") {
+    const body: Record<string, unknown> = {};
+    for (const key of ["centerId", "workDate", "startDate", "endDate", "staffMemberId", "status", "cursor"] as const) { const value = url.searchParams.get(key); if (value) body[key] = value; }
+    const limit = url.searchParams.get("limit");
+    if (limit) body.limit = Number(limit);
+    return body;
+  }
   if (path === "access/audit") {
     const limit = url.searchParams.get("limit");
     return limit ? { limit: Number(limit) } : undefined;

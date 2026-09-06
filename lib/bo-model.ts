@@ -386,3 +386,31 @@ export interface BoWorkforceWeeklyPlanning {
   availability: BoWorkforceAvailability[];
   assignments: BoWorkforceAssignment[];
 }
+
+export interface BoTimekeepingSession {
+  id: string;
+  staff: { id: string; displayLabel: string };
+  centerId: string;
+  workDate: string;
+  assignmentId: string | null;
+  assignment: null | {
+    id: string;
+    shiftTemplateId: string;
+    workDate: string;
+    status: "ACTIVE" | "CANCELLED";
+    replacesAssignmentId: string | null;
+    cancelledAt: string | null;
+    shift: null | { displayLabel: string; startLocalTime: string; endLocalTime: string };
+  };
+  checkInAt: string;
+  checkOutAt: string | null;
+  status: "OPEN" | "CLOSED";
+  durationSeconds: number | null;
+  anomalyFlags: Array<"MISSING_ASSIGNMENT" | "ASSIGNMENT_UNAVAILABLE">;
+}
+
+export interface BoTimekeepingPage {
+  data: BoTimekeepingSession[];
+  nextCursor: string | null;
+  summary: { totalSessions: number; openSessions: number; closedSessions: number };
+}
