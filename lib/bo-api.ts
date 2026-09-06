@@ -36,6 +36,7 @@ import type {
   BoSyllabus,
   BoWorkforceAssignment,
   BoWorkforceWeeklyPlanning,
+  BoUnscheduledCheckInRequest,
 } from "./bo-model";
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
@@ -195,6 +196,10 @@ export const boApi = {
   rejectStaffRegistration: (requestId: string, reason: string, idempotencyKey: string) => write<{ registrationRequestId: string; status: "REJECTED" }>(`workforce/staff-registration-requests/${encodeURIComponent(requestId)}/reject`, { reason }, idempotencyKey),
   staffRecord: (staffMemberId: string) => readOne<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`),
   workforcePlanning: (centerId: string, termWeekId: string) => readOne<BoWorkforceWeeklyPlanning>(`workforce/planning/weekly?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),
+  workforceCheckInExceptions: (centerId: string, status?: BoUnscheduledCheckInRequest["status"]) => read<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
+  workforceCheckInException: (requestId: string) => readOne<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}`),
+  approveWorkforceCheckInException: (requestId: string, expectedVersion: number, idempotencyKey: string) => write<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}/approve`, { expectedVersion }, idempotencyKey),
+  declineWorkforceCheckInException: (requestId: string, expectedVersion: number, reason: string | null, idempotencyKey: string) => write<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}/decline`, { expectedVersion, reason }, idempotencyKey),
   assignWorkforceShift: (body: { staffMemberId: string; centerId: string; workDate: string; shiftTemplateId: string; termWeekId?: string; replacesAssignmentId?: string }, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment", body, idempotencyKey),
   cancelWorkforceAssignment: (assignmentId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment/cancel", { assignmentId, reason }, idempotencyKey),
   updateStaff: (staffMemberId: string, patch: BoStaffProfilePatch) => write<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`, patch, crypto.randomUUID()),
