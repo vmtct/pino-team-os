@@ -1,4 +1,50 @@
-.empty { margin-top: 28px; padding: 28px 22px; border: 1px solid #f0d2b4; border-radius: 20px; background: #fffaf5; }
-.empty span { color: #9b5b22; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
-.empty h2 { margin: 8px 0; font-size: 22px; letter-spacing: -.03em; }
-.empty p { margin: 0; color: #73675f; font-size: 14px; line-height: 1.6; }
+.page { display: grid; gap: 18px; padding-bottom: 28px; }
+.hero { padding: 22px; border: 1px solid #efd3b5; border-radius: 24px; background: linear-gradient(180deg, #fffaf5 0%, #fff 100%); }
+.heroTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.heroTop span, .sectionHeader span, .briefingStrip > div > span { color: #9b5b22; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
+.heroTop h1 { margin: 6px 0 0; font-size: 27px; letter-spacing: -.04em; }
+.refreshButton { border: 1px solid #e0b985; border-radius: 14px; padding: 10px 13px; background: #fff; color: #7f4717; font-weight: 800; }
+.refreshButton:disabled { opacity: .55; }
+.contextGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.contextGrid > div { display: grid; gap: 4px; padding: 12px; border-radius: 16px; background: #fff; border: 1px solid #f2e6d9; }
+.contextGrid span, .metaGrid span { color: #8a7b6f; font-size: 11px; }
+.contextGrid strong { font-size: 13px; line-height: 1.4; }
+.truthNote { margin: 14px 0 0; color: #75675d; font-size: 12px; line-height: 1.55; }
+.error, .sourceWarning { padding: 13px 15px; border-radius: 16px; background: #fff0ee; border: 1px solid #f0b6ad; color: #8c2f23; font-size: 13px; line-height: 1.5; }
+.loading { padding: 30px 18px; text-align: center; color: #71665e; border: 1px dashed #e8d9ca; border-radius: 20px; }
+.briefingStrip { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-radius: 20px; background: #fff6e9; border: 1px solid #efd4aa; }
+.briefingStrip > div { display: grid; gap: 4px; }
+.briefingStrip strong { font-size: 15px; }
+.briefingStrip small { color: #7a6c60; }
+.ackDone, .ackPending { flex: 0 0 auto; padding: 7px 9px; border-radius: 999px; font-size: 11px; font-weight: 850; }
+.ackDone { background: #eaf6ee; color: #267044; }
+.ackPending { background: #fff0cf; color: #8c5a00; }
+.section { display: grid; gap: 12px; }
+.sectionHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; padding: 2px 2px 0; }
+.sectionHeader h2 { margin: 5px 0 3px; font-size: 21px; letter-spacing: -.03em; }
+.sectionHeader p { margin: 0; color: #7d7067; font-size: 12px; line-height: 1.5; }
+.sectionHeader b { display: grid; place-items: center; min-width: 34px; height: 34px; border-radius: 12px; background: #f7e9da; color: #8b4b16; }
+.dutyList { display: grid; gap: 10px; }
+.dutyCard { padding: 16px; border-radius: 20px; border: 1px solid #eadfd5; background: #fff; }
+.dutyCard.resolved { opacity: .72; background: #fbfcfb; }
+.dutyCard.overdue { border-color: #e9aea1; background: #fffafa; }
+.dutyTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dutyIdentity { min-width: 0; }
+.source { display: inline-flex; color: #9b5b22; font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.dutyIdentity h3 { margin: 5px 0 4px; font-size: 16px; letter-spacing: -.02em; }
+.dutyIdentity p { margin: 0; color: #8a7d73; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { flex: 0 0 auto; padding: 6px 8px; border-radius: 999px; background: #fff0cf; color: #8b5a00; font-size: 10px; font-weight: 850; }
+.statusResolved { background: #eaf6ee; color: #277044; }
+.statusOverdue, .statusBlocked { background: #fde4df; color: #9b2f20; }
+.metaGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 13px; }
+.metaGrid > div { display: grid; gap: 3px; padding: 9px; border-radius: 12px; background: #faf7f4; }
+.metaGrid strong { font-size: 11px; }
+.ownerLink { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; padding: 11px 12px; border-radius: 13px; background: #9b5b22; color: #fff; text-decoration: none; font-size: 12px; font-weight: 800; }
+.noAction { margin-top: 12px; color: #8b7e75; font-size: 11px; }
+.empty { padding: 18px; border: 1px dashed #e5d9cf; border-radius: 18px; color: #80736a; background: #fcfaf8; font-size: 13px; line-height: 1.5; }
+@media (max-width: 460px) {
+  .hero { padding: 18px; }
+  .heroTop h1 { font-size: 24px; }
+  .contextGrid { grid-template-columns: 1fr; }
+  .metaGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
