@@ -13,11 +13,11 @@ import {
 } from "./ambient-house-motion";
 import styles from "./ambient-house.module.css";
 
-export type AmbientHouseLearner = {
+export type AmbientHouseActor = {
   id: string;
-  visitId: string;
+  actorType: "LEARNER" | "STAFF";
   name: string;
-  config: PinoriaCharacterConfig;
+  config: PinoriaCharacterConfig | null;
 };
 
 const GRAPH = graphData as AmbientMotionGraph;
@@ -26,13 +26,13 @@ const HOUSE_ASSETS = {
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ learners, departingId = null, suppressedIds = [], frozenIds = [] }: { learners: readonly AmbientHouseLearner[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
-  const idsKey = learners.map((learner) => learner.id).sort().join("|");
-  const byId = useMemo(() => new Map(learners.map((learner) => [learner.id, learner])), [learners]);
+export function AmbientHouseRuntime({ actors, departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+  const idsKey = actors.map((actor) => actor.id).sort().join("|");
+  const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
   const frozenKey = JSON.stringify(frozenIds);
-  const [agents, setAgents] = useState<AmbientAgent[]>(() => createAmbientAgents(learners.map((learner) => learner.id), GRAPH));
+  const [agents, setAgents] = useState<AmbientAgent[]>(() => createAmbientAgents(actors.map((actor) => actor.id), GRAPH));
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
 
@@ -62,21 +62,21 @@ export function AmbientHouseRuntime({ learners, departingId = null, suppressedId
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");
   const renderAgent = (agent: AmbientAgent) => {
-    const learner = byId.get(agent.id);
-    if (!learner) return null;
+    const actor = byId.get(agent.id);
+    if (!actor) return null;
     const scale = 0.72 + (agent.y / GRAPH.canvas.height) * 0.28;
     const style = {
       left: `${(agent.x / GRAPH.canvas.width) * 100}%`,
       top: `${(agent.y / GRAPH.canvas.height) * 100}%`,
       "--agent-scale": `${scale}`,
     } as CSSProperties;
-    return <div key={agent.id} className={styles.agent} style={style} data-ambient-runtime-character={agent.id} data-ambient-runtime-visit={learner.visitId} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
-      <LayeredCharacter className={styles.character} config={learner.config} />
-      <span>{learner.name}</span>
+    return <div key={agent.id} className={styles.agent} style={style} data-ambient-runtime-character={agent.id} data-ambient-runtime-self={agent.id} data-ambient-runtime-actor-type={actor.actorType} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
+      <LayeredCharacter className={styles.character} config={actor.config ?? {}} />
+      <span>{actor.name}</span>
     </div>;
   };
 
-  return <div className={styles.viewport} aria-label={`${learners.length} learners moving in Pinoria House`}>
+  return <div className={styles.viewport} aria-label={`${actors.length} actors moving in Pinoria House`}>
     <img className={`${styles.houseLayer} ${styles.back}`} src={HOUSE_ASSETS.back} alt="" />
     <div className={`${styles.agentPlane} ${styles.behind}`}>{behind.map(renderAgent)}</div>
     <img className={`${styles.houseLayer} ${styles.mid}`} src={HOUSE_ASSETS.mid} alt="" />
