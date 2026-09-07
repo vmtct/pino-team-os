@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
-import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
+import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
 type Data = {
@@ -16,6 +16,10 @@ type Data = {
 };
 
 type ScopeType = "GLOBAL" | "CENTER" | "PATH" | "RUNNING_CLASS";
+type PinoriaLoadState =
+  | { status: "idle" | "loading" }
+  | { status: "ready"; data: BoStaffPinoriaProjection }
+  | { status: "error"; message: string };
 
 const emptyData: Data = { staff: [], users: [], roles: [], centers: [], paths: [], classes: [] };
 
@@ -23,6 +27,7 @@ export function StaffManagementView() {
   const [data, setData] = useState<Data>(emptyData);
   const [selectedId, setSelectedId] = useState("");
   const [profile, setProfile] = useState<BoStaffProfile | null>(null);
+  const [pinoria, setPinoria] = useState<PinoriaLoadState>({ status: "idle" });
   const [form, setForm] = useState<BoStaffProfilePatch>({});
   const [roleId, setRoleId] = useState("");
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
@@ -49,9 +54,11 @@ export function StaffManagementView() {
     let current = true;
     selectedIdRef.current = selectedId;
     setPinReset(null); setPinCopied(false); setProfile(null);
+    setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
     if (!selectedId) return () => { current = false; };
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { if (current) { setProfile(next); setForm(profileForm(next)); } }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."); });
+    void boApi.staffPinoria(selectedId).then((next) => { if (current) setPinoria({ status: "ready", data: next }); }).catch((cause) => { if (current) setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." }); });
     return () => { current = false; };
   }, [selectedId]);
 
@@ -70,6 +77,18 @@ export function StaffManagementView() {
     const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
     selectedIdRef.current = nextId;
     setSelectedId(nextId);
+  }
+
+  async function refreshPinoria() {
+    const targetId = selectedIdRef.current;
+    if (!targetId) return;
+    setPinoria({ status: "loading" });
+    try {
+      const next = await boApi.staffPinoria(targetId);
+      if (selectedIdRef.current === targetId) setPinoria({ status: "ready", data: next });
+    } catch (cause) {
+      if (selectedIdRef.current === targetId) setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });
+    }
   }
 
   async function syncTosPerimeter() {
@@ -233,6 +252,39 @@ export function StaffManagementView() {
               </div> : null}
             </section>
 
+            <section className={styles.panel} data-testid="staff-pinoria-panel">
+              <div className={styles.panelHeading}>
+                <div><h2>Pinoria</h2><p>Read-only canonical Self, character/loadout và House presence.</p></div>
+                <div className={styles.staffPinoriaHeadingActions}>
+                  <span className={styles.readOnly}>read only</span>
+                  <button type="button" className={styles.secondaryButton} disabled={pinoria.status === "loading"} onClick={() => void refreshPinoria()}>{pinoria.status === "loading" ? "Đang tải…" : "Làm mới"}</button>
+                </div>
+              </div>
+              {pinoria.status === "idle" || pinoria.status === "loading" ? <p className={styles.staffPinoriaHint}>Đang tải Pinoria…</p> : null}
+              {pinoria.status === "error" ? <div className={styles.staffPinoriaUnavailable}><strong>Pinoria chưa khả dụng</strong><p>{pinoria.message}</p></div> : null}
+              {pinoria.status === "ready" && !pinoria.data.pinoriaSelfId ? <div className={styles.staffPinoriaUnavailable}><strong>Chưa có Pinoria Self</strong><p>Staff detail chỉ đọc canonical identity; màn hình này không tự provision hoặc tự liên kết Person.</p></div> : null}
+              {pinoria.status === "ready" && pinoria.data.pinoriaSelfId ? <div className={styles.staffPinoriaStack}>
+                <div className={styles.staffPinoriaGrid}>
+                  <PinoriaFact label="Person" value={pinoria.data.personId ?? "—"} />
+                  <PinoriaFact label="Pinoria Self" value={pinoria.data.pinoriaSelfId} />
+                  <PinoriaFact label="Self state" value={pinoria.data.selfStatus ?? "—"} />
+                  <PinoriaFact label="Character" value={pinoria.data.character?.id ?? "Chưa materialize"} />
+                </div>
+                <div className={styles.staffPinoriaPresence}>
+                  <div><span>House presence</span><strong>{pinoria.data.presence.state === "PRESENT" ? "Đang ở House" : "Ngoài House"}</strong></div>
+                  {pinoria.data.presence.state === "PRESENT" ? <div className={styles.staffPinoriaPresenceMeta}>
+                    <small>TimekeepingSession · {pinoria.data.presence.timekeepingSessionId ?? "—"}</small>
+                    <small>Check-in · {formatInstant(pinoria.data.presence.checkedInAt)}</small>
+                    <small>Center · {pinoria.data.presence.centerId ?? "—"}</small>
+                  </div> : <p>Không có canonical TimekeepingSession đang mở.</p>}
+                </div>
+                <div className={styles.staffPinoriaLoadout}>
+                  <div><strong>Loadout</strong><span>{pinoria.data.character?.loadout ? `v${pinoria.data.character.loadout.version}` : "Chưa có"}</span></div>
+                  {pinoria.data.character?.loadout && Object.keys(pinoria.data.character.loadout.slots).length ? <ul>{Object.entries(pinoria.data.character.loadout.slots).map(([slot, variantId]) => <li key={slot}><span>{slot}</span><code>{variantId}</code></li>)}</ul> : <p>Chưa có wearable slot canonical.</p>}
+                </div>
+              </div> : null}
+            </section>
+
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>Access</h2><p>Role, scope và login state là canonical Access state riêng với Staff status.</p></div><span className={styles.writePill}>{accessUser?.status ?? "not provisioned"}</span></div>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
@@ -266,6 +318,16 @@ export function StaffManagementView() {
       </div>
     </section>
   );
+}
+
+function PinoriaFact({ label, value }: { label: string; value: string }) {
+  return <div><span>{label}</span><code title={value}>{value}</code></div>;
+}
+
+function formatInstant(value: string | null): string {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf()) ? value : parsed.toLocaleString("vi-VN");
 }
 
 function profileForm(profile: BoStaffProfile): BoStaffProfilePatch {
