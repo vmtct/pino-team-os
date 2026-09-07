@@ -63,6 +63,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-records"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || path === "pinoria/effects/catalog"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
     || path === "pinoria/ward/set-webm-assets"

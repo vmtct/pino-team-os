@@ -65,6 +65,7 @@ export const boNavigation: BoNavGroup[] = [
           { href: "/bo/pinoria-ward/sets", label: "Sets" },
         ],
       },
+      { href: "/bo/pinoria-effects", label: "Effects" },
     ],
   },
   {
