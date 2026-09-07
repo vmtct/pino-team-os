@@ -114,7 +114,7 @@ jobs:
           if (staging.vars?.WORKFORCE_BO_STAGING_BYPASS !== 'enabled') throw new Error('Workforce BO staging bypass disabled');
           if (staging.vars?.WORKFORCE_STAGING_BO_EMAIL !== 'workforce-planning-staging-probe@pino.invalid') throw new Error('Workforce BO staging identity drift');
           if (staging.vars?.PINORIA_TOS_STAGING_BYPASS !== 'enabled') throw new Error('TOS staging identity bypass disabled');
-          const required = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
+          const required = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_WORKFORCE_NETWORK_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
           for (const service of staging.services ?? []) {
             if (service.service !== 'pino-core-staging') throw new Error(`non-staging Core binding: ${service.binding}`);
             required.delete(service.binding);
@@ -128,7 +128,7 @@ jobs:
           }
           if (productionCore.size) throw new Error(`missing production Core bindings: ${[...productionCore].join(',')}`);
           const productionRaw = fs.readFileSync('wrangler.jsonc', 'utf8');
-          for (const name of ['WORKFORCE_BO_STAGING_BYPASS', 'WORKFORCE_STAGING_BO_EMAIL', 'PINORIA_TOS_STAGING_BYPASS', 'PINORIA_STAGING_STAFF_EMAIL']) {
+          for (const name of ['WORKFORCE_BO_STAGING_BYPASS', 'WORKFORCE_STAGING_BO_EMAIL', 'PINORIA_TOS_STAGING_BYPASS', 'PINORIA_STAGING_STAFF_EMAIL', 'WORKFORCE_CENTER_NETWORK_STAGING_INGRESS']) {
             if (productionRaw.includes(name)) throw new Error(`staging variable leaked into production config: ${name}`);
           }
           NODE
