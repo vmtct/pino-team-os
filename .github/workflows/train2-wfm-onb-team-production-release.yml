@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: train2-wfm-onb-team-production-release
+  group: pino-team-os-production
   cancel-in-progress: false
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
           grep -Fq 'STATUS: FULL_STAGING_E2E_PASS' <<<"$body" || reject "FULL staging E2E PASS is absent."
           grep -Fq 'CORE_SHA: 840fed2f548f9b08db914bd3086b43a7b150283e' <<<"$body" || reject "Evidence does not bind exact Core pair."
           grep -Fq "TEAM_SHA: ${TARGET_SHA}" <<<"$body" || reject "Evidence does not bind exact Team SHA."
-          runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TARGET_SHA}&status=completed&per_page=50")" || reject "Cannot read exact-head CI evidence."
+          runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/pr-validation.yml/runs?head_sha=${TARGET_SHA}&event=pull_request&status=completed&per_page=50")" || reject "Cannot read exact-head CI evidence."
           jq -e --arg sha "$TARGET_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .conclusion=="success")] | length >= 1' <<<"$runs" >/dev/null || reject "No successful exact-head CI exists for Team candidate."
           pr="$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/273")" || reject "Cannot read canonical Team WFM PR #273."
           [ "$(jq -r '.merged_at // empty' <<<"$pr")" != "" ] || reject "Canonical Team WFM PR #273 is not merged."
@@ -116,6 +116,15 @@ jobs:
             jq -e --arg h "$handler" '[.result.resources.script.named_handlers[]?.name] | index($h) != null' <<<"$core_detail" >/dev/null || fail "Active Train 2 Core lost entrypoint ${handler}."
           done
 
+          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker domains."
+          for host in "$TOS_HOST" "$BO_HOST"; do
+            jq -e --arg h "$host" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "${host} is not attached exactly once to Team OS."
+          done
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core unexpectedly owns a custom domain."
+          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone routes."
+          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
+          subdomain="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/subdomain" "${auth[@]}")" || fail "Cannot inspect Team workers.dev state."
+          jq -e '.result.enabled == false and .result.previews_enabled == false' <<<"$subdomain" >/dev/null || fail "Production Team workers.dev or previews are enabled."
           if [ "$old_message" = "$release_message" ]; then
             for binding in PINO_CORE PINO_WORKFORCE_CORE PINO_BO_CORE PINO_TOS_LEARNING_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE PINO_ACCESS_SYNC; do
               jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$old_detail" >/dev/null || fail "Already-active Team candidate lost binding ${binding}."
@@ -127,15 +136,7 @@ jobs:
           fi
           [ "$old_message" = "Train1 PLT-TOS BO production ${PROD_BASE}" ] || fail "Active Team drifted from reviewed Train 1 production base: ${old_message:-unknown}."
 
-          domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker domains."
-          for host in "$TOS_HOST" "$BO_HOST"; do
-            jq -e --arg h "$host" --arg s "$TEAM_WORKER" '[.result[]? | select(.hostname==$h and .service==$s)] | length == 1' <<<"$domains" >/dev/null || fail "${host} is not attached exactly once to Team OS."
-          done
-          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.service==$s)] | length == 0' <<<"$domains" >/dev/null || fail "Core unexpectedly owns a custom domain."
-          routes="$(curl -fsS "${api}/zones/${ZONE_ID}/workers/routes" "${auth[@]}")" || fail "Cannot inspect zone routes."
-          jq -e --arg s "$CORE_WORKER" '[.result[]? | select(.script==$s)] | length == 0' <<<"$routes" >/dev/null || fail "Core has a public zone route."
-          subdomain="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/subdomain" "${auth[@]}")" || fail "Cannot inspect Team workers.dev state."
-          jq -e '.result.enabled == false and .result.previews_enabled == false' <<<"$subdomain" >/dev/null || fail "Production Team workers.dev or previews are enabled."
+
 
           upload_output="$RUNNER_TEMP/version-upload.ndjson"
           rm -f "$upload_output"

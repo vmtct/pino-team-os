@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: arrival-v0-team-runtime-promote
+  group: pino-team-os-production
   cancel-in-progress: false
 
 jobs:
