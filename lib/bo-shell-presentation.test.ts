@@ -9,7 +9,7 @@ test("PLT-BO F2 navigation composes School without absorbing domain authority", 
   for (const group of ["Workspace", "School", "Operations", "Learning", "Workforce", "Pinoria", "Content", "System"]) {
     assert.match(source, new RegExp(`label: [\\\"']${group}[\\\"']`));
   }
-  for (const item of ["Hôm nay", "Students", "Subscriptions", "Classes", "Schedule", "Open Studio", "Programs & Syllabus", "Practice", "Staff", "Schedule & Time", "Economy", "Collection", "Access", "Policies", "Audit"]) {
+  for (const item of ["Hôm nay", "Students", "Subscriptions", "Classes", "Schedule", "Open Studio", "Programs & Syllabus", "Practice", "Staff", "Schedule & Time", "Economy", "Collection", "Effects", "Access", "Policies", "Audit"]) {
     assert.match(source, new RegExp(item.replace(/[&]/g, "&")));
   }
   assert.match(source, /href:\s*["']\/bo\/learners["'],\s*label:\s*["']Students["']/);
