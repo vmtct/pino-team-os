@@ -53,6 +53,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const clockAttempt = useRef<{ action: "in" | "out"; fingerprint: string; key: string } | null>(null);
   const center = context?.centers[0] ?? null;
   const week = useMemo(() => context?.termWeeks.find((w) => w.centerId === center?.id && today() >= w.startDate && today() <= w.endDate) ?? context?.termWeeks.find((w) => w.centerId === center?.id) ?? null, [context, center]);
 
@@ -77,14 +78,27 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
 
   async function clock(action: "in" | "out") {
     if (!center) return;
+    const assignmentId = action === "in" ? assignments.find((a) => a.workDate === today())?.id ?? null : null;
+    const fingerprint = action === "in" ? `${center.id}:${assignmentId ?? "NO_ASSIGNMENT"}` : current?.id ?? "NO_OPEN_SESSION";
+    const prior = clockAttempt.current;
+    const idempotencyKey = prior?.action === action && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+    clockAttempt.current = { action, fingerprint, key: idempotencyKey };
     setSaving(true); setError("");
     try {
+      let result;
       if (action === "in") {
         const state = await workforceApi.checkInExceptionStatus(center.id);
         setCheckInState(state.data);
-        if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") return;
-        await workforceApi.checkIn(center.id, state.data.assignment.id);
-      } else await workforceApi.checkOut();
+        if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") {
+          clockAttempt.current = null;
+          return;
+        }
+        result = await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
+      } else {
+        result = await workforceApi.checkOut(idempotencyKey);
+      }
+      setCurrent(result.data);
+      clockAttempt.current = null;
       await load();
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
