@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
@@ -48,6 +48,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const clockAttempt = useRef<{ action: "in" | "out"; fingerprint: string; key: string } | null>(null);
   const center = context?.centers[0] ?? null;
   const week = useMemo(() => context?.termWeeks.find((w) => w.centerId === center?.id && today() >= w.startDate && today() <= w.endDate) ?? context?.termWeeks.find((w) => w.centerId === center?.id) ?? null, [context, center]);
 
@@ -71,10 +72,18 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
 
   async function clock(action: "in" | "out") {
     if (!center) return;
+    const assignmentId = action === "in" ? assignments.find((a) => a.workDate === today())?.id ?? null : null;
+    const fingerprint = action === "in" ? `${center.id}:${assignmentId ?? "NO_ASSIGNMENT"}` : current?.id ?? "NO_OPEN_SESSION";
+    const prior = clockAttempt.current;
+    const idempotencyKey = prior?.action === action && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+    clockAttempt.current = { action, fingerprint, key: idempotencyKey };
     setSaving(true); setError("");
     try {
-      if (action === "in") await workforceApi.checkIn(center.id, assignments.find((a) => a.workDate === today())?.id);
-      else await workforceApi.checkOut();
+      const result = action === "in"
+        ? await workforceApi.checkIn(center.id, assignmentId, idempotencyKey)
+        : await workforceApi.checkOut(idempotencyKey);
+      setCurrent(result.data);
+      clockAttempt.current = null;
       await load();
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
