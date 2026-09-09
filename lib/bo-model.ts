@@ -419,6 +419,11 @@ export interface BoTimekeepingSession {
   };
 }
 
+export interface BoTimekeepingMissedCheckoutResult {
+  session: { id: string; staffMemberId: string; centerId: string; assignmentId: string | null; workDate: string; status: "CLOSED"; checkInAt: string; checkOutAt: string; createdAt: string; updatedAt: string };
+  resolution: { reason: string; resolvedByUserId: string; resolvedAt: string };
+}
+
 export interface BoTimekeepingCorrectionResult {
   correction: {
     id: string;

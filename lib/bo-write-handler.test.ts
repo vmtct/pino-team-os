@@ -25,3 +25,14 @@ test("timekeeping correction requires idempotency and forwards only through BO C
   assert.equal(forwarded[0]!.token, token);
   assert.deepEqual(forwarded[0]!.request, { method: "POST", path, body: { correctionType: "CHECK_IN_AT", correctedAt: "2026-09-06T01:15:00.000Z", reason: "Verified", expectedLatestCorrectionId: null }, idempotencyKey: "corr-key" });
 });
+
+test("missed checkout resolution requires idempotency and forwards exact Core command", async () => {
+  const forwarded: Array<{ request: BoAccessRequest; token: string }> = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request, token) { forwarded.push({ request, token }); return { status: 200, body: { data: { session: { status: "CLOSED" } } }, requestId: "missed-checkout" }; } };
+  const route = "workforce/timekeeping/01912345-6789-7abc-8def-0123456789ab/resolve-missed-checkout";
+  assert.equal((await handleBoWriteRequest(request(route, true, { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }), env(binding), route)).status, 400);
+  const response = await handleBoWriteRequest(request(route, true, { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }, "missed-key"), env(binding), route);
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.length, 1);
+  assert.deepEqual(forwarded[0]!.request, { method: "POST", path: route, body: { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }, idempotencyKey: "missed-key" });
+});
