@@ -139,6 +139,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const correctionAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const missedCheckoutAttempt = useRef<{ signature: string; key: string } | null>(null);
 
   useEffect(() => {
     setEditing(false);
@@ -150,6 +151,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
     setResolveReason("");
     setNotice("");
     correctionAttempt.current = null;
+    missedCheckoutAttempt.current = null;
   }, [row.id]);
 
   function changeType(next: "CHECK_IN_AT" | "CHECK_OUT_AT") {
@@ -159,11 +161,16 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
 
   async function resolveMissingCheckout() {
     if (!resolveReason.trim() || !resolvedCheckOutAt) return;
+    const command = { checkOutAt: resolvedCheckOutAt, reason: resolveReason.trim() };
+    const signature = JSON.stringify({ sessionId: row.id, ...command });
+    if (missedCheckoutAttempt.current?.signature !== signature) missedCheckoutAttempt.current = { signature, key: crypto.randomUUID() };
+    const idempotencyKey = missedCheckoutAttempt.current.key;
     setBusy(true);
     setNotice("");
     try {
-      await boApi.resolveMissedCheckout(row.id, { checkOutAt: resolvedCheckOutAt, reason: resolveReason.trim() }, crypto.randomUUID());
+      await boApi.resolveMissedCheckout(row.id, command, idempotencyKey);
       await onSaved();
+      missedCheckoutAttempt.current = null;
       setResolving(false);
       setNotice("Missing checkout resolved. Core was refetched before this status changed.");
     } catch (error) {
