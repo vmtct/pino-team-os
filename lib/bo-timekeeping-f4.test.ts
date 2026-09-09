@@ -10,8 +10,12 @@ test("WFM-TIME-BO F4 resolves OPEN missed checkout only through Core then refetc
   ]);
   assert.match(view, /Resolve missing checkout/);
   assert.match(view, /Enter the actual checkout time; PINO will not infer it/);
-  assert.match(view, /await boApi\.resolveMissedCheckout/);
-  assert.ok(view.indexOf("await boApi.resolveMissedCheckout") < view.indexOf("await onSaved()"));
+  assert.match(view, /missedCheckoutAttempt\.current\?\.signature !== signature/);
+  assert.match(view, /const idempotencyKey = missedCheckoutAttempt\.current\.key/);
+  assert.match(view, /await boApi\.resolveMissedCheckout\(row\.id, command, idempotencyKey\)/);
+  const resolveCall=view.indexOf("await boApi.resolveMissedCheckout");
+  assert.ok(resolveCall >= 0 && view.indexOf("await onSaved()", resolveCall) > resolveCall);
+  assert.ok(view.indexOf("missedCheckoutAttempt.current = null", view.indexOf("await onSaved()", resolveCall)) > view.indexOf("await onSaved()", resolveCall));
   assert.match(view, /Core was refetched before this status changed/);
   assert.doesNotMatch(view, /setLoad\([^\n]*status:\s*"CLOSED"/);
   assert.match(api, /resolveMissedCheckout:[\s\S]*resolve-missed-checkout/);
