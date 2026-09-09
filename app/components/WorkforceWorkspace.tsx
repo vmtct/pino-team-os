@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
@@ -13,6 +13,7 @@ import {
   type ShiftTemplate,
   type StaffProfile,
   type TimekeepingSession,
+  type UnscheduledCheckInSelfState,
   type WorkforceContext,
 } from "@/lib/workforce-api";
 
@@ -45,6 +46,10 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [history, setHistory] = useState<TimekeepingSession[]>([]);
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
+  const [checkInState, setCheckInState] = useState<UnscheduledCheckInSelfState | null>(null);
+  const [requestFormOpen, setRequestFormOpen] = useState(false);
+  const [requestReason, setRequestReason] = useState("");
+  const requestAttempt = useRef<{ signature: string; key: string } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,11 +63,12 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
       setContext(c.data); setProfile(p.data); setCurrent(t.data);
       const selected = c.data.centers[0];
       if (selected) {
-        const [s, h] = await Promise.all([
+        const [s, h, exceptionState] = await Promise.all([
           workforceApi.schedule({ centerId: selected.id, startDate: offset(-30), endDate: offset(60) }),
           workforceApi.history({ centerId: selected.id, startDate: offset(-90), endDate: today() }),
+          workforceApi.checkInExceptionStatus(selected.id),
         ]);
-        setAssignments(s.data); setHistory(h.data);
+        setAssignments(s.data); setHistory(h.data); setCheckInState(exceptionState.data);
       }
     } catch (e) { setError(message(e)); }
     finally { setLoading(false); }
@@ -73,9 +79,30 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     if (!center) return;
     setSaving(true); setError("");
     try {
-      if (action === "in") await workforceApi.checkIn(center.id, assignments.find((a) => a.workDate === today())?.id);
-      else await workforceApi.checkOut();
+      if (action === "in") {
+        const state = await workforceApi.checkInExceptionStatus(center.id);
+        setCheckInState(state.data);
+        if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") return;
+        await workforceApi.checkIn(center.id, state.data.assignment.id);
+      } else await workforceApi.checkOut();
       await load();
+    } catch (e) { setError(message(e)); }
+    finally { setSaving(false); }
+  }
+  async function requestUnscheduledCheckIn() {
+    if (!center || !requestReason.trim()) return;
+    const reason = requestReason.trim();
+    const signature = `${center.id}\u0000${reason}`;
+    if (!requestAttempt.current || requestAttempt.current.signature !== signature) {
+      requestAttempt.current = { signature, key: crypto.randomUUID() };
+    }
+    setSaving(true); setError("");
+    try {
+      await workforceApi.requestUnscheduledCheckIn(center.id, reason, requestAttempt.current.key);
+      const state = await workforceApi.checkInExceptionStatus(center.id);
+      setCheckInState(state.data);
+      requestAttempt.current = null;
+      setRequestFormOpen(false); setRequestReason("");
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
@@ -125,10 +152,21 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
       </> : null}
       {view === "schedule" ? <Schedule rows={assignments} title="Ca được phân công" /> : null}
       {view === "availability" ? <AvailabilityPanel week={week} availability={availability} templates={templates} saving={saving} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
-      {view === "check-in" ? <section className="card section"><h2>{current ? "Đang làm việc" : "Chưa check-in"}</h2><p className="muted">{current ? `Bắt đầu ${new Date(current.checkInAt).toLocaleString("vi-VN")}` : "Core sẽ xác định ngày làm việc theo múi giờ của Center."}</p><button className="button" disabled={saving || !center} onClick={() => clock(current ? "out" : "in")}>{current ? "CHECK OUT" : "CHECK IN"}</button></section> : null}
+      {view === "check-in" ? <CheckInPanel current={current} state={checkInState} saving={saving} centerReady={Boolean(center)} formOpen={requestFormOpen} reason={requestReason} onReason={setRequestReason} onOpenForm={() => setRequestFormOpen(true)} onCancelForm={() => { setRequestFormOpen(false); setRequestReason(""); }} onClock={() => void clock(current ? "out" : "in")} onRequest={() => void requestUnscheduledCheckIn()} /> : null}
       {view === "history" ? <History rows={history} /> : null}
     </>}
   </TosShell>;
+}
+
+function CheckInPanel({ current, state, saving, centerReady, formOpen, reason, onReason, onOpenForm, onCancelForm, onClock, onRequest }: { current: TimekeepingSession | null; state: UnscheduledCheckInSelfState | null; saving: boolean; centerReady: boolean; formOpen: boolean; reason: string; onReason: (value: string) => void; onOpenForm: () => void; onCancelForm: () => void; onClock: () => void; onRequest: () => void }) {
+  if (current) return <section className="card section"><h2>Đang làm việc</h2><p className="muted">Bắt đầu {new Date(current.checkInAt).toLocaleString("vi-VN")}</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>CHECK OUT</button></section>;
+  if (!state) return <section className="card section"><h2>Đang kiểm tra ca hôm nay…</h2><p className="muted">Core đang xác định trạng thái theo Center và múi giờ canonical.</p></section>;
+  if (state.kind === "ELIGIBLE_ASSIGNMENT") return <section className="card section"><h2>Sẵn sàng check-in</h2><p className="muted">{state.assignment.shift?.displayLabel ?? "Ca làm đã được phân công"} · {state.assignment.workDate}</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>CHECK IN</button></section>;
+  if (state.kind === "REQUESTED") return <section className="card section"><h2>Đang chờ Manager duyệt</h2><p className="muted">Yêu cầu check-in ngoài lịch đã được Core ghi nhận. Bạn chưa thể check-in cho tới khi có assignment canonical.</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>Kiểm tra lại</button></section>;
+  if (state.kind === "DECLINED") return <section className="card section"><h2>Yêu cầu đã bị từ chối</h2><p className="muted">{state.request.declineReason ?? "Manager chưa chấp thuận check-in ngoài lịch."}</p></section>;
+  if (state.kind === "APPROVED") return <section className="card section"><h2>Đã được duyệt</h2><p className="muted">Core đã duyệt yêu cầu. Kiểm tra lại assignment trước khi check-in.</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>Kiểm tra & check-in</button></section>;
+  if (state.kind === "CANCELLED") return <section className="card section"><h2>Yêu cầu đã huỷ</h2><p className="muted">Không có quyền check-in ngoài lịch từ yêu cầu này.</p></section>;
+  return <section className="card section"><h2>Bạn chưa có ca làm được phân công cho hôm nay</h2><p className="muted">Check-in vẫn yêu cầu assignment canonical. Nếu bạn đang có mặt tại Center để làm việc, hãy gửi lý do để Manager duyệt.</p>{formOpen ? <div className="grid"><label>Lý do<textarea value={reason} maxLength={500} onChange={(event) => onReason(event.target.value)} rows={4} /></label><div style={{display:"flex",gap:8}}><button className="button" disabled={saving || !reason.trim()} onClick={onRequest}>Gửi yêu cầu</button><button className="button" disabled={saving} onClick={onCancelForm}>Huỷ</button></div></div> : <button className="button" disabled={saving || !centerReady} onClick={onOpenForm}>Yêu cầu check-in ngoài lịch</button>}</section>;
 }
 
 function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {

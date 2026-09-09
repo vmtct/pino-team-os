@@ -376,6 +376,14 @@ export interface BoWorkforceAssignment {
   updatedAt: string;
 }
 
+export interface BoUnscheduledCheckInRequest {
+  id: string; staffMemberId: string; centerId: string; workDate: string; reason: string;
+  status: "REQUESTED" | "APPROVED" | "DECLINED" | "CANCELLED";
+  requestedAt: string; requestedByUserId: string; approvedAt: string | null; approvedByUserId: string | null;
+  declinedAt: string | null; declinedByUserId: string | null; declineReason: string | null; generatedAssignmentId: string | null;
+  version: number; createdAt: string; updatedAt: string; staffDisplayLabel: string; centerDisplayName: string;
+}
+
 export interface BoWorkforceWeeklyPlanning {
   centerId: string;
   termWeekId: string;
