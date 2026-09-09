@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
@@ -49,6 +49,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [checkInState, setCheckInState] = useState<UnscheduledCheckInSelfState | null>(null);
   const [requestFormOpen, setRequestFormOpen] = useState(false);
   const [requestReason, setRequestReason] = useState("");
+  const requestAttempt = useRef<{ signature: string; key: string } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,11 +91,17 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   }
   async function requestUnscheduledCheckIn() {
     if (!center || !requestReason.trim()) return;
+    const reason = requestReason.trim();
+    const signature = `${center.id}\u0000${reason}`;
+    if (!requestAttempt.current || requestAttempt.current.signature !== signature) {
+      requestAttempt.current = { signature, key: crypto.randomUUID() };
+    }
     setSaving(true); setError("");
     try {
-      await workforceApi.requestUnscheduledCheckIn(center.id, requestReason.trim(), crypto.randomUUID());
+      await workforceApi.requestUnscheduledCheckIn(center.id, reason, requestAttempt.current.key);
       const state = await workforceApi.checkInExceptionStatus(center.id);
       setCheckInState(state.data);
+      requestAttempt.current = null;
       setRequestFormOpen(false); setRequestReason("");
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }

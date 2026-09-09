@@ -19,3 +19,16 @@ test("TOS exception UI uses canonical status and does not persist authority in b
   assert.match(source, /Đang chờ Manager duyệt/);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });
+
+
+test("WFM-EXC UI preserves idempotency evidence across uncertain retries and re-reads canonical manager state", async () => {
+  const tos = await readFile(new URL("../app/components/WorkforceWorkspace.tsx", import.meta.url), "utf8");
+  const bo = await readFile(new URL("../app/bo/workforce/CheckInExceptionsView.tsx", import.meta.url), "utf8");
+  assert.match(tos, /requestAttempt = useRef/);
+  assert.match(tos, /requestAttempt\.current\.key/);
+  assert.match(tos, /requestAttempt\.current = null/);
+  assert.match(bo, /mutationAttempt=useRef/);
+  assert.match(bo, /mutationKey\(signature/);
+  assert.match(bo, /workforceCheckInException\(requestId\)/);
+  assert.match(bo, /canonical\.status===terminal/);
+});
