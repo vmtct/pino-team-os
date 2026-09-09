@@ -13,7 +13,10 @@ test("WFM-TIME-BO F3 clearly separates Recorded and Corrected and refetches afte
   assert.match(view, />Corrected</);
   assert.match(view, /Correct attendance/);
   assert.match(view, /expectedLatestCorrectionId:\s*row\.latestCorrection\?\.id\s*\?\?\s*null/);
-  assert.match(view, /await boApi\.correctTimekeeping/);
+  assert.match(view, /correctionAttempt\.current\?\.signature !== signature/);
+  assert.match(view, /const idempotencyKey = correctionAttempt\.current\.key/);
+  assert.match(view, /await boApi\.correctTimekeeping\(row\.id, command, idempotencyKey\)/);
+  assert.ok(view.indexOf("correctionAttempt.current = null", view.indexOf("await onSaved()")) > view.indexOf("await onSaved()"));
   assert.ok(view.indexOf("await boApi.correctTimekeeping") < view.indexOf("await onSaved()"));
   assert.doesNotMatch(view, /setLoad\([^\n]*effective|setSelected[^\n]*correct/i);
   assert.match(view, /row\.status === "CLOSED"/);

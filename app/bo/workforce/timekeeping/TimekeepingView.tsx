@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoCenter, BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
 import styles from "./timekeeping.module.css";
@@ -135,6 +135,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const correctionAttempt = useRef<{ signature: string; key: string } | null>(null);
 
   useEffect(() => {
     setEditing(false);
@@ -142,6 +143,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
     setCorrectedAt(row.effective.checkInAt);
     setReason("");
     setNotice("");
+    correctionAttempt.current = null;
   }, [row.id]);
 
   function changeType(next: "CHECK_IN_AT" | "CHECK_OUT_AT") {
@@ -151,16 +153,21 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
 
   async function save() {
     if (!reason.trim() || !correctedAt) return;
+    const command = {
+      correctionType,
+      correctedAt,
+      reason: reason.trim(),
+      expectedLatestCorrectionId: row.latestCorrection?.id ?? null,
+    };
+    const signature = JSON.stringify({ sessionId: row.id, ...command });
+    if (correctionAttempt.current?.signature !== signature) correctionAttempt.current = { signature, key: crypto.randomUUID() };
+    const idempotencyKey = correctionAttempt.current.key;
     setBusy(true);
     setNotice("");
     try {
-      await boApi.correctTimekeeping(row.id, {
-        correctionType,
-        correctedAt,
-        reason: reason.trim(),
-        expectedLatestCorrectionId: row.latestCorrection?.id ?? null,
-      }, crypto.randomUUID());
+      await boApi.correctTimekeeping(row.id, command, idempotencyKey);
       await onSaved();
+      correctionAttempt.current = null;
       setEditing(false);
       setNotice("Correction saved. Recorded history remains unchanged.");
     } catch (error) {
