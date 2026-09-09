@@ -110,9 +110,11 @@ jobs:
           done
 
           deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Team deployment."
+          old_deployment_id="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments")"
           old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
-          [ -n "$old_version" ] || fail "Cannot resolve current 100% Team version."
+          [ -n "$old_deployment_id" ] && [ -n "$old_version" ] || fail "Cannot resolve current 100% Team deployment/version."
           echo "team_version=$team_version" >> "$GITHUB_OUTPUT"
+          echo "old_deployment_id=$old_deployment_id" >> "$GITHUB_OUTPUT"
           echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
 
           domains="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/domains" "${auth[@]}")" || fail "Cannot inspect Worker domains."
@@ -129,30 +131,101 @@ jobs:
           TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
           TEAM_BUILD_UUID: ${{ steps.gate.outputs.team_build_uuid }}
           TEAM_VERSION: ${{ steps.preflight.outputs.team_version }}
+          OLD_DEPLOYMENT_ID: ${{ steps.preflight.outputs.old_deployment_id }}
           OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
         run: |
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4"
           auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
           repo="$GITHUB_REPOSITORY"
-          serving_changed=0
+          promotion_attempted=0
+          candidate_deployment_id=""
+          deployment_marker=""
+
+          comment() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
+          runtime_main_ok() {
+            local main_sha="$1" compare status unexpected
+            compare="$(gh api "/repos/${repo}/compare/${TEAM_SHA}...${main_sha}")" || return 1
+            status="$(jq -r '.status' <<<"$compare")"
+            [ "$status" = "identical" ] || [ "$status" = "ahead" ] || return 1
+            unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+            [ -z "$unexpected" ]
+          }
           rollback() {
-            if [ "$serving_changed" -eq 1 ] && [ -n "$OLD_VERSION" ]; then
-              CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions deploy "${OLD_VERSION}@100%" -y >/dev/null 2>&1 || true
+            [ "$promotion_attempted" -eq 1 ] || return 0
+            [ -n "$OLD_DEPLOYMENT_ID" ] && [ -n "$OLD_VERSION" ] && [ -n "$TEAM_VERSION" ] && [ -n "$deployment_marker" ] || return 1
+            local state current_deployment current_version current_marker previous_deployment decision after after_deployment after_version
+            state="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}" 2>/dev/null)" || return 1
+            current_deployment="$(jq -r '.result.deployments[0].id // empty' <<<"$state")"
+            current_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$state" | head -1)"
+            current_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$state")"
+            previous_deployment="$(jq -r '.result.deployments[1].id // empty' <<<"$state")"
+            decision="$(node scripts/team-production-release-fence.mjs "$(jq -nc \
+              --arg oldDeploymentId "$OLD_DEPLOYMENT_ID" --arg oldVersion "$OLD_VERSION" \
+              --arg candidateDeploymentId "$candidate_deployment_id" --arg candidateVersion "$TEAM_VERSION" --arg candidateMarker "$deployment_marker" \
+              --arg currentDeploymentId "$current_deployment" --arg currentVersion "$current_version" --arg currentMarker "$current_marker" --arg previousDeploymentId "$previous_deployment" \
+              '{oldDeploymentId:$oldDeploymentId,oldVersion:$oldVersion,candidateDeploymentId:$candidateDeploymentId,candidateVersion:$candidateVersion,candidateMarker:$candidateMarker,currentDeploymentId:$currentDeploymentId,currentVersion:$currentVersion,currentMarker:$currentMarker,previousDeploymentId:$previousDeploymentId}')")" || return 1
+            case "$decision" in
+              RESTORE) CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions deploy "${OLD_VERSION}@100%" -y >/dev/null 2>&1 || return 1 ;;
+              NOOP) ;;
+              *) return 1 ;;
+            esac
+            after="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}" 2>/dev/null)" || return 1
+            after_deployment="$(jq -r '.result.deployments[0].id // empty' <<<"$after")"
+            after_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$after" | head -1)"
+            if [ "$decision" = "RESTORE" ]; then
+              [ "$after_version" = "$OLD_VERSION" ] && [ "$after_deployment" != "$current_deployment" ] || return 1
+            else
+              [ "$after_version" = "$OLD_VERSION" ] && [ "$after_deployment" = "$OLD_DEPLOYMENT_ID" ] || return 1
             fi
           }
           fail() {
-            rollback
-            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nPrevious Team runtime rollback was attempted if traffic changed. No Core, D1, Access-policy, route, or custom-domain mutation was authorized."
+            local message="$1" rollback_note="No candidate traffic promotion had started."
+            if [ "$promotion_attempted" -eq 1 ]; then
+              if rollback; then rollback_note="Prior Team version was restored or the exact pinned baseline remained active."; else rollback_note="Rollback was refused or failed because exact failed-promotion ownership could not be proven; no external deployment was overwritten."; fi
+            fi
+            comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n${message}\n\n${rollback_note}\n\nNo Core, D1, Access-policy, route, or custom-domain mutation was authorized."
             exit 1
           }
-          if [ "$OLD_VERSION" != "$TEAM_VERSION" ]; then
-            CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions deploy "${TEAM_VERSION}@100%" -y >/dev/null || fail "Could not promote exact Team version."
-            serving_changed=1
+
+          deployments_predeploy="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-read Team deployment immediately before promotion."
+          deployment_predeploy="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments_predeploy")"
+          active_predeploy="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments_predeploy" | head -1)"
+          [ "$deployment_predeploy" = "$OLD_DEPLOYMENT_ID" ] && [ "$active_predeploy" = "$OLD_VERSION" ] || fail "Team deployment drifted after preflight and before promotion."
+          main_predeploy="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main immediately before promotion."
+          runtime_main_ok "$main_predeploy" || fail "Runtime-affecting Team main drift exists immediately before promotion."
+
+          if [ "$OLD_VERSION" = "$TEAM_VERSION" ]; then
+            final_main="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main before terminal PASS."
+            runtime_main_ok "$final_main" || fail "Runtime-affecting Team main drift exists before terminal PASS."
+            final="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify Team deployment before terminal PASS."
+            [ "$(jq -r '.result.deployments[0].id // empty' <<<"$final")" = "$OLD_DEPLOYMENT_ID" ] || fail "Team deployment identity changed before terminal PASS."
+            comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS_ALREADY_ACTIVE**\n\n- Team source: ${TEAM_SHA}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${OLD_DEPLOYMENT_ID}\n- Traffic: already 100%\n\nNo production mutation was attempted."
+            exit 0
           fi
+
+          deployment_nonce="$(cat /proc/sys/kernel/random/uuid)"
+          [[ "$deployment_nonce" =~ ^[0-9a-f-]{36}$ ]] || fail "Cannot create Team deployment proof nonce."
+          deployment_marker="PINO_TEAM_PRODUCTION_RELEASE:${TEAM_SHA}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}:${deployment_nonce}"
+          promotion_attempted=1
+          deploy_output="$RUNNER_TEMP/team-version-deploy.ndjson"; rm -f "$deploy_output"
+          set +e
+          WRANGLER_OUTPUT_FILE_PATH="$deploy_output" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+            npx --yes wrangler@4.126.0 versions deploy "${TEAM_VERSION}@100%" --message "$deployment_marker" -y >/dev/null
+          deploy_rc=$?
+          set -e
+          if [ -s "$deploy_output" ]; then candidate_deployment_id="$(jq -r 'select(.type == "version-deploy") | .deployment_id // empty' "$deploy_output" | tail -1)"; fi
+          [ "$deploy_rc" -eq 0 ] || fail "Wrangler Team deploy failed after traffic mutation may have started."
+          [ -n "$candidate_deployment_id" ] || fail "Team deploy succeeded but no immutable deployment ID was returned."
+
           current="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify post-promotion Team traffic."
+          active_deployment="$(jq -r '.result.deployments[0].id // empty' <<<"$current")"
+          active_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$current")"
           active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$current" | head -1)"
-          [ "$active" = "$TEAM_VERSION" ] || fail "Exact Team version is not active at 100%."
+          [ "$active_deployment" = "$candidate_deployment_id" ] && [ "$active_marker" = "$deployment_marker" ] && [ "$active" = "$TEAM_VERSION" ] || fail "Exact marked Team deployment is not active at 100%."
+          main_postdeploy="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main after promotion."
+          runtime_main_ok "$main_postdeploy" || fail "Runtime-affecting Team main drift occurred during promotion."
+
           for host in "$TOS_HOST" "$BO_HOST"; do
             headers="$RUNNER_TEMP/headers.txt"; : > "$headers"
             code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}/" || true)"
@@ -164,5 +237,13 @@ jobs:
               *) fail "${host} perimeter smoke returned unexpected HTTP ${code}." ;;
             esac
           done
-          serving_changed=0
-          gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Traffic: 100%\n- TOS + BO: attached to Team OS and Cloudflare Access protected\n- Core public ingress: none\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
+
+          final_main="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main before terminal PASS."
+          runtime_main_ok "$final_main" || fail "Runtime-affecting Team main drift exists before terminal PASS."
+          final="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify Team deployment identity before terminal PASS."
+          final_deployment="$(jq -r '.result.deployments[0].id // empty' <<<"$final")"
+          final_active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$final" | head -1)"
+          final_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$final")"
+          [ "$final_deployment" = "$candidate_deployment_id" ] && [ "$final_active" = "$TEAM_VERSION" ] && [ "$final_marker" = "$deployment_marker" ] || fail "Team deployment drifted before terminal PASS."
+          promotion_attempted=0
+          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
