@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleBoStaffOnboardingRequest, isPracticeWritePath, type BoWriteEnv } from "./bo-write-handler";
+import { handleBoStaffOnboardingRequest, handleBoWriteRequest, isPracticeWritePath, type BoWriteEnv } from "./bo-write-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 const token="local-password-session",path="workforce/staff-onboarding";
 const env=(binding:BoAccessCoreBinding):BoWriteEnv=>({PINO_BO_CORE:binding});
@@ -12,3 +12,16 @@ test("Staff PIN reset rejects manager-selected PIN",async()=>{let called=false;c
 test("Core denial and request ID pass through",async()=>{const binding:BoAccessCoreBinding={async executeWithStaffPassword(){return{status:403,body:{error:{code:"ACCESS_PERMISSION_DENIED"}},requestId:"denied"};}};const response=await handleBoStaffOnboardingRequest(request(path,true,{},"k"),env(binding),path);assert.equal(response.status,403);assert.equal(response.headers.get("x-request-id"),"denied");});
 test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";assert.equal(isPracticeWritePath("practice/repertoire-access/grants"),true);assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`),true);assert.equal(isPracticeWritePath("practice/media"),false);});
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
+
+test("timekeeping correction requires idempotency and forwards only through BO Core", async () => {
+  const forwarded: Array<{ request: BoAccessRequest; token: string }> = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request, token) { forwarded.push({ request, token }); return { status: 201, body: { data: { correction: { id: "c" } } }, requestId: "time-correct" }; } };
+  const path = "workforce/timekeeping/01912345-6789-7abc-8def-0123456789ab/corrections";
+  const missing = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}` }, body: JSON.stringify({ correctionType: "CHECK_IN_AT" }) });
+  assert.equal((await handleBoWriteRequest(missing, env(binding), path)).status, 400);
+  const request = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "corr-key" }, body: JSON.stringify({ correctionType: "CHECK_IN_AT", correctedAt: "2026-09-06T01:15:00.000Z", reason: "Verified", expectedLatestCorrectionId: null }) });
+  assert.equal((await handleBoWriteRequest(request, env(binding), path)).status, 201);
+  assert.equal(forwarded.length, 1);
+  assert.equal(forwarded[0]!.token, token);
+  assert.deepEqual(forwarded[0]!.request, { method: "POST", path, body: { correctionType: "CHECK_IN_AT", correctedAt: "2026-09-06T01:15:00.000Z", reason: "Verified", expectedLatestCorrectionId: null }, idempotencyKey: "corr-key" });
+});

@@ -407,6 +407,31 @@ export interface BoTimekeepingSession {
   status: "OPEN" | "CLOSED";
   durationSeconds: number | null;
   anomalyFlags: Array<"MISSING_ASSIGNMENT" | "ASSIGNMENT_UNAVAILABLE">;
+  recorded: { checkInAt: string; checkOutAt: string | null; durationSeconds: number | null };
+  effective: { checkInAt: string; checkOutAt: string | null; durationSeconds: number | null };
+  latestCorrection: null | {
+    id: string;
+    correctionType: "CHECK_IN_AT" | "CHECK_OUT_AT" | "MISSED_CHECKOUT";
+    reason: string;
+    createdByUserId: string;
+    createdAt: string;
+    supersedesCorrectionId: string | null;
+  };
+}
+
+export interface BoTimekeepingCorrectionResult {
+  correction: {
+    id: string;
+    timekeepingSessionId: string;
+    correctionType: "CHECK_IN_AT" | "CHECK_OUT_AT";
+    reason: string;
+    correctedCheckInAt: string;
+    correctedCheckOutAt: string;
+    createdByUserId: string;
+    supersedesCorrectionId: string | null;
+    createdAt: string;
+  };
+  effective: { checkInAt: string; checkOutAt: string; durationSeconds: number };
 }
 
 export interface BoTimekeepingPage {
