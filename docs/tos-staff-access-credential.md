@@ -1,8 +1,11 @@
 # TOS Staff Access credential
 
-TOS staff admission uses a dedicated GitHub Actions secret named `CF_ACCESS_API_TOKEN`.
+TOS staff admission uses two distinct credentials with separate trust boundaries:
 
-Do not reuse or broaden the Worker/D1 deployment credential for this purpose.
+- `CF_ACCESS_API_TOKEN` is the control-plane credential used only by governed GitHub Actions that read or edit Access applications and policies.
+- `CF_ACCESS_EVALUATOR_API_TOKEN` is the evaluator-runtime source credential used only to configure `pino-access-evaluator`. It must be a different opaque value from the control-plane token.
+
+Do not reuse or broaden Worker/D1 deployment credentials for either purpose, and never copy the control-plane Access credential into application runtime.
 
 ## Cloudflare token scope
 
@@ -13,13 +16,13 @@ Create a Cloudflare API token scoped to the PINO Cloudflare account with only th
 
 Restrict Account Resources to the PINO Cloudflare account only. No Worker, D1, DNS, route, zone-write, or other product permission is required by this credential.
 
-## GitHub secret
+## GitHub secrets and runtime separation
 
-Store the token as repository Actions secret:
+Store the control-plane token as repository Actions secret `CF_ACCESS_API_TOKEN`. Store the distinct evaluator-runtime source as `CF_ACCESS_EVALUATOR_API_TOKEN`.
 
-`CF_ACCESS_API_TOKEN`
+The evaluator credential must be least-privilege and read-only for the evaluator's required Access lookups. It must not carry `Access: Apps and Policies Edit`, Worker, D1, DNS, route, or zone-write authority. The `access-sync-worker-secret` workflow refuses configuration when the evaluator and control-plane opaque values hash identically, then writes only the evaluator credential into the evaluator Worker secret.
 
-The token must never be committed, logged, written into issues, or reused by application runtime code.
+Neither token may be committed, logged, or written into issues. The control-plane token must never be reused by application runtime code.
 
 ## Governed activation
 

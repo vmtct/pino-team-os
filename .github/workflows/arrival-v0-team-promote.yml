@@ -1,4 +1,5 @@
 name: Arrival v0 Team Runtime Promote
+# PINO_RETIRED_SUPERSEDED_OPERATOR: canonical production authority moved to the current release workflow.
 
 on:
   issues:
@@ -14,7 +15,7 @@ concurrency:
 
 jobs:
   promote:
-    if: github.event.issue.title == '[GPT] Arrival v0 promote Team runtime' && github.event.issue.user.login == 'vmtct'
+    if: ${{ false }} # retired superseded production operator
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: tos-google-idp-reconcile
+  group: pino-team-production
   cancel-in-progress: false
 
 jobs:
@@ -34,6 +34,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_TOKEN:-}" -H 'Content-Type: application/json')
           mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false
@@ -71,6 +73,7 @@ jobs:
           old_auto="$(jq -r '.auto_redirect_to_identity // false' <<<"$app")"
           desired="$(jq -nc --arg g "$google_id" --arg o "$otp_id" '[$g,$o]')"
           payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$desired" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:false}')"
+          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS Google IdP reconcile" "$AUTH_BODY_HASH"
           update_response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$payload" || true)"
           update_code="${update_response##*$'\n'}"; updated="${update_response%$'\n'*}"
           [ "$update_code" = 200 ] || fail "Cloudflare rejected TOS IdP update (HTTP ${update_code:-000}; errors=$(jq -c '[.errors[]? | {code,message}]' <<<"${updated:-}" 2>/dev/null || printf '[]'))."
@@ -91,4 +94,5 @@ jobs:
           [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/tos.pinohouse.art"* ]] || fail "TOS redirect is not the expected Cloudflare Access challenge."
           [[ "$location" == *"kid=$TOS_AUD"* ]] || fail "TOS Access challenge audience changed after IdP update."
           mutated=false
+          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS Google IdP reconcile" "$AUTH_BODY_HASH"
           comment "TOS_GOOGLE_IDP_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS IdPs: Google + One-time PIN fallback\n- Instant redirect: disabled (chooser preserved)\n- Canonical External Evaluation: preserved\n- Allow Everyone policies: 0\n- BO allowed_idps: unchanged\n- TOS Access challenge: preserved on pinned audience\n\nAuthentication method changed only at the TOS Cloudflare perimeter. pino-core remains canonical authorization authority; BO/Core/D1/runtime/routes/domains were not mutated."

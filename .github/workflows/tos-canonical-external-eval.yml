@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: tos-canonical-external-eval
+  group: pino-team-production
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +40,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
           mutated=false
@@ -97,6 +99,7 @@ jobs:
             policy_id="$(jq -r '.id' <<<"$old")"
             original_payload="$(jq -c '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$old")"
             payload="$(jq -nc --arg name "$NEW_POLICY" --arg eval "$EVALUATE_URL" --arg keys "$KEYS_URL" '{name:$name,decision:"allow",precedence:50,include:[{external_evaluation:{evaluate_url:$eval,keys_url:$keys}}],exclude:[],require:[]}')"
+            bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS canonical external evaluation" "$AUTH_BODY_HASH"
             updated="$(curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected External Evaluation policy update."
             jq -e '.success==true and (.result.id|length>0)' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful policy update."
             mutated=true
@@ -125,4 +128,5 @@ jobs:
           mutated=false
           state="reused"
           [ -z "$old" ] || state="replaced"
+          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS canonical external evaluation" "$AUTH_BODY_HASH"
           comment "TOS_CANONICAL_EXTERNAL_EVAL: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS app: ${app_id}\n- TOS audience: ${TOS_AUD}\n- Staff perimeter policy: ${state} (${policy_id})\n- Allow Everyone policies on TOS: 0\n- Evaluator: ${EVALUATE_URL}\n- Evaluator key: RSA/RS256 ready\n- BO allow-everyone policies: 0\n- TOS challenge preserved (HTTP ${code})\n\nCloudflare now asks the canonical evaluator after OTP; evaluator fails closed unless pino-core authorizes an active TOS Staff principal. BO policy, D1, Staff data, Team/Core runtime, routes and domains were not mutated by this operator."

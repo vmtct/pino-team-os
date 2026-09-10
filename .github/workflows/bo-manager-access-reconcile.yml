@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: bo-manager-access-reconcile
+  group: pino-team-production
   cancel-in-progress: false
 
 jobs:
@@ -39,6 +39,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
           api="https://api.cloudflare.com/client/v4"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
           repo="$GITHUB_REPOSITORY"
@@ -103,6 +105,7 @@ jobs:
           existing="$(jq -c --arg name "$POLICY_NAME" --arg email "$MANAGER_EMAIL" '.result[]? | select(.name==$name and .decision=="allow" and any(.include[]?; .email.email==$email))' <<<"$policies" | head -1)"
           if [ -n "$existing" ]; then policy_id="$(jq -r '.id' <<<"$existing")"; else
             payload="$(jq -nc --arg name "$POLICY_NAME" --arg email "$MANAGER_EMAIL" '{name:$name,decision:"allow",precedence:60,include:[{email:{email:$email}}],exclude:[],require:[]}')"
+            bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] BO manager Access reconcile" "$AUTH_BODY_HASH"
             created="$(curl -fsS -X POST "${api}/${base}/access/apps/${app_id}/policies" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected BO manager policy creation."
             jq -e '.success==true and (.result.id|length>0)' <<<"$created" >/dev/null || fail "Cloudflare did not report successful BO manager policy creation."
             created_policy_id="$(jq -r '.result.id' <<<"$created")"
@@ -121,4 +124,5 @@ jobs:
           [[ "$location" == *"kid=${BO_AUD}"* ]] || fail "BO challenge audience changed."
 
           created_policy_id=""
+          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] BO manager Access reconcile" "$AUTH_BODY_HASH"
           comment "BO_MANAGER_ACCESS_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- BO app: ${app_id}\n- BO audience: ${BO_AUD}\n- Manager admission: explicit email policy ${POLICY_NAME} (${policy_id})\n- Allow Everyone: 0\n- Existing Founder policies: untouched\n- BO /bo: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the manager email; pino-core team.bo.access remains canonical BO authorization."
