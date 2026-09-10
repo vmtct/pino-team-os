@@ -4,6 +4,8 @@ import test from "node:test";
 
 test("Workforce staging artifact is bound to exact source and trusted workflow run", async () => {
   const workflow = await readFile(".github/workflows/workforce-team-staging-deploy.yml", "utf8");
+  assert.match(workflow, /Workforce Team staging deploy #\{0\} @ \{1\}/);
+  assert.match(workflow, /IGNORED Workforce Team staging issue #\{0\} @ \{1\}/);
   assert.match(workflow, /Requested SHA is not current Team main/);
   assert.match(workflow, /Source PR merge SHA does not equal requested Team SHA/);
   assert.match(workflow, /PR Validation/);
