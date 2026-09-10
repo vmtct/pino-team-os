@@ -142,7 +142,7 @@ jobs:
           set -euo pipefail
           [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "CF_API_TOKEN unavailable" >&2; exit 1; }
           short_sha="${TEAM_SHA:0:12}"
-          npx wrangler deploy -c wrangler.staging.jsonc --tag "workforce-staging-${short_sha}" --message "Workforce staging ${TEAM_SHA}"
+          npx wrangler deploy -c wrangler.staging.jsonc --tag "workforce-staging-${short_sha}-run-${GITHUB_RUN_ID}" --message "Workforce staging ${TEAM_SHA} run ${GITHUB_RUN_ID}"
 
       - name: Verify exact active staging version provenance
         id: deployment
@@ -153,7 +153,7 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler deployments list -c wrangler.staging.jsonc --json > deployments.json
-          deployment="$(jq -c --arg message "Workforce staging ${TEAM_SHA}" '[.[] | select(.annotations["workers/message"] == $message)] | last' deployments.json)"
+          deployment="$(jq -c --arg message "Workforce staging ${TEAM_SHA} run ${GITHUB_RUN_ID}" '[.[] | select(.annotations["workers/message"] == $message)] | last' deployments.json)"
           [ "$deployment" != "null" ] || { echo "Exact staging deployment provenance not found" >&2; exit 1; }
           version_id="$(jq -r '.versions[] | select(.percentage == 100) | .version_id' <<<"$deployment")"
           [ -n "$version_id" ] || { echo "Exact staging version is not active at 100%" >&2; exit 1; }
@@ -193,6 +193,7 @@ jobs:
           Source PR: #${{ steps.gate.outputs.source_pr }}
           Worker: pino-team-os-staging
           Active version: ${{ steps.deployment.outputs.version_id }}
+          Trusted workflow run: ${GITHUB_RUN_ID}
           BO Workforce API/page + Staff login/PIN-change pages: PASS
 
           Production Team Worker, production routes/domains, and production Core were not changed."
