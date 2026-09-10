@@ -10,11 +10,16 @@ pages="$(core_api --paginate --slurp "/repos/${repo}/actions/workflows/core-prod
 latest="$(jq -r --arg sha "$core_sha" '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "") | startswith("Core production release #")) and ((.display_title // "") | endswith(" @ " + $sha)))] | sort_by(.updated_at // .run_started_at // .created_at // "") | last | .id // empty' <<<"$pages")"
 [ "$latest" = "$run_id" ] || { echo "Selected Core production release is superseded by a newer same-SHA attempt" >&2; exit 1; }
 issue="$(core_api "/repos/${repo}/issues/${issue_number}")"
-jq -e '.user.login=="vmtct" and .title=="[GPT] Core production release"' <<<"$issue" >/dev/null
+jq -e '.state=="open" and .user.login=="vmtct" and .title=="[GPT] Core production release"' <<<"$issue" >/dev/null
 comments="$(core_api --paginate --slurp "/repos/${repo}/issues/${issue_number}/comments?per_page=100")"
 terminal="$(jq -c '[.[][] | select(.user.login=="github-actions[bot]" and (((.body // "")|startswith("CORE_PRODUCTION_RELEASE: **PASS**")) or ((.body // "")|startswith("CORE_PRODUCTION_RELEASE: **FAIL_SAFE**")) or ((.body // "")|startswith("CORE_PRODUCTION_RELEASE: **REJECTED**"))))] | sort_by(.created_at) | last // empty' <<<"$comments")"
 [ -n "$terminal" ]
 jq -e --arg sha "$core_sha" --arg dep "$deployment_id" --arg run "$run_id" '.body | startswith("CORE_PRODUCTION_RELEASE: **PASS**") and contains("Core source: "+$sha) and contains("Deployment ID: "+$dep) and contains("Workflow run: "+$run) and contains("Workflow attempt: 1")' <<<"$terminal" >/dev/null
+terminal_body="$(jq -r '.body // ""' <<<"$terminal")"
+auth_hash="$(sed -nE 's/^- Authorization body hash:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$terminal_body")"
+[[ "$auth_hash" =~ ^[0-9a-f]{64}$ ]] || { echo "Core terminal receipt lacks exact authorization body hash" >&2; exit 1; }
+live_body="$(jq -r '.body // ""' <<<"$issue")"
+[ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$auth_hash" ] || { echo "Core release authorization body changed after PASS" >&2; exit 1; }
 api="https://api.cloudflare.com/client/v4"; auth=(-H "Authorization: Bearer ${CF_API_TOKEN:?CF_API_TOKEN}" -H "Content-Type: application/json")
 state="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID:?CF_ACCOUNT_ID}/workers/scripts/${worker}/deployments" "${auth[@]}")"
 [ "$(jq -r '.result.deployments[0].id // empty' <<<"$state")" = "$deployment_id" ]

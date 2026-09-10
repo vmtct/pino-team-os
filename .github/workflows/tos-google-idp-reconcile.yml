@@ -1,4 +1,5 @@
 name: TOS Google IdP Reconcile
+run-name: ${{ github.event.issue.title == '[GPT] TOS Google IdP reconcile' && github.event.issue.user.login == 'vmtct' && format('TOS Google IdP reconcile #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED TOS Google IdP reconcile #{0} @ {1}', github.event.issue.number, github.sha) }}
 
 on:
   issues:
@@ -27,20 +28,39 @@ jobs:
       BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact event source
+        uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Reconcile Google + OTP login methods on TOS
         shell: bash
         run: |
           set -euo pipefail
           AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
           echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
+          assert_live_team_main() {
+            local checked_sha main_sha
+            checked_sha="$(git rev-parse HEAD)"
+            [ "$checked_sha" = "$GITHUB_SHA" ] || { echo "Checked-out Team source does not equal event SHA" >&2; return 1; }
+            main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            [ "$main_sha" = "$checked_sha" ] || { echo "Team main advanced; stale source cannot mutate production" >&2; return 1; }
+          }
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_TOKEN:-}" -H 'Content-Type: application/json')
-          mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false
+          mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false; original_payload=""; desired_payload=""
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
-          rollback() { if [ "$mutated" = true ] && [ -n "$app_id" ]; then rb="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$old_allowed" --argjson auto "$old_auto" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:$auto}')"; curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$rb" >/dev/null 2>&1 || true; fi; }
+          rollback() {
+            if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$original_payload" ] && [ -n "$desired_payload" ]; then
+              local live current
+              live="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
+              current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id) | {domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$live" | head -1)"
+              [ "$current" = "$original_payload" ] && return 0
+              [ "$current" = "$desired_payload" ] || return 1
+              curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original_payload" >/dev/null 2>&1 || return 1
+            fi
+          }
           fail() { rollback; comment "TOS_GOOGLE_IDP_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny TOS IdP selection changed by this run was rolled back. No BO policy, Core/D1 data, route, domain, or runtime mutation was authorized."; exit 1; }
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
           [ -n "${CF_ACCESS_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
@@ -72,13 +92,21 @@ jobs:
           old_allowed="$(jq -c '.allowed_idps // []' <<<"$app")"
           old_auto="$(jq -r '.auto_redirect_to_identity // false' <<<"$app")"
           desired="$(jq -nc --arg g "$google_id" --arg o "$otp_id" '[$g,$o]')"
-          payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$desired" '{domain:$domain,type:$type,allowed_idps:$ids,auto_redirect_to_identity:false}')"
+          payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$desired" '{domain:$domain,type:$type,allowed_idps:($ids|sort),auto_redirect_to_identity:false}')"
+          desired_payload="$payload"
+          original_payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$old_allowed" --argjson auto "$old_auto" '{domain:$domain,type:$type,allowed_idps:($ids|sort),auto_redirect_to_identity:$auto}')"
+          original_b64="$(printf '%s' "$original_payload" | base64 -w0)"
+          desired_b64="$(printf '%s' "$desired_payload" | base64 -w0)"
           bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS Google IdP reconcile" "$AUTH_BODY_HASH"
+          assert_live_team_main || fail "Team source authority drifted before production mutation."
+          bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
+          bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_GOOGLE_IDP_RECONCILE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nOriginal app payload b64: ${original_b64}\nDesired app payload b64: ${desired_b64}\n\nBaseline and exact run-owned desired state captured before the Access application PUT." >/dev/null || fail "Could not persist TOS IdP recovery baseline."
+          mutated=true
           update_response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$payload" || true)"
           update_code="${update_response##*$'\n'}"; updated="${update_response%$'\n'*}"
           [ "$update_code" = 200 ] || fail "Cloudflare rejected TOS IdP update (HTTP ${update_code:-000}; errors=$(jq -c '[.errors[]? | {code,message}]' <<<"${updated:-}" 2>/dev/null || printf '[]'))."
           jq -e '.success==true' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful TOS IdP update."
-          mutated=true
           verify="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot verify Access applications after TOS update."
           jq -e '.success==true' <<<"$verify" >/dev/null || fail "Access application verification API failed."
           tos_after="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$verify" | head -1)"
@@ -93,6 +121,8 @@ jobs:
           [ "$code" = 302 ] || [ "$code" = 303 ] || [ "$code" = 307 ] || fail "TOS perimeter no longer returns a Cloudflare Access redirect (HTTP $code)."
           [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/tos.pinohouse.art"* ]] || fail "TOS redirect is not the expected Cloudflare Access challenge."
           [[ "$location" == *"kid=$TOS_AUD"* ]] || fail "TOS Access challenge audience changed after IdP update."
-          mutated=false
           bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS Google IdP reconcile" "$AUTH_BODY_HASH"
+          assert_live_team_main || fail "Team source authority drifted before terminal PASS."
+          bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps terminal Team evidence."
           comment "TOS_GOOGLE_IDP_RECONCILE: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS IdPs: Google + One-time PIN fallback\n- Instant redirect: disabled (chooser preserved)\n- Canonical External Evaluation: preserved\n- Allow Everyone policies: 0\n- BO allowed_idps: unchanged\n- TOS Access challenge: preserved on pinned audience\n\nAuthentication method changed only at the TOS Cloudflare perimeter. pino-core remains canonical authorization authority; BO/Core/D1/runtime/routes/domains were not mutated."
+          mutated=false

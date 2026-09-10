@@ -9,6 +9,11 @@ on:
         description: "Commit SHA to inspect (leave blank for latest main)"
         required: false
         type: string
+      reconcile_non_promoting_build:
+        description: "Reconcile the main Cloudflare Build trigger to immutable non-serving candidate upload"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -44,6 +49,32 @@ jobs:
           for name in CF_ACCOUNT_ID CF_API_TOKEN; do
             [ -n "${!name:-}" ] || { echo "Missing GitHub Actions secret: $name" >&2; exit 1; }
           done
+
+      - name: Reconcile canonical non-promoting production build boundary
+        if: github.event_name == 'workflow_dispatch' && inputs.reconcile_non_promoting_build == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          expected="$(jq -r '.deployCommand' ops/team-production-build-boundary.json)"
+          [ -n "$expected" ] || { echo "Repository build-boundary deploy command is empty" >&2; exit 1; }
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
+          worker_tag="$(jq -r --arg n "$WORKER_NAME" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$worker_tag" ] || { echo "Cannot resolve Worker tag" >&2; exit 1; }
+          triggers="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" "${auth[@]}")"
+          matches="$(jq -c '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index("main")) and ((.repo_connection.repo_name // "")=="pino-team-os"))]' <<<"$triggers")"
+          [ "$(jq 'length' <<<"$matches")" -eq 1 ] || { echo "Expected exactly one active pino-team-os main build trigger" >&2; exit 1; }
+          trigger="$(jq -r '.[0].trigger_uuid' <<<"$matches")"
+          current="$(jq -r '.[0].deploy_command // ""' <<<"$matches")"
+          if [ "$current" != "$expected" ]; then
+            payload="$(jq -nc --arg d "$expected" '{deploy_command:$d}')"
+            patched="$(curl -fsS -X PATCH "${api}/accounts/${CF_ACCOUNT_ID}/builds/triggers/${trigger}" "${auth[@]}" -d "$payload")"
+            jq -e --arg d "$expected" '.success==true and .result.deploy_command==$d' <<<"$patched" >/dev/null || { echo "Cloudflare did not accept exact non-promoting deploy command" >&2; exit 1; }
+          fi
+          verify="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" "${auth[@]}")"
+          jq -e --arg id "$trigger" --arg d "$expected" '[.result[]? | select(.trigger_uuid==$id and (.deleted_on // null)==null and .deploy_command==$d and ((.branch_includes // []) | index("main")))] | length==1' <<<"$verify" >/dev/null || { echo "Live main build trigger is not exact non-promoting authority" >&2; exit 1; }
+          echo "Cloudflare Builds main trigger reconciled: immutable candidate upload only; no traffic promotion performed."
 
       - name: Classify source delta
         id: delta

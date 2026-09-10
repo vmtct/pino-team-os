@@ -1,0 +1,131 @@
+name: Team Access Control Recovery Watchdog
+
+on:
+  workflow_run:
+    workflows:
+      - Access Sync Worker Secret
+      - BO Manager Access Reconcile
+      - TOS Google IdP Reconcile
+      - TOS Canonical External Evaluation
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: pino-team-production-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.actor.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      CORE_RELEASE_GH_TOKEN: ${{ secrets.PINO_CORE_RELEASE_READ_TOKEN }}
+    steps:
+      - name: Checkout exact failed source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Reconcile exact run-owned Access mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          run_id='${{ github.event.workflow_run.id }}'
+          sha='${{ github.event.workflow_run.head_sha }}'
+          workflow='${{ github.event.workflow_run.name }}'
+          display='${{ github.event.workflow_run.display_title }}'
+          case "$workflow" in
+            'Access Sync Worker Secret')
+              issue="$(sed -nE "s/^Access sync worker secret #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=ACCESS_SYNC_WORKER_SECRET; mode=worker ;;
+            'BO Manager Access Reconcile')
+              issue="$(sed -nE "s/^BO manager Access reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=BO_MANAGER_ACCESS_RECONCILE; mode=bo ;;
+            'TOS Google IdP Reconcile')
+              issue="$(sed -nE "s/^TOS Google IdP reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_GOOGLE_IDP_RECONCILE; mode=idp ;;
+            'TOS Canonical External Evaluation')
+              issue="$(sed -nE "s/^TOS canonical external evaluation #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_CANONICAL_EXTERNAL_EVAL; mode=eval ;;
+            *) exit 0 ;;
+          esac
+          [ -n "$issue" ] || { echo "Cannot bind failed Access run to one canonical issue" >&2; exit 1; }
+          comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
+          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **RECOVERY_ARMED**")) and ((.body // "") | contains("Workflow run: " + $run)))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          [ -n "$marker" ] || { echo "No durable Access recovery marker; no external commit was authorized"; exit 0; }
+          pass="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **PASS**")) and ((.body // "") | contains("Workflow run: " + $run)))] | last // empty' <<<"$comments")"
+          [ -z "$pass" ] || { echo "Exact Access run already has PASS; watchdog no-op"; exit 0; }
+          body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
+
+          overlap_clear=0
+          for _ in $(seq 1 24); do
+            if bash scripts/assert-no-core-verification-in-flight.sh; then overlap_clear=1; break; fi
+            sleep 5
+          done
+          [ "$overlap_clear" -eq 1 ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nRecovery remains armed but is deferred while Core PRE_GA verification/recovery is active."; exit 1; }
+
+          case "$mode" in
+            worker)
+              old_deployment="$(sed -nE 's/^Old deployment ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              old_version="$(sed -nE 's/^Old version ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              candidate="$(sed -nE 's/^Candidate version ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              marker_value="$(sed -nE 's/^Deployment marker:[[:space:]]*(PINO_ACCESS_SECRET:[^[:space:]]+)[[:space:]]*$/\1/p' <<<"$body")"
+              [ -n "$old_deployment" ] && [ -n "$old_version" ] && [ -n "$candidate" ] && [ -n "$marker_value" ] || { echo "Malformed evaluator recovery marker" >&2; exit 1; }
+              result="$(CF_ACCOUNT_ID="$CF_ACCOUNT_ID" CF_API_TOKEN="$CF_API_TOKEN" bash scripts/recover-worker-promotion.sh pino-access-evaluator "$old_deployment" "$old_version" "$candidate" "$marker_value" access)" || exit $?
+              ;;
+            bo)
+              base="$(sed -nE 's/^Access base:[[:space:]]*(accounts\/[0-9a-f]+|zones\/[0-9a-f]+)[[:space:]]*$/\1/p' <<<"$body")"
+              app_id="$(sed -nE 's/^App ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              recovery_policy_name="$(sed -nE 's/^Recovery policy name:[[:space:]]*(.+)[[:space:]]*$/\1/p' <<<"$body")"
+              manager_email="$(sed -nE 's/^Manager email:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$body")"
+              [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] && [ -n "$manager_email" ] || { echo "Malformed BO recovery marker" >&2; exit 1; }
+              [[ "$recovery_policy_name" == *"[run:${run_id}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
+              api="https://api.cloudflare.com/client/v4"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
+              policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+              matches="$(jq -c --arg n "$recovery_policy_name" '[.result[]? | select(.name==$n)]' <<<"$policies")"
+              count="$(jq 'length' <<<"$matches")"; [ "$count" -le 1 ] || { echo "Ambiguous BO recovery policy set" >&2; exit 1; }
+              if [ "$count" -eq 1 ]; then
+                jq -e --arg n "$recovery_policy_name" --arg e "$manager_email" '.[0] | .name==$n and .decision=="allow" and .precedence==60 and (.exclude // [])==[] and (.require // [])==[] and ((.include // [])==[{"email":{"email":$e}}])' <<<"$matches" >/dev/null || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nRun-owned BO policy identity drifted after mutation; recovery refused to overwrite external state."; exit 1; }
+                policy_id="$(jq -r '.[0].id' <<<"$matches")"
+                curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" >/dev/null
+              fi
+              result=BASELINE_RESTORED
+              ;;
+            idp)
+              app_id="$(sed -nE 's/^App ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              original_b64="$(sed -nE 's/^Original app payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+              desired_b64="$(sed -nE 's/^Desired app payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+              [ -n "$app_id" ] && [ -n "$original_b64" ] && [ -n "$desired_b64" ] || { echo "Malformed IdP recovery marker" >&2; exit 1; }
+              original="$(printf '%s' "$original_b64" | base64 -d)"; desired="$(printf '%s' "$desired_b64" | base64 -d)"; jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null
+              api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
+              apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
+              current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id) | {domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$apps" | head -1)"
+              if [ "$current" = "$original" ]; then result=BASELINE_ALREADY_ACTIVE
+              elif [ "$current" = "$desired" ]; then curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original" >/dev/null; result=BASELINE_RESTORED
+              else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nTOS IdP live state no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
+              fi
+              ;;
+            eval)
+              app_id="$(sed -nE 's/^App ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              policy_id="$(sed -nE 's/^Policy ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+              original_b64="$(sed -nE 's/^Original policy payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+              desired_b64="$(sed -nE 's/^Desired policy payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+              [ -n "$app_id" ] && [ -n "$policy_id" ] && [ -n "$original_b64" ] && [ -n "$desired_b64" ] || { echo "Malformed evaluator-policy recovery marker" >&2; exit 1; }
+              original="$(printf '%s' "$original_b64" | base64 -d)"; desired="$(printf '%s' "$desired_b64" | base64 -d)"; jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null
+              api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
+              policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+              current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id) | {name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$policies" | head -1)"
+              if [ "$current" = "$original" ]; then result=BASELINE_ALREADY_ACTIVE
+              elif [ "$current" = "$desired" ]; then curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original" >/dev/null; result=BASELINE_RESTORED
+              else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nExternal-evaluation policy no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
+              fi
+              ;;
+          esac
+          gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_RECOVERED**\n\nWorkflow run: ${run_id}\nRecovery result: ${result}.\nOnly the exact run-owned pre-mutation baseline was reconciled."

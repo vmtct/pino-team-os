@@ -1,4 +1,5 @@
 name: TOS Canonical External Evaluation
+run-name: ${{ github.event.issue.title == '[GPT] TOS canonical external evaluation' && github.event.issue.user.login == 'vmtct' && format('TOS canonical external evaluation #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED TOS canonical external evaluation #{0} @ {1}', github.event.issue.number, github.sha) }}
 
 on:
   issues:
@@ -20,6 +21,10 @@ jobs:
     env:
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCESS_POLICY_TEST_TOKEN: ${{ secrets.CF_ACCESS_POLICY_TEST_TOKEN }}
+      CF_ACCESS_POLICY_TEST_APPROVED_EMAIL: ${{ secrets.CF_ACCESS_POLICY_TEST_APPROVED_EMAIL }}
+      CF_ACCESS_POLICY_TEST_BLOCKED_EMAIL: ${{ secrets.CF_ACCESS_POLICY_TEST_BLOCKED_EMAIL }}
       TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
       BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
       OLD_POLICY: PINO Staff Core-gated OTP
@@ -31,10 +36,12 @@ jobs:
       ISSUE_BODY: ${{ github.event.issue.body }}
 
     steps:
-      - name: Checkout control plane
+      - name: Checkout exact event source
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Replace TOS everyone policy with canonical evaluator
         shell: bash
@@ -42,16 +49,29 @@ jobs:
           set -euo pipefail
           AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
           echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
+          assert_live_team_main() {
+            local checked_sha main_sha
+            checked_sha="$(git rev-parse HEAD)"
+            [ "$checked_sha" = "$GITHUB_SHA" ] || { echo "Checked-out Team source does not equal event SHA" >&2; return 1; }
+            main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            [ "$main_sha" = "$checked_sha" ] || { echo "Team main advanced; stale source cannot mutate production" >&2; return 1; }
+          }
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
           mutated=false
           original_payload=""
+          desired_payload=""
           app_id=""
           policy_id=""
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
           rollback() {
-            if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$policy_id" ] && [ -n "$original_payload" ]; then
-              curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original_payload" >/dev/null 2>&1 || true
+            if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$policy_id" ] && [ -n "$original_payload" ] && [ -n "$desired_payload" ]; then
+              local live current
+              live="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
+              current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id) | {name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$live" | head -1)"
+              [ "$current" = "$original_payload" ] && return 0
+              [ "$current" = "$desired_payload" ] || return 1
+              curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original_payload" >/dev/null 2>&1 || return 1
             fi
           }
           fail() {
@@ -64,11 +84,21 @@ jobs:
           [ -n "${CF_ACCESS_API_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
           target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
           confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          mapfile -t evaluator_issue_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SECRET_ISSUE:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+          mapfile -t evaluator_run_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SECRET_RUN_ID:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
           [ "$confirm" = "RECONCILE_TOS_EXTERNAL_EVAL" ] || fail "Exact confirmation missing."
           [ -n "$target_sha" ] || fail "TEAM_SHA missing."
+          [ "${#evaluator_issue_lines[@]}" -eq 1 ] || fail "Exactly one EVALUATOR_SECRET_ISSUE is required."
+          [ "${#evaluator_run_lines[@]}" -eq 1 ] || fail "Exactly one EVALUATOR_SECRET_RUN_ID is required."
+          evaluator_issue="${evaluator_issue_lines[0]}"; evaluator_run="${evaluator_run_lines[0]}"
           current_main="$(git rev-parse origin/main)"
           [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
           [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
+          [ -n "${CF_API_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable for evaluator provider verification."
+          [ -n "${CF_ACCESS_POLICY_TEST_TOKEN:-}" ] && [ -n "${CF_ACCESS_POLICY_TEST_APPROVED_EMAIL:-}" ] && [ -n "${CF_ACCESS_POLICY_TEST_BLOCKED_EMAIL:-}" ] || fail "Credential-dependent Access policy-test authority/identities unavailable."
+          evaluator_authority="$(bash scripts/assert-evaluator-provider-authority.sh "$evaluator_issue" "$evaluator_run")" || fail "Evaluator provider authority is not canonical/current."
+          evaluator_sha="$(jq -r '.sha' <<<"$evaluator_authority")"; evaluator_version="$(jq -r '.version' <<<"$evaluator_authority")"; evaluator_deployment="$(jq -r '.deployment' <<<"$evaluator_authority")"
+          [ "$evaluator_sha" = "$target_sha" ] || fail "Evaluator provider was not attested from this exact Team main."
 
           health_code="$(curl -sS -o /dev/null -w '%{http_code}' "${EVALUATE_URL%/evaluate}/health")"
           keys="$(curl -fsS "$KEYS_URL")" || fail "Evaluator keys endpoint is unavailable."
@@ -99,10 +129,17 @@ jobs:
             policy_id="$(jq -r '.id' <<<"$old")"
             original_payload="$(jq -c '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$old")"
             payload="$(jq -nc --arg name "$NEW_POLICY" --arg eval "$EVALUATE_URL" --arg keys "$KEYS_URL" '{name:$name,decision:"allow",precedence:50,include:[{external_evaluation:{evaluate_url:$eval,keys_url:$keys}}],exclude:[],require:[]}')"
+            desired_payload="$payload"
+            original_b64="$(printf '%s' "$original_payload" | base64 -w0)"
+            desired_b64="$(printf '%s' "$desired_payload" | base64 -w0)"
             bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS canonical external evaluation" "$AUTH_BODY_HASH"
+            assert_live_team_main || fail "Team source authority drifted before production mutation."
+            bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
+            bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_CANONICAL_EXTERNAL_EVAL: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nPolicy ID: ${policy_id}\nOriginal policy payload b64: ${original_b64}\nDesired policy payload b64: ${desired_b64}\n\nBaseline and exact run-owned desired state captured before the Access policy PUT." >/dev/null || fail "Could not persist External Evaluation recovery baseline."
+            mutated=true
             updated="$(curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected External Evaluation policy update."
             jq -e '.success==true and (.result.id|length>0)' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful policy update."
-            mutated=true
           fi
 
           verify="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies after update."
@@ -118,6 +155,9 @@ jobs:
           bo_id="$(jq -r '.[0].id' <<<"$bo")"
           bo_policies="$(curl -fsS "${api}/access/apps/${bo_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify BO policies."
           jq -e '.success==true and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0)' <<<"$bo_policies" >/dev/null || fail "BO policy invariant failed."
+          policy_test="$(bash scripts/run-access-evaluator-policy-test.sh "$TOS_AUD" "$CF_ACCESS_POLICY_TEST_APPROVED_EMAIL" "$CF_ACCESS_POLICY_TEST_BLOCKED_EMAIL")" || fail "Cloudflare Access policy test did not prove credential-dependent evaluator behavior."
+          policy_test_id="$(jq -r '.testId // empty' <<<"$policy_test")"
+          [ -n "$policy_test_id" ] || fail "Access policy test produced no immutable test identity."
           headers="$RUNNER_TEMP/tos-external-eval-headers.txt"
           code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' 'https://tos.pinohouse.art/staff-login' || true)"
           location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
@@ -125,8 +165,12 @@ jobs:
           [[ "$location" == *"cloudflareaccess.com/cdn-cgi/access/login/tos.pinohouse.art"* ]] || fail "TOS challenge endpoint drifted."
           [[ "$location" == *"kid=${TOS_AUD}"* ]] || fail "TOS audience drifted after policy update."
 
-          mutated=false
           state="reused"
           [ -z "$old" ] || state="replaced"
           bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS canonical external evaluation" "$AUTH_BODY_HASH"
-          comment "TOS_CANONICAL_EXTERNAL_EVAL: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS app: ${app_id}\n- TOS audience: ${TOS_AUD}\n- Staff perimeter policy: ${state} (${policy_id})\n- Allow Everyone policies on TOS: 0\n- Evaluator: ${EVALUATE_URL}\n- Evaluator key: RSA/RS256 ready\n- BO allow-everyone policies: 0\n- TOS challenge preserved (HTTP ${code})\n\nCloudflare now asks the canonical evaluator after OTP; evaluator fails closed unless pino-core authorizes an active TOS Staff principal. BO policy, D1, Staff data, Team/Core runtime, routes and domains were not mutated by this operator."
+          assert_live_team_main || fail "Team source authority drifted before terminal PASS."
+          bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps terminal Team evidence."
+          evaluator_final="$(bash scripts/assert-evaluator-provider-authority.sh "$evaluator_issue" "$evaluator_run")" || fail "Evaluator authority drifted before terminal PASS."
+          [ "$(jq -r '.version' <<<"$evaluator_final")" = "$evaluator_version" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$evaluator_deployment" ] || fail "Evaluator provider identity drifted before terminal PASS."
+          comment "TOS_CANONICAL_EXTERNAL_EVAL: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS app: ${app_id}\n- TOS audience: ${TOS_AUD}\n- Staff perimeter policy: ${state} (${policy_id})\n- Allow Everyone policies on TOS: 0\n- Evaluator: ${EVALUATE_URL}\n- Evaluator secret issue/run: #${evaluator_issue} / ${evaluator_run}\n- Evaluator version/deployment: ${evaluator_version} / ${evaluator_deployment}\n- Evaluator key: RSA/RS256 ready\n- Credential-dependent Access policy test: ${policy_test_id}\n- BO allow-everyone policies: 0\n- TOS challenge preserved (HTTP ${code})\n\nCloudflare now asks the canonical evaluator after OTP; evaluator fails closed unless pino-core authorizes an active TOS Staff principal. BO policy, D1, Staff data, Team/Core runtime, routes and domains were not mutated by this operator."
+          mutated=false

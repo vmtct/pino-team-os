@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: pino-team-production
+  group: pino-team-production-recovery
   cancel-in-progress: false
 
 jobs:
@@ -53,12 +53,8 @@ jobs:
             gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${run_id}\nIndependent watchdog confirmed same-run rollback receipt; no second traffic mutation was attempted."
             exit 0
           fi
-          pages="$(gh api --paginate --slurp "/repos/${repo}/actions/workflows/team-runtime-production-release.yml/runs?event=issues&per_page=100")"
-          latest="$(jq -r --arg sha "$sha" --arg prefix 'Team runtime production release #' '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "") | startswith($prefix)) and ((.display_title // "") | endswith(" @ " + $sha)))] | sort_by(.updated_at // .run_started_at // .created_at // "") | last | .id // empty' <<<"$pages")"
-          if [ "$latest" != "$run_id" ]; then
-            gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nRecovery refused because a newer same-SHA release attempt supersedes this failed run. No traffic was overwritten."
-            exit 1
-          fi
+          # Recovery ownership is the durable run-owned marker plus immutable deployment ancestry.
+          # Workflow recency is not mutation ownership; newer same-SHA runs cannot suppress recovery.
           body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
           old_deployment="$(sed -nE 's/^Old deployment ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
           old_version="$(sed -nE 's/^Old version ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"

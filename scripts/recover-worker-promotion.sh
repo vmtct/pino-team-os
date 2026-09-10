@@ -14,6 +14,7 @@ if [ "$current_deployment" = "$old_deployment" ] && [ "$current_version" = "$old
 case "$mode" in
   core) CLOUDFLARE_API_TOKEN="$token" CLOUDFLARE_ACCOUNT_ID="$account" npx wrangler versions deploy "${old_version}@100%" --env production -y >/dev/null ;;
   team) CLOUDFLARE_API_TOKEN="$token" CLOUDFLARE_ACCOUNT_ID="$account" npx --yes wrangler@4.126.0 versions deploy "${old_version}@100%" -y >/dev/null ;;
+  access) CLOUDFLARE_API_TOKEN="$token" CLOUDFLARE_ACCOUNT_ID="$account" npx --yes wrangler@4.127.1 versions deploy "${old_version}@100%" --name "$worker" -y >/dev/null ;;
   web) CLOUDFLARE_API_TOKEN="$token" CLOUDFLARE_ACCOUNT_ID="$account" npx wrangler versions deploy "${old_version}@100%" --name "$worker" -y >/dev/null ;;
   *) echo REFUSE_MODE; exit 2 ;;
 esac

@@ -72,15 +72,48 @@ test("Team hard-kill traffic recovery is durable and externally reconciled", () 
   assert.match(release, /assert-no-core-verification-in-flight\.sh/);
 });
 
-test("Access evaluator runtime credential is isolated from control-plane authority", () => {
+test("Access evaluator runtime credential and provider authority are isolated and immutable", () => {
   const secretFlow = readFileSync(".github/workflows/access-sync-worker-secret.yml", "utf8");
-  assert.match(secretFlow, /CF_ACCESS_EVALUATOR_API_TOKEN/);
-  assert.match(secretFlow, /CONTROL_PLANE_ACCESS_TOKEN/);
-  assert.match(secretFlow, /EVALUATOR_ACCESS_TOKEN/);
-  assert.match(secretFlow, /control_hash/);
-  assert.match(secretFlow, /evaluator_hash/);
-  assert.match(secretFlow, /must not reuse the control-plane Access token/);
+  const evaluatorAuthority = readFileSync("scripts/assert-evaluator-provider-authority.sh", "utf8");
+  const externalEval = readFileSync(".github/workflows/tos-canonical-external-eval.yml", "utf8");
+  const policyTest = readFileSync("scripts/run-access-evaluator-policy-test.sh", "utf8");
+  for (const token of ["CF_ACCESS_EVALUATOR_API_TOKEN", "CONTROL_PLANE_ACCESS_TOKEN", "EVALUATOR_ACCESS_TOKEN", "sha256sum", "must not reuse control-plane Access token", "GITHUB_RUN_ATTEMPT", "Evaluator version", "Evaluator deployment", "Evaluator deployment marker"]) assert.match(secretFlow, new RegExp(token));
+  for (const token of ["access-sync-worker-secret.yml", "run_attempt==1", "Authorization body hash", "pino-access-evaluator/deployments", "Evaluator live deployment drifted", "Evaluator live version drifted", "Evaluator deployment marker drifted"]) assert.ok(evaluatorAuthority.includes(token), token);
+  for (const token of ["EVALUATOR_SECRET_ISSUE", "EVALUATOR_SECRET_RUN_ID", "assert-evaluator-provider-authority.sh", "CF_ACCESS_POLICY_TEST_TOKEN", "run-access-evaluator-policy-test.sh", "Credential-dependent Access policy test"]) assert.ok(externalEval.includes(token), token);
+  assert.match(policyTest, /access\/policy-tests/);
+  assert.match(policyTest, /status=="approved"/);
+  assert.match(policyTest, /status=="blocked"/);
   assert.match(secretFlow, /group: pino-team-production/);
+});
+
+test("Team candidate producer is non-promoting and retroactive authorization is forbidden", () => {
+  const boundary = JSON.parse(readFileSync("ops/team-production-build-boundary.json", "utf8"));
+  const guardian = readFileSync(".github/workflows/cloudflare-build-guardian.yml", "utf8");
+  const readme = readFileSync("README.md", "utf8");
+  assert.equal(boundary.automaticTrafficPromotion, false);
+  assert.equal(boundary.deployCommand, 'npx wrangler versions upload --tag "$WORKERS_CI_COMMIT_SHA" --message "pino-team-os candidate $WORKERS_CI_COMMIT_SHA"');
+  assert.match(release, /builds\/workers\/\$\{worker_tag\}\/triggers/);
+  assert.match(release, /canonical non-serving candidate command/);
+  assert.match(release, /retroactive production authorization is forbidden/);
+  assert.doesNotMatch(release, /PASS_ALREADY_ACTIVE/);
+  assert.match(guardian, /reconcile_non_promoting_build/);
+  assert.match(guardian, /-X PATCH/);
+  assert.match(guardian, /ops\/team-production-build-boundary\.json/);
+  assert.doesNotMatch(readme, /^npx wrangler deploy$/m);
+});
+
+test("Access mutation recovery is run-owned and refuses blind overwrite", () => {
+  const bo = readFileSync(".github/workflows/bo-manager-access-reconcile.yml", "utf8");
+  const idp = readFileSync(".github/workflows/tos-google-idp-reconcile.yml", "utf8");
+  const evalFlow = readFileSync(".github/workflows/tos-canonical-external-eval.yml", "utf8");
+  const watchdog = readFileSync(".github/workflows/access-control-recovery-watchdog.yml", "utf8");
+  assert.match(bo, /Recovery policy name:/);
+  assert.match(bo, /\[run:\$\{GITHUB_RUN_ID\}\]/);
+  assert.match(watchdog, /BO recovery policy name is not run-owned/);
+  assert.match(idp, /Desired app payload b64:/);
+  assert.match(evalFlow, /Desired policy payload b64:/);
+  assert.match(watchdog, /live state no longer equals this run's desired state or baseline/);
+  assert.match(watchdog, /policy no longer equals this run's desired state or baseline/);
 });
 
 test("superseded production operators are executable-disabled", () => {
