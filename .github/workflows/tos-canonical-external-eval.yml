@@ -93,6 +93,7 @@ jobs:
           evaluator_issue="${evaluator_issue_lines[0]}"; evaluator_run="${evaluator_run_lines[0]}"
           current_main="$(git rev-parse origin/main)"
           [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
+          bash scripts/assert-main-validation.sh "$GITHUB_REPOSITORY" "$target_sha" || fail "Current Team main lacks successful exact-head validation."
           [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
           [ -n "${CF_API_TOKEN:-}" ] || fail "CF_API_TOKEN unavailable for evaluator provider verification."
           [ -n "${CF_ACCESS_POLICY_TEST_TOKEN:-}" ] && [ -n "${CF_ACCESS_POLICY_TEST_APPROVED_EMAIL:-}" ] && [ -n "${CF_ACCESS_POLICY_TEST_BLOCKED_EMAIL:-}" ] || fail "Credential-dependent Access policy-test authority/identities unavailable."

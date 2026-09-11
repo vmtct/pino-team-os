@@ -11,7 +11,7 @@ specs=(
 )
 for spec in "${specs[@]}"; do
   IFS='|' read -r workflow display_prefix marker_prefix terminal_prefix <<<"$spec"
-  runs="$(gh api "/repos/${repo}/actions/workflows/${workflow}/runs?event=issues&status=completed&per_page=30")"
+  runs="$(gh api --paginate --slurp "/repos/${repo}/actions/workflows/${workflow}/runs?event=issues&status=completed&per_page=100")"
   while IFS=$'\t' read -r run_id conclusion display; do
     [ -n "$run_id" ] || continue
     [ "$conclusion" != "success" ] || continue
@@ -22,5 +22,5 @@ for spec in "${specs[@]}"; do
     [ -n "$marker" ] || continue
     resolved="$(jq -r --arg p "$terminal_prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]") | (.body // "") | select(contains("Workflow run: " + $run)) | select(startswith($p + ": **PASS") or startswith($p + ": **WATCHDOG_RECOVERED**") or startswith($p + ": **WATCHDOG_RECOVERY_CONFIRMED**") or (startswith($p + ": **FAIL_SAFE**") and (contains("version was restored") or contains("baseline remained active"))))] | length' <<<"$comments")"
     [ "$resolved" -gt 0 ] || { echo "Unresolved Team recovery blocks production mutation: ${workflow} run ${run_id} issue #${issue}" >&2; exit 1; }
-  done < <(jq -r --arg prefix "$display_prefix" '.workflow_runs[]? | select((.display_title // "") | startswith($prefix)) | [.id, (.conclusion // ""), (.display_title // "")] | @tsv' <<<"$runs")
+  done < <(jq -r --arg prefix "$display_prefix" '.[]?.workflow_runs[]? | select((.display_title // "") | startswith($prefix)) | [.id, (.conclusion // ""), (.display_title // "")] | @tsv' <<<"$runs")
 done

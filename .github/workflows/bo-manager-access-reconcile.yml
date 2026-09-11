@@ -81,6 +81,7 @@ jobs:
           [ -n "$target_sha" ] || fail "TEAM_SHA missing."
           current_main="$(git rev-parse origin/main)"
           [ "$target_sha" = "$current_main" ] || fail "TEAM_SHA is not current main."
+          bash scripts/assert-main-validation.sh "$GITHUB_REPOSITORY" "$target_sha" || fail "Current Team main lacks successful exact-head validation."
           [ "$GITHUB_SHA" = "$target_sha" ] || fail "Workflow checkout is not exact current main."
 
           normalize_list() {

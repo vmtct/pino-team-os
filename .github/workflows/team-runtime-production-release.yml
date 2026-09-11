@@ -116,6 +116,11 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nNo Team production traffic was changed."
             exit 1
           }
+          control_sha="$(git rev-parse HEAD)"
+          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot resolve current Team main for validation authority."
+          [ "$control_sha" = "$main_now" ] || fail "Checked-out Team control plane is not exact current main."
+          bash scripts/assert-main-validation.sh "$repo" "$control_sha" || fail "Current Team control-plane main lacks successful exact-head validation."
+          bash scripts/assert-main-validation.sh "$repo" "$TEAM_SHA" || fail "Promoted Team source lacks successful exact-head validation."
 
           build="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${TEAM_BUILD_UUID}" "${auth[@]}")" || fail "Cannot inspect requested Team build UUID."
           jq -e '.success == true' <<<"$build" >/dev/null || fail "Cloudflare did not return requested Team build successfully."

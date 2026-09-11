@@ -61,10 +61,10 @@ jobs:
           [ -n "$head_sha" ] || reject "Cannot resolve source PR head SHA."
 
           pr_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${head_sha}&event=pull_request&per_page=30")"
-          latest_pr_validation="$(jq -c '[.workflow_runs[] | select(.name=="PR Validation")] | sort_by(.created_at // .run_started_at // .updated_at // "") | last // empty' <<<"$pr_runs")"
+          latest_pr_validation="$(jq -c '[.workflow_runs[] | select(.name=="PR Validation")] | sort_by(.updated_at // .run_started_at // .created_at // "") | last // empty' <<<"$pr_runs")"
           jq -e '.status=="completed" and .conclusion=="success"' <<<"$latest_pr_validation" >/dev/null || reject "Newest PR Validation attempt for source PR head is not terminal success."
           main_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&per_page=30")"
-          latest_main_validation="$(jq -c '[.workflow_runs[] | select(.name=="Cloudflare Build + Serving Truth")] | sort_by(.created_at // .run_started_at // .updated_at // "") | last // empty' <<<"$main_runs")"
+          latest_main_validation="$(jq -c '[.workflow_runs[] | select(.name=="Cloudflare Build + Serving Truth")] | sort_by(.updated_at // .run_started_at // .created_at // "") | last // empty' <<<"$main_runs")"
           jq -e '.status=="completed" and .conclusion=="success"' <<<"$latest_main_validation" >/dev/null || reject "Newest Team main build/serving-truth attempt is not terminal success."
 
           echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
