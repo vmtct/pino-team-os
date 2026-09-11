@@ -42,6 +42,7 @@ jobs:
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
           run_id='${{ github.event.workflow_run.id }}'
+          run_attempt='${{ github.event.workflow_run.run_attempt }}'
           sha='${{ github.event.workflow_run.head_sha }}'
           workflow='${{ github.event.workflow_run.name }}'
           display='${{ github.event.workflow_run.display_title }}'
@@ -58,10 +59,8 @@ jobs:
           esac
           [ -n "$issue" ] || { echo "Cannot bind failed Access run to one canonical issue" >&2; exit 1; }
           comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
-          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **RECOVERY_ARMED**")) and ((.body // "") | contains("Workflow run: " + $run)))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" --arg attempt "$run_attempt" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **RECOVERY_ARMED**")) and ((.body // "") | contains("Workflow run: " + $run)) and ((.body // "") | contains("Workflow attempt: " + $attempt)))] | sort_by(.created_at) | last // empty' <<<"$comments")"
           [ -n "$marker" ] || { echo "No durable Access recovery marker; no external commit was authorized"; exit 0; }
-          pass="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **PASS**")) and ((.body // "") | contains("Workflow run: " + $run)))] | last // empty' <<<"$comments")"
-          [ -z "$pass" ] || { echo "Exact Access run already has PASS; watchdog no-op"; exit 0; }
           body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
 
           overlap_clear=0
@@ -69,7 +68,7 @@ jobs:
             if bash scripts/assert-no-core-verification-in-flight.sh; then overlap_clear=1; break; fi
             sleep 5
           done
-          [ "$overlap_clear" -eq 1 ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nRecovery remains armed but is deferred while Core PRE_GA verification/recovery is active."; exit 1; }
+          [ "$overlap_clear" -eq 1 ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${run_attempt}\nRecovery remains armed but is deferred while Core PRE_GA verification/recovery is active."; exit 1; }
 
           case "$mode" in
             worker)
@@ -86,7 +85,7 @@ jobs:
               recovery_policy_name="$(sed -nE 's/^Recovery policy name:[[:space:]]*(.+)[[:space:]]*$/\1/p' <<<"$body")"
               manager_email="$(sed -nE 's/^Manager email:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$body")"
               [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] && [ -n "$manager_email" ] || { echo "Malformed BO recovery marker" >&2; exit 1; }
-              [[ "$recovery_policy_name" == *"[run:${run_id}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
+              [[ "$recovery_policy_name" == *"[run:${run_id}][attempt:${run_attempt}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
               api="https://api.cloudflare.com/client/v4"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
               policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
               matches="$(jq -c --arg n "$recovery_policy_name" '[.result[]? | select(.name==$n)]' <<<"$policies")"
@@ -128,4 +127,4 @@ jobs:
               fi
               ;;
           esac
-          gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_RECOVERED**\n\nWorkflow run: ${run_id}\nRecovery result: ${result}.\nOnly the exact run-owned pre-mutation baseline was reconciled."
+          gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_RECOVERED**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${run_attempt}\nRecovery result: ${result}.\nOnly the exact run-owned pre-mutation baseline was reconciled."

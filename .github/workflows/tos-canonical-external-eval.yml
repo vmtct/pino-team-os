@@ -47,6 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || { echo "Production Access mutation authority is one-shot; open a fresh Founder authorization issue instead of rerunning." >&2; exit 1; }
           AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
           echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
           assert_live_team_main() {
@@ -137,7 +138,7 @@ jobs:
             assert_live_team_main || fail "Team source authority drifted before production mutation."
             bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
             bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_CANONICAL_EXTERNAL_EVAL: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nPolicy ID: ${policy_id}\nOriginal policy payload b64: ${original_b64}\nDesired policy payload b64: ${desired_b64}\n\nBaseline and exact run-owned desired state captured before the Access policy PUT." >/dev/null || fail "Could not persist External Evaluation recovery baseline."
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_CANONICAL_EXTERNAL_EVAL: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nPolicy ID: ${policy_id}\nOriginal policy payload b64: ${original_b64}\nDesired policy payload b64: ${desired_b64}\n\nBaseline and exact run-owned desired state captured before the Access policy PUT." >/dev/null || fail "Could not persist External Evaluation recovery baseline."
             mutated=true
             updated="$(curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected External Evaluation policy update."
             jq -e '.success==true and (.result.id|length>0)' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful policy update."
@@ -173,5 +174,5 @@ jobs:
           bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps terminal Team evidence."
           evaluator_final="$(bash scripts/assert-evaluator-provider-authority.sh "$evaluator_issue" "$evaluator_run")" || fail "Evaluator authority drifted before terminal PASS."
           [ "$(jq -r '.version' <<<"$evaluator_final")" = "$evaluator_version" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$evaluator_deployment" ] || fail "Evaluator provider identity drifted before terminal PASS."
-          comment "TOS_CANONICAL_EXTERNAL_EVAL: **PASS**\n\n- Team source guard: ${target_sha}\n- TOS app: ${app_id}\n- TOS audience: ${TOS_AUD}\n- Staff perimeter policy: ${state} (${policy_id})\n- Allow Everyone policies on TOS: 0\n- Evaluator: ${EVALUATE_URL}\n- Evaluator secret issue/run: #${evaluator_issue} / ${evaluator_run}\n- Evaluator version/deployment: ${evaluator_version} / ${evaluator_deployment}\n- Evaluator key: RSA/RS256 ready\n- Credential-dependent Access policy test: ${policy_test_id}\n- BO allow-everyone policies: 0\n- TOS challenge preserved (HTTP ${code})\n\nCloudflare now asks the canonical evaluator after OTP; evaluator fails closed unless pino-core authorizes an active TOS Staff principal. BO policy, D1, Staff data, Team/Core runtime, routes and domains were not mutated by this operator."
+          comment "TOS_CANONICAL_EXTERNAL_EVAL: **PASS**\n\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Team source guard: ${target_sha}\n- TOS app: ${app_id}\n- TOS audience: ${TOS_AUD}\n- Staff perimeter policy: ${state} (${policy_id})\n- Allow Everyone policies on TOS: 0\n- Evaluator: ${EVALUATE_URL}\n- Evaluator secret issue/run: #${evaluator_issue} / ${evaluator_run}\n- Evaluator version/deployment: ${evaluator_version} / ${evaluator_deployment}\n- Evaluator key: RSA/RS256 ready\n- Credential-dependent Access policy test: ${policy_test_id}\n- BO allow-everyone policies: 0\n- TOS challenge preserved (HTTP ${code})\n\nCloudflare now asks the canonical evaluator after OTP; evaluator fails closed unless pino-core authorizes an active TOS Staff principal. BO policy, D1, Staff data, Team/Core runtime, routes and domains were not mutated by this operator."
           mutated=false

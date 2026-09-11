@@ -46,8 +46,6 @@ jobs:
           [ -n "$marker" ] || { echo "No durable traffic recovery marker; no promotion was authorized"; exit 0; }
           # Canonical release receipts use a shorter terminal prefix than the durable marker for Core/Team/Web.
           case 'team' in core) terminal_prefix=CORE_PRODUCTION_RELEASE ;; team) terminal_prefix=TEAM_RUNTIME_PRODUCTION_RELEASE ;; web) terminal_prefix=WEB_PRODUCTION_RELEASE ;; esac
-          pass="$(jq -c --arg p "$terminal_prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **PASS")) and ((.body // "") | contains("Workflow run: " + $run)))] | last // empty' <<<"$comments")"
-          [ -z "$pass" ] || { echo "Exact release already has terminal PASS; watchdog no-op"; exit 0; }
           restored_receipt="$(jq -c --arg p "$terminal_prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **FAIL_SAFE**")) and ((.body // "") | contains("Workflow run: " + $run)) and ((.body // "") | contains("version was restored")))] | last // empty' <<<"$comments")"
           if [ -n "$restored_receipt" ]; then
             gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${run_id}\nIndependent watchdog confirmed same-run rollback receipt; no second traffic mutation was attempted."
