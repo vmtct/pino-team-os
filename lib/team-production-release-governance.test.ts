@@ -27,7 +27,7 @@ test("Team production workflow late-binds runtime main and immutable deployment 
   for (const token of ["old_deployment_id", "OLD_DEPLOYMENT_ID", "main_predeploy", "main_postdeploy", "final_main", "candidate_deployment_id", "PINO_TEAM_PRODUCTION_RELEASE:", "team-production-release-fence.mjs", "promotion_attempted=1"]) {
     assert.ok(release.includes(token), );
   }
-  assert.ok(release.indexOf("promotion_attempted=1") < release.indexOf("WRANGLER_OUTPUT_FILE_PATH"));
+  assert.ok(release.indexOf("promotion_attempted=1") < release.indexOf('WRANGLER_OUTPUT_FILE_PATH="$deploy_output"'));
 });
 
 test("legacy TOS readiness probe is retired fail-closed on local-auth clean reset", () => {
@@ -130,4 +130,44 @@ test("superseded production operators are executable-disabled", () => {
     assert.match(text, /PINO_RETIRED_SUPERSEDED_OPERATOR/);
     assert.match(text, /if: \$\{\{ false \}\}/);
   }
+});
+
+
+test("H5 remediation builds and uploads the exact reviewed Team source under a pinned release recipe", () => {
+  for (const token of [
+    "actions/setup-node@v4", "node-version: 24.19.0", "git worktree add --detach",
+    "npm ci", "npm run pino:verify", "npx opennextjs-cloudflare build",
+    "wrangler@4.126.0 versions upload", "pino-team-trusted-${TEAM_SHA}",
+    "External Team build UUID (signal only)",
+  ]) assert.ok(release.includes(token), token);
+  assert.doesNotMatch(release, /Expected exactly one Team Worker version for source/);
+  assert.match(release, /PINORIA_TV_STAGING_BYPASS/);
+  assert.match(release, /inherits forbidden PINORIA_TV_STAGING_BYPASS/);
+});
+
+test("TOS authorization closure rejects every allow path that can bypass the canonical evaluator", () => {
+  const script = "scripts/assert-tos-evaluator-policy-closure.mjs";
+  const evaluateUrl = "https://evaluator.example/evaluate";
+  const keysUrl = "https://evaluator.example/keys";
+  const canonical = {
+    id: "canonical", name: "PINO Staff Canonical External Evaluation", decision: "allow", precedence: 50,
+    include: [{ external_evaluation: { evaluate_url: evaluateUrl, keys_url: keysUrl } }], exclude: [], require: [],
+  };
+  const guardedSecondary = {
+    id: "google", name: "Google staff", decision: "allow", precedence: 60,
+    include: [{ email: { email: "staff@example.com" } }], exclude: [],
+    require: [{ external_evaluation: { evaluate_url: evaluateUrl, keys_url: keysUrl } }],
+  };
+  const run = (result: unknown[]) => execFileSync(process.execPath, [script, "canonical", canonical.name, evaluateUrl, keysUrl], {
+    input: JSON.stringify({ success: true, result }), encoding: "utf8",
+  });
+  assert.doesNotThrow(() => run([canonical, guardedSecondary]));
+  assert.throws(() => run([canonical, { ...guardedSecondary, require: [] }]));
+  assert.throws(() => run([{ ...canonical, include: [...canonical.include, { email: { email: "bypass@example.com" } }] }]));
+  assert.throws(() => run([canonical, { id: "bypass", name: "Bypass", decision: "bypass", include: [{ everyone: {} }] }]));
+  assert.throws(() => run([canonical, { id: "service", name: "Service", decision: "service_auth", include: [{ service_token: {} }] }]));
+  const externalEval = readFileSync(".github/workflows/tos-canonical-external-eval.yml", "utf8");
+  const googleIdp = readFileSync(".github/workflows/tos-google-idp-reconcile.yml", "utf8");
+  assert.match(externalEval, /assert-tos-evaluator-policy-closure\.mjs/);
+  assert.match(googleIdp, /assert-tos-evaluator-policy-closure\.mjs/);
 });

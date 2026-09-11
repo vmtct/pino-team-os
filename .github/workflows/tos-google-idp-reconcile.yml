@@ -26,6 +26,9 @@ jobs:
       CF_ACCESS_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
       TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
       BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
+      NEW_POLICY: PINO Staff Canonical External Evaluation
+      EVALUATE_URL: https://pino-access-evaluator.minhtri-van42.workers.dev/evaluate
+      KEYS_URL: https://pino-access-evaluator.minhtri-van42.workers.dev/keys
 
     steps:
       - name: Checkout exact event source
@@ -116,7 +119,10 @@ jobs:
           jq -e --arg g "$google_id" --arg o "$otp_id" '((.allowed_idps // []) | sort) == ([$g,$o] | sort) and (.auto_redirect_to_identity // false)==false' <<<"$tos_after" >/dev/null || fail "TOS allowed IdPs do not equal Google + OTP after update."
           [ "$(jq -c '.allowed_idps // []' <<<"$bo_after")" = "$(jq -c '.allowed_idps // []' <<<"$(jq -c '.[0]' <<<"$bo")")" ] || fail "BO allowed_idps changed unexpectedly."
           policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies."
-          jq -e '.success==true and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("everyone")))] | length==0) and ([.result[]? | select(.decision=="allow" and any(.include[]?; has("email")) and any(.require[]?; has("external_evaluation")))] | length>=1)' <<<"$policies" >/dev/null || fail "TOS policy invariants failed after IdP update."
+          jq -e '.success==true' <<<"$policies" >/dev/null || fail "TOS policy API returned failure after IdP update."
+          canonical_policy_id="$(jq -r --arg name "$NEW_POLICY" '[.result[]? | select(.name==$name and .decision=="allow")] | if length==1 then .[0].id else empty end' <<<"$policies")"
+          [ -n "$canonical_policy_id" ] || fail "Canonical External Evaluation policy does not resolve uniquely after IdP update."
+          node scripts/assert-tos-evaluator-policy-closure.mjs "$canonical_policy_id" "$NEW_POLICY" "$EVALUATE_URL" "$KEYS_URL" <<<"$policies" >/dev/null || fail "TOS policy closure no longer requires the canonical evaluator on every allow path."
           headers="$RUNNER_TEMP/tos-google-idp.headers"
           code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' 'https://tos.pinohouse.art/staff-login' || true)"
           location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"

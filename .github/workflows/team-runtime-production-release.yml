@@ -101,6 +101,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Pin trusted release toolchain
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+
       - name: Resolve exact version and verify candidate perimeter
         id: preflight
         shell: bash
@@ -140,20 +146,35 @@ jobs:
           [ "$(jq 'length' <<<"$main_triggers")" -eq 1 ] || fail "Exactly one active pino-team-os main Cloudflare Build trigger is required."
           [ "$(jq -r '.[0].deploy_command // ""' <<<"$main_triggers")" = "$expected_deploy" ] || fail "Cloudflare Builds main trigger is promoting or does not match the canonical non-serving candidate command."
 
-          versions_json="$(CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions list --json)" || fail "Cannot list Team Worker versions."
-          mapfile -t candidate_ids < <(jq -r '.[].id // empty' <<<"$versions_json")
-          matches=()
-          for version_id in "${candidate_ids[@]}"; do
-            provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${version_id}" "${auth[@]}")" || fail "Cannot inspect build provenance for Team version ${version_id}."
-            commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
-            candidate_build="$(jq -r '.result.builds | to_entries[]? | .value.build_uuid // empty' <<<"$provenance" | head -1)"
-            [ "$commit" = "$TEAM_SHA" ] && [ "$candidate_build" = "$TEAM_BUILD_UUID" ] && matches+=("$version_id")
-          done
-          [ "${#matches[@]}" -eq 1 ] || fail "Expected exactly one Team Worker version for source ${TEAM_SHA} and build ${TEAM_BUILD_UUID}; found ${#matches[@]}."
-          team_version="${matches[0]}"
+          candidate_dir="$RUNNER_TEMP/team-release-${TEAM_SHA}"
+          git worktree add --detach "$candidate_dir" "$TEAM_SHA" >/dev/null || fail "Cannot materialize exact Team release source."
+          (
+            set -euo pipefail
+            cd "$candidate_dir"
+          test "$(git rev-parse HEAD)" = "$TEAM_SHA"
+          test -z "$(git status --porcelain)"
+          npm ci
+          npm run pino:verify
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+          test -z "$(git status --porcelain)"
+          ) || fail "Exact Team source failed locked trusted build."
+          trusted_tag="pino-team-trusted-${TEAM_SHA}"
+          trusted_message="PINO trusted Team release ${TEAM_SHA} run ${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          upload_output="$RUNNER_TEMP/team-version-upload.ndjson"; rm -f "$upload_output"
+          (
+            cd "$candidate_dir"
+            WRANGLER_OUTPUT_FILE_PATH="$upload_output" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+              npx --yes wrangler@4.126.0 versions upload -c wrangler.jsonc --tag "$trusted_tag" --message "$trusted_message" >/dev/null
+          ) || fail "Trusted Team candidate upload failed before traffic changed."
+          team_version="$(jq -r 'select(.type == "version-upload") | .version_id // empty' "$upload_output" | tail -1)"
+          [ -n "$team_version" ] || fail "Trusted Team upload returned no immutable Worker version."
 
           target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${team_version}" "${auth[@]}")" || fail "Resolved Team version does not exist."
           jq -e '.success == true' <<<"$target" >/dev/null || fail "Cloudflare did not return resolved Team version successfully."
+          [ "$(jq -r '.result.annotations["workers/tag"] // empty' <<<"$target")" = "$trusted_tag" ] || fail "Trusted Team version tag does not bind exact reviewed source."
+          [ "$(jq -r '.result.annotations["workers/message"] // empty' <<<"$target")" = "$trusted_message" ] || fail "Trusted Team version message does not bind this release run."
+          jq -e '[.result.resources.bindings[]? | select(.name=="PINORIA_TV_STAGING_BYPASS")] | length==0' <<<"$target" >/dev/null || fail "Production Team candidate inherits forbidden PINORIA_TV_STAGING_BYPASS."
           while IFS='|' read -r binding service entrypoint; do
             jq -e --arg b "$binding" --arg s "$service" --arg e "$entrypoint" '([.result.resources.bindings[]? | select(.name==$b and .service==$s and .entrypoint==$e)]) | length==1' <<<"$target" >/dev/null || fail "Target Team version has wrong authority target for ${binding}."
           done <<'EOF'
@@ -181,6 +202,8 @@ jobs:
           old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
           [ -n "$old_deployment_id" ] && [ -n "$old_version" ] || fail "Cannot resolve current 100% Team deployment/version."
           echo "team_version=$team_version" >> "$GITHUB_OUTPUT"
+          echo "trusted_tag=$trusted_tag" >> "$GITHUB_OUTPUT"
+          echo "trusted_message=$trusted_message" >> "$GITHUB_OUTPUT"
           echo "old_deployment_id=$old_deployment_id" >> "$GITHUB_OUTPUT"
           echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
 
@@ -198,6 +221,8 @@ jobs:
           TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
           TEAM_BUILD_UUID: ${{ steps.gate.outputs.team_build_uuid }}
           TEAM_VERSION: ${{ steps.preflight.outputs.team_version }}
+          TRUSTED_TAG: ${{ steps.preflight.outputs.trusted_tag }}
+          TRUSTED_MESSAGE: ${{ steps.preflight.outputs.trusted_message }}
           OLD_DEPLOYMENT_ID: ${{ steps.preflight.outputs.old_deployment_id }}
           OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
           EVALUATOR_SOURCE_SHA: ${{ steps.preflight.outputs.evaluator_source_sha }}
@@ -323,4 +348,4 @@ jobs:
           evaluator_final="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Evaluator authority drifted before Team PASS."
           [ "$(jq -r '.teamSha' <<<"$evaluator_final")" = "$TEAM_SHA" ] && [ "$(jq -r '.evaluatorSha' <<<"$evaluator_final")" = "$EVALUATOR_SOURCE_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_final")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team PASS."
           promotion_attempted=0
-          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator source: ${EVALUATOR_SOURCE_SHA}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
+          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator source: ${EVALUATOR_SOURCE_SHA}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- External Team build UUID (signal only): ${TEAM_BUILD_UUID}\n- Trusted artifact tag: ${TRUSTED_TAG}\n- Trusted artifact message: ${TRUSTED_MESSAGE}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
