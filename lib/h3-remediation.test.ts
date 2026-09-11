@@ -1,0 +1,7 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
+const root=new URL('../',import.meta.url); const r=(p:string)=>readFileSync(new URL(p,root),'utf8');
+const access=['tos-canonical-external-eval.yml','tos-google-idp-reconcile.yml','bo-manager-access-reconcile.yml'];
+const watchdog=r('.github/workflows/access-control-recovery-watchdog.yml'); const releaseWatch=r('.github/workflows/production-release-recovery-watchdog.yml'); const unresolved=r('scripts/assert-no-unresolved-recovery.sh');
+test('H3 F03 Access mutation authority and recovery are exact-attempt scoped',()=>{for(const f of access){const t=r('.github/workflows/'+f); assert.match(t,/GITHUB_RUN_ATTEMPT.*= "1"/); assert.match(t,/Workflow attempt: \$\{GITHUB_RUN_ATTEMPT\}/);} assert.match(watchdog,/workflow_run\.run_attempt/); assert.match(watchdog,/Workflow attempt: " \+ \$attempt/); assert.match(watchdog,/\[run:\$\{run_id\}\]\[attempt:\$\{run_attempt\}\]/); assert.match(unresolved,/run_attempt/);});
+test('H3 F02 non-success Team runs cannot be resolved by ordinary PASS receipts',()=>{for(const t of [watchdog,releaseWatch]){assert.doesNotMatch(t,/already has PASS; watchdog no-op/); assert.doesNotMatch(t,/terminal PASS; watchdog/);} assert.doesNotMatch(unresolved,/startswith\(\$p \+ ": \*\*PASS"\)/); assert.match(unresolved,/WATCHDOG_RECOVERED/);});
+test('H3 remediation tests are repository-relative and CI portable',()=>{assert.doesNotMatch(r('lib/h2-remediation.test.ts'),/\/home\/tri\/pino-work/);});

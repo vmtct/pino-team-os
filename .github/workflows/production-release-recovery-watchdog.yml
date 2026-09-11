@@ -1,0 +1,79 @@
+name: Team Production Release Recovery Watchdog
+
+on:
+  workflow_run:
+    workflows: ["Team Runtime Production Release"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: pino-team-production-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.actor.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CORE_RELEASE_GH_TOKEN: ${{ secrets.PINO_CORE_RELEASE_READ_TOKEN }}
+    steps:
+      - name: Check out exact failed release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Reconcile run-owned traffic promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          run_id='${{ github.event.workflow_run.id }}'
+          sha='${{ github.event.workflow_run.head_sha }}'
+          display='${{ github.event.workflow_run.display_title }}'
+          issue="$(sed -nE "s/^Team runtime production release \#([1-9][0-9]*) @ ${sha}$/\1/p" <<<"$display")"
+          [ -n "$issue" ] || { echo "Cannot resolve release issue from canonical run-name" >&2; exit 1; }
+          comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
+          marker="$(jq -c --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith("PINO_TEAM_PRODUCTION_RELEASE: **RECOVERY_ARMED**")) and ((.body // "") | contains("Workflow run: " + $run)))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          [ -n "$marker" ] || { echo "No durable traffic recovery marker; no promotion was authorized"; exit 0; }
+          # Canonical release receipts use a shorter terminal prefix than the durable marker for Core/Team/Web.
+          case 'team' in core) terminal_prefix=CORE_PRODUCTION_RELEASE ;; team) terminal_prefix=TEAM_RUNTIME_PRODUCTION_RELEASE ;; web) terminal_prefix=WEB_PRODUCTION_RELEASE ;; esac
+          restored_receipt="$(jq -c --arg p "$terminal_prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **FAIL_SAFE**")) and ((.body // "") | contains("Workflow run: " + $run)) and ((.body // "") | contains("version was restored")))] | last // empty' <<<"$comments")"
+          if [ -n "$restored_receipt" ]; then
+            gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${run_id}\nIndependent watchdog confirmed same-run rollback receipt; no second traffic mutation was attempted."
+            exit 0
+          fi
+          # Recovery ownership is the durable run-owned marker plus immutable deployment ancestry.
+          # Workflow recency is not mutation ownership; newer same-SHA runs cannot suppress recovery.
+          body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
+          old_deployment="$(sed -nE 's/^Old deployment ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+          old_version="$(sed -nE 's/^Old version ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+          candidate_version="$(sed -nE 's/^Candidate version ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+          deployment_marker="$(sed -nE 's/^Deployment marker:[[:space:]]*(PINO_[A-Z_]+:[^[:space:]]+)[[:space:]]*$/\1/p' <<<"$body")"
+          [ -n "$old_deployment" ] && [ -n "$old_version" ] && [ -n "$candidate_version" ] && [ -n "$deployment_marker" ] || { echo "Malformed durable traffic recovery marker" >&2; exit 1; }
+          overlap_clear=0
+          for _ in $(seq 1 12); do
+            if bash scripts/assert-no-core-verification-in-flight.sh; then overlap_clear=1; break; fi
+            sleep 5
+          done
+          if [ "$overlap_clear" -ne 1 ]; then
+            gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nRecovery deferred because Core PRE_GA verification/recovery remained active. No Team traffic was overwritten."
+            exit 1
+          fi
+          set +e
+          result="$(bash scripts/recover-worker-promotion.sh 'pino-team-os' "$old_deployment" "$old_version" "$candidate_version" "$deployment_marker" 'team' 2>&1)"
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nRecovery refused because exact failed-promotion ownership could not be proven (${result}). No traffic was overwritten."
+            exit 1
+          fi
+          gh issue comment "$issue" --repo "$repo" --body "${terminal_prefix}: **WATCHDOG_RECOVERED**\n\nWorkflow run: ${run_id}\nRecovery result: ${result}.\nIndependent watchdog reconciled only the exact run-owned production promotion."

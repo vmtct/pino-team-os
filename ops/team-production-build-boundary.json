@@ -1,0 +1,10 @@
+{
+  "featureCode": "PLT-RELEASE",
+  "worker": "pino-team-os",
+  "productionBranch": "main",
+  "deployCommand": "npx wrangler versions upload --tag \"$WORKERS_CI_COMMIT_SHA\" --message \"pino-team-os candidate $WORKERS_CI_COMMIT_SHA\"",
+  "automaticTrafficPromotion": false,
+  "candidateTag": "$WORKERS_CI_COMMIT_SHA",
+  "candidateMessage": "pino-team-os candidate $WORKERS_CI_COMMIT_SHA",
+  "promotionAuthority": ".github/workflows/team-runtime-production-release.yml"
+}

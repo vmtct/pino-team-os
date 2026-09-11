@@ -1,4 +1,5 @@
 name: Workforce Team staging deploy
+run-name: ${{ github.event.issue.title == '[GPT] Workforce Team staging deploy' && github.event.issue.user.login == 'vmtct' && format('Workforce Team staging deploy #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED Workforce Team staging issue #{0} @ {1}', github.event.issue.number, github.sha) }}
 
 on:
   issues:
@@ -11,7 +12,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: workforce-team-staging-deploy
+  group: pino-team-staging-worker-mutation
   cancel-in-progress: false
 
 jobs:
@@ -32,6 +33,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
           reject() {
             gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "WORKFORCE_TEAM_STAGING_DEPLOY: REJECTED
 
@@ -57,10 +60,12 @@ jobs:
           head_sha="$(jq -r '.head.sha' <<<"$pr")"
           [ -n "$head_sha" ] || reject "Cannot resolve source PR head SHA."
 
-          pr_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${head_sha}&event=pull_request&status=completed&per_page=30")"
-          jq -e '[.workflow_runs[] | select(.name == "PR Validation" and .conclusion == "success")] | length >= 1' <<<"$pr_runs" >/dev/null || reject "No successful PR Validation exists for source PR head."
-          main_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&status=completed&per_page=30")"
-          jq -e '[.workflow_runs[] | select(.name == "Cloudflare Build + Serving Truth" and .conclusion == "success")] | length >= 1' <<<"$main_runs" >/dev/null || reject "Exact Team main has no successful build/serving-truth run."
+          pr_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${head_sha}&event=pull_request&per_page=30")"
+          latest_pr_validation="$(jq -c '[.workflow_runs[] | select(.name=="PR Validation")] | sort_by(.updated_at // .run_started_at // .created_at // "") | last // empty' <<<"$pr_runs")"
+          jq -e '.status=="completed" and .conclusion=="success"' <<<"$latest_pr_validation" >/dev/null || reject "Newest PR Validation attempt for source PR head is not terminal success."
+          main_runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&per_page=30")"
+          latest_main_validation="$(jq -c '[.workflow_runs[] | select(.name=="Cloudflare Build + Serving Truth")] | sort_by(.updated_at // .run_started_at // .created_at // "") | last // empty' <<<"$main_runs")"
+          jq -e '.status=="completed" and .conclusion=="success"' <<<"$latest_main_validation" >/dev/null || reject "Newest Team main build/serving-truth attempt is not terminal success."
 
           echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
           echo "source_pr=$source_pr" >> "$GITHUB_OUTPUT"
@@ -141,8 +146,11 @@ jobs:
         run: |
           set -euo pipefail
           [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "CF_API_TOKEN unavailable" >&2; exit 1; }
+          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] Workforce Team staging deploy" "$AUTH_BODY_HASH"
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$current_main" = "$TEAM_SHA" ] || { echo "Team main drifted before staging deploy" >&2; exit 1; }
           short_sha="${TEAM_SHA:0:12}"
-          npx wrangler deploy -c wrangler.staging.jsonc --tag "workforce-staging-${short_sha}" --message "Workforce staging ${TEAM_SHA}"
+          npx wrangler deploy -c wrangler.staging.jsonc --tag "workforce-staging-${short_sha}-run-${GITHUB_RUN_ID}" --message "Workforce staging ${TEAM_SHA} run ${GITHUB_RUN_ID}"
 
       - name: Verify exact active staging version provenance
         id: deployment
@@ -153,7 +161,7 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler deployments list -c wrangler.staging.jsonc --json > deployments.json
-          deployment="$(jq -c --arg message "Workforce staging ${TEAM_SHA}" '[.[] | select(.annotations["workers/message"] == $message)] | last' deployments.json)"
+          deployment="$(jq -c --arg message "Workforce staging ${TEAM_SHA} run ${GITHUB_RUN_ID}" '[.[] | select(.annotations["workers/message"] == $message)] | last' deployments.json)"
           [ "$deployment" != "null" ] || { echo "Exact staging deployment provenance not found" >&2; exit 1; }
           version_id="$(jq -r '.versions[] | select(.percentage == 100) | .version_id' <<<"$deployment")"
           [ -n "$version_id" ] || { echo "Exact staging version is not active at 100%" >&2; exit 1; }
@@ -187,12 +195,17 @@ jobs:
         if: success()
         shell: bash
         run: |
+          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] Workforce Team staging deploy" "$AUTH_BODY_HASH"
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$current_main" = "$TEAM_SHA" ] || { echo "Team main drifted before staging PASS" >&2; exit 1; }
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "WORKFORCE_TEAM_STAGING_DEPLOY: PASS
 
           Team source: ${TEAM_SHA}
           Source PR: #${{ steps.gate.outputs.source_pr }}
           Worker: pino-team-os-staging
           Active version: ${{ steps.deployment.outputs.version_id }}
+          Trusted workflow run: ${GITHUB_RUN_ID}
+          Authorization body hash: ${AUTH_BODY_HASH}
           BO Workforce API/page + Staff login/PIN-change pages: PASS
 
           Production Team Worker, production routes/domains, and production Core were not changed."

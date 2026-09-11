@@ -1,4 +1,5 @@
 name: Team Runtime Production Release
+run-name: ${{ github.event.issue.user.login == 'vmtct' && format('Team runtime production release #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED Team runtime production release #{0} @ {1}', github.event.issue.number, github.sha) }}
 
 on:
   issues:
@@ -10,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: team-runtime-production-release
+  group: pino-team-production
   cancel-in-progress: false
 
 jobs:
@@ -24,6 +25,7 @@ jobs:
       ISSUE_BODY: ${{ github.event.issue.body }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CORE_RELEASE_GH_TOKEN: ${{ secrets.PINO_CORE_RELEASE_READ_TOKEN }}
       TEAM_WORKER: pino-team-os
       CORE_WORKER: pino-core
       TOS_HOST: tos.pinohouse.art
@@ -36,6 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || { echo "Production release authority is one-shot; re-authorize with a fresh issue." >&2; exit 1; }
           repo="$GITHUB_REPOSITORY"
           reject() {
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **REJECTED**\n\n$1\n\nNo production mutation was attempted."
@@ -43,11 +48,29 @@ jobs:
           }
           mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
           mapfile -t build_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_BUILD_UUID:[[:space:]]*([0-9a-fA-F-]{36})[[:space:]]*$/\1/p')
+          mapfile -t core_sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          mapfile -t core_dep_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_DEPLOYMENT_ID:[[:space:]]*([0-9a-fA-F-]{36})[[:space:]]*$/\1/p')
+          mapfile -t core_issue_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_RELEASE_ISSUE:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+          mapfile -t core_run_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_RELEASE_RUN_ID:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+          mapfile -t evaluator_issue_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SECRET_ISSUE:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+          mapfile -t evaluator_run_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SECRET_RUN_ID:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
           [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
           [ "${#build_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_BUILD_UUID line."
+          [ "${#core_sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_SHA line."
+          [ "${#core_dep_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_DEPLOYMENT_ID line."
+          [ "${#core_issue_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_RELEASE_ISSUE line."
+          [ "${#core_run_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_RELEASE_RUN_ID line."
+          [ "${#evaluator_issue_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one EVALUATOR_SECRET_ISSUE line."
+          [ "${#evaluator_run_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one EVALUATOR_SECRET_RUN_ID line."
           grep -Eq '^CONFIRM:[[:space:]]*RELEASE_TEAM_RUNTIME[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: RELEASE_TEAM_RUNTIME."
           team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
           team_build_uuid="$(tr 'A-F' 'a-f' <<<"${build_lines[0]}")"
+          core_sha="$(tr 'A-F' 'a-f' <<<"${core_sha_lines[0]}")"
+          core_deployment_id="${core_dep_lines[0]}"
+          core_release_issue="${core_issue_lines[0]}"
+          core_release_run_id="${core_run_lines[0]}"
+          evaluator_secret_issue="${evaluator_issue_lines[0]}"
+          evaluator_secret_run_id="${evaluator_run_lines[0]}"
           main_sha="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve Team main."
           compare="$(gh api "/repos/${repo}/compare/${team_sha}...${main_sha}")" || reject "Cannot compare target source with current main."
           status="$(jq -r '.status' <<<"$compare")"
@@ -60,11 +83,29 @@ jobs:
           [ -n "${CF_API_TOKEN:-}" ] || reject "CF_API_TOKEN unavailable."
           echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
           echo "team_build_uuid=$team_build_uuid" >> "$GITHUB_OUTPUT"
+          echo "core_sha=$core_sha" >> "$GITHUB_OUTPUT"
+          echo "core_deployment_id=$core_deployment_id" >> "$GITHUB_OUTPUT"
+          echo "core_release_issue=$core_release_issue" >> "$GITHUB_OUTPUT"
+          echo "core_release_run_id=$core_release_run_id" >> "$GITHUB_OUTPUT"
+          echo "evaluator_secret_issue=$evaluator_secret_issue" >> "$GITHUB_OUTPUT"
+          echo "evaluator_secret_run_id=$evaluator_secret_run_id" >> "$GITHUB_OUTPUT"
+          echo "CORE_SHA=$core_sha" >> "$GITHUB_ENV"
+          echo "CORE_DEPLOYMENT_ID=$core_deployment_id" >> "$GITHUB_ENV"
+          echo "CORE_RELEASE_ISSUE=$core_release_issue" >> "$GITHUB_ENV"
+          echo "CORE_RELEASE_RUN_ID=$core_release_run_id" >> "$GITHUB_ENV"
+          echo "EVALUATOR_SECRET_ISSUE=$evaluator_secret_issue" >> "$GITHUB_ENV"
+          echo "EVALUATOR_SECRET_RUN_ID=$evaluator_secret_run_id" >> "$GITHUB_ENV"
 
       - name: Check out current Team control plane
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Pin trusted release toolchain
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
 
       - name: Resolve exact version and verify candidate perimeter
         id: preflight
@@ -81,6 +122,11 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n$1\n\nNo Team production traffic was changed."
             exit 1
           }
+          control_sha="$(git rev-parse HEAD)"
+          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot resolve current Team main for validation authority."
+          [ "$control_sha" = "$main_now" ] || fail "Checked-out Team control plane is not exact current main."
+          bash scripts/assert-main-validation.sh "$repo" "$control_sha" || fail "Current Team control-plane main lacks successful exact-head validation."
+          bash scripts/assert-main-validation.sh "$repo" "$TEAM_SHA" || fail "Promoted Team source lacks successful exact-head validation."
 
           build="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds/${TEAM_BUILD_UUID}" "${auth[@]}")" || fail "Cannot inspect requested Team build UUID."
           jq -e '.success == true' <<<"$build" >/dev/null || fail "Cloudflare did not return requested Team build successfully."
@@ -91,29 +137,73 @@ jobs:
           [ "$build_outcome" = "success" ] || fail "Requested Team build outcome is ${build_outcome:-unknown}, not success."
           [ "$build_commit" = "$TEAM_SHA" ] || fail "Requested Team build belongs to source ${build_commit:-unknown}, expected ${TEAM_SHA}."
 
-          versions_json="$(CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" npx --yes wrangler@4.126.0 versions list --json)" || fail "Cannot list Team Worker versions."
-          mapfile -t candidate_ids < <(jq -r '.[].id // empty' <<<"$versions_json")
-          matches=()
-          for version_id in "${candidate_ids[@]}"; do
-            provenance="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/builds?version_ids=${version_id}" "${auth[@]}")" || fail "Cannot inspect build provenance for Team version ${version_id}."
-            commit="$(jq -r '.result.builds | to_entries[]? | .value.build_trigger_metadata.commit_hash // empty' <<<"$provenance" | head -1)"
-            candidate_build="$(jq -r '.result.builds | to_entries[]? | .value.build_uuid // empty' <<<"$provenance" | head -1)"
-            [ "$commit" = "$TEAM_SHA" ] && [ "$candidate_build" = "$TEAM_BUILD_UUID" ] && matches+=("$version_id")
-          done
-          [ "${#matches[@]}" -eq 1 ] || fail "Expected exactly one Team Worker version for source ${TEAM_SHA} and build ${TEAM_BUILD_UUID}; found ${#matches[@]}."
-          team_version="${matches[0]}"
+          expected_deploy="$(jq -r '.deployCommand' ops/team-production-build-boundary.json)"
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")" || fail "Cannot resolve Team Worker tag for Builds authority."
+          worker_tag="$(jq -r --arg n "$TEAM_WORKER" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$worker_tag" ] || fail "Cannot resolve Team Worker tag for Builds authority."
+          triggers="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" "${auth[@]}")" || fail "Cannot inspect Team Cloudflare Build triggers."
+          main_triggers="$(jq -c '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index("main")) and ((.repo_connection.repo_name // "")=="pino-team-os"))]' <<<"$triggers")"
+          [ "$(jq 'length' <<<"$main_triggers")" -eq 1 ] || fail "Exactly one active pino-team-os main Cloudflare Build trigger is required."
+          [ "$(jq -r '.[0].deploy_command // ""' <<<"$main_triggers")" = "$expected_deploy" ] || fail "Cloudflare Builds main trigger is promoting or does not match the canonical non-serving candidate command."
+
+          candidate_dir="$RUNNER_TEMP/team-release-${TEAM_SHA}"
+          git worktree add --detach "$candidate_dir" "$TEAM_SHA" >/dev/null || fail "Cannot materialize exact Team release source."
+          (
+            set -euo pipefail
+            cd "$candidate_dir"
+          test "$(git rev-parse HEAD)" = "$TEAM_SHA"
+          test -z "$(git status --porcelain)"
+          npm ci
+          npm run pino:verify
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+          test -z "$(git status --porcelain)"
+          ) || fail "Exact Team source failed locked trusted build."
+          trusted_tag="pino-team-trusted-${TEAM_SHA}"
+          trusted_message="PINO trusted Team release ${TEAM_SHA} run ${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          upload_output="$RUNNER_TEMP/team-version-upload.ndjson"; rm -f "$upload_output"
+          (
+            cd "$candidate_dir"
+            WRANGLER_OUTPUT_FILE_PATH="$upload_output" CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
+              npx --yes wrangler@4.126.0 versions upload -c wrangler.jsonc --tag "$trusted_tag" --message "$trusted_message" >/dev/null
+          ) || fail "Trusted Team candidate upload failed before traffic changed."
+          team_version="$(jq -r 'select(.type == "version-upload") | .version_id // empty' "$upload_output" | tail -1)"
+          [ -n "$team_version" ] || fail "Trusted Team upload returned no immutable Worker version."
 
           target="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/versions/${team_version}" "${auth[@]}")" || fail "Resolved Team version does not exist."
           jq -e '.success == true' <<<"$target" >/dev/null || fail "Cloudflare did not return resolved Team version successfully."
-          for binding in PINO_CORE PINO_WORKFORCE_CORE PINO_BO_CORE PINO_TOS_LEARNING_CORE PINO_STAFF_PIN_CORE PINO_PINORIA_TV_CORE; do
-            jq -e --arg b "$binding" '[.result.resources.bindings[]?.name] | index($b) != null' <<<"$target" >/dev/null || fail "Target Team version lost required private binding: ${binding}."
-          done
+          [ "$(jq -r '.result.annotations["workers/tag"] // empty' <<<"$target")" = "$trusted_tag" ] || fail "Trusted Team version tag does not bind exact reviewed source."
+          [ "$(jq -r '.result.annotations["workers/message"] // empty' <<<"$target")" = "$trusted_message" ] || fail "Trusted Team version message does not bind this release run."
+          jq -e '[.result.resources.bindings[]? | select(.name=="PINORIA_TV_STAGING_BYPASS")] | length==0' <<<"$target" >/dev/null || fail "Production Team candidate inherits forbidden PINORIA_TV_STAGING_BYPASS."
+          while IFS='|' read -r binding service entrypoint; do
+            jq -e --arg b "$binding" --arg s "$service" --arg e "$entrypoint" '([.result.resources.bindings[]? | select(.name==$b and .service==$s and .entrypoint==$e)]) | length==1' <<<"$target" >/dev/null || fail "Target Team version has wrong authority target for ${binding}."
+          done <<'EOF'
+          PINO_CORE|pino-core|FounderControlPlane
+          PINO_WORKFORCE_CORE|pino-core|WorkforceControlPlane
+          PINO_BO_CORE|pino-core|BoAccessControlPlane
+          PINO_STAFF_REGISTRATION_CORE|pino-core|StaffRegistrationControlPlane
+          PINO_TOS_LEARNING_CORE|pino-core|TosLearningControlPlane
+          PINO_STAFF_PASSWORD_CORE|pino-core|StaffPasswordControlPlane
+          PINO_STAFF_PIN_CORE|pino-core|StaffPinControlPlane
+          PINO_PINORIA_TV_CORE|pino-core|PinoriaTvControlPlane
+          PINO_ACCESS_SYNC|pino-access-evaluator|AccessSyncControlPlane
+          EOF
+          bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Pinned Core production authority is not canonical/current."
+          evaluator_authority="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Pinned Access evaluator provider authority is not canonical/current."
+          evaluator_team_sha="$(jq -r '.teamSha' <<<"$evaluator_authority")"; evaluator_source_sha="$(jq -r '.evaluatorSha' <<<"$evaluator_authority")"; evaluator_version="$(jq -r '.version' <<<"$evaluator_authority")"; evaluator_deployment="$(jq -r '.deployment' <<<"$evaluator_authority")"
+          [ "$evaluator_team_sha" = "$TEAM_SHA" ] || fail "Evaluator provider authority was not produced from the exact Team release source."
+          [[ "$evaluator_source_sha" =~ ^[0-9a-f]{40}$ ]] || fail "Evaluator provider lacks exact executable source identity."
+          echo "evaluator_source_sha=$evaluator_source_sha" >> "$GITHUB_OUTPUT"
+          echo "evaluator_version=$evaluator_version" >> "$GITHUB_OUTPUT"
+          echo "evaluator_deployment=$evaluator_deployment" >> "$GITHUB_OUTPUT"
 
           deployments="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot inspect current Team deployment."
           old_deployment_id="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments")"
           old_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments" | head -1)"
           [ -n "$old_deployment_id" ] && [ -n "$old_version" ] || fail "Cannot resolve current 100% Team deployment/version."
           echo "team_version=$team_version" >> "$GITHUB_OUTPUT"
+          echo "trusted_tag=$trusted_tag" >> "$GITHUB_OUTPUT"
+          echo "trusted_message=$trusted_message" >> "$GITHUB_OUTPUT"
           echo "old_deployment_id=$old_deployment_id" >> "$GITHUB_OUTPUT"
           echo "old_version=$old_version" >> "$GITHUB_OUTPUT"
 
@@ -131,8 +221,13 @@ jobs:
           TEAM_SHA: ${{ steps.gate.outputs.team_sha }}
           TEAM_BUILD_UUID: ${{ steps.gate.outputs.team_build_uuid }}
           TEAM_VERSION: ${{ steps.preflight.outputs.team_version }}
+          TRUSTED_TAG: ${{ steps.preflight.outputs.trusted_tag }}
+          TRUSTED_MESSAGE: ${{ steps.preflight.outputs.trusted_message }}
           OLD_DEPLOYMENT_ID: ${{ steps.preflight.outputs.old_deployment_id }}
           OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
+          EVALUATOR_SOURCE_SHA: ${{ steps.preflight.outputs.evaluator_source_sha }}
+          EVALUATOR_VERSION: ${{ steps.preflight.outputs.evaluator_version }}
+          EVALUATOR_DEPLOYMENT: ${{ steps.preflight.outputs.evaluator_deployment }}
         run: |
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4"
@@ -184,10 +279,14 @@ jobs:
             if [ "$promotion_attempted" -eq 1 ]; then
               if rollback; then rollback_note="Prior Team version was restored or the exact pinned baseline remained active."; else rollback_note="Rollback was refused or failed because exact failed-promotion ownership could not be proven; no external deployment was overwritten."; fi
             fi
-            comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\n${message}\n\n${rollback_note}\n\nNo Core, D1, Access-policy, route, or custom-domain mutation was authorized."
+            comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **FAIL_SAFE**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\n\n${message}\n\n${rollback_note}\n\nNo Core, D1, Access-policy, route, or custom-domain mutation was authorized."
             exit 1
           }
 
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team runtime production release" "$AUTH_BODY_HASH"
+          bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Core authority drifted before Team promotion."
+          evaluator_now="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Evaluator authority drifted before Team promotion."
+          [ "$(jq -r '.teamSha' <<<"$evaluator_now")" = "$TEAM_SHA" ] && [ "$(jq -r '.evaluatorSha' <<<"$evaluator_now")" = "$EVALUATOR_SOURCE_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_now")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_now")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team promotion."
           deployments_predeploy="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-read Team deployment immediately before promotion."
           deployment_predeploy="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments_predeploy")"
           active_predeploy="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments_predeploy" | head -1)"
@@ -196,17 +295,16 @@ jobs:
           runtime_main_ok "$main_predeploy" || fail "Runtime-affecting Team main drift exists immediately before promotion."
 
           if [ "$OLD_VERSION" = "$TEAM_VERSION" ]; then
-            final_main="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main before terminal PASS."
-            runtime_main_ok "$final_main" || fail "Runtime-affecting Team main drift exists before terminal PASS."
-            final="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify Team deployment before terminal PASS."
-            [ "$(jq -r '.result.deployments[0].id // empty' <<<"$final")" = "$OLD_DEPLOYMENT_ID" ] || fail "Team deployment identity changed before terminal PASS."
-            comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS_ALREADY_ACTIVE**\n\n- Team source: ${TEAM_SHA}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${OLD_DEPLOYMENT_ID}\n- Traffic: already 100%\n\nNo production mutation was attempted."
-            exit 0
+            fail "Candidate Team Worker version was already serving before this canonical release acquired mutation ownership; retroactive production authorization is forbidden."
           fi
 
+          bash scripts/assert-no-core-verification-in-flight.sh || fail "Core local-auth verification overlaps the Team promotion boundary."
+          bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
           deployment_nonce="$(cat /proc/sys/kernel/random/uuid)"
           [[ "$deployment_nonce" =~ ^[0-9a-f-]{36}$ ]] || fail "Cannot create Team deployment proof nonce."
           deployment_marker="PINO_TEAM_PRODUCTION_RELEASE:${TEAM_SHA}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}:${deployment_nonce}"
+          recovery_body="PINO_TEAM_PRODUCTION_RELEASE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nSource SHA: ${TEAM_SHA}\nOld deployment ID: ${OLD_DEPLOYMENT_ID}\nOld version ID: ${OLD_VERSION}\nCandidate version ID: ${TEAM_VERSION}\nDeployment marker: ${deployment_marker}\n\nIndependent recovery identity persisted before traffic mutation."
+          comment "$recovery_body" >/dev/null || fail "Could not persist production traffic recovery identity before promotion."
           promotion_attempted=1
           deploy_output="$RUNNER_TEMP/team-version-deploy.ndjson"; rm -f "$deploy_output"
           set +e
@@ -245,5 +343,9 @@ jobs:
           final_active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$final" | head -1)"
           final_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$final")"
           [ "$final_deployment" = "$candidate_deployment_id" ] && [ "$final_active" = "$TEAM_VERSION" ] && [ "$final_marker" = "$deployment_marker" ] || fail "Team deployment drifted before terminal PASS."
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team runtime production release" "$AUTH_BODY_HASH"
+          bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Core authority drifted before Team PASS."
+          evaluator_final="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Evaluator authority drifted before Team PASS."
+          [ "$(jq -r '.teamSha' <<<"$evaluator_final")" = "$TEAM_SHA" ] && [ "$(jq -r '.evaluatorSha' <<<"$evaluator_final")" = "$EVALUATOR_SOURCE_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_final")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team PASS."
           promotion_attempted=0
-          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
+          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator source: ${EVALUATOR_SOURCE_SHA}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- External Team build UUID (signal only): ${TEAM_BUILD_UUID}\n- Trusted artifact tag: ${TRUSTED_TAG}\n- Trusted artifact message: ${TRUSTED_MESSAGE}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."

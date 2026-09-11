@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: train1-plt-tos-bo-staging
+  group: pino-team-staging-worker-mutation
   cancel-in-progress: false
 
 jobs:
