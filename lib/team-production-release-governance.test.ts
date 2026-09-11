@@ -77,8 +77,9 @@ test("Access evaluator runtime credential and provider authority are isolated an
   const evaluatorAuthority = readFileSync("scripts/assert-evaluator-provider-authority.sh", "utf8");
   const externalEval = readFileSync(".github/workflows/tos-canonical-external-eval.yml", "utf8");
   const policyTest = readFileSync("scripts/run-access-evaluator-policy-test.sh", "utf8");
-  for (const token of ["CF_ACCESS_EVALUATOR_API_TOKEN", "CONTROL_PLANE_ACCESS_TOKEN", "EVALUATOR_ACCESS_TOKEN", "sha256sum", "must not reuse control-plane Access token", "GITHUB_RUN_ATTEMPT", "Evaluator version", "Evaluator deployment", "Evaluator deployment marker"]) assert.match(secretFlow, new RegExp(token));
-  for (const token of ["access-sync-worker-secret.yml", "run_attempt==1", "Authorization body hash", "pino-access-evaluator/deployments", "Evaluator live deployment drifted", "Evaluator live version drifted", "Evaluator deployment marker drifted"]) assert.ok(evaluatorAuthority.includes(token), token);
+  for (const token of ["CF_ACCESS_EVALUATOR_API_TOKEN", "CONTROL_PLANE_ACCESS_TOKEN", "EVALUATOR_ACCESS_TOKEN", "EVALUATOR_SHA", "versions upload", "--secrets-file", "Evaluator source", "Evaluator script etag", "must not reuse control-plane Access token", "GITHUB_RUN_ATTEMPT", "Evaluator version", "Evaluator deployment", "Evaluator deployment marker"]) assert.match(secretFlow, new RegExp(token));
+  assert.doesNotMatch(secretFlow, /versions secret put/);
+  for (const token of ["access-sync-worker-secret.yml", "run_attempt==1", "Authorization body hash", "Evaluator source", "resources.script.etag", "teamSha", "evaluatorSha", "workers/scripts/${worker}/deployments", "Evaluator live deployment drifted", "Evaluator live version drifted", "Evaluator deployment marker drifted"]) assert.ok(evaluatorAuthority.includes(token), token);
   for (const token of ["EVALUATOR_SECRET_ISSUE", "EVALUATOR_SECRET_RUN_ID", "assert-evaluator-provider-authority.sh", "CF_ACCESS_POLICY_TEST_TOKEN", "run-access-evaluator-policy-test.sh", "Credential-dependent Access policy test"]) assert.ok(externalEval.includes(token), token);
   assert.match(policyTest, /access\/policy-tests/);
   assert.match(policyTest, /status=="approved"/);
@@ -96,8 +97,11 @@ test("Team candidate producer is non-promoting and retroactive authorization is 
   assert.match(release, /canonical non-serving candidate command/);
   assert.match(release, /retroactive production authorization is forbidden/);
   assert.doesNotMatch(release, /PASS_ALREADY_ACTIVE/);
-  assert.match(guardian, /reconcile_non_promoting_build/);
-  assert.match(guardian, /-X PATCH/);
+  assert.doesNotMatch(guardian, /reconcile_non_promoting_build/);
+  assert.doesNotMatch(guardian, /-X PATCH/);
+  assert.doesNotMatch(guardian, /commit_sha/);
+  assert.match(guardian, /Require exact current main source/);
+  assert.match(guardian, /guardian is read-only and will not repair production authority/);
   assert.match(guardian, /ops\/team-production-build-boundary\.json/);
   assert.doesNotMatch(readme, /^npx wrangler deploy$/m);
 });

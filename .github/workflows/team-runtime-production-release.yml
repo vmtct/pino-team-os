@@ -169,8 +169,10 @@ jobs:
           EOF
           bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Pinned Core production authority is not canonical/current."
           evaluator_authority="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Pinned Access evaluator provider authority is not canonical/current."
-          evaluator_sha="$(jq -r '.sha' <<<"$evaluator_authority")"; evaluator_version="$(jq -r '.version' <<<"$evaluator_authority")"; evaluator_deployment="$(jq -r '.deployment' <<<"$evaluator_authority")"
-          [ "$evaluator_sha" = "$TEAM_SHA" ] || fail "Evaluator provider authority was not produced from the exact Team release source."
+          evaluator_team_sha="$(jq -r '.teamSha' <<<"$evaluator_authority")"; evaluator_source_sha="$(jq -r '.evaluatorSha' <<<"$evaluator_authority")"; evaluator_version="$(jq -r '.version' <<<"$evaluator_authority")"; evaluator_deployment="$(jq -r '.deployment' <<<"$evaluator_authority")"
+          [ "$evaluator_team_sha" = "$TEAM_SHA" ] || fail "Evaluator provider authority was not produced from the exact Team release source."
+          [[ "$evaluator_source_sha" =~ ^[0-9a-f]{40}$ ]] || fail "Evaluator provider lacks exact executable source identity."
+          echo "evaluator_source_sha=$evaluator_source_sha" >> "$GITHUB_OUTPUT"
           echo "evaluator_version=$evaluator_version" >> "$GITHUB_OUTPUT"
           echo "evaluator_deployment=$evaluator_deployment" >> "$GITHUB_OUTPUT"
 
@@ -198,6 +200,7 @@ jobs:
           TEAM_VERSION: ${{ steps.preflight.outputs.team_version }}
           OLD_DEPLOYMENT_ID: ${{ steps.preflight.outputs.old_deployment_id }}
           OLD_VERSION: ${{ steps.preflight.outputs.old_version }}
+          EVALUATOR_SOURCE_SHA: ${{ steps.preflight.outputs.evaluator_source_sha }}
           EVALUATOR_VERSION: ${{ steps.preflight.outputs.evaluator_version }}
           EVALUATOR_DEPLOYMENT: ${{ steps.preflight.outputs.evaluator_deployment }}
         run: |
@@ -258,7 +261,7 @@ jobs:
           bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team runtime production release" "$AUTH_BODY_HASH"
           bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Core authority drifted before Team promotion."
           evaluator_now="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Evaluator authority drifted before Team promotion."
-          [ "$(jq -r '.sha' <<<"$evaluator_now")" = "$TEAM_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_now")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_now")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team promotion."
+          [ "$(jq -r '.teamSha' <<<"$evaluator_now")" = "$TEAM_SHA" ] && [ "$(jq -r '.evaluatorSha' <<<"$evaluator_now")" = "$EVALUATOR_SOURCE_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_now")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_now")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team promotion."
           deployments_predeploy="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot re-read Team deployment immediately before promotion."
           deployment_predeploy="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments_predeploy")"
           active_predeploy="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployments_predeploy" | head -1)"
@@ -318,6 +321,6 @@ jobs:
           bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team runtime production release" "$AUTH_BODY_HASH"
           bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Core authority drifted before Team PASS."
           evaluator_final="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Evaluator authority drifted before Team PASS."
-          [ "$(jq -r '.version' <<<"$evaluator_final")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team PASS."
+          [ "$(jq -r '.teamSha' <<<"$evaluator_final")" = "$TEAM_SHA" ] && [ "$(jq -r '.evaluatorSha' <<<"$evaluator_final")" = "$EVALUATOR_SOURCE_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_final")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team PASS."
           promotion_attempted=0
-          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
+          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator source: ${EVALUATOR_SOURCE_SHA}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- Team build UUID: ${TEAM_BUILD_UUID}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
