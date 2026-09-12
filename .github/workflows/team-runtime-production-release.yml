@@ -1,5 +1,5 @@
 name: Team Runtime Production Release
-run-name: ${{ github.event.issue.user.login == 'vmtct' && format('Team runtime production release #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED Team runtime production release #{0} @ {1}', github.event.issue.number, github.sha) }}
+run-name: "${{ github.event.issue.user.login == 'vmtct' && format('Team runtime production release #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED Team runtime production release #{0} @ {1}', github.event.issue.number, github.sha) }}"
 
 on:
   issues:
@@ -54,6 +54,7 @@ jobs:
           mapfile -t core_run_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_RELEASE_RUN_ID:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
           mapfile -t evaluator_issue_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SECRET_ISSUE:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
           mapfile -t evaluator_run_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SECRET_RUN_ID:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+          mapfile -t evaluator_sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^EVALUATOR_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
           [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
           [ "${#build_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_BUILD_UUID line."
           [ "${#core_sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_SHA line."
@@ -62,6 +63,7 @@ jobs:
           [ "${#core_run_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_RELEASE_RUN_ID line."
           [ "${#evaluator_issue_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one EVALUATOR_SECRET_ISSUE line."
           [ "${#evaluator_run_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one EVALUATOR_SECRET_RUN_ID line."
+          [ "${#evaluator_sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one EVALUATOR_SHA line."
           grep -Eq '^CONFIRM:[[:space:]]*RELEASE_TEAM_RUNTIME[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing CONFIRM: RELEASE_TEAM_RUNTIME."
           team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
           team_build_uuid="$(tr 'A-F' 'a-f' <<<"${build_lines[0]}")"
@@ -71,6 +73,7 @@ jobs:
           core_release_run_id="${core_run_lines[0]}"
           evaluator_secret_issue="${evaluator_issue_lines[0]}"
           evaluator_secret_run_id="${evaluator_run_lines[0]}"
+          evaluator_expected_sha="$(tr 'A-F' 'a-f' <<<"${evaluator_sha_lines[0]}")"
           main_sha="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve Team main."
           compare="$(gh api "/repos/${repo}/compare/${team_sha}...${main_sha}")" || reject "Cannot compare target source with current main."
           status="$(jq -r '.status' <<<"$compare")"
@@ -95,6 +98,7 @@ jobs:
           echo "CORE_RELEASE_RUN_ID=$core_release_run_id" >> "$GITHUB_ENV"
           echo "EVALUATOR_SECRET_ISSUE=$evaluator_secret_issue" >> "$GITHUB_ENV"
           echo "EVALUATOR_SECRET_RUN_ID=$evaluator_secret_run_id" >> "$GITHUB_ENV"
+          echo "EVALUATOR_SHA=$evaluator_expected_sha" >> "$GITHUB_ENV"
 
       - name: Check out current Team control plane
         uses: actions/checkout@v4
@@ -191,6 +195,7 @@ jobs:
           bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Pinned Core production authority is not canonical/current."
           evaluator_authority="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Pinned Access evaluator provider authority is not canonical/current."
           evaluator_team_sha="$(jq -r '.teamSha' <<<"$evaluator_authority")"; evaluator_source_sha="$(jq -r '.evaluatorSha' <<<"$evaluator_authority")"; evaluator_version="$(jq -r '.version' <<<"$evaluator_authority")"; evaluator_deployment="$(jq -r '.deployment' <<<"$evaluator_authority")"
+          [ "$evaluator_source_sha" = "$EVALUATOR_SHA" ] || fail "Evaluator provider source does not match the source pinned by this Team release authorization."
           [ "$evaluator_team_sha" = "$TEAM_SHA" ] || fail "Evaluator provider authority was not produced from the exact Team release source."
           [[ "$evaluator_source_sha" =~ ^[0-9a-f]{40}$ ]] || fail "Evaluator provider lacks exact executable source identity."
           echo "evaluator_source_sha=$evaluator_source_sha" >> "$GITHUB_OUTPUT"

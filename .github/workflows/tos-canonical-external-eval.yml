@@ -1,5 +1,5 @@
 name: TOS Canonical External Evaluation
-run-name: ${{ github.event.issue.title == '[GPT] TOS canonical external evaluation' && github.event.issue.user.login == 'vmtct' && format('TOS canonical external evaluation #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED TOS canonical external evaluation #{0} @ {1}', github.event.issue.number, github.sha) }}
+run-name: "${{ github.event.issue.title == '[GPT] TOS canonical external evaluation' && github.event.issue.user.login == 'vmtct' && format('TOS canonical external evaluation #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED TOS canonical external evaluation #{0} @ {1}', github.event.issue.number, github.sha) }}"
 
 on:
   issues:

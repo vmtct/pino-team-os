@@ -1,5 +1,5 @@
 name: TOS Google IdP Reconcile
-run-name: ${{ github.event.issue.title == '[GPT] TOS Google IdP reconcile' && github.event.issue.user.login == 'vmtct' && format('TOS Google IdP reconcile #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED TOS Google IdP reconcile #{0} @ {1}', github.event.issue.number, github.sha) }}
+run-name: "${{ github.event.issue.title == '[GPT] TOS Google IdP reconcile' && github.event.issue.user.login == 'vmtct' && format('TOS Google IdP reconcile #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED TOS Google IdP reconcile #{0} @ {1}', github.event.issue.number, github.sha) }}"
 
 on:
   issues:
