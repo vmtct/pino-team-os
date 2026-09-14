@@ -1,0 +1,82 @@
+name: Cloudflare Build Trigger Repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type REPAIR_TEAM_BUILD_TRIGGER to repair only the canonical Team main deploy command"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: team-build-trigger-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      WORKER_NAME: pino-team-os
+    steps:
+      - name: Checkout exact dispatched source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate one-shot repair authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ '${{ inputs.confirm }}' = 'REPAIR_TEAM_BUILD_TRIGGER' ] || { echo 'Explicit repair confirmation missing' >&2; exit 1; }
+          for name in CF_ACCOUNT_ID CF_API_TOKEN; do
+            [ -n "${!name:-}" ] || { echo "Missing GitHub Actions secret: $name" >&2; exit 1; }
+          done
+          local_sha="$(git rev-parse HEAD)"
+          main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$local_sha" = "$main_sha" ] || { echo "Repair workflow must run from exact current main" >&2; exit 1; }
+          expected="$(jq -r '.deployCommand // empty' ops/team-production-build-boundary.json)"
+          [ -n "$expected" ] || { echo 'Canonical deploy command is empty' >&2; exit 1; }
+          echo "EXPECTED_DEPLOY_COMMAND=$expected" >> "$GITHUB_ENV"
+
+      - name: Repair exact Team main build trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
+          worker_tag="$(jq -r --arg n "$WORKER_NAME" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$worker_tag" ] || { echo 'Cannot resolve Team Worker tag' >&2; exit 1; }
+          triggers="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" "${auth[@]}")"
+          matches="$(jq -c '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index("main")) and ((.repo_connection.repo_name // "")=="pino-team-os"))]' <<<"$triggers")"
+          [ "$(jq 'length' <<<"$matches")" -eq 1 ] || { echo 'Expected exactly one active pino-team-os main build trigger' >&2; exit 1; }
+          trigger_uuid="$(jq -r '.[0].trigger_uuid // empty' <<<"$matches")"
+          current="$(jq -r '.[0].deploy_command // ""' <<<"$matches")"
+          [ -n "$trigger_uuid" ] || { echo 'Main trigger UUID is missing' >&2; exit 1; }
+          if [ "$current" != "$EXPECTED_DEPLOY_COMMAND" ]; then
+            payload="$(jq -nc --arg deploy_command "$EXPECTED_DEPLOY_COMMAND" '{deploy_command:$deploy_command}')"
+            response="$(curl -fsS -X PATCH "${api}/accounts/${CF_ACCOUNT_ID}/builds/triggers/${trigger_uuid}" "${auth[@]}" --data "$payload")"
+            jq -e '.success == true' <<<"$response" >/dev/null || { echo 'Cloudflare rejected trigger repair' >&2; exit 1; }
+            [ "$(jq -r '.result.deploy_command // ""' <<<"$response")" = "$EXPECTED_DEPLOY_COMMAND" ] || { echo 'PATCH response does not match canonical deploy command' >&2; exit 1; }
+          fi
+          verify="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" "${auth[@]}")"
+          verify_matches="$(jq -c '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index("main")) and ((.repo_connection.repo_name // "")=="pino-team-os"))]' <<<"$verify")"
+          [ "$(jq 'length' <<<"$verify_matches")" -eq 1 ] || { echo 'Post-repair main trigger cardinality drifted' >&2; exit 1; }
+          [ "$(jq -r '.[0].trigger_uuid // empty' <<<"$verify_matches")" = "$trigger_uuid" ] || { echo 'Post-repair trigger identity changed' >&2; exit 1; }
+          [ "$(jq -r '.[0].deploy_command // ""' <<<"$verify_matches")" = "$EXPECTED_DEPLOY_COMMAND" ] || { echo 'Post-repair deploy command still drifted' >&2; exit 1; }
+          {
+            echo '### Team Cloudflare build-trigger repair'
+            echo "- Worker: ${WORKER_NAME}"
+            echo "- Trigger UUID: ${trigger_uuid}"
+            echo '- Scope: deploy_command only'
+            echo '- Traffic mutation: none'
+            echo '- Result: canonical non-promoting main build boundary restored'
+          } >> "$GITHUB_STEP_SUMMARY"
