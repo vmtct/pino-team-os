@@ -35,8 +35,59 @@ jobs:
           echo "A successful validation run does not authorize merge or production release."
           echo "Merge to main requires an explicit merge decision; production remains a separate explicit release action."
 
+
+  discover_trigger:
+    if: inputs.repair_confirm == 'DISCOVER_TEAM_BUILD_TRIGGER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact discovery source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Discover exact Team main build trigger
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_ACTOR" = "vmtct" ] || { echo "Founder actor required" >&2; exit 1; }
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || { echo "Discovery is one-shot" >&2; exit 1; }
+          [[ "$GITHUB_REF" == refs/heads/ops/plt-trigger-discovery-rc17-* ]] || { echo "Discovery must run from bounded RC17 branch" >&2; exit 1; }
+          [ -n "${CF_API_TOKEN:-}" ] || { echo "Missing GitHub Actions secret: CF_API_TOKEN" >&2; exit 1; }
+          remote_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" || { echo "Cannot read Team main" >&2; exit 1; }
+          [ "$(git rev-parse HEAD^)" = "$remote_main" ] || { echo "Discovery source is not directly based on current main" >&2; exit 1; }
+          [ "$(git diff --name-only "$remote_main" "$GITHUB_SHA")" = '.github/workflows/auto-merge.yml' ] || { echo "Discovery branch contains out-of-scope files" >&2; exit 1; }
+          boundary="$(cat ops/team-production-build-boundary.json)"
+          account="$(jq -r '.accountId // empty' <<<"$boundary")"
+          worker="$(jq -r '.worker // empty' <<<"$boundary")"
+          branch="$(jq -r '.productionBranch // empty' <<<"$boundary")"
+          expected="$(jq -r '.deployCommand // empty' <<<"$boundary")"
+          [[ "$account" =~ ^[0-9a-f]{32}$ ]] && [ -n "$worker" ] && [ "$branch" = main ] && [ -n "$expected" ] || { echo "Canonical boundary invalid" >&2; exit 1; }
+          repo_meta="$(gh api "/repos/${GITHUB_REPOSITORY}")"
+          repo_id="$(jq -r '.id | tostring' <<<"$repo_meta")"
+          repo_owner="$(jq -r '.owner.login // empty' <<<"$repo_meta")"
+          repo_name="$(jq -r '.name // empty' <<<"$repo_meta")"
+          api=https://api.cloudflare.com/client/v4
+          scripts="$(curl -q -fsS --request GET "${api}/accounts/${account}/workers/scripts" -H "Authorization: Bearer ${CF_API_TOKEN}" -H 'Content-Type: application/json')"
+          worker_tag="$(jq -r --arg n "$worker" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$worker_tag" ] || { echo "Cannot resolve canonical Team Worker tag" >&2; exit 1; }
+          triggers="$(curl -q -fsS --request GET "${api}/accounts/${account}/builds/workers/${worker_tag}/triggers" -H "Authorization: Bearer ${CF_API_TOKEN}" -H 'Content-Type: application/json')"
+          matches="$(jq -c --arg owner "$repo_owner" --arg repo_id "$repo_id" --arg repo_name "$repo_name" --arg branch "$branch" '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index($branch)) and (((.branch_excludes // []) | index($branch)) | not) and ((.repo_connection.provider_type // "")=="github") and ((.repo_connection.provider_account_name // "")==$owner) and (((.repo_connection.repo_id // "")|tostring)==$repo_id) and ((.repo_connection.repo_name // "")==$repo_name))]' <<<"$triggers")"
+          [ "$(jq 'length' <<<"$matches")" -eq 1 ] || { echo "Expected exactly one canonical active Team main trigger" >&2; exit 1; }
+          trigger_uuid="$(jq -r '.[0].trigger_uuid // empty' <<<"$matches")"
+          [[ "$trigger_uuid" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Canonical trigger UUID invalid" >&2; exit 1; }
+          detail="$(curl -q -fsS --request GET "${api}/accounts/${account}/builds/triggers/${trigger_uuid}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H 'Content-Type: application/json')"
+          jq -e --arg uuid "$trigger_uuid" --arg owner "$repo_owner" --arg repo_id "$repo_id" --arg repo_name "$repo_name" --arg branch "$branch" '.success==true and .result.trigger_uuid==$uuid and (.result.deleted_on // null)==null and ((.result.branch_includes // []) | index($branch)) and (((.result.branch_excludes // []) | index($branch)) | not) and (.result.repo_connection.provider_type // "")=="github" and (.result.repo_connection.provider_account_name // "")==$owner and ((.result.repo_connection.repo_id // "")|tostring)==$repo_id and (.result.repo_connection.repo_name // "")==$repo_name' <<<"$detail" >/dev/null
+          live="$(jq -r '.result.deploy_command // ""' <<<"$detail")"
+          printf 'TRIGGER_UUID=%s\nLIVE_DEPLOY_CANONICAL=%s\n' "$trigger_uuid" "$([ "$live" = "$expected" ] && echo true || echo false)"
+
   bootstrap_repair:
-    if: inputs.repair_confirm != ''
+    if: inputs.repair_confirm == 'REPAIR_TEAM_BUILD_TRIGGER'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
