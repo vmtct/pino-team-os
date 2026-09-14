@@ -1,4 +1,5 @@
 name: Arrival v0 Core Build
+# PINO_RETIRED_SUPERSEDED_OPERATOR: canonical production authority moved to the current release workflow.
 
 on:
   issues:
@@ -10,7 +11,7 @@ permissions:
 
 jobs:
   core-build:
-    if: github.event.issue.title == '[GPT] Arrival v0 core build' && github.event.issue.user.login == 'vmtct'
+    if: ${{ false }} # retired superseded production operator
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

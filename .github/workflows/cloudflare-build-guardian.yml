@@ -4,11 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      commit_sha:
-        description: "Commit SHA to inspect (leave blank for latest main)"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -27,15 +22,23 @@ jobs:
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       WORKER_NAME: pino-team-os
-      COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+      COMMIT_SHA: ${{ github.sha }}
       GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout inspected source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.commit_sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 2
+
+      - name: Require exact current main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "Cloudflare build truth is main-only." >&2; exit 1; }
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          [ -n "$remote_main" ] && [ "$GITHUB_SHA" = "$remote_main" ] && [ "$(git rev-parse HEAD)" = "$remote_main" ] || { echo "Workflow source is not exact current Team main." >&2; exit 1; }
 
       - name: Validate Cloudflare credentials
         shell: bash
@@ -44,6 +47,24 @@ jobs:
           for name in CF_ACCOUNT_ID CF_API_TOKEN; do
             [ -n "${!name:-}" ] || { echo "Missing GitHub Actions secret: $name" >&2; exit 1; }
           done
+
+      - name: Verify canonical non-promoting production build boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          expected="$(jq -r '.deployCommand' ops/team-production-build-boundary.json)"
+          [ -n "$expected" ] || { echo "Repository build-boundary deploy command is empty" >&2; exit 1; }
+          scripts="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" "${auth[@]}")"
+          worker_tag="$(jq -r --arg n "$WORKER_NAME" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)"
+          [ -n "$worker_tag" ] || { echo "Cannot resolve Worker tag" >&2; exit 1; }
+          triggers="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" "${auth[@]}")"
+          matches="$(jq -c '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index("main")) and ((.repo_connection.repo_name // "")=="pino-team-os"))]' <<<"$triggers")"
+          [ "$(jq 'length' <<<"$matches")" -eq 1 ] || { echo "Expected exactly one active pino-team-os main build trigger" >&2; exit 1; }
+          current="$(jq -r '.[0].deploy_command // ""' <<<"$matches")"
+          [ "$current" = "$expected" ] || { echo "Live main build trigger drifted from canonical non-promoting command; guardian is read-only and will not repair production authority." >&2; exit 1; }
+          echo "Cloudflare Builds main trigger verified: immutable candidate upload only; no traffic promotion or trigger mutation performed."
 
       - name: Classify source delta
         id: delta

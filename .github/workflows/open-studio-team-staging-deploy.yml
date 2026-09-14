@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: open-studio-team-staging-deploy
+  group: pino-team-staging-worker-mutation
   cancel-in-progress: false
 
 jobs:

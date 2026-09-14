@@ -1,4 +1,5 @@
 name: Train2 WFM-ONB Team Production Release
+# PINO_RETIRED_SUPERSEDED_OPERATOR: canonical production authority moved to the current release workflow.
 
 on:
   issues:
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.event.issue.title == '[GPT] Train2 WFM-ONB Team production release' && github.event.issue.user.login == 'vmtct'
+    if: ${{ false }} # retired superseded production operator
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
