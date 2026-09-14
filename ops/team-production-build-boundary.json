@@ -1,5 +1,6 @@
 {
   "featureCode": "PLT-RELEASE",
+  "accountId": "952c3c8a236f8e4cbcf6ee10b86ad70c",
   "worker": "pino-team-os",
   "productionBranch": "main",
   "deployCommand": "npx wrangler versions upload --tag \"$WORKERS_CI_COMMIT_SHA\" --message \"pino-team-os candidate $WORKERS_CI_COMMIT_SHA\"",

@@ -2,6 +2,23 @@ name: Auto Merge Disabled
 
 on:
   workflow_dispatch:
+    inputs:
+      repair_confirm:
+        description: "Founder-only bootstrap repair token"
+        required: false
+        type: string
+      expected_main_sha:
+        description: "Exact Team main SHA authorized for bootstrap repair"
+        required: false
+        type: string
+      expected_operator_sha:
+        description: "Exact independently audited bootstrap operator SHA"
+        required: false
+        type: string
+      expected_trigger_uuid:
+        description: "Exact live Cloudflare build trigger UUID to repair"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -9,6 +26,7 @@ permissions:
 
 jobs:
   disabled:
+    if: inputs.repair_confirm == ''
     runs-on: ubuntu-latest
     steps:
       - name: Explain release gate
@@ -16,3 +34,117 @@ jobs:
           echo "Automatic PR merging is intentionally disabled."
           echo "A successful validation run does not authorize merge or production release."
           echo "Merge to main requires an explicit merge decision; production remains a separate explicit release action."
+
+  bootstrap_repair:
+    if: inputs.repair_confirm != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: pino-team-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact bootstrap operator source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Validate Founder bootstrap authority
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPAIR_CONFIRM: ${{ inputs.repair_confirm }}
+          EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+          EXPECTED_OPERATOR_SHA: ${{ inputs.expected_operator_sha }}
+          EXPECTED_TRIGGER_UUID: ${{ inputs.expected_trigger_uuid }}
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_ACTOR" = "vmtct" ] || { echo "Founder actor required" >&2; exit 1; }
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || { echo "Bootstrap repair is one-shot" >&2; exit 1; }
+          [ "$REPAIR_CONFIRM" = "REPAIR_TEAM_BUILD_TRIGGER" ] || { echo "Exact repair token missing" >&2; exit 1; }
+          [[ "$EXPECTED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Expected main SHA is invalid" >&2; exit 1; }
+          [[ "$EXPECTED_OPERATOR_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Expected operator SHA is invalid" >&2; exit 1; }
+          [[ "$EXPECTED_TRIGGER_UUID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Expected trigger UUID is invalid" >&2; exit 1; }
+          [[ "$GITHUB_REF" == refs/heads/ops/plt-team-trigger-bootstrap-* ]] || { echo "Bootstrap repair must run from ephemeral ops branch" >&2; exit 1; }
+          [ "$GITHUB_SHA" = "$EXPECTED_OPERATOR_SHA" ] || { echo "Dispatched branch tip is not the independently audited operator SHA" >&2; exit 1; }
+          [ "$(git rev-parse HEAD)" = "$EXPECTED_OPERATOR_SHA" ] || { echo "Operator checkout is not audited SHA" >&2; exit 1; }
+          [ -z "$(git status --porcelain)" ] || { echo "Operator checkout is dirty" >&2; exit 1; }
+          parent_sha="$(git rev-parse HEAD^)"
+          [ "$parent_sha" = "$EXPECTED_MAIN_SHA" ] || { echo "Operator is not directly based on authorized main" >&2; exit 1; }
+          remote_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha' 2>/dev/null || true)"
+          [ "$remote_main" = "$EXPECTED_MAIN_SHA" ] || { echo "Team main drifted before bootstrap validation" >&2; exit 1; }
+          files="$(git diff --name-only "$EXPECTED_MAIN_SHA" "$GITHUB_SHA" | sort)"
+          expected_files="$(printf '%s\n' '.github/workflows/auto-merge.yml' 'lib/cloudflare-build-trigger-bootstrap.test.ts' 'ops/team-production-build-boundary.json')"
+          [ "$files" = "$expected_files" ] || { echo "Bootstrap branch contains out-of-scope files" >&2; printf '%s\n' "$files" >&2; exit 1; }
+
+      - name: Validate exact Team main build trigger
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+          EXPECTED_OPERATOR_SHA: ${{ inputs.expected_operator_sha }}
+          EXPECTED_TRIGGER_UUID: ${{ inputs.expected_trigger_uuid }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "${CF_API_TOKEN:-}" ] || { echo "Missing GitHub Actions secret: CF_API_TOKEN" >&2; exit 1; }
+          api="https://api.cloudflare.com/client/v4"
+          boundary="$(cat ops/team-production-build-boundary.json)"
+          CF_ACCOUNT_ID="$(jq -r '.accountId // empty' <<<"$boundary")" || { echo "Cannot resolve canonical Cloudflare account" >&2; exit 1; }
+          WORKER_NAME="$(jq -r '.worker // empty' <<<"$boundary")" || { echo "Cannot resolve canonical Worker" >&2; exit 1; }
+          PRODUCTION_BRANCH="$(jq -r '.productionBranch // empty' <<<"$boundary")" || { echo "Cannot resolve canonical production branch" >&2; exit 1; }
+          expected="$(jq -r '.deployCommand // empty' <<<"$boundary")" || { echo "Cannot resolve canonical deploy command" >&2; exit 1; }
+          [[ "$CF_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]] || { echo "Canonical Cloudflare account ID is invalid" >&2; exit 1; }
+          [ -n "$WORKER_NAME" ] || { echo "Canonical Worker name is empty" >&2; exit 1; }
+          [ "$PRODUCTION_BRANCH" = "main" ] || { echo "Canonical production branch is not main" >&2; exit 1; }
+          [ -n "$expected" ] || { echo "Canonical deploy command is empty" >&2; exit 1; }
+          [ "$GITHUB_SHA" = "$EXPECTED_OPERATOR_SHA" ] || { echo "Operator SHA drifted before Cloudflare validation" >&2; exit 1; }
+          main_before="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${PRODUCTION_BRANCH}" --jq '.object.sha')" || { echo "Cannot read Team main before Cloudflare validation" >&2; exit 1; }
+          [ "$main_before" = "$EXPECTED_MAIN_SHA" ] || { echo "Team main drifted before Cloudflare validation" >&2; exit 1; }
+          repo_meta="$(gh api "/repos/${GITHUB_REPOSITORY}")" || { echo "Cannot resolve canonical GitHub repository identity" >&2; exit 1; }
+          repo_id="$(jq -r '.id | tostring' <<<"$repo_meta")" || { echo "Cannot resolve repository ID" >&2; exit 1; }
+          repo_owner="$(jq -r '.owner.login // empty' <<<"$repo_meta")" || { echo "Cannot resolve repository owner" >&2; exit 1; }
+          repo_name="$(jq -r '.name // empty' <<<"$repo_meta")" || { echo "Cannot resolve repository name" >&2; exit 1; }
+          [ -n "$repo_id" ] && [ -n "$repo_owner" ] && [ -n "$repo_name" ] || { echo "Canonical GitHub repository identity is incomplete" >&2; exit 1; }
+          scripts="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot list Cloudflare Workers" >&2; exit 1; }
+          worker_tag="$(jq -r --arg n "$WORKER_NAME" '.result[]? | select(.id==$n) | .tag // empty' <<<"$scripts" | head -1)" || { echo "Cannot parse canonical Team Worker tag" >&2; exit 1; }
+          [ -n "$worker_tag" ] || { echo "Cannot resolve canonical Team Worker tag" >&2; exit 1; }
+          triggers="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot list canonical Team build triggers" >&2; exit 1; }
+          matches="$(jq -c --arg owner "$repo_owner" --arg repo_id "$repo_id" --arg repo_name "$repo_name" --arg branch "$PRODUCTION_BRANCH" '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index($branch)) and (((.branch_excludes // []) | index($branch)) | not) and ((.repo_connection.provider_type // "")=="github") and ((.repo_connection.provider_account_name // "")==$owner) and (((.repo_connection.repo_id // "")|tostring)==$repo_id) and ((.repo_connection.repo_name // "")==$repo_name))]' <<<"$triggers")" || { echo "Cannot classify canonical Team build triggers" >&2; exit 1; }
+          [ "$(jq 'length' <<<"$matches")" -eq 1 ] || { echo "Expected exactly one canonical active ${repo_name}/${PRODUCTION_BRANCH} build trigger" >&2; exit 1; }
+          trigger_uuid="$(jq -r '.[0].trigger_uuid // empty' <<<"$matches")" || { echo "Cannot resolve canonical trigger UUID" >&2; exit 1; }
+          [ "$trigger_uuid" = "$EXPECTED_TRIGGER_UUID" ] || { echo "Canonical trigger UUID does not match independently observed target" >&2; exit 1; }
+          trigger_detail="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/builds/triggers/${trigger_uuid}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot read exact canonical trigger" >&2; exit 1; }
+          jq -e --arg uuid "$EXPECTED_TRIGGER_UUID" --arg owner "$repo_owner" --arg repo_id "$repo_id" --arg repo_name "$repo_name" --arg branch "$PRODUCTION_BRANCH" '.success==true and .result.trigger_uuid==$uuid and (.result.deleted_on // null)==null and ((.result.branch_includes // []) | index($branch)) and (((.result.branch_excludes // []) | index($branch)) | not) and (.result.repo_connection.provider_type // "")=="github" and (.result.repo_connection.provider_account_name // "")==$owner and ((.result.repo_connection.repo_id // "")|tostring)==$repo_id and (.result.repo_connection.repo_name // "")==$repo_name' <<<"$trigger_detail" >/dev/null || { echo "Exact trigger identity is not canonical" >&2; exit 1; }
+          baseline_fingerprint="$(jq -cS '.result | del(.modified_on)' <<<"$trigger_detail")" || { echo "Cannot fingerprint canonical trigger" >&2; exit 1; }
+          baseline_modified="$(jq -r '.result.modified_on // empty' <<<"$trigger_detail")" || { echo "Cannot resolve canonical trigger revision" >&2; exit 1; }
+          live_deploy="$(jq -r '.result.deploy_command // ""' <<<"$trigger_detail")" || { echo "Cannot resolve live deploy command" >&2; exit 1; }
+          [ -n "$baseline_fingerprint" ] && [ -n "$baseline_modified" ] || { echo "Cannot capture canonical trigger revision" >&2; exit 1; }
+          [ "$live_deploy" = "$expected" ] || { echo "Live deploy_command is not canonical; perform a separate authorized repair before release" >&2; exit 1; }
+          deployments_before="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/deployments" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot inspect Team serving identity" >&2; exit 1; }
+          deployment_before="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments_before")" || { echo "Cannot resolve pre-validation deployment identity" >&2; exit 1; }
+          serving_entries_before="$(jq -c '[.result.deployments[0].versions[]? | select(.percentage == 100)]' <<<"$deployments_before")" || { echo "Cannot classify pre-validation serving identity" >&2; exit 1; }
+          [ "$(jq 'length' <<<"$serving_entries_before")" -eq 1 ] || { echo "Expected exactly one pre-validation 100% serving version" >&2; exit 1; }
+          serving_before="$(jq -r '.[0].version_id // empty' <<<"$serving_entries_before")" || { echo "Cannot resolve pre-validation serving identity" >&2; exit 1; }
+          [ -n "$deployment_before" ] && [ -n "$serving_before" ] || { echo "Cannot resolve Team serving identity" >&2; exit 1; }
+          verify="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/builds/workers/${worker_tag}/triggers" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot re-read canonical Team build triggers" >&2; exit 1; }
+          verify_matches="$(jq -c --arg owner "$repo_owner" --arg repo_id "$repo_id" --arg repo_name "$repo_name" --arg branch "$PRODUCTION_BRANCH" '[.result[]? | select((.deleted_on // null)==null and ((.branch_includes // []) | index($branch)) and (((.branch_excludes // []) | index($branch)) | not) and ((.repo_connection.provider_type // "")=="github") and ((.repo_connection.provider_account_name // "")==$owner) and (((.repo_connection.repo_id // "")|tostring)==$repo_id) and ((.repo_connection.repo_name // "")==$repo_name))]' <<<"$verify")" || { echo "Cannot classify canonical Team build triggers after validation" >&2; exit 1; }
+          [ "$(jq 'length' <<<"$verify_matches")" -eq 1 ] || { echo "Canonical trigger cardinality drifted during validation" >&2; exit 1; }
+          [ "$(jq -r '.[0].trigger_uuid // empty' <<<"$verify_matches")" = "$EXPECTED_TRIGGER_UUID" ] || { echo "Canonical trigger identity drifted during validation" >&2; exit 1; }
+          verify_detail="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/builds/triggers/${EXPECTED_TRIGGER_UUID}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot re-read exact canonical trigger" >&2; exit 1; }
+          jq -e --arg uuid "$EXPECTED_TRIGGER_UUID" --arg owner "$repo_owner" --arg repo_id "$repo_id" --arg repo_name "$repo_name" --arg branch "$PRODUCTION_BRANCH" '.success==true and .result.trigger_uuid==$uuid and (.result.deleted_on // null)==null and ((.result.branch_includes // []) | index($branch)) and (((.result.branch_excludes // []) | index($branch)) | not) and (.result.repo_connection.provider_type // "")=="github" and (.result.repo_connection.provider_account_name // "")==$owner and ((.result.repo_connection.repo_id // "")|tostring)==$repo_id and (.result.repo_connection.repo_name // "")==$repo_name' <<<"$verify_detail" >/dev/null || { echo "Exact trigger identity drifted during validation" >&2; exit 1; }
+          [ "$(jq -cS '.result | del(.modified_on)' <<<"$verify_detail")" = "$baseline_fingerprint" ] || { echo "Trigger configuration drifted during validation" >&2; exit 1; }
+          [ "$(jq -r '.result.modified_on // empty' <<<"$verify_detail")" = "$baseline_modified" ] || { echo "Trigger revision changed during validation" >&2; exit 1; }
+          [ "$(jq -r '.result.deploy_command // ""' <<<"$verify_detail")" = "$expected" ] || { echo "Deploy command drifted during validation" >&2; exit 1; }
+          deployments_after="$(curl -q -fsS --request GET "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/deployments" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")" || { echo "Cannot re-read Team serving identity" >&2; exit 1; }
+          deployment_after="$(jq -r '.result.deployments[0].id // empty' <<<"$deployments_after")" || { echo "Cannot resolve post-validation deployment identity" >&2; exit 1; }
+          serving_entries_after="$(jq -c '[.result.deployments[0].versions[]? | select(.percentage == 100)]' <<<"$deployments_after")" || { echo "Cannot classify post-validation serving identity" >&2; exit 1; }
+          [ "$(jq 'length' <<<"$serving_entries_after")" -eq 1 ] || { echo "Expected exactly one post-validation 100% serving version" >&2; exit 1; }
+          serving_after="$(jq -r '.[0].version_id // empty' <<<"$serving_entries_after")" || { echo "Cannot resolve post-validation serving identity" >&2; exit 1; }
+          [ -n "$serving_after" ] || { echo "Post-validation serving version is empty" >&2; exit 1; }
+          [ "$deployment_after" = "$deployment_before" ] || { echo "Team deployment identity changed during validation" >&2; exit 1; }
+          [ "$serving_after" = "$serving_before" ] || { echo "Team serving version changed during validation" >&2; exit 1; }
+          main_final="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${PRODUCTION_BRANCH}" --jq '.object.sha')" || { echo "Cannot re-read Team main before terminal validation receipt" >&2; exit 1; }
+          [ "$main_final" = "$EXPECTED_MAIN_SHA" ] || { echo "Team main drifted during Cloudflare validation" >&2; exit 1; }
+          echo "Team Cloudflare bootstrap validation PASS: operator ${EXPECTED_OPERATOR_SHA}; trigger ${EXPECTED_TRIGGER_UUID}; revision ${baseline_modified}; serving ${serving_before}; deployment ${deployment_before}; deploy_command canonical; no Cloudflare mutation performed."
