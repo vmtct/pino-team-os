@@ -172,23 +172,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          probe() {
-            local path="$1" out="$2" code=""
+          probe_status() {
+            local path="$1" expected="$2" out="$3" code=""
             for _ in $(seq 1 12); do
               code="$(curl -sS --max-time 15 -o "$out" -w '%{http_code}' "${STAGING_URL}${path}")"
-              [ "$code" = "200" ] && return 0
+              [ "$code" = "$expected" ] && return 0
               sleep 2
             done
-            echo "Smoke failed: ${path} -> ${code}" >&2
+            echo "Smoke failed: ${path} -> ${code}, expected ${expected}" >&2
             cat "$out" >&2 || true
             return 1
           }
-          probe "/api/bo/context" /tmp/bo-context.json
-          probe "/api/bo/workforce/staff-records" /tmp/staff-records.json
-          probe "/bo/workforce" /tmp/bo-workforce.html
-          probe "/staff-login" /tmp/staff-login.html
-          probe "/staff-pin/change" /tmp/staff-pin-change.html
-          node -e 'for(const f of process.argv.slice(1)){const x=JSON.parse(require("fs").readFileSync(f,"utf8"));if(!Object.hasOwn(x,"data"))process.exit(1)}' /tmp/bo-context.json /tmp/staff-records.json
+          probe_status "/api/bo/context" 401 /tmp/bo-context.json
+          probe_status "/api/bo/workforce/staff-records" 401 /tmp/staff-records.json
+          node -e 'for(const f of process.argv.slice(1)){const x=JSON.parse(require("fs").readFileSync(f,"utf8"));if(x?.error?.code!=="IDENTITY_AUTHENTICATION_FAILED")process.exit(1)}' /tmp/bo-context.json /tmp/staff-records.json
+          probe_status "/bo/workforce" 200 /tmp/bo-workforce.html
+          probe_status "/staff-login" 200 /tmp/staff-login.html
+          probe_status "/staff-pin/change" 200 /tmp/staff-pin-change.html
           echo "WORKFORCE_TEAM_STAGING_SMOKE=PASS"
 
       - name: Report staging PASS
