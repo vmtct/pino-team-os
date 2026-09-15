@@ -15,7 +15,7 @@ comments="$(core_api --paginate --slurp "/repos/${repo}/issues/${issue_number}/c
 terminal="$(jq -c '[.[][] | select(.user.login=="github-actions[bot]" and (((.body // "")|startswith("CORE_PRODUCTION_RELEASE: **PASS**")) or ((.body // "")|startswith("CORE_PRODUCTION_RELEASE: **FAIL_SAFE**")) or ((.body // "")|startswith("CORE_PRODUCTION_RELEASE: **REJECTED**"))))] | sort_by(.created_at) | last // empty' <<<"$comments")"
 [ -n "$terminal" ]
 jq -e --arg sha "$core_sha" --arg dep "$deployment_id" --arg run "$run_id" '.body | startswith("CORE_PRODUCTION_RELEASE: **PASS**") and contains("Core source: "+$sha) and contains("Deployment ID: "+$dep) and contains("Workflow run: "+$run) and contains("Workflow attempt: 1")' <<<"$terminal" >/dev/null
-terminal_body="$(jq -r '.body // ""' <<<"$terminal")"
+terminal_body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$terminal")"
 auth_hash="$(sed -nE 's/^- Authorization body hash:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$terminal_body")"
 [[ "$auth_hash" =~ ^[0-9a-f]{64}$ ]] || { echo "Core terminal receipt lacks exact authorization body hash" >&2; exit 1; }
 live_body="$(jq -r '.body // ""' <<<"$issue")"
