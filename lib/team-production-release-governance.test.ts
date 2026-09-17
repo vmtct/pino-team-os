@@ -81,6 +81,9 @@ test("Access evaluator runtime credential and provider authority are isolated an
   for (const token of ["CF_ACCESS_EVALUATOR_API_TOKEN", "CONTROL_PLANE_ACCESS_TOKEN", "EVALUATOR_ACCESS_TOKEN", "EVALUATOR_SHA", "versions upload", "--secrets-file", "Evaluator source", "Evaluator script etag", "must not reuse control-plane Access token", "GITHUB_RUN_ATTEMPT", "Evaluator version", "Evaluator deployment", "Evaluator deployment marker"]) assert.match(secretFlow, new RegExp(token));
   assert.doesNotMatch(secretFlow, /versions secret put/);
   for (const token of ["access-sync-worker-secret.yml", "run_attempt==1", "Authorization body hash", "Evaluator source", "resources.script.etag", "teamSha", "evaluatorSha", "workers/scripts/${worker}/deployments", "Evaluator live deployment drifted", "Evaluator live version drifted", "Evaluator deployment marker drifted"]) assert.ok(evaluatorAuthority.includes(token), token);
+  assert.match(evaluatorAuthority, /endswith\(" @ "\+\$sha\)\)\)\] \| sort_by/);
+  assert.equal((release.match(/grep -Ev '[^']*assert-evaluator-provider-authority[^']*'/g) ?? []).length, 2, "provider helper must be the only explicit runtime-drift exception in both release fences");
+  assert.equal((release.match(/grep -Ev '[^']*team-production-release-governance[^']*'/g) ?? []).length, 2, "governance regression test must be the only explicit test-only drift exception in both release fences");
   for (const token of ["EVALUATOR_SECRET_ISSUE", "EVALUATOR_SECRET_RUN_ID", "assert-evaluator-provider-authority.sh", "CF_ACCESS_POLICY_TEST_TOKEN", "run-access-evaluator-policy-test.sh", "Credential-dependent Access policy test"]) assert.ok(externalEval.includes(token), token);
   assert.match(policyTest, /access\/policy-tests/);
   assert.match(policyTest, /status=="approved"/);
