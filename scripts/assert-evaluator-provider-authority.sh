@@ -27,7 +27,7 @@ auth_hash="$(sed -nE 's/^Authorization body hash:[[:space:]]*([0-9a-f]{64})[[:sp
 live_body="$(jq -r '.body // ""' <<<"$issue_json")"
 [ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$auth_hash" ] || { echo "Evaluator provider authorization body changed after PASS" >&2; exit 1; }
 runs="$(gh api --paginate --slurp "/repos/${repo}/actions/workflows/access-sync-worker-secret.yml/runs?event=issues&per_page=100")"
-latest="$(jq -r --arg sha "$team_sha" '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "")|startswith("Access sync worker secret #")) and ((.display_title // "")|endswith(" @ "+$sha))] | sort_by(.updated_at // .run_started_at // .created_at // "") | last | .id // empty' <<<"$runs")"
+latest="$(jq -r --arg sha "$team_sha" '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "")|startswith("Access sync worker secret #")) and ((.display_title // "")|endswith(" @ "+$sha)))] | sort_by(.updated_at // .run_started_at // .created_at // "") | last | .id // empty' <<<"$runs")"
 [ "$latest" = "$run_id" ] || { echo "Evaluator provider run superseded by newer same-SHA attempt" >&2; exit 1; }
 evaluator_main="$(git ls-remote "https://github.com/${evaluator_repo}.git" refs/heads/main | awk '{print $1}')"
 [ "$evaluator_main" = "$evaluator_source" ] || { echo "Evaluator source authority drifted from canonical main" >&2; exit 1; }

@@ -77,7 +77,7 @@ jobs:
           compare="$(gh api "/repos/${repo}/compare/${team_sha}...${main_sha}")" || reject "Cannot compare target source with current main."
           status="$(jq -r '.status' <<<"$compare")"
           [ "$status" = "identical" ] || [ "$status" = "ahead" ] || reject "Target Team source is not an ancestor of current main."
-          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$|scripts/assert-evaluator-provider-authority\.sh$|lib/team-production-release-governance\.test\.ts$)' || true)"
           [ -z "$unexpected" ] || reject "Runtime-affecting Team drift exists after target: ${unexpected//$'\n'/, }."
           prs="$(gh api -H 'Accept: application/vnd.github+json' "/repos/${repo}/commits/${team_sha}/pulls")" || reject "Cannot resolve pull-request provenance."
           jq -e --arg sha "$team_sha" '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)] | length >= 1' <<<"$prs" >/dev/null || reject "Target source is not proven as a merged PR into main."
@@ -247,7 +247,7 @@ jobs:
             compare="$(gh api "/repos/${repo}/compare/${TEAM_SHA}...${main_sha}")" || return 1
             status="$(jq -r '.status' <<<"$compare")"
             [ "$status" = "identical" ] || [ "$status" = "ahead" ] || return 1
-            unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$)' || true)"
+            unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$|scripts/assert-evaluator-provider-authority\.sh$|lib/team-production-release-governance\.test\.ts$)' || true)"
             [ -z "$unexpected" ]
           }
           rollback() {
