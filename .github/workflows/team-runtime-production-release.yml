@@ -10,12 +10,11 @@ permissions:
   pull-requests: read
   issues: write
 
-concurrency:
-  group: pino-team-production
-  cancel-in-progress: false
-
 jobs:
   release:
+    concurrency:
+      group: pino-team-production
+      cancel-in-progress: false
     if: github.event.issue.title == '[GPT] Team runtime production release' && github.event.issue.user.login == 'vmtct'
     runs-on: ubuntu-latest
     timeout-minutes: 15
