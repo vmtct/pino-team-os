@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleBoStaffOnboardingRequest, isPracticeWritePath, type BoWriteEnv } from "./bo-write-handler";
+import { handleBoStaffOnboardingRequest, handleBoWriteRequest, isPracticeWritePath, type BoWriteEnv } from "./bo-write-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 const token="local-password-session",path="workforce/staff-onboarding";
 const env=(binding:BoAccessCoreBinding):BoWriteEnv=>({PINO_BO_CORE:binding});
@@ -14,3 +14,26 @@ test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
 
 test("Session shared Syllabus binding write requires replay evidence and forwards only the bounded command",async()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",version="0198d050-56c1-7ac5-b9ab-b0e45d954321",route=`delivery/sessions/${id}/syllabus-binding`,body={learningSyllabusVersionId:version,expectedSessionVersion:4,correctionReason:"Correct published lesson"},forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:200,body:{data:{sessionId:id,learningSyllabusVersionId:version,sessionVersion:5}},requestId:"binding-write"};}};assert.equal((await handleBoStaffOnboardingRequest(request(route,true,body),env(binding),route)).status,400);assert.equal(forwarded.length,0);const response=await handleBoStaffOnboardingRequest(request(route,true,body,"binding-command"),env(binding),route);assert.equal(response.status,200);assert.deepEqual(forwarded,[{method:"POST",path:route,body,idempotencyKey:"binding-command"}]);});
+test("timekeeping correction requires idempotency and forwards only through BO Core", async () => {
+  const forwarded: Array<{ request: BoAccessRequest; token: string }> = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request, token) { forwarded.push({ request, token }); return { status: 201, body: { data: { correction: { id: "c" } } }, requestId: "time-correct" }; } };
+  const path = "workforce/timekeeping/01912345-6789-7abc-8def-0123456789ab/corrections";
+  const missing = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}` }, body: JSON.stringify({ correctionType: "CHECK_IN_AT" }) });
+  assert.equal((await handleBoWriteRequest(missing, env(binding), path)).status, 400);
+  const request = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "corr-key" }, body: JSON.stringify({ correctionType: "CHECK_IN_AT", correctedAt: "2026-09-06T01:15:00.000Z", reason: "Verified", expectedLatestCorrectionId: null }) });
+  assert.equal((await handleBoWriteRequest(request, env(binding), path)).status, 201);
+  assert.equal(forwarded.length, 1);
+  assert.equal(forwarded[0]!.token, token);
+  assert.deepEqual(forwarded[0]!.request, { method: "POST", path, body: { correctionType: "CHECK_IN_AT", correctedAt: "2026-09-06T01:15:00.000Z", reason: "Verified", expectedLatestCorrectionId: null }, idempotencyKey: "corr-key" });
+});
+
+test("missed checkout resolution requires idempotency and forwards exact Core command", async () => {
+  const forwarded: Array<{ request: BoAccessRequest; token: string }> = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request, token) { forwarded.push({ request, token }); return { status: 200, body: { data: { session: { status: "CLOSED" } } }, requestId: "missed-checkout" }; } };
+  const route = "workforce/timekeeping/01912345-6789-7abc-8def-0123456789ab/resolve-missed-checkout";
+  assert.equal((await handleBoWriteRequest(request(route, true, { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }), env(binding), route)).status, 400);
+  const response = await handleBoWriteRequest(request(route, true, { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }, "missed-key"), env(binding), route);
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.length, 1);
+  assert.deepEqual(forwarded[0]!.request, { method: "POST", path: route, body: { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }, idempotencyKey: "missed-key" });
+});
