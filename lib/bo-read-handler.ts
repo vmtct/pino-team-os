@@ -8,6 +8,7 @@ export interface BoReadEnv extends TeamAccessEnv {
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
+const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -56,6 +57,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
     || /^learning\/syllabi\/versions\/[0-9a-f-]{36}\/(artchitect-profile|pianohouse-profile|little-piner-profile)$/.test(path)
     || path === "sessions"
+    || SESSION_SYLLABUS_BINDING_READ.test(path)
     || path === "access/roles"
     || path === "access/permissions"
     || path === "access/audit"

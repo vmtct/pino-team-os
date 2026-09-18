@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
-import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSessionLearningOwner, BoStaffRecord, BoSyllabus } from "@/lib/bo-model";
+import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord, BoSyllabus } from "@/lib/bo-model";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
@@ -101,6 +101,13 @@ function Sessions({ data }: { data: Data }) {
   const [bulkSelections, setBulkSelections] = useState<Record<string, string>>({});
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState<Record<string, string>>({});
+  const [syllabusBindings, setSyllabusBindings] = useState<Record<string, BoSessionSyllabusBindingProjection>>({});
+  const [syllabusSelections, setSyllabusSelections] = useState<Record<string, string>>({});
+  const [syllabusReasons, setSyllabusReasons] = useState<Record<string, string>>({});
+  const [syllabusErrors, setSyllabusErrors] = useState<Record<string, string>>({});
+  const [loadingSyllabusBindings, setLoadingSyllabusBindings] = useState(true);
+  const [syllabusLoadError, setSyllabusLoadError] = useState("");
+  const [savingSyllabusSessionId, setSavingSyllabusSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -122,6 +129,26 @@ function Sessions({ data }: { data: Data }) {
       setOwnerLoadError(error instanceof Error ? error.message : "Learning Owner readiness could not be loaded.");
       setLoadingOwners(false);
     });
+    return () => { active = false; };
+  }, [data.sessions]);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingSyllabusBindings(true);
+    setSyllabusLoadError("");
+    void Promise.all(data.sessions.map(async (session) => [session.id, await boApi.sessionSyllabusBinding(session.id)] as const))
+      .then((pairs) => {
+        if (!active) return;
+        const map = Object.fromEntries(pairs) as Record<string, BoSessionSyllabusBindingProjection>;
+        setSyllabusBindings(map);
+        setSyllabusSelections(Object.fromEntries(data.sessions.map((session) => [session.id, map[session.id]?.learningSyllabusVersionId ?? ""])));
+        setLoadingSyllabusBindings(false);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setSyllabusLoadError(error instanceof Error ? error.message : "Session curriculum binding readiness could not be loaded.");
+        setLoadingSyllabusBindings(false);
+      });
     return () => { active = false; };
   }, [data.sessions]);
 
@@ -183,8 +210,74 @@ function Sessions({ data }: { data: Data }) {
     }
   }
 
+  async function saveSyllabusBinding(session: BoSession) {
+    const projection = syllabusBindings[session.id];
+    const selected = syllabusSelections[session.id] ?? "";
+    const reason = (syllabusReasons[session.id] ?? "").trim();
+    if (!projection || projection.bindingState === "FROZEN" || !selected) return;
+    const changing = Boolean(projection.learningSyllabusVersionId && projection.learningSyllabusVersionId !== selected);
+    if (changing && !reason) {
+      setSyllabusErrors((value) => ({ ...value, [session.id]: "Correction reason is required when changing the exact published version." }));
+      return;
+    }
+    setSavingSyllabusSessionId(session.id);
+    setSyllabusErrors((value) => ({ ...value, [session.id]: "" }));
+    try {
+      await boApi.bindSessionSyllabus(session.id, {
+        learningSyllabusVersionId: selected,
+        expectedSessionVersion: projection.sessionVersion,
+        ...(changing ? { correctionReason: reason } : {}),
+      }, `session-syllabus:${session.id}:${projection.sessionVersion}:${selected}:${crypto.randomUUID()}`);
+      const refreshed = await boApi.sessionSyllabusBinding(session.id);
+      setSyllabusBindings((value) => ({ ...value, [session.id]: refreshed }));
+      setSyllabusSelections((value) => ({ ...value, [session.id]: refreshed.learningSyllabusVersionId ?? "" }));
+      setSyllabusReasons((value) => ({ ...value, [session.id]: "" }));
+    } catch (error) {
+      setSyllabusErrors((value) => ({ ...value, [session.id]: error instanceof Error ? error.message : "Exact Session curriculum could not be saved." }));
+    } finally {
+      setSavingSyllabusSessionId(null);
+    }
+  }
+
   return (
     <Page title="Sessions" subtitle="Dated occurrences with capacity, linked curriculum, and Learning Owner readiness.">
+      <Panel title="Session curriculum binding" hint="Bind one exact published shared SyllabusVersion. No latest/first fallback is selected for you." mode="write">
+        {loadingSyllabusBindings ? <Loading compact /> : syllabusLoadError ? <ErrorState message={syllabusLoadError} requestId={null} compact /> : (
+          <div className={styles.ownerQueue}>
+            {orderedSessions.map((session) => {
+              const projection = syllabusBindings[session.id];
+              if (!projection) return null;
+              const selected = syllabusSelections[session.id] ?? "";
+              const currentId = projection.learningSyllabusVersionId;
+              const changing = Boolean(currentId && selected && selected !== currentId);
+              const reason = (syllabusReasons[session.id] ?? "").trim();
+              const frozen = projection.bindingState === "FROZEN";
+              const currentMissingFromCandidates = projection.current && !projection.candidates.some((candidate) => candidate.learningSyllabusVersionId === projection.current?.learningSyllabusVersionId);
+              const disabled = frozen || !selected || selected === currentId || savingSyllabusSessionId === session.id || (changing && !reason);
+              return <article className={styles.ownerRow} key={`syllabus-${session.id}`} data-binding-state={projection.bindingState}>
+                <div className={styles.ownerMeta}>
+                  <strong>{sessionLabel(session, data)}</strong>
+                  <span>{pathName(data.paths, session.pathProgramId)} · <Status value={projection.bindingState} /></span>
+                  <small>{projection.current ? `Exact: ${projection.current.title} · v${projection.current.versionNumber}` : "Chưa bind exact published SyllabusVersion"}</small>
+                  {frozen ? <small className={styles.ownerReadiness}>{projection.hasParticipation ? "Frozen: Session đã có Participation; curriculum history không thể đổi." : `Frozen: Session status là ${projection.sessionStatus}.`}</small> : <small className={styles.ownerReadiness}>{projection.candidates.length ? `${projection.candidates.length} exact published candidate${projection.candidates.length === 1 ? "" : "s"}.` : "Không có published candidate tương thích với Path hiện tại."}</small>}
+                </div>
+                <div className={styles.ownerControls}>
+                  <label className={styles.field}>Exact published version
+                    <select disabled={frozen} value={selected} onChange={(event) => setSyllabusSelections((value) => ({ ...value, [session.id]: event.target.value }))}>
+                      <option value="">Chọn exact version…</option>
+                      {currentMissingFromCandidates && projection.current ? <option value={projection.current.learningSyllabusVersionId}>{projection.current.title} · v{projection.current.versionNumber} · current historical</option> : null}
+                      {projection.candidates.map((candidate) => <option key={candidate.learningSyllabusVersionId} value={candidate.learningSyllabusVersionId}>{candidate.title} · v{candidate.versionNumber}</option>)}
+                    </select>
+                  </label>
+                  {changing ? <label className={styles.field}>Correction reason<input value={syllabusReasons[session.id] ?? ""} onChange={(event) => setSyllabusReasons((value) => ({ ...value, [session.id]: event.target.value }))} placeholder="Why is this dated Session changing version?" /></label> : <div />}
+                  <button className={styles.primaryButton} disabled={disabled} onClick={() => void saveSyllabusBinding(session)}>{savingSyllabusSessionId === session.id ? "Saving…" : currentId ? "Change exact version" : "Bind exact version"}</button>
+                </div>
+                {syllabusErrors[session.id] ? <p className={styles.ownerError}>{syllabusErrors[session.id]}</p> : null}
+              </article>;
+            })}
+          </div>
+        )}
+      </Panel>
       <Panel title={`Attendance unlock · ${readinessCounts.needsOwnerOnly} chỉ thiếu Owner`} hint={`${readinessCounts.presentReady} ready · ${readinessCounts.needsSyllabus} blocked bởi Syllabus · ${unassignedCount} Session chưa có owner tổng cộng.`} mode="write">
         {loadingOwners ? <Loading compact /> : ownerLoadError ? <ErrorState message={ownerLoadError} requestId={null} compact /> : !staff.length ? <Empty text="No active StaffMember is available for Learning Owner assignment." /> : (
           <div className={styles.ownerQueue}>
