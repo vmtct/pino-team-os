@@ -60,3 +60,31 @@ test("workers.dev staging flags cannot substitute a human Workforce planner iden
   assert.equal((await handleBoWorkforcePlanningRequest(staging, stagingEnv, "workforce/planning/weekly")).status, 401);
   assert.equal(called, false);
 });
+
+test("check-in exception queue/detail forward bounded reads without forged target authority", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async request => { forwarded.push(request); return { status: 200, body: { data: [] }, requestId: "exc-read" }; });
+  const list = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions?centerId=center-1&status=REQUESTED&staffMemberId=forged&workDate=2099-01-01", { headers: headers() });
+  const detailId = "01999999-9999-7999-8999-999999999999";
+  const detail = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions/${detailId}?centerId=forged`, { headers: headers() });
+  assert.equal((await handleBoWorkforcePlanningRequest(list, env(b), "workforce/planning/check-in-exceptions")).status, 200);
+  assert.equal((await handleBoWorkforcePlanningRequest(detail, env(b), `workforce/planning/check-in-exceptions/${detailId}`)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "check-in-exceptions", body: { centerId: "center-1", status: "REQUESTED" } },
+    { method: "GET", path: `check-in-exceptions/${detailId}`, body: {} },
+  ]);
+});
+
+test("check-in exception approve/decline preserve replay evidence and never forward browser-selected staff/date", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async request => { forwarded.push(request); return { status: 200, body: { data: { status: "REQUESTED" } }, requestId: "exc-write" }; });
+  const id = "01999999-9999-7999-8999-999999999999";
+  const approve = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions/${id}/approve`, { method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "approve-key" }), body: JSON.stringify({ expectedVersion: 3 }) });
+  const decline = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions/${id}/decline`, { method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "decline-key" }), body: JSON.stringify({ expectedVersion: 3, reason: "No coverage need" }) });
+  assert.equal((await handleBoWorkforcePlanningRequest(approve, env(b), `workforce/planning/check-in-exceptions/${id}/approve`)).status, 200);
+  assert.equal((await handleBoWorkforcePlanningRequest(decline, env(b), `workforce/planning/check-in-exceptions/${id}/decline`)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "POST", path: `check-in-exceptions/${id}/approve`, body: { expectedVersion: 3 }, idempotencyKey: "approve-key" },
+    { method: "POST", path: `check-in-exceptions/${id}/decline`, body: { expectedVersion: 3, reason: "No coverage need" }, idempotencyKey: "decline-key" },
+  ]);
+});
