@@ -29,6 +29,9 @@ test("WFM-EXC UI preserves idempotency evidence across uncertain retries and re-
   assert.match(tos, /requestAttempt\.current = null/);
   assert.match(bo, /mutationAttempt=useRef/);
   assert.match(bo, /mutationKey\(signature/);
+  assert.match(bo, /workforceCheckInExceptionCenters\(\)/);
+  assert.doesNotMatch(bo, /scopeCatalog\(\)/);
+  assert.match(bo, /if\(prompted===null\)return/);
   assert.match(bo, /workforceCheckInException\(requestId\)/);
   assert.match(bo, /canonical\.status===terminal/);
 });

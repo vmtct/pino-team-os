@@ -64,12 +64,15 @@ test("workers.dev staging flags cannot substitute a human Workforce planner iden
 test("check-in exception queue/detail forward bounded reads without forged target authority", async () => {
   const forwarded: WorkforcePlanningRequest[] = [];
   const b = binding(async request => { forwarded.push(request); return { status: 200, body: { data: [] }, requestId: "exc-read" }; });
+  const centers = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions/centers?forgedCenterId=other", { headers: headers() });
   const list = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions?centerId=center-1&status=REQUESTED&staffMemberId=forged&workDate=2099-01-01", { headers: headers() });
   const detailId = "01999999-9999-7999-8999-999999999999";
   const detail = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/check-in-exceptions/${detailId}?centerId=forged`, { headers: headers() });
+  assert.equal((await handleBoWorkforcePlanningRequest(centers, env(b), "workforce/planning/check-in-exceptions/centers")).status, 200);
   assert.equal((await handleBoWorkforcePlanningRequest(list, env(b), "workforce/planning/check-in-exceptions")).status, 200);
   assert.equal((await handleBoWorkforcePlanningRequest(detail, env(b), `workforce/planning/check-in-exceptions/${detailId}`)).status, 200);
   assert.deepEqual(forwarded, [
+    { method: "GET", path: "check-in-exceptions/centers", body: {} },
     { method: "GET", path: "check-in-exceptions", body: { centerId: "center-1", status: "REQUESTED" } },
     { method: "GET", path: `check-in-exceptions/${detailId}`, body: {} },
   ]);

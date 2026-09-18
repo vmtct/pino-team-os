@@ -206,6 +206,7 @@ export const boApi = {
   rejectStaffRegistration: (requestId: string, reason: string, idempotencyKey: string) => write<{ registrationRequestId: string; status: "REJECTED" }>(`workforce/staff-registration-requests/${encodeURIComponent(requestId)}/reject`, { reason }, idempotencyKey),
   staffRecord: (staffMemberId: string) => readOne<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`),
   workforcePlanning: (centerId: string, termWeekId: string) => readOne<BoWorkforceWeeklyPlanning>(`workforce/planning/weekly?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),
+  workforceCheckInExceptionCenters: () => read<BoCenter>("workforce/planning/check-in-exceptions/centers"),
   workforceCheckInExceptions: (centerId: string, status?: BoUnscheduledCheckInRequest["status"]) => read<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   workforceCheckInException: (requestId: string) => readOne<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}`),
   approveWorkforceCheckInException: (requestId: string, expectedVersion: number, idempotencyKey: string) => write<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}/approve`, { expectedVersion }, idempotencyKey),
