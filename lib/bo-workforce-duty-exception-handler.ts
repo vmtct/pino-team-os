@@ -1,7 +1,7 @@
-import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
-import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
+import { teamCredential, TeamAuthError, type TeamAccessEnv, type TeamCredential } from "./team-auth";
 
-export interface BoWorkforceDutyExceptionEnv {
+export interface BoWorkforceDutyExceptionEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -17,30 +17,31 @@ export async function handleBoWorkforceDutyExceptionRequest(
   request: Request,
   env: BoWorkforceDutyExceptionEnv,
   path: string,
+  keyResolver?: Parameters<typeof teamCredential>[3],
 ): Promise<Response> {
   try {
     if (!isBoWorkforceDutyExceptionPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
     const centerId = requiredCenterId(request);
-    const token = staffPasswordSession(request);
+    const credential = await teamCredential(request, env, "BO", keyResolver);
 
     if (path === ROOT) {
       if (request.method !== "GET") return methodNotAllowed();
-      return forward(env, token, { method: "GET", path: ROOT, resource: { centerId } });
+      return forward(env, credential, { method: "GET", path: ROOT, resource: { centerId } });
     }
     const approval = APPROVE.exec(path);
     if (!approval || request.method !== "POST") return methodNotAllowed();
     const raw = await jsonBody(request);
     const expectedVersion = positiveInteger(raw.expectedVersion);
     const password = requiredPassword(raw.password);
-    return forward(env, token, {
+    return forward(env, credential, {
       method: "POST",
       path,
       resource: { centerId },
       body: { expectedVersion, password },
     });
   } catch (error) {
-    if (error instanceof LocalStaffSessionError) {
-      return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
+    if (error instanceof TeamAuthError) {
+      return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     }
     if (error instanceof InputError) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: error.message } }, 400);
@@ -50,8 +51,8 @@ export async function handleBoWorkforceDutyExceptionRequest(
   }
 }
 
-async function forward(env: BoWorkforceDutyExceptionEnv, token: string, coreRequest: BoAccessRequest) {
-  const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, coreRequest, token);
+async function forward(env: BoWorkforceDutyExceptionEnv, credential: TeamCredential, coreRequest: BoAccessRequest) {
+  const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, coreRequest, credential);
   return json(result.body, result.status, { "x-request-id": result.requestId });
 }
 function requiredCenterId(request: Request): string {
