@@ -1,5 +1,8 @@
 import ClassroomView from "./ClassroomView";
 
-export default function Page(){
-  return <ClassroomView/>;
+type Props = { searchParams: Promise<{ sessionId?: string }> };
+
+export default async function Page({ searchParams }: Props) {
+  const params = await searchParams;
+  return <ClassroomView initialSessionId={params.sessionId ?? ""} />;
 }
