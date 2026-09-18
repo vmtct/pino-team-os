@@ -2,6 +2,8 @@ export interface StaffProfile{id:string;displayLabel:string;status:string;email:
 export interface WorkforceContext{userId:string;staffMemberId:string;email:string;centers:Array<{id:string;key:string;displayName:string;timeZone:string}>;termWeeks:Array<{id:string;termId:string;centerId:string;code:string;ordinal:number;startDate:string;endDate:string}>}
 export interface Assignment{id:string;centerId:string;workDate:string;shiftTemplateId:string;termWeekId:string|null;status:string;shift:{code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}|null}
 export interface TimekeepingSession{id:string;centerId:string;assignmentId:string|null;workDate:string;status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null}
+export interface UnscheduledCheckInRequest{id:string;staffMemberId:string;centerId:string;workDate:string;reason:string;status:"REQUESTED"|"APPROVED"|"DECLINED"|"CANCELLED";requestedAt:string;requestedByUserId:string;approvedAt:string|null;approvedByUserId:string|null;declinedAt:string|null;declinedByUserId:string|null;declineReason:string|null;generatedAssignmentId:string|null;version:number;createdAt:string;updatedAt:string}
+export type UnscheduledCheckInSelfState={kind:"ELIGIBLE_ASSIGNMENT";assignment:Assignment}|{kind:"NO_ELIGIBLE_ASSIGNMENT";request:null}|{kind:"REQUESTED"|"DECLINED"|"APPROVED"|"CANCELLED";request:UnscheduledCheckInRequest}
 export interface Availability{id:string;centerId:string;termWeekId:string;status:"DRAFT"|"SUBMITTED";version:number;items:Array<{workDate:string;shiftTemplateId:string}>}
 export interface ShiftTemplate{id:string;code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}
 export class WorkforceApiError extends Error{constructor(readonly status:number,readonly code:string,message:string,readonly details?:unknown){super(message);}}
@@ -14,5 +16,7 @@ export const workforceApi={
  replaceAvailability:(body:{submissionId:string;expectedVersion:number;items:Array<{workDate:string;shiftTemplateId:string}>})=>request<{data:Availability}>("/availability/items",{method:"PUT",body:JSON.stringify(body)}),
  submitAvailability:(body:{submissionId:string;expectedVersion:number})=>request<{data:Availability}>("/availability/submit",{method:"POST",body:JSON.stringify(body)}),
  currentTimekeeping:()=>request<{data:TimekeepingSession|null}>("/timekeeping/current"),history:(body:{centerId:string;startDate:string;endDate:string})=>request<{data:TimekeepingSession[]}>(`/timekeeping/history?${query(body)}`),
- checkIn:(centerId:string,assignmentId?:string|null)=>request<{data:TimekeepingSession}>("/timekeeping/check-in",{method:"POST",body:JSON.stringify({centerId,assignmentId:assignmentId??null})}),checkOut:()=>request<{data:TimekeepingSession}>("/timekeeping/check-out",{method:"POST",body:"{}"}),
+ checkInExceptionStatus:(centerId:string)=>request<{data:UnscheduledCheckInSelfState}>(`/check-in-exceptions/status?${query({centerId})}`),
+ requestUnscheduledCheckIn:(centerId:string,reason:string,idempotencyKey:string)=>request<{data:UnscheduledCheckInRequest}>("/check-in-exceptions",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:JSON.stringify({centerId,reason})}),
+ checkIn:(centerId:string,assignmentId:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-in",{method:"POST",body:JSON.stringify({centerId,assignmentId})}),checkOut:()=>request<{data:TimekeepingSession}>("/timekeeping/check-out",{method:"POST",body:"{}"}),
 };
