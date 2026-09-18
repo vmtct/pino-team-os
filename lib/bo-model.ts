@@ -53,6 +53,7 @@ export interface BoSyllabusRichContent { type:"doc"; content:Array<Record<string
 export interface BoArtSyllabusProfile { syllabusVersionId:string; richContent:BoSyllabusRichContent; toolTags:string[]; worksheetMediaIds:string[]; revision:number; updatedAt:string }
 export interface BoPianoSyllabusProfile { syllabusVersionId:string; practiceResourceId:string; practiceResourceVersionId:string; practicePageId:string; revision:number; updatedAt:string }
 export interface BoLittlePinerSyllabusProfile extends BoArtSyllabusProfile { practiceResourceId:string; practiceResourceVersionId:string; practicePageId:string }
+export interface BoSyllabusWorksheetMedia { mediaAssetId:string; mimeType:"application/pdf"|"image/png"|"image/jpeg"|"image/webp"; byteSize:number|null; createdAt:string; fileName?:string|null }
 
 export interface BoSession {
   id: string;
