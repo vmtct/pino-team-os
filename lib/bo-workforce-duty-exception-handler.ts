@@ -26,7 +26,13 @@ export async function handleBoWorkforceDutyExceptionRequest(
 
     if (path === ROOT) {
       if (request.method !== "GET") return methodNotAllowed();
-      return forward(env, credential, { method: "GET", path: ROOT, resource: { centerId } });
+      const page = paginationInput(request);
+      return forward(env, credential, {
+        method: "GET",
+        path: ROOT,
+        resource: { centerId },
+        ...(Object.keys(page).length ? { body: page } : {}),
+      });
     }
     const approval = APPROVE.exec(path);
     if (!approval || request.method !== "POST") return methodNotAllowed();
@@ -59,6 +65,24 @@ function requiredCenterId(request: Request): string {
   const value = new URL(request.url).searchParams.get("centerId")?.trim() ?? "";
   if (!UUID.test(value)) throw new InputError("A canonical Center id is required");
   return value;
+}
+
+function paginationInput(request: Request): { limit?: number; cursor?: string } {
+  const params = new URL(request.url).searchParams;
+  const result: { limit?: number; cursor?: string } = {};
+  const rawLimit = params.get("limit");
+  if (rawLimit !== null) {
+    const limit = Number(rawLimit);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) throw new InputError("Pagination limit must be between 1 and 200");
+    result.limit = limit;
+  }
+  const rawCursor = params.get("cursor");
+  if (rawCursor !== null) {
+    const cursor = rawCursor.trim();
+    if (!cursor || cursor.length > 2048) throw new InputError("Pagination cursor is invalid");
+    result.cursor = cursor;
+  }
+  return result;
 }
 
 async function jsonBody(request: Request): Promise<Record<string, unknown>> {

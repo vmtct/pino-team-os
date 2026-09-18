@@ -67,6 +67,29 @@ async function read<T>(path: string): Promise<T[]> {
   return body.data;
 }
 
+async function readAllPages<T>(pathForCursor: (cursor: string | null) => string): Promise<T[]> {
+  const items: T[] = [];
+  const seen = new Set<string>();
+  let cursor: string | null = null;
+  for (;;) {
+    if (cursor) {
+      if (seen.has(cursor)) throw new BoApiError(502, "Back Office pagination cursor repeated.", null);
+      seen.add(cursor);
+    }
+    const response = await fetch(`/api/bo/${pathForCursor(cursor)}`, { cache: "no-store" });
+    const body = await response.json() as {
+      data?: T[];
+      page?: { nextCursor?: string | null };
+      error?: { message?: string; requestId?: string };
+    };
+    if (!response.ok || !body.data) throw apiError(response, body, "Back Office paged data could not be loaded.");
+    items.push(...body.data);
+    const nextCursor = body.page?.nextCursor ?? null;
+    if (!nextCursor) return items;
+    cursor = nextCursor;
+  }
+}
+
 async function readOne<T>(path: string): Promise<T> {
   const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
   const body = await response.json() as { data?: T; error?: { message?: string; requestId?: string } };
@@ -218,7 +241,7 @@ export const boApi = {
   timekeeping: (params: { centerId: string; workDate?: string; startDate?: string; endDate?: string; staffMemberId?: string; status?: "OPEN" | "CLOSED"; limit?: number; cursor?: string }) => { const query = new URLSearchParams(); Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); }); return readOne<BoTimekeepingPage>(`workforce/timekeeping?${query.toString()}`); },
   correctTimekeeping: (sessionId: string, body: { correctionType: "CHECK_IN_AT" | "CHECK_OUT_AT"; correctedAt: string; reason: string; expectedLatestCorrectionId: string | null }, idempotencyKey: string) => write<BoTimekeepingCorrectionResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/corrections`, body, idempotencyKey),
   resolveMissedCheckout: (sessionId: string, body: { checkOutAt: string; reason: string }, idempotencyKey: string) => write<BoTimekeepingMissedCheckoutResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/resolve-missed-checkout`, body, idempotencyKey),
-  dutyExceptions: (centerId: string) => read<BoDutyExceptionReview>(`workforce/duty/checkout-exceptions?centerId=${encodeURIComponent(centerId)}`),
+  dutyExceptions: (centerId: string) => readAllPages<BoDutyExceptionReview>((cursor) => `workforce/duty/checkout-exceptions?centerId=${encodeURIComponent(centerId)}&limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
   approveDutyException: (exceptionId: string, centerId: string, expectedVersion: number, password: string) => write<BoDutyExceptionRecord>(`workforce/duty/checkout-exceptions/${encodeURIComponent(exceptionId)}/approve?centerId=${encodeURIComponent(centerId)}`, { expectedVersion, password }, crypto.randomUUID()),
   assignWorkforceShift: (body: { staffMemberId: string; centerId: string; workDate: string; shiftTemplateId: string; termWeekId?: string; replacesAssignmentId?: string }, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment", body, idempotencyKey),
   cancelWorkforceAssignment: (assignmentId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment/cancel", { assignmentId, reason }, idempotencyKey),

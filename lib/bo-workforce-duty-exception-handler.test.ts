@@ -23,12 +23,23 @@ test("F4 BO list forwards exact Center resource and strips forged identity query
   const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request, value) {
     calls.push({ request, token: value }); return { status: 200, body: { data: [] }, requestId: "list-request" };
   } };
-  const request = new Request(`https://bo.pinohouse.art/api/bo/workforce/duty/checkout-exceptions?centerId=${centerId}&managerUserId=forged&userId=forged`, { headers: headers() });
+  const request = new Request(`https://bo.pinohouse.art/api/bo/workforce/duty/checkout-exceptions?centerId=${centerId}&limit=200&cursor=cursor-token&managerUserId=forged&userId=forged`, { headers: headers() });
   const response = await handleBoWorkforceDutyExceptionRequest(request, env(binding), "workforce/duty/checkout-exceptions");
   assert.equal(response.status, 200); assert.equal(response.headers.get("x-request-id"), "list-request");
-  assert.deepEqual(calls, [{ request: { method: "GET", path: "workforce/duty/checkout-exceptions", resource: { centerId } }, token }]);
+  assert.deepEqual(calls, [{ request: { method: "GET", path: "workforce/duty/checkout-exceptions", resource: { centerId }, body: { limit: 200, cursor: "cursor-token" } }, token }]);
 });
 
+
+
+
+test("F4 BO rejects invalid pagination before Core", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword() { called = true; throw new Error("unexpected"); } };
+  const request = new Request(`https://bo.pinohouse.art/api/bo/workforce/duty/checkout-exceptions?centerId=${centerId}&limit=201`, { headers: headers() });
+  const response = await handleBoWorkforceDutyExceptionRequest(request, env(binding), "workforce/duty/checkout-exceptions");
+  assert.equal(response.status, 400);
+  assert.equal(called, false);
+});
 
 test("F4 BO preserves Cloudflare Access credential compatibility", async () => {
   const { jwt, keyResolver } = await cloudflareFixture();
