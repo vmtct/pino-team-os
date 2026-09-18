@@ -343,3 +343,25 @@
 .registrationDecisionActions { display:flex; gap:9px; justify-content:flex-end; }
 @media(max-width:900px){.registrationReviewGrid{grid-template-columns:1fr}.registrationQueue{max-height:340px;overflow:auto}}
 @media(max-width:600px){.registrationFacts div{grid-template-columns:1fr;gap:4px}.registrationDecisionBar{grid-template-columns:1fr}.registrationDecisionActions{justify-content:stretch}.registrationDecisionActions button{flex:1}}
+.staffPinoriaHeadingActions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.staffPinoriaStack { display: grid; gap: 12px; }
+.staffPinoriaGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.staffPinoriaGrid > div { min-width: 0; display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #e7e4f2; border-radius: 11px; background: #faf8ff; }
+.staffPinoriaGrid span, .staffPinoriaPresence span { color: #777285; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.staffPinoriaGrid code { overflow: hidden; color: #363147; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.staffPinoriaPresence, .staffPinoriaLoadout, .staffPinoriaUnavailable { padding: 12px; border: 1px solid #e7e7ef; border-radius: 11px; background: #fff; }
+.staffPinoriaPresence { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.staffPinoriaPresence > div:first-child { display: grid; gap: 4px; }
+.staffPinoriaPresence strong { color: #342b63; font-size: 14px; }
+.staffPinoriaPresence p, .staffPinoriaLoadout p, .staffPinoriaUnavailable p, .staffPinoriaHint { margin: 0; color: #737380; font-size: 11px; line-height: 1.45; }
+.staffPinoriaPresenceMeta { display: grid; gap: 3px; color: #737380; font-size: 10px; text-align: right; }
+.staffPinoriaLoadout { display: grid; gap: 8px; }
+.staffPinoriaLoadout > div { display: flex; justify-content: space-between; gap: 12px; }
+.staffPinoriaLoadout > div span { color: #6c628d; font-size: 11px; }
+.staffPinoriaLoadout ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.staffPinoriaLoadout li { display: flex; justify-content: space-between; gap: 12px; min-width: 0; font-size: 10px; }
+.staffPinoriaLoadout li span { color: #696677; font-weight: 750; }
+.staffPinoriaLoadout li code { overflow: hidden; color: #403a52; text-overflow: ellipsis; white-space: nowrap; }
+.staffPinoriaUnavailable { display: grid; gap: 4px; background: #fafafd; }
+.staffPinoriaUnavailable strong { color: #3d3948; font-size: 12px; }
+@media (max-width: 760px) { .staffPinoriaGrid { grid-template-columns: 1fr; } .staffPinoriaPresence { display: grid; } .staffPinoriaPresenceMeta { text-align: left; } }

@@ -150,6 +150,24 @@ export interface BoStaffProfile extends BoStaffRecord {
   startDate: string | null;
 }
 
+export interface BoStaffPinoriaProjection {
+  staffMemberId: string;
+  personId: string | null;
+  pinoriaSelfId: string | null;
+  selfStatus: "ACTIVE" | "ARCHIVED" | null;
+  character: {
+    id: string;
+    config: Record<string, string>;
+    loadout: { version: number; slots: Record<string, string> } | null;
+  } | null;
+  presence: {
+    state: "OFF_HOUSE" | "PRESENT";
+    centerId: string | null;
+    timekeepingSessionId: string | null;
+    checkedInAt: string | null;
+  };
+}
+
 export type BoStaffProfilePatch = Partial<Pick<BoStaffProfile, "displayLabel" | "email" | "mobile" | "employmentType" | "department" | "roleLabel" | "startDate">>;
 
 export type BoStaffOnboardingCommand =
