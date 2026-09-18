@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
@@ -13,6 +13,7 @@ import {
   WorkforceApiError,
   type Assignment,
   type StaffDutyBoard,
+  type UnscheduledCheckInSelfState,
   type StaffDutyObligation,
   type StaffProfile,
   type TimekeepingSession,
@@ -61,6 +62,10 @@ export default function DutyAwareCheckInOut() {
   const [error, setError] = useState("");
   const [exceptionOpen, setExceptionOpen] = useState(false);
   const [exceptionReason, setExceptionReason] = useState("");
+  const [checkInState, setCheckInState] = useState<UnscheduledCheckInSelfState | null>(null);
+  const [checkInRequestOpen, setCheckInRequestOpen] = useState(false);
+  const [checkInRequestReason, setCheckInRequestReason] = useState("");
+  const checkInRequestAttempt = useRef<{ signature: string; key: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(""); setBoard(null);
@@ -74,11 +79,12 @@ export default function DutyAwareCheckInOut() {
       const center = nextCurrent ? nextContext.centers.find((item) => item.id === nextCurrent.centerId) ?? nextContext.centers[0] : nextContext.centers[0];
       if (!center) throw new Error("Chưa có Center khả dụng cho StaffMember này.");
       const workDate = nextCurrent?.workDate ?? dayInZone(center.timeZone);
-      const [schedule, nextBoard] = await Promise.all([
+      const [schedule, nextBoard, nextCheckInState] = await Promise.all([
         workforceApi.schedule({ centerId: center.id, startDate: workDate, endDate: workDate }),
         workforceApi.dutyBoard({ centerId: center.id, workDate, action: nextCurrent ? "CHECK_OUT" : "CHECK_IN" }),
+        nextCurrent ? Promise.resolve<{ data: UnscheduledCheckInSelfState | null }>({ data: null }) : workforceApi.checkInExceptionStatus(center.id),
       ]);
-      setAssignments(schedule.data); setBoard(nextBoard.data);
+      setAssignments(schedule.data); setBoard(nextBoard.data); setCheckInState(nextCheckInState.data);
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setLoading(false); }
   }, []);
@@ -96,11 +102,14 @@ export default function DutyAwareCheckInOut() {
   }, [board?.centerId, context, current?.centerId]);
   const assignment = current?.assignmentId
     ? assignments.find((item) => item.id === current.assignmentId) ?? null
-    : assignments[0] ?? null;
+    : checkInState?.kind === "ELIGIBLE_ASSIGNMENT"
+      ? checkInState.assignment
+      : null;
   const briefing = !current ? board?.briefing ?? null : null;
   const acknowledgement = !current ? board?.acknowledgement ?? null : null;
   const acknowledged = isCurrentBriefingAcknowledged(briefing, acknowledgement);
-  const checkInReady = briefingCheckInReady({ boardLoaded: Boolean(!current && board), briefing, acknowledgement });
+  const briefingReady = briefingCheckInReady({ boardLoaded: Boolean(!current && board), briefing, acknowledgement });
+  const checkInReady = briefingReady && Boolean(assignment);
   const closeout = closeoutGuidanceState(current ? board : null);
   const checkoutException = current ? board?.checkoutException ?? null : null;
   const canRequestException = Boolean(current && board && closeout.outstanding.length > 0 && !closeout.ambiguous && !checkoutException);
@@ -121,11 +130,34 @@ export default function DutyAwareCheckInOut() {
   }
 
   async function checkIn() {
-    if (!center || !checkInReady) return;
+    if (!center || !checkInReady || !assignment) return;
     setBusy("check-in"); setError("");
     try {
-      await workforceApi.checkIn(center.id, assignment?.id ?? null);
+      const state = await workforceApi.checkInExceptionStatus(center.id);
+      setCheckInState(state.data);
+      if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") return;
+      await workforceApi.checkIn(center.id, state.data.assignment.id);
       router.push("/tasks");
+    } catch (cause) { setError(apiMessage(cause)); }
+    finally { setBusy(""); }
+  }
+
+  async function requestUnscheduledCheckIn() {
+    if (!center || !checkInRequestReason.trim()) return;
+    const reason = checkInRequestReason.trim();
+    const signature = `${center.id}\u0000${reason}`;
+    if (!checkInRequestAttempt.current || checkInRequestAttempt.current.signature !== signature) {
+      checkInRequestAttempt.current = { signature, key: crypto.randomUUID() };
+    }
+    setBusy("check-in-request"); setError("");
+    try {
+      await workforceApi.requestUnscheduledCheckIn(center.id, reason, checkInRequestAttempt.current.key);
+      const state = await workforceApi.checkInExceptionStatus(center.id);
+      setCheckInState(state.data);
+      checkInRequestAttempt.current = null;
+      setCheckInRequestOpen(false);
+      setCheckInRequestReason("");
+      await load();
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setBusy(""); }
   }
@@ -187,9 +219,22 @@ export default function DutyAwareCheckInOut() {
         </section>
 
         <section className={styles.actionCard}>
-          <div><span>CHECK IN</span><strong>{checkInReady ? "Sẵn sàng vào ca" : "Hoàn tất briefing trước"}</strong></div>
+          <div><span>CHECK IN</span><strong>{checkInReady ? "Sẵn sàng vào ca" : !briefingReady ? "Hoàn tất briefing trước" : "Cần assignment canonical"}</strong></div>
           <button className={styles.checkInButton} disabled={!checkInReady || Boolean(busy)} onClick={() => void checkIn()}>{busy === "check-in" ? "Đang check-in…" : "Check-in"}</button>
-          {!checkInReady ? <p>Đây là TOS guidance gate. WFM-TIME mutation vẫn giữ nguyên authority và chưa bật hard enforcement.</p> : null}
+          {!briefingReady ? <p>Đây là TOS guidance gate. WFM-TIME mutation vẫn giữ nguyên authority và chưa bật hard enforcement.</p> : null}
+          {briefingReady && !assignment ? <>
+            {checkInState?.kind === "REQUESTED" ? <p>Yêu cầu check-in ngoài lịch đang chờ Manager duyệt. Check-in vẫn khóa cho tới khi Core tạo assignment canonical.</p>
+              : checkInState?.kind === "DECLINED" ? <p>Yêu cầu check-in ngoài lịch đã bị từ chối: {checkInState.request.declineReason ?? "không có lý do bổ sung"}.</p>
+              : checkInState?.kind === "APPROVED" ? <p>Yêu cầu đã được duyệt; Core đang đồng bộ assignment canonical. Hãy tải lại trước khi check-in.</p>
+              : <div>
+                  <p>Bạn chưa có ca được phân công. Check-in ngoài lịch phải qua WFM-EXC để Manager duyệt và Core tạo assignment canonical.</p>
+                  {!checkInRequestOpen ? <button disabled={Boolean(busy)} onClick={() => setCheckInRequestOpen(true)}>Yêu cầu check-in ngoài lịch</button> : <>
+                    <textarea maxLength={500} value={checkInRequestReason} onChange={(event) => setCheckInRequestReason(event.target.value)} placeholder="Lý do cần check-in ngoài lịch…" />
+                    <button disabled={!checkInRequestReason.trim() || Boolean(busy)} onClick={() => void requestUnscheduledCheckIn()}>{busy === "check-in-request" ? "Đang gửi…" : "Gửi yêu cầu"}</button>
+                    <button disabled={Boolean(busy)} onClick={() => { setCheckInRequestOpen(false); setCheckInRequestReason(""); }}>Huỷ</button>
+                  </>}
+                </div>}
+          </> : null}
         </section>
       </> : null}
       {!loading && current ? <>
