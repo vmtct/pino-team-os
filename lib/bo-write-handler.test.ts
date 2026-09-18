@@ -37,3 +37,14 @@ test("missed checkout resolution requires idempotency and forwards exact Core co
   assert.equal(forwarded.length, 1);
   assert.deepEqual(forwarded[0]!.request, { method: "POST", path: route, body: { checkOutAt: "2026-09-06T04:30:00.000Z", reason: "Verified" }, idempotencyKey: "missed-key" });
 });
+
+test("timekeeping command paths reject malformed 36-character non-UUID ids before Core", async () => {
+  let called = false;
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword() { called = true; throw new Error("unexpected"); } };
+  for (const suffix of ["corrections", "resolve-missed-checkout"]) {
+    const route = `workforce/timekeeping/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/${suffix}`;
+    const response = await handleBoWriteRequest(request(route, true, {}, "bad-id"), env(binding), route);
+    assert.equal(response.status, 404);
+  }
+  assert.equal(called, false);
+});
