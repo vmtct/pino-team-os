@@ -16,6 +16,7 @@ test("Learning Syllabus reads forward governed paths through local password sess
   const headers = { cookie: `pino_staff_password_session=${session}` };
   const cases = [
     ["learning/syllabi/owners", "learning/syllabi/owners"],
+    ["learning/syllabi/media", "learning/syllabi/media"],
     [`learning/syllabi?ownerType=HOUSE_PATH&ownerId=${id}&userId=forged`, `learning/syllabi?ownerType=HOUSE_PATH&ownerId=${id}`],
     [`learning/syllabi/${id}`, `learning/syllabi/${id}`],
     [`learning/syllabi/versions/${id}/artchitect-profile`, `learning/syllabi/versions/${id}/artchitect-profile`],
