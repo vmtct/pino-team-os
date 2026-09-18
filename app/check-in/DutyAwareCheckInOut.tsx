@@ -248,7 +248,7 @@ export default function DutyAwareCheckInOut() {
         <section className={styles.closeoutCard}>
           <div className={styles.sectionHeader}>
             <div><span>PROVE & CLOSE</span><h2>Closeout trước khi rời ca</h2></div>
-            <b className={closeout.ready ? styles.done : styles.pending}>{closeout.ready ? "✓ Sạch" : `${closeout.outstanding.length} việc`}</b>
+            <b className={closeout.ready ? styles.done : styles.pending}>{closeout.approvedException && closeout.outstanding.length ? "✓ Ngoại lệ được duyệt" : closeout.ready ? "✓ Sạch" : `${closeout.outstanding.length} việc`}</b>
           </div>
           {board ? board.duties.length
             ? <div className={styles.closeoutList}>{board.duties.map((duty) => <CloseoutDuty key={`${duty.obligationId}:${duty.sourceRef}`} duty={duty} />)}</div>
@@ -274,10 +274,10 @@ export default function DutyAwareCheckInOut() {
         </section>
 
         <section className={styles.actionCard}>
-          <div><span>CHECK OUT</span><strong>{closeout.ready ? "Sẵn sàng checkout" : closeout.ambiguous ? "Đang chờ duty truth" : `${closeout.outstanding.length} duty cần xử lý`}</strong></div>
+          <div><span>CHECK OUT</span><strong>{closeout.approvedException && closeout.ready && closeout.outstanding.length ? "Ngoại lệ được duyệt · sẵn sàng checkout" : closeout.ready ? "Sẵn sàng checkout" : closeout.ambiguous ? "Đang chờ duty truth" : `${closeout.outstanding.length} duty cần xử lý`}</strong></div>
           <button className={styles.checkoutButton} disabled={!closeout.ready || Boolean(busy)} onClick={() => void checkOut()}>{busy === "check-out" ? "Đang checkout…" : "Checkout"}</button>
           {closeout.outstanding.length ? <Link className={styles.dutyBoardLink} href="/tasks">Mở toàn bộ Duty Board <span>→</span></Link> : null}
-          {!closeout.ready ? <p>Đây là TOS guidance gate. Core WFM-DUTY vẫn ADVISORY và WFM-TIME chưa bật production denial.</p> : null}
+          {!closeout.ready ? <p>Đây là TOS guidance gate. Core WFM-DUTY vẫn ADVISORY và WFM-TIME chưa bật production denial.</p> : closeout.approvedException && closeout.outstanding.length ? <p>Manager-approved exception chỉ mở TOS checkout guidance; source duties vẫn unresolved và WFM-TIME giữ mutation authority.</p> : null}
         </section>
       </> : null}
     </main>
