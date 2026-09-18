@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
-import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "./house-event-sequence";
+import { advanceHouseSnapshotCursor, selectUnseenHouseEvents } from "./house-event-sequence";
+import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
@@ -11,30 +12,16 @@ import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
 import { CompanionRitualScene, COMPANION_RITUAL_SCENE_MS } from "./companion-ritual-scene";
 import styles from "./reception-tv.module.css";
 
-type Presence = {
-  studentProfileId: string;
-  displayName: string;
-  visit: { id: string; checkedInAt: string; version: number };
-  character: { id: string; config: PinoriaCharacterConfig };
-};
-type HouseSnapshot = { cursor: number; learners: Presence[] };
-type HouseEvent = {
-  sequence: number;
-  type: "ARRIVAL" | "DEPARTURE";
-  studentProfileId: string;
-  visitId: string;
-  characterId: string;
-  occurredAt: string;
-  payload: { displayName: string; character: PinoriaCharacterConfig };
-};type EventPage = { cursor: number; events: HouseEvent[] };
 type Scene = {
   id: string;
   kind: "arrival" | "departure";
   name: string;
   config: PinoriaCharacterConfig;
-  studentProfileId: string;
+  actorType: PresenceActorType;
+  pinoriaSelfId: string;
+  sourceType: PresenceSourceType;
+  sourceId: string;
   phase: "transition" | "performance" | "handoff";
-  visitId: string;
 };
 
 const CENTER_STORAGE = "pino.arrival.centerId";
@@ -47,7 +34,7 @@ export function ReceptionTv() {
   const [centerId, setCenterId] = useState("");
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
-  const [inside, setInside] = useState<Presence[]>([]);
+  const [inside, setInside] = useState<PresenceActor[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
   const cursor = useRef(0);
@@ -75,28 +62,27 @@ export function ReceptionTv() {
     try {
       if (!wasConnected.current) {
         const response = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
-        const json = await response.json() as { data?: HouseSnapshot };
+        const json = await response.json() as { data?: unknown };
         if (!response.ok || !json.data) throw new Error("offline");
+        const snapshot = parsePresenceSnapshot(json.data);
         if (generation !== houseGeneration.current) return;
-        const advanced = advanceHouseSnapshotCursor(json.data.cursor, cursor.current, presentedSequence.current);
+        const advanced = advanceHouseSnapshotCursor(snapshot.cursor, cursor.current, presentedSequence.current);
         if (advanced.applySnapshot) {
           cursor.current = advanced.cursor;
           presentedSequence.current = advanced.presentedSequence;
-          const snapshotLearners = json.data.learners;
-          const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
-          setInside(snapshotLearners);
-          setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
-            || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
+          setInside(snapshot.actors);
+          // Snapshot is reconnect truth. Never replay or resume a historical presence scene across reconnect.
+          setScenes([]);
         }
         setConnected(true);
         wasConnected.current = true;
         return;
       }
       const response = await fetch(`/api/pinoria-tv/events?centerId=${encodeURIComponent(centerId)}&after=${cursor.current}&t=${Date.now()}`, { cache: "no-store" });
-      const json = await response.json() as { data?: EventPage };
+      const json = await response.json() as { data?: unknown };
       if (!response.ok || !json.data) throw new Error("offline");
       if (generation !== houseGeneration.current) return;
-      const page = json.data;
+      const page = parsePresenceEventPage(json.data);
       if (page.cursor < cursor.current) {
         setConnected(true);
         return;
@@ -108,9 +94,15 @@ export function ReceptionTv() {
         return;
       }
       cursor.current = Math.max(cursor.current, page.cursor);
+      presentedSequence.current = Math.max(presentedSequence.current, unseen.lastSequence);
+      if (unseen.events.some((event) => event.kind === "RECONCILE_REQUIRED")) {
+        // Aggregate source transitions are snapshot-only: never flash a partial hero from the same page.
+        setConnected(false);
+        wasConnected.current = false;
+        return;
+      }
       if (unseen.events.length) {
-        presentedSequence.current = Math.max(presentedSequence.current, unseen.lastSequence);
-        enqueueHouseEvents(unseen.events);
+        enqueuePresenceEvents(unseen.events.filter((event): event is PresenceEvent => event.kind === "PRESENCE_EVENT"));
       }
       setConnected(true);
     } catch {
@@ -122,28 +114,25 @@ export function ReceptionTv() {
       if (generation === houseGeneration.current) housePollInFlight.current = false;
     }
   }, [centerId]);
-  function enqueueHouseEvents(events: HouseEvent[]) {
+  function enqueuePresenceEvents(events: PresenceEvent[]) {
     setScenes((queue) => [
       ...queue,
       ...events.map((event) => ({
         id: `${event.sequence}`,
         kind: event.type === "ARRIVAL" ? "arrival" as const : "departure" as const,
         name: event.payload.displayName,
-        config: event.payload.character,
-        studentProfileId: event.studentProfileId,
+        config: event.payload.character ?? {},
+        actorType: event.actorType,
+        pinoriaSelfId: event.pinoriaSelfId,
+        sourceType: event.sourceType,
+        sourceId: event.sourceId,
         phase: event.type === "DEPARTURE" ? "transition" as const : "performance" as const,
-        visitId: event.visitId,
       })),
     ]);
     setInside((current) => {
-      const next = new Map(current.map((item) => [item.studentProfileId, item]));
+      const next = new Map(current.map((item) => [item.pinoriaSelfId, item]));
       for (const event of events) {
-        if (event.type === "ARRIVAL") next.set(event.studentProfileId, {
-          studentProfileId: event.studentProfileId,
-          displayName: event.payload.displayName,
-          visit: { id: event.visitId, checkedInAt: event.occurredAt, version: 1 },
-          character: { id: event.characterId, config: event.payload.character },
-        });
+        if (event.type === "ARRIVAL") next.set(event.pinoriaSelfId, actorFromArrival(event));
       }
       return [...next.values()];
     });
@@ -184,12 +173,12 @@ export function ReceptionTv() {
   }, [centerId, pollPresentation]);
 
   const scene = scenes[0] ?? null;
-  const arrivalSceneIsCurrent = scene?.kind !== "arrival"
-    || inside.some((learner) => learner.studentProfileId === scene.studentProfileId && learner.visit.id === scene.visitId);
+  const sceneIsCurrent = !scene
+    || inside.some((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId && actorHasSource(actor, scene.sourceType, scene.sourceId));
 
   useEffect(() => {
     if (!scene || presentation) return;
-    if (!arrivalSceneIsCurrent) {
+    if (!sceneIsCurrent) {
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
       return;
     }
@@ -210,12 +199,13 @@ export function ReceptionTv() {
         return;
       }
       if (scene.kind === "departure") {
-        setInside((current) => current.filter((learner) => learner.studentProfileId !== scene.studentProfileId || learner.visit.id !== scene.visitId));
+        setInside((current) => current.filter((actor) => actor.pinoriaSelfId !== scene.pinoriaSelfId
+          || !actorHasSource(actor, scene.sourceType, scene.sourceId)));
       }
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [arrivalSceneIsCurrent, presentation, scene]);
+  }, [presentation, scene, sceneIsCurrent]);
 
   useLayoutEffect(() => {
     if (!scene || scene.kind !== "arrival" || scene.phase !== "handoff") {
@@ -225,8 +215,7 @@ export function ReceptionTv() {
     const stage = stageRef.current;
     if (!stage) return;
     const target = Array.from(stage.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]"))
-      .find((element) => element.dataset.ambientRuntimeCharacter === scene.studentProfileId
-        && element.dataset.ambientRuntimeVisit === scene.visitId);
+      .find((element) => element.dataset.ambientRuntimeSelf === scene.pinoriaSelfId);
     if (!target) {
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
       return;
@@ -295,7 +284,7 @@ export function ReceptionTv() {
     setPresentation(null);
     setCenterId("");
   }
-  const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, visitId: learner.visit.id, name: learner.displayName, config: learner.character.config })), [inside]);
+  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: actor.displayName, config: actor.character })), [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
       <div>
@@ -309,10 +298,10 @@ export function ReceptionTv() {
   }
 
   const visualScene = scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff") ? scene : null;
-  const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.studentProfileId);
+  const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.pinoriaSelfId);
   const departingId = scene?.kind === "departure" && scene.phase === "transition"
-    && inside.some((learner) => houseDepartureMatchesVisit(learner.studentProfileId, learner.visit.id, scene.studentProfileId, scene.visitId))
-    ? scene.studentProfileId
+    && inside.some((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId && actorHasSource(actor, scene.sourceType, scene.sourceId))
+    ? scene.pinoriaSelfId
     : null;
   const isArrivalHandoff = visualScene?.kind === "arrival" && visualScene.phase === "handoff";
   const handoffStyle = isArrivalHandoff && arrivalHandoffTarget ? ({
@@ -333,13 +322,16 @@ export function ReceptionTv() {
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <AmbientHouseRuntime learners={ambientLearners} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
+    </header>    <AmbientHouseRuntime actors={ambientActors} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
 
     {visualScene ? <section
       key={visualScene.id}
       data-arrival-scene={visualScene.kind === "arrival" ? "true" : undefined}
       data-arrival-phase={visualScene.kind === "arrival" ? visualScene.phase : undefined}
-      data-arrival-visit={visualScene.kind === "arrival" ? visualScene.visitId : undefined}
+      data-arrival-self={visualScene.kind === "arrival" ? visualScene.pinoriaSelfId : undefined}
+      data-arrival-source-type={visualScene.kind === "arrival" ? visualScene.sourceType : undefined}
+      data-arrival-source-id={visualScene.kind === "arrival" ? visualScene.sourceId : undefined}
+      data-presence-actor-type={visualScene.actorType}
       className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
       style={handoffStyle}
     >

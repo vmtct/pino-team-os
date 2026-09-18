@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     await authenticatePinoriaTvRequest(request, env);
     const centerId = new URL(request.url).searchParams.get("centerId") ?? "";
     return Response.json(
-      { data: await env.PINO_PINORIA_TV_CORE.snapshot(centerId) },
+      { data: await env.PINO_PINORIA_TV_CORE.presenceSnapshot(centerId) },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (error) {
