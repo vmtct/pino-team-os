@@ -1,7 +1,7 @@
-import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
-import { LocalStaffSessionError, staffPasswordSession } from "./local-staff-session";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding } from "./bo-core";
+import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
-export interface BoSyllabusMediaEnv {
+export interface BoSyllabusMediaEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -15,9 +15,9 @@ export function isBoSyllabusMediaSpecialPath(path: string): boolean {
   return path === MEDIA_PATH || PREVIEW_PATH.test(path);
 }
 
-export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyllabusMediaEnv, path: string): Promise<Response> {
+export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyllabusMediaEnv, path: string, keyResolver?: Parameters<typeof teamCredential>[3]): Promise<Response> {
   try {
-    const token = staffPasswordSession(request);
+    const credential = await teamCredential(request, env, "BO", keyResolver);
     if (path === MEDIA_PATH) {
       if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
       const idempotencyKey = request.headers.get("idempotency-key")?.trim();
@@ -28,18 +28,18 @@ export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyll
       const file = form.get("file");
       if (!(file instanceof File) || file.size < 1) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A non-empty worksheet file is required" } }, 400);
       if (!ALLOWED_MIME_TYPES.has(file.type)) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Worksheet media must be PDF, PNG, JPEG, or WebP" } }, 400);
-      const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, {
+      const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, {
         method: "POST",
         path: MEDIA_PATH,
         body: { fileName: file.name, mimeType: file.type, bytes: await file.arrayBuffer() },
         idempotencyKey,
-      }, token);
+      }, credential);
       return json(result.body, result.status, { "x-request-id": result.requestId });
     }
 
     if (!PREVIEW_PATH.test(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, { method: "GET", path }, token);
+    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path }, credential);
     if (result.status < 200 || result.status >= 300) return json(result.body, result.status, { "x-request-id": result.requestId });
     const payload = result.body as PreviewPayload;
     const data = payload?.data;
@@ -58,7 +58,7 @@ export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyll
       },
     });
   } catch (error) {
-    if (error instanceof LocalStaffSessionError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, 401);
+    if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     console.error("BO Syllabus media facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }

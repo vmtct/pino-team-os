@@ -1,15 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "./bo-syllabus-media-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 
 const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 const session = "local-session-token";
+const cfDomain = "team.pino.invalid", cfAudience = "bo-aud";
 function env(binding: BoAccessCoreBinding): BoSyllabusMediaEnv { return { PINO_BO_CORE: binding }; }
 function binding(operation: (request: BoAccessRequest, token: string) => Promise<{ status: number; body: unknown; requestId: string }>): BoAccessCoreBinding { return { executeWithStaffPassword: operation }; }
 function uploadRequest(file: File, key = "syllabus-media-key", authenticated = true) {
   const form = new FormData(); form.set("file", file);
   return new Request("https://bo.pinohouse.art/api/bo/learning/syllabi/media", { method: "POST", headers: { ...(authenticated ? { cookie: `pino_staff_password_session=${session}` } : {}), ...(key ? { "idempotency-key": key } : {}) }, body: form });
+}
+async function cloudflareFixture(){
+  const {privateKey,publicKey}=await generateKeyPair("RS256");
+  const jwt=await new SignJWT({email:"owner@pino.invalid"}).setProtectedHeader({alg:"RS256"}).setIssuer(`https://${cfDomain}`).setAudience(cfAudience).setSubject("cf-owner-1").setExpirationTime("2h").sign(privateKey);
+  const keyResolver:JWTVerifyGetKey=async()=>publicKey;
+  return {jwt,keyResolver};
 }
 
 test("Syllabus worksheet upload forwards multipart bytes only through the BO Core facade", async () => {
@@ -43,4 +51,16 @@ test("Syllabus worksheet preview preserves Core denial", async () => {
   const b = binding(async () => ({ status: 403, body: { error: { code: "ACCESS_PERMISSION_DENIED" } }, requestId: "core-denied" }));
   const response = await handleBoSyllabusMediaRequest(new Request(`https://bo.pinohouse.art/api/bo/${path}`, { headers: { cookie: `pino_staff_password_session=${session}` } }), env(b), path);
   assert.equal(response.status, 403); assert.equal(response.headers.get("x-request-id"), "core-denied"); assert.deepEqual(await response.json(), { error: { code: "ACCESS_PERMISSION_DENIED" } });
+});
+
+test("Syllabus media preserves Cloudflare BO owner credential compatibility", async () => {
+  const {jwt,keyResolver}=await cloudflareFixture();
+  const path=`learning/syllabi/media/${id}/preview`;
+  let seenIdentity: unknown;
+  const b:BoAccessCoreBinding={
+    async execute(_request,identity){seenIdentity=identity;return{status:200,body:{data:{mediaAssetId:id,mimeType:"image/png",byteSize:1,createdAt:"2026-09-05T10:00:00.000Z",bytes:new Uint8Array([7]).buffer}},requestId:"cf-preview"};},
+    async executeWithStaffPassword(){throw new Error("unexpected password path");},
+  };
+  const response=await handleBoSyllabusMediaRequest(new Request(`https://bo.pinohouse.art/api/bo/${path}`,{headers:{"cf-access-jwt-assertion":jwt}}),{PINO_BO_CORE:b,CF_ACCESS_TEAM_DOMAIN:cfDomain,CF_ACCESS_BO_AUD:cfAudience},path,keyResolver);
+  assert.equal(response.status,200);assert.deepEqual(seenIdentity,{provider:"cloudflare_access",subject:"cf-owner-1",email:"owner@pino.invalid",issuer:`https://${cfDomain}`,audience:[cfAudience],expiresAt:(seenIdentity as {expiresAt:number}).expiresAt});
 });
