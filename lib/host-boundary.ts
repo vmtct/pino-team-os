@@ -54,6 +54,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/syllabus",
     "/bo/practice",
     "/bo/pinoria-ward",
+    "/bo/pinoria-ward/learners",
     "/bo/content",
     "/bo/system/users",
     "/bo/system/roles",
@@ -113,6 +114,7 @@ function isApprovedBoPath(pathname: string): boolean {
   return /^\/api\/bo\/learning\/syllabi(?:\/owners|\/media(?:\/[0-9a-f-]{36}\/preview)?|\/[0-9a-f-]{36}(?:\/(?:draft|publish|next-draft|archive))?|\/versions\/[0-9a-f-]{36}\/(?:artchitect-profile|pianohouse-profile|little-piner-profile))?$/.test(normalized)
     || /^\/api\/bo\/web-cms\/slots(?:\/[0-9a-f-]{36}(?:\/(?:history|draft|publish|rollback))?)?$/.test(normalized)
     || /^\/api\/bo\/pinoria\/ward\/catalog(?:\/(?:items|variants)(?:\/[0-9a-f-]{36})?)?$/.test(normalized)
+    || /^\/api\/bo\/pinoria\/ward\/learners(?:\/[0-9a-f-]{36}(?:\/(?:grants|revocations|loadout))?)?$/.test(normalized)
     || /^\/api\/bo\/practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/drafts)?$/.test(normalized)
     || /^\/api\/bo\/practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/.test(normalized)
