@@ -58,3 +58,13 @@ test("F3 choice surfaces consume Core render references instead of local asset d
   assert.match(tv, /<video[^>]+style=\{renderStyle\}/);
   assert.match(contract, /transformOrigin/);
 });
+
+test("F2 learner manager binds detail and mutations to the active learner request", () => {
+  const manager = read("app/bo/pinoria-ward/learners/WardLearnerManager.tsx");
+  assert.match(manager, /const detailRequest=useRef\(0\)/);
+  assert.match(manager, /const requestId=\+\+detailRequest\.current/);
+  assert.match(manager, /requestId!==detailRequest\.current\|\|d\.inventory\.studentProfileId!==id/);
+  assert.match(manager, /detail\?\.inventory\.studentProfileId===selectedId/);
+  assert.match(manager, /if\(!selectedId\|\|!detail\|\|!detailMatchesSelection\)return/);
+  assert.match(manager, /disabled=\{busy\|\|!detailMatchesSelection\}/);
+});

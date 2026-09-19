@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {pinoriaAssetUrl} from "@/app/pinoria-tv/layered-character";
 import styles from "../pinoria-ward.module.css";
 
@@ -21,22 +21,24 @@ function mutation(method:"POST"|"PUT",body:unknown):RequestInit{return{method,he
 export function WardLearnerManager(){
  const[learners,setLearners]=useState<Learner[]>([]),[catalog,setCatalog]=useState<Catalog>({items:[],variants:[]}),[sets,setSets]=useState<SetCatalog>({sets:[]});
  const[selectedId,setSelectedId]=useState<string|null>(null),[detail,setDetail]=useState<Detail|null>(null),[query,setQuery]=useState("");
+ const detailRequest=useRef(0);
  const[draft,setDraft]=useState<Record<Slot,string|null>>(()=>Object.fromEntries(slots.map(slot=>[slot,null])) as Record<Slot,string|null>);
  const[selectedVariant,setSelectedVariant]=useState<string|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState("");
  const selected=learners.find(row=>row.studentProfileId===selectedId)??null;
  const filtered=useMemo(()=>learners.filter(row=>`${row.displayName} ${row.studentProfileId}`.toLowerCase().includes(query.toLowerCase())),[learners,query]);
- const owned=detail?.inventory.ownedVariants??[];
+ const detailMatchesSelection=Boolean(selectedId&&detail?.inventory.studentProfileId===selectedId);
+ const owned=detailMatchesSelection?detail!.inventory.ownedVariants:[];
  const activeCatalog=useMemo(()=>catalog.variants.filter(v=>v.status==="ACTIVE").map(v=>({variant:v,item:catalog.items.find(i=>i.id===v.wearableId)})).filter(row=>row.item?.status==="ACTIVE"),[catalog]);
 
  async function load(){try{const[a,b,c]=await Promise.all([request<{learners:Learner[]}>("pinoria/ward/learners"),request<Catalog>("pinoria/ward/catalog"),request<SetCatalog>("pinoria/ward/sets")]);setLearners(a.learners);setCatalog(b);setSets(c);setError("");}catch(e){setError(e instanceof Error?e.message:"Không tải được learner wardrobe");}}
- async function openLearner(id:string){setSelectedId(id);setSelectedVariant(null);setMessage("");setError("");try{const d=await request<Detail>(`pinoria/ward/learners/${id}`);setDetail(d);setDraft(d.inventory.loadout?.slots??Object.fromEntries(slots.map(slot=>[slot,null])) as Record<Slot,string|null>);}catch(e){setError(e instanceof Error?e.message:"Không tải được wardrobe");}}
+ async function openLearner(id:string){const requestId=++detailRequest.current;setSelectedId(id);setDetail(null);setDraft(Object.fromEntries(slots.map(slot=>[slot,null])) as Record<Slot,string|null>);setSelectedVariant(null);setMessage("");setError("");try{const d=await request<Detail>(`pinoria/ward/learners/${id}`);if(requestId!==detailRequest.current||d.inventory.studentProfileId!==id)return;setDetail(d);setDraft(d.inventory.loadout?.slots??Object.fromEntries(slots.map(slot=>[slot,null])) as Record<Slot,string|null>);}catch(e){if(requestId!==detailRequest.current)return;setError(e instanceof Error?e.message:"Không tải được wardrobe");}}
  async function refresh(){if(selectedId)await openLearner(selectedId);await load();}
  useEffect(()=>{void load();},[]);
  function equip(item:Owned){setDraft(value=>({...value,[item.slot]:item.id}));setSelectedVariant(item.id);setMessage("");}
  function unequip(slot:Slot){setDraft(value=>({...value,[slot]:null}));setMessage("");}
- async function save(){if(!selectedId||!detail)return;setBusy(true);setError("");try{await request(`pinoria/ward/learners/${selectedId}/loadout`,mutation("PUT",{expectedVersion:detail.inventory.loadout?.version??0,slots:draft}));setMessage("Saved ✓");await refresh();}catch(e){setError(e instanceof Error?e.message:"Không lưu được loadout");}finally{setBusy(false);}}
- async function grant(){if(!selectedId||!selectedVariant)return;setBusy(true);setError("");try{await request(`pinoria/ward/learners/${selectedId}/grants`,mutation("POST",{variantId:selectedVariant,sourceReference:"BO F2 learner wardrobe"}));setMessage("Đã grant wearable");await refresh();}catch(e){setError(e instanceof Error?e.message:"Grant thất bại");}finally{setBusy(false);}}
- async function revoke(){if(!selectedId||!selectedVariant)return;setBusy(true);setError("");try{await request(`pinoria/ward/learners/${selectedId}/revocations`,mutation("POST",{variantId:selectedVariant,reason:"BO learner wardrobe revoke"}));setMessage("Đã revoke wearable");setSelectedVariant(null);await refresh();}catch(e){setError(e instanceof Error?e.message:"Revoke thất bại");}finally{setBusy(false);}}
+ async function save(){if(!selectedId||!detail||!detailMatchesSelection)return;setBusy(true);setError("");try{await request(`pinoria/ward/learners/${selectedId}/loadout`,mutation("PUT",{expectedVersion:detail.inventory.loadout?.version??0,slots:draft}));setMessage("Saved ✓");await refresh();}catch(e){setError(e instanceof Error?e.message:"Không lưu được loadout");}finally{setBusy(false);}}
+ async function grant(){if(!selectedId||!selectedVariant||!detailMatchesSelection)return;setBusy(true);setError("");try{await request(`pinoria/ward/learners/${selectedId}/grants`,mutation("POST",{variantId:selectedVariant,sourceReference:"BO F2 learner wardrobe"}));setMessage("Đã grant wearable");await refresh();}catch(e){setError(e instanceof Error?e.message:"Grant thất bại");}finally{setBusy(false);}}
+ async function revoke(){if(!selectedId||!selectedVariant||!detailMatchesSelection)return;setBusy(true);setError("");try{await request(`pinoria/ward/learners/${selectedId}/revocations`,mutation("POST",{variantId:selectedVariant,reason:"BO learner wardrobe revoke"}));setMessage("Đã revoke wearable");setSelectedVariant(null);await refresh();}catch(e){setError(e instanceof Error?e.message:"Revoke thất bại");}finally{setBusy(false);}}
  const selectedOwned=owned.find(item=>item.id===selectedVariant)??null;
  const selectedCatalog=activeCatalog.find(row=>row.variant.id===selectedVariant)??null;
  const isEquipped=selectedVariant?Object.values(draft).includes(selectedVariant):false;
@@ -52,9 +54,9 @@ export function WardLearnerManager(){
    <div className={styles.rows}>{filtered.map(row=><button key={row.studentProfileId} className={styles.row} onClick={()=>void openLearner(row.studentProfileId)}><span className={styles.itemCell}><i className={styles.thumb}>◉</i><b>{row.displayName}</b><small>{row.studentProfileId.slice(0,8)}</small></span><span>{row.ownedCount}</span><span>{row.equippedCount}/8</span><span><i className={styles.status}>ACTIVE</i></span><span/><span/><span/></button>)}</div>
   </section>
 
-  {selected&&detail&&<div className={styles.backdrop} onClick={()=>setSelectedId(null)}/>}
-  {selected&&detail&&<aside className={styles.peek}>
-   <div className={styles.peekTop}><button onClick={()=>setSelectedId(null)}>✕</button><span>Learner wardrobe</span><button>•••</button></div>
+  {selected&&detailMatchesSelection&&<div className={styles.backdrop} onClick={()=>{detailRequest.current++;setSelectedId(null);setDetail(null);}}/>}
+  {selected&&detailMatchesSelection&&detail&&<aside className={styles.peek}>
+   <div className={styles.peekTop}><button onClick={()=>{detailRequest.current++;setSelectedId(null);setDetail(null);}}>✕</button><span>Learner wardrobe</span><button>•••</button></div>
    <div className={styles.detailHead}><div><p>{selected.studentProfileId.slice(0,8)}</p><h2>{selected.displayName}</h2><small>{owned.length} owned · {Object.values(draft).filter(Boolean).length}/8 equipped</small></div><span className={styles.slotBadge}>{webm?"SET WEBM":"LAYERED"}</span></div>
    <div className={styles.peekBody}>
     <section className={styles.previewCard}><div className={styles.previewTop}><span>Character preview</span><small>{webm?"WEBM + EFFECTS":"8-slot layers"}</small></div>
@@ -69,7 +71,7 @@ export function WardLearnerManager(){
       <label>Grant from F0<select value={selectedVariant??""} onChange={e=>setSelectedVariant(e.target.value||null)}><option value="">Choose ACTIVE variant</option>{activeCatalog.filter(row=>!owned.some(item=>item.id===row.variant.id)).map(row=><option key={row.variant.id} value={row.variant.id}>{row.item?.displayName} · {row.variant.displayName}</option>)}</select></label>
      </div></div>
    </div>
-   <footer className={styles.actions}><button className={styles.secondary} style={{display:"inline-flex"}} disabled={busy||!selectedCatalog||!!selectedOwned} onClick={()=>void grant()}>Grant item</button><button className={styles.secondary} style={{display:"inline-flex"}} disabled={busy||!selectedOwned||isEquipped} onClick={()=>void revoke()}>Revoke item</button><button className={styles.publish} disabled={busy} onClick={()=>void save()}>Save loadout</button></footer>
+   <footer className={styles.actions}><button className={styles.secondary} style={{display:"inline-flex"}} disabled={busy||!selectedCatalog||!!selectedOwned} onClick={()=>void grant()}>Grant item</button><button className={styles.secondary} style={{display:"inline-flex"}} disabled={busy||!selectedOwned||isEquipped} onClick={()=>void revoke()}>Revoke item</button><button className={styles.publish} disabled={busy||!detailMatchesSelection} onClick={()=>void save()}>Save loadout</button></footer>
   </aside>}
  </main>;
 }
