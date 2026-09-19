@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
+import type { WardSession } from "@/lib/pinoria-ward-session";
+import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
-import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, selectUnseenHouseEvents } from "./house-event-sequence";
+import { advanceHouseSnapshotCursor, houseDepartureMatchesVisit, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
@@ -16,6 +18,7 @@ type Presence = {
   displayName: string;
   visit: { id: string; checkedInAt: string; version: number };
   character: { id: string; config: PinoriaCharacterConfig };
+  wardSession?: WardSession;
 };
 type HouseSnapshot = { cursor: number; learners: Presence[] };
 type HouseEvent = {
@@ -55,6 +58,7 @@ export function ReceptionTv() {
   const wasConnected = useRef(false);
   const presentationBusy = useRef(false);
   const housePollInFlight = useRef(false);
+      const houseSnapshotRefreshedAt = useRef(0);
   const houseGeneration = useRef(0);
   const stageRef = useRef<HTMLElement | null>(null);
   const [arrivalHandoffTarget, setArrivalHandoffTarget] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
@@ -85,6 +89,7 @@ export function ReceptionTv() {
           const snapshotLearners = json.data.learners;
           const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
           setInside(snapshotLearners);
+          houseSnapshotRefreshedAt.current = Date.now();
           setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
             || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
         }
@@ -111,6 +116,20 @@ export function ReceptionTv() {
       if (unseen.events.length) {
         presentedSequence.current = Math.max(presentedSequence.current, unseen.lastSequence);
         enqueueHouseEvents(unseen.events);
+      }
+      if (Date.now() - houseSnapshotRefreshedAt.current >= 1500) {
+        const snapshotResponse = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const snapshotJson = await snapshotResponse.json() as { data?: HouseSnapshot };
+        if (!snapshotResponse.ok || !snapshotJson.data) throw new Error("offline");
+        if (generation !== houseGeneration.current) return;
+        if (houseRefreshSnapshotIsCurrent(snapshotJson.data.cursor, cursor.current, presentedSequence.current)) {
+          const snapshotLearners = snapshotJson.data.learners;
+          const snapshotVisits = new Map(snapshotLearners.map((learner) => [learner.studentProfileId, learner.visit.id]));
+          setInside(snapshotLearners);
+          setScenes((queue) => queue.filter((scene) => scene.kind !== "arrival"
+            || snapshotVisits.get(scene.studentProfileId) === scene.visitId));
+        }
+        houseSnapshotRefreshedAt.current = Date.now();
       }
       setConnected(true);
     } catch {
@@ -277,6 +296,7 @@ export function ReceptionTv() {
     cursor.current = 0;
     presentedSequence.current = 0;
     wasConnected.current = false;
+        houseSnapshotRefreshedAt.current = 0;
     setInside([]);
     setScenes([]);
     setPresentation(null);
@@ -290,12 +310,14 @@ export function ReceptionTv() {
     cursor.current = 0;
     presentedSequence.current = 0;
     wasConnected.current = false;
+        houseSnapshotRefreshedAt.current = 0;
     setInside([]);
     setScenes([]);
     setPresentation(null);
     setCenterId("");
   }
   const ambientLearners = useMemo(() => inside.map((learner) => ({ id: learner.studentProfileId, visitId: learner.visit.id, name: learner.displayName, config: learner.character.config })), [inside]);
+  const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((learner) => learner.wardSession?.status === "OPEN") ?? newest.find((learner) => learner.wardSession) ?? null; }, [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
       <div>
@@ -365,6 +387,7 @@ export function ReceptionTv() {
     {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
     {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
     {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={presentation.projection} /> : null}
+    {!scene && !presentation && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
 
     <footer>
       <span>{new Date().toLocaleDateString("vi-VN", {
