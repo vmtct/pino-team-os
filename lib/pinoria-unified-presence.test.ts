@@ -5,6 +5,7 @@ import { selectUnseenHouseEvents } from "../app/pinoria-tv/house-event-sequence"
 import {
   actorFromArrival,
   actorHasSource,
+  mergePresenceWardSessions,
   parsePresenceEventPage,
   parsePresenceSnapshot,
 } from "../app/pinoria-tv/presence-contract";
@@ -103,6 +104,51 @@ test("reconcile marker consumes canonical sequence without becoming a hero event
   assert.equal(selected.events.length, 1);
   assert.equal(selected.events[0]?.kind, "RECONCILE_REQUIRED");
   assert.equal(selected.events.filter((event) => event.kind === "PRESENCE_EVENT").length, 0);
+});
+
+
+test("Ward session overlay follows exact learner visit without contaminating Staff actors", () => {
+  const learner = actor(20, "LEARNER");
+  const staff = actor(21, "STAFF");
+  const session = {
+    id: "ward-1",
+    visitId: "source-20",
+    studentProfileId: "student-20",
+    centerId: "center-1",
+    policyVersion: "F3",
+    loadoutVersionBefore: 1,
+    wardrobeVersionBefore: 1,
+    status: "OPEN" as const,
+    candidates: [0, 1, 2].map((index) => ({
+      id: `variant-${index}`,
+      key: `key-${index}`,
+      displayName: `Variant ${index}`,
+      wearableName: `Wearable ${index}`,
+      slot: "HEADWEAR" as const,
+      rarity: "COMMON",
+      render: { mode: "LAYER" as const, assetKey: null, posterAssetKey: null, metadata: {} },
+    })),
+    selectedVariantId: null,
+    selectedAt: null,
+    loadoutVersionAfter: null,
+    createdAt: "2026-09-07T04:00:00.000Z",
+    version: 1,
+  };
+  const merged = mergePresenceWardSessions(
+    { cursor: 10, actors: [learner, staff] },
+    { cursor: 99, learners: [{ visit: { id: "source-20" }, wardSession: session }] },
+  );
+  assert.equal(merged.cursor, 10);
+  assert.equal(merged.actors[0]?.wardSession?.id, "ward-1");
+  assert.equal(merged.actors[1]?.wardSession, undefined);
+});
+
+test("Ward overlay rejects malformed persisted session payloads", () => {
+  const learner = actor(22, "LEARNER");
+  assert.throws(() => mergePresenceWardSessions(
+    { cursor: 10, actors: [learner] },
+    { learners: [{ visit: { id: "source-22" }, wardSession: { id: "bad" } }] },
+  ), /PINORIA_WARD_SESSION_INVALID/);
 });
 
 test("Pinoria TV routes consume unified presence only and never Workforce directly", () => {

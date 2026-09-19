@@ -10,7 +10,8 @@ test("TOS timekeeping preserves one command key across ambiguous retries", () =>
   assert.match(source, /clockAttempt = useRef<\{ action: "in" \| "out"; fingerprint: string; key: string \} \| null>\(null\)/);
   assert.match(source, /prior\?\.action === action && prior\.fingerprint === fingerprint \? prior\.key : crypto\.randomUUID\(\)/);
   assert.match(source, /clockAttempt\.current = \{ action, fingerprint, key: idempotencyKey \}/);
-  assert.match(source, /workforceApi\.checkIn\(center\.id, assignmentId, idempotencyKey\)/);
+  assert.match(source, /state\.data\.kind !== "ELIGIBLE_ASSIGNMENT"/);
+  assert.match(source, /workforceApi\.checkIn\(center\.id, state\.data\.assignment\.id, idempotencyKey\)/);
   assert.match(source, /workforceApi\.checkOut\(idempotencyKey\)/);
   assert.match(source, /setCurrent\(result\.data\);\s*clockAttempt\.current = null/);
 });
