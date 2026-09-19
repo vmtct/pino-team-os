@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import graphData from "./ambient-house-motion-graph.saved.json";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
+import { resolvePinoriaEffectPresentation } from "../../lib/pinoria-effect-presentation";
 import {
   createAmbientAgents,
   reconcileAmbientAgents,
@@ -18,6 +19,7 @@ export type AmbientHouseLearner = {
   visitId: string;
   name: string;
   config: PinoriaCharacterConfig;
+  effectKey?: string | null;
 };
 
 const GRAPH = graphData as AmbientMotionGraph;
@@ -29,6 +31,7 @@ const HOUSE_ASSETS = {
 export function AmbientHouseRuntime({ learners, departingId = null, suppressedIds = [], frozenIds = [] }: { learners: readonly AmbientHouseLearner[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
   const idsKey = learners.map((learner) => learner.id).sort().join("|");
   const byId = useMemo(() => new Map(learners.map((learner) => [learner.id, learner])), [learners]);
+  const speedMultipliers = useMemo(() => new Map(learners.map((learner) => [learner.id, resolvePinoriaEffectPresentation(learner.effectKey)?.speedMultiplier ?? 1])), [learners]);
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
   const frozenKey = JSON.stringify(frozenIds);
@@ -50,28 +53,29 @@ export function AmbientHouseRuntime({ learners, departingId = null, suppressedId
       previousFrame.current = now;
       if (now - lastCommit.current >= 40) {
         const elapsed = now - previous;
-        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing, frozenIds: frozen }));
+        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing, frozenIds: frozen, speedMultipliers }));
         lastCommit.current = now;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [departing, frozenKey]);
+  }, [departing, frozenKey, speedMultipliers]);
 
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");
   const renderAgent = (agent: AmbientAgent) => {
     const learner = byId.get(agent.id);
     if (!learner) return null;
-    const scale = 0.72 + (agent.y / GRAPH.canvas.height) * 0.28;
+    const effect = resolvePinoriaEffectPresentation(learner.effectKey);
+    const scale = (0.72 + (agent.y / GRAPH.canvas.height) * 0.28) * (effect?.houseScale ?? 1);
     const style = {
       left: `${(agent.x / GRAPH.canvas.width) * 100}%`,
       top: `${(agent.y / GRAPH.canvas.height) * 100}%`,
       "--agent-scale": `${scale}`,
     } as CSSProperties;
-    return <div key={agent.id} className={styles.agent} style={style} data-ambient-runtime-character={agent.id} data-ambient-runtime-visit={learner.visitId} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
-      <LayeredCharacter className={styles.character} config={learner.config} />
+    return <div key={agent.id} className={styles.agent} style={style} data-pinoria-effect={effect?.key ?? ""} data-effect-speed={effect?.speedMultiplier ?? 1} data-ambient-runtime-character={agent.id} data-ambient-runtime-visit={learner.visitId} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
+      <LayeredCharacter className={styles.character} config={learner.config} effectKey={learner.effectKey} effectSurface="HOUSE_MINI" />
       <span>{learner.name}</span>
     </div>;
   };
