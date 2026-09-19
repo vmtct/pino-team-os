@@ -14,4 +14,6 @@ test("Workforce staging artifact is bound to exact source and trusted workflow r
   assert.match(workflow, /workforce-staging-\$\{short_sha\}-run-\$\{GITHUB_RUN_ID\}/);
   assert.match(workflow, /Workforce staging \$\{TEAM_SHA\} run \$\{GITHUB_RUN_ID\}/);
   assert.match(workflow, /Trusted workflow run: \$\{GITHUB_RUN_ID\}/);
+  assert.match(workflow, /const required = new Set\(\['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_WORKFORCE_NETWORK_CORE'/);
+  assert.match(workflow, /'PINORIA_STAGING_STAFF_EMAIL', 'WORKFORCE_CENTER_NETWORK_STAGING_INGRESS'\]\)/);
 });
