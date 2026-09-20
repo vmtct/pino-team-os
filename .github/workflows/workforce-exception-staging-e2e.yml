@@ -24,6 +24,8 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       ISSUE_BODY: ${{ github.event.issue.body }}
       CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+      CORE_REPOSITORY: vmtct/pino-core
+      CORE_STAGING_WORKER: pino-core-staging
       STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
       PINO_STAGING_STAFF_EMAIL: workforce-exception-staging-probe@pino.invalid
       PINO_STAGING_STAFF_PASSWORD: ${{ secrets.PINO_STAGING_STAFF_PASSWORD }}
@@ -50,6 +52,9 @@ jobs:
           mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
           [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
           team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          mapfile -t core_sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#core_sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_SHA line."
+          core_sha="$(tr 'A-F' 'a-f' <<<"${core_sha_lines[0]}")"
           grep -Eq '^CONFIRM:[[:space:]]*RUN_WORKFORCE_EXCEPTION_STAGING_E2E[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing explicit confirmation."
 
           main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve main."
@@ -59,7 +64,9 @@ jobs:
           jq -e '.status=="completed" and .conclusion=="success"' <<<"$latest_main_validation" >/dev/null || reject "Newest current-main Team serving-truth workflow is not terminal success."
 
           echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
+          echo "core_sha=$core_sha" >> "$GITHUB_OUTPUT"
           echo "TEAM_SHA=$team_sha" >> "$GITHUB_ENV"
+          echo "CORE_SHA=$core_sha" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
         with:
@@ -103,26 +110,50 @@ jobs:
           echo "deploy_run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "Exact staging serving revision: $TEAM_SHA / $version_id / deploy run $run_id"
 
+          core_state="$(curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_STAGING_WORKER}/deployments")"
+          jq -e '.success == true' <<<"$core_state" >/dev/null || { echo "Cannot resolve Core staging deployment state" >&2; exit 1; }
+          core_deployment_id="$(jq -r '.result.deployments[0].id // empty' <<<"$core_state")"
+          core_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$core_state")"
+          mapfile -t core_active_versions < <(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_state")
+          [ -n "$core_deployment_id" ] && [ "${#core_active_versions[@]}" -eq 1 ] || { echo "Core staging does not have one exact active deployment/version" >&2; exit 1; }
+          core_version_id="${core_active_versions[0]}"
+          if [[ ! "$core_marker" =~ ^PINO_STAGING_RUNTIME_EVIDENCE:([0-9a-f]{40}):([0-9]+):([1-9][0-9]*):([0-9a-f-]{36})$ ]]; then
+            echo "Core staging deployment marker is not canonical runtime evidence" >&2
+            exit 1
+          fi
+          [ "${BASH_REMATCH[1]}" = "$CORE_SHA" ] || { echo "Active Core staging SHA does not match requested CORE_SHA" >&2; exit 1; }
+          core_run_id="${BASH_REMATCH[2]}"
+          core_run_attempt="${BASH_REMATCH[3]}"
+          core_run="$(gh api "/repos/${CORE_REPOSITORY}/actions/runs/${core_run_id}")"
+          jq -e --arg sha "$CORE_SHA" --argjson attempt "$core_run_attempt" '.head_sha == $sha and .event == "issues" and .status == "completed" and .conclusion == "success" and .actor.login == "vmtct" and .triggering_actor.login == "vmtct" and .path == ".github/workflows/open-studio-core-staging-deploy.yml" and .run_attempt == $attempt' <<<"$core_run" >/dev/null || { echo "Core staging deployment run provenance is invalid" >&2; exit 1; }
+
+          echo "core_deployment_id=$core_deployment_id" >> "$GITHUB_OUTPUT"
+          echo "core_version_id=$core_version_id" >> "$GITHUB_OUTPUT"
+          echo "core_marker=$core_marker" >> "$GITHUB_OUTPUT"
+          echo "core_deploy_run_id=$core_run_id" >> "$GITHUB_OUTPUT"
+          echo "core_deploy_run_attempt=$core_run_attempt" >> "$GITHUB_OUTPUT"
+          echo "Exact Core staging serving revision: $CORE_SHA / $core_deployment_id / $core_version_id / run $core_run_id attempt $core_run_attempt"
+
       - name: Revalidate authority immediately before Golden Journey writes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
+          STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] Workforce exception staging E2E" "$AUTH_BODY_HASH"
-          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          [ "$current_main" = "$TEAM_SHA" ] || { echo "Team main drifted before Golden Journey mutation" >&2; exit 1; }
-
-          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-recheck.json"
-          deployment="$(cat "$RUNNER_TEMP/staging-recheck.json")"
-          prefix="Workforce staging ${TEAM_SHA} run "
-          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
-          [ "$message" = "$prefix${{ steps.staging.outputs.deploy_run_id }}" ] || { echo "Current staging deployment provenance changed before Golden Journey mutation" >&2; exit 1; }
-          jq -e --arg version "${{ steps.staging.outputs.version_id }}" 'any(.versions[]?; .percentage == 100 and .version_id == $version)' <<<"$deployment" >/dev/null || {
-            echo "Staging serving revision changed before Golden Journey mutation" >&2
-            exit 1
-          }
+          bash scripts/assert-wfm-exc-staging-authority.sh
 
       - name: Run cross-runtime Golden Journey
         env:
@@ -140,30 +171,29 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
+          STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] Workforce exception staging E2E" "$AUTH_BODY_HASH"
-          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          [ "$current_main" = "$TEAM_SHA" ] || { echo "Team main drifted before staging PASS" >&2; exit 1; }
-
-          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-pass-recheck.json"
-          deployment="$(cat "$RUNNER_TEMP/staging-pass-recheck.json")"
-          prefix="Workforce staging ${TEAM_SHA} run "
-          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
-          [ "$message" = "$prefix${{ steps.staging.outputs.deploy_run_id }}" ] || { echo "Current staging deployment provenance changed before PASS" >&2; exit 1; }
-          jq -e --arg version "${{ steps.staging.outputs.version_id }}" 'any(.versions[]?; .percentage == 100 and .version_id == $version)' <<<"$deployment" >/dev/null || {
-            echo "Staging serving revision changed before PASS" >&2
-            exit 1
-          }
-
+          bash scripts/assert-wfm-exc-staging-authority.sh
           {
             echo "WORKFORCE_EXCEPTION_STAGING_E2E: PASS"
             echo
             echo "Team source: ${TEAM_SHA}"
-            echo "Staging Worker: pino-team-os-staging"
-            echo "Active staging version: ${{ steps.staging.outputs.version_id }}"
-            echo "Staging deploy run: ${{ steps.staging.outputs.deploy_run_id }}"
+            echo "Team staging Worker: pino-team-os-staging"
+            echo "Team active staging version: ${{ steps.staging.outputs.version_id }}"
+            echo "Team staging deploy run: ${{ steps.staging.outputs.deploy_run_id }}"
+            echo "Core source: ${CORE_SHA}"
+            echo "Core staging Worker: ${CORE_STAGING_WORKER}"
+            echo "Core staging deployment: ${{ steps.staging.outputs.core_deployment_id }}"
+            echo "Core active staging version: ${{ steps.staging.outputs.core_version_id }}"
+            echo "Core staging deploy run: ${{ steps.staging.outputs.core_deploy_run_id }} attempt ${{ steps.staging.outputs.core_deploy_run_attempt }}"
             echo "Journey: request -> BO manager approval -> canonical eligible assignment handoff"
             echo "Runtimes: pino-team-os-staging -> pino-core-staging"
             echo "Golden Journey: GJ-WFM-EXCEPTION-01"
