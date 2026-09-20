@@ -1,9 +1,18 @@
 import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 
 const STAGING_ORIGIN = "https://pino-team-os-staging.minhtri-van42.workers.dev";
 const EMAIL = process.env.PINO_STAGING_STAFF_EMAIL ?? "";
 const PASSWORD = process.env.PINO_STAGING_STAFF_PASSWORD ?? "";
 const CENTER_KEY = "staging-workforce-exception-probe";
+
+function revalidateMutationAuthority() {
+  execFileSync("bash", ["scripts/assert-wfm-exc-staging-authority.sh"], {
+    cwd: process.cwd(),
+    env: process.env,
+    stdio: "inherit",
+  });
+}
 
 test.use({ baseURL: STAGING_ORIGIN });
 test.describe.configure({ mode: "serial" });
@@ -25,6 +34,7 @@ test("unscheduled request -> manager approval -> canonical normal-check-in hando
   const before = await beforeResponse.json() as { data: { kind: string } };
   expect(before.data.kind).toBe("NO_ELIGIBLE_ASSIGNMENT");
 
+  revalidateMutationAuthority();
   const requestKey = `staging-wfm-exc-request-${Date.now()}`;
   const requestResponse = await page.request.post("/api/workforce/check-in-exceptions", {
     headers: { "idempotency-key": requestKey },
@@ -40,6 +50,7 @@ test("unscheduled request -> manager approval -> canonical normal-check-in hando
   const queued = queue.data.find(item => item.id === requested.data.id);
   expect(queued).toBeTruthy();
 
+  revalidateMutationAuthority();
   const approveResponse = await page.request.post(`/api/bo/workforce/planning/check-in-exceptions/${requested.data.id}/approve`, {
     headers: { "idempotency-key": `staging-wfm-exc-approve-${Date.now()}` },
     data: { expectedVersion: queued!.version },

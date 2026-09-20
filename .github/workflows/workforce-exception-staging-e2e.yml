@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: workforce-exception-staging-e2e
+  group: pino-team-staging-worker-mutation
   cancel-in-progress: false
 
 jobs:
@@ -125,12 +125,16 @@ jobs:
           }
 
       - name: Run cross-runtime Golden Journey
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
+          STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
         shell: bash
         run: |
           set -euo pipefail
           [ -n "${PINO_STAGING_STAFF_EMAIL:-}" ] && [ -n "${PINO_STAGING_STAFF_PASSWORD:-}" ] || { echo "Missing staging credentials" >&2; exit 1; }
-          npx playwright test e2e/wfm-exc-staging.spec.ts --workers=1
-
+          npx playwright test e2e/wfm-exc-staging.spec.ts --workers=1 --retries=0
       - name: Report PASS
         if: success()
         env:
