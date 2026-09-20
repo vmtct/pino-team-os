@@ -65,3 +65,11 @@ export function houseDepartureMatchesVisit(
 ) {
   return learnerStudentProfileId === departureStudentProfileId && learnerVisitId === departureVisitId;
 }
+
+export function housePresenceSceneIsCurrent(
+  kind: "arrival" | "departure",
+  sameActorPresent: boolean,
+  matchingSourcePresent: boolean,
+): boolean {
+  return kind === "arrival" ? matchingSourcePresent : !sameActorPresent || matchingSourcePresent;
+}

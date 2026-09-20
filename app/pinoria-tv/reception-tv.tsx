@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
 import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
-import { advanceHouseSnapshotCursor, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
+import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
 import { claimPresentation, completePresentation } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
@@ -191,8 +191,9 @@ export function ReceptionTv() {
   }, [centerId, pollPresentation]);
 
   const scene = scenes[0] ?? null;
-  const sceneIsCurrent = !scene
-    || inside.some((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId && actorHasSource(actor, scene.sourceType, scene.sourceId));
+  const sceneActor = scene ? inside.find((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId) ?? null : null;
+  const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
+  const sceneIsCurrent = !scene || housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource);
 
   useEffect(() => {
     if (!scene || presentation) return;

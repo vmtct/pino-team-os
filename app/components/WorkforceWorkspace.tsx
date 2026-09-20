@@ -78,11 +78,6 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
 
   async function clock(action: "in" | "out") {
     if (!center) return;
-    const assignmentId = action === "in" ? assignments.find((a) => a.workDate === today())?.id ?? null : null;
-    const fingerprint = action === "in" ? `${center.id}:${assignmentId ?? "NO_ASSIGNMENT"}` : current?.id ?? "NO_OPEN_SESSION";
-    const prior = clockAttempt.current;
-    const idempotencyKey = prior?.action === action && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
-    clockAttempt.current = { action, fingerprint, key: idempotencyKey };
     setSaving(true); setError("");
     try {
       let result;
@@ -93,8 +88,25 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
           clockAttempt.current = null;
           return;
         }
+        const fingerprint = `${center.id}:${state.data.assignment.id}`;
+        const prior = clockAttempt.current;
+        if (prior?.action === "in" && prior.fingerprint !== fingerprint) {
+          const reconciled = await workforceApi.currentTimekeeping();
+          if (reconciled.data) {
+            setCurrent(reconciled.data);
+            clockAttempt.current = null;
+            await load();
+            return;
+          }
+        }
+        const idempotencyKey = prior?.action === "in" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+        clockAttempt.current = { action: "in", fingerprint, key: idempotencyKey };
         result = await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
       } else {
+        const fingerprint = current?.id ?? "NO_OPEN_SESSION";
+        const prior = clockAttempt.current;
+        const idempotencyKey = prior?.action === "out" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+        clockAttempt.current = { action: "out", fingerprint, key: idempotencyKey };
         result = await workforceApi.checkOut(idempotencyKey);
       }
       setCurrent(result.data);
