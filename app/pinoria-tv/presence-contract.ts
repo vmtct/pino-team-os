@@ -204,13 +204,18 @@ function wardRender(value: unknown): PresenceWardRender {
     if (!WARD_SLOTS.has(slot)) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
     const renderMode = variant.renderMode;
     if (renderMode !== "LAYER" && renderMode !== "STANDALONE" && renderMode !== "WEBM") throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    const assetKey = nullableText(variant.assetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    const posterAssetKey = nullableText(variant.posterAssetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    const renderMetadata = object(variant.renderMetadata, "PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    if (!assetKey) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    if (renderMode === "WEBM" && (!posterAssetKey || typeof renderMetadata.loop !== "boolean")) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
     return {
       slot,
       variantId: text(variant.variantId, "PINORIA_PRESENCE_WARD_RENDER_INVALID"),
       renderMode: renderMode as "LAYER" | "STANDALONE" | "WEBM",
-      assetKey: nullableText(variant.assetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID"),
-      posterAssetKey: nullableText(variant.posterAssetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID"),
-      renderMetadata: variant.renderMetadata,
+      assetKey,
+      posterAssetKey,
+      renderMetadata,
     };
   });
   if (new Set(variants.map((variant) => variant.slot)).size !== variants.length) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");

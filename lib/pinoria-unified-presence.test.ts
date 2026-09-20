@@ -55,6 +55,16 @@ test("presence snapshot accepts bounded canonical Ward render projection and rej
   const parsed = parsePresenceSnapshot({ cursor: 8, actors: [row] }).actors[0]!;
   assert.equal(parsed.wardRender?.variants[0]?.assetKey, "ward/outfit.png");
   assert.throws(() => parsePresenceSnapshot({ cursor: 8, actors: [{ ...row, wardRender: { mode: "SET_WEBM", webmAssetKey: null, variants: [] } }] }), /PINORIA_PRESENCE_WARD_RENDER_INVALID/);
+  assert.throws(() => parsePresenceSnapshot({ cursor: 8, actors: [{ ...row, wardRender: {
+    mode: "LAYERED",
+    webmAssetKey: null,
+    variants: [{ slot: "OUTFIT", variantId: "variant-webm", renderMode: "WEBM", assetKey: "ward/outfit.webm", posterAssetKey: null, renderMetadata: { loop: true } }],
+  } }] }), /PINORIA_PRESENCE_WARD_RENDER_INVALID/);
+  assert.throws(() => parsePresenceSnapshot({ cursor: 8, actors: [{ ...row, wardRender: {
+    mode: "LAYERED",
+    webmAssetKey: null,
+    variants: [{ slot: "OUTFIT", variantId: "variant-webm", renderMode: "WEBM", assetKey: "ward/outfit.webm", posterAssetKey: "ward/poster.png", renderMetadata: {} }],
+  } }] }), /PINORIA_PRESENCE_WARD_RENDER_INVALID/);
 });
 
 test("snapshot rejects duplicate Pinoria Self instead of rendering duplicate ambient actors", () => {
