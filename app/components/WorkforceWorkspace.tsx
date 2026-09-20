@@ -53,6 +53,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const clockAttempt = useRef<{ action: "in" | "out"; fingerprint: string; key: string } | null>(null);
   const center = context?.centers[0] ?? null;
   const week = useMemo(() => context?.termWeeks.find((w) => w.centerId === center?.id && today() >= w.startDate && today() <= w.endDate) ?? context?.termWeeks.find((w) => w.centerId === center?.id) ?? null, [context, center]);
 
@@ -79,12 +80,37 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     if (!center) return;
     setSaving(true); setError("");
     try {
+      let result;
       if (action === "in") {
         const state = await workforceApi.checkInExceptionStatus(center.id);
         setCheckInState(state.data);
-        if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") return;
-        await workforceApi.checkIn(center.id, state.data.assignment.id);
-      } else await workforceApi.checkOut();
+        if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") {
+          clockAttempt.current = null;
+          return;
+        }
+        const fingerprint = `${center.id}:${state.data.assignment.id}`;
+        const prior = clockAttempt.current;
+        if (prior?.action === "in" && prior.fingerprint !== fingerprint) {
+          const reconciled = await workforceApi.currentTimekeeping();
+          if (reconciled.data) {
+            setCurrent(reconciled.data);
+            clockAttempt.current = null;
+            await load();
+            return;
+          }
+        }
+        const idempotencyKey = prior?.action === "in" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+        clockAttempt.current = { action: "in", fingerprint, key: idempotencyKey };
+        result = await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
+      } else {
+        const fingerprint = current?.id ?? "NO_OPEN_SESSION";
+        const prior = clockAttempt.current;
+        const idempotencyKey = prior?.action === "out" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+        clockAttempt.current = { action: "out", fingerprint, key: idempotencyKey };
+        result = await workforceApi.checkOut(idempotencyKey);
+      }
+      setCurrent(result.data);
+      clockAttempt.current = null;
       await load();
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }

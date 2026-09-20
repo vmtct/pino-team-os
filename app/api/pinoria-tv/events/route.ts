@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const centerId = query.get("centerId") ?? "";
     const after = Number(query.get("after") ?? 0);
     return Response.json(
-      { data: await env.PINO_PINORIA_TV_CORE.events(centerId, after, 100) },
+      { data: await env.PINO_PINORIA_TV_CORE.presenceEvents(centerId, after, 100) },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (error) {

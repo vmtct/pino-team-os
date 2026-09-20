@@ -38,7 +38,7 @@ test("F2 TOS briefing keeps WFM-TIME as sole mutation authority", async () => {
   assert.match(source, /workforceApi\.acknowledgeDutyBriefing/);
   assert.match(source, /checkInExceptionStatus\(center\.id\)/);
   assert.match(source, /state\.data\.kind !== "ELIGIBLE_ASSIGNMENT"/);
-  assert.match(source, /workforceApi\.checkIn\(center\.id, state\.data\.assignment\.id\)/);
+  assert.match(source, /workforceApi\.checkIn\(center\.id, state\.data\.assignment\.id, idempotencyKey\)/);
   assert.match(source, /requestUnscheduledCheckIn\(center\.id, reason, checkInRequestAttempt\.current\.key\)/);
   assert.doesNotMatch(source, /localStorage|sessionStorage|fetch\([^)]*timekeeping/i);
   assert.match(source, /boardLoaded: Boolean\([^)]*board\)/);

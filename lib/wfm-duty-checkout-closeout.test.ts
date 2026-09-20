@@ -78,6 +78,6 @@ test("F4 approved exception never overrides ambiguous or unavailable duty truth"
 test("F3 surface keeps completion in owning domains and checkout in Workforce API", async () => {
   const source = await readFile("app/check-in/DutyAwareCheckInOut.tsx", "utf8");
   assert.match(source, /action: nextCurrent \? "CHECK_OUT" : "CHECK_IN"/);
-  assert.match(source, /workforceApi\.checkOut\(\)/);
+  assert.match(source, /workforceApi\.checkOut\(idempotencyKey\)/);
   assert.doesNotMatch(source, /localStorage|sessionStorage|status:\s*"SATISFIED"/);
 });

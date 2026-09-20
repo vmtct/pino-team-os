@@ -26,12 +26,18 @@ test("F3 TOS opens or resumes the visit-bound Ward session and confirms through 
   assert.match(contract, /candidates: \[WardSessionCandidate, WardSessionCandidate, WardSessionCandidate\]/);
 });
 
-test("F3 TV renders the shared persisted Ward session and has no mutation path", () => {
+test("F3 TV renders the shared persisted Ward session on unified presence and has no mutation path", () => {
   const reception = read("app/pinoria-tv/reception-tv.tsx");
+  const presence = read("app/pinoria-tv/presence-contract.ts");
+  const snapshotRoute = read("app/api/pinoria-tv/snapshot/route.ts");
   const tv = read("app/pinoria-tv/ward-session-tv.tsx");
-  assert.match(reception, /wardSession\?: WardSession/);
+  assert.match(presence, /wardSession\?: WardSession/);
+  assert.match(presence, /mergePresenceWardSessions/);
+  assert.match(snapshotRoute, /PINO_PINORIA_TV_CORE\.presenceSnapshot\(centerId\)/);
+  assert.match(snapshotRoute, /PINO_PINORIA_TV_CORE\.snapshot\(centerId\)/);
+  assert.match(snapshotRoute, /mergePresenceWardSessions/);
   assert.match(reception, /WardSessionTv/);
-  assert.match(reception, /learner\.wardSession\?\.status === "OPEN"/);
+  assert.match(reception, /actor\.wardSession\?\.status === "OPEN"/);
   assert.match(reception, /houseSnapshotRefreshedAt/);
   assert.match(reception, /Date\.now\(\) - houseSnapshotRefreshedAt\.current >= 1500/);
   assert.match(tv, /session\.candidates\.map/);
