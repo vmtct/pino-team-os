@@ -69,6 +69,7 @@ export const boNavigation: BoNavGroup[] = [
           { href: "/bo/pinoria-ward/learners", label: "Loadouts" },
         ],
       },
+      { href: "/bo/pinoria-effects", label: "Effects" },
     ],
   },
   {
