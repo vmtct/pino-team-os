@@ -53,6 +53,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/registrations",
     "/bo/syllabus",
     "/bo/practice",
+    "/bo/pinoria-effects",
     "/bo/pinoria-ward",
     "/bo/pinoria-ward/sets",
     "/bo/pinoria-ward/learners",
@@ -62,6 +63,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/system/audit",
     "/staff-pin/change",
     "/api/bo/context",
+    "/api/bo/pinoria/effects/catalog",
     "/api/bo/learners",
     "/api/bo/practice/authoring-context",
     "/api/bo/practice/repertoire-access/context",
@@ -123,7 +125,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/.test(normalized)
     || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
     || /^\/api\/bo\/access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/.test(normalized)
-    || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/status)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/(?:status|pinoria))?$/.test(normalized)
     || /^\/api\/bo\/workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(?:approve|reject)$/.test(normalized)
     || /^\/api\/bo\/workforce\/timekeeping\/[0-9a-f-]{36}\/(?:corrections|resolve-missed-checkout)$/.test(normalized)
     || /^\/api\/bo\/workforce\/duty\/checkout-exceptions\/[0-9a-f-]{36}\/approve$/.test(normalized)

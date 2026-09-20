@@ -66,6 +66,7 @@ export default function DutyAwareCheckInOut() {
   const [checkInRequestOpen, setCheckInRequestOpen] = useState(false);
   const [checkInRequestReason, setCheckInRequestReason] = useState("");
   const checkInRequestAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const clockAttempt = useRef<{ action: "in" | "out"; fingerprint: string; key: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(""); setBoard(null);
@@ -135,8 +136,16 @@ export default function DutyAwareCheckInOut() {
     try {
       const state = await workforceApi.checkInExceptionStatus(center.id);
       setCheckInState(state.data);
-      if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") return;
-      await workforceApi.checkIn(center.id, state.data.assignment.id);
+      if (state.data.kind !== "ELIGIBLE_ASSIGNMENT") {
+        clockAttempt.current = null;
+        return;
+      }
+      const fingerprint = `${center.id}:${state.data.assignment.id}`;
+      const prior = clockAttempt.current;
+      const idempotencyKey = prior?.action === "in" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+      clockAttempt.current = { action: "in", fingerprint, key: idempotencyKey };
+      await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
+      clockAttempt.current = null;
       router.push("/tasks");
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setBusy(""); }
@@ -178,7 +187,12 @@ export default function DutyAwareCheckInOut() {
     if (!current || !closeout.ready) return;
     setBusy("check-out"); setError("");
     try {
-      await workforceApi.checkOut();
+      const fingerprint = current.id;
+      const prior = clockAttempt.current;
+      const idempotencyKey = prior?.action === "out" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
+      clockAttempt.current = { action: "out", fingerprint, key: idempotencyKey };
+      await workforceApi.checkOut(idempotencyKey);
+      clockAttempt.current = null;
       await load();
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setBusy(""); }

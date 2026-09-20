@@ -67,6 +67,7 @@ export function isOperationalReadPath(path: string): boolean {
         || path === "workforce/timekeeping"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || path === "pinoria/effects/catalog"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
     || path === "pinoria/ward/learners"
@@ -90,7 +91,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^students\/[0-9a-f-]{36}\/pinoria$/.test(path)
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
-    || /^workforce\/staff-records\/[0-9a-f-]{36}$/.test(path)
+    || /^workforce\/staff-records\/[0-9a-f-]{36}(?:\/pinoria)?$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }

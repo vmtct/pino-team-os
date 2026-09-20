@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const character = {
   hair: "https://assets.pinohouse.art/draft/Char_hair_girl_short.png",
@@ -6,207 +6,180 @@ const character = {
   outfit: "https://assets.pinohouse.art/draft/Char_body_painting_girl.png",
 };
 
-test("arrival heroes hand off sequentially into reserved ambient actors", async ({ page }) => {
-  let delivered = false;
-  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }) });
-  });
-  await page.route("**/api/pinoria-tv/events**", async (route) => {
-    const after = Number(new URL(route.request().url()).searchParams.get("after") ?? "0");
-    const events = !delivered && after === 0 ? [{
-      sequence: 1,
-      type: "ARRIVAL",
-      studentProfileId: "learner-arrival",
-      visitId: "visit-arrival",
-      characterId: "character-arrival",
-      occurredAt: "2026-09-02T00:00:00.000Z",
-      payload: { displayName: "Bơ", character },
-    }, {
-      sequence: 2,
-      type: "ARRIVAL",
-      studentProfileId: "learner-queued",
-      visitId: "visit-queued",
-      characterId: "character-queued",
-      occurredAt: "2026-09-02T00:00:01.000Z",
-      payload: { displayName: "Chây", character },
-    }] : [];
-    if (events.length) delivered = true;
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: delivered ? 2 : 0, events } }) });
-  });
-  await page.route("**/api/pinoria-tv/presentation", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
-  });
+type ActorType = "LEARNER" | "STAFF";
+type SourceType = "STUDENT_VISIT" | "TIMEKEEPING_SESSION";
+const sourceType = (actorType: ActorType): SourceType => actorType === "LEARNER" ? "STUDENT_VISIT" : "TIMEKEEPING_SESSION";
 
-  await page.goto("/pinoria-tv?centerId=review");
-  const scene = page.locator('[data-arrival-scene="true"]');
-  const actor = page.locator('[data-ambient-runtime-character="learner-arrival"]');
-  const queuedActor = page.locator('[data-ambient-runtime-character="learner-queued"]');
-  await expect(scene).toHaveAttribute("data-arrival-phase", "performance", { timeout: 5_000 });
-  await expect(actor).toHaveAttribute("data-suppressed", "true");
-  await expect(queuedActor).toHaveAttribute("data-suppressed", "true");
-  expect(await actor.boundingBox()).not.toBeNull();
+function actor(selfId: string, actorType: ActorType, sourceId: string, name: string, sources?: Array<{ actorType: ActorType; sourceType: SourceType; sourceId: string; openedAt: string }>, config: typeof character | null = character) {
+  return {
+    pinoriaSelfId: selfId,
+    actorType,
+    displayName: name,
+    characterId: config ? `character-${selfId}` : null,
+    character: config,
+    loadout: config ? { version: 1, slots: {} } : null,
+    sources: sources ?? [{ actorType, sourceType: sourceType(actorType), sourceId, openedAt: "2026-09-07T04:00:00.000Z" }],
+  };
+}
 
-  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
-  await expect(actor).toHaveAttribute("data-suppressed", "true");
-  await expect.poll(async () => scene.evaluate((element) => ({
-    left: (element as HTMLElement).style.getPropertyValue("--arrival-target-left"),
-    top: (element as HTMLElement).style.getPropertyValue("--arrival-target-top"),
-    width: (element as HTMLElement).style.getPropertyValue("--arrival-target-width"),
-  }))).not.toEqual({ left: "", top: "", width: "" });
+function presenceEvent(sequence: number, type: "ARRIVAL" | "DEPARTURE", selfId: string, actorType: ActorType, sourceId: string, name: string, config: typeof character | null = character) {
+  return {
+    sequence,
+    kind: "PRESENCE_EVENT",
+    id: `event-${sequence}`,
+    type,
+    actorType,
+    sourceType: sourceType(actorType),
+    sourceId,
+    pinoriaSelfId: selfId,
+    occurredAt: `2026-09-07T04:00:${String(sequence).padStart(2, "0")}.000Z`,
+    payload: { displayName: name, characterId: config ? `character-${selfId}` : null, character: config, loadout: config ? { version: 1, slots: {} } : null },
+  };
+}
 
-  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào Chây ✦", { timeout: 4_000 });
-  await expect(actor).toHaveAttribute("data-suppressed", "false");
-  await expect(queuedActor).toHaveAttribute("data-suppressed", "true");
-});
-
-test("newer reconnect snapshot cancels a stale arrival before handoff", async ({ page }) => {
-  let snapshotCalls = 0;
-  let eventCalls = 0;
-  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
-    snapshotCalls += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ data: { cursor: snapshotCalls === 1 ? 0 : 2, learners: [] } }),
-    });
-  });
-  await page.route("**/api/pinoria-tv/events**", async (route) => {
-    eventCalls += 1;
-    if (eventCalls === 1) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events: [{
-        sequence: 1,
-        type: "ARRIVAL",
-        studentProfileId: "learner-stale-arrival",
-        visitId: "visit-stale-arrival",
-        characterId: "character-stale-arrival",
-        occurredAt: "2026-09-02T00:00:00.000Z",
-        payload: { displayName: "Gone", character },
-      }] } }) });
-      return;
-    }
-    await route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
-  });
-  await page.route("**/api/pinoria-tv/presentation", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
-  });
-
-  await page.goto("/pinoria-tv?centerId=review-reconnect");
-  const scene = page.locator('[data-arrival-scene="true"]');
-  const actor = page.locator('[data-ambient-runtime-character="learner-stale-arrival"]');
-  await expect(scene).toHaveAttribute("data-arrival-phase", "performance", { timeout: 5_000 });
-  await expect(actor).toHaveAttribute("data-suppressed", "true");
-  await expect.poll(() => snapshotCalls, { timeout: 5_000 }).toBeGreaterThan(1);
-  await expect(scene).toHaveCount(0, { timeout: 3_000 });
-  await expect(actor).toHaveCount(0);
-  await page.waitForTimeout(3_500);
-  await expect(scene).toHaveCount(0);
-});
-
-
-test("same learner replacement visit never receives a stale arrival handoff", async ({ page }) => {
-  let delivered = false;
-  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }) });
-  });
-  await page.route("**/api/pinoria-tv/events**", async (route) => {
-    const events = delivered ? [] : [
-      { sequence: 1, type: "ARRIVAL", studentProfileId: "same-learner", visitId: "visit-old", characterId: "character-old", occurredAt: "2026-09-02T00:00:01.000Z", payload: { displayName: "Old visit", character } },
-      { sequence: 2, type: "DEPARTURE", studentProfileId: "same-learner", visitId: "visit-old", characterId: "character-old", occurredAt: "2026-09-02T00:00:02.000Z", payload: { displayName: "Old visit", character } },
-      { sequence: 3, type: "ARRIVAL", studentProfileId: "same-learner", visitId: "visit-new", characterId: "character-new", occurredAt: "2026-09-02T00:00:03.000Z", payload: { displayName: "New visit", character } },
-    ];
-    delivered = true;
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 3, events } }) });
-  });
-  await page.route("**/api/pinoria-tv/presentation", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
-  });
-
-  await page.goto("/pinoria-tv?centerId=review-replacement-visit");
-  const scene = page.locator('[data-arrival-scene="true"]');
-  const actor = page.locator('[data-ambient-runtime-character="same-learner"]');
-  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào New visit ✦", { timeout: 9_000 });
-  await expect(scene).toHaveAttribute("data-arrival-visit", "visit-new");
-  await expect(actor).toHaveAttribute("data-ambient-runtime-visit", "visit-new");
-  await expect(actor).toHaveAttribute("data-suppressed", "true");  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
-  await expect.poll(async () => scene.evaluate((element) => ({
-    left: (element as HTMLElement).style.getPropertyValue("--arrival-target-left"),
-    top: (element as HTMLElement).style.getPropertyValue("--arrival-target-top"),
-    width: (element as HTMLElement).style.getPropertyValue("--arrival-target-width"),
-  }))).not.toEqual({ left: "", top: "", width: "" });
-  await expect(actor).toHaveAttribute("data-suppressed", "true");
-});
-test("later arrivals do not restart the active arrival timer or move its reserved actor", async ({ page }) => {
-  let eventCalls = 0;
-  await page.route("**/api/pinoria-tv/snapshot**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }) });
-  });
-  await page.route("**/api/pinoria-tv/events**", async (route) => {
-    eventCalls += 1;
-    const after = Number(new URL(route.request().url()).searchParams.get("after") ?? "0");
-    const shouldDeliver = after < 5 && (after === 0 || eventCalls % 2 === 1);
-    const sequence = shouldDeliver ? after + 1 : after;
-    const events = shouldDeliver ? [{
-      sequence,
-      type: "ARRIVAL",
-      studentProfileId: sequence === 1 ? "zz-head" : `aa-tail-${String(sequence).padStart(2, "0")}`,
-      visitId: `visit-stream-${sequence}`,
-      characterId: `character-stream-${sequence}`,
-      occurredAt: `2026-09-02T00:00:0${sequence}.000Z`,
-      payload: { displayName: `Arrival ${sequence}`, character },
-    }] : [];
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: sequence, events } }) });
-  });
-  await page.route("**/api/pinoria-tv/presentation", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) });
-  });
-
-  await page.goto("/pinoria-tv?centerId=review-sustained-arrivals");
-  const scene = page.locator('[data-arrival-scene="true"]');
-  const firstActor = page.locator('[data-ambient-runtime-character="zz-head"]');
-  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào Arrival 1 ✦", { timeout: 5_000 });
-  await expect(firstActor).toHaveAttribute("data-suppressed", "true");
-  const reserved = await firstActor.boundingBox();
-  expect(reserved).not.toBeNull();
-  await expect.poll(() => eventCalls).toBeGreaterThanOrEqual(5);
-  await expect(scene).toHaveAttribute("data-arrival-phase", "performance");
-  const afterTailArrivals = await firstActor.boundingBox();
-  expect(afterTailArrivals).not.toBeNull();
-  expect(Math.abs(afterTailArrivals!.x - reserved!.x)).toBeLessThan(1);
-  expect(Math.abs(afterTailArrivals!.y - reserved!.y)).toBeLessThan(1);
-  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 6_500 });
-  await expect(firstActor).toHaveAttribute("data-suppressed", "true");
-});
-
-test("reduced motion lands the arrival hero directly on its reserved actor", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  let delivered = false;
-  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({
-    status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, learners: [] } }),
-  }));
-  await page.route("**/api/pinoria-tv/events**", (route) => {
-    const events = delivered ? [] : [{ sequence: 1, type: "ARRIVAL", studentProfileId: "reduced-learner",
-      visitId: "reduced-visit", characterId: "reduced-character", occurredAt: "2026-09-02T00:00:00.000Z",
-      payload: { displayName: "Reduced", character } }];
-    delivered = true;
-    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events } }) });
-  });
+async function noPresentations(page: Page) {
   await page.route("**/api/pinoria-tv/presentation", (route) => route.fulfill({
     status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }),
   }));
-  await page.goto("/pinoria-tv?centerId=review-reduced-motion");
-  const scene = page.locator('[data-arrival-scene="true"]');
-  const actor = page.locator('[data-ambient-runtime-character="reduced-learner"]');
-  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
-  await expect(actor).toHaveAttribute("data-suppressed", "true");
-  await expect.poll(() => scene.evaluate((element) => (element as HTMLElement).style.getPropertyValue("--arrival-target-left"))).not.toBe("");
-  const result = await scene.evaluate((element) => {
-    const hero = Array.from(element.children).find((child) => child.querySelectorAll("img").length >= 3) as HTMLElement;
-    const target = document.querySelector('[data-ambient-runtime-character="reduced-learner"]') as HTMLElement;
-    const h = hero.getBoundingClientRect(); const t = target.getBoundingClientRect(); const style = getComputedStyle(hero);
-    return { animationName: style.animationName, animationDuration: style.animationDuration,
-      delta: Math.max(Math.abs(h.x - t.x), Math.abs(h.y - t.y), Math.abs(h.width - t.width), Math.abs(h.height - t.height)) };
+}
+
+test("learner and Staff arrivals hand off sequentially into Self-keyed ambient actors", async ({ page }) => {
+  let delivered = false;
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    const events = delivered ? [] : [
+      presenceEvent(1, "ARRIVAL", "self-learner", "LEARNER", "visit-learner", "Bơ"),
+      presenceEvent(2, "ARRIVAL", "self-staff", "STAFF", "timekeeping-staff", "Mai"),
+    ];
+    delivered = true;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 2, events } }) });
   });
-  expect(result.animationName).toBe("none");
-  expect(result.animationDuration).toBe("0s");
-  expect(result.delta).toBeLessThan(1);
+  await noPresentations(page);
+
+  await page.goto("/pinoria-tv?centerId=unified-arrivals");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const learner = page.locator('[data-ambient-runtime-self="self-learner"]');
+  const staff = page.locator('[data-ambient-runtime-self="self-staff"]');
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào Bơ ✦", { timeout: 5_000 });
+  await expect(scene).toHaveAttribute("data-presence-actor-type", "LEARNER");
+  await expect(learner).toHaveAttribute("data-suppressed", "true");
+  await expect(staff).toHaveAttribute("data-ambient-runtime-actor-type", "STAFF");
+  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào Mai ✦", { timeout: 5_000 });
+  await expect(scene).toHaveAttribute("data-presence-actor-type", "STAFF");
+  await expect(scene).toHaveAttribute("data-arrival-source-type", "TIMEKEEPING_SESSION");
+});
+
+test("reconnect snapshot cancels a stale Staff arrival and never replays it", async ({ page }) => {
+  let snapshotCalls = 0;
+  let eventCalls = 0;
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => {
+    snapshotCalls += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: snapshotCalls === 1 ? 0 : 2, actors: [] } }) });
+  });
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    eventCalls += 1;
+    if (eventCalls === 1) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events: [presenceEvent(1, "ARRIVAL", "self-stale-staff", "STAFF", "timekeeping-stale", "Gone")] } }) });
+    return route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+  });
+  await noPresentations(page);
+
+  await page.goto("/pinoria-tv?centerId=staff-reconnect");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  await expect(scene).toHaveAttribute("data-presence-actor-type", "STAFF", { timeout: 5_000 });
+  await expect.poll(() => snapshotCalls, { timeout: 6_000 }).toBeGreaterThan(1);
+  await expect(scene).toHaveCount(0);
+  await expect(page.locator('[data-ambient-runtime-self="self-stale-staff"]')).toHaveCount(0);
+});
+
+test("replacement source on the same Self drops stale arrival and departure scenes", async ({ page }) => {
+  let delivered = false;
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    const events = delivered ? [] : [
+      presenceEvent(1, "ARRIVAL", "self-reused", "LEARNER", "visit-old", "Old source"),
+      presenceEvent(2, "DEPARTURE", "self-reused", "LEARNER", "visit-old", "Old source"),
+      presenceEvent(3, "ARRIVAL", "self-reused", "LEARNER", "visit-new", "New source"),
+    ];
+    delivered = true;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 3, events } }) });
+  });
+  await noPresentations(page);
+
+  await page.goto("/pinoria-tv?centerId=replacement-source");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const ambient = page.locator('[data-ambient-runtime-self="self-reused"]');
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào New source ✦", { timeout: 5_000 });
+  await expect(scene).toHaveAttribute("data-arrival-source-id", "visit-new");
+  await expect(ambient).toHaveCount(1);
+  await expect(ambient).toHaveAttribute("data-suppressed", "true");
+});
+
+test("dual learner plus Staff source reconciles to one ambient Self without a second hero", async ({ page }) => {
+  let snapshotCalls = 0;
+  let reconcileDelivered = false;
+  const learnerSource = { actorType: "LEARNER" as const, sourceType: "STUDENT_VISIT" as const, sourceId: "visit-dual", openedAt: "2026-09-07T04:00:00.000Z" };
+  const staffSource = { actorType: "STAFF" as const, sourceType: "TIMEKEEPING_SESSION" as const, sourceId: "timekeeping-dual", openedAt: "2026-09-07T04:10:00.000Z" };
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => {
+    snapshotCalls += 1;
+    const sources = snapshotCalls === 1 ? [learnerSource] : [learnerSource, staffSource];
+    const actorType: ActorType = snapshotCalls === 1 ? "LEARNER" : "STAFF";
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: snapshotCalls === 1 ? 0 : 1, actors: [actor("self-dual", actorType, sources[0]!.sourceId, "Dual", sources)] } }) });
+  });
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    const events = reconcileDelivered ? [] : [{ sequence: 1, kind: "RECONCILE_REQUIRED", pinoriaSelfId: "self-dual", sourceType: "TIMEKEEPING_SESSION", sourceId: "timekeeping-dual", occurredAt: "2026-09-07T04:10:00.000Z" }];
+    reconcileDelivered = true;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events } }) });
+  });
+  await noPresentations(page);
+
+  await page.goto("/pinoria-tv?centerId=dual-source");
+  const ambient = page.locator('[data-ambient-runtime-self="self-dual"]');
+  await expect(ambient).toHaveCount(1);
+  await expect.poll(() => snapshotCalls, { timeout: 6_000 }).toBeGreaterThan(1);
+  await expect(ambient).toHaveCount(1);
+  await expect(ambient).toHaveAttribute("data-ambient-runtime-actor-type", "STAFF");
+  await expect(page.locator('[data-arrival-scene="true"]')).toHaveCount(0);
+});
+
+test("mixed 30 learner plus 10 Staff snapshot renders 40 unique Self actors", async ({ page }) => {
+  const actors = Array.from({ length: 40 }, (_, index) => {
+    const actorType: ActorType = index < 30 ? "LEARNER" : "STAFF";
+    return actor(`self-${index}`, actorType, `${actorType === "LEARNER" ? "visit" : "timekeeping"}-${index}`, `${actorType} ${index}`, undefined, index === 39 ? null : character);
+  });
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 40, actors } }) }));
+  await page.route("**/api/pinoria-tv/events**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 40, events: [] } }) }));
+  await noPresentations(page);
+
+  await page.goto("/pinoria-tv?centerId=mixed-40");
+  const ambient = page.locator("[data-ambient-runtime-self]");
+  await expect(ambient).toHaveCount(40, { timeout: 7_000 });
+  await expect(page.locator('[data-ambient-runtime-actor-type="STAFF"]')).toHaveCount(10);
+  await expect(page.locator('[data-ambient-runtime-self="self-39"] [data-character-state="invalid"]')).toHaveCount(1);
+});
+
+test("reduced motion lands Staff arrival hero on its reserved Self actor", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  let delivered = false;
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    const events = delivered ? [] : [presenceEvent(1, "ARRIVAL", "self-reduced", "STAFF", "timekeeping-reduced", "Reduced")];
+    delivered = true;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events } }) });
+  });
+  await noPresentations(page);
+
+  await page.goto("/pinoria-tv?centerId=reduced-staff");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  const ambient = page.locator('[data-ambient-runtime-self="self-reduced"]');
+  await expect(scene).toHaveAttribute("data-arrival-phase", "handoff", { timeout: 7_000 });
+  await expect(ambient).toHaveAttribute("data-suppressed", "true");
+  await expect.poll(() => scene.evaluate((element) => (element as HTMLElement).style.getPropertyValue("--arrival-target-left"))).not.toBe("");
+  const delta = await scene.evaluate((element) => {
+    const hero = Array.from(element.children).find((child) => child.querySelectorAll("img").length >= 3) as HTMLElement;
+    const target = document.querySelector('[data-ambient-runtime-self="self-reduced"]') as HTMLElement;
+    const h = hero.getBoundingClientRect(); const t = target.getBoundingClientRect();
+    return Math.max(Math.abs(h.x - t.x), Math.abs(h.y - t.y), Math.abs(h.width - t.width), Math.abs(h.height - t.height));
+  });
+  expect(delta).toBeLessThan(1);
 });

@@ -8,7 +8,7 @@ test("TOS exception request derives staff/workDate in Core and normal check-in r
   assert.match(api, /JSON\.stringify\(\{centerId,reason\}\)/);
   assert.doesNotMatch(api, /requestUnscheduledCheckIn:[^\n]*staffMemberId/);
   assert.doesNotMatch(api, /requestUnscheduledCheckIn:[^\n]*workDate/);
-  assert.match(api, /checkIn:\(centerId:string,assignmentId:string\)/);
+  assert.match(api, /checkIn:\(centerId:string,assignmentId:string\|null\|undefined,idempotencyKey:string\)/);
 });
 
 test("TOS exception UI uses canonical status and does not persist authority in browser storage", async () => {
