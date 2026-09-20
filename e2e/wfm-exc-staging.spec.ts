@@ -5,6 +5,7 @@ const STAGING_ORIGIN = "https://pino-team-os-staging.minhtri-van42.workers.dev";
 const EMAIL = process.env.PINO_STAGING_STAFF_EMAIL ?? "";
 const PASSWORD = process.env.PINO_STAGING_STAFF_PASSWORD ?? "";
 const CENTER_KEY = "staging-workforce-exception-probe";
+const CORE_VERSION = process.env.CORE_STAGING_VERSION_ID ?? "";
 
 function revalidateMutationAuthority() {
   execFileSync("bash", ["scripts/assert-wfm-exc-staging-authority.sh"], {
@@ -18,7 +19,7 @@ test.use({ baseURL: STAGING_ORIGIN });
 test.describe.configure({ mode: "serial" });
 
 test("unscheduled request -> manager approval -> canonical normal-check-in handoff", async ({ page }) => {
-  test.skip(!EMAIL || !PASSWORD, "staging staff credentials are required");
+  test.skip(!EMAIL || !PASSWORD || !CORE_VERSION, "staging staff credentials and exact Core version are required");
 
   const login = await page.request.post("/api/staff-auth/login", { data: { email: EMAIL, password: PASSWORD } });
   expect(login.status()).toBe(200);
@@ -37,7 +38,7 @@ test("unscheduled request -> manager approval -> canonical normal-check-in hando
   revalidateMutationAuthority();
   const requestKey = `staging-wfm-exc-request-${Date.now()}`;
   const requestResponse = await page.request.post("/api/workforce/check-in-exceptions", {
-    headers: { "idempotency-key": requestKey },
+    headers: { "idempotency-key": requestKey, "x-pino-staging-core-version": CORE_VERSION },
     data: { centerId: center!.id, reason: "Golden Journey staging verification" },
   });
   expect(requestResponse.status()).toBe(201);
@@ -52,7 +53,7 @@ test("unscheduled request -> manager approval -> canonical normal-check-in hando
 
   revalidateMutationAuthority();
   const approveResponse = await page.request.post(`/api/bo/workforce/planning/check-in-exceptions/${requested.data.id}/approve`, {
-    headers: { "idempotency-key": `staging-wfm-exc-approve-${Date.now()}` },
+    headers: { "idempotency-key": `staging-wfm-exc-approve-${Date.now()}`, "x-pino-staging-core-version": CORE_VERSION },
     data: { expectedVersion: queued!.version },
   });
   expect(approveResponse.status()).toBe(200);

@@ -1,4 +1,5 @@
 import { teamCredential, TeamAuthError, type TeamAccessEnv, type TeamCredential, type VerifiedTeamIdentity } from "./team-auth";
+import { workforceTransportContextFromRequest, type WorkforceTransportContext } from "./workforce-core";
 
 export interface WorkforcePlanningRequest {
   method: string;
@@ -14,8 +15,8 @@ export interface WorkforcePlanningResponse {
 }
 
 export interface WorkforcePlanningCoreBinding {
-  executePlanning?(request: WorkforcePlanningRequest, identity: VerifiedTeamIdentity): Promise<WorkforcePlanningResponse>;
-  executePlanningWithStaffPassword(request: WorkforcePlanningRequest, token: string): Promise<WorkforcePlanningResponse>;
+  executePlanning?(request: WorkforcePlanningRequest, identity: VerifiedTeamIdentity, transport?: WorkforceTransportContext): Promise<WorkforcePlanningResponse>;
+  executePlanningWithStaffPassword(request: WorkforcePlanningRequest, token: string, transport?: WorkforceTransportContext): Promise<WorkforcePlanningResponse>;
 }
 
 export interface BoWorkforcePlanningEnv extends TeamAccessEnv {
@@ -61,7 +62,7 @@ export async function handleBoWorkforcePlanningRequest(
     }
 
     const coreRequest = { method, path: path.slice(PREFIX.length), body, ...(idempotencyKey ? { idempotencyKey } : {}) };
-    const result = await callPlanning(env.PINO_WORKFORCE_CORE, coreRequest, await teamCredential(request, env, "BO"));
+    const result = await callPlanning(env.PINO_WORKFORCE_CORE, coreRequest, await teamCredential(request, env, "BO"), workforceTransportContextFromRequest(request));
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
@@ -73,10 +74,10 @@ export function isBoWorkforcePlanningPath(path: string): boolean {
   return path.startsWith(PREFIX);
 }
 
-function callPlanning(binding: WorkforcePlanningCoreBinding, request: WorkforcePlanningRequest, credential: TeamCredential): Promise<WorkforcePlanningResponse> {
-  if (credential.kind === "password") return binding.executePlanningWithStaffPassword(request, credential.token);
+function callPlanning(binding: WorkforcePlanningCoreBinding, request: WorkforcePlanningRequest, credential: TeamCredential, transport: WorkforceTransportContext = {}): Promise<WorkforcePlanningResponse> {
+  if (credential.kind === "password") return binding.executePlanningWithStaffPassword(request, credential.token, transport);
   if (!binding.executePlanning) throw new Error("WORKFORCE_PLANNING_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");
-  return binding.executePlanning(request, credential.identity);
+  return binding.executePlanning(request, credential.identity, transport);
 }
 
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {

@@ -145,11 +145,6 @@ jobs:
           CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
           CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
           CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
-          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
-          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
-          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
-          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
-          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
@@ -161,6 +156,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
           STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
           STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
