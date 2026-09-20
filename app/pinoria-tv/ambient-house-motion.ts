@@ -401,7 +401,7 @@ export function stepAmbientAgents(
   previous: readonly AmbientAgent[],
   graph: AmbientMotionGraph,
   elapsedMs: number,
-  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string> } = {},
+  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string>; speedMultipliers?: ReadonlyMap<string, number> } = {},
 ): AmbientAgent[] {
   const laneList = usableLanes(graph);
   const lanes = new Map(laneList.map((lane) => [lane.id, lane]));
@@ -425,6 +425,7 @@ export function stepAmbientAgents(
 
   const next = previous.map((agent) => {
     const departing = options.departingIds?.has(agent.id) ?? false;
+    const speedMultiplier = Math.min(3, Math.max(0.1, options.speedMultipliers?.get(agent.id) ?? 1));
     if (options.frozenIds?.has(agent.id)) return { ...agent, motionState: "idle" as const };
     let motionState = departing || agent.connectorId ? "walk" as const : agent.motionState;
     let activityEpoch = agent.activityEpoch;
@@ -440,7 +441,7 @@ export function stepAmbientAgents(
     if (agent.connectorId) {
       const connector = connectorForAgent(agent, connectors);
       if (!connector) return { ...agent, ...activity, connectorId: undefined, connectorFromLaneId: undefined, connectorToLaneId: undefined, connectorProgress: undefined };
-      const speed = departing ? DEPARTURE_SPEED_PX_PER_SECOND : CONNECTOR_SPEED_PX_PER_SECOND;
+      const speed = departing ? DEPARTURE_SPEED_PX_PER_SECOND : CONNECTOR_SPEED_PX_PER_SECOND * speedMultiplier;
       const currentProgress = agent.connectorProgress ?? 0;
       const proposedProgress = Math.min(1, currentProgress + (speed * seconds) / connector.length);
       const progress = furthestClearProgress(connector.path, currentProgress, proposedProgress, previous, agent.id);
@@ -487,7 +488,7 @@ export function stepAmbientAgents(
     if (target) {
       const delta = target.from.x - agent.x;
       const direction: -1 | 1 = delta < 0 ? -1 : 1;
-      const distance = agent.speed * seconds;
+      const distance = agent.speed * speedMultiplier * seconds;
       if (Math.abs(delta) <= distance + 0.5) {
         const destination = lanes.get(target.toLaneId)!;
         const destinationCount = reservations.get(target.toLaneId) ?? 0;
@@ -522,7 +523,7 @@ export function stepAmbientAgents(
     }
 
     let direction = agent.direction;
-    let proposed = agent.x + direction * agent.speed * seconds;
+    let proposed = agent.x + direction * agent.speed * speedMultiplier * seconds;
     if (proposed <= bounds.x1) { proposed = bounds.x1; direction = 1; }
     if (proposed >= bounds.x2) { proposed = bounds.x2; direction = -1; }
     const x = furthestClearX(agent.x, proposed, lane.y, previous, agent.id);
