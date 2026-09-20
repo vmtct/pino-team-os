@@ -14,9 +14,12 @@ const config = {
   hair: "draft/Hair.png", face: "draft/Face.png", outfit: "draft/Body.png", headwear: "draft/Hat.png",
 };
 
-test("Effect presentation is code-defined and unknown keys fail closed", () => {
+test("Effect presentation is code-defined and unknown or inherited keys fail closed", () => {
   assert.deepEqual(resolvePinoriaEffectPresentation("GIANT"), { key: "GIANT", houseScale: 2, speedMultiplier: 0.55, spectral: false, floating: false, rainbowSilhouette: false });
   assert.equal(resolvePinoriaEffectPresentation("UNKNOWN"), null);
+  assert.equal(resolvePinoriaEffectPresentation("__proto__"), null);
+  assert.equal(resolvePinoriaEffectPresentation("constructor"), null);
+  assert.equal(resolvePinoriaEffectPresentation("toString"), null);
   assert.equal(resolvePinoriaEffectPresentation(null), null);
 });
 
@@ -26,6 +29,12 @@ test("Rainbow uses exact current layers as chroma masks and suppresses original 
   assert.match(html, /data-rainbow-layer-count="4"/);
   assert.match(html, /data-rainbow-source="https:\/\/assets\.pinohouse\.art\/draft\/Hat\.png"/);
   assert.doesNotMatch(html, /<img/);
+  assert.match(html, /left:0/);
+  assert.match(html, /top:0/);
+  assert.match(html, /transform:none/);
+  assert.match(html, /padding:0/);
+  assert.match(html, /border-radius:0/);
+  assert.match(html, /overflow:visible/);
   assert.match(html, /pino-rainbow-shift/);
   assert.match(html, /prefers-reduced-motion/);
 });

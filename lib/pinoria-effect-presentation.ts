@@ -19,6 +19,6 @@ const PRESENTATIONS: Record<PinoriaEffectPresentationKey, PinoriaEffectPresentat
 };
 
 export function resolvePinoriaEffectPresentation(key: string | null | undefined): PinoriaEffectPresentation | null {
-  if (!key) return null;
+  if (!key || !Object.hasOwn(PRESENTATIONS, key)) return null;
   return PRESENTATIONS[key as PinoriaEffectPresentationKey] ?? null;
 }

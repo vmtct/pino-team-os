@@ -73,6 +73,7 @@ function RainbowLayers({ layers, surface }: { layers: string[]; surface: Pinoria
       data-rainbow-source={src}
       style={{
         position: "absolute", inset: 0, display: "block",
+        left: 0, top: 0, transform: "none", maxWidth: "none", padding: 0, borderRadius: 0, overflow: "visible",
         WebkitMaskImage: `url(${JSON.stringify(src)})`, maskImage: `url(${JSON.stringify(src)})`,
         WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
         WebkitMaskPosition: "center", maskPosition: "center",
