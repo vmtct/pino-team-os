@@ -12,7 +12,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: pino-team-staging-worker-mutation
+  group: "${{ github.event.issue.title == '[GPT] Workforce Team staging deploy' && 'pino-team-staging-worker-mutation' || format('{0}-{1}', github.workflow, github.run_id) }}"
   cancel-in-progress: false
 
 jobs:
