@@ -1,0 +1,86 @@
+name: Workforce Exception Staging E2E
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: workforce-exception-staging-e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    if: github.event.issue.title == '[GPT] Workforce exception staging E2E' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      PINO_STAGING_STAFF_EMAIL: ${{ secrets.PINO_STAGING_STAFF_EMAIL }}
+      PINO_STAGING_STAFF_PASSWORD: ${{ secrets.PINO_STAGING_STAFF_PASSWORD }}
+    steps:
+      - name: Validate request
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          reject(){ gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "WORKFORCE_EXCEPTION_STAGING_E2E: REJECTED
+
+$1"; exit 1; }
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
+          team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          grep -Eq '^CONFIRM:[[:space:]]*RUN_WORKFORCE_EXCEPTION_STAGING_E2E[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing explicit confirmation."
+          main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve main."
+          [ "$team_sha" = "$main_sha" ] || reject "Requested SHA is not current Team main."
+          runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&event=push&per_page=30")"
+          jq -e '[.workflow_runs[] | select(.name=="Cloudflare Build + Serving Truth" and .status=="completed" and .conclusion=="success")] | length >= 1' <<<"$runs" >/dev/null || reject "No successful current-main Team serving-truth run exists."
+          echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
+          echo "TEAM_SHA=$team_sha" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.gate.outputs.team_sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run cross-runtime Golden Journey
+        run: |
+          set -euo pipefail
+          [ -n "${PINO_STAGING_STAFF_EMAIL:-}" ] && [ -n "${PINO_STAGING_STAFF_PASSWORD:-}" ] || { echo "Missing staging credentials" >&2; exit 1; }
+          npx playwright test e2e/wfm-exc-staging.spec.ts --workers=1
+
+      - name: Report PASS
+        if: success()
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "WORKFORCE_EXCEPTION_STAGING_E2E: PASS
+
+Team source: ${TEAM_SHA}
+Journey: request -> BO manager approval -> canonical eligible assignment handoff
+Runtimes: pino-team-os-staging -> pino-core-staging
+Golden Journey: GJ-WFM-EXCEPTION-01
+
+No Production mutation was performed."
+
+      - name: Report failure
+        if: failure()
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "WORKFORCE_EXCEPTION_STAGING_E2E: FAIL_SAFE
+
+Team source: ${TEAM_SHA:-unknown}
+No Production mutation was authorized by this workflow." || true
