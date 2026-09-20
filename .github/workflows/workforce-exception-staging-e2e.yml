@@ -89,13 +89,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$TEAM_SHA"
           test -z "$(git status --porcelain)"
 
-          npx wrangler deployments list -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-deployments.json"
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-active.json"
+          deployment="$(cat "$RUNNER_TEMP/staging-active.json")"
           prefix="Workforce staging ${TEAM_SHA} run "
-          deployment="$(jq -c --arg prefix "$prefix" '[.[] | select((.annotations["workers/message"] // "") | startswith($prefix))] | last' "$RUNNER_TEMP/staging-deployments.json")"
-          [ "$deployment" != "null" ] || { echo "No staging deployment provenance matches exact Team SHA" >&2; exit 1; }
+          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
+          [[ "$message" == "$prefix"* ]] || { echo "Current active staging deployment provenance does not match exact Team SHA" >&2; exit 1; }
           version_id="$(jq -r '.versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployment" | head -1)"
           [ -n "$version_id" ] || { echo "Exact Team SHA is not active at 100% on pino-team-os-staging" >&2; exit 1; }
-          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
           run_id="${message##* run }"
           [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Staging deployment run provenance is malformed" >&2; exit 1; }
 
@@ -114,10 +114,11 @@ jobs:
           current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           [ "$current_main" = "$TEAM_SHA" ] || { echo "Team main drifted before Golden Journey mutation" >&2; exit 1; }
 
-          npx wrangler deployments list -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-recheck.json"
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-recheck.json"
+          deployment="$(cat "$RUNNER_TEMP/staging-recheck.json")"
           prefix="Workforce staging ${TEAM_SHA} run "
-          deployment="$(jq -c --arg prefix "$prefix" '[.[] | select((.annotations["workers/message"] // "") | startswith($prefix))] | last' "$RUNNER_TEMP/staging-recheck.json")"
-          [ "$deployment" != "null" ] || { echo "Exact staging deployment provenance disappeared" >&2; exit 1; }
+          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
+          [ "$message" = "$prefix${{ steps.staging.outputs.deploy_run_id }}" ] || { echo "Current staging deployment provenance changed before Golden Journey mutation" >&2; exit 1; }
           jq -e --arg version "${{ steps.staging.outputs.version_id }}" 'any(.versions[]?; .percentage == 100 and .version_id == $version)' <<<"$deployment" >/dev/null || {
             echo "Staging serving revision changed before Golden Journey mutation" >&2
             exit 1
@@ -142,10 +143,11 @@ jobs:
           current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           [ "$current_main" = "$TEAM_SHA" ] || { echo "Team main drifted before staging PASS" >&2; exit 1; }
 
-          npx wrangler deployments list -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-pass-recheck.json"
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-pass-recheck.json"
+          deployment="$(cat "$RUNNER_TEMP/staging-pass-recheck.json")"
           prefix="Workforce staging ${TEAM_SHA} run "
-          deployment="$(jq -c --arg prefix "$prefix" '[.[] | select((.annotations["workers/message"] // "") | startswith($prefix))] | last' "$RUNNER_TEMP/staging-pass-recheck.json")"
-          [ "$deployment" != "null" ] || { echo "Exact staging deployment provenance disappeared before PASS" >&2; exit 1; }
+          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
+          [ "$message" = "$prefix${{ steps.staging.outputs.deploy_run_id }}" ] || { echo "Current staging deployment provenance changed before PASS" >&2; exit 1; }
           jq -e --arg version "${{ steps.staging.outputs.version_id }}" 'any(.versions[]?; .percentage == 100 and .version_id == $version)' <<<"$deployment" >/dev/null || {
             echo "Staging serving revision changed before PASS" >&2
             exit 1
