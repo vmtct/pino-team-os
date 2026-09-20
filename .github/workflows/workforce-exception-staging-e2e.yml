@@ -25,7 +25,7 @@ jobs:
       ISSUE_BODY: ${{ github.event.issue.body }}
       CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
       STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
-      PINO_STAGING_STAFF_EMAIL: ${{ secrets.PINO_STAGING_STAFF_EMAIL }}
+      PINO_STAGING_STAFF_EMAIL: workforce-exception-staging-probe@pino.invalid
       PINO_STAGING_STAFF_PASSWORD: ${{ secrets.PINO_STAGING_STAFF_PASSWORD }}
 
     steps:
