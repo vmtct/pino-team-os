@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: "${{ github.event.issue.title == '[GPT] Workforce exception staging E2E' && 'pino-team-staging-worker-mutation' || format('{0}-{1}', github.workflow, github.run_id) }}"
+  group: "${{ github.event.issue.title == '[GPT] Workforce exception staging E2E' && github.event.issue.user.login == 'vmtct' && 'pino-team-staging-worker-mutation' || format('{0}-{1}', github.workflow, github.run_id) }}"
   cancel-in-progress: false
 
 jobs:
