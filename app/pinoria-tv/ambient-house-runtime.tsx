@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import graphData from "./ambient-house-motion-graph.saved.json";
-import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
+import { LayeredCharacter, type PinoriaCharacterConfig, type PinoriaWardRender } from "./layered-character";
 import { resolvePinoriaEffectPresentation } from "../../lib/pinoria-effect-presentation";
 import {
   createAmbientAgents,
@@ -19,6 +19,7 @@ export type AmbientHouseActor = {
   actorType: "LEARNER" | "STAFF";
   name: string;
   config: PinoriaCharacterConfig | null;
+  wardRender?: PinoriaWardRender | null;
   effectKey?: string | null;
 };
 
@@ -75,7 +76,7 @@ export function AmbientHouseRuntime({ actors, departingId = null, suppressedIds 
       "--agent-scale": `${scale}`,
     } as CSSProperties;
     return <div key={agent.id} className={styles.agent} style={style} data-pinoria-effect={effect?.key ?? ""} data-effect-speed={effect?.speedMultiplier ?? 1} data-ambient-runtime-character={agent.id} data-ambient-runtime-self={agent.id} data-ambient-runtime-actor-type={actor.actorType} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
-      <LayeredCharacter className={styles.character} config={actor.config ?? {}} effectKey={actor.effectKey} effectSurface="HOUSE_MINI" />
+      <LayeredCharacter className={styles.character} config={actor.config ?? {}} wardRender={actor.wardRender} effectKey={actor.effectKey} effectSurface="HOUSE_MINI" />
       <span>{actor.name}</span>
     </div>;
   };
