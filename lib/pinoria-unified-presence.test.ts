@@ -8,11 +8,12 @@ import {
   mergePresenceWardSessions,
   parsePresenceEventPage,
   parsePresenceSnapshot,
+  type PresenceActor,
 } from "../app/pinoria-tv/presence-contract";
 
 const character = { hair: "hair.png", face: "face.png", outfit: "outfit.png" };
 
-function actor(index: number, actorType: "LEARNER" | "STAFF" = "LEARNER") {
+function actor(index: number, actorType: "LEARNER" | "STAFF" = "LEARNER"): PresenceActor {
   const sourceType = actorType === "LEARNER" ? "STUDENT_VISIT" : "TIMEKEEPING_SESSION";
   return {
     pinoriaSelfId: `self-${index}`,
@@ -21,6 +22,7 @@ function actor(index: number, actorType: "LEARNER" | "STAFF" = "LEARNER") {
     characterId: actorType === "STAFF" && index === 39 ? null : `character-${index}`,
     character: actorType === "STAFF" && index === 39 ? null : character,
     loadout: actorType === "STAFF" && index === 39 ? null : { version: 2, slots: { OUTFIT: `variant-${index}` } },
+    wardRender: actorType === "STAFF" && index === 39 ? null : { mode: "LAYERED" as const, webmAssetKey: null, variants: [] },
     sources: [{ actorType, sourceType, sourceId: `source-${index}`, openedAt: "2026-09-07T04:00:00.000Z" }],
   };
 }
@@ -32,6 +34,27 @@ test("mixed 30 learner + 10 Staff snapshot preserves one actor per Pinoria Self"
   assert.equal(new Set(snapshot.actors.map((item) => item.pinoriaSelfId)).size, 40);
   assert.equal(snapshot.actors.filter((item) => item.actorType === "STAFF").length, 10);
   assert.equal(snapshot.actors.at(-1)?.character, null);
+});
+
+
+
+test("presence snapshot accepts bounded canonical Ward render projection and rejects invalid set shape", () => {
+  const row = actor(30);
+  row.wardRender = {
+    mode: "LAYERED",
+    webmAssetKey: null,
+    variants: [{
+      slot: "OUTFIT",
+      variantId: "variant-outfit",
+      renderMode: "LAYER",
+      assetKey: "ward/outfit.png",
+      posterAssetKey: null,
+      renderMetadata: { zIndex: 22, scale: 1.05 },
+    }],
+  };
+  const parsed = parsePresenceSnapshot({ cursor: 8, actors: [row] }).actors[0]!;
+  assert.equal(parsed.wardRender?.variants[0]?.assetKey, "ward/outfit.png");
+  assert.throws(() => parsePresenceSnapshot({ cursor: 8, actors: [{ ...row, wardRender: { mode: "SET_WEBM", webmAssetKey: null, variants: [] } }] }), /PINORIA_PRESENCE_WARD_RENDER_INVALID/);
 });
 
 test("snapshot rejects duplicate Pinoria Self instead of rendering duplicate ambient actors", () => {

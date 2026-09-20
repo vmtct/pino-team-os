@@ -1,4 +1,4 @@
-import type { PinoriaCharacterConfig } from "./layered-character";
+import type { PinoriaCharacterConfig, PinoriaWardRender } from "./layered-character";
 import type { WardSession, WardSessionCandidate, WardSlot } from "@/lib/pinoria-ward-session";
 
 export type PresenceActorType = "LEARNER" | "STAFF";
@@ -10,6 +10,7 @@ export type PresenceSource = {
   openedAt: string;
 };
 export type PresenceLoadout = { version: number; slots: Record<string, string> } | null;
+export type PresenceWardRender = PinoriaWardRender | null;
 export type PresenceActor = {
   pinoriaSelfId: string;
   actorType: PresenceActorType;
@@ -17,6 +18,7 @@ export type PresenceActor = {
   characterId: string | null;
   character: PinoriaCharacterConfig | null;
   loadout: PresenceLoadout;
+  wardRender: PresenceWardRender;
   sources: PresenceSource[];
   wardSession?: WardSession;
 };
@@ -67,6 +69,7 @@ export function actorFromArrival(event: PresenceEvent): PresenceActor {
     characterId: event.payload.characterId,
     character: event.payload.character,
     loadout: event.payload.loadout,
+    wardRender: null,
     sources: [{ actorType: event.actorType, sourceType: event.sourceType, sourceId: event.sourceId, openedAt: event.occurredAt }],
   };
 }
@@ -122,6 +125,7 @@ function parseActor(value: unknown): PresenceActor {
     characterId: nullableText(row.characterId, "PINORIA_PRESENCE_CHARACTER_ID_INVALID"),
     character: character(row.character),
     loadout: loadout(row.loadout),
+    wardRender: wardRender(row.wardRender),
     sources,
     ...(row.wardSession === undefined ? {} : { wardSession: wardSession(row.wardSession) }),
   };
@@ -186,6 +190,31 @@ function loadout(value: unknown): PresenceLoadout {
   const parsed: Record<string, string> = {};
   for (const [slot, variantId] of Object.entries(slots)) parsed[slot] = text(variantId, "PINORIA_PRESENCE_LOADOUT_INVALID");
   return { version: integer(row.version, "PINORIA_PRESENCE_LOADOUT_INVALID"), slots: parsed };
+}
+function wardRender(value: unknown): PresenceWardRender {
+  if (value === null) return null;
+  const row = object(value, "PINORIA_PRESENCE_WARD_RENDER_INVALID");
+  const mode = row.mode;
+  if (mode !== "LAYERED" && mode !== "SET_WEBM") throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+  const webmAssetKey = nullableText(row.webmAssetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID");
+  if ((mode === "SET_WEBM") !== Boolean(webmAssetKey)) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+  const variants = array(row.variants, "PINORIA_PRESENCE_WARD_RENDER_INVALID").map((value) => {
+    const variant = object(value, "PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    const slot = text(variant.slot, "PINORIA_PRESENCE_WARD_RENDER_INVALID") as WardSlot;
+    if (!WARD_SLOTS.has(slot)) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    const renderMode = variant.renderMode;
+    if (renderMode !== "LAYER" && renderMode !== "STANDALONE" && renderMode !== "WEBM") throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+    return {
+      slot,
+      variantId: text(variant.variantId, "PINORIA_PRESENCE_WARD_RENDER_INVALID"),
+      renderMode: renderMode as "LAYER" | "STANDALONE" | "WEBM",
+      assetKey: nullableText(variant.assetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID"),
+      posterAssetKey: nullableText(variant.posterAssetKey, "PINORIA_PRESENCE_WARD_RENDER_INVALID"),
+      renderMetadata: variant.renderMetadata,
+    };
+  });
+  if (new Set(variants.map((variant) => variant.slot)).size !== variants.length) throw new Error("PINORIA_PRESENCE_WARD_RENDER_INVALID");
+  return { mode, webmAssetKey, variants };
 }
 
 const WARD_SLOTS = new Set<WardSlot>(["HEAD/HAIR","FACE","HEADWEAR","OUTFIT","BACK","AURA_BACK","AURA_GROUND","PATH_MARK"]);

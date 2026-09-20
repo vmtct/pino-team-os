@@ -38,6 +38,46 @@ test("blank required canonical layers fail visibly", () => {
   assert.equal(hasRenderableCharacterConfig(config), false);
 });
 
+
+
+test("Ward loadout replaces the canonical slot in rendered character state", () => {
+  const config = { hair: "draft/Hair.png", face: "draft/Face.png", outfit: "draft/Body.png" };
+  const wardRender = {
+    mode: "LAYERED" as const,
+    webmAssetKey: null,
+    variants: [{
+      slot: "OUTFIT" as const,
+      variantId: "variant-outfit",
+      renderMode: "LAYER" as const,
+      assetKey: "ward/OutfitBlue.png",
+      posterAssetKey: null,
+      renderMetadata: { zIndex: 22, offsetX: 2, scale: 1.1 },
+    }],
+  };
+  const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config, wardRender }));
+  assert.match(html, /data-ward-layer="variant-outfit"/);
+  assert.match(html, /ward\/OutfitBlue\.png/);
+  assert.doesNotMatch(html, /draft\/Body\.png/);
+});
+
+test("SET_WEBM suppresses standard layers but preserves Ward effect slots", () => {
+  const config = { hair: "draft/Hair.png", face: "draft/Face.png", outfit: "draft/Body.png" };
+  const wardRender = {
+    mode: "SET_WEBM" as const,
+    webmAssetKey: "ward/set.webm",
+    variants: [
+      { slot: "OUTFIT" as const, variantId: "variant-outfit", renderMode: "LAYER" as const, assetKey: "ward/OutfitBlue.png", posterAssetKey: null, renderMetadata: {} },
+      { slot: "AURA_BACK" as const, variantId: "variant-aura", renderMode: "LAYER" as const, assetKey: "ward/Aura.png", posterAssetKey: null, renderMetadata: { zIndex: 8 } },
+    ],
+  };
+  const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config, wardRender }));
+  assert.match(html, /data-ward-set-webm/);
+  assert.match(html, /set\.webm/);
+  assert.match(html, /data-ward-layer="variant-aura"/);
+  assert.doesNotMatch(html, /data-ward-layer="variant-outfit"/);
+  assert.doesNotMatch(html, /draft\/Body\.png/);
+});
+
 test("canonical character layers remain renderable", () => {
   const config = { hair: "draft/Hair.png", face: "draft/Face.png", outfit: "draft/Body.png" };
   assert.equal(hasRenderableCharacterConfig(config), true);
