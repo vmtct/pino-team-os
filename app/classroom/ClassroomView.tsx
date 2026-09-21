@@ -24,10 +24,9 @@ function apiMessage(error: unknown) {
   }
   return error instanceof Error ? error.message : "Không thể hoàn tất thao tác lớp học.";
 }
-function currentSyllabus(options: LearningOptions | null) {
-  if (!options) return null;
-  if (options.primarySyllabusId) return options.syllabi.find((item) => item.id === options.primarySyllabusId) ?? null;
-  return options.syllabi.find((item) => item.publicationStatus === "PUBLISHED") ?? options.syllabi[0] ?? null;
+function boundLearningSyllabusVersion(options: LearningOptions | null) {
+  if (!options?.learningSyllabusVersionId || !options.learningSyllabusVersion) return null;
+  return options.learningSyllabusVersion.id === options.learningSyllabusVersionId ? options.learningSyllabusVersion : null;
 }
 function sourceLabel(entry: RosterEntry) {
   if (entry.status === "CONFLICT") return "Nhiều nguồn · cần Operations xử lý";
@@ -57,7 +56,8 @@ export default function ClassroomView({ initialSessionId = "" }: { initialSessio
   const [success, setSuccess] = useState("");
 
   const selectedSession = sessions.find((item) => item.id === sessionId) ?? null;
-  const lessonPlan = currentSyllabus(options);
+  const lessonPlan = boundLearningSyllabusVersion(options);
+  const legacyDiarySyllabusId = options?.primarySyllabusId ?? null;
   const entries = useMemo(() => [...(roster?.entries ?? [])].sort((a, b) => a.studentDisplayName.localeCompare(b.studentDisplayName, "vi")), [roster]);
   const resolved = useMemo(() => [...(roster?.resolvedParticipations ?? [])].sort((a, b) => a.studentDisplayName.localeCompare(b.studentDisplayName, "vi")), [roster]);
 
@@ -180,18 +180,18 @@ export default function ClassroomView({ initialSessionId = "" }: { initialSessio
     if (entry.status !== "CANDIDATE") return;
     const source = entry.sources[0];
     if (!selectedSession || !source || !canSettleSource(source)) return;
-    if (status === "PRESENT" && (!owner || !lessonPlan)) return;
+    if (status === "PRESENT" && (!owner || !lessonPlan || !legacyDiarySyllabusId)) return;
     const note = notes[entry.studentProfileId];
     await runAction(`attendance:${entry.studentProfileId}:${status}`, async () => {
       await tosDayOfLearningApi.settle({
         studentProfileId: entry.studentProfileId, sessionId: selectedSession.id, source, attendanceStatus: status,
-        ...(status === "PRESENT" ? { syllabusId: lessonPlan!.id, learningNote: note?.learningNote, observation: note?.observation } : {}),
+        ...(status === "PRESENT" ? { syllabusId: legacyDiarySyllabusId!, learningNote: note?.learningNote, observation: note?.observation } : {}),
       }, crypto.randomUUID());
     }, `${entry.studentDisplayName}: ${status === "PRESENT" ? "Có mặt + evidence" : "Vắng"} đã được Core ghi nhận.`);
   }
   async function correct(entry: ResolvedParticipation, nextStatus: "PRESENT" | "ABSENT") {
     if (nextStatus === entry.attendanceStatus) return;
-    if (nextStatus === "PRESENT" && (!owner || !lessonPlan)) return;
+    if (nextStatus === "PRESENT" && (!owner || !lessonPlan || !legacyDiarySyllabusId)) return;
     if (nextStatus === "ABSENT" && !entry.diaryVersion) return;
     const reason = prompt(`Lý do sửa ${entry.studentDisplayName} thành ${nextStatus === "PRESENT" ? "Có mặt" : "Vắng"}`);
     if (!reason) return;
@@ -203,13 +203,13 @@ export default function ClassroomView({ initialSessionId = "" }: { initialSessio
         diaryVersion: entry.diaryVersion,
         nextStatus,
         reason,
-        ...(nextStatus === "PRESENT" ? { syllabusId: lessonPlan!.id, learningNote: note?.learningNote, observation: note?.observation } : {}),
+        ...(nextStatus === "PRESENT" ? { syllabusId: legacyDiarySyllabusId!, learningNote: note?.learningNote, observation: note?.observation } : {}),
       }, crypto.randomUUID());
     }, `${entry.studentDisplayName}: Attendance đã được correction sang ${nextStatus === "PRESENT" ? "Có mặt" : "Vắng"}.`);
   }
 
   const selectedCenter = context?.centers.find((item) => item.id === centerId) ?? null;
-  const presentReady = Boolean(owner && lessonPlan);
+  const presentReady = Boolean(owner && lessonPlan && legacyDiarySyllabusId);
   return <TosShell title="Day of Learning" subtitle={selectedCenter?.displayName ?? profile?.displayLabel ?? "PINO Team"} theme="classroom" footerItems={TOS_CLASSROOM_FOOTER} activeFooterId="today">
     <div className={styles.page}>
       <section className={styles.toolbar}>
@@ -228,7 +228,7 @@ export default function ClassroomView({ initialSessionId = "" }: { initialSessio
         </section>
         <section className={styles.readinessGrid}>
           <div className={arrivalEnabled ? styles.readyCard : styles.blockedCard}><span>01 · HIỆN DIỆN HOUSE</span><strong>{arrivalEnabled ? "Check-in/out sẵn sàng" : "Không có quyền Arrival"}</strong><small>Visit chỉ phản ánh có mặt tại House, không tự tạo Attendance.</small></div>
-          <div className={presentReady ? styles.readyCard : styles.blockedCard}><span>02 · ATTENDANCE + EVIDENCE</span><strong>{presentReady ? "Có mặt sẵn sàng" : "Có mặt đang bị chặn"}</strong><small>{!owner ? "Session chưa có Learning Owner" : !lessonPlan ? "Chưa có Syllabus khả dụng" : lessonPlan.title}</small></div>
+          <div className={presentReady ? styles.readyCard : styles.blockedCard}><span>02 · ATTENDANCE + EVIDENCE</span><strong>{presentReady ? "Có mặt sẵn sàng" : "Có mặt đang bị chặn"}</strong><small>{!owner ? "Session chưa có Learning Owner" : !lessonPlan ? "Session chưa có exact shared SyllabusVersion" : !legacyDiarySyllabusId ? "Diary legacy chưa có primary Syllabus" : `${lessonPlan.title} · v${lessonPlan.versionNumber}`}</small></div>
         </section>
         {roster.unresolvedRegistrations.length ? <div className={styles.notice}>{roster.unresolvedRegistrations.length} Registration chưa resolve Student. Flow first-attendance vẫn phải xử lý ở Operations trước.</div> : null}
         <section className={styles.rosterSection}>
