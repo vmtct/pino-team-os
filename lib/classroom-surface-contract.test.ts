@@ -22,3 +22,20 @@ test("Day of Learning does not forge Learning Owner authority in the browser", (
   assert.match(api, /participation\/settle/);
   assert.match(api, /attendances\/\$\{encodeURIComponent\(input\.attendanceId\)\}\/correct/);
 });
+
+
+test("Classroom lesson-plan selection consumes only the exact Core-bound shared syllabus version", () => {
+  const source = readFileSync(resolve(process.cwd(), "app/classroom/ClassroomView.tsx"), "utf8");
+  const api = readFileSync(resolve(process.cwd(), "lib/tos-learning-api.ts"), "utf8");
+  const start = source.indexOf("function boundLearningSyllabusVersion");
+  const end = source.indexOf("function sourceLabel", start);
+  assert.ok(start >= 0 && end > start);
+  const selector = source.slice(start, end);
+  assert.match(api, /learningSyllabusVersionId:string\|null/);
+  assert.match(api, /learningSyllabusVersion:LearningSyllabusVersionProjection\|null/);
+  assert.match(selector, /options\.learningSyllabusVersionId/);
+  assert.match(selector, /options\.learningSyllabusVersion\.id === options\.learningSyllabusVersionId/);
+  assert.doesNotMatch(selector, /primarySyllabusId|publicationStatus|syllabi\[0\]|syllabi\.find/);
+  assert.doesNotMatch(source, /syllabusId:\s*lessonPlan/);
+  assert.match(source, /syllabusId: legacyDiarySyllabusId/);
+});

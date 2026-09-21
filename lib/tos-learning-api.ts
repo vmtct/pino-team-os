@@ -4,7 +4,8 @@ export interface RosterSource{basis:string;sourceId:string;sourceType:"ENROLLMEN
 export interface RosterEntry{status:"CANDIDATE"|"CONFLICT";studentProfileId:string;studentDisplayName:string;sources:RosterSource[]}
 export interface ResolvedParticipation{studentProfileId:string;studentDisplayName:string;participationId:string;basis:string;commercialConsequence:string;attendanceId:string;attendanceStatus:AttendanceStatus;attendanceVersion:number;diaryId:string|null;diaryVersion:number|null;diaryRecordState:"ACTIVE"|"VOIDED"|null}
 export interface SessionRoster{entries:RosterEntry[];unresolvedRegistrations:Array<{registrationId:string;sessionId:string}>;resolvedParticipations:ResolvedParticipation[]}
-export interface LearningOptions{sessionId:string;pathProgramId:string;primarySyllabusId:string|null;syllabi:Array<{id:string;title:string;publicationStatus:string}>}
+export interface LearningSyllabusVersionProjection{id:string;syllabusId:string;versionNumber:number;state:"PUBLISHED";title:string;shortDescription:string|null;publicDescription:string|null;tags:string[];thumbnailMediaId:string|null;coverMediaId:string|null}
+export interface LearningOptions{sessionId:string;pathProgramId:string;learningSyllabusVersionId:string|null;learningSyllabusVersion:LearningSyllabusVersionProjection|null;primarySyllabusId:string|null;syllabi:Array<{id:string;title:string;publicationStatus:string}>}
 export class TosLearningApiError extends Error{constructor(readonly status:number,readonly code:string,message:string,readonly details?:unknown){super(message);}}
 
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
