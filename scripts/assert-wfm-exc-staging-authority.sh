@@ -9,6 +9,7 @@ set -euo pipefail
 : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN required}"
 : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID required}"
 : "${CORE_REPOSITORY:?CORE_REPOSITORY required}"
+: "${CORE_RELEASE_GH_TOKEN:?PINO_CORE_RELEASE_READ_TOKEN unavailable}"
 : "${CORE_SHA:?CORE_SHA required}"
 : "${CORE_STAGING_WORKER:?CORE_STAGING_WORKER required}"
 : "${CORE_STAGING_DEPLOYMENT_ID:?CORE_STAGING_DEPLOYMENT_ID required}"
@@ -47,5 +48,6 @@ fi
 [ "${BASH_REMATCH[1]}" = "$CORE_SHA" ] || { echo "Core staging marker SHA does not match CORE_SHA" >&2; exit 1; }
 [ "${BASH_REMATCH[2]}" = "$CORE_STAGING_DEPLOY_RUN_ID" ] || { echo "Core staging marker run id drifted" >&2; exit 1; }
 [ "${BASH_REMATCH[3]}" = "$CORE_STAGING_DEPLOY_RUN_ATTEMPT" ] || { echo "Core staging marker run attempt drifted" >&2; exit 1; }
-core_run="$(gh api "/repos/${CORE_REPOSITORY}/actions/runs/${CORE_STAGING_DEPLOY_RUN_ID}")"
+core_api() { GH_TOKEN="$CORE_RELEASE_GH_TOKEN" gh api "$@"; }
+core_run="$(core_api "/repos/${CORE_REPOSITORY}/actions/runs/${CORE_STAGING_DEPLOY_RUN_ID}")"
 jq -e --arg sha "$CORE_SHA" --argjson attempt "$CORE_STAGING_DEPLOY_RUN_ATTEMPT" '.head_sha == $sha and .event == "issues" and .status == "completed" and .conclusion == "success" and .actor.login == "vmtct" and .triggering_actor.login == "vmtct" and .path == ".github/workflows/open-studio-core-staging-deploy.yml" and .run_attempt == $attempt' <<<"$core_run" >/dev/null || { echo "Core staging run provenance changed before Golden Journey mutation" >&2; exit 1; }

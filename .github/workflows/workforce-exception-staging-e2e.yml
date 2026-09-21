@@ -25,6 +25,7 @@ jobs:
       ISSUE_BODY: ${{ github.event.issue.body }}
       CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
       CORE_REPOSITORY: vmtct/pino-core
+      CORE_RELEASE_GH_TOKEN: ${{ secrets.PINO_CORE_RELEASE_READ_TOKEN }}
       CORE_STAGING_WORKER: pino-core-staging
       STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
       PINO_STAGING_STAFF_EMAIL: workforce-exception-staging-probe@pino.invalid
@@ -124,7 +125,8 @@ jobs:
           [ "${BASH_REMATCH[1]}" = "$CORE_SHA" ] || { echo "Active Core staging SHA does not match requested CORE_SHA" >&2; exit 1; }
           core_run_id="${BASH_REMATCH[2]}"
           core_run_attempt="${BASH_REMATCH[3]}"
-          core_run="$(gh api "/repos/${CORE_REPOSITORY}/actions/runs/${core_run_id}")"
+          core_token="${CORE_RELEASE_GH_TOKEN:?PINO_CORE_RELEASE_READ_TOKEN unavailable}"
+          core_run="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/actions/runs/${core_run_id}")"
           jq -e --arg sha "$CORE_SHA" --argjson attempt "$core_run_attempt" '.head_sha == $sha and .event == "issues" and .status == "completed" and .conclusion == "success" and .actor.login == "vmtct" and .triggering_actor.login == "vmtct" and .path == ".github/workflows/open-studio-core-staging-deploy.yml" and .run_attempt == $attempt' <<<"$core_run" >/dev/null || { echo "Core staging deployment run provenance is invalid" >&2; exit 1; }
 
           echo "core_deployment_id=$core_deployment_id" >> "$GITHUB_OUTPUT"
