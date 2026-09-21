@@ -168,6 +168,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          live_issue="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          jq -e '.state == "open" and .title == "[GPT] Pinoria Wardrobe staging E2E" and .user.login == "vmtct"' <<<"$live_issue" >/dev/null || { echo "Authorizing issue is no longer live" >&2; exit 1; }
+          live_body="$(jq -r '.body // ""' <<<"$live_issue")"
+          [ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$AUTH_BODY_HASH" ] || { echo "Authorizing issue body changed after admission" >&2; exit 1; }
+
           npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-recheck.json"
           team_recheck="$(cat "$RUNNER_TEMP/staging-recheck.json")"
           team_version="$(jq -r '.versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$team_recheck" | head -1)"
@@ -225,6 +230,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          live_issue="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          jq -e '.state == "open" and .title == "[GPT] Pinoria Wardrobe staging E2E" and .user.login == "vmtct"' <<<"$live_issue" >/dev/null || { echo "Authorizing issue is no longer live before PASS" >&2; exit 1; }
+          live_body="$(jq -r '.body // ""' <<<"$live_issue")"
+          [ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$AUTH_BODY_HASH" ] || { echo "Authorizing issue body changed before PASS" >&2; exit 1; }
+
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-post-journey.json"
+          team_post="$(cat "$RUNNER_TEMP/staging-post-journey.json")"
+          [ "$(jq -r '.versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$team_post" | head -1)" = "$STAGING_VERSION_ID" ] || { echo "Team staging version changed during Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.annotations["workers/message"] // ""' <<<"$team_post" | sed -nE 's/^.* run ([0-9]+)$/\1/p')" = "$STAGING_DEPLOY_RUN_ID" ] || { echo "Team staging deploy provenance changed during Golden Journey" >&2; exit 1; }
+
+          core_state="$(curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CORE_STAGING_WORKER}/deployments")"
+          jq -e '.success == true' <<<"$core_state" >/dev/null || { echo "Cannot resolve Core staging after Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].id // empty' <<<"$core_state")" = "$CORE_STAGING_DEPLOYMENT_ID" ] || { echo "Core staging deployment changed during Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_state" | head -1)" = "$CORE_STAGING_VERSION_ID" ] || { echo "Core staging version changed during Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$core_state")" = "$CORE_STAGING_DEPLOYMENT_MARKER" ] || { echo "Core staging provenance changed during Golden Journey" >&2; exit 1; }
+
           {
             echo "PINORIA_WARDROBE_STAGING_E2E: PASS"
             echo
