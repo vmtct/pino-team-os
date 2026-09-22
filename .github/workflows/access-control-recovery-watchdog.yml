@@ -47,28 +47,39 @@ jobs:
           workflow='${{ github.event.workflow_run.name }}'
           display='${{ github.event.workflow_run.display_title }}'
           case "$workflow" in
-            'Access Sync Worker Secret')
+            'Access Sync Worker Secret'|'Access sync worker secret #'*)
               issue="$(sed -nE "s/^Access sync worker secret #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=ACCESS_SYNC_WORKER_SECRET; mode=worker ;;
-            'BO Manager Access Reconcile')
+            'BO Manager Access Reconcile'|'BO manager Access reconcile #'*)
               issue="$(sed -nE "s/^BO manager Access reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=BO_MANAGER_ACCESS_RECONCILE; mode=bo ;;
-            'TOS Google IdP Reconcile')
+            'TOS Google IdP Reconcile'|'TOS Google IdP reconcile #'*)
               issue="$(sed -nE "s/^TOS Google IdP reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_GOOGLE_IDP_RECONCILE; mode=idp ;;
-            'TOS Canonical External Evaluation')
+            'TOS Canonical External Evaluation'|'TOS canonical external evaluation #'*)
               issue="$(sed -nE "s/^TOS canonical external evaluation #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_CANONICAL_EXTERNAL_EVAL; mode=eval ;;
             *) exit 0 ;;
           esac
           [ -n "$issue" ] || { echo "Cannot bind failed Access run to one canonical issue" >&2; exit 1; }
           comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
-          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" --arg attempt "$run_attempt" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **RECOVERY_ARMED**")) and ((.body // "") | contains("Workflow run: " + $run)) and ((.body // "") | contains("Workflow attempt: " + $attempt)))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]" and ((.body // "") | startswith($p + ": **RECOVERY_ARMED**")) and ((.body // "") | contains("Workflow run: " + $run)))] | sort_by(.created_at) | last // empty' <<<"$comments")"
           [ -n "$marker" ] || { echo "No durable Access recovery marker; no external commit was authorized"; exit 0; }
           body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
+          recovery_attempt="$(sed -nE 's/^Workflow attempt:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p' <<<"$body")"
+          if [ -z "$recovery_attempt" ] && [ "$run_attempt" = "1" ]; then recovery_attempt=1; fi
+          [ -n "$recovery_attempt" ] || { echo "Recovery marker is missing canonical workflow attempt identity" >&2; exit 1; }
+          armed_run="$(gh api "/repos/${repo}/actions/runs/${run_id}/attempts/${recovery_attempt}")" || { echo "Cannot resolve authoritative armed workflow attempt" >&2; exit 1; }
+          armed_conclusion="$(jq -r '.conclusion // empty' <<<"$armed_run")"
+          [ -n "$armed_conclusion" ] || { echo "Armed workflow attempt is not terminal" >&2; exit 1; }
+          [ "$armed_conclusion" != "success" ] || { echo "Armed workflow attempt already succeeded; recovery is not authorized"; exit 0; }
+          pass_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | (.body // "") | select(startswith($p + ": **PASS**")) | select(contains("Workflow run: " + $run)) | select(contains("Workflow attempt: " + $attempt) or ($attempt=="1" and (contains("Workflow attempt:")|not)))] | length' <<<"$comments")"
+          [ "$pass_receipts" -eq 0 ] || { echo "Armed workflow attempt already has durable PASS evidence; recovery is not authorized"; exit 0; }
+          recovered_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | (.body // "") | select(startswith($p + ": **WATCHDOG_RECOVERED**")) | select(contains("Workflow run: " + $run)) | select(contains("Workflow attempt: " + $attempt))] | length' <<<"$comments")"
+          [ "$recovered_receipts" -eq 0 ] || { echo "Armed workflow attempt already has durable WATCHDOG_RECOVERED evidence; recovery is not authorized"; exit 0; }
 
           overlap_clear=0
           for _ in $(seq 1 24); do
             if bash scripts/assert-no-core-verification-in-flight.sh; then overlap_clear=1; break; fi
             sleep 5
           done
-          [ "$overlap_clear" -eq 1 ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${run_attempt}\nRecovery remains armed but is deferred while Core PRE_GA verification/recovery is active."; exit 1; }
+          [ "$overlap_clear" -eq 1 ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nRecovery remains armed but is deferred while Core PRE_GA verification/recovery is active."; exit 1; }
 
           case "$mode" in
             worker)
@@ -85,7 +96,7 @@ jobs:
               recovery_policy_name="$(sed -nE 's/^Recovery policy name:[[:space:]]*(.+)[[:space:]]*$/\1/p' <<<"$body")"
               manager_email="$(sed -nE 's/^Manager email:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$body")"
               [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] && [ -n "$manager_email" ] || { echo "Malformed BO recovery marker" >&2; exit 1; }
-              [[ "$recovery_policy_name" == *"[run:${run_id}][attempt:${run_attempt}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
+              [[ "$recovery_policy_name" == *"[run:${run_id}][attempt:${recovery_attempt}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
               api="https://api.cloudflare.com/client/v4"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
               policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
               matches="$(jq -c --arg n "$recovery_policy_name" '[.result[]? | select(.name==$n)]' <<<"$policies")"
@@ -127,4 +138,4 @@ jobs:
               fi
               ;;
           esac
-          gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_RECOVERED**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${run_attempt}\nRecovery result: ${result}.\nOnly the exact run-owned pre-mutation baseline was reconciled."
+          gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_RECOVERED**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nRecovery result: ${result}.\nOnly the exact run-owned pre-mutation baseline was reconciled."
