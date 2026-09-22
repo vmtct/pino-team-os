@@ -35,6 +35,12 @@ export function DeliveryActivationView() {
   const [blockStart, setBlockStart] = useState("0");
   const [blockEnd, setBlockEnd] = useState("");
   const [blockLabel, setBlockLabel] = useState("");
+  const [termId, setTermId] = useState("");
+  const [termWeekCode, setTermWeekCode] = useState("");
+  const [termWeekOrdinal, setTermWeekOrdinal] = useState("");
+  const [termWeekStart, setTermWeekStart] = useState("");
+  const [termWeekEnd, setTermWeekEnd] = useState("");
+  const [termWeekRhythm, setTermWeekRhythm] = useState("BUILD");
   const [horizonDays, setHorizonDays] = useState("");
   const [materializeStart, setMaterializeStart] = useState("");
 
@@ -64,6 +70,9 @@ export function DeliveryActivationView() {
   const globalPolicy = data.materializationPolicyStreams.find((item) => item.targetType === "GLOBAL") ?? null;
   const effectivePolicy = centerPolicy?.publishedValue ?? globalPolicy?.publishedValue ?? null;
   const currentTerm = currentTermForCenter(data, centerId);
+  const centerTerms = data.terms.filter((term) => term.centerId === centerId);
+  const selectedTerm = centerTerms.find((term) => term.id === termId) ?? currentTerm ?? centerTerms[0] ?? null;
+  const selectedTermWeeks = selectedTerm ? data.termWeeks.filter((week) => week.termId === selectedTerm.id).sort((left, right) => left.ordinal - right.ordinal) : [];
   const canMaterialize = Boolean(centerId && activeClasses.length > 0 && classesMissingBlocks.length === 0 && effectivePolicy && materializeStart && action.status !== "running");
 
   async function run(label: string, work: () => Promise<string>) {
@@ -110,6 +119,31 @@ export function DeliveryActivationView() {
       const created = await f3DeliveryApi.createRunningClassBlock({ runningClassId: blockClassId, blockKind, startsOffsetMinutes: start, endsOffsetMinutes: end, label: blockLabel.trim() || null });
       setBlockStart("0"); setBlockEnd(""); setBlockLabel("");
       return `${created.blockKind} block committed for Running Class.`;
+    });
+  }
+
+  function prefillNextTermWeek() {
+    if (!selectedTerm) return;
+    const draft = nextTermWeekDraft(selectedTerm, selectedTermWeeks);
+    if (!draft) {
+      setAction({ status: "error", message: "Term đã được phủ hết bởi các TermWeek hiện hữu.", requestId: null });
+      return;
+    }
+    setTermId(selectedTerm.id);
+    setTermWeekCode(draft.code);
+    setTermWeekOrdinal(String(draft.ordinal));
+    setTermWeekStart(draft.startDate);
+    setTermWeekEnd(draft.endDate);
+  }
+
+  function createTermWeek() {
+    const ordinal = positive(termWeekOrdinal);
+    const rhythmKey = termWeekRhythm.trim().toUpperCase();
+    if (!centerId || !selectedTerm || !termWeekCode.trim() || ordinal === null || !termWeekStart || !termWeekEnd || !rhythmKey) return;
+    void run("Creating TermWeek", async () => {
+      const created = await f3DeliveryApi.createTermWeek({ centerId, termId: selectedTerm.id, code: termWeekCode.trim(), ordinal, startDate: termWeekStart, endDate: termWeekEnd, rhythmKey });
+      setTermWeekCode(""); setTermWeekOrdinal(""); setTermWeekStart(""); setTermWeekEnd("");
+      return `TermWeek committed: ${created.code} · ${created.startDate} → ${created.endDate} · ${created.rhythmKey}`;
     });
   }
 
@@ -166,6 +200,25 @@ export function DeliveryActivationView() {
         </div>
         <label className={styles.field}>Center<select value={centerId} onChange={(event) => setCenterId(event.target.value)}><option value="">Select Center…</option>{data.centers.map((item) => <option value={item.id} key={item.id}>{item.displayName} · {item.timeZone}</option>)}</select></label>
         {currentTerm ? <p>Operating Cycle: <strong>{currentTerm.displayName}</strong> · {currentTerm.startDate} → {currentTerm.endDate} · {currentTerm.weekCount} TermWeek(s). TermWeek rhythm remains a separate operational decision and is not auto-filled here.</p> : <p>No current Term is resolved for this Center.</p>}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeading}><div><h2>Operating Cycle · Term Weeks</h2><p>Tạo nhịp tuần canonical cho Center. Workforce chỉ lập lịch trên TermWeek đã tồn tại trong Core.</p></div><span className={styles.writePill}>Explicit write</span></div>
+        {selectedTerm ? <>
+          <label className={styles.field}>Term<select value={selectedTerm.id} onChange={(event) => { setTermId(event.target.value); setTermWeekCode(""); setTermWeekOrdinal(""); setTermWeekStart(""); setTermWeekEnd(""); }} >{centerTerms.map((term) => <option key={term.id} value={term.id}>{term.displayName} · {term.startDate} → {term.endDate}</option>)}</select></label>
+          <div className={styles.formGrid}>
+            <Field label="Week code" value={termWeekCode} onChange={setTermWeekCode} placeholder="W01" />
+            <Field label="Ordinal" type="number" value={termWeekOrdinal} onChange={setTermWeekOrdinal} />
+            <Field label="Start date" type="date" value={termWeekStart} onChange={setTermWeekStart} />
+            <Field label="End date" type="date" value={termWeekEnd} onChange={setTermWeekEnd} />
+            <Field label="Rhythm key" value={termWeekRhythm} onChange={setTermWeekRhythm} placeholder="BUILD" />
+          </div>
+          <div>
+            <button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={prefillNextTermWeek}>Prefill next week</button>{" "}
+            <button className={styles.primaryButton} type="button" disabled={action.status === "running" || !termWeekCode.trim() || !termWeekOrdinal || !termWeekStart || !termWeekEnd || !termWeekRhythm.trim()} onClick={createTermWeek}>Create TermWeek</button>
+          </div>
+          {selectedTermWeeks.length ? <CompactTable rows={selectedTermWeeks.map((week) => [week.code, String(week.ordinal), `${week.startDate} → ${week.endDate}`, week.rhythmKey])} headers={["Week", "Ordinal", "Dates", "Rhythm"]} /> : <p>Term này chưa có TermWeek. Bấm <strong>Prefill next week</strong> để điền W01 theo ngày của Term, rồi xác nhận trước khi tạo.</p>}
+        </> : <State compact error title="TermWeek blocked" message="Center chưa có Term để gắn TermWeek." />}
       </section>
 
       <section className={styles.panel}>
@@ -241,6 +294,19 @@ function localDateInZone(timeZone: string) {
 function currentTermForCenter(data: F3BootstrapState, centerId: string) {
   const localDate = data.asOf.slice(0, 10);
   return data.terms.find((term) => term.centerId === centerId && term.startDate <= localDate && term.endDate >= localDate) ?? null;
+}
+function nextTermWeekDraft(term: F3BootstrapState["terms"][number], weeks: F3BootstrapState["termWeeks"]) {
+  const last = [...weeks].sort((left, right) => left.ordinal - right.ordinal).at(-1) ?? null;
+  const ordinal = (last?.ordinal ?? 0) + 1;
+  const startDate = last ? addDays(last.endDate, 1) : term.startDate;
+  if (startDate > term.endDate) return null;
+  const endDate = [addDays(startDate, 6), term.endDate].sort()[0]!;
+  return { code: `W${String(ordinal).padStart(2, "0")}`, ordinal, startDate, endDate };
+}
+function addDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 function pathName(data: F3BootstrapState, id: string) { return data.paths.find((item) => item.id === id)?.displayName ?? id; }
 function positive(value: string) { const number = Number(value); return Number.isInteger(number) && number >= 1 ? number : null; }

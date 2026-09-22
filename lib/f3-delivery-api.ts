@@ -28,6 +28,7 @@ export interface F3BootstrapState {
 
 export const f3DeliveryApi = {
   bootstrap: () => readOne<F3BootstrapState>("delivery/bootstrap-state"),
+  createTermWeek: (body: unknown) => writeOne<F3TermWeek>("delivery/term-weeks", body),
   createLearningSpace: (body: unknown) => writeOne<F3LearningSpace>("delivery/learning-spaces", body),
   createRunningClass: (body: unknown) => writeOne<F3RunningClass>("delivery/running-classes", body),
   createRunningClassBlock: (body: unknown) => writeOne<F3RunningClassBlock>("delivery/running-class-blocks", body),
