@@ -54,23 +54,31 @@ jobs:
           api="https://api.cloudflare.com/client/v4"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
           repo="$GITHUB_REPOSITORY"
+          canonical_policy_state() {
+            jq -Sc 'del(.created_at,.updated_at)'
+          }
           created_policy_id=""
+          created_policy_state=""
           recovery_policy_name=""
           base=""
           app_id=""
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
           rollback() {
-            if [ -n "$created_policy_id" ] && [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ]; then
+            if [ -n "$created_policy_id" ] && [ -n "$created_policy_state" ] && [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ]; then
               local live current
               live="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
-              current="$(jq -c --arg id "$created_policy_id" --arg n "$recovery_policy_name" --arg e "$MANAGER_EMAIL" '[.result[]? | select(.id==$id and .name==$n and .decision=="allow" and .precedence==60 and (.exclude // [])==[] and (.require // [])==[] and ((.include // [])==[{"email":{"email":$e}}]))] | length' <<<"$live")"
-              [ "$current" -eq 1 ] || return 1
+              current="$(jq -c --arg id "$created_policy_id" '.result[]? | select(.id==$id)' <<<"$live" | head -1)"
+              [ -n "$current" ] || return 0
+              [ "$(canonical_policy_state <<<"$current")" = "$created_policy_state" ] || return 1
               curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${created_policy_id}" "${auth[@]}" >/dev/null 2>&1 || return 1
             fi
           }
           fail() {
-            rollback
-            comment "BO_MANAGER_ACCESS_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny policy created by this run was deleted again. Existing BO policies, Core/D1, Worker runtime, routes and domains were not changed."
+            local recovery_note
+            if rollback; then recovery_note="Exact-state local rollback completed or no run-owned policy remained."
+            else recovery_note="Exact-state local rollback was withheld or failed; durable RECOVERY_ARMED authority remains for watchdog reconciliation."
+            fi
+            comment "BO_MANAGER_ACCESS_RECONCILE: **FAIL_SAFE**\n\n$1\n\n${recovery_note}\n\nExisting BO policies, Core/D1, Worker runtime, routes and domains were not changed by rollback."
             exit 1
           }
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
@@ -128,11 +136,15 @@ jobs:
             assert_live_team_main || fail "Team source authority drifted before production mutation."
             bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
             bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
-            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "BO_MANAGER_ACCESS_RECONCILE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nAccess base: ${base}\nApp ID: ${app_id}\nPolicy name: ${POLICY_NAME}\nRecovery policy name: ${recovery_policy_name}\nManager email: ${MANAGER_EMAIL}\nBaseline matching policy: ABSENT\n\nIf POST acknowledgement is ambiguous, watchdog may delete only the uniquely matching policy created from this absent baseline." >/dev/null || fail "Could not persist BO Access recovery baseline."
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "BO_MANAGER_ACCESS_RECONCILE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nAccess base: ${base}\nApp ID: ${app_id}\nPolicy name: ${POLICY_NAME}\nRecovery policy name: ${recovery_policy_name}\nManager email: ${MANAGER_EMAIL}\nBaseline matching policy: ABSENT\n\nIf POST acknowledgement is ambiguous, recovery remains fail-closed until an exact post-create state receipt is durable." >/dev/null || fail "Could not persist BO Access recovery baseline."
             created="$(curl -fsS -X POST "${api}/${base}/access/apps/${app_id}/policies" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected BO manager policy creation."
             jq -e '.success==true and (.result.id|length>0)' <<<"$created" >/dev/null || fail "Cloudflare did not report successful BO manager policy creation."
             created_policy_id="$(jq -r '.result.id' <<<"$created")"
+            created_policy_state="$(jq -Sc '.result | del(.created_at,.updated_at)' <<<"$created")"
+            [ -n "$created_policy_state" ] || fail "Cloudflare create response did not provide exact policy state."
             policy_id="$created_policy_id"
+            created_state_b64="$(printf '%s' "$created_policy_state" | base64 -w0)"
+            gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "BO_MANAGER_ACCESS_RECONCILE: **RECOVERY_STATE_CAPTURED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nPolicy ID: ${created_policy_id}\nCreated policy state b64: ${created_state_b64}\n\nExact post-create Access policy state captured for recovery CAS." >/dev/null || fail "Could not persist exact BO policy recovery state."
           fi
 
           verify="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify BO policies."
@@ -151,3 +163,4 @@ jobs:
           bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps terminal Team evidence."
           comment "BO_MANAGER_ACCESS_RECONCILE: **PASS**\n\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Team source guard: ${target_sha}\n- BO app: ${app_id}\n- BO audience: ${BO_AUD}\n- Manager admission: explicit email policy ${POLICY_NAME} (${policy_id})\n- Allow Everyone: 0\n- Existing Founder policies: untouched\n- BO /bo: Cloudflare Access challenge preserved (HTTP ${code})\n\nCloudflare authenticates the manager email; pino-core team.bo.access remains canonical BO authorization."
           created_policy_id=""
+          created_policy_state=""
