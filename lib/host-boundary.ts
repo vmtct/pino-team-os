@@ -65,6 +65,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/context",
     "/api/bo/pinoria/effects/catalog",
     "/api/bo/learners",
+    "/api/bo/student-intakes",
     "/api/bo/practice/authoring-context",
     "/api/bo/practice/repertoire-access/context",
     "/api/bo/practice/repertoire-access",
