@@ -92,6 +92,22 @@ jobs:
             and .path==".github/workflows/workforce-staff-checkin-staging-fixture.yml"
           ' <<<"$fixture_run" >/dev/null || reject "Core fixture run is not a successful exact-SHA Staff Check-In fixture authority."
 
+          fixture_jobs="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/actions/runs/${fixture_run_id}/jobs?filter=latest&per_page=100")" || reject "Cannot read Core fixture jobs."
+          jq -e '
+            [.jobs[]
+              | select(
+                  .name=="fixture"
+                  and .status=="completed"
+                  and .conclusion=="success"
+                  and any(.steps[]?;
+                    .name=="Materialize Staff check-in fixture"
+                    and .status=="completed"
+                    and .conclusion=="success"
+                  )
+                )
+            ] | length == 1
+          ' <<<"$fixture_jobs" >/dev/null || reject "Core fixture run did not complete the Staff Check-In materialization step successfully."
+
           echo "TEAM_SHA=$team_sha" >> "$GITHUB_ENV"
           echo "CORE_SHA=$core_sha" >> "$GITHUB_ENV"
           echo "TEAM_STAGING_RUN_ID=$team_run_id" >> "$GITHUB_ENV"
@@ -166,23 +182,30 @@ jobs:
           echo "team_version_id=$team_version_id" >> "$GITHUB_OUTPUT"
           echo "core_deployment_id=$core_deployment_id" >> "$GITHUB_OUTPUT"
           echo "core_version_id=$core_version_id" >> "$GITHUB_OUTPUT"
+          echo "core_marker=$core_marker" >> "$GITHUB_OUTPUT"
           echo "core_run_id=$core_run_id" >> "$GITHUB_OUTPUT"
+          echo "core_run_attempt=$core_run_attempt" >> "$GITHUB_OUTPUT"
 
-      - name: Revalidate issue authority before happy-path mutation
+      - name: Revalidate exact authority before happy-path mutation
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.team_version_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
-          body_hash="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
-          [ "$body_hash" = "$AUTH_BODY_HASH" ] || { echo "Issue body drifted" >&2; exit 1; }
-          current_team="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          [ "$current_team" = "$TEAM_SHA" ] || { echo "Team main drifted" >&2; exit 1; }
-          core_token="${CORE_RELEASE_GH_TOKEN:?PINO_CORE_RELEASE_READ_TOKEN unavailable}"
-          current_core="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          [ "$current_core" = "$CORE_SHA" ] || { echo "Core main drifted" >&2; exit 1; }
+          export STAGING_DEPLOY_RUN_ID="$TEAM_STAGING_RUN_ID"
+          bash scripts/assert-wfm-staff-checkin-happy-staging-authority.sh
 
       - name: Run UI-driven, API-verified happy journey
         env:
           PINO_HAPPY_RECEIPT_PATH: ${{ runner.temp }}/wfm-staff-checkin-happy-receipt.json
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -207,9 +230,20 @@ jobs:
 
       - name: Report PASS
         if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.team_version_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
+          export STAGING_DEPLOY_RUN_ID="$TEAM_STAGING_RUN_ID"
+          bash scripts/assert-wfm-staff-checkin-happy-staging-authority.sh
           receipt="$RUNNER_TEMP/wfm-staff-checkin-happy-receipt.json"
           session_id="$(jq -r '.timekeeping_session_id' "$receipt")"
           {

@@ -18,6 +18,9 @@ test("happy Staff Check-In journey is browser-driven and API-verified", () => {
     'journey_id: "GJ-WFM-STAFF-CHECKIN-01"',
     'mode: "UI_DRIVEN_API_VERIFIED"',
     'PINO_HAPPY_RECEIPT_JSON=',
+    'x-pino-staging-core-version',
+    'AggregateError',
+    'cleanup_api: "PASS"',
     '/api/workforce/timekeeping/check-out',
   ]) assert.ok(spec.includes(required), `missing happy-path contract: ${required}`);
 });
@@ -30,8 +33,12 @@ test("happy staging workflow is exact-composition and fixture bound", () => {
     "CORE_FIXTURE_RUN_ID:",
     "RUN_WORKFORCE_STAFF_CHECKIN_HAPPY_STAGING_E2E",
     ".github/workflows/workforce-staff-checkin-staging-fixture.yml",
+    "Materialize Staff check-in fixture",
+    "/actions/runs/${fixture_run_id}/jobs?filter=latest&per_page=100",
     "Cloudflare Build + Serving Truth",
     "PINO_STAGING_RUNTIME_EVIDENCE:",
+    "assert-wfm-staff-checkin-happy-staging-authority.sh",
+    "CORE_STAGING_VERSION_ID",
     "wfm-staff-checkin-happy-staging.spec.ts --workers=1 --retries=0",
     "actions/upload-artifact@v4",
     "UI_DRIVEN_API_VERIFIED",
