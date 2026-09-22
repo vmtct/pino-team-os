@@ -6,12 +6,21 @@ import path from "node:path";
 const source = fs.readFileSync(path.join(process.cwd(), "app/components/WorkforceWorkspace.tsx"), "utf8");
 const dutySource = fs.readFileSync(path.join(process.cwd(), "app/check-in/DutyAwareCheckInOut.tsx"), "utf8");
 const facade = fs.readFileSync(path.join(process.cwd(), "app/api/workforce/[...path]/route.ts"), "utf8");
+const apiSource = fs.readFileSync(path.join(process.cwd(), "lib/workforce-api.ts"), "utf8");
+const dutyBoardSource = fs.readFileSync(path.join(process.cwd(), "app/tasks/DutyBoardView.tsx"), "utf8");
+
+test("TOS scopes empty current-timekeeping reads to the selected Center", () => {
+  assert.match(apiSource, /currentTimekeeping:\(centerId\?:string\).*centerId/);
+  assert.match(source, /const selected = c\.data\.centers\[0\];[\s\S]*currentTimekeeping\(selected\?\.id\)/);
+  assert.match(dutySource, /currentTimekeeping\(nextContext\.centers\[0\]\?\.id\)/);
+  assert.match(dutyBoardSource, /currentTimekeeping\(nextContext\.centers\[0\]\?\.id\)/);
+});
 
 test("TOS timekeeping preserves one command key across ambiguous retries", () => {
   assert.match(source, /clockAttempt = useRef<\{ action: "in" \| "out"; fingerprint: string; key: string \} \| null>\(null\)/);
   assert.match(source, /const fingerprint = `\$\{center\.id\}:\$\{state\.data\.assignment\.id\}`/);
   assert.match(source, /prior\?\.action === "in" && prior\.fingerprint !== fingerprint/);
-  assert.match(source, /workforceApi\.currentTimekeeping\(\)/);
+  assert.match(source, /workforceApi\.currentTimekeeping\(center\.id\)/);
   assert.match(source, /prior\?\.action === "in" && prior\.fingerprint === fingerprint \? prior\.key : crypto\.randomUUID\(\)/);
   assert.match(source, /clockAttempt\.current = \{ action: "in", fingerprint, key: idempotencyKey \}/);
   assert.match(source, /state\.data\.kind !== "ELIGIBLE_ASSIGNMENT"/);

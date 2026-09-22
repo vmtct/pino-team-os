@@ -60,9 +60,10 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   async function load() {
     setLoading(true); setError("");
     try {
-      const [c, p, t] = await Promise.all([workforceApi.context(), workforceApi.profile(), workforceApi.currentTimekeeping()]);
-      setContext(c.data); setProfile(p.data); setCurrent(t.data);
+      const [c, p] = await Promise.all([workforceApi.context(), workforceApi.profile()]);
       const selected = c.data.centers[0];
+      const t = await workforceApi.currentTimekeeping(selected?.id);
+      setContext(c.data); setProfile(p.data); setCurrent(t.data);
       if (selected) {
         const [s, h, exceptionState] = await Promise.all([
           workforceApi.schedule({ centerId: selected.id, startDate: offset(-30), endDate: offset(60) }),
@@ -91,7 +92,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
         const fingerprint = `${center.id}:${state.data.assignment.id}`;
         const prior = clockAttempt.current;
         if (prior?.action === "in" && prior.fingerprint !== fingerprint) {
-          const reconciled = await workforceApi.currentTimekeeping();
+          const reconciled = await workforceApi.currentTimekeeping(center.id);
           if (reconciled.data) {
             setCurrent(reconciled.data);
             clockAttempt.current = null;
