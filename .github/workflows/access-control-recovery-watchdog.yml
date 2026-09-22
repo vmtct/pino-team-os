@@ -59,7 +59,7 @@ jobs:
           esac
           [ -n "$issue" ] || { echo "Cannot bind failed Access run to one canonical issue" >&2; exit 1; }
           comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
-          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_ARMED**")) | select(.normalizedBody | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_ARMED**")) | select(.normalizedBody | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
           [ -n "$marker" ] || { echo "No durable Access recovery marker; no external commit was authorized"; exit 0; }
           body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
           recovery_attempt="$(sed -nE 's/^Workflow attempt:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p' <<<"$body")"
@@ -69,9 +69,9 @@ jobs:
           armed_conclusion="$(jq -r '.conclusion // empty' <<<"$armed_run")"
           [ -n "$armed_conclusion" ] || { echo "Armed workflow attempt is not terminal" >&2; exit 1; }
           [ "$armed_conclusion" != "success" ] || { echo "Armed workflow attempt already succeeded; recovery is not authorized"; exit 0; }
-          pass_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\n"; "\n")) as $b | select($b | startswith($p + ": **PASS**")) | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)")) or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:"))|not)))] | length' <<<"$comments")"
+          pass_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select($b | startswith($p + ": **PASS**")) | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)")) or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:"))|not)))] | length' <<<"$comments")"
           [ "$pass_receipts" -eq 0 ] || { echo "Armed workflow attempt already has durable PASS evidence; recovery is not authorized"; exit 0; }
-          recovered_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\n"; "\n")) as $b | select($b | startswith($p + ": **WATCHDOG_RECOVERED**")) | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | length' <<<"$comments")"
+          recovered_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select($b | startswith($p + ": **WATCHDOG_RECOVERED**")) | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | length' <<<"$comments")"
           [ "$recovered_receipts" -eq 0 ] || { echo "Armed workflow attempt already has durable WATCHDOG_RECOVERED evidence; recovery is not authorized"; exit 0; }
 
           overlap_clear=0
