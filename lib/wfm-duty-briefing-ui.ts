@@ -17,6 +17,7 @@ export function briefingCheckInReady(input: {
   briefing: StaffDutyBriefing | null;
   acknowledgement: StaffDutyAcknowledgement | null;
 }) {
-  if (!input.boardLoaded) return false;
-  return !input.briefing || isCurrentBriefingAcknowledged(input.briefing, input.acknowledgement);
+  // Temporary product policy: briefing remains visible/acknowledgeable but advisory for check-in.
+  // Board context must still load; assignment/auth/WFM-TIME gates remain authoritative elsewhere.
+  return input.boardLoaded;
 }
