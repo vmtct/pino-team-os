@@ -146,10 +146,11 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState<{ idempotencyKey: string; body: Parameters<typeof boApi.createStudentIntake>[0] } | null>(null);
+  const [canResetAttempt, setCanResetAttempt] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setCanResetAttempt(false);
     const currentAttempt = attempt ?? (() => {
       const [year, month, day] = birthDate ? birthDate.split("-").map(Number) : [null, null, null];
       return {
@@ -165,11 +166,14 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
     try {
       const result = await boApi.createStudentIntake(currentAttempt.body, currentAttempt.idempotencyKey);
       await onCreated(result.studentProfileId);
-    } catch (cause) { setError(message(cause)); } finally { setBusy(false); }
+    } catch (cause) {
+      setError(message(cause));
+      setCanResetAttempt(cause instanceof BoApiError && cause.status >= 400 && cause.status < 500);
+    } finally { setBusy(false); }
   }
 
   const attemptLocked = attempt !== null;
-  function resetAttempt() { setAttempt(null); setError(""); }
+  function resetAttempt() { setAttempt(null); setCanResetAttempt(false); setError(""); }
 
   return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <form className={styles.modal} onSubmit={(event) => void submit(event)}>
@@ -184,7 +188,7 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
         <label>Giá trị<input required disabled={attemptLocked} value={contactValue} onChange={(event) => setContactValue(event.target.value)} placeholder={contactType === "PHONE" ? "090…" : "parent@example.com"} /></label>
       </div>
       <small>Parent có cùng contact canonical sẽ được reuse; Student không tự merge theo tên/ngày sinh.</small>
-      <footer>{attemptLocked && error ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={onClose} disabled={busy}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên + Parent"}</button></footer>
+      <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={onClose} disabled={busy}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên + Parent"}</button></footer>
     </form>
   </div>;
 }
