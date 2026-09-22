@@ -87,10 +87,11 @@ export default function DutyBoardView() {
     soft ? setRefreshing(true) : setLoading(true);
     setError("");
     try {
-      const [contextResponse, profileResponse, currentResponse] = await Promise.all([
-        workforceApi.context(), workforceApi.profile(), workforceApi.currentTimekeeping(),
+      const [contextResponse, profileResponse] = await Promise.all([
+        workforceApi.context(), workforceApi.profile(),
       ]);
       const nextContext = contextResponse.data;
+      const currentResponse = await workforceApi.currentTimekeeping(nextContext.centers[0]?.id);
       const nextCurrent = currentResponse.data;
       const center = nextCurrent ? nextContext.centers.find((item) => item.id === nextCurrent.centerId) ?? nextContext.centers[0] : nextContext.centers[0];
       if (!center) throw new Error("Chưa có Center khả dụng cho StaffMember này.");
