@@ -22,11 +22,12 @@ const acknowledgement = {
   actorUserId: "user-1",
 };
 
-test("F2 unlocks Check-in only for the exact current briefing revision", () => {
+
+test("briefing acknowledgement is advisory for Check-in while board context is required", () => {
   assert.equal(isCurrentBriefingAcknowledged(briefing, acknowledgement), true);
   assert.equal(isCurrentBriefingAcknowledged(briefing, { ...acknowledgement, briefingRevision: "revision-a" }), false);
   assert.equal(briefingCheckInReady({ boardLoaded: true, briefing, acknowledgement }), true);
-  assert.equal(briefingCheckInReady({ boardLoaded: true, briefing, acknowledgement: null }), false);
+  assert.equal(briefingCheckInReady({ boardLoaded: true, briefing, acknowledgement: null }), true);
   assert.equal(briefingCheckInReady({ boardLoaded: false, briefing: null, acknowledgement: null }), false);
   assert.equal(briefingCheckInReady({ boardLoaded: true, briefing: null, acknowledgement: null }), true);
 });

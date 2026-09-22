@@ -234,9 +234,9 @@ export default function DutyAwareCheckInOut() {
         </section>
 
         <section className={styles.actionCard}>
-          <div><span>CHECK IN</span><strong>{checkInReady ? "Sẵn sàng vào ca" : !briefingReady ? "Hoàn tất briefing trước" : "Cần assignment canonical"}</strong></div>
+          <div><span>CHECK IN</span><strong>{checkInReady ? "Sẵn sàng vào ca" : "Cần assignment canonical"}</strong></div>
           <button className={styles.checkInButton} disabled={!checkInReady || Boolean(busy)} onClick={() => void checkIn()}>{busy === "check-in" ? "Đang check-in…" : "Check-in"}</button>
-          {!briefingReady ? <p>Đây là TOS guidance gate. WFM-TIME mutation vẫn giữ nguyên authority và chưa bật hard enforcement.</p> : null}
+          {briefing && !acknowledged ? <p>Briefing đang ở chế độ advisory: có thể check-in trước và xác nhận briefing sau. WFM-TIME vẫn giữ nguyên authority.</p> : null}
           {briefingReady && !assignment ? <>
             {checkInState?.kind === "REQUESTED" ? <p>Yêu cầu check-in ngoài lịch đang chờ Manager duyệt. Check-in vẫn khóa cho tới khi Core tạo assignment canonical.</p>
               : checkInState?.kind === "DECLINED" ? <p>Yêu cầu check-in ngoài lịch đã bị từ chối: {checkInState.request.declineReason ?? "không có lý do bổ sung"}.</p>
