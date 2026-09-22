@@ -113,7 +113,13 @@ async function write<T>(path: string, body: unknown, idempotencyKey: string): Pr
 }
 
 function apiError(response: Response, body: { error?: { message?: string; requestId?: string } }, fallback: string) {
-  return new BoApiError(response.status, body.error?.message ?? fallback, response.headers.get("x-request-id") ?? body.error?.requestId ?? null);
+  const canonicalMessage = typeof body.error?.message === "string" && body.error.message.trim().length > 0;
+  return new BoApiError(
+    response.status,
+    canonicalMessage ? body.error!.message! : fallback,
+    response.headers.get("x-request-id") ?? body.error?.requestId ?? null,
+    canonicalMessage,
+  );
 }
 
 type BoScopeBootstrap = {
@@ -181,7 +187,8 @@ export const boApi = {
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   createStudentIntake: async (body: { displayName: string; birthYear: number | null; birthMonth: number | null; birthDay: number | null; birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE"; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string; relationshipType: "PARENT" | "GUARDIAN" | "OTHER"; effectiveFrom: string }, idempotencyKey: string) => {
     const result = await write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>("student-intakes", body, idempotencyKey);
-    if (!result || typeof result.studentProfileId !== "string" || !result.studentProfileId || typeof result.parentUserId !== "string" || !result.parentUserId || typeof result.guardianRelationshipId !== "string" || !result.guardianRelationshipId || typeof result.parentReused !== "boolean") {
+    const canonicalId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+    if (!result || !canonicalId(result.studentProfileId) || !canonicalId(result.parentUserId) || !canonicalId(result.guardianRelationshipId) || typeof result.parentReused !== "boolean") {
       throw new BoApiError(502, "Student intake returned an invalid response.", null, false);
     }
     return result;
