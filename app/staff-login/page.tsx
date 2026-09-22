@@ -2,6 +2,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./staff-login.module.css";
 
+function homePath() { return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
+
 export default function StaffLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -11,7 +13,7 @@ export default function StaffLogin() {
   useEffect(() => {
     void fetch("/api/staff-auth/status", { cache: "no-store" })
       .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean } }>)
-      .then(body => { if (body.data?.authenticated) window.location.assign("/dashboard"); })
+      .then(body => { if (body.data?.authenticated) window.location.assign(homePath()); })
       .catch(() => undefined);
   }, []);
 
@@ -25,7 +27,7 @@ export default function StaffLogin() {
       });
       const body = await response.json() as { error?: { message?: string } };
       if (!response.ok) throw new Error(body.error?.message ?? "Đăng nhập thất bại");
-      window.location.assign("/dashboard");
+      window.location.assign(homePath());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Đăng nhập thất bại");
     } finally { setBusy(false); }

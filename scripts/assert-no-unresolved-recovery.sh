@@ -8,6 +8,7 @@ specs=(
   'bo-manager-access-reconcile.yml|BO manager Access reconcile #|BO_MANAGER_ACCESS_RECONCILE|BO_MANAGER_ACCESS_RECONCILE'
   'tos-google-idp-reconcile.yml|TOS Google IdP reconcile #|TOS_GOOGLE_IDP_RECONCILE|TOS_GOOGLE_IDP_RECONCILE'
   'tos-canonical-external-eval.yml|TOS canonical external evaluation #|TOS_CANONICAL_EXTERNAL_EVAL|TOS_CANONICAL_EXTERNAL_EVAL'
+  'team-access-perimeter-retire.yml|Team Access perimeter retirement #|TEAM_ACCESS_PERIMETER_RETIRE|TEAM_ACCESS_PERIMETER_RETIRE'
 )
 for spec in "${specs[@]}"; do
   IFS='|' read -r workflow display_prefix marker_prefix terminal_prefix <<<"$spec"
