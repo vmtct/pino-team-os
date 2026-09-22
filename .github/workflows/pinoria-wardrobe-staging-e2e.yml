@@ -1,0 +1,280 @@
+name: Pinoria Wardrobe Staging E2E
+run-name: "${{ github.event.issue.title == '[GPT] Pinoria Wardrobe staging E2E' && github.event.issue.user.login == 'vmtct' && format('Pinoria Wardrobe Staging E2E #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED Pinoria Wardrobe staging issue #{0} @ {1}', github.event.issue.number, github.sha) }}"
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: "${{ github.event.issue.title == '[GPT] Pinoria Wardrobe staging E2E' && github.event.issue.user.login == 'vmtct' && 'pino-team-staging-worker-mutation' || format('{0}-{1}', github.workflow, github.run_id) }}"
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    if: github.event.issue.title == '[GPT] Pinoria Wardrobe staging E2E' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+      CORE_REPOSITORY: vmtct/pino-core
+      CORE_RELEASE_GH_TOKEN: ${{ secrets.PINO_CORE_RELEASE_READ_TOKEN }}
+      CORE_STAGING_WORKER: pino-core-staging
+      STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
+
+    steps:
+      - name: Validate request
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          echo "AUTH_BODY_HASH=$AUTH_BODY_HASH" >> "$GITHUB_ENV"
+          reject() {
+            {
+              echo "PINORIA_WARDROBE_STAGING_E2E: REJECTED"
+              echo
+              echo "$1"
+              echo
+              echo "No staging or production mutation was attempted."
+            } > "$RUNNER_TEMP/reject.txt"
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/reject.txt"
+            exit 1
+          }
+          mapfile -t sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one TEAM_SHA line."
+          team_sha="$(tr 'A-F' 'a-f' <<<"${sha_lines[0]}")"
+          mapfile -t core_sha_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_SHA:[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\1/p')
+          [ "${#core_sha_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_SHA line."
+          core_sha="$(tr 'A-F' 'a-f' <<<"${core_sha_lines[0]}")"
+          mapfile -t fixture_lines < <(printf '%s\n' "$ISSUE_BODY" | sed -nE 's/^CORE_FIXTURE_RUN_ID:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+          [ "${#fixture_lines[@]}" -eq 1 ] || reject "Issue body must contain exactly one CORE_FIXTURE_RUN_ID line."
+          fixture_run_id="${fixture_lines[0]}"
+          grep -Eq '^CONFIRM:[[:space:]]*RUN_PINORIA_WARDROBE_STAGING_E2E[[:space:]]*$' <<<"$ISSUE_BODY" || reject "Missing explicit confirmation."
+
+          core_token="${CORE_RELEASE_GH_TOKEN:?PINO_CORE_RELEASE_READ_TOKEN unavailable}"
+          core_main_sha="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve Core main."
+          [ "$core_sha" = "$core_main_sha" ] || reject "Requested Core SHA is not current Core main."
+          fixture_run="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/actions/runs/${fixture_run_id}")" || reject "Cannot read Core fixture run."
+          jq -e --arg sha "$core_sha" '
+            .head_sha == $sha
+            and .event == "issues"
+            and .status == "completed"
+            and .conclusion == "success"
+            and .actor.login == "vmtct"
+            and .triggering_actor.login == "vmtct"
+            and .path == ".github/workflows/pinoria-wardrobe-staging-fixture.yml"
+            and .display_title == "[GPT] Pinoria wardrobe staging fixture"
+          ' <<<"$fixture_run" >/dev/null || reject "Core fixture run receipt is not an exact successful Pinoria Wardrobe fixture run."
+
+          main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" || reject "Cannot resolve main."
+          [ "$team_sha" = "$main_sha" ] || reject "Requested SHA is not current Team main."
+          runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${team_sha}&event=push&per_page=30")"
+          latest_main_validation="$(jq -c '[.workflow_runs[] | select(.name=="Cloudflare Build + Serving Truth")] | sort_by(.updated_at // .run_started_at // .created_at // "") | last // empty' <<<"$runs")"
+          jq -e '.status=="completed" and .conclusion=="success"' <<<"$latest_main_validation" >/dev/null || reject "Newest current-main Team serving-truth workflow is not terminal success."
+
+          echo "team_sha=$team_sha" >> "$GITHUB_OUTPUT"
+          echo "core_sha=$core_sha" >> "$GITHUB_OUTPUT"
+          echo "fixture_run_id=$fixture_run_id" >> "$GITHUB_OUTPUT"
+          echo "TEAM_SHA=$team_sha" >> "$GITHUB_ENV"
+          echo "CORE_SHA=$core_sha" >> "$GITHUB_ENV"
+          echo "CORE_FIXTURE_RUN_ID=$fixture_run_id" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.gate.outputs.team_sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Verify exact active staging serving revision
+        id: staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "CF_API_TOKEN unavailable" >&2; exit 1; }
+          test "$(git rev-parse HEAD)" = "$TEAM_SHA"
+          test -z "$(git status --porcelain)"
+
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-active.json"
+          deployment="$(cat "$RUNNER_TEMP/staging-active.json")"
+          prefix="Workforce staging ${TEAM_SHA} run "
+          message="$(jq -r '.annotations["workers/message"] // ""' <<<"$deployment")"
+          [[ "$message" == "$prefix"* ]] || { echo "Current active staging deployment provenance does not match exact Team SHA" >&2; exit 1; }
+          version_id="$(jq -r '.versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$deployment" | head -1)"
+          [ -n "$version_id" ] || { echo "Exact Team SHA is not active at 100% on pino-team-os-staging" >&2; exit 1; }
+          run_id="${message##* run }"
+          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Staging deployment run provenance is malformed" >&2; exit 1; }
+
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "deploy_run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Exact staging serving revision: $TEAM_SHA / $version_id / deploy run $run_id"
+
+          core_state="$(curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CORE_STAGING_WORKER}/deployments")"
+          jq -e '.success == true' <<<"$core_state" >/dev/null || { echo "Cannot resolve Core staging deployment state" >&2; exit 1; }
+          core_deployment_id="$(jq -r '.result.deployments[0].id // empty' <<<"$core_state")"
+          core_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$core_state")"
+          mapfile -t core_active_versions < <(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_state")
+          [ -n "$core_deployment_id" ] && [ "${#core_active_versions[@]}" -eq 1 ] || { echo "Core staging does not have one exact active deployment/version" >&2; exit 1; }
+          core_version_id="${core_active_versions[0]}"
+          if [[ ! "$core_marker" =~ ^PINO_STAGING_RUNTIME_EVIDENCE:([0-9a-f]{40}):([0-9]+):([1-9][0-9]*):([0-9a-f-]{36})$ ]]; then
+            echo "Core staging deployment marker is not canonical runtime evidence" >&2
+            exit 1
+          fi
+          [ "${BASH_REMATCH[1]}" = "$CORE_SHA" ] || { echo "Active Core staging SHA does not match requested CORE_SHA" >&2; exit 1; }
+          core_run_id="${BASH_REMATCH[2]}"
+          core_run_attempt="${BASH_REMATCH[3]}"
+          core_token="${CORE_RELEASE_GH_TOKEN:?PINO_CORE_RELEASE_READ_TOKEN unavailable}"
+          core_run="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/actions/runs/${core_run_id}")"
+          jq -e --arg sha "$CORE_SHA" --argjson attempt "$core_run_attempt" '.head_sha == $sha and .event == "issues" and .status == "completed" and .conclusion == "success" and .actor.login == "vmtct" and .triggering_actor.login == "vmtct" and .path == ".github/workflows/open-studio-core-staging-deploy.yml" and .run_attempt == $attempt' <<<"$core_run" >/dev/null || { echo "Core staging deployment run provenance is invalid" >&2; exit 1; }
+
+          echo "core_deployment_id=$core_deployment_id" >> "$GITHUB_OUTPUT"
+          echo "core_version_id=$core_version_id" >> "$GITHUB_OUTPUT"
+          echo "core_marker=$core_marker" >> "$GITHUB_OUTPUT"
+          echo "core_deploy_run_id=$core_run_id" >> "$GITHUB_OUTPUT"
+          echo "core_deploy_run_attempt=$core_run_attempt" >> "$GITHUB_OUTPUT"
+          echo "Exact Core staging serving revision: $CORE_SHA / $core_deployment_id / $core_version_id / run $core_run_id attempt $core_run_attempt"
+
+      - name: Revalidate exact runtime and fixture receipt before Golden Journey
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
+          STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          live_issue="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          jq -e '.state == "open" and .title == "[GPT] Pinoria Wardrobe staging E2E" and .user.login == "vmtct"' <<<"$live_issue" >/dev/null || { echo "Authorizing issue is no longer live" >&2; exit 1; }
+          live_body="$(jq -r '.body // ""' <<<"$live_issue")"
+          [ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$AUTH_BODY_HASH" ] || { echo "Authorizing issue body changed after admission" >&2; exit 1; }
+
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-recheck.json"
+          team_recheck="$(cat "$RUNNER_TEMP/staging-recheck.json")"
+          team_version="$(jq -r '.versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$team_recheck" | head -1)"
+          team_message="$(jq -r '.annotations["workers/message"] // ""' <<<"$team_recheck")"
+          [ "$team_version" = "$STAGING_VERSION_ID" ] || { echo "Team staging version changed after admission" >&2; exit 1; }
+          [ "${team_message##* run }" = "$STAGING_DEPLOY_RUN_ID" ] || { echo "Team staging deploy provenance changed after admission" >&2; exit 1; }
+
+          core_state="$(curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CORE_STAGING_WORKER}/deployments")"
+          jq -e '.success == true' <<<"$core_state" >/dev/null
+          [ "$(jq -r '.result.deployments[0].id // empty' <<<"$core_state")" = "$CORE_STAGING_DEPLOYMENT_ID" ] || { echo "Core staging deployment changed after admission" >&2; exit 1; }
+          active_core_version="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_state" | head -1)"
+          [ "$active_core_version" = "$CORE_STAGING_VERSION_ID" ] || { echo "Core staging version changed after admission" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$core_state")" = "$CORE_STAGING_DEPLOYMENT_MARKER" ] || { echo "Core staging provenance changed after admission" >&2; exit 1; }
+
+          core_token="${CORE_RELEASE_GH_TOKEN:?PINO_CORE_RELEASE_READ_TOKEN unavailable}"
+          fixture_run="$(GH_TOKEN="$core_token" gh api "/repos/${CORE_REPOSITORY}/actions/runs/${CORE_FIXTURE_RUN_ID}")"
+          jq -e --arg sha "$CORE_SHA" '
+            .head_sha == $sha
+            and .event == "issues"
+            and .status == "completed"
+            and .conclusion == "success"
+            and .actor.login == "vmtct"
+            and .triggering_actor.login == "vmtct"
+            and .path == ".github/workflows/pinoria-wardrobe-staging-fixture.yml"
+            and .display_title == "[GPT] Pinoria wardrobe staging fixture"
+          ' <<<"$fixture_run" >/dev/null || { echo "Core fixture receipt no longer verifies" >&2; exit 1; }
+
+      - name: Run cross-runtime Golden Journey
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
+          STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          E2E_BASE_URL="$STAGING_URL" npx playwright test e2e/pinoria-wardrobe-staging.spec.ts --workers=1 --retries=0
+      - name: Report PASS
+        if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          STAGING_VERSION_ID: ${{ steps.staging.outputs.version_id }}
+          STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.deploy_run_id }}
+          CORE_STAGING_DEPLOYMENT_ID: ${{ steps.staging.outputs.core_deployment_id }}
+          CORE_STAGING_VERSION_ID: ${{ steps.staging.outputs.core_version_id }}
+          CORE_STAGING_DEPLOYMENT_MARKER: ${{ steps.staging.outputs.core_marker }}
+          CORE_STAGING_DEPLOY_RUN_ID: ${{ steps.staging.outputs.core_deploy_run_id }}
+          CORE_STAGING_DEPLOY_RUN_ATTEMPT: ${{ steps.staging.outputs.core_deploy_run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          live_issue="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          jq -e '.state == "open" and .title == "[GPT] Pinoria Wardrobe staging E2E" and .user.login == "vmtct"' <<<"$live_issue" >/dev/null || { echo "Authorizing issue is no longer live before PASS" >&2; exit 1; }
+          live_body="$(jq -r '.body // ""' <<<"$live_issue")"
+          [ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$AUTH_BODY_HASH" ] || { echo "Authorizing issue body changed before PASS" >&2; exit 1; }
+
+          npx wrangler deployments status -c wrangler.staging.jsonc --json > "$RUNNER_TEMP/staging-post-journey.json"
+          team_post="$(cat "$RUNNER_TEMP/staging-post-journey.json")"
+          [ "$(jq -r '.versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$team_post" | head -1)" = "$STAGING_VERSION_ID" ] || { echo "Team staging version changed during Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.annotations["workers/message"] // ""' <<<"$team_post" | sed -nE 's/^.* run ([0-9]+)$/\1/p')" = "$STAGING_DEPLOY_RUN_ID" ] || { echo "Team staging deploy provenance changed during Golden Journey" >&2; exit 1; }
+
+          core_state="$(curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CORE_STAGING_WORKER}/deployments")"
+          jq -e '.success == true' <<<"$core_state" >/dev/null || { echo "Cannot resolve Core staging after Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].id // empty' <<<"$core_state")" = "$CORE_STAGING_DEPLOYMENT_ID" ] || { echo "Core staging deployment changed during Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$core_state" | head -1)" = "$CORE_STAGING_VERSION_ID" ] || { echo "Core staging version changed during Golden Journey" >&2; exit 1; }
+          [ "$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$core_state")" = "$CORE_STAGING_DEPLOYMENT_MARKER" ] || { echo "Core staging provenance changed during Golden Journey" >&2; exit 1; }
+
+          {
+            echo "PINORIA_WARDROBE_STAGING_E2E: PASS"
+            echo
+            echo "Team source: ${TEAM_SHA}"
+            echo "Team staging Worker: pino-team-os-staging"
+            echo "Team active staging version: ${{ steps.staging.outputs.version_id }}"
+            echo "Team staging deploy run: ${{ steps.staging.outputs.deploy_run_id }}"
+            echo "Core source: ${CORE_SHA}"
+            echo "Core staging Worker: ${CORE_STAGING_WORKER}"
+            echo "Core staging deployment: ${{ steps.staging.outputs.core_deployment_id }}"
+            echo "Core active staging version: ${{ steps.staging.outputs.core_version_id }}"
+            echo "Core staging deploy run: ${{ steps.staging.outputs.core_deploy_run_id }} attempt ${{ steps.staging.outputs.core_deploy_run_attempt }}"
+            echo "Core fixture run receipt: ${CORE_FIXTURE_RUN_ID}"
+            echo "Fixture: fixture-v2 / eight Ward slots / render-valid media"
+            echo "Runtimes: pino-team-os-staging -> pino-core-staging"
+            echo "Golden Journey: GJ-PNR-WARD-01"
+            echo
+            echo "No Production mutation was performed."
+          } > "$RUNNER_TEMP/pass.txt"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/pass.txt"
+
+      - name: Report failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "PINORIA_WARDROBE_STAGING_E2E: FAIL_SAFE"
+            echo
+            echo "Team source: ${TEAM_SHA:-unknown}"
+            echo "No Production mutation was authorized by this workflow."
+          } > "$RUNNER_TEMP/failure.txt"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/failure.txt" || true
