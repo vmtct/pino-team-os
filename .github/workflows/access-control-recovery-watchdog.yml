@@ -47,13 +47,13 @@ jobs:
           workflow='${{ github.event.workflow_run.name }}'
           display='${{ github.event.workflow_run.display_title }}'
           case "$workflow" in
-            'Access Sync Worker Secret')
+            'Access Sync Worker Secret'|'Access sync worker secret #'*)
               issue="$(sed -nE "s/^Access sync worker secret #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=ACCESS_SYNC_WORKER_SECRET; mode=worker ;;
-            'BO Manager Access Reconcile')
+            'BO Manager Access Reconcile'|'BO manager Access reconcile #'*)
               issue="$(sed -nE "s/^BO manager Access reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=BO_MANAGER_ACCESS_RECONCILE; mode=bo ;;
-            'TOS Google IdP Reconcile')
+            'TOS Google IdP Reconcile'|'TOS Google IdP reconcile #'*)
               issue="$(sed -nE "s/^TOS Google IdP reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_GOOGLE_IDP_RECONCILE; mode=idp ;;
-            'TOS Canonical External Evaluation')
+            'TOS Canonical External Evaluation'|'TOS canonical external evaluation #'*)
               issue="$(sed -nE "s/^TOS canonical external evaluation #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_CANONICAL_EXTERNAL_EVAL; mode=eval ;;
             *) exit 0 ;;
           esac
