@@ -84,6 +84,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/centers",
     "/api/bo/delivery/bootstrap-state",
     "/api/bo/delivery/enrollment-activation",
+    "/api/bo/delivery/term-weeks",
     "/api/bo/delivery/learning-spaces",
     "/api/bo/delivery/running-classes",
     "/api/bo/delivery/running-class-blocks",
