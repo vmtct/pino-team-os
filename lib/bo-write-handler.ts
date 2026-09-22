@@ -24,6 +24,7 @@ const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const TIMEKEEPING_CORRECTION_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/corrections$/;
 const TIMEKEEPING_MISSED_CHECKOUT_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/resolve-missed-checkout$/;
 const DELIVERY_POST_PATHS = new Set([
+  "delivery/term-weeks",
   "delivery/learning-spaces",
   "delivery/running-classes",
   "delivery/running-class-blocks",
