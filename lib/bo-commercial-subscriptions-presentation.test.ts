@@ -49,3 +49,19 @@ test("Subscriptions page remains presentation-only and uses existing API contrac
   assert.match(api, /placeEnrollment:/);
   assert.doesNotMatch(view, /fetch\(/);
 });
+
+
+test("Commercial commands preserve exact replay evidence across uncertain outcomes", async () => {
+  const [view, api] = await Promise.all([read("app/bo/subscriptions/BoSubscriptionsView.tsx"), read("lib/bo-api.ts")]);
+  assert.match(view, /type CommandAttempt/);
+  assert.match(view, /idempotencyKey: crypto\.randomUUID\(\)/);
+  assert.match(view, /pendingAttempt\.key === key/);
+  assert.match(view, /attempt\.action\(attempt\.idempotencyKey\)/);
+  assert.match(view, /definitiveRejection = error instanceof BoApiError && error\.structuredResponse && error\.status >= 400 && error\.status < 500/);
+  assert.match(view, /Thử lại cùng yêu cầu/);
+  assert.match(view, /blocked=\{Boolean\(commandState\.busy \|\| pendingAttempt\)\}/);
+  for (const command of ["createSubscription", "renewSubscription", "cancelSubscription", "placeEnrollment", "endEnrollment"]) {
+    assert.match(api, new RegExp(`${command}:[^\n]+idempotencyKey: string`));
+  }
+  assert.doesNotMatch(api, /(?:createSubscription|renewSubscription|cancelSubscription|placeEnrollment|endEnrollment):[^\n]+crypto\.randomUUID\(\)/);
+});

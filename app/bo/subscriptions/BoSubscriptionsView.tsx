@@ -9,6 +9,7 @@ import styles from "./bo-subscriptions.module.css";
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type CreateDraft = { pathProgramId: string; serviceStartsOn: string; weeklyCommitment: string; purchasedUnits: string; commercialReference: string };
+type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
 const EMPTY_CREATE: CreateDraft = { pathProgramId: "", serviceStartsOn: today(), weeklyCommitment: "2", purchasedUnits: "24", commercialReference: "" };
 
 export function BoSubscriptionsView() {
@@ -21,6 +22,7 @@ export function BoSubscriptionsView() {
   const [placementClass, setPlacementClass] = useState<Record<string, string>>({});
   const [placementDate, setPlacementDate] = useState<Record<string, string>>({});
   const [commandState, setCommandState] = useState<{ busy: string | null; notice: string | null; error: string | null }>({ busy: null, notice: null, error: null });
+  const [pendingAttempt, setPendingAttempt] = useState<CommandAttempt | null>(null);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
 
@@ -37,6 +39,7 @@ export function BoSubscriptionsView() {
   }
 
   function selectStudent(id: string | null) {
+    if (pendingAttempt) return;
     selectedRef.current = id;
     detailFence.current.invalidate();
     setSelectedId(id);
@@ -89,30 +92,42 @@ export function BoSubscriptionsView() {
     return rows.filter((student) => `${student.displayName} ${student.activePaths.map((path) => path.displayName).join(" ")}`.toLocaleLowerCase("vi").includes(term));
   }, [query, rows]);
 
-  async function runCommand(key: string, action: () => Promise<unknown>, success: string) {
+  async function executeAttempt(attempt: CommandAttempt) {
     if (commandState.busy) return;
-    setCommandState({ busy: key, notice: null, error: null });
+    setCommandState({ busy: attempt.key, notice: null, error: null });
     try {
-      await action();
+      await attempt.action(attempt.idempotencyKey);
       await refreshSelected();
-      setCommandState({ busy: null, notice: success, error: null });
+      setPendingAttempt(null);
+      setCommandState({ busy: null, notice: attempt.success, error: null });
     } catch (error) {
+      const definitiveRejection = error instanceof BoApiError && error.structuredResponse && error.status >= 400 && error.status < 500;
+      if (definitiveRejection) setPendingAttempt(null);
       setCommandState({ busy: null, notice: null, error: message(error) });
     }
+  }
+
+  async function runCommand(key: string, action: (idempotencyKey: string) => Promise<unknown>, success: string) {
+    if (commandState.busy) return;
+    if (pendingAttempt) {
+      if (pendingAttempt.key === key) await executeAttempt(pendingAttempt);
+      return;
+    }
+    const attempt = { key, idempotencyKey: crypto.randomUUID(), action, success };
+    setPendingAttempt(attempt);
+    await executeAttempt(attempt);
+  }
+
+  async function retryPending() {
+    if (pendingAttempt) await executeAttempt(pendingAttempt);
   }
 
   async function createSubscription(event: React.FormEvent) {
     event.preventDefault();
     const studentId = selectedRef.current;
     if (!studentId) return;
-    await runCommand("create", () => boApi.createSubscription({
-      studentProfileId: studentId,
-      pathProgramId: createDraft.pathProgramId,
-      serviceStartsOn: createDraft.serviceStartsOn,
-      weeklyCommitment: Number(createDraft.weeklyCommitment),
-      purchasedUnits: Number(createDraft.purchasedUnits),
-      ...(createDraft.commercialReference.trim() ? { commercialReference: createDraft.commercialReference.trim() } : {}),
-    }), "Đã tạo và kích hoạt Subscription từ canonical Core.");
+    const body = { studentProfileId: studentId, pathProgramId: createDraft.pathProgramId, serviceStartsOn: createDraft.serviceStartsOn, weeklyCommitment: Number(createDraft.weeklyCommitment), purchasedUnits: Number(createDraft.purchasedUnits), ...(createDraft.commercialReference.trim() ? { commercialReference: createDraft.commercialReference.trim() } : {}) };
+    await runCommand("create", (idempotencyKey) => boApi.createSubscription(body, idempotencyKey), "Đã tạo và kích hoạt Subscription từ canonical Core.");
   }
 
   async function place(subscriptionId: string) {
@@ -122,11 +137,8 @@ export function BoSubscriptionsView() {
       setCommandState({ busy: null, notice: null, error: "Chọn Running Class trước khi xếp lớp." });
       return;
     }
-    await runCommand(`place:${subscriptionId}`, () => boApi.placeEnrollment({
-      subscriptionId, runningClassId, effectiveFromLocalDate,
-      commandEffectiveLocalDate: today(),
-      policyEffectiveAt: new Date().toISOString(),
-    }), "Đã xếp lớp; capacity/commitment được Core kiểm tra.");
+    const body = { subscriptionId, runningClassId, effectiveFromLocalDate, commandEffectiveLocalDate: today(), policyEffectiveAt: new Date().toISOString() };
+    await runCommand(`place:${subscriptionId}`, (idempotencyKey) => boApi.placeEnrollment(body, idempotencyKey), "Đã xếp lớp; capacity/commitment được Core kiểm tra.");
   }
 
   async function renew(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
@@ -134,18 +146,15 @@ export function BoSubscriptionsView() {
     if (unitsText === null) return;
     const start = window.prompt("Ngày bắt đầu service (YYYY-MM-DD, để trống nếu Core tự resolve)", "") ?? "";
     const ref = window.prompt("Commercial reference (tuỳ chọn)", subscription.commercialReference ?? "") ?? "";
-    await runCommand(`renew:${subscription.id}`, () => boApi.renewSubscription(subscription.id, {
-      weeklyCommitment: subscription.weeklyCommitment,
-      purchasedUnits: Number(unitsText),
-      ...(start.trim() ? { serviceStartsOn: start.trim() } : {}),
-      ...(ref.trim() ? { commercialReference: ref.trim() } : {}),
-    }), "Đã tạo renewal successor; predecessor không bị supersede sớm.");
+    const body = { weeklyCommitment: subscription.weeklyCommitment, purchasedUnits: Number(unitsText), ...(start.trim() ? { serviceStartsOn: start.trim() } : {}), ...(ref.trim() ? { commercialReference: ref.trim() } : {}) };
+    await runCommand(`renew:${subscription.id}`, (idempotencyKey) => boApi.renewSubscription(subscription.id, body, idempotencyKey), "Đã tạo renewal successor; predecessor không bị supersede sớm.");
   }
 
   async function cancel(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
     const reason = window.prompt("Lý do huỷ Subscription");
     if (!reason?.trim()) return;
-    await runCommand(`cancel:${subscription.id}`, () => boApi.cancelSubscription(subscription.id, { expectedVersion: subscription.version, reason: reason.trim() }), "Đã huỷ Subscription theo canonical lifecycle.");
+    const body = { expectedVersion: subscription.version, reason: reason.trim() };
+    await runCommand(`cancel:${subscription.id}`, (idempotencyKey) => boApi.cancelSubscription(subscription.id, body, idempotencyKey), "Đã huỷ Subscription theo canonical lifecycle.");
   }
 
   async function endEnrollment(enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) {
@@ -153,7 +162,8 @@ export function BoSubscriptionsView() {
     if (!until?.trim()) return;
     const reason = window.prompt("Lý do kết thúc Enrollment");
     if (!reason?.trim()) return;
-    await runCommand(`end:${enrollment.id}`, () => boApi.endEnrollment(enrollment.id, { effectiveUntilExclusiveLocalDate: until.trim(), expectedVersion: enrollment.version, reason: reason.trim() }), "Đã kết thúc Enrollment.");
+    const body = { effectiveUntilExclusiveLocalDate: until.trim(), expectedVersion: enrollment.version, reason: reason.trim() };
+    await runCommand(`end:${enrollment.id}`, (idempotencyKey) => boApi.endEnrollment(enrollment.id, body, idempotencyKey), "Đã kết thúc Enrollment.");
   }
 
   if (directory.state === "loading" || catalog.state === "loading") return <State text="Đang tải Subscription workspace…" />;
@@ -166,13 +176,13 @@ export function BoSubscriptionsView() {
       <div className={styles.boundary}>Core-owned commercial truth</div>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
-    {commandState.error ? <div className={styles.error}>{commandState.error}</div> : null}
+    {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
     <section className={styles.workspace}>
       <aside className={styles.directory}>
         <div className={styles.search}><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên…" /></div>
         <small>{filtered.length} Student · canonical directory</small>
         <div className={styles.studentList}>
-          {filtered.map((student) => <button key={student.id} type="button" className={selectedId === student.id ? styles.studentActive : styles.student} onClick={() => selectStudent(student.id)}>
+          {filtered.map((student) => <button key={student.id} type="button" disabled={Boolean(commandState.busy || pendingAttempt)} className={selectedId === student.id ? styles.studentActive : styles.student} onClick={() => selectStudent(student.id)}>
             <span className={styles.avatar}>{initials(student.displayName)}</span>
             <span><strong>{student.displayName}</strong><small>{student.activeSubscriptions ? `${student.activeSubscriptions} active Subscription` : "Chưa active"}</small></span>
           </button>)}
@@ -182,7 +192,7 @@ export function BoSubscriptionsView() {
       <section className={styles.detail}>
         {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data} draft={createDraft} setDraft={setCreateDraft} createSubscription={createSubscription}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
-          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} /> : <State text="Chọn Student để bắt đầu." />}
+          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} blocked={Boolean(commandState.busy || pendingAttempt)} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
     </section>
   </main>;
@@ -194,7 +204,7 @@ function CommercialWorkspace(props: {
   placementDate: Record<string, string>; setPlacementDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   cancel: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
-  endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null;
+  endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null; blocked: boolean;
 }) {
   if (!props.load || props.load.state === "loading") return <State text="Đang tải commercial lifecycle…" />;
   if (props.load.state === "error") return <State text={props.load.message} error />;
@@ -209,15 +219,15 @@ function CommercialWorkspace(props: {
     <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
       <div className={styles.sectionHead}><div><span>New commercial lifecycle</span><h3>Tạo & kích hoạt Subscription</h3></div><small>Core atomically creates + activates + PURCHASED units</small></div>
       <div className={styles.formGrid}>
-        <label>Path<select required value={props.draft.pathProgramId} onChange={(event) => props.setDraft((draft) => ({ ...draft, pathProgramId: event.target.value }))}>
+        <label>Path<select disabled={props.blocked} required value={props.draft.pathProgramId} onChange={(event) => props.setDraft((draft) => ({ ...draft, pathProgramId: event.target.value }))}>
           <option value="">Chọn Path</option>{props.catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
         </select></label>
-        <label>Service starts<input type="date" required value={props.draft.serviceStartsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, serviceStartsOn: event.target.value }))} /></label>
-        <label>Buổi / tuần<input type="number" min="1" required value={props.draft.weeklyCommitment} onChange={(event) => props.setDraft((draft) => ({ ...draft, weeklyCommitment: event.target.value }))} /></label>
-        <label>Service Units<input type="number" min="1" required value={props.draft.purchasedUnits} onChange={(event) => props.setDraft((draft) => ({ ...draft, purchasedUnits: event.target.value }))} /></label>
-        <label className={styles.span2}>Commercial reference<input value={props.draft.commercialReference} onChange={(event) => props.setDraft((draft) => ({ ...draft, commercialReference: event.target.value }))} placeholder="Tuỳ chọn" /></label>
+        <label>Service starts<input disabled={props.blocked} type="date" required value={props.draft.serviceStartsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, serviceStartsOn: event.target.value }))} /></label>
+        <label>Buổi / tuần<input disabled={props.blocked} type="number" min="1" required value={props.draft.weeklyCommitment} onChange={(event) => props.setDraft((draft) => ({ ...draft, weeklyCommitment: event.target.value }))} /></label>
+        <label>Service Units<input disabled={props.blocked} type="number" min="1" required value={props.draft.purchasedUnits} onChange={(event) => props.setDraft((draft) => ({ ...draft, purchasedUnits: event.target.value }))} /></label>
+        <label className={styles.span2}>Commercial reference<input disabled={props.blocked} value={props.draft.commercialReference} onChange={(event) => props.setDraft((draft) => ({ ...draft, commercialReference: event.target.value }))} placeholder="Tuỳ chọn" /></label>
       </div>
-      <button className={styles.primary} disabled={Boolean(props.busy)} type="submit">{props.busy === "create" ? "Đang tạo…" : "Tạo & kích hoạt"}</button>
+      <button className={styles.primary} disabled={props.blocked} type="submit">{props.busy === "create" ? "Đang tạo…" : "Tạo & kích hoạt"}</button>
       <p className={styles.hint}>2 buổi/tuần và 24 units chỉ là convenience defaults của form, không phải business policy.</p>
     </form>
 
@@ -234,17 +244,17 @@ function CommercialWorkspace(props: {
           </div>
           <div className={styles.facts}><span>Bắt đầu <b>{sub.serviceStartsOn ?? "—"}</b></span><span>Ref <b>{sub.commercialReference ?? "—"}</b></span></div>
           <div className={styles.enrollments}><strong>Enrollment hiện tại</strong>
-            {current.length ? current.map((enrollment) => <div key={enrollment.id}><span>{enrollment.runningClassName}</span><small>{enrollment.effectiveFromLocalDate}</small><button type="button" disabled={Boolean(props.busy)} onClick={() => void props.endEnrollment(enrollment)}>Kết thúc</button></div>) : <p>Chưa có placement hiệu lực.</p>}
+            {current.length ? current.map((enrollment) => <div key={enrollment.id}><span>{enrollment.runningClassName}</span><small>{enrollment.effectiveFromLocalDate}</small><button type="button" disabled={props.blocked} onClick={() => void props.endEnrollment(enrollment)}>Kết thúc</button></div>) : <p>Chưa có placement hiệu lực.</p>}
           </div>
           {sub.lifecycle === "ACTIVE" ? <div className={styles.placement}>
-            <select value={props.placementClass[sub.id] ?? ""} onChange={(event) => props.setPlacementClass((state) => ({ ...state, [sub.id]: event.target.value }))}>
+            <select disabled={props.blocked} value={props.placementClass[sub.id] ?? ""} onChange={(event) => props.setPlacementClass((state) => ({ ...state, [sub.id]: event.target.value }))}>
               <option value="">Chọn Running Class cùng Path</option>{eligibleClasses.map((item) => <option key={item.id} value={item.id}>{item.name} · {scheduleLabel(item)}</option>)}
             </select>
-            <input type="date" value={props.placementDate[sub.id] ?? today()} onChange={(event) => props.setPlacementDate((state) => ({ ...state, [sub.id]: event.target.value }))} />
-            <button type="button" disabled={Boolean(props.busy)} onClick={() => void props.place(sub.id)}>Xếp lớp</button>
+            <input disabled={props.blocked} type="date" value={props.placementDate[sub.id] ?? today()} onChange={(event) => props.setPlacementDate((state) => ({ ...state, [sub.id]: event.target.value }))} />
+            <button type="button" disabled={props.blocked} onClick={() => void props.place(sub.id)}>Xếp lớp</button>
           </div> : null}
-          <div className={styles.actions}><button type="button" disabled={Boolean(props.busy)} onClick={() => void props.renew(sub)}>Renew</button>
-            {sub.lifecycle === "ACTIVE" ? <button className={styles.danger} type="button" disabled={Boolean(props.busy)} onClick={() => void props.cancel(sub)}>Huỷ Subscription</button> : null}
+          <div className={styles.actions}><button type="button" disabled={props.blocked} onClick={() => void props.renew(sub)}>Renew</button>
+            {sub.lifecycle === "ACTIVE" ? <button className={styles.danger} type="button" disabled={props.blocked} onClick={() => void props.cancel(sub)}>Huỷ Subscription</button> : null}
           </div>
         </article>;
       })}</div> : <p className={styles.empty}>Student chưa có Subscription. Tạo lifecycle đầu tiên ở form phía trên.</p>}
