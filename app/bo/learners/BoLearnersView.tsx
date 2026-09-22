@@ -19,6 +19,7 @@ export function BoLearnersView() {
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [filter, setFilter] = useState<Filter>("active");
   const [query, setQuery] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
   const detailRequestFence = useRef(new LatestRequestFence());
   const selectedIdRef = useRef<string | null>(null);
 
@@ -101,7 +102,7 @@ export function BoLearnersView() {
         <h1>Học viên</h1>
         <p>Manager nhìn ngay ai đang học, học chương trình nào, còn bao nhiêu buổi và đang ở lớp nào.</p>
       </div>
-      <Link className={styles.primaryButton} href="/bo/running-classes">Mở Classes</Link>
+      <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => setShowCreate(true)}>+ Thêm học viên</button><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
     </header>
 
     <section className={styles.metrics}>
@@ -130,8 +131,68 @@ export function BoLearnersView() {
         {selectedId ? <LearnerDetail load={detail} catalog={catalog.data} /> : <State text="Chọn học viên để mở hồ sơ." />}
       </section>
     </section>
+    {showCreate ? <CreateStudentIntake onClose={() => setShowCreate(false)} onCreated={async (studentId) => { setShowCreate(false); await loadDirectory(); selectStudent(studentId); }} /> : null}
 
   </main>;
+}
+
+function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCreated: (studentId: string) => Promise<void> }) {
+  const [studentName, setStudentName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [contactType, setContactType] = useState<"PHONE" | "EMAIL">("PHONE");
+  const [contactValue, setContactValue] = useState("");
+  const [relationshipType, setRelationshipType] = useState<"PARENT" | "GUARDIAN" | "OTHER">("PARENT");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState<{ idempotencyKey: string; body: Parameters<typeof boApi.createStudentIntake>[0] } | null>(null);
+  const [canResetAttempt, setCanResetAttempt] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true); setError(""); setCanResetAttempt(false);
+    const currentAttempt = attempt ?? (() => {
+      const [year, month, day] = birthDate ? birthDate.split("-").map(Number) : [null, null, null];
+      return {
+        idempotencyKey: crypto.randomUUID(),
+        body: {
+          displayName: studentName,
+          birthYear: year, birthMonth: month, birthDay: day, birthPrecision: birthDate ? "FULL_DATE" as const : "UNKNOWN" as const,
+          guardianDisplayName: guardianName.trim() || null, contactType, contactValue, relationshipType, effectiveFrom: new Date().toISOString(),
+        },
+      };
+    })();
+    if (!attempt) setAttempt(currentAttempt);
+    try {
+      const result = await boApi.createStudentIntake(currentAttempt.body, currentAttempt.idempotencyKey);
+      await onCreated(result.studentProfileId);
+    } catch (cause) {
+      setError(message(cause));
+      setCanResetAttempt(cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
+    } finally { setBusy(false); }
+  }
+
+  const attemptLocked = attempt !== null;
+  const uncertainAttempt = attemptLocked && Boolean(error) && !canResetAttempt;
+  function resetAttempt() { setAttempt(null); setCanResetAttempt(false); setError(""); }
+  function closeIfSafe() { if (!busy && !uncertainAttempt) onClose(); }
+
+  return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeIfSafe(); }}>
+    <form className={styles.modal} onSubmit={(event) => void submit(event)}>
+      <header><div><span>School · Student intake</span><h2>Thêm học viên</h2><p>Tạo Student Profile, Parent và Guardian relationship trong một canonical command.</p></div><button type="button" onClick={closeIfSafe} disabled={busy || uncertainAttempt}>×</button></header>
+      {error ? <div className={styles.formError}>{error}{uncertainAttempt ? <><br /><small>Kết quả chưa xác định. Hãy thử lại cùng yêu cầu để đối soát an toàn.</small></> : null}</div> : null}
+      <div className={styles.formGrid}>
+        <label className={styles.fullField}>Tên học viên<input required disabled={attemptLocked} value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Nguyễn Minh Anh" /></label>
+        <label>Ngày sinh<input type="date" disabled={attemptLocked} value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></label>
+        <label>Quan hệ<select disabled={attemptLocked} value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as "PARENT" | "GUARDIAN" | "OTHER")}><option value="PARENT">Cha/Mẹ</option><option value="GUARDIAN">Người giám hộ</option><option value="OTHER">Khác</option></select></label>
+        <label className={styles.fullField}>Tên phụ huynh / guardian<input disabled={attemptLocked} value={guardianName} onChange={(event) => setGuardianName(event.target.value)} placeholder="Nguyễn Văn A" /></label>
+        <label>Liên hệ<select disabled={attemptLocked} value={contactType} onChange={(event) => setContactType(event.target.value as "PHONE" | "EMAIL")}><option value="PHONE">Số điện thoại</option><option value="EMAIL">Email</option></select></label>
+        <label>Giá trị<input required disabled={attemptLocked} value={contactValue} onChange={(event) => setContactValue(event.target.value)} placeholder={contactType === "PHONE" ? "090…" : "parent@example.com"} /></label>
+      </div>
+      <small>Parent có cùng contact canonical sẽ được reuse; Student không tự merge theo tên/ngày sinh.</small>
+      <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={closeIfSafe} disabled={busy || uncertainAttempt}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên + Parent"}</button></footer>
+    </form>
+  </div>;
 }
 
 function Metric({ label, value, note }: { label: string; value: number; note: string }) {

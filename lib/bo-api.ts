@@ -107,13 +107,19 @@ async function write<T>(path: string, body: unknown, idempotencyKey: string): Pr
   const text = await response.text();
   let payload: { data?: T; error?: { message?: string; requestId?: string } };
   try { payload = JSON.parse(text) as typeof payload; }
-  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id")); }
+  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id"), false); }
   if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Back Office command could not be completed.");
   return payload.data;
 }
 
 function apiError(response: Response, body: { error?: { message?: string; requestId?: string } }, fallback: string) {
-  return new BoApiError(response.status, body.error?.message ?? fallback, response.headers.get("x-request-id") ?? body.error?.requestId ?? null);
+  const canonicalMessage = typeof body.error?.message === "string" && body.error.message.trim().length > 0;
+  return new BoApiError(
+    response.status,
+    canonicalMessage ? body.error!.message! : fallback,
+    response.headers.get("x-request-id") ?? body.error?.requestId ?? null,
+    canonicalMessage,
+  );
 }
 
 type BoScopeBootstrap = {
@@ -179,6 +185,14 @@ export const boApi = {
   bindSessionSyllabus: (sessionId: string, command: BoSessionSyllabusBindingCommand, idempotencyKey: string) => write<BoSessionSyllabusBindingResult>(`delivery/sessions/${encodeURIComponent(sessionId)}/syllabus-binding`, command, idempotencyKey),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
+  createStudentIntake: async (body: { displayName: string; birthYear: number | null; birthMonth: number | null; birthDay: number | null; birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE"; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string; relationshipType: "PARENT" | "GUARDIAN" | "OTHER"; effectiveFrom: string }, idempotencyKey: string) => {
+    const result = await write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>("student-intakes", body, idempotencyKey);
+    const canonicalId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+    if (!result || !canonicalId(result.studentProfileId) || !canonicalId(result.parentUserId) || !canonicalId(result.guardianRelationshipId) || typeof result.parentReused !== "boolean") {
+      throw new BoApiError(502, "Student intake returned an invalid response.", null, false);
+    }
+    return result;
+  },
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
