@@ -168,17 +168,19 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
       await onCreated(result.studentProfileId);
     } catch (cause) {
       setError(message(cause));
-      setCanResetAttempt(cause instanceof BoApiError && cause.status >= 400 && cause.status < 500);
+      setCanResetAttempt(cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
     } finally { setBusy(false); }
   }
 
   const attemptLocked = attempt !== null;
+  const uncertainAttempt = attemptLocked && Boolean(error) && !canResetAttempt;
   function resetAttempt() { setAttempt(null); setCanResetAttempt(false); setError(""); }
+  function closeIfSafe() { if (!busy && !uncertainAttempt) onClose(); }
 
-  return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+  return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeIfSafe(); }}>
     <form className={styles.modal} onSubmit={(event) => void submit(event)}>
-      <header><div><span>School · Student intake</span><h2>Thêm học viên</h2><p>Tạo Student Profile, Parent và Guardian relationship trong một canonical command.</p></div><button type="button" onClick={onClose} disabled={busy}>×</button></header>
-      {error ? <div className={styles.formError}>{error}</div> : null}
+      <header><div><span>School · Student intake</span><h2>Thêm học viên</h2><p>Tạo Student Profile, Parent và Guardian relationship trong một canonical command.</p></div><button type="button" onClick={closeIfSafe} disabled={busy || uncertainAttempt}>×</button></header>
+      {error ? <div className={styles.formError}>{error}{uncertainAttempt ? <><br /><small>Kết quả chưa xác định. Hãy thử lại cùng yêu cầu để đối soát an toàn.</small></> : null}</div> : null}
       <div className={styles.formGrid}>
         <label className={styles.fullField}>Tên học viên<input required disabled={attemptLocked} value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Nguyễn Minh Anh" /></label>
         <label>Ngày sinh<input type="date" disabled={attemptLocked} value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></label>
@@ -188,7 +190,7 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
         <label>Giá trị<input required disabled={attemptLocked} value={contactValue} onChange={(event) => setContactValue(event.target.value)} placeholder={contactType === "PHONE" ? "090…" : "parent@example.com"} /></label>
       </div>
       <small>Parent có cùng contact canonical sẽ được reuse; Student không tự merge theo tên/ngày sinh.</small>
-      <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={onClose} disabled={busy}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên + Parent"}</button></footer>
+      <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={closeIfSafe} disabled={busy || uncertainAttempt}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên + Parent"}</button></footer>
     </form>
   </div>;
 }

@@ -107,7 +107,7 @@ async function write<T>(path: string, body: unknown, idempotencyKey: string): Pr
   const text = await response.text();
   let payload: { data?: T; error?: { message?: string; requestId?: string } };
   try { payload = JSON.parse(text) as typeof payload; }
-  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id")); }
+  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id"), false); }
   if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Back Office command could not be completed.");
   return payload.data;
 }
@@ -179,7 +179,13 @@ export const boApi = {
   bindSessionSyllabus: (sessionId: string, command: BoSessionSyllabusBindingCommand, idempotencyKey: string) => write<BoSessionSyllabusBindingResult>(`delivery/sessions/${encodeURIComponent(sessionId)}/syllabus-binding`, command, idempotencyKey),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
-  createStudentIntake: (body: { displayName: string; birthYear: number | null; birthMonth: number | null; birthDay: number | null; birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE"; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string; relationshipType: "PARENT" | "GUARDIAN" | "OTHER"; effectiveFrom: string }, idempotencyKey: string) => write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>("student-intakes", body, idempotencyKey),
+  createStudentIntake: async (body: { displayName: string; birthYear: number | null; birthMonth: number | null; birthDay: number | null; birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE"; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string; relationshipType: "PARENT" | "GUARDIAN" | "OTHER"; effectiveFrom: string }, idempotencyKey: string) => {
+    const result = await write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>("student-intakes", body, idempotencyKey);
+    if (!result || typeof result.studentProfileId !== "string" || !result.studentProfileId || typeof result.parentUserId !== "string" || !result.parentUserId || typeof result.guardianRelationshipId !== "string" || !result.guardianRelationshipId || typeof result.parentReused !== "boolean") {
+      throw new BoApiError(502, "Student intake returned an invalid response.", null, false);
+    }
+    return result;
+  },
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
