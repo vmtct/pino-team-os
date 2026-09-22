@@ -181,7 +181,7 @@ function StudentHero({ lifecycle, activeCount }: { lifecycle: BoLearnerLifecycle
       <span className={styles.avatarLarge}>{initials(student.displayName)}</span>
       <div><span className={styles.eyebrow}>Student profile</span><h2>{student.displayName}</h2><p>{ageLabel(student.birthYear)}</p></div>
     </div>
-    <div className={styles.heroActions}><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
+    <div className={styles.heroActions}><Link className={styles.secondaryButton} href={`/bo/subscriptions?studentId=${encodeURIComponent(student.id)}`}>Mở Subscription</Link><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
     <div className={styles.heroStatus}>
       <span className={activeCount ? styles.statusActive : styles.statusMuted}>{activeCount ? "Đang học" : "Chưa active"}</span>
       {lifecycle.houseMembership ? <span>House Member</span> : null}
