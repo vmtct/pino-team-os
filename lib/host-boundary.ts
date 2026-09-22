@@ -46,6 +46,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/workforce/duty-exceptions",
     "/bo/training",
     "/bo/learners",
+    "/bo/subscriptions",
     "/bo/open-studio",
     "/bo/delivery-activation",
     "/bo/running-classes",
