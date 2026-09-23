@@ -59,7 +59,7 @@ jobs:
           esac
           [ -n "$issue" ] || { echo "Cannot bind failed Access run to one canonical issue" >&2; exit 1; }
           comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
-          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_ARMED**")) | select(.normalizedBody | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          marker="$(jq -c --arg p "$prefix" --arg run "$run_id" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_ARMED**")) | select(.normalizedBody | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
           [ -n "$marker" ] || { echo "No durable Access recovery marker; no external commit was authorized"; exit 0; }
           body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
           recovery_attempt="$(sed -nE 's/^Workflow attempt:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p' <<<"$body")"
@@ -69,9 +69,9 @@ jobs:
           armed_conclusion="$(jq -r '.conclusion // empty' <<<"$armed_run")"
           [ -n "$armed_conclusion" ] || { echo "Armed workflow attempt is not terminal" >&2; exit 1; }
           [ "$armed_conclusion" != "success" ] || { echo "Armed workflow attempt already succeeded; recovery is not authorized"; exit 0; }
-          pass_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select($b | startswith($p + ": **PASS**")) | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)")) or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:"))|not)))] | length' <<<"$comments")"
+          pass_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select($b | startswith($p + ": **PASS**")) | select($b | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(($b | test("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)")) or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:"))|not)))] | length' <<<"$comments")"
           [ "$pass_receipts" -eq 0 ] || { echo "Armed workflow attempt already has durable PASS evidence; recovery is not authorized"; exit 0; }
-          recovered_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select($b | startswith($p + ": **WATCHDOG_RECOVERED**")) | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | length' <<<"$comments")"
+          recovered_receipts="$(jq -r --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select($b | startswith($p + ": **WATCHDOG_RECOVERED**")) | select($b | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select($b | test("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | length' <<<"$comments")"
           [ "$recovered_receipts" -eq 0 ] || { echo "Armed workflow attempt already has durable WATCHDOG_RECOVERED evidence; recovery is not authorized"; exit 0; }
 
           overlap_clear=0
@@ -98,7 +98,7 @@ jobs:
               baseline_policies_state_b64="$(sed -nE 's/^Rollback baseline policies state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
               [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] && [ -n "$mutation_payload_b64" ] && [ -n "$baseline_policies_state_b64" ] || { echo "Malformed BO recovery marker" >&2; exit 1; }
               [[ "$recovery_policy_name" == *"[run:${run_id}][attempt:${recovery_attempt}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
-              state_marker="$(jq -c --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_STATE_CAPTURED**")) | select(.normalizedBody | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(.normalizedBody | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+              state_marker="$(jq -c --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_STATE_CAPTURED**")) | select(.normalizedBody | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(.normalizedBody | test("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
               [ -n "$state_marker" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nExact post-create BO policy state receipt is absent; recovery refused to delete external state."; exit 1; }
               state_body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$state_marker")"
               policy_id="$(sed -nE 's/^Policy ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$state_body")"
@@ -111,7 +111,18 @@ jobs:
               [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$created_state")" = "$(jq -Sc '.' <<<"$mutation_payload")" ] || { echo "BO mutation payload does not match captured created state" >&2; exit 1; }
               expected_post_policy_set_state="$(jq -Sc --argjson created "$created_state" '. + [$created] | sort_by(.id)' <<<"$baseline_policies_state")"
               api="https://api.cloudflare.com/client/v4"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
-              policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+              fetch_policies() {
+                local base_url="$1" page=1 total_pages=1 response all='[]'
+                while [ "$page" -le "$total_pages" ]; do
+                  response="$(curl -fsS "${base_url}?per_page=100&page=${page}" "${auth[@]}")" || return 1
+                  jq -e '.success==true' <<<"$response" >/dev/null || return 1
+                  all="$(jq -Sc --argjson prior "$all" '$prior + [.result[]?]' <<<"$response")"
+                  total_pages="$(jq -r '.result_info.total_pages // 1' <<<"$response")"
+                  page=$((page+1))
+                done
+                jq -nc --argjson result "$all" '{success:true,result:$result}'
+              }
+              policies="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies")" || { echo "Cannot read complete BO policy set for recovery" >&2; exit 1; }
               current_policy_set_state="$(jq -Sc '[.result[]? | del(.created_at,.updated_at)] | sort_by(.id)' <<<"$policies")"
               current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$policies" | head -1)"
               if [ -z "$current" ]; then
@@ -121,7 +132,7 @@ jobs:
                 current_state="$(jq -Sc 'del(.created_at,.updated_at)' <<<"$current")"
                 [ "$current_state" = "$created_state" ] && [ "$current_policy_set_state" = "$expected_post_policy_set_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nRun-owned BO policy or full policy-set state drifted after mutation; recovery refused to delete external state."; exit 1; }
                 curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" >/dev/null
-                restored_policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+                restored_policies="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies")"
                 [ "$(jq -Sc '[.result[]? | del(.created_at,.updated_at)] | sort_by(.id)' <<<"$restored_policies")" = "$baseline_policies_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nBO rollback DELETE completed but exact baseline policy-set restoration was not proven."; exit 1; }
                 result=BASELINE_RESTORED
               fi
@@ -142,13 +153,13 @@ jobs:
               apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
               current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps" | head -1)"
               [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS Access application is missing; recovery cannot prove exact run-owned state."; exit 1; }
-              current_state="$(jq -Sc 'del(.created_at,.updated_at,.policies) | .allowed_idps=((.allowed_idps // []) | sort)' <<<"$current")"
+              current_state="$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$current")"
               if [ "$current_state" = "$original_state" ]; then result=BASELINE_ALREADY_ACTIVE
               elif [ "$current_state" = "$desired_state" ]; then
                 curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original" >/dev/null
                 restored_apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
                 restored_app="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$restored_apps" | head -1)"
-                [ -n "$restored_app" ] && [ "$(jq -Sc 'del(.created_at,.updated_at,.policies) | .allowed_idps=((.allowed_idps // []) | sort)' <<<"$restored_app")" = "$original_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS IdP rollback PUT completed but exact baseline restoration was not proven."; exit 1; }
+                [ -n "$restored_app" ] && [ "$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$restored_app")" = "$original_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS IdP rollback PUT completed but exact baseline restoration was not proven."; exit 1; }
                 result=BASELINE_RESTORED
               else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS IdP live state no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
               fi

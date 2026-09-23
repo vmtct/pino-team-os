@@ -60,6 +60,18 @@ jobs:
           canonical_policy_set_state() {
             jq -Sc '[.result[]? | del(.created_at,.updated_at)] | sort_by(.id)'
           }
+          fetch_policies() {
+            local base_url="$1" page=1 total_pages=1 response all='[]'
+            while [ "$page" -le "$total_pages" ]; do
+              response="$(curl -fsS "${base_url}?per_page=100&page=${page}" "${auth[@]}")" || return 1
+              jq -e '.success==true' <<<"$response" >/dev/null || return 1
+              all="$(jq -Sc --argjson prior "$all" '$prior + [.result[]?]' <<<"$response")"
+              total_pages="$(jq -r '.result_info.total_pages // 1' <<<"$response")"
+              page=$((page+1))
+            done
+            jq -nc --argjson result "$all" '{success:true,result:$result}'
+          }
+          post_attempted=false
           created_policy_id=""
           created_policy_state=""
           baseline_policies_state=""
@@ -69,9 +81,26 @@ jobs:
           app_id=""
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
           rollback() {
-            if [ -n "$created_policy_id" ] && [ -n "$created_policy_state" ] && [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ]; then
+            if { [ -n "$created_policy_id" ] && [ -n "$created_policy_state" ]; } || [ "$post_attempted" = true ]; then
+              [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] || return 1
               local live current live_state restored
-              live="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
+              live="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies" 2>/dev/null)" || return 1
+              if [ "$post_attempted" = true ] && [ -z "$created_policy_id" ]; then
+                local matches count candidate_state
+                matches="$(jq -c --arg name "$recovery_policy_name" '[.result[]? | select(.name==$name)]' <<<"$live")"
+                count="$(jq 'length' <<<"$matches")"
+                if [ "$count" -eq 0 ]; then
+                  [ "$(canonical_policy_set_state <<<"$live")" = "$baseline_policies_state" ] || return 1
+                  return 0
+                fi
+                [ "$count" -eq 1 ] || return 1
+                current="$(jq -c '.[0]' <<<"$matches")"
+                candidate_state="$(canonical_policy_state <<<"$current")"
+                [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$candidate_state")" = "$payload" ] || return 1
+                created_policy_id="$(jq -r '.id' <<<"$current")"
+                created_policy_state="$candidate_state"
+                expected_post_policy_set_state="$(jq -Sc --argjson created "$created_policy_state" '. + [$created] | sort_by(.id)' <<<"$baseline_policies_state")"
+              fi
               live_state="$(canonical_policy_set_state <<<"$live")"
               current="$(jq -c --arg id "$created_policy_id" '.result[]? | select(.id==$id)' <<<"$live" | head -1)"
               if [ -z "$current" ]; then
@@ -81,7 +110,7 @@ jobs:
               [ -n "$expected_post_policy_set_state" ] && [ "$live_state" = "$expected_post_policy_set_state" ] || return 1
               [ "$(canonical_policy_state <<<"$current")" = "$created_policy_state" ] || return 1
               curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${created_policy_id}" "${auth[@]}" >/dev/null 2>&1 || return 1
-              restored="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
+              restored="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies" 2>/dev/null)" || return 1
               [ "$(canonical_policy_set_state <<<"$restored")" = "$baseline_policies_state" ] || return 1
             fi
           }
@@ -135,14 +164,19 @@ jobs:
           [ -n "$app_id" ] || fail "Resolved BO app has no ID."
           [ -z "$app_aud" ] || [ "$app_aud" = "$BO_AUD" ] || fail "Resolved BO audience drifted."
 
-          policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot read BO Access policies."
+          policies="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies")" || fail "Cannot read complete BO Access policy set."
           jq -e '.success==true' <<<"$policies" >/dev/null || fail "BO policy API returned failure."
           jq -e '[.result[]? | select(.decision=="allow") | .include[]? | select(has("everyone"))] | length==0' <<<"$policies" >/dev/null || fail "BO contains Allow Everyone; refusing mutation."
           baseline_policies_state="$(canonical_policy_set_state <<<"$policies")"
           existing_matches="$(jq -c --arg name "$POLICY_NAME" --arg email "$MANAGER_EMAIL" '[.result[]? | select(.decision=="allow" and any(.include[]?; .email.email==$email) and (.name==$name or (.name|startswith($name + " [run:"))))]' <<<"$policies")"
           [ "$(jq 'length' <<<"$existing_matches")" -le 1 ] || fail "Multiple canonical BO manager policies exist; refusing ambiguous authority."
           existing="$(jq -c '.[0] // empty' <<<"$existing_matches")"
-          if [ -n "$existing" ]; then policy_id="$(jq -r '.id' <<<"$existing")"; else
+          if [ -n "$existing" ]; then
+            policy_id="$(jq -r '.id' <<<"$existing")"
+            existing_name="$(jq -r '.name' <<<"$existing")"
+            expected_existing="$(jq -Scn --arg name "$existing_name" --arg email "$MANAGER_EMAIL" '{name:$name,decision:"allow",precedence:60,include:[{email:{email:$email}}],exclude:[],require:[]}')"
+            [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$existing")" = "$expected_existing" ] || fail "Existing BO manager policy has broadened or noncanonical authorization shape."
+          else
             recovery_policy_name="${POLICY_NAME} [run:${GITHUB_RUN_ID}][attempt:${GITHUB_RUN_ATTEMPT}]"
             payload="$(jq -nc --arg name "$recovery_policy_name" --arg email "$MANAGER_EMAIL" '{name:$name,decision:"allow",precedence:60,include:[{email:{email:$email}}],exclude:[],require:[]}')"
             mutation_payload_b64="$(printf '%s' "$payload" | base64 -w0)"
@@ -152,10 +186,11 @@ jobs:
             bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
             bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "BO_MANAGER_ACCESS_RECONCILE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nAccess base: ${base}\nApp ID: ${app_id}\nPolicy name: ${POLICY_NAME}\nRecovery policy name: ${recovery_policy_name}\nManager email: ${MANAGER_EMAIL}\nBaseline matching policy: ABSENT\nMutation policy payload b64: ${mutation_payload_b64}\nRollback baseline policies state b64: ${baseline_policies_state_b64}\n\nFull BO policy-set baseline and exact mutation payload captured before POST; recovery remains fail-closed until exact post-create state is durable." >/dev/null || fail "Could not persist BO Access recovery baseline."
-            cas_policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot perform BO pre-mutation full-state CAS."
+            cas_policies="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies")" || fail "Cannot perform BO pre-mutation full-state CAS."
             jq -e '.success==true' <<<"$cas_policies" >/dev/null || fail "BO pre-mutation CAS read failed."
             [ "$(canonical_policy_set_state <<<"$cas_policies")" = "$baseline_policies_state" ] || fail "BO policy set drifted after capture; mutation withheld."
-            created="$(curl -fsS -X POST "${api}/${base}/access/apps/${app_id}/policies" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected BO manager policy creation."
+            post_attempted=true
+            created="$(curl -fsS -X POST "${api}/${base}/access/apps/${app_id}/policies" "${auth[@]}" -d "$payload")" || fail "BO policy POST outcome is uncertain; exact-state reconciliation required."
             jq -e '.success==true and (.result.id|length>0)' <<<"$created" >/dev/null || fail "Cloudflare did not report successful BO manager policy creation."
             created_policy_id="$(jq -r '.result.id' <<<"$created")"
             created_policy_state="$(jq -Sc '.result | del(.created_at,.updated_at)' <<<"$created")"
@@ -167,7 +202,7 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "BO_MANAGER_ACCESS_RECONCILE: **RECOVERY_STATE_CAPTURED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nPolicy ID: ${created_policy_id}\nCreated policy state b64: ${created_state_b64}\n\nExact post-create Access policy state captured for recovery CAS." >/dev/null || fail "Could not persist exact BO policy recovery state."
           fi
 
-          verify="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify BO policies."
+          verify="$(fetch_policies "${api}/${base}/access/apps/${app_id}/policies")" || fail "Cannot verify complete BO policy set."
           if [ -n "$created_policy_id" ]; then
             verified_created="$(jq -c --arg id "$created_policy_id" '.result[]? | select(.id==$id)' <<<"$verify" | head -1)"
             [ -n "$verified_created" ] && [ "$(canonical_policy_state <<<"$verified_created")" = "$created_policy_state" ] || fail "BO post-mutation policy full state does not equal the preserved created state."

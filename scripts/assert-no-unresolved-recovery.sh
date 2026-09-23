@@ -25,9 +25,9 @@ for spec in "${specs[@]}"; do
         | select(.user.login=="github-actions[bot]")
         | ((.body // "") | gsub("\\\\n"; "\n")) as $b
         | select($b | startswith($p + ": **RECOVERY_ARMED**"))
-        | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))
+        | select($b | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))
         | if ($b | test("(^|\\n)Workflow attempt:")) then
-            ($b | capture("(^|\\n)Workflow attempt:[[:space:]]*(?<attempt>[1-9][0-9]*)[[:space:]]*($|\\n)").attempt)
+            ($b | capture("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*(?<attempt>[1-9][0-9]*)[[:space:]]*($|\\n)").attempt)
           else "1"
           end
       ] | unique[]' <<<"$comments")"
@@ -55,9 +55,9 @@ for spec in "${specs[@]}"; do
         [.[][]
           | select(.user.login=="github-actions[bot]")
           | ((.body // "") | gsub("\\\\n"; "\n")) as $b
-          | select($b | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))
+          | select($b | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)"))
           | select(
-              ($b | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))
+              ($b | test("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))
               or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:")) | not))
             )
           | select(
