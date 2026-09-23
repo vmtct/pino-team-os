@@ -71,7 +71,7 @@ jobs:
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
           rollback() {
             if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$policy_id" ] && [ -n "$original_payload" ] && [ -n "$desired_payload" ] && [ -n "$original_state" ] && [ -n "$desired_state" ]; then
-              local live current
+              local live current restored restored_current
               live="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
               current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$live" | head -1)"
               [ -n "$current" ] || return 1
@@ -79,6 +79,10 @@ jobs:
               [ "$current" = "$original_state" ] && return 0
               [ "$current" = "$desired_state" ] || return 1
               curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original_payload" >/dev/null 2>&1 || return 1
+              restored="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
+              restored_current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$restored" | head -1)"
+              [ -n "$restored_current" ] || return 1
+              [ "$(canonical_policy_state <<<"$restored_current")" = "$original_state" ] || return 1
             fi
           }
           fail() {
@@ -153,7 +157,11 @@ jobs:
             assert_live_team_main || fail "Team source authority drifted before production mutation."
             bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
             bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_CANONICAL_EXTERNAL_EVAL: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nPolicy ID: ${policy_id}\nOriginal policy payload b64: ${original_b64}\nDesired policy payload b64: ${desired_b64}\nOriginal policy state b64: ${original_state_b64}\nDesired policy state b64: ${desired_state_b64}\n\nBaseline and complete run-owned policy state captured before the Access policy PUT." >/dev/null || fail "Could not persist External Evaluation recovery baseline."
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_CANONICAL_EXTERNAL_EVAL: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nPolicy ID: ${policy_id}\nOriginal policy payload b64: ${original_b64}\nDesired policy payload b64: ${desired_b64}\nOriginal policy state b64: ${original_state_b64}\nDesired policy state b64: ${desired_state_b64}\n\nBaseline, mutation payload, rollback payload, and complete run-owned policy state captured before the Access policy PUT." >/dev/null || fail "Could not persist External Evaluation recovery baseline."
+            cas_policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot perform External Evaluation pre-mutation full-state CAS."
+            jq -e '.success==true' <<<"$cas_policies" >/dev/null || fail "External Evaluation pre-mutation CAS read failed."
+            cas_policy="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$cas_policies" | head -1)"
+            [ -n "$cas_policy" ] && [ "$(canonical_policy_state <<<"$cas_policy")" = "$original_state" ] || fail "External Evaluation policy full state drifted after capture; mutation withheld."
             mutated=true
             updated="$(curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$payload")" || fail "Cloudflare rejected External Evaluation policy update."
             jq -e '.success==true and (.result.id|length>0)' <<<"$updated" >/dev/null || fail "Cloudflare did not report successful policy update."
@@ -161,6 +169,10 @@ jobs:
 
           verify="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies after update."
           jq -e '.success==true' <<<"$verify" >/dev/null || fail "TOS policy verification API failed."
+          if [ "$original_state" != "$desired_state" ]; then
+            verified_policy="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$verify" | head -1)"
+            [ -n "$verified_policy" ] && [ "$(canonical_policy_state <<<"$verified_policy")" = "$desired_state" ] || fail "External Evaluation post-mutation full state does not equal the preserved desired state."
+          fi
           policy_closure="$(node scripts/assert-tos-evaluator-policy-closure.mjs "$policy_id" "$NEW_POLICY" "$EVALUATE_URL" "$KEYS_URL" <<<"$verify")" || fail "TOS allow-policy closure does not require the canonical evaluator on every admission path."
           [ "$(jq -r '.unsafeAllowPolicies' <<<"$policy_closure")" = "0" ] || fail "TOS policy closure reported an unsafe allow path."
 

@@ -94,7 +94,9 @@ jobs:
               base="$(sed -nE 's/^Access base:[[:space:]]*(accounts\/[0-9a-f]+|zones\/[0-9a-f]+)[[:space:]]*$/\1/p' <<<"$body")"
               app_id="$(sed -nE 's/^App ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
               recovery_policy_name="$(sed -nE 's/^Recovery policy name:[[:space:]]*(.+)[[:space:]]*$/\1/p' <<<"$body")"
-              [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] || { echo "Malformed BO recovery marker" >&2; exit 1; }
+              mutation_payload_b64="$(sed -nE 's/^Mutation policy payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+              baseline_policies_state_b64="$(sed -nE 's/^Rollback baseline policies state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+              [ -n "$base" ] && [ -n "$app_id" ] && [ -n "$recovery_policy_name" ] && [ -n "$mutation_payload_b64" ] && [ -n "$baseline_policies_state_b64" ] || { echo "Malformed BO recovery marker" >&2; exit 1; }
               [[ "$recovery_policy_name" == *"[run:${run_id}][attempt:${recovery_attempt}]" ]] || { echo "BO recovery policy name is not run-owned" >&2; exit 1; }
               state_marker="$(jq -c --arg p "$prefix" --arg run "$run_id" --arg attempt "$recovery_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith($p + ": **RECOVERY_STATE_CAPTURED**")) | select(.normalizedBody | test("(^|\\n)Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(.normalizedBody | test("(^|\\n)Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
               [ -n "$state_marker" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nExact post-create BO policy state receipt is absent; recovery refused to delete external state."; exit 1; }
@@ -103,14 +105,24 @@ jobs:
               created_state_b64="$(sed -nE 's/^Created policy state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$state_body")"
               [ -n "$policy_id" ] && [ -n "$created_state_b64" ] || { echo "Malformed BO exact-state recovery receipt" >&2; exit 1; }
               created_state="$(printf '%s' "$created_state_b64" | base64 -d)"; jq -e . <<<"$created_state" >/dev/null
+              mutation_payload="$(printf '%s' "$mutation_payload_b64" | base64 -d)"
+              baseline_policies_state="$(printf '%s' "$baseline_policies_state_b64" | base64 -d)"
+              jq -e . <<<"$mutation_payload" >/dev/null; jq -e . <<<"$baseline_policies_state" >/dev/null
+              [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$created_state")" = "$(jq -Sc '.' <<<"$mutation_payload")" ] || { echo "BO mutation payload does not match captured created state" >&2; exit 1; }
+              expected_post_policy_set_state="$(jq -Sc --argjson created "$created_state" '. + [$created] | sort_by(.id)' <<<"$baseline_policies_state")"
               api="https://api.cloudflare.com/client/v4"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
               policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+              current_policy_set_state="$(jq -Sc '[.result[]? | del(.created_at,.updated_at)] | sort_by(.id)' <<<"$policies")"
               current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$policies" | head -1)"
-              if [ -z "$current" ]; then result=BASELINE_ALREADY_ACTIVE
+              if [ -z "$current" ]; then
+                [ "$current_policy_set_state" = "$baseline_policies_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nBO run-owned policy is absent but the full policy-set baseline is not restored."; exit 1; }
+                result=BASELINE_ALREADY_ACTIVE
               else
                 current_state="$(jq -Sc 'del(.created_at,.updated_at)' <<<"$current")"
-                [ "$current_state" = "$created_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nRun-owned BO policy full state drifted after mutation; recovery refused to delete external state."; exit 1; }
+                [ "$current_state" = "$created_state" ] && [ "$current_policy_set_state" = "$expected_post_policy_set_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nRun-owned BO policy or full policy-set state drifted after mutation; recovery refused to delete external state."; exit 1; }
                 curl -fsS -X DELETE "${api}/${base}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" >/dev/null
+                restored_policies="$(curl -fsS "${api}/${base}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+                [ "$(jq -Sc '[.result[]? | del(.created_at,.updated_at)] | sort_by(.id)' <<<"$restored_policies")" = "$baseline_policies_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nBO rollback DELETE completed but exact baseline policy-set restoration was not proven."; exit 1; }
                 result=BASELINE_RESTORED
               fi
               ;;
@@ -124,14 +136,21 @@ jobs:
               original="$(printf '%s' "$original_b64" | base64 -d)"; desired="$(printf '%s' "$desired_b64" | base64 -d)"
               original_state="$(printf '%s' "$original_state_b64" | base64 -d)"; desired_state="$(printf '%s' "$desired_state_b64" | base64 -d)"
               jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null; jq -e . <<<"$original_state" >/dev/null; jq -e . <<<"$desired_state" >/dev/null
+              [ "$(jq -Sc '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$original_state")" = "$(jq -Sc '.' <<<"$original")" ] || { echo "IdP rollback payload does not match captured baseline state" >&2; exit 1; }
+              [ "$(jq -Sc '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$desired_state")" = "$(jq -Sc '.' <<<"$desired")" ] || { echo "IdP mutation payload does not match captured desired state" >&2; exit 1; }
               api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
               apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
               current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps" | head -1)"
-              [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nTOS Access application is missing; recovery cannot prove exact run-owned state."; exit 1; }
+              [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS Access application is missing; recovery cannot prove exact run-owned state."; exit 1; }
               current_state="$(jq -Sc 'del(.created_at,.updated_at,.policies) | .allowed_idps=((.allowed_idps // []) | sort)' <<<"$current")"
               if [ "$current_state" = "$original_state" ]; then result=BASELINE_ALREADY_ACTIVE
-              elif [ "$current_state" = "$desired_state" ]; then curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original" >/dev/null; result=BASELINE_RESTORED
-              else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nTOS IdP live state no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
+              elif [ "$current_state" = "$desired_state" ]; then
+                curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original" >/dev/null
+                restored_apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
+                restored_app="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$restored_apps" | head -1)"
+                [ -n "$restored_app" ] && [ "$(jq -Sc 'del(.created_at,.updated_at,.policies) | .allowed_idps=((.allowed_idps // []) | sort)' <<<"$restored_app")" = "$original_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS IdP rollback PUT completed but exact baseline restoration was not proven."; exit 1; }
+                result=BASELINE_RESTORED
+              else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nTOS IdP live state no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
               fi
               ;;
             eval)
@@ -145,14 +164,21 @@ jobs:
               original="$(printf '%s' "$original_b64" | base64 -d)"; desired="$(printf '%s' "$desired_b64" | base64 -d)"
               original_state="$(printf '%s' "$original_state_b64" | base64 -d)"; desired_state="$(printf '%s' "$desired_state_b64" | base64 -d)"
               jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null; jq -e . <<<"$original_state" >/dev/null; jq -e . <<<"$desired_state" >/dev/null
+              [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$original_state")" = "$(jq -Sc '.' <<<"$original")" ] || { echo "Evaluator rollback payload does not match captured baseline state" >&2; exit 1; }
+              [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$desired_state")" = "$(jq -Sc '.' <<<"$desired")" ] || { echo "Evaluator mutation payload does not match captured desired state" >&2; exit 1; }
               api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
               policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
               current="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$policies" | head -1)"
-              [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nExternal-evaluation policy is missing; recovery cannot prove exact run-owned state."; exit 1; }
+              [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nExternal-evaluation policy is missing; recovery cannot prove exact run-owned state."; exit 1; }
               current_state="$(jq -Sc 'del(.created_at,.updated_at)' <<<"$current")"
               if [ "$current_state" = "$original_state" ]; then result=BASELINE_ALREADY_ACTIVE
-              elif [ "$current_state" = "$desired_state" ]; then curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original" >/dev/null; result=BASELINE_RESTORED
-              else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nExternal-evaluation policy no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
+              elif [ "$current_state" = "$desired_state" ]; then
+                curl -fsS -X PUT "${api}/access/apps/${app_id}/policies/${policy_id}" "${auth[@]}" -d "$original" >/dev/null
+                restored_policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")"
+                restored_policy="$(jq -c --arg id "$policy_id" '.result[]? | select(.id==$id)' <<<"$restored_policies" | head -1)"
+                [ -n "$restored_policy" ] && [ "$(jq -Sc 'del(.created_at,.updated_at)' <<<"$restored_policy")" = "$original_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nExternal-evaluation rollback PUT completed but exact baseline restoration was not proven."; exit 1; }
+                result=BASELINE_RESTORED
+              else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nExternal-evaluation policy no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
               fi
               ;;
           esac
