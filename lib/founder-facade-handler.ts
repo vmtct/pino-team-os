@@ -1,5 +1,5 @@
 import type { JWTVerifyGetKey } from "jose";
-import { BO_HOSTNAME } from "./host-boundary";
+import { BO_HOSTNAME, normalizeHostname } from "./host-boundary";
 import { callFounderCore, callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
 import { authenticateTeam, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
@@ -53,7 +53,7 @@ export async function handleFounderFacadeRequest(
 }
 
 function surface(request: Request): "BO" | "TOS" {
-  const host = (request.headers.get("host") ?? new URL(request.url).hostname).split(":")[0]!.trim().toLowerCase();
+  const host = normalizeHostname(request.headers.get("host") ?? new URL(request.url).hostname);
   return host === BO_HOSTNAME ? "BO" : "TOS";
 }
 

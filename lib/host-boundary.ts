@@ -178,6 +178,6 @@ function isPathWithin(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function normalizeHostname(host: string): string {
-  return host.trim().toLowerCase().replace(/\.$/, "").replace(/:\d+$/, "");
+export function normalizeHostname(host: string): string {
+  return host.trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
 }

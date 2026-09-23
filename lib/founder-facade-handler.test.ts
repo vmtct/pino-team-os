@@ -86,6 +86,28 @@ test("Founder facade TOS Cloudflare session preserves canonical TOS audience", a
   assert.deepEqual(seenIdentity?.audience, [tosAudience]);
 });
 
+
+
+test("Founder facade normalizes trailing-dot BO host before audience selection", async () => {
+  const valid = await jwtFixture(boAudience);
+  const wrong = await jwtFixture(tosAudience);
+  let calls = 0;
+  const binding: PinoCoreBinding = {
+    async execute() { calls++; return { status: 200, body: { data: [] }, requestId: "bo-trailing-dot" }; },
+    async executeWithStaffPassword() { throw new Error("unexpected password path"); },
+  };
+  const good = await handleFounderFacadeRequest(new Request("https://bo.pinohouse.art./api/founder/ai/change-sets", {
+    headers: { host: "bo.pinohouse.art.", "cf-access-jwt-assertion": valid.jwt },
+  }), env(binding), ["ai", "change-sets"], valid.keyResolver);
+  assert.equal(good.status, 200);
+  assert.equal(calls, 1);
+  const denied = await handleFounderFacadeRequest(new Request("https://bo.pinohouse.art./api/founder/ai/change-sets", {
+    headers: { host: "bo.pinohouse.art.", "cf-access-jwt-assertion": wrong.jwt },
+  }), env(binding), ["ai", "change-sets"], wrong.keyResolver);
+  assert.equal(denied.status, 401);
+  assert.equal(calls, 1);
+});
+
 test("Founder facade keeps local-password compatibility independent of Cloudflare audience", async () => {
   let password = "";
   const binding: PinoCoreBinding = {
