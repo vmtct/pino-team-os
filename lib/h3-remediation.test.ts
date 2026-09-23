@@ -1,4 +1,4 @@
-import test from 'node:test'; import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; import {spawnSync} from 'node:child_process';
 const root=new URL('../',import.meta.url); const r=(p:string)=>readFileSync(new URL(p,root),'utf8');
 const access=['tos-canonical-external-eval.yml','tos-google-idp-reconcile.yml','bo-manager-access-reconcile.yml'];
 const watchdog=r('.github/workflows/access-control-recovery-watchdog.yml'); const releaseWatch=r('.github/workflows/production-release-recovery-watchdog.yml'); const unresolved=r('scripts/assert-no-unresolved-recovery.sh'); const idp=r('.github/workflows/tos-google-idp-reconcile.yml'); const externalEval=r('.github/workflows/tos-canonical-external-eval.yml'); const boAccess=r('.github/workflows/bo-manager-access-reconcile.yml');
@@ -10,5 +10,37 @@ test('Access recovery requires complete object-state CAS before rollback or dele
 test('Access recovery pre-DEEP contract proves capture CAS payload rollback receipt and failure semantics',()=>{for(const t of [idp,externalEval]){assert.match(t,/pre-mutation full-state CAS/); assert.match(t,/full state drifted after capture; mutation withheld/); assert.match(t,/post-mutation full state does not equal the preserved desired state/); assert.match(t,/durable RECOVERY_ARMED authority remains/);} assert.match(boAccess,/canonical_policy_set_state/); assert.match(boAccess,/Mutation policy payload b64/); assert.match(boAccess,/Rollback baseline policies state b64/); assert.match(boAccess,/BO policy set drifted after capture; mutation withheld/); assert.match(boAccess,/post-mutation policy-set state drifted/); assert.match(watchdog,/IdP mutation payload does not match captured desired state/); assert.match(watchdog,/IdP rollback payload does not match captured baseline state/); assert.match(watchdog,/Evaluator mutation payload does not match captured desired state/); assert.match(watchdog,/Evaluator rollback payload does not match captured baseline state/); assert.match(watchdog,/BO mutation payload does not match captured created state/); assert.match(watchdog,/rollback PUT completed but exact baseline restoration was not proven/); assert.match(watchdog,/rollback DELETE completed but exact baseline policy-set restoration was not proven/); assert.match(watchdog,/Workflow attempt: \$\{recovery_attempt\}/);});
 test('Access terminal receipt identity accepts canonical Markdown bullets',()=>{for(const t of [watchdog]){assert.match(t,/-?\[\[:space:\]\]\*Workflow run:/); assert.match(t,/-?\[\[:space:\]\]\*Workflow attempt:/);} assert.match(unresolved,/-?\[\[:space:\]\]\*Workflow run:/);});
 test('BO recovery reconciles ambiguous POST and complete paginated policy state',()=>{assert.match(boAccess,/fetch_policies\(\)/); assert.match(boAccess,/result_info\.total_pages/); assert.match(boAccess,/post_attempted=true/); assert.match(boAccess,/BO policy POST outcome is uncertain/); assert.match(boAccess,/recovery_policy_name/); assert.match(boAccess,/Existing BO manager policy has broadened or noncanonical authorization shape/); assert.match(watchdog,/Cannot read complete BO policy set for recovery/);});
+
+test('BO policy payload comparison canonicalizes both JSON operands',()=>{
+  const script=String.raw`
+name='PINO BO COO Manager [run:123][attempt:1]'; email='manager@example.com'
+payload="$(jq -nc --arg name "$name" --arg email "$email" '{name:$name,decision:"allow",precedence:60,include:[{email:{email:$email}}],exclude:[],require:[]}')"
+provider="$(jq -nc --arg name "$name" --arg email "$email" '{require:[],id:"fixture-policy",include:[{email:{email:$email}}],exclude:[],precedence:60,decision:"allow",name:$name}')"
+left="$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$provider")"
+right="$(jq -Sc '.' <<<"$payload")"
+test "$left" = "$right"
+`;
+  const result=spawnSync('bash',['-lc',script],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr||result.stdout);
+});
+test('BO ambiguous committed POST rollback recognizes exact provider state and restores baseline',()=>{
+  const start=boAccess.indexOf('          canonical_policy_state() {');
+  const end=boAccess.indexOf('          fail() {',start);
+  assert.ok(start>=0&&end>start);
+  const block=boAccess.slice(start,end).replace(/^          /gm,'');
+  const fixture=String.raw`
+api='https://api.cloudflare.com/client/v4'; base='accounts/fixture'; app_id='fixture-app'
+recovery_policy_name='PINO BO COO Manager [run:123][attempt:1]'; email='manager@example.com'; auth=()
+payload="$(jq -nc --arg name "$recovery_policy_name" --arg email "$email" '{name:$name,decision:"allow",precedence:60,include:[{email:{email:$email}}],exclude:[],require:[]}')"
+provider="$(jq -nc --arg name "$recovery_policy_name" --arg email "$email" '{require:[],id:"fixture-policy",include:[{email:{email:$email}}],exclude:[],precedence:60,decision:"allow",name:$name}')"
+baseline_policies_state='[]'; post_attempted=true; created_policy_id=''; created_policy_state=''; expected_post_policy_set_state=''; deleted=0
+fetch_policies(){ if [ "$deleted" -eq 0 ]; then jq -nc --argjson p "$provider" '{success:true,result:[$p],result_info:{total_pages:1}}'; else printf '%s\n' '{"success":true,"result":[],"result_info":{"total_pages":1}}'; fi; }
+curl(){ deleted=1; return 0; }
+rollback && echo AMBIGUOUS_ROLLBACK_SUCCESS
+`;
+  const result=spawnSync('bash',['-lc',block+'\n'+fixture],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr||result.stdout);
+  assert.match(result.stdout,/AMBIGUOUS_ROLLBACK_SUCCESS/);
+});
 test('IdP canonical recovery state preserves nonvolatile policies',()=>{assert.match(idp,/\.policies=\(\(\.policies \/\/ \[\]\)/); assert.match(watchdog,/\.policies=\(\(\.policies \/\/ \[\]\)/);});
 test('H3 remediation tests are repository-relative and CI portable',()=>{assert.doesNotMatch(r('lib/h2-remediation.test.ts'),/\/home\/tri\/pino-work/);});

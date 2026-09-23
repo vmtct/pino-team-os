@@ -96,7 +96,7 @@ jobs:
                 [ "$count" -eq 1 ] || return 1
                 current="$(jq -c '.[0]' <<<"$matches")"
                 candidate_state="$(canonical_policy_state <<<"$current")"
-                [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$candidate_state")" = "$payload" ] || return 1
+                [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$candidate_state")" = "$(jq -Sc '.' <<<"$payload")" ] || return 1
                 created_policy_id="$(jq -r '.id' <<<"$current")"
                 created_policy_state="$candidate_state"
                 expected_post_policy_set_state="$(jq -Sc --argjson created "$created_policy_state" '. + [$created] | sort_by(.id)' <<<"$baseline_policies_state")"
@@ -195,7 +195,7 @@ jobs:
             created_policy_id="$(jq -r '.result.id' <<<"$created")"
             created_policy_state="$(jq -Sc '.result | del(.created_at,.updated_at)' <<<"$created")"
             [ -n "$created_policy_state" ] || fail "Cloudflare create response did not provide exact policy state."
-            [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$created_policy_state")" = "$payload" ] || fail "BO create response does not preserve the exact mutation payload."
+            [ "$(jq -Sc '{name,decision,precedence,include,exclude:(.exclude // []),require:(.require // [])}' <<<"$created_policy_state")" = "$(jq -Sc '.' <<<"$payload")" ] || fail "BO create response does not preserve the exact mutation payload."
             expected_post_policy_set_state="$(jq -Sc --argjson created "$created_policy_state" '. + [$created] | sort_by(.id)' <<<"$baseline_policies_state")"
             policy_id="$created_policy_id"
             created_state_b64="$(printf '%s' "$created_policy_state" | base64 -w0)"
