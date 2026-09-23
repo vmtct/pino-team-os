@@ -10,6 +10,7 @@ test("Subscriptions owner surface composes canonical commercial facades only", a
     assert.match(view, new RegExp(`boApi\\.${command}`));
   }
   assert.match(view, /boApi\.learnerLifecycle/);
+  assert.match(view, /boApi\.subscriptionProjectedCompletion/);
   assert.match(view, /boApi\.scopeCatalog/);
   assert.match(view, /collectPagedDirectory/);
   assert.doesNotMatch(view, /serviceUnit.*(?:--|-=)|effectiveAvailableUnits\s*[-+]=|set.*effectiveAvailableUnits/i);
@@ -23,6 +24,11 @@ test("Subscriptions owner surface keeps Core policy and scope authoritative", as
   assert.match(view, /expectedVersion: subscription\.version/);
   assert.match(view, /expectedVersion: enrollment\.version/);
   assert.match(view, /convenience defaults/);
+  assert.match(view, /Contract ends/);
+  assert.match(view, /Forecast ends/);
+  assert.match(view, /contractualEndsOn/);
+  assert.match(view, /Core cadence \+ calendar/);
+  assert.doesNotMatch(view, /effectiveAvailableUnits\s*\/\s*subscription\.weeklyCommitment|weeksLeft/);
   assert.doesNotMatch(view, /price|invoice|discount|refund/i);
 });
 
@@ -47,6 +53,8 @@ test("Subscriptions page remains presentation-only and uses existing API contrac
   assert.match(api, /createSubscription:/);
   assert.match(api, /renewSubscription:/);
   assert.match(api, /placeEnrollment:/);
+  assert.match(api, /subscriptionProjectedCompletion:/);
+  assert.match(api, /contractualEndsOn: string/);
   assert.doesNotMatch(view, /fetch\(/);
 });
 
