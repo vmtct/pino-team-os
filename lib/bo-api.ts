@@ -60,6 +60,26 @@ export type OpenStudioPolicyTarget = { targetType: "GLOBAL"; targetId: null } | 
 export type OpenStudioResolvedPolicy<T> = { streamId: string; versionId: string; version: number; effectiveFrom: string; effectiveUntil: string | null; value: T };
 export type OpenStudioPolicyInspection<T> = { stream: { id: string; revision: number; targetType: "GLOBAL" | "CENTER"; targetId: string | null }; versions: Array<{ id: string; version: number; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: T; changeReason: string }> };
 export type OpenStudioPolicyDraft = { streamId: string; versionId: string; version: number; revision: number };
+export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
+export type BoAcquisitionIntent = {
+  id: string;
+  leadId: string;
+  phone: string;
+  sourceBrand: "PINO_HOUSE" | "TOPPI";
+  sourceSurface: "PINO_HOUSE_WEB" | "TOPPI_WEB" | "STAFF";
+  intentKind: "OPEN_STUDIO" | "PROGRAM_INTEREST" | "GENERAL_INQUIRY";
+  childAge: number | null;
+  provenance: Record<string, unknown>;
+  status: BoAcquisitionIntentStatus;
+  verificationMethod: string | null;
+  contactedAt: string | null;
+  verifiedAt: string | null;
+  closedAt: string | null;
+  closeReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+};
 
 async function read<T>(path: string): Promise<T[]> {
   const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
@@ -185,6 +205,11 @@ export const boApi = {
   bindSessionSyllabus: (sessionId: string, command: BoSessionSyllabusBindingCommand, idempotencyKey: string) => write<BoSessionSyllabusBindingResult>(`delivery/sessions/${encodeURIComponent(sessionId)}/syllabus-binding`, command, idempotencyKey),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
+  acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
+  acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
+  markAcquisitionContacted: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACTED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/contacted`, { expectedVersion }, idempotencyKey),
+  verifyAcquisitionContact: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACT_VERIFIED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/verify-contact`, { expectedVersion }, idempotencyKey),
+  closeAcquisitionIntent: (intentId: string, expectedVersion: number, reason: string, idempotencyKey: string) => write<{ intentId: string; status: "CLOSED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/close`, { expectedVersion, reason }, idempotencyKey),
   createStudentIntake: async (body: { displayName: string; birthYear: number | null; birthMonth: number | null; birthDay: number | null; birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE"; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string; relationshipType: "PARENT" | "GUARDIAN" | "OTHER"; effectiveFrom: string }, idempotencyKey: string) => {
     const result = await write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>("student-intakes", body, idempotencyKey);
     const canonicalId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);

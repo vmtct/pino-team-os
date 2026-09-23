@@ -37,6 +37,7 @@ const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/sylla
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const STUDENT_INTAKE_PATH = "student-intakes";
+const ACQUISITION_INTENT_COMMAND = /^acquisition\/intents\/[0-9a-f-]{36}\/(contacted|verify-contact|close)$/;
 const SUBSCRIPTION_CREATE_PATH = "subscriptions";
 const SUBSCRIPTION_COMMAND_PATH = /^subscriptions\/[0-9a-f-]{36}\/(activate|renew|supersede|cancel|service-grants|pauses|renewal-grace)$/;
 const SUBSCRIPTION_PAUSE_CANCEL_PATH = /^subscription-pauses\/[0-9a-f-]{36}\/cancel$/;
@@ -76,7 +77,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
+    if ((path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -166,6 +167,7 @@ export function isAllowedPostPath(path: string): boolean {
     || PARENT_PIN_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === STUDENT_INTAKE_PATH
+    || ACQUISITION_INTENT_COMMAND.test(path)
     || path === SUBSCRIPTION_CREATE_PATH
     || SUBSCRIPTION_COMMAND_PATH.test(path)
     || SUBSCRIPTION_PAUSE_CANCEL_PATH.test(path)
