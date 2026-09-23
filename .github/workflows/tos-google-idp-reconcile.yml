@@ -52,19 +52,35 @@ jobs:
           }
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
           auth=(-H "Authorization: Bearer ${CF_ACCESS_TOKEN:-}" -H 'Content-Type: application/json')
-          mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false; original_payload=""; desired_payload=""
+          canonical_app_state() {
+            jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))'
+          }
+          mutated=false; app_id=""; app_domain=""; app_type=""; old_allowed="[]"; old_auto=false; original_payload=""; desired_payload=""; original_state=""; desired_state=""
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
           rollback() {
-            if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$original_payload" ] && [ -n "$desired_payload" ]; then
-              local live current
+            if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$original_payload" ] && [ -n "$desired_payload" ] && [ -n "$original_state" ] && [ -n "$desired_state" ]; then
+              local live current restored restored_current
               live="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
-              current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id) | {domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$live" | head -1)"
-              [ "$current" = "$original_payload" ] && return 0
-              [ "$current" = "$desired_payload" ] || return 1
+              current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$live" | head -1)"
+              [ -n "$current" ] || return 1
+              current="$(canonical_app_state <<<"$current")"
+              [ "$current" = "$original_state" ] && return 0
+              [ "$current" = "$desired_state" ] || return 1
               curl -fsS -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original_payload" >/dev/null 2>&1 || return 1
+              restored="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
+              restored_current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$restored" | head -1)"
+              [ -n "$restored_current" ] || return 1
+              [ "$(canonical_app_state <<<"$restored_current")" = "$original_state" ] || return 1
             fi
           }
-          fail() { rollback; comment "TOS_GOOGLE_IDP_RECONCILE: **FAIL_SAFE**\n\n$1\n\nAny TOS IdP selection changed by this run was rolled back. No BO policy, Core/D1 data, route, domain, or runtime mutation was authorized."; exit 1; }
+          fail() {
+            local recovery_note
+            if rollback; then recovery_note="Exact-state local rollback completed or no run-owned app mutation remained."
+            else recovery_note="Exact-state local rollback was withheld or failed; durable RECOVERY_ARMED authority remains for watchdog reconciliation."
+            fi
+            comment "TOS_GOOGLE_IDP_RECONCILE: **FAIL_SAFE**\n\n$1\n\n${recovery_note}\n\nNo BO policy, Core/D1 data, route, domain, or runtime mutation was authorized."
+            exit 1
+          }
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
           [ -n "${CF_ACCESS_TOKEN:-}" ] || fail "CF_ACCESS_API_TOKEN unavailable."
           target_sha="$(sed -nE 's/^TEAM_SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
@@ -99,13 +115,21 @@ jobs:
           payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$desired" '{domain:$domain,type:$type,allowed_idps:($ids|sort),auto_redirect_to_identity:false}')"
           desired_payload="$payload"
           original_payload="$(jq -nc --arg domain "$app_domain" --arg type "$app_type" --argjson ids "$old_allowed" --argjson auto "$old_auto" '{domain:$domain,type:$type,allowed_idps:($ids|sort),auto_redirect_to_identity:$auto}')"
+          original_state="$(canonical_app_state <<<"$app")"
+          desired_state="$(jq -Sc --argjson ids "$desired" '.allowed_idps=($ids|sort) | .auto_redirect_to_identity=false' <<<"$original_state")"
           original_b64="$(printf '%s' "$original_payload" | base64 -w0)"
           desired_b64="$(printf '%s' "$desired_payload" | base64 -w0)"
+          original_state_b64="$(printf '%s' "$original_state" | base64 -w0)"
+          desired_state_b64="$(printf '%s' "$desired_state" | base64 -w0)"
           bash scripts/assert-live-issue-authority.sh "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" "[GPT] TOS Google IdP reconcile" "$AUTH_BODY_HASH"
           assert_live_team_main || fail "Team source authority drifted before production mutation."
           bash scripts/assert-no-core-verification-in-flight.sh || fail "Core PRE_GA verification/recovery overlaps this Team production mutation."
           bash scripts/assert-no-unresolved-recovery.sh || fail "An earlier Team production mutation has unresolved recovery authority."
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_GOOGLE_IDP_RECONCILE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nOriginal app payload b64: ${original_b64}\nDesired app payload b64: ${desired_b64}\n\nBaseline and exact run-owned desired state captured before the Access application PUT." >/dev/null || fail "Could not persist TOS IdP recovery baseline."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TOS_GOOGLE_IDP_RECONCILE: **RECOVERY_ARMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nTeam source: ${GITHUB_SHA}\nApp ID: ${app_id}\nOriginal app payload b64: ${original_b64}\nDesired app payload b64: ${desired_b64}\nOriginal app state b64: ${original_state_b64}\nDesired app state b64: ${desired_state_b64}\n\nBaseline, mutation payload, rollback payload, and complete run-owned application state captured before the Access application PUT." >/dev/null || fail "Could not persist TOS IdP recovery baseline."
+          cas_apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot perform TOS IdP pre-mutation full-state CAS."
+          jq -e '.success==true' <<<"$cas_apps" >/dev/null || fail "TOS IdP pre-mutation CAS read failed."
+          cas_app="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$cas_apps" | head -1)"
+          [ -n "$cas_app" ] && [ "$(canonical_app_state <<<"$cas_app")" = "$original_state" ] || fail "TOS IdP full state drifted after capture; mutation withheld."
           mutated=true
           update_response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$payload" || true)"
           update_code="${update_response##*$'\n'}"; updated="${update_response%$'\n'*}"
@@ -115,6 +139,7 @@ jobs:
           jq -e '.success==true' <<<"$verify" >/dev/null || fail "Access application verification API failed."
           tos_after="$(jq -c --arg aud "$TOS_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$verify" | head -1)"
           bo_after="$(jq -c --arg aud "$BO_AUD" '.result[]? | select((.aud // "") == $aud)' <<<"$verify" | head -1)"
+          [ -n "$tos_after" ] && [ "$(canonical_app_state <<<"$tos_after")" = "$desired_state" ] || fail "TOS IdP post-mutation full state does not equal the preserved desired state."
           jq -e --arg g "$google_id" --arg o "$otp_id" '((.allowed_idps // []) | sort) == ([$g,$o] | sort) and (.auto_redirect_to_identity // false)==false' <<<"$tos_after" >/dev/null || fail "TOS allowed IdPs do not equal Google + OTP after update."
           [ "$(jq -c '.allowed_idps // []' <<<"$bo_after")" = "$(jq -c '.allowed_idps // []' <<<"$(jq -c '.[0]' <<<"$bo")")" ] || fail "BO allowed_idps changed unexpectedly."
           policies="$(curl -fsS "${api}/access/apps/${app_id}/policies?per_page=100" "${auth[@]}")" || fail "Cannot verify TOS policies."
