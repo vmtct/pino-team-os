@@ -135,13 +135,17 @@ export interface BoSessionLearningOwnerCommand {
 export interface BoRegistration {
   id: string;
   sessionId: string;
+  displayName: string;
+  birthYear: number;
+  birthMonth: number;
+  birthDay: number | null;
+  birthPrecision: "YEAR_MONTH" | "FULL_DATE";
+  guardianDisplayName: string | null;
+  contactType: "PHONE" | "EMAIL";
+  normalizedContactValue: string;
+  sourceType: string;
   status: string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string | null;
-  childName: string;
-  childDateOfBirth: string | null;
-  canonicalStudentId: string | null;
+  resolvedStudentProfileId: string | null;
   createdAt: string;
 }
 

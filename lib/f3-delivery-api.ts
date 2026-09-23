@@ -10,7 +10,7 @@ export interface F3RunningClass { id: string; centerId: string; pathProgramId: s
 export interface F3RunningClassBlock { id: string; runningClassId: string; blockKind: "LEARNING" | "BRIDGE" | "TRANSITION"; startsOffsetMinutes: number; endsOffsetMinutes: number; sharedBlockKey: string | null; label: string | null }
 export interface F3Term { id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; weekCount: number }
 export interface F3TermWeek { id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string }
-export interface F3Session { id: string; centerId: string; pathProgramId: string; learningSpaceId: string | null; runningClassId: string | null; localDate: string; startsLocal: string; endsLocal: string; startsAt: string; endsAt: string; timeZone: string; status: string }
+export interface F3Session { id: string; centerId: string; pathProgramId: string; learningSpaceId: string | null; runningClassId: string | null; primarySyllabusId: string | null; learningSyllabusVersionId: string | null; localDate: string; startsLocal: string; endsLocal: string; startsAt: string; endsAt: string; timeZone: string; optimalConcurrentCapacity: number | null; hardConcurrentCapacity: number | null; status: string }
 export interface F3PolicyStream { streamId: string; targetType: "CENTER" | "GLOBAL"; targetId: string | null; revision: number; draftVersionId: string | null; draftVersion: number | null; draftValue: { horizonDays: number } | null; publishedVersionId: string | null; publishedVersion: number | null; effectiveFrom: string | null; effectiveUntil: string | null; publishedValue: { horizonDays: number } | null }
 
 export interface F3BootstrapState {
@@ -28,7 +28,8 @@ export interface F3BootstrapState {
 
 export const f3DeliveryApi = {
   bootstrap: () => readOne<F3BootstrapState>("delivery/bootstrap-state"),
-  createTermWeek: (body: unknown) => writeOne<F3TermWeek>("delivery/term-weeks", body),
+  createTerm: (body: unknown) => writeOne<F3Term>("delivery/terms", body, crypto.randomUUID()),
+  createTermWeek: (body: unknown) => writeOne<F3TermWeek>("delivery/term-weeks", body, crypto.randomUUID()),
   createLearningSpace: (body: unknown) => writeOne<F3LearningSpace>("delivery/learning-spaces", body),
   createRunningClass: (body: unknown) => writeOne<F3RunningClass>("delivery/running-classes", body),
   createRunningClassBlock: (body: unknown) => writeOne<F3RunningClassBlock>("delivery/running-class-blocks", body),
@@ -42,10 +43,10 @@ async function readOne<T>(path: string): Promise<T> {
   return parse<T>(response, "Back Office delivery state could not be loaded.");
 }
 
-async function writeOne<T>(path: string, body: unknown): Promise<T> {
+async function writeOne<T>(path: string, body: unknown, idempotencyKey?: string): Promise<T> {
   const response = await fetch(`/api/bo/${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}) },
     body: JSON.stringify(body),
   });
   return parse<T>(response, "Back Office delivery command could not be completed.");
