@@ -9,6 +9,7 @@ const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
+const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -47,7 +48,9 @@ export function isStaffRegistrationProtectedReadPath(path: string): boolean {
 }
 
 export function isOperationalReadPath(path: string): boolean {
-  return path === "centers"
+  return path === "billing/product-plans"
+    || BILLING_BILL_READ.test(path)
+    || path === "centers"
     || path === "acquisition/intents"
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
     || path === "delivery/bootstrap-state"
