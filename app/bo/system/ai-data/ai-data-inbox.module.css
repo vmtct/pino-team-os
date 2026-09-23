@@ -1,0 +1,27 @@
+.changeSetRow { display:flex; justify-content:space-between; gap:16px; width:100%; padding:14px; border:1px solid #e5e5ed; border-radius:13px; background:#fbfbfd; color:#292936; text-align:left; cursor:pointer; }
+.changeSetRow > div { display:grid; gap:4px; }
+.changeSetRow strong { font-size:13px; }
+.changeSetRow span, .changeSetRow small { color:#737380; font-size:11px; }
+.changeSetRow code { align-self:center; color:#676879; font-size:10px; }
+.selected { border-color:#aaa1d8; background:#f6f3ff; box-shadow:0 0 0 1px rgba(102,89,169,.08); }
+.facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.facts div { display:grid; gap:4px; padding:11px; border:1px solid #ececf2; border-radius:10px; background:#fafafd; }
+.facts span { color:#7b7b87; font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
+.facts strong { font-size:12px; }
+.hashBox { display:grid; gap:6px; margin-bottom:14px; padding:12px; border:1px solid #dcd8ef; border-radius:11px; background:#f8f6ff; }
+.hashBox span { color:#6f6a80; font-size:10px; font-weight:800; }
+.hashBox code { overflow-wrap:anywhere; color:#403b58; font-size:11px; }
+.operationList { display:grid; gap:10px; }
+.operation { display:grid; gap:8px; padding:13px; border:1px solid #e6e6ed; border-radius:11px; background:#fff; }
+.operation > div { display:flex; justify-content:space-between; gap:12px; }
+.operation strong { font-size:12px; }
+.operation span, .operation > code { color:#777783; font-size:10px; }
+.operation pre, .details pre { margin:0; overflow:auto; padding:10px; border-radius:9px; background:#f6f6f9; color:#40404b; font-size:10px; line-height:1.45; }
+.details { margin-top:12px; }
+.details summary { cursor:pointer; color:#5d5677; font-size:11px; font-weight:800; }
+.details pre { margin-top:8px; }
+.actions { display:flex; gap:10px; margin-top:16px; padding-top:16px; border-top:1px solid #ececf2; }
+.rejectButton { min-height:40px; padding:9px 14px; border:1px solid #e7beb8; border-radius:10px; background:#fff7f5; color:#a13e33; font-weight:800; cursor:pointer; }
+.rejectButton:disabled { opacity:.4; cursor:not-allowed; }
+@media (max-width:760px) { .facts { grid-template-columns:repeat(2,minmax(0,1fr)); } .changeSetRow, .operation > div, .actions { align-items:stretch; flex-direction:column; } }
+@media (max-width:520px) { .facts { grid-template-columns:1fr; } }

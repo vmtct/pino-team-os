@@ -87,6 +87,7 @@ export const boNavigation: BoNavGroup[] = [
         ],
       },
       { label: "Policies" },
+      { href: "/bo/system/ai-data", label: "AI Data Inbox" },
       { href: "/bo/system/audit", label: "Audit" },
     ],
   },
