@@ -62,6 +62,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/system/users",
     "/bo/system/roles",
     "/bo/system/audit",
+    "/bo/system/ai-data",
     "/staff-pin/change",
     "/api/bo/context",
     "/api/bo/pinoria/effects/catalog",
@@ -117,6 +118,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
+  if (/^\/api\/founder\/ai\/change-sets(?:\/[0-9a-f-]{36}(?:\/(?:approve|reject|reconcile))?)?$/.test(normalized)) return true;
   return /^\/api\/bo\/learning\/syllabi(?:\/owners|\/media(?:\/[0-9a-f-]{36}\/preview)?|\/[0-9a-f-]{36}(?:\/(?:draft|publish|next-draft|archive))?|\/versions\/[0-9a-f-]{36}\/(?:artchitect-profile|pianohouse-profile|little-piner-profile))?$/.test(normalized)
     || /^\/api\/bo\/web-cms\/slots(?:\/[0-9a-f-]{36}(?:\/(?:history|draft|publish|rollback))?)?$/.test(normalized)
     || /^\/api\/bo\/pinoria\/ward\/catalog(?:\/(?:items|variants)(?:\/[0-9a-f-]{36})?)?$/.test(normalized)
