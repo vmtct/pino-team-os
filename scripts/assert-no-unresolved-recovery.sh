@@ -61,7 +61,8 @@ for spec in "${specs[@]}"; do
               or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:")) | not))
             )
           | select(
-              ($b | startswith($p + ": **WATCHDOG_RECOVERED**"))
+              ($b | startswith($p + ": **PASS**"))
+              or ($b | startswith($p + ": **WATCHDOG_RECOVERED**"))
               or ($b | startswith($p + ": **WATCHDOG_RECOVERY_CONFIRMED**"))
               or (($b | startswith($p + ": **FAIL_SAFE**")) and (($b | contains("version was restored")) or ($b | contains("baseline remained active"))))
             )

@@ -116,10 +116,15 @@ jobs:
           }
           fail() {
             local recovery_note
-            if rollback; then recovery_note="Exact-state local rollback completed or no run-owned policy remained."
-            else recovery_note="Exact-state local rollback was withheld or failed; durable RECOVERY_ARMED authority remains for watchdog reconciliation."
+            if rollback; then
+              recovery_note="Exact-state local rollback completed or no run-owned policy remained."
+              if [ "$post_attempted" = true ] || [ -n "$created_policy_id" ]; then
+                comment "BO_MANAGER_ACCESS_RECONCILE: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\nResult: BASELINE_RESTORED_BY_LOCAL_ROLLBACK\n\nExact-state local rollback proved the captured full policy-set baseline before releasing recovery authority."
+              fi
+            else
+              recovery_note="Exact-state local rollback was withheld or failed; durable RECOVERY_ARMED authority remains for watchdog reconciliation."
             fi
-            comment "BO_MANAGER_ACCESS_RECONCILE: **FAIL_SAFE**\n\n$1\n\n${recovery_note}\n\nExisting BO policies, Core/D1, Worker runtime, routes and domains were not changed by rollback."
+            comment "BO_MANAGER_ACCESS_RECONCILE: **FAIL_SAFE**\n\nWorkflow run: ${GITHUB_RUN_ID}\nWorkflow attempt: ${GITHUB_RUN_ATTEMPT}\n\n$1\n\n${recovery_note}\n\nExisting BO policies, Core/D1, Worker runtime, routes and domains were not changed by rollback."
             exit 1
           }
           [ -n "${CF_ACCOUNT_ID:-}" ] || fail "CF_ACCOUNT_ID unavailable."
