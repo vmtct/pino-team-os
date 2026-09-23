@@ -58,7 +58,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
   for (const pathname of [
     "/dashboard", "/schedule", "/classroom", "/timesheet", "/check-in", "/companion",
     "/api/workforce/context", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/api/companion/login",
-    "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/ai/change-sets/not-a-canonical-id", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings",
+    "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/ai/change-sets/not-a-canonical-id", "/api/founder/ai/change-sets/------------------------------------", "/api/founder/ai/change-sets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings",
     "/api/bo/web-cms/manifests/sync", "/api/bo/web-cms/slots/not-a-canonical-id", `/api/bo/web-cms/slots/${roleId}/retire`, `/api/bo/web-cms/slots/${roleId}/draft/extra`,
     "/api/bo/pinoria/ward/sets/not-a-canonical-id", `/api/bo/pinoria/ward/sets/${roleId}/delete`, `/api/bo/pinoria/ward/sets/${roleId}/members/extra`, "/api/bo/pinoria/ward/set-webm-assets/extra",
     "/api/bo/pinoria/ward/learners/not-a-canonical-id", `/api/bo/pinoria/ward/learners/${roleId}/delete`, `/api/bo/pinoria/ward/learners/${roleId}/loadout/extra`,
