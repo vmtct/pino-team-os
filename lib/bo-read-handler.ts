@@ -48,6 +48,8 @@ export function isStaffRegistrationProtectedReadPath(path: string): boolean {
 
 export function isOperationalReadPath(path: string): boolean {
   return path === "centers"
+    || path === "acquisition/intents"
+    || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
     || path === "delivery/bootstrap-state"
     || path === "path-programs"
     || path === "running-classes"
@@ -129,6 +131,14 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "acquisition/intents") {
+    const body: Record<string, unknown> = {};
+    const status = url.searchParams.get("status");
+    const limit = url.searchParams.get("limit");
+    if (status) body.status = status;
+    if (limit) body.limit = Number(limit);
+    return Object.keys(body).length ? body : undefined;
+  }
   if (path === "workforce/timekeeping") {
     const body: Record<string, unknown> = {};
     for (const key of ["centerId", "workDate", "startDate", "endDate", "staffMemberId", "status", "cursor"] as const) { const value = url.searchParams.get(key); if (value) body[key] = value; }
