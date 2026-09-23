@@ -9,6 +9,7 @@ const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
+const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/projected-completion$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -92,6 +93,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^open-studio\/students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
     || /^students\/[0-9a-f-]{36}\/pinoria$/.test(path)
+    || SUBSCRIPTION_PROJECTED_COMPLETION_READ.test(path)
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
     || /^workforce\/staff-records\/[0-9a-f-]{36}(?:\/pinoria)?$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
@@ -155,6 +157,7 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
     ...(url.searchParams.get("offset") ? { offset: Number(url.searchParams.get("offset")) } : {}),
   };
+  if (SUBSCRIPTION_PROJECTED_COMPLETION_READ.test(path)) return { effectiveAt: url.searchParams.get("effectiveAt") };
   if (path === "open-studio/operations") return url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : undefined;
   if (path === "open-studio/listing-catalog") return { ...(url.searchParams.get("centerId") ? { centerId: url.searchParams.get("centerId")! } : {}), ...(url.searchParams.get("effectiveAt") ? { effectiveAt: url.searchParams.get("effectiveAt")! } : {}) };
   if (path === "open-studio/passes") return { houseMembershipId: url.searchParams.get("houseMembershipId"), effectiveAt: url.searchParams.get("effectiveAt") };
