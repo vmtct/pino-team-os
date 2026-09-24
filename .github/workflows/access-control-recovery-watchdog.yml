@@ -194,9 +194,9 @@ jobs:
               apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
               current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps" | head -1)"
               [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nAccess app is missing; recovery cannot prove exact run-owned state."; exit 1; }
-              current_state="$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$current")"
+              current_state="$(canonical_app_state <<<"$current")"
               if [ "$current_state" = "$original_state" ]; then result=BASELINE_ALREADY_ACTIVE
-              elif [ "$current_state" = "$desired_state" ]; then
+              elif [ "$current_state" = "$expected_desired_state" ]; then
                 response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original" || true)"
                 code="${response##*$'\n'}"; response_body="${response%$'\n'*}"
                 [ "$code" = "200" ] && jq -e '.success==true' <<<"$response_body" >/dev/null || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nAccess-app rollback PUT did not return a successful provider result."; exit 1; }

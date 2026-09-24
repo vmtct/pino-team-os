@@ -113,7 +113,8 @@ jobs:
           other="$(jq -c --arg aud "$other_aud" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$apps")"
           [ -n "$other" ] || fail "Unrelated Team Access app does not resolve uniquely."
           other_id="$(jq -r '.id' <<<"$other")"
-          other_before="$(jq -c '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$other")"
+          other_before="$(canonical_app_state <<<"$other")"
+          other_before_b64="$(printf '%s' "$other_before" | base64 -w0)"
 
           original_payload="$(jq -c '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$app")"
           desired_payload="$(jq -c --arg domain "$retired" '.domain=$domain' <<<"$original_payload")"
@@ -123,7 +124,7 @@ jobs:
           desired_b64="$(printf '%s' "$desired_payload" | base64 -w0)"
           original_state_b64="$(printf '%s' "$original_state" | base64 -w0)"
           desired_state_b64="$(printf '%s' "$desired_state" | base64 -w0)"
-          comment "TEAM_ACCESS_PERIMETER_RETIRE: **RECOVERY_ARMED**\n\nWorkflow run: $GITHUB_RUN_ID\nWorkflow attempt: $GITHUB_RUN_ATTEMPT\nTarget: $target\nApp ID: $app_id\nOriginal app payload b64: $original_b64\nDesired app payload b64: $desired_b64\nOriginal app state b64: $original_state_b64\nDesired app state b64: $desired_state_b64\n\nExact full baseline captured before the Access application PUT."
+          comment "TEAM_ACCESS_PERIMETER_RETIRE: **RECOVERY_ARMED**\n\nWorkflow run: $GITHUB_RUN_ID\nWorkflow attempt: $GITHUB_RUN_ATTEMPT\nTarget: $target\nApp ID: $app_id\nOriginal app payload b64: $original_b64\nDesired app payload b64: $desired_b64\nOriginal app state b64: $original_state_b64\nDesired app state b64: $desired_state_b64\nOther app ID: $other_id\nOther app state b64: $other_before_b64\n\nExact full target and unrelated-app baselines captured before the Access application PUT."
 
           mutated=true
           response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$desired_payload" || true)"
@@ -136,8 +137,8 @@ jobs:
           [ -n "$current" ] || fail "Target Access app disappeared after retirement."
           current_state="$(canonical_app_state <<<"$current")"
           [ "$current_state" = "$desired_state" ] || fail "Target Access app post-mutation full state does not equal the preserved desired state."
-          other_after="$(jq -c --arg id "$other_id" '.result[]? | select(.id==$id) | {domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$verify" | head -1)"
-          [ "$other_after" = "$other_before" ] || fail "Unrelated Team Access app changed unexpectedly."
+          other_after="$(jq -c --arg id "$other_id" '.result[]? | select(.id==$id)' <<<"$verify" | head -1)"
+          [ -n "$other_after" ] && [ "$(canonical_app_state <<<"$other_after")" = "$other_before" ] || fail "Unrelated Team Access app full state changed unexpectedly."
 
           headers="$RUNNER_TEMP/perimeter-retire.headers"; : > "$headers"
           login_code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}/staff-login" || true)"

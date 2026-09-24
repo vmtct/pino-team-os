@@ -49,3 +49,23 @@ test('failed exact attempt can close on terminal PASS without authorizing rollba
 test('BO local rollback publishes durable exact-attempt closure consumed by watchdog',()=>{assert.match(boAccess,/WATCHDOG_RECOVERY_CONFIRMED/); assert.match(boAccess,/Workflow run: \${GITHUB_RUN_ID}/); assert.match(boAccess,/Workflow attempt: \${GITHUB_RUN_ATTEMPT}/); assert.match(watchdog,/WATCHDOG_RECOVERY_CONFIRMED/);});
 test('IdP canonical recovery state preserves nonvolatile policies',()=>{assert.match(idp,/\.policies=\(\(\.policies \/\/ \[\]\)/); assert.match(watchdog,/\.policies=\(\(\.policies \/\/ \[\]\)/);});
 test('H3 remediation tests are repository-relative and CI portable',()=>{assert.doesNotMatch(r('lib/h2-remediation.test.ts'),/\/home\/tri\/pino-work/);});
+
+
+test('Access app watchdog compares provider-normalized semantic desired state',()=>{
+  const appBranch=watchdog.slice(watchdog.indexOf('            app)'),watchdog.indexOf('            eval)'));
+  assert.match(appBranch,/current_state="\$\(canonical_app_state <<<"\$current"\)"/);
+  assert.match(appBranch,/elif \[ "\$current_state" = "\$expected_desired_state" \]; then/);
+  assert.doesNotMatch(appBranch,/elif \[ "\$current_state" = "\$desired_state" \]; then/);
+});
+
+test('Access recovery confirmation proves unrelated app full-state before closing fence',()=>{
+  const confirm=r('.github/workflows/team-access-recovery-confirm.yml');
+  assert.match(perimeter,/Other app ID: \$other_id/);
+  assert.match(perimeter,/Other app state b64: \$other_before_b64/);
+  assert.match(confirm,/other_state_b64=/);
+  assert.match(confirm,/Unrelated Team Access app full state drifted from the captured baseline/);
+  assert.match(confirm,/assert_legacy_bo_canonical/);
+  assert.match(confirm,/source_issue" = "430"/);
+  assert.match(confirm,/source_run" = "35985302696"/);
+  assert.match(confirm,/SOURCE_ISSUE does not match the exact source workflow run identity/);
+});
