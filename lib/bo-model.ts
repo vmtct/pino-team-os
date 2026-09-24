@@ -282,6 +282,7 @@ export interface BoLearnerSubscription {
   pathDisplayName: string;
   lifecycle: string;
   serviceStartsOn: string | null;
+  contractualEndsOn: string | null;
   weeklyCommitment: number;
   predecessorSubscriptionId: string | null;
   transitionType: string | null;
@@ -291,6 +292,11 @@ export interface BoLearnerSubscription {
   historicalBalance: number;
   effectiveAvailableUnits: number;
 }
+export type BoSubscriptionProjectedCompletion =
+  | { status: "PROJECTED"; subscriptionId: string; remainingUnits: number; projectedCompletionLocalDate: string; calculatedAt: string }
+  | { status: "ACTUAL"; subscriptionId: string; completedAt: string }
+  | { status: "UNAVAILABLE"; subscriptionId: string; reason: string; remainingUnits: number; placementState: string | null; calculatedAt: string };
+
 export interface BoLearnerEnrollment {
   id: string;
   subscriptionId: string;

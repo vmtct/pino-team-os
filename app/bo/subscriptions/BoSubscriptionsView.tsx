@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
+import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-subscriptions.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
-type CreateDraft = { pathProgramId: string; serviceStartsOn: string; weeklyCommitment: string; purchasedUnits: string; commercialReference: string };
+type CreateDraft = { pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: string; purchasedUnits: string; commercialReference: string };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
-const EMPTY_CREATE: CreateDraft = { pathProgramId: "", serviceStartsOn: today(), weeklyCommitment: "2", purchasedUnits: "24", commercialReference: "" };
+const EMPTY_CREATE: CreateDraft = { pathProgramId: "", serviceStartsOn: today(), contractualEndsOn: "", weeklyCommitment: "2", purchasedUnits: "24", commercialReference: "" };
 
 export function BoSubscriptionsView() {
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
@@ -126,7 +126,7 @@ export function BoSubscriptionsView() {
     event.preventDefault();
     const studentId = selectedRef.current;
     if (!studentId) return;
-    const body = { studentProfileId: studentId, pathProgramId: createDraft.pathProgramId, serviceStartsOn: createDraft.serviceStartsOn, weeklyCommitment: Number(createDraft.weeklyCommitment), purchasedUnits: Number(createDraft.purchasedUnits), ...(createDraft.commercialReference.trim() ? { commercialReference: createDraft.commercialReference.trim() } : {}) };
+    const body = { studentProfileId: studentId, pathProgramId: createDraft.pathProgramId, serviceStartsOn: createDraft.serviceStartsOn, contractualEndsOn: createDraft.contractualEndsOn, weeklyCommitment: Number(createDraft.weeklyCommitment), purchasedUnits: Number(createDraft.purchasedUnits), ...(createDraft.commercialReference.trim() ? { commercialReference: createDraft.commercialReference.trim() } : {}) };
     await runCommand("create", (idempotencyKey) => boApi.createSubscription(body, idempotencyKey), "Đã tạo và kích hoạt Subscription từ canonical Core.");
   }
 
@@ -145,8 +145,10 @@ export function BoSubscriptionsView() {
     const unitsText = window.prompt("Số Service Units cho renewal", "24");
     if (unitsText === null) return;
     const start = window.prompt("Ngày bắt đầu service (YYYY-MM-DD, để trống nếu Core tự resolve)", "") ?? "";
+    const contractualEndsOn = window.prompt("Contractual end date (YYYY-MM-DD)", subscription.contractualEndsOn ?? "");
+    if (!contractualEndsOn?.trim()) return;
     const ref = window.prompt("Commercial reference (tuỳ chọn)", subscription.commercialReference ?? "") ?? "";
-    const body = { weeklyCommitment: subscription.weeklyCommitment, purchasedUnits: Number(unitsText), ...(start.trim() ? { serviceStartsOn: start.trim() } : {}), ...(ref.trim() ? { commercialReference: ref.trim() } : {}) };
+    const body = { contractualEndsOn: contractualEndsOn.trim(), weeklyCommitment: subscription.weeklyCommitment, purchasedUnits: Number(unitsText), ...(start.trim() ? { serviceStartsOn: start.trim() } : {}), ...(ref.trim() ? { commercialReference: ref.trim() } : {}) };
     await runCommand(`renew:${subscription.id}`, (idempotencyKey) => boApi.renewSubscription(subscription.id, body, idempotencyKey), "Đã tạo renewal successor; predecessor không bị supersede sớm.");
   }
 
@@ -223,6 +225,7 @@ function CommercialWorkspace(props: {
           <option value="">Chọn Path</option>{props.catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
         </select></label>
         <label>Service starts<input disabled={props.blocked} type="date" required value={props.draft.serviceStartsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, serviceStartsOn: event.target.value }))} /></label>
+        <label>Contract ends<input disabled={props.blocked} type="date" required value={props.draft.contractualEndsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, contractualEndsOn: event.target.value }))} /></label>
         <label>Buổi / tuần<input disabled={props.blocked} type="number" min="1" required value={props.draft.weeklyCommitment} onChange={(event) => props.setDraft((draft) => ({ ...draft, weeklyCommitment: event.target.value }))} /></label>
         <label>Service Units<input disabled={props.blocked} type="number" min="1" required value={props.draft.purchasedUnits} onChange={(event) => props.setDraft((draft) => ({ ...draft, purchasedUnits: event.target.value }))} /></label>
         <label className={styles.span2}>Commercial reference<input disabled={props.blocked} value={props.draft.commercialReference} onChange={(event) => props.setDraft((draft) => ({ ...draft, commercialReference: event.target.value }))} placeholder="Tuỳ chọn" /></label>
@@ -242,7 +245,8 @@ function CommercialWorkspace(props: {
             <div><span>{sub.lifecycle}</span><strong>{sub.pathDisplayName}</strong><small>{sub.weeklyCommitment} buổi/tuần · v{sub.version}</small></div>
             <div className={styles.balance}><strong>{sub.effectiveAvailableUnits}</strong><span>units</span></div>
           </div>
-          <div className={styles.facts}><span>Bắt đầu <b>{sub.serviceStartsOn ?? "—"}</b></span><span>Ref <b>{sub.commercialReference ?? "—"}</b></span></div>
+          <div className={styles.facts}><span>Bắt đầu <b>{sub.serviceStartsOn ?? "—"}</b></span><span>Contract ends <b>{sub.contractualEndsOn ?? "—"}</b></span><span>Ref <b>{sub.commercialReference ?? "—"}</b></span></div>
+          <SubscriptionForecast entry={entry} />
           <div className={styles.enrollments}><strong>Enrollment hiện tại</strong>
             {current.length ? current.map((enrollment) => <div key={enrollment.id}><span>{enrollment.runningClassName}</span><small>{enrollment.effectiveFromLocalDate}</small><button type="button" disabled={props.blocked} onClick={() => void props.endEnrollment(enrollment)}>Kết thúc</button></div>) : <p>Chưa có placement hiệu lực.</p>}
           </div>
@@ -260,6 +264,27 @@ function CommercialWorkspace(props: {
       })}</div> : <p className={styles.empty}>Student chưa có Subscription. Tạo lifecycle đầu tiên ở form phía trên.</p>}
     </section>
   </>;
+}
+
+function SubscriptionForecast({ entry }: { entry: BoLearnerLifecycle["subscriptions"][number] }) {
+  const sub = entry.subscription;
+  const enrollmentSignature = entry.enrollments.map((item) => `${item.id}:${item.version}:${item.effectiveFromLocalDate}:${item.effectiveUntilExclusiveLocalDate ?? ""}`).join("|");
+  const [load, setLoad] = useState<Load<BoSubscriptionProjectedCompletion> | null>(null);
+  useEffect(() => {
+    if (sub.lifecycle !== "ACTIVE") { setLoad(null); return; }
+    let active = true;
+    setLoad({ state: "loading" });
+    void boApi.subscriptionProjectedCompletion(sub.id, new Date().toISOString())
+      .then((data) => { if (active) setLoad({ state: "ready", data }); })
+      .catch((error: unknown) => { if (active) setLoad({ state: "error", message: message(error) }); });
+    return () => { active = false; };
+  }, [sub.id, sub.lifecycle, sub.version, sub.effectiveAvailableUnits, enrollmentSignature]);
+  const label = sub.lifecycle === "COMPLETED"
+    ? sub.completedAt ?? "—"
+    : load?.state === "ready"
+      ? load.data.status === "PROJECTED" ? load.data.projectedCompletionLocalDate : load.data.status === "ACTUAL" ? load.data.completedAt : `Chưa dự báo · ${load.data.reason}`
+      : load?.state === "error" ? "Không tải được forecast" : sub.lifecycle === "ACTIVE" ? "Đang tính…" : "—";
+  return <div className={styles.facts}><span>Forecast ends <b>{label}</b></span><span>Nguồn <b>{sub.lifecycle === "ACTIVE" ? "Core cadence + calendar" : "Actual lifecycle"}</b></span></div>;
 }
 
 function isCurrentEnrollment(enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) {

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { isOperationalReadPath } from "./bo-read-handler";
+import { BO_HOSTNAME, decideHostBoundary } from "./host-boundary";
 
 const read = (path: string) => readFile(path, "utf8");
 
@@ -10,6 +12,7 @@ test("Subscriptions owner surface composes canonical commercial facades only", a
     assert.match(view, new RegExp(`boApi\\.${command}`));
   }
   assert.match(view, /boApi\.learnerLifecycle/);
+  assert.match(view, /boApi\.subscriptionProjectedCompletion/);
   assert.match(view, /boApi\.scopeCatalog/);
   assert.match(view, /collectPagedDirectory/);
   assert.doesNotMatch(view, /serviceUnit.*(?:--|-=)|effectiveAvailableUnits\s*[-+]=|set.*effectiveAvailableUnits/i);
@@ -23,6 +26,11 @@ test("Subscriptions owner surface keeps Core policy and scope authoritative", as
   assert.match(view, /expectedVersion: subscription\.version/);
   assert.match(view, /expectedVersion: enrollment\.version/);
   assert.match(view, /convenience defaults/);
+  assert.match(view, /Contract ends/);
+  assert.match(view, /Forecast ends/);
+  assert.match(view, /contractualEndsOn/);
+  assert.match(view, /Core cadence \+ calendar/);
+  assert.doesNotMatch(view, /effectiveAvailableUnits\s*\/\s*subscription\.weeklyCommitment|weeksLeft/);
   assert.doesNotMatch(view, /price|invoice|discount|refund/i);
 });
 
@@ -47,6 +55,8 @@ test("Subscriptions page remains presentation-only and uses existing API contrac
   assert.match(api, /createSubscription:/);
   assert.match(api, /renewSubscription:/);
   assert.match(api, /placeEnrollment:/);
+  assert.match(api, /subscriptionProjectedCompletion:/);
+  assert.match(api, /contractualEndsOn: string/);
   assert.doesNotMatch(view, /fetch\(/);
 });
 
@@ -64,4 +74,16 @@ test("Commercial commands preserve exact replay evidence across uncertain outcom
     assert.match(api, new RegExp(`${command}:[^\n]+idempotencyKey: string`));
   }
   assert.doesNotMatch(api, /(?:createSubscription|renewSubscription|cancelSubscription|placeEnrollment|endEnrollment):[^\n]+crypto\.randomUUID\(\)/);
+});
+
+
+
+test("Projected completion is admitted through the complete BO read facade", async () => {
+  const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const path = `subscriptions/${id}/projected-completion`;
+  assert.equal(isOperationalReadPath(path), true);
+  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, `/api/bo/${path}`), { action: "next" });
+
+  const handler = await read("lib/bo-read-handler.ts");
+  assert.match(handler, /SUBSCRIPTION_PROJECTED_COMPLETION_READ\.test\(path\)[\s\S]*effectiveAt: url\.searchParams\.get\("effectiveAt"\)/);
 });
