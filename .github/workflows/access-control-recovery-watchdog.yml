@@ -7,7 +7,6 @@ on:
       - BO Manager Access Reconcile
       - TOS Google IdP Reconcile
       - TOS Canonical External Evaluation
-      - Team Access Perimeter Retirement
     types: [completed]
 
 permissions:
