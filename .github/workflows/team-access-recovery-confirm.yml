@@ -1,0 +1,211 @@
+name: Team Access Recovery Confirm
+run-name: "${{ github.event.issue.title == '[GPT] Team Access recovery confirm' && github.event.issue.user.login == 'vmtct' && format('Team Access recovery confirm #{0} @ {1}', github.event.issue.number, github.sha) || format('IGNORED Team Access recovery confirm #{0} @ {1}', github.event.issue.number, github.sha) }}"
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: pino-team-production-recovery
+  cancel-in-progress: false
+
+jobs:
+  confirm:
+    if: github.event.issue.title == '[GPT] Team Access recovery confirm' && github.event.issue.user.login == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_ACCESS_API_TOKEN: ${{ secrets.CF_ACCESS_API_TOKEN }}
+      TOS_AUD: 9cc2708f62a198982d0597f520529a457e2b055c1835f77119a35286ac8de051
+      BO_AUD: 7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e
+
+    steps:
+      - name: Checkout exact confirmation operator source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Confirm exact failed Access retirement state
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || { echo "Recovery confirmation is one-shot; open a fresh Founder authorization issue." >&2; exit 1; }
+          AUTH_BODY_HASH="$(printf '%s' "$ISSUE_BODY" | sha256sum | cut -d' ' -f1)"
+          repo="$GITHUB_REPOSITORY"
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
+          auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN:-}" -H 'Content-Type: application/json')
+
+          comment_current() { gh issue comment "$ISSUE_NUMBER" --repo "$repo" --body "$1"; }
+          hold_source() { gh issue comment "$source_issue" --repo "$repo" --body "TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_HOLD**\n\nWorkflow run: ${source_run}\nWorkflow attempt: ${source_attempt}\n$1"; }
+          reject() { comment_current "TEAM_ACCESS_RECOVERY_CONFIRM: **FAIL_SAFE**\n\n$1\n\nNo Cloudflare mutation was authorized or performed."; exit 1; }
+          canonical_app_state() {
+            jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id)) | .self_hosted_domains=((.self_hosted_domains // []) | sort) | .destinations=((.destinations // []) | sort_by(.type,.uri))'
+          }
+          expected_rehomed_state() {
+            local from="$1" to="$2"
+            jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | if (.name // "") == $from then .name=$to else . end | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
+          }
+          assert_legacy_bo_canonical() {
+            local expected actual
+            expected="$(jq -Scn '{
+              id:"a9ad5861-ba01-4f5d-ae1c-a00d6326d426",
+              uid:"a9ad5861-ba01-4f5d-ae1c-a00d6326d426",
+              type:"self_hosted",
+              name:"PINO Back Office",
+              aud:"7d0d94aa2028f9535283bf0745bfac0cb1cda4e7ebc5e76120fe300718c6559e",
+              domain:"bo.pinohouse.art",
+              self_hosted_domains:["bo.pinohouse.art"],
+              destinations:[{type:"public",uri:"bo.pinohouse.art"}],
+              app_launcher_visible:true,
+              allowed_idps:[],
+              tags:[],
+              auto_redirect_to_identity:false,
+              policies:[
+                {decision:"allow",exclude:[],id:"59100606-b237-46af-bfd6-8e5be0e8ee98",include:[{email:{email:"vmtct97@gmail.com"}}],name:"PINO BO COO Manager",require:[],uid:"59100606-b237-46af-bfd6-8e5be0e8ee98",reusable:false,precedence:60},
+                {decision:"allow",exclude:[],id:"759ba7a3-d96c-46b8-a7a0-bfadfe7d2405",include:[{email:{email:"minhtri.van42@gmail.com"}}],name:"Founder only",require:[],connection_rules:{rdp:{}},uid:"759ba7a3-d96c-46b8-a7a0-bfadfe7d2405",reusable:true,precedence:1}
+              ] | sort_by(.id),
+              session_duration:"24h",
+              enable_binding_cookie:false,
+              http_only_cookie_attribute:false,
+              options_preflight_bypass:false,
+              eager_redirect_cookie_setting:true
+            }')"
+            actual="$(canonical_app_state)"
+            [ "$actual" = "$expected" ]
+          }
+
+          [ -n "${CF_ACCOUNT_ID:-}" ] || reject "CF_ACCOUNT_ID unavailable."
+          [ -n "${CF_ACCESS_API_TOKEN:-}" ] || reject "CF_ACCESS_API_TOKEN unavailable."
+          source_issue="$(sed -nE 's/^SOURCE_ISSUE:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          source_run="$(sed -nE 's/^SOURCE_RUN:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          source_attempt="$(sed -nE 's/^SOURCE_ATTEMPT:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          confirm="$(sed -nE 's/^CONFIRM:[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' <<<"$ISSUE_BODY")"
+          [ -n "$source_issue" ] && [ -n "$source_run" ] && [ -n "$source_attempt" ] || reject "SOURCE_ISSUE/SOURCE_RUN/SOURCE_ATTEMPT must be exact positive integers."
+          [ "$confirm" = "CONFIRM_TEAM_ACCESS_RECOVERY" ] || reject "Exact confirmation missing."
+
+          main_sha="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$GITHUB_SHA" = "$main_sha" ] || reject "Confirmation workflow is not running from exact current Team main."
+          bash scripts/assert-main-validation.sh "$repo" "$main_sha" || reject "Current Team main lacks successful exact-head validation."
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority is no longer live/exact."
+
+          armed_run="$(gh api "/repos/${repo}/actions/runs/${source_run}/attempts/${source_attempt}")" || reject "Cannot resolve exact failed source run/attempt."
+          [ "$(jq -r '.status // empty' <<<"$armed_run")" = "completed" ] || reject "Source run/attempt is not terminal."
+          [ "$(jq -r '.conclusion // empty' <<<"$armed_run")" != "success" ] || reject "Source run/attempt already succeeded; recovery confirmation is not authorized."
+          [ "$(jq -r '.event // empty' <<<"$armed_run")" = "issues" ] || reject "Source run was not issue-authorized."
+          [ "$(jq -r '.actor.login // empty' <<<"$armed_run")" = "vmtct" ] || reject "Source run actor is not Founder."
+          source_sha="$(jq -r '.head_sha // empty' <<<"$armed_run")"
+          [ "$(jq -r '.path // empty' <<<"$armed_run")" = ".github/workflows/team-access-perimeter-retire.yml" ] || reject "Source run is not Team Access Perimeter Retirement."
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]] || reject "Source run head SHA is invalid."
+          [ "$(jq -r '.display_title // empty' <<<"$armed_run")" = "Team Access perimeter retirement #${source_issue} @ ${source_sha}" ] || reject "SOURCE_ISSUE does not match the exact source workflow run identity."
+          compare="$(gh api "/repos/${repo}/compare/${source_sha}...${main_sha}")" || reject "Cannot compare source run to current main."
+          compare_status="$(jq -r '.status // empty' <<<"$compare")"
+          [ "$compare_status" = "identical" ] || [ "$compare_status" = "ahead" ] || reject "Current main is not a descendant of the failed source run."
+          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/workflows/(team-access-perimeter-retire|access-control-recovery-watchdog|team-access-recovery-confirm)\.yml|lib/h3-remediation\.test\.ts)$' || true)"
+          [ -z "$unexpected" ] || reject "Runtime-affecting drift exists after the failed source run: ${unexpected}"
+
+          comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${source_issue}/comments?per_page=100")"
+          marker="$(jq -c --arg run "$source_run" --arg attempt "$source_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | . + {normalizedBody:((.body // "") | gsub("\\\\n"; "\n"))} | select(.normalizedBody | startswith("TEAM_ACCESS_PERIMETER_RETIRE: **RECOVERY_ARMED**")) | select(.normalizedBody | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(.normalizedBody | test("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)"))] | sort_by(.created_at) | last // empty' <<<"$comments")"
+          [ -n "$marker" ] || reject "Exact RECOVERY_ARMED source receipt is absent."
+          existing="$(jq -r --arg run "$source_run" --arg attempt "$source_attempt" '[.[][] | select(.user.login=="github-actions[bot]") | ((.body // "") | gsub("\\\\n"; "\n")) as $b | select(($b | startswith("TEAM_ACCESS_PERIMETER_RETIRE: **PASS**")) or ($b | startswith("TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERED**")) or ($b | startswith("TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERY_CONFIRMED**"))) | select($b | test("(^|\\n)-?[[:space:]]*Workflow run:[[:space:]]*" + $run + "[[:space:]]*($|\\n)")) | select(($b | test("(^|\\n)-?[[:space:]]*Workflow attempt:[[:space:]]*" + $attempt + "[[:space:]]*($|\\n)")) or ($attempt=="1" and (($b | test("(^|\\n)Workflow attempt:"))|not)))] | length' <<<"$comments")"
+          [ "$existing" -eq 0 ] || reject "Source run/attempt already has terminal recovery evidence."
+
+          body="$(jq -r '.body | gsub("\\\\n"; "\n")' <<<"$marker")"
+          target="$(sed -nE 's/^Target:[[:space:]]*(TOS|BO)[[:space:]]*$/\1/p' <<<"$body")"
+          app_id="$(sed -nE 's/^App ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+          original_b64="$(sed -nE 's/^Original app payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+          desired_b64="$(sed -nE 's/^Desired app payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+          original_state_b64="$(sed -nE 's/^Original app state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+          desired_state_b64="$(sed -nE 's/^Desired app state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+          other_id="$(sed -nE 's/^Other app ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+          other_state_b64="$(sed -nE 's/^Other app state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+          [ "$target" = "TOS" ] || [ "$target" = "BO" ] || reject "Source recovery target is invalid."
+          [ -n "$app_id" ] && [ -n "$original_b64" ] && [ -n "$desired_b64" ] && [ -n "$original_state_b64" ] && [ -n "$desired_state_b64" ] || reject "Source recovery marker is incomplete."
+          if [ "$target" = "TOS" ]; then other_aud="$BO_AUD"; else other_aud="$TOS_AUD"; fi
+          legacy_other=false; other_state=""
+          if [ -n "$other_id" ] || [ -n "$other_state_b64" ]; then
+            [ -n "$other_id" ] && [ -n "$other_state_b64" ] || reject "Unrelated-app recovery baseline is incomplete."
+            other_state="$(printf '%s' "$other_state_b64" | base64 -d)"
+            jq -e . <<<"$other_state" >/dev/null || reject "Unrelated-app recovery baseline is invalid JSON."
+            other_state="$(canonical_app_state <<<"$other_state")"
+          else
+            [ "$source_issue" = "430" ] && [ "$source_run" = "35985302696" ] && [ "$source_attempt" = "1" ] && [ "$target" = "TOS" ] || reject "Legacy recovery marker lacks an unrelated-app full-state baseline."
+            legacy_other=true
+          fi
+
+          original="$(printf '%s' "$original_b64" | base64 -d)"; desired="$(printf '%s' "$desired_b64" | base64 -d)"
+          original_state="$(printf '%s' "$original_state_b64" | base64 -d)"; desired_state="$(printf '%s' "$desired_state_b64" | base64 -d)"
+          jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null; jq -e . <<<"$original_state" >/dev/null; jq -e . <<<"$desired_state" >/dev/null
+          original_state="$(canonical_app_state <<<"$original_state")"; desired_state="$(canonical_app_state <<<"$desired_state")"
+          [ "$(jq -Sc '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$original_state")" = "$(jq -Sc '.' <<<"$original")" ] || reject "Captured baseline payload/state binding is invalid."
+          [ "$(jq -Sc '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$desired_state")" = "$(jq -Sc '.' <<<"$desired")" ] || reject "Captured desired payload/state binding is invalid."
+          original_domain="$(jq -r '.domain // empty' <<<"$original")"; desired_domain="$(jq -r '.domain // empty' <<<"$desired")"
+          [ -n "$original_domain" ] && [ -n "$desired_domain" ] || reject "Captured app domains are invalid."
+          expected_desired_state="$(expected_rehomed_state "$original_domain" "$desired_domain" <<<"$original_state")"
+
+          apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot read live Access applications."
+          jq -e '.success==true' <<<"$apps" >/dev/null || reject "Live Access API returned failure."
+          other="$(jq -c --arg aud "$other_aud" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$apps")"
+          [ -n "$other" ] || reject "Unrelated Team Access app does not resolve uniquely."
+          if [ "$legacy_other" = true ]; then
+            assert_legacy_bo_canonical <<<"$other" || reject "Legacy unrelated BO app does not match the pinned canonical full-state contract."
+          else
+            [ "$(jq -r '.id // empty' <<<"$other")" = "$other_id" ] || reject "Unrelated Team Access app ID drifted from the captured baseline."
+            [ "$(canonical_app_state <<<"$other")" = "$other_state" ] || reject "Unrelated Team Access app full state drifted from the captured baseline."
+          fi
+          current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps" | head -1)"
+          [ -n "$current" ] || reject "Source Access app is missing."
+          current_state="$(canonical_app_state <<<"$current")"
+          if [ "$current_state" = "$original_state" ]; then
+            result=BASELINE_ALREADY_ACTIVE
+          elif [ "$current_state" = "$expected_desired_state" ]; then
+            result=DESIRED_STATE_COMMITTED
+          else
+            hold_source "Live Access app state is neither the captured baseline nor the exact provider-normalized desired state; confirmation refused."
+            reject "Live Access state cannot safely close the source recovery."
+          fi
+
+          if [ "$result" = "DESIRED_STATE_COMMITTED" ]; then
+            if [ "$target" = "TOS" ]; then
+              host="tos.pinohouse.art"; protected_path="/dashboard"
+            else
+              host="bo.pinohouse.art"; protected_path="/bo"
+            fi
+
+            headers="$RUNNER_TEMP/access-recovery-confirm.headers"; : > "$headers"
+            login_code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}/staff-login" || true)"
+            login_location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            [[ "$login_location" != *"cloudflareaccess.com"* ]] || reject "$target /staff-login is still challenged by Cloudflare Access."
+            case "$login_code" in 200|307|308) ;; *) reject "$target local Staff login returned unexpected HTTP $login_code.";; esac
+            : > "$headers"
+            protected_code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${protected_path}" || true)"
+            protected_location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
+            [ "$protected_code" = "307" ] || reject "$target protected surface did not fail closed to local login (HTTP $protected_code)."
+            [ "$protected_location" = "https://${host}/staff-login" ] || reject "$target protected surface did not redirect to exact local Staff login."
+          fi
+
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before terminal receipt."
+          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$main_now" = "$main_sha" ] || reject "Team main changed during recovery confirmation."
+          apps_final="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot re-read Access applications before terminal receipt."
+          current_final="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps_final" | head -1)"
+          [ -n "$current_final" ] || reject "Source Access app disappeared before terminal receipt."
+          current_final_state="$(canonical_app_state <<<"$current_final")"
+          if [ "$result" = "BASELINE_ALREADY_ACTIVE" ]; then
+            [ "$current_final_state" = "$original_state" ] || reject "Access baseline drifted before terminal recovery receipt."
+          else
+            [ "$current_final_state" = "$expected_desired_state" ] || reject "Access desired state drifted before terminal recovery receipt."
+          fi
+
+          gh issue comment "$source_issue" --repo "$repo" --body "TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${source_run}\nWorkflow attempt: ${source_attempt}\nRecovery result: ${result}.\nConfirmation operator run: ${GITHUB_RUN_ID}.\nRead-only live-state proof completed; no Cloudflare mutation was performed."
+          comment_current "TEAM_ACCESS_RECOVERY_CONFIRM: **PASS**\n\n- Source issue: #${source_issue}\n- Source workflow run: ${source_run}\n- Source attempt: ${source_attempt}\n- Result: ${result}\n- Team main: ${main_sha}\n- Cloudflare mutation: none"
