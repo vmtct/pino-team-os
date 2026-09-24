@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { LogoutButton } from "./LogoutButton";
 import styles from "./bo-shell.module.css";
 
 export type BoNavChild = {
@@ -139,6 +140,7 @@ export function BoShell({
           <button className={styles.commandButton} type="button" onClick={() => setCommandOpen(true)} aria-label="Mở điều hướng nhanh">
             <span>Tìm màn hình…</span><kbd>Ctrl K</kbd>
           </button>
+          <LogoutButton className={styles.logoutButton} />
           <span className={styles.surfaceChip}>BO</span>
         </header>
         <main className={styles.main}>{children}</main>

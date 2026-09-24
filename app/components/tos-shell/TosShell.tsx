@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LogoutButton } from "./LogoutButton";
 import styles from "./tos-shell.module.css";
 
 export type TosAppTheme = "home" | "shift" | "classroom" | "tasks" | "pinoria";
@@ -67,6 +68,7 @@ export function TosShell({
               ⌂
             </Link>
           ) : null}
+          <LogoutButton className={styles.logoutButton} />
         </div>
       </header>
 
