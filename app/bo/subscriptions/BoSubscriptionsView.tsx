@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
+import { BillingWorkspace } from "./BillingWorkspace";
 import styles from "./bo-subscriptions.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -194,7 +195,8 @@ export function BoSubscriptionsView() {
       <section className={styles.detail}>
         {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data} draft={createDraft} setDraft={setCreateDraft} createSubscription={createSubscription}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
-          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} blocked={Boolean(commandState.busy || pendingAttempt)} /> : <State text="Chọn Student để bắt đầu." />}
+          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} blocked={Boolean(commandState.busy || pendingAttempt)}
+          onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
     </section>
   </main>;
@@ -207,6 +209,7 @@ function CommercialWorkspace(props: {
   place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   cancel: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null; blocked: boolean;
+  onChanged: () => Promise<void>;
 }) {
   if (!props.load || props.load.state === "loading") return <State text="Đang tải commercial lifecycle…" />;
   if (props.load.state === "error") return <State text={props.load.message} error />;
@@ -217,6 +220,8 @@ function CommercialWorkspace(props: {
       <div><span>Selected Student</span><h2>{data.student.displayName}</h2><p>{active.length} active Subscription · {active.reduce((sum, entry) => sum + entry.subscription.effectiveAvailableUnits, 0)} Service Units khả dụng</p></div>
       <a href={`/bo/learners?studentId=${encodeURIComponent(data.student.id)}`}>Mở Student 360</a>
     </section>
+
+    <BillingWorkspace lifecycle={data} paths={props.catalog.paths} onChanged={props.onChanged} />
 
     <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
       <div className={styles.sectionHead}><div><span>New commercial lifecycle</span><h3>Tạo & kích hoạt Subscription</h3></div><small>Core atomically creates + activates + PURCHASED units</small></div>
@@ -245,7 +250,7 @@ function CommercialWorkspace(props: {
             <div><span>{sub.lifecycle}</span><strong>{sub.pathDisplayName}</strong><small>{sub.weeklyCommitment} buổi/tuần · v{sub.version}</small></div>
             <div className={styles.balance}><strong>{sub.effectiveAvailableUnits}</strong><span>units</span></div>
           </div>
-          <div className={styles.facts}><span>Bắt đầu <b>{sub.serviceStartsOn ?? "—"}</b></span><span>Contract ends <b>{sub.contractualEndsOn ?? "—"}</b></span><span>Ref <b>{sub.commercialReference ?? "—"}</b></span></div>
+          <div className={styles.facts}><span>Service starts <b>{sub.serviceStartsOn ?? "—"}</b></span><span>Contract starts <b>{sub.contractualStartsOn ?? "—"}</b></span><span>Contract ends <b>{sub.contractualEndsOn ?? "—"}</b></span><span>Ref <b>{sub.commercialReference ?? "—"}</b></span></div>
           <SubscriptionForecast entry={entry} />
           <div className={styles.enrollments}><strong>Enrollment hiện tại</strong>
             {current.length ? current.map((enrollment) => <div key={enrollment.id}><span>{enrollment.runningClassName}</span><small>{enrollment.effectiveFromLocalDate}</small><button type="button" disabled={props.blocked} onClick={() => void props.endEnrollment(enrollment)}>Kết thúc</button></div>) : <p>Chưa có placement hiệu lực.</p>}
