@@ -123,6 +123,9 @@ export function StaffRegistrationReviewQueue() {
       setSelectedId("");
       window.dispatchEvent(new Event("bo:staff-updated"));
     } catch (cause) {
+      if (cause instanceof BoApiError && cause.message.includes("Access email already exists")) {
+        await refresh();
+      }
       setError(formatError(cause, "Không thể duyệt hồ sơ."));
     } finally { setBusy(""); }
   }
