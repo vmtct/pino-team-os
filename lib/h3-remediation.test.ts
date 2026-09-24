@@ -69,3 +69,9 @@ test('Access recovery confirmation proves unrelated app full-state before closin
   assert.match(confirm,/source_run" = "35985302696"/);
   assert.match(confirm,/SOURCE_ISSUE does not match the exact source workflow run identity/);
 });
+
+test('Access recovery confirmation accepts only relative or exact same-host Staff login redirects',()=>{
+  const confirm=r('.github/workflows/team-access-recovery-confirm.yml');
+  assert.match(confirm,/\/staff-login\|"https:\/\/\$\{host\}\/staff-login"/);
+  assert.match(confirm,/exact same-host local Staff login/);
+});

@@ -191,7 +191,10 @@ jobs:
             protected_code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${protected_path}" || true)"
             protected_location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
             [ "$protected_code" = "307" ] || reject "$target protected surface did not fail closed to local login (HTTP $protected_code)."
-            [ "$protected_location" = "https://${host}/staff-login" ] || reject "$target protected surface did not redirect to exact local Staff login."
+            case "$protected_location" in
+              /staff-login|"https://${host}/staff-login") ;;
+              *) reject "$target protected surface did not redirect to exact same-host local Staff login.";;
+            esac"
           fi
 
           bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before terminal receipt."
