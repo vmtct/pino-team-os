@@ -12,7 +12,7 @@ test("Staff registration review preserves idempotency keys across ambiguous retr
   assert.match(source, /approveAttempt = useRef<ReviewAttempt \| null>\(null\)/);
   assert.match(source, /rejectAttempt = useRef<ReviewAttempt \| null>\(null\)/);
   assert.match(source, /attempt\?\.requestId === selected\.id && attempt\.fingerprint === fingerprint/);
-  assert.match(source, /approveStaffRegistration\(selected\.id, normalized, idempotencyKey\)/);
+  assert.match(source, /approveStaffRegistration\(selected\.id, normalized, idempotencyKey, existingStaffMemberId \|\| undefined\)/);
   assert.match(source, /attempt\?\.requestId === selected\.id && attempt\.fingerprint === reason/);
   assert.match(source, /rejectStaffRegistration\(selected\.id, reason, idempotencyKey\)/);
   assert.doesNotMatch(source, /approveStaffRegistration\([^\n]+crypto\.randomUUID\(\)/);

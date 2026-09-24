@@ -249,10 +249,9 @@ export interface BoStaffRegistrationApprovalResult {
   status: "APPROVED";
   staffMemberId: string;
   userId: string;
-  externalIdentityId: string;
   assignmentIds: string[];
-  accessState: "PROVISIONED_AWAITING_LOGIN";
-  staffPinState: "ROTATION_REQUIRED" | "ACTIVE";
+  accessState: "PROVISIONED_PASSWORD_READY" | "LINKED_EXISTING_ACCESS";
+  authenticationMethod: "LOCAL_PASSWORD" | "EXISTING_ACCESS";
   initialPin?: string;
 }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import type { BoAccessSystemUser } from "@/lib/bo-access-model";
 import type {
   BoAccessRole,
   BoCenter,
@@ -10,6 +11,7 @@ import type {
   BoStaffAccessAssignmentInput,
   BoStaffRegistrationApprovalResult,
   BoStaffRegistrationRequest,
+  BoStaffRecord,
 } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -25,7 +27,12 @@ export function StaffRegistrationReviewQueue() {
   const [roles, setRoles] = useState<BoAccessRole[]>([]);
   const [catalog, setCatalog] = useState<Catalog>({ centers: [], paths: [], classes: [] });
   const [selectedId, setSelectedId] = useState("");
-  const [assignments, setAssignments] = useState<Draft[]>([blankDraft()]);  const [rejectReason, setRejectReason] = useState("");
+  const [staffRecords, setStaffRecords] = useState<BoStaffRecord[]>([]);
+  const [accessUsers, setAccessUsers] = useState<BoAccessSystemUser[]>([]);
+  const [search, setSearch] = useState("");
+  const [existingStaffMemberId, setExistingStaffMemberId] = useState("");
+  const [assignments, setAssignments] = useState<Draft[]>([blankDraft()]);
+  const [rejectReason, setRejectReason] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [approval, setApproval] = useState<BoStaffRegistrationApprovalResult | null>(null);
@@ -36,6 +43,7 @@ export function StaffRegistrationReviewQueue() {
   useEffect(() => { void refresh(); }, []);
   useEffect(() => {
     setAssignments([blankDraft()]);
+    setExistingStaffMemberId("");
     setRejectReason(""); setError("");
     approveAttempt.current = null;
     rejectAttempt.current = null;
@@ -43,13 +51,24 @@ export function StaffRegistrationReviewQueue() {
 
   const selected = requests.find((item) => item.id === selectedId) ?? requests[0] ?? null;
   const activeRoles = useMemo(() => roles.filter((role) => role.status === "active" && role.roleKey !== "founder"), [roles]);
+  const visibleRequests = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...requests]
+      .filter((request) => !query || request.displayLabel.toLowerCase().includes(query) || request.email.toLowerCase().includes(query))
+      .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
+  }, [requests, search]);
+  const existingAccess = useMemo(() => selected
+    ? accessUsers.find((user) => user.email?.trim().toLowerCase() === selected.email.trim().toLowerCase()) ?? null
+    : null, [accessUsers, selected]);
+  const linkedStaffIds = useMemo(() => new Set(accessUsers.map((user) => user.staffMemberId).filter((id): id is string => Boolean(id))), [accessUsers]);
+  const linkableStaff = useMemo(() => staffRecords.filter((staff) => staff.status === "active" && (!linkedStaffIds.has(staff.id) || existingAccess?.staffMemberId === staff.id)), [staffRecords, linkedStaffIds, existingAccess]);
 
   async function refresh() {
     try {
-      const [nextRequests, nextRoles, nextCatalog] = await Promise.all([
-        boApi.staffRegistrationRequests(), boApi.accessRoles(), boApi.scopeCatalog(),
+      const [nextRequests, nextRoles, nextCatalog, nextStaff, nextAccessUsers] = await Promise.all([
+        boApi.staffRegistrationRequests(), boApi.accessRoles(), boApi.scopeCatalog(), boApi.staffRecords(), boApi.accessUsers(),
       ]);
-      setRequests(nextRequests); setRoles(nextRoles); setCatalog(nextCatalog);
+      setRequests(nextRequests); setRoles(nextRoles); setCatalog(nextCatalog); setStaffRecords(nextStaff); setAccessUsers(nextAccessUsers);
       setSelectedId((current) => nextRequests.some((item) => item.id === current) ? current : nextRequests[0]?.id ?? "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải hàng đợi đăng ký nhân sự.");
@@ -76,16 +95,28 @@ export function StaffRegistrationReviewQueue() {
     if (!selected) return;
     const normalized = normalizedAssignments();
     if (!normalized) { setError("Chọn đầy đủ role và scope trước khi duyệt."); return; }
-    if (!confirm(`Duyệt hồ sơ của ${selected.displayLabel} và tạo Staff + Access?`)) return;
+    if (existingAccess?.staffMemberId) {
+      setError("Email này đã được liên kết với một Staff khác. Kiểm tra Access trước khi duyệt.");
+      return;
+    }
+    if (existingAccess && !existingStaffMemberId) {
+      setError("Email này đã có Access account. Chọn Staff hiện hữu để liên kết.");
+      return;
+    }
+    const targetStaff = staffRecords.find((staff) => staff.id === existingStaffMemberId);
+    const confirmMessage = existingAccess
+      ? `Duyệt hồ sơ của ${selected.displayLabel} và liên kết Access hiện hữu với Staff “${targetStaff?.displayLabel ?? "đã chọn"}”?`
+      : `Duyệt hồ sơ của ${selected.displayLabel} và tạo Staff + Access?`;
+    if (!confirm(confirmMessage)) return;
     setBusy("approve"); setError(""); setApproval(null);
     try {
-      const fingerprint = JSON.stringify(normalized);
+      const fingerprint = JSON.stringify({ normalized, existingStaffMemberId: existingStaffMemberId || null });
       const attempt = approveAttempt.current;
       const idempotencyKey = attempt?.requestId === selected.id && attempt.fingerprint === fingerprint
         ? attempt.key
         : crypto.randomUUID();
       approveAttempt.current = { requestId: selected.id, fingerprint, key: idempotencyKey };
-      const result = await boApi.approveStaffRegistration(selected.id, normalized, idempotencyKey);
+      const result = await boApi.approveStaffRegistration(selected.id, normalized, idempotencyKey, existingStaffMemberId || undefined);
       approveAttempt.current = null;
       setApproval(result);
       setRequests((items) => items.filter((item) => item.id !== selected.id));
@@ -137,8 +168,9 @@ export function StaffRegistrationReviewQueue() {
 
     <div className={styles.registrationReviewGrid}>
       <aside className={styles.registrationQueue}>
-        <div className={styles.panelHeading}><div><h2>{requests.length} hồ sơ chờ duyệt</h2><p>Mới nhất ở cuối danh sách.</p></div></div>
-        {!requests.length ? <div className={styles.empty}>Không có hồ sơ đang chờ duyệt.</div> : requests.map((request) => <button
+        <div className={styles.panelHeading}><div><h2>{requests.length} hồ sơ chờ duyệt</h2><p>Mới nhất trước.</p></div></div>
+        <label className={styles.field}>Tìm hồ sơ<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tên hoặc email" /></label>
+        {!visibleRequests.length ? <div className={styles.empty}>{requests.length ? "Không tìm thấy hồ sơ phù hợp." : "Không có hồ sơ đang chờ duyệt."}</div> : visibleRequests.map((request) => <button
           type="button" key={request.id}
           className={`${styles.registrationQueueItem} ${selected?.id === request.id ? styles.registrationQueueItemActive : ""}`}
           onClick={() => { setSelectedId(request.id); setApproval(null); setPinCopied(false); }}
@@ -162,6 +194,17 @@ export function StaffRegistrationReviewQueue() {
             <p className={styles.registrationPrivacyNote}>CCCD và thông tin ngân hàng đầy đủ được mã hoá tại Core; queue mặc định chỉ surface dữ liệu đã mask.</p>
           </section>
 
+          {existingAccess ? <section className={styles.panel}>
+            <div className={styles.panelHeading}><div><h2>Access hiện hữu</h2><p>Email đăng ký đã có tài khoản Access; không tạo tài khoản trùng.</p></div><span className={styles.writePill}>LINK</span></div>
+            {existingAccess.staffMemberId ? <p className={styles.ownerError}>Access này đã liên kết với Staff <code>{existingAccess.staffMemberId}</code>. Không thể duyệt vào Staff khác.</p> : <>
+              <p>Chọn đúng StaffMember để liên kết. Hệ thống không tự suy đoán identity theo tên hoặc email.</p>
+              <label className={styles.field}>Staff cần liên kết<select value={existingStaffMemberId} onChange={(event) => setExistingStaffMemberId(event.target.value)}>
+                <option value="">Chọn Staff…</option>
+                {linkableStaff.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayLabel}{staff.roleLabel ? ` · ${staff.roleLabel}` : ""}</option>)}
+              </select></label>
+            </>}
+          </section> : null}
+
           <section className={styles.panel}>
             <div className={styles.panelHeading}><div><h2>Quyền truy cập</h2><p>Ít nhất một role/scope explicit trước khi duyệt.</p></div></div>
             <div className={styles.assignmentList}>
@@ -179,7 +222,7 @@ export function StaffRegistrationReviewQueue() {
             <label className={styles.field}>Lý do từ chối<input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Chỉ cần khi từ chối" /></label>
             <div className={styles.registrationDecisionActions}>
               <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !rejectReason.trim()} onClick={() => void reject()}>{busy === "reject" ? "Đang từ chối…" : "Từ chối"}</button>
-              <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !selected.documents.front || !selected.documents.back} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : "Duyệt & cấp quyền"}</button>
+              <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !selected.documents.front || !selected.documents.back || Boolean(existingAccess?.staffMemberId) || Boolean(existingAccess && !existingStaffMemberId)} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : existingAccess ? "Duyệt & liên kết" : "Duyệt & cấp quyền"}</button>
             </div>
           </section>
         </>}
@@ -198,6 +241,9 @@ function TargetSelect({ draft, catalog, onChange }: { draft: Draft; catalog: Cat
 }
 
 function formatError(cause: unknown, fallback: string): string {
+  if (cause instanceof BoApiError && cause.message.includes("Access email already exists")) {
+    return `Email này đã có Access account. Chọn Staff hiện hữu để liên kết thay vì tạo Access mới.${cause.requestId ? ` · Request ${cause.requestId}` : ""}`;
+  }
   if (cause instanceof BoApiError) return cause.requestId ? `${cause.message} · Request ${cause.requestId}` : cause.message;
   return cause instanceof Error ? cause.message : fallback;
 }
