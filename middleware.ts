@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decideHostBoundary, requiresTosStaffSession } from "@/lib/host-boundary";
+import { decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
 
 export function middleware(request: NextRequest) {
-  const decision = decideHostBoundary(request.headers.get("host") ?? request.nextUrl.hostname, request.nextUrl.pathname);
+  const host = request.headers.get("host") ?? request.nextUrl.hostname;
+  const decision = decideHostBoundary(host, request.nextUrl.pathname);
 
   if (decision.action === "next") {
-    if (requiresTosStaffSession(request.headers.get("host") ?? request.nextUrl.hostname, request.nextUrl.pathname) && !request.cookies.get("pino_staff_session")?.value && !request.cookies.get("pino_staff_password_session")?.value) {
+    if (requiresTosStaffSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_staff_session")?.value && !request.cookies.get("pino_staff_password_session")?.value) {
+      const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
+      return NextResponse.redirect(login, 307);
+    }
+    if (requiresBoStaffPasswordSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);
     }

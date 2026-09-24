@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BO_HOSTNAME, decideHostBoundary, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
+import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
@@ -20,6 +20,15 @@ test("TOS cannot reach BO routes or the BO API", () => {
   for (const pathname of ["/bo", "/bo/", "/bo/anything", "/api/bo", "/api/bo/context", "/api/bo/access/roles", "/bo/system/users"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }
+});
+
+test("BO exposes local Staff password login while keeping BO pages password-gated", () => {
+  for (const pathname of ["/staff-login", "/api/staff-auth/login", "/api/staff-auth/status", "/api/staff-auth/logout"]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "next" }, pathname);
+    assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), false, pathname);
+  }
+  for (const pathname of ["/bo", "/bo/system/users", "/staff-pin/change"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
+  assert.equal(requiresBoStaffPasswordSession(TOS_HOSTNAME, "/bo"), false);
 });
 
 test("BO root redirects on the same host and only governed BO routes are available", () => {

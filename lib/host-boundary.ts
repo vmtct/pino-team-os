@@ -23,7 +23,7 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
 
   if (hostname === BO_HOSTNAME) {
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
-    if (isApprovedBoPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
+    if (isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
     return { action: "not_found" };
   }
 
@@ -33,6 +33,17 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
   }
 
   return { action: "next" };
+}
+
+function isBoLocalAuthPath(pathname: string): boolean {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  return ["/staff-login", "/api/staff-auth/login", "/api/staff-auth/status", "/api/staff-auth/logout"].includes(normalized);
+}
+
+export function requiresBoStaffPasswordSession(host: string, pathname: string): boolean {
+  if (normalizeHostname(host) !== BO_HOSTNAME) return false;
+  const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  return isPathWithin(normalized, "/bo") || normalized === "/staff-pin/change";
 }
 
 function isApprovedBoPath(pathname: string): boolean {
