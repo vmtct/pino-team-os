@@ -65,8 +65,12 @@ export function StaffRegistrationReviewQueue() {
 
   async function refresh() {
     try {
+      const accessUsersRequest = boApi.accessUsers().catch((cause) => {
+        if (cause instanceof BoApiError && (cause.status === 401 || cause.status === 403)) return [];
+        throw cause;
+      });
       const [nextRequests, nextRoles, nextCatalog, nextStaff, nextAccessUsers] = await Promise.all([
-        boApi.staffRegistrationRequests(), boApi.accessRoles(), boApi.scopeCatalog(), boApi.staffRecords(), boApi.accessUsers(),
+        boApi.staffRegistrationRequests(), boApi.accessRoles(), boApi.scopeCatalog(), boApi.staffRecords(), accessUsersRequest,
       ]);
       setRequests(nextRequests); setRoles(nextRoles); setCatalog(nextCatalog); setStaffRecords(nextStaff); setAccessUsers(nextAccessUsers);
       setSelectedId((current) => nextRequests.some((item) => item.id === current) ? current : nextRequests[0]?.id ?? "");

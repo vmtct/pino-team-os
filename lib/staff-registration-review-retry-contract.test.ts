@@ -17,5 +17,7 @@ test("Staff registration review preserves idempotency keys across ambiguous retr
   assert.match(source, /rejectStaffRegistration\(selected\.id, reason, idempotencyKey\)/);
   assert.doesNotMatch(source, /approveStaffRegistration\([^\n]+crypto\.randomUUID\(\)/);
   assert.match(source, /Access email already exists[\s\S]{0,200}await refresh\(\)/);
+  assert.match(source, /accessUsersRequest = boApi\.accessUsers\(\)\.catch/);
+  assert.match(source, /cause\.status === 401 \|\| cause\.status === 403/);
   assert.doesNotMatch(source, /rejectStaffRegistration\([^\n]+crypto\.randomUUID\(\)/);
 });
