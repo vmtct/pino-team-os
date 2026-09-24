@@ -46,13 +46,20 @@ jobs:
           mutated=false; app_id=""; original_payload=""; desired_payload=""; original_state=""; desired_state=""; other_id=""; other_before=""
 
           comment() { gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$1"; }
+          canonical_app_state() {
+            jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id)) | .self_hosted_domains=((.self_hosted_domains // []) | sort) | .destinations=((.destinations // []) | sort_by(.type,.uri))'
+          }
+          expected_rehomed_state() {
+            local from="$1" to="$2"
+            jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | if (.name // "") == $from then .name=$to else . end | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
+          }
           rollback() {
             if [ "$mutated" = true ] && [ -n "$app_id" ] && [ -n "$original_payload" ] && [ -n "$desired_payload" ]; then
               local live current current_state response code body restored_apps restored_app restored_state
               live="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
               current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$live" | head -1)"
               [ -n "$current" ] || return 1
-              current_state="$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$current")"
+              current_state="$(canonical_app_state <<<"$current")"
               if [ "$current_state" = "$desired_state" ]; then
                 response="$(curl -sS -w '\n%{http_code}' -X PUT "${api}/access/apps/${app_id}" "${auth[@]}" -d "$original_payload" || true)"
                 code="${response##*$'\n'}"; body="${response%$'\n'*}"
@@ -61,7 +68,7 @@ jobs:
                 restored_apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}" 2>/dev/null)" || return 1
                 restored_app="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$restored_apps" | head -1)"
                 [ -n "$restored_app" ] || return 1
-                restored_state="$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$restored_app")"
+                restored_state="$(canonical_app_state <<<"$restored_app")"
                 [ "$restored_state" = "$original_state" ] || return 1
               elif [ "$current_state" != "$original_state" ]; then
                 return 1
@@ -110,8 +117,8 @@ jobs:
 
           original_payload="$(jq -c '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$app")"
           desired_payload="$(jq -c --arg domain "$retired" '.domain=$domain' <<<"$original_payload")"
-          original_state="$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$app")"
-          desired_state="$(jq -Sc --arg domain "$retired" '.domain=$domain' <<<"$original_state")"
+          original_state="$(canonical_app_state <<<"$app")"
+          desired_state="$(expected_rehomed_state "$host" "$retired" <<<"$original_state")"
           original_b64="$(printf '%s' "$original_payload" | base64 -w0)"
           desired_b64="$(printf '%s' "$desired_payload" | base64 -w0)"
           original_state_b64="$(printf '%s' "$original_state" | base64 -w0)"
@@ -127,7 +134,7 @@ jobs:
           verify="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || fail "Cannot verify Access applications after retirement."
           current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$verify" | head -1)"
           [ -n "$current" ] || fail "Target Access app disappeared after retirement."
-          current_state="$(jq -Sc 'del(.created_at,.updated_at) | .allowed_idps=((.allowed_idps // []) | sort) | .policies=((.policies // []) | map(del(.created_at,.updated_at)) | sort_by(.id))' <<<"$current")"
+          current_state="$(canonical_app_state <<<"$current")"
           [ "$current_state" = "$desired_state" ] || fail "Target Access app post-mutation full state does not equal the preserved desired state."
           other_after="$(jq -c --arg id "$other_id" '.result[]? | select(.id==$id) | {domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$verify" | head -1)"
           [ "$other_after" = "$other_before" ] || fail "Unrelated Team Access app changed unexpectedly."
