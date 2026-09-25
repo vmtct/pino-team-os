@@ -36,7 +36,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
   assert.deepEqual(decideHostBoundary("bo.pinohouse.art.", "/api/founder/ai/change-sets"), { action: "next" });
   assert.deepEqual(decideHostBoundary("BO.PINOHOUSE.ART.:443", "/api/founder/ai/change-sets"), { action: "next" });
   for (const pathname of [
-    "/bo", "/bo/", "/bo/staff", "/bo/workforce", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation",
+    "/bo", "/bo/", "/bo/staff", "/bo/workforce", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
     "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice", "/bo/pinoria-ward", "/bo/pinoria-ward/sets", "/bo/pinoria-ward/learners", "/bo/pinoria-effects", "/bo/content",
     "/bo/system/users", "/bo/system/roles", "/bo/system/audit", "/bo/system/ai-data",
     "/api/founder/ai/change-sets", `/api/founder/ai/change-sets/${roleId}`, `/api/founder/ai/change-sets/${roleId}/approve`, `/api/founder/ai/change-sets/${roleId}/reject`, `/api/founder/ai/change-sets/${roleId}/reconcile`,
@@ -44,7 +44,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/open-studio/member-path-centers/assign", "/api/bo/open-studio/passes/issue-monthly-path", "/api/bo/open-studio/admission",
     `/api/bo/open-studio/passes/${roleId}/claim-eligibility`, `/api/bo/students/${roleId}/lifecycle`, `/api/bo/students/${roleId}/pinoria`, `/api/bo/students/${roleId}/pinoria/companions/${roleId}/feed`, `/api/bo/identity/parents/${roleId}/pin/reset`,
     "/api/bo/subscriptions", `/api/bo/subscriptions/${roleId}/renew`, `/api/bo/subscriptions/${roleId}/projected-completion`, "/api/bo/enrollments", `/api/bo/enrollments/${roleId}/end`,
-    "/api/bo/centers", "/api/bo/delivery/bootstrap-state", "/api/bo/delivery/enrollment-activation", "/api/bo/delivery/term-weeks", "/api/bo/delivery/learning-spaces",
+    "/api/bo/centers", "/api/bo/delivery/bootstrap-state", "/api/bo/delivery/calendar-exclusions", "/api/bo/delivery/calendar-exclusions/preview", `/api/bo/delivery/calendar-exclusions/${roleId}`, "/api/bo/delivery/enrollment-activation", "/api/bo/delivery/term-weeks", "/api/bo/delivery/learning-spaces",
     "/api/bo/delivery/running-classes", "/api/bo/delivery/running-class-blocks", "/api/bo/delivery/materializations",
     "/api/bo/policies/delivery/materialization.v1/versions", `/api/bo/policies/delivery/materialization.v1/versions/${roleId}/publish`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/stream", "/api/bo/policies/open_studio/monthly_path_pass.v1/effective",

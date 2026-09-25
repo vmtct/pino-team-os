@@ -20,7 +20,7 @@ export const boNavigation: BoNavGroup[] = [
           { href: "/bo/delivery-activation", label: "Activation" },
         ],
       },
-      { label: "Schedule" },
+      { href: "/bo/calendar", label: "Schedule", children: [{ href: "/bo/calendar", label: "Holidays & closures" }] },
     ],
   },
   {

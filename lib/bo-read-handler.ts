@@ -52,6 +52,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "acquisition/intents"
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
     || path === "delivery/bootstrap-state"
+    || path === "delivery/calendar-exclusions"
+    || path === "delivery/calendar-exclusions/preview"
     || path === "path-programs"
     || path === "running-classes"
     || path === "syllabi"
@@ -147,6 +149,14 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     const limit = url.searchParams.get("limit");
     if (limit) body.limit = Number(limit);
     return body;
+  }
+  if (path === "delivery/calendar-exclusions" || path === "delivery/calendar-exclusions/preview") {
+    const body: Record<string, unknown> = {};
+    for (const key of ["centerId", "status", "scopeType", "pathProgramId", "runningClassId", "startsOnLocalDate", "endsBeforeLocalDate", "effectiveAt"] as const) {
+      const value = url.searchParams.get(key);
+      if (value !== null && value !== "") body[key] = value;
+    }
+    return Object.keys(body).length ? body : undefined;
   }
   if (path === "access/audit") {
     const limit = url.searchParams.get("limit");
