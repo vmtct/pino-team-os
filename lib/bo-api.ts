@@ -52,6 +52,7 @@ import type { BoDutyExceptionReview, BoDutyExceptionRecord } from "./bo-workforc
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
 import type { StaffQualification, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
+import { recoverInvalidStaffPasswordSession } from "./staff-session-recovery";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
 import { syllabusWorksheetPreviewUrl, uploadSyllabusWorksheetMedia } from "./bo-syllabus-media-client";
 export { BoApiError } from "./bo-api-error";
@@ -134,6 +135,7 @@ async function write<T>(path: string, body: unknown, idempotencyKey: string): Pr
 }
 
 function apiError(response: Response, body: { error?: { message?: string; requestId?: string } }, fallback: string) {
+  if (response.status === 401 && typeof window !== "undefined") void recoverInvalidStaffPasswordSession();
   const canonicalMessage = typeof body.error?.message === "string" && body.error.message.trim().length > 0;
   return new BoApiError(
     response.status,
