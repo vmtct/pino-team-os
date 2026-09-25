@@ -221,10 +221,10 @@ function CommercialWorkspace(props: {
       <a href={`/bo/learners?studentId=${encodeURIComponent(data.student.id)}`}>Mở Student 360</a>
     </section>
 
-    <BillingWorkspace lifecycle={data} paths={props.catalog.paths} onChanged={props.onChanged} />
+    <BillingWorkspace lifecycle={data} paths={props.catalog.paths} classes={props.catalog.classes} onChanged={props.onChanged} />
 
     <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
-      <div className={styles.sectionHead}><div><span>New commercial lifecycle</span><h3>Tạo & kích hoạt Subscription</h3></div><small>Core atomically creates + activates + PURCHASED units</small></div>
+      <div className={styles.sectionHead}><div><span>Manual repair only</span><h3>Tạo Subscription thủ công</h3></div><small>New registrations phải dùng Product Plan + exact cadence placement phía trên</small></div>
       <div className={styles.formGrid}>
         <label>Path<select disabled={props.blocked} required value={props.draft.pathProgramId} onChange={(event) => props.setDraft((draft) => ({ ...draft, pathProgramId: event.target.value }))}>
           <option value="">Chọn Path</option>{props.catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
@@ -235,8 +235,8 @@ function CommercialWorkspace(props: {
         <label>Service Units<input disabled={props.blocked} type="number" min="1" required value={props.draft.purchasedUnits} onChange={(event) => props.setDraft((draft) => ({ ...draft, purchasedUnits: event.target.value }))} /></label>
         <label className={styles.span2}>Commercial reference<input disabled={props.blocked} value={props.draft.commercialReference} onChange={(event) => props.setDraft((draft) => ({ ...draft, commercialReference: event.target.value }))} placeholder="Tuỳ chọn" /></label>
       </div>
-      <button className={styles.primary} disabled={props.blocked} type="submit">{props.busy === "create" ? "Đang tạo…" : "Tạo & kích hoạt"}</button>
-      <p className={styles.hint}>2 buổi/tuần và 24 units chỉ là convenience defaults của form, không phải business policy.</p>
+      <button className={styles.primary} disabled={props.blocked} type="submit">{props.busy === "create" ? "Đang tạo…" : "Tạo manual Subscription"}</button>
+      <p className={styles.hint}>Repair path legacy: cadence/units nhập tay chỉ dùng cho correction; không dùng cho manager registration mới.</p>
     </form>
 
     <section className={styles.section}>
