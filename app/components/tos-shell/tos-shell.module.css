@@ -85,6 +85,22 @@
 }
 .opsHeader p { margin: 0; color: #71717d; font-size: 13px; }
 .opsHeaderActions { display: flex; gap: 8px; }
+.logoutButton {
+  min-width: 76px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--tos-line);
+  border-radius: 13px;
+  background: #fff;
+  color: var(--tos-accent-strong);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.logoutButton:disabled { cursor: wait; opacity: .65; }
+.logoutButton:hover:not(:disabled), .logoutButton:focus-visible { background: var(--tos-tint); }
+
 .iconButton {
   width: 38px;
   height: 38px;

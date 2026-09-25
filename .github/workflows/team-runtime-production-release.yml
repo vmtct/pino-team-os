@@ -328,17 +328,32 @@ jobs:
           main_postdeploy="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main after promotion."
           runtime_main_ok "$main_postdeploy" || fail "Runtime-affecting Team main drift occurred during promotion."
 
-          for host in "$TOS_HOST" "$BO_HOST"; do
-            headers="$RUNNER_TEMP/headers.txt"; : > "$headers"
-            code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}/" || true)"
+          assert_protected_surface() {
+            local host="$1" protected_path="$2" headers code location redirect_kind login_headers login_code
+            headers="$RUNNER_TEMP/headers-${host//./-}.txt"; : > "$headers"
+            code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${protected_path}" || true)"
             location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
             case "$code" in
-              302|303|307) [[ "$location" =~ cloudflareaccess\.com ]] || fail "${host} redirects outside Cloudflare Access." ;;
-              401|403) ;;
-              200) fail "${host} became publicly reachable without Cloudflare Access." ;;
-              *) fail "${host} perimeter smoke returned unexpected HTTP ${code}." ;;
+              302|303|307|308)
+                redirect_kind="$(node scripts/team-release-auth-boundary.mjs "$location" "$host")" || fail "${host}${protected_path} redirect authority could not be classified."
+                case "$redirect_kind" in
+                  ACCESS) return 0 ;;
+                  LOCAL)
+                    login_headers="$RUNNER_TEMP/login-headers-${host//./-}.txt"; : > "$login_headers"
+                    login_code="$(curl -sS --max-time 12 -D "$login_headers" -o /dev/null -w '%{http_code}' "https://${host}/staff-login" || true)"
+                    [ "$login_code" = "200" ] || fail "${host} local Staff login returned unexpected HTTP ${login_code}."
+                    return 0
+                    ;;
+                  *) fail "${host}${protected_path} redirected outside both Cloudflare Access and exact local Staff login." ;;
+                esac
+                ;;
+              401|403) return 0 ;;
+              200) fail "${host}${protected_path} became publicly reachable without an authentication boundary." ;;
+              *) fail "${host}${protected_path} perimeter smoke returned unexpected HTTP ${code}." ;;
             esac
-          done
+          }
+          assert_protected_surface "$TOS_HOST" "/dashboard"
+          assert_protected_surface "$BO_HOST" "/bo"
 
           final_main="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main before terminal PASS."
           runtime_main_ok "$final_main" || fail "Runtime-affecting Team main drift exists before terminal PASS."
@@ -352,4 +367,4 @@ jobs:
           evaluator_final="$(bash scripts/assert-evaluator-provider-authority.sh "$EVALUATOR_SECRET_ISSUE" "$EVALUATOR_SECRET_RUN_ID")" || fail "Evaluator authority drifted before Team PASS."
           [ "$(jq -r '.teamSha' <<<"$evaluator_final")" = "$TEAM_SHA" ] && [ "$(jq -r '.evaluatorSha' <<<"$evaluator_final")" = "$EVALUATOR_SOURCE_SHA" ] && [ "$(jq -r '.version' <<<"$evaluator_final")" = "$EVALUATOR_VERSION" ] && [ "$(jq -r '.deployment' <<<"$evaluator_final")" = "$EVALUATOR_DEPLOYMENT" ] || fail "Evaluator provider identity drifted before Team PASS."
           promotion_attempted=0
-          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator source: ${EVALUATOR_SOURCE_SHA}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- External Team build UUID (signal only): ${TEAM_BUILD_UUID}\n- Trusted artifact tag: ${TRUSTED_TAG}\n- Trusted artifact message: ${TRUSTED_MESSAGE}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO: Cloudflare Access protected\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
+          comment "TEAM_RUNTIME_PRODUCTION_RELEASE: **PASS**\n\n- Team source: ${TEAM_SHA}\n- Workflow run: ${GITHUB_RUN_ID}\n- Workflow attempt: ${GITHUB_RUN_ATTEMPT}\n- Authorization body hash: ${AUTH_BODY_HASH}\n- Core source: ${CORE_SHA}\n- Core deployment: ${CORE_DEPLOYMENT_ID}\n- Core release run: ${CORE_RELEASE_RUN_ID}\n- Evaluator secret issue/run: #${EVALUATOR_SECRET_ISSUE} / ${EVALUATOR_SECRET_RUN_ID}\n- Evaluator source: ${EVALUATOR_SOURCE_SHA}\n- Evaluator version: ${EVALUATOR_VERSION}\n- Evaluator deployment: ${EVALUATOR_DEPLOYMENT}\n- External Team build UUID (signal only): ${TEAM_BUILD_UUID}\n- Trusted artifact tag: ${TRUSTED_TAG}\n- Trusted artifact message: ${TRUSTED_MESSAGE}\n- Team Worker version: ${TEAM_VERSION}\n- Deployment ID: ${candidate_deployment_id}\n- Traffic: 100%\n- TOS + BO protected surfaces: fail-closed by Cloudflare Access or exact PINO local Staff login\n- Required private Core bindings: preserved\n\nNo D1, Core runtime, Access-policy, route, custom-domain, Staff, learner, Visit, Attendance, or reward data mutation was performed by this Team operator."
