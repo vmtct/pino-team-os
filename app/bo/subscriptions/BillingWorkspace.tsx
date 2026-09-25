@@ -55,12 +55,27 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
 
   const selectedPlan = plans.find((plan) => plan.id === planId) ?? null;
   useEffect(() => {
-    const count = selectedPlan?.cadence ?? 0;
-    setPlacements((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""));
     setLatestSale(null);
     setRegistrationComplete(false);
-  }, [selectedPlan?.id, pathId, lifecycle.student.id]);
+    setPlacements([]);
+  }, [lifecycle.student.id]);
+  useEffect(() => {
+    const count = selectedPlan?.cadence ?? 0;
+    setPlacements((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""));
+    if (!latestSale) setRegistrationComplete(false);
+  }, [selectedPlan?.id]);
+  useEffect(() => {
+    setPlacements(Array.from({ length: selectedPlan?.cadence ?? 0 }, () => ""));
+    if (!latestSale) setRegistrationComplete(false);
+  }, [pathId]);
   const eligibleClasses = useMemo(() => classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === pathId), [classes, pathId]);
+  const pendingRegistrationEntries = useMemo(() => lifecycle.subscriptions.filter((entry) => {
+    const sub = entry.subscription;
+    return sub.lifecycle === "ACTIVE"
+      && entry.enrollments.length === 0
+      && Boolean(sub.productPlanId && sub.contractualStartsOn && sub.contractualEndsOn)
+      && /^bill:[0-9a-f-]{36}$/.test(sub.commercialReference ?? "");
+  }), [lifecycle.subscriptions]);
   const selectedPlacementCount = placements.filter(Boolean).length;
   const placementIds = placements.filter(Boolean);
   const placementsReady = Boolean(selectedPlan) && selectedPlacementCount === selectedPlan!.cadence && new Set(placementIds).size === placementIds.length;
@@ -110,9 +125,49 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     return boApi.placeBulkEnrollments({ ...body, policyEffectiveAt }, idempotencyKey);
   }
 
+  async function resumePendingRegistration(entry: BoLearnerLifecycle["subscriptions"][number]) {
+    if (busy || pending) return;
+    const sub = entry.subscription;
+    const billId = /^bill:([0-9a-f-]{36})$/.exec(sub.commercialReference ?? "")?.[1] ?? null;
+    const plan = plans.find((item) => item.id === sub.productPlanId) ?? null;
+    if (!billId || !plan || !sub.contractualStartsOn || !sub.contractualEndsOn || sub.weeklyCommitment !== plan.cadence) {
+      setError("Pending registration không khớp canonical Product Plan/Bill snapshot.");
+      return;
+    }
+    setBusy(`recover:${sub.id}`); setNotice(null); setError(null);
+    try {
+      const bill = await boApi.billingBill(billId);
+      const billItem = bill.items.find((item) => item.subscriptionId === sub.id);
+      if (!billItem || billItem.productPlanId !== plan.id || billItem.studentProfileId !== lifecycle.student.id) {
+        throw new Error("Pending registration Bill snapshot không khớp Subscription.");
+      }
+      setPlanId(plan.id);
+      setPathId(sub.pathProgramId);
+      setPayerId(bill.bill.payerParentUserId);
+      setStartsOn(sub.contractualStartsOn);
+      setPlacements(Array.from({ length: plan.cadence }, () => ""));
+      setLatestSale({
+        productPlan: plan,
+        bill,
+        billItem,
+        subscriptionId: sub.id,
+        contractualStartsOn: sub.contractualStartsOn,
+        contractualEndsOn: sub.contractualEndsOn,
+        purchasedUnits: plan.purchasedUnits,
+      });
+      setRegistrationComplete(false);
+      setNotice(`Đã khôi phục Subscription ${sub.id.slice(0,8)}…; chọn đủ ${plan.cadence} Running Classes để hoàn tất placement.`);
+    } catch (value) {
+      setError(message(value));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function submitRegistration(event: React.FormEvent) {
     event.preventDefault();
     if (!planId || !pathId || !payerId || !selectedPlan) { setError("Chọn Product Plan, Path và Parent thanh toán."); return; }
+    if (pendingRegistrationEntries.length) { setError("Student đã có Subscription Product Plan chưa placement. Hãy resume placement hiện hữu trước khi tạo sale mới."); return; }
     if (!placementsReady) { setError(`Chọn đủ ${selectedPlan.cadence} Running Classes khác nhau trước khi đăng ký.`); return; }
     if (latestSale && !registrationComplete) { setError("Subscription đã tạo; hãy hoàn tất placement, không tạo sale mới."); return; }
     const policyEffectiveAt = new Date().toISOString();
@@ -192,6 +247,14 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       </div>
     </section>
 
+    {!latestSale && pendingRegistrationEntries.length ? <section className={styles.registrationPending}>
+      <strong>Pending Running Class placement</strong>
+      <p>Canonical Subscription đã tồn tại nhưng chưa có Enrollment. Resume placement hiện hữu; không tạo sale thứ hai.</p>
+      {pendingRegistrationEntries.map((entry) => <button key={entry.subscription.id} type="button" disabled={Boolean(busy || pending)} onClick={() => void resumePendingRegistration(entry)}>
+        {busy === `recover:${entry.subscription.id}` ? "Đang khôi phục…" : `Resume ${entry.subscription.pathDisplayName} · ${entry.subscription.weeklyCommitment} buổi/tuần`}
+      </button>)}
+    </section> : null}
+
     <form className={styles.createCard} onSubmit={(event) => void submitRegistration(event)}>
       <div className={styles.sectionHead}><div><span>New registration</span><h3>Tạo Subscription + Running Class placement</h3></div><small>Cadence từ Product Plan · chỉ complete sau bulk placement</small></div>
       <div className={styles.formGrid}>
@@ -260,5 +323,5 @@ function isMethod(value: string | undefined): value is BoPaymentMethod { return 
 function money(value: string): number { const parsed = Number(value); if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error("Số tiền phải là số nguyên VND không âm."); return parsed; }
 function formatVnd(value: number) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value); }
 function classSchedule(item: BoRunningClass) { const days = ["", "T2", "T3", "T4", "T5", "T6", "T7", "CN"]; return `${days[item.recurrenceWeekdays[0] ?? 0] ?? ""} ${item.startLocalTime}–${item.endLocalTime}`; }
-function today() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`; }
+function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
 function message(value: unknown) { return value instanceof Error ? value.message : "Billing operation failed."; }

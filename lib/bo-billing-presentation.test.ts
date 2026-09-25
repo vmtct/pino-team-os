@@ -110,6 +110,18 @@ test("Product Plan cadence drives exact distinct Running Class placements before
   assert.doesNotMatch(billing, /expectedWeeklyCommitment:\s*Number\(/);
 });
 
+test("Pending registration recovery is canonical and survives refresh/navigation", async () => {
+  const billing = await read("app/bo/subscriptions/BillingWorkspace.tsx");
+  assert.match(billing, /entry\.enrollments\.length === 0/);
+  assert.match(billing, /\^bill:\[0-9a-f-\]\{36\}\$/);
+  assert.match(billing, /async function resumePendingRegistration/);
+  assert.match(billing, /const bill = await boApi\.billingBill\(billId\)/);
+  assert.match(billing, /billItem\.productPlanId !== plan\.id/);
+  assert.match(billing, /Student đã có Subscription Product Plan chưa placement/);
+  assert.match(billing, /Resume placement hiện hữu; không tạo sale thứ hai/);
+  assert.match(billing, /timeZone: "Asia\/Ho_Chi_Minh"/);
+});
+
 test("New registration passes only canonical sale inputs and keeps manual cadence in repair path", async () => {
   const [billing, view] = await Promise.all([
     read("app/bo/subscriptions/BillingWorkspace.tsx"),
