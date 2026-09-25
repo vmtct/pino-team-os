@@ -158,6 +158,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/workforce\/planning\/check-in-exceptions(?:\/centers|\/[0-9a-f-]{36}(?:\/(?:approve|decline))?)?$/.test(normalized)
     || /^\/api\/bo\/workforce\/planning\/shift-templates\/[0-9a-f-]{36}\/status$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
+    || /^\/api\/bo\/delivery\/term-weeks\/[0-9a-f-]{36}\/(?:update|delete)$/.test(normalized)
     || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
