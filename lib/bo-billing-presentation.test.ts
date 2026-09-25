@@ -17,6 +17,8 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
     `billing/bills/${id}/transactions`,
     `billing/bills/${id}/void`,
     `billing/transactions/${id}/void`,
+    "enrollments/bulk-preflight",
+    "enrollments/bulk-place",
   ]) assert.equal(isAllowedPostPath(path), true, path);
   assert.equal(isAllowedPostPath("billing/product-plans"), false);
   assert.equal(isAllowedPostPath(`billing/product-plans/${id}`), false);
@@ -32,7 +34,7 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
     read("lib/bo-write-handler.ts"),
   ]);
   assert.match(view, /import \{ BillingWorkspace, type BillingReplayState \}/);
-  assert.match(view, /<BillingWorkspace lifecycle=\{data\} paths=\{props\.catalog\.paths\} onChanged=\{props\.onChanged\}/);
+  assert.match(view, /<BillingWorkspace lifecycle=\{data\} paths=\{props\.catalog\.paths\} classes=\{props\.catalog\.classes\} onChanged=\{props\.onChanged\}/);
   assert.match(view, /replayState=\{props\.billingReplay\} setReplayState=\{props\.setBillingReplay\}/);
   assert.match(billing, /const TERMS = \[12, 24, 48\] as const/);
   assert.match(billing, /const CADENCES = \[1, 2, 3, 4, 5, 6\] as const/);
@@ -46,6 +48,8 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   assert.match(api, /billing\/product-plans\/\$\{encodeURIComponent\(productPlanId\)\}\/configure/);
   assert.match(api, /createBillingSale:/);
   assert.match(api, /recordBillingTransaction:/);
+  assert.match(api, /preflightBulkEnrollments:/);
+  assert.match(api, /placeBulkEnrollments:/);
   assert.match(model, /contractualStartsOn: string \| null/);
   assert.match(model, /export interface BoBillSummary/);
   assert.match(view, /Contract starts <b>\{sub\.contractualStartsOn \?\? "—"\}<\/b>/);
@@ -88,4 +92,34 @@ test("Billing replay authority survives lifecycle remount and freezes payment fi
   assert.doesNotMatch(billing, /recordBillingTransaction\(billId, \{[\s\S]{0,180}occurredAt: new Date/);
   assert.match(host, /api\\\/bo\\\/billing\\\/product-plans/);
   assert.match(host, /api\\\/bo\\\/billing\\\/bills/);
+});
+
+test("Product Plan cadence drives exact distinct Running Class placements before registration completion", async () => {
+  const billing = await read("app/bo/subscriptions/BillingWorkspace.tsx");
+  assert.match(billing, /Array\.from\(\{ length: count \}/);
+  assert.match(billing, /selectedPlacementCount === selectedPlan!\.cadence/);
+  assert.match(billing, /new Set\(placementIds\)\.size === placementIds\.length/);
+  assert.match(billing, /item\.status === "ACTIVE" && item\.pathProgramId === pathId/);
+  assert.match(billing, /usedElsewhere = placements\.some/);
+  assert.match(billing, /expectedWeeklyCommitment: sale\.productPlan\.cadence/);
+  assert.match(billing, /boApi\.preflightBulkEnrollments\(body\)/);
+  assert.match(billing, /boApi\.placeBulkEnrollments/);
+  assert.match(billing, /`\$\{idempotencyKey\}:placement`/);
+  assert.match(billing, /Subscription đã tạo; hãy hoàn tất placement, không tạo sale mới/);
+  assert.match(billing, /latestSale && !registrationComplete/);
+  assert.doesNotMatch(billing, /expectedWeeklyCommitment:\s*Number\(/);
+});
+
+test("New registration passes only canonical sale inputs and keeps manual cadence in repair path", async () => {
+  const [billing, view] = await Promise.all([
+    read("app/bo/subscriptions/BillingWorkspace.tsx"),
+    read("app/bo/subscriptions/BoSubscriptionsView.tsx"),
+  ]);
+  const start = billing.indexOf("const sale = await boApi.createBillingSale({");
+  const end = billing.indexOf("}, idempotencyKey);", start);
+  assert.ok(start >= 0 && end > start);
+  const call = billing.slice(start, end);
+  assert.doesNotMatch(call, /weeklyCommitment|purchasedUnits|contractualEndsOn|listPriceMinor/);
+  assert.match(view, /Manual repair only/);
+  assert.match(view, /New registrations phải dùng Product Plan \+ exact cadence placement phía trên/);
 });
