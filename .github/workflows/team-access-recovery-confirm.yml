@@ -194,7 +194,7 @@ jobs:
             case "$protected_location" in
               /staff-login|"https://${host}/staff-login") ;;
               *) reject "$target protected surface did not redirect to exact same-host local Staff login.";;
-            esac"
+            esac
           fi
 
           bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before terminal receipt."

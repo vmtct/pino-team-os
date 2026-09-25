@@ -75,3 +75,4 @@ test('Access recovery confirmation accepts only relative or exact same-host Staf
   assert.match(confirm,/\/staff-login\|"https:\/\/\$\{host\}\/staff-login"/);
   assert.match(confirm,/exact same-host local Staff login/);
 });
+test('Access recovery confirmation run block remains valid Bash',()=>{assert.doesNotMatch(recoveryConfirm,/esac"/);});
