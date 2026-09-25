@@ -61,6 +61,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/sales/leads",
     "/bo/open-studio",
     "/bo/delivery-activation",
+    "/bo/calendar",
     "/bo/running-classes",
     "/bo/sessions",
     "/bo/registrations",
@@ -98,6 +99,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/open-studio/admission",
     "/api/bo/centers",
     "/api/bo/delivery/bootstrap-state",
+    "/api/bo/delivery/calendar-exclusions",
+    "/api/bo/delivery/calendar-exclusions/preview",
     "/api/bo/delivery/enrollment-activation",
     "/api/bo/delivery/term-weeks",
     "/api/bo/delivery/learning-spaces",
@@ -151,6 +154,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/workforce\/planning\/check-in-exceptions(?:\/centers|\/[0-9a-f-]{36}(?:\/(?:approve|decline))?)?$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
+    || /^\/api\/bo\/delivery\/calendar-exclusions\/[0-9a-f-]{36}$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
