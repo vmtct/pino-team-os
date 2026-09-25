@@ -16,12 +16,15 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
   const [pathId, setPathId] = useState("");
   const [payerId, setPayerId] = useState("");
   const [startsOn, setStartsOn] = useState(today());
+  const [placementStartsOn, setPlacementStartsOn] = useState(today());
   const [itemDiscount, setItemDiscount] = useState("0");
   const [billDiscount, setBillDiscount] = useState("0");
   const [dueOn, setDueOn] = useState("");
   const [campaign, setCampaign] = useState("");
   const [latestSale, setLatestSale] = useState<BoSaleResult | null>(null);
   const [placements, setPlacements] = useState<string[]>([]);
+  const [placementEntryTimes, setPlacementEntryTimes] = useState<string[]>([]);
+  const [placementDurations, setPlacementDurations] = useState<string[]>([]);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [pending, setPending] = useState<ReplayAttempt | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -49,14 +52,22 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
     setLatestSale(null);
     setRegistrationComplete(false);
     setPlacements([]);
+    setPlacementEntryTimes([]);
+    setPlacementDurations([]);
+    setPlacementStartsOn(today());
   }, [lifecycle.student.id]);
   useEffect(() => {
     const count = selectedPlan?.cadence ?? 0;
     setPlacements((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""));
+    setPlacementEntryTimes((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""));
+    setPlacementDurations((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""));
     if (!latestSale) setRegistrationComplete(false);
   }, [selectedPlan?.id]);
   useEffect(() => {
-    setPlacements(Array.from({ length: selectedPlan?.cadence ?? 0 }, () => ""));
+    const count = selectedPlan?.cadence ?? 0;
+    setPlacements(Array.from({ length: count }, () => ""));
+    setPlacementEntryTimes(Array.from({ length: count }, () => ""));
+    setPlacementDurations(Array.from({ length: count }, () => ""));
     if (!latestSale) setRegistrationComplete(false);
   }, [pathId]);
   const eligibleClasses = useMemo(() => classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === pathId), [classes, pathId]);
@@ -69,7 +80,15 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
   }), [lifecycle.subscriptions]);
   const selectedPlacementCount = placements.filter(Boolean).length;
   const placementIds = placements.filter(Boolean);
-  const placementsReady = Boolean(selectedPlan) && selectedPlacementCount === selectedPlan!.cadence && new Set(placementIds).size === placementIds.length;
+  const placementDetailsReady = placements.every((runningClassId, index) => {
+    if (!runningClassId) return false;
+    const runningClass = eligibleClasses.find((item) => item.id === runningClassId);
+    if (!runningClass) return false;
+    if (runningClass.deliveryTopology !== "FLEXIBLE_STUDIO") return true;
+    const duration = Number(placementDurations[index]);
+    return Boolean(placementEntryTimes[index]) && Number.isInteger(duration) && duration > 0;
+  });
+  const placementsReady = Boolean(selectedPlan) && selectedPlacementCount === selectedPlan!.cadence && new Set(placementIds).size === placementIds.length && placementDetailsReady;
   const commercialLocked = Boolean(latestSale && !registrationComplete);
   const billIds = useMemo(() => [...new Set(lifecycle.subscriptions
     .map((entry) => /^bill:([0-9a-f-]{36})$/.exec(entry.subscription.commercialReference ?? "")?.[1] ?? null)
@@ -102,7 +121,15 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
         subscriptionId: sale.subscriptionId,
         expectedPathProgramId: pathId,
         expectedWeeklyCommitment: sale.productPlan.cadence,
-        placements: placements.map((runningClassId) => ({ runningClassId, effectiveFromLocalDate: startsOn })),
+        placements: placements.map((runningClassId, index) => {
+          const runningClass = eligibleClasses.find((item) => item.id === runningClassId);
+          if (!runningClass) throw new Error("Running Class không còn hợp lệ cho Path đã chọn.");
+          const base = { runningClassId, effectiveFromLocalDate: placementStartsOn };
+          if (runningClass.deliveryTopology !== "FLEXIBLE_STUDIO") return base;
+          const duration = Number(placementDurations[index]);
+          if (!placementEntryTimes[index] || !Number.isInteger(duration) || duration <= 0) throw new Error("Flexible Studio cần giờ vào và duration hợp lệ.");
+          return { ...base, plannedEntryLocalTime: placementEntryTimes[index], plannedDurationMinutes: duration };
+        }),
       }],
       pendingSubscriptions: [],
       commandEffectiveLocalDate: today(),
@@ -136,7 +163,10 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
       setPathId(sub.pathProgramId);
       setPayerId(bill.bill.payerParentUserId);
       setStartsOn(sub.contractualStartsOn);
+      setPlacementStartsOn(maxLocalDate(sub.contractualStartsOn, today()));
       setPlacements(Array.from({ length: plan.cadence }, () => ""));
+      setPlacementEntryTimes(Array.from({ length: plan.cadence }, () => ""));
+      setPlacementDurations(Array.from({ length: plan.cadence }, () => ""));
       setLatestSale({
         productPlan: plan,
         bill,
@@ -208,9 +238,9 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
     if (!raw) return;
     const methodRaw = window.prompt("Phương thức: CASH / BANK_TRANSFER / CARD / OTHER", "BANK_TRANSFER")?.trim().toUpperCase();
     if (!isMethod(methodRaw)) { setError("Phương thức thanh toán không hợp lệ."); return; }
-    await runReplay(`${kind}:${billId}`, (idempotencyKey) => boApi.recordBillingTransaction(billId, {
-      transactionKind: kind, amountMinor: money(raw), occurredAt: new Date().toISOString(), method: methodRaw,
-    }, idempotencyKey), kind === "PAYMENT" ? "Đã ghi nhận thanh toán." : "Đã ghi nhận hoàn tiền.");
+    const transaction = { transactionKind: kind, amountMinor: money(raw), occurredAt: new Date().toISOString(), method: methodRaw };
+    await runReplay(`${kind}:${billId}`, (idempotencyKey) => boApi.recordBillingTransaction(billId, transaction, idempotencyKey),
+      kind === "PAYMENT" ? "Đã ghi nhận thanh toán." : "Đã ghi nhận hoàn tiền.");
   }
 
   return <section className={styles.billingStack}>
@@ -256,7 +286,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
         <label>Parent thanh toán<select required disabled={Boolean(busy || pending || commercialLocked)} value={payerId} onChange={(event) => setPayerId(event.target.value)}>
           <option value="">Chọn Parent</option>{lifecycle.guardians.filter((item) => item.parent.status === "ACTIVE").map((item) => <option key={item.parent.id} value={item.parent.id}>{item.parent.displayName ?? item.parent.contacts[0]?.value ?? item.parent.id}</option>)}
         </select></label>
-        <label>Contract starts<input type="date" required disabled={Boolean(busy || pending || commercialLocked)} value={startsOn} onChange={(event) => setStartsOn(event.target.value)} /></label>
+        <label>Contract starts<input type="date" required disabled={Boolean(busy || pending || commercialLocked)} value={startsOn} onChange={(event) => { const value = event.target.value; setStartsOn(value); if (!commercialLocked) setPlacementStartsOn(maxLocalDate(value, today())); }} /></label>
         <label>Item discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={itemDiscount} onChange={(event) => setItemDiscount(event.target.value)} /></label>
         <label>Bill discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={billDiscount} onChange={(event) => setBillDiscount(event.target.value)} /></label>
         <label>Due date<input type="date" disabled={Boolean(busy || pending || commercialLocked)} value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label>
@@ -267,16 +297,30 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged }: Props
         <div className={styles.placementWizard}>
           <div className={styles.sectionHead}><div><span>Recurring placement</span><h3>Chọn đúng {selectedPlan.cadence} Running Classes đã tạo sẵn</h3></div><small>{selectedPlacementCount}/{selectedPlan.cadence} assigned · capacity được Core preflight</small></div>
           <p className={styles.hint}>Mỗi Running Class = 1 weekly slot. Chỉ hiện lớp ACTIVE cùng Path; một lớp không thể chiếm hai slot của cùng Subscription.</p>
-          <div className={styles.placementSlots}>{placements.map((value, index) => <label className={styles.placementSlot} key={index}>
-            <span>Recurring seat {index + 1}</span>
-            <select disabled={Boolean(busy || pending || registrationComplete)} value={value} onChange={(event) => setPlacements((current) => current.map((item, position) => position === index ? event.target.value : item))}>
-              <option value="">Chọn Running Class</option>
-              {eligibleClasses.map((item) => {
-                const usedElsewhere = placements.some((selected, position) => position !== index && selected === item.id);
-                return <option key={item.id} value={item.id} disabled={usedElsewhere}>{item.name} · {classSchedule(item)}</option>;
-              })}
-            </select>
-          </label>)}</div>
+          <label className={styles.placementDate}>Placement starts<input type="date" min={today()} disabled={Boolean(busy || pending || registrationComplete)} value={placementStartsOn} onChange={(event) => setPlacementStartsOn(event.target.value)} /></label>
+          <div className={styles.placementSlots}>{placements.map((value, index) => {
+            const selectedClass = eligibleClasses.find((item) => item.id === value) ?? null;
+            return <label className={styles.placementSlot} key={index}>
+              <span>Recurring seat {index + 1}</span>
+              <select disabled={Boolean(busy || pending || registrationComplete)} value={value} onChange={(event) => {
+                const classId = event.target.value;
+                const runningClass = eligibleClasses.find((item) => item.id === classId) ?? null;
+                setPlacements((current) => current.map((item, position) => position === index ? classId : item));
+                setPlacementEntryTimes((current) => current.map((item, position) => position === index ? (runningClass?.deliveryTopology === "FLEXIBLE_STUDIO" ? runningClass.startLocalTime : "") : item));
+                setPlacementDurations((current) => current.map((item, position) => position === index ? (runningClass?.deliveryTopology === "FLEXIBLE_STUDIO" ? String(runningClass.defaultParticipationMinutes ?? "") : "") : item));
+              }}>
+                <option value="">Chọn Running Class</option>
+                {eligibleClasses.map((item) => {
+                  const usedElsewhere = placements.some((selected, position) => position !== index && selected === item.id);
+                  return <option key={item.id} value={item.id} disabled={usedElsewhere}>{item.name} · {classSchedule(item)}</option>;
+                })}
+              </select>
+              {selectedClass?.deliveryTopology === "FLEXIBLE_STUDIO" ? <span className={styles.flexiblePlacement}>
+                <span>Entry time<input type="time" disabled={Boolean(busy || pending || registrationComplete)} value={placementEntryTimes[index] ?? ""} onChange={(event) => setPlacementEntryTimes((current) => current.map((item, position) => position === index ? event.target.value : item))} /></span>
+                <span>Duration (min)<input type="number" min="1" disabled={Boolean(busy || pending || registrationComplete)} value={placementDurations[index] ?? ""} onChange={(event) => setPlacementDurations((current) => current.map((item, position) => position === index ? event.target.value : item))} /></span>
+              </span> : null}
+            </label>;
+          })}</div>
           {!eligibleClasses.length ? <p className={styles.registrationPending}>Chưa có Running Class ACTIVE cùng Path. Tạo Running Class ở Delivery trước khi đăng ký.</p> : null}
         </div>
       </> : null}
@@ -313,4 +357,5 @@ function money(value: string): number { const parsed = Number(value); if (!Numbe
 function formatVnd(value: number) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value); }
 function classSchedule(item: BoRunningClass) { const days = ["", "T2", "T3", "T4", "T5", "T6", "T7", "CN"]; return `${days[item.recurrenceWeekdays[0] ?? 0] ?? ""} ${item.startLocalTime}–${item.endLocalTime}`; }
 function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
+function maxLocalDate(left: string, right: string) { return left >= right ? left : right; }
 function message(value: unknown) { return value instanceof Error ? value.message : "Billing operation failed."; }

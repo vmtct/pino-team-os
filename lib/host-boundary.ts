@@ -158,6 +158,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/students\/[0-9a-f-]{36}\/pinoria(?:\/companions\/[0-9a-f-]{36}\/feed)?$/.test(normalized)
     || /^\/api\/bo\/identity\/parents\/[0-9a-f-]{36}\/pin\/reset$/.test(normalized)
     || /^\/api\/bo\/subscriptions(?:\/[0-9a-f-]{36}\/(?:activate|renew|supersede|cancel|service-grants|pauses|renewal-grace|projected-completion))?$/.test(normalized)
+    || /^\/api\/bo\/billing\/(?:product-plans(?:\/[0-9a-f-]{36}\/configure)?|sales|bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?|transactions\/[0-9a-f-]{36}\/void)$/.test(normalized)
     || /^\/api\/bo\/subscription-pauses\/[0-9a-f-]{36}\/cancel$/.test(normalized)
     || /^\/api\/bo\/renewal-grace\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/enrollments(?:\/(?:bulk-preflight|bulk-place|[0-9a-f-]{36}\/(?:transfer|end)))?$/.test(normalized)
