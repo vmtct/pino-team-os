@@ -12,7 +12,7 @@ canonical_app_state() {
 }
 expected_rehomed_state() {
   local from="$1" to="$2"
-  jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | if (.name // "") == $from then .name=$to else . end | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
+  jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | .name=$to | .http_only_cookie_attribute=true | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
 }
 app_id="$(sed -nE 's/^App ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
 original_b64="$(sed -nE 's/^Original app payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
