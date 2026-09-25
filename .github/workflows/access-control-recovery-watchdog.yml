@@ -56,7 +56,7 @@ jobs:
               issue="$(sed -nE "s/^TOS Google IdP reconcile #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_GOOGLE_IDP_RECONCILE; mode=idp ;;
             'TOS Canonical External Evaluation'|'TOS canonical external evaluation #'*)
               issue="$(sed -nE "s/^TOS canonical external evaluation #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TOS_CANONICAL_EXTERNAL_EVAL; mode=eval ;;
-            'Team Access Perimeter Retirement')
+            'Team Access Perimeter Retirement'|'Team Access perimeter retirement #'*)
               issue="$(sed -nE "s/^Team Access perimeter retirement #([1-9][0-9]*) @ ${sha}$/\\1/p" <<<"$display")"; prefix=TEAM_ACCESS_PERIMETER_RETIRE; mode=app ;;
             *) exit 0 ;;
           esac

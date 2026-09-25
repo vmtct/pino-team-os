@@ -153,6 +153,34 @@ jobs:
           [ -n "$original_domain" ] && [ -n "$desired_domain" ] || reject "Captured app domains are invalid."
           expected_desired_state="$(expected_rehomed_state "$original_domain" "$desired_domain" <<<"$original_state")"
 
+          safe_state_diagnostic() {
+            local current_json="$1" baseline_json="$2" desired_json="$3"
+            local current_hash baseline_hash desired_hash baseline_keys desired_keys
+            current_hash="$(printf '%s' "$current_json" | sha256sum | cut -d' ' -f1)"
+            baseline_hash="$(printf '%s' "$baseline_json" | sha256sum | cut -d' ' -f1)"
+            desired_hash="$(printf '%s' "$desired_json" | sha256sum | cut -d' ' -f1)"
+            baseline_keys="$(jq -nr --argjson a "$current_json" --argjson b "$baseline_json" '[(($a|keys_unsorted)+($b|keys_unsorted))[]] | unique | map(select($a[.] != $b[.])) | join(",")')"
+            desired_keys="$(jq -nr --argjson a "$current_json" --argjson b "$desired_json" '[(($a|keys_unsorted)+($b|keys_unsorted))[]] | unique | map(select($a[.] != $b[.])) | join(",")')"
+            jq -nr --argjson c "$current_json" --argjson d "$desired_json" \
+              --arg ch "$current_hash" --arg bh "$baseline_hash" --arg dh "$desired_hash" \
+              --arg bk "$baseline_keys" --arg dk "$desired_keys" '
+                "Read-only canonical state diagnostic:" +
+                "\n- Current hash: " + $ch +
+                "\n- Baseline hash: " + $bh +
+                "\n- Expected desired hash: " + $dh +
+                "\n- Current vs baseline differing top-level keys: " + (if $bk=="" then "(none)" else $bk end) +
+                "\n- Current vs desired differing top-level keys: " + (if $dk=="" then "(none)" else $dk end) +
+                "\n- Current domain/name: " + ($c.domain // "") + " / " + ($c.name // "") +
+                "\n- Desired domain/name: " + ($d.domain // "") + " / " + ($d.name // "") +
+                "\n- Current self-hosted domains: " + (($c.self_hosted_domains // []) | join(",")) +
+                "\n- Desired self-hosted domains: " + (($d.self_hosted_domains // []) | join(",")) +
+                "\n- Current destinations: " + (($c.destinations // []) | map((.type // "") + ":" + (.uri // "")) | join(",")) +
+                "\n- Desired destinations: " + (($d.destinations // []) | map((.type // "") + ":" + (.uri // "")) | join(",")) +
+                "\n- Current policy / IdP counts: " + (($c.policies // [])|length|tostring) + " / " + (($c.allowed_idps // [])|length|tostring) +
+                "\n- Desired policy / IdP counts: " + (($d.policies // [])|length|tostring) + " / " + (($d.allowed_idps // [])|length|tostring)
+              '
+          }
+
           apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot read live Access applications."
           jq -e '.success==true' <<<"$apps" >/dev/null || reject "Live Access API returned failure."
           other="$(jq -c --arg aud "$other_aud" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$apps")"
@@ -171,8 +199,9 @@ jobs:
           elif [ "$current_state" = "$expected_desired_state" ]; then
             result=DESIRED_STATE_COMMITTED
           else
-            hold_source "Live Access app state is neither the captured baseline nor the exact provider-normalized desired state; confirmation refused."
-            reject "Live Access state cannot safely close the source recovery."
+            diagnostic="$(safe_state_diagnostic "$current_state" "$original_state" "$expected_desired_state")"
+            hold_source "Live Access app state is neither the captured baseline nor the exact provider-normalized desired state; confirmation refused.\n\n${diagnostic}"
+            reject "Live Access state cannot safely close the source recovery. Read-only diagnostic was attached to the source issue."
           fi
 
           if [ "$result" = "DESIRED_STATE_COMMITTED" ]; then
