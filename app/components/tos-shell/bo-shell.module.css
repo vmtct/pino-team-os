@@ -126,7 +126,7 @@
 .topbar {
   height: 64px;
   display: grid;
-  grid-template-columns: minmax(170px, 240px) minmax(240px, 560px) auto;
+  grid-template-columns: minmax(170px, 240px) minmax(240px, 560px) auto auto;
   align-items: center;
   gap: 16px;
   padding: 0 26px;
@@ -159,6 +159,22 @@
   color: #7c7c86;
   font-size: 9px;
 }
+.logoutButton {
+  justify-self: end;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid #dedde2;
+  border-radius: 9px;
+  background: #fff;
+  color: #5f5d69;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.logoutButton:disabled { cursor: wait; opacity: .65; }
+.logoutButton:hover:not(:disabled), .logoutButton:focus-visible { background: #f5f2ff; color: #4f419c; }
+
 .surfaceChip {
   justify-self: end;
   min-width: 32px;
@@ -231,7 +247,7 @@
   }
   .sidebarOpen { transform: translateX(0); }
   .closeMenu { display: block; cursor: pointer; }
-  .topbar { grid-template-columns: auto minmax(0, 1fr) auto; padding: 0 14px; gap: 10px; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr) auto auto; padding: 0 14px; gap: 10px; }
   .menuButton { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #dedde2; border-radius: 9px; background: #fff; }
   .commandButton { justify-self: stretch; }
   .commandButton span { display: none; }
