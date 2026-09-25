@@ -204,6 +204,28 @@ jobs:
             reject "Live Access state cannot safely close the source recovery. Read-only diagnostic was attached to the source issue."
           fi
 
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before recovery-state receipt."
+          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$main_now" = "$main_sha" ] || reject "Team main changed before recovery-state receipt."
+          apps_final="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot re-read Access applications before recovery-state receipt."
+          current_final="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps_final" | head -1)"
+          [ -n "$current_final" ] || reject "Source Access app disappeared before recovery-state receipt."
+          current_final_state="$(canonical_app_state <<<"$current_final")"
+          other_final="$(jq -c --arg aud "$other_aud" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$apps_final")"
+          [ -n "$other_final" ] || reject "Unrelated Team Access app disappeared before recovery-state receipt."
+          if [ "$legacy_other" = true ]; then
+            assert_legacy_bo_canonical <<<"$other_final" || reject "Legacy unrelated BO app drifted before recovery-state receipt."
+          else
+            [ "$(jq -r '.id // empty' <<<"$other_final")" = "$other_id" ] || reject "Unrelated Team Access app ID drifted before recovery-state receipt."
+            [ "$(canonical_app_state <<<"$other_final")" = "$other_state" ] || reject "Unrelated Team Access app full state drifted before recovery-state receipt."
+          fi
+          if [ "$result" = "BASELINE_ALREADY_ACTIVE" ]; then
+            [ "$current_final_state" = "$original_state" ] || reject "Access baseline drifted before terminal recovery receipt."
+          else
+            [ "$current_final_state" = "$expected_desired_state" ] || reject "Access desired state drifted before terminal recovery receipt."
+          fi
+          gh issue comment "$source_issue" --repo "$repo" --body "TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERY_CONFIRMED**\\n\\nWorkflow run: ${source_run}\\nWorkflow attempt: ${source_attempt}\\nRecovery result: ${result}.\\nConfirmation operator run: ${GITHUB_RUN_ID}.\\nRead-only exact target + unrelated-app state proof completed; no Cloudflare mutation was performed. Runtime readiness is verified separately after this recovery fence closes."
+
           if [ "$result" = "DESIRED_STATE_COMMITTED" ]; then
             if [ "$target" = "TOS" ]; then
               host="tos.pinohouse.art"; protected_path="/dashboard"
@@ -226,18 +248,6 @@ jobs:
             esac
           fi
 
-          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before terminal receipt."
-          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
-          [ "$main_now" = "$main_sha" ] || reject "Team main changed during recovery confirmation."
-          apps_final="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot re-read Access applications before terminal receipt."
-          current_final="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps_final" | head -1)"
-          [ -n "$current_final" ] || reject "Source Access app disappeared before terminal receipt."
-          current_final_state="$(canonical_app_state <<<"$current_final")"
-          if [ "$result" = "BASELINE_ALREADY_ACTIVE" ]; then
-            [ "$current_final_state" = "$original_state" ] || reject "Access baseline drifted before terminal recovery receipt."
-          else
-            [ "$current_final_state" = "$expected_desired_state" ] || reject "Access desired state drifted before terminal recovery receipt."
-          fi
-
-          gh issue comment "$source_issue" --repo "$repo" --body "TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${source_run}\nWorkflow attempt: ${source_attempt}\nRecovery result: ${result}.\nConfirmation operator run: ${GITHUB_RUN_ID}.\nRead-only live-state proof completed; no Cloudflare mutation was performed."
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before PASS."
+          [ "$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" = "$main_sha" ] || reject "Team main changed before recovery confirmation PASS."
           comment_current "TEAM_ACCESS_RECOVERY_CONFIRM: **PASS**\n\n- Source issue: #${source_issue}\n- Source workflow run: ${source_run}\n- Source attempt: ${source_attempt}\n- Result: ${result}\n- Team main: ${main_sha}\n- Cloudflare mutation: none"
