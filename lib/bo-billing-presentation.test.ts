@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { isOperationalReadPath } from "./bo-read-handler";
 import { isAllowedPostPath } from "./bo-write-handler";
+import { BO_HOSTNAME, decideHostBoundary } from "./host-boundary";
 
 const id = "01999999-9999-7999-8999-999999999999";
 const read = (path: string) => readFile(path, "utf8");
@@ -23,6 +24,16 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
   assert.equal(isAllowedPostPath("billing/product-plans"), false);
   assert.equal(isAllowedPostPath(`billing/product-plans/${id}`), false);
   assert.equal(isAllowedPostPath(`billing/bills/${id}/delete`), false);
+  for (const path of [
+    "/api/bo/billing/product-plans",
+    `/api/bo/billing/product-plans/${id}/configure`,
+    "/api/bo/billing/sales",
+    `/api/bo/billing/bills/${id}`,
+    `/api/bo/billing/bills/${id}/transactions`,
+    `/api/bo/billing/bills/${id}/void`,
+    `/api/bo/billing/transactions/${id}/void`,
+  ]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/billing/bills/not-a-canonical-id"), { action: "not_found" });
 });
 
 test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", async () => {
@@ -50,6 +61,9 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   assert.match(api, /recordBillingTransaction:/);
   assert.match(api, /preflightBulkEnrollments:/);
   assert.match(api, /placeBulkEnrollments:/);
+  assert.match(api, /deliveryTopology: item\.deliveryTopology/);
+  assert.match(api, /defaultParticipationMinutes: item\.defaultParticipationMinutes/);
+  assert.match(model, /deliveryTopology: "FIXED_COHORT" \| "FLEXIBLE_STUDIO" \| "OVERLAPPING_COHORT"/);
   assert.match(model, /contractualStartsOn: string \| null/);
   assert.match(model, /export interface BoBillSummary/);
   assert.match(view, /Contract starts <b>\{sub\.contractualStartsOn \?\? "—"\}<\/b>/);
@@ -70,6 +84,10 @@ test("Billing presentation keeps financial truth in Core and retries exact sale/
   assert.match(billing, /idempotencyKey: crypto\.randomUUID\(\)/);
   assert.match(billing, /attempt\.action\(attempt\.idempotencyKey\)/);
   assert.match(billing, /Retry exact command/);
+  assert.match(billing, /const transaction = \{ transactionKind: kind, amountMinor: money\(raw\), occurredAt: new Date\(\)\.toISOString\(\), method: methodRaw \}/);
+  assert.match(billing, /recordBillingTransaction\(billId, transaction, idempotencyKey\)/);
+  const transactionCallback = billing.slice(billing.indexOf("await runReplay(`${kind}:${billId}`"), billing.indexOf("return <section", billing.indexOf("await runReplay(`${kind}:${billId}`")));
+  assert.doesNotMatch(transactionCallback, /occurredAt: new Date/);
   assert.match(billing, /Core plan:/);
   assert.match(billing, /Contract end được Core tính; UI không gửi units\/price\/end date/);
   assert.match(billing, /summary\.paymentState/);
@@ -102,6 +120,12 @@ test("Product Plan cadence drives exact distinct Running Class placements before
   assert.match(billing, /item\.status === "ACTIVE" && item\.pathProgramId === pathId/);
   assert.match(billing, /usedElsewhere = placements\.some/);
   assert.match(billing, /expectedWeeklyCommitment: sale\.productPlan\.cadence/);
+  assert.match(billing, /effectiveFromLocalDate: placementStartsOn/);
+  assert.match(billing, /deliveryTopology !== "FLEXIBLE_STUDIO"/);
+  assert.match(billing, /plannedEntryLocalTime: placementEntryTimes\[index\]/);
+  assert.match(billing, /plannedDurationMinutes: duration/);
+  assert.match(billing, /Placement starts/);
+  assert.match(billing, /setPlacementStartsOn\(maxLocalDate\(sub\.contractualStartsOn, today\(\)\)\)/);
   assert.match(billing, /boApi\.preflightBulkEnrollments\(body\)/);
   assert.match(billing, /boApi\.placeBulkEnrollments/);
   assert.match(billing, /`\$\{idempotencyKey\}:placement`/);
