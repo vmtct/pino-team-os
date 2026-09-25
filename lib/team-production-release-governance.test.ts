@@ -51,6 +51,21 @@ test("Team release binds exact Core authority and complete provider tuples", () 
   assert.ok(coreAuthority.includes(String.raw`gsub("\\\\n"; "\n")`));
 });
 
+test("Team release perimeter accepts Access or exact local-auth without exposing protected surfaces", () => {
+  for (const token of [
+    "assert_protected_surface",
+    'assert_protected_surface "$TOS_HOST" "/dashboard"',
+    'assert_protected_surface "$BO_HOST" "/bo"',
+    'node scripts/team-release-auth-boundary.mjs "$location" "$host"',
+    'case "$redirect_kind" in',
+    "local Staff login returned unexpected HTTP",
+    "became publicly reachable without an authentication boundary",
+    "Cloudflare Access or exact PINO local Staff login",
+  ]) assert.ok(release.includes(token), token);
+  assert.match(release, /302\|303\|307\|308/);
+  assert.match(release, /401\|403/);
+});
+
 test("Team hard-kill traffic recovery is durable and externally reconciled", () => {
   const watchdog = readFileSync(".github/workflows/production-release-recovery-watchdog.yml", "utf8");
   const recovery = readFileSync("scripts/recover-worker-promotion.sh", "utf8");
