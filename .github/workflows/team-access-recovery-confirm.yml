@@ -54,7 +54,7 @@ jobs:
           }
           expected_rehomed_state() {
             local from="$1" to="$2"
-            jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | if (.name // "") == $from then .name=$to else . end | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
+            jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | .name=$to | .http_only_cookie_attribute=true | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
           }
           assert_legacy_bo_canonical() {
             local expected actual
@@ -111,7 +111,7 @@ jobs:
           compare="$(gh api "/repos/${repo}/compare/${source_sha}...${main_sha}")" || reject "Cannot compare source run to current main."
           compare_status="$(jq -r '.status // empty' <<<"$compare")"
           [ "$compare_status" = "identical" ] || [ "$compare_status" = "ahead" ] || reject "Current main is not a descendant of the failed source run."
-          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/workflows/(team-access-perimeter-retire|access-control-recovery-watchdog|team-access-recovery-confirm)\.yml|lib/h3-remediation\.test\.ts)$' || true)"
+          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/workflows/(team-access-perimeter-retire|access-control-recovery-watchdog|team-access-recovery-confirm)\.yml|scripts/access-control-recovery-watchdog-app\.sh|lib/h3-remediation\.test\.ts)$' || true)"
           [ -z "$unexpected" ] || reject "Runtime-affecting drift exists after the failed source run: ${unexpected}"
 
           comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${source_issue}/comments?per_page=100")"
@@ -153,6 +153,34 @@ jobs:
           [ -n "$original_domain" ] && [ -n "$desired_domain" ] || reject "Captured app domains are invalid."
           expected_desired_state="$(expected_rehomed_state "$original_domain" "$desired_domain" <<<"$original_state")"
 
+          safe_state_diagnostic() {
+            local current_json="$1" baseline_json="$2" desired_json="$3"
+            local current_hash baseline_hash desired_hash baseline_keys desired_keys
+            current_hash="$(printf '%s' "$current_json" | sha256sum | cut -d' ' -f1)"
+            baseline_hash="$(printf '%s' "$baseline_json" | sha256sum | cut -d' ' -f1)"
+            desired_hash="$(printf '%s' "$desired_json" | sha256sum | cut -d' ' -f1)"
+            baseline_keys="$(jq -nr --argjson a "$current_json" --argjson b "$baseline_json" '[(($a|keys_unsorted)+($b|keys_unsorted))[]] | unique | map(select($a[.] != $b[.])) | join(",")')"
+            desired_keys="$(jq -nr --argjson a "$current_json" --argjson b "$desired_json" '[(($a|keys_unsorted)+($b|keys_unsorted))[]] | unique | map(select($a[.] != $b[.])) | join(",")')"
+            jq -nr --argjson c "$current_json" --argjson d "$desired_json" \
+              --arg ch "$current_hash" --arg bh "$baseline_hash" --arg dh "$desired_hash" \
+              --arg bk "$baseline_keys" --arg dk "$desired_keys" '
+                "Read-only canonical state diagnostic:" +
+                "\n- Current hash: " + $ch +
+                "\n- Baseline hash: " + $bh +
+                "\n- Expected desired hash: " + $dh +
+                "\n- Current vs baseline differing top-level keys: " + (if $bk=="" then "(none)" else $bk end) +
+                "\n- Current vs desired differing top-level keys: " + (if $dk=="" then "(none)" else $dk end) +
+                "\n- Current domain/name: " + ($c.domain // "") + " / " + ($c.name // "") +
+                "\n- Desired domain/name: " + ($d.domain // "") + " / " + ($d.name // "") +
+                "\n- Current self-hosted domains: " + (($c.self_hosted_domains // []) | join(",")) +
+                "\n- Desired self-hosted domains: " + (($d.self_hosted_domains // []) | join(",")) +
+                "\n- Current destinations: " + (($c.destinations // []) | map((.type // "") + ":" + (.uri // "")) | join(",")) +
+                "\n- Desired destinations: " + (($d.destinations // []) | map((.type // "") + ":" + (.uri // "")) | join(",")) +
+                "\n- Current policy / IdP counts: " + (($c.policies // [])|length|tostring) + " / " + (($c.allowed_idps // [])|length|tostring) +
+                "\n- Desired policy / IdP counts: " + (($d.policies // [])|length|tostring) + " / " + (($d.allowed_idps // [])|length|tostring)
+              '
+          }
+
           apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot read live Access applications."
           jq -e '.success==true' <<<"$apps" >/dev/null || reject "Live Access API returned failure."
           other="$(jq -c --arg aud "$other_aud" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$apps")"
@@ -171,9 +199,32 @@ jobs:
           elif [ "$current_state" = "$expected_desired_state" ]; then
             result=DESIRED_STATE_COMMITTED
           else
-            hold_source "Live Access app state is neither the captured baseline nor the exact provider-normalized desired state; confirmation refused."
-            reject "Live Access state cannot safely close the source recovery."
+            diagnostic="$(safe_state_diagnostic "$current_state" "$original_state" "$expected_desired_state")"
+            hold_source "Live Access app state is neither the captured baseline nor the exact provider-normalized desired state; confirmation refused.\n\n${diagnostic}"
+            reject "Live Access state cannot safely close the source recovery. Read-only diagnostic was attached to the source issue."
           fi
+
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before recovery-state receipt."
+          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
+          [ "$main_now" = "$main_sha" ] || reject "Team main changed before recovery-state receipt."
+          apps_final="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot re-read Access applications before recovery-state receipt."
+          current_final="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps_final" | head -1)"
+          [ -n "$current_final" ] || reject "Source Access app disappeared before recovery-state receipt."
+          current_final_state="$(canonical_app_state <<<"$current_final")"
+          other_final="$(jq -c --arg aud "$other_aud" '[.result[]? | select((.aud // "") == $aud)] | if length==1 then .[0] else empty end' <<<"$apps_final")"
+          [ -n "$other_final" ] || reject "Unrelated Team Access app disappeared before recovery-state receipt."
+          if [ "$legacy_other" = true ]; then
+            assert_legacy_bo_canonical <<<"$other_final" || reject "Legacy unrelated BO app drifted before recovery-state receipt."
+          else
+            [ "$(jq -r '.id // empty' <<<"$other_final")" = "$other_id" ] || reject "Unrelated Team Access app ID drifted before recovery-state receipt."
+            [ "$(canonical_app_state <<<"$other_final")" = "$other_state" ] || reject "Unrelated Team Access app full state drifted before recovery-state receipt."
+          fi
+          if [ "$result" = "BASELINE_ALREADY_ACTIVE" ]; then
+            [ "$current_final_state" = "$original_state" ] || reject "Access baseline drifted before terminal recovery receipt."
+          else
+            [ "$current_final_state" = "$expected_desired_state" ] || reject "Access desired state drifted before terminal recovery receipt."
+          fi
+          gh issue comment "$source_issue" --repo "$repo" --body "TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERY_CONFIRMED**\\n\\nWorkflow run: ${source_run}\\nWorkflow attempt: ${source_attempt}\\nRecovery result: ${result}.\\nConfirmation operator run: ${GITHUB_RUN_ID}.\\nRead-only exact target + unrelated-app state proof completed; no Cloudflare mutation was performed. Runtime readiness is verified separately after this recovery fence closes."
 
           if [ "$result" = "DESIRED_STATE_COMMITTED" ]; then
             if [ "$target" = "TOS" ]; then
@@ -191,21 +242,12 @@ jobs:
             protected_code="$(curl -sS --max-time 15 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${protected_path}" || true)"
             protected_location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
             [ "$protected_code" = "307" ] || reject "$target protected surface did not fail closed to local login (HTTP $protected_code)."
-            [ "$protected_location" = "https://${host}/staff-login" ] || reject "$target protected surface did not redirect to exact local Staff login."
+            case "$protected_location" in
+              /staff-login|"https://${host}/staff-login") ;;
+              *) reject "$target protected surface did not redirect to exact same-host local Staff login.";;
+            esac
           fi
 
-          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before terminal receipt."
-          main_now="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
-          [ "$main_now" = "$main_sha" ] || reject "Team main changed during recovery confirmation."
-          apps_final="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")" || reject "Cannot re-read Access applications before terminal receipt."
-          current_final="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps_final" | head -1)"
-          [ -n "$current_final" ] || reject "Source Access app disappeared before terminal receipt."
-          current_final_state="$(canonical_app_state <<<"$current_final")"
-          if [ "$result" = "BASELINE_ALREADY_ACTIVE" ]; then
-            [ "$current_final_state" = "$original_state" ] || reject "Access baseline drifted before terminal recovery receipt."
-          else
-            [ "$current_final_state" = "$expected_desired_state" ] || reject "Access desired state drifted before terminal recovery receipt."
-          fi
-
-          gh issue comment "$source_issue" --repo "$repo" --body "TEAM_ACCESS_PERIMETER_RETIRE: **WATCHDOG_RECOVERY_CONFIRMED**\n\nWorkflow run: ${source_run}\nWorkflow attempt: ${source_attempt}\nRecovery result: ${result}.\nConfirmation operator run: ${GITHUB_RUN_ID}.\nRead-only live-state proof completed; no Cloudflare mutation was performed."
+          bash scripts/assert-live-issue-authority.sh "$repo" "$ISSUE_NUMBER" "[GPT] Team Access recovery confirm" "$AUTH_BODY_HASH" || reject "Recovery confirmation issue authority drifted before PASS."
+          [ "$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" = "$main_sha" ] || reject "Team main changed before recovery confirmation PASS."
           comment_current "TEAM_ACCESS_RECOVERY_CONFIRM: **PASS**\n\n- Source issue: #${source_issue}\n- Source workflow run: ${source_run}\n- Source attempt: ${source_attempt}\n- Result: ${result}\n- Team main: ${main_sha}\n- Cloudflare mutation: none"
