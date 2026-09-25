@@ -111,7 +111,7 @@ jobs:
           compare="$(gh api "/repos/${repo}/compare/${source_sha}...${main_sha}")" || reject "Cannot compare source run to current main."
           compare_status="$(jq -r '.status // empty' <<<"$compare")"
           [ "$compare_status" = "identical" ] || [ "$compare_status" = "ahead" ] || reject "Current main is not a descendant of the failed source run."
-          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/workflows/(team-access-perimeter-retire|access-control-recovery-watchdog|team-access-recovery-confirm)\.yml|lib/h3-remediation\.test\.ts)$' || true)"
+          unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/workflows/(team-access-perimeter-retire|access-control-recovery-watchdog|team-access-recovery-confirm)\.yml|scripts/access-control-recovery-watchdog-app\.sh|lib/h3-remediation\.test\.ts)$' || true)"
           [ -z "$unexpected" ] || reject "Runtime-affecting drift exists after the failed source run: ${unexpected}"
 
           comments="$(gh api --paginate --slurp "/repos/${repo}/issues/${source_issue}/comments?per_page=100")"
