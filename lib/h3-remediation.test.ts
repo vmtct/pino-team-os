@@ -88,6 +88,15 @@ test('Access recovery confirmation emits only read-only safe state-drift diagnos
   assert.doesNotMatch(confirm,/Current policy members:/);
 });
 
+test('Access recovery confirmation closes mutation recovery before runtime readiness',()=>{
+  const confirm=r('.github/workflows/team-access-recovery-confirm.yml');
+  const receipt=confirm.indexOf('Runtime readiness is verified separately after this recovery fence closes');
+  const runtime=confirm.indexOf('login_code=');
+  assert.ok(receipt>=0 && runtime>receipt,'recovery receipt must precede runtime readiness probe');
+  assert.match(confirm,/other_final=/);
+  assert.match(confirm,/Unrelated Team Access app full state drifted before recovery-state receipt/);
+});
+
 test('Access recovery confirmation accepts only relative or exact same-host Staff login redirects',()=>{
   const confirm=r('.github/workflows/team-access-recovery-confirm.yml');
   assert.match(confirm,/\/staff-login\|"https:\/\/\$\{host\}\/staff-login"/);
