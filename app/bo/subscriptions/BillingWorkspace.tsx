@@ -5,12 +5,19 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoBillSummary, BoLearnerLifecycle, BoPathProgram, BoPaymentMethod, BoPaymentTransactionKind, BoProductPlan, BoSaleResult } from "@/lib/bo-model";
 import styles from "./bo-subscriptions.module.css";
 
-type Props = { lifecycle: BoLearnerLifecycle; paths: BoPathProgram[]; onChanged: () => Promise<void> };
-type ReplayAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
+export type BillingReplayAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
+export type BillingReplayState = { pending: BillingReplayAttempt | null; busy: string | null; notice: string | null; error: string | null };
+type Props = {
+  lifecycle: BoLearnerLifecycle;
+  paths: BoPathProgram[];
+  onChanged: () => Promise<void>;
+  replayState: BillingReplayState;
+  setReplayState: React.Dispatch<React.SetStateAction<BillingReplayState>>;
+};
 const TERMS = [12, 24, 48] as const;
 const CADENCES = [1, 2, 3, 4, 5, 6] as const;
 
-export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
+export function BillingWorkspace({ lifecycle, paths, onChanged, replayState, setReplayState }: Props) {
   const [plans, setPlans] = useState<BoProductPlan[]>([]);
   const [planId, setPlanId] = useState("");
   const [pathId, setPathId] = useState("");
@@ -21,10 +28,11 @@ export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
   const [dueOn, setDueOn] = useState("");
   const [campaign, setCampaign] = useState("");
   const [latestSale, setLatestSale] = useState<BoSaleResult | null>(null);
-  const [pending, setPending] = useState<ReplayAttempt | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, busy, notice, error } = replayState;
+  const setPending = (pending: BillingReplayAttempt | null) => setReplayState((state) => ({ ...state, pending }));
+  const setBusy = (busy: string | null) => setReplayState((state) => ({ ...state, busy }));
+  const setNotice = (notice: string | null) => setReplayState((state) => ({ ...state, notice }));
+  const setError = (error: string | null) => setReplayState((state) => ({ ...state, error }));
   const [billRevision, setBillRevision] = useState(0);
 
   async function loadPlans() {
@@ -47,7 +55,7 @@ export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
     .map((entry) => /^bill:([0-9a-f-]{36})$/.exec(entry.subscription.commercialReference ?? "")?.[1] ?? null)
     .filter((value): value is string => Boolean(value)))], [lifecycle.subscriptions]);
 
-  async function execute(attempt: ReplayAttempt) {
+  async function execute(attempt: BillingReplayAttempt) {
     if (busy) return;
     setBusy(attempt.key); setNotice(null); setError(null);
     try {
@@ -101,9 +109,11 @@ export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
     if (!raw) return;
     const methodRaw = window.prompt("Phương thức: CASH / BANK_TRANSFER / CARD / OTHER", "BANK_TRANSFER")?.trim().toUpperCase();
     if (!isMethod(methodRaw)) { setError("Phương thức thanh toán không hợp lệ."); return; }
-    await runReplay(`${kind}:${billId}`, (idempotencyKey) => boApi.recordBillingTransaction(billId, {
+    const transactionBody = {
       transactionKind: kind, amountMinor: money(raw), occurredAt: new Date().toISOString(), method: methodRaw,
-    }, idempotencyKey), kind === "PAYMENT" ? "Đã ghi nhận thanh toán." : "Đã ghi nhận hoàn tiền.");
+    };
+    await runReplay(`${kind}:${billId}`, (idempotencyKey) => boApi.recordBillingTransaction(billId, transactionBody, idempotencyKey),
+      kind === "PAYMENT" ? "Đã ghi nhận thanh toán." : "Đã ghi nhận hoàn tiền.");
   }
 
   return <section className={styles.billingStack}>

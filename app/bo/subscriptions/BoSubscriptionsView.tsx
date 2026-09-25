@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
-import { BillingWorkspace } from "./BillingWorkspace";
+import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
 import styles from "./bo-subscriptions.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -12,6 +12,7 @@ type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type CreateDraft = { pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: string; purchasedUnits: string; commercialReference: string };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
 const EMPTY_CREATE: CreateDraft = { pathProgramId: "", serviceStartsOn: today(), contractualEndsOn: "", weeklyCommitment: "2", purchasedUnits: "24", commercialReference: "" };
+const EMPTY_BILLING_REPLAY: BillingReplayState = { pending: null, busy: null, notice: null, error: null };
 
 export function BoSubscriptionsView() {
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
@@ -24,6 +25,7 @@ export function BoSubscriptionsView() {
   const [placementDate, setPlacementDate] = useState<Record<string, string>>({});
   const [commandState, setCommandState] = useState<{ busy: string | null; notice: string | null; error: string | null }>({ busy: null, notice: null, error: null });
   const [pendingAttempt, setPendingAttempt] = useState<CommandAttempt | null>(null);
+  const [billingReplay, setBillingReplay] = useState<BillingReplayState>(EMPTY_BILLING_REPLAY);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
 
@@ -40,7 +42,7 @@ export function BoSubscriptionsView() {
   }
 
   function selectStudent(id: string | null) {
-    if (pendingAttempt) return;
+    if (pendingAttempt || billingReplay.pending || billingReplay.busy) return;
     selectedRef.current = id;
     detailFence.current.invalidate();
     setSelectedId(id);
@@ -109,7 +111,7 @@ export function BoSubscriptionsView() {
   }
 
   async function runCommand(key: string, action: (idempotencyKey: string) => Promise<unknown>, success: string) {
-    if (commandState.busy) return;
+    if (commandState.busy || billingReplay.busy || billingReplay.pending) return;
     if (pendingAttempt) {
       if (pendingAttempt.key === key) await executeAttempt(pendingAttempt);
       return;
@@ -185,7 +187,7 @@ export function BoSubscriptionsView() {
         <div className={styles.search}><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên…" /></div>
         <small>{filtered.length} Student · canonical directory</small>
         <div className={styles.studentList}>
-          {filtered.map((student) => <button key={student.id} type="button" disabled={Boolean(commandState.busy || pendingAttempt)} className={selectedId === student.id ? styles.studentActive : styles.student} onClick={() => selectStudent(student.id)}>
+          {filtered.map((student) => <button key={student.id} type="button" disabled={Boolean(commandState.busy || pendingAttempt || billingReplay.busy || billingReplay.pending)} className={selectedId === student.id ? styles.studentActive : styles.student} onClick={() => selectStudent(student.id)}>
             <span className={styles.avatar}>{initials(student.displayName)}</span>
             <span><strong>{student.displayName}</strong><small>{student.activeSubscriptions ? `${student.activeSubscriptions} active Subscription` : "Chưa active"}</small></span>
           </button>)}
@@ -195,8 +197,9 @@ export function BoSubscriptionsView() {
       <section className={styles.detail}>
         {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data} draft={createDraft} setDraft={setCreateDraft} createSubscription={createSubscription}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
-          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} blocked={Boolean(commandState.busy || pendingAttempt)}
-          onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
+          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy}
+          blocked={Boolean(commandState.busy || pendingAttempt || billingReplay.busy || billingReplay.pending)}
+          billingReplay={billingReplay} setBillingReplay={setBillingReplay} onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
     </section>
   </main>;
@@ -209,6 +212,7 @@ function CommercialWorkspace(props: {
   place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   cancel: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null; blocked: boolean;
+  billingReplay: BillingReplayState; setBillingReplay: React.Dispatch<React.SetStateAction<BillingReplayState>>;
   onChanged: () => Promise<void>;
 }) {
   if (!props.load || props.load.state === "loading") return <State text="Đang tải commercial lifecycle…" />;
@@ -221,7 +225,8 @@ function CommercialWorkspace(props: {
       <a href={`/bo/learners?studentId=${encodeURIComponent(data.student.id)}`}>Mở Student 360</a>
     </section>
 
-    <BillingWorkspace lifecycle={data} paths={props.catalog.paths} onChanged={props.onChanged} />
+    <BillingWorkspace lifecycle={data} paths={props.catalog.paths} onChanged={props.onChanged}
+      replayState={props.billingReplay} setReplayState={props.setBillingReplay} />
 
     <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
       <div className={styles.sectionHead}><div><span>New commercial lifecycle</span><h3>Tạo & kích hoạt Subscription</h3></div><small>Core atomically creates + activates + PURCHASED units</small></div>

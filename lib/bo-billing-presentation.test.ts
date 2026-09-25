@@ -31,8 +31,9 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
     read("lib/bo-model.ts"),
     read("lib/bo-write-handler.ts"),
   ]);
-  assert.match(view, /import \{ BillingWorkspace \}/);
+  assert.match(view, /import \{ BillingWorkspace, type BillingReplayState \}/);
   assert.match(view, /<BillingWorkspace lifecycle=\{data\} paths=\{props\.catalog\.paths\} onChanged=\{props\.onChanged\}/);
+  assert.match(view, /replayState=\{props\.billingReplay\} setReplayState=\{props\.setBillingReplay\}/);
   assert.match(billing, /const TERMS = \[12, 24, 48\] as const/);
   assert.match(billing, /const CADENCES = \[1, 2, 3, 4, 5, 6\] as const/);
   assert.match(billing, /boApi\.updateBillingProductPlan/);
@@ -69,4 +70,22 @@ test("Billing presentation keeps financial truth in Core and retries exact sale/
   assert.match(billing, /Contract end được Core tính; UI không gửi units\/price\/end date/);
   assert.match(billing, /summary\.paymentState/);
   assert.doesNotMatch(billing, /paymentState\s*=(?!=)|balanceMinor\s*=(?!=)|netAmountMinor\s*=(?!=)/);
+});
+
+
+test("Billing replay authority survives lifecycle remount and freezes payment fingerprints", async () => {
+  const [view, billing, host] = await Promise.all([
+    read("app/bo/subscriptions/BoSubscriptionsView.tsx"),
+    read("app/bo/subscriptions/BillingWorkspace.tsx"),
+    read("lib/host-boundary.ts"),
+  ]);
+  assert.match(view, /const \[billingReplay, setBillingReplay\] = useState<BillingReplayState>/);
+  assert.match(view, /pendingAttempt \|\| billingReplay\.pending \|\| billingReplay\.busy/);
+  assert.match(view, /blocked=\{Boolean\(commandState\.busy \|\| pendingAttempt \|\| billingReplay\.busy \|\| billingReplay\.pending\)\}/);
+  assert.match(billing, /const transactionBody = \{/);
+  assert.match(billing, /occurredAt: new Date\(\)\.toISOString\(\)/);
+  assert.match(billing, /recordBillingTransaction\(billId, transactionBody, idempotencyKey\)/);
+  assert.doesNotMatch(billing, /recordBillingTransaction\(billId, \{[\s\S]{0,180}occurredAt: new Date/);
+  assert.match(host, /api\\\/bo\\\/billing\\\/product-plans/);
+  assert.match(host, /api\\\/bo\\\/billing\\\/bills/);
 });
