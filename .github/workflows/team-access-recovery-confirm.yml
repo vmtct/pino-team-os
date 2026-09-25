@@ -54,7 +54,7 @@ jobs:
           }
           expected_rehomed_state() {
             local from="$1" to="$2"
-            jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | if (.name // "") == $from then .name=$to else . end | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
+            jq -Sc --arg from "$from" --arg to "$to" '.domain=$to | .name=$to | .http_only_cookie_attribute=true | if (.self_hosted_domains // []) == [$from] then .self_hosted_domains=[$to] else . end | if (.destinations // []) == [{"type":"public","uri":$from}] then .destinations=[{"type":"public","uri":$to}] else . end'
           }
           assert_legacy_bo_canonical() {
             local expected actual
