@@ -329,24 +329,23 @@ jobs:
           runtime_main_ok "$main_postdeploy" || fail "Runtime-affecting Team main drift occurred during promotion."
 
           assert_protected_surface() {
-            local host="$1" protected_path="$2" headers code location login_headers login_code login_location
+            local host="$1" protected_path="$2" headers code location redirect_kind login_headers login_code
             headers="$RUNNER_TEMP/headers-${host//./-}.txt"; : > "$headers"
             code="$(curl -sS --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' "https://${host}${protected_path}" || true)"
             location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers")"
             case "$code" in
               302|303|307|308)
-                if [[ "$location" =~ cloudflareaccess\.com ]]; then
-                  return 0
-                fi
-                if [ "$location" = "/staff-login" ] || [ "$location" = "https://${host}/staff-login" ]; then
-                  login_headers="$RUNNER_TEMP/login-headers-${host//./-}.txt"; : > "$login_headers"
-                  login_code="$(curl -sS --max-time 12 -D "$login_headers" -o /dev/null -w '%{http_code}' "https://${host}/staff-login" || true)"
-                  login_location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$login_headers")"
-                  [[ "$login_location" != *"cloudflareaccess.com"* ]] || fail "${host} local Staff login is still challenged by Cloudflare Access."
-                  [ "$login_code" = "200" ] || fail "${host} local Staff login returned unexpected HTTP ${login_code}."
-                  return 0
-                fi
-                fail "${host}${protected_path} redirected outside both Cloudflare Access and exact local Staff login."
+                redirect_kind="$(node scripts/team-release-auth-boundary.mjs "$location" "$host")" || fail "${host}${protected_path} redirect authority could not be classified."
+                case "$redirect_kind" in
+                  ACCESS) return 0 ;;
+                  LOCAL)
+                    login_headers="$RUNNER_TEMP/login-headers-${host//./-}.txt"; : > "$login_headers"
+                    login_code="$(curl -sS --max-time 12 -D "$login_headers" -o /dev/null -w '%{http_code}' "https://${host}/staff-login" || true)"
+                    [ "$login_code" = "200" ] || fail "${host} local Staff login returned unexpected HTTP ${login_code}."
+                    return 0
+                    ;;
+                  *) fail "${host}${protected_path} redirected outside both Cloudflare Access and exact local Staff login." ;;
+                esac
                 ;;
               401|403) return 0 ;;
               200) fail "${host}${protected_path} became publicly reachable without an authentication boundary." ;;
