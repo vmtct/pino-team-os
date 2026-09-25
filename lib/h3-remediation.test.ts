@@ -58,6 +58,15 @@ test('Access app watchdog compares provider-normalized semantic desired state',(
   assert.doesNotMatch(watchdogApp,/elif \[ "\$current_state" = "\$desired_state" \]; then/);
 });
 
+test('Access watchdog recovery holds on unrelated-app drift before terminal result',()=>{
+  assert.match(watchdogApp,/other_state_b64=/);
+  assert.match(watchdogApp,/Unrelated Team Access app full state drifted from the captured baseline/);
+  assert.match(watchdogApp,/restored_other=/);
+  const guard=watchdogApp.indexOf('Unrelated Team Access app full state drifted from the captured baseline');
+  const resultBranch=watchdogApp.indexOf('if [ "$current_state" = "$original_state" ]');
+  assert.ok(guard>=0 && resultBranch>guard,'unrelated-app CAS guard must precede any recovery-success decision');
+});
+
 test('Access recovery confirmation proves unrelated app full-state before closing fence',()=>{
   const confirm=r('.github/workflows/team-access-recovery-confirm.yml');
   assert.match(perimeter,/Other app ID: \$other_id/);

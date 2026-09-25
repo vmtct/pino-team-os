@@ -19,11 +19,13 @@ original_b64="$(sed -nE 's/^Original app payload b64:[[:space:]]*([A-Za-z0-9+\/=
 desired_b64="$(sed -nE 's/^Desired app payload b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
 original_state_b64="$(sed -nE 's/^Original app state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
 desired_state_b64="$(sed -nE 's/^Desired app state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
-[ -n "$app_id" ] && [ -n "$original_b64" ] && [ -n "$desired_b64" ] && [ -n "$original_state_b64" ] && [ -n "$desired_state_b64" ] || { echo "Malformed Access-app recovery marker" >&2; exit 1; }
+other_id="$(sed -nE 's/^Other app ID:[[:space:]]*([0-9a-f-]{36})[[:space:]]*$/\1/p' <<<"$body")"
+other_state_b64="$(sed -nE 's/^Other app state b64:[[:space:]]*([A-Za-z0-9+\/=]+)[[:space:]]*$/\1/p' <<<"$body")"
+[ -n "$app_id" ] && [ -n "$original_b64" ] && [ -n "$desired_b64" ] && [ -n "$original_state_b64" ] && [ -n "$desired_state_b64" ] && [ -n "$other_id" ] && [ -n "$other_state_b64" ] && [ "$other_id" != "$app_id" ] || { echo "Malformed Access-app recovery marker or unrelated-app baseline" >&2; exit 1; }
 original="$(printf '%s' "$original_b64" | base64 -d)"; desired="$(printf '%s' "$desired_b64" | base64 -d)"
-original_state="$(printf '%s' "$original_state_b64" | base64 -d)"; desired_state="$(printf '%s' "$desired_state_b64" | base64 -d)"
-jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null; jq -e . <<<"$original_state" >/dev/null; jq -e . <<<"$desired_state" >/dev/null
-original_state="$(canonical_app_state <<<"$original_state")"; desired_state="$(canonical_app_state <<<"$desired_state")"
+original_state="$(printf '%s' "$original_state_b64" | base64 -d)"; desired_state="$(printf '%s' "$desired_state_b64" | base64 -d)"; other_state="$(printf '%s' "$other_state_b64" | base64 -d)"
+jq -e . <<<"$original" >/dev/null; jq -e . <<<"$desired" >/dev/null; jq -e . <<<"$original_state" >/dev/null; jq -e . <<<"$desired_state" >/dev/null; jq -e . <<<"$other_state" >/dev/null
+original_state="$(canonical_app_state <<<"$original_state")"; desired_state="$(canonical_app_state <<<"$desired_state")"; other_state="$(canonical_app_state <<<"$other_state")"
 [ "$(jq -Sc '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$original_state")" = "$(jq -Sc '.' <<<"$original")" ] || { echo "Access-app rollback payload does not match captured baseline state" >&2; exit 1; }
 [ "$(jq -Sc '{domain,type,allowed_idps:((.allowed_idps // []) | sort),auto_redirect_to_identity:(.auto_redirect_to_identity // false)}' <<<"$desired_state")" = "$(jq -Sc '.' <<<"$desired")" ] || { echo "Access-app mutation payload does not match captured desired state" >&2; exit 1; }
 original_domain="$(jq -r '.domain // empty' <<<"$original")"; desired_domain="$(jq -r '.domain // empty' <<<"$desired")"
@@ -31,6 +33,9 @@ original_domain="$(jq -r '.domain // empty' <<<"$original")"; desired_domain="$(
 expected_desired_state="$(expected_rehomed_state "$original_domain" "$desired_domain" <<<"$original_state")"
 api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"; auth=(-H "Authorization: Bearer ${CF_ACCESS_API_TOKEN}" -H 'Content-Type: application/json')
 apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
+other="$(jq -c --arg id "$other_id" '.result[]? | select(.id==$id)' <<<"$apps" | head -1)"
+[ -n "$other" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nUnrelated Team Access app is missing; recovery cannot prove the captured invariant."; exit 1; }
+[ "$(canonical_app_state <<<"$other")" = "$other_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nUnrelated Team Access app full state drifted from the captured baseline; recovery refused."; exit 1; }
 current="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$apps" | head -1)"
 [ -n "$current" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nAccess app is missing; recovery cannot prove exact run-owned state."; exit 1; }
 current_state="$(canonical_app_state <<<"$current")"
@@ -41,6 +46,8 @@ elif [ "$current_state" = "$expected_desired_state" ]; then
   [ "$code" = "200" ] && jq -e '.success==true' <<<"$response_body" >/dev/null || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nAccess-app rollback PUT did not return a successful provider result."; exit 1; }
   restored_apps="$(curl -fsS "${api}/access/apps?per_page=100" "${auth[@]}")"
   restored_app="$(jq -c --arg id "$app_id" '.result[]? | select(.id==$id)' <<<"$restored_apps" | head -1)"
+  restored_other="$(jq -c --arg id "$other_id" '.result[]? | select(.id==$id)' <<<"$restored_apps" | head -1)"
+  [ -n "$restored_other" ] && [ "$(canonical_app_state <<<"$restored_other")" = "$other_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nUnrelated Team Access app drifted during rollback; recovery closure refused."; exit 1; }
   [ -n "$restored_app" ] && [ "$(canonical_app_state <<<"$restored_app")" = "$original_state" ] || { gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nAccess-app rollback PUT completed but exact baseline restoration was not proven."; exit 1; }
   result=BASELINE_RESTORED
 else gh issue comment "$issue" --repo "$repo" --body "${prefix}: **WATCHDOG_HOLD**\n\nWorkflow run: ${run_id}\nWorkflow attempt: ${recovery_attempt}\nAccess app live full state no longer equals this run's desired state or baseline; recovery refused to overwrite external state."; exit 1
