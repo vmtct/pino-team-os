@@ -159,3 +159,26 @@ test("New registration passes only canonical sale inputs and keeps manual cadenc
   assert.match(view, /Manual repair only/);
   assert.match(view, /New registrations phải dùng Product Plan \+ exact cadence placement phía trên/);
 });
+
+
+test("JCS-03 neutralization closes operational placement and preserves commercial history surfaces", async () => {
+  const [view, api, writeHandler, host] = await Promise.all([
+    read("app/bo/subscriptions/BoSubscriptionsView.tsx"),
+    read("lib/bo-api.ts"),
+    read("lib/bo-write-handler.ts"),
+    read("lib/host-boundary.ts"),
+  ]);
+  assert.match(view, /async function neutralize/);
+  assert.match(view, /releaseLocalDate = window\.prompt/);
+  assert.match(view, /boApi\.neutralizeSubscription\(subscription\.id, body, idempotencyKey\)/);
+  assert.match(view, /Huỷ & giải phóng placement/);
+  assert.match(view, /lịch sử Bill\/Payment được giữ nguyên/);
+  assert.match(view, /sub\.lifecycle === "ACTIVE" \? entry\.enrollments\.filter\(isCurrentEnrollment\) : \[\]/);
+  assert.match(api, /neutralizeSubscription:/);
+  assert.match(api, /subscriptions\/\$\{encodeURIComponent\(subscriptionId\)\}\/neutralize/);
+  assert.match(writeHandler, /SUBSCRIPTION_NEUTRALIZE_PATH/);
+  assert.match(writeHandler, /SUBSCRIPTION_NEUTRALIZE_PATH\.test\(path\).*&& !idempotencyKey/);
+  assert.match(host, /cancel\|neutralize\|service-grants/);
+  assert.equal(isAllowedPostPath(`subscriptions/${id}/neutralize`), true);
+  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, `/api/bo/subscriptions/${id}/neutralize`), { action: "next" });
+});
