@@ -2,17 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoWorkforceAssignment, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
-import { f3DeliveryApi, type F3BootstrapState, type F3TermWeek } from "@/lib/f3-delivery-api";
+import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
 import styles from "../bo.module.css";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
 type Selection = { staffMemberId: string; workDate: string } | null;
-type CenterWeek = F3TermWeek & { centerId: string; termDisplayName: string };
+type CenterWeek = BoWorkforcePlanningBootstrap["termWeeks"][number] & { centerId: string; termDisplayName: string };
 
 export function WorkforcePlanningView() {
-  const [bootstrap, setBootstrap] = useState<F3BootstrapState | null>(null);
+  const [bootstrap, setBootstrap] = useState<BoWorkforcePlanningBootstrap | null>(null);
   const [centerId, setCenterId] = useState("");
   const [termWeekId, setTermWeekId] = useState("");
   const [planning, setPlanning] = useState<Load>({ state: "loading" });
@@ -21,6 +20,8 @@ export function WorkforcePlanningView() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [reason, setReason] = useState("");
+  const [shiftTemplates, setShiftTemplates] = useState<BoWorkforceShiftTemplate[]>([]);
+  const [templateDraft, setTemplateDraft] = useState({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
 
   const weeks = useMemo<CenterWeek[]>(() => {
     if (!bootstrap) return [];
@@ -31,10 +32,11 @@ export function WorkforcePlanningView() {
     });
   }, [bootstrap]);
   const centerWeeks = weeks.filter((week) => week.centerId === centerId);
+  const selectedCenter = bootstrap?.centers.find((center) => center.id === centerId) ?? null;
 
   useEffect(() => {
     let active = true;
-    void f3DeliveryApi.bootstrap().then((state) => {
+    void boApi.workforcePlanningBootstrap().then((state) => {
       if (!active) return;
       setBootstrap(state);
       const center = state.centers.find((item) => item.status === "active") ?? state.centers[0];
@@ -55,6 +57,18 @@ export function WorkforcePlanningView() {
     // Selection belongs to one exact Center/week projection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centerId, termWeekId]);
+
+  useEffect(() => {
+    if (!centerId || !selectedCenter?.canManageShiftTemplates) { setShiftTemplates([]); return; }
+    void loadShiftTemplates(centerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerId, selectedCenter?.canManageShiftTemplates]);
+
+  async function loadShiftTemplates(nextCenter = centerId) {
+    if (!nextCenter) return;
+    try { setShiftTemplates(await boApi.workforceShiftTemplates(nextCenter)); }
+    catch (error) { setNotice(message(error)); }
+  }
 
   async function refresh(nextCenter = centerId, nextWeek = termWeekId) {
     if (!nextCenter || !nextWeek) return;
@@ -80,6 +94,26 @@ export function WorkforcePlanningView() {
   const activeAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate && item.status === "ACTIVE") : [];
   const historyAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate) : [];
   const availableTemplateIds = data && selection ? new Set(data.availability.filter((item) => item.staffMemberId === selection.staffMemberId).flatMap((item) => item.items.filter((entry) => entry.workDate === selection.workDate).map((entry) => entry.shiftTemplateId))) : new Set<string>();
+
+  async function createShiftTemplate() {
+    if (!centerId || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime) return;
+    setBusy("template:create"); setNotice("");
+    try {
+      await boApi.createWorkforceShiftTemplate({ centerId, ...templateDraft }, crypto.randomUUID());
+      setTemplateDraft({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
+      setNotice("Shift Template đã được tạo và có thể dùng để xếp ca.");
+      await Promise.all([loadShiftTemplates(centerId), termWeekId ? refresh(centerId, termWeekId) : Promise.resolve()]);
+    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
+  }
+
+  async function setShiftTemplateStatus(template: BoWorkforceShiftTemplate, status: "ACTIVE" | "INACTIVE") {
+    setBusy(`template:${template.id}`); setNotice("");
+    try {
+      await boApi.setWorkforceShiftTemplateStatus(template.id, centerId, status, crypto.randomUUID());
+      setNotice(status === "ACTIVE" ? "Shift Template đã được kích hoạt." : "Shift Template đã ngưng dùng cho assignment mới.");
+      await Promise.all([loadShiftTemplates(centerId), termWeekId ? refresh(centerId, termWeekId) : Promise.resolve()]);
+    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
+  }
 
   async function assign() {
     if (!data || !selection || !templateId) return;
@@ -147,6 +181,18 @@ export function WorkforcePlanningView() {
       </div>
     </section>
 
+    {selectedCenter?.canManageShiftTemplates ? <section className={styles.panel}>
+      <div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Tạo loại ca theo Center. Template đã dùng không sửa giờ trực tiếp; hãy tạo template mới rồi ngưng template cũ.</p></div><span className={styles.writePill}>workforce.shift_template.manage</span></div>
+      <div className={styles.plannerFilters}>
+        <label className={styles.field}>Code<input value={templateDraft.code} onChange={(event) => setTemplateDraft((current) => ({ ...current, code: event.target.value }))} placeholder="EVENING" /></label>
+        <label className={styles.field}>Tên ca<input value={templateDraft.displayLabel} onChange={(event) => setTemplateDraft((current) => ({ ...current, displayLabel: event.target.value }))} placeholder="Ca tối" /></label>
+        <label className={styles.field}>Bắt đầu<input type="time" value={templateDraft.startLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, startLocalTime: event.target.value }))} /></label>
+        <label className={styles.field}>Kết thúc<input type="time" value={templateDraft.endLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, endLocalTime: event.target.value }))} /></label>
+      </div>
+      <div className={styles.subscriptionActions}><button className={styles.primaryButton} disabled={!!busy || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime} onClick={() => void createShiftTemplate()}>{busy === "template:create" ? "Đang tạo…" : "+ Tạo ca"}</button></div>
+      <div className={styles.plannerHistory}>{shiftTemplates.map((template) => <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.startLocalTime}–{template.endLocalTime} · {template.status} <button className={styles.secondaryButton} disabled={!!busy} onClick={() => void setShiftTemplateStatus(template, template.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{template.status === "ACTIVE" ? "Ngưng" : "Kích hoạt"}</button></span>)}</div>
+    </section> : selectedCenter ? <section className={styles.panel}><div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Bạn có thể xếp ca bằng các template đang active; quản lý template cần quyền workforce.shift_template.manage.</p></div><span className={styles.readOnly}>Read only</span></div></section> : null}
+
     {notice ? <div className={styles.successCard}><span>Workforce planner</span><strong>{notice}</strong></div> : null}
     {planning.state === "loading" ? <State text="Đang tải weekly planning projection từ Core…" /> : null}
     {planning.state === "error" ? <State text={planning.message} error /> : null}
@@ -213,7 +259,7 @@ export function WorkforcePlanningView() {
   </main>;
 }
 
-function chooseWeek(weeks: F3TermWeek[]) {
+function chooseWeek(weeks: BoWorkforcePlanningBootstrap["termWeeks"]) {
   const sorted = [...weeks].sort((a, b) => a.startDate.localeCompare(b.startDate));
   const date = todayLocal();
   return sorted.find((week) => date >= week.startDate && date <= week.endDate)
