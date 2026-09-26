@@ -8,7 +8,7 @@ export interface F3Path { id: string; code: string; displayName: string; status:
 export interface F3LearningSpace { id: string; centerId: string; code: string; displayName: string; optimalConcurrentCapacity: number; hardConcurrentCapacity: number | null; status: DeliveryStatus; version: number }
 export interface F3RunningClass { id: string; centerId: string; pathProgramId: string; learningSpaceId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: DeliveryTopology; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; hardConcurrentCapacity: number | null; status: DeliveryStatus; version: number }
 export interface F3RunningClassBlock { id: string; runningClassId: string; blockKind: "LEARNING" | "BRIDGE" | "TRANSITION"; startsOffsetMinutes: number; endsOffsetMinutes: number; sharedBlockKey: string | null; label: string | null }
-export interface F3Term { id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; weekCount: number }
+export interface F3Term { id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; updatedAt: string; weekCount: number }
 export interface F3TermWeek { id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; updatedAt: string }
 export interface F3Session { id: string; centerId: string; pathProgramId: string; learningSpaceId: string | null; runningClassId: string | null; primarySyllabusId: string | null; learningSyllabusVersionId: string | null; localDate: string; startsLocal: string; endsLocal: string; startsAt: string; endsAt: string; timeZone: string; optimalConcurrentCapacity: number | null; hardConcurrentCapacity: number | null; status: string }
 export interface F3PolicyStream { streamId: string; targetType: "CENTER" | "GLOBAL"; targetId: string | null; revision: number; draftVersionId: string | null; draftVersion: number | null; draftValue: { horizonDays: number } | null; publishedVersionId: string | null; publishedVersion: number | null; effectiveFrom: string | null; effectiveUntil: string | null; publishedValue: { horizonDays: number } | null }
@@ -18,7 +18,9 @@ export interface F3BootstrapState {
   centers: F3Center[];
   paths: F3Path[];
   learningSpaces: F3LearningSpace[];
+  activeLearningSpaces: F3LearningSpace[];
   runningClasses: F3RunningClass[];
+  activeRunningClasses: F3RunningClass[];
   runningClassBlocks: F3RunningClassBlock[];
   terms: F3Term[];
   termWeeks: F3TermWeek[];
@@ -29,11 +31,14 @@ export interface F3BootstrapState {
 export const f3DeliveryApi = {
   bootstrap: () => readOne<F3BootstrapState>("delivery/bootstrap-state"),
   createTerm: (body: unknown) => writeOne<F3Term>("delivery/terms", body, crypto.randomUUID()),
+  neutralizeTerm: (id: string, body: unknown) => writeOne<{ termId: string; centerId: string; deleted: true }>(`delivery/terms/${encodeURIComponent(id)}/neutralize`, body, crypto.randomUUID()),
   createTermWeek: (body: unknown) => writeOne<F3TermWeek>("delivery/term-weeks", body, crypto.randomUUID()),
   updateTermWeek: (id: string, body: unknown) => writeOne<F3TermWeek>(`delivery/term-weeks/${encodeURIComponent(id)}/update`, body, crypto.randomUUID()),
   deleteTermWeek: (id: string, body: unknown) => writeOne<{ termWeekId: string; centerId: string; deleted: true }>(`delivery/term-weeks/${encodeURIComponent(id)}/delete`, body, crypto.randomUUID()),
   createLearningSpace: (body: unknown) => writeOne<F3LearningSpace>("delivery/learning-spaces", body),
+  transitionLearningSpace: (id: string, body: unknown) => writeOne<F3LearningSpace>(`delivery/learning-spaces/${encodeURIComponent(id)}/lifecycle`, body),
   createRunningClass: (body: unknown) => writeOne<F3RunningClass>("delivery/running-classes", body),
+  transitionRunningClass: (id: string, body: unknown) => writeOne<F3RunningClass>(`delivery/running-classes/${encodeURIComponent(id)}/lifecycle`, body),
   createRunningClassBlock: (body: unknown) => writeOne<F3RunningClassBlock>("delivery/running-class-blocks", body),
   createMaterializationPolicyDraft: (body: unknown) => writeOne<{ streamId: string; versionId: string; version: number; revision: number }>("policies/delivery/materialization.v1/versions", body),
   publishMaterializationPolicy: (versionId: string, body: unknown) => writeOne<{ published: boolean }>(`policies/delivery/materialization.v1/versions/${encodeURIComponent(versionId)}/publish`, body),

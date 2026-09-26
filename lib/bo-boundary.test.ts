@@ -105,4 +105,12 @@ test("Delivery Activation keeps Operating Cycle inputs explicit", async () => {
   assert.doesNotMatch(source, /addDays\(|setUTCDate|termWeekRhythm\] = useState\("BUILD"\)/);
   assert.match(source, /new Intl\.DateTimeFormat\("sv-SE", \{ timeZone/);
   assert.match(api, /idempotency-key/);
+  assert.match(api, /neutralizeTerm:[\s\S]*delivery\/terms/);
+  assert.match(api, /transitionLearningSpace:[\s\S]*learning-spaces/);
+  assert.match(api, /transitionRunningClass:[\s\S]*running-classes/);
+  assert.match(api, /activeLearningSpaces/);
+  assert.match(api, /activeRunningClasses/);
+  assert.match(source, /Neutralize Term/);
+  assert.match(source, /Neutralized Learning Space history/);
+  assert.match(source, /Neutralized Running Class history/);
 });
