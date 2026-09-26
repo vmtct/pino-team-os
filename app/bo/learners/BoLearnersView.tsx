@@ -226,7 +226,7 @@ function NeutralizeStudentIntake({ lifecycle, onClose, onNeutralized }: { lifecy
   const attemptLocked = attempt !== null;
   const uncertainAttempt = attemptLocked && Boolean(error) && !canResetAttempt;
   function resetAttempt() { setAttempt(null); setCanResetAttempt(false); setError(""); }
-  function closeIfSafe() { if (!busy && !uncertainAttempt) onClose(); }
+  function closeIfSafe() { if (busy || uncertainAttempt) return; if (result) { void onNeutralized(); return; } onClose(); }
   const disposition = result?.parentDisposition === "ARCHIVED"
     ? "Parent/contact do intake này tạo riêng đã được lưu trữ an toàn."
     : result?.parentDisposition === "REUSED_UNCHANGED"
