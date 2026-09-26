@@ -155,11 +155,13 @@ export function BoSubscriptionsView() {
     await runCommand(`renew:${subscription.id}`, (idempotencyKey) => boApi.renewSubscription(subscription.id, body, idempotencyKey), "Đã tạo renewal successor; predecessor không bị supersede sớm.");
   }
 
-  async function cancel(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
-    const reason = window.prompt("Lý do huỷ Subscription");
+  async function neutralize(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
+    const releaseLocalDate = window.prompt("Ngày giải phóng Enrollment/capacity (YYYY-MM-DD)", today());
+    if (!releaseLocalDate?.trim()) return;
+    const reason = window.prompt("Lý do huỷ Subscription và giải phóng placement");
     if (!reason?.trim()) return;
-    const body = { expectedVersion: subscription.version, reason: reason.trim() };
-    await runCommand(`cancel:${subscription.id}`, (idempotencyKey) => boApi.cancelSubscription(subscription.id, body, idempotencyKey), "Đã huỷ Subscription theo canonical lifecycle.");
+    const body = { expectedVersion: subscription.version, releaseLocalDate: releaseLocalDate.trim(), reason: reason.trim() };
+    await runCommand(`neutralize:${subscription.id}`, (idempotencyKey) => boApi.neutralizeSubscription(subscription.id, body, idempotencyKey), "Đã huỷ Subscription + giải phóng Enrollment/capacity; lịch sử Bill/Payment được giữ nguyên.");
   }
 
   async function endEnrollment(enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) {
@@ -197,7 +199,7 @@ export function BoSubscriptionsView() {
       <section className={styles.detail}>
         {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data} draft={createDraft} setDraft={setCreateDraft} createSubscription={createSubscription}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
-          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy}
+          place={place} renew={renew} neutralize={neutralize} endEnrollment={endEnrollment} busy={commandState.busy}
           blocked={Boolean(commandState.busy || pendingAttempt || billingReplay.busy || billingReplay.pending)}
           billingReplay={billingReplay} setBillingReplay={setBillingReplay} onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
@@ -210,7 +212,7 @@ function CommercialWorkspace(props: {
   createSubscription: (event: React.FormEvent) => Promise<void>; placementClass: Record<string, string>; setPlacementClass: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   placementDate: Record<string, string>; setPlacementDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
-  cancel: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
+  neutralize: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null; blocked: boolean;
   billingReplay: BillingReplayState; setBillingReplay: React.Dispatch<React.SetStateAction<BillingReplayState>>;
   onChanged: () => Promise<void>;
@@ -249,7 +251,7 @@ function CommercialWorkspace(props: {
       {data.subscriptions.length ? <div className={styles.cards}>{data.subscriptions.map((entry) => {
         const sub = entry.subscription;
         const eligibleClasses = props.catalog.classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === sub.pathProgramId);
-        const current = entry.enrollments.filter(isCurrentEnrollment);
+        const current = sub.lifecycle === "ACTIVE" ? entry.enrollments.filter(isCurrentEnrollment) : [];
         return <article className={styles.subscription} key={sub.id}>
           <div className={styles.subHead}>
             <div><span>{sub.lifecycle}</span><strong>{sub.pathDisplayName}</strong><small>{sub.weeklyCommitment} buổi/tuần · v{sub.version}</small></div>
@@ -268,7 +270,7 @@ function CommercialWorkspace(props: {
             <button type="button" disabled={props.blocked} onClick={() => void props.place(sub.id)}>Xếp lớp</button>
           </div> : null}
           <div className={styles.actions}><button type="button" disabled={props.blocked} onClick={() => void props.renew(sub)}>Renew</button>
-            {sub.lifecycle === "ACTIVE" ? <button className={styles.danger} type="button" disabled={props.blocked} onClick={() => void props.cancel(sub)}>Huỷ Subscription</button> : null}
+            {sub.lifecycle === "ACTIVE" ? <button className={styles.danger} type="button" disabled={props.blocked} onClick={() => void props.neutralize(sub)}>Huỷ & giải phóng placement</button> : null}
           </div>
         </article>;
       })}</div> : <p className={styles.empty}>Student chưa có Subscription. Tạo lifecycle đầu tiên ở form phía trên.</p>}

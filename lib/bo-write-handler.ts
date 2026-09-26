@@ -44,7 +44,8 @@ const BILLING_TRANSACTION_PATH = /^billing\/bills\/[0-9a-f-]{36}\/transactions$/
 const BILLING_BILL_VOID_PATH = /^billing\/bills\/[0-9a-f-]{36}\/void$/;
 const BILLING_TRANSACTION_VOID_PATH = /^billing\/transactions\/[0-9a-f-]{36}\/void$/;
 const SUBSCRIPTION_CREATE_PATH = "subscriptions";
-const SUBSCRIPTION_COMMAND_PATH = /^subscriptions\/[0-9a-f-]{36}\/(activate|renew|supersede|cancel|service-grants|pauses|renewal-grace)$/;
+const SUBSCRIPTION_COMMAND_PATH = /^subscriptions\/[0-9a-f-]{36}\/(activate|renew|supersede|cancel|neutralize|service-grants|pauses|renewal-grace)$/;
+const SUBSCRIPTION_NEUTRALIZE_PATH = /^subscriptions\/[0-9a-f-]{36}\/neutralize$/;
 const SUBSCRIPTION_PAUSE_CANCEL_PATH = /^subscription-pauses\/[0-9a-f-]{36}\/cancel$/;
 const RENEWAL_GRACE_REVOKE_PATH = /^renewal-grace\/[0-9a-f-]{36}\/revoke$/;
 const ENROLLMENT_CREATE_PATH = "enrollments";
@@ -82,7 +83,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
+    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 

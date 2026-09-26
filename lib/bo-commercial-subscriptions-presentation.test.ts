@@ -8,7 +8,7 @@ const read = (path: string) => readFile(path, "utf8");
 
 test("Subscriptions owner surface composes canonical commercial facades only", async () => {
   const view = await read("app/bo/subscriptions/BoSubscriptionsView.tsx");
-  for (const command of ["createSubscription", "renewSubscription", "cancelSubscription", "placeEnrollment", "endEnrollment"]) {
+  for (const command of ["createSubscription", "renewSubscription", "neutralizeSubscription", "placeEnrollment", "endEnrollment"]) {
     assert.match(view, new RegExp(`boApi\\.${command}`));
   }
   assert.match(view, /boApi\.learnerLifecycle/);
@@ -55,6 +55,7 @@ test("Subscriptions page remains presentation-only and uses existing API contrac
   assert.match(page, /BoSubscriptionsView/);
   assert.match(api, /createSubscription:/);
   assert.match(api, /renewSubscription:/);
+  assert.match(api, /neutralizeSubscription:/);
   assert.match(api, /placeEnrollment:/);
   assert.match(api, /subscriptionProjectedCompletion:/);
   assert.match(api, /contractualEndsOn: string/);
@@ -71,7 +72,7 @@ test("Commercial commands preserve exact replay evidence across uncertain outcom
   assert.match(view, /definitiveRejection = error instanceof BoApiError && error\.structuredResponse && error\.status >= 400 && error\.status < 500/);
   assert.match(view, /Thử lại cùng yêu cầu/);
   assert.match(view, /blocked=\{Boolean\(commandState\.busy \|\| pendingAttempt \|\| billingReplay\.busy \|\| billingReplay\.pending\)\}/);
-  for (const command of ["createSubscription", "renewSubscription", "cancelSubscription", "placeEnrollment", "endEnrollment"]) {
+  for (const command of ["createSubscription", "renewSubscription", "neutralizeSubscription", "placeEnrollment", "endEnrollment"]) {
     assert.match(api, new RegExp(`${command}:[^\n]+idempotencyKey: string`));
   }
   assert.doesNotMatch(api, /(?:createSubscription|renewSubscription|cancelSubscription|placeEnrollment|endEnrollment):[^\n]+crypto\.randomUUID\(\)/);
