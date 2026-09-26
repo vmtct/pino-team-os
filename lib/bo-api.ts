@@ -1,6 +1,10 @@
 import type {
   BoAccessRole,
   BoCenter,
+  BoCalendarExclusion,
+  BoCalendarExclusionImpact,
+  BoCalendarExclusionPublishResult,
+  BoCalendarExclusionReason,
   BoPathProgram,
   BoRegistration,
   BoSessionLearningOwner,
@@ -161,7 +165,7 @@ function apiError(response: Response, body: { error?: { message?: string; reques
 type BoScopeBootstrap = {
   centers: Array<{ id: string; centerKey: string; displayName: string; timeZone: string; status: string }>;
   paths: Array<{ id: string; code: string; displayName: string; status: string }>;
-  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: "FIXED_COHORT" | "FLEXIBLE_STUDIO" | "OVERLAPPING_COHORT"; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; status: string }>;
+  runningClasses: Array<{ id: string; centerId: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: "FIXED_COHORT" | "FLEXIBLE_STUDIO" | "OVERLAPPING_COHORT"; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; status: string }>;
 };
 
 type AccessAssignmentCommand = {
@@ -174,17 +178,29 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  calendarScope: async () => {
+    const state = await readOne<BoScopeBootstrap>("delivery/calendar-scope");
+    return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
+  },
   scopeCatalog: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
-      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
   centers: () => read<BoCenter>("centers"),
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
+  calendarExclusions: (centerId: string, status?: "ACTIVE" | "ARCHIVED") => read<BoCalendarExclusion>(`delivery/calendar-exclusions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
+  previewCalendarExclusion: (body: { centerId:string; scopeType:"HOUSE"|"PATH"|"RUNNING_CLASS"; pathProgramId?:string; runningClassId?:string; startsOnLocalDate:string; endsBeforeLocalDate:string; effectiveAt:string }) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(body)) if (value !== undefined) params.set(key, String(value));
+    return readOne<BoCalendarExclusionImpact>(`delivery/calendar-exclusions/preview?${params.toString()}`);
+  },
+  createCalendarExclusion: (body: { centerId:string; scopeType:"HOUSE"|"PATH"|"RUNNING_CLASS"; pathProgramId?:string; runningClassId?:string; startsOnLocalDate:string; endsBeforeLocalDate:string; reason:BoCalendarExclusionReason; reasonDetail?:string|null }, idempotencyKey: string) => write<BoCalendarExclusionPublishResult>("delivery/calendar-exclusions", body, idempotencyKey),
+  archiveCalendarExclusion: (id:string, expectedVersion:number, archiveReason:string) => write<BoCalendarExclusion>(`delivery/calendar-exclusions/${encodeURIComponent(id)}`, { action:"archive", expectedVersion, archiveReason }, crypto.randomUUID()),
   syllabi: () => read<BoSyllabus>("syllabi"),
   practiceAuthoringContext: () => readOne<BoPracticeAuthoringContext>("practice/authoring-context"),
   practiceRepertoireAccessContext: () => readOne<BoPracticeRepertoireAccessContext>("practice/repertoire-access/context"),

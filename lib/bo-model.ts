@@ -6,6 +6,40 @@ export interface BoCenter {
   status: string;
 }
 
+export type BoCalendarExclusionScope =
+  | { type: "HOUSE"; pathProgramId: null; runningClassId: null }
+  | { type: "PATH"; pathProgramId: string; runningClassId: null }
+  | { type: "RUNNING_CLASS"; pathProgramId: null; runningClassId: string };
+export type BoCalendarExclusionReason = "PUBLIC_HOLIDAY" | "HOUSE_CLOSURE" | "MAINTENANCE" | "STAFF_EVENT" | "ACADEMIC_BREAK" | "OTHER";
+export interface BoCalendarExclusion {
+  id: string;
+  centerId: string;
+  scope: BoCalendarExclusionScope;
+  startsOnLocalDate: string;
+  endsBeforeLocalDate: string;
+  reason: BoCalendarExclusionReason;
+  reasonDetail: string | null;
+  status: "ACTIVE" | "ARCHIVED";
+  version: number;
+  createdByUserId: string;
+  createdAt: string;
+  archivedByUserId: string | null;
+  archivedAt: string | null;
+  archiveReason: string | null;
+}
+export interface BoCalendarExclusionImpact {
+  affectedRunningClasses: number;
+  futureScheduledSessions: number;
+  sessionsWithParticipation: number;
+  consumedOpenStudioSessions: number;
+  registrationsToCancel: number;
+  bookingsToCancel: number;
+  openStudioClaimsToRelease: number;
+  openStudioListingsToCancel: number;
+  sessionsToCancel: number;
+}
+export interface BoCalendarExclusionPublishResult { exclusion: BoCalendarExclusion; impact: BoCalendarExclusionImpact }
+
 export interface BoPathProgram {
   id: string;
   code: string;
@@ -15,6 +49,7 @@ export interface BoPathProgram {
 
 export interface BoRunningClass {
   id: string;
+  centerId?: string;
   name: string;
   pathProgramId: string;
   timezone: "Asia/Ho_Chi_Minh";
