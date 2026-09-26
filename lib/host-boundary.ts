@@ -123,6 +123,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/workforce/staff-registration-requests",
     "/api/bo/workforce/timekeeping",
     "/api/bo/workforce/duty/checkout-exceptions",
+    "/api/bo/workforce/planning/bootstrap",
+    "/api/bo/workforce/planning/shift-templates",
     "/api/bo/workforce/planning/weekly",
     "/api/bo/workforce/planning/assignment",
     "/api/bo/workforce/planning/assignment/cancel",
@@ -153,6 +155,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/workforce\/duty\/checkout-exceptions\/[0-9a-f-]{36}\/approve$/.test(normalized)
     || /^\/api\/bo\/workforce\/training\/(?:catalog|modules|assignments|staff\/[0-9a-f-]{36}|versions\/[0-9a-f-]{36}\/(?:draft|publish)|modules\/[0-9a-f-]{36}\/(?:next-draft|retire)|assignments\/[0-9a-f-]{36}\/signoff|qualifications\/[0-9a-f-]{36}\/revoke)$/.test(normalized)
     || /^\/api\/bo\/workforce\/planning\/check-in-exceptions(?:\/centers|\/[0-9a-f-]{36}(?:\/(?:approve|decline))?)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/planning\/shift-templates\/[0-9a-f-]{36}\/status$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)

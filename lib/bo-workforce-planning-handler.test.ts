@@ -17,6 +17,27 @@ test("BO weekly planner forwards bounded query through local password session", 
   assert.equal(response.status, 200); assert.equal(response.headers.get("x-request-id"), "core-weekly");
   assert.deepEqual(forwarded, { method: "GET", path: "weekly", body: { centerId: "center-1", termWeekId: "week-1" } }); assert.equal(token, session);
 });
+test("planning bootstrap and ShiftTemplate admin stay inside bounded Workforce facade", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async request => { forwarded.push(request); return { status: request.method === "POST" ? 201 : 200, body: { data: [] }, requestId: "core-shifts" }; });
+  const bootstrap = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/bootstrap?forged=1", { headers: headers() });
+  const list = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/shift-templates?centerId=center-1&forged=1", { headers: headers() });
+  const createBody = { centerId: "center-1", code: "EVENING", displayLabel: "Ca tối", startLocalTime: "17:30", endLocalTime: "21:00" };
+  const create = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/shift-templates", { method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "create-template" }), body: JSON.stringify(createBody) });
+  const id = "01999999-9999-7999-8999-999999999999";
+  const status = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/shift-templates/${id}/status`, { method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "status-template" }), body: JSON.stringify({ centerId: "center-1", status: "INACTIVE" }) });
+  assert.equal((await handleBoWorkforcePlanningRequest(bootstrap, env(b), "workforce/planning/bootstrap")).status, 200);
+  assert.equal((await handleBoWorkforcePlanningRequest(list, env(b), "workforce/planning/shift-templates")).status, 200);
+  assert.equal((await handleBoWorkforcePlanningRequest(create, env(b), "workforce/planning/shift-templates")).status, 201);
+  assert.equal((await handleBoWorkforcePlanningRequest(status, env(b), `workforce/planning/shift-templates/${id}/status`)).status, 201);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "bootstrap", body: {} },
+    { method: "GET", path: "shift-templates", body: { centerId: "center-1" } },
+    { method: "POST", path: "shift-templates", body: createBody, idempotencyKey: "create-template" },
+    { method: "POST", path: `shift-templates/${id}/status`, body: { centerId: "center-1", status: "INACTIVE" }, idempotencyKey: "status-template" },
+  ]);
+});
+
 test("assignment and cancellation forward exact idempotency keys", async () => {
   const forwarded: WorkforcePlanningRequest[] = [];
   const b = binding(async request => { forwarded.push(request); return { status: 200, body: { data: { id: "assignment" } }, requestId: "core-write" }; });

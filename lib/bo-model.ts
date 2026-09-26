@@ -406,6 +406,12 @@ export interface BoWorkforceShiftTemplate {
   updatedAt: string;
 }
 
+export interface BoWorkforcePlanningBootstrap {
+  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean }>;
+  terms: Array<{ id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; createdAt: string; updatedAt: string }>;
+  termWeeks: Array<{ id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; createdAt: string; updatedAt: string }>;
+}
+
 export interface BoWorkforceAvailability {
   id: string;
   staffMemberId: string;

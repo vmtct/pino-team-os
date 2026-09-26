@@ -30,3 +30,15 @@ test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", asyn
   );
   assert.doesNotMatch(source, /prompt\(/);
 });
+
+
+test("WFM-PLAN BO uses Workforce bootstrap and governed ShiftTemplate administration", async () => {
+  const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
+  assert.match(source, /workforcePlanningBootstrap/);
+  assert.doesNotMatch(source, /f3DeliveryApi|delivery\/bootstrap-state/);
+  assert.match(source, /\+ Tạo ca/);
+  assert.match(source, /createWorkforceShiftTemplate/);
+  assert.match(source, /setWorkforceShiftTemplateStatus/);
+  assert.match(source, /workforce\.shift_template\.manage/);
+  assert.match(source, /Template đã dùng không sửa giờ trực tiếp/);
+});
