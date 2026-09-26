@@ -103,6 +103,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/open-studio/admission",
     "/api/bo/centers",
     "/api/bo/delivery/bootstrap-state",
+    "/api/bo/delivery/calendar-scope",
     "/api/bo/delivery/calendar-exclusions",
     "/api/bo/delivery/calendar-exclusions/preview",
     "/api/bo/delivery/enrollment-activation",

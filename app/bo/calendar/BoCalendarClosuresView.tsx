@@ -54,9 +54,9 @@ export function BoCalendarClosuresView() {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    void Promise.all([boApi.scopeCatalog(), boApi.pathPrograms()])
-      .then(([scope, pathRows]) => {
-        setCenters(scope.centers); setClasses(scope.classes); setPaths(pathRows);
+    void boApi.calendarScope()
+      .then((scope) => {
+        setCenters(scope.centers); setClasses(scope.classes); setPaths(scope.paths);
         setCenterId((value) => value || scope.centers[0]?.id || "");
       })
       .catch((value) => setError(errorMessage(value)));

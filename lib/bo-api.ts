@@ -177,6 +177,10 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  calendarScope: async () => {
+    const state = await readOne<BoScopeBootstrap>("delivery/calendar-scope");
+    return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
+  },
   scopeCatalog: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
     return {
