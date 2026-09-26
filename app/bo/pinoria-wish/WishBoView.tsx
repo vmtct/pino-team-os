@@ -4,6 +4,7 @@ import bo from "../bo.module.css";
 import styles from "./pinoria-wish.module.css";
 import {CatalogManager} from "./CatalogManager";
 import {ReleasePhaseManager} from "./ReleasePhaseManager";
+import {EnergySeedCorrectionPanel} from "./EnergySeedCorrectionPanel";
 
 type Bearer={id:string;key:string;displayName:string;title:string;status:string};
 type SetRow={id:string;key:string;bearerId:string;displayName:string;status:string};
@@ -50,6 +51,7 @@ export function WishBoView(){
     </section>
     {error?<div className={`${bo.card} ${bo.denied}`}><strong>Lỗi</strong><span>{error}</span></div>:null}
     {message?<div className={bo.successCard}><span>Pinoria BO</span><strong>{message}</strong></div>:null}
+    <EnergySeedCorrectionPanel/>
     <CatalogManager onChanged={()=>void load()}/>
     <ReleasePhaseManager onChanged={()=>void load()}/>
     <section className={bo.panel}>
