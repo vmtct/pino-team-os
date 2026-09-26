@@ -25,7 +25,8 @@ test("Subscriptions owner surface keeps Core policy and scope authoritative", as
   assert.match(view, /policyEffectiveAt: new Date\(\)\.toISOString\(\)/);
   assert.match(view, /expectedVersion: subscription\.version/);
   assert.match(view, /expectedVersion: enrollment\.version/);
-  assert.match(view, /convenience defaults/);
+  assert.match(view, /Repair path legacy/);
+  assert.match(view, /Manual repair only/);
   assert.match(view, /Contract ends/);
   assert.match(view, /Forecast ends/);
   assert.match(view, /contractualEndsOn/);

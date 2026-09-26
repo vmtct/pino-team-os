@@ -12,6 +12,13 @@ import type {
   BoLearnerDirectoryItem,
   BoLearnerLifecycle,
   BoSubscriptionProjectedCompletion,
+  BoBillSummary,
+  BoPaymentMethod,
+  BoPaymentTransaction,
+  BoPaymentTransactionKind,
+  BoProductPlan,
+  BoProductPlanBadge,
+  BoSaleResult,
   BoStudentPinoriaSummary,
   BoLearningSyllabus,
   BoLearningSyllabusDetail,
@@ -148,7 +155,7 @@ function apiError(response: Response, body: { error?: { message?: string; reques
 type BoScopeBootstrap = {
   centers: Array<{ id: string; centerKey: string; displayName: string; timeZone: string; status: string }>;
   paths: Array<{ id: string; code: string; displayName: string; status: string }>;
-  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; optimalConcurrentCapacity: number; status: string }>;
+  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: "FIXED_COHORT" | "FLEXIBLE_STUDIO" | "OVERLAPPING_COHORT"; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; status: string }>;
 };
 
 type AccessAssignmentCommand = {
@@ -166,7 +173,7 @@ export const boApi = {
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
-      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
   centers: () => read<BoCenter>("centers"),
@@ -224,11 +231,20 @@ export const boApi = {
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
+  billingProductPlans: () => read<BoProductPlan>("billing/product-plans"),
+  updateBillingProductPlan: (productPlanId: string, body: { listPriceMinor: number; enabled: boolean; badge: BoProductPlanBadge; expectedVersion: number }) => write<BoProductPlan>(`billing/product-plans/${encodeURIComponent(productPlanId)}/configure`, body, crypto.randomUUID()),
+  createBillingSale: (body: { payerParentUserId: string; studentProfileId: string; pathProgramId: string; productPlanId: string; contractualStartsOn: string; itemDiscountMinor?: number; billDiscountMinor?: number; dueOn?: string; campaignReference?: string }, idempotencyKey: string) => write<BoSaleResult>("billing/sales", body, idempotencyKey),
+  billingBill: (billId: string) => readOne<BoBillSummary>(`billing/bills/${encodeURIComponent(billId)}`),
+  recordBillingTransaction: (billId: string, body: { transactionKind: BoPaymentTransactionKind; amountMinor: number; occurredAt: string; method: BoPaymentMethod; reference?: string; note?: string }, idempotencyKey: string) => write<BoPaymentTransaction>(`billing/bills/${encodeURIComponent(billId)}/transactions`, body, idempotencyKey),
+  voidBillingTransaction: (transactionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<BoPaymentTransaction>(`billing/transactions/${encodeURIComponent(transactionId)}/void`, body, idempotencyKey),
+  voidBill: (billId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<BoBillSummary>(`billing/bills/${encodeURIComponent(billId)}/void`, body, idempotencyKey),
   createSubscription: (body: { studentProfileId: string; pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>("subscriptions", body, idempotencyKey),
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, idempotencyKey),
   subscriptionProjectedCompletion: (subscriptionId: string, effectiveAt: string) => readOne<BoSubscriptionProjectedCompletion>(`subscriptions/${encodeURIComponent(subscriptionId)}/projected-completion?effectiveAt=${encodeURIComponent(effectiveAt)}`),
   cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, idempotencyKey),
   placeEnrollment: (body: { subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null; commandEffectiveLocalDate: string; policyEffectiveAt: string }, idempotencyKey: string) => write<unknown>("enrollments", body, idempotencyKey),
+  preflightBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string }) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; missing: number; reused: number }>("enrollments/bulk-preflight", body, crypto.randomUUID()),
+  placeBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string; policyEffectiveAt: string }, idempotencyKey: string) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; created: number; reused: number }>("enrollments/bulk-place", body, idempotencyKey),
   endEnrollment: (enrollmentId: string, body: { effectiveUntilExclusiveLocalDate: string; expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/end`, body, idempotencyKey),
   resetParentPin: (parentUserId: string) => write<{ command: string; temporaryPin: string; expiresAt: string; credentialVersion: number }>(`identity/parents/${encodeURIComponent(parentUserId)}/pin/reset`, {}, crypto.randomUUID()),
   openStudioOperations: (centerId?: string) => readOne<BoOpenStudioOperations>(`open-studio/operations${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
