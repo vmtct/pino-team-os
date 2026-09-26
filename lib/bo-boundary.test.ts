@@ -36,6 +36,9 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
   assert.match(sources, /BoShell/);
   assert.match(sources, /\/api\/bo\//);
   assert.match(sources, /Running Classes|Sessions|Registrations|Syllabus \/ Programs/);
+  assert.match(readSources, /f3DeliveryApi\.bootstrap\(\)/);
+  assert.doesNotMatch(readSources, /boApi\.(?:pathPrograms|runningClasses|syllabi|sessions)\(\)/);
+  assert.match(readSources, /boApi\.registrations\(sessionId\)/);
   assert.doesNotMatch(sources, /founderApi|WorkforceWorkspace|\/founder|\/api\/workforce|NOTION|PINO_CORE|PINO_WORKFORCE_CORE/);
   assert.doesNotMatch(readSources, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
   assert.doesNotMatch(apiSource, /method:\s*["'](?:PUT|PATCH|DELETE)["']/);
@@ -89,4 +92,17 @@ test("BO layout gates canonical authorization before rendering the shell", async
   assert.match(source, /forbidden\(\)/);
   assert.match(source, /PINO_BO_CORE|BoShellGateEnv/);
   assert.ok(source.indexOf("authorizeBoShell") < source.indexOf("<BoShell"));
+});
+
+
+test("Delivery Activation keeps Operating Cycle inputs explicit", async () => {
+  const source = await readFile("app/bo/delivery-activation/DeliveryActivationView.tsx", "utf8");
+  const api = await readFile("lib/f3-delivery-api.ts", "utf8");
+  assert.match(source, /Create Term/);
+  assert.match(api, /createTerm:[\s\S]*delivery\/terms/);
+  assert.match(api, /createTermWeek:[\s\S]*delivery\/term-weeks/);
+  assert.match(source, /Prefill code \+ ordinal/);
+  assert.doesNotMatch(source, /addDays\(|setUTCDate|termWeekRhythm\] = useState\("BUILD"\)/);
+  assert.match(source, /new Intl\.DateTimeFormat\("sv-SE", \{ timeZone/);
+  assert.match(api, /idempotency-key/);
 });

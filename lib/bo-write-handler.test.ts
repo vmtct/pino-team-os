@@ -13,7 +13,28 @@ test("Core denial and request ID pass through",async()=>{const binding:BoAccessC
 test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";assert.equal(isPracticeWritePath("practice/repertoire-access/grants"),true);assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`),true);assert.equal(isPracticeWritePath("practice/media"),false);});
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
 
-test("TermWeek creation forwards exact bounded BO command",async()=>{const route="delivery/term-weeks",body={centerId:"01912345-6789-7abc-8def-0123456789ab",termId:"01912345-6789-7abc-8def-0123456789ac",code:"W01",ordinal:1,startDate:"2026-09-01",endDate:"2026-09-07",rhythmKey:"BUILD"},forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:201,body:{data:{id:"week-1"}},requestId:"term-week"};}};const response=await handleBoWriteRequest(request(route,true,body),env(binding),route);assert.equal(response.status,201);assert.deepEqual(forwarded,[{method:"POST",path:route,body}]);});
+test("Term and TermWeek commands require replay evidence and forward exact bounded BO commands",async()=>{
+  const centerId="01912345-6789-7abc-8def-0123456789ab",termId="01912345-6789-7abc-8def-0123456789ac",weekId="01912345-6789-7abc-8def-0123456789ad",forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:coreRequest.path==="delivery/terms"||coreRequest.path==="delivery/term-weeks"?201:200,body:{data:{id:coreRequest.path==="delivery/terms"?termId:weekId}},requestId:"cycle"};}};
+  const termRoute="delivery/terms",termBody={centerId,code:"2026-Q4",displayName:"Q4 2026",startDate:"2026-10-01",endDate:"2026-12-31"};
+  assert.equal((await handleBoWriteRequest(request(termRoute,true,termBody),env(binding),termRoute)).status,400);
+  assert.equal((await handleBoWriteRequest(request(termRoute,true,termBody,"term-key"),env(binding),termRoute)).status,201);
+  const weekRoute="delivery/term-weeks",weekBody={centerId,termId,code:"W01",ordinal:1,startDate:"2026-10-01",endDate:"2026-10-08",rhythmKey:"OPENING"};
+  assert.equal((await handleBoWriteRequest(request(weekRoute,true,weekBody),env(binding),weekRoute)).status,400);
+  assert.equal((await handleBoWriteRequest(request(weekRoute,true,weekBody,"week-key"),env(binding),weekRoute)).status,201);
+  const updateRoute=`delivery/term-weeks/${weekId}/update`,updateBody={centerId,expectedUpdatedAt:"2026-10-01T00:00:00.000Z",code:"W01A",ordinal:1,startDate:"2026-10-01",endDate:"2026-10-08",rhythmKey:"BUILD"};
+  assert.equal((await handleBoWriteRequest(request(updateRoute,true,updateBody),env(binding),updateRoute)).status,400);
+  assert.equal((await handleBoWriteRequest(request(updateRoute,true,updateBody,"update-key"),env(binding),updateRoute)).status,200);
+  const deleteRoute=`delivery/term-weeks/${weekId}/delete`,deleteBody={centerId,expectedUpdatedAt:"2026-10-02T00:00:00.000Z"};
+  assert.equal((await handleBoWriteRequest(request(deleteRoute,true,deleteBody),env(binding),deleteRoute)).status,400);
+  assert.equal((await handleBoWriteRequest(request(deleteRoute,true,deleteBody,"delete-key"),env(binding),deleteRoute)).status,200);
+  assert.deepEqual(forwarded,[
+    {method:"POST",path:termRoute,body:termBody,idempotencyKey:"term-key"},
+    {method:"POST",path:weekRoute,body:weekBody,idempotencyKey:"week-key"},
+    {method:"POST",path:updateRoute,body:updateBody,idempotencyKey:"update-key"},
+    {method:"POST",path:deleteRoute,body:deleteBody,idempotencyKey:"delete-key"},
+  ]);
+});
 
 test("Student Intake void forwards exact bounded replay-protected command",async()=>{
   const studentId="0198d050-56c1-7ac5-b9ab-b0e45d912345",route=`student-intakes/${studentId}/void`,body={expectedStudentVersion:1,reason:"Erroneous intake"},forwarded:BoAccessRequest[]=[];

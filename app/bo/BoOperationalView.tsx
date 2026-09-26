@@ -2,17 +2,27 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
-import type { BoPathProgram, BoRegistration, BoRunningClass, BoSession, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord, BoSyllabus } from "@/lib/bo-model";
+import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
+import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
+import { f3DeliveryApi, type F3Path, type F3RunningClass, type F3Session } from "@/lib/f3-delivery-api";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
 
+interface OperationalSession extends BoAttendanceSession {
+  startsAt: string;
+  endsAt: string;
+  localDate: string;
+  timeZone: string;
+  optimalConcurrentCapacity: number | null;
+  hardConcurrentCapacity: number | null;
+}
+
 interface Data {
-  paths: BoPathProgram[];
-  classes: BoRunningClass[];
-  syllabi: BoSyllabus[];
-  sessions: BoSession[];
+  paths: F3Path[];
+  classes: F3RunningClass[];
+  sessions: OperationalSession[];
+  termWeekCount: number;
 }
 
 type LoadState = { status: "loading" } | { status: "error"; message: string; requestId: string | null } | { status: "ready"; data: Data };
@@ -25,9 +35,23 @@ export function BoOperationalView({ view }: { view: BoView }) {
   useEffect(() => {
     let active = true;
     setState({ status: "loading" });
-    void Promise.all([boApi.pathPrograms(), boApi.runningClasses(), boApi.syllabi(), boApi.sessions()])
-      .then(([paths, classes, syllabi, sessions]) => {
-        if (active) setState({ status: "ready", data: { paths, classes, syllabi, sessions } });
+    void f3DeliveryApi.bootstrap()
+      .then((snapshot) => {
+        if (!active) return;
+        const sessions: OperationalSession[] = snapshot.upcomingSessions.map((session: F3Session) => ({
+          id: session.id,
+          runningClassId: session.runningClassId,
+          pathProgramId: session.pathProgramId,
+          syllabusId: session.primarySyllabusId,
+          startsAt: session.startsAt,
+          endsAt: session.endsAt,
+          localDate: session.localDate,
+          timeZone: session.timeZone,
+          optimalConcurrentCapacity: session.optimalConcurrentCapacity,
+          hardConcurrentCapacity: session.hardConcurrentCapacity,
+          status: session.status,
+        }));
+        setState({ status: "ready", data: { paths: snapshot.paths, classes: snapshot.runningClasses, sessions, termWeekCount: snapshot.termWeeks.length } });
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -46,7 +70,7 @@ export function BoOperationalView({ view }: { view: BoView }) {
   if (view === "running-classes") return <RunningClasses data={state.data} />;
   if (view === "sessions") return <Sessions data={state.data} />;
   if (view === "registrations") return <Registrations data={state.data} />;
-  return <SyllabusPrograms data={state.data} />;
+  return <CanonicalCatalogNotice />;
 }
 
 function Overview({ data }: { data: Data }) {
@@ -57,7 +81,7 @@ function Overview({ data }: { data: Data }) {
         <Metric label="Programs" value={data.paths.length} />
         <Metric label="Lớp đang chạy" value={data.classes.length} />
         <Metric label="Sessions sắp tới" value={data.sessions.length} />
-        <Metric label="Registrations" value={data.sessions.reduce((sum, session) => sum + session.registrationCount, 0)} />
+        <Metric label="Term Weeks" value={data.termWeekCount} />
       </div>
       <Panel title="Lịch vận hành sắp tới" hint="PINO local time · canonical IDs retained">
         {upcoming.length ? <SessionTable sessions={upcoming} data={data} /> : <Empty text="No upcoming sessions." />}
@@ -74,10 +98,10 @@ function RunningClasses({ data }: { data: Data }) {
           <Table headers={["Class", "Program", "Pattern", "Capacity", "Status", "Canonical ID"]}>
             {data.classes.map((item) => (
               <tr key={item.id}>
-                <th scope="row">{item.name}</th>
+                <th scope="row">{item.operationalName}</th>
                 <td>{pathName(data.paths, item.pathProgramId)}</td>
-                <td>{item.recurrenceWeekdays.map((day) => weekdays[day]).join(", ")} · {item.startLocalTime}–{item.endLocalTime}</td>
-                <td>{item.defaultCapacity}</td>
+                <td>{weekdays[item.weekdayIso % 7]} · {item.windowStartsLocal}–{item.windowEndsLocal}</td>
+                <td>{item.optimalConcurrentCapacity}{item.hardConcurrentCapacity ? ` / ${item.hardConcurrentCapacity} hard` : ""}</td>
                 <td><Status value={item.status} /></td>
                 <td><Id value={item.id} /></td>
               </tr>
@@ -183,7 +207,7 @@ function Sessions({ data }: { data: Data }) {
     setBulkBusy(null);
   }
 
-  async function saveOwner(session: BoSession) {
+  async function saveOwner(session: OperationalSession) {
     const selected = selections[session.id] ?? "";
     const current = owners[session.id] ?? null;
     const reason = (reasons[session.id] ?? "").trim();
@@ -210,7 +234,7 @@ function Sessions({ data }: { data: Data }) {
     }
   }
 
-  async function saveSyllabusBinding(session: BoSession) {
+  async function saveSyllabusBinding(session: OperationalSession) {
     const projection = syllabusBindings[session.id];
     const selected = syllabusSelections[session.id] ?? "";
     const reason = (syllabusReasons[session.id] ?? "").trim();
@@ -293,7 +317,7 @@ function Sessions({ data }: { data: Data }) {
                 <article className={styles.ownerRow} key={session.id}>
                   <div className={styles.ownerMeta}>
                     <strong>{sessionLabel(session, data)}</strong>
-                    <span>{pathName(data.paths, session.pathProgramId)} · {syllabusName(data.syllabi, session.syllabusId)}</span>
+                    <span>{pathName(data.paths, session.pathProgramId)} · {syllabusBindings[session.id]?.current?.title ?? (session.syllabusId ? "Primary syllabus bound" : "Primary syllabus unbound")}</span>
                     <small>{current ? `Owner: ${currentStaff?.displayLabel ?? current.staffMemberId} · v${current.version}` : "Owner chưa được gán"}</small>
                     <small className={styles.ownerReadiness}>{readiness === "PRESENT_READY" ? "Attendance PRESENT ready" : readiness === "NEEDS_OWNER" ? "Attendance PRESENT · chỉ còn thiếu Learning Owner" : readiness === "NEEDS_SYLLABUS" ? "Attendance PRESENT blocked · thiếu primary Syllabus" : "Ngoài upcoming Attendance scope"}</small>
                   </div>
@@ -313,7 +337,7 @@ function Sessions({ data }: { data: Data }) {
           </div>
         )}
       </Panel>
-      <Panel title={`${data.sessions.length} upcoming sessions`} hint="Availability is the canonical Core projection.">
+      <Panel title={`${data.sessions.length} upcoming sessions`} hint="Canonical Delivery snapshot from Core.">
         {data.sessions.length ? <SessionTable sessions={data.sessions} data={data} /> : <Empty text="No upcoming sessions." />}
       </Panel>
     </Page>
@@ -335,8 +359,8 @@ function Registrations({ data }: { data: Data }) {
   }, [sessionId]);
 
   return (
-    <Page title="Registrations" subtitle="Read-only public registration queue, filtered by canonical Session.">
-      <Panel title="Session registrations" hint="Contact data remains inside the Founder-only BO boundary.">
+    <Page title="Registrations" subtitle="Canonical Participation registrations filtered by canonical Session.">
+      <Panel title="Session registrations" hint="Read through the canonical Session-scoped Participation contract.">
         {data.sessions.length ? (
           <>
             <label className={styles.filterLabel}>Session
@@ -348,8 +372,8 @@ function Registrations({ data }: { data: Data }) {
               <Table headers={["Learner", "Contact", "Submitted", "Status", "Canonical ID"]}>
                 {state.rows.map((item) => (
                   <tr key={item.id}>
-                    <th scope="row">{item.childName}</th>
-                    <td>{item.contactName}<small>{item.contactEmail ?? item.contactPhone}</small></td>
+                    <th scope="row">{item.displayName}<small>{registrationBirthLabel(item)}</small></th>
+                    <td>{item.guardianDisplayName ?? item.contactType}<small>{item.normalizedContactValue}</small></td>
                     <td>{dateTime(item.createdAt)}</td>
                     <td><Status value={item.status} /></td>
                     <td><Id value={item.id} /></td>
@@ -358,47 +382,31 @@ function Registrations({ data }: { data: Data }) {
               </Table>
             ) : <Empty text="No registrations for this Session." />}
           </>
-        ) : <Empty text="No Sessions are available for registration review." />}
+        ) : <Empty text="No upcoming Sessions are available for registration review." />}
       </Panel>
     </Page>
   );
 }
 
-function SyllabusPrograms({ data }: { data: Data }) {
-  const grouped = useMemo(() => data.paths.map((path) => ({ path, syllabi: data.syllabi.filter((item) => item.pathProgramId === path.id) })), [data]);
+function CanonicalCatalogNotice() {
   return (
-    <Page title="Syllabus / Programs" subtitle="Canonical curriculum structure and publication state.">
-      {grouped.length ? grouped.map(({ path, syllabi }) => (
-        <Panel key={path.id} title={path.displayName} hint={`${path.code} · ${path.status} · ${path.id}`}>
-          {syllabi.length ? (
-            <Table headers={["Week", "Syllabus", "Age", "Publication", "Canonical ID"]}>
-              {syllabi.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.curriculumWeek}</td>
-                  <th scope="row">{item.title}<small>{item.shortDescription ?? item.skillSummary ?? "No summary"}</small></th>
-                  <td>{ageRange(item)}</td>
-                  <td><Status value={item.publicationStatus} /></td>
-                  <td><Id value={item.id} /></td>
-                </tr>
-              ))}
-            </Table>
-          ) : <Empty text="No Syllabi for this Path Program." />}
-        </Panel>
-      )) : <Empty text="No Path Programs." />}
+    <Page title="Syllabus / Programs" subtitle="Shared curriculum authoring is served by the canonical Learning Syllabus desk.">
+      <Panel title="Legacy catalog projection retired" hint="This route no longer calls /path-programs or /syllabi compatibility endpoints.">
+        <Empty text="Use the Syllabus workspace for canonical shared Learning Syllabus data." />
+      </Panel>
     </Page>
   );
 }
 
-function SessionTable({ sessions, data }: { sessions: BoSession[]; data: Data }) {
+function SessionTable({ sessions, data }: { sessions: OperationalSession[]; data: Data }) {
   return (
-    <Table headers={["When", "Class / Program", "Syllabus", "Capacity", "Registrations", "Status", "Canonical ID"]}>
+    <Table headers={["When", "Class / Program", "Primary syllabus", "Capacity snapshot", "Status", "Canonical ID"]}>
       {sessions.map((session) => (
         <tr key={session.id}>
-          <td>{dateTime(session.startsAt)}<small>{session.localDate ?? ""}</small></td>
+          <td>{dateTime(session.startsAt, session.timeZone)}<small>{session.localDate}</small></td>
           <th scope="row">{className(data.classes, session.runningClassId)}<small>{pathName(data.paths, session.pathProgramId)}</small></th>
-          <td>{syllabusName(data.syllabi, session.syllabusId)}</td>
-          <td>{session.availability.remainingSeats}/{session.availability.capacity} open</td>
-          <td>{session.registrationCount}</td>
+          <td>{session.syllabusId ? "Bound" : "Unbound"}</td>
+          <td>{session.optimalConcurrentCapacity ?? "—"}{session.hardConcurrentCapacity ? ` / ${session.hardConcurrentCapacity} hard` : ""}</td>
           <td><Status value={session.status} /></td>
           <td><Id value={session.id} /></td>
         </tr>
@@ -420,10 +428,14 @@ function ErrorState({ message, requestId, compact = false }: { message: string; 
 function Empty({ text }: { text: string }) { return <div className={styles.empty}>{text}</div>; }
 function Status({ value }: { value: string }) { return <span className={styles.statusPill}>{value.replaceAll("_", " ")}</span>; }
 function Id({ value }: { value: string }) { return <code className={styles.id}>{value}</code>; }
-function pathName(paths: BoPathProgram[], id: string | null) { return paths.find((item) => item.id === id)?.displayName ?? "Unlinked Path"; }
-function className(classes: BoRunningClass[], id: string | null) { return classes.find((item) => item.id === id)?.name ?? "Unlinked class"; }
-function syllabusName(syllabi: BoSyllabus[], id: string | null) { return syllabi.find((item) => item.id === id)?.title ?? "Unlinked syllabus"; }
-function dateTime(value: string) { return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
-function sessionLabel(session: BoSession, data: Data) { return `${dateTime(session.startsAt)} · ${className(data.classes, session.runningClassId)}`; }
+function pathName(paths: F3Path[], id: string | null) { return paths.find((item) => item.id === id)?.displayName ?? "Unlinked Path"; }
+function className(classes: F3RunningClass[], id: string | null) { return classes.find((item) => item.id === id)?.operationalName ?? "Unlinked class"; }
+function dateTime(value: string, timeZone = "Asia/Ho_Chi_Minh") { return new Intl.DateTimeFormat("en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
+function sessionLabel(session: OperationalSession, data: Data) { return `${dateTime(session.startsAt, session.timeZone)} · ${className(data.classes, session.runningClassId)}`; }
 function selectedStaffLabel(staff: BoStaffRecord[], id: string) { return staff.find((item) => item.id === id)?.displayLabel ?? "StaffMember đã chọn"; }
-function ageRange(item: BoSyllabus) { if (item.ageMin === null && item.ageMax === null) return "—"; return `${item.ageMin ?? "?"}–${item.ageMax ?? "?"}`; }
+function registrationBirthLabel(item: BoRegistration) {
+  const month = String(item.birthMonth).padStart(2, "0");
+  return item.birthPrecision === "FULL_DATE" && item.birthDay
+    ? `${item.birthYear}-${month}-${String(item.birthDay).padStart(2, "0")}`
+    : `${item.birthYear}-${month}`;
+}

@@ -1,4 +1,12 @@
-import type { BoSession, BoSessionLearningOwner } from "./bo-model";
+import type { BoSessionLearningOwner } from "./bo-model";
+
+export interface BoAttendanceSession {
+  id: string;
+  runningClassId: string | null;
+  pathProgramId: string | null;
+  syllabusId: string | null;
+  status: string;
+}
 
 export interface BoLearningOwnerBulkGroup {
   key: string;
@@ -8,13 +16,13 @@ export interface BoLearningOwnerBulkGroup {
 }
 export type BoAttendanceReadinessState = "PRESENT_READY" | "NEEDS_OWNER" | "NEEDS_SYLLABUS" | "OUT_OF_SCOPE";
 
-export function attendanceReadinessState(session: BoSession, owner: BoSessionLearningOwner | null | undefined): BoAttendanceReadinessState {
+export function attendanceReadinessState(session: BoAttendanceSession, owner: BoSessionLearningOwner | null | undefined): BoAttendanceReadinessState {
   if (session.status !== "SCHEDULED") return "OUT_OF_SCOPE";
   if (!session.syllabusId) return "NEEDS_SYLLABUS";
   return owner ? "PRESENT_READY" : "NEEDS_OWNER";
 }
 
-export function attendanceReadinessCounts(sessions: BoSession[], owners: Record<string, BoSessionLearningOwner | null>) {
+export function attendanceReadinessCounts(sessions: BoAttendanceSession[], owners: Record<string, BoSessionLearningOwner | null>) {
   const states = sessions.map((session) => attendanceReadinessState(session, owners[session.id]));
   return {
     presentReady: states.filter((state) => state === "PRESENT_READY").length,
@@ -23,7 +31,7 @@ export function attendanceReadinessCounts(sessions: BoSession[], owners: Record<
   };
 }
 export function buildUnassignedOwnerGroups(
-  sessions: BoSession[],
+  sessions: BoAttendanceSession[],
   owners: Record<string, BoSessionLearningOwner | null>,
 ): BoLearningOwnerBulkGroup[] {
   const groups = new Map<string, BoLearningOwnerBulkGroup>();
