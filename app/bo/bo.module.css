@@ -427,3 +427,13 @@
 .staffPinoriaUnavailable strong { color: #3d3948; font-size: 12px; }
 @media (max-width: 760px) { .staffPinoriaGrid { grid-template-columns: 1fr; } .staffPinoriaPresence { display: grid; } .staffPinoriaPresenceMeta { text-align: left; } }
 
+.shiftTemplateForm { display: grid; grid-template-columns: repeat(4,minmax(120px,1fr)) auto; gap: 10px; align-items: end; }
+.shiftTemplateList { display: grid; gap: 8px; margin-top: 14px; }
+.shiftTemplateRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid #e4e2ec; border-radius: 11px; background: #fbfbfe; }
+.shiftTemplateRow > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.shiftTemplateRow strong { color: #292936; font-size: 12px; }
+.shiftTemplateRow span { color: #777783; font-size: 10px; }
+.shiftTemplateNotice { margin: 12px 0 0; color: #555765; font-size: 11px; }
+.shiftTemplateHint { margin: 12px 0 0; color: #777783; font-size: 10px; line-height: 1.45; }
+@media (max-width: 900px) { .shiftTemplateForm { grid-template-columns: repeat(2,minmax(140px,1fr)); } }
+@media (max-width: 620px) { .shiftTemplateForm { grid-template-columns: 1fr; } .shiftTemplateRow { align-items: flex-start; flex-direction: column; } }

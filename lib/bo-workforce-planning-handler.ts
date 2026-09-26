@@ -27,6 +27,8 @@ const PREFIX = "workforce/planning/";
 const GET_WEEKLY = "workforce/planning/weekly";
 const POST_ASSIGNMENT = "workforce/planning/assignment";
 const POST_CANCEL = "workforce/planning/assignment/cancel";
+const SHIFT_TEMPLATES = "workforce/planning/shift-templates";
+const SHIFT_TEMPLATE_STATUS = /^workforce\/planning\/shift-templates\/[0-9a-f-]{36}\/status$/;
 const GET_EXCEPTIONS = "workforce/planning/check-in-exceptions";
 const GET_EXCEPTION_CENTERS = "workforce/planning/check-in-exceptions/centers";
 const EXCEPTION_DETAIL = /^workforce\/planning\/check-in-exceptions\/[0-9a-f-]{36}$/;
@@ -40,8 +42,8 @@ export async function handleBoWorkforcePlanningRequest(
 ): Promise<Response> {  try {
     if (!path.startsWith(PREFIX)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO workforce planning operation not found" } }, 404);
     const method = request.method.toUpperCase();
-    const allowedGet = path === GET_WEEKLY || path === GET_EXCEPTIONS || path === GET_EXCEPTION_CENTERS || EXCEPTION_DETAIL.test(path);
-    const allowedPost = path === POST_ASSIGNMENT || path === POST_CANCEL || EXCEPTION_MUTATION.test(path);
+    const allowedGet = path === GET_WEEKLY || path === SHIFT_TEMPLATES || path === GET_EXCEPTIONS || path === GET_EXCEPTION_CENTERS || EXCEPTION_DETAIL.test(path);
+    const allowedPost = path === POST_ASSIGNMENT || path === POST_CANCEL || path === SHIFT_TEMPLATES || SHIFT_TEMPLATE_STATUS.test(path) || EXCEPTION_MUTATION.test(path);
     if (!((method === "GET" && allowedGet) || (method === "POST" && allowedPost))) {
       return json({ error: { code: method === "GET" || method === "POST" ? "PLATFORM_NOT_FOUND" : "PLATFORM_METHOD_NOT_ALLOWED", message: method === "GET" || method === "POST" ? "BO workforce planning operation not found" : "Method not allowed" } }, method === "GET" || method === "POST" ? 404 : 405);
     }
@@ -51,6 +53,7 @@ export async function handleBoWorkforcePlanningRequest(
     if (method === "GET") {
       const url = new URL(request.url);
       if (path === GET_WEEKLY) body = { centerId: url.searchParams.get("centerId"), termWeekId: url.searchParams.get("termWeekId") };
+      else if (path === SHIFT_TEMPLATES) body = { centerId: url.searchParams.get("centerId") };
       else if (path === GET_EXCEPTIONS) body = { centerId: url.searchParams.get("centerId"), ...(url.searchParams.get("status") ? { status: url.searchParams.get("status") } : {}) };
       else body = {};
     } else {

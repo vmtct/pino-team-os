@@ -5,6 +5,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { f3DeliveryApi, type F3BootstrapState, type F3TermWeek } from "@/lib/f3-delivery-api";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
+import { ShiftTemplateManager } from "./ShiftTemplateManager";
 import styles from "../bo.module.css";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
@@ -146,6 +147,8 @@ export function WorkforcePlanningView() {
         </label>
       </div>
     </section>
+
+    <ShiftTemplateManager centerId={centerId} onChanged={() => refresh()} />
 
     {notice ? <div className={styles.successCard}><span>Workforce planner</span><strong>{notice}</strong></div> : null}
     {planning.state === "loading" ? <State text="Đang tải weekly planning projection từ Core…" /> : null}
