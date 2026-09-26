@@ -15,6 +15,18 @@ test("unknown paths and wrong methods fail closed",async()=>{let called=false;co
 
 test("TermWeek creation forwards exact bounded BO command",async()=>{const route="delivery/term-weeks",body={centerId:"01912345-6789-7abc-8def-0123456789ab",termId:"01912345-6789-7abc-8def-0123456789ac",code:"W01",ordinal:1,startDate:"2026-09-01",endDate:"2026-09-07",rhythmKey:"BUILD"},forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:201,body:{data:{id:"week-1"}},requestId:"term-week"};}};const response=await handleBoWriteRequest(request(route,true,body),env(binding),route);assert.equal(response.status,201);assert.deepEqual(forwarded,[{method:"POST",path:route,body}]);});
 
+test("Student Intake void forwards exact bounded replay-protected command",async()=>{
+  const studentId="0198d050-56c1-7ac5-b9ab-b0e45d912345",route=`student-intakes/${studentId}/void`,body={expectedStudentVersion:1,reason:"Erroneous intake"},forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:200,body:{data:{studentProfileId:studentId,studentStatus:"ARCHIVED"}},requestId:"student-intake-void"};}};
+  assert.equal((await handleBoWriteRequest(request(route,true,body),env(binding),route)).status,400);
+  const response=await handleBoWriteRequest(request(route,true,body,"student-intake-void-key"),env(binding),route);
+  assert.equal(response.status,200);
+  assert.deepEqual(forwarded,[{method:"POST",path:route,body,idempotencyKey:"student-intake-void-key"}]);
+  const broad=`student-intakes/${studentId}/void/extra`;
+  assert.equal((await handleBoWriteRequest(request(broad,true,body,"bad"),env(binding),broad)).status,404);
+  assert.equal(forwarded.length,1);
+});
+
 test("Session shared Syllabus binding write requires replay evidence and forwards only the bounded command",async()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",version="0198d050-56c1-7ac5-b9ab-b0e45d954321",route=`delivery/sessions/${id}/syllabus-binding`,body={learningSyllabusVersionId:version,expectedSessionVersion:4,correctionReason:"Correct published lesson"},forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:200,body:{data:{sessionId:id,learningSyllabusVersionId:version,sessionVersion:5}},requestId:"binding-write"};}};assert.equal((await handleBoStaffOnboardingRequest(request(route,true,body),env(binding),route)).status,400);assert.equal(forwarded.length,0);const response=await handleBoStaffOnboardingRequest(request(route,true,body,"binding-command"),env(binding),route);assert.equal(response.status,200);assert.deepEqual(forwarded,[{method:"POST",path:route,body,idempotencyKey:"binding-command"}]);});
 test("timekeeping correction requires idempotency and forwards only through BO Core", async () => {
   const forwarded: Array<{ request: BoAccessRequest; token: string }> = [];
