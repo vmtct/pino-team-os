@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import { calendarPreviewFingerprint, calendarPreviewMatches } from "@/lib/bo-calendar-closure-preview";
 import type {
   BoCalendarExclusion, BoCalendarExclusionImpact, BoCalendarExclusionReason,
   BoCenter, BoPathProgram, BoRunningClass,
@@ -46,6 +47,7 @@ export function BoCalendarClosuresView() {
   const [end, setEnd] = useState("");
   const [items, setItems] = useState<BoCalendarExclusion[]>([]);
   const [impact, setImpact] = useState<BoCalendarExclusionImpact | null>(null);
+  const [previewedCommandFingerprint, setPreviewedCommandFingerprint] = useState<string | null>(null);
   const [publishKey, setPublishKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export function BoCalendarClosuresView() {
     setItems(await boApi.calendarExclusions(centerId));
   }, [centerId]);
   useEffect(() => { void refresh().catch((value) => setError(errorMessage(value))); }, [refresh]);
-  useEffect(() => { setScopeId(""); setImpact(null); setPublishKey(null); }, [scopeType, centerId]);
+  useEffect(() => { setScopeId(""); setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null); }, [scopeType, centerId]);
 
   const command = useMemo(() => {
     if (!centerId || !start || !end || end < start) return null;
@@ -76,23 +78,31 @@ export function BoCalendarClosuresView() {
     if (scopeType === "RUNNING_CLASS") { if (!scopeId) return null; body.runningClassId = scopeId; }
     return body;
   }, [centerId, scopeType, scopeId, start, end]);
+  const commandFingerprint = useMemo(() => command ? calendarPreviewFingerprint(command) : null, [command]);
+  const currentCommandFingerprint = useRef<string | null>(commandFingerprint);
+  currentCommandFingerprint.current = commandFingerprint;
 
   async function preview() {
-    if (!command) return;
-    setBusy(true); setError(null); setNotice(null);
-    try { setImpact(await boApi.previewCalendarExclusion(command)); setPublishKey(crypto.randomUUID()); }
-    catch (value) { setError(errorMessage(value)); }
+    if (!command || !commandFingerprint) return;
+    const requestedFingerprint = commandFingerprint;
+    setBusy(true); setError(null); setNotice(null); setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null);
+    try {
+      const nextImpact = await boApi.previewCalendarExclusion(command);
+      if (!calendarPreviewMatches(requestedFingerprint, currentCommandFingerprint.current)) return;
+      setImpact(nextImpact); setPreviewedCommandFingerprint(requestedFingerprint); setPublishKey(crypto.randomUUID());
+    }
+    catch (value) { if (calendarPreviewMatches(requestedFingerprint, currentCommandFingerprint.current)) setError(errorMessage(value)); }
     finally { setBusy(false); }
   }
   async function publish() {
-    if (!command || !impact) return;
+    if (!command || !impact || !commandFingerprint || previewedCommandFingerprint !== commandFingerprint) return;
     setBusy(true); setError(null);
     try {
       const key = publishKey ?? crypto.randomUUID();
       if (!publishKey) setPublishKey(key);
       const result = await boApi.createCalendarExclusion({ ...command, reason, reasonDetail: detail.trim() || null }, key);
       setNotice(`Closure published · ${result.impact.sessionsToCancel} future Session(s) cancelled.`);
-      setImpact(null); setPublishKey(null); await refresh();
+      setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null); await refresh();
     } catch (value) { setError(errorMessage(value)); }
     finally { setBusy(false); }
   }
@@ -124,14 +134,14 @@ export function BoCalendarClosuresView() {
         <span className={styles.writePill}>Manager write</span>
       </div>
       <div className={styles.formGrid}>
-        <label className={styles.field}>Center<select value={centerId} onChange={(e) => setCenterId(e.target.value)}>{centers.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>
-        <label className={styles.field}>Scope<select value={scopeType} onChange={(e) => setScopeType(e.target.value as ScopeType)}><option value="HOUSE">Entire center</option><option value="PATH">Path</option><option value="RUNNING_CLASS">Running class</option></select></label>
-        {scopeType === "PATH" ? <label className={styles.field}>Path<select value={scopeId} onChange={(e) => { setScopeId(e.target.value); setImpact(null); setPublishKey(null); }}><option value="">Choose path</option>{paths.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}</select></label> : null}
-        {scopeType === "RUNNING_CLASS" ? <label className={styles.field}>Running class<select value={scopeId} onChange={(e) => { setScopeId(e.target.value); setImpact(null); setPublishKey(null); }}><option value="">Choose class</option>{centerClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label> : null}
-        <label className={styles.field}>Reason<select value={reason} onChange={(e) => { setReason(e.target.value as BoCalendarExclusionReason); setPublishKey(null); }}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-        <label className={styles.field}>Start date<input type="date" value={start} onChange={(e) => { setStart(e.target.value); setImpact(null); setPublishKey(null); }} /></label>
-        <label className={styles.field}>End date<input type="date" min={start} value={end} onChange={(e) => { setEnd(e.target.value); setImpact(null); setPublishKey(null); }} /></label>
-        <label className={styles.field}>Note{reason === "OTHER" ? " (required)" : ""}<input value={detail} onChange={(e) => { setDetail(e.target.value); setPublishKey(null); }} placeholder="Optional operational note" /></label>
+        <label className={styles.field}>Center<select value={centerId} disabled={busy} onChange={(e) => setCenterId(e.target.value)}>{centers.map((c) => <option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>
+        <label className={styles.field}>Scope<select value={scopeType} disabled={busy} onChange={(e) => setScopeType(e.target.value as ScopeType)}><option value="HOUSE">Entire center</option><option value="PATH">Path</option><option value="RUNNING_CLASS">Running class</option></select></label>
+        {scopeType === "PATH" ? <label className={styles.field}>Path<select value={scopeId} disabled={busy} onChange={(e) => { setScopeId(e.target.value); setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null); }}><option value="">Choose path</option>{paths.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}</select></label> : null}
+        {scopeType === "RUNNING_CLASS" ? <label className={styles.field}>Running class<select value={scopeId} disabled={busy} onChange={(e) => { setScopeId(e.target.value); setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null); }}><option value="">Choose class</option>{centerClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label> : null}
+        <label className={styles.field}>Reason<select value={reason} disabled={busy} onChange={(e) => { setReason(e.target.value as BoCalendarExclusionReason); setPublishKey(null); }}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+        <label className={styles.field}>Start date<input type="date" value={start} disabled={busy} onChange={(e) => { setStart(e.target.value); setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null); }} /></label>
+        <label className={styles.field}>End date<input type="date" min={start} value={end} disabled={busy} onChange={(e) => { setEnd(e.target.value); setImpact(null); setPreviewedCommandFingerprint(null); setPublishKey(null); }} /></label>
+        <label className={styles.field}>Note{reason === "OTHER" ? " (required)" : ""}<input value={detail} disabled={busy} onChange={(e) => { setDetail(e.target.value); setPublishKey(null); }} placeholder="Optional operational note" /></label>
       </div>
       <div className={styles.commandBar}>
         <div><strong>Impact preview is mandatory</strong><span>Publication fails closed if an affected future Session already has participation or consumed Open Studio truth.</span></div>
@@ -147,7 +157,7 @@ export function BoCalendarClosuresView() {
         <div><strong>{protectedTruth ? "Cannot publish yet" : "Ready to publish"}</strong>
           <span>{protectedTruth ? `${protectedTruth} Session(s) require explicit reconciliation.` : `${impact.registrationsToCancel} registration(s), ${impact.bookingsToCancel} booking(s), ${impact.openStudioClaimsToRelease} Open Studio reservation(s) will reconcile.`}</span>
         </div>
-        <button className={styles.primaryButton} disabled={busy || protectedTruth > 0 || missingReasonDetail} onClick={() => void publish()}>Publish closure</button>
+        <button className={styles.primaryButton} disabled={busy || protectedTruth > 0 || missingReasonDetail || !commandFingerprint || previewedCommandFingerprint !== commandFingerprint} onClick={() => void publish()}>Publish closure</button>
       </div> : null}
     </section>
     <section className={styles.panel}>
