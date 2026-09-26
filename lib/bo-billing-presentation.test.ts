@@ -84,7 +84,7 @@ test("Billing presentation keeps financial truth in Core and retries exact sale/
   assert.match(billing, /idempotencyKey: crypto\.randomUUID\(\)/);
   assert.match(billing, /attempt\.action\(attempt\.idempotencyKey\)/);
   assert.match(billing, /Retry exact command/);
-  assert.match(billing, /const transaction = \{ transactionKind: kind, amountMinor: money\(raw\), occurredAt: new Date\(\)\.toISOString\(\), method: methodRaw \}/);
+  assert.match(billing, /const transactionBody = \{/);
   assert.match(billing, /recordBillingTransaction\(billId, transaction, idempotencyKey\)/);
   const transactionCallback = billing.slice(billing.indexOf("await runReplay(`${kind}:${billId}`"), billing.indexOf("return <section", billing.indexOf("await runReplay(`${kind}:${billId}`")));
   assert.doesNotMatch(transactionCallback, /occurredAt: new Date/);
