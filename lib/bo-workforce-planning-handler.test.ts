@@ -38,6 +38,20 @@ test("planning bootstrap and ShiftTemplate admin stay inside bounded Workforce f
   ]);
 });
 
+test("JCS04 availability void forwards exact target, reason, and replay key", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async request => { forwarded.push(request); return { status: 200, body: { data: { status: "VOIDED" } }, requestId: "core-void" }; });
+  const id = "01999999-9999-7999-8999-999999999999";
+  const request = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/availability/${id}/void`, {
+    method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "void-key" }),
+    body: JSON.stringify({ reason: "Synthetic journey cleanup", staffMemberId: "forged" }),
+  });
+  const response = await handleBoWorkforcePlanningRequest(request, env(b), `workforce/planning/availability/${id}/void`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-request-id"), "core-void");
+  assert.deepEqual(forwarded, [{ method: "POST", path: `availability/${id}/void`, body: { reason: "Synthetic journey cleanup" }, idempotencyKey: "void-key" }]);
+});
+
 test("assignment and cancellation forward exact idempotency keys", async () => {
   const forwarded: WorkforcePlanningRequest[] = [];
   const b = binding(async request => { forwarded.push(request); return { status: 200, body: { data: { id: "assignment" } }, requestId: "core-write" }; });

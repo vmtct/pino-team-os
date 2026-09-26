@@ -436,7 +436,7 @@ export interface BoWorkforceShiftTemplate {
 }
 
 export interface BoWorkforcePlanningBootstrap {
-  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean }>;
+  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canEditPlanning: boolean }>;
   terms: Array<{ id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; createdAt: string; updatedAt: string }>;
   termWeeks: Array<{ id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; createdAt: string; updatedAt: string }>;
 }
@@ -446,9 +446,12 @@ export interface BoWorkforceAvailability {
   staffMemberId: string;
   centerId: string;
   termWeekId: string;
-  status: "DRAFT" | "SUBMITTED";
+  status: "DRAFT" | "SUBMITTED" | "VOIDED";
   version: number;
   submittedAt: string | null;
+  voidedAt: string | null;
+  voidedByUserId: string | null;
+  voidReason: string | null;
   createdAt: string;
   updatedAt: string;
   items: Array<{ workDate: string; shiftTemplateId: string }>;
@@ -488,6 +491,7 @@ export interface BoWorkforceWeeklyPlanning {
   staff: Array<{ id: string; displayLabel: string }>;
   templates: BoWorkforceShiftTemplate[];
   availability: BoWorkforceAvailability[];
+  availabilityHistory: BoWorkforceAvailability[];
   assignments: BoWorkforceAssignment[];
 }
 

@@ -154,7 +154,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     finally { setSaving(false); }
   }
   async function submitAvailability() {
-    if (!availability) return;
+    if (!availability || availability.status !== "DRAFT") return;
     setSaving(true);
     try { const result = await workforceApi.submitAvailability({ submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
     catch (e) { setError(message(e)); }
@@ -201,12 +201,14 @@ function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {
 }
 function AvailabilityPanel({ week, availability, templates, saving, onOpen, onToggle, onSubmit }: { week: WorkforceContext["termWeeks"][number] | null; availability: Availability | null; templates: ShiftTemplate[]; saving: boolean; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
   const submitted = availability?.status === "SUBMITTED";
+  const voided = availability?.status === "VOIDED";
+  const immutable = submitted || voided;
   const selectedCount = availability?.items.length ?? 0;
   return <section className={`card section ${availabilityStyles.wrap}`}>
-    <div className={availabilityStyles.summary}><div><h2>Đăng ký ca tuần</h2><p>{week ? `${week.code} · ${shortDate(week.startDate)} — ${shortDate(week.endDate)}` : "Chưa có tuần vận hành khả dụng."}</p></div>{availability ? <span className={`${availabilityStyles.status} ${submitted ? availabilityStyles.submitted : availabilityStyles.draft}`}>{submitted ? "Đã gửi" : "Bản nháp"}</span> : null}</div>
+    <div className={availabilityStyles.summary}><div><h2>Đăng ký ca tuần</h2><p>{week ? `${week.code} · ${shortDate(week.startDate)} — ${shortDate(week.endDate)}` : "Chưa có tuần vận hành khả dụng."}</p></div>{availability ? <span className={`${availabilityStyles.status} ${immutable ? availabilityStyles.submitted : availabilityStyles.draft}`}>{voided ? "Đã void" : submitted ? "Đã gửi" : "Bản nháp"}</span> : null}</div>
     {!week ? <div className={availabilityStyles.empty}>Chưa có TermWeek để đăng ký ca.</div> : !availability ? <><div className={availabilityStyles.empty}>Chọn các ca bạn có thể làm trong tuần. Manager sẽ dùng đăng ký này để xếp lịch chính thức.</div><button className="button" disabled={saving} onClick={() => void onOpen()}>Bắt đầu đăng ký</button></> : <>
-      <div className={availabilityStyles.days}>{weekDates(week).map((date) => <div className={availabilityStyles.day} key={date}><div className={availabilityStyles.date}><span>{weekday(date)}</span><strong>{dayNumber(date)}</strong><span>{monthLabel(date)}</span></div><div className={availabilityStyles.shifts}>{templates.map((template) => { const selected = availability.items.some((item) => item.workDate === date && item.shiftTemplateId === template.id); return <button key={`${date}:${template.id}`} className={`${availabilityStyles.shift} ${selected ? availabilityStyles.selected : ""}`} disabled={saving || submitted} onClick={() => void onToggle(date, template.id)} aria-pressed={selected}><strong>{selected ? "✓ " : ""}{template.displayLabel}</strong><span>{template.startLocalTime}–{template.endLocalTime}</span></button>; })}</div></div>)}</div>
-      <div className={availabilityStyles.actions}><p>{submitted ? "Đăng ký đã gửi. V1 không cho sửa sau submit." : `Đã chọn ${selectedCount} ca khả dụng. Đây chưa phải lịch làm việc chính thức.`}</p>{!submitted ? <button className={`button ${availabilityStyles.submit}`} disabled={saving} onClick={() => void onSubmit()}>{saving ? "Đang lưu…" : "Gửi cho Manager"}</button> : null}</div>
+      <div className={availabilityStyles.days}>{weekDates(week).map((date) => <div className={availabilityStyles.day} key={date}><div className={availabilityStyles.date}><span>{weekday(date)}</span><strong>{dayNumber(date)}</strong><span>{monthLabel(date)}</span></div><div className={availabilityStyles.shifts}>{templates.map((template) => { const selected = availability.items.some((item) => item.workDate === date && item.shiftTemplateId === template.id); return <button key={`${date}:${template.id}`} className={`${availabilityStyles.shift} ${selected ? availabilityStyles.selected : ""}`} disabled={saving || immutable} onClick={() => void onToggle(date, template.id)} aria-pressed={selected}><strong>{selected ? "✓ " : ""}{template.displayLabel}</strong><span>{template.startLocalTime}–{template.endLocalTime}</span></button>; })}</div></div>)}</div>
+      <div className={availabilityStyles.actions}><p>{voided ? `Đăng ký lịch sử đã được Manager/Founder void${availability?.voidReason ? `: ${availability.voidReason}` : "."} Staff không thể sửa hoặc mở lại nội dung này.` : submitted ? "Đăng ký đã gửi. V1 không cho sửa sau submit." : `Đã chọn ${selectedCount} ca khả dụng. Đây chưa phải lịch làm việc chính thức.`}</p>{!immutable ? <button className={`button ${availabilityStyles.submit}`} disabled={saving} onClick={() => void onSubmit()}>{saving ? "Đang lưu…" : "Gửi cho Manager"}</button> : null}</div>
     </>}
   </section>;
 }

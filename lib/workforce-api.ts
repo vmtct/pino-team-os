@@ -4,7 +4,7 @@ export interface Assignment{id:string;centerId:string;workDate:string;shiftTempl
 export interface TimekeepingSession{id:string;centerId:string;assignmentId:string|null;workDate:string;status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null}
 export interface UnscheduledCheckInRequest{id:string;staffMemberId:string;centerId:string;workDate:string;reason:string;status:"REQUESTED"|"APPROVED"|"DECLINED"|"CANCELLED";requestedAt:string;requestedByUserId:string;approvedAt:string|null;approvedByUserId:string|null;declinedAt:string|null;declinedByUserId:string|null;declineReason:string|null;generatedAssignmentId:string|null;version:number;createdAt:string;updatedAt:string}
 export type UnscheduledCheckInSelfState={kind:"ELIGIBLE_ASSIGNMENT";assignment:Assignment}|{kind:"NO_ELIGIBLE_ASSIGNMENT";request:null}|{kind:"REQUESTED"|"DECLINED"|"APPROVED"|"CANCELLED";request:UnscheduledCheckInRequest}
-export interface Availability{id:string;centerId:string;termWeekId:string;status:"DRAFT"|"SUBMITTED";version:number;items:Array<{workDate:string;shiftTemplateId:string}>}
+export interface Availability{id:string;centerId:string;termWeekId:string;status:"DRAFT"|"SUBMITTED"|"VOIDED";version:number;submittedAt?:string|null;voidedAt?:string|null;voidedByUserId?:string|null;voidReason?:string|null;items:Array<{workDate:string;shiftTemplateId:string}>}
 export interface ShiftTemplate{id:string;code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}
 export type DutyGateAction="CHECK_IN"|"TIMED_MILESTONE"|"CHECK_OUT";
 export type DutyStatus="PENDING"|"SATISFIED"|"WAIVED"|"BLOCKED";
