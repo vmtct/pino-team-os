@@ -155,7 +155,7 @@ function apiError(response: Response, body: { error?: { message?: string; reques
 type BoScopeBootstrap = {
   centers: Array<{ id: string; centerKey: string; displayName: string; timeZone: string; status: string }>;
   paths: Array<{ id: string; code: string; displayName: string; status: string }>;
-  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; optimalConcurrentCapacity: number; status: string }>;
+  runningClasses: Array<{ id: string; pathProgramId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: "FIXED_COHORT" | "FLEXIBLE_STUDIO" | "OVERLAPPING_COHORT"; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; status: string }>;
 };
 
 type AccessAssignmentCommand = {
@@ -173,7 +173,7 @@ export const boApi = {
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
-      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
   centers: () => read<BoCenter>("centers"),
@@ -243,6 +243,8 @@ export const boApi = {
   subscriptionProjectedCompletion: (subscriptionId: string, effectiveAt: string) => readOne<BoSubscriptionProjectedCompletion>(`subscriptions/${encodeURIComponent(subscriptionId)}/projected-completion?effectiveAt=${encodeURIComponent(effectiveAt)}`),
   cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, idempotencyKey),
   placeEnrollment: (body: { subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null; commandEffectiveLocalDate: string; policyEffectiveAt: string }, idempotencyKey: string) => write<unknown>("enrollments", body, idempotencyKey),
+  preflightBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string }) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; missing: number; reused: number }>("enrollments/bulk-preflight", body, crypto.randomUUID()),
+  placeBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string; policyEffectiveAt: string }, idempotencyKey: string) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; created: number; reused: number }>("enrollments/bulk-place", body, idempotencyKey),
   endEnrollment: (enrollmentId: string, body: { effectiveUntilExclusiveLocalDate: string; expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/end`, body, idempotencyKey),
   resetParentPin: (parentUserId: string) => write<{ command: string; temporaryPin: string; expiresAt: string; credentialVersion: number }>(`identity/parents/${encodeURIComponent(parentUserId)}/pin/reset`, {}, crypto.randomUUID()),
   openStudioOperations: (centerId?: string) => readOne<BoOpenStudioOperations>(`open-studio/operations${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
