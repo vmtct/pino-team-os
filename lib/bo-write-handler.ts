@@ -35,6 +35,7 @@ const DELIVERY_POST_PATHS = new Set([
 ]);
 const TERM_WEEK_COMMAND = /^delivery\/term-weeks\/[0-9a-f-]{36}\/(update|delete)$/;
 const TERM_NEUTRALIZE_COMMAND = /^delivery\/terms\/[0-9a-f-]{36}\/neutralize$/;
+const DELIVERY_CONFIG_LIFECYCLE = /^delivery\/(?:learning-spaces|running-classes)\/[0-9a-f-]{36}\/lifecycle$/;
 const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
 const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
@@ -180,6 +181,7 @@ export function isAllowedPostPath(path: string): boolean {
     || DELIVERY_POST_PATHS.has(path)
     || TERM_WEEK_COMMAND.test(path)
     || TERM_NEUTRALIZE_COMMAND.test(path)
+    || DELIVERY_CONFIG_LIFECYCLE.test(path)
     || MATERIALIZATION_PUBLISH.test(path)
     || LEARNING_OWNER_PATH.test(path)
     || SESSION_SYLLABUS_BINDING_PATH.test(path)
