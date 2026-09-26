@@ -13,6 +13,7 @@ import type {
   BoLearnerEnrollment,
   BoLearnerLifecycle,
   BoLearnerSubscription,
+  BoStudentIntakeVoidResult,
   BoSubscriptionProjectedCompletion,
   BoBillSummary,
   BoPaymentMethod,
@@ -232,6 +233,8 @@ export const boApi = {
     }
     return result;
   },
+  voidStudentIntake: (studentId: string, body: { expectedStudentVersion: number; reason: string }, idempotencyKey: string) =>
+    write<BoStudentIntakeVoidResult>("student-intakes/" + encodeURIComponent(studentId) + "/void", body, idempotencyKey),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
