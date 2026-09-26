@@ -20,6 +20,7 @@ export function BoLearnersView() {
   const [filter, setFilter] = useState<Filter>("active");
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [neutralizeTarget, setNeutralizeTarget] = useState<BoLearnerLifecycle | null>(null);
   const detailRequestFence = useRef(new LatestRequestFence());
   const selectedIdRef = useRef<string | null>(null);
 
@@ -128,10 +129,15 @@ export function BoLearnersView() {
       </aside>
 
       <section className={styles.detail}>
-        {selectedId ? <LearnerDetail load={detail} catalog={catalog.data} /> : <State text="Chọn học viên để mở hồ sơ." />}
+        {selectedId ? <LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /> : <State text="Chọn học viên để mở hồ sơ." />}
       </section>
     </section>
     {showCreate ? <CreateStudentIntake onClose={() => setShowCreate(false)} onCreated={async (studentId) => { setShowCreate(false); await loadDirectory(); selectStudent(studentId); }} /> : null}
+    {neutralizeTarget ? <NeutralizeStudentIntake lifecycle={neutralizeTarget} onClose={() => setNeutralizeTarget(null)} onNeutralized={async () => {
+      setNeutralizeTarget(null);
+      selectStudent(null);
+      await loadDirectory();
+    }} /> : null}
 
   </main>;
 }
@@ -195,6 +201,57 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
   </div>;
 }
 
+function NeutralizeStudentIntake({ lifecycle, onClose, onNeutralized }: { lifecycle: BoLearnerLifecycle; onClose: () => void; onNeutralized: () => Promise<void> }) {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<Awaited<ReturnType<typeof boApi.voidStudentIntake>> | null>(null);
+  const [attempt, setAttempt] = useState<{ idempotencyKey: string; expectedStudentVersion: number; reason: string } | null>(null);
+  const [canResetAttempt, setCanResetAttempt] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true); setError(""); setCanResetAttempt(false);
+    const currentAttempt = attempt ?? { idempotencyKey: crypto.randomUUID(), expectedStudentVersion: lifecycle.student.version, reason: reason.trim() };
+    if (!attempt) setAttempt(currentAttempt);
+    try {
+      const value = await boApi.voidStudentIntake(lifecycle.student.id, { expectedStudentVersion: currentAttempt.expectedStudentVersion, reason: currentAttempt.reason }, currentAttempt.idempotencyKey);
+      setResult(value);
+    } catch (cause) {
+      setError(message(cause));
+      setCanResetAttempt(cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
+    } finally { setBusy(false); }
+  }
+
+  const attemptLocked = attempt !== null;
+  const uncertainAttempt = attemptLocked && Boolean(error) && !canResetAttempt;
+  function resetAttempt() { setAttempt(null); setCanResetAttempt(false); setError(""); }
+  function closeIfSafe() { if (!busy && !uncertainAttempt) onClose(); }
+  const disposition = result?.parentDisposition === "ARCHIVED"
+    ? "Parent/contact do intake này tạo riêng đã được lưu trữ an toàn."
+    : result?.parentDisposition === "REUSED_UNCHANGED"
+      ? "Parent được reuse được giữ nguyên."
+      : result ? "Parent/contact còn dependency nên được giữ nguyên." : "";
+
+  return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeIfSafe(); }}>
+    <form className={styles.modal} onSubmit={(event) => void submit(event)}>
+      <header><div><span>School · Student lifecycle</span><h2>Lưu trữ intake</h2><p>{lifecycle.student.displayName}</p></div><button type="button" onClick={closeIfSafe} disabled={busy || uncertainAttempt}>×</button></header>
+      {result ? <div className={styles.neutralizeSuccess}><strong>Đã neutralize Student + Guardian.</strong><span>{disposition}</span></div> : <>
+        <div className={styles.neutralizeWarning}><strong>Thao tác có kiểm soát</strong><span>Student sẽ chuyển sang ARCHIVED và Guardian của intake sẽ kết thúc. Parent/contact chỉ được lưu trữ nếu chính intake này tạo mới và không còn relationship hoặc dependency đang sống.</span></div>
+        {error ? <div className={styles.formError}>{error}{uncertainAttempt ? <><br /><small>Kết quả chưa xác định. Hãy thử lại cùng yêu cầu để đối soát an toàn.</small></> : null}</div> : null}
+        <label className={styles.reasonField}>Lý do<input required minLength={3} disabled={attemptLocked} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ví dụ: Intake tạo nhầm trong vận hành" /></label>
+      </>}
+      <footer>
+        {result ? <button type="button" className={styles.primaryButton} onClick={() => void onNeutralized()}>Đóng & Clean Verify</button> : <>
+          {attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa lý do / tải lại</button> : null}
+          <button type="button" className={styles.secondaryButton} onClick={closeIfSafe} disabled={busy || uncertainAttempt}>Hủy</button>
+          <button type="submit" className={styles.dangerButton} disabled={busy || !reason.trim()}>{busy ? "Đang lưu trữ…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Xác nhận lưu trữ"}</button>
+        </>}
+      </footer>
+    </form>
+  </div>;
+}
+
 function Metric({ label, value, note }: { label: string; value: number; note: string }) {
   return <article className={styles.metric}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
 }
@@ -216,14 +273,14 @@ function StudentButton({ student, active, onClick }: { student: BoLearnerDirecto
   </button>;
 }
 
-function LearnerDetail({ load, catalog }: { load: Load<BoLearnerLifecycle> | null; catalog: Catalog }) {
+function LearnerDetail({ load, catalog, onNeutralize }: { load: Load<BoLearnerLifecycle> | null; catalog: Catalog; onNeutralize: (lifecycle: BoLearnerLifecycle) => void }) {
   if (!load || load.state === "loading") return <State text="Đang tải lifecycle…" />;
   if (load.state === "error") return <State text={load.message} error />;
   const data = load.data;
   const active = data.subscriptions.filter((entry) => entry.subscription.lifecycle === "ACTIVE");
   const units = active.reduce((sum, entry) => sum + entry.subscription.effectiveAvailableUnits, 0);
   return <>
-    <StudentHero lifecycle={data} activeCount={active.length} />
+    <StudentHero lifecycle={data} activeCount={active.length} onNeutralize={() => onNeutralize(data)} />
     <AttentionCard lifecycle={data} />
     <LearningSection lifecycle={data} catalog={catalog} />
     <StudentPinoriaPanel studentId={data.student.id} />
@@ -235,14 +292,14 @@ function LearnerDetail({ load, catalog }: { load: Load<BoLearnerLifecycle> | nul
   </>;
 }
 
-function StudentHero({ lifecycle, activeCount }: { lifecycle: BoLearnerLifecycle; activeCount: number }) {
+function StudentHero({ lifecycle, activeCount, onNeutralize }: { lifecycle: BoLearnerLifecycle; activeCount: number; onNeutralize: () => void }) {
   const student = lifecycle.student;
   return <section className={styles.heroCard}>
     <div className={styles.heroIdentity}>
       <span className={styles.avatarLarge}>{initials(student.displayName)}</span>
       <div><span className={styles.eyebrow}>Student profile</span><h2>{student.displayName}</h2><p>{ageLabel(student.birthYear)}</p></div>
     </div>
-    <div className={styles.heroActions}><Link className={styles.secondaryButton} href={`/bo/subscriptions?studentId=${encodeURIComponent(student.id)}`}>Mở Subscription</Link><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
+    <div className={styles.heroActions}><Link className={styles.secondaryButton} href={`/bo/subscriptions?studentId=${encodeURIComponent(student.id)}`}>Mở Subscription</Link><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link><button type="button" className={styles.dangerButton} onClick={onNeutralize}>Lưu trữ intake</button></div>
     <div className={styles.heroStatus}>
       <span className={activeCount ? styles.statusActive : styles.statusMuted}>{activeCount ? "Đang học" : "Chưa active"}</span>
       {lifecycle.houseMembership ? <span>House Member</span> : null}

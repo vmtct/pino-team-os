@@ -332,6 +332,16 @@ export interface BoLearnerLifecycle {
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
 }
 
+export interface BoStudentIntakeVoidResult {
+  studentProfileId: string;
+  studentStatus: "ARCHIVED";
+  guardianRelationshipId: string;
+  guardianStatus: "ENDED";
+  parentUserId: string;
+  parentDisposition: "REUSED_UNCHANGED" | "PRESERVED_SHARED" | "ARCHIVED";
+  retiredContactCount: number;
+}
+
 export type BoCompanionFeedUnavailableReason = "NO_OPEN_VISIT" | "MULTIPLE_OPEN_VISITS" | "NO_FRUIT" | "RITUAL_READY" | "FEED_LIMIT_REACHED" | "LEVEL_UNDEFINED" | "NOT_AUTHORIZED" | null;
 export interface BoStudentPinoriaSummary {
   fruitBalance: number;
