@@ -10,6 +10,7 @@ const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/projected-completion$/;
+const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -48,7 +49,9 @@ export function isStaffRegistrationProtectedReadPath(path: string): boolean {
 }
 
 export function isOperationalReadPath(path: string): boolean {
-  return path === "centers"
+  return path === "billing/product-plans"
+    || BILLING_BILL_READ.test(path)
+    || path === "centers"
     || path === "acquisition/intents"
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
     || path === "delivery/bootstrap-state"

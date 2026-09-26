@@ -69,7 +69,7 @@ test("Commercial commands preserve exact replay evidence across uncertain outcom
   assert.match(view, /attempt\.action\(attempt\.idempotencyKey\)/);
   assert.match(view, /definitiveRejection = error instanceof BoApiError && error\.structuredResponse && error\.status >= 400 && error\.status < 500/);
   assert.match(view, /Thử lại cùng yêu cầu/);
-  assert.match(view, /blocked=\{Boolean\(commandState\.busy \|\| pendingAttempt\)\}/);
+  assert.match(view, /blocked=\{Boolean\(commandState\.busy \|\| pendingAttempt \|\| billingReplay\.busy \|\| billingReplay\.pending\)\}/);
   for (const command of ["createSubscription", "renewSubscription", "cancelSubscription", "placeEnrollment", "endEnrollment"]) {
     assert.match(api, new RegExp(`${command}:[^\n]+idempotencyKey: string`));
   }

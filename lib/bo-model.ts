@@ -281,7 +281,10 @@ export interface BoLearnerSubscription {
   pathDisplayName: string;
   lifecycle: string;
   serviceStartsOn: string | null;
+  contractualStartsOn: string | null;
   contractualEndsOn: string | null;
+  productPlanId: string | null;
+  termWeeks: 12 | 24 | 48 | null;
   weeklyCommitment: number;
   predecessorSubscriptionId: string | null;
   transitionType: string | null;
@@ -295,6 +298,16 @@ export type BoSubscriptionProjectedCompletion =
   | { status: "PROJECTED"; subscriptionId: string; remainingUnits: number; projectedCompletionLocalDate: string; calculatedAt: string }
   | { status: "ACTUAL"; subscriptionId: string; completedAt: string }
   | { status: "UNAVAILABLE"; subscriptionId: string; reason: string; remainingUnits: number; placementState: string | null; calculatedAt: string };
+
+export type BoProductPlanBadge = "ENTRY" | "HERO" | "STANDARD";
+export type BoPaymentTransactionKind = "PAYMENT" | "REFUND";
+export type BoPaymentMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+export interface BoProductPlan { id: string; cadence: number; termWeeks: 12 | 24 | 48; purchasedUnits: number; listPriceMinor: number; currency: string; enabled: boolean; badge: BoProductPlanBadge; createdAt: string; updatedAt: string; version: number }
+export interface BoBill { id: string; payerParentUserId: string; currency: string; billDiscountMinor: number; dueOn: string | null; campaignReference: string | null; voidedAt: string | null; createdAt: string; updatedAt: string; version: number }
+export interface BoBillItem { id: string; billId: string; productPlanId: string; studentProfileId: string; subscriptionId: string; quantity: number; unitPriceMinor: number; discountAmountMinor: number; descriptionSnapshot: string; createdAt: string }
+export interface BoPaymentTransaction { id: string; billId: string; transactionKind: BoPaymentTransactionKind; amountMinor: number; occurredAt: string; method: BoPaymentMethod; reference: string | null; note: string | null; status: "CONFIRMED" | "VOID"; createdAt: string; updatedAt: string; version: number }
+export interface BoBillSummary { bill: BoBill; items: BoBillItem[]; transactions: BoPaymentTransaction[]; grossAmountMinor: number; itemDiscountMinor: number; netAmountMinor: number; collectedAmountMinor: number; balanceMinor: number; paymentState: "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOID"; isOverdue: boolean }
+export interface BoSaleResult { productPlan: BoProductPlan; bill: BoBillSummary; billItem: BoBillItem; subscriptionId: string; contractualStartsOn: string; contractualEndsOn: string; purchasedUnits: number }
 
 export interface BoLearnerEnrollment {
   id: string;

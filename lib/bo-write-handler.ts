@@ -38,6 +38,11 @@ const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const STUDENT_INTAKE_PATH = "student-intakes";
 const ACQUISITION_INTENT_COMMAND = /^acquisition\/intents\/[0-9a-f-]{36}\/(contacted|verify-contact|close)$/;
+const BILLING_PLAN_CONFIG_PATH = /^billing\/product-plans\/([0-9a-f-]{36})\/configure$/;
+const BILLING_SALE_PATH = "billing/sales";
+const BILLING_TRANSACTION_PATH = /^billing\/bills\/[0-9a-f-]{36}\/transactions$/;
+const BILLING_BILL_VOID_PATH = /^billing\/bills\/[0-9a-f-]{36}\/void$/;
+const BILLING_TRANSACTION_VOID_PATH = /^billing\/transactions\/[0-9a-f-]{36}\/void$/;
 const SUBSCRIPTION_CREATE_PATH = "subscriptions";
 const SUBSCRIPTION_COMMAND_PATH = /^subscriptions\/[0-9a-f-]{36}\/(activate|renew|supersede|cancel|service-grants|pauses|renewal-grace)$/;
 const SUBSCRIPTION_PAUSE_CANCEL_PATH = /^subscription-pauses\/[0-9a-f-]{36}\/cancel$/;
@@ -77,7 +82,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
+    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -96,7 +101,12 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Companion Feed request body must be empty" } }, 400);
     }
 
-    const coreRequest: BoAccessRequest = {
+    const billingPlanConfig = BILLING_PLAN_CONFIG_PATH.exec(path);
+    const coreRequest: BoAccessRequest = billingPlanConfig ? {
+      method: "PATCH",
+      path: `billing/product-plans/${billingPlanConfig[1]}`,
+      body,
+    } : {
       method: request.method,
       path,
       body,
@@ -182,6 +192,11 @@ export function isAllowedPostPath(path: string): boolean {
     || WARD_SET_WRITE.test(path)
     || WARD_LEARNER_WRITE.test(path)
     || path === WARD_SET_MEDIA
+    || BILLING_PLAN_CONFIG_PATH.test(path)
+    || path === BILLING_SALE_PATH
+    || BILLING_TRANSACTION_PATH.test(path)
+    || BILLING_BILL_VOID_PATH.test(path)
+    || BILLING_TRANSACTION_VOID_PATH.test(path)
     || WEB_CMS_WRITE.test(path);
 }
 
