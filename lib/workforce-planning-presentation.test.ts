@@ -13,6 +13,8 @@ test("WFM-PLAN TOS availability keeps submission distinct from final assignment"
   assert.match(source, /availability\?\.status === "SUBMITTED"/);
   assert.match(source, /workforceApi\.submitAvailability/);
   assert.doesNotMatch(source, /self-assign|assignWorkforceShift/);
+  assert.match(source, /availability\?\.status === "VOIDED"/);
+  assert.match(source, /Staff không thể sửa hoặc mở lại nội dung này/);
 });
 
 test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", async () => {
@@ -41,4 +43,15 @@ test("WFM-PLAN BO uses Workforce bootstrap and governed ShiftTemplate administra
   assert.match(source, /setWorkforceShiftTemplateStatus/);
   assert.match(source, /workforce\.shift_template\.manage/);
   assert.match(source, /Template đã dùng không sửa giờ trực tiếp/);
+});
+
+
+test("JCS04 BO exposes governed availability history and operator void only through planning edit authority", async () => {
+  const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
+  assert.match(source, /availabilityHistory/);
+  assert.match(source, /canEditPlanning/);
+  assert.match(source, /voidWorkforceAvailability/);
+  assert.match(source, /Void availability/);
+  assert.match(source, /history được giữ nguyên và không còn dùng làm planning input/);
+  assert.doesNotMatch(source, /deleteWorkforceAvailability|reopenAvailability/);
 });

@@ -20,6 +20,7 @@ export function WorkforcePlanningView() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [reason, setReason] = useState("");
+  const [availabilityVoidReason, setAvailabilityVoidReason] = useState("");
   const [shiftTemplates, setShiftTemplates] = useState<BoWorkforceShiftTemplate[]>([]);
   const [templateDraft, setTemplateDraft] = useState({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
 
@@ -84,7 +85,7 @@ export function WorkforcePlanningView() {
 
   function changeCenter(nextCenter: string) {
     setCenterId(nextCenter);
-    setSelection(null); setNotice(""); setReason("");
+    setSelection(null); setNotice(""); setReason(""); setAvailabilityVoidReason("");
     const candidates = weeks.filter((week) => week.centerId === nextCenter);
     setTermWeekId(chooseWeek(candidates)?.id ?? "");
   }
@@ -94,6 +95,19 @@ export function WorkforcePlanningView() {
   const activeAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate && item.status === "ACTIVE") : [];
   const historyAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate) : [];
   const availableTemplateIds = data && selection ? new Set(data.availability.filter((item) => item.staffMemberId === selection.staffMemberId).flatMap((item) => item.items.filter((entry) => entry.workDate === selection.workDate).map((entry) => entry.shiftTemplateId))) : new Set<string>();
+  const selectedAvailabilityHistory = data && selection ? data.availabilityHistory.filter((item) => item.staffMemberId === selection.staffMemberId) : [];
+
+  async function voidAvailability(submissionId: string) {
+    const normalizedReason = availabilityVoidReason.trim();
+    if (!normalizedReason) return;
+    setBusy(`availability:void:${submissionId}`); setNotice("");
+    try {
+      await boApi.voidWorkforceAvailability(submissionId, normalizedReason, crypto.randomUUID());
+      setAvailabilityVoidReason("");
+      setNotice("Availability đã được void; history được giữ nguyên và không còn dùng làm planning input.");
+      await refresh();
+    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
+  }
 
   async function createShiftTemplate() {
     if (!centerId || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime) return;
@@ -230,6 +244,20 @@ export function WorkforcePlanningView() {
             <span>Availability: {availableTemplateIds.size ? `${availableTemplateIds.size} ca` : "không đăng ký"}</span>
             <span>Active assignment: {activeAssignments.length}</span>
           </div>
+          {selectedAvailabilityHistory.length ? <div className={styles.plannerHistory}>
+            <strong>Availability history</strong>
+            {selectedAvailabilityHistory.map((item) => <span key={item.id}>
+              {item.status} · submitted {item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : "—"}
+              {item.status === "VOIDED" ? ` · ${item.voidReason ?? "Voided"}` : ""}
+              {item.status === "SUBMITTED" && selectedCenter?.canEditPlanning ? <>
+                <label className={styles.field}>Lý do void availability
+                  <input value={availabilityVoidReason} onChange={(event) => setAvailabilityVoidReason(event.target.value)} placeholder="Bắt buộc; lưu vào audit history" />
+                </label>
+                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Void availability"}</button>
+              </> : null}
+            </span>)}
+          </div> : null}
+
           <label className={styles.field}>Shift Template
             <select value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
               <option value="">Chọn ca…</option>
