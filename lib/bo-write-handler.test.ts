@@ -28,11 +28,28 @@ test("Term and TermWeek commands require replay evidence and forward exact bound
   const deleteRoute=`delivery/term-weeks/${weekId}/delete`,deleteBody={centerId,expectedUpdatedAt:"2026-10-02T00:00:00.000Z"};
   assert.equal((await handleBoWriteRequest(request(deleteRoute,true,deleteBody),env(binding),deleteRoute)).status,400);
   assert.equal((await handleBoWriteRequest(request(deleteRoute,true,deleteBody,"delete-key"),env(binding),deleteRoute)).status,200);
+  const neutralizeRoute=`delivery/terms/${termId}/neutralize`,neutralizeBody={centerId,expectedUpdatedAt:"2026-10-01T00:00:00.000Z"};
+  assert.equal((await handleBoWriteRequest(request(neutralizeRoute,true,neutralizeBody),env(binding),neutralizeRoute)).status,400);
+  assert.equal((await handleBoWriteRequest(request(neutralizeRoute,true,neutralizeBody,"term-neutralize-key"),env(binding),neutralizeRoute)).status,200);
   assert.deepEqual(forwarded,[
     {method:"POST",path:termRoute,body:termBody,idempotencyKey:"term-key"},
     {method:"POST",path:weekRoute,body:weekBody,idempotencyKey:"week-key"},
     {method:"POST",path:updateRoute,body:updateBody,idempotencyKey:"update-key"},
     {method:"POST",path:deleteRoute,body:deleteBody,idempotencyKey:"delete-key"},
+    {method:"POST",path:neutralizeRoute,body:neutralizeBody,idempotencyKey:"term-neutralize-key"},
+  ]);
+});
+
+test("JCS05 delivery config lifecycle forwards only bounded status commands", async()=>{
+  const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:200,body:{data:{id,status:"ARCHIVED",version:2}},requestId:"lifecycle"};}};
+  for(const route of [`delivery/learning-spaces/${id}/lifecycle`,`delivery/running-classes/${id}/lifecycle`]){
+    const body={status:"ARCHIVED",expectedVersion:1};
+    assert.equal((await handleBoWriteRequest(request(route,true,body),env(binding),route)).status,200);
+  }
+  assert.deepEqual(forwarded,[
+    {method:"POST",path:`delivery/learning-spaces/${id}/lifecycle`,body:{status:"ARCHIVED",expectedVersion:1}},
+    {method:"POST",path:`delivery/running-classes/${id}/lifecycle`,body:{status:"ARCHIVED",expectedVersion:1}},
   ]);
 });
 

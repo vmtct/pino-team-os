@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BoApiError } from "@/lib/bo-api";
-import { f3DeliveryApi, type DeliveryTopology, type F3BootstrapState, type F3TermWeek } from "@/lib/f3-delivery-api";
+import { f3DeliveryApi, type DeliveryStatus, type DeliveryTopology, type F3BootstrapState, type F3LearningSpace, type F3RunningClass, type F3Term, type F3TermWeek } from "@/lib/f3-delivery-api";
 import { applyReviewedF3Seed } from "@/lib/f3-reviewed-seed";
 import { activateReviewedEnrollments } from "@/lib/f4-enrollment-api";
 import styles from "../bo.module.css";
@@ -67,8 +67,11 @@ export function DeliveryActivationView() {
   const data = load.data;
   const center = data.centers.find((item) => item.id === centerId) ?? null;
   const spaces = data.learningSpaces.filter((item) => item.centerId === centerId);
+  const activeSpaces = data.activeLearningSpaces.filter((item) => item.centerId === centerId);
+  const neutralizedSpaces = spaces.filter((item) => item.status !== "ACTIVE");
   const classes = data.runningClasses.filter((item) => item.centerId === centerId);
-  const activeClasses = classes.filter((item) => item.status === "ACTIVE");
+  const activeClasses = data.activeRunningClasses.filter((item) => item.centerId === centerId);
+  const neutralizedClasses = classes.filter((item) => item.status !== "ACTIVE");
   const classIdsWithBlocks = new Set(data.runningClassBlocks.map((item) => item.runningClassId));
   const classesMissingBlocks = activeClasses.filter((item) => item.deliveryTopology !== "FLEXIBLE_STUDIO" && !classIdsWithBlocks.has(item.id));
   const centerPolicy = data.materializationPolicyStreams.find((item) => item.targetType === "CENTER" && item.targetId === centerId) ?? null;
@@ -183,6 +186,30 @@ export function DeliveryActivationView() {
     });
   }
 
+  function neutralizeTerm(term: F3Term) {
+    if (!centerId || term.weekCount !== 0 || !window.confirm(`Neutralize Term ${term.displayName}? This succeeds only when no TermWeek or operational reference remains.`)) return;
+    void run("Neutralizing Term", async () => {
+      await f3DeliveryApi.neutralizeTerm(term.id, { centerId, expectedUpdatedAt: term.updatedAt });
+      if (termId === term.id) setTermId("");
+      return `Term neutralized: ${term.displayName}`;
+    });
+  }
+
+  function transitionLearningSpace(item: F3LearningSpace, status: Exclude<DeliveryStatus, "ACTIVE">) {
+    if (!window.confirm(`Set Learning Space ${item.displayName} to ${status}? Active Running Classes must be neutralized first.`)) return;
+    void run("Neutralizing Learning Space", async () => {
+      const updated = await f3DeliveryApi.transitionLearningSpace(item.id, { status, expectedVersion: item.version });
+      return `Learning Space ${updated.displayName} is now ${updated.status}.`;    });
+  }
+
+  function transitionRunningClass(item: F3RunningClass, status: Exclude<DeliveryStatus, "ACTIVE">) {
+    if (!window.confirm(`Set Running Class ${item.operationalName} to ${status}? Existing Sessions remain historical truth.`)) return;
+    void run("Neutralizing Running Class", async () => {
+      const updated = await f3DeliveryApi.transitionRunningClass(item.id, { status, expectedVersion: item.version });
+      return `Running Class ${updated.operationalName} is now ${updated.status}.`;
+    });
+  }
+
   function publishPolicy() {
     if (!centerId) return;
     void run("Publishing materialization policy", async () => {
@@ -263,6 +290,8 @@ export function DeliveryActivationView() {
             <button className={styles.primaryButton} type="button" disabled={action.status === "running" || !termWeekCode.trim() || !termWeekOrdinal || !termWeekStart || !termWeekEnd || !termWeekRhythm.trim()} onClick={saveTermWeek}>{editingTermWeekId ? "Save TermWeek" : "Create TermWeek"}</button>
           </div>
           {selectedTermWeeks.length ? <div className={styles.tableWrap}><table><thead><tr><th>Week</th><th>Ordinal</th><th>Dates</th><th>Rhythm</th><th>Actions</th></tr></thead><tbody>{selectedTermWeeks.map((week) => <tr key={week.id}><td>{week.code}</td><td>{week.ordinal}</td><td>{week.startDate} → {week.endDate}</td><td>{week.rhythmKey}</td><td><button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => startEditTermWeek(week)}>Edit</button>{" "}<button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => deleteTermWeek(week)}>Delete</button></td></tr>)}</tbody></table></div> : <p>Term này chưa có TermWeek. Prefill chỉ điền code + ordinal; dates và rhythm phải được operator xác nhận explicit.</p>}
+          <p>Neutralize Term chỉ mở khi TermWeek đã được cleanup. Nếu operational history còn tham chiếu, Core sẽ fail closed.</p>
+          <button className={styles.secondaryButton} type="button" disabled={action.status === "running" || selectedTerm.weekCount !== 0} onClick={() => neutralizeTerm(selectedTerm)}>Neutralize Term</button>
         </> : <State compact error title="TermWeek blocked" message="Tạo Term đầu tiên ở form phía trên để mở TermWeek." />}
       </section>
 
@@ -282,14 +311,15 @@ export function DeliveryActivationView() {
         <div className={styles.panelHeading}><div><h2>1 · Learning Space</h2><p>Enter a real operational space and its concurrency limits.</p></div><span className={styles.writePill}>Explicit write</span></div>
         <div className={styles.formGrid}><Field label="Code" value={spaceCode} onChange={setSpaceCode} placeholder="piano-room" /><Field label="Display name" value={spaceName} onChange={setSpaceName} placeholder="Piano Room" /><Field label="Optimal capacity" type="number" value={spaceOptimal} onChange={setSpaceOptimal} /><Field label="Hard capacity (optional)" type="number" value={spaceHard} onChange={setSpaceHard} /></div>
         <button className={styles.primaryButton} type="button" disabled={!centerId || action.status === "running"} onClick={createSpace}>Create Learning Space</button>
-        {spaces.length ? <CompactTable rows={spaces.map((item) => [item.displayName, item.code, `${item.optimalConcurrentCapacity}/${item.hardConcurrentCapacity ?? "—"}`, item.status])} headers={["Space", "Code", "Optimal / hard", "Status"]} /> : null}
+        {activeSpaces.length ? <div className={styles.tableWrap}><table><thead><tr><th>Space</th><th>Capacity</th><th>Actions</th></tr></thead><tbody>{activeSpaces.map((item) => <tr key={item.id}><td>{item.displayName} · {item.code}</td><td>{item.optimalConcurrentCapacity}/{item.hardConcurrentCapacity ?? "—"}</td><td><button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => transitionLearningSpace(item, "INACTIVE")}>Inactivate</button>{" "}<button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => transitionLearningSpace(item, "ARCHIVED")}>Archive</button></td></tr>)}</tbody></table></div> : <p>No active Learning Spaces.</p>}
+        {neutralizedSpaces.length ? <><h3>Neutralized Learning Space history</h3><CompactTable rows={neutralizedSpaces.map((item) => [item.displayName, item.code, item.status])} headers={["Space", "Code", "Status"]} /></> : null}
       </section>
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><h2>2 · Running Class</h2><p>One recurring operational class per submitted weekday/time truth.</p></div><span className={styles.writePill}>Explicit write</span></div>
         <div className={styles.formGrid}>
           <SelectField label="Path" value={classPathId} onChange={setClassPathId} options={data.paths.filter((item) => item.status === "ACTIVE").map((item) => [item.id, item.displayName])} />
-          <SelectField label="Learning Space" value={classSpaceId} onChange={setClassSpaceId} options={spaces.filter((item) => item.status === "ACTIVE").map((item) => [item.id, item.displayName])} />
+          <SelectField label="Learning Space" value={classSpaceId} onChange={setClassSpaceId} options={activeSpaces.map((item) => [item.id, item.displayName])} />
           <Field label="Operational name" value={className} onChange={setClassName} placeholder="PianoHouse · Thu 18:00" />
           <label className={styles.field}>Weekday<select value={weekdayIso} onChange={(event) => setWeekdayIso(event.target.value)}>{weekdayNames.slice(1).map((name, index) => <option value={index + 1} key={name}>{name}</option>)}</select></label>
           <Field label="Starts local" type="time" value={startsLocal} onChange={setStartsLocal} /><Field label="Ends local" type="time" value={endsLocal} onChange={setEndsLocal} />
@@ -298,13 +328,14 @@ export function DeliveryActivationView() {
           <Field label="Optimal capacity" type="number" value={classOptimal} onChange={setClassOptimal} /><Field label="Hard capacity (optional)" type="number" value={classHard} onChange={setClassHard} />
         </div>
         <button className={styles.primaryButton} type="button" disabled={!centerId || !classPathId || !classSpaceId || action.status === "running"} onClick={createClass}>Create Running Class</button>
-        {classes.length ? <CompactTable rows={classes.map((item) => [item.operationalName, pathName(data, item.pathProgramId), `${weekdayNames[item.weekdayIso]} ${item.windowStartsLocal}–${item.windowEndsLocal}`, item.deliveryTopology, item.deliveryTopology === "FLEXIBLE_STUDIO" ? "Blocks optional" : classIdsWithBlocks.has(item.id) ? "Blocks ready" : "Needs block"])} headers={["Class", "Path", "Schedule", "Topology", "Block state"]} /> : null}
+        {activeClasses.length ? <div className={styles.tableWrap}><table><thead><tr><th>Class</th><th>Path / schedule</th><th>Actions</th></tr></thead><tbody>{activeClasses.map((item) => <tr key={item.id}><td>{item.operationalName}</td><td>{pathName(data, item.pathProgramId)} · {weekdayNames[item.weekdayIso]} {item.windowStartsLocal}–{item.windowEndsLocal}</td><td><button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => transitionRunningClass(item, "INACTIVE")}>Inactivate</button>{" "}<button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => transitionRunningClass(item, "ARCHIVED")}>Archive</button></td></tr>)}</tbody></table></div> : <p>No active Running Classes.</p>}
+        {neutralizedClasses.length ? <><h3>Neutralized Running Class history</h3><CompactTable rows={neutralizedClasses.map((item) => [item.operationalName, pathName(data, item.pathProgramId), item.status])} headers={["Class", "Path", "Status"]} /></> : null}
       </section>
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><h2>3 · Running Class block</h2><p>Materialization stays disabled until every active Fixed/Overlapping class has at least one explicit block. Flexible Studio uses planned learner intervals and does not require class blocks.</p></div><span className={styles.writePill}>Explicit write</span></div>
         <div className={styles.formGrid}>
-          <SelectField label="Running Class" value={blockClassId} onChange={setBlockClassId} options={classes.filter((item) => item.status === "ACTIVE").map((item) => [item.id, item.operationalName])} />
+          <SelectField label="Running Class" value={blockClassId} onChange={setBlockClassId} options={activeClasses.map((item) => [item.id, item.operationalName])} />
           <label className={styles.field}>Block kind<select value={blockKind} onChange={(event) => setBlockKind(event.target.value as typeof blockKind)}><option value="LEARNING">Learning</option><option value="BRIDGE">Bridge</option><option value="TRANSITION">Transition</option></select></label>
           <Field label="Start offset (minutes)" type="number" value={blockStart} onChange={setBlockStart} /><Field label="End offset (minutes)" type="number" value={blockEnd} onChange={setBlockEnd} /><Field label="Label (optional)" value={blockLabel} onChange={setBlockLabel} />
         </div>

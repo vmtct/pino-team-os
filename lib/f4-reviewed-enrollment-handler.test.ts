@@ -41,7 +41,8 @@ function state(): F3BootstrapState {
       { id: spaceIds.pianohouse, centerId, code: "pianohouse", displayName: "PianoHouse", optimalConcurrentCapacity: 8, hardConcurrentCapacity: 9, status: "ACTIVE", version: 1 },
       { id: spaceIds["little-piner-art"], centerId, code: "little-piner", displayName: "Little Piner", optimalConcurrentCapacity: 8, hardConcurrentCapacity: 10, status: "ACTIVE", version: 1 },
     ],
-    runningClasses: classes, runningClassBlocks: [], terms: [], termWeeks: [], upcomingSessions: [], materializationPolicyStreams: [],
+    activeLearningSpaces: [],
+    runningClasses: classes, activeRunningClasses: classes, runningClassBlocks: [], terms: [], termWeeks: [], upcomingSessions: [], materializationPolicyStreams: [],
   };
 }
 function buildClasses(): F3RunningClass[] {

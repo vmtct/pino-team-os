@@ -164,6 +164,8 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/workforce\/planning\/availability\/[0-9a-f-]{36}\/void$/.test(normalized)
     || /^\/api\/bo\/sessions\/[0-9a-f-]+\/registrations$/.test(normalized)
     || /^\/api\/bo\/delivery\/term-weeks\/[0-9a-f-]{36}\/(?:update|delete)$/.test(normalized)
+    || /^\/api\/bo\/delivery\/terms\/[0-9a-f-]{36}\/neutralize$/.test(normalized)
+    || /^\/api\/bo\/delivery\/(?:learning-spaces|running-classes)\/[0-9a-f-]{36}\/lifecycle$/.test(normalized)
     || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
     || /^\/api\/bo\/delivery\/calendar-exclusions\/[0-9a-f-]{36}$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
