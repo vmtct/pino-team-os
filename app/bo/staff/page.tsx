@@ -1,4 +1,4 @@
-import { F2LearningOperatorActivation } from "./F2LearningOperatorActivation";
+import { PresenceRosterAccessActivation } from "./PresenceRosterAccessActivation";
 import { StaffOnboardingView } from "./StaffOnboardingView";
 import { StaffManagementView } from "./StaffManagementView";
 import { StaffRegistrationIntakeToggle } from "./StaffRegistrationIntakeToggle";
@@ -10,8 +10,8 @@ export default function StaffPage() {
       <StaffRegistrationIntakeToggle />
       <StaffRegistrationReviewQueue />
       <StaffManagementView />
+      <PresenceRosterAccessActivation />
       <StaffOnboardingView />
-      <F2LearningOperatorActivation />
     </>
   );
 }
