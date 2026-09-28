@@ -174,8 +174,9 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!attempt && parentMode === "EXISTING" && !selectedParentId) {
-      setError("Chọn một phụ huynh / guardian hiện có trước khi tạo học viên.");
+    const selectedParentReady = parentOptions.state === "ready" && selectedParentId !== null && parentOptions.data.some((item) => item.parent.id === selectedParentId);
+    if (!attempt && parentMode === "EXISTING" && !selectedParentReady) {
+      setError("Chọn một phụ huynh / guardian từ kết quả tìm kiếm hiện tại trước khi tạo học viên.");
       return;
     }
     setBusy(true); setError(""); setCanResetAttempt(false);
@@ -190,7 +191,7 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
         idempotencyKey: crypto.randomUUID(),
         body: parentMode === "EXISTING"
           ? { ...common, existingParentUserId: selectedParentId! }
-          : { ...common, existingParentUserId: null, guardianDisplayName: guardianName.trim() || null, contactType, contactValue },
+          : { ...common, guardianDisplayName: guardianName.trim() || null, contactType, contactValue },
       };
     })();
     if (!attempt) setAttempt(currentAttempt);
@@ -224,7 +225,7 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
         <button type="button" className={parentMode === "NEW" ? styles.parentModeActive : ""} disabled={attemptLocked} onClick={() => switchParentMode("NEW")}>Tạo phụ huynh mới</button>
       </div>
       {parentMode === "EXISTING" ? <div className={styles.parentPicker}>
-        <label>Tìm theo tên, SĐT hoặc email<input disabled={attemptLocked} value={parentQuery} onChange={(event) => setParentQuery(event.target.value)} placeholder="Nguyễn Văn A · 090… · parent@example.com" /></label>
+        <label>Tìm theo tên, SĐT hoặc email<input disabled={attemptLocked} value={parentQuery} onChange={(event) => { setParentQuery(event.target.value); setSelectedParentId(null); setParentOptions({ state: "loading" }); setError(""); }} placeholder="Nguyễn Văn A · 090… · parent@example.com" /></label>
         <div className={styles.parentOptions} aria-live="polite">
           {parentOptions.state === "loading" ? <span>Đang tìm phụ huynh…</span> : null}
           {parentOptions.state === "error" ? <span className={styles.parentPickerError}>{parentOptions.message}</span> : null}
