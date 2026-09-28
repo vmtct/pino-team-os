@@ -22,10 +22,11 @@ export default async function BoLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <BoSessionBoundary>
+    <>
+      <BoSessionBoundary />
       <BoShell title="PINO House" subtitle="Back Office" groups={boNavigation}>
         {children}
       </BoShell>
-    </BoSessionBoundary>
+    </>
   );
 }
