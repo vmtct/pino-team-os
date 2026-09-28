@@ -1,4 +1,4 @@
-import type { BoWorkforceAssignment } from "./bo-model";
+import type { BoWorkforceAssignment, BoWorkforceTeachingSession } from "./bo-model";
 
 export type WorkforceShiftTimeBasis = "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
 
@@ -21,4 +21,15 @@ export function assignmentTimeSummary(assignment:BoWorkforceAssignment):string {
   const windows = assignment.effectiveWork?.windows ?? [];
   if (!windows.length) return "Theo giờ lớp";
   return `Theo giờ lớp · ${windows.map((window)=>`${window.startsLocal.slice(11,16)}–${window.endsLocal.slice(11,16)}`).join(", ")}`;
+}
+
+export function learningOwnerBlocksShiftCancellation(
+  session: BoWorkforceTeachingSession | undefined,
+  assignmentStaffMemberId: string,
+): boolean {
+  return Boolean(
+    session
+    && session.status !== "CANCELLED"
+    && session.learningOwner?.staffMemberId === assignmentStaffMemberId
+  );
 }

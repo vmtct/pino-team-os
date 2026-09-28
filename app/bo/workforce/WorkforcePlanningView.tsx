@@ -5,7 +5,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
 import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
-import { assignmentTimeSummary, canUseTeachingSessionTime, normalizeTimeBasis, type WorkforceShiftTimeBasis } from "@/lib/workforce-planning-time-basis";
+import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, normalizeTimeBasis, type WorkforceShiftTimeBasis } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
@@ -394,7 +394,10 @@ export function WorkforcePlanningView() {
           {activeAssignments.map((assignment) => {
             const roles = data.roleAssignments.filter((role) => role.shiftAssignmentId === assignment.id && role.status === "ACTIVE");
             const hasOwnerRole = roles.some((role) => role.roleType === "TEACHER"
-              && data.sessions.find((session) => session.id === role.targetId)?.learningOwner?.staffMemberId === assignment.staffMemberId);
+              && learningOwnerBlocksShiftCancellation(
+                data.sessions.find((item) => item.id === role.targetId),
+                assignment.staffMemberId,
+              ));
             const roleSummary = roles.map((role) => {
               if (role.roleType === "FRONT_DESK") return "FD";
               const session = data.sessions.find((item) => item.id === role.targetId);
