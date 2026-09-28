@@ -89,7 +89,7 @@ export const boNavigation: BoNavGroup[] = [
           { href: "/bo/system/roles", label: "Roles" },
         ],
       },
-      { label: "Policies" },
+      { href: "/bo/system/policies", label: "Policies" },
       { href: "/bo/system/ai-data", label: "AI Data Inbox" },
       { href: "/bo/system/audit", label: "Audit" },
     ],

@@ -66,6 +66,8 @@ const OPEN_STUDIO_PASS_REVOKE = /^open-studio\/passes\/[0-9a-f-]{36}\/revoke$/;
 const OPEN_STUDIO_ADMISSION = "open-studio/admission";
 const OPEN_STUDIO_POLICY_VERSION = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions$/;
 const OPEN_STUDIO_POLICY_PUBLISH = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/;
+const WORKFORCE_POLICY_VERSION = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/versions$/;
+const WORKFORCE_POLICY_PUBLISH = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/versions\/[0-9a-f-]{36}\/publish$/;
 const PRACTICE_REPERTOIRE_GRANT = "practice/repertoire-access/grants";
 const PRACTICE_REPERTOIRE_REVOKE = /^practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/;
 const PRACTICE_RESOURCE_CREATE = "practice/resources";
@@ -201,6 +203,8 @@ export function isAllowedPostPath(path: string): boolean {
     || ENROLLMENT_BULK_PATHS.has(path)
     || isLearningSyllabusPostPath(path)
     || isOpenStudioPostPath(path)
+    || WORKFORCE_POLICY_VERSION.test(path)
+    || WORKFORCE_POLICY_PUBLISH.test(path)
     || WARD_CATALOG_WRITE.test(path)
     || WARD_SET_WRITE.test(path)
     || WARD_LEARNER_WRITE.test(path)

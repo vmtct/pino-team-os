@@ -38,3 +38,19 @@ test("BO shell places Access administration under canonical System responsibilit
   assert.match(source, /label: "Policies"/);
   assert.match(source, /href: "\/bo\/system\/audit", label: "Audit"/);
 });
+
+test("BO Workforce policy surface exposes only canonical Center-scoped policy paths", () => {
+  for (const readPath of ["policies/workforce/TIMEKEEPING_ELIGIBILITY/stream", "policies/workforce/AVAILABILITY_ELIGIBILITY/effective"]) assert.equal(isOperationalReadPath(readPath), true, readPath);
+  for (const writePath of ["policies/workforce/TIMEKEEPING_ELIGIBILITY/versions", `policies/workforce/TIMEKEEPING_ELIGIBILITY/versions/${roleId}/publish`, "policies/workforce/AVAILABILITY_ELIGIBILITY/versions"]) assert.equal(isAllowedPostPath(writePath), true, writePath);
+  assert.equal(isOperationalReadPath("policies/workforce/UNKNOWN/stream"), false);
+  assert.equal(isAllowedPostPath("policies/workforce/TIMEKEEPING_ELIGIBILITY/delete"), false);
+});
+test("BO System Policies is navigable and manages canonical Workforce policy rather than hidden defaults", () => {
+  const navigation = fs.readFileSync(path.join(process.cwd(), "app/bo/navigation.ts"), "utf8");
+  const view = fs.readFileSync(path.join(process.cwd(), "app/bo/system/policies/WorkforcePoliciesView.tsx"), "utf8");
+  assert.match(navigation, /href: "\/bo\/system\/policies", label: "Policies"/);
+  assert.match(view, /TIMEKEEPING_ELIGIBILITY/);
+  assert.match(view, /CHECK_IN/);
+  assert.match(view, /CHECK_OUT/);
+  assert.match(view, /No effective policy/);
+});
