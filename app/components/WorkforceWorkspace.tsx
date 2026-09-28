@@ -266,7 +266,7 @@ function Profile({ profile, assignments, center, week, onSaved }: { profile: Sta
   const [error, setError] = useState("");
   const weeklyAssignments = assignmentsInWeek(assignments, week);
   const next = nextAssignment(assignments, today());
-  const statusLabel = profile.status === "ACTIVE" ? "Đang hoạt động" : profile.status;
+  const statusLabel = profile.status.toLowerCase() === "active" ? "Đang hoạt động" : profile.status;
 
   async function save() {
     setError("");

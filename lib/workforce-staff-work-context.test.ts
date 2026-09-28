@@ -55,6 +55,7 @@ test("TOSCTX-004 profile is read-only by default and edit keeps existing PATCH c
   assert.match(source, /Công việc/);
   assert.match(source, /Ca kế tiếp/);
   assert.match(source, /Chỉnh sửa/);
+  assert.match(source, /profile\.status\.toLowerCase\(\) === "active"/);
   assert.match(source, /Xem lịch của tôi/);
   assert.match(source, /editing \? <div className="grid">/);
   assert.match(source, /workforceApi\.updateProfile\(\{ email, mobile, legalAddress \}\)/);
