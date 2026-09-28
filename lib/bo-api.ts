@@ -17,6 +17,7 @@ import type {
   BoLearnerEnrollment,
   BoLearnerLifecycle,
   BoLearnerSubscription,
+  BoParentSearchResult,
   BoStudentIntakeVoidResult,
   BoSubscriptionProjectedCompletion,
   BoBillSummary,
@@ -79,6 +80,16 @@ export type OpenStudioPolicyTarget = { targetType: "GLOBAL"; targetId: null } | 
 export type OpenStudioResolvedPolicy<T> = { streamId: string; versionId: string; version: number; effectiveFrom: string; effectiveUntil: string | null; value: T };
 export type OpenStudioPolicyInspection<T> = { stream: { id: string; revision: number; targetType: "GLOBAL" | "CENTER"; targetId: string | null }; versions: Array<{ id: string; version: number; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: T; changeReason: string }> };
 export type OpenStudioPolicyDraft = { streamId: string; versionId: string; version: number; revision: number };
+export type BoStudentIntakeCreateInput = {
+  displayName: string;
+  birthYear: number | null;
+  birthMonth: number | null;
+  birthDay: number | null;
+  birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE";
+  relationshipType: "PARENT" | "GUARDIAN" | "OTHER";
+  effectiveFrom: string;
+} & ({ existingParentUserId: string } | { existingParentUserId?: null; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string });
+
 export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
 export type BoAcquisitionIntent = {
   id: string;
@@ -237,12 +248,13 @@ export const boApi = {
   bindSessionSyllabus: (sessionId: string, command: BoSessionSyllabusBindingCommand, idempotencyKey: string) => write<BoSessionSyllabusBindingResult>(`delivery/sessions/${encodeURIComponent(sessionId)}/syllabus-binding`, command, idempotencyKey),
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
+  parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
   markAcquisitionContacted: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACTED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/contacted`, { expectedVersion }, idempotencyKey),
   verifyAcquisitionContact: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACT_VERIFIED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/verify-contact`, { expectedVersion }, idempotencyKey),
   closeAcquisitionIntent: (intentId: string, expectedVersion: number, reason: string, idempotencyKey: string) => write<{ intentId: string; status: "CLOSED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/close`, { expectedVersion, reason }, idempotencyKey),
-  createStudentIntake: async (body: { displayName: string; birthYear: number | null; birthMonth: number | null; birthDay: number | null; birthPrecision: "UNKNOWN" | "YEAR_ONLY" | "YEAR_MONTH" | "FULL_DATE"; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string; relationshipType: "PARENT" | "GUARDIAN" | "OTHER"; effectiveFrom: string }, idempotencyKey: string) => {
+  createStudentIntake: async (body: BoStudentIntakeCreateInput, idempotencyKey: string) => {
     const result = await write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>("student-intakes", body, idempotencyKey);
     const canonicalId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
     if (!result || !canonicalId(result.studentProfileId) || !canonicalId(result.parentUserId) || !canonicalId(result.guardianRelationshipId) || typeof result.parentReused !== "boolean") {

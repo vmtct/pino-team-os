@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
+import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoParentSearchResult, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
 import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
@@ -145,6 +145,10 @@ export function BoLearnersView() {
 function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCreated: (studentId: string) => Promise<void> }) {
   const [studentName, setStudentName] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [parentMode, setParentMode] = useState<"EXISTING" | "NEW">("EXISTING");
+  const [parentQuery, setParentQuery] = useState("");
+  const [parentOptions, setParentOptions] = useState<Load<BoParentSearchResult[]>>({ state: "loading" });
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [guardianName, setGuardianName] = useState("");
   const [contactType, setContactType] = useState<"PHONE" | "EMAIL">("PHONE");
   const [contactValue, setContactValue] = useState("");
@@ -154,18 +158,39 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
   const [attempt, setAttempt] = useState<{ idempotencyKey: string; body: Parameters<typeof boApi.createStudentIntake>[0] } | null>(null);
   const [canResetAttempt, setCanResetAttempt] = useState(false);
 
+  useEffect(() => {
+    if (parentMode !== "EXISTING" || attempt) return;
+    let active = true;
+    const handle = window.setTimeout(() => {
+      setParentOptions({ state: "loading" });
+      void boApi.parents(parentQuery, 20).then((data) => {
+        if (!active) return;
+        setParentOptions({ state: "ready", data });
+        setSelectedParentId((current) => current && data.some((item) => item.parent.id === current) ? current : null);
+      }).catch((cause: unknown) => { if (active) setParentOptions({ state: "error", message: message(cause) }); });
+    }, 180);
+    return () => { active = false; window.clearTimeout(handle); };
+  }, [attempt, parentMode, parentQuery]);
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!attempt && parentMode === "EXISTING" && !selectedParentId) {
+      setError("Chọn một phụ huynh / guardian hiện có trước khi tạo học viên.");
+      return;
+    }
     setBusy(true); setError(""); setCanResetAttempt(false);
     const currentAttempt = attempt ?? (() => {
       const [year, month, day] = birthDate ? birthDate.split("-").map(Number) : [null, null, null];
+      const common = {
+        displayName: studentName,
+        birthYear: year, birthMonth: month, birthDay: day, birthPrecision: birthDate ? "FULL_DATE" as const : "UNKNOWN" as const,
+        relationshipType, effectiveFrom: new Date().toISOString(),
+      };
       return {
         idempotencyKey: crypto.randomUUID(),
-        body: {
-          displayName: studentName,
-          birthYear: year, birthMonth: month, birthDay: day, birthPrecision: birthDate ? "FULL_DATE" as const : "UNKNOWN" as const,
-          guardianDisplayName: guardianName.trim() || null, contactType, contactValue, relationshipType, effectiveFrom: new Date().toISOString(),
-        },
+        body: parentMode === "EXISTING"
+          ? { ...common, existingParentUserId: selectedParentId! }
+          : { ...common, existingParentUserId: null, guardianDisplayName: guardianName.trim() || null, contactType, contactValue },
       };
     })();
     if (!attempt) setAttempt(currentAttempt);
@@ -180,23 +205,40 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
 
   const attemptLocked = attempt !== null;
   const uncertainAttempt = attemptLocked && Boolean(error) && !canResetAttempt;
+  const selectedParent = parentOptions.state === "ready" ? parentOptions.data.find((item) => item.parent.id === selectedParentId) ?? null : null;
   function resetAttempt() { setAttempt(null); setCanResetAttempt(false); setError(""); }
   function closeIfSafe() { if (!busy && !uncertainAttempt) onClose(); }
+  function switchParentMode(next: "EXISTING" | "NEW") { if (!attemptLocked) { setParentMode(next); setSelectedParentId(null); setError(""); } }
 
   return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeIfSafe(); }}>
     <form className={styles.modal} onSubmit={(event) => void submit(event)}>
-      <header><div><span>School · Student intake</span><h2>Thêm học viên</h2><p>Tạo Student Profile, Parent và Guardian relationship trong một canonical command.</p></div><button type="button" onClick={closeIfSafe} disabled={busy || uncertainAttempt}>×</button></header>
+      <header><div><span>School · Student intake</span><h2>Thêm học viên</h2><p>Tạo Student Profile và nối đúng Parent/Guardian trong một canonical command.</p></div><button type="button" onClick={closeIfSafe} disabled={busy || uncertainAttempt}>×</button></header>
       {error ? <div className={styles.formError}>{error}{uncertainAttempt ? <><br /><small>Kết quả chưa xác định. Hãy thử lại cùng yêu cầu để đối soát an toàn.</small></> : null}</div> : null}
       <div className={styles.formGrid}>
         <label className={styles.fullField}>Tên học viên<input required disabled={attemptLocked} value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Nguyễn Minh Anh" /></label>
         <label>Ngày sinh<input type="date" disabled={attemptLocked} value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></label>
         <label>Quan hệ<select disabled={attemptLocked} value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as "PARENT" | "GUARDIAN" | "OTHER")}><option value="PARENT">Cha/Mẹ</option><option value="GUARDIAN">Người giám hộ</option><option value="OTHER">Khác</option></select></label>
+      </div>
+      <div className={styles.parentModeToggle} aria-label="Cách liên kết phụ huynh">
+        <button type="button" className={parentMode === "EXISTING" ? styles.parentModeActive : ""} disabled={attemptLocked} onClick={() => switchParentMode("EXISTING")}>Chọn phụ huynh hiện có</button>
+        <button type="button" className={parentMode === "NEW" ? styles.parentModeActive : ""} disabled={attemptLocked} onClick={() => switchParentMode("NEW")}>Tạo phụ huynh mới</button>
+      </div>
+      {parentMode === "EXISTING" ? <div className={styles.parentPicker}>
+        <label>Tìm theo tên, SĐT hoặc email<input disabled={attemptLocked} value={parentQuery} onChange={(event) => setParentQuery(event.target.value)} placeholder="Nguyễn Văn A · 090… · parent@example.com" /></label>
+        <div className={styles.parentOptions} aria-live="polite">
+          {parentOptions.state === "loading" ? <span>Đang tìm phụ huynh…</span> : null}
+          {parentOptions.state === "error" ? <span className={styles.parentPickerError}>{parentOptions.message}</span> : null}
+          {parentOptions.state === "ready" ? parentOptions.data.map((item) => <button key={item.parent.id} type="button" disabled={attemptLocked} className={item.parent.id === selectedParentId ? styles.parentOptionActive : styles.parentOption} onClick={() => { setSelectedParentId(item.parent.id); setError(""); }}><strong>{item.parent.displayName || "Parent chưa đặt tên"}</strong><small>{item.contacts.map((contact) => `${contact.identifierType === "PHONE" ? "SĐT" : "Email"} · ${contact.normalizedValue}`).join(" · ") || "Chưa có contact active"}</small></button>) : null}
+          {parentOptions.state === "ready" && parentOptions.data.length === 0 ? <span>Không tìm thấy Parent phù hợp. Chọn “Tạo phụ huynh mới” nếu đây là gia đình mới.</span> : null}
+        </div>
+        {selectedParent ? <small className={styles.parentSelection}>Đã chọn: <strong>{selectedParent.parent.displayName || selectedParent.parent.id}</strong></small> : null}
+      </div> : <div className={styles.formGrid}>
         <label className={styles.fullField}>Tên phụ huynh / guardian<input disabled={attemptLocked} value={guardianName} onChange={(event) => setGuardianName(event.target.value)} placeholder="Nguyễn Văn A" /></label>
         <label>Liên hệ<select disabled={attemptLocked} value={contactType} onChange={(event) => setContactType(event.target.value as "PHONE" | "EMAIL")}><option value="PHONE">Số điện thoại</option><option value="EMAIL">Email</option></select></label>
         <label>Giá trị<input required disabled={attemptLocked} value={contactValue} onChange={(event) => setContactValue(event.target.value)} placeholder={contactType === "PHONE" ? "090…" : "parent@example.com"} /></label>
-      </div>
-      <small>Parent có cùng contact canonical sẽ được reuse; Student không tự merge theo tên/ngày sinh.</small>
-      <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={closeIfSafe} disabled={busy || uncertainAttempt}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên + Parent"}</button></footer>
+      </div>}
+      <small>{parentMode === "EXISTING" ? "Student mới sẽ nối trực tiếp vào Parent đã chọn; không tạo hoặc sửa contact của Parent." : "Nếu contact canonical đã thuộc Parent hiện có, Core vẫn reuse Parent như safety net; Student không tự merge theo tên/ngày sinh."}</small>
+      <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={closeIfSafe} disabled={busy || uncertainAttempt}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên"}</button></footer>
     </form>
   </div>;
 }
