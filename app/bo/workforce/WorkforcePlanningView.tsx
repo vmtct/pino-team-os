@@ -104,7 +104,8 @@ export function WorkforcePlanningView() {
   const selectedTemplate = data?.templates.find((template) => template.id === templateId) ?? null;
   const eligibleSessions = data && selection && selectedTemplate
     ? data.sessions.filter((session) =>
-        session.localDate === selection.workDate
+        session.status !== "CANCELLED"
+        && session.localDate === selection.workDate
         && session.scheduledStartsLocal.slice(11, 16) >= selectedTemplate.startLocalTime
         && session.scheduledEndsLocal.slice(11, 16) <= selectedTemplate.endLocalTime
       )
