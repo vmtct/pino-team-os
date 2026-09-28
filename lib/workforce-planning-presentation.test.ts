@@ -19,7 +19,7 @@ test("WFM-PLAN TOS availability keeps submission distinct from final assignment"
 
 test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", async () => {
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
-  assert.match(source, /Xác nhận & xếp ca/);
+  assert.match(source, /Xác nhận ca & phân công/);
   assert.match(source, /Lý do thay đổi/);
   assert.match(source, /canonical assignment audit/);
   assert.match(
@@ -54,4 +54,22 @@ test("JCS04 BO exposes governed availability history and operator void only thro
   assert.match(source, /Void availability/);
   assert.match(source, /history được giữ nguyên và không còn dùng làm planning input/);
   assert.doesNotMatch(source, /deleteWorkforceAvailability|reopenAvailability/);
+});
+
+test("WSRA BO plans FD/Teacher exact Session and derives primary owner authority", async () => {
+  const [source, model] = await Promise.all([
+    read("app/bo/workforce/WorkforcePlanningView.tsx"),
+    read("lib/bo-model.ts"),
+  ]);
+  assert.match(source, /Front Desk/);
+  assert.match(source, /> Teacher</);
+  assert.match(source, /Phụ trách chính/);
+  assert.match(source, /planOperationalWorkforceShift/);
+  assert.match(source, /sessionId/);
+  assert.match(source, /runningClassDisplayName/);
+  assert.match(source, /disabled=\{!session\.canAssignLearningOwner\}/);
+  assert.match(source, /Lý do bàn giao/);
+  assert.match(source, /hasOwnerRole/);
+  assert.match(source, /School → Classes → Sessions/);
+  assert.doesNotMatch(model, /isLearningOwner\s*:/);
 });

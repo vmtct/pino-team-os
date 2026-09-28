@@ -29,6 +29,7 @@ const GET_WEEKLY = "workforce/planning/weekly";
 const SHIFT_TEMPLATES = "workforce/planning/shift-templates";
 const SHIFT_TEMPLATE_STATUS = /^workforce\/planning\/shift-templates\/[0-9a-f-]{36}\/status$/;
 const AVAILABILITY_VOID = /^workforce\/planning\/availability\/[0-9a-f-]{36}\/void$/;
+const POST_OPERATIONAL_ASSIGNMENT = "workforce/planning/operational-assignment";
 const POST_ASSIGNMENT = "workforce/planning/assignment";
 const POST_CANCEL = "workforce/planning/assignment/cancel";
 const GET_EXCEPTIONS = "workforce/planning/check-in-exceptions";
@@ -45,7 +46,7 @@ export async function handleBoWorkforcePlanningRequest(
     if (!path.startsWith(PREFIX)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO workforce planning operation not found" } }, 404);
     const method = request.method.toUpperCase();
     const allowedGet = path === GET_BOOTSTRAP || path === GET_WEEKLY || path === SHIFT_TEMPLATES || path === GET_EXCEPTIONS || path === GET_EXCEPTION_CENTERS || EXCEPTION_DETAIL.test(path);
-    const allowedPost = path === SHIFT_TEMPLATES || SHIFT_TEMPLATE_STATUS.test(path) || AVAILABILITY_VOID.test(path) || path === POST_ASSIGNMENT || path === POST_CANCEL || EXCEPTION_MUTATION.test(path);
+    const allowedPost = path === SHIFT_TEMPLATES || SHIFT_TEMPLATE_STATUS.test(path) || AVAILABILITY_VOID.test(path) || path === POST_OPERATIONAL_ASSIGNMENT || path === POST_ASSIGNMENT || path === POST_CANCEL || EXCEPTION_MUTATION.test(path);
     if (!((method === "GET" && allowedGet) || (method === "POST" && allowedPost))) {
       return json({ error: { code: method === "GET" || method === "POST" ? "PLATFORM_NOT_FOUND" : "PLATFORM_METHOD_NOT_ALLOWED", message: method === "GET" || method === "POST" ? "BO workforce planning operation not found" : "Method not allowed" } }, method === "GET" || method === "POST" ? 404 : 405);
     }

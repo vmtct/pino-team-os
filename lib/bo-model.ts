@@ -531,6 +531,51 @@ export interface BoUnscheduledCheckInRequest {
   version: number; createdAt: string; updatedAt: string; staffDisplayLabel: string; centerDisplayName: string;
 }
 
+export interface BoWorkforceShiftRoleAssignment {
+  id: string;
+  shiftAssignmentId: string;
+  roleType: "FRONT_DESK" | "TEACHER";
+  targetType: "CENTER" | "SESSION";
+  targetId: string;
+  status: "ACTIVE" | "CANCELLED";
+  version: number;
+  assignedByUserId: string;
+  assignedAt: string;
+  cancelledByUserId: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoWorkforceTeachingSession {
+  id: string;
+  centerId: string;
+  runningClassId: string | null;
+  runningClassDisplayName: string | null;
+  localDate: string;
+  scheduledStartsLocal: string;
+  scheduledEndsLocal: string;
+  status: string;
+  canAssignLearningOwner: boolean;
+  learningOwner: null | {
+    sessionId: string;
+    staffMemberId: string;
+    assignedAt: string;
+    assignedByUserId: string | null;
+    assignmentSource: "OPERATOR" | "MIGRATION";
+    changeReason: string | null;
+    updatedAt: string;
+    version: number;
+  };
+}
+
+export interface BoOperationalShiftPlanResult {
+  assignment: BoWorkforceAssignment;
+  roleAssignments: BoWorkforceShiftRoleAssignment[];
+  learningOwners: BoWorkforceTeachingSession["learningOwner"][];
+}
+
 export interface BoWorkforceWeeklyPlanning {
   centerId: string;
   termWeekId: string;
@@ -541,6 +586,8 @@ export interface BoWorkforceWeeklyPlanning {
   availability: BoWorkforceAvailability[];
   availabilityHistory: BoWorkforceAvailability[];
   assignments: BoWorkforceAssignment[];
+  roleAssignments: BoWorkforceShiftRoleAssignment[];
+  sessions: BoWorkforceTeachingSession[];
 }
 
 export interface BoTimekeepingSession {
