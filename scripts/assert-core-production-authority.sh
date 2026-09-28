@@ -7,8 +7,20 @@ core_api() { GH_TOKEN="$core_token" gh api "$@"; }
 run="$(core_api "/repos/${repo}/actions/runs/${run_id}")"
 jq -e --arg sha "$core_sha" '.repository.full_name=="vmtct/pino-core" and .path==".github/workflows/core-production-release.yml" and .event=="issues" and .head_sha==$sha and .run_attempt==1 and .status=="completed" and .conclusion=="success" and .actor.login=="vmtct" and .triggering_actor.login=="vmtct"' <<<"$run" >/dev/null
 pages="$(core_api --paginate --slurp "/repos/${repo}/actions/workflows/core-production-release.yml/runs?event=issues&per_page=100")"
-latest="$(jq -r --arg sha "$core_sha" '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "") | startswith("Core production release #")) and ((.display_title // "") | endswith(" @ " + $sha)))] | sort_by(.updated_at // .run_started_at // .created_at // "") | last | .id // empty' <<<"$pages")"
-[ "$latest" = "$run_id" ] || { echo "Selected Core production release is superseded by a newer same-SHA attempt" >&2; exit 1; }
+candidate_runs="$(jq -c --arg sha "$core_sha" '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "") | startswith("Core production release #")) and ((.display_title // "") | endswith(" @ " + $sha)))] | sort_by(.updated_at // .run_started_at // .created_at // "") | reverse' <<<"$pages")"
+latest=""
+while IFS= read -r candidate; do
+  candidate_id="$(jq -r '.id // empty' <<<"$candidate")"
+  candidate_title="$(jq -r '.display_title // empty' <<<"$candidate")"
+  candidate_issue="$(sed -nE 's/^Core production release #([0-9]+) @ [0-9a-f]{40}$/\1/p' <<<"$candidate_title")"
+  [ -n "$candidate_id" ] && [ -n "$candidate_issue" ] || continue
+  backing_issue="$(core_api "/repos/${repo}/issues/${candidate_issue}")" || { echo "Cannot verify backing Core release issue #${candidate_issue}" >&2; exit 1; }
+  if jq -e '.state=="open" and .user.login=="vmtct" and .title=="[GPT] Core production release"' <<<"$backing_issue" >/dev/null; then
+    latest="$candidate_id"
+    break
+  fi
+done < <(jq -c '.[]' <<<"$candidate_runs")
+[ "$latest" = "$run_id" ] || { echo "Selected Core production release is superseded by a newer valid same-SHA release authority" >&2; exit 1; }
 issue="$(core_api "/repos/${repo}/issues/${issue_number}")"
 jq -e '.state=="open" and .user.login=="vmtct" and .title=="[GPT] Core production release"' <<<"$issue" >/dev/null
 comments="$(core_api --paginate --slurp "/repos/${repo}/issues/${issue_number}/comments?per_page=100")"

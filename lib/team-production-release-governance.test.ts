@@ -47,7 +47,11 @@ test("Team release binds exact Core authority and complete provider tuples", () 
   assert.match(release, /Core authority drifted before Team promotion/);
   assert.match(release, /Core authority drifted before Team PASS/);
   assert.match(coreAuthority, /core-production-release\.yml\/runs\?event=issues/);
-  assert.match(coreAuthority, /superseded by a newer same-SHA attempt/);
+  assert.match(coreAuthority, /superseded by a newer valid same-SHA release authority/);
+  assert.match(coreAuthority, /candidate_issue/);
+  assert.match(coreAuthority, /Cannot verify backing Core release issue/);
+  assert.doesNotMatch(coreAuthority, /backing_issue=.*\|\| continue/);
+  assert.match(coreAuthority, /\.title=="\[GPT\] Core production release"/);
   assert.ok(coreAuthority.includes(String.raw`gsub("\\\\n"; "\n")`));
 });
 
