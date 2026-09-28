@@ -58,7 +58,7 @@ import type {
   BoWorkforceAvailability,
   BoWorkforcePlanningBootstrap,
   BoWorkforceShiftTemplate,
-  BoWorkforceWeeklyPlanning,
+  BoWorkforceWeeklyPlanning, BoWorkforceWindowDecision,
   BoUnscheduledCheckInRequest,
   BoTimekeepingPage,
   BoTimekeepingCorrectionResult,
@@ -79,6 +79,10 @@ export type OpenStudioPolicyTarget = { targetType: "GLOBAL"; targetId: null } | 
 export type OpenStudioResolvedPolicy<T> = { streamId: string; versionId: string; version: number; effectiveFrom: string; effectiveUntil: string | null; value: T };
 export type OpenStudioPolicyInspection<T> = { stream: { id: string; revision: number; targetType: "GLOBAL" | "CENTER"; targetId: string | null }; versions: Array<{ id: string; version: number; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: T; changeReason: string }> };
 export type OpenStudioPolicyDraft = { streamId: string; versionId: string; version: number; revision: number };
+export type WorkforceWindowPolicyKey = "AVAILABILITY_WINDOW_V1" | "PLANNING_WINDOW_V1";
+export type WorkforcePolicyTarget = OpenStudioPolicyTarget;
+export type WorkforceWindowPolicyValue = { autoLock: { enabled:boolean; timeLocal:string; daysBeforeWeekStart:number } };
+export type WorkforcePolicyInspection = OpenStudioPolicyInspection<WorkforceWindowPolicyValue>;
 export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
 export type BoAcquisitionIntent = {
   id: string;
@@ -287,6 +291,10 @@ export const boApi = {
   issueOpenStudioMonthlyPass: (body: { houseMembershipId: string; pathProgramId: string; effectiveAt: string }) => write<unknown[]>("open-studio/passes/issue-monthly-path", body, crypto.randomUUID()),
   issueOpenStudioBringAFriendPass: (body: { houseMembershipId: string; effectiveAt: string }) => write<unknown[]>("open-studio/passes/issue-bring-a-friend", body, crypto.randomUUID()),
   revokeOpenStudioPass: (passId: string, body: { revokedAt: string; reason: string }) => write<unknown>(`open-studio/passes/${encodeURIComponent(passId)}/revoke`, body, crypto.randomUUID()),
+  workforcePolicyStream: (key: WorkforceWindowPolicyKey, target: WorkforcePolicyTarget) => readOne<WorkforcePolicyInspection | null>(`policies/workforce/${key}/stream?${policyTargetQuery(target)}`),
+  workforcePolicyEffective: (key: WorkforceWindowPolicyKey, target: WorkforcePolicyTarget, effectiveAt: string) => readOne<OpenStudioResolvedPolicy<WorkforceWindowPolicyValue>>(`policies/workforce/${key}/effective?${policyTargetQuery(target)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
+  createWorkforcePolicyDraft: (key: WorkforceWindowPolicyKey, target: WorkforcePolicyTarget, value: WorkforceWindowPolicyValue, changeReason: string, expectedRevision: number) => write<OpenStudioPolicyDraft>(`policies/workforce/${key}/versions`, { ...target, value, changeReason, expectedRevision }, crypto.randomUUID()),
+  publishWorkforcePolicy: (key: WorkforceWindowPolicyKey, versionId: string, target: WorkforcePolicyTarget, effectiveFrom: string, expectedRevision: number) => write<{published:boolean}>(`policies/workforce/${key}/versions/${encodeURIComponent(versionId)}/publish`, { ...target, effectiveFrom, expectedRevision }, crypto.randomUUID()),
   openStudioPolicyStream: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget) => readOne<OpenStudioPolicyInspection<T> | null>(`policies/open_studio/${key}/stream?${policyTargetQuery(target)}`),
   openStudioPolicyEffective: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget, effectiveAt: string) => readOne<OpenStudioResolvedPolicy<T>>(`policies/open_studio/${key}/effective?${policyTargetQuery(target)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
   createOpenStudioPolicyDraft: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget, value: T, changeReason: string, expectedRevision: number) => write<OpenStudioPolicyDraft>(`policies/open_studio/${key}/versions`, { ...target, value, changeReason, expectedRevision }, crypto.randomUUID()),
@@ -323,6 +331,11 @@ export const boApi = {
   createWorkforceShiftTemplate: (body: { centerId: string; code: string; displayLabel: string; startLocalTime: string; endLocalTime: string }, idempotencyKey: string) => write<BoWorkforceShiftTemplate>("workforce/planning/shift-templates", body, idempotencyKey),
   setWorkforceShiftTemplateStatus: (templateId: string, centerId: string, status: "ACTIVE" | "INACTIVE", idempotencyKey: string) => write<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates/${encodeURIComponent(templateId)}/status`, { centerId, status }, idempotencyKey),
   workforcePlanning: (centerId: string, termWeekId: string) => readOne<BoWorkforceWeeklyPlanning>(`workforce/planning/weekly?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),
+  workforceWeekControl: (centerId:string,termWeekId:string) => readOne<{availability:BoWorkforceWindowDecision;planning:BoWorkforceWindowDecision}>(`workforce/planning/week-control?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),
+  lockWorkforceAvailability: (body:{centerId:string;termWeekId:string;expectedVersion:number;reason:string},key:string) => write<BoWorkforceWindowDecision>("workforce/planning/availability/lock",body,key),
+  reopenWorkforceAvailability: (body:{centerId:string;termWeekId:string;expectedVersion:number;reason:string;until:string},key:string) => write<BoWorkforceWindowDecision>("workforce/planning/availability/reopen",body,key),
+  publishWorkforcePlanning: (body:{centerId:string;termWeekId:string;expectedVersion:number;reason:string},key:string) => write<BoWorkforceWindowDecision>("workforce/planning/planning/publish",body,key),
+  reopenWorkforcePlanning: (body:{centerId:string;termWeekId:string;expectedVersion:number;reason:string;until:string},key:string) => write<BoWorkforceWindowDecision>("workforce/planning/planning/reopen",body,key),
   voidWorkforceAvailability: (submissionId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAvailability>(`workforce/planning/availability/${encodeURIComponent(submissionId)}/void`, { reason }, idempotencyKey),
   workforceCheckInExceptionCenters: () => read<BoCenter>("workforce/planning/check-in-exceptions/centers"),
   workforceCheckInExceptions: (centerId: string, status?: BoUnscheduledCheckInRequest["status"]) => read<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),

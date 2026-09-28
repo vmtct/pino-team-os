@@ -5,6 +5,7 @@ export interface BoReadEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
+const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/(effective|stream)$/;
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
@@ -41,7 +42,8 @@ export function isPracticeReadPath(path: string): boolean {
 }
 
 export function isOpenStudioReadPath(path: string): boolean {
-  return path.startsWith("open-studio/") || OPEN_STUDIO_POLICY_READ.test(path);
+  return path.startsWith("open-studio/") || WORKFORCE_POLICY_READ.test(path)
+    || OPEN_STUDIO_POLICY_READ.test(path);
 }
 
 export function isStaffRegistrationProtectedReadPath(path: string): boolean {
@@ -93,6 +95,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "open-studio/listing-catalog"
     || path === "open-studio/learners"
     || path === "open-studio/passes"
+    || WORKFORCE_POLICY_READ.test(path)
     || OPEN_STUDIO_POLICY_READ.test(path)
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
     || /^open-studio\/students\/[0-9a-f-]{36}\/lifecycle$/.test(path)
@@ -178,7 +181,7 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     listingId: url.searchParams.get("listingId"), participantMode: url.searchParams.get("participantMode"),
     studentProfileId: url.searchParams.get("studentProfileId"), effectiveAt: url.searchParams.get("effectiveAt"),
   };
-  if (OPEN_STUDIO_POLICY_READ.test(path)) {
+  if (WORKFORCE_POLICY_READ.test(path) || OPEN_STUDIO_POLICY_READ.test(path)) {
     const targetType = url.searchParams.get("targetType");
     const targetId = url.searchParams.get("targetId");
     return {
