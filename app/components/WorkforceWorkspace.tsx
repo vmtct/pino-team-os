@@ -5,6 +5,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
+import contextStyles from "./workforce-context.module.css";
+import {
+  assignmentTime,
+  assignmentsInWeek,
+  compactWorkDate,
+  nextAssignment,
+  staffInitials,
+  workDateParts,
+} from "@/lib/workforce-staff-work-context";
 import {
   workforceApi,
   WorkforceApiError,
@@ -168,7 +177,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   return <TosShell title={title} subtitle={profile?.displayLabel ?? "PINO Team"} theme="shift" footerItems={TOS_SHIFT_FOOTER} activeFooterId={active}>
     {loading ? <p>Đang tải dữ liệu an toàn từ Core…</p> : <>
       {error ? <div className="alert">{error}</div> : null}
-      {profile && view === "profile" ? <Profile profile={profile} onSaved={setProfile} /> : null}
+      {profile && view === "profile" ? <Profile profile={profile} assignments={assignments} center={center} week={week} onSaved={setProfile} /> : null}
       {view === "dashboard" ? <>
         <section className="card section">
           <h2>{current ? "Đang làm việc" : "Chưa check-in"}</h2>
@@ -188,7 +197,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
 function CheckInPanel({ current, state, saving, centerReady, formOpen, reason, onReason, onOpenForm, onCancelForm, onClock, onRequest }: { current: TimekeepingSession | null; state: UnscheduledCheckInSelfState | null; saving: boolean; centerReady: boolean; formOpen: boolean; reason: string; onReason: (value: string) => void; onOpenForm: () => void; onCancelForm: () => void; onClock: () => void; onRequest: () => void }) {
   if (current) return <section className="card section"><h2>Đang làm việc</h2><p className="muted">Bắt đầu {new Date(current.checkInAt).toLocaleString("vi-VN")}</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>CHECK OUT</button></section>;
   if (!state) return <section className="card section"><h2>Đang kiểm tra ca hôm nay…</h2><p className="muted">Core đang xác định trạng thái theo Center và múi giờ canonical.</p></section>;
-  if (state.kind === "ELIGIBLE_ASSIGNMENT") return <section className="card section"><h2>Sẵn sàng check-in</h2><p className="muted">{state.assignment.shift?.displayLabel ?? "Ca làm đã được phân công"} · {state.assignment.workDate}</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>CHECK IN</button></section>;
+  if (state.kind === "ELIGIBLE_ASSIGNMENT") return <section className="card section"><h2>Sẵn sàng check-in</h2><p className="muted">{state.assignment.shift?.displayLabel ?? "Ca làm đã được phân công"} · {compactWorkDate(state.assignment.workDate)}</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>CHECK IN</button></section>;
   if (state.kind === "REQUESTED") return <section className="card section"><h2>Đang chờ Manager duyệt</h2><p className="muted">Yêu cầu check-in ngoài lịch đã được Core ghi nhận. Bạn chưa thể check-in cho tới khi có assignment canonical.</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>Kiểm tra lại</button></section>;
   if (state.kind === "DECLINED") return <section className="card section"><h2>Yêu cầu đã bị từ chối</h2><p className="muted">{state.request.declineReason ?? "Manager chưa chấp thuận check-in ngoài lịch."}</p></section>;
   if (state.kind === "APPROVED") return <section className="card section"><h2>Đã được duyệt</h2><p className="muted">Core đã duyệt yêu cầu. Kiểm tra lại assignment trước khi check-in.</p><button className="button" disabled={saving || !centerReady} onClick={onClock}>Kiểm tra & check-in</button></section>;
@@ -197,7 +206,13 @@ function CheckInPanel({ current, state, saving, centerReady, formOpen, reason, o
 }
 
 function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {
-  return <section className="card section" style={{ marginTop: 16 }}><h2>{title}</h2>{rows.length ? <div className="list">{rows.map((row) => <div className="list-item" key={row.id}><strong>{row.workDate} · {row.shift?.displayLabel ?? "Ca làm"}</strong><div className="muted">{row.shift ? `${row.shift.startLocalTime}–${row.shift.endLocalTime} · ${row.shift.code}` : row.status}</div></div>)}</div> : <p className="muted">Chưa có ca được phân công.</p>}</section>;
+  return <section className="card section" style={{ marginTop: 16 }}><h2>{title}</h2>{rows.length ? <div className={contextStyles.shiftList}>{rows.map((row) => {
+    const date = workDateParts(row.workDate);
+    return <div className={contextStyles.shiftRow} key={row.id}>
+      <div className={contextStyles.shiftDate} aria-label={compactWorkDate(row.workDate)}><span>{date.weekday}</span><strong>{date.day}</strong><small>thg {date.month}</small></div>
+      <div className={contextStyles.shiftCopy}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><span>{assignmentTime(row)}</span></div>
+    </div>;
+  })}</div> : <p className="muted">Chưa có ca được phân công.</p>}</section>;
 }
 function AvailabilityPanel({ week, availability, templates, saving, onOpen, onToggle, onSubmit }: { week: WorkforceContext["termWeeks"][number] | null; availability: Availability | null; templates: ShiftTemplate[]; saving: boolean; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
   const submitted = availability?.status === "SUBMITTED";
@@ -217,4 +232,55 @@ function weekday(value: string) { return new Intl.DateTimeFormat("vi-VN", { week
 function dayNumber(value: string) { return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
 function monthLabel(value: string) { return new Intl.DateTimeFormat("vi-VN", { month: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
 function History({ rows }: { rows: TimekeepingSession[] }) { return <section className="card section">{rows.length ? <div className="list">{rows.map((row) => <div className="list-item" key={row.id}><strong>{row.workDate}</strong><div>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "Đang mở"}</div></div>)}</div> : <p className="muted">Chưa có phiên chấm công.</p>}</section>; }
-function Profile({ profile, onSaved }: { profile: StaffProfile; onSaved: (value: StaffProfile) => void }) { const [email, setEmail] = useState(profile.email ?? ""), [mobile, setMobile] = useState(profile.mobile ?? ""), [legalAddress, setAddress] = useState(profile.legalAddress ?? ""), [error, setError] = useState(""); async function save() { try { const result = await workforceApi.updateProfile({ email, mobile, legalAddress }); onSaved(result.data); } catch (e) { setError(message(e)); } } return <section className="card section"><h2>{profile.displayLabel}</h2><p className="muted">Chỉ hiển thị các thông tin bạn được phép tự cập nhật.</p>{error ? <div className="alert">{error}</div> : null}<div className="grid"><label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} /></label><label>Điện thoại<input value={mobile} onChange={(e) => setMobile(e.target.value)} /></label><label>Địa chỉ<input value={legalAddress} onChange={(e) => setAddress(e.target.value)} /></label></div><button className="button" onClick={save}>Lưu hồ sơ</button></section>; }
+function Profile({ profile, assignments, center, week, onSaved }: { profile: StaffProfile; assignments: Assignment[]; center: WorkforceContext["centers"][number] | null; week: WorkforceContext["termWeeks"][number] | null; onSaved: (value: StaffProfile) => void }) {
+  const [email, setEmail] = useState(profile.email ?? "");
+  const [mobile, setMobile] = useState(profile.mobile ?? "");
+  const [legalAddress, setAddress] = useState(profile.legalAddress ?? "");
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState("");
+  const weeklyAssignments = assignmentsInWeek(assignments, week);
+  const next = nextAssignment(assignments, today());
+  const statusLabel = profile.status === "ACTIVE" ? "Đang hoạt động" : profile.status;
+
+  async function save() {
+    setError("");
+    try {
+      const result = await workforceApi.updateProfile({ email, mobile, legalAddress });
+      setEmail(result.data.email ?? "");
+      setMobile(result.data.mobile ?? "");
+      setAddress(result.data.legalAddress ?? "");
+      onSaved(result.data);
+      setEditing(false);
+    } catch (e) { setError(message(e)); }
+  }
+  function cancel() {
+    setEmail(profile.email ?? "");
+    setMobile(profile.mobile ?? "");
+    setAddress(profile.legalAddress ?? "");
+    setError("");
+    setEditing(false);
+  }
+
+  return <div className={contextStyles.profileStack}>
+    <section className={`card ${contextStyles.profileHero}`}>
+      <div className={contextStyles.avatar}>{staffInitials(profile.displayLabel)}</div>
+      <div className={contextStyles.profileIdentity}><h2>{profile.displayLabel}</h2><p>{center?.displayName ?? "PINO House"}</p><span className={contextStyles.status}>{statusLabel}</span></div>
+    </section>
+
+    <section className="card">
+      <div className={contextStyles.sectionHead}><div><h2>Công việc</h2><p>Nhìn nhanh lịch làm việc của bạn.</p></div></div>
+      <div className={contextStyles.workFacts}>
+        <div className={contextStyles.fact}><span>Center</span><strong>{center?.displayName ?? "Chưa xác định"}</strong></div>
+        <div className={contextStyles.fact}><span>Tuần này</span><strong>{weeklyAssignments.length} ca</strong></div>
+      </div>
+      {next ? <div className={contextStyles.nextShift}><span>Ca kế tiếp</span><strong>{compactWorkDate(next.workDate)} · {next.shift?.displayLabel ?? "Ca làm"}</strong><small>{assignmentTime(next)}</small></div> : <div className={contextStyles.nextShift}><span>Ca kế tiếp</span><strong>Chưa có ca sắp tới</strong></div>}
+      <Link className={contextStyles.profileLink} href="/schedule">Xem lịch của tôi →</Link>
+    </section>
+
+    <section className="card">
+      <div className={contextStyles.sectionHead}><div><h2>Thông tin cá nhân</h2><p>Thông tin liên hệ bạn được phép tự cập nhật.</p></div>{!editing ? <button className={contextStyles.textButton} type="button" onClick={() => setEditing(true)}>Chỉnh sửa</button> : null}</div>
+      {error ? <div className="alert">{error}</div> : null}
+      {editing ? <div className="grid"><label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} /></label><label>Điện thoại<input value={mobile} onChange={(e) => setMobile(e.target.value)} /></label><label>Địa chỉ<input value={legalAddress} onChange={(e) => setAddress(e.target.value)} /></label><div className={contextStyles.editActions}><button className="button" type="button" onClick={() => void save()}>Lưu hồ sơ</button><button className={contextStyles.secondaryButton} type="button" onClick={cancel}>Huỷ</button></div></div> : <dl className={contextStyles.contactList}><div className={contextStyles.contactRow}><dt>Email</dt><dd>{profile.email || "Chưa cập nhật"}</dd></div><div className={contextStyles.contactRow}><dt>Điện thoại</dt><dd>{profile.mobile || "Chưa cập nhật"}</dd></div><div className={contextStyles.contactRow}><dt>Địa chỉ</dt><dd>{profile.legalAddress || "Chưa cập nhật"}</dd></div></dl>}
+    </section>
+  </div>;
+}
