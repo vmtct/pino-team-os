@@ -247,7 +247,7 @@ jobs:
             compare="$(gh api "/repos/${repo}/compare/${TEAM_SHA}...${main_sha}")" || return 1
             status="$(jq -r '.status' <<<"$compare")"
             [ "$status" = "identical" ] || [ "$status" = "ahead" ] || return 1
-            unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$|scripts/assert-evaluator-provider-authority\.sh$|lib/team-production-release-governance\.test\.ts$)' || true)"
+            unexpected="$(jq -r '.files[]?.filename' <<<"$compare" | grep -Ev '^(\.github/|docs/|.*\.md$|scripts/assert-evaluator-provider-authority\.sh$|scripts/assert-core-production-authority\.sh$|lib/team-production-release-governance\.test\.ts$)' || true)"
             [ -z "$unexpected" ]
           }
           rollback() {
