@@ -239,7 +239,7 @@
 
 .plannerPage { width: min(100%, 1320px); }
 .plannerFilters { display: grid; grid-template-columns: repeat(2,minmax(220px,1fr)); gap: 12px; }
-.plannerLayout { display: grid; grid-template-columns: minmax(0,1fr) 286px; gap: 12px; align-items: start; }
+.plannerLayout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 12px; align-items: start; }
 .plannerTableWrap { width: 100%; max-height: min(68vh,640px); overflow: auto; scrollbar-gutter: stable; border: 1px solid #e7e7ee; border-radius: 12px; }
 .plannerTableWrap table { width: 100%; min-width: 740px; table-layout: fixed; border-collapse: collapse; font-size: 11px; }
 .plannerTableWrap th, .plannerTableWrap td { padding: 6px; border-right: 1px solid #ececf2; border-bottom: 1px solid #ececf2; vertical-align: top; }
