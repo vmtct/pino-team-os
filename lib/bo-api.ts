@@ -94,6 +94,7 @@ export type BoStudentIntakeCreateInput = {
 } & ({ existingParentUserId: string } | { existingParentUserId?: null; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string });
 
 export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
+export type BoAcquisitionCreateInput = { phone: string; sourceBrand: "PINO_HOUSE" | "TOPPI"; intentKind: "OPEN_STUDIO" | "PROGRAM_INTEREST" | "GENERAL_INQUIRY"; childAge: number | null };
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
@@ -254,6 +255,7 @@ export const boApi = {
   parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
+  createAcquisitionIntent: (body: BoAcquisitionCreateInput, idempotencyKey: string) => write<{ leadId: string; intentId: string; status: "SUBMITTED"; nextStep: "MANUAL_CONTACT" }>("acquisition/intents", body, idempotencyKey),
   markAcquisitionContacted: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACTED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/contacted`, { expectedVersion }, idempotencyKey),
   verifyAcquisitionContact: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACT_VERIFIED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/verify-contact`, { expectedVersion }, idempotencyKey),
   closeAcquisitionIntent: (intentId: string, expectedVersion: number, reason: string, idempotencyKey: string) => write<{ intentId: string; status: "CLOSED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/close`, { expectedVersion, reason }, idempotencyKey),
