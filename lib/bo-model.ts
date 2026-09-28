@@ -229,6 +229,14 @@ export interface BoStaffProfile extends BoStaffRecord {
   startDate: string | null;
 }
 
+export interface BoStaffPrivateData {
+  staffMemberId: string;
+  governmentId: { number: string | null; issueDate: string | null; issuePlace: string | null } | null;
+  bank: { name: string; accountNumber: string; accountHolder: string; branch: string | null } | null;
+  documents: Array<{ id: string; side: "front" | "back" | "unspecified"; mimeType: string; byteSize: number; createdAt: string }>;
+  source: "APPROVED_REGISTRATION" | "STAFF_RECORD";
+}
+
 export interface BoStaffPinoriaProjection {
   staffMemberId: string;
   personId: string | null;
