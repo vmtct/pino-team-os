@@ -18,7 +18,7 @@ const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
-const STAFF_PIN_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/;
+const STAFF_PASSWORD_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/;
 const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const TIMEKEEPING_CORRECTION_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/corrections$/;
@@ -92,7 +92,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
+    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -103,8 +103,8 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A JSON request body is required" } }, 400);
     }
 
-    if ((PARENT_PIN_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path)) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
-      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: STAFF_PIN_RESET_PATH.test(path) ? "Staff PIN reset body must be empty" : "Parent PIN command body must be empty" } }, 400);
+    if ((PARENT_PIN_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path)) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: STAFF_PASSWORD_RESET_PATH.test(path) ? "Staff password reset body must be empty" : "Parent PIN command body must be empty" } }, 400);
     }
 
     if (STUDENT_COMPANION_FEED_PATH.test(path) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
@@ -175,7 +175,7 @@ export function isAllowedPostPath(path: string): boolean {
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH
     || path === ACCESS_USER_STATUS_PATH
-    || STAFF_PIN_RESET_PATH.test(path)
+    || STAFF_PASSWORD_RESET_PATH.test(path)
     || STAFF_RECORD_PATH.test(path)
     || STAFF_STATUS_PATH.test(path)
     || TIMEKEEPING_CORRECTION_PATH.test(path)
