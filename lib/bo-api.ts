@@ -368,6 +368,7 @@ export const boApi = {
     centerId: string;
     workDate: string;
     shiftTemplateId: string;
+    timeBasis?: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
     termWeekId?: string;
     replacesAssignmentId?: string;
     roles: Array<
