@@ -7,6 +7,7 @@ import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
 import contextStyles from "./workforce-context.module.css";
 import {
+  activeAssignments,
   assignmentTime,
   assignmentsInWeek,
   compactWorkDate,
@@ -85,6 +86,30 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     finally { setLoading(false); }
   }
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!center) return;
+    let disposed = false;
+    const refreshSchedule = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const result = await workforceApi.schedule({ centerId: center.id, startDate: offset(-30), endDate: offset(60) });
+        if (!disposed) setAssignments(result.data);
+      } catch {
+        // Background freshness must not erase the last known-good operational schedule.
+      }
+    };
+    const onFocus = () => { void refreshSchedule(); };
+    const onVisibility = () => { if (document.visibilityState === "visible") void refreshSchedule(); };
+    const interval = window.setInterval(() => { void refreshSchedule(); }, 30_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [center]);
 
   async function clock(action: "in" | "out") {
     if (!center) return;
@@ -172,12 +197,13 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
 
   const title = view === "profile" ? "Hồ sơ của tôi" : view === "history" ? "Chấm công" : view === "check-in" ? "Check-in/out" : view === "schedule" ? "Lịch của tôi" : view === "availability" ? "Đăng ký ca" : "Hôm nay";
   const active = view === "history" ? "history" : view === "check-in" ? "check" : view === "schedule" ? "schedule" : view === "availability" ? "register" : view === "dashboard" ? "today" : undefined;
-  const todayAssignments = assignments.filter((row) => row.workDate === today());
+  const activeSchedule = useMemo(() => activeAssignments(assignments), [assignments]);
+  const todayAssignments = activeSchedule.filter((row) => row.workDate === today());
 
   return <TosShell title={title} subtitle={profile?.displayLabel ?? "PINO Team"} theme="shift" footerItems={TOS_SHIFT_FOOTER} activeFooterId={active}>
     {loading ? <p>Đang tải dữ liệu an toàn từ Core…</p> : <>
       {error ? <div className="alert">{error}</div> : null}
-      {profile && view === "profile" ? <Profile profile={profile} assignments={assignments} center={center} week={week} onSaved={setProfile} /> : null}
+      {profile && view === "profile" ? <Profile profile={profile} assignments={activeSchedule} center={center} week={week} onSaved={setProfile} /> : null}
       {view === "dashboard" ? <>
         <section className="card section">
           <h2>{current ? "Đang làm việc" : "Chưa check-in"}</h2>
@@ -186,7 +212,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
         </section>
         <Schedule rows={todayAssignments} title="Ca hôm nay" />
       </> : null}
-      {view === "schedule" ? <Schedule rows={assignments} title="Ca được phân công" /> : null}
+      {view === "schedule" ? <Schedule rows={activeSchedule} title="Ca được phân công" /> : null}
       {view === "availability" ? <AvailabilityPanel week={week} availability={availability} templates={templates} saving={saving} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
       {view === "check-in" ? <CheckInPanel current={current} state={checkInState} saving={saving} centerReady={Boolean(center)} formOpen={requestFormOpen} reason={requestReason} onReason={setRequestReason} onOpenForm={() => setRequestFormOpen(true)} onCancelForm={() => { setRequestFormOpen(false); setRequestReason(""); }} onClock={() => void clock(current ? "out" : "in")} onRequest={() => void requestUnscheduledCheckIn()} /> : null}
       {view === "history" ? <History rows={history} /> : null}

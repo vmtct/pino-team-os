@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  activeAssignments,
   assignmentTime,
   assignmentsInWeek,
   compactWorkDate,
@@ -13,7 +14,7 @@ import type { Assignment, WorkforceContext } from "./workforce-api";
 
 const shift = { code: "EVENING_PA", displayLabel: "Ca tối PA", startLocalTime: "17:30", endLocalTime: "21:00" };
 const assignment = (id: string, workDate: string, start = "17:30"): Assignment => ({
-  id, centerId: "center-1", workDate, shiftTemplateId: "shift-1", termWeekId: "week-1", status: "ASSIGNED",
+  id, centerId: "center-1", workDate, shiftTemplateId: "shift-1", termWeekId: "week-1", status: "ACTIVE",
   shift: { ...shift, startLocalTime: start },
 });
 
@@ -37,6 +38,16 @@ test("TOSCTX-001/002 Today, Schedule and Check-in use human date and hide raw sh
   assert.match(source, /compactWorkDate\(state\.assignment\.workDate\)/);
   assert.match(source, /assignmentTime\(row\)/);
   assert.doesNotMatch(source, /row\.shift\.code/);
+});
+
+test("TOSCTX-005 cancelled assignments leave operational schedule and background refresh is wired", async () => {
+  const rows = [assignment("active", "2026-09-28"), { ...assignment("cancelled", "2026-09-29"), status: "CANCELLED" }];
+  assert.deepEqual(activeAssignments(rows).map((row) => row.id), ["active"]);
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  assert.match(source, /activeAssignments\(assignments\)/);
+  assert.match(source, /setInterval\(\(\) => \{ void refreshSchedule\(\); \}, 30_000\)/);
+  assert.match(source, /visibilitychange/);
+  assert.match(source, /window\.addEventListener\("focus", onFocus\)/);
 });
 
 test("TOSCTX-004 profile is read-only by default and edit keeps existing PATCH contract", async () => {

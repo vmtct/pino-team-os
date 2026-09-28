@@ -21,6 +21,10 @@ export function assignmentTime(row: Assignment) {
   return row.shift ? `${row.shift.startLocalTime}–${row.shift.endLocalTime}` : row.status;
 }
 
+export function activeAssignments(rows: Assignment[]) {
+  return rows.filter((row) => row.status === "ACTIVE");
+}
+
 export function assignmentsInWeek(rows: Assignment[], week: WorkforceContext["termWeeks"][number] | null) {
   if (!week) return [];
   return rows.filter((row) => row.workDate >= week.startDate && row.workDate <= week.endDate);
