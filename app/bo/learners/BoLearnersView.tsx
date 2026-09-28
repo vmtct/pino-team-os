@@ -404,7 +404,7 @@ function GuardianPanel({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
     <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>Family</span><h3>Guardian</h3></div><span className={styles.linkButton}>Read-only</span></div>
     {lifecycle.guardians.length ? <div className={styles.guardianList}>{lifecycle.guardians.map((guardian) => {
       const name = guardian.parent.displayName ?? "Guardian";
-      return <article key={guardian.relationshipId}><span className={styles.avatarSmall}>{initials(name)}</span><div><strong>{name}</strong><span>{guardian.relationshipType} · {guardian.parent.status}</span><small>{guardian.parent.contacts.map((contact) => `${contact.type}: ${contact.value}`).join(" · ") || "Không có active contact"}</small></div></article>;
+      return <article key={guardian.relationshipId}><span className={styles.avatarSmall}>{initials(name)}</span><div><strong>{name}</strong><span>{guardian.relationshipType} · {guardian.parent.status}</span><small>{guardian.parent.contacts.map((contact) => `${contact.type}: ${contact.value}`).join(" · ") || "Không có active contact"}</small>{(guardian.parent.pancakeConversations ?? []).filter((conversation) => conversation.webUrl).map((conversation) => <a key={`${conversation.externalIdentityId}:${conversation.conversationId}`} href={conversation.webUrl!} target="_blank" rel="noopener noreferrer">Mở hội thoại Pancake · {conversation.channel}</a>)}</div></article>;
     })}</div> : <div className={styles.emptyInline}>Chưa có Guardian active.</div>}
   </section>;
 }

@@ -53,3 +53,16 @@ test("PLT-SALES F0 presentation composes Core contracts without local CRM author
   assert.match(view, /Thử lại cùng yêu cầu/);
   assert.doesNotMatch(view, /fetch\(|localStorage|indexedDB|leadScore|pipelineValue/i);
 });
+
+test("PLT-LEAD Slice 3 exposes only Core-projected Pancake conversation links", async () => {
+  const [view, api] = await Promise.all([
+    readFile("app/bo/sales/leads/SalesLeadPipelineView.tsx", "utf8"),
+    readFile("lib/bo-api.ts", "utf8"),
+  ]);
+  assert.match(api, /pancakeConversations\?: BoPancakeConversation\[\]/);
+  assert.match(view, /Mở hội thoại Pancake/);
+  assert.match(view, /conversation\.webUrl/);
+  assert.match(view, /target="_blank"/);
+  assert.match(view, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(view, /pages\.fm|pancake\.vn/);
+});

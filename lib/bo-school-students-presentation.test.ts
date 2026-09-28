@@ -32,3 +32,11 @@ test("School Student Pinoria fences Feed completion to the initiating student an
 
 
 test("JCS-01 exposes replay-safe Student Intake neutralization through the normal School UI",async()=>{const [view,api,writeHandler]=await Promise.all([read("app/bo/learners/BoLearnersView.tsx"),read("lib/bo-api.ts"),read("lib/bo-write-handler.ts")]);assert.match(view,/Lưu trữ intake/);assert.match(view,/boApi\.voidStudentIntake/);assert.match(view,/expectedStudentVersion: lifecycle\.student\.version/);assert.match(view,/currentAttempt = attempt/);assert.match(view,/Thử lại cùng yêu cầu/);assert.match(view,/Parent\/contact chỉ được lưu trữ/);assert.match(view,/Đóng & Clean Verify/);assert.match(view,/if \(result\) \{ void onNeutralized\(\); return; \}/);assert.match(api,/voidStudentIntake/);assert.match(api,/student-intakes\/.*void/);assert.match(writeHandler,/STUDENT_INTAKE_VOID_PATH/);assert.match(writeHandler,/STUDENT_INTAKE_VOID_PATH\.test\(path\)/);});
+
+test("PLT-LEAD Slice 3 projects Pancake links through Guardian Parent without Student ownership", async () => {
+  const [view, model] = await Promise.all([read("app/bo/learners/BoLearnersView.tsx"), read("lib/bo-model.ts")]);
+  assert.match(model, /pancakeConversations\?: BoPancakeConversation\[\]/);
+  assert.match(view, /guardian\.parent\.pancakeConversations/);
+  assert.match(view, /Mở hội thoại Pancake/);
+  assert.doesNotMatch(model, /student:.*pancakeConversations/);
+});
