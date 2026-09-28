@@ -118,13 +118,13 @@ jobs:
           if (staging.vars?.WORKFORCE_BO_STAGING_BYPASS !== 'enabled') throw new Error('Workforce BO staging bypass disabled');
           if (staging.vars?.WORKFORCE_STAGING_BO_EMAIL !== 'workforce-planning-staging-probe@pino.invalid') throw new Error('Workforce BO staging identity drift');
           if (staging.vars?.PINORIA_TOS_STAGING_BYPASS !== 'enabled') throw new Error('TOS staging identity bypass disabled');
-          const required = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_WORKFORCE_NETWORK_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
+          const required = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_WORKFORCE_NETWORK_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE']);
           for (const service of staging.services ?? []) {
             if (service.service !== 'pino-core-staging') throw new Error(`non-staging Core binding: ${service.binding}`);
             required.delete(service.binding);
           }
           if (required.size) throw new Error(`missing staging Core bindings: ${[...required].join(',')}`);
-          const productionCore = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
+          const productionCore = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE']);
           for (const service of production.services ?? []) {
             if (!productionCore.has(service.binding)) continue;
             if (service.service !== 'pino-core') throw new Error(`production Core binding drift: ${service.binding}`);

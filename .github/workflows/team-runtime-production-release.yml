@@ -187,7 +187,6 @@ jobs:
           PINO_STAFF_REGISTRATION_CORE|pino-core|StaffRegistrationControlPlane
           PINO_TOS_LEARNING_CORE|pino-core|TosLearningControlPlane
           PINO_STAFF_PASSWORD_CORE|pino-core|StaffPasswordControlPlane
-          PINO_STAFF_PIN_CORE|pino-core|StaffPinControlPlane
           PINO_PINORIA_TV_CORE|pino-core|PinoriaTvControlPlane
           PINO_ACCESS_SYNC|pino-access-evaluator|AccessSyncControlPlane
           EOF

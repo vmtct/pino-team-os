@@ -7,7 +7,7 @@ const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 test("Pinoria TV uses the unified Core presentation queue", () => {
-  const binding = read("lib/staff-pin-core.ts");
+  const binding = read("lib/pinoria-tv-core.ts");
   const route = read("app/api/pinoria-tv/presentation/route.ts");
   const reception = read("app/pinoria-tv/reception-tv.tsx");
   assert.match(binding, /claimPresentation/);
@@ -38,7 +38,7 @@ test("Companion Ritual stays on the generic Activity and TV presentation contrac
   const reception = read("app/pinoria-tv/reception-tv.tsx");
   const activities = read("app/bo/pinoria-activities/PinoriaActivitiesView.tsx");
   const tos = read("app/pinoria/activity-panel.tsx");
-  const binding = read("lib/staff-pin-core.ts");
+  const binding = read("lib/pinoria-tv-core.ts");
   assert.match(scene, /ritual\.companion\.assetKey/);
   assert.match(scene, /ritual\.companion\.sigilAssetKey/);
   assert.match(scene, /ritual\.companion\.fromLevel/);
