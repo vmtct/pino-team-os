@@ -43,8 +43,7 @@ jobs:
           set -euo pipefail
           gh workflow run cloudflare-build-guardian.yml \
             --repo "$GITHUB_REPOSITORY" \
-            --ref main \
-            -f "commit_sha=${{ steps.head.outputs.sha }}"
+            --ref main
 
       - name: Wait for the fresh Cloudflare diagnostics run
         id: wait
