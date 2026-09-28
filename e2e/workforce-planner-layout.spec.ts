@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const css = readFileSync(resolve(process.cwd(), "app/bo/bo.module.css"), "utf8");
+const shellCss = readFileSync(resolve(process.cwd(), "app/components/tos-shell/bo-shell.module.css"), "utf8");
+const globalCss = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
 const days = ["Thứ 2, 28/09", "Thứ 3, 29/09", "Thứ 4, 30/09", "Thứ 5, 01/10", "Thứ 6, 02/10", "Thứ 7, 03/10", "CN, 04/10"];
 
 function fixture() {
@@ -12,7 +14,7 @@ function fixture() {
       `<td><button class="plannerCell"><strong>${day % 3 === 0 ? "Đã xếp" : "Có thể"}</strong><span>Ca Tối 18:00–21:00</span></button></td>`
     ).join("")}</tr>`
   ).join("");
-  return `<!doctype html><style>${css}</style><main class="page plannerPage"><div class="plannerLayout"><section class="panel"><div class="plannerTableWrap"><table><thead><tr><th>Staff</th>${header}</tr></thead><tbody>${rows}</tbody></table></div></section><aside class="plannerSide">Action panel</aside></div></main>`;
+  return `<!doctype html><style>${globalCss}\n${shellCss}\n${css}</style><div class="shell"><aside class="sidebar"></aside><div class="workspace"><header class="topbar"></header><main class="main"><main class="page plannerPage"><div class="plannerLayout"><section class="panel"><div class="plannerTableWrap"><table><thead><tr><th>Staff</th>${header}</tr></thead><tbody>${rows}</tbody></table></div></section><aside class="plannerSide">Action panel</aside></div></main></main></div></div>`;
 }
 
 async function metrics(page: Page) {
@@ -64,8 +66,8 @@ test("WFMUX-003 preserves header and Staff context while grid scrolls vertically
   expect(Math.abs(top - wrapTop)).toBeLessThanOrEqual(2);
 });
 
-test("WFMUX-004 narrower desktop stacks the action panel before the week clips", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
+test("WFMUX-004 1366px BoShell stacks the action panel before the week clips", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 800 });
   await page.setContent(fixture());
   const columns = await page.locator(".plannerLayout").evaluate((node) => getComputedStyle(node).gridTemplateColumns);
   expect(columns.trim().split(/\s+/)).toHaveLength(1);

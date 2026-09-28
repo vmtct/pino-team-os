@@ -261,7 +261,7 @@
 .plannerHistory { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid #ececf2; }
 .plannerHistory strong { font-size: 11px; }
 .plannerHistory span { color: #777783; font-size: 9px; line-height: 1.4; }
-@media (max-width: 1360px) { .plannerLayout { grid-template-columns: 1fr; } .plannerSide { position: static; } }
+@media (max-width: 1440px) { .plannerLayout { grid-template-columns: 1fr; } .plannerSide { position: static; } }
 @media (max-width: 620px) { .plannerFilters { grid-template-columns: 1fr; } }
 
 .syllabusPage { width: min(100%, 1280px); }
