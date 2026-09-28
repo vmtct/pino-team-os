@@ -24,7 +24,7 @@ marker="$(sed -nE 's/^Evaluator deployment marker:[[:space:]]*(PINO_ACCESS_SECRE
 auth_hash="$(sed -nE 's/^Authorization body hash:[[:space:]]*([0-9a-f]{64})[[:space:]]*$/\1/p' <<<"$body")"
 [ "$team_source" = "$team_sha" ] && [[ "$evaluator_source" =~ ^[0-9a-f]{40}$ ]] && [ -n "$version_tag" ] && [ -n "$script_etag" ] && [ -n "$version" ] && [ -n "$deployment" ] && [ -n "$marker" ] && [[ "$auth_hash" =~ ^[0-9a-f]{64}$ ]] || { echo "Evaluator provider receipt incomplete" >&2; exit 1; }
 [[ "$marker" == "PINO_ACCESS_SECRET:${team_sha}:${evaluator_source}:${run_id}:1:"* ]] || { echo "Evaluator deployment marker does not bind Team/evaluator source and exact run" >&2; exit 1; }
-live_body="$(jq -r '.body // ""' <<<"$issue_json")"
+live_body="$(jq -r '.body // "" | sub("\\n$";"")' <<<"$issue_json")"
 [ "$(printf '%s' "$live_body" | sha256sum | cut -d' ' -f1)" = "$auth_hash" ] || { echo "Evaluator provider authorization body changed after PASS" >&2; exit 1; }
 runs="$(gh api --paginate --slurp "/repos/${repo}/actions/workflows/access-sync-worker-secret.yml/runs?event=issues&per_page=100")"
 latest="$(jq -r --arg sha "$team_sha" '[.[]?.workflow_runs[]? | select(.head_sha==$sha and .event=="issues" and .actor.login=="vmtct" and ((.display_title // "")|startswith("Access sync worker secret #")) and ((.display_title // "")|endswith(" @ "+$sha)))] | sort_by(.updated_at // .run_started_at // .created_at // "") | last | .id // empty' <<<"$runs")"
