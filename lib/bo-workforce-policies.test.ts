@@ -38,7 +38,12 @@ test("WWC Policies writes are allowlisted and replay-protected",async()=>{
 import { readFile } from "node:fs/promises";
 
 test("WWC Policies page exposes GLOBAL default, CENTER override and exact business controls",async()=>{
-  const [view,nav]=await Promise.all([readFile("app/bo/system/policies/WorkforcePoliciesView.tsx","utf8"),readFile("app/bo/navigation.ts","utf8")]);
+  const [eligibilityView,windowView,nav]=await Promise.all([
+    readFile("app/bo/system/policies/WorkforcePoliciesView.tsx","utf8"),
+    readFile("app/bo/system/policies/WeekControlPoliciesView.tsx","utf8"),
+    readFile("app/bo/navigation.ts","utf8"),
+  ]);
+  const view=eligibilityView+"\n"+windowView;
   assert.match(nav,/href: "\/bo\/system\/policies", label: "Policies"/);
   assert.match(view,/GLOBAL default/);
   assert.match(view,/CENTER override/);
