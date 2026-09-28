@@ -14,7 +14,7 @@ while IFS= read -r candidate; do
   candidate_title="$(jq -r '.display_title // empty' <<<"$candidate")"
   candidate_issue="$(sed -nE 's/^Core production release #([0-9]+) @ [0-9a-f]{40}$/\1/p' <<<"$candidate_title")"
   [ -n "$candidate_id" ] && [ -n "$candidate_issue" ] || continue
-  backing_issue="$(core_api "/repos/${repo}/issues/${candidate_issue}")" || continue
+  backing_issue="$(core_api "/repos/${repo}/issues/${candidate_issue}")" || { echo "Cannot verify backing Core release issue #${candidate_issue}" >&2; exit 1; }
   if jq -e '.state=="open" and .user.login=="vmtct" and .title=="[GPT] Core production release"' <<<"$backing_issue" >/dev/null; then
     latest="$candidate_id"
     break
