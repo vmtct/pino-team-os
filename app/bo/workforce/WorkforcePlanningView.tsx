@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
+import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
 import styles from "../bo.module.css";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
@@ -278,6 +279,7 @@ export function WorkforcePlanningView() {
               {dateRange(data).map((date) => {
                 const assigned = data.assignments.filter((item) => item.staffMemberId === staff.id && item.workDate === date && item.status === "ACTIVE");
                 const available = data.availability.some((item) => item.staffMemberId === staff.id && item.items.some((entry) => entry.workDate === date));
+                const ownerGap = hasOwnerTeacherLinkGap(data, staff.id, date);
                 const selected = selection?.staffMemberId === staff.id && selection.workDate === date;
                 return <td key={date}>
                   <button className={`${styles.plannerCell} ${selected ? styles.plannerCellActive : ""}`} onClick={() => {
@@ -289,7 +291,10 @@ export function WorkforcePlanningView() {
                     setPrimarySessionIds([]);
                     setHandoffReasons({});
                   }}>
-                    {assigned.length ? <><strong>Đã xếp</strong>{assigned.map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)}</span>)}</> : available ? <><strong>Có thể</strong><span>{availableCount(data, staff.id, date)} ca đăng ký</span></> : <span>—</span>}
+                    {assigned.length ? <><strong>Đã xếp</strong>{assigned.map((item) => {
+                      const summary = assignmentRoleSummary(data, item);
+                      return <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · {summary}</span>;
+                    })}{ownerGap ? <span>⚠ Owner chưa link TE</span> : null}</> : ownerGap ? <><strong>⚠ Owner</strong><span>Chưa có TE/ca tương ứng</span></> : available ? <><strong>Có thể</strong><span>{availableCount(data, staff.id, date)} ca đăng ký</span></> : <span>—</span>}
                   </button>
                 </td>;
               })}
