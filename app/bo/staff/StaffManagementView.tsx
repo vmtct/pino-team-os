@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
+import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -49,6 +50,7 @@ export function StaffManagementView() {
   const selectedIdRef = useRef("");
   const pinResetInFlightRef = useRef<string | null>(null);
   const refreshFenceRef = useRef(0);
+  const privateRevealFenceRef = useRef(createStaffPrivateRevealFence());
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -59,6 +61,7 @@ export function StaffManagementView() {
   }, []);
   useEffect(() => {
     let current = true;
+    privateRevealFenceRef.current.invalidate();
     selectedIdRef.current = selectedId;
     setPinReset(null); setPinCopied(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
     setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
@@ -78,6 +81,16 @@ export function StaffManagementView() {
   }, [accessUser, data.centers]);
 
 
+  function selectStaff(nextId: string) {
+    if (selectedIdRef.current !== nextId) {
+      privateRevealFenceRef.current.invalidate();
+      setPrivateData({ status: "idle" });
+      setPrivateCenterId("");
+    }
+    selectedIdRef.current = nextId;
+    setSelectedId(nextId);
+  }
+
   async function refresh(preferId = "") {
     const refreshFence = refreshFenceRef.current;
     const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
@@ -87,8 +100,7 @@ export function StaffManagementView() {
     if (lockedId && !staff.some((item) => item.id === lockedId)) return;
     setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
     const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
-    selectedIdRef.current = nextId;
-    setSelectedId(nextId);
+    selectStaff(nextId);
   }
 
   async function refreshPinoria() {
@@ -106,16 +118,20 @@ export function StaffManagementView() {
   async function revealPrivateData() {
     const targetId = selectedIdRef.current;
     if (!targetId) return;
+    const revealToken = privateRevealFenceRef.current.begin();
     setPrivateData({ status: "loading" }); setError("");
     try {
       const next = await boApi.staffPrivate(targetId, privateCenterId || undefined);
-      if (selectedIdRef.current === targetId) setPrivateData({ status: "ready", data: next });
+      if (selectedIdRef.current === targetId && privateRevealFenceRef.current.accepts(revealToken)) setPrivateData({ status: "ready", data: next });
     } catch (cause) {
-      if (selectedIdRef.current === targetId) setPrivateData({ status: "error", message: cause instanceof Error ? cause.message : "Không thể đọc thông tin riêng tư." });
+      if (selectedIdRef.current === targetId && privateRevealFenceRef.current.accepts(revealToken)) setPrivateData({ status: "error", message: cause instanceof Error ? cause.message : "Không thể đọc thông tin riêng tư." });
     }
   }
 
-  function hidePrivateData() { setPrivateData({ status: "idle" }); }
+  function hidePrivateData() {
+    privateRevealFenceRef.current.invalidate();
+    setPrivateData({ status: "idle" });
+  }
 
   async function syncTosPerimeter() {
     setBusy("perimeter"); setError(""); setMessage("");
@@ -247,7 +263,7 @@ export function StaffManagementView() {
           <div className={styles.panelHeading}><div><h2>{data.staff.length} nhân viên</h2><p>Chọn một người để quản lý.</p></div></div>
           {data.staff.map((item) => {
             const user = data.users.find((entry) => entry.staffMemberId === item.id);
-            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "pin-reset"} onClick={() => { if (busy !== "pin-reset") { selectedIdRef.current = item.id; setSelectedId(item.id); } }}>
+            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "pin-reset"} onClick={() => { if (busy !== "pin-reset") selectStaff(item.id); }}>
               <strong>{item.displayLabel}</strong><span>{item.roleLabel ?? item.department ?? "Chưa phân loại"}</span><small>{item.status} · Access {user?.status ?? "none"}</small>
             </button>;
           })}
@@ -284,7 +300,7 @@ export function StaffManagementView() {
                 <span className={styles.readOnly}>sensitive · read only</span>
               </div>
               {privateCenterOptions.length ? <label className={styles.field}>Phạm vi đọc
-                <select value={privateCenterId} onChange={(event) => { setPrivateCenterId(event.target.value); setPrivateData({ status: "idle" }); }}>
+                <select value={privateCenterId} onChange={(event) => { privateRevealFenceRef.current.invalidate(); setPrivateCenterId(event.target.value); setPrivateData({ status: "idle" }); }}>
                   <option value="">Global</option>
                   {privateCenterOptions.map((center) => <option key={center.id} value={center.id}>Center · {center.label}</option>)}
                 </select>

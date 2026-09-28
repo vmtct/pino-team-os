@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { BO_HOSTNAME, decideHostBoundary } from "./host-boundary";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
 import { handleBoStaffPrivateDocumentRequest, type BoStaffPrivateEnv } from "./bo-staff-private-handler";
+import { createStaffPrivateRevealFence } from "./staff-private-reveal-fence";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 
 const staffId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
@@ -60,6 +61,29 @@ test("Staff detail requires an explicit reveal and never prefetches private data
   assert.match(source, /async function revealPrivateData\(\)/);
   assert.match(source, /Hiện thông tin riêng tư/);
   assert.match(source, /Ẩn thông tin/);
+  assert.match(source, /const revealToken = privateRevealFenceRef\.current\.begin\(\)/);
+  assert.match(source, /privateRevealFenceRef\.current\.accepts\(revealToken\)/);
+  assert.ok((source.match(/privateRevealFenceRef\.current\.invalidate\(\)/g) ?? []).length >= 4);
   const selectedEffect = source.slice(source.indexOf("selectedIdRef.current = selectedId"), source.indexOf("const selected =", source.indexOf("selectedIdRef.current = selectedId")));
   assert.doesNotMatch(selectedEffect, /staffPrivate\(/);
+});
+
+test("private reveal fence rejects delayed responses after scope, target, or hide invalidation", async () => {
+  for (const reason of ["scope-change", "target-change", "hide"] as const) {
+    const fence = createStaffPrivateRevealFence();
+    let release!: () => void;
+    const delayed = new Promise<void>((resolve) => { release = resolve; });
+    const revealToken = fence.begin();
+    let applied = false;
+    const completion = delayed.then(() => {
+      if (fence.accepts(revealToken)) applied = true;
+    });
+
+    fence.invalidate();
+    release();
+    await completion;
+
+    assert.equal(applied, false, reason);
+    assert.equal(fence.accepts(revealToken), false, reason);
+  }
 });
