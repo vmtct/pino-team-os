@@ -73,6 +73,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/pinoria-ward/learners",
     "/bo/content",
     "/bo/system/users",
+    "/bo/system/policies",
     "/bo/system/roles",
     "/bo/system/policies",
     "/bo/system/audit",
@@ -133,6 +134,11 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/workforce/planning/bootstrap",
     "/api/bo/workforce/planning/shift-templates",
     "/api/bo/workforce/planning/weekly",
+    "/api/bo/workforce/planning/week-control",
+    "/api/bo/workforce/planning/availability/lock",
+    "/api/bo/workforce/planning/availability/reopen",
+    "/api/bo/workforce/planning/planning/publish",
+    "/api/bo/workforce/planning/planning/reopen",
     "/api/bo/workforce/planning/assignment",
     "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments",
@@ -171,6 +177,8 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
     || /^\/api\/bo\/delivery\/calendar-exclusions\/[0-9a-f-]{36}$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
+    || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/(?:effective|stream|versions)$/.test(normalized)
+    || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/(?:effective|stream|versions)$/.test(normalized)
