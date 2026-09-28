@@ -84,6 +84,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "web-cms/slots"
     || WEB_CMS_SLOT_READ.test(path)
     || path === "learners"
+    || path === "identity/parents"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
     || path === "practice/repertoire-access"
@@ -165,6 +166,10 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     const limit = url.searchParams.get("limit");
     return limit ? { limit: Number(limit) } : undefined;
   }
+  if (path === "identity/parents") return {
+    ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
+    ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
+  };
   if (path === "learners" || path === "open-studio/learners") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
     ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),

@@ -371,6 +371,11 @@ export interface BoLearnerLifecycle {
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
 }
 
+export interface BoParentSearchResult {
+  parent: { id: string; displayName: string | null; status: string; createdAt: string; updatedAt: string; version: number };
+  contacts: Array<{ id: string; parentUserId: string; identifierType: "PHONE" | "EMAIL"; normalizedValue: string; isPrimary: boolean; verifiedAt: string | null; createdAt: string; retiredAt: string | null }>;
+}
+
 export interface BoStudentIntakeVoidResult {
   studentProfileId: string;
   studentStatus: "ARCHIVED";
