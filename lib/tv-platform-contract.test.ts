@@ -35,6 +35,13 @@ test("runtime cookie parser accepts only the named opaque session cookie",()=>{
  assert.equal(tvRuntimeCookie(new Request("https://tos.pinohouse.art/tv/x")),"");
 });
 
+test("runtime presentation facade preserves the legacy browser envelope",()=>{
+ const source=read("app/api/tv/runtime/[displayId]/pinoria-house/presentation/route.ts");
+ assert.ok(source.includes("{presentation:envelope.data??null}"));
+ assert.ok(source.includes("{ok:true,...completed as Record<string,unknown>}"));
+ assert.ok(source.includes("if(result.status!==200)return runtimeJson(result)"));
+});
+
 test("Pinoria runtime accepts a generic API base and legacy route migrates to TV launcher",()=>{
  const reception=read("app/pinoria-tv/reception-tv.tsx"),presentation=read("app/pinoria-tv/presentation-client.ts"),legacy=read("app/pinoria-tv/page.tsx");
  assert.ok(reception.includes('apiBase = "/api/pinoria-tv"'));
