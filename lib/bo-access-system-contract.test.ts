@@ -40,8 +40,8 @@ test("BO shell places Access administration under canonical System responsibilit
 });
 
 test("BO Workforce policy surface exposes only canonical Center-scoped policy paths", () => {
-  for (const readPath of ["policies/workforce/TIMEKEEPING_ELIGIBILITY/stream", "policies/workforce/AVAILABILITY_ELIGIBILITY/effective"]) assert.equal(isOperationalReadPath(readPath), true, readPath);
-  for (const writePath of ["policies/workforce/TIMEKEEPING_ELIGIBILITY/versions", `policies/workforce/TIMEKEEPING_ELIGIBILITY/versions/${roleId}/publish`, "policies/workforce/AVAILABILITY_ELIGIBILITY/versions"]) assert.equal(isAllowedPostPath(writePath), true, writePath);
+  for (const readPath of ["policies/workforce/TIMEKEEPING_ELIGIBILITY/stream", "policies/workforce/AVAILABILITY_ELIGIBILITY/effective", "policies/delivery/future_reservation.v1/stream", "policies/delivery/future_reservation.v1/effective"]) assert.equal(isOperationalReadPath(readPath), true, readPath);
+  for (const writePath of ["policies/workforce/TIMEKEEPING_ELIGIBILITY/versions", `policies/workforce/TIMEKEEPING_ELIGIBILITY/versions/${roleId}/publish`, "policies/workforce/AVAILABILITY_ELIGIBILITY/versions", "policies/delivery/future_reservation.v1/versions", "policies/delivery/future_reservation.v1/versions/" + roleId + "/publish"]) assert.equal(isAllowedPostPath(writePath), true, writePath);
   assert.equal(isOperationalReadPath("policies/workforce/UNKNOWN/stream"), false);
   assert.equal(isAllowedPostPath("policies/workforce/TIMEKEEPING_ELIGIBILITY/delete"), false);
 });

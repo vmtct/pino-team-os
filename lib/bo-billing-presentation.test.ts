@@ -12,6 +12,8 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
   assert.equal(isOperationalReadPath("billing/product-plans"), true);
   assert.equal(isOperationalReadPath(`billing/bills/${id}`), true);
   assert.equal(isOperationalReadPath("billing/bills/not-a-canonical-id"), false);
+  assert.equal(isOperationalReadPath("policies/delivery/future_reservation.v1/stream"), true);
+  assert.equal(isOperationalReadPath("policies/delivery/future_reservation.v1/effective"), true);
   for (const path of [
     `billing/product-plans/${id}/configure`,
     "billing/sales",
@@ -20,6 +22,8 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
     `billing/transactions/${id}/void`,
     "enrollments/bulk-preflight",
     "enrollments/bulk-place",
+    "policies/delivery/future_reservation.v1/versions",
+    "policies/delivery/future_reservation.v1/versions/" + id + "/publish",
   ]) assert.equal(isAllowedPostPath(path), true, path);
   assert.equal(isAllowedPostPath("billing/product-plans"), false);
   assert.equal(isAllowedPostPath(`billing/product-plans/${id}`), false);
@@ -126,6 +130,7 @@ test("Product Plan cadence drives exact distinct Running Class placements before
   assert.match(billing, /plannedDurationMinutes: duration/);
   assert.match(billing, /Placement starts/);
   assert.match(billing, /setPlacementStartsOn\(maxLocalDate\(sub\.contractualStartsOn, today\(\)\)\)/);
+  assert.match(billing, /const body = \{ \.\.\.bulkBody\(sale\), policyEffectiveAt \}/);
   assert.match(billing, /boApi\.preflightBulkEnrollments\(body\)/);
   assert.match(billing, /boApi\.placeBulkEnrollments/);
   assert.match(billing, /`\$\{idempotencyKey\}:placement`/);
