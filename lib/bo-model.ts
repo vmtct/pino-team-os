@@ -225,6 +225,7 @@ export interface BoStaffRecord {
 export interface BoStaffProfile extends BoStaffRecord {
   email: string | null;
   mobile: string | null;
+  legalAddress: string | null;
   employmentType: string | null;
   startDate: string | null;
 }
@@ -247,7 +248,7 @@ export interface BoStaffPinoriaProjection {
   };
 }
 
-export type BoStaffProfilePatch = Partial<Pick<BoStaffProfile, "displayLabel" | "email" | "mobile" | "employmentType" | "department" | "roleLabel" | "startDate">>;
+export type BoStaffProfilePatch = Partial<Pick<BoStaffProfile, "displayLabel" | "email" | "mobile" | "legalAddress" | "employmentType" | "department" | "roleLabel" | "startDate">>;
 
 export type BoStaffOnboardingCommand =
   | { commandType: "ONBOARD_STAFF_RECORD_ONLY"; staff: { displayLabel: string; email?: string; mobile?: string; department?: string; roleLabel?: string; employmentType?: string; startDate?: string } }
@@ -300,6 +301,7 @@ export interface BoContext {
   userId: string;
   email: string;
   staffMemberId: string | null;
+  displayName: string | null;
   surface: "BO";
   entitled: true;
 }
