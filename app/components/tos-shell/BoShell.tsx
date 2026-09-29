@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BoCurrentUserMenu } from "./BoCurrentUserMenu";
+import { LogoutButton } from "./LogoutButton";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import styles from "./bo-shell.module.css";
 
@@ -143,7 +144,7 @@ export function BoShell({
           <button className={styles.commandButton} type="button" onClick={() => setCommandOpen(true)} aria-label="Mở điều hướng nhanh">
             <span>Tìm màn hình…</span><kbd>Ctrl K</kbd>
           </button>
-          {currentUser ? <BoCurrentUserMenu currentUser={currentUser} /> : null}
+          {currentUser ? <BoCurrentUserMenu currentUser={currentUser} /> : <LogoutButton className={styles.logoutButton} />}
         </header>
         <main className={styles.main}>{children}</main>
       </div>

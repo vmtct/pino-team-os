@@ -23,6 +23,13 @@ test("BO shell receives canonical current-user context and exposes My Profile", 
   assert.match(menu, /href="\/bo\/profile"/);
 });
 
+test("BO production boundary admits My Profile and shared Founder shell keeps logout fallback", () => {
+  const boundary = read("lib/host-boundary.ts");
+  const shell = read("app/components/tos-shell/BoShell.tsx");
+  assert.match(boundary, /"\/bo\/profile"/);
+  assert.match(shell, /currentUser \? <BoCurrentUserMenu currentUser=\{currentUser\} \/> : <LogoutButton/);
+});
+
 test("BO My Profile is self-only presentation and never reuses Staff admin mutations", () => {
   const profile = read("app/bo/profile/BoProfileView.tsx");
   assert.match(profile, /fetch\("\/api\/bo\/context"/);

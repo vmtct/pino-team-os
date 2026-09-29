@@ -50,6 +50,7 @@ function isApprovedBoPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if ([
     "/bo",
+    "/bo/profile",
     "/bo/staff",
     "/bo/workforce",
     "/bo/workforce/check-in-exceptions",

@@ -48,9 +48,6 @@ export function BoProfileView() {
         <ReadFact label="Loại nhân sự" value={profile?.employmentType ?? "Chưa cập nhật"} />
         <ReadFact label="Trạng thái Staff" value={profile?.status ?? "Chưa liên kết StaffMember"} />
         <ReadFact label="Email đăng nhập" value={context.email} />
-        <ReadFact label="Email hồ sơ" value={profile?.profileEmail ?? "Chưa cập nhật"} />
-        <ReadFact label="Điện thoại" value={profile?.mobile ?? "Chưa cập nhật"} />
-        <ReadFact label="Địa chỉ" value={profile?.legalAddress ?? "Chưa cập nhật"} />
       </div>
       {!context.staffMemberId || !profile ? <p className={styles.staffWarning}>Tài khoản này chưa liên kết StaffMember. BO vẫn hoạt động theo quyền Access hiện hữu; tên không được suy đoán từ email.</p> : null}
       <p className={styles.ownerBulkStatus}>Để cập nhật thông tin cá nhân, dùng My Profile trên TOS. BO không dùng quyền Manager để tự sửa hồ sơ hay ACL.</p>

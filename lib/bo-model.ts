@@ -307,9 +307,6 @@ export interface BoContext {
     department: string | null;
     roleLabel: string | null;
     employmentType: string | null;
-    profileEmail: string | null;
-    mobile: string | null;
-    legalAddress: string | null;
   } | null;
   surface: "BO";
   entitled: true;
