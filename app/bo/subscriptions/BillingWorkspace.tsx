@@ -146,10 +146,10 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   }
 
   async function placeRegistration(sale: BoSaleResult, idempotencyKey: string, policyEffectiveAt: string) {
-    const body = bulkBody(sale);
+    const body = { ...bulkBody(sale), policyEffectiveAt };
     const preflight = await boApi.preflightBulkEnrollments(body);
     if (preflight.enrollments !== sale.productPlan.cadence) throw new Error("Bulk preflight không khớp cadence của Product Plan.");
-    return boApi.placeBulkEnrollments({ ...body, policyEffectiveAt }, idempotencyKey);
+    return boApi.placeBulkEnrollments(body, idempotencyKey);
   }
 
   async function resumePendingRegistration(entry: BoLearnerLifecycle["subscriptions"][number]) {
