@@ -22,6 +22,8 @@ test("TOS support cookie is hardened, host-only, and replaces ordinary TOS crede
 });
 
 test("active support session is visibly identified and has an explicit exit", () => {
+  assert.match(manager, /audited Workforce actions/);
+  assert.match(manager, /BO access/);
   assert.match(banner, /VIEW AS/);
   assert.match(banner, /ACT AS/);
   assert.match(banner, /state\.subjectEmail/);

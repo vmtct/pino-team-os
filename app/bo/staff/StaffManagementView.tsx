@@ -406,9 +406,9 @@ export function StaffManagementView() {
                   </div> : null}
                 </div>
                 <div className={styles.staffSupportPanel} data-testid="staff-support-panel">
-                  <div><strong>Support debug</strong><p>Staff-only · 15 phút. View as chặn mọi mutation ở Core; Act as vẫn bị giới hạn đúng quyền của Staff mục tiêu. Manager cần permission <code>access.support.impersonate</code>.</p></div>
+                  <div><strong>Support debug</strong><p>Staff-only · 15 phút. View as chỉ đọc. Act as chỉ mở các Workforce self-service action đã giữ đầy đủ audit provenance (profile, training, duty/check-in); các mutation khác fail-closed. Manager cần BO access + <code>access.support.impersonate</code>.</p></div>
                   <div className={styles.staffSupportFields}>
-                    <label className={styles.field}>Mode<select value={supportMode} onChange={(event) => setSupportMode(event.target.value as "VIEW" | "ACT")}><option value="VIEW">View as · read only</option><option value="ACT">Act as · theo quyền Staff</option></select></label>
+                    <label className={styles.field}>Mode<select value={supportMode} onChange={(event) => setSupportMode(event.target.value as "VIEW" | "ACT")}><option value="VIEW">View as · read only</option><option value="ACT">Act as · audited Workforce actions</option></select></label>
                     <label className={styles.field}>Lý do<input value={supportReason} onChange={(event) => setSupportReason(event.target.value)} placeholder="VD: Điều tra lỗi check-in" maxLength={500} /></label>
                     <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.status !== "active" || accessUser.status !== "active" || supportReason.trim().length < 3} onClick={() => void startSupportSession()}>{busy === "support" ? "Đang mở TOS…" : "Mở TOS như Staff"}</button>
                   </div>
