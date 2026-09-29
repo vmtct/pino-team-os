@@ -41,6 +41,8 @@ export function StaffManagementView() {
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
   const [scopeId, setScopeId] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
+  const [supportMode, setSupportMode] = useState<"VIEW" | "ACT">("VIEW");
+  const [supportReason, setSupportReason] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -205,6 +207,30 @@ export function StaffManagementView() {
     if (!pinReset) return;
     try { await navigator.clipboard.writeText(pinReset.initialPin); setPinCopied(true); }
     catch { setError("Không thể copy PIN tự động. Hãy copy trực tiếp từ màn hình."); }
+  }
+
+  async function startSupportSession() {
+    if (!accessUser || !profile || profile.status !== "active" || accessUser.status !== "active") return;
+    const reason = supportReason.trim();
+    if (reason.length < 3) { setError("Nhập lý do debug tối thiểu 3 ký tự."); return; }
+    setBusy("support"); setError(""); setMessage("");
+    try {
+      const session = await boApi.startSupportSession(accessUser.id, supportMode, reason);
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = window.location.hostname === "bo.pinohouse.art"
+        ? "https://tos.pinohouse.art/api/support-session/enter"
+        : "/api/support-session/enter";
+      form.style.display = "none";
+      const token = document.createElement("input");
+      token.type = "hidden"; token.name = "token"; token.value = session.token;
+      form.appendChild(token);
+      document.body.appendChild(form);
+      form.submit();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể mở support session.");
+      setBusy("");
+    }
   }
 
   async function changeAccessStatus(status: "active" | "suspended") {
@@ -379,6 +405,15 @@ export function StaffManagementView() {
                     <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPin()}>{pinCopied ? "Đã copy" : "Copy PIN"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPinReset(null); setPinCopied(false); }}>Ẩn PIN</button></div>
                   </div> : null}
                 </div>
+                <div className={styles.staffSupportPanel} data-testid="staff-support-panel">
+                  <div><strong>Support debug</strong><p>Staff-only · 15 phút. View as chặn mọi mutation ở Core; Act as vẫn bị giới hạn đúng quyền của Staff mục tiêu. Manager cần permission <code>access.support.impersonate</code>.</p></div>
+                  <div className={styles.staffSupportFields}>
+                    <label className={styles.field}>Mode<select value={supportMode} onChange={(event) => setSupportMode(event.target.value as "VIEW" | "ACT")}><option value="VIEW">View as · read only</option><option value="ACT">Act as · theo quyền Staff</option></select></label>
+                    <label className={styles.field}>Lý do<input value={supportReason} onChange={(event) => setSupportReason(event.target.value)} placeholder="VD: Điều tra lỗi check-in" maxLength={500} /></label>
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.status !== "active" || accessUser.status !== "active" || supportReason.trim().length < 3} onClick={() => void startSupportSession()}>{busy === "support" ? "Đang mở TOS…" : "Mở TOS như Staff"}</button>
+                  </div>
+                </div>
+
                 <div className={styles.staffAssignmentList}>{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={assignment.roleKey === "founder" || busy === `revoke:${assignment.assignmentId}`} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>

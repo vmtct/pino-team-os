@@ -4,8 +4,9 @@ export interface TosLearningCoreBinding{
   execute?(request:TosLearningRequest,identity:import("./team-auth").VerifiedTeamIdentity):Promise<TosLearningResponse>;
   executeWithStaffPin(request:TosLearningRequest,token:string):Promise<TosLearningResponse>;
   executeWithStaffPassword(request:TosLearningRequest,token:string):Promise<TosLearningResponse>;
+  executeWithSupportSession?(request:TosLearningRequest,token:string):Promise<TosLearningResponse>;
 }
 export function callTosLearningCoreWithStaffPin(binding:TosLearningCoreBinding,request:TosLearningRequest,token:string){return binding.executeWithStaffPin(request,token);}
 export function callTosLearningCoreWithStaffPassword(binding:TosLearningCoreBinding,request:TosLearningRequest,token:string){return binding.executeWithStaffPassword(request,token);}
 
-export function callTosLearningCoreWithCredential(binding:TosLearningCoreBinding,request:TosLearningRequest,credential:import("./team-auth").TeamCredential){if(credential.kind==="password")return binding.executeWithStaffPassword(request,credential.token);if(!binding.execute)throw new Error("TOS_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");return binding.execute(request,credential.identity);}
+export function callTosLearningCoreWithCredential(binding:TosLearningCoreBinding,request:TosLearningRequest,credential:import("./team-auth").TeamCredential){if(credential.kind==="support"){if(!binding.executeWithSupportSession)throw new Error("TOS_SUPPORT_SESSION_UNAVAILABLE");return binding.executeWithSupportSession(request,credential.token);}if(credential.kind==="password")return binding.executeWithStaffPassword(request,credential.token);if(!binding.execute)throw new Error("TOS_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");return binding.execute(request,credential.identity);}

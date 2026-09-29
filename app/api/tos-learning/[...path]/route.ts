@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { callTosLearningCoreWithStaffPin, callTosLearningCoreWithCredential, type TosLearningCoreBinding } from "@/lib/tos-learning-core";
-import { staffPinSession } from "@/lib/local-staff-session";
+import { staffPinSession, supportSession } from "@/lib/local-staff-session";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "@/lib/team-auth";
 import { tosQueryParamValue } from "@/lib/tos-query-params";
 
@@ -22,10 +22,13 @@ async function handle(request: Request, context: Context) {
     }
     const idempotencyKey = request.headers.get("idempotency-key") ?? undefined;
     const coreRequest = { method: request.method, path: `/${path.join("/")}`, body, ...(idempotencyKey ? { idempotencyKey } : {}) };
+    const supportToken = supportSession(request);
     const pinToken = staffPinSession(request);
-    const result = pinToken
-      ? await callTosLearningCoreWithStaffPin(env.PINO_TOS_LEARNING_CORE, coreRequest, pinToken)
-      : await callTosLearningCoreWithCredential(env.PINO_TOS_LEARNING_CORE, coreRequest, await teamCredential(request, env, "TOS"));
+    const result = supportToken
+      ? await callTosLearningCoreWithCredential(env.PINO_TOS_LEARNING_CORE, coreRequest, { kind: "support", token: supportToken })
+      : pinToken
+        ? await callTosLearningCoreWithStaffPin(env.PINO_TOS_LEARNING_CORE, coreRequest, pinToken)
+        : await callTosLearningCoreWithCredential(env.PINO_TOS_LEARNING_CORE, coreRequest, await teamCredential(request, env, "TOS"));
     return Response.json(result.body, { status: result.status, headers: { "cache-control": "no-store", "x-request-id": result.requestId } });
   } catch (error) {
     if (error instanceof TeamAuthError) return Response.json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, { status: error.status, headers: { "cache-control": "no-store" } });

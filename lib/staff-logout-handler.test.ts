@@ -5,12 +5,14 @@ import { handleStaffLogout, type StaffLogoutEnv } from "./staff-logout-handler";
 function env(
   onPasswordLogout?: StaffLogoutEnv["PINO_STAFF_PASSWORD_CORE"]["logout"],
   onPinLogout?: StaffLogoutEnv["PINO_STAFF_PIN_CORE"]["logout"],
+  onSupportLogout?: NonNullable<StaffLogoutEnv["PINO_STAFF_PASSWORD_CORE"]["supportLogout"]>,
 ): StaffLogoutEnv {
   return {
     PINO_STAFF_PASSWORD_CORE: {
       login: async () => ({ token: "password", expiresAt: "2099-01-01T00:00:00Z", userId: "user", staffMemberId: "staff", email: "staff@example.test" }),
       status: async () => ({ userId: "user", staffMemberId: "staff", email: "staff@example.test" }),
       logout: onPasswordLogout ?? (async () => ({ revoked: true })),
+      supportLogout: onSupportLogout ?? (async () => ({ revoked: true })),
     },
     PINO_STAFF_PIN_CORE: {
       login: async () => ({ status: 200, body: {}, requestId: "login" }),
@@ -37,7 +39,20 @@ test("logout revokes both password and shared-device PIN sessions and clears bot
   const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, /pino_staff_password_session=;/);
   assert.match(setCookie, /pino_staff_session=;/);
-  assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 2);
+  assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 3);
+});
+
+test("logout revokes and clears support session alongside ordinary TOS sessions", async () => {
+  const revoked: string[] = [];
+  const response = await handleStaffLogout(new Request("https://tos.pinohouse.art/api/staff-auth/logout", {
+    method: "POST",
+    headers: { cookie: "pino_support_session=support-token" },
+  }), env(undefined, undefined, async token => { revoked.push(token); return { revoked: true }; }));
+
+  assert.deepEqual(revoked, ["support-token"]);
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  assert.match(setCookie, /pino_support_session=;/);
+  assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 3);
 });
 
 test("logout remains locally effective when a Core revocation call fails", async () => {

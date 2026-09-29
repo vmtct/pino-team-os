@@ -10,6 +10,14 @@ test("missing local session fails before Core",async()=>{let called=false;const 
 test("replay protected paths require idempotency",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{}),env(binding),path)).status,400);assert.equal(called,false);});
 test("Staff PIN reset rejects manager-selected PIN",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;return{status:200,body:{data:{}},requestId:"x"};}};const reset="access/users/0198d050-56c1-7ac5-b9ab-b0e45d912345/staff-pin/reset";assert.equal((await handleBoStaffOnboardingRequest(request(reset,true,{pin:"123456"},"reset-1"),env(binding),reset)).status,400);assert.equal(called,false);});
 test("Core denial and request ID pass through",async()=>{const binding:BoAccessCoreBinding={async executeWithStaffPassword(){return{status:403,body:{error:{code:"ACCESS_PERMISSION_DENIED"}},requestId:"denied"};}};const response=await handleBoStaffOnboardingRequest(request(path,true,{},"k"),env(binding),path);assert.equal(response.status,403);assert.equal(response.headers.get("x-request-id"),"denied");});
+
+test("support-session issuance is a bounded BO command and forwards only the authenticated debugger credential",async()=>{
+  const route="access/support-sessions",subjectUserId="0198d050-56c1-7ac5-b9ab-b0e45d912345",body={subjectUserId,mode:"VIEW",reason:"Investigate check-in"},forwarded:Array<{request:BoAccessRequest;token:string}>=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest,value){forwarded.push({request:coreRequest,token:value});return{status:201,body:{data:{token:"support-token"}},requestId:"support-create"};}};
+  const response=await handleBoWriteRequest(request(route,true,body,"support-key"),env(binding),route);
+  assert.equal(response.status,201);
+  assert.deepEqual(forwarded,[{request:{method:"POST",path:route,body,idempotencyKey:"support-key"},token}]);
+});
 test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";assert.equal(isPracticeWritePath("practice/repertoire-access/grants"),true);assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`),true);assert.equal(isPracticeWritePath("practice/media"),false);});
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
 

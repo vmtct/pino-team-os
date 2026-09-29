@@ -17,6 +17,11 @@ test("TOS middleware still accepts PIN staff session on protected routes", () =>
   assert.notEqual(response.status, 307);
 });
 
+test("TOS middleware accepts governed support session on protected routes", () => {
+  const response = middleware(request("pino_support_session=support-session"));
+  assert.notEqual(response.status, 307);
+});
+
 test("TOS middleware redirects protected routes when neither staff session exists", () => {
   const response = middleware(request());
   assert.equal(response.status, 307);

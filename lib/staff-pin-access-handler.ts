@@ -9,6 +9,7 @@ export type StaffPinAccessEnv = TeamAccessEnv & {
 export async function handleStaffPinStatus(request: Request, env: StaffPinAccessEnv, keyResolver?: JWTVerifyGetKey): Promise<Response> {
   try {
     const credential = await teamCredential(request, env, surface(request), keyResolver);
+    if (credential.kind === "support") return Response.json({ error: { code: "ACCESS_SUPPORT_SESSION_DENIED", message: "Support sessions cannot manage Staff PIN" } }, { status: 403, headers: { "cache-control": "no-store" } });
     if (credential.kind === "password") return coreResponse(await env.PINO_STAFF_PIN_CORE.statusWithStaffPassword(credential.token));
     if (!env.PINO_STAFF_PIN_CORE.status) throw new Error("STAFF_PIN_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");
     return coreResponse(await env.PINO_STAFF_PIN_CORE.status(credential.identity));
@@ -20,6 +21,7 @@ export async function handleStaffPinChange(request: Request, env: StaffPinAccess
     const credential = await teamCredential(request, env, surface(request), keyResolver);
     const input = await request.json() as { currentPin?: string; pin?: string };
     const currentPin=(input.currentPin??"").trim();
+    if (credential.kind === "support") return Response.json({ error: { code: "ACCESS_SUPPORT_SESSION_DENIED", message: "Support sessions cannot manage Staff PIN" } }, { status: 403, headers: { "cache-control": "no-store" } });
     if (credential.kind === "cloudflare") {
       if (!currentPin) return Response.json({error:{code:"ACCESS_STAFF_PASSWORD_TRANSITION_REQUIRED",message:"Thiết lập mật khẩu Staff trước khi cấu hình PIN mới."}},{status:409,headers:{"cache-control":"no-store"}});
       if (!env.PINO_STAFF_PIN_CORE.rotate) throw new Error("STAFF_PIN_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");

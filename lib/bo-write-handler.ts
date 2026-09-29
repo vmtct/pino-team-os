@@ -18,6 +18,7 @@ const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
+const ACCESS_SUPPORT_SESSION_PATH = "access/support-sessions";
 const STAFF_PIN_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/;
 const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
@@ -175,6 +176,7 @@ export function isAllowedPostPath(path: string): boolean {
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH
     || path === ACCESS_USER_STATUS_PATH
+    || path === ACCESS_SUPPORT_SESSION_PATH
     || STAFF_PIN_RESET_PATH.test(path)
     || STAFF_RECORD_PATH.test(path)
     || STAFF_STATUS_PATH.test(path)
