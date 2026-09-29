@@ -71,3 +71,58 @@ test("PLT-SALES F0 presentation composes Core contracts without local CRM author
   assert.match(view, /Thử lại cùng yêu cầu/);
   assert.doesNotMatch(view, /fetch\(|localStorage|indexedDB|leadScore|pipelineValue/i);
 });
+
+
+test("PLT-LEAD Pancake forwards settings/channels reads and bounded config writes", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: 200, body: { data: request.path.endsWith("channels") ? [] : { ok: true } }, requestId: "pancake-bo" }; } };
+  const settingsRead = new Request("https://bo.pinohouse.art/api/bo/acquisition/pancake/settings", { headers: { cookie: `pino_staff_password_session=${token}` } });
+  const channelsRead = new Request("https://bo.pinohouse.art/api/bo/acquisition/pancake/channels", { headers: { cookie: `pino_staff_password_session=${token}` } });
+  assert.equal((await handleBoOperationalReadRequest(settingsRead, env(binding), "acquisition/pancake/settings")).status, 200);
+  assert.equal((await handleBoOperationalReadRequest(channelsRead, env(binding), "acquisition/pancake/channels")).status, 200);
+
+  const settingsWrite = new Request("https://bo.pinohouse.art/api/bo/acquisition/pancake/settings", {
+    method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "pancake-settings-1" },
+    body: JSON.stringify({ autoDiscoverChannels: false, expectedVersion: 2 }),
+  });
+  assert.equal((await handleBoWriteRequest(settingsWrite, env(binding), "acquisition/pancake/settings")).status, 200);
+  const channelId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
+  const channelWrite = new Request(`https://bo.pinohouse.art/api/bo/acquisition/pancake/channels/${channelId}/configure`, {
+    method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "pancake-channel-1" },
+    body: JSON.stringify({ displayName: "PINO Facebook", enabled: true, expectedVersion: 1 }),
+  });
+  assert.equal((await handleBoWriteRequest(channelWrite, env(binding), `acquisition/pancake/channels/${channelId}/configure`)).status, 200);
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "acquisition/pancake/settings" },
+    { method: "GET", path: "acquisition/pancake/channels" },
+    { method: "POST", path: "acquisition/pancake/settings", body: { autoDiscoverChannels: false, expectedVersion: 2 }, idempotencyKey: "pancake-settings-1" },
+    { method: "POST", path: `acquisition/pancake/channels/${channelId}/configure`, body: { displayName: "PINO Facebook", enabled: true, expectedVersion: 1 }, idempotencyKey: "pancake-channel-1" },
+  ]);
+});
+
+test("PLT-LEAD Pancake keeps integration BO-only and host-bounded", () => {
+  const channelId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
+  for (const path of ["/bo/system/pancake", "/api/bo/acquisition/pancake/settings", "/api/bo/acquisition/pancake/channels", `/api/bo/acquisition/pancake/channels/${channelId}/configure`]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+  }
+});
+
+test("PLT-LEAD Pancake renders exact safe provider chat links and no locator config", async () => {
+  const [leadView, integrationView, api, navigation] = await Promise.all([
+    readFile("app/bo/sales/leads/SalesLeadPipelineView.tsx", "utf8"),
+    readFile("app/bo/system/pancake/PancakeIntegrationView.tsx", "utf8"),
+    readFile("lib/bo-api.ts", "utf8"),
+    readFile("app/bo/navigation.ts", "utf8"),
+  ]);
+  assert.match(leadView, /conversation\.providerDeepLink/);
+  assert.match(leadView, /target="_blank"/);
+  assert.match(leadView, /rel="noopener noreferrer"/);
+  assert.match(leadView, /Chat trên Pancake/);
+  assert.match(integrationView, /autoDiscoverChannels/);
+  assert.match(integrationView, /providerPageId/);
+  assert.doesNotMatch(integrationView, /channel\.locator|setLocator|value=\{locator\}|name="locator"/i);
+  assert.match(api, /pancakeSettings:/);
+  assert.match(api, /pancakeChannels:/);
+  assert.match(navigation, /href: "\/bo\/system\/pancake", label: "Pancake"/);
+  assert.doesNotMatch(leadView, /messageBody|chatHistory|conversation\.message/i);
+});
