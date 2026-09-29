@@ -103,7 +103,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^students\/[0-9a-f-]{36}\/pinoria$/.test(path)
     || SUBSCRIPTION_PROJECTED_COMPLETION_READ.test(path)
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
-    || /^workforce\/staff-records\/[0-9a-f-]{36}(?:\/pinoria)?$/.test(path)
+    || /^workforce\/staff-records\/[0-9a-f-]{36}(?:\/(?:pinoria|private))?$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
@@ -141,6 +141,10 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (/^workforce\/staff-records\/[0-9a-f-]{36}\/private$/.test(path)) {
+    const centerId = url.searchParams.get("centerId")?.trim();
+    return centerId ? { centerId } : undefined;
+  }
   if (path === "acquisition/intents") {
     const body: Record<string, unknown> = {};
     const status = url.searchParams.get("status");
