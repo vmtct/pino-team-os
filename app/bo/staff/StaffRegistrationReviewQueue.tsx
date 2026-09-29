@@ -6,16 +6,19 @@ import type { BoAccessSystemUser } from "@/lib/bo-access-model";
 import type {
   BoAccessRole,
   BoCenter,
+  BoLearnerDirectoryItem,
   BoPathProgram,
   BoRunningClass,
   BoStaffAccessAssignmentInput,
   BoStaffRegistrationApprovalResult,
+  BoStaffRegistrationPinoriaIdentity,
   BoStaffRegistrationRequest,
   BoStaffRecord,
 } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
 type ScopeType = BoStaffAccessAssignmentInput["scopeType"];
+type IdentityMode = "" | BoStaffRegistrationPinoriaIdentity["mode"];
 type Draft = { key: string; roleId: string; scopeType: ScopeType; scopeId: string };
 type Catalog = { centers: BoCenter[]; paths: BoPathProgram[]; classes: BoRunningClass[] };
 type ReviewAttempt = { requestId: string; fingerprint: string; key: string };
@@ -31,6 +34,10 @@ export function StaffRegistrationReviewQueue() {
   const [accessUsers, setAccessUsers] = useState<BoAccessSystemUser[]>([]);
   const [search, setSearch] = useState("");
   const [existingStaffMemberId, setExistingStaffMemberId] = useState("");
+  const [identityMode, setIdentityMode] = useState<IdentityMode>("");
+  const [learnerSearch, setLearnerSearch] = useState("");
+  const [learners, setLearners] = useState<BoLearnerDirectoryItem[]>([]);
+  const [studentProfileId, setStudentProfileId] = useState("");
   const [assignments, setAssignments] = useState<Draft[]>([blankDraft()]);
   const [rejectReason, setRejectReason] = useState("");
   const [busy, setBusy] = useState("");
@@ -44,6 +51,10 @@ export function StaffRegistrationReviewQueue() {
   useEffect(() => {
     setAssignments([blankDraft()]);
     setExistingStaffMemberId("");
+    setIdentityMode("");
+    setLearnerSearch("");
+    setLearners([]);
+    setStudentProfileId("");
     setRejectReason(""); setError("");
     approveAttempt.current = null;
     rejectAttempt.current = null;
@@ -62,6 +73,7 @@ export function StaffRegistrationReviewQueue() {
     : null, [accessUsers, selected]);
   const linkedStaffIds = useMemo(() => new Set(accessUsers.map((user) => user.staffMemberId).filter((id): id is string => Boolean(id))), [accessUsers]);
   const linkableStaff = useMemo(() => staffRecords.filter((staff) => staff.status === "active" && (!linkedStaffIds.has(staff.id) || existingAccess?.staffMemberId === staff.id)), [staffRecords, linkedStaffIds, existingAccess]);
+  const identityReady = identityMode === "CREATE_STAFF_ONLY_PERSON" || (identityMode === "LINK_EXISTING_STUDENT" && Boolean(studentProfileId));
 
   async function refresh() {
     try {
@@ -95,10 +107,31 @@ export function StaffRegistrationReviewQueue() {
     return next.length ? next : null;
   }
 
+  function pinoriaIdentity(): BoStaffRegistrationPinoriaIdentity | null {
+    if (identityMode === "CREATE_STAFF_ONLY_PERSON") return { mode: identityMode };
+    if (identityMode === "LINK_EXISTING_STUDENT" && studentProfileId) return { mode: identityMode, studentProfileId };
+    return null;
+  }
+
+  async function searchLearners() {
+    if (!learnerSearch.trim()) { setError("Nhập tên học viên cần liên kết."); return; }
+    setBusy("learner-search"); setError("");
+    try {
+      const result = await boApi.learners(learnerSearch.trim(), 50);
+      setLearners(result);
+      setStudentProfileId((current) => result.some((learner) => learner.id === current) ? current : "");
+      if (!result.length) setError("Không tìm thấy learner phù hợp.");
+    } catch (cause) {
+      setError(formatError(cause, "Không thể tìm learner."));
+    } finally { setBusy(""); }
+  }
+
   async function approve() {
     if (!selected) return;
     const normalized = normalizedAssignments();
     if (!normalized) { setError("Chọn đầy đủ role và scope trước khi duyệt."); return; }
+    const identity = pinoriaIdentity();
+    if (!identity) { setError("Chọn rõ Pinoria identity: staff-only hoặc learner hiện hữu."); return; }
     if (existingAccess?.staffMemberId) {
       setError("Email này đã được liên kết với một Staff khác. Kiểm tra Access trước khi duyệt.");
       return;
@@ -114,13 +147,13 @@ export function StaffRegistrationReviewQueue() {
     if (!confirm(confirmMessage)) return;
     setBusy("approve"); setError(""); setApproval(null);
     try {
-      const fingerprint = JSON.stringify({ normalized, existingStaffMemberId: existingStaffMemberId || null });
+      const fingerprint = JSON.stringify({ normalized, pinoriaIdentity: identity, existingStaffMemberId: existingStaffMemberId || null });
       const attempt = approveAttempt.current;
       const idempotencyKey = attempt?.requestId === selected.id && attempt.fingerprint === fingerprint
         ? attempt.key
         : crypto.randomUUID();
       approveAttempt.current = { requestId: selected.id, fingerprint, key: idempotencyKey };
-      const result = await boApi.approveStaffRegistration(selected.id, normalized, idempotencyKey, existingStaffMemberId || undefined);
+      const result = await boApi.approveStaffRegistration(selected.id, normalized, identity, idempotencyKey, existingStaffMemberId || undefined);
       approveAttempt.current = null;
       setApproval(result);
       setRequests((items) => items.filter((item) => item.id !== selected.id));
@@ -213,6 +246,26 @@ export function StaffRegistrationReviewQueue() {
           </section> : null}
 
           <section className={styles.panel}>
+            <div className={styles.panelHeading}><div><h2>Pinoria identity</h2><p>Chọn explicit; hệ thống không suy đoán theo tên hoặc email.</p></div></div>
+            <label className={styles.field}>Identity<select value={identityMode} onChange={(event) => { setIdentityMode(event.target.value as IdentityMode); setStudentProfileId(""); setLearners([]); }}>
+              <option value="">Chọn identity…</option>
+              <option value="CREATE_STAFF_ONLY_PERSON">Staff-only · tạo Person riêng</option>
+              <option value="LINK_EXISTING_STUDENT">Đã là learner · dùng Person hiện hữu</option>
+            </select></label>
+            {identityMode === "LINK_EXISTING_STUDENT" ? <>
+              <div className={styles.assignmentRow}>
+                <label className={styles.field}>Tìm learner<input value={learnerSearch} onChange={(event) => setLearnerSearch(event.target.value)} placeholder="Tên learner" /></label>
+                <button type="button" className={styles.secondaryButton} disabled={Boolean(busy)} onClick={() => void searchLearners()}>{busy === "learner-search" ? "Đang tìm…" : "Tìm learner"}</button>
+              </div>
+              <label className={styles.field}>Learner<select value={studentProfileId} onChange={(event) => setStudentProfileId(event.target.value)}>
+                <option value="">Chọn learner…</option>
+                {learners.map((learner) => <option key={learner.id} value={learner.id}>{learner.displayName}{learner.birthYear ? ` · ${learner.birthYear}` : ""}</option>)}
+              </select></label>
+              <p className={styles.registrationPrivacyNote}>Chỉ link khi xác nhận đây đúng là cùng một người. Không match tự động bằng tên/email.</p>
+            </> : null}
+          </section>
+
+          <section className={styles.panel}>
             <div className={styles.panelHeading}><div><h2>Quyền truy cập</h2><p>Ít nhất một role/scope explicit trước khi duyệt.</p></div></div>
             <div className={styles.assignmentList}>
               {assignments.map((draft, index) => <div className={styles.assignmentRow} key={draft.key}>
@@ -229,7 +282,7 @@ export function StaffRegistrationReviewQueue() {
             <label className={styles.field}>Lý do từ chối<input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Chỉ cần khi từ chối" /></label>
             <div className={styles.registrationDecisionActions}>
               <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !rejectReason.trim()} onClick={() => void reject()}>{busy === "reject" ? "Đang từ chối…" : "Từ chối"}</button>
-              <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !selected.documents.front || !selected.documents.back || Boolean(existingAccess?.staffMemberId) || Boolean(existingAccess && !existingStaffMemberId)} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : existingAccess ? "Duyệt & liên kết" : "Duyệt & cấp quyền"}</button>
+              <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !identityReady || !selected.documents.front || !selected.documents.back || Boolean(existingAccess?.staffMemberId) || Boolean(existingAccess && !existingStaffMemberId)} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : existingAccess ? "Duyệt & liên kết" : "Duyệt & cấp quyền"}</button>
             </div>
           </section>
         </>}
