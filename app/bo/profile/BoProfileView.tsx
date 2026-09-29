@@ -21,29 +21,34 @@ export function BoProfileView() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => { void load(); }, []);
-
-  async function load() {
-    setError("");
-    const response = await fetch("/api/bo/context", { cache: "no-store" });
-    const body = await response.json() as { data?: BoContext; error?: { message?: string } };
-    if (!response.ok || !body.data) {
-      setError(body.error?.message ?? "Không thể tải tài khoản hiện tại.");
-      return;
-    }
-    const context = body.data;
-    if (!context.staffMemberId) {
-      setState({ kind: "account", context, profile: null });
-      return;
-    }
-    try {
-      const profile = await boApi.staffRecord(context.staffMemberId);
-      apply(profile);
-      setState({ kind: "ready", context, profile });
-    } catch (cause) {
-      setState({ kind: "account", context, profile: null, profileError: cause instanceof Error ? cause.message : "Không thể tải hồ sơ nhân sự." });
-    }
-  }
+  useEffect(() => {
+    let current = true;
+    void (async () => {
+      const response = await fetch("/api/bo/context", { cache: "no-store" });
+      const body = await response.json() as { data?: BoContext; error?: { message?: string } };
+      if (!current) return;
+      if (!response.ok || !body.data) {
+        setError(body.error?.message ?? "Không thể tải tài khoản hiện tại.");
+        return;
+      }
+      const context = body.data;
+      if (!context.staffMemberId) {
+        setState({ kind: "account", context, profile: null });
+        return;
+      }
+      try {
+        const profile = await boApi.staffRecord(context.staffMemberId);
+        if (!current) return;
+        setEmail(profile.email ?? "");
+        setMobile(profile.mobile ?? "");
+        setLegalAddress(profile.legalAddress ?? "");
+        setState({ kind: "ready", context, profile });
+      } catch (cause) {
+        if (current) setState({ kind: "account", context, profile: null, profileError: cause instanceof Error ? cause.message : "Không thể tải hồ sơ nhân sự." });
+      }
+    })();
+    return () => { current = false; };
+  }, []);
 
   function apply(profile: BoStaffProfile) {
     setEmail(profile.email ?? "");
