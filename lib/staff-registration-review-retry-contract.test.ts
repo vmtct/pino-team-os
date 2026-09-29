@@ -12,10 +12,15 @@ test("Staff registration review preserves idempotency keys across ambiguous retr
   assert.match(source, /approveAttempt = useRef<ReviewAttempt \| null>\(null\)/);
   assert.match(source, /rejectAttempt = useRef<ReviewAttempt \| null>\(null\)/);
   assert.match(source, /attempt\?\.requestId === selected\.id && attempt\.fingerprint === fingerprint/);
-  assert.match(source, /approveStaffRegistration\(selected\.id, normalized, idempotencyKey, existingStaffMemberId \|\| undefined\)/);
+  assert.match(source, /approveStaffRegistration\(selected\.id, normalized, identity, idempotencyKey, existingStaffMemberId \|\| undefined\)/);
   assert.match(source, /attempt\?\.requestId === selected\.id && attempt\.fingerprint === reason/);
   assert.match(source, /rejectStaffRegistration\(selected\.id, reason, idempotencyKey\)/);
   assert.doesNotMatch(source, /approveStaffRegistration\([^\n]+crypto\.randomUUID\(\)/);
+  assert.match(source, /pinoriaIdentity: identity/);
+  assert.match(source, /CREATE_STAFF_ONLY_PERSON/);
+  assert.match(source, /LINK_EXISTING_STUDENT/);
+  assert.match(source, /boApi\.learners\(learnerSearch\.trim\(\), 50\)/);
+  assert.match(source, /studentProfileId/);
   assert.match(source, /Access email already exists[\s\S]{0,200}await refresh\(\)/);
   assert.match(source, /accessUsersRequest = boApi\.accessUsers\(\)\.catch/);
   assert.match(source, /cause\.status === 401 \|\| cause\.status === 403/);
