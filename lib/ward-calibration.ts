@@ -41,12 +41,13 @@ export function wardAssetUrl(assetKey: string | null | undefined) {
 }
 
 export function readWardCalibration(metadata: Record<string, unknown>): WardCalibration {
+  const canonicalOffset = object(metadata.offset);
   const legacyTransform = object(metadata.transform);
   const legacyLayer = object(metadata.layer);
   return {
     ...DEFAULT_WARD_CALIBRATION,
-    offsetX: finite(metadata.offsetX, finite(legacyTransform.offsetX, 0)),
-    offsetY: finite(metadata.offsetY, finite(legacyTransform.offsetY, 0)),
+    offsetX: finite(metadata.offsetX, finite(canonicalOffset.x, finite(legacyTransform.offsetX, 0))),
+    offsetY: finite(metadata.offsetY, finite(canonicalOffset.y, finite(legacyTransform.offsetY, 0))),
     scale: finite(metadata.scale, finite(legacyTransform.scale, 1)),
     rotation: finite(metadata.rotation, finite(legacyTransform.rotation, 0)),
     zIndex: finite(metadata.zIndex, finite(legacyLayer.zIndex, 60)),
