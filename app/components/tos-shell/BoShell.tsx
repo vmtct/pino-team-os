@@ -48,7 +48,7 @@ export function BoShell({
   title?: string;
   subtitle?: string;
   groups: BoNavGroup[];
-  currentUser: BoShellContext;
+  currentUser?: BoShellContext;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -143,7 +143,7 @@ export function BoShell({
           <button className={styles.commandButton} type="button" onClick={() => setCommandOpen(true)} aria-label="Mở điều hướng nhanh">
             <span>Tìm màn hình…</span><kbd>Ctrl K</kbd>
           </button>
-          <BoCurrentUserMenu currentUser={currentUser} />
+          {currentUser ? <BoCurrentUserMenu currentUser={currentUser} /> : null}
         </header>
         <main className={styles.main}>{children}</main>
       </div>
