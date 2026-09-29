@@ -40,3 +40,5 @@ export const TOS_PINORIA_FOOTER: TosFooterItem[] = [
 export const TOS_OPEN_STUDIO_FOOTER: TosFooterItem[] = [
   { id: "desk", label: "Open Studio", href: "/open-studio", icon: "▣" },
 ];
+
+export const TOS_TV_FOOTER: TosFooterItem[] = [{ id: "tv", label: "TV", href: "/tv", icon: "▣" }];

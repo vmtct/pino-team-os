@@ -6,6 +6,8 @@ export interface BoWriteEnv extends TeamAccessEnv {
 }
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
+const TV_DEVICE_CREATE = "tv/devices";
+const TV_DEVICE_UPDATE = /^tv\/devices\/[0-9a-f-]{36}\/update$/;
 const STAFF_REGISTRATION_SETTINGS_PATH = "workforce/staff-registration-settings";
 const STAFF_REGISTRATION_REVIEW_PATH = /^workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(approve|reject)$/;
 const LEARNING_SYLLABUS_CREATE = "learning/syllabi";
@@ -172,7 +174,9 @@ export function isOpenStudioPostPath(path: string): boolean {
 }
 
 export function isAllowedPostPath(path: string): boolean {
-  return path === STAFF_ONBOARDING_PATH
+  return path === TV_DEVICE_CREATE
+    || TV_DEVICE_UPDATE.test(path)
+    || path === STAFF_ONBOARDING_PATH
     || path === STAFF_REGISTRATION_SETTINGS_PATH
     || STAFF_REGISTRATION_REVIEW_PATH.test(path)
     || path === ACCESS_ROLE_PATH

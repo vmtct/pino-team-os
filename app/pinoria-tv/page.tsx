@@ -1,3 +1,2 @@
-import {ReceptionTv}from"./reception-tv";
-
-export default function Page(){return <ReceptionTv/>;}
+import { redirect } from "next/navigation";
+export default function LegacyPinoriaTvPage(){redirect("/tv");}

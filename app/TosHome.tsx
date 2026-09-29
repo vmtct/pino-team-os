@@ -9,6 +9,7 @@ const apps = [
   { id: "tasks", title: "Việc", copy: "Những việc cần xử lý theo đúng ngữ cảnh công việc.", href: "/tasks", icon: "◌", tone: styles.tasks },
   { id: "training", title: "Đào tạo & Chứng nhận", copy: "Training bắt buộc, skill passport và qualification của bạn.", href: "/training", icon: "◇", tone: styles.tasks },
   { id: "pinoria", title: "Pinoria", copy: "Hiện diện House và các thao tác Pinoria được phân quyền.", href: "/pinoria", icon: "◈", tone: styles.pinoria },
+  { id: "tv", title: "TV", copy: "Mở các TV runtime được phân quyền cho House hoặc toàn hệ thống.", href: "/tv", icon: "▣", tone: styles.pinoria },
 ] as const;
 
 function todayLabel() {

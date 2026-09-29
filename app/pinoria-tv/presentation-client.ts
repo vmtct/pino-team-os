@@ -6,8 +6,8 @@ type Envelope = {
   error?: string | { message?: string };
 };
 
-async function post(body: Record<string, unknown>) {
-  const response = await fetch("/api/pinoria-tv/presentation", {
+async function post(body: Record<string, unknown>, apiBase = "/api/pinoria-tv") {
+  const response = await fetch(`${apiBase}/presentation`, {
     method: "POST",
     cache: "no-store",
     headers: { "content-type": "application/json" },
@@ -21,11 +21,11 @@ async function post(body: Record<string, unknown>) {
   return json;
 }
 
-export async function claimPresentation(centerId: string) {
-  const json = await post({ op: "claim", centerId });
+export async function claimPresentation(centerId: string, apiBase?: string) {
+  const json = await post({ op: "claim", centerId }, apiBase);
   return json.presentation ?? null;
 }
 
-export async function completePresentation(centerId: string, presentationId: string) {
-  await post({ op: "complete", centerId, presentationId });
+export async function completePresentation(centerId: string, presentationId: string, apiBase?: string) {
+  await post({ op: "complete", centerId, presentationId }, apiBase);
 }

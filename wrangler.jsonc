@@ -18,6 +18,7 @@
     {"binding":"PINO_TOS_LEARNING_CORE","service":"pino-core","entrypoint":"TosLearningControlPlane"},
     {"binding":"PINO_STAFF_PASSWORD_CORE","service":"pino-core","entrypoint":"StaffPasswordControlPlane"},
     {"binding":"PINO_PINORIA_TV_CORE","service":"pino-core","entrypoint":"PinoriaTvControlPlane"},
+    {"binding":"PINO_TV_RUNTIME_CORE","service":"pino-core","entrypoint":"DisplayRuntimeControlPlane"},
     {"binding":"PINO_ACCESS_SYNC","service":"pino-access-evaluator","entrypoint":"AccessSyncControlPlane"}
   ],
   "keep_vars":true
