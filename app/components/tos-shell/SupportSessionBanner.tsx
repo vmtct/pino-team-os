@@ -27,15 +27,21 @@ export function SupportSessionBanner() {
     let current = true;
     void fetch("/api/support-session/status", { cache: "no-store" })
       .then(async (response) => {
+        if (!response.ok) throw new Error("support_status_unavailable");
         const body = await response.json() as { data?: SupportState };
-        if (!current || !body.data) return;
+        if (!current) return;
+        if (!body.data) throw new Error("support_status_invalid");
         if (!body.data.active && body.data.invalid) {
           window.location.replace("/staff-login?support=expired");
           return;
         }
         setState(body.data);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!current) return;
+        void fetch("/api/support-session/logout", { method: "POST", cache: "no-store" })
+          .finally(() => window.location.replace("/staff-login?support=status-unavailable"));
+      });
     return () => { current = false; };
   }, []);
 

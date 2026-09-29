@@ -29,4 +29,7 @@ test("active support session is visibly identified and has an explicit exit", ()
   assert.match(banner, /formatExpiry\(state\.expiresAt\)/);
   assert.match(banner, /Thoát debug/);
   assert.match(banner, /\/api\/support-session\/logout/);
+  assert.match(banner, /support_status_unavailable/);
+  assert.match(banner, /support=status-unavailable/);
+  assert.match(banner, /\.catch\(\(\) => \{/);
 });
