@@ -55,6 +55,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "centers"
     || path === "acquisition/intents"
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
+    || path === "acquisition/pancake/settings"
+    || path === "acquisition/pancake/channels"
     || path === "delivery/bootstrap-state"
     || path === "delivery/calendar-exclusions"
     || path === "delivery/calendar-exclusions/preview"

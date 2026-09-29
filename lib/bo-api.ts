@@ -94,6 +94,33 @@ export type BoStudentIntakeCreateInput = {
 } & ({ existingParentUserId: string } | { existingParentUserId?: null; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string });
 
 export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
+export type BoPancakeConversation = {
+  id: string;
+  refId: string;
+  externalIdentityId: string;
+  channelId: string;
+  providerPageId: string;
+  channel: string;
+  channelDisplayName: string;
+  channelEnabled: boolean;
+  providerDeepLink: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  usable: boolean;
+};
+export type BoPancakeSettings = { autoDiscoverChannels: boolean; version: number };
+export type BoPancakeChannel = {
+  id: string;
+  providerPageId: string;
+  channel: string;
+  displayName: string;
+  enabled: boolean;
+  discoveredBy: "MANUAL" | "PANCAKE_EVENT";
+  createdAt: string;
+  lastSeenAt: string;
+  updatedAt: string;
+  version: number;
+};
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
@@ -112,6 +139,7 @@ export type BoAcquisitionIntent = {
   createdAt: string;
   updatedAt: string;
   version: number;
+  pancakeConversations?: BoPancakeConversation[];
 };
 
 async function read<T>(path: string): Promise<T[]> {
@@ -254,6 +282,10 @@ export const boApi = {
   parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
+  pancakeSettings: () => readOne<BoPancakeSettings>("acquisition/pancake/settings"),
+  pancakeChannels: () => read<BoPancakeChannel>("acquisition/pancake/channels"),
+  updatePancakeSettings: (body: { autoDiscoverChannels: boolean; expectedVersion: number }) => write<BoPancakeSettings>("acquisition/pancake/settings", body, crypto.randomUUID()),
+  configurePancakeChannel: (channelId: string, body: { displayName: string; enabled: boolean; expectedVersion: number }) => write<BoPancakeChannel>(`acquisition/pancake/channels/${encodeURIComponent(channelId)}/configure`, body, crypto.randomUUID()),
   markAcquisitionContacted: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACTED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/contacted`, { expectedVersion }, idempotencyKey),
   verifyAcquisitionContact: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACT_VERIFIED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/verify-contact`, { expectedVersion }, idempotencyKey),
   closeAcquisitionIntent: (intentId: string, expectedVersion: number, reason: string, idempotencyKey: string) => write<{ intentId: string; status: "CLOSED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/close`, { expectedVersion, reason }, idempotencyKey),

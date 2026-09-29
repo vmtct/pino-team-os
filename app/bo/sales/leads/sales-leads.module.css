@@ -54,3 +54,13 @@
 .stateError { border-color: #e7bebe; color: #8c3939; background: #fff8f8; }
 @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .queue { position: static; max-height: none; } .facts { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 680px) { .heading, .filters { align-items: stretch; flex-direction: column; } .facts { grid-template-columns: 1fr; } .closeComposer { grid-template-columns: 1fr; } }
+
+.pancakePanel { display: grid; gap: 10px; padding: 14px; border: 1px solid #ded9f4; border-radius: 13px; background: #faf8ff; }
+.pancakePanel > div:first-child { display: grid; gap: 3px; }
+.pancakePanel > div:first-child > strong { font-size: 12px; }
+.pancakePanel > div:first-child > span, .pancakePanel > p { margin: 0; color: #777285; font-size: 10px; }
+.pancakeConversation { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px; border: 1px solid #e6e2f6; border-radius: 10px; background: white; }
+.pancakeConversation > div { min-width: 0; display: grid; gap: 3px; }
+.pancakeConversation > div > span { overflow: hidden; color: #777783; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.pancakeConversation a { flex: none; padding: 8px 10px; border-radius: 8px; background: #6655c7; color: white; font-size: 11px; font-weight: 800; text-decoration: none; }
+.chatUnavailable { flex: none; color: #8b8b95; font-size: 10px; }
