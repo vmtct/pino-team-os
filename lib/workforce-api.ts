@@ -1,4 +1,4 @@
-export interface StaffProfile{id:string;displayLabel:string;status:string;email:string|null;mobile:string|null;legalAddress:string|null}
+export interface StaffProfile{id:string;displayLabel:string;status:string;department:string|null;roleLabel:string|null;employmentType:string|null;email:string|null;mobile:string|null;legalAddress:string|null}
 export interface WorkforceContext{userId:string;staffMemberId:string;email:string;centers:Array<{id:string;key:string;displayName:string;timeZone:string}>;termWeeks:Array<{id:string;termId:string;centerId:string;code:string;ordinal:number;startDate:string;endDate:string}>}
 export interface Assignment{id:string;centerId:string;workDate:string;shiftTemplateId:string;termWeekId:string|null;status:string;shift:{code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}|null}
 export interface TimekeepingSession{id:string;centerId:string;assignmentId:string|null;workDate:string;status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null}
