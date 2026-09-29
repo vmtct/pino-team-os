@@ -5,14 +5,14 @@ import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requir
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
-  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/api/workforce/context", "/api/workforce/training/self", "/api/workforce/training/assignments/0198d050-56c1-7ac5-b9ab-b0e45d912345/lessons/complete", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
+  for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/api/workforce/context", "/api/workforce/training/self", "/api/workforce/training/assignments/0198d050-56c1-7ac5-b9ab-b0e45d912345/lessons/complete", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);
   }
 });
 
 test("TOS operational pages require a Staff session cookie", () => {
   for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
-  for (const pathname of ["/staff-login", "/staff-password/change", "/api/staff-auth/change-password", "/api/workforce/context", "/companion", "/_next/static/app.js"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), false, pathname);
+  for (const pathname of ["/staff-login", "/staff-password/change", "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/api/staff-auth/change-password", "/api/workforce/context", "/companion", "/_next/static/app.js"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), false, pathname);
   assert.equal(requiresTosStaffSession(BO_HOSTNAME, "/dashboard"), false);
 });
 
@@ -84,7 +84,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/learning/syllabi/media/not-a-canonical-id/preview", "/api/bo/learning/syllabi/media/extra", "/api/bo/learning/syllabi/versions/not-a-canonical-id/artchitect-profile", `/api/bo/learning/syllabi/${roleId}/delete`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
     `/api/bo/student-intakes/${roleId}/void/extra`, "/api/bo/student-intakes/not-a-canonical-id/void", "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/training/delete-all", "/api/bo/workforce/training/modules/not-a-canonical-id/retire", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything", "/api/bo/workforce/timekeeping/not-a-canonical-id/corrections", `/api/bo/workforce/timekeeping/${roleId}/delete`, `/api/bo/workforce/timekeeping/${roleId}/corrections/extra`, "/api/bo/workforce/duty/checkout-exceptions/not-a-canonical-id/approve", `/api/bo/workforce/duty/checkout-exceptions/${roleId}/delete`, `/api/bo/workforce/duty/checkout-exceptions/${roleId}/approve/extra`,
-    `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/workforce/staff-records/${roleId}/pinoria/anything`, `/api/bo/access/users/${roleId}/staff-password/reset/again`, "/staff-pin/change", "/api/staff-pin/login", "/api/staff-pin/status", "/api/staff-pin/change", "/api/staff-pin/configure",
+    `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/workforce/staff-records/${roleId}/pinoria/anything`, `/api/bo/access/users/${roleId}/staff-password/reset/again`, "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/staff-pin/change", "/api/staff-pin/login", "/api/staff-pin/status", "/api/staff-pin/change", "/api/staff-pin/configure",
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }

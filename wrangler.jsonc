@@ -6,6 +6,7 @@
   "compatibility_flags":["nodejs_compat"],
   "assets":{"binding":"ASSETS","directory":".open-next/assets"},
   "observability":{"enabled":true},
+  "send_email":[{"name":"PINO_STAFF_PASSWORD_EMAIL"}],
   // CF_ACCESS_BO_AUD is environment-specific deployment configuration and is intentionally not committed.
   // Production ingress is a separate gated operation; source deploys must not attach TOS/BO custom domains implicitly.
   "vars":{"FOUNDER_EMAIL":"minhtri.van42@gmail.com,chuthhang@gmail.com"},
