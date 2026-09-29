@@ -23,11 +23,10 @@ test("BO shell receives canonical current-user context and exposes My Profile", 
   assert.match(menu, /href="\/bo\/profile"/);
 });
 
-test("BO My Profile mutation is bounded to contact fields and never exposes authority controls", () => {
+test("BO My Profile is self-only presentation and never reuses Staff admin mutations", () => {
   const profile = read("app/bo/profile/BoProfileView.tsx");
-  assert.match(profile, /boApi\.updateStaff\(state\.profile\.id, \{/);
-  assert.match(profile, /email: email\.trim\(\) \|\| null/);
-  assert.match(profile, /mobile: mobile\.trim\(\) \|\| null/);
-  assert.match(profile, /legalAddress: legalAddress\.trim\(\) \|\| null/);
-  assert.doesNotMatch(profile, /setStaffStatus|assignAccessRole|removeAccessAssignment|setAccessUserStatus/);
+  assert.match(profile, /fetch\("\/api\/bo\/context"/);
+  assert.match(profile, /context\.staffProfile/);
+  assert.doesNotMatch(profile, /boApi\.updateStaff|setStaffStatus|assignAccessRole|removeAccessAssignment|setAccessUserStatus/);
+  assert.match(profile, /BO không dùng quyền Manager để tự sửa hồ sơ hay ACL/);
 });
