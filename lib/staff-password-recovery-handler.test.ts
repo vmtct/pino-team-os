@@ -64,7 +64,7 @@ test("known and unknown email requests return the same public accepted response 
   assert.doesNotMatch(sent[0]?.text ?? "", /\?token=/);
   assert.doesNotMatch(knownBody, new RegExp(rawToken));
 });
-test("delivery failure revokes the issued challenge and returns a generic unavailable response", async () => {
+test("delivery failure revokes the issued challenge without changing the public accepted response", async () => {
   const cancelled: string[] = [];
   const response = await handleForgotPassword(
     request("/api/staff-auth/forgot-password", { email: "staff@pino.invalid" }),
@@ -82,11 +82,51 @@ test("delivery failure revokes the issued challenge and returns a generic unavai
       PINO_STAFF_PASSWORD_EMAIL: { async send() { throw new Error("provider unavailable"); } },
     }),
   );
+  const unknown = await handleForgotPassword(
+    request("/api/staff-auth/forgot-password", { email: "unknown@pino.invalid" }),
+    makeEnv(),
+  );
   const body = await response.text();
-  assert.equal(response.status, 503);
+  assert.equal(response.status, 202);
+  assert.equal(unknown.status, 202);
+  assert.equal(body, await unknown.text());
   assert.deepEqual(cancelled, [rawToken]);
   assert.doesNotMatch(body, new RegExp(rawToken));
   assert.doesNotMatch(body, /staff@pino\.invalid/);
+});
+
+test("Core issuance and cancellation failures stay indistinguishable from an accepted unknown-email request", async () => {
+  const issuanceFailure = await handleForgotPassword(
+    request("/api/staff-auth/forgot-password", { email: "staff@pino.invalid" }),
+    makeEnv({
+      PINO_STAFF_PASSWORD_CORE: {
+        ...makeEnv().PINO_STAFF_PASSWORD_CORE,
+        async requestPasswordReset() { throw new Error("core unavailable"); },
+      },
+    }),
+  );
+  const cancelFailure = await handleForgotPassword(
+    request("/api/staff-auth/forgot-password", { email: "staff@pino.invalid" }),
+    makeEnv({
+      PINO_STAFF_PASSWORD_CORE: {
+        ...makeEnv().PINO_STAFF_PASSWORD_CORE,
+        async requestPasswordReset() {
+          return { delivery: { email: "staff@pino.invalid", token: rawToken, expiresAt: "2026-09-29T03:00:00.000Z" } };
+        },
+        async cancelPasswordReset() { throw new Error("cancel unavailable"); },
+      },
+      PINO_STAFF_PASSWORD_EMAIL: { async send() { throw new Error("provider unavailable"); } },
+    }),
+  );
+  const unknown = await handleForgotPassword(
+    request("/api/staff-auth/forgot-password", { email: "unknown@pino.invalid" }),
+    makeEnv(),
+  );
+  const expected = await unknown.text();
+  assert.equal(issuanceFailure.status, 202);
+  assert.equal(cancelFailure.status, 202);
+  assert.equal(await issuanceFailure.text(), expected);
+  assert.equal(await cancelFailure.text(), expected);
 });
 
 test("missing email runtime configuration fails before reset issuance", async () => {

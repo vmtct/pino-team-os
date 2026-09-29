@@ -39,7 +39,8 @@ export async function handleForgotPassword(
   try {
     issued = await requestReset.call(env.PINO_STAFF_PASSWORD_CORE, { email });
   } catch {
-    return json(503, { error: "PASSWORD_RESET_UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
+    console.error("STAFF_PASSWORD_RESET_REQUEST_FAILED");
+    return accepted();
   }
 
   if (!issued.delivery) return accepted();
@@ -60,8 +61,13 @@ export async function handleForgotPassword(
       html: `<p>Bạn vừa yêu cầu đặt lại mật khẩu Staff tại PINO House.</p><p><a href="${escapeHtml(resetUrl)}">Đặt lại mật khẩu</a></p><p>Liên kết có hiệu lực trong 30 phút.</p><p>Nếu bạn không yêu cầu thao tác này, bạn có thể bỏ qua email.</p>`,
     });
   } catch {
-    try { await cancelReset.call(env.PINO_STAFF_PASSWORD_CORE, { token: delivery.token }); } catch {}
-    return json(503, { error: "PASSWORD_RESET_UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
+    console.error("STAFF_PASSWORD_RESET_EMAIL_DELIVERY_FAILED");
+    try {
+      await cancelReset.call(env.PINO_STAFF_PASSWORD_CORE, { token: delivery.token });
+    } catch {
+      console.error("STAFF_PASSWORD_RESET_CANCEL_FAILED");
+    }
+    return accepted();
   }
   return accepted();
 }
