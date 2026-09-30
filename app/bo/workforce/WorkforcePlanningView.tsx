@@ -5,6 +5,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
 import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
+import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, normalizeTimeBasis, type WorkforceShiftTimeBasis } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
@@ -21,6 +22,7 @@ export function WorkforcePlanningView() {
   const [frontDesk, setFrontDesk] = useState(false);
   const [teacherSessionIds, setTeacherSessionIds] = useState<string[]>([]);
   const [primarySessionIds, setPrimarySessionIds] = useState<string[]>([]);
+  const [timeBasis, setTimeBasis] = useState<WorkforceShiftTimeBasis>("SHIFT_TEMPLATE");
   const [handoffReasons, setHandoffReasons] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
@@ -113,6 +115,8 @@ export function WorkforcePlanningView() {
   const selectedActiveRoleAssignments = data
     ? data.roleAssignments.filter((role) => activeAssignments.some((assignment) => assignment.id === role.shiftAssignmentId) && role.status === "ACTIVE")
     : [];
+  const canUseTeachingTime = canUseTeachingSessionTime({ frontDesk, teacherSessionCount: teacherSessionIds.length });
+  const normalizedTimeBasis = normalizeTimeBasis(timeBasis, { frontDesk, teacherSessionCount: teacherSessionIds.length });
   const handoffReasonMissing = data && selection
     ? primarySessionIds.some((sessionId) => {
         const owner = data.sessions.find((session) => session.id === sessionId)?.learningOwner;
@@ -176,16 +180,20 @@ export function WorkforcePlanningView() {
     try {
       await boApi.planOperationalWorkforceShift({
         staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
-        shiftTemplateId: templateId, termWeekId: data.termWeekId, roles,
+        shiftTemplateId: templateId, timeBasis: normalizedTimeBasis, termWeekId: data.termWeekId, roles,
       }, crypto.randomUUID());
       setNotice("Ca và phân công operational đã được chốt.");
-      setFrontDesk(false); setTeacherSessionIds([]); setPrimarySessionIds([]); setHandoffReasons({});
+      setFrontDesk(false); setTeacherSessionIds([]); setPrimarySessionIds([]); setTimeBasis("SHIFT_TEMPLATE"); setHandoffReasons({});
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
 
   function toggleTeacher(sessionId: string, enabled: boolean) {
-    setTeacherSessionIds((current) => enabled ? [...new Set([...current, sessionId])] : current.filter((id) => id !== sessionId));
+    setTeacherSessionIds((current) => {
+      const next = enabled ? [...new Set([...current, sessionId])] : current.filter((id) => id !== sessionId);
+      if (!enabled && next.length === 0) setTimeBasis("SHIFT_TEMPLATE");
+      return next;
+    });
     if (!enabled) {
       setPrimarySessionIds((current) => current.filter((id) => id !== sessionId));
       setHandoffReasons((current) => { const next = { ...current }; delete next[sessionId]; return next; });
@@ -288,13 +296,14 @@ export function WorkforcePlanningView() {
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
                     setReason("");
                     setFrontDesk(false);
+                    setTimeBasis(assigned[0]?.timeBasis ?? "SHIFT_TEMPLATE");
                     setTeacherSessionIds([]);
                     setPrimarySessionIds([]);
                     setHandoffReasons({});
                   }}>
                     {assigned.length ? <><strong>Đã xếp</strong>{assigned.map((item) => {
                       const summary = assignmentRoleSummary(data, item);
-                      return <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · {summary}</span>;
+                      return <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · {summary} · {assignmentTimeSummary(item)}</span>;
                     })}{ownerGap ? <span>⚠ Owner chưa link TE</span> : null}</> : ownerGap ? <><strong>⚠ Owner</strong><span>Chưa có TE/ca tương ứng</span></> : available ? <><strong>Có thể</strong><span>{availableCount(data, staff.id, date)} ca đăng ký</span></> : <span>—</span>}
                   </button>
                 </td>;
@@ -328,6 +337,7 @@ export function WorkforcePlanningView() {
           <label className={styles.field}>Shift Template
             <select value={templateId} onChange={(event) => {
               setTemplateId(event.target.value);
+              setTimeBasis("SHIFT_TEMPLATE");
               setTeacherSessionIds([]);
               setPrimarySessionIds([]);
               setHandoffReasons({});
@@ -341,9 +351,15 @@ export function WorkforcePlanningView() {
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
             <strong>Phân công operational</strong>
             <label className={styles.field}>
-              <span><input type="checkbox" checked={frontDesk} onChange={(event) => setFrontDesk(event.target.checked)} /> Front Desk</span>
+              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked); if(checked)setTimeBasis("SHIFT_TEMPLATE"); }} /> Front Desk</span>
               <small>Front Desk áp dụng cho toàn ca; khoảng Session Teacher sẽ được ưu tiên tự động.</small>
             </label>
+            <div className={styles.plannerHistory}>
+              <strong>Giờ làm</strong>
+              <label><input type="radio" name="time-basis" checked={timeBasis==="SHIFT_TEMPLATE"} onChange={() => setTimeBasis("SHIFT_TEMPLATE")} /> Theo ca · {selectedTemplate?.startLocalTime}–{selectedTemplate?.endLocalTime}</label>
+              <label><input type="radio" name="time-basis" checked={timeBasis==="TEACHING_SESSIONS"} disabled={!canUseTeachingTime} onChange={() => setTimeBasis("TEACHING_SESSIONS")} /> Theo giờ lớp</label>
+              <small>{canUseTeachingTime ? "Giờ bắt đầu/kết thúc derive từ exact Session đã chọn; khoảng trống giữa các lớp không phải required presence." : "Theo giờ lớp chỉ dùng khi không Front Desk và đã chọn ít nhất một lớp Teacher."}</small>
+            </div>
             <div className={styles.plannerHistory}>
               <strong>Lớp phụ trách</strong>
               {eligibleSessions.length ? eligibleSessions.map((session) => {
@@ -378,7 +394,10 @@ export function WorkforcePlanningView() {
           {activeAssignments.map((assignment) => {
             const roles = data.roleAssignments.filter((role) => role.shiftAssignmentId === assignment.id && role.status === "ACTIVE");
             const hasOwnerRole = roles.some((role) => role.roleType === "TEACHER"
-              && data.sessions.find((session) => session.id === role.targetId)?.learningOwner?.staffMemberId === assignment.staffMemberId);
+              && learningOwnerBlocksShiftCancellation(
+                data.sessions.find((item) => item.id === role.targetId),
+                assignment.staffMemberId,
+              ));
             const roleSummary = roles.map((role) => {
               if (role.roleType === "FRONT_DESK") return "FD";
               const session = data.sessions.find((item) => item.id === role.targetId);
@@ -389,6 +408,7 @@ export function WorkforcePlanningView() {
               <div>
                 <strong>{templateLabel(data, assignment.shiftTemplateId)}</strong>
                 <span>{assignment.status} · {assignment.id.slice(0, 8)}</span>
+                <span>{assignmentTimeSummary(assignment)}</span>
                 {roleSummary.map((item) => <span key={item}>{item}</span>)}
                 {hasOwnerRole ? <span>Chuyển Phụ trách chính ở School → Classes → Sessions trước khi huỷ/đổi ca.</span> : null}
               </div>
