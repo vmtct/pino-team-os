@@ -16,6 +16,13 @@ test("password session takes precedence without Cloudflare config",async()=>{
   assert.deepEqual(await teamCredential(request,{},"TOS"),{kind:"password",token:"local-token"});
 });
 
+test("support session has absolute precedence on TOS but is never accepted on BO",async()=>{
+  const tos=new Request("https://tos.pinohouse.art/api/workforce/context",{headers:{cookie:"pino_support_session=support-token; pino_staff_password_session=local-token"}});
+  assert.deepEqual(await teamCredential(tos,{},"TOS"),{kind:"support",token:"support-token"});
+  const bo=new Request("https://bo.pinohouse.art/api/bo/context",{headers:{cookie:"pino_support_session=support-token; pino_staff_password_session=local-token"}});
+  assert.deepEqual(await teamCredential(bo,{},"BO"),{kind:"password",token:"local-token"});
+});
+
 test("business credential resolver rejects Cloudflare-only compatibility identity",async()=>{
   const {jwt,keyResolver}=await fixture();
   const request=new Request("https://tos.pinohouse.art/api/workforce/context",{headers:{"cf-access-jwt-assertion":jwt}});

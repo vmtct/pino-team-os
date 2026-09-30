@@ -256,3 +256,39 @@
 @media (max-width: 620px) {
   .boNav { grid-template-columns: 1fr; }
 }
+
+.supportBanner {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 60;
+  width: min(414px, calc(100vw - 16px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid #7a6120;
+  border-radius: 13px;
+  background: #fff4c7;
+  box-shadow: 0 8px 24px rgba(57, 44, 8, .2);
+  color: #4d3a08;
+}
+.supportBanner > div { min-width: 0; display: grid; gap: 2px; }
+.supportBanner strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; letter-spacing: .02em; }
+.supportBanner span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+.supportBanner button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid #9b7c22;
+  border-radius: 9px;
+  background: #fff;
+  color: #5d4506;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.supportBanner button:disabled { opacity: .6; cursor: wait; }

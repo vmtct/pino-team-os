@@ -15,6 +15,10 @@ export function staffPasswordSessionFromHeaders(headers: Headers): string {
   return token;
 }
 
+export function supportSession(request: Request): string {
+  return cookie(request.headers, "pino_support_session");
+}
+
 function cookie(headers: Headers, name: string): string {
   return headers.get("cookie")?.split(";").map(value => value.trim())
     .find(value => value.startsWith(`${name}=`))?.slice(name.length + 1) ?? "";

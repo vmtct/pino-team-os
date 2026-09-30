@@ -16,6 +16,7 @@ export interface TeamAccessEnv {
 }
 
 export type TeamCredential =
+  | { kind: "support"; token: string }
   | { kind: "password"; token: string }
   | { kind: "cloudflare"; identity: VerifiedTeamIdentity };
 
@@ -41,6 +42,10 @@ export async function teamCredentialFromHeaders(
   surface: "TOS" | "BO",
   _keyResolver?: JWTVerifyGetKey,
 ): Promise<TeamCredential> {
+  if (surface === "TOS") {
+    const support = cookie(headers, "pino_support_session");
+    if (support) return { kind: "support", token: support };
+  }
   const password = cookie(headers, "pino_staff_password_session");
   if (!password) throw new TeamAuthError(401, "Staff password session is required");
   return { kind: "password", token: password };

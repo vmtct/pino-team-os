@@ -10,6 +10,8 @@ export interface StaffPasswordCoreBinding {
   resetPassword?(input:{token:string;password:string}):Promise<{userId:string;email:string}>;
 
   logout(token:string):Promise<{revoked:true}>;
+  supportStatus?(token:string):Promise<{sessionId:string;mode:"VIEW"|"ACT";reason:string;expiresAt:string;actorUserId:string;actorEmail:string;subjectUserId:string;subjectStaffMemberId:string|null;subjectEmail:string}>;
+  supportLogout?(token:string):Promise<{revoked:true}>;
 }
 
 export interface StaffPasswordEnv extends TeamAccessEnv {

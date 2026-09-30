@@ -144,6 +144,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/access/assignments",
     "/api/bo/access/assignments/remove",
     "/api/bo/access/users/status",
+    "/api/bo/access/support-sessions",
     "/api/bo/access/perimeter-reconcile",
     "/favicon.ico",
   ].includes(normalized)) return true;

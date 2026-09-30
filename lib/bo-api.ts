@@ -412,6 +412,7 @@ export const boApi = {
   assignAccessRole: (body: AccessAssignmentCommand) => write<{ id: string }>("access/assignments", body, crypto.randomUUID()),
   removeAccessAssignment: (assignmentId: string) => write<{ assignmentId: string; status: string }>("access/assignments/remove", { assignmentId }, crypto.randomUUID()),
   setAccessUserStatus: (userId: string, status: "active" | "suspended", reason?: string) => write<{ status: string }>("access/users/status", { userId, status, ...(reason ? { reason } : {}) }, crypto.randomUUID()),
+  startSupportSession: (subjectUserId: string, mode: "VIEW" | "ACT", reason: string) => write<{ token: string; sessionId: string; mode: "VIEW" | "ACT"; reason: string; expiresAt: string; actor: { userId: string; email: string }; subject: { userId: string; staffMemberId: string | null; email: string } }>("access/support-sessions", { subjectUserId, mode, reason }, crypto.randomUUID()),
   reconcileTosAccess: () => write<{ state: string; emailCount: number; policyId: string | null }>("access/perimeter-reconcile", {}, crypto.randomUUID()),
   resetStaffPassword: (userId: string, idempotencyKey: string) => write<BoStaffPasswordResetResult>(`access/users/${encodeURIComponent(userId)}/staff-password/reset`, {}, idempotencyKey),
   onboardStaff: (command: BoStaffOnboardingCommand, idempotencyKey: string) => write<BoStaffOnboardingResult>("workforce/staff-onboarding", command, idempotencyKey),

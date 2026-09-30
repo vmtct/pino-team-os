@@ -25,7 +25,7 @@ test("logout revokes the password session and expires password plus retired lega
   const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, /pino_staff_password_session=;/);
   assert.match(setCookie, /pino_staff_session=;/);
-  assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 2);
+  assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 3);
 });
 
 test("logout remains locally effective when password Core revocation fails", async () => {
@@ -38,4 +38,17 @@ test("logout remains locally effective when password Core revocation fails", asy
   const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, /pino_staff_password_session=;/);
   assert.match(setCookie, /pino_staff_session=;/);
+});
+
+test("logout revokes and clears support session alongside ordinary TOS sessions", async () => {
+  const revoked: string[] = [];
+  const base = env();
+  base.PINO_STAFF_PASSWORD_CORE.supportLogout = async token => { revoked.push(token); return { revoked: true }; };
+  const response = await handleStaffLogout(new Request("https://tos.pinohouse.art/api/staff-auth/logout", {
+    method: "POST",
+    headers: { cookie: "pino_support_session=support-token" },
+  }), base);
+  assert.deepEqual(revoked, ["support-token"]);
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  assert.match(setCookie, /pino_support_session=;/);
 });

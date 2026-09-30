@@ -88,6 +88,7 @@ export function isBoWorkforcePlanningPath(path: string): boolean {
 }
 
 function callPlanning(binding: WorkforcePlanningCoreBinding, request: WorkforcePlanningRequest, credential: TeamCredential, transport: WorkforceTransportContext = {}): Promise<WorkforcePlanningResponse> {
+  if (credential.kind === "support") throw new Error("BO_SUPPORT_SESSION_DENIED");
   if (credential.kind === "password") return binding.executePlanningWithStaffPassword(request, credential.token, transport);
   if (!binding.executePlanning) throw new Error("WORKFORCE_PLANNING_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");
   return binding.executePlanning(request, credential.identity, transport);

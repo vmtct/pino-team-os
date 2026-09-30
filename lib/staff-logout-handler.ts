@@ -5,13 +5,18 @@ export type StaffLogoutEnv = {
 };
 
 export async function handleStaffLogout(request: Request, env?: StaffLogoutEnv): Promise<Response> {
+  const supportToken = cookie(request, "pino_support_session");
   const passwordToken = cookie(request, "pino_staff_password_session");
 
-  if (env && passwordToken) {
-    await Promise.allSettled([env.PINO_STAFF_PASSWORD_CORE.logout(passwordToken)]);
+  if (env) {
+    const revocations: Promise<unknown>[] = [];
+    if (supportToken && env.PINO_STAFF_PASSWORD_CORE.supportLogout) revocations.push(env.PINO_STAFF_PASSWORD_CORE.supportLogout(supportToken));
+    if (passwordToken) revocations.push(env.PINO_STAFF_PASSWORD_CORE.logout(passwordToken));
+    if (revocations.length) await Promise.allSettled(revocations);
   }
 
   const headers = new Headers({ "cache-control": "no-store" });
+  headers.append("set-cookie", "pino_support_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
   headers.append("set-cookie", "pino_staff_password_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
   // Expire the retired legacy cookie during cutover; it no longer authenticates any route.
   headers.append("set-cookie", "pino_staff_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");

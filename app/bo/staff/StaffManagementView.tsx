@@ -42,6 +42,8 @@ export function StaffManagementView() {
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
   const [scopeId, setScopeId] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
+  const [supportMode, setSupportMode] = useState<"VIEW" | "ACT">("VIEW");
+  const [supportReason, setSupportReason] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -220,6 +222,30 @@ export function StaffManagementView() {
     catch { setError("Không thể copy mật khẩu tự động. Hãy copy trực tiếp từ màn hình."); }
   }
 
+  async function startSupportSession() {
+    if (!accessUser || !profile || profile.status !== "active" || accessUser.status !== "active") return;
+    const reason = supportReason.trim();
+    if (reason.length < 3) { setError("Nhập lý do debug tối thiểu 3 ký tự."); return; }
+    setBusy("support"); setError(""); setMessage("");
+    try {
+      const session = await boApi.startSupportSession(accessUser.id, supportMode, reason);
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = window.location.hostname === "bo.pinohouse.art"
+        ? "https://tos.pinohouse.art/api/support-session/enter"
+        : "/api/support-session/enter";
+      form.style.display = "none";
+      const token = document.createElement("input");
+      token.type = "hidden"; token.name = "token"; token.value = session.token;
+      form.appendChild(token);
+      document.body.appendChild(form);
+      form.submit();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể mở support session.");
+      setBusy("");
+    }
+  }
+
   async function changeAccessStatus(status: "active" | "suspended") {
     if (!accessUser) return;
     if (status === "suspended" && !suspendReason.trim()) { setError("Cần lý do khi suspend Access."); return; }
@@ -392,6 +418,15 @@ export function StaffManagementView() {
                     <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPassword()}>{passwordCopied ? "Đã copy" : "Copy password"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPasswordReset(null); setPasswordCopied(false); }}>Ẩn mật khẩu</button></div>
                   </div> : null}
                 </div>
+                <div className={styles.staffSupportPanel} data-testid="staff-support-panel">
+                  <div><strong>Support debug</strong><p>Staff-only · 15 phút. View as chỉ đọc. Act as chỉ mở các Workforce self-service action đã giữ đầy đủ audit provenance (profile, training, duty/check-in); các mutation khác fail-closed. Manager cần BO access + <code>access.support.impersonate</code>.</p></div>
+                  <div className={styles.staffSupportFields}>
+                    <label className={styles.field}>Mode<select value={supportMode} onChange={(event) => setSupportMode(event.target.value as "VIEW" | "ACT")}><option value="VIEW">View as · read only</option><option value="ACT">Act as · audited Workforce actions</option></select></label>
+                    <label className={styles.field}>Lý do<input value={supportReason} onChange={(event) => setSupportReason(event.target.value)} placeholder="VD: Điều tra lỗi check-in" maxLength={500} /></label>
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.status !== "active" || accessUser.status !== "active" || supportReason.trim().length < 3} onClick={() => void startSupportSession()}>{busy === "support" ? "Đang mở TOS…" : "Mở TOS như Staff"}</button>
+                  </div>
+                </div>
+
                 <div className={styles.staffAssignmentList}>{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={assignment.roleKey === "founder" || busy === `revoke:${assignment.assignmentId}`} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>
