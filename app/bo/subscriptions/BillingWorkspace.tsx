@@ -18,6 +18,15 @@ type Props = {
 const TERMS = [12, 24, 48] as const;
 const CADENCES = [1, 2, 3, 4, 5, 6] as const;
 
+export function authoritativePlacementCenterId(placements: string[], eligibleClasses: BoRunningClass[]) {
+  if (!placements.length) throw new Error("Chưa có Running Class để xác định Center.");
+  const selected = placements.map((runningClassId) => eligibleClasses.find((item) => item.id === runningClassId) ?? null);
+  if (selected.some((item) => !item?.centerId)) throw new Error("Running Classes đã chọn phải có Center hợp lệ.");
+  const centerIds = [...new Set(selected.map((item) => item!.centerId!))];
+  if (centerIds.length !== 1) throw new Error("Các Running Classes đã chọn phải thuộc cùng một Center.");
+  return centerIds[0]!;
+}
+
 export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayState, setReplayState }: Props) {
   const [plans, setPlans] = useState<BoProductPlan[]>([]);
   const [planId, setPlanId] = useState("");
@@ -200,10 +209,13 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     if (pendingRegistrationEntries.length) { setError("Student đã có Subscription Product Plan chưa placement. Hãy resume placement hiện hữu trước khi tạo sale mới."); return; }
     if (!placementsReady) { setError(`Chọn đủ ${selectedPlan.cadence} Running Classes khác nhau trước khi đăng ký.`); return; }
     if (latestSale && !registrationComplete) { setError("Subscription đã tạo; hãy hoàn tất placement, không tạo sale mới."); return; }
+    let centerId: string;
+    try { centerId = authoritativePlacementCenterId(placements, eligibleClasses); }
+    catch (value) { setError(message(value)); return; }
     const policyEffectiveAt = new Date().toISOString();
     await runReplay("registration", async (idempotencyKey) => {
       const sale = await boApi.createBillingSale({
-        payerParentUserId: payerId, studentProfileId: lifecycle.student.id, pathProgramId: pathId,
+        payerParentUserId: payerId, studentProfileId: lifecycle.student.id, pathProgramId: pathId, centerId,
         productPlanId: planId, contractualStartsOn: startsOn,
         itemDiscountMinor: money(itemDiscount), billDiscountMinor: money(billDiscount),
         ...(dueOn ? { dueOn } : {}), ...(campaign.trim() ? { campaignReference: campaign.trim() } : {}),
