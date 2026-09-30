@@ -9,6 +9,7 @@ export interface BoShellContext {
   userId: string;
   email: string;
   staffMemberId: string | null;
+  displayName: string | null;
   surface: "BO";
   entitled: true;
 }
@@ -41,6 +42,7 @@ export async function authorizeBoShell(headers: Headers, env: BoShellGateEnv, _l
     userId: data.userId,
     email: data.email,
     staffMemberId: typeof data.staffMemberId === "string" ? data.staffMemberId : null,
+    displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName : null,
     surface: "BO",
     entitled: true,
   };

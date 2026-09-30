@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
-import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
+import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
 type Data = {
+  actor: BoContext | null;
   staff: BoStaffRecord[];
   users: BoAccessUser[];
   roles: BoAccessRole[];
@@ -27,7 +28,7 @@ type PrivateLoadState =
   | { status: "error"; message: string };
 
 
-const emptyData: Data = { staff: [], users: [], roles: [], centers: [], paths: [], classes: [] };
+const emptyData: Data = { actor: null, staff: [], users: [], roles: [], centers: [], paths: [], classes: [] };
 
 export function StaffManagementView() {
   const [data, setData] = useState<Data>(emptyData);
@@ -46,11 +47,11 @@ export function StaffManagementView() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [pinResetAttempts, setPinResetAttempts] = useState<Record<string, string>>({});
-  const [pinReset, setPinReset] = useState<{ userId: string; initialPin: string } | null>(null);
-  const [pinCopied, setPinCopied] = useState(false);
+  const [passwordResetAttempts, setPasswordResetAttempts] = useState<Record<string, string>>({});
+  const [passwordReset, setPasswordReset] = useState<{ userId: string; temporaryPassword: string } | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const selectedIdRef = useRef("");
-  const pinResetInFlightRef = useRef<string | null>(null);
+  const passwordResetInFlightRef = useRef<string | null>(null);
   const refreshFenceRef = useRef(0);
   const privateRevealFenceRef = useRef(createStaffPrivateRevealFence());
 
@@ -65,7 +66,7 @@ export function StaffManagementView() {
     let current = true;
     privateRevealFenceRef.current.invalidate();
     selectedIdRef.current = selectedId;
-    setPinReset(null); setPinCopied(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
+    setPasswordReset(null); setPasswordCopied(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
     setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
     if (!selectedId) return () => { current = false; };
     setError("");
@@ -82,6 +83,15 @@ export function StaffManagementView() {
     return [...ids].map((id) => ({ id, label: data.centers.find((center) => center.id === id)?.displayName ?? id }));
   }, [accessUser, data.centers]);
 
+  const canResetPassword = Boolean(
+    accessUser &&
+    data.actor?.permissionKeys.includes("access.staff_password.reset") &&
+    data.actor.userId !== accessUser.id &&
+    profile?.id === selectedId &&
+    accessUser.staffMemberId === selectedId &&
+    profile.status === "active" &&
+    accessUser.status === "active"
+  );
 
   function selectStaff(nextId: string) {
     if (selectedIdRef.current !== nextId) {
@@ -95,12 +105,12 @@ export function StaffManagementView() {
 
   async function refresh(preferId = "") {
     const refreshFence = refreshFenceRef.current;
-    const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
+    const [actor, staff, users, roles, catalog] = await Promise.all([boApi.context(), boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
     if (refreshFence !== refreshFenceRef.current) return;
     const currentId = selectedIdRef.current;
-    const lockedId = pinResetInFlightRef.current;
+    const lockedId = passwordResetInFlightRef.current;
     if (lockedId && !staff.some((item) => item.id === lockedId)) return;
-    setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
+    setData({ actor, staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
     const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
     selectStaff(nextId);
   }
@@ -177,36 +187,39 @@ export function StaffManagementView() {
     finally { setBusy(""); }
   }
 
-  async function resetStaffPin() {
-    if (!accessUser || !profile || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active") return;
-    if (!confirm(`Reset PIN cho ${profile.displayLabel}?\n\nPIN hiện tại và tất cả phiên Staff PIN đang mở sẽ bị vô hiệu ngay. Core sẽ tự sinh PIN tạm; Manager không được chọn PIN mới.`)) return;
+  async function resetStaffPassword() {
+    if (!accessUser || !profile || !canResetPassword) return;
+    if (!confirm(`Reset mật khẩu cho ${profile.displayLabel}?\n\nMật khẩu hiện tại và tất cả phiên Staff đang mở sẽ bị vô hiệu ngay. Core sẽ tự sinh mật khẩu tạm; Staff phải đổi trước khi tiếp tục.`)) return;
     const targetUserId = accessUser.id;
     const targetStaffId = selectedId;
-    const idempotencyKey = pinResetAttempts[targetUserId] ?? crypto.randomUUID();
+    const idempotencyKey = passwordResetAttempts[targetUserId] ?? crypto.randomUUID();
     refreshFenceRef.current += 1;
-    pinResetInFlightRef.current = targetStaffId;
-    setPinResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
-    setBusy("pin-reset"); setError(""); setMessage(""); setPinReset(null); setPinCopied(false);
+    passwordResetInFlightRef.current = targetStaffId;
+    setPasswordResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
+    setBusy("password-reset"); setError(""); setMessage(""); setPasswordReset(null); setPasswordCopied(false);
     try {
-      const result = await boApi.resetStaffPin(targetUserId, idempotencyKey);
+      const result = await boApi.resetStaffPassword(targetUserId, idempotencyKey);
       if (selectedIdRef.current !== targetStaffId) return;
-      setPinResetAttempts((value) => { const next = { ...value }; delete next[targetUserId]; return next; });
-      if (!result.initialPin) { setError("Reset đã hoàn tất nhưng PIN tạm không còn được trả lại. Bấm Reset PIN lần nữa để phát một PIN tạm mới."); return; }
-      setPinReset({ userId: targetUserId, initialPin: result.initialPin });
-      setMessage("PIN cũ và các phiên Staff PIN đã bị vô hiệu. Staff phải đổi PIN tạm trước khi dùng TOS.");
+      setPasswordResetAttempts((value) => { const next = { ...value }; delete next[targetUserId]; return next; });
+      if (!result.temporaryPassword) {
+        setError("Reset đã hoàn tất nhưng mật khẩu tạm không còn được trả lại. Bấm Reset password lần nữa để phát credential tạm mới.");
+        return;
+      }
+      setPasswordReset({ userId: targetUserId, temporaryPassword: result.temporaryPassword });
+      setMessage("Mật khẩu cũ và các phiên Staff đã bị vô hiệu. Staff phải đổi mật khẩu tạm trước khi tiếp tục.");
     } catch (cause) {
-      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset Staff PIN.");
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset mật khẩu Staff.");
     } finally {
-      if (pinResetInFlightRef.current === targetStaffId) pinResetInFlightRef.current = null;
+      if (passwordResetInFlightRef.current === targetStaffId) passwordResetInFlightRef.current = null;
       refreshFenceRef.current += 1;
       setBusy("");
     }
   }
 
-  async function copyTemporaryPin() {
-    if (!pinReset) return;
-    try { await navigator.clipboard.writeText(pinReset.initialPin); setPinCopied(true); }
-    catch { setError("Không thể copy PIN tự động. Hãy copy trực tiếp từ màn hình."); }
+  async function copyTemporaryPassword() {
+    if (!passwordReset) return;
+    try { await navigator.clipboard.writeText(passwordReset.temporaryPassword); setPasswordCopied(true); }
+    catch { setError("Không thể copy mật khẩu tự động. Hãy copy trực tiếp từ màn hình."); }
   }
 
   async function startSupportSession() {
@@ -289,7 +302,7 @@ export function StaffManagementView() {
           <div className={styles.panelHeading}><div><h2>{data.staff.length} nhân viên</h2><p>Chọn một người để quản lý.</p></div></div>
           {data.staff.map((item) => {
             const user = data.users.find((entry) => entry.staffMemberId === item.id);
-            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "pin-reset"} onClick={() => { if (busy !== "pin-reset") selectStaff(item.id); }}>
+            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "password-reset"} onClick={() => { if (busy !== "password-reset") selectStaff(item.id); }}>
               <strong>{item.displayLabel}</strong><span>{item.roleLabel ?? item.department ?? "Chưa phân loại"}</span><small>{item.status} · Access {user?.status ?? "none"}</small>
             </button>;
           })}
@@ -395,14 +408,14 @@ export function StaffManagementView() {
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
                 <p className={styles.staffAccessMeta}>{accessUser.email ?? "No email"} · {accessUser.assignments.length} assignment(s)</p>
                 <div className={styles.staffPinPanel}>
-                  <div><strong>Staff PIN</strong><p>Reset chỉ phát PIN tạm do Core sinh. PIN hiện tại và mọi Staff PIN session sẽ bị vô hiệu ngay; staff phải đổi PIN tạm trước lần dùng TOS tiếp theo.</p></div>
+                  <div><strong>Staff password</strong><p>Email + mật khẩu là credential Staff duy nhất. Reset sẽ vô hiệu mật khẩu hiện tại và mọi phiên Staff, sau đó phát mật khẩu tạm một lần.</p></div>
                   <div className={styles.staffActions}>
-                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active"} onClick={() => void resetStaffPin()}>{busy === "pin-reset" ? "Đang reset…" : "Reset PIN"}</button>
-                    {profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ reset khi Staff và Access đều active.</small> : null}
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !canResetPassword} onClick={() => void resetStaffPassword()}>{busy === "password-reset" ? "Đang reset…" : "Reset password"}</button>
+                    {!data.actor?.permissionKeys.includes("access.staff_password.reset") ? <small>Bạn không có quyền reset mật khẩu Staff.</small> : data.actor.userId === accessUser.id ? <small>Không thể reset mật khẩu của chính mình tại BO.</small> : profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ reset khi Staff và Access đều active.</small> : null}
                   </div>
-                  {pinReset?.userId === accessUser.id ? <div className={styles.staffPinReveal} data-testid="staff-pin-reset-reveal">
-                    <span>PIN tạm · hiển thị một lần</span><code data-testid="staff-pin-reset-value">{pinReset.initialPin}</code>
-                    <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPin()}>{pinCopied ? "Đã copy" : "Copy PIN"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPinReset(null); setPinCopied(false); }}>Ẩn PIN</button></div>
+                  {passwordReset?.userId === accessUser.id ? <div className={styles.staffPinReveal} data-testid="staff-password-reset-reveal">
+                    <span>Mật khẩu tạm · hiển thị một lần</span><code data-testid="staff-password-reset-value">{passwordReset.temporaryPassword}</code>
+                    <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPassword()}>{passwordCopied ? "Đã copy" : "Copy password"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPasswordReset(null); setPasswordCopied(false); }}>Ẩn mật khẩu</button></div>
                   </div> : null}
                 </div>
                 <div className={styles.staffSupportPanel} data-testid="staff-support-panel">

@@ -25,6 +25,7 @@ import {
   type TimekeepingSession,
   type UnscheduledCheckInSelfState,
   type WorkforceContext,
+  type WorkforceWindowDecision,
 } from "@/lib/workforce-api";
 
 type View = "dashboard" | "schedule" | "availability" | "profile" | "check-in" | "history";
@@ -56,6 +57,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [history, setHistory] = useState<TimekeepingSession[]>([]);
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
+  const [availabilityWindow, setAvailabilityWindow] = useState<WorkforceWindowDecision | null>(null);
   const [checkInState, setCheckInState] = useState<UnscheduledCheckInSelfState | null>(null);
   const [requestFormOpen, setRequestFormOpen] = useState(false);
   const [requestReason, setRequestReason] = useState("");
@@ -110,6 +112,19 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [center]);
+  useEffect(() => {
+    if (view !== "availability" || !week) return;
+    let active = true;
+    void Promise.all([workforceApi.availability(week.id), workforceApi.availabilityWindow(week.id)]).then(async ([submission, window]) => {
+      if (!active) return;
+      setAvailability(submission.data); setAvailabilityWindow(window.data);
+      if (submission.data && window.data.state === "OPEN" && submission.data.status !== "VOIDED") {
+        const opened = await workforceApi.availabilityDraft(week.id);
+        if (active) { setAvailability(opened.data.submission); setTemplates(opened.data.templates); setAvailabilityWindow(opened.data.window); }
+      }
+    }).catch((e: unknown) => { if (active) setError(message(e)); });
+    return () => { active = false; };
+  }, [view, week]);
 
   async function clock(action: "in" | "out") {
     if (!center) return;
@@ -172,12 +187,12 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     setSaving(true); setError("");
     try {
       const result = await workforceApi.availabilityDraft(week.id);
-      setAvailability(result.data.submission); setTemplates(result.data.templates);
+      setAvailability(result.data.submission); setTemplates(result.data.templates); setAvailabilityWindow(result.data.window);
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
   async function toggle(date: string, templateId: string) {
-    if (!availability || availability.status !== "DRAFT") return;
+    if (!availability || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
     const exists = availability.items.some((i) => i.workDate === date && i.shiftTemplateId === templateId);
     const items = exists
       ? availability.items.filter((i) => !(i.workDate === date && i.shiftTemplateId === templateId))
@@ -188,7 +203,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     finally { setSaving(false); }
   }
   async function submitAvailability() {
-    if (!availability || availability.status !== "DRAFT") return;
+    if (!availability || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
     setSaving(true);
     try { const result = await workforceApi.submitAvailability({ submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
     catch (e) { setError(message(e)); }
@@ -213,7 +228,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
         <Schedule rows={todayAssignments} title="Ca hôm nay" />
       </> : null}
       {view === "schedule" ? <Schedule rows={activeSchedule} title="Ca được phân công" /> : null}
-      {view === "availability" ? <AvailabilityPanel week={week} availability={availability} templates={templates} saving={saving} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
+      {view === "availability" ? <AvailabilityPanel week={week} availability={availability} window={availabilityWindow} templates={templates} saving={saving} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
       {view === "check-in" ? <CheckInPanel current={current} state={checkInState} saving={saving} centerReady={Boolean(center)} formOpen={requestFormOpen} reason={requestReason} onReason={setRequestReason} onOpenForm={() => setRequestFormOpen(true)} onCancelForm={() => { setRequestFormOpen(false); setRequestReason(""); }} onClock={() => void clock(current ? "out" : "in")} onRequest={() => void requestUnscheduledCheckIn()} /> : null}
       {view === "history" ? <History rows={history} /> : null}
     </>}
@@ -240,16 +255,19 @@ function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {
     </div>;
   })}</div> : <p className="muted">Chưa có ca được phân công.</p>}</section>;
 }
-function AvailabilityPanel({ week, availability, templates, saving, onOpen, onToggle, onSubmit }: { week: WorkforceContext["termWeeks"][number] | null; availability: Availability | null; templates: ShiftTemplate[]; saving: boolean; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
+function AvailabilityPanel({ week, availability, window, templates, saving, onOpen, onToggle, onSubmit }: { week: WorkforceContext["termWeeks"][number] | null; availability: Availability | null; window: WorkforceWindowDecision | null; templates: ShiftTemplate[]; saving: boolean; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
   const submitted = availability?.status === "SUBMITTED";
   const voided = availability?.status === "VOIDED";
-  const immutable = submitted || voided;
+  const locked = window?.state === "LOCKED";
+  const immutable = voided || locked;
   const selectedCount = availability?.items.length ?? 0;
+  const stateText = !window ? "Đang kiểm tra cửa sổ đăng ký…" : window.reason === "CONFIGURATION_UNAVAILABLE" ? "Cấu hình đăng ký ca của Center chưa hoàn tất." : locked ? `Đăng ký ca đã khóa${window.cutoffAt ? ` · ${new Date(window.cutoffAt).toLocaleString("vi-VN")}` : ""}.` : window.reason === "MANUAL_REOPEN" ? `Đã mở lại tạm thời${window.overrideUntil ? ` đến ${new Date(window.overrideUntil).toLocaleString("vi-VN")}` : ""}.` : window.cutoffAt ? `Đang mở · tự khóa ${new Date(window.cutoffAt).toLocaleString("vi-VN")}.` : "Đang mở.";
   return <section className={`card section ${availabilityStyles.wrap}`}>
-    <div className={availabilityStyles.summary}><div><h2>Đăng ký ca tuần</h2><p>{week ? `${week.code} · ${shortDate(week.startDate)} — ${shortDate(week.endDate)}` : "Chưa có tuần vận hành khả dụng."}</p></div>{availability ? <span className={`${availabilityStyles.status} ${immutable ? availabilityStyles.submitted : availabilityStyles.draft}`}>{voided ? "Đã void" : submitted ? "Đã gửi" : "Bản nháp"}</span> : null}</div>
-    {!week ? <div className={availabilityStyles.empty}>Chưa có TermWeek để đăng ký ca.</div> : !availability ? <><div className={availabilityStyles.empty}>Chọn các ca bạn có thể làm trong tuần. Manager sẽ dùng đăng ký này để xếp lịch chính thức.</div><button className="button" disabled={saving} onClick={() => void onOpen()}>Bắt đầu đăng ký</button></> : <>
-      <div className={availabilityStyles.days}>{weekDates(week).map((date) => <div className={availabilityStyles.day} key={date}><div className={availabilityStyles.date}><span>{weekday(date)}</span><strong>{dayNumber(date)}</strong><span>{monthLabel(date)}</span></div><div className={availabilityStyles.shifts}>{templates.map((template) => { const selected = availability.items.some((item) => item.workDate === date && item.shiftTemplateId === template.id); return <button key={`${date}:${template.id}`} className={`${availabilityStyles.shift} ${selected ? availabilityStyles.selected : ""}`} disabled={saving || immutable} onClick={() => void onToggle(date, template.id)} aria-pressed={selected}><strong>{selected ? "✓ " : ""}{template.displayLabel}</strong><span>{template.startLocalTime}–{template.endLocalTime}</span></button>; })}</div></div>)}</div>
-      <div className={availabilityStyles.actions}><p>{voided ? `Đăng ký lịch sử đã được Manager/Founder void${availability?.voidReason ? `: ${availability.voidReason}` : "."} Staff không thể sửa hoặc mở lại nội dung này.` : submitted ? "Đăng ký đã gửi. V1 không cho sửa sau submit." : `Đã chọn ${selectedCount} ca khả dụng. Đây chưa phải lịch làm việc chính thức.`}</p>{!immutable ? <button className={`button ${availabilityStyles.submit}`} disabled={saving} onClick={() => void onSubmit()}>{saving ? "Đang lưu…" : "Gửi cho Manager"}</button> : null}</div>
+    <div className={availabilityStyles.summary}><div><h2>Đăng ký ca tuần</h2><p>{week ? `${week.code} · ${shortDate(week.startDate)} — ${shortDate(week.endDate)}` : "Chưa có tuần vận hành khả dụng."}</p></div>{availability ? <span className={`${availabilityStyles.status} ${immutable || submitted ? availabilityStyles.submitted : availabilityStyles.draft}`}>{voided ? "Đã void" : locked ? "Đã khóa" : submitted ? "Đã gửi" : "Bản nháp"}</span> : null}</div>
+    {week ? <p className="muted">{stateText}</p> : null}
+    {!week ? <div className={availabilityStyles.empty}>Chưa có TermWeek để đăng ký ca.</div> : !availability ? <><div className={availabilityStyles.empty}>Chọn các ca bạn có thể làm trong tuần. Manager sẽ dùng đăng ký này để xếp lịch chính thức.</div>{!locked && window ? <button className="button" disabled={saving} onClick={() => void onOpen()}>Bắt đầu đăng ký</button> : null}</> : <>
+      <div className={availabilityStyles.days}>{weekDates(week).map((date) => <div className={availabilityStyles.day} key={date}><div className={availabilityStyles.date}><span>{weekday(date)}</span><strong>{dayNumber(date)}</strong><span>{monthLabel(date)}</span></div><div className={availabilityStyles.shifts}>{templates.map((template) => { const selected = availability.items.some((item) => item.workDate === date && item.shiftTemplateId === template.id); return <button key={`${date}:${template.id}`} className={`${availabilityStyles.shift} ${selected ? availabilityStyles.selected : ""}`} disabled={saving || immutable} onClick={() => void onToggle(date, template.id)} aria-pressed={selected}><strong>{selected ? "✓ " : ""}{template.displayLabel}</strong><span>{template.startLocalTime}–${template.endLocalTime}</span></button>; })}</div></div>)}</div>
+      <div className={availabilityStyles.actions}><p>{voided ? `Đăng ký lịch sử đã được Manager/Founder void${availability?.voidReason ? `: ${availability.voidReason}` : "."} Staff không thể sửa hoặc mở lại nội dung này.` : locked ? stateText : submitted ? "Đăng ký đã gửi. Bạn vẫn có thể chỉnh và gửi lại cho tới khi cửa sổ đăng ký khóa." : `Đã chọn ${selectedCount} ca khả dụng. Đây chưa phải lịch làm việc chính thức.`}</p>{!immutable ? <button className={`button ${availabilityStyles.submit}`} disabled={saving} onClick={() => void onSubmit()}>{saving ? "Đang lưu…" : submitted ? "Gửi lại cho Manager" : "Gửi cho Manager"}</button> : null}</div>
     </>}
   </section>;
 }
@@ -296,6 +314,8 @@ function Profile({ profile, assignments, center, week, onSaved }: { profile: Sta
     <section className="card">
       <div className={contextStyles.sectionHead}><div><h2>Công việc</h2><p>Nhìn nhanh lịch làm việc của bạn.</p></div></div>
       <div className={contextStyles.workFacts}>
+        <div className={contextStyles.fact}><span>Vai trò</span><strong>{profile.roleLabel ?? "Chưa cập nhật"}</strong></div>
+        <div className={contextStyles.fact}><span>Bộ phận</span><strong>{profile.department ?? "Chưa cập nhật"}</strong></div>
         <div className={contextStyles.fact}><span>Center</span><strong>{center?.displayName ?? "Chưa xác định"}</strong></div>
         <div className={contextStyles.fact}><span>Tuần này</span><strong>{weeklyAssignments.length} ca</strong></div>
       </div>

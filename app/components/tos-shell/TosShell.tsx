@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./LogoutButton";
+import { TosCurrentUserChip } from "./TosCurrentUser";
 import { SupportSessionBanner } from "./SupportSessionBanner";
 import styles from "./tos-shell.module.css";
 
@@ -70,6 +71,7 @@ export function TosShell({
               ⌂
             </Link>
           ) : null}
+          <TosCurrentUserChip />
           <LogoutButton className={styles.logoutButton} />
         </div>
       </header>

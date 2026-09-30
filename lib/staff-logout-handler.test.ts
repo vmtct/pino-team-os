@@ -2,72 +2,53 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleStaffLogout, type StaffLogoutEnv } from "./staff-logout-handler";
 
-function env(
-  onPasswordLogout?: StaffLogoutEnv["PINO_STAFF_PASSWORD_CORE"]["logout"],
-  onPinLogout?: StaffLogoutEnv["PINO_STAFF_PIN_CORE"]["logout"],
-  onSupportLogout?: NonNullable<StaffLogoutEnv["PINO_STAFF_PASSWORD_CORE"]["supportLogout"]>,
-): StaffLogoutEnv {
+function env(onPasswordLogout?: StaffLogoutEnv["PINO_STAFF_PASSWORD_CORE"]["logout"]): StaffLogoutEnv {
   return {
     PINO_STAFF_PASSWORD_CORE: {
-      login: async () => ({ token: "password", expiresAt: "2099-01-01T00:00:00Z", userId: "user", staffMemberId: "staff", email: "staff@example.test" }),
-      status: async () => ({ userId: "user", staffMemberId: "staff", email: "staff@example.test" }),
+      login: async () => ({ token: "password", expiresAt: "2099-01-01T00:00:00Z", userId: "user", staffMemberId: "staff", email: "staff@example.test", passwordChangeRequired: false }),
+      status: async () => ({ userId: "user", staffMemberId: "staff", email: "staff@example.test", passwordChangeRequired: false }),
+      changePassword: async () => ({ token: "changed", expiresAt: "2099-01-01T00:00:00Z", userId: "user", staffMemberId: "staff", email: "staff@example.test", passwordChangeRequired: false }),
       logout: onPasswordLogout ?? (async () => ({ revoked: true })),
-      supportLogout: onSupportLogout ?? (async () => ({ revoked: true })),
-    },
-    PINO_STAFF_PIN_CORE: {
-      login: async () => ({ status: 200, body: {}, requestId: "login" }),
-      statusWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "status" }),
-      configureWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "configure" }),
-      rotateWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "rotate" }),
-      logout: onPinLogout ?? (async () => ({ status: 204, body: null, requestId: "logout" })),
     },
   };
 }
 
-test("logout revokes both password and shared-device PIN sessions and clears both cookies", async () => {
+test("logout revokes the password session and expires password plus retired legacy PIN cookie", async () => {
   const revoked: string[] = [];
   const response = await handleStaffLogout(new Request("https://tos.pinohouse.art/api/staff-auth/logout", {
     method: "POST",
-    headers: { cookie: "pino_staff_password_session=password-token; pino_staff_session=pin-token" },
-  }), env(
-    async token => { revoked.push(`password:${token}`); return { revoked: true }; },
-    async token => { revoked.push(`pin:${token}`); return { status: 204, body: null, requestId: "pin-logout" }; },
-  ));
+    headers: { cookie: "pino_staff_password_session=password-token; pino_staff_session=legacy-pin-token" },
+  }), env(async token => { revoked.push(token); return { revoked: true }; }));
 
   assert.equal(response.status, 200);
-  assert.deepEqual(revoked.sort(), ["password:password-token", "pin:pin-token"]);
+  assert.deepEqual(revoked, ["password-token"]);
   const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, /pino_staff_password_session=;/);
   assert.match(setCookie, /pino_staff_session=;/);
   assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 3);
+});
+
+test("logout remains locally effective when password Core revocation fails", async () => {
+  const response = await handleStaffLogout(new Request("https://tos.pinohouse.art/api/staff-auth/logout", {
+    method: "POST",
+    headers: { cookie: "pino_staff_password_session=password-token; pino_staff_session=legacy-pin-token" },
+  }), env(async () => { throw new Error("password core unavailable"); }));
+
+  assert.equal(response.status, 200);
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  assert.match(setCookie, /pino_staff_password_session=;/);
+  assert.match(setCookie, /pino_staff_session=;/);
 });
 
 test("logout revokes and clears support session alongside ordinary TOS sessions", async () => {
   const revoked: string[] = [];
+  const base = env();
+  base.PINO_STAFF_PASSWORD_CORE.supportLogout = async token => { revoked.push(token); return { revoked: true }; };
   const response = await handleStaffLogout(new Request("https://tos.pinohouse.art/api/staff-auth/logout", {
     method: "POST",
     headers: { cookie: "pino_support_session=support-token" },
-  }), env(undefined, undefined, async token => { revoked.push(token); return { revoked: true }; }));
-
+  }), base);
   assert.deepEqual(revoked, ["support-token"]);
   const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, /pino_support_session=;/);
-  assert.equal((setCookie.match(/Max-Age=0/g) ?? []).length, 3);
-});
-
-test("logout remains locally effective when a Core revocation call fails", async () => {
-  let pinRevoked = false;
-  const response = await handleStaffLogout(new Request("https://tos.pinohouse.art/api/staff-auth/logout", {
-    method: "POST",
-    headers: { cookie: "pino_staff_password_session=password-token; pino_staff_session=pin-token" },
-  }), env(
-    async () => { throw new Error("password core unavailable"); },
-    async () => { pinRevoked = true; return { status: 204, body: null, requestId: "pin-logout" }; },
-  ));
-
-  assert.equal(response.status, 200);
-  assert.equal(pinRevoked, true);
-  const setCookie = response.headers.get("set-cookie") ?? "";
-  assert.match(setCookie, /pino_staff_password_session=;/);
-  assert.match(setCookie, /pino_staff_session=;/);
 });

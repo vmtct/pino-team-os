@@ -1,7 +1,7 @@
 import type { JWTVerifyGetKey } from "jose";
 import { BO_HOSTNAME, normalizeHostname } from "./host-boundary";
-import { callFounderCore, callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
-import { authenticateTeam, TeamAuthError, type TeamAccessEnv } from "./team-auth";
+import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
+import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
 export interface FounderFacadeEnv extends TeamAccessEnv {
   PINO_CORE: PinoCoreBinding;
@@ -36,14 +36,9 @@ export async function handleFounderFacadeRequest(
       body,
       idempotencyKey: request.headers.get("idempotency-key") ?? undefined,
     };
-    const passwordToken = cookie(request.headers, "pino_staff_password_session");
-    const result = passwordToken
-      ? await callFounderCoreWithStaffPassword(env.PINO_CORE, coreRequest, passwordToken)
-      : await callFounderCore(
-          env.PINO_CORE,
-          coreRequest,
-          await authenticateTeam(request.headers, env, surface(request), keyResolver),
-        );
+    const credential = await teamCredential(request, env, surface(request), keyResolver);
+    if (credential.kind !== "password") throw new TeamAuthError(401, "Staff password session is required");
+    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, coreRequest, credential.token);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_UNAUTHORIZED", message: error.message } }, error.status);
@@ -55,11 +50,6 @@ export async function handleFounderFacadeRequest(
 function surface(request: Request): "BO" | "TOS" {
   const host = normalizeHostname(request.headers.get("host") ?? new URL(request.url).hostname);
   return host === BO_HOSTNAME ? "BO" : "TOS";
-}
-
-function cookie(headers: Headers, name: string): string {
-  return headers.get("cookie")?.split(";").map(value => value.trim())
-    .find(value => value.startsWith(`${name}=`))?.slice(name.length + 1) ?? "";
 }
 
 function json(body: unknown, status: number, headers: HeadersInit = {}): Response {
