@@ -511,6 +511,13 @@ export interface BoWorkforceAssignment {
   centerId: string;
   workDate: string;
   shiftTemplateId: string;
+  timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+  effectiveWork?: {
+    assignmentId: string;
+    timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+    windows: Array<{ startsLocal: string; endsLocal: string; sourceType: "SHIFT_TEMPLATE" | "SESSION"; sourceIds: string[] }>;
+    reconciliationRequired: boolean;
+  };
   termWeekId: string | null;
   status: "ACTIVE" | "CANCELLED";
   assignedByUserId: string;
