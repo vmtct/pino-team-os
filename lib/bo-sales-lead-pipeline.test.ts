@@ -34,6 +34,20 @@ test("PLT-SALES F0 lifecycle commands require and preserve idempotency", async (
   assert.deepEqual(forwarded, [{ method: "POST", path, body: { expectedVersion: 2 }, idempotencyKey: "lead-command-1" }]);
 });
 
+test("PLT-LEAD F1 manual create requires idempotency and forwards only the canonical command", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: 201, body: { data: { leadId: "lead", intentId, status: "SUBMITTED", nextStep: "MANUAL_CONTACT" } }, requestId: "sales-create" }; } };
+  const path = "acquisition/intents";
+  const body = { phone: "0901234567", sourceBrand: "PINO_HOUSE", intentKind: "GENERAL_INQUIRY", childAge: 8 };
+  const withoutKey = new Request("https://bo.pinohouse.art/api/bo/acquisition/intents", { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+  assert.equal((await handleBoWriteRequest(withoutKey, env(binding), path)).status, 400);
+  assert.equal(forwarded.length, 0);
+
+  const withKey = new Request("https://bo.pinohouse.art/api/bo/acquisition/intents", { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "lead-create-1" }, body: JSON.stringify(body) });
+  assert.equal((await handleBoWriteRequest(withKey, env(binding), path)).status, 201);
+  assert.deepEqual(forwarded, [{ method: "POST", path, body, idempotencyKey: "lead-create-1" }]);
+});
+
 test("PLT-SALES F0 keeps Lead surface BO-only and host-bounded", () => {
   for (const path of ["/bo/sales/leads", "/api/bo/acquisition/intents", `/api/bo/acquisition/intents/${intentId}`, `/api/bo/acquisition/intents/${intentId}/verify-contact`, `/api/bo/acquisition/intents/${intentId}/close`]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
@@ -47,8 +61,12 @@ test("PLT-SALES F0 presentation composes Core contracts without local CRM author
     readFile("lib/bo-api.ts", "utf8"),
   ]);
   assert.match(navigation, /href: "\/bo\/sales\/leads", label: "Leads"/);
-  for (const method of ["acquisitionIntents", "acquisitionIntent", "markAcquisitionContacted", "verifyAcquisitionContact", "closeAcquisitionIntent"]) assert.match(api, new RegExp(`${method}:`));
+  for (const method of ["acquisitionIntents", "acquisitionIntent", "createAcquisitionIntent", "markAcquisitionContacted", "verifyAcquisitionContact", "closeAcquisitionIntent"]) assert.match(api, new RegExp(`${method}:`));
   assert.match(view, /acquisition\.lead\.manage/);
+  assert.match(view, /Tạo Lead/);
+  assert.match(view, /Nguồn nhập: Staff/);
+  assert.match(view, /setStatus\("ALL"\)/);
+  assert.match(view, /Thử lại tạo Lead/);
   assert.match(view, /pendingAttempt\?\.key === key/);
   assert.match(view, /Thử lại cùng yêu cầu/);
   assert.doesNotMatch(view, /fetch\(|localStorage|indexedDB|leadScore|pipelineValue/i);
