@@ -3,6 +3,7 @@ import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-ha
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "@/lib/bo-syllabus-media-handler";
+import { handleBoStaffPrivateDocumentRequest, isBoStaffPrivateDocumentPath, type BoStaffPrivateEnv } from "@/lib/bo-staff-private-handler";
 import { handleBoWardSetMediaUpload, type BoWardSetMediaEnv } from "@/lib/bo-ward-set-media-handler";
 import { handleBoWorkforcePlanningRequest, isBoWorkforcePlanningPath, type BoWorkforcePlanningEnv } from "@/lib/bo-workforce-planning-handler";
 import { handleBoWorkforceTrainingRequest, isBoWorkforceTrainingPath, type BoWorkforceTrainingEnv } from "@/lib/bo-workforce-training-handler";
@@ -12,7 +13,7 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoWardSetMediaEnv;
+type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -23,6 +24,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   if (isBoWorkforceDutyExceptionPath(joined)) return handleBoWorkforceDutyExceptionRequest(request, env, joined);
   if (/^learning\/syllabi\/media\/[0-9a-f-]{36}\/preview$/.test(joined)) return handleBoSyllabusMediaRequest(request, env, joined);
+  if (isBoStaffPrivateDocumentPath(joined)) return handleBoStaffPrivateDocumentRequest(request, env, joined);
   return handleBoOperationalReadRequest(request, env, joined);
 }
 

@@ -12,9 +12,10 @@ test("TOS middleware accepts password staff session on protected routes", () => 
   assert.notEqual(response.status, 307);
 });
 
-test("TOS middleware still accepts PIN staff session on protected routes", () => {
+test("TOS middleware rejects retired PIN-only session on protected routes", () => {
   const response = middleware(request("pino_staff_session=pin-session"));
-  assert.notEqual(response.status, 307);
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get("location"), "https://tos.pinohouse.art/staff-login");
 });
 
 test("TOS middleware redirects protected routes when neither staff session exists", () => {

@@ -118,13 +118,13 @@ jobs:
           if (staging.vars?.WORKFORCE_BO_STAGING_BYPASS !== 'enabled') throw new Error('Workforce BO staging bypass disabled');
           if (staging.vars?.WORKFORCE_STAGING_BO_EMAIL !== 'workforce-planning-staging-probe@pino.invalid') throw new Error('Workforce BO staging identity drift');
           if (staging.vars?.PINORIA_TOS_STAGING_BYPASS !== 'enabled') throw new Error('TOS staging identity bypass disabled');
-          const required = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_WORKFORCE_NETWORK_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
+          const required = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_WORKFORCE_NETWORK_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE']);
           for (const service of staging.services ?? []) {
             if (service.service !== 'pino-core-staging') throw new Error(`non-staging Core binding: ${service.binding}`);
             required.delete(service.binding);
           }
           if (required.size) throw new Error(`missing staging Core bindings: ${[...required].join(',')}`);
-          const productionCore = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE', 'PINO_STAFF_PIN_CORE']);
+          const productionCore = new Set(['PINO_CORE', 'PINO_WORKFORCE_CORE', 'PINO_BO_CORE', 'PINO_TOS_LEARNING_CORE']);
           for (const service of production.services ?? []) {
             if (!productionCore.has(service.binding)) continue;
             if (service.service !== 'pino-core') throw new Error(`production Core binding drift: ${service.binding}`);
@@ -187,7 +187,7 @@ jobs:
           node -e 'for(const f of process.argv.slice(1)){const x=JSON.parse(require("fs").readFileSync(f,"utf8"));if(x?.error?.code!=="IDENTITY_AUTHENTICATION_FAILED")process.exit(1)}' /tmp/bo-context.json /tmp/staff-records.json
           probe_status "/bo/workforce" 200 /tmp/bo-workforce.html
           probe_status "/staff-login" 200 /tmp/staff-login.html
-          probe_status "/staff-pin/change" 200 /tmp/staff-pin-change.html
+          probe_status "/staff-password/change" 200 /tmp/staff-password-change.html
           echo "WORKFORCE_TEAM_STAGING_SMOKE=PASS"
 
       - name: Report staging PASS
@@ -205,7 +205,7 @@ jobs:
           Active version: ${{ steps.deployment.outputs.version_id }}
           Trusted workflow run: ${GITHUB_RUN_ID}
           Authorization body hash: ${AUTH_BODY_HASH}
-          BO Workforce API/page + Staff login/PIN-change pages: PASS
+          BO Workforce API/page + Staff login/password-change pages: PASS
 
           Production Team Worker, production routes/domains, and production Core were not changed."
 

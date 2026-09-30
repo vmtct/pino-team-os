@@ -41,19 +41,17 @@ test("F4 BO rejects invalid pagination before Core", async () => {
   assert.equal(called, false);
 });
 
-test("F4 BO preserves Cloudflare Access credential compatibility", async () => {
+test("F4 BO rejects retired Cloudflare-only business credentials", async () => {
   const { jwt, keyResolver } = await cloudflareFixture();
-  let seenIdentity: unknown;
-  let seenRequest: BoAccessRequest | undefined;
+  let called = false;
   const binding: BoAccessCoreBinding = {
-    async execute(request, identity) { seenRequest = request; seenIdentity = identity; return { status: 200, body: { data: [] }, requestId: "cf-list" }; },
-    async executeWithStaffPassword() { throw new Error("unexpected password path"); },
+    async execute() { called = true; throw new Error("unexpected Cloudflare business path"); },
+    async executeWithStaffPassword() { called = true; throw new Error("unexpected password path"); },
   };
   const request = new Request(`https://bo.pinohouse.art/api/bo/workforce/duty/checkout-exceptions?centerId=${centerId}`, { headers: { "cf-access-jwt-assertion": jwt } });
   const response = await handleBoWorkforceDutyExceptionRequest(request, env(binding, { CF_ACCESS_TEAM_DOMAIN: cfDomain, CF_ACCESS_BO_AUD: cfAudience }), "workforce/duty/checkout-exceptions", keyResolver);
-  assert.equal(response.status, 200);
-  assert.deepEqual(seenRequest, { method: "GET", path: "workforce/duty/checkout-exceptions", resource: { centerId } });
-  assert.deepEqual(seenIdentity, { provider: "cloudflare_access", subject: "cf-manager-1", email: "manager@pino.invalid", issuer: `https://${cfDomain}`, audience: [cfAudience], expiresAt: (seenIdentity as { expiresAt: number }).expiresAt });
+  assert.equal(response.status, 401);
+  assert.equal(called, false);
 });
 
 test("F4 BO approve forwards only version + current password with exact Center resource", async () => {

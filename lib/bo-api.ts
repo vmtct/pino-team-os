@@ -48,15 +48,20 @@ import type {
   BoStaffOnboardingCommand,
   BoStaffAccessAssignmentInput,
   BoStaffOnboardingResult,
+  BoStaffPasswordResetResult,
+  BoContext,
   BoStaffRegistrationApprovalResult,
   BoStaffRegistrationRequest,
   BoStaffProfile,
+  BoStaffPrivateData,
   BoStaffPinoriaProjection,
   BoStaffProfilePatch,
   BoStaffRecord,
   BoSyllabus,
+  BoOperationalShiftPlanResult,
   BoWorkforceAssignment,
   BoWorkforceAvailability,
+  BoWorkforceWindowDecision,
   BoWorkforcePlanningBootstrap,
   BoWorkforceShiftTemplate,
   BoWorkforceWeeklyPlanning,
@@ -80,9 +85,16 @@ export type OpenStudioPolicyTarget = { targetType: "GLOBAL"; targetId: null } | 
 export type OpenStudioResolvedPolicy<T> = { streamId: string; versionId: string; version: number; effectiveFrom: string; effectiveUntil: string | null; value: T };
 export type OpenStudioPolicyInspection<T> = { stream: { id: string; revision: number; targetType: "GLOBAL" | "CENTER"; targetId: string | null }; versions: Array<{ id: string; version: number; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: T; changeReason: string }> };
 export type OpenStudioPolicyDraft = { streamId: string; versionId: string; version: number; revision: number };
+export type DeliveryFutureReservationPolicy = { maxDaysAhead: number };
+export type DeliveryFutureReservationPolicyInspection = { stream: { id: string; revision: number; targetType: "CENTER"; targetId: string }; versions: Array<{ id: string; version: number; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: DeliveryFutureReservationPolicy; changeReason: string }> };
+export type DeliveryFutureReservationPolicyDraft = { streamId: string; versionId: string; version: number; revision: number };
 export type WorkforcePolicyKey = "AVAILABILITY_ELIGIBILITY" | "TIMEKEEPING_ELIGIBILITY";
 export type WorkforcePolicyInspection = { stream: { id: string; revision: number; targetType: "CENTER"; targetId: string }; versions: Array<{ id: string; version: number; storedState: "DRAFT" | "PUBLISHED"; effectiveFrom: string | null; effectiveUntil: string | null; value: { allowedActions: string[] }; changeReason: string }> };
 export type WorkforcePolicyDraft = { streamId: string; versionId: string; version: number; revision: number };
+export type WorkforceWindowPolicyKey = "AVAILABILITY_WINDOW_V1" | "PLANNING_WINDOW_V1";
+export type WorkforcePolicyTarget = OpenStudioPolicyTarget;
+export type WorkforceWindowPolicyValue = { autoLock: { enabled:boolean; timeLocal:string; daysBeforeWeekStart:number } };
+export type WorkforceWindowPolicyInspection = OpenStudioPolicyInspection<WorkforceWindowPolicyValue>;
 export type BoStudentIntakeCreateInput = {
   displayName: string;
   birthYear: number | null;
@@ -193,6 +205,7 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  context: () => readOne<BoContext>("context"),
   calendarScope: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/calendar-scope");
     return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
@@ -274,7 +287,7 @@ export const boApi = {
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
   billingProductPlans: () => read<BoProductPlan>("billing/product-plans"),
   updateBillingProductPlan: (productPlanId: string, body: { listPriceMinor: number; enabled: boolean; badge: BoProductPlanBadge; expectedVersion: number }) => write<BoProductPlan>(`billing/product-plans/${encodeURIComponent(productPlanId)}/configure`, body, crypto.randomUUID()),
-  createBillingSale: (body: { payerParentUserId: string; studentProfileId: string; pathProgramId: string; productPlanId: string; contractualStartsOn: string; itemDiscountMinor?: number; billDiscountMinor?: number; dueOn?: string; campaignReference?: string }, idempotencyKey: string) => write<BoSaleResult>("billing/sales", body, idempotencyKey),
+  createBillingSale: (body: { payerParentUserId: string; studentProfileId: string; pathProgramId: string; centerId: string; productPlanId: string; contractualStartsOn: string; itemDiscountMinor?: number; billDiscountMinor?: number; dueOn?: string; campaignReference?: string }, idempotencyKey: string) => write<BoSaleResult>("billing/sales", body, idempotencyKey),
   billingBill: (billId: string) => readOne<BoBillSummary>(`billing/bills/${encodeURIComponent(billId)}`),
   recordBillingTransaction: (billId: string, body: { transactionKind: BoPaymentTransactionKind; amountMinor: number; occurredAt: string; method: BoPaymentMethod; reference?: string; note?: string }, idempotencyKey: string) => write<BoPaymentTransaction>(`billing/bills/${encodeURIComponent(billId)}/transactions`, body, idempotencyKey),
   voidBillingTransaction: (transactionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<BoPaymentTransaction>(`billing/transactions/${encodeURIComponent(transactionId)}/void`, body, idempotencyKey),
@@ -285,7 +298,7 @@ export const boApi = {
   cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, idempotencyKey),
   neutralizeSubscription: (subscriptionId: string, body: { expectedVersion: number; releaseLocalDate: string; reason: string }, idempotencyKey: string) => write<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[]; endedEnrollmentIds: string[]; releasedEnrollmentCount: number; releaseLocalDate: string }>(`subscriptions/${encodeURIComponent(subscriptionId)}/neutralize`, body, idempotencyKey),
   placeEnrollment: (body: { subscriptionId: string; runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null; commandEffectiveLocalDate: string; policyEffectiveAt: string }, idempotencyKey: string) => write<unknown>("enrollments", body, idempotencyKey),
-  preflightBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string }) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; missing: number; reused: number }>("enrollments/bulk-preflight", body, crypto.randomUUID()),
+  preflightBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string; policyEffectiveAt: string }) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; missing: number; reused: number }>("enrollments/bulk-preflight", body, crypto.randomUUID()),
   placeBulkEnrollments: (body: { subscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number; placements: Array<{ runningClassId: string; effectiveFromLocalDate: string; plannedEntryLocalTime?: string | null; plannedDurationMinutes?: number | null }> }>; pendingSubscriptions: Array<{ subscriptionId: string; expectedPathProgramId: string; expectedWeeklyCommitment: number }>; commandEffectiveLocalDate: string; policyEffectiveAt: string }, idempotencyKey: string) => write<{ placedSubscriptions: number; pendingSubscriptions: number; enrollments: number; created: number; reused: number }>("enrollments/bulk-place", body, idempotencyKey),
   endEnrollment: (enrollmentId: string, body: { effectiveUntilExclusiveLocalDate: string; expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/end`, body, idempotencyKey),
   resetParentPin: (parentUserId: string) => write<{ command: string; temporaryPin: string; expiresAt: string; credentialVersion: number }>(`identity/parents/${encodeURIComponent(parentUserId)}/pin/reset`, {}, crypto.randomUUID()),
@@ -304,6 +317,10 @@ export const boApi = {
   issueOpenStudioMonthlyPass: (body: { houseMembershipId: string; pathProgramId: string; effectiveAt: string }) => write<unknown[]>("open-studio/passes/issue-monthly-path", body, crypto.randomUUID()),
   issueOpenStudioBringAFriendPass: (body: { houseMembershipId: string; effectiveAt: string }) => write<unknown[]>("open-studio/passes/issue-bring-a-friend", body, crypto.randomUUID()),
   revokeOpenStudioPass: (passId: string, body: { revokedAt: string; reason: string }) => write<unknown>(`open-studio/passes/${encodeURIComponent(passId)}/revoke`, body, crypto.randomUUID()),
+  deliveryFutureReservationPolicyStream: (centerId: string) => readOne<DeliveryFutureReservationPolicyInspection | null>(`policies/delivery/future_reservation.v1/stream?targetType=CENTER&targetId=${encodeURIComponent(centerId)}`),
+  deliveryFutureReservationPolicyEffective: (centerId: string, effectiveAt: string) => readOne<{ streamId: string; versionId: string; version: number; effectiveFrom: string; effectiveUntil: string | null; value: DeliveryFutureReservationPolicy }>(`policies/delivery/future_reservation.v1/effective?targetType=CENTER&targetId=${encodeURIComponent(centerId)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
+  createDeliveryFutureReservationPolicyDraft: (centerId: string, maxDaysAhead: number, expectedRevision: number) => write<DeliveryFutureReservationPolicyDraft>("policies/delivery/future_reservation.v1/versions", { targetType: "CENTER", targetId: centerId, value: { maxDaysAhead }, changeReason: "BO future reservation horizon configuration", expectedRevision }, crypto.randomUUID()),
+  publishDeliveryFutureReservationPolicy: (versionId: string, centerId: string, effectiveFrom: string, expectedRevision: number) => write<{ published: boolean }>(`policies/delivery/future_reservation.v1/versions/${encodeURIComponent(versionId)}/publish`, { targetType: "CENTER", targetId: centerId, effectiveFrom, expectedRevision }, crypto.randomUUID()),
   openStudioPolicyStream: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget) => readOne<OpenStudioPolicyInspection<T> | null>(`policies/open_studio/${key}/stream?${policyTargetQuery(target)}`),
   openStudioPolicyEffective: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget, effectiveAt: string) => readOne<OpenStudioResolvedPolicy<T>>(`policies/open_studio/${key}/effective?${policyTargetQuery(target)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
   createOpenStudioPolicyDraft: <T>(key: OpenStudioPolicyKey, target: OpenStudioPolicyTarget, value: T, changeReason: string, expectedRevision: number) => write<OpenStudioPolicyDraft>(`policies/open_studio/${key}/versions`, { ...target, value, changeReason, expectedRevision }, crypto.randomUUID()),
@@ -311,6 +328,10 @@ export const boApi = {
   workforcePolicyStream: (key: WorkforcePolicyKey, centerId: string) => readOne<WorkforcePolicyInspection | null>(`policies/workforce/${key}/stream?targetType=CENTER&targetId=${encodeURIComponent(centerId)}`),
   createWorkforcePolicyDraft: (key: WorkforcePolicyKey, centerId: string, allowedActions: string[], expectedRevision: number) => write<WorkforcePolicyDraft>(`policies/workforce/${key}/versions`, { targetType: "CENTER", targetId: centerId, value: { allowedActions }, changeReason: "BO Workforce policy activation", expectedRevision }, crypto.randomUUID()),
   publishWorkforcePolicy: (key: WorkforcePolicyKey, versionId: string, centerId: string, effectiveFrom: string, expectedRevision: number) => write<{ published: boolean }>(`policies/workforce/${key}/versions/${encodeURIComponent(versionId)}/publish`, { targetType: "CENTER", targetId: centerId, effectiveFrom, expectedRevision }, crypto.randomUUID()),
+  workforceWindowPolicyStream: (key: WorkforceWindowPolicyKey, target: WorkforcePolicyTarget) => readOne<WorkforceWindowPolicyInspection | null>(`policies/workforce/${key}/stream?${policyTargetQuery(target)}`),
+  workforceWindowPolicyEffective: (key: WorkforceWindowPolicyKey, target: WorkforcePolicyTarget, effectiveAt: string) => readOne<OpenStudioResolvedPolicy<WorkforceWindowPolicyValue>>(`policies/workforce/${key}/effective?${policyTargetQuery(target)}&effectiveAt=${encodeURIComponent(effectiveAt)}`),
+  createWorkforceWindowPolicyDraft: (key: WorkforceWindowPolicyKey, target: WorkforcePolicyTarget, value: WorkforceWindowPolicyValue, changeReason: string, expectedRevision: number) => write<OpenStudioPolicyDraft>(`policies/workforce/${key}/versions`, { ...target, value, changeReason, expectedRevision }, crypto.randomUUID()),
+  publishWorkforceWindowPolicy: (key: WorkforceWindowPolicyKey, versionId: string, target: WorkforcePolicyTarget, effectiveFrom: string, expectedRevision: number) => write<{published:boolean}>(`policies/workforce/${key}/versions/${encodeURIComponent(versionId)}/publish`, { ...target, effectiveFrom, expectedRevision }, crypto.randomUUID()),
   openStudioEligibility: (passId: string, body: { listingId: string; participantMode: "OWNER"; studentProfileId: string; effectiveAt: string }) => readOne<{ eligible: boolean; reasons: string[] }>(`open-studio/passes/${encodeURIComponent(passId)}/claim-eligibility?listingId=${encodeURIComponent(body.listingId)}&participantMode=OWNER&studentProfileId=${encodeURIComponent(body.studentProfileId)}&effectiveAt=${encodeURIComponent(body.effectiveAt)}`),
   admitOpenStudioOwner: (body: { passId: string; listingId: string; studentProfileId: string; effectiveAt: string }) => write<unknown>("open-studio/admission", { ...body, participantMode: "OWNER" }, crypto.randomUUID()),
   learningOwner: (sessionId: string) => readOne<BoSessionLearningOwnerProjection>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`),
@@ -337,12 +358,19 @@ export const boApi = {
   approveStaffRegistration: (requestId: string, assignments: BoStaffAccessAssignmentInput[], idempotencyKey: string, existingStaffMemberId?: string) => write<BoStaffRegistrationApprovalResult>(`workforce/staff-registration-requests/${encodeURIComponent(requestId)}/approve`, { assignments, ...(existingStaffMemberId ? { existingStaffMemberId } : {}) }, idempotencyKey),
   rejectStaffRegistration: (requestId: string, reason: string, idempotencyKey: string) => write<{ registrationRequestId: string; status: "REJECTED" }>(`workforce/staff-registration-requests/${encodeURIComponent(requestId)}/reject`, { reason }, idempotencyKey),
   staffRecord: (staffMemberId: string) => readOne<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`),
+  staffPrivate: (staffMemberId: string, centerId?: string) => readOne<BoStaffPrivateData>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}/private${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
+  staffPrivateDocumentUrl: (staffMemberId: string, documentId: string, centerId?: string) => `/api/bo/workforce/staff-records/${encodeURIComponent(staffMemberId)}/private/documents/${encodeURIComponent(documentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`,
   staffPinoria: (staffMemberId: string) => readOne<BoStaffPinoriaProjection>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}/pinoria`),
   workforcePlanningBootstrap: () => readOne<BoWorkforcePlanningBootstrap>("workforce/planning/bootstrap"),
   workforceShiftTemplates: (centerId: string) => read<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates?centerId=${encodeURIComponent(centerId)}`),
   createWorkforceShiftTemplate: (body: { centerId: string; code: string; displayLabel: string; startLocalTime: string; endLocalTime: string }, idempotencyKey: string) => write<BoWorkforceShiftTemplate>("workforce/planning/shift-templates", body, idempotencyKey),
   setWorkforceShiftTemplateStatus: (templateId: string, centerId: string, status: "ACTIVE" | "INACTIVE", idempotencyKey: string) => write<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates/${encodeURIComponent(templateId)}/status`, { centerId, status }, idempotencyKey),
   workforcePlanning: (centerId: string, termWeekId: string) => readOne<BoWorkforceWeeklyPlanning>(`workforce/planning/weekly?centerId=${encodeURIComponent(centerId)}&termWeekId=${encodeURIComponent(termWeekId)}`),
+  workforceWeekControl: (centerId: string, termWeekId: string) => readOne<{ availability: BoWorkforceWindowDecision; planning: BoWorkforceWindowDecision }>("workforce/planning/week-control?centerId="+encodeURIComponent(centerId)+"&termWeekId="+encodeURIComponent(termWeekId)),
+  lockWorkforceAvailability: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/availability/lock", body, key),
+  reopenWorkforceAvailability: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string; until: string }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/availability/reopen", body, key),
+  publishWorkforcePlanning: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/planning/publish", body, key),
+  reopenWorkforcePlanning: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string; until: string }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/planning/reopen", body, key),
   voidWorkforceAvailability: (submissionId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAvailability>(`workforce/planning/availability/${encodeURIComponent(submissionId)}/void`, { reason }, idempotencyKey),
   workforceCheckInExceptionCenters: () => read<BoCenter>("workforce/planning/check-in-exceptions/centers"),
   workforceCheckInExceptions: (centerId: string, status?: BoUnscheduledCheckInRequest["status"]) => read<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
@@ -354,6 +382,25 @@ export const boApi = {
   resolveMissedCheckout: (sessionId: string, body: { checkOutAt: string; reason: string }, idempotencyKey: string) => write<BoTimekeepingMissedCheckoutResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/resolve-missed-checkout`, body, idempotencyKey),
   dutyExceptions: (centerId: string) => readAllPages<BoDutyExceptionReview>((cursor) => `workforce/duty/checkout-exceptions?centerId=${encodeURIComponent(centerId)}&limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
   approveDutyException: (exceptionId: string, centerId: string, expectedVersion: number, password: string) => write<BoDutyExceptionRecord>(`workforce/duty/checkout-exceptions/${encodeURIComponent(exceptionId)}/approve?centerId=${encodeURIComponent(centerId)}`, { expectedVersion, password }, crypto.randomUUID()),
+  planOperationalWorkforceShift: (body: {
+    staffMemberId: string;
+    centerId: string;
+    workDate: string;
+    shiftTemplateId: string;
+    timeBasis?: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+    termWeekId?: string;
+    replacesAssignmentId?: string;
+    roles: Array<
+      | { roleType: "FRONT_DESK" }
+      | {
+          roleType: "TEACHER";
+          sessionId: string;
+          makeLearningOwner: boolean;
+          expectedLearningOwnerVersion?: number;
+          learningOwnerHandoffReason?: string | null;
+        }
+    >;
+  }, idempotencyKey: string) => write<BoOperationalShiftPlanResult>("workforce/planning/operational-assignment", body, idempotencyKey),
   assignWorkforceShift: (body: { staffMemberId: string; centerId: string; workDate: string; shiftTemplateId: string; termWeekId?: string; replacesAssignmentId?: string }, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment", body, idempotencyKey),
   cancelWorkforceAssignment: (assignmentId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment/cancel", { assignmentId, reason }, idempotencyKey),
   updateStaff: (staffMemberId: string, patch: BoStaffProfilePatch) => write<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`, patch, crypto.randomUUID()),
@@ -366,7 +413,7 @@ export const boApi = {
   removeAccessAssignment: (assignmentId: string) => write<{ assignmentId: string; status: string }>("access/assignments/remove", { assignmentId }, crypto.randomUUID()),
   setAccessUserStatus: (userId: string, status: "active" | "suspended", reason?: string) => write<{ status: string }>("access/users/status", { userId, status, ...(reason ? { reason } : {}) }, crypto.randomUUID()),
   reconcileTosAccess: () => write<{ state: string; emailCount: number; policyId: string | null }>("access/perimeter-reconcile", {}, crypto.randomUUID()),
-  resetStaffPin: (userId: string, idempotencyKey: string) => write<BoStaffOnboardingResult>(`access/users/${encodeURIComponent(userId)}/staff-pin/reset`, {}, idempotencyKey),
+  resetStaffPassword: (userId: string, idempotencyKey: string) => write<BoStaffPasswordResetResult>(`access/users/${encodeURIComponent(userId)}/staff-password/reset`, {}, idempotencyKey),
   onboardStaff: (command: BoStaffOnboardingCommand, idempotencyKey: string) => write<BoStaffOnboardingResult>("workforce/staff-onboarding", command, idempotencyKey),
 };
 

@@ -42,7 +42,8 @@ test("Team release binds exact Core authority and complete provider tuples", () 
   const wrangler = readFileSync("wrangler.jsonc", "utf8");
   const tuples = [...wrangler.matchAll(/\{"binding":"([^"]+)","service":"([^"]+)","entrypoint":"([^"]+)"\}/g)]
     .map(([, binding, service, entrypoint]) => `${binding}|${service}|${entrypoint}`);
-  assert.equal(tuples.length, 9, "production service-binding inventory drifted");
+  assert.equal(tuples.length, 8, "production service-binding inventory drifted");
+  assert.doesNotMatch(wrangler, /PINO_STAFF_PIN_CORE|StaffPinControlPlane/);
   for (const tuple of tuples) assert.ok(release.includes(tuple), tuple);
   assert.match(release, /Core authority drifted before Team promotion/);
   assert.match(release, /Core authority drifted before Team PASS/);

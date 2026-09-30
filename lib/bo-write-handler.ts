@@ -18,7 +18,7 @@ const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
-const STAFF_PIN_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/;
+const STAFF_PASSWORD_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/;
 const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const TIMEKEEPING_CORRECTION_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/corrections$/;
@@ -36,6 +36,8 @@ const DELIVERY_POST_PATHS = new Set([
 const TERM_WEEK_COMMAND = /^delivery\/term-weeks\/[0-9a-f-]{36}\/(update|delete)$/;
 const TERM_NEUTRALIZE_COMMAND = /^delivery\/terms\/[0-9a-f-]{36}\/neutralize$/;
 const DELIVERY_CONFIG_LIFECYCLE = /^delivery\/(?:learning-spaces|running-classes)\/[0-9a-f-]{36}\/lifecycle$/;
+const DELIVERY_FUTURE_RESERVATION_POLICY_VERSION = "policies/delivery/future_reservation.v1/versions";
+const DELIVERY_FUTURE_RESERVATION_POLICY_PUBLISH = /^policies\/delivery\/future_reservation\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 const MATERIALIZATION_PUBLISH = /^policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
 const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
 const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
@@ -65,10 +67,10 @@ const OPEN_STUDIO_CENTER_COMMAND = /^open-studio\/(member-path-centers|member-ce
 const OPEN_STUDIO_PASS_ISSUE = new Set(["open-studio/passes/issue-monthly-path", "open-studio/passes/issue-bring-a-friend"]);
 const OPEN_STUDIO_PASS_REVOKE = /^open-studio\/passes\/[0-9a-f-]{36}\/revoke$/;
 const OPEN_STUDIO_ADMISSION = "open-studio/admission";
+const WORKFORCE_POLICY_VERSION = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY|AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/versions$/;
+const WORKFORCE_POLICY_PUBLISH = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY|AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/versions\/[0-9a-f-]{36}\/publish$/;
 const OPEN_STUDIO_POLICY_VERSION = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions$/;
 const OPEN_STUDIO_POLICY_PUBLISH = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/;
-const WORKFORCE_POLICY_VERSION = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/versions$/;
-const WORKFORCE_POLICY_PUBLISH = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/versions\/[0-9a-f-]{36}\/publish$/;
 const PRACTICE_REPERTOIRE_GRANT = "practice/repertoire-access/grants";
 const PRACTICE_REPERTOIRE_REVOKE = /^practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/;
 const PRACTICE_RESOURCE_CREATE = "practice/resources";
@@ -93,7 +95,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)) && !idempotencyKey) {
+    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -104,8 +106,8 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A JSON request body is required" } }, 400);
     }
 
-    if ((PARENT_PIN_PATH.test(path) || STAFF_PIN_RESET_PATH.test(path)) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
-      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: STAFF_PIN_RESET_PATH.test(path) ? "Staff PIN reset body must be empty" : "Parent PIN command body must be empty" } }, 400);
+    if ((PARENT_PIN_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path)) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: STAFF_PASSWORD_RESET_PATH.test(path) ? "Staff password reset body must be empty" : "Parent PIN command body must be empty" } }, 400);
     }
 
     if (STUDENT_COMPANION_FEED_PATH.test(path) && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body as Record<string, unknown>).length !== 0)) {
@@ -176,7 +178,7 @@ export function isAllowedPostPath(path: string): boolean {
     || path === ACCESS_ASSIGNMENT_PATH
     || path === ACCESS_ASSIGNMENT_REMOVE_PATH
     || path === ACCESS_USER_STATUS_PATH
-    || STAFF_PIN_RESET_PATH.test(path)
+    || STAFF_PASSWORD_RESET_PATH.test(path)
     || STAFF_RECORD_PATH.test(path)
     || STAFF_STATUS_PATH.test(path)
     || TIMEKEEPING_CORRECTION_PATH.test(path)
@@ -186,6 +188,8 @@ export function isAllowedPostPath(path: string): boolean {
     || TERM_NEUTRALIZE_COMMAND.test(path)
     || DELIVERY_CONFIG_LIFECYCLE.test(path)
     || MATERIALIZATION_PUBLISH.test(path)
+    || path === DELIVERY_FUTURE_RESERVATION_POLICY_VERSION
+    || DELIVERY_FUTURE_RESERVATION_POLICY_PUBLISH.test(path)
     || LEARNING_OWNER_PATH.test(path)
     || SESSION_SYLLABUS_BINDING_PATH.test(path)
     || CALENDAR_EXCLUSION_COMMAND.test(path)
@@ -204,6 +208,8 @@ export function isAllowedPostPath(path: string): boolean {
     || isPracticeWritePath(path)
     || ENROLLMENT_BULK_PATHS.has(path)
     || isLearningSyllabusPostPath(path)
+    || WORKFORCE_POLICY_VERSION.test(path)
+    || WORKFORCE_POLICY_PUBLISH.test(path)
     || isOpenStudioPostPath(path)
     || WORKFORCE_POLICY_VERSION.test(path)
     || WORKFORCE_POLICY_PUBLISH.test(path)

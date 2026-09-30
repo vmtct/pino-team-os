@@ -2,7 +2,7 @@ import type { JWTVerifyGetKey } from "jose";
 import type { StaffPasswordEnv } from "./staff-password-core";
 import { authenticateTeam } from "./team-auth";
 
-type LoginResult={token:string;expiresAt:string;userId:string;staffMemberId:string|null;email:string};
+type LoginResult={token:string;expiresAt:string;userId:string;staffMemberId:string|null;email:string;passwordChangeRequired:boolean};
 
 export async function loginStaffWithTransition(
   request:Request,

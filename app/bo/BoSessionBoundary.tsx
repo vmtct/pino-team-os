@@ -1,10 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
 import { recoverInvalidStaffPasswordSession } from "@/lib/staff-session-recovery";
 
-export function BoSessionBoundary({ children }: { children: ReactNode }) {
+export function BoSessionBoundary() {
   const pathname = usePathname();
 
   useEffect(() => {
@@ -35,5 +35,5 @@ export function BoSessionBoundary({ children }: { children: ReactNode }) {
     };
   }, [pathname]);
 
-  return children;
+  return null;
 }
