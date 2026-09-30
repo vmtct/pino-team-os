@@ -5,8 +5,9 @@ export interface BoReadEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
+const DELIVERY_FUTURE_RESERVATION_POLICY_READ = /^policies\/delivery\/future_reservation\.v1\/(effective|stream)$/;
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
-const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/(effective|stream)$/;
+const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY|AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/(effective|stream)$/;
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
@@ -97,6 +98,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "open-studio/listing-catalog"
     || path === "open-studio/learners"
     || path === "open-studio/passes"
+    || DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path)
     || OPEN_STUDIO_POLICY_READ.test(path)
     || WORKFORCE_POLICY_READ.test(path)
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
@@ -105,7 +107,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^students\/[0-9a-f-]{36}\/pinoria$/.test(path)
     || SUBSCRIPTION_PROJECTED_COMPLETION_READ.test(path)
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
-    || /^workforce\/staff-records\/[0-9a-f-]{36}(?:\/pinoria)?$/.test(path)
+    || /^workforce\/staff-records\/[0-9a-f-]{36}(?:\/(?:pinoria|private))?$/.test(path)
     || /^sessions\/[0-9a-f-]+\/registrations$/.test(path)
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
@@ -143,6 +145,10 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (/^workforce\/staff-records\/[0-9a-f-]{36}\/private$/.test(path)) {
+    const centerId = url.searchParams.get("centerId")?.trim();
+    return centerId ? { centerId } : undefined;
+  }
   if (path === "acquisition/intents") {
     const body: Record<string, unknown> = {};
     const status = url.searchParams.get("status");
@@ -187,7 +193,7 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     listingId: url.searchParams.get("listingId"), participantMode: url.searchParams.get("participantMode"),
     studentProfileId: url.searchParams.get("studentProfileId"), effectiveAt: url.searchParams.get("effectiveAt"),
   };
-  if (OPEN_STUDIO_POLICY_READ.test(path) || WORKFORCE_POLICY_READ.test(path)) {
+  if (DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path) || OPEN_STUDIO_POLICY_READ.test(path) || WORKFORCE_POLICY_READ.test(path)) {
     const targetType = url.searchParams.get("targetType");
     const targetId = url.searchParams.get("targetId");
     return {

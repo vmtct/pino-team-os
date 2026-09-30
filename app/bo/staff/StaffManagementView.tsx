@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
-import type { BoAccessRole, BoAccessUser, BoCenter, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
+import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
+import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
 type Data = {
+  actor: BoContext | null;
   staff: BoStaffRecord[];
   users: BoAccessUser[];
   roles: BoAccessRole[];
@@ -20,28 +22,38 @@ type PinoriaLoadState =
   | { status: "idle" | "loading" }
   | { status: "ready"; data: BoStaffPinoriaProjection }
   | { status: "error"; message: string };
+type PrivateLoadState =
+  | { status: "idle" | "loading" }
+  | { status: "ready"; data: BoStaffPrivateData }
+  | { status: "error"; message: string };
 
-const emptyData: Data = { staff: [], users: [], roles: [], centers: [], paths: [], classes: [] };
+
+const emptyData: Data = { actor: null, staff: [], users: [], roles: [], centers: [], paths: [], classes: [] };
 
 export function StaffManagementView() {
   const [data, setData] = useState<Data>(emptyData);
   const [selectedId, setSelectedId] = useState("");
   const [profile, setProfile] = useState<BoStaffProfile | null>(null);
   const [pinoria, setPinoria] = useState<PinoriaLoadState>({ status: "idle" });
+  const [privateData, setPrivateData] = useState<PrivateLoadState>({ status: "idle" });
+  const [privateCenterId, setPrivateCenterId] = useState("");
   const [form, setForm] = useState<BoStaffProfilePatch>({});
   const [roleId, setRoleId] = useState("");
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
   const [scopeId, setScopeId] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
+  const [supportMode, setSupportMode] = useState<"VIEW" | "ACT">("VIEW");
+  const [supportReason, setSupportReason] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [pinResetAttempts, setPinResetAttempts] = useState<Record<string, string>>({});
-  const [pinReset, setPinReset] = useState<{ userId: string; initialPin: string } | null>(null);
-  const [pinCopied, setPinCopied] = useState(false);
+  const [passwordResetAttempts, setPasswordResetAttempts] = useState<Record<string, string>>({});
+  const [passwordReset, setPasswordReset] = useState<{ userId: string; temporaryPassword: string } | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const selectedIdRef = useRef("");
-  const pinResetInFlightRef = useRef<string | null>(null);
+  const passwordResetInFlightRef = useRef<string | null>(null);
   const refreshFenceRef = useRef(0);
+  const privateRevealFenceRef = useRef(createStaffPrivateRevealFence());
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -52,8 +64,9 @@ export function StaffManagementView() {
   }, []);
   useEffect(() => {
     let current = true;
+    privateRevealFenceRef.current.invalidate();
     selectedIdRef.current = selectedId;
-    setPinReset(null); setPinCopied(false); setProfile(null);
+    setPasswordReset(null); setPasswordCopied(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
     setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
     if (!selectedId) return () => { current = false; };
     setError("");
@@ -65,18 +78,41 @@ export function StaffManagementView() {
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
   const accessUser = useMemo(() => data.users.find((item) => item.staffMemberId === selectedId) ?? null, [data.users, selectedId]);
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
+  const privateCenterOptions = useMemo(() => {
+    const ids = new Set((accessUser?.assignments ?? []).filter((item) => item.scopeType === "CENTER" && item.scopeId).map((item) => item.scopeId!));
+    return [...ids].map((id) => ({ id, label: data.centers.find((center) => center.id === id)?.displayName ?? id }));
+  }, [accessUser, data.centers]);
+
+  const canResetPassword = Boolean(
+    accessUser &&
+    data.actor?.permissionKeys.includes("access.staff_password.reset") &&
+    data.actor.userId !== accessUser.id &&
+    profile?.id === selectedId &&
+    accessUser.staffMemberId === selectedId &&
+    profile.status === "active" &&
+    accessUser.status === "active"
+  );
+
+  function selectStaff(nextId: string) {
+    if (selectedIdRef.current !== nextId) {
+      privateRevealFenceRef.current.invalidate();
+      setPrivateData({ status: "idle" });
+      setPrivateCenterId("");
+    }
+    selectedIdRef.current = nextId;
+    setSelectedId(nextId);
+  }
 
   async function refresh(preferId = "") {
     const refreshFence = refreshFenceRef.current;
-    const [staff, users, roles, catalog] = await Promise.all([boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
+    const [actor, staff, users, roles, catalog] = await Promise.all([boApi.context(), boApi.staffRecords(), boApi.accessUsers(), boApi.accessRoles(), boApi.scopeCatalog()]);
     if (refreshFence !== refreshFenceRef.current) return;
     const currentId = selectedIdRef.current;
-    const lockedId = pinResetInFlightRef.current;
+    const lockedId = passwordResetInFlightRef.current;
     if (lockedId && !staff.some((item) => item.id === lockedId)) return;
-    setData({ staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
+    setData({ actor, staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
     const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
-    selectedIdRef.current = nextId;
-    setSelectedId(nextId);
+    selectStaff(nextId);
   }
 
   async function refreshPinoria() {
@@ -89,6 +125,24 @@ export function StaffManagementView() {
     } catch (cause) {
       if (selectedIdRef.current === targetId) setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });
     }
+  }
+
+  async function revealPrivateData() {
+    const targetId = selectedIdRef.current;
+    if (!targetId) return;
+    const revealToken = privateRevealFenceRef.current.begin();
+    setPrivateData({ status: "loading" }); setError("");
+    try {
+      const next = await boApi.staffPrivate(targetId, privateCenterId || undefined);
+      if (selectedIdRef.current === targetId && privateRevealFenceRef.current.accepts(revealToken)) setPrivateData({ status: "ready", data: next });
+    } catch (cause) {
+      if (selectedIdRef.current === targetId && privateRevealFenceRef.current.accepts(revealToken)) setPrivateData({ status: "error", message: cause instanceof Error ? cause.message : "Không thể đọc thông tin riêng tư." });
+    }
+  }
+
+  function hidePrivateData() {
+    privateRevealFenceRef.current.invalidate();
+    setPrivateData({ status: "idle" });
   }
 
   async function syncTosPerimeter() {
@@ -133,36 +187,63 @@ export function StaffManagementView() {
     finally { setBusy(""); }
   }
 
-  async function resetStaffPin() {
-    if (!accessUser || !profile || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active") return;
-    if (!confirm(`Reset PIN cho ${profile.displayLabel}?\n\nPIN hiện tại và tất cả phiên Staff PIN đang mở sẽ bị vô hiệu ngay. Core sẽ tự sinh PIN tạm; Manager không được chọn PIN mới.`)) return;
+  async function resetStaffPassword() {
+    if (!accessUser || !profile || !canResetPassword) return;
+    if (!confirm(`Reset mật khẩu cho ${profile.displayLabel}?\n\nMật khẩu hiện tại và tất cả phiên Staff đang mở sẽ bị vô hiệu ngay. Core sẽ tự sinh mật khẩu tạm; Staff phải đổi trước khi tiếp tục.`)) return;
     const targetUserId = accessUser.id;
     const targetStaffId = selectedId;
-    const idempotencyKey = pinResetAttempts[targetUserId] ?? crypto.randomUUID();
+    const idempotencyKey = passwordResetAttempts[targetUserId] ?? crypto.randomUUID();
     refreshFenceRef.current += 1;
-    pinResetInFlightRef.current = targetStaffId;
-    setPinResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
-    setBusy("pin-reset"); setError(""); setMessage(""); setPinReset(null); setPinCopied(false);
+    passwordResetInFlightRef.current = targetStaffId;
+    setPasswordResetAttempts((value) => ({ ...value, [targetUserId]: idempotencyKey }));
+    setBusy("password-reset"); setError(""); setMessage(""); setPasswordReset(null); setPasswordCopied(false);
     try {
-      const result = await boApi.resetStaffPin(targetUserId, idempotencyKey);
+      const result = await boApi.resetStaffPassword(targetUserId, idempotencyKey);
       if (selectedIdRef.current !== targetStaffId) return;
-      setPinResetAttempts((value) => { const next = { ...value }; delete next[targetUserId]; return next; });
-      if (!result.initialPin) { setError("Reset đã hoàn tất nhưng PIN tạm không còn được trả lại. Bấm Reset PIN lần nữa để phát một PIN tạm mới."); return; }
-      setPinReset({ userId: targetUserId, initialPin: result.initialPin });
-      setMessage("PIN cũ và các phiên Staff PIN đã bị vô hiệu. Staff phải đổi PIN tạm trước khi dùng TOS.");
+      setPasswordResetAttempts((value) => { const next = { ...value }; delete next[targetUserId]; return next; });
+      if (!result.temporaryPassword) {
+        setError("Reset đã hoàn tất nhưng mật khẩu tạm không còn được trả lại. Bấm Reset password lần nữa để phát credential tạm mới.");
+        return;
+      }
+      setPasswordReset({ userId: targetUserId, temporaryPassword: result.temporaryPassword });
+      setMessage("Mật khẩu cũ và các phiên Staff đã bị vô hiệu. Staff phải đổi mật khẩu tạm trước khi tiếp tục.");
     } catch (cause) {
-      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset Staff PIN.");
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể reset mật khẩu Staff.");
     } finally {
-      if (pinResetInFlightRef.current === targetStaffId) pinResetInFlightRef.current = null;
+      if (passwordResetInFlightRef.current === targetStaffId) passwordResetInFlightRef.current = null;
       refreshFenceRef.current += 1;
       setBusy("");
     }
   }
 
-  async function copyTemporaryPin() {
-    if (!pinReset) return;
-    try { await navigator.clipboard.writeText(pinReset.initialPin); setPinCopied(true); }
-    catch { setError("Không thể copy PIN tự động. Hãy copy trực tiếp từ màn hình."); }
+  async function copyTemporaryPassword() {
+    if (!passwordReset) return;
+    try { await navigator.clipboard.writeText(passwordReset.temporaryPassword); setPasswordCopied(true); }
+    catch { setError("Không thể copy mật khẩu tự động. Hãy copy trực tiếp từ màn hình."); }
+  }
+
+  async function startSupportSession() {
+    if (!accessUser || !profile || profile.status !== "active" || accessUser.status !== "active") return;
+    const reason = supportReason.trim();
+    if (reason.length < 3) { setError("Nhập lý do debug tối thiểu 3 ký tự."); return; }
+    setBusy("support"); setError(""); setMessage("");
+    try {
+      const session = await boApi.startSupportSession(accessUser.id, supportMode, reason);
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = window.location.hostname === "bo.pinohouse.art"
+        ? "https://tos.pinohouse.art/api/support-session/enter"
+        : "/api/support-session/enter";
+      form.style.display = "none";
+      const token = document.createElement("input");
+      token.type = "hidden"; token.name = "token"; token.value = session.token;
+      form.appendChild(token);
+      document.body.appendChild(form);
+      form.submit();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể mở support session.");
+      setBusy("");
+    }
   }
 
   async function changeAccessStatus(status: "active" | "suspended") {
@@ -221,7 +302,7 @@ export function StaffManagementView() {
           <div className={styles.panelHeading}><div><h2>{data.staff.length} nhân viên</h2><p>Chọn một người để quản lý.</p></div></div>
           {data.staff.map((item) => {
             const user = data.users.find((entry) => entry.staffMemberId === item.id);
-            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "pin-reset"} onClick={() => { if (busy !== "pin-reset") { selectedIdRef.current = item.id; setSelectedId(item.id); } }}>
+            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "password-reset"} onClick={() => { if (busy !== "password-reset") selectStaff(item.id); }}>
               <strong>{item.displayLabel}</strong><span>{item.roleLabel ?? item.department ?? "Chưa phân loại"}</span><small>{item.status} · Access {user?.status ?? "none"}</small>
             </button>;
           })}
@@ -249,6 +330,43 @@ export function StaffManagementView() {
                 <div><strong>Offboarding</strong><p>Luôn suspend Access trước rồi mới deactivate Staff để partial failure vẫn fail-safe.</p></div>
                 {accessUser?.status === "active" ? <label className={styles.field}>Lý do offboarding<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Ví dụ: kết thúc hợp tác" /></label> : null}
                 <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || (accessUser?.status === "active" && !suspendReason.trim())} onClick={() => void runOffboarding()}>{busy === "offboarding" ? "Đang offboard…" : profile.status === "inactive" ? "Hoàn tất offboarding" : "Offboard an toàn"}</button>
+              </div> : null}
+            </section>
+
+            <section className={styles.panel} data-testid="staff-private-data-panel">
+              <div className={styles.panelHeading}>
+                <div><h2>Thông tin riêng tư</h2><p>CCCD &amp; Bank · yêu cầu <code>staff.record.private.view</code>. Dữ liệu chỉ tải khi bấm Hiện.</p></div>
+                <span className={styles.readOnly}>sensitive · read only</span>
+              </div>
+              {privateCenterOptions.length ? <label className={styles.field}>Phạm vi đọc
+                <select value={privateCenterId} onChange={(event) => { privateRevealFenceRef.current.invalidate(); setPrivateCenterId(event.target.value); setPrivateData({ status: "idle" }); }}>
+                  <option value="">Global</option>
+                  {privateCenterOptions.map((center) => <option key={center.id} value={center.id}>Center · {center.label}</option>)}
+                </select>
+              </label> : null}
+              {privateData.status === "idle" ? <div>
+                <div className={styles.formGrid}><PrivateFact label="CCCD" value="•••• •••• ••••" /><PrivateFact label="Tài khoản ngân hàng" value="•••• ••••" /></div>
+                <div className={styles.staffActions}><button type="button" className={styles.secondaryButton} onClick={() => void revealPrivateData()}>Hiện thông tin riêng tư</button></div>
+              </div> : null}
+              {privateData.status === "loading" ? <p>Đang xác thực quyền và tải dữ liệu…</p> : null}
+              {privateData.status === "error" ? <div className={styles.staffPinoriaUnavailable}><strong>Không thể hiển thị</strong><p>{privateData.message}</p><button type="button" className={styles.secondaryButton} onClick={hidePrivateData}>Đóng</button></div> : null}
+              {privateData.status === "ready" ? <div data-testid="staff-private-data-reveal">
+                <div className={styles.formGrid}>
+                  <PrivateFact label="Số CCCD" value={privateData.data.governmentId?.number ?? "Chưa có"} />
+                  <PrivateFact label="Ngày cấp" value={privateData.data.governmentId?.issueDate ?? "Chưa có"} />
+                  <PrivateFact label="Nơi cấp" value={privateData.data.governmentId?.issuePlace ?? "Chưa có"} />
+                  <PrivateFact label="Ngân hàng" value={privateData.data.bank?.name ?? "Chưa có"} />
+                  <PrivateFact label="Số tài khoản" value={privateData.data.bank?.accountNumber ?? "Chưa có"} />
+                  <PrivateFact label="Chủ tài khoản" value={privateData.data.bank?.accountHolder ?? "Chưa có"} />
+                  <PrivateFact label="Chi nhánh" value={privateData.data.bank?.branch ?? "Chưa có"} />
+                </div>
+                {privateData.data.documents.length ? <div className={styles.staffAssignmentList}>
+                  {privateData.data.documents.map((document) => <div className={styles.staffAssignmentCard} key={document.id}>
+                    <div><strong>CCCD · {document.side}</strong><small>{document.mimeType} · {Math.ceil(document.byteSize / 1024)} KB</small></div>
+                    <a className={styles.secondaryButton} href={boApi.staffPrivateDocumentUrl(selectedId, document.id, privateCenterId || undefined)} target="_blank" rel="noreferrer">Xem ảnh</a>
+                  </div>)}
+                </div> : <p>Chưa có ảnh CCCD.</p>}
+                <div className={styles.staffActions}><button type="button" className={styles.secondaryButton} onClick={hidePrivateData}>Ẩn thông tin</button></div>
               </div> : null}
             </section>
 
@@ -290,16 +408,25 @@ export function StaffManagementView() {
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
                 <p className={styles.staffAccessMeta}>{accessUser.email ?? "No email"} · {accessUser.assignments.length} assignment(s)</p>
                 <div className={styles.staffPinPanel}>
-                  <div><strong>Staff PIN</strong><p>Reset chỉ phát PIN tạm do Core sinh. PIN hiện tại và mọi Staff PIN session sẽ bị vô hiệu ngay; staff phải đổi PIN tạm trước lần dùng TOS tiếp theo.</p></div>
+                  <div><strong>Staff password</strong><p>Email + mật khẩu là credential Staff duy nhất. Reset sẽ vô hiệu mật khẩu hiện tại và mọi phiên Staff, sau đó phát mật khẩu tạm một lần.</p></div>
                   <div className={styles.staffActions}>
-                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.id !== selectedId || accessUser.staffMemberId !== selectedId || profile.status !== "active" || accessUser.status !== "active"} onClick={() => void resetStaffPin()}>{busy === "pin-reset" ? "Đang reset…" : "Reset PIN"}</button>
-                    {profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ reset khi Staff và Access đều active.</small> : null}
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !canResetPassword} onClick={() => void resetStaffPassword()}>{busy === "password-reset" ? "Đang reset…" : "Reset password"}</button>
+                    {!data.actor?.permissionKeys.includes("access.staff_password.reset") ? <small>Bạn không có quyền reset mật khẩu Staff.</small> : data.actor.userId === accessUser.id ? <small>Không thể reset mật khẩu của chính mình tại BO.</small> : profile.status !== "active" || accessUser.status !== "active" ? <small>Chỉ reset khi Staff và Access đều active.</small> : null}
                   </div>
-                  {pinReset?.userId === accessUser.id ? <div className={styles.staffPinReveal} data-testid="staff-pin-reset-reveal">
-                    <span>PIN tạm · hiển thị một lần</span><code data-testid="staff-pin-reset-value">{pinReset.initialPin}</code>
-                    <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPin()}>{pinCopied ? "Đã copy" : "Copy PIN"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPinReset(null); setPinCopied(false); }}>Ẩn PIN</button></div>
+                  {passwordReset?.userId === accessUser.id ? <div className={styles.staffPinReveal} data-testid="staff-password-reset-reveal">
+                    <span>Mật khẩu tạm · hiển thị một lần</span><code data-testid="staff-password-reset-value">{passwordReset.temporaryPassword}</code>
+                    <div><button type="button" className={styles.secondaryButton} onClick={() => void copyTemporaryPassword()}>{passwordCopied ? "Đã copy" : "Copy password"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setPasswordReset(null); setPasswordCopied(false); }}>Ẩn mật khẩu</button></div>
                   </div> : null}
                 </div>
+                <div className={styles.staffSupportPanel} data-testid="staff-support-panel">
+                  <div><strong>Support debug</strong><p>Staff-only · 15 phút. View as chỉ đọc. Act as chỉ mở các Workforce self-service action đã giữ đầy đủ audit provenance (profile, training, duty/check-in); các mutation khác fail-closed. Manager cần BO access + <code>access.support.impersonate</code>.</p></div>
+                  <div className={styles.staffSupportFields}>
+                    <label className={styles.field}>Mode<select value={supportMode} onChange={(event) => setSupportMode(event.target.value as "VIEW" | "ACT")}><option value="VIEW">View as · read only</option><option value="ACT">Act as · audited Workforce actions</option></select></label>
+                    <label className={styles.field}>Lý do<input value={supportReason} onChange={(event) => setSupportReason(event.target.value)} placeholder="VD: Điều tra lỗi check-in" maxLength={500} /></label>
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.status !== "active" || accessUser.status !== "active" || supportReason.trim().length < 3} onClick={() => void startSupportSession()}>{busy === "support" ? "Đang mở TOS…" : "Mở TOS như Staff"}</button>
+                  </div>
+                </div>
+
                 <div className={styles.staffAssignmentList}>{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={assignment.roleKey === "founder" || busy === `revoke:${assignment.assignmentId}`} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>
@@ -318,6 +445,10 @@ export function StaffManagementView() {
       </div>
     </section>
   );
+}
+
+function PrivateFact({ label, value }: { label: string; value: string }) {
+  return <label className={styles.field}>{label}<input value={value} readOnly /></label>;
 }
 
 function PinoriaFact({ label, value }: { label: string; value: string }) {

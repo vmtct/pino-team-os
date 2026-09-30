@@ -8,8 +8,8 @@ function env(binding: BoAccessCoreBinding): BoShellGateEnv { return { PINO_BO_CO
 function bindingWith(operation: (request: BoAccessRequest, token: string) => Promise<{status:number;body:unknown;requestId:string}>): BoAccessCoreBinding {
   return {  executeWithStaffPassword: operation };
 }
-function context(email = "founder@example.com", staffMemberId: string | null = null) {
-  return { status: 200, body: { data: { userId: "canonical-user", email, staffMemberId, surface: "BO", entitled: true } }, requestId: "context" };
+function context(email = "founder@example.com", staffMemberId: string | null = null, displayName: string | null = null) {
+  return { status: 200, body: { data: { userId: "canonical-user", email, staffMemberId, displayName, surface: "BO", entitled: true } }, requestId: "context" };
 }
 
 test("valid local-password BO principal is authorized before shell render", async () => {
@@ -20,8 +20,9 @@ test("valid local-password BO principal is authorized before shell render", asyn
 });
 
 test("COO-style BO entitlement is accepted without Founder role proof", async () => {
-  const result = await authorizeBoShell(headers(), env(bindingWith(async () => context("coo@example.com", "staff-coo"))));
+  const result = await authorizeBoShell(headers(), env(bindingWith(async () => context("coo@example.com", "staff-coo", "Văn Minh Trị"))));
   assert.equal(result.staffMemberId, "staff-coo");
+  assert.equal(result.displayName, "Văn Minh Trị");
 });
 
 test("Core BO entitlement denial fails closed", async () => {

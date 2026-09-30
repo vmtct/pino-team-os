@@ -12,6 +12,8 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
   assert.equal(isOperationalReadPath("billing/product-plans"), true);
   assert.equal(isOperationalReadPath(`billing/bills/${id}`), true);
   assert.equal(isOperationalReadPath("billing/bills/not-a-canonical-id"), false);
+  assert.equal(isOperationalReadPath("policies/delivery/future_reservation.v1/stream"), true);
+  assert.equal(isOperationalReadPath("policies/delivery/future_reservation.v1/effective"), true);
   for (const path of [
     `billing/product-plans/${id}/configure`,
     "billing/sales",
@@ -20,6 +22,8 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
     `billing/transactions/${id}/void`,
     "enrollments/bulk-preflight",
     "enrollments/bulk-place",
+    "policies/delivery/future_reservation.v1/versions",
+    "policies/delivery/future_reservation.v1/versions/" + id + "/publish",
   ]) assert.equal(isAllowedPostPath(path), true, path);
   assert.equal(isAllowedPostPath("billing/product-plans"), false);
   assert.equal(isAllowedPostPath(`billing/product-plans/${id}`), false);
@@ -57,7 +61,7 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   assert.match(billing, /"REFUND"/);
   assert.match(api, /billingProductPlans:/);
   assert.match(api, /billing\/product-plans\/\$\{encodeURIComponent\(productPlanId\)\}\/configure/);
-  assert.match(api, /createBillingSale:/);
+  assert.match(api, /createBillingSale: \(body: \{[^}]*centerId: string/);
   assert.match(api, /recordBillingTransaction:/);
   assert.match(api, /preflightBulkEnrollments:/);
   assert.match(api, /placeBulkEnrollments:/);
@@ -73,7 +77,7 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   const end = billing.indexOf("}, idempotencyKey)", start);
   assert.ok(start >= 0 && end > start);
   const saleCall = billing.slice(start, end);
-  for (const field of ["payerParentUserId", "studentProfileId", "pathProgramId", "productPlanId", "contractualStartsOn"]) {
+  for (const field of ["payerParentUserId", "studentProfileId", "pathProgramId", "centerId", "productPlanId", "contractualStartsOn"]) {
     assert.match(saleCall, new RegExp(field));
   }
   assert.doesNotMatch(saleCall, /listPriceMinor|purchasedUnits|termWeeks|cadence|contractualEndsOn/);
@@ -126,6 +130,7 @@ test("Product Plan cadence drives exact distinct Running Class placements before
   assert.match(billing, /plannedDurationMinutes: duration/);
   assert.match(billing, /Placement starts/);
   assert.match(billing, /setPlacementStartsOn\(maxLocalDate\(sub\.contractualStartsOn, today\(\)\)\)/);
+  assert.match(billing, /const body = \{ \.\.\.bulkBody\(sale\), policyEffectiveAt \}/);
   assert.match(billing, /boApi\.preflightBulkEnrollments\(body\)/);
   assert.match(billing, /boApi\.placeBulkEnrollments/);
   assert.match(billing, /`\$\{idempotencyKey\}:placement`/);
@@ -155,7 +160,11 @@ test("New registration passes only canonical sale inputs and keeps manual cadenc
   const end = billing.indexOf("}, idempotencyKey);", start);
   assert.ok(start >= 0 && end > start);
   const call = billing.slice(start, end);
+  assert.match(call, /centerId/);
   assert.doesNotMatch(call, /weeklyCommitment|purchasedUnits|contractualEndsOn|listPriceMinor/);
+  assert.match(billing, /authoritativePlacementCenterId\(placements, eligibleClasses\)/);
+  assert.match(billing, /Running Classes đã chọn phải có Center hợp lệ/);
+  assert.match(billing, /Các Running Classes đã chọn phải thuộc cùng một Center/);
   assert.match(view, /Manual repair only/);
   assert.match(view, /New registrations phải dùng Product Plan \+ exact cadence placement phía trên/);
 });

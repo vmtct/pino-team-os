@@ -14,8 +14,10 @@ function environment(){
   let established=false,establishCalls=0;
   const env:StaffPasswordEnv={CF_ACCESS_TEAM_DOMAIN:domain,CF_ACCESS_TOS_AUD:audience,PINO_STAFF_PASSWORD_CORE:{
     async establishFromCloudflare(identity,input){assert.equal(identity.email,email);assert.equal(input.password,password);established=true;establishCalls+=1;return{state:"CREATED",loginIdentifier:email};},
-    async login(input){if(!established)throw new Error("local login denied");assert.deepEqual(input,{email,password});return{token:"local-session",expiresAt:"2026-10-05T00:00:00.000Z",userId:"user-1",staffMemberId:"staff-1",email};},
-    async status(){return{userId:"user-1",staffMemberId:"staff-1",email};},async logout(){return{revoked:true};},
+    async login(input){if(!established)throw new Error("local login denied");assert.deepEqual(input,{email,password});return{token:"local-session",expiresAt:"2026-10-05T00:00:00.000Z",userId:"user-1",staffMemberId:"staff-1",email,passwordChangeRequired:false};},
+    async status(){return{userId:"user-1",staffMemberId:"staff-1",email,passwordChangeRequired:false};},
+    async changePassword(){return{token:"changed-session",expiresAt:"2026-10-05T00:00:00.000Z",userId:"user-1",staffMemberId:"staff-1",email,passwordChangeRequired:false};},
+    async logout(){return{revoked:true};},
   }};
   return {env,getEstablishCalls:()=>establishCalls};
 }
@@ -23,7 +25,7 @@ test("Cloudflare Staff establishes local password through normal login path",asy
   const {jwt,keyResolver}=await assertion(),state=environment();
   const request=new Request("https://tos.pinohouse.art/api/staff-auth/login",{headers:{"cf-access-jwt-assertion":jwt}});
   const result=await loginStaffWithTransition(request,state.env,{email,password},keyResolver);
-  assert.equal(result.token,"local-session");assert.equal(state.getEstablishCalls(),1);
+  assert.equal(result.token,"local-session");assert.equal(result.passwordChangeRequired,false);assert.equal(state.getEstablishCalls(),1);
 });
 test("verified identity must match typed login email",async()=>{
   const {jwt,keyResolver}=await assertion(),state=environment();

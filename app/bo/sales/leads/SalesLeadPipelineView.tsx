@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { boApi, BoApiError, type BoAcquisitionIntent, type BoAcquisitionIntentStatus } from "@/lib/bo-api";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { boApi, BoApiError, type BoAcquisitionCreateInput, type BoAcquisitionIntent, type BoAcquisitionIntentStatus } from "@/lib/bo-api";
 import styles from "./sales-leads.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
+type CreateAttempt = { idempotencyKey: string; input: BoAcquisitionCreateInput };
+type CreateDraft = { phone: string; sourceBrand: BoAcquisitionCreateInput["sourceBrand"]; intentKind: BoAcquisitionCreateInput["intentKind"]; childAge: string };
 type FilterStatus = "ALL" | BoAcquisitionIntentStatus;
+
+const EMPTY_CREATE_DRAFT: CreateDraft = { phone: "", sourceBrand: "PINO_HOUSE", intentKind: "GENERAL_INQUIRY", childAge: "" };
 
 const FILTERS: Array<{ value: FilterStatus; label: string }> = [
   { value: "ALL", label: "Tất cả" },
@@ -23,14 +27,19 @@ export function SalesLeadPipelineView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Load<BoAcquisitionIntent> | null>(null);
   const [closeReason, setCloseReason] = useState("");
+  const [createDraft, setCreateDraft] = useState<CreateDraft>(EMPTY_CREATE_DRAFT);
+  const [createAttempt, setCreateAttempt] = useState<CreateAttempt | null>(null);
+  const [createState, setCreateState] = useState<{ busy: boolean; notice: string | null; error: string | null }>({ busy: false, notice: null, error: null });
   const [commandState, setCommandState] = useState<{ busy: string | null; notice: string | null; error: string | null }>({ busy: null, notice: null, error: null });
   const [pendingAttempt, setPendingAttempt] = useState<CommandAttempt | null>(null);
   const selectionToken = useRef(0);
+  const selectedIdRef = useRef<string | null>(null);
+  const createSelectionRef = useRef<string | null>(null);
 
-  async function loadQueue(preferId?: string | null) {
-    const rows = await boApi.acquisitionIntents(status === "ALL" ? undefined : status);
+  async function loadQueue(preferId?: string | null, filterStatus: FilterStatus = status) {
+    const rows = await boApi.acquisitionIntents(filterStatus === "ALL" ? undefined : filterStatus);
     setQueue({ state: "ready", data: rows });
-    const preferred = preferId ?? selectedId;
+    const preferred = preferId ?? selectedIdRef.current;
     const next = preferred && rows.some((row) => row.id === preferred) ? preferred : rows[0]?.id ?? null;
     setSelectedId(next);
     if (!next) setDetail(null);
@@ -47,14 +56,19 @@ export function SalesLeadPipelineView() {
       if (token === selectionToken.current) setDetail({ state: "error", message: message(error) });
     }
   }
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
   useEffect(() => {
     let active = true;
     setQueue({ state: "loading" });
     void boApi.acquisitionIntents(status === "ALL" ? undefined : status).then((rows) => {
       if (!active) return;
       setQueue({ state: "ready", data: rows });
-      const next = rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id ?? null;
+      const preferred = createSelectionRef.current;
+      const currentSelectedId = selectedIdRef.current;
+      const next = preferred && rows.some((row) => row.id === preferred) ? preferred : currentSelectedId && rows.some((row) => row.id === currentSelectedId) ? currentSelectedId : rows[0]?.id ?? null;
       setSelectedId(next);
+      if (preferred && next === preferred) createSelectionRef.current = null;
       if (!next) setDetail(null);
     }).catch((error: unknown) => {
       if (active) setQueue({ state: "error", message: message(error) });
@@ -72,6 +86,55 @@ export function SalesLeadPipelineView() {
     if (!term) return rows;
     return rows.filter((row) => `${row.phone} ${row.sourceBrand} ${row.intentKind}`.toLocaleLowerCase("vi").includes(term));
   }, [query, rows]);
+  function updateCreateDraft(patch: Partial<CreateDraft>) {
+    setCreateDraft((current) => ({ ...current, ...patch }));
+    setCreateAttempt(null);
+    setCreateState({ busy: false, notice: null, error: null });
+  }
+
+  async function executeCreate(attempt: CreateAttempt) {
+    if (createState.busy || commandState.busy || pendingAttempt) return;
+    setCreateState({ busy: true, notice: null, error: null });
+    try {
+      const result = await boApi.createAcquisitionIntent(attempt.input, attempt.idempotencyKey);
+      createSelectionRef.current = result.intentId;
+      setStatus("ALL");
+      setQuery("");
+      const next = await loadQueue(result.intentId, "ALL");
+      if (status === "ALL") createSelectionRef.current = null;
+      if (next === result.intentId) await loadDetail(result.intentId);
+      setCreateAttempt(null);
+      setCreateDraft(EMPTY_CREATE_DRAFT);
+      setCreateState({ busy: false, notice: "Đã tạo Lead.", error: null });
+    } catch (error) {
+      const definitive = error instanceof BoApiError && error.structuredResponse && error.status >= 400 && error.status < 500;
+      if (definitive) setCreateAttempt(null);
+      else setCreateAttempt(attempt);
+      setCreateState({ busy: false, notice: null, error: message(error) });
+    }
+  }
+
+  function submitCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (createState.busy || commandState.busy || pendingAttempt) return;
+    const phone = createDraft.phone.trim();
+    const childAge = createDraft.childAge.trim() === "" ? null : Number(createDraft.childAge);
+    if (!phone) {
+      setCreateState({ busy: false, notice: null, error: "Số điện thoại là bắt buộc." });
+      return;
+    }
+    if (childAge !== null && (!Number.isSafeInteger(childAge) || childAge < 2 || childAge > 17)) {
+      setCreateState({ busy: false, notice: null, error: "Tuổi bé phải từ 2 đến 17." });
+      return;
+    }
+    const attempt = createAttempt ?? {
+      idempotencyKey: crypto.randomUUID(),
+      input: { phone, sourceBrand: createDraft.sourceBrand, intentKind: createDraft.intentKind, childAge },
+    };
+    setCreateAttempt(attempt);
+    void executeCreate(attempt);
+  }
+
   async function executeAttempt(attempt: CommandAttempt, intentId: string) {
     if (commandState.busy) return;
     setCommandState({ busy: attempt.key, notice: null, error: null });
@@ -97,23 +160,59 @@ export function SalesLeadPipelineView() {
   }
 
   const intent = detail?.state === "ready" ? detail.data : null;
-  const blocked = Boolean(commandState.busy || pendingAttempt);
+  const blocked = Boolean(commandState.busy || pendingAttempt || createState.busy || createAttempt);
   return (
     <main className={styles.page}>
       <header className={styles.heading}>
         <div>
-          <span>Sales · PLT-SALES F0</span>
+          <span>Sales · PLT-LEAD F1</span>
           <h1>Lead pipeline</h1>
           <p>Queue trên canonical Acquisition Lead/Intent. PAP chỉ trình bày và gửi command; Core giữ lifecycle và authorization.</p>
         </div>
         <div className={styles.permission}>acquisition.lead.manage</div>
       </header>
 
+      <form className={styles.createPanel} onSubmit={submitCreate}>
+        <div className={styles.createHead}>
+          <div><strong>Tạo Lead</strong><span>Tạo Intent thủ công trên Lead canonical hiện hữu.</span></div>
+          <span className={styles.staffSource}>Nguồn nhập: Staff</span>
+        </div>
+        <div className={styles.createGrid}>
+          <label>
+            <span>Số điện thoại</span>
+            <input aria-label="Số điện thoại Lead" autoComplete="tel" inputMode="tel" required placeholder="09…" value={createDraft.phone} onChange={(event) => updateCreateDraft({ phone: event.target.value })} disabled={blocked} />
+          </label>
+          <label>
+            <span>Thương hiệu</span>
+            <select aria-label="Thương hiệu Lead" value={createDraft.sourceBrand} onChange={(event) => updateCreateDraft({ sourceBrand: event.target.value as CreateDraft["sourceBrand"] })} disabled={blocked}>
+              <option value="PINO_HOUSE">PINO House</option>
+              <option value="TOPPI">Toppi</option>
+            </select>
+          </label>
+          <label>
+            <span>Nhu cầu</span>
+            <select aria-label="Nhu cầu Lead" value={createDraft.intentKind} onChange={(event) => updateCreateDraft({ intentKind: event.target.value as CreateDraft["intentKind"] })} disabled={blocked}>
+              <option value="GENERAL_INQUIRY">Tư vấn chung</option>
+              <option value="PROGRAM_INTEREST">Quan tâm chương trình</option>
+              <option value="OPEN_STUDIO">Open Studio</option>
+            </select>
+          </label>
+          <label>
+            <span>Tuổi bé</span>
+            <input aria-label="Tuổi bé của Lead" type="number" min={2} max={17} placeholder="Không bắt buộc" value={createDraft.childAge} onChange={(event) => updateCreateDraft({ childAge: event.target.value })} disabled={blocked} />
+          </label>
+          <button type="submit" disabled={blocked || !createDraft.phone.trim()}>{createState.busy ? "Đang tạo…" : "Tạo Lead"}</button>
+        </div>
+        {createAttempt && createState.error ? <button className={styles.retry} type="button" onClick={() => void executeCreate(createAttempt)} disabled={createState.busy || Boolean(commandState.busy)}>Thử lại tạo Lead</button> : null}
+        {createState.notice ? <p className={styles.notice}>{createState.notice}</p> : null}
+        {createState.error ? <p className={styles.error}>{createState.error}</p> : null}
+      </form>
+
       <div className={styles.filters}>
         <div className={styles.statusFilters}>
           {FILTERS.map((item) => <button key={item.value} type="button" className={status === item.value ? styles.filterActive : ""} onClick={() => setStatus(item.value)} disabled={blocked}>{item.label}</button>)}
         </div>
-        <input aria-label="Tìm lead" placeholder="Tìm số điện thoại, nguồn, nhu cầu…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input aria-label="Tìm lead" placeholder="Tìm số điện thoại, nguồn, nhu cầu…" value={query} onChange={(event) => setQuery(event.target.value)} disabled={blocked} />
       </div>
 
       <section className={styles.workspace}>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./LogoutButton";
+import { TosCurrentUserChip } from "./TosCurrentUser";
+import { SupportSessionBanner } from "./SupportSessionBanner";
 import styles from "./tos-shell.module.css";
 
 export type TosAppTheme = "home" | "shift" | "classroom" | "tasks" | "pinoria";
@@ -51,6 +53,7 @@ export function TosShell({
 
   return (
     <div className={`${styles.opsShell} ${themeClass[theme]}`}>
+      <SupportSessionBanner />
       <header className={styles.opsHeader}>
         <div className={styles.opsHeaderCopy}>
           <span className={styles.opsKicker}>{home ? "PINO TEAM · TOS" : "TOS APP"}</span>
@@ -68,6 +71,7 @@ export function TosShell({
               ⌂
             </Link>
           ) : null}
+          <TosCurrentUserChip />
           <LogoutButton className={styles.logoutButton} />
         </div>
       </header>

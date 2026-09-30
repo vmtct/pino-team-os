@@ -126,3 +126,30 @@ test("check-in exception approve/decline preserve replay evidence and never forw
     { method: "POST", path: `check-in-exceptions/${id}/decline`, body: { expectedVersion: 3, reason: "No coverage need" }, idempotencyKey: "decline-key" },
   ]);
 });
+test("WSRA operational assignment forwards exact role plan and replay key", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async request => {
+    forwarded.push(request);
+    return { status: 201, body: { data: { assignment: { id: "assignment" } } }, requestId: "wsra-core" };
+  });
+  const body = {
+    staffMemberId: "staff",
+    centerId: "center",
+    workDate: "2026-10-06",
+    shiftTemplateId: "shift",
+    termWeekId: "week",
+    roles: [
+      { roleType: "FRONT_DESK" },
+      { roleType: "TEACHER", sessionId: "session", makeLearningOwner: true, expectedLearningOwnerVersion: 2, learningOwnerHandoffReason: "Coverage handoff" },
+    ],
+  };
+  const request = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/operational-assignment", {
+    method: "POST",
+    headers: headers({ "content-type": "application/json", "idempotency-key": "wsra-plan-key" }),
+    body: JSON.stringify(body),
+  });
+  const response = await handleBoWorkforcePlanningRequest(request, env(b), "workforce/planning/operational-assignment");
+  assert.equal(response.status, 201);
+  assert.equal(response.headers.get("x-request-id"), "wsra-core");
+  assert.deepEqual(forwarded, [{ method: "POST", path: "operational-assignment", body, idempotencyKey: "wsra-plan-key" }]);
+});

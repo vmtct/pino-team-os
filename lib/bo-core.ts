@@ -30,6 +30,7 @@ export function callBoAccessCoreWithStaffPassword(
 }
 
 export function callBoAccessCoreWithCredential(binding: BoAccessCoreBinding, request: BoAccessRequest, credential: import("./team-auth").TeamCredential): Promise<BoAccessResponse> {
+  if (credential.kind === "support") throw new Error("BO_SUPPORT_SESSION_DENIED");
   if (credential.kind === "password") return binding.executeWithStaffPassword(request, credential.token);
   if (!binding.execute) throw new Error("BO_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE");
   return binding.execute(request, credential.identity);

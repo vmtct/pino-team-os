@@ -187,7 +187,7 @@ test("Ward overlay rejects malformed persisted session payloads", () => {
 test("Pinoria TV routes consume unified presence only and never Workforce directly", () => {
   const snapshot = readFileSync("app/api/pinoria-tv/snapshot/route.ts", "utf8");
   const events = readFileSync("app/api/pinoria-tv/events/route.ts", "utf8");
-  const binding = readFileSync("lib/staff-pin-core.ts", "utf8");
+  const binding = readFileSync("lib/pinoria-tv-core.ts", "utf8");
   assert.match(snapshot, /PINO_PINORIA_TV_CORE\.presenceSnapshot\(centerId\)/);
   assert.match(events, /PINO_PINORIA_TV_CORE\.presenceEvents\(centerId, after, 100\)/);
   assert.match(binding, /presenceSnapshot/);
