@@ -37,13 +37,13 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
 
 function isBoLocalAuthPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
-  return ["/staff-login", "/api/staff-auth/login", "/api/staff-auth/status", "/api/staff-auth/logout"].includes(normalized);
+  return ["/staff-login", "/staff-password/change", "/api/staff-auth/login", "/api/staff-auth/status", "/api/staff-auth/change-password", "/api/staff-auth/logout"].includes(normalized);
 }
 
 export function requiresBoStaffPasswordSession(host: string, pathname: string): boolean {
   if (normalizeHostname(host) !== BO_HOSTNAME) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
-  return isPathWithin(normalized, "/bo") || normalized === "/staff-pin/change";
+  return isPathWithin(normalized, "/bo");
 }
 
 function isApprovedBoPath(pathname: string): boolean {
@@ -74,6 +74,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/pinoria-ward/learners",
     "/bo/content",
     "/bo/system/users",
+    "/bo/system/policies",
     "/bo/system/roles",
     "/bo/system/policies",
     "/bo/system/audit",
@@ -82,7 +83,6 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-auth/login",
     "/api/staff-auth/logout",
     "/api/staff-auth/status",
-    "/staff-pin/change",
     "/api/bo/context",
     "/api/bo/pinoria/effects/catalog",
     "/api/bo/learners",
@@ -134,14 +134,17 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/workforce/planning/bootstrap",
     "/api/bo/workforce/planning/shift-templates",
     "/api/bo/workforce/planning/weekly",
+    "/api/bo/workforce/planning/week-control",
+    "/api/bo/workforce/planning/availability/lock",
+    "/api/bo/workforce/planning/availability/reopen",
+    "/api/bo/workforce/planning/planning/publish",
+    "/api/bo/workforce/planning/planning/reopen",
     "/api/bo/workforce/planning/assignment",
     "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments",
     "/api/bo/access/assignments/remove",
     "/api/bo/access/users/status",
     "/api/bo/access/perimeter-reconcile",
-    "/api/staff-pin/status",
-    "/api/staff-pin/change",
     "/favicon.ico",
   ].includes(normalized)) return true;
   if (/^\/api\/founder\/ai\/change-sets(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:approve|reject|reconcile))?)?$/.test(normalized)) return true;
@@ -156,8 +159,8 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/drafts)?$/.test(normalized)
     || /^\/api\/bo\/practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/.test(normalized)
     || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
-    || /^\/api\/bo\/access\/users\/[0-9a-f-]{36}\/staff-pin\/reset$/.test(normalized)
-    || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/(?:status|pinoria))?$/.test(normalized)
+    || /^\/api\/bo\/access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/.test(normalized)
+    || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/(?:status|pinoria|private(?:\/documents\/[0-9a-f-]{36})?))?$/.test(normalized)
     || /^\/api\/bo\/workforce\/staff-registration-requests\/[0-9a-f-]{36}\/(?:approve|reject)$/.test(normalized)
     || /^\/api\/bo\/workforce\/timekeeping\/[0-9a-f-]{36}\/(?:corrections|resolve-missed-checkout)$/.test(normalized)
     || /^\/api\/bo\/workforce\/duty\/checkout-exceptions\/[0-9a-f-]{36}\/approve$/.test(normalized)
@@ -172,6 +175,10 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/.test(normalized)
     || /^\/api\/bo\/delivery\/calendar-exclusions\/[0-9a-f-]{36}$/.test(normalized)
     || /^\/api\/bo\/policies\/delivery\/materialization\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
+    || /^\/api\/bo\/policies\/delivery\/future_reservation\.v1\/(?:effective|stream|versions)$/.test(normalized)
+    || /^\/api\/bo\/policies\/delivery\/future_reservation\.v1\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
+    || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/(?:effective|stream|versions)$/.test(normalized)
+    || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/open_studio\/(?:monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/(?:effective|stream|versions)$/.test(normalized)

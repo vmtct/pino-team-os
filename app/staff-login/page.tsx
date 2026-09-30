@@ -12,8 +12,8 @@ export default function StaffLogin() {
 
   useEffect(() => {
     void fetch("/api/staff-auth/status", { cache: "no-store" })
-      .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean } }>)
-      .then(body => { if (body.data?.authenticated) window.location.assign(homePath()); })
+      .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean; passwordChangeRequired?: boolean } }>)
+      .then(body => { if (body.data?.authenticated) window.location.assign(body.data.passwordChangeRequired ? "/staff-password/change" : homePath()); })
       .catch(() => undefined);
   }, []);
 
@@ -25,9 +25,9 @@ export default function StaffLogin() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const body = await response.json() as { error?: { message?: string } };
+      const body = await response.json() as { data?: { passwordChangeRequired?: boolean }; error?: { message?: string } };
       if (!response.ok) throw new Error(body.error?.message ?? "Đăng nhập thất bại");
-      window.location.assign(homePath());
+      window.location.assign(body.data?.passwordChangeRequired ? "/staff-password/change" : homePath());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Đăng nhập thất bại");
     } finally { setBusy(false); }
@@ -41,6 +41,6 @@ export default function StaffLogin() {
     <label>Mật khẩu<input type="password" autoComplete="current-password" minLength={10} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} required /></label>
     {error ? <div role="alert">{error}</div> : null}
     <button disabled={busy || !email.trim() || password.length < 10}>{busy ? "Đang đăng nhập…" : "Vào PINO Team"}</button>
-    <small>Identity và session do PINO quản lý. PIN chỉ dùng cho shared-device mode.</small>
+    <small>Identity và session do PINO quản lý. Email + mật khẩu là credential Staff duy nhất.</small>
   </form></main>;
 }

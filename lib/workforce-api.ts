@@ -6,6 +6,7 @@ export interface UnscheduledCheckInRequest{id:string;staffMemberId:string;center
 export type UnscheduledCheckInSelfState={kind:"ELIGIBLE_ASSIGNMENT";assignment:Assignment}|{kind:"NO_ELIGIBLE_ASSIGNMENT";request:null}|{kind:"REQUESTED"|"DECLINED"|"APPROVED"|"CANCELLED";request:UnscheduledCheckInRequest}
 export interface Availability{id:string;centerId:string;termWeekId:string;status:"DRAFT"|"SUBMITTED"|"VOIDED";version:number;submittedAt?:string|null;voidedAt?:string|null;voidedByUserId?:string|null;voidReason?:string|null;items:Array<{workDate:string;shiftTemplateId:string}>}
 export interface ShiftTemplate{id:string;code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}
+export interface WorkforceWindowDecision{kind:"AVAILABILITY"|"PLANNING";state:"OPEN"|"LOCKED";reason:"POLICY"|"MANUAL_LOCK"|"MANUAL_REOPEN"|"CONFIGURATION_UNAVAILABLE";cutoffAt:string|null;overrideUntil:string|null;policyVersionId:string|null;controlVersion:number}
 export type DutyGateAction="CHECK_IN"|"TIMED_MILESTONE"|"CHECK_OUT";
 export type DutyStatus="PENDING"|"SATISFIED"|"WAIVED"|"BLOCKED";
 export interface StaffDutyObligation{obligationId:string;action:DutyGateAction;kind:"ACKNOWLEDGEMENT"|"SETTLEMENT"|"SUBMISSION"|"EVIDENCE"|"HANDOFF";timekeepingSessionId?:string|null;type:string;sourceDomain:string;sourceRef:string;status:DutyStatus;blocking:boolean;requiredBy:string;requiredAt?:string|null;dueAt?:string|null;blockingAt?:string|null;milestoneRef?:string|null;resolvedAt?:string|null;resolutionRef?:string|null}
@@ -20,7 +21,9 @@ const query=(value:Record<string,string|undefined>)=>new URLSearchParams(Object.
 export const workforceApi={
  context:()=>request<{data:WorkforceContext}>("/context"),profile:()=>request<{data:StaffProfile}>("/profile"),updateProfile:(body:{email?:string;mobile?:string;legalAddress?:string})=>request<{data:StaffProfile}>("/profile",{method:"PATCH",body:JSON.stringify(body)}),
  schedule:(body:{centerId:string;startDate:string;endDate:string;termWeekId?:string})=>request<{data:Assignment[]}>(`/schedule?${query(body)}`),
- availabilityDraft:(termWeekId:string)=>request<{data:{submission:Availability;templates:ShiftTemplate[]}}>("/availability/draft",{method:"POST",body:JSON.stringify({termWeekId})}),
+ availability:(termWeekId:string)=>request<{data:Availability|null}>(`/availability?${query({termWeekId})}`),
+ availabilityDraft:(termWeekId:string)=>request<{data:{submission:Availability;templates:ShiftTemplate[];window:WorkforceWindowDecision}}>("/availability/draft",{method:"POST",body:JSON.stringify({termWeekId})}),
+ availabilityWindow:(termWeekId:string)=>request<{data:WorkforceWindowDecision}>(`/availability/window?${query({termWeekId})}`),
  replaceAvailability:(body:{submissionId:string;expectedVersion:number;items:Array<{workDate:string;shiftTemplateId:string}>})=>request<{data:Availability}>("/availability/items",{method:"PUT",body:JSON.stringify(body)}),
  submitAvailability:(body:{submissionId:string;expectedVersion:number})=>request<{data:Availability}>("/availability/submit",{method:"POST",body:JSON.stringify(body)}),
  currentTimekeeping:(centerId?:string)=>request<{data:TimekeepingSession|null}>(`/timekeeping/current${centerId?`?${query({centerId})}`:""}`),history:(body:{centerId:string;startDate:string;endDate:string})=>request<{data:TimekeepingSession[]}>(`/timekeeping/history?${query(body)}`),
