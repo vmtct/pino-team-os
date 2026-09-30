@@ -314,6 +314,8 @@ function Profile({ profile, assignments, center, week, onSaved }: { profile: Sta
     <section className="card">
       <div className={contextStyles.sectionHead}><div><h2>Công việc</h2><p>Nhìn nhanh lịch làm việc của bạn.</p></div></div>
       <div className={contextStyles.workFacts}>
+        <div className={contextStyles.fact}><span>Vai trò</span><strong>{profile.roleLabel ?? "Chưa cập nhật"}</strong></div>
+        <div className={contextStyles.fact}><span>Bộ phận</span><strong>{profile.department ?? "Chưa cập nhật"}</strong></div>
         <div className={contextStyles.fact}><span>Center</span><strong>{center?.displayName ?? "Chưa xác định"}</strong></div>
         <div className={contextStyles.fact}><span>Tuần này</span><strong>{weeklyAssignments.length} ca</strong></div>
       </div>

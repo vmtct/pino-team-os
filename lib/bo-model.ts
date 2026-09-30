@@ -312,6 +312,14 @@ export interface BoContext {
   userId: string;
   email: string;
   staffMemberId: string | null;
+  displayName: string | null;
+  staffProfile: {
+    displayName: string;
+    status: string;
+    department: string | null;
+    roleLabel: string | null;
+    employmentType: string | null;
+  } | null;
   surface: "BO";
   entitled: true;
   permissionKeys: string[];

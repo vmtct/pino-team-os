@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { BoCurrentUserMenu } from "./BoCurrentUserMenu";
 import { LogoutButton } from "./LogoutButton";
+import type { BoShellContext } from "@/lib/bo-shell-gate";
 import styles from "./bo-shell.module.css";
 
 export type BoNavChild = {
@@ -41,11 +43,13 @@ export function BoShell({
   title = "PINO House",
   subtitle = "Back Office",
   groups,
+  currentUser,
 }: {
   children: ReactNode;
   title?: string;
   subtitle?: string;
   groups: BoNavGroup[];
+  currentUser?: BoShellContext;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,8 +144,7 @@ export function BoShell({
           <button className={styles.commandButton} type="button" onClick={() => setCommandOpen(true)} aria-label="Mở điều hướng nhanh">
             <span>Tìm màn hình…</span><kbd>Ctrl K</kbd>
           </button>
-          <LogoutButton className={styles.logoutButton} />
-          <span className={styles.surfaceChip}>BO</span>
+          {currentUser ? <BoCurrentUserMenu currentUser={currentUser} /> : <LogoutButton className={styles.logoutButton} />}
         </header>
         <main className={styles.main}>{children}</main>
       </div>

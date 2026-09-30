@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TosShell } from "@/app/components/tos-shell";
+import { TosGreeting, TosShell } from "@/app/components/tos-shell";
 import { TOS_HOME_FOOTER } from "@/app/components/tos-shell/navigation";
 import styles from "./tos-home.module.css";
 
@@ -33,7 +33,7 @@ export default function TosHome() {
       <div className={styles.page}>
         <section className={styles.intro}>
           <span>TEAM OPS</span>
-          <h2>Hôm nay bạn làm gì?</h2>
+          <h2><TosGreeting /></h2>
           <p>Chọn đúng app theo context công việc. Khi vào app, thanh dưới sẽ đổi thành navigation riêng của app đó.</p>
         </section>
 
