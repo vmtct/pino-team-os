@@ -56,6 +56,7 @@ import type {
   BoStaffProfilePatch,
   BoStaffRecord,
   BoSyllabus,
+  BoOperationalShiftPlanResult,
   BoWorkforceAssignment,
   BoWorkforceAvailability,
   BoWorkforcePlanningBootstrap,
@@ -362,6 +363,24 @@ export const boApi = {
   resolveMissedCheckout: (sessionId: string, body: { checkOutAt: string; reason: string }, idempotencyKey: string) => write<BoTimekeepingMissedCheckoutResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/resolve-missed-checkout`, body, idempotencyKey),
   dutyExceptions: (centerId: string) => readAllPages<BoDutyExceptionReview>((cursor) => `workforce/duty/checkout-exceptions?centerId=${encodeURIComponent(centerId)}&limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
   approveDutyException: (exceptionId: string, centerId: string, expectedVersion: number, password: string) => write<BoDutyExceptionRecord>(`workforce/duty/checkout-exceptions/${encodeURIComponent(exceptionId)}/approve?centerId=${encodeURIComponent(centerId)}`, { expectedVersion, password }, crypto.randomUUID()),
+  planOperationalWorkforceShift: (body: {
+    staffMemberId: string;
+    centerId: string;
+    workDate: string;
+    shiftTemplateId: string;
+    termWeekId?: string;
+    replacesAssignmentId?: string;
+    roles: Array<
+      | { roleType: "FRONT_DESK" }
+      | {
+          roleType: "TEACHER";
+          sessionId: string;
+          makeLearningOwner: boolean;
+          expectedLearningOwnerVersion?: number;
+          learningOwnerHandoffReason?: string | null;
+        }
+    >;
+  }, idempotencyKey: string) => write<BoOperationalShiftPlanResult>("workforce/planning/operational-assignment", body, idempotencyKey),
   assignWorkforceShift: (body: { staffMemberId: string; centerId: string; workDate: string; shiftTemplateId: string; termWeekId?: string; replacesAssignmentId?: string }, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment", body, idempotencyKey),
   cancelWorkforceAssignment: (assignmentId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAssignment>("workforce/planning/assignment/cancel", { assignmentId, reason }, idempotencyKey),
   updateStaff: (staffMemberId: string, patch: BoStaffProfilePatch) => write<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`, patch, crypto.randomUUID()),
