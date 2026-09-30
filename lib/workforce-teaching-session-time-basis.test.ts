@@ -47,5 +47,5 @@ test("WFTB cancelled Learning Owner Session does not block assignment cancellati
   assert.equal(learningOwnerBlocksShiftCancellation(cancelled,"staff-1"),false);
   const source=await readFile("app/bo/workforce/WorkforcePlanningView.tsx","utf8");
   assert.match(source,/learningOwnerBlocksShiftCancellation/);
-  assert.match(source,/disabled=\{!reason\.trim\(\) \|\| hasOwnerRole \|\| !!busy\}/);
+  assert.match(source,/disabled=\{!reason\.trim\(\) \|\| hasOwnerRole \|\| !!busy \|\| data\.windows\?\.planning\.state === "LOCKED"\}/);
 });
