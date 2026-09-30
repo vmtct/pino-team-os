@@ -8,9 +8,12 @@ export default function StaffLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const hostname = window.location.hostname;
+    setShowRecovery(hostname === "tos.pinohouse.art" || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".workers.dev"));
     void fetch("/api/staff-auth/status", { cache: "no-store" })
       .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean; passwordChangeRequired?: boolean } }>)
       .then(body => { if (body.data?.authenticated) window.location.assign(body.data.passwordChangeRequired ? "/staff-password/change" : homePath()); })
@@ -41,6 +44,9 @@ export default function StaffLogin() {
     <label>Mật khẩu<input type="password" autoComplete="current-password" minLength={10} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} required /></label>
     {error ? <div role="alert">{error}</div> : null}
     <button disabled={busy || !email.trim() || password.length < 10}>{busy ? "Đang đăng nhập…" : "Vào PINO Team"}</button>
+
+    {showRecovery ? <a className={styles.recoveryLink} href="/staff-password/forgot">Quên mật khẩu?</a> : null}
+
     <small>Identity và session do PINO quản lý. Email + mật khẩu là credential Staff duy nhất.</small>
   </form></main>;
 }

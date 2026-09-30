@@ -8,6 +8,7 @@
   "preview_urls": false,
   "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
   "observability": { "enabled": true },
+  "send_email": [{ "name": "PINO_STAFF_PASSWORD_EMAIL" }],
   "vars": {
     "FOUNDER_EMAIL": "minhtri.van42@gmail.com,chuthhang@gmail.com",
     "PINORIA_TV_STAGING_BYPASS": "enabled",
