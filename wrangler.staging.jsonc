@@ -8,6 +8,7 @@
   "preview_urls": false,
   "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
   "observability": { "enabled": true },
+  "send_email": [{ "name": "PINO_STAFF_PASSWORD_EMAIL" }],
   "vars": {
     "FOUNDER_EMAIL": "minhtri.van42@gmail.com,chuthhang@gmail.com",
     "PINORIA_TV_STAGING_BYPASS": "enabled",
@@ -28,7 +29,6 @@
     { "binding": "PINO_STAFF_REGISTRATION_CORE", "service": "pino-core-staging", "entrypoint": "StaffRegistrationControlPlane" },
     { "binding": "PINO_TOS_LEARNING_CORE", "service": "pino-core-staging", "entrypoint": "TosLearningControlPlane" },
     { "binding": "PINO_STAFF_PASSWORD_CORE", "service": "pino-core-staging", "entrypoint": "StaffPasswordControlPlane" },
-    { "binding": "PINO_STAFF_PIN_CORE", "service": "pino-core-staging", "entrypoint": "StaffPinControlPlane" },
     { "binding": "PINO_PINORIA_TV_CORE", "service": "pino-core-staging", "entrypoint": "PinoriaTvControlPlane" }
   ],
   "keep_vars": true

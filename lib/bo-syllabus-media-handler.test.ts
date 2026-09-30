@@ -53,14 +53,14 @@ test("Syllabus worksheet preview preserves Core denial", async () => {
   assert.equal(response.status, 403); assert.equal(response.headers.get("x-request-id"), "core-denied"); assert.deepEqual(await response.json(), { error: { code: "ACCESS_PERMISSION_DENIED" } });
 });
 
-test("Syllabus media preserves Cloudflare BO owner credential compatibility", async () => {
+test("Syllabus media rejects retired Cloudflare-only BO business credentials", async () => {
   const {jwt,keyResolver}=await cloudflareFixture();
   const path=`learning/syllabi/media/${id}/preview`;
-  let seenIdentity: unknown;
+  let called=false;
   const b:BoAccessCoreBinding={
-    async execute(_request,identity){seenIdentity=identity;return{status:200,body:{data:{mediaAssetId:id,mimeType:"image/png",byteSize:1,createdAt:"2026-09-05T10:00:00.000Z",bytes:new Uint8Array([7]).buffer}},requestId:"cf-preview"};},
-    async executeWithStaffPassword(){throw new Error("unexpected password path");},
+    async execute(){called=true;throw new Error("unexpected Cloudflare business path");},
+    async executeWithStaffPassword(){called=true;throw new Error("unexpected password path");},
   };
   const response=await handleBoSyllabusMediaRequest(new Request(`https://bo.pinohouse.art/api/bo/${path}`,{headers:{"cf-access-jwt-assertion":jwt}}),{PINO_BO_CORE:b,CF_ACCESS_TEAM_DOMAIN:cfDomain,CF_ACCESS_BO_AUD:cfAudience},path,keyResolver);
-  assert.equal(response.status,200);assert.deepEqual(seenIdentity,{provider:"cloudflare_access",subject:"cf-owner-1",email:"owner@pino.invalid",issuer:`https://${cfDomain}`,audience:[cfAudience],expiresAt:(seenIdentity as {expiresAt:number}).expiresAt});
+  assert.equal(response.status,401);assert.equal(called,false);
 });

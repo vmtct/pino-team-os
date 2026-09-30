@@ -47,6 +47,26 @@ test("Open Studio policy client preserves versioned draft/publish semantics", as
   assert.ok(calls.every((item) => item.key && item.key.length > 10));
 });
 
+test("Delivery future reservation policy client preserves CENTER draft/publish semantics", async () => {
+  const original = globalThis.fetch;
+  const calls: Array<{ path: string; body: unknown; key: string | null }> = [];
+  globalThis.fetch = async (input, init) => {
+    calls.push({ path: String(input), body: init?.body ? JSON.parse(String(init.body)) : null, key: new Headers(init?.headers).get("idempotency-key") });
+    return Response.json({ data: { streamId: "stream", versionId: "0198d050-56c1-7ac5-b9ab-b0e45d912345", version: 1, revision: 1, published: true } });
+  };
+  try {
+    await boApi.createDeliveryFutureReservationPolicyDraft("center-1", 365, 0);
+    await boApi.publishDeliveryFutureReservationPolicy("0198d050-56c1-7ac5-b9ab-b0e45d912345", "center-1", "2026-09-29T00:00:00.000Z", 1);
+  } finally { globalThis.fetch = original; }
+  assert.deepEqual(calls.map((call) => call.path), [
+    "/api/bo/policies/delivery/future_reservation.v1/versions",
+    "/api/bo/policies/delivery/future_reservation.v1/versions/0198d050-56c1-7ac5-b9ab-b0e45d912345/publish",
+  ]);
+  assert.deepEqual(calls[0]!.body, { targetType: "CENTER", targetId: "center-1", value: { maxDaysAhead: 365 }, changeReason: "BO future reservation horizon configuration", expectedRevision: 0 });
+  assert.deepEqual(calls[1]!.body, { targetType: "CENTER", targetId: "center-1", effectiveFrom: "2026-09-29T00:00:00.000Z", expectedRevision: 1 });
+  assert.ok(calls.every((item) => item.key && item.key.length > 10));
+});
+
 test("Duty Exception client consumes every Core page so older requests remain reachable", async () => {
   const original = globalThis.fetch;
   const calls: string[] = [];
