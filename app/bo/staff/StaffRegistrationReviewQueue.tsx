@@ -36,7 +36,6 @@ export function StaffRegistrationReviewQueue() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [approval, setApproval] = useState<BoStaffRegistrationApprovalResult | null>(null);
-  const [pinCopied, setPinCopied] = useState(false);
   const approveAttempt = useRef<ReviewAttempt | null>(null);
   const rejectAttempt = useRef<ReviewAttempt | null>(null);
 
@@ -152,12 +151,6 @@ export function StaffRegistrationReviewQueue() {
     } catch (cause) { setError(formatError(cause, "Không thể từ chối hồ sơ.")); }
     finally { setBusy(""); }
   }
-  async function copyPin() {
-    if (!approval?.initialPin) return;
-    try { await navigator.clipboard.writeText(approval.initialPin); setPinCopied(true); }
-    catch { setError("Không thể copy PIN tự động."); }
-  }
-
   return <section id="staff-registration-review" className={styles.page}>
     <header className={styles.heading}>
       <span>WFM · ONBOARDING</span>
@@ -166,11 +159,10 @@ export function StaffRegistrationReviewQueue() {
     </header>
 
     {error ? <p className={styles.ownerError}>{error}</p> : null}
-    {approval?.initialPin ? <section className={styles.staffPinReveal} data-testid="registration-pin-reveal">
-      <span>PIN tạm · hiển thị một lần</span>
-      <code>{approval.initialPin}</code>
-      <p>Staff phải đăng nhập bằng email đã đăng ký và đổi PIN ở lần đầu.</p>
-      <div><button type="button" className={styles.secondaryButton} onClick={() => void copyPin()}>{pinCopied ? "Đã copy" : "Copy PIN"}</button><button type="button" className={styles.secondaryButton} onClick={() => { setApproval(null); setPinCopied(false); }}>Đã lưu PIN</button></div>
+    {approval ? <section className={styles.staffPinReveal} data-testid="registration-password-ready">
+      <span>Access đã sẵn sàng</span>
+      <p>Staff đăng nhập bằng email + mật khẩu đã tạo lúc đăng ký. Không có Staff PIN.</p>
+      <div><button type="button" className={styles.secondaryButton} onClick={() => setApproval(null)}>Đã hiểu</button></div>
     </section> : null}
 
     <div className={styles.registrationReviewGrid}>
@@ -180,7 +172,7 @@ export function StaffRegistrationReviewQueue() {
         {!visibleRequests.length ? <div className={styles.empty}>{requests.length ? "Không tìm thấy hồ sơ phù hợp." : "Không có hồ sơ đang chờ duyệt."}</div> : visibleRequests.map((request) => <button
           type="button" key={request.id}
           className={`${styles.registrationQueueItem} ${selected?.id === request.id ? styles.registrationQueueItemActive : ""}`}
-          onClick={() => { setSelectedId(request.id); setApproval(null); setPinCopied(false); }}
+          onClick={() => { setSelectedId(request.id); setApproval(null); }}
         >
           <strong>{request.displayLabel}</strong>
           <span>{request.email}</span>

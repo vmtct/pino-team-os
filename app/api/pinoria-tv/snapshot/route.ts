@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { authenticatePinoriaTvRequest, PinoriaTvAuthError, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
-import type { PinoriaTvCoreBinding } from "@/lib/staff-pin-core";
+import type { PinoriaTvCoreBinding } from "@/lib/pinoria-tv-core";
 import { mergePresenceWardSessions } from "@/app/pinoria-tv/presence-contract";
 
 export const runtime = "nodejs";

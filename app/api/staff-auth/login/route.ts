@@ -15,7 +15,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await loginStaffWithTransition(request, env, { email, password });
     const headers = new Headers({ "cache-control": "no-store" });
     headers.append("set-cookie", `pino_staff_password_session=${result.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`);
-    return Response.json({ data: { userId: result.userId, staffMemberId: result.staffMemberId, email: result.email, expiresAt: result.expiresAt } }, { status: 200, headers });
+    return Response.json({ data: { userId: result.userId, staffMemberId: result.staffMemberId, email: result.email, expiresAt: result.expiresAt, passwordChangeRequired: result.passwordChangeRequired } }, { status: 200, headers });
   } catch {
     return Response.json({ error: { message: "Email hoặc mật khẩu không đúng." } }, { status: 401, headers: { "cache-control": "no-store" } });
   }
