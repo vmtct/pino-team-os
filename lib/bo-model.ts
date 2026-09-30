@@ -489,9 +489,20 @@ export interface BoWorkforceShiftTemplate {
 }
 
 export interface BoWorkforcePlanningBootstrap {
-  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canEditPlanning: boolean }>;
+  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canEditPlanning: boolean; canLockAvailability:boolean; canReopenAvailability:boolean; canPublishPlanning:boolean; canReopenPlanning:boolean; canManageCenterPolicy:boolean }>;
   terms: Array<{ id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; createdAt: string; updatedAt: string }>;
   termWeeks: Array<{ id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; createdAt: string; updatedAt: string }>;
+  canManageGlobalPolicy: boolean;
+}
+
+export interface BoWorkforceWindowDecision {
+  kind: "AVAILABILITY" | "PLANNING";
+  state: "OPEN" | "LOCKED";
+  reason: "POLICY" | "MANUAL_LOCK" | "MANUAL_REOPEN" | "CONFIGURATION_UNAVAILABLE";
+  cutoffAt: string | null;
+  overrideUntil: string | null;
+  policyVersionId: string | null;
+  controlVersion: number;
 }
 
 export interface BoWorkforceAvailability {
@@ -600,6 +611,7 @@ export interface BoWorkforceWeeklyPlanning {
   assignments: BoWorkforceAssignment[];
   roleAssignments: BoWorkforceShiftRoleAssignment[];
   sessions: BoWorkforceTeachingSession[];
+  windows?: { availability: BoWorkforceWindowDecision; planning: BoWorkforceWindowDecision };
 }
 
 export interface BoTimekeepingSession {

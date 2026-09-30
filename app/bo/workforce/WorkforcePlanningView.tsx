@@ -28,6 +28,8 @@ export function WorkforcePlanningView() {
   const [notice, setNotice] = useState("");
   const [reason, setReason] = useState("");
   const [availabilityVoidReason, setAvailabilityVoidReason] = useState("");
+  const [weekControlReason, setWeekControlReason] = useState("");
+  const [weekControlUntil, setWeekControlUntil] = useState("");
   const [shiftTemplates, setShiftTemplates] = useState<BoWorkforceShiftTemplate[]>([]);
   const [templateDraft, setTemplateDraft] = useState({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
 
@@ -136,6 +138,25 @@ export function WorkforcePlanningView() {
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
 
+  async function mutateWeekControl(action: "availability-lock" | "availability-reopen" | "planning-publish" | "planning-reopen") {
+    if (!data || !weekControlReason.trim()) return;
+    const isReopen = action.endsWith("reopen");
+    if (isReopen && !weekControlUntil) return;
+    const current = action.startsWith("availability") ? data.windows?.availability : data.windows?.planning;
+    if (!current) return;
+    setBusy(`week:${action}`); setNotice("");
+    try {
+      const common = { centerId:data.centerId,termWeekId:data.termWeekId,expectedVersion:current.controlVersion,reason:weekControlReason.trim() };
+      if (action === "availability-lock") await boApi.lockWorkforceAvailability(common,crypto.randomUUID());
+      else if (action === "availability-reopen") await boApi.reopenWorkforceAvailability({...common,until:new Date(weekControlUntil).toISOString()},crypto.randomUUID());
+      else if (action === "planning-publish") await boApi.publishWorkforcePlanning(common,crypto.randomUUID());
+      else await boApi.reopenWorkforcePlanning({...common,until:new Date(weekControlUntil).toISOString()},crypto.randomUUID());
+      setWeekControlReason(""); setWeekControlUntil("");
+      setNotice(action.includes("reopen") ? "Cửa sổ tuần đã được mở lại có thời hạn." : "Cửa sổ tuần đã được khóa/chốt.");
+      await refresh();
+    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
+  }
+
   async function createShiftTemplate() {
     if (!centerId || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime) return;
     setBusy("template:create"); setNotice("");
@@ -240,7 +261,7 @@ export function WorkforcePlanningView() {
     <header className={styles.heading}>
       <span>Back Office · Workforce</span>
       <h1>Lịch ca tuần</h1>
-      <p>Availability là input của Staff; assignment là quyết định final của Manager. Không có Publish Week trong v1.</p>
+      <p>Availability là input của Staff; assignment là quyết định final của Manager. Hai cửa sổ tuần được khóa độc lập.</p>
     </header>
 
     <section className={styles.panel}>
@@ -273,6 +294,22 @@ export function WorkforcePlanningView() {
     {notice ? <div className={styles.successCard}><span>Workforce planner</span><strong>{notice}</strong></div> : null}
     {planning.state === "loading" ? <State text="Đang tải weekly planning projection từ Core…" /> : null}
     {planning.state === "error" ? <State text={planning.message} error /> : null}
+
+    {data?.windows ? <section className={styles.panel}>
+      <div className={styles.panelHeading}><div><h2>Kiểm soát tuần</h2><p>Policy quyết định auto-lock; override thủ công chỉ áp dụng cho TermWeek này.</p></div><span className={styles.writePill}>Week Control</span></div>
+      <div className={styles.plannerFilters}>
+        <WindowState label="Đăng ký Staff" value={data.windows.availability} />
+        <WindowState label="Xếp ca Manager" value={data.windows.planning} />
+        <label className={styles.field}>Lý do<input value={weekControlReason} onChange={(event)=>setWeekControlReason(event.target.value)} placeholder="Bắt buộc khi khóa/mở lại" /></label>
+        <label className={styles.field}>Mở lại đến<input type="datetime-local" value={weekControlUntil} onChange={(event)=>setWeekControlUntil(event.target.value)} /></label>
+      </div>
+      <div className={styles.subscriptionActions}>
+        {data.windows.availability.state === "OPEN" && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-lock")}>Khóa đăng ký</button> : null}
+        {data.windows.availability.state === "LOCKED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
+        {data.windows.planning.state === "OPEN" && selectedCenter?.canPublishPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("planning-publish")}>Chốt xếp ca</button> : null}
+        {data.windows.planning.state === "LOCKED" && selectedCenter?.canReopenPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("planning-reopen")}>Mở khóa xếp ca</button> : null}
+      </div>
+    </section> : null}
 
     {data ? <div className={styles.plannerLayout}>
       <section className={styles.panel}>
@@ -384,7 +421,7 @@ export function WorkforcePlanningView() {
             </div>
           </div> : null}
 
-          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || (!frontDesk && !teacherSessionIds.length) || handoffReasonMissing || !!busy} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận ca & phân công"}</button> : null}
+          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || (!frontDesk && !teacherSessionIds.length) || handoffReasonMissing || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận ca & phân công"}</button> : null}
 
           {activeAssignments.length ? <label className={styles.field}>Lý do thay đổi
             <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Bắt buộc khi huỷ hoặc điều chỉnh" />
@@ -413,8 +450,8 @@ export function WorkforcePlanningView() {
                 {hasOwnerRole ? <span>Chuyển Phụ trách chính ở School → Classes → Sessions trước khi huỷ/đổi ca.</span> : null}
               </div>
               <div className={styles.subscriptionActions}>
-                <button className={styles.secondaryButton} disabled={!reason.trim() || hasOwnerRole || !!busy} onClick={() => void cancel(assignment)}>{busy === `cancel:${assignment.id}` ? "…" : "Huỷ ca"}</button>
-                <button className={styles.primaryButton} disabled={!reason.trim() || roles.length > 0 || !templateId || templateId === assignment.shiftTemplateId || !!busy} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Đổi sang ca đã chọn"}</button>
+                <button className={styles.secondaryButton} disabled={!reason.trim() || hasOwnerRole || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void cancel(assignment)}>{busy === `cancel:${assignment.id}` ? "…" : "Huỷ ca"}</button>
+                <button className={styles.primaryButton} disabled={!reason.trim() || roles.length > 0 || !templateId || templateId === assignment.shiftTemplateId || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Đổi sang ca đã chọn"}</button>
               </div>
             </article>;
           })}
@@ -450,6 +487,11 @@ function templateLabel(data: BoWorkforceWeeklyPlanning, id: string) {
 function availableCount(data: BoWorkforceWeeklyPlanning, staffId: string, date: string) {
   return new Set(data.availability.filter((item) => item.staffMemberId === staffId).flatMap((item) => item.items.filter((entry) => entry.workDate === date).map((entry) => entry.shiftTemplateId))).size;
 }
+function WindowState({label,value}:{label:string;value:NonNullable<BoWorkforceWeeklyPlanning["windows"]>["availability"]}) {
+  const detail=value.reason==="CONFIGURATION_UNAVAILABLE"?"Chưa có policy hiệu lực":value.reason==="MANUAL_LOCK"?"Khóa thủ công":value.reason==="MANUAL_REOPEN"?`Mở lại đến ${value.overrideUntil?new Date(value.overrideUntil).toLocaleString("vi-VN"):"—"}`:value.cutoffAt?`Policy · ${new Date(value.cutoffAt).toLocaleString("vi-VN")}`:"Policy · không auto-lock";
+  return <div className={styles.card}><strong>{label} · {value.state==="OPEN"?"Đang mở":"Đã khóa"}</strong><span>{detail}</span></div>;
+}
+
 function State({ text, error = false }: { text: string; error?: boolean }) {
   return <div className={`${styles.state} ${error ? styles.errorState : ""}`}><strong>{error ? "Không thể tải" : "PINO BO"}</strong><span>{text}</span></div>;
 }

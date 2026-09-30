@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { boApi, type DeliveryFutureReservationPolicyInspection, type WorkforcePolicyInspection, type WorkforcePolicyKey } from "@/lib/bo-api";
 import type { BoCenter } from "@/lib/bo-model";
 import styles from "../../bo.module.css";
+import { WeekControlPoliciesView } from "./WeekControlPoliciesView";
 
 const POLICIES: Array<{ key: WorkforcePolicyKey; title: string; actions: string[]; description: string }> = [
   { key: "TIMEKEEPING_ELIGIBILITY", title: "Timekeeping", actions: ["CHECK_IN", "CHECK_OUT"], description: "Cho phép Staff check-in / check-out tại Center." },
@@ -130,6 +131,7 @@ export function WorkforcePoliciesView() {
         </article>;
       })}
     </div>
+    <WeekControlPoliciesView />
   </section>;
 }
 
