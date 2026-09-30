@@ -15,7 +15,8 @@ test("AI Data Inbox uses Founder facade for review/apply and binds approval to p
   assert.doesNotMatch(view,/\b(?:INSERT|UPDATE|DELETE)\s+(?:INTO|FROM|\w+)/i);
   assert.match(founderRoute,/handleFounderFacadeRequest/);
   assert.match(founderHandler,/callFounderCore/);
-  assert.match(founderHandler,/authenticateTeam/);
+  assert.match(founderHandler,/teamCredential/);
+  assert.match(founderHandler,/credential\.kind !== "password"/);
 });
 
 test("AI Data Inbox is surfaced under BO System",()=>{

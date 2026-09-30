@@ -85,6 +85,23 @@
 }
 .opsHeader p { margin: 0; color: #71717d; font-size: 13px; }
 .opsHeaderActions { display: flex; gap: 8px; }
+.userChip {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 5px;
+  border: 1px solid var(--tos-line);
+  border-radius: 13px;
+  background: #fff;
+  color: var(--tos-accent-strong);
+}
+.userChip > span {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: 999px; background: var(--tos-tint); font-size: 11px; font-weight: 900;
+}
+.userChip strong { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+
 .logoutButton {
   min-width: 76px;
   height: 38px;

@@ -312,6 +312,14 @@ export interface BoContext {
   userId: string;
   email: string;
   staffMemberId: string | null;
+  displayName: string | null;
+  staffProfile: {
+    displayName: string;
+    status: string;
+    department: string | null;
+    roleLabel: string | null;
+    employmentType: string | null;
+  } | null;
   surface: "BO";
   entitled: true;
   permissionKeys: string[];
@@ -489,9 +497,20 @@ export interface BoWorkforceShiftTemplate {
 }
 
 export interface BoWorkforcePlanningBootstrap {
-  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canEditPlanning: boolean }>;
+  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canEditPlanning: boolean; canLockAvailability:boolean; canReopenAvailability:boolean; canPublishPlanning:boolean; canReopenPlanning:boolean; canManageCenterPolicy:boolean }>;
   terms: Array<{ id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; createdAt: string; updatedAt: string }>;
   termWeeks: Array<{ id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; createdAt: string; updatedAt: string }>;
+  canManageGlobalPolicy: boolean;
+}
+
+export interface BoWorkforceWindowDecision {
+  kind: "AVAILABILITY" | "PLANNING";
+  state: "OPEN" | "LOCKED";
+  reason: "POLICY" | "MANUAL_LOCK" | "MANUAL_REOPEN" | "CONFIGURATION_UNAVAILABLE";
+  cutoffAt: string | null;
+  overrideUntil: string | null;
+  policyVersionId: string | null;
+  controlVersion: number;
 }
 
 export interface BoWorkforceAvailability {
@@ -516,6 +535,13 @@ export interface BoWorkforceAssignment {
   centerId: string;
   workDate: string;
   shiftTemplateId: string;
+  timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+  effectiveWork?: {
+    assignmentId: string;
+    timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+    windows: Array<{ startsLocal: string; endsLocal: string; sourceType: "SHIFT_TEMPLATE" | "SESSION"; sourceIds: string[] }>;
+    reconciliationRequired: boolean;
+  };
   termWeekId: string | null;
   status: "ACTIVE" | "CANCELLED";
   assignedByUserId: string;
@@ -536,6 +562,51 @@ export interface BoUnscheduledCheckInRequest {
   version: number; createdAt: string; updatedAt: string; staffDisplayLabel: string; centerDisplayName: string;
 }
 
+export interface BoWorkforceShiftRoleAssignment {
+  id: string;
+  shiftAssignmentId: string;
+  roleType: "FRONT_DESK" | "TEACHER";
+  targetType: "CENTER" | "SESSION";
+  targetId: string;
+  status: "ACTIVE" | "CANCELLED";
+  version: number;
+  assignedByUserId: string;
+  assignedAt: string;
+  cancelledByUserId: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoWorkforceTeachingSession {
+  id: string;
+  centerId: string;
+  runningClassId: string | null;
+  runningClassDisplayName: string | null;
+  localDate: string;
+  scheduledStartsLocal: string;
+  scheduledEndsLocal: string;
+  status: string;
+  canAssignLearningOwner: boolean;
+  learningOwner: null | {
+    sessionId: string;
+    staffMemberId: string;
+    assignedAt: string;
+    assignedByUserId: string | null;
+    assignmentSource: "OPERATOR" | "MIGRATION";
+    changeReason: string | null;
+    updatedAt: string;
+    version: number;
+  };
+}
+
+export interface BoOperationalShiftPlanResult {
+  assignment: BoWorkforceAssignment;
+  roleAssignments: BoWorkforceShiftRoleAssignment[];
+  learningOwners: BoWorkforceTeachingSession["learningOwner"][];
+}
+
 export interface BoWorkforceWeeklyPlanning {
   centerId: string;
   termWeekId: string;
@@ -546,6 +617,9 @@ export interface BoWorkforceWeeklyPlanning {
   availability: BoWorkforceAvailability[];
   availabilityHistory: BoWorkforceAvailability[];
   assignments: BoWorkforceAssignment[];
+  roleAssignments: BoWorkforceShiftRoleAssignment[];
+  sessions: BoWorkforceTeachingSession[];
+  windows?: { availability: BoWorkforceWindowDecision; planning: BoWorkforceWindowDecision };
 }
 
 export interface BoTimekeepingSession {

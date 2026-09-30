@@ -13,6 +13,7 @@ test("TOS keeps its root, operational routes, APIs, and Founder behavior", () =>
 test("TOS operational pages require a Staff session cookie", () => {
   for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/pinoria-tv", "/timesheet", "/check-in", "/info"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), true, pathname);
   for (const pathname of ["/staff-login", "/staff-password/change", "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/api/staff-auth/change-password", "/api/workforce/context", "/companion", "/_next/static/app.js"]) assert.equal(requiresTosStaffSession(TOS_HOSTNAME, pathname), false, pathname);
+
   assert.equal(requiresTosStaffSession(BO_HOSTNAME, "/dashboard"), false);
 });
 
@@ -27,7 +28,8 @@ test("BO exposes local Staff password login while keeping BO pages password-gate
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "next" }, pathname);
     assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), false, pathname);
   }
-  for (const pathname of ["/bo", "/bo/system/users"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
+  for (const pathname of ["/bo", "/bo/profile", "/bo/system/users"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
+
   assert.equal(requiresBoStaffPasswordSession(TOS_HOSTNAME, "/bo"), false);
 });
 
@@ -36,7 +38,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
   assert.deepEqual(decideHostBoundary("bo.pinohouse.art.", "/api/founder/ai/change-sets"), { action: "next" });
   assert.deepEqual(decideHostBoundary("BO.PINOHOUSE.ART.:443", "/api/founder/ai/change-sets"), { action: "next" });
   for (const pathname of [
-    "/bo", "/bo/", "/bo/staff", "/bo/workforce", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
+    "/bo", "/bo/", "/bo/profile", "/bo/staff", "/bo/workforce", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
     "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice", "/bo/pinoria-ward", "/bo/pinoria-ward/sets", "/bo/pinoria-ward/learners", "/bo/pinoria-effects", "/bo/content",
     "/bo/system/users", "/bo/system/roles", "/bo/system/audit", "/bo/system/ai-data",
     "/api/founder/ai/change-sets", `/api/founder/ai/change-sets/${roleId}`, `/api/founder/ai/change-sets/${roleId}/approve`, `/api/founder/ai/change-sets/${roleId}/reject`, `/api/founder/ai/change-sets/${roleId}/reconcile`,
@@ -49,7 +51,8 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/enrollments", `/api/bo/enrollments/${roleId}/end`,
     "/api/bo/centers", "/api/bo/delivery/bootstrap-state", "/api/bo/delivery/enrollment-activation", "/api/bo/delivery/terms", "/api/bo/delivery/term-weeks", `/api/bo/delivery/term-weeks/${roleId}/update`, `/api/bo/delivery/term-weeks/${roleId}/delete`, `/api/bo/delivery/terms/${roleId}/neutralize`, "/api/bo/delivery/learning-spaces", `/api/bo/delivery/learning-spaces/${roleId}/lifecycle`, `/api/bo/delivery/running-classes/${roleId}/lifecycle`, "/api/bo/delivery/calendar-scope", "/api/bo/delivery/calendar-exclusions", "/api/bo/delivery/calendar-exclusions/preview", `/api/bo/delivery/calendar-exclusions/${roleId}`,
     "/api/bo/delivery/running-classes", "/api/bo/delivery/running-class-blocks", "/api/bo/delivery/materializations",
-    "/api/bo/policies/delivery/materialization.v1/versions", `/api/bo/policies/delivery/materialization.v1/versions/${roleId}/publish`,
+    "/api/bo/policies/delivery/materialization.v1/versions",
+    "/api/bo/policies/delivery/future_reservation.v1/stream", "/api/bo/policies/delivery/future_reservation.v1/effective", "/api/bo/policies/delivery/future_reservation.v1/versions", "/api/bo/policies/delivery/future_reservation.v1/versions/" + roleId + "/publish", `/api/bo/policies/delivery/materialization.v1/versions/${roleId}/publish`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/stream", "/api/bo/policies/open_studio/monthly_path_pass.v1/effective",
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions", `/api/bo/policies/open_studio/monthly_path_pass.v1/versions/${roleId}/publish`,
     "/api/bo/policies/open_studio/bring_a_friend.v1/stream", "/api/bo/policies/open_studio/public_acquisition.v1/versions", "/api/bo/policies/open_studio/cancellation.v1/effective",
@@ -79,12 +82,14 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/pinoria/ward/learners/not-a-canonical-id", `/api/bo/pinoria/ward/learners/${roleId}/delete`, `/api/bo/pinoria/ward/learners/${roleId}/loadout/extra`,
     "/api/bo/access/permissions/export", "/api/bo/access/audit/export", `/api/bo/access/roles/${roleId}/delete`,
     "/api/bo/delivery/learning-spaces/anything", "/api/bo/delivery/enrollment-activation/anything", "/api/bo/delivery/term-weeks/not-a-canonical-id/update", `/api/bo/delivery/term-weeks/${roleId}/remove`, `/api/bo/practice/resources/${roleId}/draft`, `/api/bo/practice/resources/${roleId}/publish`, `/api/bo/practice/versions/${roleId}/delete`,
-    "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish", "/api/bo/delivery/sessions/not-a-canonical-id/syllabus-binding", `/api/bo/delivery/sessions/${roleId}/syllabus-binding/extra`,
+    "/api/bo/policies/delivery/materialization.v1/versions/not-a-canonical-id/publish",
+    "/api/bo/policies/delivery/future_reservation.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/delivery/future_reservation.v1/delete", "/api/bo/delivery/sessions/not-a-canonical-id/syllabus-binding", `/api/bo/delivery/sessions/${roleId}/syllabus-binding/extra`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/open_studio/unknown.v1/stream",
     "/api/bo/learning/syllabi/media/not-a-canonical-id/preview", "/api/bo/learning/syllabi/media/extra", "/api/bo/learning/syllabi/versions/not-a-canonical-id/artchitect-profile", `/api/bo/learning/syllabi/${roleId}/delete`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
     `/api/bo/student-intakes/${roleId}/void/extra`, "/api/bo/student-intakes/not-a-canonical-id/void", "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/training/delete-all", "/api/bo/workforce/training/modules/not-a-canonical-id/retire", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/assignment/cancel/anything", "/api/bo/workforce/timekeeping/not-a-canonical-id/corrections", `/api/bo/workforce/timekeeping/${roleId}/delete`, `/api/bo/workforce/timekeeping/${roleId}/corrections/extra`, "/api/bo/workforce/duty/checkout-exceptions/not-a-canonical-id/approve", `/api/bo/workforce/duty/checkout-exceptions/${roleId}/delete`, `/api/bo/workforce/duty/checkout-exceptions/${roleId}/approve/extra`,
     `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/workforce/staff-records/${roleId}/pinoria/anything`, `/api/bo/access/users/${roleId}/staff-password/reset/again`, "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/staff-pin/change", "/api/staff-pin/login", "/api/staff-pin/status", "/api/staff-pin/change", "/api/staff-pin/configure",
+
   ]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "not_found" }, pathname);
   }
