@@ -188,7 +188,7 @@ jobs:
           PINO_TOS_LEARNING_CORE|pino-core|TosLearningControlPlane
           PINO_STAFF_PASSWORD_CORE|pino-core|StaffPasswordControlPlane
           PINO_PINORIA_TV_CORE|pino-core|PinoriaTvControlPlane
-PINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane
+          PINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane
           PINO_ACCESS_SYNC|pino-access-evaluator|AccessSyncControlPlane
           EOF
           bash scripts/assert-core-production-authority.sh "$CORE_SHA" "$CORE_DEPLOYMENT_ID" "$CORE_RELEASE_ISSUE" "$CORE_RELEASE_RUN_ID" || fail "Pinned Core production authority is not canonical/current."

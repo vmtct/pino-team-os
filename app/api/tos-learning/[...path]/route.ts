@@ -12,6 +12,10 @@ async function handle(request: Request, context: Context) {
   try {
     const { env } = await getCloudflareContext({ async: true }) as unknown as { env: TosLearningEnv };
     const { path } = await context.params;
+    const normalizedPath = path.join("/");
+    if (request.method === "POST" && /^tv\/displays\/[0-9a-f-]{36}\/launch$/.test(normalizedPath)) {
+      return Response.json({ error: { code: "PLATFORM_NOT_FOUND", message: "TOS learning operation not found" } }, { status: 404, headers: { "cache-control": "no-store" } });
+    }
     let body: Record<string, unknown> = {};
     const url = new URL(request.url);
     for (const [key, value] of url.searchParams) if (key !== "t") body[key] = tosQueryParamValue(key, value);
@@ -20,7 +24,7 @@ async function handle(request: Request, context: Context) {
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) body = { ...body, ...parsed };
     }
     const idempotencyKey = request.headers.get("idempotency-key") ?? undefined;
-    const coreRequest = { method: request.method, path: `/${path.join("/")}`, body, ...(idempotencyKey ? { idempotencyKey } : {}) };
+    const coreRequest = { method: request.method, path: `/${normalizedPath}`, body, ...(idempotencyKey ? { idempotencyKey } : {}) };
     const result = await callTosLearningCoreWithCredential(
       env.PINO_TOS_LEARNING_CORE,
       coreRequest,

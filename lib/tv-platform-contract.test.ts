@@ -64,3 +64,15 @@ test("BO write facade admits only bounded TV device mutations",()=>{
  assert.ok(source.includes("TV_DEVICE_UPDATE.test(path)"));
  assert.ok(!source.match(/shouldReconcileTosAccess[\s\S]{0,220}TV_DEVICE_CREATE/));
 });
+
+test("generic TOS proxy cannot expose TV runtime authority",()=>{
+ const source=read("app/api/tos-learning/[...path]/route.ts");
+ assert.ok(source.includes("^tv\\/displays\\/[0-9a-f-]{36}\\/launch$"));
+ assert.ok(source.includes('"PLATFORM_NOT_FOUND"'));
+});
+
+test("production release binding inventory keeps TV runtime binding inside the YAML script",()=>{
+ const source=read(".github/workflows/team-runtime-production-release.yml");
+ assert.ok(source.includes("          PINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane"));
+ assert.ok(!source.includes("\nPINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane\n"));
+});
