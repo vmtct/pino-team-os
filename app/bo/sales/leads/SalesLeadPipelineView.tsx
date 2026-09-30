@@ -251,6 +251,21 @@ export function SalesLeadPipelineView() {
               <Fact label="Xác minh" value={intent.verificationMethod ?? "—"} />
               <Fact label="Lead ID" value={intent.leadId} mono />
             </div>
+            <div className={styles.pancakePanel}>
+              <div><strong>Pancake</strong><span>Conversation vẫn ở Pancake; PAP chỉ giữ provider reference + deep link.</span></div>
+              {(intent.pancakeConversations ?? []).length === 0 ? <p>Chưa có conversation binding.</p> : null}
+              {(intent.pancakeConversations ?? []).map((conversation) => (
+                <div className={styles.pancakeConversation} key={conversation.id}>
+                  <div>
+                    <strong>{conversation.channelDisplayName}</strong>
+                    <span>{conversation.channel} · <code>{conversation.refId}</code></span>
+                  </div>
+                  {conversation.usable && conversation.providerDeepLink
+                    ? <a href={conversation.providerDeepLink} target="_blank" rel="noopener noreferrer">Chat trên Pancake ↗</a>
+                    : <span className={styles.chatUnavailable}>Chat unavailable</span>}
+                </div>
+              ))}
+            </div>
             <div className={styles.timeline}>
               <strong>Contact timeline</strong>
               <div><span>Submitted</span><time>{formatTime(intent.createdAt)}</time></div>
