@@ -26,6 +26,7 @@ const STAFF_RECORD_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}$/;
 const STAFF_STATUS_PATH = /^workforce\/staff-records\/[0-9a-f-]{36}\/status$/;
 const TIMEKEEPING_CORRECTION_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/corrections$/;
 const TIMEKEEPING_MISSED_CHECKOUT_PATH = /^workforce\/timekeeping\/[0-9a-f-]{36}\/resolve-missed-checkout$/;
+const DELIVERY_RUNNING_CLASS_PATCH = /^delivery\/running-classes\/[0-9a-f-]{36}$/;
 const DELIVERY_POST_PATHS = new Set([
   "delivery/terms",
   "delivery/term-weeks",
@@ -92,7 +93,7 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
-    if (request.method !== "POST" && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path))) && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path)))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    if (request.method !== "POST" && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || DELIVERY_RUNNING_CLASS_PATCH.test(path))) && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path)))) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
@@ -193,6 +194,7 @@ export function isAllowedPostPath(path: string): boolean {
     || TIMEKEEPING_CORRECTION_PATH.test(path)
     || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path)
     || DELIVERY_POST_PATHS.has(path)
+    || DELIVERY_RUNNING_CLASS_PATCH.test(path)
     || TERM_WEEK_COMMAND.test(path)
     || TERM_NEUTRALIZE_COMMAND.test(path)
     || DELIVERY_CONFIG_LIFECYCLE.test(path)

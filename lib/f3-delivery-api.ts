@@ -38,6 +38,7 @@ export const f3DeliveryApi = {
   createLearningSpace: (body: unknown) => writeOne<F3LearningSpace>("delivery/learning-spaces", body),
   transitionLearningSpace: (id: string, body: unknown) => writeOne<F3LearningSpace>(`delivery/learning-spaces/${encodeURIComponent(id)}/lifecycle`, body),
   createRunningClass: (body: unknown) => writeOne<F3RunningClass>("delivery/running-classes", body),
+  updateRunningClass: (id: string, body: unknown) => writeOne<F3RunningClass>(`delivery/running-classes/${encodeURIComponent(id)}`, body, undefined, "PATCH"),
   transitionRunningClass: (id: string, body: unknown) => writeOne<F3RunningClass>(`delivery/running-classes/${encodeURIComponent(id)}/lifecycle`, body),
   createRunningClassBlock: (body: unknown) => writeOne<F3RunningClassBlock>("delivery/running-class-blocks", body),
   createMaterializationPolicyDraft: (body: unknown) => writeOne<{ streamId: string; versionId: string; version: number; revision: number }>("policies/delivery/materialization.v1/versions", body),
@@ -50,9 +51,9 @@ async function readOne<T>(path: string): Promise<T> {
   return parse<T>(response, "Back Office delivery state could not be loaded.");
 }
 
-async function writeOne<T>(path: string, body: unknown, idempotencyKey?: string): Promise<T> {
+async function writeOne<T>(path: string, body: unknown, idempotencyKey?: string, method: "POST" | "PATCH" = "POST"): Promise<T> {
   const response = await fetch(`/api/bo/${path}`, {
-    method: "POST",
+    method,
     headers: { "content-type": "application/json", ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}) },
     body: JSON.stringify(body),
   });

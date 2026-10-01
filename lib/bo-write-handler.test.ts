@@ -99,3 +99,13 @@ test("missed checkout resolution requires idempotency and forwards exact Core co
 });
 
 test("calendar closure publication requires replay identity while archive forwards canonical optimistic versioning",async()=>{const forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:201,body:{data:{ok:true}},requestId:"closure"};}};const route="delivery/calendar-exclusions",body={centerId:"01912345-6789-7abc-8def-0123456789ab",scopeType:"HOUSE",startsOnLocalDate:"2030-09-04",endsBeforeLocalDate:"2030-09-05",reason:"PUBLIC_HOLIDAY"};assert.equal((await handleBoWriteRequest(request(route,true,body),env(binding),route)).status,400);assert.equal((await handleBoWriteRequest(request(route,true,body,"closure-key"),env(binding),route)).status,201);const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",archive=`delivery/calendar-exclusions/${id}`,archiveBody={action:"archive",expectedVersion:1,archiveReason:"Corrected"};assert.equal((await handleBoWriteRequest(request(archive,true,archiveBody),env(binding),archive)).status,201);assert.deepEqual(forwarded,[{method:"POST",path:route,body,idempotencyKey:"closure-key"},{method:"POST",path:archive,body:archiveBody}]);});
+
+
+test("Running Class reconciliation PATCH is narrowly forwarded to Core",async()=>{
+  const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",route=`delivery/running-classes/${id}`,body={centerId:"01912345-6789-7abc-8def-0123456789ab",pathProgramId:"01912345-6789-7abc-8def-0123456789ac",learningSpaceId:"01912345-6789-7abc-8def-0123456789ad",operationalName:"Little Piner Art · Mon 18:00",weekdayIso:1,windowStartsLocal:"18:00",windowEndsLocal:"19:30",deliveryTopology:"OVERLAPPING_COHORT",defaultParticipationMinutes:90,optimalConcurrentCapacity:8,hardConcurrentCapacity:10,status:"ACTIVE",expectedVersion:1},forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:200,body:{data:{id,...body,version:2}},requestId:"running-class-patch"};}};
+  const response=await handleBoWriteRequest(request(route,true,body,undefined,"PATCH"),env(binding),route);
+  assert.equal(response.status,200);
+  assert.deepEqual(forwarded,[{method:"PATCH",path:route,body}]);
+  assert.equal((await handleBoWriteRequest(request(`delivery/running-classes/${id}/extra`,true,body,undefined,"PATCH"),env(binding),`delivery/running-classes/${id}/extra`)).status,405);
+});

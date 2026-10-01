@@ -160,13 +160,15 @@ async function ensureClass(state: F3BootstrapState, centerId: string, pathProgra
   if (existing) return existing;
   const conflicting = state.runningClasses.filter((item) => item.centerId === centerId && item.pathProgramId === pathProgramId
     && item.weekdayIso === seed.weekdayIso && item.windowStartsLocal === seed.startsLocal && item.windowEndsLocal === seed.endsLocal);
-  if (conflicting.length) throw new Error(`Running Class slot conflicts with reviewed F3 seed: ${operationalName(seed)}.`);
-  return api.createRunningClass({
+  if (conflicting.length > 1) throw new Error(`Multiple Running Classes conflict with reviewed F3 seed: ${operationalName(seed)}.`);
+  const desired = {
     centerId, pathProgramId, learningSpaceId, operationalName: operationalName(seed), weekdayIso: seed.weekdayIso,
     windowStartsLocal: seed.startsLocal, windowEndsLocal: seed.endsLocal, deliveryTopology: seed.topology,
     defaultParticipationMinutes: seed.defaultParticipationMinutes, optimalConcurrentCapacity: seed.optimal,
-    hardConcurrentCapacity: seed.hard, status: "ACTIVE",
-  });
+    hardConcurrentCapacity: seed.hard, status: "ACTIVE" as const,
+  };
+  if (conflicting[0]) return api.updateRunningClass(conflicting[0].id, {...desired, expectedVersion: conflicting[0].version});
+  return api.createRunningClass(desired);
 }
 function findClass(state: F3BootstrapState, centerId: string, pathProgramId: string, learningSpaceId: string, seed: ClassSeed) {
   const matches = state.runningClasses.filter((item) => item.centerId === centerId && item.pathProgramId === pathProgramId
