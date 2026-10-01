@@ -197,6 +197,12 @@ function isApprovedBoPath(pathname: string): boolean {
     || normalized === "/api/bo/billing/sales"
     || /^\/api\/bo\/billing\/bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?$/.test(normalized)
     || /^\/api\/bo\/billing\/transactions\/[0-9a-f-]{36}\/void$/.test(normalized)
+    || /^\/api\/bo\/catalog\/specialty-(?:families|modules)$/.test(normalized)
+    || normalized === "/api/bo/specialty/catalog"
+    || /^\/api\/bo\/specialty\/students\/[0-9a-f-]{36}$/.test(normalized)
+    || /^\/api\/bo\/specialty\/(?:offers(?:\/[0-9a-f-]{36}\/configure)?|relics|rewards|purchases(?:\/evaluate)?|allocations\/[0-9a-f-]{36}\/(?:claims|complete)|physical-rewards\/[0-9a-f-]{36}\/fulfill)$/.test(normalized)
+    || /^\/api\/bo\/policies\/specialty\/(?:purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(?:effective|stream|versions)$/.test(normalized)
+    || /^\/api\/bo\/policies\/specialty\/(?:purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/subscriptions(?:\/[0-9a-f-]{36}\/(?:activate|renew|supersede|cancel|neutralize|service-grants|pauses|renewal-grace|projected-completion))?$/.test(normalized)
     || /^\/api\/bo\/billing\/(?:product-plans(?:\/[0-9a-f-]{36}\/configure)?|sales|bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?|transactions\/[0-9a-f-]{36}\/void)$/.test(normalized)
     || /^\/api\/bo\/subscription-pauses\/[0-9a-f-]{36}\/cancel$/.test(normalized)

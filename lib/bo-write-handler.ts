@@ -56,6 +56,19 @@ const BILLING_SALE_PATH = "billing/sales";
 const BILLING_TRANSACTION_PATH = /^billing\/bills\/[0-9a-f-]{36}\/transactions$/;
 const BILLING_BILL_VOID_PATH = /^billing\/bills\/[0-9a-f-]{36}\/void$/;
 const BILLING_TRANSACTION_VOID_PATH = /^billing\/transactions\/[0-9a-f-]{36}\/void$/;
+const SPECIALTY_FAMILY_CREATE_PATH = "catalog/specialty-families";
+const SPECIALTY_MODULE_CREATE_PATH = "catalog/specialty-modules";
+const SPECIALTY_OFFER_CREATE_PATH = "specialty/offers";
+const SPECIALTY_OFFER_CONFIG_PATH = /^specialty\/offers\/([0-9a-f-]{36})\/configure$/;
+const SPECIALTY_RELIC_CREATE_PATH = "specialty/relics";
+const SPECIALTY_REWARD_CREATE_PATH = "specialty/rewards";
+const SPECIALTY_PURCHASE_EVALUATE_PATH = "specialty/purchases/evaluate";
+const SPECIALTY_PURCHASE_CREATE_PATH = "specialty/purchases";
+const SPECIALTY_CLAIM_PATH = /^specialty\/allocations\/[0-9a-f-]{36}\/claims$/;
+const SPECIALTY_COMPLETE_PATH = /^specialty\/allocations\/[0-9a-f-]{36}\/complete$/;
+const SPECIALTY_PHYSICAL_FULFILL_PATH = /^specialty\/physical-rewards\/[0-9a-f-]{36}\/fulfill$/;
+const SPECIALTY_POLICY_VERSION = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/versions$/;
+const SPECIALTY_POLICY_PUBLISH = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/versions\/[0-9a-f-]{36}\/publish$/;
 const SUBSCRIPTION_CREATE_PATH = "subscriptions";
 const SUBSCRIPTION_COMMAND_PATH = /^subscriptions\/[0-9a-f-]{36}\/(activate|renew|supersede|cancel|neutralize|service-grants|pauses|renewal-grace)$/;
 const SUBSCRIPTION_NEUTRALIZE_PATH = /^subscriptions\/[0-9a-f-]{36}\/neutralize$/;
@@ -98,9 +111,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-
-    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
-
+    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -120,9 +131,14 @@ export async function handleBoWriteRequest(
     }
 
     const billingPlanConfig = BILLING_PLAN_CONFIG_PATH.exec(path);
+    const specialtyOfferConfig = SPECIALTY_OFFER_CONFIG_PATH.exec(path);
     const coreRequest: BoAccessRequest = billingPlanConfig ? {
       method: "PATCH",
       path: `billing/product-plans/${billingPlanConfig[1]}`,
+      body,
+    } : specialtyOfferConfig ? {
+      method: "PATCH",
+      path: `specialty/offers/${specialtyOfferConfig[1]}`,
       body,
     } : {
       method: request.method,
@@ -231,6 +247,19 @@ export function isAllowedPostPath(path: string): boolean {
     || BILLING_TRANSACTION_PATH.test(path)
     || BILLING_BILL_VOID_PATH.test(path)
     || BILLING_TRANSACTION_VOID_PATH.test(path)
+    || path === SPECIALTY_FAMILY_CREATE_PATH
+    || path === SPECIALTY_MODULE_CREATE_PATH
+    || path === SPECIALTY_OFFER_CREATE_PATH
+    || SPECIALTY_OFFER_CONFIG_PATH.test(path)
+    || path === SPECIALTY_RELIC_CREATE_PATH
+    || path === SPECIALTY_REWARD_CREATE_PATH
+    || path === SPECIALTY_PURCHASE_EVALUATE_PATH
+    || path === SPECIALTY_PURCHASE_CREATE_PATH
+    || SPECIALTY_CLAIM_PATH.test(path)
+    || SPECIALTY_COMPLETE_PATH.test(path)
+    || SPECIALTY_PHYSICAL_FULFILL_PATH.test(path)
+    || SPECIALTY_POLICY_VERSION.test(path)
+    || SPECIALTY_POLICY_PUBLISH.test(path)
     || WEB_CMS_WRITE.test(path);
 }
 

@@ -13,6 +13,8 @@ const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/projected-completion$/;
 const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
+const SPECIALTY_STUDENT_READ = /^specialty\/students\/[0-9a-f-]{36}$/;
+const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(effective|stream)$/;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -53,6 +55,8 @@ export function isStaffRegistrationProtectedReadPath(path: string): boolean {
 export function isOperationalReadPath(path: string): boolean {
   return path === "billing/product-plans"
     || BILLING_BILL_READ.test(path)
+    || path === "specialty/catalog"
+    || SPECIALTY_STUDENT_READ.test(path)
     || path === "centers"
     || path === "acquisition/intents"
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
@@ -99,6 +103,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "open-studio/learners"
     || path === "open-studio/passes"
     || DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path)
+    || SPECIALTY_POLICY_READ.test(path)
     || OPEN_STUDIO_POLICY_READ.test(path)
     || WORKFORCE_POLICY_READ.test(path)
     || /^open-studio\/passes\/[0-9a-f-]{36}\/claim-eligibility$/.test(path)
@@ -172,6 +177,10 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     }
     return Object.keys(body).length ? body : undefined;
   }
+  if (path === "specialty/catalog") {
+    const pathProgramId = url.searchParams.get("pathProgramId")?.trim();
+    return pathProgramId ? { pathProgramId } : undefined;
+  }
   if (path === "access/audit") {
     const limit = url.searchParams.get("limit");
     return limit ? { limit: Number(limit) } : undefined;
@@ -193,7 +202,7 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     listingId: url.searchParams.get("listingId"), participantMode: url.searchParams.get("participantMode"),
     studentProfileId: url.searchParams.get("studentProfileId"), effectiveAt: url.searchParams.get("effectiveAt"),
   };
-  if (DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path) || OPEN_STUDIO_POLICY_READ.test(path) || WORKFORCE_POLICY_READ.test(path)) {
+  if (DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path) || SPECIALTY_POLICY_READ.test(path) || OPEN_STUDIO_POLICY_READ.test(path) || WORKFORCE_POLICY_READ.test(path)) {
     const targetType = url.searchParams.get("targetType");
     const targetId = url.searchParams.get("targetId");
     return {
