@@ -32,7 +32,7 @@ const ARRIVAL_HANDOFF_MS = 1800;
 const DEPARTURE_TRANSITION_MS = 1200;
 const DEPARTURE_PERFORMANCE_MS = 5200;
 
-export function ReceptionTv() {
+export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fixedCenterId?: string; apiBase?: string } = {}) {
   const [centerId, setCenterId] = useState("");
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
@@ -50,21 +50,21 @@ export function ReceptionTv() {
   const [arrivalHandoffTarget, setArrivalHandoffTarget] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
 
   useEffect(() => {
-    const query = new URLSearchParams(location.search).get("centerId")?.trim() ?? "";
-    const saved = localStorage.getItem(CENTER_STORAGE)?.trim() ?? "";
+    const query = fixedCenterId?.trim() || new URLSearchParams(location.search).get("centerId")?.trim() || "";
+    const saved = fixedCenterId ? "" : localStorage.getItem(CENTER_STORAGE)?.trim() ?? "";
     const value = query || saved;
     if (!value) return;
     setCenterId(value);
     setDraft(value);
-    if (query) localStorage.setItem(CENTER_STORAGE, query);
-  }, []);
+    if (query && !fixedCenterId) localStorage.setItem(CENTER_STORAGE, query);
+  }, [fixedCenterId]);
   const pollHouse = useCallback(async () => {
     if (!centerId || housePollInFlight.current) return;
     housePollInFlight.current = true;
     const generation = houseGeneration.current;
     try {
       if (!wasConnected.current) {
-        const response = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const response = await fetch(`${apiBase}/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
         const json = await response.json() as { data?: unknown };
         if (!response.ok || !json.data) throw new Error("offline");
         const snapshot = parsePresenceSnapshot(json.data);
@@ -82,7 +82,7 @@ export function ReceptionTv() {
         wasConnected.current = true;
         return;
       }
-      const response = await fetch(`/api/pinoria-tv/events?centerId=${encodeURIComponent(centerId)}&after=${cursor.current}&t=${Date.now()}`, { cache: "no-store" });
+      const response = await fetch(`${apiBase}/events?centerId=${encodeURIComponent(centerId)}&after=${cursor.current}&t=${Date.now()}`, { cache: "no-store" });
       const json = await response.json() as { data?: unknown };
       if (!response.ok || !json.data) throw new Error("offline");
       if (generation !== houseGeneration.current) return;
@@ -109,7 +109,7 @@ export function ReceptionTv() {
         enqueuePresenceEvents(unseen.events.filter((event): event is PresenceEvent => event.kind === "PRESENCE_EVENT"));
       }
       if (Date.now() - houseSnapshotRefreshedAt.current >= 1500) {
-        const snapshotResponse = await fetch(`/api/pinoria-tv/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const snapshotResponse = await fetch(`${apiBase}/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
         const snapshotJson = await snapshotResponse.json() as { data?: unknown };
         if (!snapshotResponse.ok || !snapshotJson.data) throw new Error("offline");
         if (generation !== houseGeneration.current) return;
@@ -131,7 +131,7 @@ export function ReceptionTv() {
     } finally {
       if (generation === houseGeneration.current) housePollInFlight.current = false;
     }
-  }, [centerId]);
+  }, [apiBase, centerId]);
   function enqueuePresenceEvents(events: PresenceEvent[]) {
     setScenes((queue) => [
       ...queue,
@@ -174,14 +174,14 @@ export function ReceptionTv() {
     if (!centerId || presentationBusy.current || presentation || scenes.length > 0) return;
     presentationBusy.current = true;
     try {
-      const claimed = await claimPresentation(centerId);
+      const claimed = await claimPresentation(centerId, apiBase);
       if (claimed) setPresentation(claimed);
     } catch {
       // House presence remains usable if the Wish relay is temporarily unavailable.
     } finally {
       presentationBusy.current = false;
     }
-  }, [centerId, scenes.length, presentation]);
+  }, [apiBase, centerId, scenes.length, presentation]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -256,7 +256,7 @@ export function ReceptionTv() {
     let timer = 0;
 
     const finish = async () => {      try {
-        await completePresentation(centerId, presentationId);
+        await completePresentation(centerId, presentationId, apiBase);
         if (cancelled) return;
         setPresentation((current) => current?.id === presentationId ? null : current);
       } catch {
@@ -274,7 +274,7 @@ export function ReceptionTv() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [centerId, presentation]);
+  }, [apiBase, centerId, presentation]);
 
   function saveCenter() {
     const value = draft.trim();

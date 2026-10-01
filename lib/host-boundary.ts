@@ -61,6 +61,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/subscriptions",
     "/bo/sales/leads",
     "/bo/open-studio",
+    "/bo/tvs",
     "/bo/delivery-activation",
     "/bo/calendar",
     "/bo/running-classes",
@@ -84,6 +85,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-auth/logout",
     "/api/staff-auth/status",
     "/api/bo/context",
+    "/api/bo/tv/displays",
+    "/api/bo/tv/devices",
     "/api/bo/pinoria/effects/catalog",
     "/api/bo/learners",
     "/api/bo/identity/parents",
@@ -159,6 +162,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/drafts)?$/.test(normalized)
     || /^\/api\/bo\/practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/.test(normalized)
+    || /^\/api\/bo\/tv\/devices\/[0-9a-f-]{36}\/update$/.test(normalized)
     || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}(?:\/(?:duplicate|update|archive))?$/.test(normalized)
     || /^\/api\/bo\/access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/.test(normalized)
     || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}(?:\/(?:status|pinoria|private(?:\/documents\/[0-9a-f-]{36})?))?$/.test(normalized)
@@ -205,7 +209,7 @@ export function requiresTosStaffSession(host: string, pathname: string): boolean
   if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;
-  return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/training", "/open-studio", "/pinoria", "/pinoria-tv", "/timesheet", "/check-in", "/info"]
+  return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/training", "/open-studio", "/pinoria", "/pinoria-tv", "/tv", "/timesheet", "/check-in", "/info"]
     .some((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
 }
 

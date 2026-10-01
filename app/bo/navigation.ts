@@ -28,6 +28,7 @@ export const boNavigation: BoNavGroup[] = [
     items: [
       { href: "/bo/sales/leads", label: "Leads" },
       { href: "/bo/open-studio", label: "Open Studio" },
+      { href: "/bo/tvs", label: "TVs" },
     ],
   },
   {
