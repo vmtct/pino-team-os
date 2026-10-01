@@ -5,6 +5,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
+import { SpecialtyWorkspace } from "./SpecialtyWorkspace";
 import styles from "./bo-subscriptions.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -229,6 +230,8 @@ function CommercialWorkspace(props: {
 
     <BillingWorkspace lifecycle={data} paths={props.catalog.paths} classes={props.catalog.classes} onChanged={props.onChanged}
       replayState={props.billingReplay} setReplayState={props.setBillingReplay} />
+
+    <SpecialtyWorkspace lifecycle={data} paths={props.catalog.paths} blocked={props.blocked} onChanged={props.onChanged} />
 
     <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
       <div className={styles.sectionHead}><div><span>Manual repair only</span><h3>Tạo Subscription thủ công</h3></div><small>New registrations phải dùng Product Plan + exact cadence placement phía trên</small></div>
