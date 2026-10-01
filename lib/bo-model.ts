@@ -290,6 +290,10 @@ export interface BoStaffRegistrationRequest {
   version: number;
 }
 
+export type BoStaffRegistrationPinoriaIdentity =
+  | { mode: "CREATE_STAFF_ONLY_PERSON" }
+  | { mode: "LINK_EXISTING_STUDENT"; studentProfileId: string };
+
 export interface BoStaffRegistrationApprovalResult {
   registrationRequestId: string;
   status: "APPROVED";
