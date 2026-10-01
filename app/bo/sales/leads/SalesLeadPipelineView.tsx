@@ -70,7 +70,7 @@ export function SalesLeadPipelineView() {
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("vi");
     if (!term) return rows;
-    return rows.filter((row) => `${row.phone} ${row.sourceBrand} ${row.intentKind}`.toLocaleLowerCase("vi").includes(term));
+    return rows.filter((row) => `${row.phone ?? "pancake"} ${row.sourceBrand} ${row.sourceSurface} ${row.intentKind}`.toLocaleLowerCase("vi").includes(term));
   }, [query, rows]);
   async function executeAttempt(attempt: CommandAttempt, intentId: string) {
     if (commandState.busy) return;
@@ -126,7 +126,7 @@ export function SalesLeadPipelineView() {
             <button key={row.id} type="button" className={`${styles.leadCard} ${selectedId === row.id ? styles.leadCardActive : ""}`} onClick={() => {
               if (!blocked) { selectionToken.current += 1; setSelectedId(row.id); setCommandState({ busy: null, notice: null, error: null }); }
             }} disabled={blocked}>
-              <div><strong>{row.phone}</strong><Status status={row.status} /></div>
+              <div><strong>{leadLabel(row)}</strong><Status status={row.status} /></div>
               <span>{sourceLabel(row.sourceBrand)} · {intentLabel(row.intentKind)}</span>
               <small>{formatTime(row.createdAt)}</small>
             </button>
@@ -139,7 +139,7 @@ export function SalesLeadPipelineView() {
           {detail?.state === "error" ? <State text={detail.message} error /> : null}
           {intent ? <>
             <div className={styles.detailHead}>
-              <div><span>Lead</span><h2>{intent.phone}</h2></div>
+              <div><span>Lead</span><h2>{leadLabel(intent)}</h2></div>
               <Status status={intent.status} />
             </div>
             <div className={styles.facts}>
@@ -207,6 +207,10 @@ function Status({ status }: { status: BoAcquisitionIntentStatus }) {
 }
 function statusLabel(status: BoAcquisitionIntentStatus) {
   return ({ SUBMITTED: "Mới", CONTACTED: "Đã liên hệ", CONTACT_VERIFIED: "Đã xác minh", CLOSED: "Đã đóng" } as const)[status];
+}
+function leadLabel(intent: BoAcquisitionIntent) {
+  if (intent.phone) return intent.phone;
+  return intent.sourceSurface === "PANCAKE" ? "Pancake Lead" : "Lead chưa có số điện thoại";
 }
 function sourceLabel(source: BoAcquisitionIntent["sourceBrand"]) { return source === "PINO_HOUSE" ? "PINO House" : "Toppi"; }
 function intentLabel(kind: BoAcquisitionIntent["intentKind"]) { return ({ OPEN_STUDIO: "Open Studio", PROGRAM_INTEREST: "Quan tâm chương trình", GENERAL_INQUIRY: "Tư vấn chung" } as const)[kind]; }

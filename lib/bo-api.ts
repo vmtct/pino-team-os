@@ -113,6 +113,7 @@ export type BoPancakeChannel = {
   id: string;
   providerPageId: string;
   channel: string;
+  sourceBrand: "PINO_HOUSE" | "TOPPI";
   displayName: string;
   enabled: boolean;
   discoveredBy: "MANUAL" | "PANCAKE_EVENT";
@@ -124,9 +125,10 @@ export type BoPancakeChannel = {
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
-  phone: string;
+  phone: string | null;
+  leadContactType: "PHONE" | "EXTERNAL_IDENTITY";
   sourceBrand: "PINO_HOUSE" | "TOPPI";
-  sourceSurface: "PINO_HOUSE_WEB" | "TOPPI_WEB" | "STAFF";
+  sourceSurface: "PINO_HOUSE_WEB" | "TOPPI_WEB" | "STAFF" | "PANCAKE";
   intentKind: "OPEN_STUDIO" | "PROGRAM_INTEREST" | "GENERAL_INQUIRY";
   childAge: number | null;
   provenance: Record<string, unknown>;
@@ -284,6 +286,8 @@ export const boApi = {
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
   pancakeSettings: () => readOne<BoPancakeSettings>("acquisition/pancake/settings"),
   pancakeChannels: () => read<BoPancakeChannel>("acquisition/pancake/channels"),
+  registerPancakeChannel: (body: { providerPageId: string; channel: string; sourceBrand: "PINO_HOUSE" | "TOPPI"; displayName: string; enabled?: boolean }) =>
+    write<BoPancakeChannel>("acquisition/pancake/channels", body, crypto.randomUUID()),
   updatePancakeSettings: (body: { autoDiscoverChannels: boolean; expectedVersion: number }) => write<BoPancakeSettings>("acquisition/pancake/settings", body, crypto.randomUUID()),
   configurePancakeChannel: (channelId: string, body: { displayName: string; enabled: boolean; expectedVersion: number }) => write<BoPancakeChannel>(`acquisition/pancake/channels/${encodeURIComponent(channelId)}/configure`, body, crypto.randomUUID()),
   markAcquisitionContacted: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACTED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/contacted`, { expectedVersion }, idempotencyKey),

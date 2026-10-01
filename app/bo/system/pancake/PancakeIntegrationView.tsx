@@ -9,6 +9,11 @@ type Load = { state: "loading" } | { state: "error"; message: string } | { state
 export function PancakeIntegrationView() {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [busy, setBusy] = useState(false);
+  const [providerPageId, setProviderPageId] = useState("");
+  const [channel, setChannel] = useState("FACEBOOK");
+  const [sourceBrand, setSourceBrand] = useState<"PINO_HOUSE" | "TOPPI">("PINO_HOUSE");
+  const [displayName, setDisplayName] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function refresh() {
     const [settings, channels] = await Promise.all([boApi.pancakeSettings(), boApi.pancakeChannels()]);
@@ -36,6 +41,28 @@ export function PancakeIntegrationView() {
     }
   }
 
+  async function addChannel() {
+    if (busy || !providerPageId.trim() || !channel.trim() || !displayName.trim()) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      await boApi.registerPancakeChannel({
+        providerPageId: providerPageId.trim(),
+        channel: channel.trim().toUpperCase(),
+        sourceBrand,
+        displayName: displayName.trim(),
+        enabled: true,
+      });
+      setProviderPageId("");
+      setDisplayName("");
+      await refresh();
+    } catch (error) {
+      setFormError(message(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div><span>Integration · PLT-LEAD</span><h1>Pancake</h1><p>Channel dùng stable <code>page_id</code>. Chat routing dùng exact <code>conversation_link</code> Pancake cung cấp; không cần cấu hình locator.</p></div>
@@ -46,16 +73,28 @@ export function PancakeIntegrationView() {
     {load.state === "error" ? <div className={styles.error}>{load.message}<button type="button" onClick={() => { setLoad({ state: "loading" }); void refresh().catch((error) => setLoad({ state: "error", message: message(error) })); }}>Thử lại</button></div> : null}
     {load.state === "ready" ? <>
       <section className={styles.setting}>
-        <div><strong>Tự động phát hiện channel mới</strong><p>Event đáng tin cậy có <code>page_id</code> mới sẽ tạo Channel record tự động. Tắt để fail closed cho channel chưa cấu hình.</p></div>
+        <div><strong>Tự động phát hiện channel mới</strong><p>Event nội bộ đáng tin cậy có <code>page_id</code> mới có thể tạo Channel record. Public inbound webhook vẫn chỉ nhận Channel đã tồn tại và đang Enabled.</p></div>
         <button type="button" className={load.settings.autoDiscoverChannels ? styles.on : styles.off} disabled={busy} onClick={() => void toggleAutoDiscover()}>
           {load.settings.autoDiscoverChannels ? "Đang bật" : "Đang tắt"}
         </button>
       </section>
 
+      <section className={styles.addChannel}>
+        <div className={styles.sectionHead}><div><strong>Thêm Channel</strong></div><p>Dùng stable Pancake <code>page_id</code>. Không nhập username/phone/locator.</p></div>
+        <div className={styles.addGrid}>
+          <label>Channel ID<input value={providerPageId} onChange={(event) => setProviderPageId(event.target.value)} placeholder="628595… hoặc pzl_…" maxLength={160} /></label>
+          <label>Channel<input value={channel} onChange={(event) => setChannel(event.target.value)} placeholder="FACEBOOK / ZALO" maxLength={40} /></label>
+          <label>Brand<select value={sourceBrand} onChange={(event) => setSourceBrand(event.target.value as "PINO_HOUSE" | "TOPPI")}><option value="PINO_HOUSE">PINO House</option><option value="TOPPI">Toppi</option></select></label>
+          <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="PINO Facebook" maxLength={120} /></label>
+          <button type="button" onClick={() => void addChannel()} disabled={busy || !providerPageId.trim() || !channel.trim() || !displayName.trim()}>{busy ? "Đang thêm…" : "Thêm Channel"}</button>
+        </div>
+        {formError ? <p className={styles.formError}>{formError}</p> : null}
+      </section>
+
       <section className={styles.channels}>
         <div className={styles.sectionHead}><div><strong>Channels</strong><span>{load.channels.length}</span></div><p>Channel ID là provider identity bất biến; chỉ tên hiển thị và trạng thái vận hành được chỉnh.</p></div>
         {load.channels.length === 0 ? <div className={styles.state}>Chưa có Pancake Channel nào được materialize.</div> : null}
-        {load.channels.map((channel) => <ChannelEditor key={channel.id} channel={channel} onSaved={refresh} />)}
+        {load.channels.map((item) => <ChannelEditor key={item.id} channel={item} onSaved={refresh} />)}
       </section>
     </> : null}
   </main>;
@@ -80,7 +119,7 @@ function ChannelEditor({ channel, onSaved }: { channel: BoPancakeChannel; onSave
 
   return <article className={styles.channel}>
     <div className={styles.channelMeta}>
-      <div><span>{channel.channel}</span><strong>{channel.displayName}</strong></div>
+      <div><span>{channel.channel} · {channel.sourceBrand === "PINO_HOUSE" ? "PINO House" : "Toppi"}</span><strong>{channel.displayName}</strong></div>
       <small>{channel.discoveredBy === "PANCAKE_EVENT" ? "Auto-discovered" : "Manual"}</small>
     </div>
     <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={120} /></label>

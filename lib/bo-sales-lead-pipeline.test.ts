@@ -68,6 +68,13 @@ test("PLT-LEAD Pancake forwards settings/channels reads and bounded config write
     body: JSON.stringify({ autoDiscoverChannels: false, expectedVersion: 2 }),
   });
   assert.equal((await handleBoWriteRequest(settingsWrite, env(binding), "acquisition/pancake/settings")).status, 200);
+
+  const registerWrite = new Request("https://bo.pinohouse.art/api/bo/acquisition/pancake/channels", {
+    method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "pancake-register-1" },
+    body: JSON.stringify({ providerPageId: "628595210334614", channel: "FACEBOOK", sourceBrand: "PINO_HOUSE", displayName: "PINO Facebook", enabled: true }),
+  });
+  assert.equal((await handleBoWriteRequest(registerWrite, env(binding), "acquisition/pancake/channels")).status, 200);
+
   const channelId = "0198d050-56c1-7ac5-b9ab-b0e45d912346";
   const channelWrite = new Request(`https://bo.pinohouse.art/api/bo/acquisition/pancake/channels/${channelId}/configure`, {
     method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "pancake-channel-1" },
@@ -78,6 +85,7 @@ test("PLT-LEAD Pancake forwards settings/channels reads and bounded config write
     { method: "GET", path: "acquisition/pancake/settings" },
     { method: "GET", path: "acquisition/pancake/channels" },
     { method: "POST", path: "acquisition/pancake/settings", body: { autoDiscoverChannels: false, expectedVersion: 2 }, idempotencyKey: "pancake-settings-1" },
+    { method: "POST", path: "acquisition/pancake/channels", body: { providerPageId: "628595210334614", channel: "FACEBOOK", sourceBrand: "PINO_HOUSE", displayName: "PINO Facebook", enabled: true }, idempotencyKey: "pancake-register-1" },
     { method: "POST", path: `acquisition/pancake/channels/${channelId}/configure`, body: { displayName: "PINO Facebook", enabled: true, expectedVersion: 1 }, idempotencyKey: "pancake-channel-1" },
   ]);
 });
@@ -102,9 +110,18 @@ test("PLT-LEAD Pancake renders exact safe provider chat links and no locator con
   assert.match(leadView, /Chat trên Pancake/);
   assert.match(integrationView, /autoDiscoverChannels/);
   assert.match(integrationView, /providerPageId/);
+  assert.match(integrationView, /registerPancakeChannel/);
+  assert.match(integrationView, /sourceBrand/);
+  assert.match(integrationView, /Không nhập username\/phone\/locator/);
+  assert.match(leadView, /leadLabel\(row\)/);
+  assert.match(leadView, /Pancake Lead/);
+  assert.match(api, /phone: string \| null/);
+  assert.match(api, /leadContactType: "PHONE" \| "EXTERNAL_IDENTITY"/);
+  assert.match(api, /sourceSurface: "PINO_HOUSE_WEB" \| "TOPPI_WEB" \| "STAFF" \| "PANCAKE"/);
   assert.doesNotMatch(integrationView, /channel\.locator|setLocator|value=\{locator\}|name="locator"/i);
   assert.match(api, /pancakeSettings:/);
   assert.match(api, /pancakeChannels:/);
+  assert.match(api, /registerPancakeChannel:/);
   assert.match(navigation, /href: "\/bo\/system\/pancake", label: "Pancake"/);
   assert.doesNotMatch(leadView, /messageBody|chatHistory|conversation\.message/i);
 });
