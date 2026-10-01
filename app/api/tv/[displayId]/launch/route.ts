@@ -1,7 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { staffPinSession } from "@/lib/local-staff-session";
+import { staffPasswordSession } from "@/lib/local-staff-session";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "@/lib/team-auth";
-import { callTosLearningCoreWithCredential, callTosLearningCoreWithStaffPin, type TosLearningCoreBinding } from "@/lib/tos-learning-core";
+import { callTosLearningCoreWithCredential, callTosLearningCoreWithStaffPassword, type TosLearningCoreBinding } from "@/lib/tos-learning-core";
 import { TV_RUNTIME_COOKIE } from "@/lib/tv-runtime-core";
 
 export const runtime="nodejs"; export const dynamic="force-dynamic";
@@ -14,9 +14,9 @@ export async function POST(request:Request,context:Context){
     const {displayId}=await context.params;
     const body=await request.json().catch(()=>({})) as Record<string,unknown>;
     const coreRequest={method:"POST",path:`/tv/displays/${displayId}/launch`,body:{...(typeof body.deviceId==="string"?{deviceId:body.deviceId}:{})}};
-    const pin=staffPinSession(request);
-    const result=pin
-      ?await callTosLearningCoreWithStaffPin(env.PINO_TOS_LEARNING_CORE,coreRequest,pin)
+    const passwordSession=staffPasswordSession(request);
+    const result=passwordSession
+      ?await callTosLearningCoreWithStaffPassword(env.PINO_TOS_LEARNING_CORE,coreRequest,passwordSession)
       :await callTosLearningCoreWithCredential(env.PINO_TOS_LEARNING_CORE,coreRequest,await teamCredential(request,env,"TOS"));
     if(result.status!==201)return Response.json(result.body,{status:result.status,headers:{"cache-control":"no-store","x-request-id":result.requestId}});
     const envelope=result.body as {data?:{runtimeToken?:string;session?:unknown}};
