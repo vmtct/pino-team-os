@@ -11,6 +11,8 @@ import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
 import { CompanionRitualScene, COMPANION_RITUAL_SCENE_MS } from "./companion-ritual-scene";
+import { OnboardingCeremonyScene, OnboardingPreviewScene, ONBOARDING_CEREMONY_SCENE_MS } from "./onboarding-ceremony-scene";
+import type { OnboardingPreview } from "./onboarding-ceremony-types";
 import styles from "./reception-tv.module.css";
 
 
@@ -39,6 +41,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const [inside, setInside] = useState<PresenceActor[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
+  const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
   const cursor = useRef(0);
   const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
@@ -170,8 +173,29 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       housePollInFlight.current = false;
     };
   }, [centerId, pollHouse]);
+  const pollOnboardingPreview = useCallback(async () => {
+    if (!centerId) return;
+    try {
+      const response = await fetch(`${apiBase}/onboarding-preview?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+      const json = await response.json() as { data?: OnboardingPreview | null };
+      if (!response.ok) throw new Error("preview unavailable");
+      const next = json.data ?? null;
+      setOnboardingPreview(next);
+      if (next) setScenes([]);
+    } catch {
+      setOnboardingPreview(null);
+    }
+  }, [apiBase, centerId]);
+
+  useEffect(() => {
+    if (!centerId) return;
+    void pollOnboardingPreview();
+    const timer = window.setInterval(() => void pollOnboardingPreview(), 750);
+    return () => window.clearInterval(timer);
+  }, [centerId, pollOnboardingPreview]);
+
   const pollPresentation = useCallback(async () => {
-    if (!centerId || presentationBusy.current || presentation || scenes.length > 0) return;
+    if (!centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
     presentationBusy.current = true;
     try {
       const claimed = await claimPresentation(centerId, apiBase);
@@ -181,7 +205,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     } finally {
       presentationBusy.current = false;
     }
-  }, [apiBase, centerId, scenes.length, presentation]);
+  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -268,7 +292,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       ? wishRevealSceneMs(presentation.projection)
       : presentation.kind === "EGG_HATCH"
         ? EGG_HATCH_SCENE_MS
-        : COMPANION_RITUAL_SCENE_MS;
+        : presentation.kind === "ONBOARDING_CEREMONY"
+          ? ONBOARDING_CEREMONY_SCENE_MS
+          : COMPANION_RITUAL_SCENE_MS;
     timer = window.setTimeout(() => void finish(), duration);
     return () => {
       cancelled = true;
@@ -289,6 +315,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setInside([]);
     setScenes([]);
     setPresentation(null);
+    setOnboardingPreview(null);
     setCenterId(value);
   }
 
@@ -303,6 +330,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setInside([]);
     setScenes([]);
     setPresentation(null);
+    setOnboardingPreview(null);
     setCenterId("");
   }
   const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: actor.displayName, config: actor.character, wardRender: actor.wardRender })), [inside]);
@@ -319,7 +347,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     </main>;
   }
 
-  const visualScene = scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff") ? scene : null;
+  const visualScene = !onboardingPreview && (scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff")) ? scene : null;
   const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.pinoriaSelfId);
   const departingId = scene?.kind === "departure" && scene.phase === "transition"
     && inside.some((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId && actorHasSource(actor, scene.sourceType, scene.sourceId))
@@ -332,7 +360,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     "--arrival-target-width": arrivalHandoffTarget.width,
     "--arrival-target-height": arrivalHandoffTarget.height,
   } as CSSProperties) : undefined;
-  const active = Boolean(visualScene || presentation);
+  const active = Boolean(visualScene || presentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
   return <main ref={stageRef} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
@@ -369,7 +397,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
         <p>{visualScene.kind === "arrival" ? "Hôm nay Mori đi cùng mình!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
-    {!scene && !presentation ? <section className={styles.idle}>
+    {!scene && !presentation && !onboardingPreview ? <section className={styles.idle}>
       <div className={styles.sigil}>P</div>
       <span>PINORIA HOUSE IS ALIVE</span>
       <h1>Chào mừng đến PINO House</h1>
@@ -379,7 +407,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
     {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
     {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={presentation.projection} /> : null}
-    {!scene && !presentation && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
+    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene ceremony={presentation.projection} /> : null}
+    {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
+    {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
 
     <footer>
       <span>{new Date().toLocaleDateString("vi-VN", {

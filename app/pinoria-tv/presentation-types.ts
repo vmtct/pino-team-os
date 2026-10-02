@@ -1,5 +1,6 @@
 import type { PinoriaCharacterConfig } from "./layered-character";
 import type { WishRevealProjection } from "./wish-reveal-types";
+import type { OnboardingCeremonyProjection } from "./onboarding-ceremony-types";
 
 export type EggHatchProjection = {
   schemaVersion: 1;
@@ -63,5 +64,11 @@ export type PinoriaPresentation =
       id: string;
       kind: "COMPANION_RITUAL";
       projection: CompanionRitualProjection;
+      claimedAt: string;
+    }
+  | {
+      id: string;
+      kind: "ONBOARDING_CEREMONY";
+      projection: OnboardingCeremonyProjection;
       claimedAt: string;
     };

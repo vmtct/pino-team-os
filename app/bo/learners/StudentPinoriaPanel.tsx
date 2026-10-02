@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
-import type { BoStudentPinoriaSummary, BoCompanionFeedUnavailableReason } from "@/lib/bo-model";
+import type { BoStudentPinoriaSummary, BoCompanionFeedUnavailableReason, BoPinoriaOnboardingStatus } from "@/lib/bo-model";
 import styles from "./bo-learners.module.css";
 
 type Load = { state:"loading" } | { state:"error"; message:string } | { state:"ready"; data:BoStudentPinoriaSummary };
 type Companion = BoStudentPinoriaSummary["companions"][number];
+type OnboardingLoad = {state:"loading"} | {state:"ready";data:BoPinoriaOnboardingStatus} | {state:"error";message:string};
 
 export function StudentPinoriaPanel({ studentId }: { studentId:string }) {
   const [load,setLoad]=useState<Load>({state:"loading"});
+  const [onboarding,setOnboarding]=useState<OnboardingLoad>({state:"loading"});
   const [confirming,setConfirming]=useState<Companion|null>(null);
   const [busy,setBusy]=useState<string|null>(null);
   const [notice,setNotice]=useState("");
@@ -18,13 +20,36 @@ export function StudentPinoriaPanel({ studentId }: { studentId:string }) {
   const feedGeneration=useRef(0);
 
   const refresh=useCallback(async (active:()=>boolean=()=>true)=>{
-    try { const data=await boApi.learnerPinoria(studentId); if(active())setLoad({state:"ready",data}); }
+    try {
+      const data=await boApi.learnerPinoria(studentId);
+      if(active())setLoad({state:"ready",data});
+      try {
+        const status=await boApi.studentPinoriaOnboarding(studentId,data.operationContext.openVisit?.centerId);
+        if(active())setOnboarding({state:"ready",data:status});
+      } catch(error) { if(active())setOnboarding({state:"error",message:message(error)}); }
+    }
     catch(error){if(active())setLoad({state:"error",message:message(error)});}
   },[studentId]);
   useEffect(()=>{
-    let active=true; studentGeneration.current+=1;feedGeneration.current+=1;setLoad({state:"loading"});setConfirming(null);setBusy(null);setNotice("");
+    let active=true; studentGeneration.current+=1;feedGeneration.current+=1;setLoad({state:"loading"});setOnboarding({state:"loading"});setConfirming(null);setBusy(null);setNotice("");
     void refresh(()=>active); return()=>{active=false;studentGeneration.current+=1;feedGeneration.current+=1;};
   },[refresh]);
+
+  async function toggleOnboarding(){
+    if(onboarding.state!=="ready"||load.state!=="ready")return;
+    const current=onboarding.data,centerId=load.data.operationContext.openVisit?.centerId;
+    if(!current.available&&current.characterId&&current.history.some(item=>item.status==="CONSUMED")){
+      if(!confirm("Ceremony này được thiết kế để diễn ra một lần. Mở lại sẽ tạo attempt mới và giữ nguyên lịch sử cũ. Tiếp tục?"))return;
+    }
+    setBusy("onboarding");setNotice("");
+    try{
+      if(current.available)await boApi.revokeStudentPinoriaOnboarding(studentId,centerId);
+      else await boApi.grantStudentPinoriaOnboarding(studentId,centerId);
+      await refresh();
+      setNotice(current.available?"Đã tắt ceremony grant.":"Onboarding Ceremony đã sẵn sàng.");
+    }catch(error){setNotice(message(error));}
+    finally{setBusy(null);}
+  }
 
   async function feed(companion:Companion){
     const initiatingStudentId=studentId,studentTicket=studentGeneration.current,requestTicket=++feedGeneration.current;
@@ -47,6 +72,13 @@ export function StudentPinoriaPanel({ studentId }: { studentId:string }) {
     {notice?<div className={styles.pinoriaNotice}>{notice}</div>:null}
     {load.state==="loading"?<div className={styles.emptyInline}>Đang tải Pinoria…</div>:null}
     {load.state==="error"?<div className={styles.emptyInline}>Không tải được Pinoria · {load.message}</div>:null}
+    {onboarding.state==="loading"?<div className={styles.onboardingCard}><span>Character onboarding</span><strong>Đang tải…</strong></div>:null}
+    {onboarding.state==="error"?<div className={styles.onboardingCard}><span>Character onboarding</span><strong>Chưa khả dụng</strong><small>{onboarding.message}</small></div>:null}
+    {onboarding.state==="ready"?<div className={styles.onboardingCard} data-testid="student-pinoria-onboarding">
+      <div><span>Character onboarding</span><strong>{onboarding.data.available?"Ceremony available":onboarding.data.characterId?"Onboarded ✓":"Not completed"}</strong>
+      <small>{onboarding.data.available?`Attempt #${onboarding.data.available.attempt} · waiting for TOS ceremony`:onboarding.data.characterId?"Ceremony is intended to happen once.":"Grant once để bắt đầu journey."}</small></div>
+      <button type="button" className={styles.secondaryButton} disabled={busy==="onboarding"} onClick={()=>void toggleOnboarding()}>{busy==="onboarding"?"Đang lưu…":onboarding.data.available?"Tắt ceremony":onboarding.data.characterId?"Enable ceremony again":"Allow onboarding ceremony"}</button>
+    </div>:null}
     {load.state==="ready"?<PinoriaSummary data={load.data} busy={busy} onFeed={setConfirming}/>:null}
     {confirming&&load.state==="ready"?<FeedSheet companion={confirming} data={load.data} busy={busy===confirming.companionId} onClose={()=>{if(!busy)setConfirming(null);}} onConfirm={()=>void feed(confirming)}/>:null}
   </section>;

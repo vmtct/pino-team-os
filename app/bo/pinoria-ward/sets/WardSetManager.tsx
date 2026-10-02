@@ -13,16 +13,17 @@ type Variant={id:string;wearableId:string;displayName:string;status:Status;rende
 type Item={id:string;displayName:string;slot:string;status:Status};
 type WearableCatalog={items:Item[];variants:Variant[]};
 type WebmAsset={objectKey:string;byteSize:number;uploadedAt:string};
+type StarterSet={id:string;displayName:string;version:number;webmAssetKey:string|null;members:Array<{variantId:string;slot:string|null}>};
 type Envelope<T>={data?:T;error?:{message?:string}};
 
 async function request<T>(path:string,init?:RequestInit){const response=await fetch(`/api/bo/${path}`,{cache:"no-store",...init});const json=await response.json() as Envelope<T>;if(!response.ok||!json.data)throw new Error(json.error?.message??"Ward Set operation failed");return json.data;}
 export function WardSetManager(){
-  const[catalog,setCatalog]=useState<SetCatalog>({sets:[]}),[wearables,setWearables]=useState<WearableCatalog>({items:[],variants:[]}),[assets,setAssets]=useState<WebmAsset[]>([]);
+  const[catalog,setCatalog]=useState<SetCatalog>({sets:[]}),[wearables,setWearables]=useState<WearableCatalog>({items:[],variants:[]}),[assets,setAssets]=useState<WebmAsset[]>([]),[starterSets,setStarterSets]=useState<StarterSet[]>([]);
   const[selectedId,setSelectedId]=useState<string|null>(null),[query,setQuery]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
   const[displayName,setDisplayName]=useState(""),[webmAssetKey,setWebmAssetKey]=useState(""),[memberIds,setMemberIds]=useState<string[]>([]);
 
   async function load(){
-    try{const[setsResult,wearableResult,assetResult]=await Promise.all([request<SetCatalog>("pinoria/ward/sets"),request<WearableCatalog>("pinoria/ward/catalog"),request<{assets:WebmAsset[]}>("pinoria/ward/set-webm-assets")]);setCatalog(setsResult);setWearables(wearableResult);setAssets(assetResult.assets);setError("");}
+    try{const[setsResult,wearableResult,assetResult,starterResult]=await Promise.all([request<SetCatalog>("pinoria/ward/sets"),request<WearableCatalog>("pinoria/ward/catalog"),request<{assets:WebmAsset[]}>("pinoria/ward/set-webm-assets"),request<StarterSet[]>("pinoria/onboarding/sets")]);setCatalog(setsResult);setWearables(wearableResult);setAssets(assetResult.assets);setStarterSets(starterResult);setError("");}
     catch(cause){setError(cause instanceof Error?cause.message:"Không tải được Ward Sets");}
   }
   useEffect(()=>{void load();},[]);
@@ -33,6 +34,8 @@ export function WardSetManager(){
   async function createSet(){setBusy(true);try{await request("pinoria/ward/sets",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({key:`ward-set-${Date.now()}`,displayName:"Untitled set"})});setMessage("Đã tạo Set draft");await load();}catch(cause){setError(cause instanceof Error?cause.message:"Không tạo được Set");}finally{setBusy(false);}}
   async function save(status:Status){if(!selected)return;setBusy(true);setError("");try{let version=selected.version;const original=selected.members.map(member=>member.variantId);const changed=original.length!==memberIds.length||original.some((id,index)=>id!==memberIds[index]);if(changed){await request(`pinoria/ward/sets/${selected.id}/members`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({expectedVersion:version,variantIds:memberIds})});version+=1;}await request(`pinoria/ward/sets/${selected.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({expectedVersion:version,displayName,webmAssetKey:webmAssetKey||null,status})});setMessage(status==="ACTIVE"?"Set đã publish":"Set đã lưu");await load();}catch(cause){setError(cause instanceof Error?cause.message:"Không lưu được Set");}finally{setBusy(false);}}
   async function upload(file:File){setBusy(true);setError("");try{const form=new FormData();form.set("file",file);const result=await request<{objectKey:string}>("pinoria/ward/set-webm-assets",{method:"POST",headers:{"idempotency-key":crypto.randomUUID()},body:form});setWebmAssetKey(result.objectKey);setMessage("WEBM đã upload lên R2");await load();}catch(cause){setError(cause instanceof Error?cause.message:"Upload WEBM thất bại");}finally{setBusy(false);}}
+  async function toggleStarter(enabled:boolean){if(!selected)return;setBusy(true);setError("");try{await request(`pinoria/onboarding/sets/${selected.id}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({enabled})});setMessage(enabled?"Set đã sẵn sàng cho Onboarding Ceremony":"Đã tắt Set khỏi Onboarding Ceremony");await load();}catch(cause){setError(cause instanceof Error?cause.message:"Không đổi được Onboarding Ceremony");}finally{setBusy(false);}}
+
   const previewMembers=selected?.members.filter(member=>memberIds.includes(member.variantId))??[];
   const previewLayers=memberIds.map(id=>activeVariants.find(row=>row.variant.id===id)).filter((row):row is NonNullable<typeof row>=>Boolean(row));
   return <main className={styles.shell}>
@@ -40,8 +43,8 @@ export function WardSetManager(){
     <section className={styles.toolbar}><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search set…"/></section>
     {error?<div className={styles.notice}>{error}</div>:null}{message?<div className={styles.notice}>{message}</div>:null}
     <section className={styles.catalogPage}>
-      <div className={styles.listHead}><span>Set</span><span>Members</span><span>WEBM</span><span>Status</span></div>
-      <div>{filtered.map(set=><button key={set.id} className={styles.row} onClick={()=>openSet(set)}><span className={styles.itemCell}><i className={styles.thumb}>◫</i><b>{set.displayName}</b><small>{set.key}</small></span><span>{set.memberCount}</span><span>{set.webmAssetKey?"Configured":"Missing"}</span><span><i className={styles.status} data-status={set.status}>{set.status}</i></span></button>)}</div>
+      <div className={styles.listHead}><span>Set</span><span>Members</span><span>Motion</span><span>Status</span></div>
+      <div>{filtered.map(set=><button key={set.id} className={styles.row} onClick={()=>openSet(set)}><span className={styles.itemCell}><i className={styles.thumb}>◫</i><b>{set.displayName}</b><small>{set.key}</small></span><span>{set.memberCount}</span><span>{set.webmAssetKey?"WEBM":"Layered"}</span><span><i className={styles.status} data-status={set.status}>{set.status}</i></span></button>)}</div>
     </section>
     {selected&&<div className={styles.backdrop} onClick={()=>setSelectedId(null)}/>} 
     {selected&&<aside className={styles.peek}>
@@ -55,10 +58,17 @@ export function WardSetManager(){
         <section className={styles.section}><div className={styles.sectionHead}><h3>Fallback preview</h3><small>Stacked live from F0 layers</small></div>
           <div className={styles.stackPreview}>{previewLayers.length?previewLayers.sort((a,b)=>Number(a.variant.renderMetadata.zIndex??0)-Number(b.variant.renderMetadata.zIndex??0)).map(({variant})=>{const src=pinoriaAssetUrl(variant.assetKey);return src?<Image key={variant.id} src={src} alt="" fill sizes="720px" unoptimized draggable={false}/>:null;}):<span>No members selected</span>}</div>
         </section>
-        <section className={styles.section}><div className={styles.sectionHead}><h3>Synthesized WEBM</h3><small>R2 asset</small></div>
+        {selected.status==="ACTIVE"?<section className={styles.section} data-testid="pinoria-onboarding-set">
+          <div className={styles.sectionHead}><h3>Onboarding Ceremony</h3><small>Starter capability</small></div>
+          <div className={styles.onboardingToggle}>
+            <div><b>{starterSets.some(item=>item.id===selected.id)?"Available as starter":"Not available as starter"}</b><small>Requires ACTIVE Hair + Face + Outfit and no duplicate equip slot. WEBM is optional.</small></div>
+            <button type="button" className={starterSets.some(item=>item.id===selected.id)?styles.starterOn:styles.starterOff} disabled={busy} onClick={()=>void toggleStarter(!starterSets.some(item=>item.id===selected.id))}>{starterSets.some(item=>item.id===selected.id)?"On":"Off"}</button>
+          </div>
+        </section>:null}
+        <section className={styles.section}><div className={styles.sectionHead}><h3>Synthesized WEBM</h3><small>Optional R2 presentation asset</small></div>
           <label className={styles.field}>Choose from R2<select disabled={selected.status!=="DRAFT"} value={webmAssetKey} onChange={event=>setWebmAssetKey(event.target.value)}><option value="">No WEBM selected</option>{assets.map(asset=><option key={asset.objectKey} value={asset.objectKey}>{asset.objectKey}</option>)}</select></label>
           <label className={styles.upload}>Upload WEBM<input type="file" accept="video/webm,.webm" disabled={busy||selected.status!=="DRAFT"} onChange={event=>{const file=event.target.files?.[0];if(file)void upload(file);}}/></label>
-          <div className={styles.assetKey}>{webmAssetKey||"No WEBM selected"}</div>
+          <div className={styles.assetKey}>{webmAssetKey||"No WEBM selected · layered rendering remains canonical"}</div>
         </section>
       </div>
       <footer className={styles.actions}>{selected.status==="DRAFT"?<><button className={styles.secondary} disabled={busy} onClick={()=>void save("DRAFT")}>Save draft</button><button className={styles.publish} disabled={busy} onClick={()=>void save("ACTIVE")}>Validate & publish</button></>:selected.status==="ACTIVE"?<button className={styles.secondary} disabled={busy} onClick={()=>void save("ARCHIVED")}>Archive</button>:null}</footer>

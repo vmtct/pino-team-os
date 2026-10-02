@@ -10,7 +10,7 @@ test("Reception Attendance keeps Visit and Attendance on separate Pinoria surfac
   const attendance = readFileSync(resolve(process.cwd(), "app/pinoria/attendance/attendance-desk.tsx"), "utf8");
   assert.equal(arrival.includes("participation/settle"), false);
   assert.equal(arrival.includes("TOS_PINORIA_FOOTER"), true);
-  assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.href), ["/pinoria", "/pinoria/attendance"]);
+  assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.href), ["/pinoria", "/pinoria/onboarding", "/pinoria/attendance"]);
   assert.equal(attendance.includes("Hiện diện House ≠ Điểm danh lớp"), true);
   for (const visitMutation of ["visits/open", "check-out", "pinoria/learners/search"]) assert.equal(attendance.includes(visitMutation), false, visitMutation);
   assert.equal(attendance.includes("tosReceptionAttendanceApi.settle"), true);

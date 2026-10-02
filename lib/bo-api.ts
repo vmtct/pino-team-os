@@ -40,6 +40,8 @@ import type {
   BoPinoriaRelic,
   BoSpecialtyRewardDefinition,
   BoStudentPinoriaSummary,
+  BoPinoriaOnboardingStatus,
+  BoPinoriaOnboardingStarterSet,
   BoLearningSyllabus,
   BoLearningSyllabusDetail,
   BoLearningSyllabusDraftInput,
@@ -177,6 +179,20 @@ async function readOne<T>(path: string): Promise<T> {
   return body.data;
 }
 
+async function command<T>(method: "POST"|"PUT"|"PATCH"|"DELETE", path: string, body: unknown = {}, idempotencyKey = crypto.randomUUID()): Promise<T> {
+  const response = await fetch(`/api/bo/${path}`, {
+    method,
+    headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  let payload: { data?: T; error?: { message?: string; requestId?: string } };
+  try { payload = JSON.parse(text) as typeof payload; }
+  catch { throw new BoApiError(response.status, text.trim() || "Back Office command returned an invalid response.", response.headers.get("x-request-id"), false); }
+  if (!response.ok || payload.data === undefined) throw apiError(response, payload, "Back Office command could not be completed.");
+  return payload.data;
+}
+
 async function write<T>(path: string, body: unknown, idempotencyKey: string): Promise<T> {
   const response = await fetch(`/api/bo/${path}`, {
     method: "POST",
@@ -297,6 +313,15 @@ export const boApi = {
     write<BoStudentIntakeVoidResult>("student-intakes/" + encodeURIComponent(studentId) + "/void", body, idempotencyKey),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
+  pinoriaOnboardingSets: () => read<BoPinoriaOnboardingStarterSet>("pinoria/onboarding/sets"),
+  studentPinoriaOnboarding: (studentId: string, centerId?: string) => readOne<BoPinoriaOnboardingStatus>(`pinoria/onboarding/students/${encodeURIComponent(studentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
+  grantStudentPinoriaOnboarding: (studentId: string, centerId?: string) => command<BoPinoriaOnboardingStatus | {id:string}>("POST", `pinoria/onboarding/students/${encodeURIComponent(studentId)}/grant`, centerId ? {centerId} : {}),
+  revokeStudentPinoriaOnboarding: (studentId: string, centerId?: string) => command<BoPinoriaOnboardingStatus>("DELETE", `pinoria/onboarding/students/${encodeURIComponent(studentId)}/grant`, centerId ? {centerId} : {}),
+  staffPinoriaOnboarding: (staffMemberId: string, centerId?: string) => readOne<BoPinoriaOnboardingStatus>(`pinoria/onboarding/staff/${encodeURIComponent(staffMemberId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
+  grantStaffPinoriaOnboarding: (staffMemberId: string, centerId?: string) => command<BoPinoriaOnboardingStatus | {id:string}>("POST", `pinoria/onboarding/staff/${encodeURIComponent(staffMemberId)}/grant`, centerId ? {centerId} : {}),
+  revokeStaffPinoriaOnboarding: (staffMemberId: string, centerId?: string) => command<BoPinoriaOnboardingStatus>("DELETE", `pinoria/onboarding/staff/${encodeURIComponent(staffMemberId)}/grant`, centerId ? {centerId} : {}),
+  setPinoriaOnboardingStarterSet: (setId: string, enabled: boolean) => command<unknown>("PUT", `pinoria/onboarding/sets/${encodeURIComponent(setId)}`, {enabled}),
+
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
   billingProductPlans: () => read<BoProductPlan>("billing/product-plans"),
   updateBillingProductPlan: (productPlanId: string, body: { listPriceMinor: number; enabled: boolean; badge: BoProductPlanBadge; expectedVersion: number }) => write<BoProductPlan>(`billing/product-plans/${encodeURIComponent(productPlanId)}/configure`, body, crypto.randomUUID()),

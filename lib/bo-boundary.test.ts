@@ -41,8 +41,11 @@ test("BO read plane stays bounded while the API exposes only governed BO writes"
   assert.match(readSources, /boApi\.registrations\(sessionId\)/);
   assert.doesNotMatch(sources, /founderApi|WorkforceWorkspace|\/founder|\/api\/workforce|NOTION|PINO_CORE|PINO_WORKFORCE_CORE/);
   assert.doesNotMatch(readSources, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
-  assert.doesNotMatch(apiSource, /method:\s*["'](?:PUT|PATCH|DELETE)["']/);
-  assert.equal((apiSource.match(/method:\s*["']POST["']/g) ?? []).length, 1);
+  assert.doesNotMatch(apiSource, /method:\s*["']PATCH["']/);
+  assert.equal((apiSource.match(/method:\s*["']POST["']/g) ?? []).length, 2);
+  assert.match(apiSource, /grantStudentPinoriaOnboarding:[\s\S]*command<[^>]+>\("POST",[\s\S]*pinoria\/onboarding\/students/);
+  assert.match(apiSource, /revokeStudentPinoriaOnboarding:[\s\S]*command<[^>]+>\("DELETE",[\s\S]*pinoria\/onboarding\/students/);
+  assert.match(apiSource, /setPinoriaOnboardingStarterSet:[\s\S]*command<unknown>\("PUT",[\s\S]*pinoria\/onboarding\/sets/);
   assert.match(apiSource, /updateStaff:[\s\S]*workforce\/staff-records/);
   assert.match(apiSource, /setStaffStatus:[\s\S]*\/status/);
   assert.match(apiSource, /assignAccessRole:[\s\S]*access\/assignments/);
