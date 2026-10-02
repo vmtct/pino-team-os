@@ -120,6 +120,7 @@ export type BoStudentIntakeCreateInput = {
   effectiveFrom: string;
 } & ({ existingParentUserId: string } | { existingParentUserId?: null; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string });
 
+export type BoPancakeConversation = { externalIdentityId: string; channel: string; conversationId: string; webUrl: string | null; lastSeenAt: string };
 export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
 export type BoAcquisitionCreateInput = { phone: string; sourceBrand: "PINO_HOUSE" | "TOPPI"; intentKind: "OPEN_STUDIO" | "PROGRAM_INTEREST" | "GENERAL_INQUIRY"; childAge: number | null };
 export type BoAcquisitionIntent = {
@@ -140,6 +141,7 @@ export type BoAcquisitionIntent = {
   createdAt: string;
   updatedAt: string;
   version: number;
+  pancakeConversations?: BoPancakeConversation[];
 };
 
 async function read<T>(path: string): Promise<T[]> {

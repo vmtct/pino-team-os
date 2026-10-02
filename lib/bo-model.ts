@@ -406,10 +406,11 @@ export interface BoLearnerEnrollment {
   version: number;
 }
 
+export interface BoPancakeConversation { externalIdentityId: string; channel: string; conversationId: string; webUrl: string | null; lastSeenAt: string }
 export interface BoLearnerLifecycle {
   student: BoLearnerDirectoryItem & { birthMonth: number | null; birthDay: number | null; version: number };
   houseMembership: { id: string; joinedAt: string } | null;
-  guardians: Array<{ relationshipId: string; relationshipType: string; parent: { id: string; displayName: string | null; status: string; contacts: Array<{ id: string; type: string; value: string; primary: boolean; verifiedAt: string | null }> } }>;
+  guardians: Array<{ relationshipId: string; relationshipType: string; parent: { id: string; displayName: string | null; status: string; contacts: Array<{ id: string; type: string; value: string; primary: boolean; verifiedAt: string | null }>; pancakeConversations?: BoPancakeConversation[] } }>;
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
 }
 
