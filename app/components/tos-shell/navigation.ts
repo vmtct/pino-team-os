@@ -32,6 +32,7 @@ export const TOS_TASKS_FOOTER: TosFooterItem[] = [
 
 export const TOS_PINORIA_FOOTER: TosFooterItem[] = [
   { id: "presence", label: "Hiện diện", href: "/pinoria", icon: "◉" },
+  { id: "onboarding", label: "Onboard", href: "/pinoria/onboarding", icon: "✦" },
   { id: "attendance", label: "Điểm danh", href: "/pinoria/attendance", icon: "✓" },
 ];
 

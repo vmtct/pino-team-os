@@ -428,6 +428,30 @@ export interface BoStudentIntakeVoidResult {
   retiredContactCount: number;
 }
 
+export interface BoPinoriaOnboardingGrant {
+  id: string;
+  pinoriaSelfId: string;
+  attempt: number;
+  status: "AVAILABLE" | "CONSUMED" | "REVOKED";
+  reason: "INITIAL" | "MANUAL_RERUN";
+  grantedAt: string;
+  consumedAt: string | null;
+  revokedAt: string | null;
+}
+export interface BoPinoriaOnboardingStatus {
+  pinoriaSelfId: string;
+  characterId: string | null;
+  available: BoPinoriaOnboardingGrant | null;
+  history: BoPinoriaOnboardingGrant[];
+}
+export interface BoPinoriaOnboardingStarterSet {
+  id: string;
+  displayName: string;
+  version: number;
+  webmAssetKey: string | null;
+  members: Array<{variantId:string;displayName:string;slot:string|null;assetKey:string;renderMode:string;renderMetadata:Record<string,unknown>;sortOrder:number}>;
+  slots: Record<string,string|null>;
+}
 export type BoCompanionFeedUnavailableReason = "NO_OPEN_VISIT" | "MULTIPLE_OPEN_VISITS" | "NO_FRUIT" | "RITUAL_READY" | "FEED_LIMIT_REACHED" | "LEVEL_UNDEFINED" | "NOT_AUTHORIZED" | null;
 export interface BoStudentPinoriaSummary {
   fruitBalance: number;

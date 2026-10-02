@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
@@ -36,7 +36,7 @@ test("contextual app footers replace Home navigation", () => {
   }
   assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.id), ["today", "schedule", "register", "check", "history"]);
   assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.href), ["/dashboard", "/schedule", "/availability", "/check-in", "/timesheet"]);
-  assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.id), ["presence", "attendance"]);
+  assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.id), ["presence", "onboarding", "attendance"]);
 });
 
 test("new TOS app routes stay inside the staff-session perimeter", () => {

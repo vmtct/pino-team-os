@@ -11,7 +11,6 @@ import styles from "./pinoria.module.css";
 
 type Visit = { id: string; checkedInAt: string; version: number };
 type Learner = { studentProfileId: string; displayName: string; hasCharacter: boolean; openVisit: Visit | null };
-type Preset = { id: string; displayName: string; config: { hair: string; face: string; outfit: string; back?: string } };
 type Envelope<T> = { data?: T; error?: { code?: string; message?: string } };
 type WardChoiceState = { learnerName: string; studentProfileId: string; session: WardSession };
 
@@ -22,8 +21,6 @@ export function ArrivalDesk() {
   const [centerId, setCenterId] = useState("");
   const [query, setQuery] = useState("");
   const [learners, setLearners] = useState<Learner[]>([]);
-  const [presets, setPresets] = useState<Preset[]>([]);
-  const [pending, setPending] = useState<Learner | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [wardChoice, setWardChoice] = useState<WardChoiceState | null>(null);
@@ -44,9 +41,6 @@ export function ArrivalDesk() {
           localStorage.setItem(CENTER_STORAGE, value);
           setCenterId(value);
         }
-        const response = await fetch(`/api/tos-learning/pinoria/presets?centerId=${encodeURIComponent(value)}`, { cache: "no-store" });
-        const json = await response.json() as Envelope<Preset[]>;
-        if (response.ok && json.data) setPresets(json.data);
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Không khởi tạo được quầy");
       }
@@ -94,7 +88,7 @@ export function ArrivalDesk() {
     return true;
   }
 
-  async function mutate(learner: Learner, presetId?: string) {
+  async function mutate(learner: Learner) {
     setBusy(learner.studentProfileId);
     setError("");
     try {
@@ -103,12 +97,11 @@ export function ArrivalDesk() {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
         body: JSON.stringify(checkIn
-          ? { studentProfileId: learner.studentProfileId, centerId, presetId: presetId ?? null, checkedInAt: new Date().toISOString() }
+          ? { studentProfileId: learner.studentProfileId, centerId, checkedInAt: new Date().toISOString() }
           : { studentProfileId: learner.studentProfileId, centerId, expectedVersion: learner.openVisit!.version, checkedOutAt: new Date().toISOString(), reason: "Rời PINO House" }),
       });
       const json = await response.json() as Envelope<unknown>;
       if (!response.ok) throw new Error(json.error?.message ?? "Thao tác thất bại");
-      setPending(null);
       if (checkIn) {
         try {
           await openWardChoice(learner, true);
@@ -165,10 +158,6 @@ export function ArrivalDesk() {
   }
 
   function activate(learner: Learner) {
-    if (!learner.openVisit && !learner.hasCharacter) {
-      setPending(learner);
-      return;
-    }
     void mutate(learner);
   }
 
@@ -186,7 +175,6 @@ export function ArrivalDesk() {
           {learner.openVisit ? <PinoriaActivityPanel centerId={centerId} studentProfileId={learner.studentProfileId} displayName={learner.displayName} /> : null}
         </article>)}
       </section>
-      {pending ? <div className={styles.modalBackdrop} role="dialog" aria-modal="true"><section className={styles.modal}><span className={styles.eyebrow}>FIRST CHECK-IN</span><h2>Chọn nhân vật cho {pending.displayName}</h2><p>Lựa chọn này sẽ trở thành nhân vật canonical. Có thể customize ở rollout sau.</p><div className={styles.presetGrid}>{presets.map((preset) => <button key={preset.id} disabled={!!busy} onClick={() => void mutate(pending, preset.id)}><b>{preset.displayName}</b><small>{preset.config.hair.split("/").at(-3)} · {preset.config.face.split("/").at(-3)} · {preset.config.outfit.split("/").at(-3)}</small></button>)}</div><button className={styles.cancel} onClick={() => setPending(null)}>Hủy</button></section></div> : null}
       {wardChoice ? <WardSessionChoice learnerName={wardChoice.learnerName} session={wardChoice.session} busy={wardBusy} error={wardError} onConfirm={(candidate) => void confirmWard(candidate)} onClose={() => { setWardChoice(null); setWardError(""); }} /> : null}
     </div>
   </TosShell>;

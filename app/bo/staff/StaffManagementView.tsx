@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
-import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
+import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
 type Data = {
@@ -22,6 +22,10 @@ type PinoriaLoadState =
   | { status: "idle" | "loading" }
   | { status: "ready"; data: BoStaffPinoriaProjection }
   | { status: "error"; message: string };
+type OnboardingLoadState =
+  | { status: "idle" | "loading" }
+  | { status: "ready"; data: BoPinoriaOnboardingStatus }
+  | { status: "error"; message: string };
 type PrivateLoadState =
   | { status: "idle" | "loading" }
   | { status: "ready"; data: BoStaffPrivateData }
@@ -35,6 +39,7 @@ export function StaffManagementView() {
   const [selectedId, setSelectedId] = useState("");
   const [profile, setProfile] = useState<BoStaffProfile | null>(null);
   const [pinoria, setPinoria] = useState<PinoriaLoadState>({ status: "idle" });
+  const [onboarding, setOnboarding] = useState<OnboardingLoadState>({ status: "idle" });
   const [privateData, setPrivateData] = useState<PrivateLoadState>({ status: "idle" });
   const [privateCenterId, setPrivateCenterId] = useState("");
   const [form, setForm] = useState<BoStaffProfilePatch>({});
@@ -68,10 +73,16 @@ export function StaffManagementView() {
     selectedIdRef.current = selectedId;
     setPasswordReset(null); setPasswordCopied(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
     setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
+    setOnboarding(selectedId ? { status: "loading" } : { status: "idle" });
     if (!selectedId) return () => { current = false; };
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { if (current) { setProfile(next); setForm(profileForm(next)); } }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."); });
-    void boApi.staffPinoria(selectedId).then((next) => { if (current) setPinoria({ status: "ready", data: next }); }).catch((cause) => { if (current) setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." }); });
+    void boApi.staffPinoria(selectedId).then(async(next) => {
+      if (!current) return;
+      setPinoria({ status: "ready", data: next });
+      try { const status=await boApi.staffPinoriaOnboarding(selectedId,next.presence.centerId??undefined); if(current)setOnboarding({status:"ready",data:status}); }
+      catch(cause){if(current)setOnboarding({status:"error",message:cause instanceof Error?cause.message:"Không thể tải onboarding."});}
+    }).catch((cause) => { if (current) {setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });setOnboarding({status:"error",message:"Pinoria identity unavailable"});} });
     return () => { current = false; };
   }, [selectedId]);
 
@@ -121,10 +132,31 @@ export function StaffManagementView() {
     setPinoria({ status: "loading" });
     try {
       const next = await boApi.staffPinoria(targetId);
-      if (selectedIdRef.current === targetId) setPinoria({ status: "ready", data: next });
+      if (selectedIdRef.current === targetId) {
+        setPinoria({ status: "ready", data: next });
+        try { setOnboarding({status:"ready",data:await boApi.staffPinoriaOnboarding(targetId,next.presence.centerId??undefined)}); }
+        catch(cause){setOnboarding({status:"error",message:cause instanceof Error?cause.message:"Không thể tải onboarding."});}
+      }
     } catch (cause) {
       if (selectedIdRef.current === targetId) setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });
     }
+  }
+
+  async function toggleStaffOnboarding(){
+    const targetId=selectedIdRef.current;
+    if(!targetId||onboarding.status!=="ready")return;
+    const centerId=pinoria.status==="ready"?pinoria.data.presence.centerId??undefined:undefined;
+    if(!onboarding.data.available&&onboarding.data.characterId&&onboarding.data.history.some(item=>item.status==="CONSUMED")){
+      if(!confirm("Ceremony được thiết kế để diễn ra một lần. Enable again sẽ tạo attempt mới và giữ nguyên lịch sử. Tiếp tục?"))return;
+    }
+    setBusy("pinoria-onboarding");setError("");setMessage("");
+    try{
+      if(onboarding.data.available)await boApi.revokeStaffPinoriaOnboarding(targetId,centerId);
+      else await boApi.grantStaffPinoriaOnboarding(targetId,centerId);
+      await refreshPinoria();
+      setMessage(onboarding.data.available?"Đã tắt ceremony grant.":"Onboarding Ceremony đã sẵn sàng.");
+    }catch(cause){setError(cause instanceof Error?cause.message:"Không thể cập nhật onboarding.");}
+    finally{setBusy("");}
   }
 
   async function revealPrivateData() {
@@ -395,6 +427,11 @@ export function StaffManagementView() {
                     <small>Check-in · {formatInstant(pinoria.data.presence.checkedInAt)}</small>
                     <small>Center · {pinoria.data.presence.centerId ?? "—"}</small>
                   </div> : <p>Không có canonical TimekeepingSession đang mở.</p>}
+                </div>
+                <div className={styles.staffOnboardingCard} data-testid="staff-pinoria-onboarding">
+                  <div><span>Character onboarding</span><strong>{onboarding.status==="ready"?(onboarding.data.available?"Ceremony available":onboarding.data.characterId?"Onboarded ✓":"Not completed"):onboarding.status==="loading"?"Đang tải…":"Chưa khả dụng"}</strong>
+                  <small>{onboarding.status==="ready"?(onboarding.data.available?`Attempt #${onboarding.data.available.attempt} · waiting for TOS ceremony`:onboarding.data.characterId?"Ceremony is intended to happen once.":"Grant once để bắt đầu journey."):onboarding.status==="error"?onboarding.message:""}</small></div>
+                  {onboarding.status==="ready"?<button type="button" className={styles.secondaryButton} disabled={busy==="pinoria-onboarding"} onClick={()=>void toggleStaffOnboarding()}>{busy==="pinoria-onboarding"?"Đang lưu…":onboarding.data.available?"Tắt ceremony":onboarding.data.characterId?"Enable ceremony again":"Allow onboarding ceremony"}</button>:null}
                 </div>
                 <div className={styles.staffPinoriaLoadout}>
                   <div><strong>Loadout</strong><span>{pinoria.data.character?.loadout ? `v${pinoria.data.character.loadout.version}` : "Chưa có"}</span></div>

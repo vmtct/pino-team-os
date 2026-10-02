@@ -89,6 +89,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "pinoria/ward/learners"
     || /^pinoria\/ward\/learners\/[0-9a-f-]{36}$/.test(path)
     || path === "pinoria/ward/set-webm-assets"
+    || path === "pinoria/onboarding/sets"
+    || /^pinoria\/onboarding\/(students|staff)\/[0-9a-f-]{36}$/.test(path)
     || path === "web-cms/slots"
     || WEB_CMS_SLOT_READ.test(path)
     || path === "learners"
@@ -150,6 +152,10 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (/^pinoria\/onboarding\/(students|staff)\/[0-9a-f-]{36}$/.test(path)) {
+    const centerId = url.searchParams.get("centerId")?.trim();
+    return centerId ? { centerId } : undefined;
+  }
   if (/^workforce\/staff-records\/[0-9a-f-]{36}\/private$/.test(path)) {
     const centerId = url.searchParams.get("centerId")?.trim();
     return centerId ? { centerId } : undefined;
