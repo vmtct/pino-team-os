@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BoApiError } from "@/lib/bo-api";
+import { boApi, BoApiError } from "@/lib/bo-api";
 import { f3DeliveryApi, type DeliveryStatus, type DeliveryTopology, type F3BootstrapState, type F3LearningSpace, type F3RunningClass, type F3Term, type F3TermWeek } from "@/lib/f3-delivery-api";
 import { applyReviewedF3Seed } from "@/lib/f3-reviewed-seed";
 import { activateReviewedEnrollments } from "@/lib/f4-enrollment-api";
@@ -289,7 +289,7 @@ export function DeliveryActivationView() {
             {!editingTermWeekId ? <button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={prefillNextTermWeek}>Prefill code + ordinal</button> : <button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={resetTermWeekForm}>Cancel edit</button>}{" "}
             <button className={styles.primaryButton} type="button" disabled={action.status === "running" || !termWeekCode.trim() || !termWeekOrdinal || !termWeekStart || !termWeekEnd || !termWeekRhythm.trim()} onClick={saveTermWeek}>{editingTermWeekId ? "Save TermWeek" : "Create TermWeek"}</button>
           </div>
-          {selectedTermWeeks.length ? <div className={styles.tableWrap}><table><thead><tr><th>Week</th><th>Ordinal</th><th>Dates</th><th>Rhythm</th><th>Actions</th></tr></thead><tbody>{selectedTermWeeks.map((week) => <tr key={week.id}><td>{week.code}</td><td>{week.ordinal}</td><td>{week.startDate} → {week.endDate}</td><td>{week.rhythmKey}</td><td><button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => startEditTermWeek(week)}>Edit</button>{" "}<button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => deleteTermWeek(week)}>Delete</button></td></tr>)}</tbody></table></div> : <p>Term này chưa có TermWeek. Prefill chỉ điền code + ordinal; dates và rhythm phải được operator xác nhận explicit.</p>}
+          {selectedTermWeeks.length ? <div className={styles.tableWrap}><table><thead><tr><th>Week</th><th>Ordinal</th><th>Dates</th><th>Rhythm</th><th>Đăng ký ca</th><th>Actions</th></tr></thead><tbody>{selectedTermWeeks.map((week) => <tr key={week.id}><td>{week.code}</td><td>{week.ordinal}</td><td>{week.startDate} → {week.endDate}</td><td>{week.rhythmKey}</td><td><TermWeekRegistrationControl centerId={centerId} week={week} disabled={action.status === "running"} /></td><td><button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => startEditTermWeek(week)}>Edit</button>{" "}<button className={styles.secondaryButton} type="button" disabled={action.status === "running"} onClick={() => deleteTermWeek(week)}>Delete</button></td></tr>)}</tbody></table></div> : <p>Term này chưa có TermWeek. Prefill chỉ điền code + ordinal; dates và rhythm phải được operator xác nhận explicit.</p>}
           <p>Neutralize Term chỉ mở khi TermWeek đã được cleanup. Nếu operational history còn tham chiếu, Core sẽ fail closed.</p>
           <button className={styles.secondaryButton} type="button" disabled={action.status === "running" || selectedTerm.weekCount !== 0} onClick={() => neutralizeTerm(selectedTerm)}>Neutralize Term</button>
         </> : <State compact error title="TermWeek blocked" message="Tạo Term đầu tiên ở form phía trên để mở TermWeek." />}
@@ -361,6 +361,51 @@ export function DeliveryActivationView() {
       {action.status === "error" ? <State compact error title="Command stopped" message={action.message} requestId={action.requestId} /> : null}
     </div>
   );
+}
+
+type RegistrationControlState =
+  | { status: "loading" }
+  | { status: "ready"; open: boolean; version: number; saving: boolean }
+  | { status: "error"; message: string };
+
+function TermWeekRegistrationControl({ centerId, week, disabled }: { centerId: string; week: F3TermWeek; disabled: boolean }) {
+  const [state, setState] = useState<RegistrationControlState>({ status: "loading" });
+
+  useEffect(() => {
+    let active = true;
+    setState({ status: "loading" });
+    void boApi.workforceWeekControl(centerId, week.id).then((control) => {
+      if (active) setState({ status: "ready", open: control.availabilityRegistrationOpen, version: control.availability.controlVersion, saving: false });
+    }).catch((error: unknown) => {
+      if (active) setState({ status: "error", message: error instanceof Error ? error.message : "Không đọc được trạng thái đăng ký ca." });
+    });
+    return () => { active = false; };
+  }, [centerId, week.id]);
+
+  async function toggleRegistration() {
+    if (state.status !== "ready" || state.saving) return;
+    const open = !state.open;
+    setState({ ...state, saving: true });
+    try {
+      const decision = await boApi.setWorkforceAvailabilityRegistration({
+        centerId,
+        termWeekId: week.id,
+        expectedVersion: state.version,
+        reason: `${open ? "Open" : "Close"} staff availability registration for ${week.code}`,
+        open,
+      }, crypto.randomUUID());
+      setState({ status: "ready", open: decision.availabilityRegistrationOpen, version: decision.controlVersion, saving: false });
+    } catch (error) {
+      setState({ status: "error", message: error instanceof Error ? error.message : "Không cập nhật được đăng ký ca." });
+    }
+  }
+
+  if (state.status === "loading") return <span className={styles.readOnly}>Đang đọc…</span>;
+  if (state.status === "error") return <span className={styles.readOnly} title={state.message}>Không khả dụng</span>;
+  return <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+    <span className={state.open ? styles.writePill : styles.readOnly}>{state.open ? "Đang mở" : "Đang đóng"}</span>
+    <button className={styles.secondaryButton} type="button" disabled={disabled || state.saving} onClick={() => void toggleRegistration()}>{state.saving ? "Đang lưu…" : state.open ? "Đóng đăng ký" : "Mở đăng ký ca"}</button>
+  </div>;
 }
 
 function localDateInZone(timeZone: string) {

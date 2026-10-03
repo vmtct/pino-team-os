@@ -12,6 +12,7 @@ test("WWC Team facade forwards bounded week-control read and mutations",async()=
   const read=new Request("https://bo.pinohouse.art/api/bo/workforce/planning/week-control?centerId=c1&termWeekId=w1&userId=forged",{headers:headers()});
   assert.equal((await handleBoWorkforcePlanningRequest(read,env(b),"workforce/planning/week-control")).status,200);
   const commands=[
+    ["workforce/planning/availability/registration",{centerId:"c1",termWeekId:"w1",expectedVersion:0,reason:"Open registration",open:true}],
     ["workforce/planning/availability/lock",{centerId:"c1",termWeekId:"w1",expectedVersion:0,reason:"Lock"}],
     ["workforce/planning/availability/reopen",{centerId:"c1",termWeekId:"w1",expectedVersion:1,reason:"Late",until:"2026-10-02T03:00:00.000Z"}],
     ["workforce/planning/planning/publish",{centerId:"c1",termWeekId:"w1",expectedVersion:2,reason:"Final"}],
@@ -57,4 +58,15 @@ test("WWC TOS keeps SUBMITTED amendable while OPEN and distinguishes lock/config
   assert.match(source,/CONFIGURATION_UNAVAILABLE/);
   assert.match(source,/availabilityWindow\?\.state !== "OPEN"/);
   assert.match(source,/Đăng ký ca đã khóa/);
+  assert.match(source,/availabilityWeeks\(center\.id\)/);
+  assert.match(source,/Tuần mở đăng ký/);
+  assert.match(source,/Hiện chưa có tuần nào được Manager mở đăng ký ca/);
+});
+
+test("WWC Delivery Activation exposes explicit TermWeek registration control without changing TermWeek lifecycle",async()=>{
+  const source=await readFile("app/bo/delivery-activation/DeliveryActivationView.tsx","utf8");
+  assert.match(source,/Mở đăng ký ca/);
+  assert.match(source,/setWorkforceAvailabilityRegistration/);
+  assert.match(source,/availabilityRegistrationOpen/);
+  assert.doesNotMatch(source,/termWeek\.status|week\.status/);
 });
