@@ -34,8 +34,31 @@ test("PLT-SALES F0 lifecycle commands require and preserve idempotency", async (
   assert.deepEqual(forwarded, [{ method: "POST", path, body: { expectedVersion: 2 }, idempotencyKey: "lead-command-1" }]);
 });
 
+test("PLT-SALES CRM forwards catalog/config/activity through the bounded BO facade", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: request.method === "POST" && request.path.endsWith("/activities") ? 201 : 200, body: { data: { ok: true } }, requestId: "sales-crm" }; } };
+  const catalog = new Request("https://bo.pinohouse.art/api/bo/acquisition/crm/catalog", { headers: { cookie: `pino_staff_password_session=${token}` } });
+  assert.equal((await handleBoOperationalReadRequest(catalog, env(binding), "acquisition/crm/catalog")).status, 200);
+
+  const crmPath = `acquisition/intents/${intentId}/crm`;
+  const crmBody = { expectedVersion: 3, interestArea: "ART", pathProgramId: null, productPlanId: null, preferredCenterId: null, ownerStaffMemberId: null, nextFollowUpAt: "2026-10-04T03:00:00.000Z", qualificationStatus: "QUALIFIED", qualificationReason: "Trial requested" };
+  const crm = new Request(`https://bo.pinohouse.art/api/bo/${crmPath}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "crm-config-1" }, body: JSON.stringify(crmBody) });
+  assert.equal((await handleBoWriteRequest(crm, env(binding), crmPath)).status, 200);
+
+  const activityPath = `acquisition/intents/${intentId}/activities`;
+  const activityBody = { kind: "NOTE", note: "Hẹn gọi lại", contactOutcome: null };
+  const activity = new Request(`https://bo.pinohouse.art/api/bo/${activityPath}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "crm-note-1" }, body: JSON.stringify(activityBody) });
+  assert.equal((await handleBoWriteRequest(activity, env(binding), activityPath)).status, 201);
+
+  assert.deepEqual(forwarded, [
+    { method: "GET", path: "acquisition/crm/catalog" },
+    { method: "POST", path: crmPath, body: crmBody, idempotencyKey: "crm-config-1" },
+    { method: "POST", path: activityPath, body: activityBody, idempotencyKey: "crm-note-1" },
+  ]);
+});
+
 test("PLT-SALES F0 keeps Lead surface BO-only and host-bounded", () => {
-  for (const path of ["/bo/sales/leads", "/api/bo/acquisition/intents", `/api/bo/acquisition/intents/${intentId}`, `/api/bo/acquisition/intents/${intentId}/verify-contact`, `/api/bo/acquisition/intents/${intentId}/close`]) {
+  for (const path of ["/bo/sales/leads", "/api/bo/acquisition/intents", `/api/bo/acquisition/intents/${intentId}`, "/api/bo/acquisition/crm/catalog", `/api/bo/acquisition/intents/${intentId}/crm`, `/api/bo/acquisition/intents/${intentId}/activities`, `/api/bo/acquisition/intents/${intentId}/verify-contact`, `/api/bo/acquisition/intents/${intentId}/close`]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
   }
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/acquisition/leads"), { action: "not_found" });
@@ -47,9 +70,12 @@ test("PLT-SALES F0 presentation composes Core contracts without local CRM author
     readFile("lib/bo-api.ts", "utf8"),
   ]);
   assert.match(navigation, /href: "\/bo\/sales\/leads", label: "Leads"/);
-  for (const method of ["acquisitionIntents", "acquisitionIntent", "markAcquisitionContacted", "verifyAcquisitionContact", "closeAcquisitionIntent"]) assert.match(api, new RegExp(`${method}:`));
+  for (const method of ["acquisitionIntents", "acquisitionIntent", "acquisitionCrmCatalog", "configureAcquisitionCrm", "addAcquisitionCrmActivity", "markAcquisitionContacted", "verifyAcquisitionContact", "closeAcquisitionIntent"]) assert.match(api, new RegExp(`${method}:`));
   assert.match(view, /acquisition\.lead\.manage/);
   assert.match(view, /pendingAttempt\?\.key === key/);
+  assert.match(view, /CRM · Interest & Follow-up/);
+  assert.match(view, /crmActivities\?\.length/);
+  assert.match(view, /nextFollowUp/);
   assert.match(view, /Thử lại cùng yêu cầu/);
   assert.doesNotMatch(view, /fetch\(|localStorage|indexedDB|leadScore|pipelineValue/i);
 });

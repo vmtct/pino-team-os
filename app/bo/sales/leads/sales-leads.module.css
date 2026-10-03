@@ -64,3 +64,25 @@
 .pancakeConversation > div > span { overflow: hidden; color: #777783; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .pancakeConversation a { flex: none; padding: 8px 10px; border-radius: 8px; background: #6655c7; color: white; font-size: 11px; font-weight: 800; text-decoration: none; }
 .chatUnavailable { flex: none; color: #8b8b95; font-size: 10px; }
+
+.crmPanel { display:grid; gap:12px; padding:14px; border:1px solid #d9e2e9; border-radius:13px; background:#fbfdff; }
+.crmHead { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.crmHead > div { display:grid; gap:3px; }
+.crmHead strong { font-size:12px; }
+.crmHead span { color:#6f7780; font-size:10px; }
+.followBadge { flex:none; padding:6px 9px; border-radius:999px; background:#eef3f7; color:#52606b; font-size:10px; font-weight:800; }
+.followOverdue { background:#fff0ef; color:#9c4138; }
+.crmGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.crmGrid label { display:grid; gap:5px; color:#686f78; font-size:9px; font-weight:800; text-transform:uppercase; }
+.crmGrid input, .crmGrid select, .activityComposer select, .activityComposer textarea { width:100%; min-height:38px; border:1px solid #d9dfe5; border-radius:9px; background:white; padding:8px 9px; color:#31343a; font-size:11px; text-transform:none; font-weight:500; }
+.crmSave, .activityComposer button { min-height:38px; width:max-content; padding:9px 12px; border:0; border-radius:9px; background:#365f7d; color:white; font-weight:800; cursor:pointer; }
+.crmSave:disabled, .activityComposer button:disabled { opacity:.45; cursor:not-allowed; }
+.activityComposer { display:grid; grid-template-columns:minmax(0,1.8fr) auto minmax(150px,.7fr) auto; gap:8px; align-items:end; }
+.activityComposer textarea { min-height:64px; resize:vertical; }
+.activityTimeline { display:grid; gap:7px; padding-top:10px; border-top:1px solid #e5e9ed; }
+.activityTimeline > strong { font-size:11px; }
+.activityTimeline > div { display:grid; gap:3px; padding:9px; border:1px solid #e8ebef; border-radius:9px; background:white; }
+.activityTimeline span { color:#42464d; font-size:11px; white-space:pre-wrap; }
+.activityTimeline small, .activityTimeline p { margin:0; color:#7d838a; font-size:9px; }
+@media (max-width:900px) { .crmGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } .activityComposer { grid-template-columns:1fr auto; } }
+@media (max-width:680px) { .crmGrid, .activityComposer { grid-template-columns:1fr; } }
