@@ -99,6 +99,26 @@ const WEB_CMS_WRITE = /^web-cms\/slots\/[0-9a-f-]{36}\/(draft|publish|rollback)$
 const WARD_LEARNER_WRITE = /^pinoria\/ward\/learners\/[0-9a-f-]{36}\/(grants|revocations|loadout)$/;
 const PINORIA_ONBOARDING_SET_WRITE = /^pinoria\/onboarding\/sets\/[0-9a-f-]{36}$/;
 const PINORIA_ONBOARDING_GRANT_WRITE = /^pinoria\/onboarding\/(students|staff)\/[0-9a-f-]{36}\/grant$/;
+const PINORIA_WORLD_WRITE = /^(?:pinoria\/worlds|pinoria\/worlds\/[0-9a-f-]{36}|pinoria\/worlds\/[0-9a-f-]{36}\/scenes|pinoria\/worlds\/scenes\/[0-9a-f-]{36}|pinoria\/worlds\/scenes\/[0-9a-f-]{36}\/layers|pinoria\/worlds\/layers\/[0-9a-f-]{36}|pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances|pinoria\/worlds\/instances\/[0-9a-f-]{36}(?:\/(?:set-live|revoke|reactivate))?|pinoria\/worlds\/instances\/[0-9a-f-]{36}\/scenes\/[0-9a-f-]{36}|pinoria\/worlds\/instances\/[0-9a-f-]{36}\/layers\/[0-9a-f-]{36})$/;
+const PINORIA_WORLD_MEDIA = "pinoria/worlds/media";
+
+function isAllowedPinoriaWorldMethod(method: string, path: string): boolean {
+  if (method === "POST") return path === "pinoria/worlds"
+    || /^pinoria\/worlds\/[0-9a-f-]{36}\/scenes$/.test(path)
+    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}\/layers$/.test(path)
+    || /^pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances$/.test(path)
+    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:set-live|revoke|reactivate)$/.test(path)
+    || path === PINORIA_WORLD_MEDIA;
+  if (method === "PATCH") return /^pinoria\/worlds\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/layers\/[0-9a-f-]{36}$/.test(path);
+  if (method === "PUT") return /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:scenes|layers)\/[0-9a-f-]{36}$/.test(path);
+  if (method === "DELETE") return /^pinoria\/worlds\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/layers\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}$/.test(path);
+  return false;
+}
 
 export async function handleBoWriteRequest(
   request: Request,
@@ -107,11 +127,14 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
+    if (PINORIA_WORLD_WRITE.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
+      return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    }
     if (
       request.method !== "POST"
-      && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path)))
-      && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path)))
-      && !(request.method === "DELETE" && PINORIA_ONBOARDING_GRANT_WRITE.test(path))
+      && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
@@ -250,6 +273,8 @@ export function isAllowedPostPath(path: string): boolean {
     || WARD_LEARNER_WRITE.test(path)
     || PINORIA_ONBOARDING_SET_WRITE.test(path)
     || PINORIA_ONBOARDING_GRANT_WRITE.test(path)
+    || PINORIA_WORLD_WRITE.test(path)
+    || path === PINORIA_WORLD_MEDIA
     || path === WARD_SET_MEDIA
     || BILLING_PLAN_CONFIG_PATH.test(path)
     || path === BILLING_SALE_PATH

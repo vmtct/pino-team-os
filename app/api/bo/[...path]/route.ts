@@ -5,6 +5,7 @@ import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-p
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "@/lib/bo-syllabus-media-handler";
 import { handleBoStaffPrivateDocumentRequest, isBoStaffPrivateDocumentPath, type BoStaffPrivateEnv } from "@/lib/bo-staff-private-handler";
 import { handleBoWardSetMediaUpload, type BoWardSetMediaEnv } from "@/lib/bo-ward-set-media-handler";
+import { handleBoPinoriaWorldMediaUpload, PINORIA_WORLD_MEDIA_PATH, type BoPinoriaWorldMediaEnv } from "@/lib/bo-pinoria-world-media-handler";
 import { handleBoWorkforcePlanningRequest, isBoWorkforcePlanningPath, type BoWorkforcePlanningEnv } from "@/lib/bo-workforce-planning-handler";
 import { handleBoWorkforceTrainingRequest, isBoWorkforceTrainingPath, type BoWorkforceTrainingEnv } from "@/lib/bo-workforce-training-handler";
 import { handleBoWorkforceDutyExceptionRequest, isBoWorkforceDutyExceptionPath, type BoWorkforceDutyExceptionEnv } from "@/lib/bo-workforce-duty-exception-handler";
@@ -13,7 +14,7 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv;
+type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -39,6 +40,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   if (joined === "practice/media") return handleBoPracticeMediaUpload(request, env);
   if (joined === "learning/syllabi/media") return handleBoSyllabusMediaRequest(request, env, joined);
   if (joined === "pinoria/ward/set-webm-assets") return handleBoWardSetMediaUpload(request, env);
+  if (joined === PINORIA_WORLD_MEDIA_PATH) return handleBoPinoriaWorldMediaUpload(request, env);
   return handleBoWriteRequest(request, env, joined);
 }
 
