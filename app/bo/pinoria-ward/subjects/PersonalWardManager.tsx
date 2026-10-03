@@ -13,7 +13,8 @@ type Variant={id:string;displayName:string;itemType:"WEARABLE"|"ACCESSORY";weara
 type Relic={id:string;displayName:string;metadata:Record<string,unknown>;ownership?:Ownership};
 type Detail={subject:Subject;character:null|{id:string;loadout:{version:number;slots:Record<Slot,string|null>};relicLoadout:{version:number;slots:Record<RelicSlot,string|null>}};variantOwnership:Variant[];relicOwnership:Relic[]};
 type Catalog={variants:Variant[];relics:Relic[]};
-type BoContext={permissionKeys:string[]};
+type Capabilities={view:boolean;equip:boolean;unequip:boolean;grant:boolean;revoke:boolean};
+type SubjectEnvelope={subjects:Subject[];capabilities:Capabilities};
 type Envelope<T>={data?:T;error?:{message?:string}};
 type SelectedItem={kind:"VARIANT";item:Variant}|{kind:"RELIC";item:Relic};
 const characterSlots:Slot[]=["HEAD/HAIR","FACE","HEADWEAR","OUTFIT","BACK","AURA_BACK","AURA_GROUND","PATH_MARK"];
@@ -23,16 +24,16 @@ const emptyRelics=()=>Object.fromEntries(relicSlots.map(slot=>[slot,null])) as R
 async function request<T>(path:string,init?:RequestInit){const response=await fetch(path.startsWith("/")?path:`/api/bo/${path}`,{cache:"no-store",...init});const body=await response.json() as Envelope<T>;if(!response.ok||!body.data)throw new Error(body.error?.message??"Personal Ward operation failed");return body.data;}
 function mutation(method:"POST"|"PUT",body:unknown):RequestInit{return{method,headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},body:JSON.stringify(body)};}
 function relicAsset(metadata:Record<string,unknown>){for(const key of ["imageAssetKey","iconAssetKey","assetKey"]){const value=metadata[key];if(typeof value==="string"&&value)return value;}return null;}
-function imageUrl(selected:SelectedItem){const key=selected.kind==="VARIANT"?(selected.item.render.posterAssetKey??selected.item.render.assetKey):relicAsset(selected.item.metadata);return key?pinoriaAssetUrl(key):null;}
+function imageUrl(selected:SelectedItem){const key=selected.kind==="VARIANT"?(selected.item.render.posterAssetKey??(selected.item.render.mode==="WEBM"?null:selected.item.render.assetKey)):relicAsset(selected.item.metadata);return key?pinoriaAssetUrl(key):null;}
 function filterItem(selected:SelectedItem,filter:Filter){return filter==="ALL"||(filter==="RELIC"&&selected.kind==="RELIC")||(selected.kind==="VARIANT"&&filter==="CHARACTER"&&selected.item.itemType==="WEARABLE")||(selected.kind==="VARIANT"&&filter==="ACCESSORY"&&selected.item.itemType==="ACCESSORY");}
 
 export function PersonalWardManager(){
- const[subjects,setSubjects]=useState<Subject[]>([]),[catalog,setCatalog]=useState<Catalog>({variants:[],relics:[]}),[permissions,setPermissions]=useState<string[]>([]);
+ const[subjects,setSubjects]=useState<Subject[]>([]),[catalog,setCatalog]=useState<Catalog>({variants:[],relics:[]}),[capabilities,setCapabilities]=useState<Capabilities>({view:false,equip:false,unequip:false,grant:false,revoke:false});
  const[selectedSelf,setSelectedSelf]=useState<string|null>(null),[detail,setDetail]=useState<Detail|null>(null),[query,setQuery]=useState(""),[subjectFilter,setSubjectFilter]=useState<"ALL"|"STUDENT"|"STAFF">("ALL");
  const[collectionFilter,setCollectionFilter]=useState<Filter>("ALL"),[catalogFilter,setCatalogFilter]=useState<Filter>("ALL"),[selectedItem,setSelectedItem]=useState<SelectedItem|null>(null);
  const[characterDraft,setCharacterDraft]=useState<Record<Slot,string|null>>(emptyCharacter),[relicDraft,setRelicDraft]=useState<Record<RelicSlot,string|null>>(emptyRelics);
  const[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");const requestSeq=useRef(0);
- const can=(permission:string)=>permissions.includes(permission);
+ const can=(permission:string)=>permission.endsWith(".view")?capabilities.view:permission.endsWith(".equip")?capabilities.equip:permission.endsWith(".unequip")?capabilities.unequip:permission.endsWith(".grant")?capabilities.grant:permission.endsWith(".revoke")?capabilities.revoke:false;
  const selectedSubject=subjects.find(subject=>subject.pinoriaSelfId===selectedSelf)??null;
  const filteredSubjects=useMemo(()=>subjects.filter(subject=>(subjectFilter==="ALL"||subject.subjectTypes.includes(subjectFilter))&&`${subject.displayName} ${subject.studentProfileId??""} ${subject.staffMemberId??""}`.toLowerCase().includes(query.toLowerCase())),[subjects,query,subjectFilter]);
  const ownedItems=useMemo<SelectedItem[]>(()=>detail?[...detail.variantOwnership.filter(item=>item.ownership?.status==="OWNED").map(item=>({kind:"VARIANT" as const,item})),...detail.relicOwnership.filter(item=>item.ownership?.status==="OWNED").map(item=>({kind:"RELIC" as const,item}))]:[],[detail]);
@@ -46,7 +47,7 @@ export function PersonalWardManager(){
  const canSave=dirty&&(!needsUnequip||can("pinoria.ward.subject.unequip"))&&(!needsEquip||can("pinoria.ward.subject.equip"));
  const selectedEquipped=selectedItem?Object.values(characterDraft).includes(selectedItem.item.id)||Object.values(relicDraft).includes(selectedItem.item.id):false;
 
- async function load(){try{const[subjectData,catalogData,contextData]=await Promise.all([request<{subjects:Subject[]}>("pinoria/ward/subjects"),request<Catalog>("pinoria/ward/subjects/catalog"),request<BoContext>("/api/bo/context")]);setSubjects(subjectData.subjects);setCatalog(catalogData);setPermissions(contextData.permissionKeys??[]);setError("");}catch(value){setError(value instanceof Error?value.message:"Không tải được Personal Ward");}}
+ async function load(){try{const[subjectData,catalogData]=await Promise.all([request<SubjectEnvelope>("pinoria/ward/subjects"),request<Catalog>("pinoria/ward/subjects/catalog")]);setSubjects(subjectData.subjects);setCapabilities(subjectData.capabilities);setCatalog(catalogData);setError("");}catch(value){setError(value instanceof Error?value.message:"Không tải được Personal Ward");}}
  async function openWard(selfId:string){const token=++requestSeq.current;setSelectedSelf(selfId);setDetail(null);setSelectedItem(null);setMessage("");setError("");try{const data=await request<Detail>(`pinoria/ward/subjects/${selfId}`);if(token!==requestSeq.current)return;setDetail(data);setCharacterDraft(data.character?.loadout.slots??emptyCharacter());setRelicDraft(data.character?.relicLoadout.slots??emptyRelics());}catch(value){if(token!==requestSeq.current)return;setError(value instanceof Error?value.message:"Không tải được Ward");}}
  async function refreshWard(){await load();if(selectedSelf)await openWard(selectedSelf);}
  useEffect(()=>{void load();},[]);
