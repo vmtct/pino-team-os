@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isOperationalReadPath } from "./bo-read-handler";
-import { isAllowedPostPath } from "./bo-write-handler";
+import { handleBoWriteRequest, isAllowedPostPath, type BoWriteEnv } from "./bo-write-handler";
 import { handleBoPinoriaWorldMediaUpload, PINORIA_WORLD_MEDIA_PATH, type BoPinoriaWorldMediaEnv } from "./bo-pinoria-world-media-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 
@@ -13,6 +13,15 @@ test("Pinoria World BO facade exposes bounded canonical read and mutation paths"
   assert.equal(isOperationalReadPath("pinoria/worlds/instances"),false);
   assert.equal(isAllowedPostPath(`pinoria/worlds/${id}/automation`),false);
   assert.equal(isAllowedPostPath(`pinoria/worlds/instances/${id}/keygate`),false);
+});
+
+test("Pinoria World facade rejects invalid method/path combinations before Core",async()=>{
+  let called=false;const env={PINO_BO_CORE:{async executeWithStaffPassword(){called=true;throw new Error("unexpected")}}} as BoWriteEnv;
+  for(const [method,path] of [["PUT","pinoria/worlds"],["DELETE",`pinoria/worlds/learners/${id}/instances`],["POST",`pinoria/worlds/${id}`]] as const){
+    const request=new Request(`https://bo.pinohouse.art/api/bo/${path}`,{method,headers:{"content-type":"application/json"},body:JSON.stringify({})});
+    const response=await handleBoWriteRequest(request,env,path);assert.equal(response.status,405,`${method} ${path}`);
+  }
+  assert.equal(called,false);
 });
 
 test("World media upload forwards only bounded PNG/WEBM bytes through local-password Core binding",async()=>{
@@ -35,5 +44,5 @@ test("World media upload rejects unsupported types before Core",async()=>{
 
 test("World Studio production page is Core-backed and preserves required Character semantics",async()=>{
   const fs=await import("node:fs/promises"),source=await fs.readFile(new URL("../app/bo/pinoria-world/PinoriaWorldManager.tsx",import.meta.url),"utf8");
-  assert.match(source,/CORE BACKED/);assert.match(source,/pinoria\/worlds\/instances/);assert.match(source,/Required Character Layer/);assert.match(source,/ALWAYS ON/);assert.match(source,/LayeredCharacter/);assert.match(source,/image\/png,video\/webm/);assert.doesNotMatch(source,/attendance.*unlock/i);assert.doesNotMatch(source,/keygate.*set-live/i);
+  assert.match(source,/CORE BACKED/);assert.match(source,/pinoria\/worlds\/instances/);assert.match(source,/Required Character Layer/);assert.match(source,/ALWAYS ON/);assert.match(source,/LayeredCharacter/);assert.match(source,/Character unavailable/);assert.doesNotMatch(source,/pinoria\/char-base\.png/);assert.match(source,/image\/png,video\/webm/);assert.doesNotMatch(source,/attendance.*unlock/i);assert.doesNotMatch(source,/keygate.*set-live/i);
 });

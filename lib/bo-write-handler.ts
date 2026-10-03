@@ -102,6 +102,24 @@ const PINORIA_ONBOARDING_GRANT_WRITE = /^pinoria\/onboarding\/(students|staff)\/
 const PINORIA_WORLD_WRITE = /^(?:pinoria\/worlds|pinoria\/worlds\/[0-9a-f-]{36}|pinoria\/worlds\/[0-9a-f-]{36}\/scenes|pinoria\/worlds\/scenes\/[0-9a-f-]{36}|pinoria\/worlds\/scenes\/[0-9a-f-]{36}\/layers|pinoria\/worlds\/layers\/[0-9a-f-]{36}|pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances|pinoria\/worlds\/instances\/[0-9a-f-]{36}(?:\/(?:set-live|revoke|reactivate))?|pinoria\/worlds\/instances\/[0-9a-f-]{36}\/scenes\/[0-9a-f-]{36}|pinoria\/worlds\/instances\/[0-9a-f-]{36}\/layers\/[0-9a-f-]{36})$/;
 const PINORIA_WORLD_MEDIA = "pinoria/worlds/media";
 
+function isAllowedPinoriaWorldMethod(method: string, path: string): boolean {
+  if (method === "POST") return path === "pinoria/worlds"
+    || /^pinoria\/worlds\/[0-9a-f-]{36}\/scenes$/.test(path)
+    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}\/layers$/.test(path)
+    || /^pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances$/.test(path)
+    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:set-live|revoke|reactivate)$/.test(path)
+    || path === PINORIA_WORLD_MEDIA;
+  if (method === "PATCH") return /^pinoria\/worlds\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/layers\/[0-9a-f-]{36}$/.test(path);
+  if (method === "PUT") return /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:scenes|layers)\/[0-9a-f-]{36}$/.test(path);
+  if (method === "DELETE") return /^pinoria\/worlds\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/layers\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}$/.test(path);
+  return false;
+}
+
 export async function handleBoWriteRequest(
   request: Request,
   env: BoWriteEnv,
@@ -109,6 +127,9 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
+    if (PINORIA_WORLD_WRITE.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
+      return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    }
     if (
       request.method !== "POST"
       && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
