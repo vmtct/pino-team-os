@@ -122,6 +122,38 @@ export type BoPancakeChannel = {
   updatedAt: string;
   version: number;
 };
+export type BoAcquisitionCrmProfile = {
+  interestArea: "GENERAL" | "ART" | "PIANO" | "OPEN_STUDIO" | "PROGRAM" | "OTHER";
+  pathProgramId: string | null;
+  pathProgramLabel: string | null;
+  productPlanId: string | null;
+  productPlanLabel: string | null;
+  preferredCenterId: string | null;
+  preferredCenterLabel: string | null;
+  ownerStaffMemberId: string | null;
+  ownerDisplayLabel: string | null;
+  nextFollowUpAt: string | null;
+  followUpState: "CLOSED" | "UNPLANNED" | "UPCOMING" | "OVERDUE";
+  qualificationStatus: "UNQUALIFIED" | "QUALIFIED" | "NOT_A_FIT";
+  qualificationReason: string | null;
+  version: number;
+};
+export type BoAcquisitionCrmActivity = {
+  id: string;
+  intentId: string;
+  kind: "NOTE" | "CONTACT_OUTCOME";
+  contactOutcome: "CONNECTED" | "NO_ANSWER" | "CALL_BACK" | "NOT_INTERESTED" | "OTHER" | null;
+  note: string | null;
+  actorUserId: string;
+  actorDisplayLabel: string | null;
+  createdAt: string;
+};
+export type BoAcquisitionCrmCatalog = {
+  owners: Array<{ id:string; displayLabel:string }>;
+  paths: Array<{ id:string; code:string; displayName:string }>;
+  centers: Array<{ id:string; centerKey:string; displayName:string }>;
+  productPlans: Array<{ id:string; cadence:number; termWeeks:number; listPriceMinor:number; currency:string; badge:string }>;
+};
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
@@ -141,7 +173,9 @@ export type BoAcquisitionIntent = {
   createdAt: string;
   updatedAt: string;
   version: number;
+  crm: BoAcquisitionCrmProfile;
   pancakeConversations?: BoPancakeConversation[];
+  crmActivities?: BoAcquisitionCrmActivity[];
 };
 
 async function read<T>(path: string): Promise<T[]> {
@@ -284,6 +318,9 @@ export const boApi = {
   parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
+  acquisitionCrmCatalog: () => readOne<BoAcquisitionCrmCatalog>("acquisition/crm/catalog"),
+  configureAcquisitionCrm: (intentId: string, body: { expectedVersion:number; interestArea:BoAcquisitionCrmProfile["interestArea"]; pathProgramId:string|null; productPlanId:string|null; preferredCenterId:string|null; ownerStaffMemberId:string|null; nextFollowUpAt:string|null; qualificationStatus:BoAcquisitionCrmProfile["qualificationStatus"]; qualificationReason:string|null }, idempotencyKey:string) => write<{ intentId:string; version:number }>(`acquisition/intents/${encodeURIComponent(intentId)}/crm`, body, idempotencyKey),
+  addAcquisitionCrmActivity: (intentId:string, body:{ kind:BoAcquisitionCrmActivity["kind"]; note:string|null; contactOutcome:BoAcquisitionCrmActivity["contactOutcome"] }, idempotencyKey:string) => write<{ activityId:string }>(`acquisition/intents/${encodeURIComponent(intentId)}/activities`, body, idempotencyKey),
   pancakeSettings: () => readOne<BoPancakeSettings>("acquisition/pancake/settings"),
   pancakeChannels: () => read<BoPancakeChannel>("acquisition/pancake/channels"),
   registerPancakeChannel: (body: { providerPageId: string; channel: string; sourceBrand: "PINO_HOUSE" | "TOPPI"; displayName: string; enabled?: boolean }) =>
