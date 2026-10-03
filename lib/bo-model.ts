@@ -551,11 +551,12 @@ export interface BoWorkforcePlanningBootstrap {
 export interface BoWorkforceWindowDecision {
   kind: "AVAILABILITY" | "PLANNING";
   state: "OPEN" | "LOCKED";
-  reason: "POLICY" | "MANUAL_LOCK" | "MANUAL_REOPEN" | "CONFIGURATION_UNAVAILABLE";
+  reason: "POLICY" | "MANUAL_LOCK" | "MANUAL_REOPEN" | "REGISTRATION_CLOSED" | "CONFIGURATION_UNAVAILABLE";
   cutoffAt: string | null;
   overrideUntil: string | null;
   policyVersionId: string | null;
   controlVersion: number;
+  availabilityRegistrationOpen: boolean;
 }
 
 export interface BoWorkforceAvailability {

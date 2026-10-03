@@ -28,6 +28,7 @@ const GET_BOOTSTRAP = "workforce/planning/bootstrap";
 const GET_WEEKLY = "workforce/planning/weekly";
 const GET_WEEK_CONTROL = "workforce/planning/week-control";
 const WEEK_CONTROL_POST = new Set([
+  "workforce/planning/availability/registration",
   "workforce/planning/availability/lock",
   "workforce/planning/availability/reopen",
   "workforce/planning/planning/publish",

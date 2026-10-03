@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   activeAssignments,
+  availabilityRegistrationWeeks,
   assignmentTime,
   assignmentsInWeek,
   compactWorkDate,
@@ -30,6 +31,20 @@ test("TOSCTX-003 derives weekly count and next shift without changing assignment
   assert.equal(assignmentsInWeek(rows, week).length, 2);
   assert.equal(nextAssignment(rows, "2026-09-28")?.id, "first");
   assert.equal(staffInitials("Nguyễn Văn An"), "NA");
+});
+
+test("TOSCTX-006 availability registration uses only Core-open TermWeeks and never infers current/next week", () => {
+  const context: WorkforceContext = {
+    userId:"user",staffMemberId:"staff",email:"staff@pino.invalid",
+    centers:[{id:"center-1",key:"pino",displayName:"PINO",timeZone:"Asia/Ho_Chi_Minh"}],
+    termWeeks:[
+      {id:"w05",termId:"term",centerId:"center-1",code:"05",ordinal:5,startDate:"2026-09-28",endDate:"2026-10-04"},
+      {id:"w06",termId:"term",centerId:"center-1",code:"06",ordinal:6,startDate:"2026-10-05",endDate:"2026-10-11"},
+      {id:"w07",termId:"term",centerId:"center-1",code:"07",ordinal:7,startDate:"2026-10-12",endDate:"2026-10-18"},
+    ],
+  };
+  assert.deepEqual(availabilityRegistrationWeeks(context,"center-1",["w07","w06"]).map((week)=>week.id),["w06","w07"]);
+  assert.deepEqual(availabilityRegistrationWeeks(context,"center-1",[]),[]);
 });
 
 test("TOSCTX-001/002 Today, Schedule and Check-in use human date and hide raw shift code", async () => {
