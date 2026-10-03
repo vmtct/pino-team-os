@@ -73,6 +73,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/pinoria-ward",
     "/bo/pinoria-ward/sets",
     "/bo/pinoria-ward/learners",
+    "/bo/pinoria-ward/subjects",
     "/bo/content",
     "/bo/system/users",
     "/bo/system/policies",
