@@ -96,6 +96,7 @@ test("Team hard-kill traffic recovery is durable and externally reconciled", () 
 test("Access evaluator runtime credential and provider authority are isolated and immutable", () => {
   const secretFlow = readFileSync(".github/workflows/access-sync-worker-secret.yml", "utf8");
   const evaluatorAuthority = readFileSync("scripts/assert-evaluator-provider-authority.sh", "utf8");
+  assert.ok(evaluatorAuthority.includes('.status=="completed" and .conclusion=="success"'), "freshness must ignore skipped/IGNORED issue-event runs and select the latest successful canonical evaluator authority");
   const externalEval = readFileSync(".github/workflows/tos-canonical-external-eval.yml", "utf8");
   const policyTest = readFileSync("scripts/run-access-evaluator-policy-test.sh", "utf8");
   for (const token of ["CF_ACCESS_EVALUATOR_API_TOKEN", "CONTROL_PLANE_ACCESS_TOKEN", "EVALUATOR_ACCESS_TOKEN", "EVALUATOR_SHA", "versions upload", "--secrets-file", "Evaluator source", "Evaluator script etag", "must not reuse control-plane Access token", "GITHUB_RUN_ATTEMPT", "Evaluator version", "Evaluator deployment", "Evaluator deployment marker"]) assert.match(secretFlow, new RegExp(token));
