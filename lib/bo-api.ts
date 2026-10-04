@@ -425,6 +425,7 @@ export const boApi = {
   reopenWorkforcePlanning: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string; until: string }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/planning/reopen", body, key),
   voidWorkforceAvailability: (submissionId: string, reason: string, idempotencyKey: string) => write<BoWorkforceAvailability>(`workforce/planning/availability/${encodeURIComponent(submissionId)}/void`, { reason }, idempotencyKey),
   workforceCheckInExceptionCenters: () => read<BoCenter>("workforce/planning/check-in-exceptions/centers"),
+  timekeepingCenters: () => read<BoCenter>("workforce/timekeeping/centers"),
   workforceCheckInExceptions: (centerId: string, status?: BoUnscheduledCheckInRequest["status"]) => read<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   workforceCheckInException: (requestId: string) => readOne<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}`),
   approveWorkforceCheckInException: (requestId: string, expectedVersion: number, idempotencyKey: string) => write<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}/approve`, { expectedVersion }, idempotencyKey),

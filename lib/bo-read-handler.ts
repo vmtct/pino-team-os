@@ -81,6 +81,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/users"
     || path === "workforce/staff-records"
         || path === "workforce/timekeeping"
+    || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
     || path === "pinoria/effects/catalog"

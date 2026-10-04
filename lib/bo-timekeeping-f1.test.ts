@@ -6,6 +6,9 @@ test("WFM-TIME-BO F1 stays a BO read-only split view over Core facts",async()=>{
  const [view,api,handler,nav,note]=await Promise.all([readFile("app/bo/workforce/timekeeping/TimekeepingView.tsx","utf8"),readFile("lib/bo-api.ts","utf8"),readFile("lib/bo-read-handler.ts","utf8"),readFile("app/bo/navigation.ts","utf8"),readFile("docs/implementation-notes/wfm-time-bo-f1.md","utf8")]);
  assert.match(nav,/\/bo\/workforce\/timekeeping/);
  assert.match(api,/timekeeping:[\s\S]*workforce\/timekeeping/);
+ assert.match(api,/timekeepingCenters:[\s\S]*workforce\/timekeeping\/centers/);
+ assert.match(view,/boApi\.timekeepingCenters\(\)/);
+ assert.doesNotMatch(view,/boApi\.scopeCatalog\(\)/);
  assert.match(handler,/path === "workforce\/timekeeping"/);
  assert.match(view,/Today/); assert.match(view,/History/); assert.match(view,/TimekeepingSession/); assert.match(view,/Recorded/); assert.match(view,/Assignment linkage/); assert.match(view,/durationSeconds/);
  assert.doesNotMatch(view,/checkOutAt\s*[-+]\s*checkInAt|Date\.parse\(row\.checkOutAt|\/api\/workforce|checkIn\(|checkOut\(|method:\s*["']POST/);

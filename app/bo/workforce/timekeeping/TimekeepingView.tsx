@@ -31,9 +31,9 @@ export function TimekeepingView() {
 
   useEffect(() => {
     let active = true;
-    void boApi.scopeCatalog().then((scope) => {
+    void boApi.timekeepingCenters().then((centers) => {
       if (!active) return;
-      const next = scope.centers.filter((center) => center.status === "active");
+      const next = centers.filter((center) => center.status === "active");
       setCenters(next);
       const first = next[0];
       if (first) {
