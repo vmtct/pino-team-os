@@ -11,6 +11,7 @@
   "send_email": [{ "name": "PINO_STAFF_PASSWORD_EMAIL" }],
   "vars": {
     "FOUNDER_EMAIL": "minhtri.van42@gmail.com,chuthhang@gmail.com",
+    "STAFF_PASSWORD_RESET_FROM_EMAIL": "no-reply@pinohouse.art",
     "PINORIA_TV_STAGING_BYPASS": "enabled",
     "PINORIA_TOS_STAGING_BYPASS": "enabled",
     "PINORIA_BO_STAGING_BYPASS": "enabled",
