@@ -8,8 +8,8 @@ function env(binding: BoAccessCoreBinding): BoShellGateEnv { return { PINO_BO_CO
 function bindingWith(operation: (request: BoAccessRequest, token: string) => Promise<{status:number;body:unknown;requestId:string}>): BoAccessCoreBinding {
   return {  executeWithStaffPassword: operation };
 }
-function context(email = "founder@example.com", staffMemberId: string | null = null, displayName: string | null = null) {
-  return { status: 200, body: { data: { userId: "canonical-user", email, staffMemberId, displayName, surface: "BO", entitled: true } }, requestId: "context" };
+function context(email = "founder@example.com", staffMemberId: string | null = null, displayName: string | null = null, permissionKeys: string[] = []) {
+  return { status: 200, body: { data: { userId: "canonical-user", email, staffMemberId, displayName, surface: "BO", entitled: true, permissionKeys } }, requestId: "context" };
 }
 
 test("valid local-password BO principal is authorized before shell render", async () => {
@@ -17,6 +17,12 @@ test("valid local-password BO principal is authorized before shell render", asyn
   const result = await authorizeBoShell(headers(), env(bindingWith(async (request, value) => { requests.push(request); token = value; return context(); })));
   assert.deepEqual(requests, [{ method: "GET", path: "context" }]);
   assert.equal(token, "local-session-token"); assert.equal(result.entitled, true);
+  assert.deepEqual(result.permissionKeys, []);
+});
+
+test("canonical permission keys are projected into the server shell context", async () => {
+  const result = await authorizeBoShell(headers(), env(bindingWith(async () => context("manager@example.com", "staff-manager", "Manager", ["acquisition.lead.manage"]))));
+  assert.deepEqual(result.permissionKeys, ["acquisition.lead.manage"]);
 });
 
 test("COO-style BO entitlement is accepted without Founder role proof", async () => {

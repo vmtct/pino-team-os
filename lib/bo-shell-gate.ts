@@ -12,6 +12,7 @@ export interface BoShellContext {
   displayName: string | null;
   surface: "BO";
   entitled: true;
+  permissionKeys: string[];
 }
 
 export class BoShellGateError extends Error {
@@ -45,6 +46,7 @@ export async function authorizeBoShell(headers: Headers, env: BoShellGateEnv, _l
     displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName : null,
     surface: "BO",
     entitled: true,
+    permissionKeys: Array.isArray(data.permissionKeys) ? data.permissionKeys.filter((key): key is string => typeof key === "string") : [],
   };
 }
 
