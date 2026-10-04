@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   currentRequirement,
   normalizeLevels,
+  normalizeRequirementQuantity,
+  reconcileOwnedCompanionAfterLevelRemoval,
+  resolveActiveGrantSpeciesId,
   setBringAlong,
   setManualLevel,
   setManualProgress,
@@ -116,21 +119,30 @@ export function CompanionV1Prototype() {
   const [grantSpeciesId, setGrantSpeciesId] = useState(initialSpecies[1].id);
   const [notice, setNotice] = useState("Prototype state is local only · no gameplay gates");
 
-  const selectedSpecies = species.find((entry) => entry.id === selectedSpeciesId) ?? species[0];
+  const selectedSpecies = species.find((entry) => entry.id === selectedSpeciesId) ?? species[0] ?? null;
+  const activeSpecies = useMemo(() => species.filter((entry) => entry.status === "ACTIVE"), [species]);
   const filteredOwners = owners.filter((owner) => owner.kind === ownerKind);
   const selectedOwner = owners.find((owner) => owner.id === selectedOwnerId && owner.kind === ownerKind) ?? filteredOwners[0];
 
   const assignedSpeciesIds = useMemo(() => new Set(owners.flatMap((owner) => owner.companions.map((entry) => entry.speciesId))), [owners]);
 
+  useEffect(() => {
+    if (resolveActiveGrantSpeciesId(species, grantSpeciesId)) return;
+    setGrantSpeciesId(activeSpecies[0]?.id ?? "");
+  }, [activeSpecies, grantSpeciesId, species]);
+
   function patchSpecies(patch: Partial<CompanionSpecies>) {
+    if (!selectedSpecies) return;
     setSpecies((current) => current.map((entry) => entry.id === selectedSpecies.id ? { ...entry, ...patch } : entry));
   }
 
   function patchLevel(level: number, patch: Partial<CompanionSpecies["levels"][number]>) {
+    if (!selectedSpecies) return;
     patchSpecies({ levels: selectedSpecies.levels.map((entry) => entry.level === level ? { ...entry, ...patch } : entry) });
   }
 
   function addLevel() {
+    if (!selectedSpecies) return;
     const next = selectedSpecies.levels.length + 1;
     const previous = selectedSpecies.levels.map((entry, index) => index === selectedSpecies.levels.length - 1
       ? { ...entry, requirementToNext: entry.requirementToNext ?? { kind: "FRUIT" as const, quantity: 1 } }
@@ -147,9 +159,19 @@ export function CompanionV1Prototype() {
   }
 
   function removeLevel(level: number) {
-    if (selectedSpecies.levels.length === 1) return;
-    patchSpecies({ levels: normalizeLevels(selectedSpecies.levels.filter((entry) => entry.level !== level)) });
-    setNotice(`Removed Level ${level}; levels resequenced locally`);
+    if (!selectedSpecies || selectedSpecies.levels.length === 1) return;
+    const remainingLevels = normalizeLevels(selectedSpecies.levels.filter((entry) => entry.level !== level));
+    setSpecies((current) => current.map((entry) => entry.id === selectedSpecies.id ? { ...entry, levels: remainingLevels } : entry));
+    setOwners((current) => current.map((owner) => ({
+      ...owner,
+      companions: owner.companions.map((companion) => reconcileOwnedCompanionAfterLevelRemoval(
+        companion,
+        selectedSpecies.id,
+        level,
+        remainingLevels.length,
+      )),
+    })));
+    setNotice(`Removed Level ${level}; owned Companion level/progress state was reconciled to the resequenced stack`);
   }
 
   function createSpecies() {
@@ -168,6 +190,7 @@ export function CompanionV1Prototype() {
   }
 
   function deleteSpecies() {
+    if (!selectedSpecies) return;
     if (assignedSpeciesIds.has(selectedSpecies.id)) {
       patchSpecies({ status: "ARCHIVED" });
       setNotice(`${selectedSpecies.name} is already owned, so prototype archived it instead of breaking ownership history`);
@@ -191,19 +214,24 @@ export function CompanionV1Prototype() {
   }
 
   function grantCompanion() {
-    if (!selectedOwner || selectedOwner.companions.some((entry) => entry.speciesId === grantSpeciesId)) {
+    const activeGrantSpeciesId = resolveActiveGrantSpeciesId(species, grantSpeciesId);
+    if (!selectedOwner || !activeGrantSpeciesId) {
+      setNotice("Select an active Companion species before granting");
+      return;
+    }
+    if (selectedOwner.companions.some((entry) => entry.speciesId === activeGrantSpeciesId)) {
       setNotice("Owner already has that Companion species");
       return;
     }
     const next: OwnedCompanion = {
       id: `owned-${selectedOwner.id}-${Date.now()}`,
-      speciesId: grantSpeciesId,
+      speciesId: activeGrantSpeciesId,
       currentLevel: 1,
       progressByLevel: { 1: 0 },
       bringAlong: selectedOwner.companions.length === 0,
     };
     mutateOwnerCompanions((current) => [...current, next]);
-    setNotice(`Granted ${species.find((entry) => entry.id === grantSpeciesId)?.name ?? "Companion"} to ${selectedOwner.name}`);
+    setNotice(`Granted ${species.find((entry) => entry.id === activeGrantSpeciesId)?.name ?? "Companion"} to ${selectedOwner.name}`);
   }
 
   function revokeCompanion(companionId: string) {
@@ -244,7 +272,7 @@ export function CompanionV1Prototype() {
           <button className={styles.iconButton} onClick={createSpecies}>+</button>
         </div>
         <div className={styles.speciesList}>
-          {species.map((entry, index) => <button key={entry.id} className={`${styles.speciesRow} ${entry.id === selectedSpecies.id ? styles.speciesRowActive : ""}`} onClick={() => setSelectedSpeciesId(entry.id)}>
+          {species.map((entry, index) => <button key={entry.id} className={`${styles.speciesRow} ${entry.id === selectedSpecies?.id ? styles.speciesRowActive : ""}`} onClick={() => setSelectedSpeciesId(entry.id)}>
             <span className={`${styles.speciesThumb} ${mediaTone(index)}`}>{entry.name.slice(0, 1)}</span>
             <span className={styles.speciesMeta}><strong>{entry.name}</strong><small>{entry.levels.length} levels · {entry.key}</small></span>
             <span className={entry.status === "ACTIVE" ? styles.statusActive : styles.statusArchived}>{entry.status}</span>
@@ -252,7 +280,7 @@ export function CompanionV1Prototype() {
         </div>
       </aside>
 
-      <div className={styles.editorCard}>
+      {selectedSpecies ? <div className={styles.editorCard}>
         <div className={styles.editorHeader}>
           <div><span>CATALOG DETAIL</span><h2>{selectedSpecies.name}</h2><p>Configure identity, metadata, exact number of levels, visual per level and the descriptive requirement to the next level.</p></div>
           <div className={styles.headerActions}>
@@ -297,12 +325,12 @@ export function CompanionV1Prototype() {
                   patchLevel(level.level, { requirementToNext: { kind, quantity: level.requirementToNext?.quantity ?? 1, ...(kind === "GLOBAL_ITEM" ? { globalItemId: GLOBAL_ITEMS[0].id } : {}) } });
                 }}><option value="FRUIT">Fruit</option><option value="GLOBAL_ITEM">Global catalog item</option></select></label>
                 {level.requirementToNext.kind === "GLOBAL_ITEM" ? <label><span>Global item</span><select value={level.requirementToNext.globalItemId ?? GLOBAL_ITEMS[0].id} onChange={(event) => patchLevel(level.level, { requirementToNext: { ...level.requirementToNext!, globalItemId: event.target.value } })}>{GLOBAL_ITEMS.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.key}</option>)}</select></label> : null}
-                <label className={styles.qtyField}><span>Quantity</span><input type="number" min={0} value={level.requirementToNext.quantity} onChange={(event) => patchLevel(level.level, { requirementToNext: { ...level.requirementToNext!, quantity: Number(event.target.value) } })} /></label>
+                <label className={styles.qtyField}><span>Quantity</span><input type="number" min={0} value={level.requirementToNext.quantity} onChange={(event) => patchLevel(level.level, { requirementToNext: { ...level.requirementToNext!, quantity: normalizeRequirementQuantity(Number(event.target.value)) } })} /></label>
               </div> : <div className={styles.finalLevel}><span>FINAL LEVEL</span><strong>No next-level requirement</strong></div>}
             </div>
           </article>)}
         </div>
-      </div>
+      </div> : <div className={styles.editorCard}><div className={styles.emptyState}><strong>No Companion species</strong><span>Create a catalog entry to continue configuring levels and ownership.</span><button className={styles.primaryButton} onClick={createSpecies}>+ Create Companion</button></div></div>}
     </section> : null}
 
     {tab === "OWNERSHIP" ? <section className={styles.ownershipLayout}>
@@ -324,8 +352,8 @@ export function CompanionV1Prototype() {
         <div className={styles.ownerHero}>
           <div className={styles.ownerIdentity}><span className={styles.avatarLarge}>{selectedOwner?.name.split(" ").slice(-1)[0].slice(0, 1)}</span><div><span>{selectedOwner?.kind}</span><h2>{selectedOwner?.name}</h2><p>{selectedOwner?.subtitle}</p></div></div>
           <div className={styles.grantBox}>
-            <label><span>Grant companion</span><select value={grantSpeciesId} onChange={(event) => setGrantSpeciesId(event.target.value)}>{species.filter((entry) => entry.status === "ACTIVE").map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
-            <button className={styles.primaryButton} onClick={grantCompanion}>+ Grant</button>
+            <label><span>Grant companion</span><select value={grantSpeciesId} disabled={activeSpecies.length === 0} onChange={(event) => setGrantSpeciesId(event.target.value)}>{activeSpecies.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
+            <button className={styles.primaryButton} disabled={activeSpecies.length === 0} onClick={grantCompanion}>+ Grant</button>
           </div>
         </div>
 

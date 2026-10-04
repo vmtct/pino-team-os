@@ -51,6 +51,39 @@ export function normalizeLevels(levels: CompanionLevel[]): CompanionLevel[] {
   }));
 }
 
+export function normalizeRequirementQuantity(value: number): number {
+  return Math.max(0, Math.trunc(Number.isFinite(value) ? value : 0));
+}
+
+export function resolveActiveGrantSpeciesId(species: CompanionSpecies[], requestedId: string): string | null {
+  return species.some((entry) => entry.id === requestedId && entry.status === "ACTIVE") ? requestedId : null;
+}
+
+export function reconcileOwnedCompanionAfterLevelRemoval(
+  companion: OwnedCompanion,
+  speciesId: string,
+  removedLevel: number,
+  remainingLevelCount: number,
+): OwnedCompanion {
+  if (companion.speciesId !== speciesId || remainingLevelCount < 1) return companion;
+
+  const progressByLevel: Record<number, number> = {};
+  for (const [rawLevel, value] of Object.entries(companion.progressByLevel)) {
+    const level = Number(rawLevel);
+    if (!Number.isInteger(level) || level === removedLevel) continue;
+    const nextLevel = level > removedLevel ? level - 1 : level;
+    if (nextLevel >= 1 && nextLevel <= remainingLevelCount) progressByLevel[nextLevel] = value;
+  }
+
+  let currentLevel = companion.currentLevel;
+  if (currentLevel > removedLevel) currentLevel -= 1;
+  else if (currentLevel === removedLevel) currentLevel = Math.min(removedLevel, remainingLevelCount);
+  currentLevel = Math.max(1, Math.min(currentLevel, remainingLevelCount));
+  if (!(currentLevel in progressByLevel)) progressByLevel[currentLevel] = 0;
+
+  return { ...companion, currentLevel, progressByLevel };
+}
+
 export function setBringAlong(companions: OwnedCompanion[], companionId: string | null): OwnedCompanion[] {
   return companions.map((entry) => ({ ...entry, bringAlong: companionId !== null && entry.id === companionId }));
 }
