@@ -37,9 +37,15 @@ export function SpecialtyWorkspace({lifecycle,paths,blocked,onChanged}:Props){
   const [sourceSubscriptionId,setSourceSubscriptionId]=useState("");
   const [decision,setDecision]=useState<BoSpecialtyPurchaseDecision|null>(null);
   const refresh=useCallback(async()=>{
-    const [nextCatalog,nextSummary,nextSessions]=await Promise.all([
-      boApi.specialtyCatalog(),boApi.specialtyStudent(lifecycle.student.id),boApi.sessions(),
+    const [pathCatalogs,nextSummary,nextSessions]=await Promise.all([
+      Promise.all(paths.filter(item=>item.status==="ACTIVE").map(item=>boApi.specialtyCatalog(item.id))),
+      boApi.specialtyStudent(lifecycle.student.id),boApi.sessions(),
     ]);
+    const nextCatalog:BoSpecialtyCatalog={
+      families:pathCatalogs.flatMap(item=>item.families),modules:pathCatalogs.flatMap(item=>item.modules),
+      offers:pathCatalogs.flatMap(item=>item.offers),rewards:pathCatalogs.flatMap(item=>item.rewards),
+      relics:[...new Map(pathCatalogs.flatMap(item=>item.relics).map(item=>[item.id,item])).values()],
+    };
     setCatalog({state:"ready",data:nextCatalog});
     setSummary({state:"ready",data:nextSummary});
     setSessions(nextSessions);
