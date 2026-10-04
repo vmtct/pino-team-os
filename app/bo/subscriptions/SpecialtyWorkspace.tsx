@@ -38,7 +38,10 @@ export function SpecialtyWorkspace({lifecycle,paths,blocked,onChanged}:Props){
   const [decision,setDecision]=useState<BoSpecialtyPurchaseDecision|null>(null);
   const refresh=useCallback(async()=>{
     const [pathCatalogs,nextSummary,nextSessions]=await Promise.all([
-      Promise.all(paths.filter(item=>item.status==="ACTIVE").map(item=>boApi.specialtyCatalog(item.id))),
+      Promise.all(paths.filter(item=>item.status==="ACTIVE").map(async item=>{
+        try{return await boApi.specialtyCatalog(item.id)}
+        catch(cause){if(cause instanceof BoApiError&&cause.status===403)return null;throw cause}
+      })).then(items=>items.filter((item):item is BoSpecialtyCatalog=>item!==null)),
       boApi.specialtyStudent(lifecycle.student.id),boApi.sessions(),
     ]);
     const nextCatalog:BoSpecialtyCatalog={
