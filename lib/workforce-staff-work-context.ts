@@ -30,6 +30,13 @@ export function assignmentsInWeek(rows: Assignment[], week: WorkforceContext["te
   return rows.filter((row) => row.workDate >= week.startDate && row.workDate <= week.endDate);
 }
 
+export function availabilityRegistrationWeeks(context: WorkforceContext, centerId: string, openWeekIds: readonly string[]) {
+  const open = new Set(openWeekIds);
+  return context.termWeeks
+    .filter((week) => week.centerId === centerId && open.has(week.id))
+    .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.ordinal - right.ordinal || left.id.localeCompare(right.id));
+}
+
 export function nextAssignment(rows: Assignment[], fromDate: string) {
   return [...rows]
     .filter((row) => row.workDate >= fromDate && row.status !== "CANCELLED")
