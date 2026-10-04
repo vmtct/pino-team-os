@@ -34,6 +34,24 @@
   background: #e7f2ea;
   color: #37634a;
 }
+.weekPicker {
+  display: grid;
+  gap: 6px;
+  color: #69615a;
+  font-size: 10px;
+  font-weight: 800;
+}
+.weekPicker select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid #ddd7cf;
+  border-radius: 11px;
+  background: #fff;
+  color: #514b46;
+  font: inherit;
+  font-size: 12px;
+}
 .days {
   display: grid;
   gap: 10px;

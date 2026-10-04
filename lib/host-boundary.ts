@@ -138,6 +138,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/workforce/planning/shift-templates",
     "/api/bo/workforce/planning/weekly",
     "/api/bo/workforce/planning/week-control",
+    "/api/bo/workforce/planning/availability/registration",
     "/api/bo/workforce/planning/availability/lock",
     "/api/bo/workforce/planning/availability/reopen",
     "/api/bo/workforce/planning/planning/publish",
