@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoCenter, BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
+import type { BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
 import styles from "./timekeeping.module.css";
 
 type Mode = "today" | "history";
+type TimekeepingCenter = { id: string; displayName: string; timeZone: string };
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; page: BoTimekeepingPage };
 
 export function TimekeepingView() {
-  const [centers, setCenters] = useState<BoCenter[]>([]);
+  const [centers, setCenters] = useState<TimekeepingCenter[]>([]);
   const [centerId, setCenterId] = useState("");
   const [mode, setMode] = useState<Mode>("today");
   const [startDate, setStartDate] = useState("");
@@ -31,9 +32,9 @@ export function TimekeepingView() {
 
   useEffect(() => {
     let active = true;
-    void boApi.scopeCatalog().then((scope) => {
+    void boApi.timekeepingCenters().then((items) => {
       if (!active) return;
-      const next = scope.centers.filter((center) => center.status === "active");
+      const next = items.map((center) => ({ id: center.id, displayName: center.displayLabel, timeZone: center.timeZone }));
       setCenters(next);
       const first = next[0];
       if (first) {
