@@ -21,7 +21,7 @@ test("TOS exposes forgot-password UX while BO remains outside the recovery surfa
   assert.doesNotMatch(host, /isBoLocalAuthPath[\s\S]{0,500}staff-password\/forgot/);
 });
 
-test("Team runtime declares Cloudflare email binding without hard-coded sender identity", async () => {
+test("Team runtime declares Cloudflare email binding and sender config without handler hard-coding", async () => {
   const [production, staging, handler, binding] = await Promise.all([
     read("wrangler.jsonc"),
     read("wrangler.staging.jsonc"),
@@ -30,6 +30,7 @@ test("Team runtime declares Cloudflare email binding without hard-coded sender i
   ]);
   for (const config of [production, staging]) {
     assert.match(config, /"send_email"\s*:\s*\[\{\s*"name"\s*:\s*"PINO_STAFF_PASSWORD_EMAIL"/);
+    assert.match(config, /"STAFF_PASSWORD_RESET_FROM_EMAIL"\s*:\s*"[^"\s]+@pinohouse\.art"/);
   }
   assert.match(handler, /STAFF_PASSWORD_RESET_FROM_EMAIL/);
   assert.match(handler, /https:\/\/\$\{TOS_HOSTNAME\}\/staff-password\/reset#token=/);
