@@ -55,6 +55,11 @@ test("SPF-009/010 Subscriptions workspace mounts policy-driven Specialty lifecyc
   ]);
   assert.match(view,/import \{ SpecialtyWorkspace \}/);
   assert.match(view,/<SpecialtyWorkspace lifecycle=\{data\}/);
+  assert.match(workspace,/paths\.filter\(item=>item\.status==="ACTIVE"\)\.map\(async item=>/);
+  assert.match(workspace,/boApi\.specialtyCatalog\(item\.id\)/);
+  assert.match(workspace,/cause instanceof BoApiError&&cause\.status===403/);
+  assert.match(workspace,/items\.filter\(\(item\):item is BoSpecialtyCatalog=>item!==null\)/);
+  assert.doesNotMatch(workspace,/boApi\.specialtyCatalog\(\)/);
   assert.match(workspace,/boApi\.createSpecialtyFamily/);
   assert.match(workspace,/boApi\.createSpecialtyModule/);
   assert.match(workspace,/boApi\.createSpecialtyOffer/);
