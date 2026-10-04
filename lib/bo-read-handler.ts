@@ -89,6 +89,11 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "pinoria/ward/learners"
     || /^pinoria\/ward\/learners\/[0-9a-f-]{36}$/.test(path)
     || path === "pinoria/ward/set-webm-assets"
+    || path === "pinoria/worlds"
+    || path === "pinoria/worlds/learners"
+    || /^pinoria\/worlds\/learners\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}$/.test(path)
+    || /^pinoria\/worlds\/students\/[0-9a-f-]{36}\/live$/.test(path)
     || path === "pinoria/onboarding/sets"
     || /^pinoria\/onboarding\/(students|staff)\/[0-9a-f-]{36}$/.test(path)
     || path === "web-cms/slots"

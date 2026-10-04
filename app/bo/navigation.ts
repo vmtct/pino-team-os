@@ -51,6 +51,7 @@ export const boNavigation: BoNavGroup[] = [
   {
     label: "Pinoria",
     items: [
+      { href: "/bo/pinoria-world", label: "World" },
       {
         href: "/bo/pinoria-wish",
         label: "Economy",
