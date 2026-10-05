@@ -121,10 +121,12 @@ export type BoStudentIntakeCreateInput = {
 } & ({ existingParentUserId: string } | { existingParentUserId?: null; guardianDisplayName: string | null; contactType: "PHONE" | "EMAIL"; contactValue: string });
 
 export type BoAcquisitionIntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" | "CLOSED";
-export type BoAcquisitionCreateInput = { phone: string; sourceBrand: "PINO_HOUSE" | "TOPPI"; intentKind: "OPEN_STUDIO" | "PROGRAM_INTEREST" | "GENERAL_INQUIRY"; childAge: number | null };
+export type BoAcquisitionCenter = { id: string; centerKey: string; displayName: string; timeZone: string; status: string };
+export type BoAcquisitionCreateInput = { centerId: string; phone: string; sourceBrand: "PINO_HOUSE" | "TOPPI"; intentKind: "OPEN_STUDIO" | "PROGRAM_INTEREST" | "GENERAL_INQUIRY"; childAge: number | null };
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
+  centerId: string | null;
   phone: string;
   sourceBrand: "PINO_HOUSE" | "TOPPI";
   sourceSurface: "PINO_HOUSE_WEB" | "TOPPI_WEB" | "STAFF";
@@ -295,7 +297,8 @@ export const boApi = {
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
-  acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
+  acquisitionCenters: () => read<BoAcquisitionCenter>("acquisition/centers"),
+  acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100, centerId?: string) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}${centerId ? `&centerId=${encodeURIComponent(centerId)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
   createAcquisitionIntent: (body: BoAcquisitionCreateInput, idempotencyKey: string) => write<{ leadId: string; intentId: string; status: "SUBMITTED"; nextStep: "MANUAL_CONTACT" }>("acquisition/intents", body, idempotencyKey),
   markAcquisitionContacted: (intentId: string, expectedVersion: number, idempotencyKey: string) => write<{ intentId: string; status: "CONTACTED"; version: number }>(`acquisition/intents/${encodeURIComponent(intentId)}/contacted`, { expectedVersion }, idempotencyKey),

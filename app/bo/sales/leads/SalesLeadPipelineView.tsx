@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { boApi, BoApiError, type BoAcquisitionCreateInput, type BoAcquisitionIntent, type BoAcquisitionIntentStatus } from "@/lib/bo-api";
+import { boApi, BoApiError, type BoAcquisitionCenter, type BoAcquisitionCreateInput, type BoAcquisitionIntent, type BoAcquisitionIntentStatus } from "@/lib/bo-api";
 import styles from "./sales-leads.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
 type CreateAttempt = { idempotencyKey: string; input: BoAcquisitionCreateInput };
-type CreateDraft = { phone: string; sourceBrand: BoAcquisitionCreateInput["sourceBrand"]; intentKind: BoAcquisitionCreateInput["intentKind"]; childAge: string };
+type CreateDraft = { centerId: string; phone: string; sourceBrand: BoAcquisitionCreateInput["sourceBrand"]; intentKind: BoAcquisitionCreateInput["intentKind"]; childAge: string };
 type FilterStatus = "ALL" | BoAcquisitionIntentStatus;
 
-const EMPTY_CREATE_DRAFT: CreateDraft = { phone: "", sourceBrand: "PINO_HOUSE", intentKind: "GENERAL_INQUIRY", childAge: "" };
+const EMPTY_CREATE_DRAFT: CreateDraft = { centerId: "", phone: "", sourceBrand: "PINO_HOUSE", intentKind: "GENERAL_INQUIRY", childAge: "" };
 
 const FILTERS: Array<{ value: FilterStatus; label: string }> = [
   { value: "ALL", label: "Tất cả" },
@@ -24,6 +24,7 @@ export function SalesLeadPipelineView() {
   const [status, setStatus] = useState<FilterStatus>("ALL");
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<Load<BoAcquisitionIntent[]>>({ state: "loading" });
+  const [centers, setCenters] = useState<Load<BoAcquisitionCenter[]>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Load<BoAcquisitionIntent> | null>(null);
   const [closeReason, setCloseReason] = useState("");
@@ -57,6 +58,18 @@ export function SalesLeadPipelineView() {
     }
   }
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
+  useEffect(() => {
+    let active = true;
+    void boApi.acquisitionCenters().then((items) => {
+      if (!active) return;
+      setCenters({ state: "ready", data: items });
+      setCreateDraft((draft) => draft.centerId || !items[0] ? draft : { ...draft, centerId: items[0].id });
+    }).catch((error: unknown) => {
+      if (active) setCenters({ state: "error", message: message(error) });
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -104,7 +117,7 @@ export function SalesLeadPipelineView() {
       if (status === "ALL") createSelectionRef.current = null;
       if (next === result.intentId) await loadDetail(result.intentId);
       setCreateAttempt(null);
-      setCreateDraft(EMPTY_CREATE_DRAFT);
+      setCreateDraft({ ...EMPTY_CREATE_DRAFT, centerId: attempt.input.centerId });
       setCreateState({ busy: false, notice: "Đã tạo Lead.", error: null });
     } catch (error) {
       const definitive = error instanceof BoApiError && error.structuredResponse && error.status >= 400 && error.status < 500;
@@ -119,6 +132,10 @@ export function SalesLeadPipelineView() {
     if (createState.busy || commandState.busy || pendingAttempt) return;
     const phone = createDraft.phone.trim();
     const childAge = createDraft.childAge.trim() === "" ? null : Number(createDraft.childAge);
+    if (!createDraft.centerId) {
+      setCreateState({ busy: false, notice: null, error: "Center là bắt buộc." });
+      return;
+    }
     if (!phone) {
       setCreateState({ busy: false, notice: null, error: "Số điện thoại là bắt buộc." });
       return;
@@ -129,7 +146,7 @@ export function SalesLeadPipelineView() {
     }
     const attempt = createAttempt ?? {
       idempotencyKey: crypto.randomUUID(),
-      input: { phone, sourceBrand: createDraft.sourceBrand, intentKind: createDraft.intentKind, childAge },
+      input: { centerId: createDraft.centerId, phone, sourceBrand: createDraft.sourceBrand, intentKind: createDraft.intentKind, childAge },
     };
     setCreateAttempt(attempt);
     void executeCreate(attempt);
@@ -179,6 +196,13 @@ export function SalesLeadPipelineView() {
         </div>
         <div className={styles.createGrid}>
           <label>
+            <span>Center</span>
+            <select aria-label="Center Lead" value={createDraft.centerId} onChange={(event) => updateCreateDraft({ centerId: event.target.value })} disabled={blocked || centers.state !== "ready"}>
+              <option value="">Chọn Center…</option>
+              {centers.state === "ready" ? centers.data.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>) : null}
+            </select>
+          </label>
+          <label>
             <span>Số điện thoại</span>
             <input aria-label="Số điện thoại Lead" autoComplete="tel" inputMode="tel" required placeholder="09…" value={createDraft.phone} onChange={(event) => updateCreateDraft({ phone: event.target.value })} disabled={blocked} />
           </label>
@@ -201,8 +225,9 @@ export function SalesLeadPipelineView() {
             <span>Tuổi bé</span>
             <input aria-label="Tuổi bé của Lead" type="number" min={2} max={17} placeholder="Không bắt buộc" value={createDraft.childAge} onChange={(event) => updateCreateDraft({ childAge: event.target.value })} disabled={blocked} />
           </label>
-          <button type="submit" disabled={blocked || !createDraft.phone.trim()}>{createState.busy ? "Đang tạo…" : "Tạo Lead"}</button>
+          <button type="submit" disabled={blocked || !createDraft.centerId || !createDraft.phone.trim()}>{createState.busy ? "Đang tạo…" : "Tạo Lead"}</button>
         </div>
+        {centers.state === "error" ? <p className={styles.error}>{centers.message}</p> : null}
         {createAttempt && createState.error ? <button className={styles.retry} type="button" onClick={() => void executeCreate(createAttempt)} disabled={createState.busy || Boolean(commandState.busy)}>Thử lại tạo Lead</button> : null}
         {createState.notice ? <p className={styles.notice}>{createState.notice}</p> : null}
         {createState.error ? <p className={styles.error}>{createState.error}</p> : null}
@@ -242,6 +267,7 @@ export function SalesLeadPipelineView() {
               <Status status={intent.status} />
             </div>
             <div className={styles.facts}>
+              <Fact label="Center" value={centerLabel(intent.centerId, centers)} />
               <Fact label="Nguồn" value={`${sourceLabel(intent.sourceBrand)} · ${intent.sourceSurface}`} />
               <Fact label="Nhu cầu" value={intentLabel(intent.intentKind)} />
               <Fact label="Tuổi bé" value={intent.childAge === null ? "—" : String(intent.childAge)} />
@@ -291,6 +317,10 @@ function Status({ status }: { status: BoAcquisitionIntentStatus }) {
 }
 function statusLabel(status: BoAcquisitionIntentStatus) {
   return ({ SUBMITTED: "Mới", CONTACTED: "Đã liên hệ", CONTACT_VERIFIED: "Đã xác minh", CLOSED: "Đã đóng" } as const)[status];
+}
+function centerLabel(centerId: string | null, centers: Load<BoAcquisitionCenter[]>) {
+  if (!centerId) return "Chưa gán · Founder only";
+  return centers.state === "ready" ? centers.data.find((center) => center.id === centerId)?.displayName ?? centerId : centerId;
 }
 function sourceLabel(source: BoAcquisitionIntent["sourceBrand"]) { return source === "PINO_HOUSE" ? "PINO House" : "Toppi"; }
 function intentLabel(kind: BoAcquisitionIntent["intentKind"]) { return ({ OPEN_STUDIO: "Open Studio", PROGRAM_INTEREST: "Quan tâm chương trình", GENERAL_INQUIRY: "Tư vấn chung" } as const)[kind]; }
