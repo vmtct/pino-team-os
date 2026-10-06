@@ -1,0 +1,52 @@
+name: Candidate Team staging deploy
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_id: {required: true, type: string}
+      manifest_hash: {required: true, type: string}
+      team_sha: {required: true, type: string}
+      core_version_id: {required: true, type: string}
+permissions: {contents: read, actions: read}
+concurrency: {group: pino-team-staging-worker-mutation, cancel-in-progress: false}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env: {CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: "${{ inputs.team_sha }}", persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - name: Validate immutable candidate authority
+        env:
+          GH_TOKEN: "${{ github.token }}"
+          TEAM_SHA: "${{ inputs.team_sha }}"
+          MANIFEST_HASH: "${{ inputs.manifest_hash }}"
+        run: |
+          set -euo pipefail
+          [[ "$TEAM_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$MANIFEST_HASH" =~ ^[0-9a-f]{64}$ ]]
+          [ "$(git rev-parse HEAD)" = "$TEAM_SHA" ]
+          [ "$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$TEAM_SHA" ]
+          grep -q '"name": "pino-team-os-staging"' wrangler.staging.jsonc
+          ! grep -q '"service": "pino-core"' wrangler.staging.jsonc
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx opennextjs-cloudflare build
+      - name: Deploy staging only
+        env:
+          CLOUDFLARE_API_TOKEN: "${{ secrets.CF_API_TOKEN }}"
+          CLOUDFLARE_ACCOUNT_ID: "${{ env.CF_ACCOUNT_ID }}"
+        run: |
+          set -euo pipefail
+          npx wrangler deploy -c wrangler.staging.jsonc --tag "candidate-${{ inputs.candidate_id }}" --message "candidate=${{ inputs.candidate_id }} manifest=${{ inputs.manifest_hash }} sha=${{ inputs.team_sha }} core=${{ inputs.core_version_id }}"
+          npx wrangler deployments list -c wrangler.staging.jsonc --json > deployment.json
+          version="$(jq -r '.[0].versions[]|select(.percentage==100)|.version_id' deployment.json)"
+          test -n "$version"
+          jq -n --arg c "${{ inputs.candidate_id }}" --arg m "${{ inputs.manifest_hash }}" --arg s "${{ inputs.team_sha }}" --arg v "$version" --arg cv "${{ inputs.core_version_id }}" --arg r "$GITHUB_RUN_ID" '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:"team",candidateId:$c,manifestHash:$m,sourceSha:$s,worker:"pino-team-os-staging",activeVersionId:$v,coreVersionId:$cv,runId:$r,result:"PASS",productionMutation:false}' | tee candidate-staging-receipt.json
+      - uses: actions/upload-artifact@v4
+        with: {name: candidate-staging-team-receipt, path: candidate-staging-receipt.json}
+
+# project: PLT-RELEASE-STAGING-PREPROD-V1
