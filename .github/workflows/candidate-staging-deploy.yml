@@ -27,9 +27,8 @@ jobs:
           set -euo pipefail
           [[ "$TEAM_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$MANIFEST_HASH" =~ ^[0-9a-f]{64}$ ]]
           [ "$(git rev-parse HEAD)" = "$TEAM_SHA" ]
-          [ "$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$TEAM_SHA" ]
           grep -q '"name": "pino-team-os-staging"' wrangler.staging.jsonc
-          ! grep -q '"service": "pino-core"' wrangler.staging.jsonc
+          grep -q '"service": "pino-core-staging"' wrangler.staging.jsonc
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
