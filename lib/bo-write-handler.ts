@@ -97,6 +97,7 @@ const WARD_SET_WRITE = /^pinoria\/ward\/sets(?:\/[0-9a-f-]{36}(?:\/members)?)?$/
 const WARD_SET_MEDIA = "pinoria/ward/set-webm-assets";
 const WEB_CMS_WRITE = /^web-cms\/slots\/[0-9a-f-]{36}\/(draft|publish|rollback)$/;
 const WARD_LEARNER_WRITE = /^pinoria\/ward\/learners\/[0-9a-f-]{36}\/(grants|revocations|loadout)$/;
+const WARD_SUBJECT_WRITE = /^pinoria\/ward\/subjects\/[0-9a-f-]{36}\/(grants|revocations|setup)$/;
 const PINORIA_ONBOARDING_SET_WRITE = /^pinoria\/onboarding\/sets\/[0-9a-f-]{36}$/;
 const PINORIA_ONBOARDING_GRANT_WRITE = /^pinoria\/onboarding\/(students|staff)\/[0-9a-f-]{36}\/grant$/;
 const PINORIA_WORLD_WRITE = /^(?:pinoria\/worlds|pinoria\/worlds\/[0-9a-f-]{36}|pinoria\/worlds\/[0-9a-f-]{36}\/scenes|pinoria\/worlds\/scenes\/[0-9a-f-]{36}|pinoria\/worlds\/scenes\/[0-9a-f-]{36}\/layers|pinoria\/worlds\/layers\/[0-9a-f-]{36}|pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances|pinoria\/worlds\/instances\/[0-9a-f-]{36}(?:\/(?:set-live|revoke|reactivate))?|pinoria\/worlds\/instances\/[0-9a-f-]{36}\/scenes\/[0-9a-f-]{36}|pinoria\/worlds\/instances\/[0-9a-f-]{36}\/layers\/[0-9a-f-]{36})$/;
@@ -133,7 +134,7 @@ export async function handleBoWriteRequest(
     if (
       request.method !== "POST"
       && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
-      && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || (WARD_SUBJECT_WRITE.test(path) && path.endsWith("/setup")) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
@@ -141,7 +142,7 @@ export async function handleBoWriteRequest(
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
+    if ((path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || WARD_SUBJECT_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -271,6 +272,7 @@ export function isAllowedPostPath(path: string): boolean {
     || WARD_CATALOG_WRITE.test(path)
     || WARD_SET_WRITE.test(path)
     || WARD_LEARNER_WRITE.test(path)
+    || WARD_SUBJECT_WRITE.test(path)
     || PINORIA_ONBOARDING_SET_WRITE.test(path)
     || PINORIA_ONBOARDING_GRANT_WRITE.test(path)
     || PINORIA_WORLD_WRITE.test(path)

@@ -1,5 +1,5 @@
-import {WardLearnerManager} from "./WardLearnerManager";
+import {redirect} from "next/navigation";
 
-export default function WardLearnerPage(){
-  return <WardLearnerManager/>;
+export default function LegacyWardLearnerPage(){
+  redirect("/bo/pinoria-ward/subjects");
 }
