@@ -162,6 +162,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/pinoria\/ward\/sets(?:\/[0-9a-f-]{36}(?:\/members)?)?$/.test(normalized)
     || normalized === "/api/bo/pinoria/ward/set-webm-assets"
     || /^\/api\/bo\/pinoria\/ward\/learners(?:\/[0-9a-f-]{36}(?:\/(?:grants|revocations|loadout))?)?$/.test(normalized)
+    || /^\/api\/bo\/pinoria\/ward\/subjects(?:\/catalog|\/[0-9a-f-]{36}(?:\/(?:grants|revocations|setup))?)?$/.test(normalized)
     || /^\/api\/bo\/practice\/repertoire-access\/grants\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/practice\/resources\/[0-9a-f-]{36}(?:\/drafts)?$/.test(normalized)
     || /^\/api\/bo\/practice\/versions\/[0-9a-f-]{36}(?:\/(?:pages|publish))?$/.test(normalized)
