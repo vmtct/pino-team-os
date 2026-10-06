@@ -58,6 +58,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "specialty/catalog"
     || SPECIALTY_STUDENT_READ.test(path)
     || path === "centers"
+    || path === "acquisition/centers"
     || path === "acquisition/intents"
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
     || path === "delivery/bootstrap-state"
@@ -169,8 +170,10 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     const body: Record<string, unknown> = {};
     const status = url.searchParams.get("status");
     const limit = url.searchParams.get("limit");
+    const centerId = url.searchParams.get("centerId")?.trim();
     if (status) body.status = status;
     if (limit) body.limit = Number(limit);
+    if (centerId) body.centerId = centerId;
     return Object.keys(body).length ? body : undefined;
   }
   if (path === "workforce/timekeeping") {
