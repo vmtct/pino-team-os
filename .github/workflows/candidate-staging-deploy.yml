@@ -48,3 +48,5 @@ jobs:
           jq -n --arg c "${{ inputs.candidate_id }}" --arg m "${{ inputs.manifest_hash }}" --arg s "${{ inputs.team_sha }}" --arg v "$version" --arg cv "${{ inputs.core_version_id }}" --arg r "$GITHUB_RUN_ID" '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:"team",candidateId:$c,manifestHash:$m,sourceSha:$s,worker:"pino-team-os-staging",activeVersionId:$v,coreVersionId:$cv,runId:$r,result:"PASS",productionMutation:false}' | tee candidate-staging-receipt.json
       - uses: actions/upload-artifact@v4
         with: {name: candidate-staging-team-receipt, path: candidate-staging-receipt.json}
+
+# project: PLT-RELEASE-STAGING-PREPROD-V1
