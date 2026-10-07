@@ -21,7 +21,7 @@ test("WFM-PLAN TOS availability keeps submission distinct from final assignment"
 
 test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", async () => {
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
-  assert.match(source, /Xác nhận ca & phân công/);
+  assert.match(source, /Xác nhận ca/);
   assert.match(source, /Lý do thay đổi/);
   assert.match(source, /canonical assignment audit/);
   assert.match(
@@ -56,6 +56,15 @@ test("JCS04 BO exposes governed availability history and operator void only thro
   assert.match(source, /Void availability/);
   assert.match(source, /history được giữ nguyên và không còn dùng làm planning input/);
   assert.doesNotMatch(source, /deleteWorkforceAvailability|reopenAvailability/);
+});
+
+test("WFM-PLAN BO can create a canonical shift without materialized Sessions", async () => {
+  const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
+  assert.match(source, /if \(!roles\.length\)/);
+  assert.match(source, /boApi\.assignWorkforceShift/);
+  assert.match(source, /ca không phụ thuộc Session/);
+  assert.match(source, /Điều này không chặn xếp ca/);
+  assert.doesNotMatch(source, /disabled=\{!templateId \|\| \(!frontDesk && !teacherSessionIds\.length\)/);
 });
 
 test("WSRA BO plans FD/Teacher exact Session and derives primary owner authority", async () => {

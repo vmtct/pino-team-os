@@ -195,15 +195,22 @@ export function WorkforcePlanningView() {
         };
       }),
     ];
-    if (!roles.length) { setNotice("Chọn ít nhất Front Desk hoặc một lớp Teacher."); return; }
     if (handoffReasonMissing) { setNotice("Cần nhập lý do bàn giao cho lớp đang có Phụ trách chính khác."); return; }
     setBusy("assign"); setNotice("");
     try {
-      await boApi.planOperationalWorkforceShift({
-        staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
-        shiftTemplateId: templateId, timeBasis: normalizedTimeBasis, termWeekId: data.termWeekId, roles,
-      }, crypto.randomUUID());
-      setNotice("Ca và phân công operational đã được chốt.");
+      if (!roles.length) {
+        await boApi.assignWorkforceShift({
+          staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
+          shiftTemplateId: templateId, termWeekId: data.termWeekId,
+        }, crypto.randomUUID());
+        setNotice("Ca đã được xếp. Session/Teacher có thể bổ sung sau khi materialize; ca không phụ thuộc Session.");
+      } else {
+        await boApi.planOperationalWorkforceShift({
+          staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
+          shiftTemplateId: templateId, timeBasis: normalizedTimeBasis, termWeekId: data.termWeekId, roles,
+        }, crypto.randomUUID());
+        setNotice("Ca và phân công operational đã được chốt.");
+      }
       setFrontDesk(false); setTeacherSessionIds([]); setPrimarySessionIds([]); setTimeBasis("SHIFT_TEMPLATE"); setHandoffReasons({});
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
@@ -386,7 +393,8 @@ export function WorkforcePlanningView() {
           </label>
 
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
-            <strong>Phân công operational</strong>
+            <strong>Phân công operational · tuỳ chọn</strong>
+            <small>Xếp ca độc lập với Session. Nếu Session chưa materialize, vẫn xác nhận ca bình thường; Teacher/Learning Owner có thể bổ sung sau.</small>
             <label className={styles.field}>
               <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked); if(checked)setTimeBasis("SHIFT_TEMPLATE"); }} /> Front Desk</span>
               <small>Front Desk áp dụng cho toàn ca; khoảng Session Teacher sẽ được ưu tiên tự động.</small>
@@ -417,11 +425,11 @@ export function WorkforcePlanningView() {
                     <input value={handoffReasons[session.id] ?? ""} onChange={(event) => setHandoffReasons((current) => ({ ...current, [session.id]: event.target.value }))} placeholder={"Chuyển từ " + ownerLabel + " sang " + selectedStaff.displayLabel} />
                   </label> : null}
                 </article>;
-              }) : <span>Không có Session nào trong đúng ngày và khung giờ của ca đã chọn.</span>}
+              }) : <span>Chưa có Session materialized trong đúng ngày và khung giờ. Điều này không chặn xếp ca.</span>}
             </div>
           </div> : null}
 
-          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || (!frontDesk && !teacherSessionIds.length) || handoffReasonMissing || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận ca & phân công"}</button> : null}
+          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || handoffReasonMissing || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : (frontDesk || teacherSessionIds.length ? "Xác nhận ca & phân công" : "Xác nhận ca")}</button> : null}
 
           {activeAssignments.length ? <label className={styles.field}>Lý do thay đổi
             <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Bắt buộc khi huỷ hoặc điều chỉnh" />
