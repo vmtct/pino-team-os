@@ -51,6 +51,8 @@ const STUDENT_INTAKE_PATH = "student-intakes";
 const STUDENT_INTAKE_VOID_PATH = /^student-intakes\/[0-9a-f-]{36}\/void$/;
 const ACQUISITION_INTENT_CREATE = "acquisition/intents";
 const ACQUISITION_INTENT_COMMAND = /^acquisition\/intents\/[0-9a-f-]{36}\/(contacted|verify-contact|close)$/;
+const PANCAKE_CHANNEL_CONFIG = /^acquisition\/pancake\/channels\/[0-9a-f-]{36}\/configure$/;
+const PANCAKE_SETTINGS_COMMAND = "acquisition/pancake/settings";
 const BILLING_PLAN_CONFIG_PATH = /^billing\/product-plans\/([0-9a-f-]{36})\/configure$/;
 const BILLING_SALE_PATH = "billing/sales";
 const BILLING_TRANSACTION_PATH = /^billing\/bills\/[0-9a-f-]{36}\/transactions$/;
@@ -254,6 +256,8 @@ export function isAllowedPostPath(path: string): boolean {
     || STUDENT_INTAKE_VOID_PATH.test(path)
     || path === ACQUISITION_INTENT_CREATE
     || ACQUISITION_INTENT_COMMAND.test(path)
+    || path === PANCAKE_SETTINGS_COMMAND
+    || PANCAKE_CHANNEL_CONFIG.test(path)
     || path === SUBSCRIPTION_CREATE_PATH
     || SUBSCRIPTION_COMMAND_PATH.test(path)
     || SUBSCRIPTION_PAUSE_CANCEL_PATH.test(path)

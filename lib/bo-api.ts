@@ -167,6 +167,7 @@ export type BoAcquisitionIntent = {
   createdAt: string;
   updatedAt: string;
   version: number;
+  pancakeConversations?: BoPancakeConversation[];
 };
 
 async function read<T>(path: string): Promise<T[]> {
