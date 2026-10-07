@@ -133,6 +133,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/workforce/staff-registration-settings",
     "/api/bo/workforce/staff-registration-requests",
     "/api/bo/workforce/timekeeping",
+    "/api/bo/workforce/timekeeping/centers",
     "/api/bo/workforce/duty/checkout-exceptions",
     "/api/bo/workforce/planning/bootstrap",
     "/api/bo/workforce/planning/shift-templates",
