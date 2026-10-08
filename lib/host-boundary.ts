@@ -80,6 +80,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/system/policies",
     "/bo/system/audit",
     "/bo/system/ai-data",
+    "/bo/system/pancake",
     "/staff-login",
     "/api/staff-auth/login",
     "/api/staff-auth/logout",
@@ -157,6 +158,7 @@ function isApprovedBoPath(pathname: string): boolean {
   if (/^\/api\/founder\/ai\/change-sets(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:approve|reject|reconcile))?)?$/.test(normalized)) return true;
   return /^\/api\/bo\/learning\/syllabi(?:\/owners|\/media(?:\/[0-9a-f-]{36}\/preview)?|\/[0-9a-f-]{36}(?:\/(?:draft|publish|next-draft|archive))?|\/versions\/[0-9a-f-]{36}\/(?:artchitect-profile|pianohouse-profile|little-piner-profile))?$/.test(normalized)
     || /^\/api\/bo\/acquisition\/intents(?:\/[0-9a-f-]{36}(?:\/(?:contacted|verify-contact|close))?)?$/.test(normalized)
+    || /^\/api\/bo\/acquisition\/pancake\/(?:settings|channels(?:\/[0-9a-f-]{36}\/configure)?)$/.test(normalized)
     || /^\/api\/bo\/web-cms\/slots(?:\/[0-9a-f-]{36}(?:\/(?:history|draft|publish|rollback))?)?$/.test(normalized)
     || /^\/api\/bo\/pinoria\/ward\/catalog(?:\/(?:items|variants)(?:\/[0-9a-f-]{36})?)?$/.test(normalized)
     || /^\/api\/bo\/pinoria\/ward\/sets(?:\/[0-9a-f-]{36}(?:\/members)?)?$/.test(normalized)
