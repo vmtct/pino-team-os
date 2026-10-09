@@ -30,6 +30,18 @@ test("Team production workflow late-binds runtime main and immutable deployment 
   assert.ok(release.indexOf("promotion_attempted=1") < release.indexOf('WRANGLER_OUTPUT_FILE_PATH="$deploy_output"'));
 });
 
+test("Team post-promotion verification converges boundedly on the exact run-owned deployment", () => {
+  const pollAt = release.indexOf("promotion_visible=0");
+  const deployAt = release.indexOf('versions deploy "${TEAM_VERSION}@100%"');
+  assert.ok(pollAt > deployAt, "visibility polling must start only after the run-owned promotion attempt");
+  assert.match(release, /for _ in \$\(seq 1 30\); do/);
+  assert.match(release, /active_deployment.*candidate_deployment_id/);
+  assert.match(release, /active_marker.*deployment_marker/);
+  assert.match(release, /active.*TEAM_VERSION/);
+  assert.match(release, /sleep 2/);
+  assert.match(release, /did not converge to active 100% within bounded promotion verification/);
+});
+
 test("legacy TOS readiness probe is retired fail-closed on local-auth clean reset", () => {
   const retired = readFileSync(".github/workflows/tos-live-readiness.yml", "utf8");
   assert.match(retired, /RETIRED_FAIL_CLOSED/);

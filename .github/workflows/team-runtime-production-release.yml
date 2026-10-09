@@ -320,11 +320,21 @@ jobs:
           [ "$deploy_rc" -eq 0 ] || fail "Wrangler Team deploy failed after traffic mutation may have started."
           [ -n "$candidate_deployment_id" ] || fail "Team deploy succeeded but no immutable deployment ID was returned."
 
-          current="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}")" || fail "Cannot verify post-promotion Team traffic."
-          active_deployment="$(jq -r '.result.deployments[0].id // empty' <<<"$current")"
-          active_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$current")"
-          active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$current" | head -1)"
-          [ "$active_deployment" = "$candidate_deployment_id" ] && [ "$active_marker" = "$deployment_marker" ] && [ "$active" = "$TEAM_VERSION" ] || fail "Exact marked Team deployment is not active at 100%."
+          promotion_visible=0
+          for _ in $(seq 1 30); do
+            current="$(curl -fsS "${api}/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_WORKER}/deployments" "${auth[@]}" 2>/dev/null || true)"
+            if [ -n "$current" ] && jq -e '.success == true' <<<"$current" >/dev/null 2>&1; then
+              active_deployment="$(jq -r '.result.deployments[0].id // empty' <<<"$current")"
+              active_marker="$(jq -r '.result.deployments[0].annotations["workers/message"] // empty' <<<"$current")"
+              active="$(jq -r '.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id // empty' <<<"$current" | head -1)"
+              if [ "$active_deployment" = "$candidate_deployment_id" ] && [ "$active_marker" = "$deployment_marker" ] && [ "$active" = "$TEAM_VERSION" ]; then
+                promotion_visible=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          [ "$promotion_visible" -eq 1 ] || fail "Exact marked Team deployment did not converge to active 100% within bounded promotion verification."
           main_postdeploy="$(gh api "/repos/${repo}/git/ref/heads/main" --jq '.object.sha')" || fail "Cannot re-read Team main after promotion."
           runtime_main_ok "$main_postdeploy" || fail "Runtime-affecting Team main drift occurred during promotion."
 
