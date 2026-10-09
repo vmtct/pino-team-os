@@ -305,7 +305,8 @@ export function WorkforcePlanningView() {
       </div>
       <div className={styles.subscriptionActions}>
         {data.windows.availability.state === "OPEN" && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-lock")}>Khóa đăng ký</button> : null}
-        {data.windows.availability.state === "LOCKED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
+        {data.windows.availability.reason === "REGISTRATION_CLOSED" ? <span className={styles.readOnly}>Registration của TermWeek đang đóng; mở tại Delivery Activation trước khi dùng temporary reopen.</span> : null}
+        {data.windows.availability.state === "LOCKED" && data.windows.availability.reason !== "REGISTRATION_CLOSED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
         {data.windows.planning.state === "OPEN" && selectedCenter?.canPublishPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("planning-publish")}>Chốt xếp ca</button> : null}
         {data.windows.planning.state === "LOCKED" && selectedCenter?.canReopenPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("planning-reopen")}>Mở khóa xếp ca</button> : null}
       </div>
