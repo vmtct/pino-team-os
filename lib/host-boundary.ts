@@ -147,6 +147,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/workforce/planning/availability/reopen",
     "/api/bo/workforce/planning/planning/publish",
     "/api/bo/workforce/planning/planning/reopen",
+    "/api/bo/workforce/planning/operational-assignment",
     "/api/bo/workforce/planning/assignment",
     "/api/bo/workforce/planning/assignment/cancel",
     "/api/bo/access/assignments",
