@@ -64,6 +64,46 @@ test("known and unknown email requests return the same public accepted response 
   assert.doesNotMatch(sent[0]?.text ?? "", /\?token=/);
   assert.doesNotMatch(knownBody, new RegExp(rawToken));
 });
+test("invokes Core recovery RPC stubs directly without Function.call indirection", async () => {
+  const sent: string[] = [];
+  const cancelled: string[] = [];
+  const rpcStub = <TArgs extends unknown[], TResult>(fn: (...args: TArgs) => TResult): ((...args: TArgs) => TResult) => new Proxy(fn, {
+    get(target, property, receiver) {
+      if (property === "call" || property === "apply" || property === "bind") {
+        throw new Error(`RPC stub ${String(property)} indirection is unsupported`);
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  });
+  const base = makeEnv().PINO_STAFF_PASSWORD_CORE;
+  const requestPasswordReset = rpcStub(async (_input: { email: string }) => ({
+    delivery: { email: "staff@pino.invalid", token: rawToken, expiresAt: "2026-09-29T03:00:00.000Z" },
+  }));
+  const cancelPasswordReset = rpcStub(async (input: { token: string }) => {
+    cancelled.push(input.token);
+    return { revoked: true };
+  });
+  const resetPassword = rpcStub(async (_input: { token: string; password: string }) => ({
+    userId: "user-1", email: "staff@pino.invalid",
+  }));
+  const env = makeEnv({
+    PINO_STAFF_PASSWORD_CORE: { ...base, requestPasswordReset, cancelPasswordReset, resetPassword },
+    PINO_STAFF_PASSWORD_EMAIL: { async send(message) { sent.push(message.to); throw new Error("provider unavailable"); } },
+  });
+
+  const forgot = await handleForgotPassword(
+    request("/api/staff-auth/forgot-password", { email: "staff@pino.invalid" }), env,
+  );
+  assert.equal(forgot.status, 202);
+  assert.deepEqual(sent, ["staff@pino.invalid"]);
+  assert.deepEqual(cancelled, [rawToken]);
+
+  const reset = await handleResetPassword(
+    request("/api/staff-auth/reset-password", { token: rawToken, password: "new-password-value" }), env,
+  );
+  assert.equal(reset.status, 200);
+});
+
 test("delivery failure revokes the issued challenge without changing the public accepted response", async () => {
   const cancelled: string[] = [];
   const response = await handleForgotPassword(

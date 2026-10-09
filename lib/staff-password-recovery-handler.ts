@@ -30,14 +30,13 @@ export async function handleForgotPassword(
 
   const sender = env.STAFF_PASSWORD_RESET_FROM_EMAIL?.trim();
   const mailer = env.PINO_STAFF_PASSWORD_EMAIL;
-  const requestReset = env.PINO_STAFF_PASSWORD_CORE.requestPasswordReset;
-  const cancelReset = env.PINO_STAFF_PASSWORD_CORE.cancelPasswordReset;
-  if (!sender || !validEmail(sender) || !mailer || !requestReset || !cancelReset) {
+  const core = env.PINO_STAFF_PASSWORD_CORE;
+  if (!sender || !validEmail(sender) || !mailer || !core.requestPasswordReset || !core.cancelPasswordReset) {
     return json(503, { error: "PASSWORD_RESET_UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
   }
   let issued: { delivery: { email: string; token: string; expiresAt: string } | null };
   try {
-    issued = await requestReset.call(env.PINO_STAFF_PASSWORD_CORE, { email });
+    issued = await core.requestPasswordReset({ email });
   } catch {
     console.error("STAFF_PASSWORD_RESET_REQUEST_FAILED");
     return accepted();
@@ -63,7 +62,7 @@ export async function handleForgotPassword(
   } catch {
     console.error("STAFF_PASSWORD_RESET_EMAIL_DELIVERY_FAILED");
     try {
-      await cancelReset.call(env.PINO_STAFF_PASSWORD_CORE, { token: delivery.token });
+      await core.cancelPasswordReset({ token: delivery.token });
     } catch {
       console.error("STAFF_PASSWORD_RESET_CANCEL_FAILED");
     }
@@ -89,10 +88,10 @@ export async function handleResetPassword(
       message: "Mật khẩu mới phải có từ 10 đến 128 ký tự.",
     });
   }
-  const resetPassword = env.PINO_STAFF_PASSWORD_CORE.resetPassword;
-  if (!resetPassword) return resetUnavailable();
+  const core = env.PINO_STAFF_PASSWORD_CORE;
+  if (!core.resetPassword) return resetUnavailable();
   try {
-    await resetPassword.call(env.PINO_STAFF_PASSWORD_CORE, { token, password });
+    await core.resetPassword({ token, password });
     return json(200, { reset: true });
   } catch {
     return resetRejected();
