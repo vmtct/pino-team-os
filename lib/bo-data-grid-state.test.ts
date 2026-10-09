@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   boDataGridRange,
+  createBoDataGridUrlStateBuffer,
   parseBoDataGridUrlState,
   withBoDataGridFilter,
   withBoDataGridPatch,
@@ -49,6 +50,32 @@ test("BO data grid interaction patches reset pagination unless page is explicit"
   assert.equal(withBoDataGridPatch(state, { search: "new" }).page, 1);
   assert.equal(withBoDataGridPatch(state, { page: 4 }).page, 4);
   assert.equal(withBoDataGridFilter({ ...state, page: 7 }, "status", "ACTIVE").page, 1);
+});
+
+test("BO data grid optimistic URL buffer preserves rapid controlled search input", () => {
+  const buffer = createBoDataGridUrlStateBuffer(parseBoDataGridUrlState(""));
+  const first = withBoDataGridPatch(buffer.current(), { search: "a" });
+  buffer.apply(first, "q=a");
+  const second = withBoDataGridPatch(buffer.current(), { search: "ab" });
+  buffer.apply(second, "q=ab");
+
+  assert.equal(buffer.current().search, "ab");
+  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=a"), "q=a", true), false);
+  assert.equal(buffer.current().search, "ab");
+
+  const third = withBoDataGridPatch(buffer.current(), { search: "abc" });
+  buffer.apply(third, "q=abc");
+  assert.equal(buffer.current().search, "abc");
+  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=abc"), "q=abc", false), true);
+  assert.equal(buffer.current().search, "abc");
+});
+
+test("BO data grid optimistic URL buffer reconciles when navigation settles elsewhere", () => {
+  const buffer = createBoDataGridUrlStateBuffer(parseBoDataGridUrlState(""));
+  buffer.apply(withBoDataGridPatch(buffer.current(), { search: "draft" }), "q=draft");
+  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=external"), "q=external", false), true);
+  assert.equal(buffer.current().search, "external");
+  assert.equal(buffer.requestedQuery(), null);
 });
 
 test("BO data grid range clamps pages and handles an empty result", () => {

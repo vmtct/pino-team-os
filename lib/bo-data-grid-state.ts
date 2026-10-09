@@ -115,3 +115,30 @@ function normalizePageSizes(values: readonly number[] | undefined) {
 function choosePageSize(value: number | null, allowed: readonly number[], fallback: number) {
   return value && allowed.includes(value) ? value : fallback;
 }
+
+export type BoDataGridUrlStateBuffer = {
+  current(): BoDataGridUrlState;
+  requestedQuery(): string | null;
+  apply(next: BoDataGridUrlState, requestedQuery: string): BoDataGridUrlState;
+  reconcile(urlState: BoDataGridUrlState, urlQuery: string, transitionPending: boolean): boolean;
+};
+
+export function createBoDataGridUrlStateBuffer(initial: BoDataGridUrlState): BoDataGridUrlStateBuffer {
+  let currentState = initial;
+  let expectedQuery: string | null = null;
+  return {
+    current: () => currentState,
+    requestedQuery: () => expectedQuery,
+    apply(next, requestedQuery) {
+      currentState = next;
+      expectedQuery = requestedQuery;
+      return currentState;
+    },
+    reconcile(urlState, urlQuery, transitionPending) {
+      if (expectedQuery !== null && urlQuery !== expectedQuery && transitionPending) return false;
+      expectedQuery = null;
+      currentState = urlState;
+      return true;
+    },
+  };
+}
