@@ -20,6 +20,19 @@ test("support-session issuance is a bounded BO command and forwards only the aut
 });
 test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";assert.equal(isPracticeWritePath("practice/repertoire-access/grants"),true);assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`),true);assert.equal(isPracticeWritePath("practice/media"),false);});
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
+test("PAP-21 legacy import facade forwards only the two governed paths and replay-protects execute",async()=>{
+  const dryRun="legacy-imports/pap21/dry-run",execute="legacy-imports/pap21/execute",body={bundleDigest:"bundle",payload:{issueKey:"PAP-21"}},forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:200,body:{data:{status:"READY"}},requestId:"pap21"};}};
+  assert.equal((await handleBoWriteRequest(request(dryRun,true,body),env(binding),dryRun)).status,200);
+  assert.deepEqual(forwarded,[{method:"POST",path:dryRun,body}]);
+  assert.equal((await handleBoWriteRequest(request(execute,true,body),env(binding),execute)).status,400);
+  assert.equal(forwarded.length,1);
+  assert.equal((await handleBoWriteRequest(request(execute,true,body,"bundle"),env(binding),execute)).status,200);
+  assert.deepEqual(forwarded[1],{method:"POST",path:execute,body,idempotencyKey:"bundle"});
+  const broad=`${execute}/extra`;
+  assert.equal((await handleBoWriteRequest(request(broad,true,body,"bundle"),env(binding),broad)).status,404);
+  assert.equal(forwarded.length,2);
+});
 
 test("Term and TermWeek commands require replay evidence and forward exact bounded BO commands",async()=>{
   const centerId="01912345-6789-7abc-8def-0123456789ab",termId="01912345-6789-7abc-8def-0123456789ac",weekId="01912345-6789-7abc-8def-0123456789ad",forwarded:BoAccessRequest[]=[];
