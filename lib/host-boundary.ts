@@ -86,6 +86,8 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/staff-auth/logout",
     "/api/staff-auth/status",
     "/api/bo/context",
+    "/api/bo/legacy-imports/pap21/dry-run",
+    "/api/bo/legacy-imports/pap21/execute",
     "/api/bo/tv/displays",
     "/api/bo/tv/devices",
     "/api/bo/pinoria/effects/catalog",
