@@ -1,8 +1,66 @@
 import { expect, test } from "@playwright/test";
+import { build } from "esbuild";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const css = readFileSync(resolve(process.cwd(), "app/bo/components/data-grid/bo-data-grid.module.css"), "utf8");
+
+let componentBundle: Promise<string> | null = null;
+
+function actualComponentBundle() {
+  componentBundle ??= build({
+    bundle: true,
+    format: "iife",
+    platform: "browser",
+    jsx: "automatic",
+    write: false,
+    stdin: {
+      loader: "tsx",
+      resolveDir: process.cwd(),
+      sourcefile: "pap383-grid-harness.tsx",
+      contents: `
+        import React, { useState } from "react";
+        import { createRoot } from "react-dom/client";
+        import { BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek } from "./app/bo/components/data-grid/BoDataGrid";
+        function Harness() {
+          const [open, setOpen] = useState(false);
+          const row = { id: "01a0e728-test" };
+          return <>
+            <BoDataGrid
+              rows={[row]}
+              columns={[{ key: "id", header: "ID", render: (item) => <BoDataGridCanonicalId value={item.id} /> }]}
+              rowKey={(item) => item.id}
+              caption="Actual component grid"
+              onRowOpen={() => setOpen(true)}
+            />
+            {open ? <BoDataGridSidePeek title="Learner" onClose={() => setOpen(false)} footer={<button type="button">Footer action</button>}>
+              <button type="button">Body action</button>
+            </BoDataGridSidePeek> : null}
+          </>;
+        }
+        createRoot(document.getElementById("root")).render(<Harness />);
+      `,
+    },
+    define: { "process.env.NODE_ENV": '"test"' },
+    plugins: [{
+      name: "pap383-test-resolve",
+      setup(context) {
+        context.onResolve({ filter: /^@\// }, (args) => ({ path: resolve(process.cwd(), `${args.path.slice(2)}.ts`) }));
+        context.onLoad({ filter: /\.module\.css$/ }, () => ({ contents: 'export default new Proxy({}, { get: (_, key) => String(key) });', loader: "js" }));
+      },
+    }],
+  }).then((result) => result.outputFiles[0]!.text);
+  return componentBundle;
+}
+
+async function mountActualComponent(page: import("@playwright/test").Page) {
+  await page.setContent('<!doctype html><html><body><div id="root"></div><script>window.__pap383Errors=[];addEventListener("error",(event)=>window.__pap383Errors.push(event.error?.stack||event.message));addEventListener("unhandledrejection",(event)=>window.__pap383Errors.push(String(event.reason?.stack||event.reason)));</script></body></html>');
+  await page.addScriptTag({ content: await actualComponentBundle() });
+  await page.waitForTimeout(100);
+  const errors = await page.evaluate(() => (window as unknown as { __pap383Errors: string[] }).__pap383Errors);
+  if (errors.length) throw new Error(`Actual component harness failed: ${errors.join(" | ")}`);
+  await expect(page.getByRole("table", { name: "Actual component grid" })).toBeVisible();
+}
 
 function fixture() {
   const rows = Array.from({ length: 8 }, (_, index) => {
@@ -71,4 +129,33 @@ test("PAP-383 foundation exposes keyboard-focusable selectable rows and named co
   await expect(page.getByLabel("Search classes")).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy canonical ID" }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Next page" })).toBeEnabled();
+});
+
+
+test("PAP-383 actual shared component traps SidePeek focus and restores the row", async ({ page }) => {
+  await mountActualComponent(page);
+  const row = page.getByRole("row").filter({ hasText: "01a0e728-test" });
+  await row.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Learner detail" });
+  await expect(dialog).toBeVisible();
+  const close = dialog.getByRole("button", { name: "Close detail" });
+  await expect(close).toBeFocused();
+
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Footer action" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(close).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(row).toBeFocused();
+});
+
+test("PAP-383 actual shared row ignores keyboard activation from nested controls", async ({ page }) => {
+  await mountActualComponent(page);
+  const copy = page.getByRole("button", { name: "Copy canonical ID" });
+  await copy.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Learner detail" })).toHaveCount(0);
 });

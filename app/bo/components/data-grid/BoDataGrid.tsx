@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { boDataGridRange, type BoDataGridSortDirection } from "@/lib/bo-data-grid-state";
 import styles from "./bo-data-grid.module.css";
 
@@ -91,7 +91,7 @@ export function BoDataGrid<Row>({
   const interactiveRows = Boolean(onRowOpen);
 
   function openRow(event: KeyboardEvent<HTMLTableRowElement>, row: Row) {
-    if (!onRowOpen || !["Enter", " "].includes(event.key)) return;
+    if (!onRowOpen || !["Enter", " "].includes(event.key) || isInteractiveDescendant(event.target, event.currentTarget)) return;
     event.preventDefault();
     onRowOpen(row);
   }
@@ -142,7 +142,7 @@ export function BoDataGrid<Row>({
               data-selected={selectedRowKey === key || undefined}
               tabIndex={interactiveRows ? 0 : undefined}
               aria-selected={interactiveRows ? selectedRowKey === key : undefined}
-              onClick={onRowOpen ? () => onRowOpen(row) : undefined}
+              onClick={onRowOpen ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen(row); } : undefined}
               onKeyDown={interactiveRows ? (event) => openRow(event, row) : undefined}
             >{columns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{column.render(row)}</td>)}</tr>;
           }) : null}
@@ -191,14 +191,65 @@ export function BoDataGridBadge({ children }: { children: ReactNode }) {
 }
 
 export function BoDataGridSidePeek({ title, eyebrow, onClose, children, footer }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const activeDialog = dialog;
+    const restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () => [...activeDialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((node) => !node.hasAttribute("disabled") && node.getAttribute("aria-hidden") !== "true");
+    (focusable()[0] ?? activeDialog).focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        activeDialog.focus();
+        return;
+      }
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    activeDialog.addEventListener("keydown", handleKeyDown);
+    return () => {
+      activeDialog.removeEventListener("keydown", handleKeyDown);
+      if (restoreFocus?.isConnected) restoreFocus.focus();
+    };
+  }, []);
+
   return <>
-    <button type="button" className={styles.peekBackdrop} onClick={onClose} aria-label="Close detail" />
-    <aside className={styles.peek} role="dialog" aria-modal="true" aria-label={`${title} detail`}>
+    <button type="button" className={styles.peekBackdrop} onClick={onClose} aria-label="Close detail" tabIndex={-1} />
+    <aside ref={dialogRef} className={styles.peek} role="dialog" aria-modal="true" aria-label={`${title} detail`} tabIndex={-1}>
       <header className={styles.peekHeader}><div>{eyebrow ? <span>{eyebrow}</span> : null}<h2>{title}</h2></div><button type="button" onClick={onClose} aria-label="Close detail">×</button></header>
       <div className={styles.peekBody}>{children}</div>
       {footer ? <footer className={styles.peekFooter}>{footer}</footer> : null}
     </aside>
   </>;
+}
+
+const FOCUSABLE_SELECTOR = 'a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])';
+
+function isInteractiveDescendant(target: EventTarget | null, currentTarget: EventTarget | null) {
+  return target instanceof Element
+    && target !== currentTarget
+    && Boolean(target.closest('a[href],button,input,select,textarea,[role="button"],[contenteditable="true"]'));
 }
 
 function SkeletonRows({ columns }: { columns: number }) {
