@@ -47,6 +47,7 @@ export interface Pap438DeliveryFixture {
   startsOnLocalDate: string;
   testHorizonDays: number;
   initialPolicyMode: "ABSENT" | "IDLE_BASELINE";
+  initialGlobalPolicyMode: "ABSENT" | "EFFECTIVE";
   draft: { streamId: string; versionId: string; version: number; revision: number };
 }
 
@@ -73,8 +74,13 @@ export async function preparePap438DeliveryFixture(
   if (centers.length !== 1) throw new Error(`PAP-438 requires exactly one active ${E2E_CENTER_KEY} Center; found ${centers.length}.`);
   const centerId = centers[0]!.id;
 
-  const foreignActiveClasses = state.activeRunningClasses.filter((item) => item.centerId === centerId && !item.operationalName.startsWith(`${PREFIX} ${runTag}`));
-  if (foreignActiveClasses.length) throw new Error("PAP-438 refuses to materialize while foreign active E2E Comparator Running Classes exist.");
+  const preexistingActiveClasses = state.activeRunningClasses.filter((item) => item.centerId === centerId);
+  if (preexistingActiveClasses.length) throw new Error("PAP-438 requires the E2E Comparator Center to have zero active Running Classes before fixture preparation.");
+
+  const globalStreams = state.materializationPolicyStreams.filter((item) => item.targetType === "GLOBAL");
+  if (globalStreams.length > 1) throw new Error("PAP-438 found multiple GLOBAL materialization streams.");
+  const globalStream = globalStreams[0] ?? null;
+  const initialGlobalPolicyMode = globalStream?.publishedVersionId && globalStream.publishedValue ? "EFFECTIVE" as const : "ABSENT" as const;
 
   const centerStreams = state.materializationPolicyStreams.filter((item) => item.targetType === "CENTER" && item.targetId === centerId);
   if (centerStreams.length > 1) throw new Error("PAP-438 found multiple CENTER materialization streams.");
@@ -86,6 +92,8 @@ export async function preparePap438DeliveryFixture(
   const path = await ensurePath(port, state, runTag);
   const space = await ensureSpace(port, state, centerId, runTag);
   const runningClass = await ensureClass(port, state, centerId, path.id, space.id, runTag, weekdayIso);
+  const preparedState = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+  assertExactActiveClass(preparedState, centerId, runningClass, path.id, space.id, runTag);
 
   const draftBody = {
     targetType: "CENTER",
@@ -101,11 +109,14 @@ export async function preparePap438DeliveryFixture(
     replayKey(runTag, "policy-draft"),
   );
 
-  return { runTag, centerId, path, space, runningClass, startsOnLocalDate, testHorizonDays, initialPolicyMode, draft };
+  return { runTag, centerId, path, space, runningClass, startsOnLocalDate, testHorizonDays, initialPolicyMode, initialGlobalPolicyMode, draft };
 }
 
 export async function provePap438DraftOnlyBehavior(port: Pap438FixturePort, fixture: Pap438DeliveryFixture, probeEffectiveAt = new Date().toISOString()) {
   if (fixture.initialPolicyMode === "ABSENT") {
+    if (fixture.initialGlobalPolicyMode === "EFFECTIVE") {
+      return { mode: "GLOBAL_FALLBACK_REMAINS_EFFECTIVE" as const, note: "The CENTER Draft is non-effective, but an already-published GLOBAL policy remains authoritative; no materialization probe is executed." };
+    }
     try {
       await port.command("POST", "delivery/materializations", {
         centerId: fixture.centerId,
@@ -129,6 +140,8 @@ export async function publishAndMaterializePap438Fixture(
   fixture: Pap438DeliveryFixture,
   publishAt = new Date(),
 ): Promise<Pap438MaterializedFixture> {
+  const beforePublish = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+  assertExactActiveClass(beforePublish, fixture.centerId, fixture.runningClass, fixture.path.id, fixture.space.id, fixture.runTag);
   const effectiveFrom = publishAt.toISOString();
   await port.command("POST", `policies/delivery/materialization.v1/versions/${fixture.draft.versionId}/publish`, {
     targetType: "CENTER",
@@ -203,6 +216,16 @@ export async function cleanupPap438DeliveryFixture(
   const retained = finalState.upcomingSessions.filter((item) => item.id === fixture.session.id);
   if (retained.length !== 1) throw new Error("PAP-438 cleanup lost the bounded synthetic Session provenance required downstream.");
   return { cleaned: true as const, idleHorizonDays: IDLE_HORIZON_DAYS, retainedSessionId: fixture.session.id };
+}
+
+function assertExactActiveClass(state: F3BootstrapState, centerId: string, runningClass: F3RunningClass, pathId: string, spaceId: string, runTag: string) {
+  const active = state.activeRunningClasses.filter((item) => item.centerId === centerId);
+  if (active.length !== 1 || active[0]!.id !== runningClass.id) throw new Error("PAP-438 requires exactly one active E2E Comparator Running Class and it must be the exact fixture class before materialization.");
+  const current = active[0]!;
+  const expectedName = `${PREFIX} ${runTag} Horizon`;
+  if (current.operationalName !== expectedName || current.pathProgramId !== pathId || current.learningSpaceId !== spaceId || current.status !== "ACTIVE") {
+    throw new Error("PAP-438 active fixture Running Class drifted from its exact synthetic topology.");
+  }
 }
 
 function validateIdlePolicy(stream: F3PolicyStream | null): "ABSENT" | "IDLE_BASELINE" {

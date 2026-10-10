@@ -17,6 +17,7 @@ test("PAP-438 first-run Draft stays non-effective until publish, then exactly on
   const port = new FakePort();
   const fixture = await preparePap438DeliveryFixture(port, "run01", now, 3);
   assert.equal(fixture.initialPolicyMode, "ABSENT");
+  assert.equal(fixture.initialGlobalPolicyMode, "ABSENT");
   assert.equal(fixture.centerId, port.e2eCenterId);
   assert.equal(port.stream?.draftValue?.horizonDays, 3);
   assert.equal(port.stream?.publishedValue, null);
@@ -72,6 +73,40 @@ test("PAP-438 subsequent run accepts only idle baseline and does not claim Draft
   await assert.rejects(() => preparePap438DeliveryFixture(drift, "drift01", now, 3), /idle horizon=1/i);
 });
 
+test("PAP-438 recognizes GLOBAL fallback without executing a mutating Draft-only probe", async () => {
+  const port = new FakePort();
+  port.installGlobalPublishedPolicy(5);
+  const fixture = await preparePap438DeliveryFixture(port, "global01", now, 3);
+  assert.equal(fixture.initialGlobalPolicyMode, "EFFECTIVE");
+  const behavior = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
+  assert.equal(behavior.mode, "GLOBAL_FALLBACK_REMAINS_EFFECTIVE");
+  assert.equal(port.bootstrap.upcomingSessions.length, 0);
+});
+
+test("PAP-438 refuses any pre-existing active E2E topology, including same-run-prefix drift", async () => {
+  const port = new FakePort();
+  port.bootstrap.runningClasses.push({
+    id: uuid(899), centerId: port.e2eCenterId, pathProgramId: uuid(901), learningSpaceId: uuid(902), operationalName: "[E2E] PAP-438 safe01 drift",
+    weekdayIso: 7, windowStartsLocal: "18:00", windowEndsLocal: "19:00", deliveryTopology: "FLEXIBLE_STUDIO", defaultParticipationMinutes: 60,
+    optimalConcurrentCapacity: 4, hardConcurrentCapacity: 4, status: "ACTIVE", version: 1,
+  });
+  port.syncActive();
+  await assert.rejects(() => preparePap438DeliveryFixture(port, "safe01", now), /zero active Running Classes/i);
+});
+
+test("PAP-438 rechecks exact active topology before publish/materialization", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap438DeliveryFixture(port, "drift02", now, 3);
+  port.bootstrap.runningClasses.push({
+    id: uuid(898), centerId: port.e2eCenterId, pathProgramId: fixture.path.id, learningSpaceId: fixture.space.id, operationalName: "[E2E] PAP-438 drift02 extra",
+    weekdayIso: 7, windowStartsLocal: "18:00", windowEndsLocal: "19:00", deliveryTopology: "FLEXIBLE_STUDIO", defaultParticipationMinutes: 60,
+    optimalConcurrentCapacity: 4, hardConcurrentCapacity: 4, status: "ACTIVE", version: 1,
+  });
+  port.syncActive();
+  await assert.rejects(() => publishAndMaterializePap438Fixture(port, fixture, new Date("2026-10-10T06:10:00.000Z")), /exactly one active E2E Comparator Running Class/i);
+  assert.equal(port.bootstrap.upcomingSessions.length, 0);
+});
+
 test("PAP-438 refuses foreign active E2E topology and malformed run ids", async () => {
   const port = new FakePort();
   port.bootstrap.runningClasses.push({
@@ -80,7 +115,7 @@ test("PAP-438 refuses foreign active E2E topology and malformed run ids", async 
     optimalConcurrentCapacity: 4, hardConcurrentCapacity: 4, status: "ACTIVE", version: 1,
   });
   port.syncActive();
-  await assert.rejects(() => preparePap438DeliveryFixture(port, "safe01", now), /foreign active/i);
+  await assert.rejects(() => preparePap438DeliveryFixture(port, "safe01", now), /zero active Running Classes/i);
 
   const bad = new FakePort();
   await assert.rejects(() => preparePap438DeliveryFixture(bad, "../prod", now), /lowercase alphanumeric/i);
@@ -107,6 +142,7 @@ class FakePort implements Pap438FixturePort {
   readonly operationalCenterId = uuid(2);
   private next = 10;
   stream: StoredPolicy | null = null;
+  globalStream: StoredPolicy | null = null;
   bootstrap: F3BootstrapState = {
     asOf: now.toISOString(),
     centers: [
@@ -190,6 +226,15 @@ class FakePort implements Pap438FixturePort {
   }
 
   installIdleBaseline() { this.installPublishedPolicy(1); }
+  installGlobalPublishedPolicy(horizonDays:number) {
+    this.globalStream = this.newStream("GLOBAL", null);
+    this.globalStream.revision = 2;
+    this.globalStream.publishedVersionId = this.id();
+    this.globalStream.publishedVersion = 1;
+    this.globalStream.publishedValue = {horizonDays};
+    this.globalStream.effectiveFrom = "2026-10-01T00:00:00.000Z";
+    this.syncPolicy();
+  }
   installPublishedPolicy(horizonDays:number) {
     this.stream = this.newStream();
     this.stream.revision = 2;
@@ -203,8 +248,8 @@ class FakePort implements Pap438FixturePort {
     this.bootstrap.activeLearningSpaces = this.bootstrap.learningSpaces.filter((item) => item.status === "ACTIVE");
     this.bootstrap.activeRunningClasses = this.bootstrap.runningClasses.filter((item) => item.status === "ACTIVE");
   }
-  private syncPolicy(){ this.bootstrap.materializationPolicyStreams = this.stream ? [structuredClone(this.stream)] : []; }
-  private newStream(): StoredPolicy { return { streamId:this.id(),targetType:"CENTER",targetId:this.e2eCenterId,revision:0,draftVersionId:null,draftVersion:null,draftValue:null,publishedVersionId:null,publishedVersion:null,effectiveFrom:null,effectiveUntil:null,publishedValue:null }; }
+  private syncPolicy(){ this.bootstrap.materializationPolicyStreams = [...(this.stream ? [structuredClone(this.stream)] : []), ...(this.globalStream ? [structuredClone(this.globalStream)] : [])]; }
+  private newStream(targetType:"CENTER"|"GLOBAL"="CENTER", targetId:string|null=this.e2eCenterId): StoredPolicy { return { streamId:this.id(),targetType,targetId,revision:0,draftVersionId:null,draftVersion:null,draftValue:null,publishedVersionId:null,publishedVersion:null,effectiveFrom:null,effectiveUntil:null,publishedValue:null }; }
   private session(item:F3RunningClass, localDate:string):F3Session { return {id:this.id(),centerId:item.centerId,pathProgramId:item.pathProgramId,learningSpaceId:item.learningSpaceId,runningClassId:item.id,primarySyllabusId:null,learningSyllabusVersionId:null,localDate,startsLocal:item.windowStartsLocal,endsLocal:item.windowEndsLocal,startsAt:`${localDate}T11:00:00.000Z`,endsAt:`${localDate}T12:30:00.000Z`,timeZone:"Asia/Ho_Chi_Minh",optimalConcurrentCapacity:item.optimalConcurrentCapacity,hardConcurrentCapacity:item.hardConcurrentCapacity,status:"SCHEDULED"}; }
   private id(){ return uuid(this.next++); }
 }
