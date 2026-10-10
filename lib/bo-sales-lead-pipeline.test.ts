@@ -34,6 +34,18 @@ test("PLT-SALES F0 lifecycle commands require and preserve idempotency", async (
   assert.deepEqual(forwarded, [{ method: "POST", path, body: { expectedVersion: 2 }, idempotencyKey: "lead-command-1" }]);
 });
 
+test("PLT-LEAD Lead archive requires idempotency and forwards only the exact canonical command", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: 200, body: { data: { id: intentId, status: "ARCHIVED" } }, requestId: "lead-archive" }; } };
+  const path = `acquisition/leads/${intentId}/archive`;
+  const body = { expectedVersion: 1, reason: "E2E cleanup" };
+  const withoutKey = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+  assert.equal((await handleBoWriteRequest(withoutKey, env(binding), path)).status, 400);
+  assert.equal(forwarded.length, 0);
+  const withKey = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "lead-archive-1" }, body: JSON.stringify(body) });
+  assert.equal((await handleBoWriteRequest(withKey, env(binding), path)).status, 200);
+  assert.deepEqual(forwarded, [{ method: "POST", path, body, idempotencyKey: "lead-archive-1" }]);
+});
 test("PLT-LEAD F1 manual create requires idempotency and forwards only the canonical command", async () => {
   const forwarded: BoAccessRequest[] = [];
   const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: 201, body: { data: { leadId: "lead", intentId, status: "SUBMITTED", nextStep: "MANUAL_CONTACT" } }, requestId: "sales-create" }; } };
@@ -49,10 +61,12 @@ test("PLT-LEAD F1 manual create requires idempotency and forwards only the canon
 });
 
 test("PLT-SALES F0 keeps Lead surface BO-only and host-bounded", () => {
-  for (const path of ["/bo/sales/leads", "/api/bo/acquisition/intents", `/api/bo/acquisition/intents/${intentId}`, `/api/bo/acquisition/intents/${intentId}/verify-contact`, `/api/bo/acquisition/intents/${intentId}/close`]) {
+  for (const path of ["/bo/sales/leads", "/api/bo/acquisition/intents", `/api/bo/acquisition/intents/${intentId}`, `/api/bo/acquisition/intents/${intentId}/verify-contact`, `/api/bo/acquisition/intents/${intentId}/close`, `/api/bo/acquisition/leads/${intentId}/archive`]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
   }
-  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/acquisition/leads"), { action: "not_found" });
+  for (const path of ["/api/bo/acquisition/leads", "/api/bo/acquisition/leads/not-a-canonical-id/archive", `/api/bo/acquisition/leads/${intentId}/archive/extra`, `/api/bo/acquisition/leads/${intentId}/delete`]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
+  }
 });
 test("PLT-SALES F0 presentation composes Core contracts without local CRM authority", async () => {
   const [navigation, view, api] = await Promise.all([
