@@ -107,7 +107,14 @@ export async function preparePap437CommercialFixture(
 
   assertSyntheticTopology(centerId, path, space, [happyA, happyB, blockedClass], runTag);
 
-  const learnerA = await createLearner(port, runTag, "a", localDate);
+  let learnerA: Pap437StudentIntake;
+  try {
+    learnerA = await createLearner(port, runTag, "a", localDate);
+  } catch (error) {
+    await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`PAP-437 first intake failed before fixture Parent ownership was established; synthetic topology was rolled back. ${detail}`);
+  }
   if (learnerA.parentReused || !learnerA.createdContactIdentifierId) {
     const rollback = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learnerA.studentProfileId}/void`, {
       expectedStudentVersion: 1,
