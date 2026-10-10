@@ -9,7 +9,7 @@ import {
   preparePap437CommercialFixture,
   type Pap437FixturePort,
 } from "./pap437-commercial-fixture";
-import type { BoLearnerLifecycle, BoLearnerSubscription, BoProductPlan, BoSaleResult } from "./bo-model";
+import type { BoLearnerLifecycle, BoLearnerSubscription, BoParentSearchResult, BoProductPlan, BoSaleResult } from "./bo-model";
 import type { F3BootstrapState, F3LearningSpace, F3Path, F3RunningClass } from "./f3-delivery-api";
 
 const uuid = (n: number) => `01990000-${String(n).padStart(4,"0")}-7000-8000-${String(n).padStart(12,"0")}`;
@@ -30,6 +30,13 @@ test("PAP-437 prepares only E2E Comparator commercial topology and exposes exact
   assert.equal(fixture.sales.b.billItem.studentProfileId, fixture.learners.b.studentProfileId);
   assert.equal(fixture.guardSubscription.weeklyCommitment, 1);
   assert.ok(fixture.guardEnrollmentId);
+  assert.equal(fixture.learners.a.parentReused, false);
+  assert.ok(fixture.learners.a.createdContactIdentifierId);
+  assert.equal(fixture.learners.b.parentReused, true);
+  assert.equal(fixture.learners.guard.parentReused, true);
+  assert.equal(fixture.learners.b.parentUserId, fixture.learners.a.parentUserId);
+  assert.equal(fixture.learners.guard.parentUserId, fixture.learners.a.parentUserId);
+  assert.equal(fixture.parentContactValue, "pap437+run01@example.invalid");
 
   const futureDate = "2026-10-17";
   const policyAt = "2026-10-10T06:30:00.000Z";
@@ -67,6 +74,8 @@ test("PAP-437 cleanup neutralizes commercial state and archives every synthetic 
   const fixture = await preparePap437CommercialFixture(port, "clean01", now);
   const result = await cleanupPap437CommercialFixture(port, fixture, now);
   assert.equal(result.cleaned, true);
+  assert.equal(result.parentArchived, true);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ARCHIVED");
 
   const bootstrap = await port.get<F3BootstrapState>("delivery/bootstrap-state");
   assert.equal(bootstrap.paths.find((item) => item.id === fixture.path.id)?.status, "ARCHIVED");
@@ -83,6 +92,34 @@ test("PAP-437 cleanup neutralizes commercial state and archives every synthetic 
     const bill = await port.get<{bill:{voidedAt:string|null}}>(`billing/bills/${sale.bill.bill.id}`);
     assert.ok(bill.bill.voidedAt);
   }
+  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(fixture.parentContactValue)}&limit=25`);
+  assert.deepEqual(activeParents, []);
+});
+
+test("PAP-437 rejects a pre-existing exact Parent contact before any mutable fixture topology or Student is created", async () => {
+  const port = new FakePort();
+  const contact = "pap437+collision01@example.invalid";
+  const existingParentId = port.seedExistingParent(contact);
+  await assert.rejects(() => preparePap437CommercialFixture(port, "collision01", now), /already belongs to an active Parent/i);
+  assert.equal(port.parentStatus(existingParentId), "ACTIVE");
+  assert.equal(port.students.size, 0);
+  assert.equal(port.bootstrap.paths.length, 0);
+  assert.equal(port.bootstrap.learningSpaces.length, 0);
+  assert.equal(port.bootstrap.runningClasses.length, 0);
+});
+
+test("PAP-437 rolls back a contact-resolution race without touching the concurrently claimed Parent", async () => {
+  const port = new FakePort();
+  const contact = "pap437+race01@example.invalid";
+  port.raceParentOnNextIntake(contact);
+  await assert.rejects(() => preparePap437CommercialFixture(port, "race01", now), /concurrently claimed/i);
+  assert.equal([...port.students.values()].every((item) => item.lifecycle.student.status === "ARCHIVED"), true);
+  assert.equal(port.bootstrap.paths.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(port.bootstrap.learningSpaces.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(port.bootstrap.runningClasses.every((item) => item.status === "ARCHIVED"), true);
+  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`);
+  assert.equal(activeParents.length, 1);
+  assert.equal(activeParents[0]!.parent.status, "ACTIVE");
 });
 
 test("PAP-437 fails closed without exactly one active E2E Comparator Center or a bounded run tag", async () => {
@@ -99,7 +136,9 @@ test("PAP-437 fails closed without exactly one active E2E Comparator Center or a
 });
 
 type Call = { method: string; path: string; body?: unknown; key?: string };
-type StudentState = { lifecycle: BoLearnerLifecycle };
+type IntakeState = { parentUserId:string; parentReused:boolean; createdContactIdentifierId:string|null; guardianRelationshipId:string };
+type StudentState = { lifecycle: BoLearnerLifecycle; intake: IntakeState };
+type ParentState = { id:string; displayName:string; status:"ACTIVE"|"ARCHIVED"; version:number; contact:{id:string;normalizedValue:string;retiredAt:string|null}|null };
 
 class FakePort implements Pap437FixturePort {
   readonly e2eCenterId = uuid(1);
@@ -107,7 +146,9 @@ class FakePort implements Pap437FixturePort {
   readonly calls: Call[] = [];
   readonly replay = new Map<string, { fingerprint: string; result: unknown }>();
   readonly students = new Map<string, StudentState>();
+  readonly parents = new Map<string, ParentState>();
   readonly bills = new Map<string, BoSaleResult["bill"]>();
+  private raceParentContact: string | null = null;
   private next = 10;
   readonly plan: BoProductPlan = {
     id: uuid(3), cadence: 2, termWeeks: 12, purchasedUnits: 24, listPriceMinor: 3900000,
@@ -126,6 +167,16 @@ class FakePort implements Pap437FixturePort {
     this.calls.push({ method: "GET", path });
     if (path === "delivery/bootstrap-state") return structuredClone(this.bootstrap) as T;
     if (path === "billing/product-plans") return [this.plan] as T;
+    if (path.startsWith("identity/parents?")) {
+      const query = new URLSearchParams(path.split("?")[1] ?? "").get("query") ?? "";
+      const rows: BoParentSearchResult[] = [...this.parents.values()]
+        .filter((parent) => parent.status === "ACTIVE" && (parent.displayName.includes(query) || parent.contact?.normalizedValue.includes(query)))
+        .map((parent) => ({
+          parent: { id:parent.id, displayName:parent.displayName, status:parent.status, createdAt:now.toISOString(), updatedAt:now.toISOString(), version:parent.version },
+          contacts: parent.contact && parent.contact.retiredAt === null ? [{ id:parent.contact.id, parentUserId:parent.id, identifierType:"EMAIL", normalizedValue:parent.contact.normalizedValue, isPrimary:true, verifiedAt:null, createdAt:now.toISOString(), retiredAt:null }] : [],
+        }));
+      return structuredClone(rows) as T;
+    }
     if (path.startsWith("students/") && path.endsWith("/lifecycle")) {
       const studentId = path.split("/")[1]!;
       const state = this.students.get(studentId);
@@ -184,9 +235,20 @@ class FakePort implements Pap437FixturePort {
     }
     if (method === "POST" && path === "student-intakes") {
       const studentProfileId = this.id();
-      const parentUserId = input.existingParentUserId ?? this.id();
-      const result = { studentProfileId, parentUserId, guardianRelationshipId: this.id(), parentReused: Boolean(input.existingParentUserId) };
-      this.students.set(studentProfileId, { lifecycle: this.lifecycle(studentProfileId, input.displayName, parentUserId) });
+      const requestedContact = input.existingParentUserId ? null : String(input.contactValue).toLowerCase();
+      if (requestedContact && this.raceParentContact === requestedContact) { this.seedExistingParent(requestedContact); this.raceParentContact = null; }
+      let parent = input.existingParentUserId ? this.parents.get(input.existingParentUserId) ?? null : [...this.parents.values()].find((item) => item.status === "ACTIVE" && item.contact?.retiredAt === null && item.contact.normalizedValue === requestedContact) ?? null;
+      const parentReused = parent !== null;
+      let createdContactIdentifierId: string | null = null;
+      if (!parent) {
+        const parentUserId = this.id();
+        createdContactIdentifierId = this.id();
+        parent = { id:parentUserId, displayName:input.guardianDisplayName ?? "E2E Parent", status:"ACTIVE", version:1, contact:{id:createdContactIdentifierId,normalizedValue:String(input.contactValue).toLowerCase(),retiredAt:null} };
+        this.parents.set(parentUserId, parent);
+      }
+      const guardianRelationshipId = this.id();
+      const result = { studentProfileId, parentUserId:parent.id, guardianRelationshipId, createdContactIdentifierId, parentReused };
+      this.students.set(studentProfileId, { lifecycle: this.lifecycle(studentProfileId, input.displayName, parent.id, guardianRelationshipId), intake:{parentUserId:parent.id,parentReused,createdContactIdentifierId,guardianRelationshipId} });
       return result;
     }
     if (method === "POST" && path === "billing/sales") {
@@ -222,13 +284,28 @@ class FakePort implements Pap437FixturePort {
     }
     const voidStudent = /^student-intakes\/(.+)\/void$/.exec(path);
     if (method === "POST" && voidStudent) {
-      const lifecycle = this.students.get(voidStudent[1]!)!.lifecycle; lifecycle.student.status = "ARCHIVED"; lifecycle.student.version += 1; return { studentProfileId: lifecycle.student.id, studentStatus: "ARCHIVED" };
+      const state = this.students.get(voidStudent[1]!)!;
+      const parent = this.parents.get(state.intake.parentUserId)!;
+      const otherActiveGuardians = [...this.students.entries()].filter(([id,item]) => id !== voidStudent[1] && item.intake.parentUserId === parent.id && item.lifecycle.student.status === "ACTIVE").length;
+      let parentDisposition: "REUSED_UNCHANGED"|"PRESERVED_SHARED"|"ARCHIVED" = state.intake.parentReused ? "REUSED_UNCHANGED" : "PRESERVED_SHARED";
+      let retiredContactCount = 0;
+      if (!state.intake.parentReused && state.intake.createdContactIdentifierId && otherActiveGuardians === 0) {
+        parent.status = "ARCHIVED"; parent.version += 1; if (parent.contact) parent.contact.retiredAt = now.toISOString(); parentDisposition = "ARCHIVED"; retiredContactCount = 1;
+      }
+      state.lifecycle.student.status = "ARCHIVED"; state.lifecycle.student.version += 1;
+      return { studentProfileId: state.lifecycle.student.id, studentStatus: "ARCHIVED", guardianRelationshipId:state.intake.guardianRelationshipId, guardianStatus:"ENDED", parentUserId:parent.id, parentDisposition, retiredContactCount };
     }
     throw new Error(`unexpected ${method} ${path}`);
   }
 
-  private lifecycle(studentId: string, displayName: string, parentId: string): BoLearnerLifecycle {
-    return { student: { id: studentId, displayName, birthYear: 2018, birthPrecision: "YEAR_ONLY", status: "ACTIVE", houseMember: false, activeSubscriptions: 0, activePaths: [], birthMonth: null, birthDay: null, version: 1 }, houseMembership: null, guardians: [{ relationshipId: this.id(), relationshipType: "PARENT", parent: { id: parentId, displayName: "E2E Parent", status: "ACTIVE", contacts: [] } }], subscriptions: [] };
+  seedExistingParent(normalizedContact:string) {
+    const id=this.id(),contactId=this.id(); this.parents.set(id,{id,displayName:"Existing Parent",status:"ACTIVE",version:1,contact:{id:contactId,normalizedValue:normalizedContact.toLowerCase(),retiredAt:null}}); return id;
+  }
+  raceParentOnNextIntake(normalizedContact:string){ this.raceParentContact = normalizedContact.toLowerCase(); }
+  parentStatus(parentId:string){ return this.parents.get(parentId)?.status ?? null; }
+
+  private lifecycle(studentId: string, displayName: string, parentId: string, relationshipId: string): BoLearnerLifecycle {
+    return { student: { id: studentId, displayName, birthYear: 2018, birthPrecision: "YEAR_ONLY", status: "ACTIVE", houseMember: false, activeSubscriptions: 0, activePaths: [], birthMonth: null, birthDay: null, version: 1 }, houseMembership: null, guardians: [{ relationshipId, relationshipType: "PARENT", parent: { id: parentId, displayName: "E2E Parent", status: "ACTIVE", contacts: [] } }], subscriptions: [] };
   }
 
   private subscription(studentProfileId: string, pathProgramId: string, weeklyCommitment: number, units: number, productPlanId: string | null, commercialReference: string | null): BoLearnerSubscription {

@@ -1,4 +1,4 @@
-import type { BoLearnerLifecycle, BoLearnerSubscription, BoProductPlan, BoSaleResult } from "./bo-model";
+import type { BoLearnerLifecycle, BoLearnerSubscription, BoParentSearchResult, BoProductPlan, BoSaleResult, BoStudentIntakeVoidResult } from "./bo-model";
 import type { F3BootstrapState, F3LearningSpace, F3Path, F3RunningClass } from "./f3-delivery-api";
 
 const E2E_CENTER_KEY = "e2e-comparator";
@@ -39,6 +39,7 @@ export interface Pap437StudentIntake {
   studentProfileId: string;
   parentUserId: string;
   guardianRelationshipId: string;
+  createdContactIdentifierId: string | null;
   parentReused: boolean;
 }
 
@@ -54,6 +55,7 @@ export interface Pap437Fixture {
   sales: { a: BoSaleResult; b: BoSaleResult };
   guardSubscription: BoLearnerSubscription;
   guardEnrollmentId: string;
+  parentContactValue: string;
   replay: {
     saleA: { idempotencyKey: string; body: Record<string, unknown> };
     saleB: { idempotencyKey: string; body: Record<string, unknown> };
@@ -91,6 +93,12 @@ export async function preparePap437CommercialFixture(
   const productPlan = productPlans.find((item) => item.enabled && item.cadence === 2 && item.termWeeks === 12);
   if (!productPlan) throw new Error("PAP-437 requires an enabled 2x/week 12-week Product Plan; fixture will not mutate global plan config.");
 
+  const parentContactValue = syntheticParentContact(runTag);
+  const collisions = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(parentContactValue)}&limit=25`);
+  if (collisions.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === parentContactValue))) {
+    throw new Error("PAP-437 synthetic Parent contact already belongs to an active Parent; choose a new run id.");
+  }
+
   const path = await ensurePath(port, bootstrap, runTag);
   const space = await ensureSpace(port, bootstrap, centerId, runTag);
   const happyA = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-a", 1, 8);
@@ -100,8 +108,19 @@ export async function preparePap437CommercialFixture(
   assertSyntheticTopology(centerId, path, space, [happyA, happyB, blockedClass], runTag);
 
   const learnerA = await createLearner(port, runTag, "a", localDate);
+  if (learnerA.parentReused || !learnerA.createdContactIdentifierId) {
+    const rollback = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learnerA.studentProfileId}/void`, {
+      expectedStudentVersion: 1,
+      reason: `${PREFIX} ${runTag} Parent collision rollback`,
+    }, replayKey(runTag, "rollback-intake-a"));
+    if (rollback.studentStatus !== "ARCHIVED") throw new Error("PAP-437 failed to roll back a raced Parent-contact collision.");
+    await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
+    throw new Error("PAP-437 synthetic Parent contact was concurrently claimed; fresh intake and synthetic topology were rolled back.");
+  }
   const learnerB = await createLearner(port, runTag, "b", localDate, learnerA.parentUserId);
   const guard = await createLearner(port, runTag, "guard", localDate, learnerA.parentUserId);
+  assertReusedParentIntake(learnerB, learnerA.parentUserId, "B");
+  assertReusedParentIntake(guard, learnerA.parentUserId, "guard");
 
   const saleABody = saleBody(learnerA, path.id, centerId, productPlan.id, localDate, runTag, "a");
   const saleBBody = saleBody(learnerB, path.id, centerId, productPlan.id, localDate, runTag, "b");
@@ -147,6 +166,7 @@ export async function preparePap437CommercialFixture(
     sales: { a: saleA, b: saleB },
     guardSubscription,
     guardEnrollmentId,
+    parentContactValue,
     replay: {
       saleA: { idempotencyKey: saleAKey, body: saleABody },
       saleB: { idempotencyKey: saleBKey, body: saleBBody },
@@ -196,14 +216,22 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
   const latestSpace = latestBootstrap.learningSpaces.find((item) => item.id === fixture.space.id);
   if (latestSpace?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${latestSpace.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: latestSpace.version });
 
-  for (const studentId of studentIds) {
-    const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
-    if (lifecycle.student.status !== "ARCHIVED") {
-      await port.command("POST", `student-intakes/${studentId}/void`, {
-        expectedStudentVersion: lifecycle.student.version,
-        reason: `${PREFIX} ${fixture.runTag} cleanup`,
-      }, replayKey(fixture.runTag, `void-student-${studentId}`));
+  const voidOrder: Array<{ label: string; intake: Pap437StudentIntake; expectedDisposition: BoStudentIntakeVoidResult["parentDisposition"] }> = [
+    { label: "guard", intake: fixture.learners.guard, expectedDisposition: "REUSED_UNCHANGED" },
+    { label: "b", intake: fixture.learners.b, expectedDisposition: "REUSED_UNCHANGED" },
+    { label: "a", intake: fixture.learners.a, expectedDisposition: "ARCHIVED" },
+  ];
+  for (const item of voidOrder) {
+    const lifecycle = await port.get<BoLearnerLifecycle>(`students/${item.intake.studentProfileId}/lifecycle`);
+    if (lifecycle.student.status === "ARCHIVED") continue;
+    const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${item.intake.studentProfileId}/void`, {
+      expectedStudentVersion: lifecycle.student.version,
+      reason: `${PREFIX} ${fixture.runTag} cleanup`,
+    }, replayKey(fixture.runTag, `void-student-${item.intake.studentProfileId}`));
+    if (result.parentUserId !== fixture.learners.a.parentUserId || result.parentDisposition !== item.expectedDisposition) {
+      throw new Error(`PAP-437 ${item.label} intake cleanup returned unexpected Parent disposition.`);
     }
+    if (item.label === "a" && result.retiredContactCount !== 1) throw new Error("PAP-437 owner intake cleanup did not retire the synthetic Parent contact.");
   }
 
   const finalBootstrap = await port.get<F3BootstrapState>("delivery/bootstrap-state");
@@ -224,7 +252,11 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
     ...readback.runningClasses.filter((item) => [fixture.happyClasses[0].id, fixture.happyClasses[1].id, fixture.blockedClass.id].includes(item.id) && item.status === "ACTIVE"),
   ];
   if (stillActive.length) throw new Error("PAP-437 cleanup readback found active synthetic topology.");
-  return { cleaned: true as const, readbackAt: readback.asOf };
+  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(fixture.parentContactValue)}&limit=25`);
+  if (activeParents.some((item) => item.parent.id === fixture.learners.a.parentUserId || item.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === fixture.parentContactValue))) {
+    throw new Error("PAP-437 cleanup readback found the synthetic Parent/contact still active.");
+  }
+  return { cleaned: true as const, readbackAt: readback.asOf, parentArchived: true as const };
 }
 
 function bulkBody(fixture: Pap437Fixture, effectiveFromLocalDate: string, policyEffectiveAt: string, blocked: boolean): Pap437BulkBody {
@@ -295,6 +327,14 @@ async function ensureClass(port: Pap437FixturePort, bootstrap: F3BootstrapState,
   });
 }
 
+async function archivePreparedTopology(port: Pap437FixturePort, path: F3Path, space: F3LearningSpace, classes: F3RunningClass[]) {
+  for (const runningClass of classes) {
+    if (runningClass.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${runningClass.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: runningClass.version });
+  }
+  if (space.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${space.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: space.version });
+  if (path.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${path.id}`, { code: path.code, displayName: path.displayName, status: "ARCHIVED", expectedVersion: path.version });
+}
+
 async function createLearner(port: Pap437FixturePort, runTag: string, suffix: string, effectiveFrom: string, existingParentUserId?: string) {
   const common = {
     displayName: `${PREFIX} ${runTag} ${suffix.toUpperCase()}`,
@@ -307,9 +347,17 @@ async function createLearner(port: Pap437FixturePort, runTag: string, suffix: st
   };
   const body = existingParentUserId
     ? { ...common, existingParentUserId }
-    : { ...common, existingParentUserId: null, guardianDisplayName: `${PREFIX} ${runTag} Parent`, contactType: "EMAIL", contactValue: `pap437+${runTag}@example.invalid` };
+    : { ...common, existingParentUserId: null, guardianDisplayName: `${PREFIX} ${runTag} Parent`, contactType: "EMAIL", contactValue: syntheticParentContact(runTag) };
   return port.command<Pap437StudentIntake>("POST", "student-intakes", body, replayKey(runTag, `intake-${suffix}`));
 }
+
+function assertReusedParentIntake(intake: Pap437StudentIntake, expectedParentUserId: string, label: string) {
+  if (!intake.parentReused || intake.createdContactIdentifierId !== null || intake.parentUserId !== expectedParentUserId) {
+    throw new Error(`PAP-437 ${label} intake did not reuse the fixture-owned Parent exactly.`);
+  }
+}
+
+function syntheticParentContact(runTag: string) { return `pap437+${runTag}@example.invalid`; }
 
 function saleBody(learner: Pap437StudentIntake, pathProgramId: string, centerId: string, productPlanId: string, contractualStartsOn: string, runTag: string, suffix: string) {
   return {
