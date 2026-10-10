@@ -101,6 +101,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/practice/resources",
     "/api/bo/practice/media",
     "/api/bo/open-studio/operations",
+    "/api/bo/open-studio/learners",
     "/api/bo/open-studio/passes",
     "/api/bo/open-studio/listings",
     "/api/bo/open-studio/member-path-centers/assign",
@@ -198,6 +199,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/workforce\/(?:AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/student-intakes\/[0-9a-f-]{36}\/void$/.test(normalized)
+    || /^\/api\/bo\/open-studio\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/lifecycle$/.test(normalized)
     || /^\/api\/bo\/students\/[0-9a-f-]{36}\/lifecycle$/.test(normalized)
     || /^\/api\/bo\/students\/[0-9a-f-]{36}\/pinoria(?:\/companions\/[0-9a-f-]{36}\/feed)?$/.test(normalized)
     || /^\/api\/bo\/identity\/parents\/[0-9a-f-]{36}\/pin\/reset$/.test(normalized)
