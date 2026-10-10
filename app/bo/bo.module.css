@@ -438,3 +438,6 @@
 
 
 .staffOnboardingCard{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border:1px solid #ddd0f7;border-radius:14px;background:#fbf8ff}.staffOnboardingCard>div{display:grid;gap:4px}.staffOnboardingCard span{font-size:10px;font-weight:850;color:#6040ad}.staffOnboardingCard strong{font-size:13px}.staffOnboardingCard small{font-size:10px;color:#77717f;line-height:1.4}.staffOnboardingCard button{flex:0 0 auto}
+
+.gridToolbarFilter { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 7px; border: 1px solid #dedde3; border-radius: 8px; background: #fff; color: #57545f; font-size: 9px; font-weight: 750; }
+.gridToolbarFilter select { border: 0; outline: 0; background: transparent; color: #4f4c56; font: inherit; font-weight: 750; }

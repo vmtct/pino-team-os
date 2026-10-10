@@ -5,6 +5,8 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
 import { f3DeliveryApi, type F3Path, type F3RunningClass, type F3Session } from "@/lib/f3-delivery-api";
+import { buildRunningClassGridRows, isRunningClassGridSortKey, type RunningClassGridRow } from "@/lib/bo-running-classes-grid";
+import { BoDataGrid, BoDataGridCanonicalId, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
@@ -91,26 +93,59 @@ function Overview({ data }: { data: Data }) {
 }
 
 function RunningClasses({ data }: { data: Data }) {
+  const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
+  const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
+  const statusFilter = state.filters.status ?? "";
+  const rows = useMemo(() => buildRunningClassGridRows(data.classes, data.paths, {
+    search: state.search,
+    status: statusFilter,
+    sortKey,
+    sortDirection: state.sortDirection,
+  }), [data.classes, data.paths, sortKey, state.search, state.sortDirection, statusFilter]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / state.pageSize));
+  const page = Math.min(state.page, pageCount);
+  const pageRows = rows.slice((page - 1) * state.pageSize, page * state.pageSize);
+
+  useEffect(() => {
+    if (state.page > pageCount) setPage(pageCount);
+  }, [pageCount, setPage, state.page]);
+
+  const columns = useMemo<BoDataGridColumn<RunningClassGridRow>[]>(() => [
+    { key: "class", header: "Class", sortable: true, sticky: true, minWidth: 180, render: (row) => <strong>{row.item.operationalName}</strong> },
+    { key: "program", header: "Program", sortable: true, minWidth: 150, render: (row) => row.programName },
+    { key: "pattern", header: "Pattern", sortable: true, minWidth: 165, render: (row) => row.patternLabel },
+    { key: "capacity", header: "Capacity", sortable: true, align: "right", minWidth: 110, render: (row) => row.capacityLabel },
+    { key: "status", header: "Status", sortable: true, minWidth: 110, render: (row) => <BoDataGridStatus value={row.item.status} tone={runningClassStatusTone(row.item.status)} /> },
+    { key: "id", header: "Canonical ID", minWidth: 185, render: (row) => <BoDataGridCanonicalId value={row.item.id} label={`Copy ${row.item.operationalName} canonical ID`} /> },
+  ], []);
+
+  const filtered = Boolean(state.search || statusFilter);
   return (
-    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core.">
-      <Panel title={`${data.classes.length} classes`} hint="Schedule intent; dated Session times remain immutable snapshots.">
-        {data.classes.length ? (
-          <Table headers={["Class", "Program", "Pattern", "Capacity", "Status", "Canonical ID"]}>
-            {data.classes.map((item) => (
-              <tr key={item.id}>
-                <th scope="row">{item.operationalName}</th>
-                <td>{pathName(data.paths, item.pathProgramId)}</td>
-                <td>{weekdays[item.weekdayIso % 7]} · {item.windowStartsLocal}–{item.windowEndsLocal}</td>
-                <td>{item.optimalConcurrentCapacity}{item.hardConcurrentCapacity ? ` / ${item.hardConcurrentCapacity} hard` : ""}</td>
-                <td><Status value={item.status} /></td>
-                <td><Id value={item.id} /></td>
-              </tr>
-            ))}
-          </Table>
-        ) : <Empty text="No Running Classes." />}
-      </Panel>
+    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
+      <BoDataGrid
+        rows={pageRows}
+        columns={columns}
+        rowKey={(row) => row.item.id}
+        caption="Running Classes"
+        search={state.search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search Running Classes…"
+        sortKey={sortKey}
+        sortDirection={state.sortDirection}
+        onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
+        filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
+        toolbarActions={<label className={styles.gridToolbarFilter}>Status<select aria-label="Filter Running Classes by status" value={statusFilter} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></select></label>}
+        resultLabel={`${rows.length} of ${data.classes.length} classes`}
+        pagination={{ page, pageSize: state.pageSize, total: rows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
+        emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
+        emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
+      />
     </Page>
   );
+}
+
+function runningClassStatusTone(status: F3RunningClass["status"]): "success" | "neutral" | "warning" {
+  return status === "ACTIVE" ? "success" : status === "INACTIVE" ? "warning" : "neutral";
 }
 
 function Sessions({ data }: { data: Data }) {
