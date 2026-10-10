@@ -47,6 +47,8 @@ test("WWC Schedule & Time renders independent effective windows and ACL-gated co
   assert.match(source,/Chốt xếp ca/);
   assert.match(source,/Mở khóa xếp ca/);
   assert.match(source,/canLockAvailability/);
+  assert.match(source,/data\.windows\.availability\.reason !== "REGISTRATION_CLOSED"/);
+  assert.match(source,/Delivery Activation/);
   assert.match(source,/canReopenPlanning/);
   assert.match(source,/data\.windows\?\.planning\.state === "LOCKED"/);
 });
