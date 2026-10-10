@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -6,4 +6,4 @@ test("BO Learning/Syllabus renders the approved F0 authoring surface",async()=>{
 
 test("Syllabus BO stays generic and does not invent client authority or domain-specific payload",async()=>{const source=await readFile("app/bo/syllabus/LearningSyllabusDesk.tsx","utf8");assert.doesNotMatch(source,/NOTION|localStorage|sessionStorage|permissionKeys|canPublish|isFounder/);assert.doesNotMatch(source,/slides|worksheet|fingering|sheet music|lesson timeline|materials/i);assert.match(source,/boApi\.publishLearningSyllabusDraft/);assert.match(source,/payload\(form,draft\)/);assert.match(source,/thumbnailMediaId:preserve\?\.thumbnailMediaId\?\?null/);assert.match(source,/coverMediaId:preserve\?\.coverMediaId\?\?null/);assert.match(source,/provenance:preserve\?\.provenance\?\?null/);assert.match(source,/confirm\(/);});
 
-test("owner-scoped profile editing does not hard-depend on global Media Library enumeration",async()=>{const source=await readFile("app/bo/syllabus/SyllabusProfileEditor.tsx","utf8");const load=source.slice(source.indexOf("async function load("),source.indexOf("async function practiceChoices("));assert.doesNotMatch(load,/syllabusWorksheetMedia\(/);assert.match(source,/async function toggleLibrary\(\)/);assert.match(source,/try\{setLibrary\(await boApi\.syllabusWorksheetMedia\(\)\);\}catch/);assert.doesNotMatch(source,/missingMedia\.length>0\|\|!canSave/);});
+test("owner-scoped profile editing does not hard-depend on global Media Library enumeration",async()=>{const source=await readFile("app/bo/syllabus/SyllabusProfileEditor.tsx","utf8");const load=source.slice(source.indexOf("async function load("),source.indexOf("async function practiceChoices("));assert.doesNotMatch(load,/syllabusWorksheetMedia\(/);assert.match(source,/async function toggleLibrary\(\)/);assert.match(source,/mediaPathProgramId=detail\.syllabus\.owner\.type==="HOUSE_PATH"/);assert.match(source,/try\{setLibrary\(await boApi\.syllabusWorksheetMedia\(mediaPathProgramId\)\);\}catch/);assert.match(source,/uploadSyllabusWorksheetMedia\(file,uploadReplay\.current\.key,mediaPathProgramId\)/);assert.doesNotMatch(source,/missingMedia\.length>0\|\|!canSave/);});

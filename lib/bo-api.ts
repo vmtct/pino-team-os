@@ -300,7 +300,7 @@ export const boApi = {
   replacePracticePages: (versionId: string, expectedRevision: number, pages: Array<{ sheetMediaAssetId: string; worksheetMediaAssetId: string | null }>) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}/pages`, { expectedRevision, pages }, crypto.randomUUID()),
   publishPracticeVersion: (versionId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/versions/${encodeURIComponent(versionId)}/publish`, { expectedRevision }, crypto.randomUUID()),
   uploadPracticeMedia,
-  syllabusWorksheetMedia: () => read<BoSyllabusWorksheetMedia>("learning/syllabi/media"),
+  syllabusWorksheetMedia: (pathProgramId?: string) => read<BoSyllabusWorksheetMedia>(`learning/syllabi/media${pathProgramId ? `?pathProgramId=${encodeURIComponent(pathProgramId)}` : ""}`),
   uploadSyllabusWorksheetMedia,
   syllabusWorksheetPreviewUrl,
   learningSyllabusOwners: () => readOne<BoLearningSyllabusOwnerCatalog>("learning/syllabi/owners"),
