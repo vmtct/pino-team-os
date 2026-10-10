@@ -27,6 +27,10 @@ test("Effect Catalog is read-only and renders actual F2 full and mini previews",
   assert.match(view, /resolvePinoriaEffectPresentation/);
   assert.match(view, /pinoria\/char-base\.png/);
   assert.match(view, /READ ONLY/);
+  assert.match(view, /BoDataGrid/);
+  assert.match(view, /useBoDataGridUrlState/);
+  assert.match(view, /BoDataGridSidePeek/);
+  assert.doesNotMatch(view, /className={styles\.listHead}|className={styles\.row}/);
   assert.doesNotMatch(view, /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/);
   assert.doesNotMatch(view, /PLS multiplier|Wish modifier|walkSpeed|shader parameter/i);
 });
@@ -36,5 +40,6 @@ test("Effect Catalog documents code authority instead of exposing behavior contr
   assert.match(view, /Behavior lives in code/);
   assert.match(view, /does not edit shader, scale, locomotion, economy, RNG, PLS or Wish behavior/);
   assert.doesNotMatch(view, /type=["']range["']/);
-  assert.doesNotMatch(view, /<select/);
+  assert.match(view, /Filter Effects by rarity/);
+  assert.doesNotMatch(view, /aria-label=["\'](?:Shader|Scale|Locomotion|Economy|RNG|PLS|Wish)/i);
 });
