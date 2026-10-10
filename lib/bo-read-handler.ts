@@ -1,4 +1,4 @@
-import { callBoAccessCoreWithCredential, type BoAccessCoreBinding } from "./bo-core";
+import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 
 export interface BoReadEnv extends TeamAccessEnv {
@@ -28,8 +28,9 @@ export async function handleBoOperationalReadRequest(
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
+    const readResource = readQueryResource(path, url);
     const corePath = readCorePath(path, url);
-    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readBody ? { body: readBody } : {}) }, credential);
+    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof TeamAuthError) {
@@ -157,6 +158,14 @@ function readCorePath(path: string, url: URL): string {
     return query ? `${path}?${query}` : path;
   }
   return path;
+}
+
+function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "learners" || path === "open-studio/learners" || /^(?:open-studio\/)?students\/[0-9a-f-]{36}\/lifecycle$/.test(path)) {
+    const centerId = url.searchParams.get("centerId")?.trim();
+    return centerId ? { centerId } : undefined;
+  }
+  return undefined;
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
