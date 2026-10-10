@@ -122,6 +122,22 @@ test("PAP-437 rolls back a contact-resolution race without touching the concurre
   assert.equal(activeParents[0]!.parent.status, "ACTIVE");
 });
 
+test("PAP-437 rolls back prepared topology when post-lookup Parent uniqueness conflict returns no intake result", async () => {
+  const port = new FakePort();
+  const contact = "pap437+atomic01@example.invalid";
+  port.conflictParentAfterLookupOnNextIntake(contact);
+  await assert.rejects(() => preparePap437CommercialFixture(port, "atomic01", now), /first intake failed.*topology was rolled back/i);
+  assert.equal(port.students.size, 0);
+  assert.equal(port.bootstrap.paths.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(port.bootstrap.learningSpaces.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(port.bootstrap.runningClasses.every((item) => item.status === "ARCHIVED"), true);
+  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`);
+  assert.equal(activeParents.length, 1);
+  assert.equal(activeParents[0]!.parent.status, "ACTIVE");
+  await assert.rejects(() => preparePap437CommercialFixture(port, "atomic01", now), /already belongs to an active Parent/i);
+  assert.equal(port.bootstrap.paths.filter((item) => item.status === "ACTIVE").length, 0);
+});
+
 test("PAP-437 fails closed without exactly one active E2E Comparator Center or a bounded run tag", async () => {
   const missing = new FakePort();
   missing.bootstrap.centers = missing.bootstrap.centers.filter((item) => item.centerKey !== "e2e-comparator");
@@ -149,6 +165,7 @@ class FakePort implements Pap437FixturePort {
   readonly parents = new Map<string, ParentState>();
   readonly bills = new Map<string, BoSaleResult["bill"]>();
   private raceParentContact: string | null = null;
+  private conflictAfterLookupContact: string | null = null;
   private next = 10;
   readonly plan: BoProductPlan = {
     id: uuid(3), cadence: 2, termWeeks: 12, purchasedUnits: 24, listPriceMinor: 3900000,
@@ -237,6 +254,7 @@ class FakePort implements Pap437FixturePort {
       const studentProfileId = this.id();
       const requestedContact = input.existingParentUserId ? null : String(input.contactValue).toLowerCase();
       if (requestedContact && this.raceParentContact === requestedContact) { this.seedExistingParent(requestedContact); this.raceParentContact = null; }
+      if (requestedContact && this.conflictAfterLookupContact === requestedContact) { this.seedExistingParent(requestedContact); this.conflictAfterLookupContact = null; throw new Error("Parent contact already belongs to an active Parent"); }
       let parent = input.existingParentUserId ? this.parents.get(input.existingParentUserId) ?? null : [...this.parents.values()].find((item) => item.status === "ACTIVE" && item.contact?.retiredAt === null && item.contact.normalizedValue === requestedContact) ?? null;
       const parentReused = parent !== null;
       let createdContactIdentifierId: string | null = null;
@@ -302,6 +320,7 @@ class FakePort implements Pap437FixturePort {
     const id=this.id(),contactId=this.id(); this.parents.set(id,{id,displayName:"Existing Parent",status:"ACTIVE",version:1,contact:{id:contactId,normalizedValue:normalizedContact.toLowerCase(),retiredAt:null}}); return id;
   }
   raceParentOnNextIntake(normalizedContact:string){ this.raceParentContact = normalizedContact.toLowerCase(); }
+  conflictParentAfterLookupOnNextIntake(normalizedContact:string){ this.conflictAfterLookupContact = normalizedContact.toLowerCase(); }
   parentStatus(parentId:string){ return this.parents.get(parentId)?.status ?? null; }
 
   private lifecycle(studentId: string, displayName: string, parentId: string, relationshipId: string): BoLearnerLifecycle {
