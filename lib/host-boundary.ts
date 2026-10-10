@@ -101,6 +101,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/practice/resources",
     "/api/bo/practice/media",
     "/api/bo/open-studio/operations",
+    "/api/bo/open-studio/listing-catalog",
     "/api/bo/open-studio/learners",
     "/api/bo/open-studio/passes",
     "/api/bo/open-studio/listings",
