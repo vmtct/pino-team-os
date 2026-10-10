@@ -8,6 +8,12 @@ import { BO_HOSTNAME, decideHostBoundary } from "./host-boundary";
 
 const token = "local-password-session";
 const intentId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+const invalidLeadIds = [
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "0198d050-56c1-4ac5-b9ab-b0e45d912345",
+  "0198d050-56c1-7ac5-79ab-b0e45d912345",
+  "0198d050-56c17-ac5-b9ab-b0e45d912345",
+] as const;
 const env = (binding: BoAccessCoreBinding): BoReadEnv & BoWriteEnv => ({ PINO_BO_CORE: binding });
 
 test("PLT-SALES F0 forwards bounded Lead queue/detail reads to canonical Core", async () => {
@@ -46,6 +52,16 @@ test("PLT-LEAD Lead archive requires idempotency and forwards only the exact can
   assert.equal((await handleBoWriteRequest(withKey, env(binding), path)).status, 200);
   assert.deepEqual(forwarded, [{ method: "POST", path, body, idempotencyKey: "lead-archive-1" }]);
 });
+test("PLT-LEAD Lead archive rejects non-canonical IDs before Core forwarding", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: 200, body: { data: { ok: true } }, requestId: "should-not-forward" }; } };
+  for (const leadId of invalidLeadIds) {
+    const path = `acquisition/leads/${leadId}/archive`;
+    const request = new Request(`https://bo.pinohouse.art/api/bo/${path}`, { method: "POST", headers: { cookie: `pino_staff_password_session=${token}`, "content-type": "application/json", "idempotency-key": "malformed-lead-archive" }, body: JSON.stringify({ expectedVersion: 1 }) });
+    assert.equal((await handleBoWriteRequest(request, env(binding), path)).status, 404, leadId);
+  }
+  assert.equal(forwarded.length, 0);
+});
 test("PLT-LEAD F1 manual create requires idempotency and forwards only the canonical command", async () => {
   const forwarded: BoAccessRequest[] = [];
   const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) { forwarded.push(request); return { status: 201, body: { data: { leadId: "lead", intentId, status: "SUBMITTED", nextStep: "MANUAL_CONTACT" } }, requestId: "sales-create" }; } };
@@ -64,7 +80,10 @@ test("PLT-SALES F0 keeps Lead surface BO-only and host-bounded", () => {
   for (const path of ["/bo/sales/leads", "/api/bo/acquisition/intents", `/api/bo/acquisition/intents/${intentId}`, `/api/bo/acquisition/intents/${intentId}/verify-contact`, `/api/bo/acquisition/intents/${intentId}/close`, `/api/bo/acquisition/leads/${intentId}/archive`]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
   }
-  for (const path of ["/api/bo/acquisition/leads", "/api/bo/acquisition/leads/not-a-canonical-id/archive", `/api/bo/acquisition/leads/${intentId}/archive/extra`, `/api/bo/acquisition/leads/${intentId}/delete`]) {
+  for (const leadId of invalidLeadIds) {
+    const path = `/api/bo/acquisition/leads/${leadId}/archive`;
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
+  }  for (const path of ["/api/bo/acquisition/leads", "/api/bo/acquisition/leads/not-a-canonical-id/archive", `/api/bo/acquisition/leads/${intentId}/archive/extra`, `/api/bo/acquisition/leads/${intentId}/delete`]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
   }
 });
