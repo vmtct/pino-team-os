@@ -18,6 +18,18 @@ test("support-session issuance is a bounded BO command and forwards only the aut
   assert.equal(response.status,201);
   assert.deepEqual(forwarded,[{request:{method:"POST",path:route,body,idempotencyKey:"support-key"},token}]);
 });
+test("PAP-436 catalog Path lifecycle forwards only exact bounded methods",async()=>{
+  const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",createRoute="catalog/paths",updateRoute=`catalog/paths/${id}`,forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:coreRequest.method==="POST"?201:200,body:{data:{id,code:"e2e-specialty",displayName:"E2E Specialty",status:coreRequest.method==="POST"?"ACTIVE":"ARCHIVED",version:coreRequest.method==="POST"?1:2}},requestId:"pap436-path"};}};
+  const createBody={code:"e2e-specialty",displayName:"E2E Specialty",status:"ACTIVE"};
+  assert.equal((await handleBoWriteRequest(request(createRoute,true,createBody),env(binding),createRoute)).status,201);
+  const updateBody={code:"e2e-specialty",displayName:"E2E Specialty",status:"ARCHIVED",expectedVersion:1};
+  assert.equal((await handleBoWriteRequest(request(updateRoute,true,updateBody,undefined,"PATCH"),env(binding),updateRoute)).status,200);
+  assert.deepEqual(forwarded,[{method:"POST",path:createRoute,body:createBody},{method:"PATCH",path:updateRoute,body:updateBody}]);
+  assert.equal((await handleBoWriteRequest(request(updateRoute,true,updateBody),env(binding),updateRoute)).status,405);
+  assert.equal((await handleBoWriteRequest(request(createRoute,true,createBody,undefined,"PATCH"),env(binding),createRoute)).status,405);
+  assert.equal(forwarded.length,2);
+});
 test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";assert.equal(isPracticeWritePath("practice/repertoire-access/grants"),true);assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`),true);assert.equal(isPracticeWritePath("practice/media"),false);});
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
 test("PAP-21 legacy import facade forwards only the two governed paths and replay-protects execute",async()=>{

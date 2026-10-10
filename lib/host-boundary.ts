@@ -208,6 +208,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || normalized === "/api/bo/billing/sales"
     || /^\/api\/bo\/billing\/bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?$/.test(normalized)
     || /^\/api\/bo\/billing\/transactions\/[0-9a-f-]{36}\/void$/.test(normalized)
+    || (normalized === "/api/bo/catalog/paths" || /^\/api\/bo\/catalog\/paths\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized))
     || /^\/api\/bo\/catalog\/specialty-(?:families|modules)$/.test(normalized)
     || normalized === "/api/bo/specialty/catalog"
     || /^\/api\/bo\/specialty\/students\/[0-9a-f-]{36}$/.test(normalized)

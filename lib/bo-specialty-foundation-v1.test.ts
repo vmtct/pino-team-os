@@ -14,7 +14,7 @@ test("SPF-009 Specialty BO perimeter exposes only bounded canonical routes",()=>
     "policies/specialty/purchase.v1/stream","policies/specialty/reward.v1/effective",
   ])assert.equal(isOperationalReadPath(path),true,path);
   for(const path of [
-    "catalog/specialty-families","catalog/specialty-modules","specialty/offers",
+    "catalog/paths",`catalog/paths/${id}`,"catalog/specialty-families","catalog/specialty-modules","specialty/offers",
     `specialty/offers/${id}/configure`,"specialty/relics","specialty/rewards",
     "specialty/purchases/evaluate","specialty/purchases",
     `specialty/allocations/${id}/claims`,`specialty/allocations/${id}/complete`,
@@ -22,7 +22,7 @@ test("SPF-009 Specialty BO perimeter exposes only bounded canonical routes",()=>
     "policies/specialty/purchase.v1/versions",`policies/specialty/purchase.v1/versions/${id}/publish`,
   ])assert.equal(isAllowedPostPath(path),true,path);
   for(const path of [
-    "specialty/students/not-a-canonical-id","specialty/offers/delete",
+    "catalog/paths/01999999-9999-4999-8999-999999999999","catalog/paths/01999999-9999-7999-7999-999999999999","catalog/paths/01999999-9999-7999-8999-99999999999-9","specialty/students/not-a-canonical-id","specialty/offers/delete",
     `specialty/allocations/${id}/refund`,`specialty/physical-rewards/${id}/delete`,
     "policies/specialty/unknown.v1/stream",
   ])assert.equal(isOperationalReadPath(path)||isAllowedPostPath(path),false,path);
@@ -31,7 +31,7 @@ test("SPF-009 Specialty BO perimeter exposes only bounded canonical routes",()=>
 test("SPF-009 host boundary admits Specialty routes and rejects malformed siblings",()=>{
   for(const path of [
     "/api/bo/specialty/catalog",`/api/bo/specialty/students/${id}`,
-    "/api/bo/catalog/specialty-families","/api/bo/catalog/specialty-modules",
+    "/api/bo/catalog/paths",`/api/bo/catalog/paths/${id}`,"/api/bo/catalog/specialty-families","/api/bo/catalog/specialty-modules",
     "/api/bo/specialty/offers",`/api/bo/specialty/offers/${id}/configure`,
     "/api/bo/specialty/relics","/api/bo/specialty/rewards",
     "/api/bo/specialty/purchases/evaluate","/api/bo/specialty/purchases",
@@ -41,7 +41,7 @@ test("SPF-009 host boundary admits Specialty routes and rejects malformed siblin
     `/api/bo/policies/specialty/purchase.v1/versions/${id}/publish`,
   ])assert.deepEqual(decideHostBoundary(BO_HOSTNAME,path),{action:"next"},path);
   for(const path of [
-    "/api/bo/specialty/students/bad","/api/bo/specialty/offers/delete",
+    "/api/bo/catalog/paths/not-a-canonical-id","/api/bo/catalog/paths/01999999-9999-4999-8999-999999999999","/api/bo/catalog/paths/01999999-9999-7999-7999-999999999999","/api/bo/catalog/paths/01999999-9999-7999-8999-99999999999-9",`/api/bo/catalog/paths/${id}/extra`,"/api/bo/specialty/students/bad","/api/bo/specialty/offers/delete",
     `/api/bo/specialty/allocations/${id}/refund`,
     "/api/bo/policies/specialty/unknown.v1/stream",
   ])assert.deepEqual(decideHostBoundary(BO_HOSTNAME,path),{action:"not_found"},path);

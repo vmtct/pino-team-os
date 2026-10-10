@@ -61,6 +61,8 @@ const BILLING_SALE_PATH = "billing/sales";
 const BILLING_TRANSACTION_PATH = /^billing\/bills\/[0-9a-f-]{36}\/transactions$/;
 const BILLING_BILL_VOID_PATH = /^billing\/bills\/[0-9a-f-]{36}\/void$/;
 const BILLING_TRANSACTION_VOID_PATH = /^billing\/transactions\/[0-9a-f-]{36}\/void$/;
+const CATALOG_PATH_CREATE = "catalog/paths";
+const CATALOG_PATH_UPDATE = /^catalog\/paths\/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 const SPECIALTY_FAMILY_CREATE_PATH = "catalog/specialty-families";
 const SPECIALTY_MODULE_CREATE_PATH = "catalog/specialty-modules";
 const SPECIALTY_OFFER_CREATE_PATH = "specialty/offers";
@@ -135,9 +137,12 @@ export async function handleBoWriteRequest(
     if (PINORIA_WORLD_WRITE.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
       return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     }
+    if ((path === CATALOG_PATH_CREATE && request.method !== "POST") || (CATALOG_PATH_UPDATE.test(path) && request.method !== "PATCH")) {
+      return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
+    }
     if (
       request.method !== "POST"
-      && !(request.method === "PATCH" && (WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
@@ -291,6 +296,8 @@ export function isAllowedPostPath(path: string): boolean {
     || BILLING_TRANSACTION_PATH.test(path)
     || BILLING_BILL_VOID_PATH.test(path)
     || BILLING_TRANSACTION_VOID_PATH.test(path)
+    || path === CATALOG_PATH_CREATE
+    || CATALOG_PATH_UPDATE.test(path)
     || path === SPECIALTY_FAMILY_CREATE_PATH
     || path === SPECIALTY_MODULE_CREATE_PATH
     || path === SPECIALTY_OFFER_CREATE_PATH
