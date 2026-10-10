@@ -24,7 +24,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
   if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   if (isBoWorkforceDutyExceptionPath(joined)) return handleBoWorkforceDutyExceptionRequest(request, env, joined);
-  if (/^learning\/syllabi\/media\/[0-9a-f-]{36}\/preview$/.test(joined)) return handleBoSyllabusMediaRequest(request, env, joined);
+  if (joined === "learning/syllabi/media" || /^learning\/syllabi\/media\/[0-9a-f-]{36}\/preview$/.test(joined)) return handleBoSyllabusMediaRequest(request, env, joined);
   if (isBoStaffPrivateDocumentPath(joined)) return handleBoStaffPrivateDocumentRequest(request, env, joined);
   return handleBoOperationalReadRequest(request, env, joined);
 }
