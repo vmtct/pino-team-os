@@ -66,8 +66,27 @@ test("BO data grid optimistic URL buffer preserves rapid controlled search input
   const third = withBoDataGridPatch(buffer.current(), { search: "abc" });
   buffer.apply(third, "q=abc");
   assert.equal(buffer.current().search, "abc");
-  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=abc"), "q=abc", false), true);
+  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=abc"), "q=abc", false), false);
   assert.equal(buffer.current().search, "abc");
+  assert.equal(buffer.requestedQuery(), null);
+});
+
+test("BO data grid optimistic URL buffer preserves normalized multiword search drafts", () => {
+  const buffer = createBoDataGridUrlStateBuffer(parseBoDataGridUrlState("?q=Alice"));
+  const draft = withBoDataGridPatch(buffer.current(), { search: "Alice " });
+  buffer.apply(draft, "q=Alice");
+
+  assert.equal(buffer.current().search, "Alice ");
+  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=Alice"), "q=Alice", true), false);
+  assert.equal(buffer.current().search, "Alice ");
+  assert.equal(buffer.requestedQuery(), "q=Alice");
+  assert.equal(buffer.reconcile(parseBoDataGridUrlState("?q=Alice"), "q=Alice", false), false);
+  assert.equal(buffer.current().search, "Alice ");
+  assert.equal(buffer.requestedQuery(), null);
+
+  const continued = withBoDataGridPatch(buffer.current(), { search: "Alice B" });
+  buffer.apply(continued, "q=Alice+B");
+  assert.equal(buffer.current().search, "Alice B");
 });
 
 test("BO data grid optimistic URL buffer reconciles when navigation settles elsewhere", () => {

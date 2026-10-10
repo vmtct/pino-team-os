@@ -135,8 +135,15 @@ export function createBoDataGridUrlStateBuffer(initial: BoDataGridUrlState): BoD
       return currentState;
     },
     reconcile(urlState, urlQuery, transitionPending) {
-      if (expectedQuery !== null && urlQuery !== expectedQuery && transitionPending) return false;
-      expectedQuery = null;
+      if (expectedQuery !== null) {
+        if (urlQuery === expectedQuery) {
+          if (transitionPending) return false;
+          expectedQuery = null;
+          return false;
+        }
+        if (transitionPending) return false;
+        expectedQuery = null;
+      }
       currentState = urlState;
       return true;
     },
