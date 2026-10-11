@@ -205,8 +205,16 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     return pathProgramId ? { pathProgramId } : undefined;
   }
   if (path === "access/audit") {
+    const body: Record<string, unknown> = {};
     const limit = url.searchParams.get("limit");
-    return limit ? { limit: Number(limit) } : undefined;
+    const offset = url.searchParams.get("offset");
+    const query = url.searchParams.get("query");
+    const outcome = url.searchParams.get("outcome");
+    if (limit) body.limit = Number(limit);
+    if (offset) body.offset = Number(offset);
+    if (query) body.query = query;
+    if (outcome) body.outcome = outcome;
+    return Object.keys(body).length ? body : undefined;
   }
   if (path === "identity/parents") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),

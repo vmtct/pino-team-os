@@ -177,6 +177,37 @@ async function read<T>(path: string): Promise<T[]> {
   return body.data;
 }
 
+export type BoAccessAuditPage = {
+  events: BoAccessAuditEvent[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    page: number;
+    pageCount: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+  };
+};
+
+async function readAccessAuditPage(path: string): Promise<BoAccessAuditPage> {
+  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
+  const body = await response.json() as {
+    data?: BoAccessAuditEvent[];
+    page?: BoAccessAuditPage["page"];
+    error?: { message?: string; requestId?: string };
+  };
+  if (!response.ok || !body.data || !body.page) throw apiError(response, body, "Access audit could not be loaded.");
+  return { events: body.data, page: body.page };
+}
+
+export function accessAuditPagePath(input: { limit: number; offset: number; query?: string; outcome?: string }): string {
+  const params = new URLSearchParams({ limit: String(input.limit), offset: String(input.offset) });
+  if (input.query?.trim()) params.set("query", input.query.trim());
+  if (input.outcome?.trim()) params.set("outcome", input.outcome.trim());
+  return `access/audit?${params.toString()}`;
+}
+
 async function readAllPages<T>(pathForCursor: (cursor: string | null) => string): Promise<T[]> {
   const items: T[] = [];
   const seen = new Set<string>();
@@ -423,6 +454,7 @@ export const boApi = {
   accessRole: (roleId: string) => readOne<BoAccessRoleDetail>(`access/roles/${encodeURIComponent(roleId)}`),
   accessPermissions: () => read<BoAccessPermission>("access/permissions"),
   accessAudit: (limit = 100) => read<BoAccessAuditEvent>(`access/audit?limit=${encodeURIComponent(String(limit))}`),
+  accessAuditPage: (input: { limit: number; offset: number; query?: string; outcome?: string }) => readAccessAuditPage(accessAuditPagePath(input)),
   accessUsers: () => read<BoAccessSystemUser>("access/users"),
   trainingCatalog: () => read<TrainingModule>("workforce/training/catalog"),
   trainingStaffAssignments: (staffMemberId: string) => read<TrainingAssignmentDetail>(`workforce/training/staff/${encodeURIComponent(staffMemberId)}`),
