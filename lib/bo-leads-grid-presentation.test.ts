@@ -21,6 +21,17 @@ test("PAP-390 Leads reuses shared Data Grid with URL browse state and side peek"
 test("PAP-390 preserves canonical lifecycle, idempotent retry and Pancake detail authority", async () => {
   const source = await read("app/bo/sales/leads/SalesLeadPipelineView.tsx");
   assert.match(source, /pendingAttempt\?\.key === key/);
+  assert.match(source, /intentId: intent\.id/);
+  assert.match(source, /resolveActionBoundIntentId\(selectedId, actionLockedIntentId\)/);
+  assert.match(source, /shouldRestoreActionBoundIntent\(selectedId, actionLockedIntentId\)/);
+  assert.match(source, /router\.replace\(nextQuery \? `\$\{pathname\}\?\$\{nextQuery\}` : pathname, \{ scroll: false \}\)/);
+  assert.match(source, /pendingAttempt\.intentId === intent\.id/);
+  assert.doesNotMatch(source, /executeAttempt\(pendingAttempt, intent\.id\)/);
+  assert.match(source, /function selectCreatedIntent\(nextId: string\)/);
+  assert.match(source, /params\.delete\("q"\)/);
+  assert.match(source, /params\.delete\("f_status"\)/);
+  assert.match(source, /params\.delete\("page"\)/);
+  assert.doesNotMatch(source, /setStatus\("ALL"\);\s*setQuery\(""\)/);
   assert.match(source, /idempotencyKey: crypto\.randomUUID\(\)/);
   assert.match(source, /boApi\.markAcquisitionContacted/);
   assert.match(source, /boApi\.verifyAcquisitionContact/);
