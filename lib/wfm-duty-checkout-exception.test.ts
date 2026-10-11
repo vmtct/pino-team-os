@@ -20,6 +20,9 @@ test("F4 BO renders canonical list/detail and approves through fresh password on
   assert.match(source, /boApi\.approveDutyException\(selected\.exception\.id, selected\.center\.id, selected\.exception\.version, password\)/);
   assert.match(source, /type="password"/);
   assert.match(source, /Unresolved duties at request/);
+  assert.match(source, /BoDataGrid/);
+  assert.match(source, /useBoDataGridUrlState/);
+  assert.match(source, /dutyException/);
   assert.doesNotMatch(source, /localStorage|sessionStorage|rejectDutyException|status:\s*"APPROVED"/);
 });
 
