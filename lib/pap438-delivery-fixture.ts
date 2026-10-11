@@ -128,16 +128,10 @@ export async function provePap438DraftOnlyBehavior(port: Pap438FixturePort, fixt
     if (effectiveGlobal) {
       return { mode: "GLOBAL_FALLBACK_REMAINS_EFFECTIVE" as const, horizonDays: effectiveGlobal.publishedValue!.horizonDays, note: "The CENTER Draft is non-effective, but a GLOBAL policy is effective at the exact probe instant; no materialization probe is executed." };
     }
-    try {
-      await port.command("POST", "delivery/materializations", {
-        centerId: fixture.centerId,
-        startsOnLocalDate: fixture.startsOnLocalDate,
-        effectiveAt: probeEffectiveAt,
-      }, replayKey(fixture.runTag, "draft-only-probe"));
-    } catch (error) {
-      return { mode: "NO_EFFECTIVE_POLICY_BLOCKED" as const, message: error instanceof Error ? error.message : String(error) };
-    }
-    throw new Error("PAP-438 draft-only probe unexpectedly materialized without any effective CENTER/GLOBAL policy.");
+    return {
+      mode: "NO_EFFECTIVE_POLICY_OBSERVED" as const,
+      note: "No effective CENTER/GLOBAL policy is observable in the bootstrap projection. Draft-only proof remains non-mutating because bootstrap authority is server-now scoped while materialization resolves at caller-supplied effectiveAt.",
+    };
   }
   return {
     mode: "BASELINE_REMAINS_EFFECTIVE" as const,

@@ -23,7 +23,8 @@ test("PAP-438 first-run Draft stays non-effective until publish, then exactly on
   assert.equal(port.stream?.publishedValue, null);
 
   const draftProbe = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
-  assert.equal(draftProbe.mode, "NO_EFFECTIVE_POLICY_BLOCKED");
+  assert.equal(draftProbe.mode, "NO_EFFECTIVE_POLICY_OBSERVED");
+  assert.equal(port.materializationCommands, 0);
   assert.equal(port.bootstrap.upcomingSessions.length, 0);
 
   const active = await publishAndMaterializePap438Fixture(port, fixture, new Date("2026-10-10T06:10:00.000Z"));
@@ -80,6 +81,7 @@ test("PAP-438 recognizes GLOBAL fallback without executing a mutating Draft-only
   assert.equal(fixture.initialGlobalPolicyMode, "EFFECTIVE");
   const behavior = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
   assert.equal(behavior.mode, "GLOBAL_FALLBACK_REMAINS_EFFECTIVE");
+  assert.equal(port.materializationCommands, 0);
   assert.equal(port.bootstrap.upcomingSessions.length, 0);
 });
 
@@ -90,6 +92,7 @@ test("PAP-438 rebinds GLOBAL authority at the exact probe time after preparation
   port.installGlobalPublishedPolicy(5, "2026-10-10T05:30:00.000Z");
   const behavior = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
   assert.equal(behavior.mode, "GLOBAL_FALLBACK_REMAINS_EFFECTIVE");
+  assert.equal(port.materializationCommands, 0);
   assert.equal(port.bootstrap.upcomingSessions.length, 0);
 });
 
@@ -98,7 +101,8 @@ test("PAP-438 ignores future-effective GLOBAL authority at an earlier probe inst
   const fixture = await preparePap438DeliveryFixture(port, "global03", now, 3);
   port.installGlobalPublishedPolicy(5, "2026-10-10T07:00:00.000Z");
   const behavior = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
-  assert.equal(behavior.mode, "NO_EFFECTIVE_POLICY_BLOCKED");
+  assert.equal(behavior.mode, "NO_EFFECTIVE_POLICY_OBSERVED");
+  assert.equal(port.materializationCommands, 0);
   assert.equal(port.bootstrap.upcomingSessions.length, 0);
 });
 
@@ -162,6 +166,7 @@ class FakePort implements Pap438FixturePort {
   private next = 10;
   stream: StoredPolicy | null = null;
   globalStream: StoredPolicy | null = null;
+  materializationCommands = 0;
   bootstrap: F3BootstrapState = {
     asOf: now.toISOString(),
     centers: [
@@ -226,6 +231,7 @@ class FakePort implements Pap438FixturePort {
       this.stream.revision += 1; this.syncPolicy(); return structuredClone({ published: true }) as T;
     }
     if (method === "POST" && path === "delivery/materializations") {
+      this.materializationCommands += 1;
       if (!this.stream?.publishedValue) throw new Error("Policy resolution unavailable");
       const runningClasses = this.bootstrap.runningClasses.filter((item) => item.centerId === input.centerId && item.status === "ACTIVE");
       let attempted=0, materialized=0, existing=0;
