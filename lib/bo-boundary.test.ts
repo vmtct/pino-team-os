@@ -66,7 +66,7 @@ test("Staff password reset UI binds permission and loaded profile to the selecte
   assert.match(source, /accessUser.staffMemberId === selectedId/);
   assert.match(source, /selectedIdRef\.current !== targetStaffId/);
   assert.match(source, /passwordResetAttempts\[targetUserId\]/);
-  assert.match(source, /disabled=\{busy === "password-reset"\}/);
+  assert.match(source, /onRowOpen=\{busy === "password-reset" \? undefined :/);
   assert.match(source, /passwordResetInFlightRef\.current = targetStaffId/);
   assert.match(source, /lockedId && !staff\.some/);
   assert.match(source, /const nextId = lockedId \?\?/);

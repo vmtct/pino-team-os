@@ -1,7 +1,11 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BoDataGrid, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
+import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi } from "@/lib/bo-api";
+import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -33,10 +37,16 @@ type PrivateLoadState =
 
 
 const emptyData: Data = { actor: null, staff: [], users: [], roles: [], centers: [], paths: [], classes: [] };
+const STAFF_GRID_OPTIONS = { defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] as const };
+type StaffGridRow = { staff: BoStaffRecord; user: BoAccessUser | null };
 
 export function StaffManagementView() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const grid = useBoDataGridUrlState(STAFF_GRID_OPTIONS);
+  const selectedId = searchParams.get("staff") ?? "";
   const [data, setData] = useState<Data>(emptyData);
-  const [selectedId, setSelectedId] = useState("");
   const [profile, setProfile] = useState<BoStaffProfile | null>(null);
   const [pinoria, setPinoria] = useState<PinoriaLoadState>({ status: "idle" });
   const [onboarding, setOnboarding] = useState<OnboardingLoadState>({ status: "idle" });
@@ -104,14 +114,50 @@ export function StaffManagementView() {
     accessUser.status === "active"
   );
 
-  function selectStaff(nextId: string) {
+  const staffStatusFilter = grid.state.filters.staffStatus === "inactive" ? "inactive" : grid.state.filters.staffStatus === "all" ? "all" : "active";
+  const accessStatusFilter = ["active", "suspended", "none"].includes(grid.state.filters.accessStatus ?? "") ? grid.state.filters.accessStatus! : "all";
+  const gridRows = useMemo<StaffGridRow[]>(() => data.staff.map((staff) => ({ staff, user: data.users.find((user) => user.staffMemberId === staff.id) ?? null })), [data.staff, data.users]);
+  const filteredRows = useMemo(() => {
+    const term = grid.state.search.trim().toLocaleLowerCase("vi");
+    return gridRows.filter(({ staff, user }) => {
+      if (staffStatusFilter !== "all" && staff.status !== staffStatusFilter) return false;
+      const accessStatus = user?.status ?? "none";
+      if (accessStatusFilter !== "all" && accessStatus !== accessStatusFilter) return false;
+      if (!term) return true;
+      const roleNames = (user?.assignments ?? []).map((assignment) => `${assignment.roleName} ${assignment.scopeType} ${assignment.scopeId ?? ""}`).join(" ");
+      return `${staff.displayLabel} ${staff.id} ${staff.department ?? ""} ${staff.roleLabel ?? ""} ${user?.email ?? ""} ${roleNames}`.toLocaleLowerCase("vi").includes(term);
+    });
+  }, [accessStatusFilter, grid.state.search, gridRows, staffStatusFilter]);
+  const sortedRows = useMemo(() => {
+    const key = grid.state.sortKey ?? "staff";
+    const direction = grid.state.sortDirection === "desc" ? -1 : 1;
+    return [...filteredRows].sort((left, right) => direction * compareStaffRows(left, right, key));
+  }, [filteredRows, grid.state.sortDirection, grid.state.sortKey]);
+  const gridRange = boDataGridRange(grid.state.page, grid.state.pageSize, sortedRows.length);
+  const visibleRows = sortedRows.slice((gridRange.page - 1) * grid.state.pageSize, gridRange.page * grid.state.pageSize);
+  const columns = useMemo<BoDataGridColumn<StaffGridRow>[]>(() => [
+    { key: "staff", header: "Staff", sortable: true, sticky: true, minWidth: 220, render: ({ staff }) => <div className={styles.staffGridIdentity}><div><strong>{staff.displayLabel}</strong><BoDataGridCanonicalId value={staff.id} label="Copy Staff ID" /></div></div> },
+    { key: "organization", header: "Organization", sortable: true, minWidth: 180, render: ({ staff }) => <div className={styles.staffGridStack}><strong>{staff.roleLabel ?? "Chưa có role label"}</strong><small>{staff.department ?? "Chưa có department"}</small></div> },
+    { key: "staffStatus", header: "Staff status", sortable: true, minWidth: 120, render: ({ staff }) => <BoDataGridStatus value={staff.status} tone={staff.status === "active" ? "success" : "neutral"} /> },
+    { key: "accessStatus", header: "Access", sortable: true, minWidth: 160, render: ({ user }) => <div className={styles.staffGridStack}><BoDataGridStatus value={user?.status ?? "not provisioned"} tone={user?.status === "active" ? "success" : user?.status === "suspended" ? "warning" : "neutral"} /><small>{user?.email ?? "No Access identity"}</small></div> },
+    { key: "roles", header: "Roles / scopes", sortable: true, minWidth: 220, render: ({ user }) => user?.assignments.length ? <div className={styles.staffGridBadges}>{user.assignments.slice(0, 2).map((assignment) => <BoDataGridBadge key={assignment.assignmentId}>{assignment.roleName}</BoDataGridBadge>)}{user.assignments.length > 2 ? <BoDataGridBadge>+{user.assignments.length - 2}</BoDataGridBadge> : null}</div> : <span className={styles.staffGridMuted}>No assignments</span> },
+    { key: "attention", header: "Attention", sortable: true, minWidth: 150, render: ({ staff, user }) => { const state = staffAttention(staff, user); return <BoDataGridStatus value={state.label} tone={state.tone} />; } },
+  ], []);
+
+  function selectStaff(nextId: string, history: "push" | "replace" = "replace") {
     if (selectedIdRef.current !== nextId) {
       privateRevealFenceRef.current.invalidate();
       setPrivateData({ status: "idle" });
       setPrivateCenterId("");
     }
     selectedIdRef.current = nextId;
-    setSelectedId(nextId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextId) params.set("staff", nextId);
+    else params.delete("staff");
+    const query = params.toString();
+    const href = query ? `${pathname}?${query}` : pathname;
+    if (history === "push") router.push(href, { scroll: false });
+    else router.replace(href, { scroll: false });
   }
 
   async function refresh(preferId = "") {
@@ -122,8 +168,8 @@ export function StaffManagementView() {
     const lockedId = passwordResetInFlightRef.current;
     if (lockedId && !staff.some((item) => item.id === lockedId)) return;
     setData({ actor, staff, users, roles, centers: catalog.centers, paths: catalog.paths, classes: catalog.classes });
-    const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : staff[0]?.id ?? "");
-    selectStaff(nextId);
+    const nextId = lockedId ?? (preferId && staff.some((item) => item.id === preferId) ? preferId : currentId && staff.some((item) => item.id === currentId) ? currentId : "");
+    if (nextId !== currentId) selectStaff(nextId);
   }
 
   async function refreshPinoria() {
@@ -329,19 +375,36 @@ export function StaffManagementView() {
     <section id="staff-management" className={styles.page}>
       <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
-      <div className={styles.staffManagementGrid}>
-        <aside className={styles.staffDirectory}>
-          <div className={styles.panelHeading}><div><h2>{data.staff.length} nhân viên</h2><p>Chọn một người để quản lý.</p></div></div>
-          {data.staff.map((item) => {
-            const user = data.users.find((entry) => entry.staffMemberId === item.id);
-            return <button type="button" key={item.id} className={`${styles.staffCard} ${selectedId === item.id ? styles.staffCardActive : ""}`} disabled={busy === "password-reset"} onClick={() => { if (busy !== "password-reset") selectStaff(item.id); }}>
-              <strong>{item.displayLabel}</strong><span>{item.roleLabel ?? item.department ?? "Chưa phân loại"}</span><small>{item.status} · Access {user?.status ?? "none"}</small>
-            </button>;
-          })}
-        </aside>
+      <BoDataGrid
+        rows={visibleRows}
+        columns={columns}
+        rowKey={({ staff }) => staff.id}
+        caption="Staff directory"
+        search={grid.state.search}
+        onSearchChange={grid.setSearch}
+        searchPlaceholder="Tìm Staff, department, role, email…"
+        sortKey={grid.state.sortKey ?? "staff"}
+        sortDirection={grid.state.sortDirection}
+        onSortChange={grid.setSort}
+        filterChips={[
+          ...(staffStatusFilter === "all" ? [] : [{ key: "staffStatus", label: "Staff", value: staffStatusFilter, onClear: () => grid.setFilter("staffStatus", "all") }]),
+          ...(accessStatusFilter === "all" ? [] : [{ key: "accessStatus", label: "Access", value: accessStatusFilter, onClear: () => grid.setFilter("accessStatus", "all") }]),
+        ]}
+        resultLabel={`${sortedRows.length} / ${gridRows.length} staff`}
+        selectedRowKey={selectedId || null}
+        onRowOpen={busy === "password-reset" ? undefined : ({ staff }) => selectStaff(staff.id, "push")}
+        emptyTitle="Không có Staff phù hợp"
+        emptyMessage="Thử đổi search hoặc filter; canonical Staff/Access state không bị thay đổi."
+        pagination={{ page: gridRange.page, pageSize: grid.state.pageSize, total: sortedRows.length, pageSizeOptions: STAFF_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
+        toolbarActions={<div className={styles.staffGridToolbar}>
+          <label className={styles.gridToolbarFilter}>Staff<select aria-label="Filter Staff by status" value={staffStatusFilter} onChange={(event) => grid.setFilter("staffStatus", event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="all">All</option></select></label>
+          <label className={styles.gridToolbarFilter}>Access<select aria-label="Filter Staff by access" value={accessStatusFilter} onChange={(event) => grid.setFilter("accessStatus", event.target.value)}><option value="all">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="none">Not provisioned</option></select></label>
+        </div>}
+      />
 
-        <div className={styles.staffDetailStack}>
-          {!selected || !profile ? <section className={styles.panel}><p>Chọn nhân viên để xem chi tiết.</p></section> : <>
+      {selectedId ? <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff detail" onClose={() => selectStaff("")}>
+        <div className={styles.staffGridPeek}><div className={styles.staffDetailStack}>
+          {!selected || !profile ? <section className={styles.panel}><p>Đang tải hồ sơ Staff…</p></section> : <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>{profile.displayLabel}</h2><p>Operational profile · {profile.status}</p></div><span className={styles.writePill}>{profile.status}</span></div>
               <div className={styles.formGrid}>
@@ -478,10 +541,31 @@ export function StaffManagementView() {
               </>}
             </section>
           </>}
-        </div>
-      </div>
+        </div></div>
+      </BoDataGridSidePeek> : null}
     </section>
   );
+}
+
+function compareStaffRows(left: StaffGridRow, right: StaffGridRow, key: string) {
+  if (key === "organization") return `${left.staff.roleLabel ?? ""} ${left.staff.department ?? ""}`.localeCompare(`${right.staff.roleLabel ?? ""} ${right.staff.department ?? ""}`, "vi") || left.staff.displayLabel.localeCompare(right.staff.displayLabel, "vi");
+  if (key === "staffStatus") return left.staff.status.localeCompare(right.staff.status) || left.staff.displayLabel.localeCompare(right.staff.displayLabel, "vi");
+  if (key === "accessStatus") return (left.user?.status ?? "none").localeCompare(right.user?.status ?? "none") || left.staff.displayLabel.localeCompare(right.staff.displayLabel, "vi");
+  if (key === "roles") return (left.user?.assignments.length ?? 0) - (right.user?.assignments.length ?? 0) || left.staff.displayLabel.localeCompare(right.staff.displayLabel, "vi");
+  if (key === "attention") return staffAttentionRank(left.staff, left.user) - staffAttentionRank(right.staff, right.user) || left.staff.displayLabel.localeCompare(right.staff.displayLabel, "vi");
+  return left.staff.displayLabel.localeCompare(right.staff.displayLabel, "vi");
+}
+function staffAttentionRank(staff: BoStaffRecord, user: BoAccessUser | null) {
+  if (staff.status === "inactive" && user?.status === "active") return 3;
+  if (staff.status === "active" && !user) return 2;
+  if (staff.status === "active" && user?.status === "suspended") return 1;
+  return 0;
+}
+function staffAttention(staff: BoStaffRecord, user: BoAccessUser | null): { label: string; tone: "success" | "warning" | "danger" | "neutral" } {
+  if (staff.status === "inactive" && user?.status === "active") return { label: "Access still active", tone: "danger" };
+  if (staff.status === "active" && !user) return { label: "No Access", tone: "warning" };
+  if (staff.status === "active" && user?.status === "suspended") return { label: "Access suspended", tone: "warning" };
+  return { label: "Aligned", tone: "success" };
 }
 
 function PrivateFact({ label, value }: { label: string; value: string }) {
