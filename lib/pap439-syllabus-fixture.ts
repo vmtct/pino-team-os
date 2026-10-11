@@ -1,10 +1,11 @@
-import type { BoAccessRole, BoLearningSyllabusDetail, BoLearningSyllabusVersion, BoArtSyllabusProfile, BoSyllabusWorksheetMedia } from "./bo-model";
+import type { BoAccessRole, BoLearningSyllabusDetail, BoLearningSyllabusVersion, BoSyllabusWorksheetMedia } from "./bo-model";
 import type { BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import type { F3BootstrapState, F3Path } from "./f3-delivery-api";
 
 const PREFIX = "[E2E] PAP-439";
 const MANAGER_ROLE_KEY = "manager";
-const LEARNING_PERMISSIONS = new Set(["catalog.learning.view", "catalog.learning.manage"]);
+const REQUIRED_LEARNING_PERMISSIONS = ["catalog.learning.view", "catalog.learning.manage", "catalog.learning.publish"] as const;
+const LEARNING_PERMISSIONS = new Set<string>(REQUIRED_LEARNING_PERMISSIONS);
 
 export class Pap439HttpError extends Error {
   constructor(public readonly status: number, message: string, public readonly requestId: string | null = null) {
@@ -19,6 +20,7 @@ export interface Pap439JsonPort {
 
 export interface Pap439ManagerPort extends Pap439JsonPort {
   uploadWorksheetMedia(input: { pathProgramId: string; fileName: string; mimeType: "image/png"; bytes: Uint8Array; idempotencyKey: string }): Promise<BoSyllabusWorksheetMedia>;
+  previewWorksheetMedia(input: { mediaAssetId: string; pathProgramId: string }): Promise<{ mimeType: string; bytes: ArrayBuffer }>;
 }
 
 export function createPap439FetchPort(
@@ -60,6 +62,23 @@ export function createPap439FetchPort(
       if (!response.ok || payload.data === undefined) throw new Pap439HttpError(response.status, payload.error?.message ?? "PAP-439 worksheet upload failed.", response.headers.get("x-request-id") ?? payload.error?.requestId ?? null);
       return payload.data;
     },
+    previewWorksheetMedia: async input => {
+      const path = `learning/syllabi/media/${encodeURIComponent(input.mediaAssetId)}/preview?pathProgramId=${encodeURIComponent(input.pathProgramId)}`;
+      const headers = new Headers(extraHeaders);
+      const response = await fetcher(`${root}/api/bo/${path}`, { method: "GET", headers, credentials: "include" });
+      if (!response.ok) {
+        const text = await response.text();
+        let message = `PAP-439 worksheet preview failed (${response.status}).`;
+        let requestId: string | null = response.headers.get("x-request-id");
+        try {
+          const payload = text ? JSON.parse(text) as { error?: { message?: string; requestId?: string } } : {};
+          message = payload.error?.message ?? message;
+          requestId = requestId ?? payload.error?.requestId ?? null;
+        } catch { /* keep bounded fallback message */ }
+        throw new Pap439HttpError(response.status, message, requestId);
+      }
+      return { mimeType: response.headers.get("content-type") ?? "application/octet-stream", bytes: await response.arrayBuffer() };
+    },
   };
 }
 
@@ -72,30 +91,26 @@ export interface Pap439SyllabusFixture {
   foreignPath: F3Path;
   syllabusId: string;
   media: BoSyllabusWorksheetMedia;
+  foreignMedia: BoSyllabusWorksheetMedia;
   publishedV1: BoLearningSyllabusVersion;
   publishedV2: BoLearningSyllabusVersion;
 }
 
 export async function preparePap439SyllabusFixture(
-  founder: Pap439JsonPort,
+  founder: Pap439ManagerPort,
   manager: Pap439ManagerPort,
   input: { runId: string; managerUserId: string; now?: Date },
 ): Promise<Pap439SyllabusFixture> {
   const runTag = normalizeRunTag(input.runId);
   const now = input.now ?? new Date();
   const managerRole = await requireBoundedManager(founder, input.managerUserId);
+  const { pathCode, foreignCode, syllabusCode } = fixtureCodes(runTag);
   const bootstrap = await founder.get<F3BootstrapState>("delivery/bootstrap-state");
-  const pathCode = `e2e-pap439-${runTag}`;
-  const foreignCode = `e2e-pap439-${runTag}-foreign`;
-  if (bootstrap.paths.some(item => item.code === pathCode || item.code === foreignCode)) throw new Error("PAP-439 run id already has synthetic Path provenance; use cleanup/recovery or a new run id.");
+  if (bootstrap.paths.some(item => item.code === pathCode || item.code === foreignCode)) throw new Error("PAP-439 run id already has synthetic Path provenance; run cleanup/recovery before reuse.");
 
-  let path: F3Path | null = null;
-  let foreignPath: F3Path | null = null;
-  let assignmentId: string | null = null;
-  let syllabusId: string | null = null;
   try {
-    path = await founder.command<F3Path>("POST", "catalog/paths", { code: pathCode, displayName: `${PREFIX} ${runTag}`, status: "ACTIVE" }, replayKey(runTag, "path-create"));
-    foreignPath = await founder.command<F3Path>("POST", "catalog/paths", { code: foreignCode, displayName: `${PREFIX} ${runTag} Foreign`, status: "ACTIVE" }, replayKey(runTag, "foreign-path-create"));
+    const path = await founder.command<F3Path>("POST", "catalog/paths", { code: pathCode, displayName: `${PREFIX} ${runTag}`, status: "ACTIVE" }, replayKey(runTag, "path-create"));
+    const foreignPath = await founder.command<F3Path>("POST", "catalog/paths", { code: foreignCode, displayName: `${PREFIX} ${runTag} Foreign`, status: "ACTIVE" }, replayKey(runTag, "foreign-path-create"));
     const assignment = await founder.command<{ id: string }>("POST", "access/assignments", {
       userId: input.managerUserId,
       roleId: managerRole.id,
@@ -103,23 +118,34 @@ export async function preparePap439SyllabusFixture(
       scopeId: path.id,
       effectiveFrom: now.toISOString(),
     }, replayKey(runTag, "manager-path-assignment"));
-    assignmentId = assignment.id;
+    const assignmentId = assignment.id;
 
-    await expectForbidden(() => manager.get(`learning/syllabi/media?pathProgramId=${encodeURIComponent(foreignPath!.id)}`), "foreign Path media list");
+    const foreignMedia = await founder.uploadWorksheetMedia({
+      pathProgramId: foreignPath.id,
+      fileName: `pap439-${runTag}-foreign.png`,
+      mimeType: "image/png",
+      bytes: tinyPngBytes(),
+      idempotencyKey: replayKey(runTag, "foreign-worksheet-upload"),
+    });
+    if (foreignMedia.pathProgramId !== foreignPath.id) throw new Error("PAP-439 foreign worksheet media lost exact Path provenance.");
+
+    await expectForbidden(() => manager.get(`learning/syllabi/media?pathProgramId=${encodeURIComponent(foreignPath.id)}`), "foreign Path media list");
+    await expectForbidden(() => manager.previewWorksheetMedia({ mediaAssetId: foreignMedia.mediaAssetId, pathProgramId: foreignPath.id }), "foreign Path media preview");
+    await expectForbidden(() => manager.previewWorksheetMedia({ mediaAssetId: foreignMedia.mediaAssetId, pathProgramId: path.id }), "foreign media preview with authorized Path substituted");
 
     const existing = await manager.get<Array<{ syllabus: { code: string; lifecycle: string } }>>(`learning/syllabi?ownerType=HOUSE_PATH&ownerId=${encodeURIComponent(path.id)}`);
-    if (existing.length) throw new Error("PAP-439 fresh synthetic Path unexpectedly already owns Syllabus rows.");
+    if (existing.some(item => item.syllabus.code === syllabusCode)) throw new Error("PAP-439 fresh synthetic Path unexpectedly already owns this fixture Syllabus.");
 
     const created = await manager.command<BoLearningSyllabusDetail>("POST", "learning/syllabi", {
       ownerType: "HOUSE_PATH",
       ownerId: path.id,
-      code: `pap439-${runTag}`,
+      code: syllabusCode,
       title: `${PREFIX} ${runTag} V1`,
       shortDescription: "Bounded synthetic Syllabus fixture",
       tags: ["e2e", "pap439"],
       provenance: { fixture: "PAP-439", runTag, pathProgramId: path.id },
     }, replayKey(runTag, "syllabus-create"));
-    syllabusId = created.syllabus.id;
+    const syllabusId = created.syllabus.id;
     const draftV1 = requireDraft(created, 1);
 
     const media = await manager.uploadWorksheetMedia({
@@ -130,69 +156,50 @@ export async function preparePap439SyllabusFixture(
       idempotencyKey: replayKey(runTag, "worksheet-upload"),
     });
     if (media.pathProgramId !== path.id) throw new Error("PAP-439 worksheet media lost exact Path provenance.");
-
-    const richContent = { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: `${PREFIX} ${runTag}` }] }] };
-    await manager.command<BoArtSyllabusProfile>("POST", `learning/syllabi/versions/${draftV1.id}/artchitect-profile`, {
-      richContent,
-      worksheetMediaIds: [media.mediaAssetId],
-      toolTags: ["PAP-439"],
-      expectedRevision: null,
-    }, replayKey(runTag, "v1-profile"));
+    const positivePreview = await manager.previewWorksheetMedia({ mediaAssetId: media.mediaAssetId, pathProgramId: path.id });
+    if (positivePreview.mimeType !== "image/png" || positivePreview.bytes.byteLength < 1) throw new Error("PAP-439 authorized worksheet preview did not return expected PNG bytes.");
 
     const editedV1 = await manager.command<BoLearningSyllabusVersion>("POST", `learning/syllabi/${syllabusId}/draft`, {
       expectedRevision: draftV1.revision,
       title: `${PREFIX} ${runTag} V1 edited`,
-      shortDescription: "Text-only edit preserving worksheet media provenance",
+      shortDescription: "Text-only Path-owned Syllabus edit",
       tags: ["e2e", "pap439", "v1"],
-      provenance: { fixture: "PAP-439", runTag, pathProgramId: path.id, version: 1 },
+      provenance: { fixture: "PAP-439", runTag, pathProgramId: path.id, version: 1, worksheetMediaAssetId: media.mediaAssetId },
     }, replayKey(runTag, "v1-text-edit"));
-    const profileAfterEdit = await manager.get<BoArtSyllabusProfile | null>(`learning/syllabi/versions/${draftV1.id}/artchitect-profile`);
-    if (!profileAfterEdit?.worksheetMediaIds.includes(media.mediaAssetId)) throw new Error("PAP-439 text edit did not preserve worksheet media reference.");
-
     const publishedV1 = await manager.command<BoLearningSyllabusVersion>("POST", `learning/syllabi/${syllabusId}/publish`, { expectedRevision: editedV1.revision }, replayKey(runTag, "v1-publish"));
     if (publishedV1.state !== "PUBLISHED" || publishedV1.versionNumber !== 1) throw new Error("PAP-439 V1 did not publish as exact version 1.");
 
     const next = await manager.command<BoLearningSyllabusVersion>("POST", `learning/syllabi/${syllabusId}/next-draft`, {}, replayKey(runTag, "v2-next-draft"));
     if (next.state !== "DRAFT" || next.versionNumber !== 2) throw new Error("PAP-439 next-draft did not create exact V2 Draft.");
-    const v2Profile = await manager.get<BoArtSyllabusProfile | null>(`learning/syllabi/versions/${next.id}/artchitect-profile`);
-    if (!v2Profile) {
-      await manager.command<BoArtSyllabusProfile>("POST", `learning/syllabi/versions/${next.id}/artchitect-profile`, {
-        richContent,
-        worksheetMediaIds: [media.mediaAssetId],
-        toolTags: ["PAP-439"],
-        expectedRevision: null,
-      }, replayKey(runTag, "v2-profile"));
-    }
     const editedV2 = await manager.command<BoLearningSyllabusVersion>("POST", `learning/syllabi/${syllabusId}/draft`, {
       expectedRevision: next.revision,
       title: `${PREFIX} ${runTag} V2`,
       shortDescription: "Second published synthetic Syllabus version",
       tags: ["e2e", "pap439", "v2"],
-      provenance: { fixture: "PAP-439", runTag, pathProgramId: path.id, version: 2 },
+      provenance: { fixture: "PAP-439", runTag, pathProgramId: path.id, version: 2, worksheetMediaAssetId: media.mediaAssetId },
     }, replayKey(runTag, "v2-edit"));
     const publishedV2 = await manager.command<BoLearningSyllabusVersion>("POST", `learning/syllabi/${syllabusId}/publish`, { expectedRevision: editedV2.revision }, replayKey(runTag, "v2-publish"));
     if (publishedV2.state !== "PUBLISHED" || publishedV2.versionNumber !== 2) throw new Error("PAP-439 V2 did not publish as exact version 2.");
 
     const exactMedia = await manager.get<BoSyllabusWorksheetMedia[]>(`learning/syllabi/media?pathProgramId=${encodeURIComponent(path.id)}`);
-    if (!exactMedia.some(item => item.mediaAssetId === media.mediaAssetId && item.pathProgramId === path!.id)) throw new Error("PAP-439 Path-scoped media readback lost exact uploaded media provenance.");
+    if (!exactMedia.some(item => item.mediaAssetId === media.mediaAssetId && item.pathProgramId === path.id)) throw new Error("PAP-439 Path-scoped media readback lost exact uploaded media provenance.");
 
-    return { runTag, managerUserId: input.managerUserId, managerRoleId: managerRole.id, assignmentId, path, foreignPath, syllabusId, media, publishedV1, publishedV2 };
+    return { runTag, managerUserId: input.managerUserId, managerRoleId: managerRole.id, assignmentId, path, foreignPath, syllabusId, media, foreignMedia, publishedV1, publishedV2 };
   } catch (error) {
-    await rollbackPartial(founder, manager, { runTag, path, foreignPath, assignmentId, syllabusId });
+    const cleanupErrors = await rollbackPartial(founder, manager, { runTag, managerUserId: input.managerUserId, managerRoleId: managerRole.id });
+    if (cleanupErrors.length) throw new AggregateError([error, ...cleanupErrors], "PAP-439 prepare failed and rollback left unresolved synthetic state.");
     throw error;
   }
 }
 
-export async function cleanupPap439SyllabusFixture(founder: Pap439JsonPort, manager: Pap439ManagerPort, fixture: Pap439SyllabusFixture) {
-  const detail = await manager.get<BoLearningSyllabusDetail>(`learning/syllabi/${fixture.syllabusId}`);
-  if (detail.syllabus.lifecycle === "ACTIVE") {
-    await manager.command("POST", `learning/syllabi/${fixture.syllabusId}/archive`, { expectedRevision: detail.syllabus.revision, reason: `${PREFIX} ${fixture.runTag} cleanup` }, replayKey(fixture.runTag, "syllabus-archive"));
-  }
-  await founder.command("POST", "access/assignments/remove", { assignmentId: fixture.assignmentId }, replayKey(fixture.runTag, "assignment-remove"));
-  await archivePaths(founder, fixture.runTag, [fixture.path.id, fixture.foreignPath.id]);
-  const finalState = await founder.get<F3BootstrapState>("delivery/bootstrap-state");
-  if (finalState.paths.some(item => [fixture.path.id, fixture.foreignPath.id].includes(item.id) && item.status === "ACTIVE")) throw new Error("PAP-439 cleanup left active synthetic Path state.");
-  return { cleaned: true as const, retainedMediaAssetId: fixture.media.mediaAssetId, publishedVersionIds: [fixture.publishedV1.id, fixture.publishedV2.id] as const };
+export async function cleanupPap439SyllabusFixture(founder: Pap439ManagerPort, manager: Pap439ManagerPort, fixture: Pap439SyllabusFixture) {
+  const cleanupErrors = await reconcileAndCleanup(founder, manager, { runTag: fixture.runTag, managerUserId: fixture.managerUserId, managerRoleId: fixture.managerRoleId });
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "PAP-439 cleanup could not prove terminal synthetic state.");
+  return {
+    cleaned: true as const,
+    retainedMediaAssetIds: [fixture.media.mediaAssetId, fixture.foreignMedia.mediaAssetId] as const,
+    publishedVersionIds: [fixture.publishedV1.id, fixture.publishedV2.id] as const,
+  };
 }
 
 async function requireBoundedManager(founder: Pap439JsonPort, managerUserId: string): Promise<BoAccessRoleDetail> {
@@ -203,7 +210,8 @@ async function requireBoundedManager(founder: Pap439JsonPort, managerUserId: str
   const role = roles.find(item => item.roleKey.toLowerCase() === MANAGER_ROLE_KEY && item.status === "active");
   if (!role) throw new Error("PAP-439 requires an active system Manager role.");
   const detail = await founder.get<BoAccessRoleDetail>(`access/roles/${role.id}`);
-  if (!detail.permissionKeys.includes("catalog.learning.view") || !detail.permissionKeys.includes("catalog.learning.manage")) throw new Error("PAP-439 Manager role lacks canonical Learning Syllabus permissions.");
+  const missing = REQUIRED_LEARNING_PERMISSIONS.filter(permission => !detail.permissionKeys.includes(permission));
+  if (missing.length) throw new Error(`PAP-439 Manager role lacks canonical Learning Syllabus permissions: ${missing.join(", ")}.`);
   const user = users.find(item => item.id === managerUserId && item.status === "active");
   if (!user) throw new Error("PAP-439 requires an active target Manager user.");
   for (const assignment of user.assignments.filter(item => item.scopeType === "GLOBAL")) {
@@ -227,28 +235,76 @@ function requireDraft(detail: BoLearningSyllabusDetail, versionNumber: number) {
   return draft;
 }
 
-async function rollbackPartial(founder: Pap439JsonPort, manager: Pap439ManagerPort, input: { runTag: string; path: F3Path | null; foreignPath: F3Path | null; assignmentId: string | null; syllabusId: string | null }) {
-  try {
-    if (input.syllabusId && input.assignmentId) {
-      const detail = await manager.get<BoLearningSyllabusDetail>(`learning/syllabi/${input.syllabusId}`);
-      if (detail.syllabus.lifecycle === "ACTIVE") await manager.command("POST", `learning/syllabi/${input.syllabusId}/archive`, { expectedRevision: detail.syllabus.revision, reason: `${PREFIX} ${input.runTag} rollback` }, replayKey(input.runTag, "rollback-syllabus"));
-    }
-  } catch { /* preserve original failure; founder cleanup still runs */ }
-  if (input.assignmentId) {
-    try { await founder.command("POST", "access/assignments/remove", { assignmentId: input.assignmentId }, replayKey(input.runTag, "rollback-assignment")); } catch { /* preserve original failure */ }
-  }
-  const ids = [input.path?.id, input.foreignPath?.id].filter((value): value is string => Boolean(value));
-  if (ids.length) {
-    try { await archivePaths(founder, input.runTag, ids); } catch { /* preserve original failure */ }
-  }
+async function rollbackPartial(founder: Pap439ManagerPort, manager: Pap439ManagerPort, input: { runTag: string; managerUserId: string; managerRoleId: string }) {
+  return reconcileAndCleanup(founder, manager, input);
 }
 
-async function archivePaths(founder: Pap439JsonPort, runTag: string, pathIds: string[]) {
-  const state = await founder.get<F3BootstrapState>("delivery/bootstrap-state");
-  for (const pathId of pathIds) {
-    const path = state.paths.find(item => item.id === pathId);
-    if (path?.status === "ACTIVE") await founder.command<F3Path>("PATCH", `catalog/paths/${path.id}`, { code: path.code, displayName: path.displayName, status: "ARCHIVED", expectedVersion: path.version }, replayKey(runTag, `archive-path-${path.id}`));
+async function reconcileAndCleanup(founder: Pap439ManagerPort, manager: Pap439ManagerPort, input: { runTag: string; managerUserId: string; managerRoleId: string }): Promise<Error[]> {
+  const errors: Error[] = [];
+  const { pathCode, foreignCode, syllabusCode } = fixtureCodes(input.runTag);
+  let state: F3BootstrapState;
+  try { state = await founder.get<F3BootstrapState>("delivery/bootstrap-state"); }
+  catch (error) { return [asError(error, "read bootstrap state")]; }
+  const path = state.paths.find(item => item.code === pathCode) ?? null;
+  const foreignPath = state.paths.find(item => item.code === foreignCode) ?? null;
+
+  if (path) {
+    try {
+      const users = await founder.get<BoAccessSystemUser[]>("access/users");
+      const user = users.find(item => item.id === input.managerUserId);
+      const hasPathAuthority = user?.assignments.some(item => item.roleId === input.managerRoleId && item.scopeType === "PATH" && item.scopeId === path.id) ?? false;
+      const lifecyclePort: Pap439JsonPort = hasPathAuthority ? manager : founder;
+      const syllabi = await lifecyclePort.get<Array<{ syllabus: { id: string; code: string; lifecycle: string; revision: number } }>>(`learning/syllabi?ownerType=HOUSE_PATH&ownerId=${encodeURIComponent(path.id)}`);
+      const target = syllabi.find(item => item.syllabus.code === syllabusCode);
+      if (target?.syllabus.lifecycle === "ACTIVE") {
+        const detail = await lifecyclePort.get<BoLearningSyllabusDetail>(`learning/syllabi/${target.syllabus.id}`);
+        if (detail.syllabus.lifecycle === "ACTIVE") await lifecyclePort.command("POST", `learning/syllabi/${target.syllabus.id}/archive`, { expectedRevision: detail.syllabus.revision, reason: `${PREFIX} ${input.runTag} cleanup` }, replayKey(input.runTag, "syllabus-archive"));
+      }
+      const post = await lifecyclePort.get<Array<{ syllabus: { code: string; lifecycle: string } }>>(`learning/syllabi?ownerType=HOUSE_PATH&ownerId=${encodeURIComponent(path.id)}`);
+      const residual = post.find(item => item.syllabus.code === syllabusCode);
+      if (residual && residual.syllabus.lifecycle === "ACTIVE") throw new Error("PAP-439 cleanup left active synthetic Syllabus state.");
+    } catch (error) { errors.push(asError(error, "archive/reconcile syllabus")); }
   }
+
+  for (const candidate of [path, foreignPath]) {
+    if (!candidate) continue;
+    try { await archivePathIfActive(founder, input.runTag, candidate.id); }
+    catch (error) { errors.push(asError(error, `archive Path ${candidate.code}`)); }
+  }
+
+  let postPaths: F3BootstrapState | null = null;
+  try {
+    postPaths = await founder.get<F3BootstrapState>("delivery/bootstrap-state");
+    if (postPaths.paths.some(item => [pathCode, foreignCode].includes(item.code) && item.status === "ACTIVE")) throw new Error("PAP-439 cleanup left active synthetic Path state.");
+  } catch (error) { errors.push(asError(error, "verify archived Paths")); }
+
+  if (errors.length === 0) {
+    try {
+      const users = await founder.get<BoAccessSystemUser[]>("access/users");
+      const user = users.find(item => item.id === input.managerUserId);
+      const assignments = user?.assignments.filter(item => item.roleId === input.managerRoleId && item.scopeType === "PATH" && path && item.scopeId === path.id) ?? [];
+      for (const assignment of assignments) await founder.command("POST", "access/assignments/remove", { assignmentId: assignment.assignmentId }, replayKey(input.runTag, `assignment-remove-${assignment.assignmentId}`));
+      const postUsers = await founder.get<BoAccessSystemUser[]>("access/users");
+      const postUser = postUsers.find(item => item.id === input.managerUserId);
+      if (postUser?.assignments.some(item => item.roleId === input.managerRoleId && item.scopeType === "PATH" && path && item.scopeId === path.id)) throw new Error("PAP-439 cleanup left active PATH Manager assignment.");
+    } catch (error) { errors.push(asError(error, "remove/verify PATH Manager assignment")); }
+  }
+
+  return errors;
+}
+
+async function archivePathIfActive(founder: Pap439JsonPort, runTag: string, pathId: string) {
+  const state = await founder.get<F3BootstrapState>("delivery/bootstrap-state");
+  const path = state.paths.find(item => item.id === pathId);
+  if (path?.status === "ACTIVE") await founder.command<F3Path>("PATCH", `catalog/paths/${path.id}`, { code: path.code, displayName: path.displayName, status: "ARCHIVED", expectedVersion: path.version }, replayKey(runTag, `archive-path-${path.id}-${path.version}`));
+}
+
+function fixtureCodes(runTag: string) {
+  return { pathCode: `e2e-pap439-${runTag}`, foreignCode: `e2e-pap439-${runTag}-foreign`, syllabusCode: `pap439-${runTag}` };
+}
+
+function asError(error: unknown, action: string) {
+  return error instanceof Error ? new Error(`PAP-439 ${action}: ${error.message}`, { cause: error }) : new Error(`PAP-439 ${action}: ${String(error)}`);
 }
 
 function normalizeRunTag(value: string) {
