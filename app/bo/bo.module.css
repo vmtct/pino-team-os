@@ -465,3 +465,14 @@
 .staffGridPeek .staffDetailStack { display: grid; gap: 10px; }
 .staffGridPeek .panel { box-shadow: none; }
 @media (max-width: 640px) { .staffGridToolbar { width: 100%; flex-wrap: wrap; } .staffGridToolbar .gridToolbarFilter { flex: 1 1 150px; justify-content: space-between; } }
+/* PAP-389 · Access Users shared Data Grid migration */
+.accessGridIdentity { min-width: 0; display: grid; gap: 4px; }
+.accessGridIdentity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #302c34; font-size: 10px; }
+.accessGridBadges { display: flex; flex-wrap: wrap; gap: 4px; }
+.accessGridMuted { color: #97919c; font-size: 8px; }
+.accessGridPeek { display: grid; gap: 10px; }
+.accessGridFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.accessGridFacts > div { min-width: 0; display: grid; gap: 5px; padding: 9px; border: 1px solid #e7e5ea; border-radius: 10px; background: #faf9fb; }
+.accessGridFacts span { color: #8b8790; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.accessGridFacts strong { color: #4b4650; font-size: 9px; }
+@media (max-width: 640px) { .accessGridFacts { grid-template-columns: 1fr; } }
