@@ -9,13 +9,18 @@ const founderHandler=readFileSync(new URL("./founder-facade-handler.ts",import.m
 
 test("AI Data Inbox keeps Founder facade authority and exact-plan approval binding",()=>{
   assert.match(view,/\/api\/founder\/ai\/change-sets/);
-  assert.match(view,/expectedPlanHash:detail\.planHash/);
+  assert.match(view,/expectedPlanHash:target\.planHash/);
   assert.match(view,/Approve & Apply/);
   assert.match(view,/Reconcile outcome/);
   assert.match(view,/BoDataGrid/);
   assert.match(view,/BoDataGridSidePeek/);
   assert.match(view,/useBoDataGridUrlState/);
   assert.match(view,/Filter AI Data Change Sets by review state/);
+  assert.match(view,/createLatestRequestGuard/);
+  assert.match(view,/detailGuardRef\.current\.isCurrent\(ticket,selectedIdRef\.current\)/);
+  assert.match(view,/mutationGuardRef\.current\.isCurrent\(ticket,selectedIdRef\.current\)/);
+  assert.match(view,/reconciledAiDataPage\(\{listReady,loading,reconcilePage:projection\.reconcilePage\}\)/);
+  assert.match(view,/canRenderAiDataActions\(\{selectedId,detailId:detail\.id,detailLoading\}\)/);
   assert.doesNotMatch(view,/\b(?:INSERT|UPDATE|DELETE)\s+(?:INTO|FROM|\w+)/i);
   assert.match(founderRoute,/handleFounderFacadeRequest/);
   assert.match(founderHandler,/callFounderCore/);

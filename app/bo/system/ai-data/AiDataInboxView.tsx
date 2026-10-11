@@ -11,6 +11,7 @@ import {
   type BoDataGridColumn,
 } from "@/app/bo/components/data-grid";
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
+import { canRenderAiDataActions, createLatestRequestGuard, reconciledAiDataPage } from "@/lib/bo-ai-data-inbox-lifecycle";
 import {
   projectAiDataGrid,
   type AiDataChangeSetSummary,
@@ -37,11 +38,16 @@ export function AiDataInboxView(){
   const [items,setItems]=useState<AiDataChangeSetSummary[]>([]);
   const [detail,setDetail]=useState<Detail|null>(null);
   const [loading,setLoading]=useState(true);
+  const [listReady,setListReady]=useState(false);
   const [detailLoading,setDetailLoading]=useState(false);
   const [busy,setBusy]=useState("");
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const setPageRef=useRef(grid.setPage);setPageRef.current=grid.setPage;
+  const selectedIdRef=useRef(selectedId);selectedIdRef.current=selectedId;
+  const listGuardRef=useRef(createLatestRequestGuard());
+  const detailGuardRef=useRef(createLatestRequestGuard());
+  const mutationGuardRef=useRef(createLatestRequestGuard());
 
   const rawStatus=grid.state.filters.status??"";
   const status=FILTERS.includes(rawStatus as AiDataInboxFilter)?rawStatus as AiDataInboxFilter:"";
@@ -50,23 +56,42 @@ export function AiDataInboxView(){
   const projection=useMemo(()=>projectAiDataGrid(items,{page:grid.state.page,pageSize:grid.state.pageSize,search:grid.state.search,status,sort,direction}),[direction,grid.state.page,grid.state.pageSize,grid.state.search,items,sort,status]);
 
   const refresh=useCallback(async()=>{
-    setError("");setLoading(true);
-    try{setItems(await founderData<AiDataChangeSetSummary[]>("/api/founder/ai/change-sets"));}
-    catch(cause){setError(errorMessage(cause));}
-    finally{setLoading(false);}
+    const ticket=listGuardRef.current.begin("list");
+    setError("");setLoading(true);setListReady(false);
+    try{
+      const next=await founderData<AiDataChangeSetSummary[]>("/api/founder/ai/change-sets");
+      if(!listGuardRef.current.isCurrent(ticket,"list"))return;
+      setItems(next);setListReady(true);
+    }catch(cause){
+      if(listGuardRef.current.isCurrent(ticket,"list"))setError(errorMessage(cause));
+    }finally{
+      if(listGuardRef.current.isCurrent(ticket,"list"))setLoading(false);
+    }
   },[]);
 
   const loadDetail=useCallback(async(id:string)=>{
-    if(!id){setDetail(null);return;}
+    detailGuardRef.current.invalidate();
+    mutationGuardRef.current.invalidate();
+    setDetail(null);setBusy("");setMessage("");
+    if(!id){setDetailLoading(false);return;}
+    const ticket=detailGuardRef.current.begin(id);
     setError("");setDetailLoading(true);
-    try{setDetail(await founderData<Detail>(`/api/founder/ai/change-sets/${id}`));}
-    catch(cause){setDetail(null);setError(errorMessage(cause));}
-    finally{setDetailLoading(false);}
+    try{
+      const next=await founderData<Detail>(`/api/founder/ai/change-sets/${id}`);
+      if(detailGuardRef.current.isCurrent(ticket,selectedIdRef.current))setDetail(next);
+    }catch(cause){
+      if(detailGuardRef.current.isCurrent(ticket,selectedIdRef.current)){setDetail(null);setError(errorMessage(cause));}
+    }finally{
+      if(detailGuardRef.current.isCurrent(ticket,selectedIdRef.current))setDetailLoading(false);
+    }
   },[]);
 
-  useEffect(()=>{void refresh();},[refresh]);
-  useEffect(()=>{void loadDetail(selectedId);},[loadDetail,selectedId]);
-  useEffect(()=>{if(projection.reconcilePage!==null)setPageRef.current(projection.reconcilePage);},[projection.reconcilePage]);
+  useEffect(()=>{void refresh();return()=>listGuardRef.current.invalidate();},[refresh]);
+  useEffect(()=>{void loadDetail(selectedId);return()=>{detailGuardRef.current.invalidate();mutationGuardRef.current.invalidate();};},[loadDetail,selectedId]);
+  useEffect(()=>{
+    const page=reconciledAiDataPage({listReady,loading,reconcilePage:projection.reconcilePage});
+    if(page!==null)setPageRef.current(page);
+  },[listReady,loading,projection.reconcilePage]);
 
   function selectChangeSet(id:string,history:"push"|"replace"="push"){
     const params=new URLSearchParams(searchParams.toString());
@@ -76,11 +101,13 @@ export function AiDataInboxView(){
   }
 
   async function mutate(action:"approve"|"reject"|"reconcile"){
-    if(!detail)return;
+    if(!detail||!canRenderAiDataActions({selectedId,detailId:detail.id,detailLoading}))return;
+    const target=detail;
+    const ticket=mutationGuardRef.current.begin(target.id);
     let body:Record<string,unknown>={};
     if(action==="approve"){
-      if(!window.confirm(`Apply ${detail.preview.operationCount} proposed create operations to Production data?\n\nPlan hash: ${detail.planHash}`))return;
-      body={expectedPlanHash:detail.planHash};
+      if(!window.confirm(`Apply ${target.preview.operationCount} proposed create operations to Production data?\n\nPlan hash: ${target.planHash}`))return;
+      body={expectedPlanHash:target.planHash};
     }
     if(action==="reject"){
       const reason=window.prompt("Reason for rejecting this GPT proposal:");
@@ -89,12 +116,16 @@ export function AiDataInboxView(){
     }
     setBusy(action);setError("");setMessage("");
     try{
-      const next=await founderData<Detail>(`/api/founder/ai/change-sets/${detail.id}/${action}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      const next=await founderData<Detail>(`/api/founder/ai/change-sets/${target.id}/${action}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      if(!mutationGuardRef.current.isCurrent(ticket,selectedIdRef.current))return;
       setDetail(next);
       setMessage(action==="approve"?"Applied with Founder authority.":action==="reject"?"Proposal rejected.":"Reconciliation completed without blind retry.");
       await refresh();
-    }catch(cause){setError(errorMessage(cause));}
-    finally{setBusy("");}
+    }catch(cause){
+      if(mutationGuardRef.current.isCurrent(ticket,selectedIdRef.current))setError(errorMessage(cause));
+    }finally{
+      if(mutationGuardRef.current.isCurrent(ticket,selectedIdRef.current))setBusy("");
+    }
   }
 
   const pending=items.filter(item=>item.status==="PENDING_APPROVAL").length;
@@ -151,8 +182,8 @@ export function AiDataInboxView(){
       emptyMessage={filtered?"Adjust search or review-state filter.":"GPT has not submitted a create-only Change Set for Founder review."}
     />
 
-    {selectedId?<BoDataGridSidePeek title={detail?.purpose??"AI Data Change Set"} eyebrow="System · Founder review" onClose={()=>selectChangeSet("","replace")} footer={detail?<ReviewActions detail={detail} busy={busy} mutate={mutate} />:undefined}>
-      {detailLoading?<p>Loading exact proposal…</p>:detail?<ChangeSetDetail detail={detail}/>:<p>Change Set detail is unavailable.</p>}
+    {selectedId?<BoDataGridSidePeek title={detail?.purpose??"AI Data Change Set"} eyebrow="System · Founder review" onClose={()=>selectChangeSet("","replace")} footer={detail&&canRenderAiDataActions({selectedId,detailId:detail.id,detailLoading})?<ReviewActions detail={detail} busy={busy} mutate={mutate} />:undefined}>
+      {detailLoading?<p>Loading exact proposal…</p>:detail&&detail.id===selectedId?<ChangeSetDetail detail={detail}/>:<p>Change Set detail is unavailable.</p>}
     </BoDataGridSidePeek>:null}
   </section>;
 }
