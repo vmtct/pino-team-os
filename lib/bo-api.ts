@@ -88,7 +88,7 @@ import type {
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import type { BoDutyExceptionReview, BoDutyExceptionRecord } from "./bo-workforce-duty-exception";
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
-import type { StaffQualification, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
+import type { StaffQualification, TrainingAssignmentBrowsePage, TrainingAssignmentBrowseSort, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
 import { recoverInvalidStaffPasswordSession } from "./staff-session-recovery";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
@@ -199,6 +199,16 @@ async function readAccessAuditPage(path: string): Promise<BoAccessAuditPage> {
   };
   if (!response.ok || !body.data || !body.page) throw apiError(response, body, "Access audit could not be loaded.");
   return { events: body.data, page: body.page };
+}
+
+export function trainingAssignmentsPagePath(input: { limit: number; offset: number; query?: string; status?: string; staffMemberId?: string; sort?: TrainingAssignmentBrowseSort; direction?: "asc" | "desc" }): string {
+  const params = new URLSearchParams({ limit: String(input.limit), offset: String(input.offset) });
+  if (input.query?.trim()) params.set("query", input.query.trim());
+  if (input.status?.trim()) params.set("status", input.status.trim());
+  if (input.staffMemberId?.trim()) params.set("staffMemberId", input.staffMemberId.trim());
+  if (input.sort) params.set("sort", input.sort);
+  if (input.direction) params.set("direction", input.direction);
+  return `workforce/training/assignments?${params.toString()}`;
 }
 
 export function accessAuditPagePath(input: { limit: number; offset: number; query?: string; outcome?: string }): string {
@@ -457,6 +467,7 @@ export const boApi = {
   accessAuditPage: (input: { limit: number; offset: number; query?: string; outcome?: string }) => readAccessAuditPage(accessAuditPagePath(input)),
   accessUsers: () => read<BoAccessSystemUser>("access/users"),
   trainingCatalog: () => read<TrainingModule>("workforce/training/catalog"),
+  trainingAssignmentsPage: (input: { limit: number; offset: number; query?: string; status?: string; staffMemberId?: string; sort?: TrainingAssignmentBrowseSort; direction?: "asc" | "desc" }) => readOne<TrainingAssignmentBrowsePage>(trainingAssignmentsPagePath(input)),
   trainingStaffAssignments: (staffMemberId: string) => read<TrainingAssignmentDetail>(`workforce/training/staff/${encodeURIComponent(staffMemberId)}`),
   createTrainingModule: (moduleKey: string, draft: TrainingDraftInput) => write<TrainingModule>("workforce/training/modules", { moduleKey, ...draft }, crypto.randomUUID()),
   saveTrainingDraft: (versionId: string, expectedRevision: number, draft: TrainingDraftInput) => write<TrainingModuleVersion>(`workforce/training/versions/${encodeURIComponent(versionId)}/draft`, { expectedRevision, ...draft }, crypto.randomUUID()),

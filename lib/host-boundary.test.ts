@@ -28,7 +28,7 @@ test("BO exposes local Staff password login while keeping BO pages password-gate
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "next" }, pathname);
     assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), false, pathname);
   }
-  for (const pathname of ["/bo", "/bo/profile", "/bo/system/users"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
+  for (const pathname of ["/bo", "/bo/profile", "/bo/training/builder", "/bo/training/builder/", "/bo/system/users"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
 
   assert.equal(requiresBoStaffPasswordSession(TOS_HOSTNAME, "/bo"), false);
 });
@@ -38,7 +38,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
   assert.deepEqual(decideHostBoundary("bo.pinohouse.art.", "/api/founder/ai/change-sets"), { action: "next" });
   assert.deepEqual(decideHostBoundary("BO.PINOHOUSE.ART.:443", "/api/founder/ai/change-sets"), { action: "next" });
   for (const pathname of [
-    "/bo", "/bo/", "/bo/profile", "/bo/staff", "/bo/workforce", "/bo/tvs", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
+    "/bo", "/bo/", "/bo/profile", "/bo/staff", "/bo/workforce", "/bo/tvs", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/training/builder", "/bo/training/builder/", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
     "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice", "/bo/pinoria-ward", "/bo/pinoria-ward/sets", "/bo/pinoria-ward/learners", "/bo/pinoria-effects", "/bo/content",
     "/bo/system/users", "/bo/system/roles", "/bo/system/audit", "/bo/system/ai-data",
     "/api/founder/ai/change-sets", "/api/founder/web-cms/manifests/sync", `/api/founder/ai/change-sets/${roleId}`, `/api/founder/ai/change-sets/${roleId}/approve`, `/api/founder/ai/change-sets/${roleId}/reject`, `/api/founder/ai/change-sets/${roleId}/reconcile`,
@@ -75,7 +75,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
   for (const pathname of [
     "/dashboard", "/schedule", "/classroom", "/timesheet", "/check-in", "/companion",
     "/api/workforce/context", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/api/companion/login",
-    "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/web-cms/manifests", "/api/founder/web-cms/manifests/sync/extra", "/api/founder/web-cms/slots", "/api/founder/ai/change-sets/not-a-canonical-id", "/api/founder/ai/change-sets/------------------------------------", "/api/founder/ai/change-sets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings",
+    "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/web-cms/manifests", "/api/founder/web-cms/manifests/sync/extra", "/api/founder/web-cms/slots", "/api/founder/ai/change-sets/not-a-canonical-id", "/api/founder/ai/change-sets/------------------------------------", "/api/founder/ai/change-sets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings", "/bo/training/builder/extra",
     "/api/bo/billing/product-plans/not-a-canonical-id/configure", "/api/bo/billing/sales/extra", `/api/bo/billing/bills/${roleId}/delete`, "/api/bo/billing/bills/not-a-canonical-id", `/api/bo/billing/transactions/${roleId}/void/extra`,
     "/api/bo/legacy-imports/pap21", "/api/bo/legacy-imports/pap21/dry-run/extra", "/api/bo/legacy-imports/pap21/execute/extra",
     "/api/bo/web-cms/manifests/sync", "/api/bo/web-cms/slots/not-a-canonical-id", `/api/bo/web-cms/slots/${roleId}/retire`, `/api/bo/web-cms/slots/${roleId}/draft/extra`,
