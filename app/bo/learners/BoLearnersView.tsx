@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BoDataGrid, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridState, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
+import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoParentSearchResult, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
@@ -10,15 +14,18 @@ import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
-type Filter = "active" | "inactive" | "all";
+type LearningFilter = "active" | "inactive" | "all";
+const STUDENT_GRID_OPTIONS = { defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] as const };
 
 export function BoLearnersView() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const grid = useBoDataGridUrlState(STUDENT_GRID_OPTIONS);
+  const selectedId = searchParams.get("student");
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
-  const [filter, setFilter] = useState<Filter>("active");
-  const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [neutralizeTarget, setNeutralizeTarget] = useState<BoLearnerLifecycle | null>(null);
   const detailRequestFence = useRef(new LatestRequestFence());
@@ -28,10 +35,16 @@ export function BoLearnersView() {
     return collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId));
   }
 
-  function selectStudent(id: string | null) {
+  function selectStudent(id: string | null, history: "push" | "replace" = "replace") {
     selectedIdRef.current = id;
     detailRequestFence.current.invalidate();
-    setSelectedId(id);
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) params.set("student", id);
+    else params.delete("student");
+    const queryString = params.toString();
+    const href = queryString ? `${pathname}?${queryString}` : pathname;
+    if (history === "push") router.push(href, { scroll: false });
+    else router.replace(href, { scroll: false });
   }
 
   async function loadDirectory() {
@@ -39,9 +52,7 @@ export function BoLearnersView() {
       const rows = await readDirectory();
       setDirectory({ state: "ready", data: rows });
       const current = selectedIdRef.current;
-      if (!current || !rows.some((item) => item.id === current)) {
-        selectStudent(rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null);
-      }
+      if (current && !rows.some((item) => item.id === current)) selectStudent(null);
     } catch (error) {
       setDirectory({ state: "error", message: message(error) });
     }
@@ -63,38 +74,48 @@ export function BoLearnersView() {
     void collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId)).then((rows) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
-      const next = rows.find((item) => item.activeSubscriptions > 0)?.id ?? rows[0]?.id ?? null;
-      selectedIdRef.current = next;
-      setSelectedId(next);
     }).catch((error: unknown) => { if (active) setDirectory({ state: "error", message: message(error) }); });
     void boApi.scopeCatalog().then((value) => { if (active) setCatalog({ state: "ready", data: { paths: value.paths, classes: value.classes } }); }).catch((error: unknown) => { if (active) setCatalog({ state: "error", message: message(error) }); });
     return () => { active = false; };
   }, []);
-  useEffect(() => { if (selectedId) void loadDetail(selectedId); }, [selectedId]);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+    detailRequestFence.current.invalidate();
+    if (selectedId) void loadDetail(selectedId);
+    else setDetail(null);
+  }, [selectedId]);
 
   const rows = useMemo(() => directory.state === "ready" ? directory.data : [], [directory]);
   const activeRows = useMemo(() => rows.filter((student) => student.activeSubscriptions > 0), [rows]);
+  const learningFilter: LearningFilter = grid.state.filters.learning === "inactive" ? "inactive" : grid.state.filters.learning === "all" ? "all" : "active";
   const filtered = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase("vi");
+    const term = grid.state.search.trim().toLocaleLowerCase("vi");
     return rows.filter((student) => {
-      if (filter === "active" && student.activeSubscriptions === 0) return false;
-      if (filter === "inactive" && student.activeSubscriptions > 0) return false;
+      if (learningFilter === "active" && student.activeSubscriptions === 0) return false;
+      if (learningFilter === "inactive" && student.activeSubscriptions > 0) return false;
       if (!term) return true;
-      return `${student.displayName} ${student.activePaths.map((path) => path.displayName).join(" ")}`.toLocaleLowerCase("vi").includes(term);
+      return `${student.displayName} ${student.id} ${student.status} ${student.activePaths.map((path) => path.displayName).join(" ")}`.toLocaleLowerCase("vi").includes(term);
     });
-  }, [filter, query, rows]);
+  }, [grid.state.search, learningFilter, rows]);
+  const sorted = useMemo(() => {
+    const key = grid.state.sortKey ?? "name";
+    const direction = grid.state.sortDirection === "desc" ? -1 : 1;
+    return [...filtered].sort((left, right) => direction * compareStudents(left, right, key));
+  }, [filtered, grid.state.sortDirection, grid.state.sortKey]);
+  const range = boDataGridRange(grid.state.page, grid.state.pageSize, sorted.length);
+  const visibleRows = sorted.slice((range.page - 1) * grid.state.pageSize, range.page * grid.state.pageSize);
+  const selectedRow = rows.find((student) => student.id === selectedId) ?? null;
+  const columns = useMemo<BoDataGridColumn<BoLearnerDirectoryItem>[]>(() => [
+    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <div className={styles.gridIdentity}><span className={styles.avatarSmall}>{initials(student.displayName)}</span><div><strong>{student.displayName}</strong><BoDataGridCanonicalId value={student.id} label="Copy Student ID" /></div></div> },
+    { key: "birth", header: "Tuổi / sinh", sortable: true, minWidth: 130, render: (student) => <div className={styles.gridStack}><strong>{ageLabel(student.birthYear)}</strong><small>{student.birthPrecision.replaceAll("_", " ")}</small></div> },
+    { key: "paths", header: "Active Paths", sortable: true, minWidth: 210, render: (student) => student.activePaths.length ? <div className={styles.gridPathList}>{student.activePaths.slice(0, 2).map((path) => <BoDataGridBadge key={path.id}>{path.displayName}</BoDataGridBadge>)}{student.activePaths.length > 2 ? <BoDataGridBadge>+{student.activePaths.length - 2}</BoDataGridBadge> : null}</div> : <span className={styles.gridMuted}>Chưa có active Path</span> },
+    { key: "learning", header: "Subscription / Class", sortable: true, minWidth: 170, render: (student) => <div className={styles.gridStack}><BoDataGridStatus value={student.activeSubscriptions > 0 ? "Đang học" : "Chưa active"} tone={student.activeSubscriptions > 0 ? "success" : "warning"} /><small>{student.activeSubscriptions > 0 ? `${student.activeSubscriptions} active Path · mở detail để xem class` : "Cần Subscription trước khi xếp lớp"}</small></div> },
+    { key: "member", header: "House", sortable: true, minWidth: 115, render: (student) => <BoDataGridStatus value={student.houseMember ? "Member" : "Non-member"} tone={student.houseMember ? "info" : "neutral"} /> },
+    { key: "attention", header: "Attention", sortable: true, minWidth: 150, render: (student) => { const attention = studentAttention(student); return <BoDataGridStatus value={attention.label} tone={attention.tone} />; } },
+  ], []);
 
-  function switchFilter(next: Filter) {
-    setFilter(next);
-    const first = rows.find((student) => next === "all" || (next === "active" ? student.activeSubscriptions > 0 : student.activeSubscriptions === 0));
-    if (first) selectStudent(first.id);
-  }
-
-
-  if (directory.state === "loading" && !selectedId) return <State text="Đang tải danh sách học viên…" />;
-  if (directory.state === "error") return <State text={directory.message} error />;
-  if (catalog.state === "loading") return <State text="Đang tải scope catalog…" />;
-  if (catalog.state === "error") return <State text={catalog.message} error />;
+  if (catalog.state === "loading") return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
+  if (catalog.state === "error") return <BoDataGridState kind="error" message={catalog.message} />;
 
   return <main className={styles.page}>
     <header className={styles.heading}>
@@ -113,25 +134,31 @@ export function BoLearnersView() {
       <Metric label="Chưa active" value={rows.filter((item) => item.activeSubscriptions === 0).length} note="chưa có active Path" />
     </section>
 
-    <section className={styles.workspace}>
-      <aside className={styles.directory}>
-        <div className={styles.searchWrap}><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên, chương trình…" /></div>
-        <div className={styles.tabs}>
-          <FilterButton active={filter === "active"} onClick={() => switchFilter("active")}>Đang học <b>{activeRows.length}</b></FilterButton>
-          <FilterButton active={filter === "inactive"} onClick={() => switchFilter("inactive")}>Chưa active <b>{rows.length - activeRows.length}</b></FilterButton>
-          <FilterButton active={filter === "all"} onClick={() => switchFilter("all")}>Tất cả <b>{rows.length}</b></FilterButton>
-        </div>
-        <div className={styles.directoryMeta}><span>{filtered.length} học viên</span><small>Live canonical read</small></div>
-        <div className={styles.studentList}>
-          {filtered.map((student) => <StudentButton key={student.id} student={student} active={selectedId === student.id} onClick={() => selectStudent(student.id)} />)}
-          {!filtered.length ? <div className={styles.emptyInline}>Không có học viên phù hợp.</div> : null}
-        </div>
-      </aside>
-
-      <section className={styles.detail}>
-        {selectedId ? <LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /> : <State text="Chọn học viên để mở hồ sơ." />}
-      </section>
-    </section>
+    <BoDataGrid
+      rows={directory.state === "ready" ? visibleRows : []}
+      columns={columns}
+      rowKey={(student) => student.id}
+      caption="School Students directory"
+      state={directory.state === "loading" ? "loading" : directory.state === "error" ? "error" : "ready"}
+      stateMessage={directory.state === "error" ? directory.message : undefined}
+      search={grid.state.search}
+      onSearchChange={grid.setSearch}
+      searchPlaceholder="Tìm học viên, chương trình, Student ID…"
+      sortKey={grid.state.sortKey ?? "name"}
+      sortDirection={grid.state.sortDirection}
+      onSortChange={grid.setSort}
+      filterChips={learningFilter === "all" ? [] : [{ key: "learning", label: "Learning", value: learningFilter === "active" ? "Đang học" : "Chưa active", onClear: () => grid.setFilter("learning", "all") }]}
+      resultLabel={`${sorted.length} / ${rows.length} học viên`}
+      selectedRowKey={selectedId}
+      onRowOpen={(student) => selectStudent(student.id, "push")}
+      emptyTitle="Không có học viên phù hợp"
+      emptyMessage="Thử đổi search hoặc Learning filter; canonical Student directory không bị thay đổi."
+      pagination={{ page: range.page, pageSize: grid.state.pageSize, total: sorted.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
+      toolbarActions={<label className={styles.gridToolbarFilter}>Learning<select aria-label="Lọc học viên theo trạng thái học" value={learningFilter} onChange={(event) => grid.setFilter("learning", event.target.value)}><option value="active">Đang học</option><option value="inactive">Chưa active</option><option value="all">Tất cả</option></select></label>}
+    />
+    {selectedId ? <BoDataGridSidePeek title={selectedRow?.displayName ?? "Học viên"} eyebrow="School · Student detail" onClose={() => selectStudent(null)}>
+      <div className={styles.peekDetail}><LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
+    </BoDataGridSidePeek> : null}
     {showCreate ? <CreateStudentIntake onClose={() => setShowCreate(false)} onCreated={async (studentId) => { setShowCreate(false); await loadDirectory(); selectStudent(studentId); }} /> : null}
     {neutralizeTarget ? <NeutralizeStudentIntake lifecycle={neutralizeTarget} onClose={() => setNeutralizeTarget(null)} onNeutralized={async () => {
       setNeutralizeTarget(null);
@@ -299,23 +326,6 @@ function Metric({ label, value, note }: { label: string; value: number; note: st
   return <article className={styles.metric}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" className={active ? styles.tabActive : ""} onClick={onClick}>{children}</button>;
-}
-
-function StudentButton({ student, active, onClick }: { student: BoLearnerDirectoryItem; active: boolean; onClick: () => void }) {
-  const learning = student.activeSubscriptions > 0;
-  return <button type="button" className={`${styles.studentCard} ${active ? styles.studentCardActive : ""}`} onClick={onClick}>
-    <span className={styles.avatarSmall}>{initials(student.displayName)}</span>
-    <span className={styles.studentCardBody}>
-      <span className={styles.studentNameRow}><strong>{student.displayName}</strong></span>
-      <small>{ageLabel(student.birthYear)}</small>
-      <span className={styles.studentMeta}>{learning ? student.activePaths.map((path) => path.displayName).join(" · ") : "Chưa có active Path"}</span>
-    </span>
-    <span className={styles.unitBadge}>{learning ? <><b>{student.activeSubscriptions}</b><small>path</small></> : <small>—</small>}</span>
-  </button>;
-}
-
 function LearnerDetail({ load, catalog, onNeutralize }: { load: Load<BoLearnerLifecycle> | null; catalog: Catalog; onNeutralize: (lifecycle: BoLearnerLifecycle) => void }) {
   if (!load || load.state === "loading") return <State text="Đang tải lifecycle…" />;
   if (load.state === "error") return <State text={load.message} error />;
@@ -430,6 +440,27 @@ function SystemDetails({ lifecycle }: { lifecycle: BoLearnerLifecycle }) {
     <div><span>Birth precision</span><code>{lifecycle.student.birthPrecision}</code></div>
     <div><span>Source</span><code>canonical private BO lifecycle projection</code></div>
   </details>;
+}
+
+function compareStudents(left: BoLearnerDirectoryItem, right: BoLearnerDirectoryItem, key: string) {
+  if (key === "birth") return (left.birthYear ?? 0) - (right.birthYear ?? 0) || left.displayName.localeCompare(right.displayName, "vi");
+  if (key === "paths") return left.activePaths.map((path) => path.displayName).join(" ").localeCompare(right.activePaths.map((path) => path.displayName).join(" "), "vi") || left.displayName.localeCompare(right.displayName, "vi");
+  if (key === "learning") return left.activeSubscriptions - right.activeSubscriptions || left.displayName.localeCompare(right.displayName, "vi");
+  if (key === "member") return Number(left.houseMember) - Number(right.houseMember) || left.displayName.localeCompare(right.displayName, "vi");
+  if (key === "attention") return attentionRank(left) - attentionRank(right) || left.displayName.localeCompare(right.displayName, "vi");
+  return left.displayName.localeCompare(right.displayName, "vi");
+}
+function attentionRank(student: BoLearnerDirectoryItem) {
+  if (student.status !== "ACTIVE") return 3;
+  if (student.activeSubscriptions === 0) return 2;
+  if (student.activePaths.length === 0) return 1;
+  return 0;
+}
+function studentAttention(student: BoLearnerDirectoryItem): { label: string; tone: "success" | "warning" | "danger" } {
+  if (student.status !== "ACTIVE") return { label: student.status, tone: "danger" };
+  if (student.activeSubscriptions === 0) return { label: "Cần setup", tone: "warning" };
+  if (student.activePaths.length === 0) return { label: "Thiếu Path", tone: "warning" };
+  return { label: "Ổn", tone: "success" };
 }
 
 function isCurrentEnrollment(enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) {

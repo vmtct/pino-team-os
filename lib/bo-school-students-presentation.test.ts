@@ -32,3 +32,22 @@ test("School Student Pinoria fences Feed completion to the initiating student an
 
 
 test("JCS-01 exposes replay-safe Student Intake neutralization through the normal School UI",async()=>{const [view,api,writeHandler]=await Promise.all([read("app/bo/learners/BoLearnersView.tsx"),read("lib/bo-api.ts"),read("lib/bo-write-handler.ts")]);assert.match(view,/Lưu trữ intake/);assert.match(view,/boApi\.voidStudentIntake/);assert.match(view,/expectedStudentVersion: lifecycle\.student\.version/);assert.match(view,/currentAttempt = attempt/);assert.match(view,/Thử lại cùng yêu cầu/);assert.match(view,/Parent\/contact chỉ được lưu trữ/);assert.match(view,/Đóng & Clean Verify/);assert.match(view,/if \(result\) \{ void onNeutralized\(\); return; \}/);assert.match(api,/voidStudentIntake/);assert.match(api,/student-intakes\/.*void/);assert.match(writeHandler,/STUDENT_INTAKE_VOID_PATH/);assert.match(writeHandler,/STUDENT_INTAKE_VOID_PATH\.test\(path\)/);});
+
+test("PAP-387 Students directory uses shared Data Grid with URL-persisted browse and side peek", async () => {
+  const view = await read("app/bo/learners/BoLearnersView.tsx");
+  assert.match(view, /BoDataGrid/);
+  assert.match(view, /useBoDataGridUrlState\(STUDENT_GRID_OPTIONS\)/);
+  assert.match(view, /searchParams\.get\("student"\)/);
+  assert.match(view, /params\.set\("student", id\)/);
+  assert.match(view, /router\.push\(href, \{ scroll: false \}\)/);
+  assert.match(view, /f_learning|setFilter\("learning"/);
+  assert.match(view, /BoDataGridSidePeek/);
+  assert.match(view, /selectedRowKey=\{selectedId\}/);
+  assert.match(view, /onRowOpen=\{\(student\) => selectStudent\(student\.id, "push"\)\}/);
+  assert.match(view, /Subscription \/ Class/);
+  assert.match(view, /Attention/);
+  assert.match(view, /BoDataGridState kind="error" message=\{catalog\.message\}/);
+  assert.doesNotMatch(view, /<StudentButton|className=\{styles\.studentList\}/);
+  assert.match(view, /collectPagedDirectory/);
+  assert.match(view, /boApi\.learnerLifecycle/);
+});
