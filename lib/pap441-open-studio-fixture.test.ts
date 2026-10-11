@@ -49,6 +49,7 @@ function fakePort(options: FakeOptions = {}) {
   const revoked = new Set<string>();
   const neutralEffectiveAt = new Map<OpenStudioPolicyKey, string>();
   let failPublicAcquire = options.failPublicAcquireOnce ?? false;
+  let identityOwnedByRun = options.identityDisposition === "OWNED_BY_RUN";
   let neutralPublishIndex = 0;
   let failNeutralPolicyOnceAt = options.failNeutralPolicyOnceAt ?? 0;
 
@@ -65,7 +66,7 @@ function fakePort(options: FakeOptions = {}) {
     async assertSyntheticIdentityAvailable(identity) {
       calls.push(`identity:${identity.contactValue}`);
       return {
-        disposition: options.identityDisposition ?? "UNUSED",
+        disposition: options.identityDisposition === "COLLISION" ? "COLLISION" : identityOwnedByRun ? "OWNED_BY_RUN" : "UNUSED",
         normalizedContact: identity.contactValue.toLowerCase(),
       };
     },
@@ -99,7 +100,7 @@ function fakePort(options: FakeOptions = {}) {
       }
       return { registrationId: "registration-1" };
     },
-    async firstPresent() { calls.push("first-present"); return { studentId: "student-1", houseMembershipId: "membership-1" }; },
+    async firstPresent() { calls.push("first-present"); identityOwnedByRun = true; return { studentId: "student-1", houseMembershipId: "membership-1" }; },
     async assignMemberCenter() { calls.push("member-center:assign"); memberCenterActive = true; },
     async assignPathCenter() { calls.push("path-center:assign"); pathCenterActive = true; },
     async clearFixtureAssignments() { calls.push("assignments:clear"); memberCenterActive = false; pathCenterActive = false; },
@@ -123,6 +124,7 @@ function fakePort(options: FakeOptions = {}) {
     calls,
     getCheckpoint: () => checkpoint ? clone(checkpoint) : null,
     setClaimStatus: (status: "RESERVED" | "RELEASED" | "CONSUMED") => { claimStatus = status; },
+    setIdentityOwnedByRun: (value: boolean) => { identityOwnedByRun = value; },
   };
 }
 
@@ -142,6 +144,7 @@ test("PAP-441 prepares replay-safe member fixture and fully cleans reserved-clai
   assert.equal(calls.filter((call) => call === "reserve").length, 2);
   assert.equal(calls.filter((call) => call.includes(":active:")).length, 4);
   assert.ok(calls.indexOf(`identity:${input.syntheticIdentity.contactValue}`) < calls.indexOf("public-acquire"));
+  assert.ok(calls.indexOf("checkpoint:save") < calls.findIndex((call) => call.startsWith("policy:")));
 
   await cleanupPap441OpenStudioFixture(port, input, state);
 
@@ -227,4 +230,42 @@ test("PAP-441 resumes cleanup after neutral-policy failure and converges with fu
   assert.equal(fake.calls.filter((call) => call.startsWith("policy-read:")).length, 4);
   assert.equal(fake.calls.filter((call) => call.startsWith("pass:read:")).length, 2);
   assert.ok(fake.calls.includes("assignments:read"));
+});
+
+
+test("PAP-441 cleanup rejects altered fixture provenance before destructive mutation", async () => {
+  const fake = fakePort();
+  const state = await preparePap441OpenStudioFixture(fake.port, input);
+  const before = fake.calls.length;
+  await assert.rejects(
+    () => cleanupPap441OpenStudioFixture(fake.port, { ...input, disposableCenterId: "center-foreign" }, state),
+    /checkpoint provenance mismatch/,
+  );
+  const cleanupCalls = fake.calls.slice(before);
+  assert.deepEqual(cleanupCalls, [`checkpoint:load:${runTag}`]);
+});
+
+test("PAP-441 cleanup rejects caller resource IDs that diverge from durable checkpoint", async () => {
+  const fake = fakePort();
+  const state = await preparePap441OpenStudioFixture(fake.port, input);
+  const before = fake.calls.length;
+  await assert.rejects(
+    () => cleanupPap441OpenStudioFixture(fake.port, input, { ...state, listingId: "listing-foreign" }),
+    /cleanup state does not match durable checkpoint/,
+  );
+  const cleanupCalls = fake.calls.slice(before);
+  assert.deepEqual(cleanupCalls, [`checkpoint:load:${runTag}`]);
+});
+
+test("PAP-441 cleanup revalidates run-owned synthetic identity before destructive mutation", async () => {
+  const fake = fakePort();
+  const state = await preparePap441OpenStudioFixture(fake.port, input);
+  fake.setIdentityOwnedByRun(false);
+  const before = fake.calls.length;
+  await assert.rejects(
+    () => cleanupPap441OpenStudioFixture(fake.port, input, state),
+    /synthetic identity is not owned by run: UNUSED/,
+  );
+  const cleanupCalls = fake.calls.slice(before);
+  assert.deepEqual(cleanupCalls, [`checkpoint:load:${runTag}`, "prerequisites", `identity:${input.syntheticIdentity.contactValue}`]);
 });

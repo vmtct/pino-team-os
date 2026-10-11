@@ -44,8 +44,18 @@ export interface Pap441FixtureState {
 
 type PolicyTimes = Partial<Record<OpenStudioPolicyKey, string>>;
 
+export interface Pap441FixtureProvenance {
+  disposableCenterId: string;
+  sessionId: string;
+  syllabusId: string;
+  pathProgramId: string;
+  effectiveAt: string;
+  syntheticIdentity: Pap441FixtureInput["syntheticIdentity"];
+}
+
 export interface Pap441FixtureCheckpoint extends Partial<Pap441FixtureState> {
   runTag: string;
+  provenance: Pap441FixtureProvenance;
   activePolicies: PolicyTimes;
   memberCenterAssigned?: boolean;
   pathCenterAssigned?: boolean;
@@ -103,8 +113,42 @@ const NEUTRAL_POLICIES: ReadonlyArray<[OpenStudioPolicyKey, OpenStudioPolicyValu
   ["cancellation.v1", { passReleaseCutoffMinutesBeforeStart: 10080 }],
 ];
 
-function freshCheckpoint(runTag: string): Pap441FixtureCheckpoint {
-  return { runTag, activePolicies: {}, cleanup: { revokedPassIds: [], neutralPolicyEffectiveAt: {}, neutralPolicies: {} } };
+function fixtureProvenance(input: Pap441FixtureInput): Pap441FixtureProvenance {
+  return {
+    disposableCenterId: input.disposableCenterId,
+    sessionId: input.sessionId,
+    syllabusId: input.syllabusId,
+    pathProgramId: input.pathProgramId,
+    effectiveAt: input.effectiveAt,
+    syntheticIdentity: {
+      ...input.syntheticIdentity,
+      contactValue: input.syntheticIdentity.contactValue.trim().toLowerCase(),
+    },
+  };
+}
+
+function freshCheckpoint(input: Pap441FixtureInput): Pap441FixtureCheckpoint {
+  return {
+    runTag: input.runTag,
+    provenance: fixtureProvenance(input),
+    activePolicies: {},
+    cleanup: { revokedPassIds: [], neutralPolicyEffectiveAt: {}, neutralPolicies: {} },
+  };
+}
+
+function assertCheckpointProvenance(checkpoint: Pap441FixtureCheckpoint, input: Pap441FixtureInput): void {
+  if (checkpoint.runTag !== input.runTag) throw new Error("PAP-441 checkpoint runTag mismatch");
+  const expected = fixtureProvenance(input);
+  if (JSON.stringify(checkpoint.provenance) !== JSON.stringify(expected)) {
+    throw new Error("PAP-441 checkpoint provenance mismatch");
+  }
+}
+
+function assertCheckpointState(checkpoint: Pap441FixtureCheckpoint, state: Pap441FixtureState): void {
+  const durable = finalState(checkpoint);
+  if (JSON.stringify(durable) !== JSON.stringify(state)) {
+    throw new Error("PAP-441 cleanup state does not match durable checkpoint");
+  }
 }
 
 async function save(port: Pap441OpenStudioPort, checkpoint: Pap441FixtureCheckpoint): Promise<void> {
@@ -125,11 +169,13 @@ export async function preparePap441OpenStudioFixture(port: Pap441OpenStudioPort,
   if (input.syntheticIdentity.contactValue.toLowerCase() !== expectedSyntheticContact) {
     throw new Error("PAP-441 synthetic contact must use the deterministic disposable namespace");
   }
-  const checkpoint = (await port.loadCheckpoint(input.runTag)) ?? freshCheckpoint(input.runTag);
-  if (checkpoint.runTag !== input.runTag) throw new Error("PAP-441 checkpoint runTag mismatch");
+  const loaded = await port.loadCheckpoint(input.runTag);
+  const checkpoint = loaded ?? freshCheckpoint(input);
+  assertCheckpointProvenance(checkpoint, input);
   await port.assertPrerequisites(input);
   const identity = await port.assertSyntheticIdentityAvailable({ ...input.syntheticIdentity, runTag: input.runTag });
   if (identity.disposition === "COLLISION") throw new Error(`PAP-441 synthetic contact collision: ${identity.normalizedContact}`);
+  if (!loaded) await save(port, checkpoint);
 
   for (const [key, value] of ACTIVE_POLICIES) {
     if (checkpoint.activePolicies[key]) continue;
@@ -186,75 +232,92 @@ export async function preparePap441OpenStudioFixture(port: Pap441OpenStudioPort,
 }
 
 export async function cleanupPap441OpenStudioFixture(port: Pap441OpenStudioPort, input: Pap441FixtureInput, state: Pap441FixtureState): Promise<void> {
-  const checkpoint = (await port.loadCheckpoint(input.runTag)) ?? { ...freshCheckpoint(input.runTag), ...state };
-  Object.assign(checkpoint, state);
+  if (input.disposableCenterConfirmed !== true) throw new Error("PAP-441 refuses non-disposable Center cleanup");
+  const expectedSyntheticContact = pap441SyntheticEmail(input.runTag);
+  if (input.syntheticIdentity.contactValue.trim().toLowerCase() !== expectedSyntheticContact) {
+    throw new Error("PAP-441 cleanup synthetic contact must use the deterministic disposable namespace");
+  }
+
+  const checkpoint = await port.loadCheckpoint(input.runTag);
+  if (!checkpoint) throw new Error("PAP-441 cleanup requires a durable checkpoint");
+  assertCheckpointProvenance(checkpoint, input);
+  assertCheckpointState(checkpoint, state);
   if (checkpoint.cleanup.completed) return;
 
-  let claim = await port.readClaim({ claimId: state.ownerClaimId });
+  await port.assertPrerequisites(input);
+  const identity = await port.assertSyntheticIdentityAvailable({ ...checkpoint.provenance.syntheticIdentity, runTag: checkpoint.runTag });
+  if (identity.disposition !== "OWNED_BY_RUN") {
+    throw new Error(`PAP-441 cleanup synthetic identity is not owned by run: ${identity.disposition}`);
+  }
+
+  const durable = finalState(checkpoint);
+  const { disposableCenterId, pathProgramId, effectiveAt } = checkpoint.provenance;
+
+  let claim = await port.readClaim({ claimId: durable.ownerClaimId });
   if (claim.claimStatus === "RESERVED") {
-    const cancelled = await port.cancelClaim({ studentId: state.studentId, claimId: state.ownerClaimId, reason: `${input.runTag}: cleanup`, idempotencyKey: `${input.runTag}:owner-cancel` });
-    const replay = await port.cancelClaim({ studentId: state.studentId, claimId: state.ownerClaimId, reason: `${input.runTag}: cleanup`, idempotencyKey: `${input.runTag}:owner-cancel` });
+    const cancelled = await port.cancelClaim({ studentId: durable.studentId, claimId: durable.ownerClaimId, reason: `${checkpoint.runTag}: cleanup`, idempotencyKey: `${checkpoint.runTag}:owner-cancel` });
+    const replay = await port.cancelClaim({ studentId: durable.studentId, claimId: durable.ownerClaimId, reason: `${checkpoint.runTag}: cleanup`, idempotencyKey: `${checkpoint.runTag}:owner-cancel` });
     if (cancelled.claimStatus !== replay.claimStatus || replay.claimStatus === "RESERVED") throw new Error("PAP-441 cancel replay diverged");
     claim = replay;
   }
   checkpoint.cleanup.claimTerminal = claim.claimStatus === "CONSUMED" ? "CONSUMED" : "RELEASED";
   await save(port, checkpoint);
 
-  for (const passId of [...state.monthlyPassIds, ...state.bringAFriendPassIds]) {
+  for (const passId of [...durable.monthlyPassIds, ...durable.bringAFriendPassIds]) {
     if (checkpoint.cleanup.revokedPassIds.includes(passId)) continue;
-    await port.revokePass({ passId, revokedAt: input.effectiveAt, reason: `${input.runTag}: cleanup` });
+    await port.revokePass({ passId, revokedAt: effectiveAt, reason: `${checkpoint.runTag}: cleanup` });
     checkpoint.cleanup.revokedPassIds.push(passId);
     await save(port, checkpoint);
   }
 
   if (!checkpoint.cleanup.listingTerminal) {
-    const listing = await port.readListing({ listingId: state.listingId });
+    const listing = await port.readListing({ listingId: durable.listingId });
     if (listing.status === "CLOSED" || listing.status === "CANCELLED") checkpoint.cleanup.listingTerminal = listing.status;
     else if (checkpoint.cleanup.claimTerminal === "CONSUMED") {
-      await port.closeListing({ listingId: state.listingId, reason: `${input.runTag}: consumed-claim cleanup`, idempotencyKey: `${input.runTag}:listing-close` });
+      await port.closeListing({ listingId: durable.listingId, reason: `${checkpoint.runTag}: consumed-claim cleanup`, idempotencyKey: `${checkpoint.runTag}:listing-close` });
       checkpoint.cleanup.listingTerminal = "CLOSED";
     } else {
-      await port.cancelListing({ listingId: state.listingId, reason: `${input.runTag}: cleanup`, idempotencyKey: `${input.runTag}:listing-cancel` });
+      await port.cancelListing({ listingId: durable.listingId, reason: `${checkpoint.runTag}: cleanup`, idempotencyKey: `${checkpoint.runTag}:listing-cancel` });
       checkpoint.cleanup.listingTerminal = "CANCELLED";
     }
     await save(port, checkpoint);
   }
 
   if (!checkpoint.cleanup.assignmentsCleared) {
-    await port.clearFixtureAssignments({ houseMembershipId: state.houseMembershipId, pathProgramId: input.pathProgramId, centerId: input.disposableCenterId, effectiveAt: input.effectiveAt, runTag: input.runTag });
+    await port.clearFixtureAssignments({ houseMembershipId: durable.houseMembershipId, pathProgramId, centerId: disposableCenterId, effectiveAt, runTag: checkpoint.runTag });
     checkpoint.cleanup.assignmentsCleared = true;
     await save(port, checkpoint);
   }
 
   for (const [key, value] of NEUTRAL_POLICIES) {
     if (checkpoint.cleanup.neutralPolicies[key]) continue;
-    const activeAt = checkpoint.activePolicies[key] ?? input.effectiveAt;
+    const activeAt = checkpoint.activePolicies[key] ?? effectiveAt;
     let cleanupAt = checkpoint.cleanup.neutralPolicyEffectiveAt[key];
     if (!cleanupAt) {
-      cleanupAt = await port.nextCenterPolicyEffectiveAt(key, input.disposableCenterId, activeAt);
+      cleanupAt = await port.nextCenterPolicyEffectiveAt(key, disposableCenterId, activeAt);
       if (Date.parse(cleanupAt) <= Date.parse(activeAt)) throw new Error(`PAP-441 cleanup policy time is not strictly later for ${key}`);
       checkpoint.cleanup.neutralPolicyEffectiveAt[key] = cleanupAt;
       await save(port, checkpoint);
     }
-    const applied = await port.ensureCenterPolicy(key, input.disposableCenterId, value, cleanupAt, `${input.runTag}: neutral E2E cleanup`);
+    const applied = await port.ensureCenterPolicy(key, disposableCenterId, value, cleanupAt, `${checkpoint.runTag}: neutral E2E cleanup`);
     checkpoint.cleanup.neutralPolicies[key] = applied.effectiveFrom;
     await save(port, checkpoint);
   }
 
-  const finalClaim = await port.readClaim({ claimId: state.ownerClaimId });
+  const finalClaim = await port.readClaim({ claimId: durable.ownerClaimId });
   if (finalClaim.claimStatus === "RESERVED") throw new Error("PAP-441 cleanup left a RESERVED claim");
-  const finalListing = await port.readListing({ listingId: state.listingId });
+  const finalListing = await port.readListing({ listingId: durable.listingId });
   if (finalListing.status !== "CLOSED" && finalListing.status !== "CANCELLED") throw new Error("PAP-441 cleanup left a non-terminal listing");
-  for (const passId of [...state.monthlyPassIds, ...state.bringAFriendPassIds]) {
+  for (const passId of [...durable.monthlyPassIds, ...durable.bringAFriendPassIds]) {
     if (!(await port.readPass({ passId })).revoked) throw new Error(`PAP-441 cleanup left pass active: ${passId}`);
   }
-  const assignments = await port.readFixtureAssignments({ houseMembershipId: state.houseMembershipId, pathProgramId: input.pathProgramId, centerId: input.disposableCenterId, effectiveAt: input.effectiveAt });
+  const assignments = await port.readFixtureAssignments({ houseMembershipId: durable.houseMembershipId, pathProgramId, centerId: disposableCenterId, effectiveAt });
   if (assignments.memberCenterActive || assignments.pathCenterActive) throw new Error("PAP-441 cleanup left Center assignment authority active");
   for (const [key, value] of NEUTRAL_POLICIES) {
     const cleanupAt = checkpoint.cleanup.neutralPolicyEffectiveAt[key];
     if (!cleanupAt) throw new Error(`PAP-441 cleanup missing neutral policy checkpoint: ${key}`);
-    const policy = await port.readCenterPolicy(key, input.disposableCenterId, cleanupAt, value);
-    if (!policy.matchesExpected || Date.parse(policy.effectiveFrom) < Date.parse(cleanupAt)) throw new Error(`PAP-441 cleanup policy readback failed: ${key}`);
+    const policy = await port.readCenterPolicy(key, disposableCenterId, cleanupAt, value);
+    if (!policy.matchesExpected || policy.effectiveFrom !== cleanupAt) throw new Error(`PAP-441 cleanup policy readback failed: ${key}`);
   }
   checkpoint.cleanup.completed = true;
   await save(port, checkpoint);
