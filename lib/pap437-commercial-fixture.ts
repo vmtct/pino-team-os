@@ -45,6 +45,7 @@ export interface Pap437StudentIntake {
 
 export interface Pap437Fixture {
   runTag: string;
+  operationTag: string;
   centerId: string;
   path: F3Path;
   space: F3LearningSpace;
@@ -106,10 +107,11 @@ export async function preparePap437CommercialFixture(
   const blockedClass = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "blocked", 5, 1);
 
   assertSyntheticTopology(centerId, path, space, [happyA, happyB, blockedClass], runTag);
+  const operationTag = `${runTag}:v${path.version}`;
 
   let learnerA: Pap437StudentIntake;
   try {
-    learnerA = await createLearner(port, runTag, "a", localDate);
+    learnerA = await createLearner(port, runTag, operationTag, "a", localDate);
   } catch (error) {
     await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
     const detail = error instanceof Error ? error.message : String(error);
@@ -119,66 +121,109 @@ export async function preparePap437CommercialFixture(
     const rollback = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learnerA.studentProfileId}/void`, {
       expectedStudentVersion: 1,
       reason: `${PREFIX} ${runTag} Parent collision rollback`,
-    }, replayKey(runTag, "rollback-intake-a"));
+    }, replayKey(operationTag, "rollback-intake-a"));
     if (rollback.studentStatus !== "ARCHIVED") throw new Error("PAP-437 failed to roll back a raced Parent-contact collision.");
     await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
     throw new Error("PAP-437 synthetic Parent contact was concurrently claimed; fresh intake and synthetic topology were rolled back.");
   }
-  const learnerB = await createLearner(port, runTag, "b", localDate, learnerA.parentUserId);
-  const guard = await createLearner(port, runTag, "guard", localDate, learnerA.parentUserId);
-  assertReusedParentIntake(learnerB, learnerA.parentUserId, "B");
-  assertReusedParentIntake(guard, learnerA.parentUserId, "guard");
+  let learnerB: Pap437StudentIntake | undefined;
+  let guard: Pap437StudentIntake | undefined;
+  let saleA: BoSaleResult | undefined;
+  let saleB: BoSaleResult | undefined;
+  let guardSubscription: BoLearnerSubscription | undefined;
+  let saleABody: Record<string, unknown> | undefined;
+  let saleBBody: Record<string, unknown> | undefined;
+  let guardSubscriptionBody: Record<string, unknown> | undefined;
+  let learnerBAttempted = false;
+  let guardAttempted = false;
+  let saleAAttempted = false;
+  let saleBAttempted = false;
+  let guardSubscriptionAttempted = false;
 
-  const saleABody = saleBody(learnerA, path.id, centerId, productPlan.id, localDate, runTag, "a");
-  const saleBBody = saleBody(learnerB, path.id, centerId, productPlan.id, localDate, runTag, "b");
-  const saleAKey = replayKey(runTag, "sale-a");
-  const saleBKey = replayKey(runTag, "sale-b");
-  const saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody, saleAKey);
-  const saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody, saleBKey);
-  assertSale(saleA, learnerA.studentProfileId, path.id, productPlan.id);
-  assertSale(saleB, learnerB.studentProfileId, path.id, productPlan.id);
+  try {
+    learnerBAttempted = true;
+    const preparedB = await createLearner(port, runTag, operationTag, "b", localDate, learnerA.parentUserId);
+    learnerB = preparedB;
+    guardAttempted = true;
+    const preparedGuard = await createLearner(port, runTag, operationTag, "guard", localDate, learnerA.parentUserId);
+    guard = preparedGuard;
+    assertReusedParentIntake(preparedB, learnerA.parentUserId, "B");
+    assertReusedParentIntake(preparedGuard, learnerA.parentUserId, "guard");
 
-  const guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", {
-    studentProfileId: guard.studentProfileId,
-    pathProgramId: path.id,
-    serviceStartsOn: localDate,
-    contractualEndsOn: houseLocalDate(addDays(now, 84)),
-    weeklyCommitment: 1,
-    purchasedUnits: 12,
-    commercialReference: `${PREFIX} ${runTag} capacity-guard`,
-  }, replayKey(runTag, "guard-subscription"));
-  if (guardSubscription.studentProfileId !== guard.studentProfileId || guardSubscription.pathProgramId !== path.id || guardSubscription.weeklyCommitment !== 1) {
-    throw new Error("PAP-437 guard Subscription did not bind to the synthetic learner/path.");
+    saleABody = saleBody(learnerA, path.id, centerId, productPlan.id, localDate, runTag, "a");
+    saleBBody = saleBody(preparedB, path.id, centerId, productPlan.id, localDate, runTag, "b");
+    const saleAKey = replayKey(operationTag, "sale-a");
+    const saleBKey = replayKey(operationTag, "sale-b");
+    saleAAttempted = true;
+    saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody, saleAKey);
+    saleBAttempted = true;
+    saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody, saleBKey);
+    assertSale(saleA, learnerA.studentProfileId, path.id, productPlan.id);
+    assertSale(saleB, preparedB.studentProfileId, path.id, productPlan.id);
+
+    guardSubscriptionBody = {
+      studentProfileId: preparedGuard.studentProfileId,
+      pathProgramId: path.id,
+      serviceStartsOn: localDate,
+      contractualEndsOn: houseLocalDate(addDays(now, 84)),
+      weeklyCommitment: 1,
+      purchasedUnits: 12,
+      commercialReference: `${PREFIX} ${runTag} capacity-guard`,
+    };
+    guardSubscriptionAttempted = true;
+    guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody, replayKey(operationTag, "guard-subscription"));
+    if (guardSubscription.studentProfileId !== preparedGuard.studentProfileId || guardSubscription.pathProgramId !== path.id || guardSubscription.weeklyCommitment !== 1) {
+      throw new Error("PAP-437 guard Subscription did not bind to the synthetic learner/path.");
+    }
+
+    const guardEnrollment = await port.command<EnrollmentResult>("POST", "enrollments", {
+      subscriptionId: guardSubscription.id,
+      runningClassId: blockedClass.id,
+      effectiveFromLocalDate: localDate,
+      commandEffectiveLocalDate: localDate,
+      policyEffectiveAt: now.toISOString(),
+    }, replayKey(operationTag, "guard-placement"));
+    const guardEnrollmentId = guardEnrollment.enrollment?.id ?? guardEnrollment.id;
+    if (!guardEnrollmentId) throw new Error("PAP-437 capacity guard placement returned no canonical Enrollment id.");
+
+    return {
+      runTag,
+      operationTag,
+      centerId,
+      path,
+      space,
+      happyClasses: [happyA, happyB],
+      blockedClass,
+      productPlan,
+      learners: { a: learnerA, b: preparedB, guard: preparedGuard },
+      sales: { a: saleA, b: saleB },
+      guardSubscription,
+      guardEnrollmentId,
+      parentContactValue,
+      replay: {
+        saleA: { idempotencyKey: saleAKey, body: saleABody },
+        saleB: { idempotencyKey: saleBKey, body: saleBBody },
+      },
+    };
+  } catch (error) {
+    const recoveryErrors: string[] = [];
+    const recover = async (label: string, action: () => Promise<void>) => {
+      try { await action(); } catch (recoveryError) { recoveryErrors.push(`${label}: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`); }
+    };
+    if (learnerBAttempted && !learnerB) await recover("recover intake B", async () => { learnerB = await createLearner(port, runTag, operationTag, "b", localDate, learnerA.parentUserId); });
+    if (guardAttempted && !guard) await recover("recover guard intake", async () => { guard = await createLearner(port, runTag, operationTag, "guard", localDate, learnerA.parentUserId); });
+    if (saleAAttempted && !saleA && saleABody) await recover("recover sale A", async () => { saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody!, replayKey(operationTag, "sale-a")); });
+    if (saleBAttempted && !saleB && saleBBody) await recover("recover sale B", async () => { saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody!, replayKey(operationTag, "sale-b")); });
+    if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) await recover("recover guard Subscription", async () => { guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody!, replayKey(operationTag, "guard-subscription")); });
+    recoveryErrors.push(...await rollbackPap437OwnedPreparation(port, {
+      runTag, operationTag, now, parentContactValue, path, space, classes: [happyA, happyB, blockedClass],
+      learners: [learnerA, learnerB, guard].filter((item): item is Pap437StudentIntake => item !== undefined),
+      sales: [saleA, saleB].filter((item): item is BoSaleResult => item !== undefined),
+    }));
+    const detail = error instanceof Error ? error.message : String(error);
+    if (recoveryErrors.length) throw new Error(`PAP-437 post-ownership prepare failed and rollback was incomplete: ${recoveryErrors.join(" | ")}. Original: ${detail}`);
+    throw new Error(`PAP-437 post-ownership prepare failed; fixture-owned Parent/commercial/topology state was rolled back. ${detail}`);
   }
-
-  const guardEnrollment = await port.command<EnrollmentResult>("POST", "enrollments", {
-    subscriptionId: guardSubscription.id,
-    runningClassId: blockedClass.id,
-    effectiveFromLocalDate: localDate,
-    commandEffectiveLocalDate: localDate,
-    policyEffectiveAt: now.toISOString(),
-  }, replayKey(runTag, "guard-placement"));
-  const guardEnrollmentId = guardEnrollment.enrollment?.id ?? guardEnrollment.id;
-  if (!guardEnrollmentId) throw new Error("PAP-437 capacity guard placement returned no canonical Enrollment id.");
-
-  return {
-    runTag,
-    centerId,
-    path,
-    space,
-    happyClasses: [happyA, happyB],
-    blockedClass,
-    productPlan,
-    learners: { a: learnerA, b: learnerB, guard },
-    sales: { a: saleA, b: saleB },
-    guardSubscription,
-    guardEnrollmentId,
-    parentContactValue,
-    replay: {
-      saleA: { idempotencyKey: saleAKey, body: saleABody },
-      saleB: { idempotencyKey: saleBKey, body: saleBBody },
-    },
-  };
 }
 
 export function pap437HappyBulkBody(fixture: Pap437Fixture, effectiveFromLocalDate: string, policyEffectiveAt: string): Pap437BulkBody {
@@ -201,7 +246,7 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
         expectedVersion: entry.subscription.version,
         releaseLocalDate,
         reason: `${PREFIX} ${fixture.runTag} cleanup`,
-      }, replayKey(fixture.runTag, `neutralize-${entry.subscription.id}`));
+      }, replayKey(fixture.operationTag, `neutralize-${entry.subscription.id}`));
     }
   }
 
@@ -211,7 +256,7 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
       await port.command("POST", `billing/bills/${bill.bill.id}/void`, {
         expectedVersion: bill.bill.version,
         reason: `${PREFIX} ${fixture.runTag} cleanup`,
-      }, replayKey(fixture.runTag, `void-bill-${bill.bill.id}`));
+      }, replayKey(fixture.operationTag, `void-bill-${bill.bill.id}`));
     }
   }
 
@@ -234,7 +279,7 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
     const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${item.intake.studentProfileId}/void`, {
       expectedStudentVersion: lifecycle.student.version,
       reason: `${PREFIX} ${fixture.runTag} cleanup`,
-    }, replayKey(fixture.runTag, `void-student-${item.intake.studentProfileId}`));
+    }, replayKey(fixture.operationTag, `void-student-${item.intake.studentProfileId}`));
     if (result.parentUserId !== fixture.learners.a.parentUserId || result.parentDisposition !== item.expectedDisposition) {
       throw new Error(`PAP-437 ${item.label} intake cleanup returned unexpected Parent disposition.`);
     }
@@ -334,6 +379,81 @@ async function ensureClass(port: Pap437FixturePort, bootstrap: F3BootstrapState,
   });
 }
 
+type Pap437OwnedPreparationRollback = {
+  runTag: string;
+  operationTag: string;
+  now: Date;
+  parentContactValue: string;
+  path: F3Path;
+  space: F3LearningSpace;
+  classes: F3RunningClass[];
+  learners: Pap437StudentIntake[];
+  sales: BoSaleResult[];
+};
+
+async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, partial: Pap437OwnedPreparationRollback): Promise<string[]> {
+  const errors: string[] = [];
+  const record = async (label: string, action: () => Promise<void>) => {
+    try { await action(); } catch (error) { errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`); }
+  };
+  const releaseLocalDate = houseLocalDate(partial.now);
+  const learners = [...new Map(partial.learners.map((item) => [item.studentProfileId, item])).values()];
+  for (const learner of learners) {
+    await record(`neutralize ${learner.studentProfileId}`, async () => {
+      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${learner.studentProfileId}/lifecycle`);
+      for (const entry of lifecycle.subscriptions) {
+        if (entry.subscription.lifecycle !== "ACTIVE") continue;
+        await port.command("POST", `subscriptions/${entry.subscription.id}/neutralize`, {
+          expectedVersion: entry.subscription.version,
+          releaseLocalDate,
+          reason: `${PREFIX} ${partial.runTag} failed-prepare rollback`,
+        }, replayKey(partial.operationTag, `rollback-neutralize-${entry.subscription.id}`));
+      }
+    });
+  }
+  const sales = [...new Map(partial.sales.map((item) => [item.bill.bill.id, item])).values()];
+  for (const sale of sales) {
+    await record(`void bill ${sale.bill.bill.id}`, async () => {
+      const current = await port.get<{ bill: { id: string; version: number; voidedAt: string | null } }>(`billing/bills/${sale.bill.bill.id}`);
+      if (current.bill.voidedAt) return;
+      await port.command("POST", `billing/bills/${current.bill.id}/void`, {
+        expectedVersion: current.bill.version,
+        reason: `${PREFIX} ${partial.runTag} failed-prepare rollback`,
+      }, replayKey(partial.operationTag, `rollback-void-bill-${current.bill.id}`));
+    });
+  }
+  await record("archive synthetic topology", async () => {
+    const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+    for (const candidate of partial.classes) {
+      const current = latest.runningClasses.find((item) => item.id === candidate.id);
+      if (current?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${current.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: current.version });
+    }
+    const currentSpace = latest.learningSpaces.find((item) => item.id === partial.space.id);
+    if (currentSpace?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${currentSpace.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: currentSpace.version });
+    const currentPath = latest.paths.find((item) => item.id === partial.path.id);
+    if (currentPath?.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${currentPath.id}`, { code: currentPath.code, displayName: currentPath.displayName, status: "ARCHIVED", expectedVersion: currentPath.version });
+  });
+  for (const learner of [...learners].reverse()) {
+    await record(`void intake ${learner.studentProfileId}`, async () => {
+      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${learner.studentProfileId}/lifecycle`);
+      if (lifecycle.student.status === "ARCHIVED") return;
+      await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learner.studentProfileId}/void`, {
+        expectedStudentVersion: lifecycle.student.version,
+        reason: `${PREFIX} ${partial.runTag} failed-prepare rollback`,
+      }, replayKey(partial.operationTag, `rollback-void-student-${learner.studentProfileId}`));
+    });
+  }
+  await record("Parent/contact readback", async () => {
+    const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(partial.parentContactValue)}&limit=25`);
+    if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === partial.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
+  });
+  await record("topology readback", async () => {
+    const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+    if (latest.paths.some((item) => item.id === partial.path.id && item.status === "ACTIVE") || latest.learningSpaces.some((item) => item.id === partial.space.id && item.status === "ACTIVE") || latest.runningClasses.some((item) => partial.classes.some((candidate) => candidate.id === item.id) && item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
+  });
+  return errors;
+}
+
 async function archivePreparedTopology(port: Pap437FixturePort, path: F3Path, space: F3LearningSpace, classes: F3RunningClass[]) {
   for (const runningClass of classes) {
     if (runningClass.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${runningClass.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: runningClass.version });
@@ -342,7 +462,7 @@ async function archivePreparedTopology(port: Pap437FixturePort, path: F3Path, sp
   if (path.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${path.id}`, { code: path.code, displayName: path.displayName, status: "ARCHIVED", expectedVersion: path.version });
 }
 
-async function createLearner(port: Pap437FixturePort, runTag: string, suffix: string, effectiveFrom: string, existingParentUserId?: string) {
+async function createLearner(port: Pap437FixturePort, runTag: string, operationTag: string, suffix: string, effectiveFrom: string, existingParentUserId?: string) {
   const common = {
     displayName: `${PREFIX} ${runTag} ${suffix.toUpperCase()}`,
     birthYear: 2018,
@@ -355,7 +475,7 @@ async function createLearner(port: Pap437FixturePort, runTag: string, suffix: st
   const body = existingParentUserId
     ? { ...common, existingParentUserId }
     : { ...common, existingParentUserId: null, guardianDisplayName: `${PREFIX} ${runTag} Parent`, contactType: "EMAIL", contactValue: syntheticParentContact(runTag) };
-  return port.command<Pap437StudentIntake>("POST", "student-intakes", body, replayKey(runTag, `intake-${suffix}`));
+  return port.command<Pap437StudentIntake>("POST", "student-intakes", body, replayKey(operationTag, `intake-${suffix}`));
 }
 
 function assertReusedParentIntake(intake: Pap437StudentIntake, expectedParentUserId: string, label: string) {

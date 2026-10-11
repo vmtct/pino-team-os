@@ -138,6 +138,30 @@ test("PAP-437 rolls back prepared topology when post-lookup Parent uniqueness co
   assert.equal(port.bootstrap.paths.filter((item) => item.status === "ACTIVE").length, 0);
 });
 
+test("PAP-437 rolls back post-ownership response loss and allows a clean same-run retry", async () => {
+  const port = new FakePort();
+  const contact = "pap437+recover01@example.invalid";
+  port.loseResponseAfterNext("billing/sales");
+  await assert.rejects(
+    () => preparePap437CommercialFixture(port, "recover01", now),
+    /post-ownership prepare failed.*rolled back/i,
+  );
+  assert.equal(port.activeBillCount(), 0);
+  assert.equal([...port.students.values()].every((item) => item.lifecycle.student.status === "ARCHIVED"), true);
+  const failedBootstrap = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+  assert.equal(failedBootstrap.paths.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(failedBootstrap.learningSpaces.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(failedBootstrap.runningClasses.every((item) => item.status === "ARCHIVED"), true);
+  assert.deepEqual(await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`), []);
+
+  const retry = await preparePap437CommercialFixture(port, "recover01", now);
+  assert.equal(retry.parentContactValue, contact);
+  assert.notEqual(retry.operationTag, "recover01:v1");
+  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`);
+  assert.equal(activeParents.length, 1);
+  assert.equal(activeParents[0]!.parent.id, retry.learners.a.parentUserId);
+});
+
 test("PAP-437 fails closed without exactly one active E2E Comparator Center or a bounded run tag", async () => {
   const missing = new FakePort();
   missing.bootstrap.centers = missing.bootstrap.centers.filter((item) => item.centerKey !== "e2e-comparator");
@@ -166,6 +190,7 @@ class FakePort implements Pap437FixturePort {
   readonly bills = new Map<string, BoSaleResult["bill"]>();
   private raceParentContact: string | null = null;
   private conflictAfterLookupContact: string | null = null;
+  private responseLossAfterPath: string | null = null;
   private next = 10;
   readonly plan: BoProductPlan = {
     id: uuid(3), cadence: 2, termWeeks: 12, purchasedUnits: 24, listPriceMinor: 3900000,
@@ -220,6 +245,7 @@ class FakePort implements Pap437FixturePort {
       }
       const result = await this.execute(method, path, body);
       this.replay.set(key, { fingerprint, result: structuredClone(result) });
+      if (this.responseLossAfterPath === path) { this.responseLossAfterPath = null; throw new Error(`simulated response loss after ${path}`); }
       return structuredClone(result) as T;
     }
     return structuredClone(await this.execute(method, path, body)) as T;
@@ -321,6 +347,8 @@ class FakePort implements Pap437FixturePort {
   }
   raceParentOnNextIntake(normalizedContact:string){ this.raceParentContact = normalizedContact.toLowerCase(); }
   conflictParentAfterLookupOnNextIntake(normalizedContact:string){ this.conflictAfterLookupContact = normalizedContact.toLowerCase(); }
+  loseResponseAfterNext(path:string){ this.responseLossAfterPath = path; }
+  activeBillCount(){ return [...this.bills.values()].filter((bill) => !bill.bill.voidedAt).length; }
   parentStatus(parentId:string){ return this.parents.get(parentId)?.status ?? null; }
 
   private lifecycle(studentId: string, displayName: string, parentId: string, relationshipId: string): BoLearnerLifecycle {
