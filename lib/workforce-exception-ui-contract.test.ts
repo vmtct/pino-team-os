@@ -34,4 +34,8 @@ test("WFM-EXC UI preserves idempotency evidence across uncertain retries and re-
   assert.match(bo, /if\(prompted===null\)return/);
   assert.match(bo, /workforceCheckInException\(requestId\)/);
   assert.match(bo, /canonical\.status===terminal/);
+  assert.match(bo, /BoDataGrid/);
+  assert.match(bo, /useBoDataGridUrlState/);
+  assert.match(bo, /checkInException/);
+  assert.doesNotMatch(bo, /localStorage|sessionStorage/);
 });
