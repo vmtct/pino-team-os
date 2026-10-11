@@ -244,6 +244,20 @@
 @media (max-width: 760px) { .osControlColumns, .osPassGrid { grid-template-columns: 1fr; } .osPassActions > button { width: 100%; } }
 
 .plannerPage { width: min(100%, 1320px); }
+.plannerToolbar { min-height: 51px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e2e1e5; border-radius: 13px; background: #fff; box-shadow: 0 7px 28px rgba(28,25,38,.035); }
+.plannerToolbarField { min-width: 190px; display: grid; grid-template-columns: auto minmax(130px,1fr); align-items: center; gap: 7px; color: #6f6c77; font-size: 8px; font-weight: 850; letter-spacing: .025em; text-transform: uppercase; }
+.plannerToolbarField select { min-height: 34px; min-width: 0; padding: 6px 28px 6px 9px; border: 1px solid #dddce2; border-radius: 8px; background: #fff; color: #4f4c56; font-size: 9px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.plannerToolbarField select:focus-visible { outline: none; border-color: #9789df; box-shadow: 0 0 0 2px rgba(102,85,199,.09); }
+.plannerToolbarSpacer { flex: 1; }
+.plannerToolbarResult { white-space: nowrap; color: #817d88; font-size: 8px; }
+.plannerToolbarRefresh { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 1px solid #dedde3; border-radius: 8px; background: #fff; color: #57545f; font-size: 14px; cursor: pointer; }
+.plannerToolbarRefresh:hover, .plannerToolbarRefresh:focus-visible { border-color: #c6c1de; background: #f9f7ff; color: #51449d; }
+.plannerToolbarRefresh:disabled { opacity: .35; cursor: default; }
+.plannerStateSurface { overflow: hidden; border: 1px solid #e2e1e5; border-radius: 13px; background: #fff; box-shadow: 0 7px 28px rgba(28,25,38,.035); }
+.plannerWindowCard { display: grid; gap: 7px; min-height: 70px; padding: 11px 12px; border: 1px solid #e4e2ec; border-radius: 10px; background: #fbfbfd; }
+.plannerWindowCard > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.plannerWindowCard strong { font-size: 10px; }
+.plannerWindowCard > span { color: #777783; font-size: 9px; line-height: 1.4; }
 .plannerFilters { display: grid; grid-template-columns: repeat(2,minmax(220px,1fr)); gap: 12px; }
 .plannerLayout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 12px; align-items: start; }
 .plannerTableWrap { width: 100%; max-height: min(68vh,640px); overflow: auto; scrollbar-gutter: stable; border: 1px solid #e7e7ee; border-radius: 12px; }
@@ -258,6 +272,8 @@
 .plannerCell strong { color: #4e43a0; font-size: 10px; }
 .plannerCell span { font-size: 8.5px; line-height: 1.35; }
 .plannerCell:hover, .plannerCellActive { border-color: #b8afe4; background: #f6f3ff; }
+.plannerCell:focus-visible { outline: 2px solid #8e7ddd; outline-offset: 1px; border-color: #8e7ddd; background: #f5f2ff; }
+.plannerCell[aria-pressed="true"] { box-shadow: inset 0 0 0 1px rgba(102,85,199,.2); }
 .plannerSide { position: sticky; top: 18px; display: grid; gap: 14px; padding: 14px; border: 1px solid #dedee8; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgba(30,28,50,.045); }
 .plannerLegend { display: grid; gap: 5px; padding: 10px; border-radius: 10px; background: #f7f7fa; color: #696a77; font-size: 10px; }
 .plannerAssignmentCard { display: grid; gap: 10px; padding: 12px; border: 1px solid #e4e2ec; border-radius: 11px; background: #fbfbfe; }
@@ -268,7 +284,8 @@
 .plannerHistory strong { font-size: 11px; }
 .plannerHistory span { color: #777783; font-size: 9px; line-height: 1.4; }
 @media (max-width: 1440px) { .plannerLayout { grid-template-columns: 1fr; } .plannerSide { position: static; } }
-@media (max-width: 620px) { .plannerFilters { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .plannerToolbar { align-items: stretch; flex-wrap: wrap; } .plannerToolbarField { flex: 1 1 260px; } .plannerToolbarSpacer { display: none; } .plannerToolbarResult { margin-left: auto; align-self: center; } }
+@media (max-width: 620px) { .plannerFilters { grid-template-columns: 1fr; } .plannerToolbarField { grid-template-columns: 1fr; } .plannerToolbarResult { width: 100%; margin-left: 0; } }
 
 .syllabusPage { width: min(100%, 1280px); }
 .syllabusBanner { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #dcd8ef; border-radius: 13px; background: #f8f6ff; }

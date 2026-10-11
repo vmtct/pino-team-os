@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BoDataGridState, BoDataGridStatus } from "@/app/bo/components/data-grid";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
@@ -259,24 +260,25 @@ export function WorkforcePlanningView() {
 
   return <main className={`${styles.page} ${styles.plannerPage}`}>
     <header className={styles.heading}>
-      <span>Back Office · Workforce</span>
+      <span>PINO TEAM · BACK OFFICE</span>
       <h1>Lịch ca tuần</h1>
       <p>Availability là input của Staff; assignment là quyết định final của Manager. Hai cửa sổ tuần được khóa độc lập.</p>
     </header>
 
-    <section className={styles.panel}>
-      <div className={styles.plannerFilters}>
-        <label className={styles.field}>Center
-          <select value={centerId} onChange={(event) => changeCenter(event.target.value)}>
-            {bootstrap?.centers.filter((center) => center.status === "active").map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}
-          </select>
-        </label>
-        <label className={styles.field}>TermWeek
-          <select value={termWeekId} onChange={(event) => { setTermWeekId(event.target.value); setSelection(null); setNotice(""); setReason(""); }}>
-            {centerWeeks.map((week) => <option key={week.id} value={week.id}>{week.code} · {week.startDate} → {week.endDate}</option>)}
-          </select>
-        </label>
-      </div>
+    <section className={styles.plannerToolbar} aria-label="Weekly schedule view controls">
+      <label className={styles.plannerToolbarField}><span>Center</span>
+        <select value={centerId} onChange={(event) => changeCenter(event.target.value)}>
+          {bootstrap?.centers.filter((center) => center.status === "active").map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}
+        </select>
+      </label>
+      <label className={styles.plannerToolbarField}><span>TermWeek</span>
+        <select value={termWeekId} onChange={(event) => { setTermWeekId(event.target.value); setSelection(null); setNotice(""); setReason(""); }}>
+          {centerWeeks.map((week) => <option key={week.id} value={week.id}>{week.code} · {week.startDate} → {week.endDate}</option>)}
+        </select>
+      </label>
+      <div className={styles.plannerToolbarSpacer} />
+      <span className={styles.plannerToolbarResult}>{data ? `${data.staff.length} staff · ${data.startDate} → ${data.endDate}` : "Canonical weekly projection"}</span>
+      <button type="button" className={styles.plannerToolbarRefresh} aria-label="Refresh workforce planning" disabled={!centerId || !termWeekId || planning.state === "loading"} onClick={() => void refresh()}>↻</button>
     </section>
 
     {selectedCenter?.canManageShiftTemplates ? <section className={styles.panel}>
@@ -292,8 +294,8 @@ export function WorkforcePlanningView() {
     </section> : selectedCenter ? <section className={styles.panel}><div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Bạn có thể xếp ca bằng các template đang active; quản lý template cần quyền workforce.shift_template.manage.</p></div><span className={styles.readOnly}>Read only</span></div></section> : null}
 
     {notice ? <div className={styles.successCard}><span>Workforce planner</span><strong>{notice}</strong></div> : null}
-    {planning.state === "loading" ? <State text="Đang tải weekly planning projection từ Core…" /> : null}
-    {planning.state === "error" ? <State text={planning.message} error /> : null}
+    {planning.state === "loading" ? <section className={styles.plannerStateSurface}><BoDataGridState kind="loading" message="Đang tải weekly planning projection từ Core…" /></section> : null}
+    {planning.state === "error" ? <section className={styles.plannerStateSurface}><BoDataGridState kind="error" message={planning.message} /></section> : null}
 
     {data?.windows ? <section className={styles.panel}>
       <div className={styles.panelHeading}><div><h2>Kiểm soát tuần</h2><p>Policy quyết định auto-lock; override thủ công chỉ áp dụng cho TermWeek này.</p></div><span className={styles.writePill}>Week Control</span></div>
@@ -315,11 +317,11 @@ export function WorkforcePlanningView() {
     {data ? <div className={styles.plannerLayout}>
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
-          <div><h2>{data.startDate} → {data.endDate}</h2><p>Click một ô Staff/ngày để assign, cancel hoặc correct.</p></div>
+          <div><h2>{data.startDate} → {data.endDate}</h2><p>Chọn một ô Staff/ngày để mở bounded operational detail; matrix vẫn là specialized scheduling surface.</p></div>
           <span className={styles.readOnly}>{data.staff.length} staff</span>
         </div>
         <div className={styles.plannerTableWrap}>
-          <table>
+          <table aria-label="Weekly Workforce planning matrix">
             <thead><tr><th>Staff</th>{dateRange(data).map((date) => <th key={date}>{dateLabel(date)}</th>)}</tr></thead>
             <tbody>{data.staff.map((staff) => <tr key={staff.id}>
               <th>{staff.displayLabel}</th>
@@ -329,7 +331,12 @@ export function WorkforcePlanningView() {
                 const ownerGap = hasOwnerTeacherLinkGap(data, staff.id, date);
                 const selected = selection?.staffMemberId === staff.id && selection.workDate === date;
                 return <td key={date}>
-                  <button className={`${styles.plannerCell} ${selected ? styles.plannerCellActive : ""}`} onClick={() => {
+                  <button
+                    className={`${styles.plannerCell} ${selected ? styles.plannerCellActive : ""}`}
+                    aria-pressed={selected}
+                    aria-controls="workforce-planner-detail"
+                    aria-label={`${staff.displayLabel} · ${dateLabel(date)} · ${assigned.length ? "Đã xếp" : ownerGap ? "Owner chưa link TE" : available ? "Có availability" : "Chưa xếp"}`}
+                    onClick={() => {
                     setSelection({ staffMemberId: staff.id, workDate: date });
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
                     setReason("");
@@ -351,8 +358,8 @@ export function WorkforcePlanningView() {
         </div>
       </section>
 
-      <aside className={styles.plannerSide}>
-        {!selection || !selectedStaff ? <div className={styles.empty}>Chọn một Staff/ngày trong grid để thao tác.</div> : <>
+      <aside id="workforce-planner-detail" className={styles.plannerSide} aria-label="Workforce planning detail" aria-live="polite">
+        {!selection || !selectedStaff ? <BoDataGridState kind="empty" title="Chọn Staff/ngày" message="Chọn một ô trong matrix để mở thao tác assign, cancel hoặc correct." /> : <>
           <div className={styles.panelHeading}><div><h2>{selectedStaff.displayLabel}</h2><p>{selection.workDate}</p></div><span className={styles.writePill}>Operational decision</span></div>
           <div className={styles.plannerLegend}>
             <span>Availability: {availableTemplateIds.size ? `${availableTemplateIds.size} ca` : "không đăng ký"}</span>
@@ -490,11 +497,7 @@ function availableCount(data: BoWorkforceWeeklyPlanning, staffId: string, date: 
 }
 function WindowState({label,value}:{label:string;value:NonNullable<BoWorkforceWeeklyPlanning["windows"]>["availability"]}) {
   const detail=value.reason==="CONFIGURATION_UNAVAILABLE"?"Chưa có policy hiệu lực":value.reason==="MANUAL_LOCK"?"Khóa thủ công":value.reason==="MANUAL_REOPEN"?`Mở lại đến ${value.overrideUntil?new Date(value.overrideUntil).toLocaleString("vi-VN"):"—"}`:value.cutoffAt?`Policy · ${new Date(value.cutoffAt).toLocaleString("vi-VN")}`:"Policy · không auto-lock";
-  return <div className={styles.card}><strong>{label} · {value.state==="OPEN"?"Đang mở":"Đã khóa"}</strong><span>{detail}</span></div>;
-}
-
-function State({ text, error = false }: { text: string; error?: boolean }) {
-  return <div className={`${styles.state} ${error ? styles.errorState : ""}`}><strong>{error ? "Không thể tải" : "PINO BO"}</strong><span>{text}</span></div>;
+  return <div className={styles.plannerWindowCard}><div><strong>{label}</strong><BoDataGridStatus value={value.state} tone={value.state==="OPEN"?"success":"warning"} /></div><span>{detail}</span></div>;
 }
 function message(error: unknown) {
   if (error instanceof BoApiError) return `${error.message}${error.requestId ? ` · ${error.requestId}` : ""}`;
