@@ -1,5 +1,5 @@
-import { TrainingBuilderRuntimeView } from "@/app/components/training/TrainingRuntimeViews";
+import { TrainingAssignmentsView } from "./TrainingAssignmentsView";
 
 export default function BoTrainingPage() {
-  return <TrainingBuilderRuntimeView />;
+  return <TrainingAssignmentsView />;
 }
