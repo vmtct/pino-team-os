@@ -11,6 +11,7 @@ import {
 } from "@/app/bo/components/data-grid";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
+import { loadBoTimekeepingPageForState } from "@/lib/bo-timekeeping-page-controller";
 import styles from "./timekeeping.module.css";
 
 type Mode = "today" | "history";
@@ -68,22 +69,23 @@ export function TimekeepingView() {
     let active = true;
     setLoad({ state: "loading" });
     const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate };
-    void boApi.timekeeping({
-      ...params,
-      ...(status ? { status } : {}),
-      ...(staffId ? { staffMemberId: staffId } : {}),
-      limit: state.pageSize,
-      offset: (state.page - 1) * state.pageSize,
+    void loadBoTimekeepingPageForState({
+      page: state.page,
+      pageSize: state.pageSize,
+      query: {
+        ...params,
+        ...(status ? { status } : {}),
+        ...(staffId ? { staffMemberId: staffId } : {}),
+      },
+      load: boApi.timekeeping,
     }).then((result) => {
       if (!active) return;
-      const pageCount = result.summary.totalSessions ? Math.ceil(result.summary.totalSessions / state.pageSize) : 0;
-      const canonicalPage = pageCount ? Math.min(state.page, pageCount) : 1;
-      if (canonicalPage !== state.page) {
-        setPageRef.current(canonicalPage);
+      if (result.kind === "reconcile-page") {
+        setPageRef.current(result.page);
         return;
       }
-      setLoad({ state: "ready", page: result });
-      setSelectedId((current) => result.data.some((session) => session.id === current) ? current : "");
+      setLoad({ state: "ready", page: result.data });
+      setSelectedId((current) => result.data.data.some((session) => session.id === current) ? current : "");
     }).catch((error) => {
       if (active) setLoad({ state: "error", message: message(error) });
     });

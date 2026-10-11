@@ -3,20 +3,22 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 test("PAP-408 Timekeeping uses shared Data Grid with URL-backed bounded server paging", async () => {
-  const [view, api, handler] = await Promise.all([
+  const [view, api, handler, controller] = await Promise.all([
     readFile("app/bo/workforce/timekeeping/TimekeepingView.tsx", "utf8"),
     readFile("lib/bo-api.ts", "utf8"),
     readFile("lib/bo-read-handler.ts", "utf8"),
+    readFile("lib/bo-timekeeping-page-controller.ts", "utf8"),
   ]);
 
   assert.match(view, /BoDataGrid/);
   assert.match(view, /BoDataGridSidePeek/);
   assert.match(view, /useBoDataGridUrlState/);
   assert.match(view, /PAGE_SIZES = \[25, 50, 100\]/);
-  assert.match(view, /limit: state\.pageSize/);
-  assert.match(view, /offset: \(state\.page - 1\) \* state\.pageSize/);
-  assert.match(view, /Math\.ceil\(result\.summary\.totalSessions \/ state\.pageSize\)/);
-  assert.match(view, /setPageRef\.current\(canonicalPage\)/);
+  assert.match(view, /loadBoTimekeepingPageForState/);
+  assert.match(view, /setPageRef\.current\(result\.page\)/);
+  assert.match(controller, /BO_TIMEKEEPING_MAX_OFFSET = 1_000_000/);
+  assert.match(controller, /offset: \(page - 1\) \* pageSize/);
+  assert.match(controller, /Math\.ceil\(data\.summary\.totalSessions \/ pageSize\)/);
   assert.match(view, /Filter Timekeeping by status/);
   assert.match(view, /Filter Timekeeping by staff/);
   assert.match(view, /Timekeeping history from/);
