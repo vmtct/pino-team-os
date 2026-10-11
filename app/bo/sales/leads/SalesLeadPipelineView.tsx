@@ -6,10 +6,11 @@ import { BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi, BoApiError, type BoAcquisitionCreateInput, type BoAcquisitionIntent, type BoAcquisitionIntentStatus } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
-import { resolveActionBoundIntentId, shouldRestoreActionBoundIntent } from "@/lib/bo-lead-action-binding";
+import { isIntentDetailCurrent, resolveActionBoundIntentId, shouldRestoreActionBoundIntent } from "@/lib/bo-lead-action-binding";
 import styles from "./sales-leads.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
+type DetailLoad = { state: "loading"; intentId: string } | { state: "error"; intentId: string; message: string } | { state: "ready"; intentId: string; data: BoAcquisitionIntent };
 type CommandAttempt = { key: string; intentId: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
 type CreateAttempt = { idempotencyKey: string; input: BoAcquisitionCreateInput };
 type CreateDraft = { phone: string; sourceBrand: BoAcquisitionCreateInput["sourceBrand"]; intentKind: BoAcquisitionCreateInput["intentKind"]; childAge: string };
@@ -35,7 +36,7 @@ export function SalesLeadPipelineView() {
   const status = normalizeStatusFilter(grid.state.filters.status);
   const query = grid.state.search;
   const [queue, setQueue] = useState<Load<BoAcquisitionIntent[]>>({ state: "loading" });
-  const [detail, setDetail] = useState<Load<BoAcquisitionIntent> | null>(null);
+  const [detail, setDetail] = useState<DetailLoad | null>(null);
   const [closeReason, setCloseReason] = useState("");
   const [createDraft, setCreateDraft] = useState<CreateDraft>(EMPTY_CREATE_DRAFT);
   const [createAttempt, setCreateAttempt] = useState<CreateAttempt | null>(null);
@@ -87,12 +88,12 @@ export function SalesLeadPipelineView() {
 
   async function loadDetail(intentId: string) {
     const token = ++selectionToken.current;
-    setDetail({ state: "loading" });
+    setDetail({ state: "loading", intentId });
     try {
       const data = await boApi.acquisitionIntent(intentId);
-      if (token === selectionToken.current) setDetail({ state: "ready", data });
+      if (token === selectionToken.current) setDetail({ state: "ready", intentId, data });
     } catch (error) {
-      if (token === selectionToken.current) setDetail({ state: "error", message: message(error) });
+      if (token === selectionToken.current) setDetail({ state: "error", intentId, message: message(error) });
     }
   }
 
@@ -196,14 +197,14 @@ export function SalesLeadPipelineView() {
     void executeCreate(attempt);
   }
 
-    async function executeAttempt(attempt: CommandAttempt) {
+  async function executeAttempt(attempt: CommandAttempt) {
     if (commandState.busy) return;
-        const intentId = attempt.intentId;
+    const intentId = attempt.intentId;
     setCommandState({ busy: attempt.key, notice: null, error: null });
     try {
       await attempt.action(attempt.idempotencyKey);
       const next = await loadQueue(intentId);
-            if (next === intentId && selectedIdRef.current === intentId) await loadDetail(intentId);
+      if (next === intentId && selectedIdRef.current === intentId) await loadDetail(intentId);
       setPendingAttempt(null);
       setCloseReason("");
       setCommandState({ busy: null, notice: attempt.success, error: null });
@@ -216,14 +217,16 @@ export function SalesLeadPipelineView() {
   }
 
   function runCommand(key: string, intent: BoAcquisitionIntent, action: (idempotencyKey: string) => Promise<unknown>, success: string) {
+    if (!isIntentDetailCurrent(effectiveSelectedId, intent.id)) return;
     const attempt = pendingAttempt?.key === key && pendingAttempt.intentId === intent.id
       ? pendingAttempt
       : { key, intentId: intent.id, idempotencyKey: crypto.randomUUID(), action, success };
     setPendingAttempt(attempt);
-        void executeAttempt(attempt);
+    void executeAttempt(attempt);
   }
 
-  const intent = detail?.state === "ready" ? detail.data : null;
+  const detailIsCurrent = isIntentDetailCurrent(effectiveSelectedId, detail?.intentId ?? null);
+  const intent = detailIsCurrent && detail?.state === "ready" ? detail.data : null;
   const blocked = Boolean(commandState.busy || pendingAttempt || createState.busy || createAttempt);
   return (
     <main className={styles.page}>
@@ -268,7 +271,7 @@ export function SalesLeadPipelineView() {
         onSortChange={grid.setSort}
         filterChips={status === "ALL" ? [] : [{ key: "status", label: "Lifecycle", value: statusLabel(status), onClear: () => setStatus("ALL") }]}
         resultLabel={`${sorted.length} / ${rows.length} intents`}
-                selectedRowKey={effectiveSelectedId}
+        selectedRowKey={effectiveSelectedId}
         onRowOpen={blocked ? undefined : (row) => selectIntent(row.id, "push")}
         emptyTitle="Không có Lead phù hợp"
         emptyMessage="Thử đổi search hoặc lifecycle filter; canonical Lead/Intent state không bị thay đổi."
@@ -276,10 +279,10 @@ export function SalesLeadPipelineView() {
         toolbarActions={<label className={styles.leadGridFilter}>Lifecycle<select aria-label="Filter Leads by lifecycle" value={status} disabled={blocked} onChange={(event) => setStatus(event.target.value as FilterStatus)}>{FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}
       />
 
-            {effectiveSelectedId ? <BoDataGridSidePeek title={intent?.phone ?? "Lead"} eyebrow="Sales · Lead Intent" onClose={() => { if (!blocked) selectIntent(null); }}>
+      {effectiveSelectedId ? <BoDataGridSidePeek title={intent?.phone ?? "Lead"} eyebrow="Sales · Lead Intent" onClose={() => { if (!blocked) selectIntent(null); }}>
         <div className={styles.leadGridPeek}>
-          {detail?.state === "loading" ? <State text="Đang tải chi tiết…" /> : null}
-          {detail?.state === "error" ? <State text={detail.message} error /> : null}
+          {!detailIsCurrent || detail?.state === "loading" ? <State text="Đang tải chi tiết…" /> : null}
+          {detailIsCurrent && detail?.state === "error" ? <State text={detail.message} error /> : null}
           {intent ? <div className={styles.detail}>
             <div className={styles.detailHead}><div><span>Lead</span><h2>{intent.phone}</h2></div><Status status={intent.status} /></div>
             <div className={styles.facts}>
@@ -313,7 +316,7 @@ export function SalesLeadPipelineView() {
               </div>
               {intent.status !== "CLOSED" ? <div className={styles.closeComposer}><input aria-label="Lý do đóng lead" placeholder="Lý do đóng…" value={closeReason} onChange={(event) => setCloseReason(event.target.value)} disabled={blocked} /><button type="button" className={styles.danger} onClick={() => runCommand(`close:${intent.id}:${intent.version}:${closeReason.trim()}`, intent, (key) => boApi.closeAcquisitionIntent(intent.id, intent.version, closeReason.trim(), key), "Đã đóng intent.")} disabled={blocked || !closeReason.trim()}>Đóng intent</button></div> : null}
             </div>
-                        {pendingAttempt && pendingAttempt.intentId === intent.id && commandState.error ? <button className={styles.retry} type="button" onClick={() => void executeAttempt(pendingAttempt)} disabled={Boolean(commandState.busy)}>Thử lại cùng yêu cầu</button> : null}
+            {pendingAttempt && pendingAttempt.intentId === intent.id && commandState.error ? <button className={styles.retry} type="button" onClick={() => void executeAttempt(pendingAttempt)} disabled={Boolean(commandState.busy)}>Thử lại cùng yêu cầu</button> : null}
             {commandState.notice ? <p className={styles.notice}>{commandState.notice}</p> : null}
             {commandState.error ? <p className={styles.error}>{commandState.error}</p> : null}
           </div> : null}

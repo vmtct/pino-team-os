@@ -26,6 +26,8 @@ test("PAP-390 preserves canonical lifecycle, idempotent retry and Pancake detail
   assert.match(source, /shouldRestoreActionBoundIntent\(selectedId, actionLockedIntentId\)/);
   assert.match(source, /router\.replace\(nextQuery \? `\$\{pathname\}\?\$\{nextQuery\}` : pathname, \{ scroll: false \}\)/);
   assert.match(source, /pendingAttempt\.intentId === intent\.id/);
+  assert.match(source, /isIntentDetailCurrent\(effectiveSelectedId, detail\?\.intentId \?\? null\)/);
+  assert.match(source, /if \(!isIntentDetailCurrent\(effectiveSelectedId, intent\.id\)\) return/);
   assert.doesNotMatch(source, /executeAttempt\(pendingAttempt, intent\.id\)/);
   assert.match(source, /function selectCreatedIntent\(nextId: string\)/);
   assert.match(source, /params\.delete\("q"\)/);
