@@ -63,6 +63,41 @@ export interface Pap437Fixture {
   };
 }
 
+export interface Pap437RollbackState {
+  runTag: string;
+  operationTag: string;
+  nowIso: string;
+  parentContactValue: string;
+  pathId: string;
+  spaceId: string;
+  classIds: string[];
+  learnerIds: string[];
+  billIds: string[];
+}
+
+export class Pap437RollbackIncompleteError extends Error {
+  constructor(
+    message: string,
+    public readonly rollbackState: Pap437RollbackState,
+    public readonly rollbackErrors: string[],
+  ) {
+    super(message);
+    this.name = "Pap437RollbackIncompleteError";
+  }
+}
+
+export async function resumePap437CommercialRollback(port: Pap437FixturePort, state: Pap437RollbackState) {
+  const errors = await rollbackPap437OwnedPreparation(port, state);
+  if (errors.length) {
+    throw new Pap437RollbackIncompleteError(
+      `PAP-437 rollback remains incomplete: ${errors.join(" | ")}`,
+      state,
+      errors,
+    );
+  }
+  return { cleaned: true as const, rollbackState: state };
+}
+
 export type Pap437BulkBody = {
   subscriptions: Array<{
     subscriptionId: string;
@@ -113,9 +148,14 @@ export async function preparePap437CommercialFixture(
   try {
     learnerA = await createLearner(port, runTag, operationTag, "a", localDate);
   } catch (error) {
-    await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`PAP-437 first intake failed before fixture Parent ownership was established; synthetic topology was rolled back. ${detail}`);
+    try {
+      learnerA = await createLearner(port, runTag, operationTag, "a", localDate);
+    } catch (reconcileError) {
+      await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
+      const detail = error instanceof Error ? error.message : String(error);
+      const reconcileDetail = reconcileError instanceof Error ? reconcileError.message : String(reconcileError);
+      throw new Error(`PAP-437 first intake failed before fixture Parent ownership was established and replay reconciliation did not recover an intake; synthetic topology was rolled back. ${detail} | replay: ${reconcileDetail}`);
+    }
   }
   if (learnerA.parentReused || !learnerA.createdContactIdentifierId) {
     const rollback = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learnerA.studentProfileId}/void`, {
@@ -215,13 +255,20 @@ export async function preparePap437CommercialFixture(
     if (saleAAttempted && !saleA && saleABody) await recover("recover sale A", async () => { saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody!, replayKey(operationTag, "sale-a")); });
     if (saleBAttempted && !saleB && saleBBody) await recover("recover sale B", async () => { saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody!, replayKey(operationTag, "sale-b")); });
     if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) await recover("recover guard Subscription", async () => { guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody!, replayKey(operationTag, "guard-subscription")); });
-    recoveryErrors.push(...await rollbackPap437OwnedPreparation(port, {
+    const rollbackState = createRollbackState({
       runTag, operationTag, now, parentContactValue, path, space, classes: [happyA, happyB, blockedClass],
       learners: [learnerA, learnerB, guard].filter((item): item is Pap437StudentIntake => item !== undefined),
       sales: [saleA, saleB].filter((item): item is BoSaleResult => item !== undefined),
-    }));
+    });
+    recoveryErrors.push(...await rollbackPap437OwnedPreparation(port, rollbackState));
     const detail = error instanceof Error ? error.message : String(error);
-    if (recoveryErrors.length) throw new Error(`PAP-437 post-ownership prepare failed and rollback was incomplete: ${recoveryErrors.join(" | ")}. Original: ${detail}`);
+    if (recoveryErrors.length) {
+      throw new Pap437RollbackIncompleteError(
+        `PAP-437 post-ownership prepare failed and rollback was incomplete: ${recoveryErrors.join(" | ")}. Original: ${detail}`,
+        rollbackState,
+        recoveryErrors,
+      );
+    }
     throw new Error(`PAP-437 post-ownership prepare failed; fixture-owned Parent/commercial/topology state was rolled back. ${detail}`);
   }
 }
@@ -379,7 +426,7 @@ async function ensureClass(port: Pap437FixturePort, bootstrap: F3BootstrapState,
   });
 }
 
-type Pap437OwnedPreparationRollback = {
+type Pap437OwnedPreparationRollbackInput = {
   runTag: string;
   operationTag: string;
   now: Date;
@@ -391,65 +438,103 @@ type Pap437OwnedPreparationRollback = {
   sales: BoSaleResult[];
 };
 
-async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, partial: Pap437OwnedPreparationRollback): Promise<string[]> {
+function createRollbackState(input: Pap437OwnedPreparationRollbackInput): Pap437RollbackState {
+  return {
+    runTag: input.runTag,
+    operationTag: input.operationTag,
+    nowIso: input.now.toISOString(),
+    parentContactValue: input.parentContactValue,
+    pathId: input.path.id,
+    spaceId: input.space.id,
+    classIds: [...new Set(input.classes.map((item) => item.id))],
+    learnerIds: [...new Set(input.learners.map((item) => item.studentProfileId))],
+    billIds: [...new Set(input.sales.map((item) => item.bill.bill.id))],
+  };
+}
+
+async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pap437RollbackState): Promise<string[]> {
   const errors: string[] = [];
   const record = async (label: string, action: () => Promise<void>) => {
-    try { await action(); } catch (error) { errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`); }
+    try {
+      await action();
+      return true;
+    } catch (error) {
+      errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
   };
-  const releaseLocalDate = houseLocalDate(partial.now);
-  const learners = [...new Map(partial.learners.map((item) => [item.studentProfileId, item])).values()];
-  for (const learner of learners) {
-    await record(`neutralize ${learner.studentProfileId}`, async () => {
-      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${learner.studentProfileId}/lifecycle`);
+  const releaseLocalDate = houseLocalDate(new Date(state.nowIso));
+  const learnerIds = [...new Set(state.learnerIds)];
+  for (const studentId of learnerIds) {
+    await record(`neutralize ${studentId}`, async () => {
+      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
       for (const entry of lifecycle.subscriptions) {
         if (entry.subscription.lifecycle !== "ACTIVE") continue;
         await port.command("POST", `subscriptions/${entry.subscription.id}/neutralize`, {
           expectedVersion: entry.subscription.version,
           releaseLocalDate,
-          reason: `${PREFIX} ${partial.runTag} failed-prepare rollback`,
-        }, replayKey(partial.operationTag, `rollback-neutralize-${entry.subscription.id}`));
+          reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+        }, replayKey(state.operationTag, `rollback-neutralize-${entry.subscription.id}`));
       }
     });
   }
-  const sales = [...new Map(partial.sales.map((item) => [item.bill.bill.id, item])).values()];
-  for (const sale of sales) {
-    await record(`void bill ${sale.bill.bill.id}`, async () => {
-      const current = await port.get<{ bill: { id: string; version: number; voidedAt: string | null } }>(`billing/bills/${sale.bill.bill.id}`);
+  for (const billId of [...new Set(state.billIds)]) {
+    await record(`void bill ${billId}`, async () => {
+      const current = await port.get<{ bill: { id: string; version: number; voidedAt: string | null } }>(`billing/bills/${billId}`);
       if (current.bill.voidedAt) return;
       await port.command("POST", `billing/bills/${current.bill.id}/void`, {
         expectedVersion: current.bill.version,
-        reason: `${PREFIX} ${partial.runTag} failed-prepare rollback`,
-      }, replayKey(partial.operationTag, `rollback-void-bill-${current.bill.id}`));
+        reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+      }, replayKey(state.operationTag, `rollback-void-bill-${current.bill.id}`));
     });
   }
   await record("archive synthetic topology", async () => {
     const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
-    for (const candidate of partial.classes) {
-      const current = latest.runningClasses.find((item) => item.id === candidate.id);
+    for (const classId of state.classIds) {
+      const current = latest.runningClasses.find((item) => item.id === classId);
       if (current?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${current.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: current.version });
     }
-    const currentSpace = latest.learningSpaces.find((item) => item.id === partial.space.id);
+    const currentSpace = latest.learningSpaces.find((item) => item.id === state.spaceId);
     if (currentSpace?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${currentSpace.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: currentSpace.version });
-    const currentPath = latest.paths.find((item) => item.id === partial.path.id);
+    const currentPath = latest.paths.find((item) => item.id === state.pathId);
     if (currentPath?.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${currentPath.id}`, { code: currentPath.code, displayName: currentPath.displayName, status: "ARCHIVED", expectedVersion: currentPath.version });
   });
-  for (const learner of [...learners].reverse()) {
-    await record(`void intake ${learner.studentProfileId}`, async () => {
-      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${learner.studentProfileId}/lifecycle`);
+
+  const ownerId = learnerIds[0];
+  const dependentIds = learnerIds.slice(1).reverse();
+  let dependentsClean = true;
+  for (const studentId of dependentIds) {
+    const ok = await record(`void intake ${studentId}`, async () => {
+      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
       if (lifecycle.student.status === "ARCHIVED") return;
-      await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learner.studentProfileId}/void`, {
+      await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${studentId}/void`, {
         expectedStudentVersion: lifecycle.student.version,
-        reason: `${PREFIX} ${partial.runTag} failed-prepare rollback`,
-      }, replayKey(partial.operationTag, `rollback-void-student-${learner.studentProfileId}`));
+        reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+      }, replayKey(state.operationTag, `rollback-void-student-${studentId}`));
     });
+    if (!ok) dependentsClean = false;
+  }
+  if (ownerId) {
+    if (dependentsClean) {
+      await record(`void intake ${ownerId}`, async () => {
+        const lifecycle = await port.get<BoLearnerLifecycle>(`students/${ownerId}/lifecycle`);
+        if (lifecycle.student.status === "ARCHIVED") return;
+        await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, {
+          expectedStudentVersion: lifecycle.student.version,
+          reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+        }, replayKey(state.operationTag, `rollback-void-student-${ownerId}`));
+      });
+    } else {
+      errors.push(`void owner ${ownerId}: deferred until dependent intake cleanup converges`);
+    }
   }
   await record("Parent/contact readback", async () => {
-    const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(partial.parentContactValue)}&limit=25`);
-    if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === partial.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
+    const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
+    if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
   });
   await record("topology readback", async () => {
     const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
-    if (latest.paths.some((item) => item.id === partial.path.id && item.status === "ACTIVE") || latest.learningSpaces.some((item) => item.id === partial.space.id && item.status === "ACTIVE") || latest.runningClasses.some((item) => partial.classes.some((candidate) => candidate.id === item.id) && item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
+    if (latest.paths.some((item) => item.id === state.pathId && item.status === "ACTIVE") || latest.learningSpaces.some((item) => item.id === state.spaceId && item.status === "ACTIVE") || latest.runningClasses.some((item) => state.classIds.includes(item.id) && item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
   });
   return errors;
 }

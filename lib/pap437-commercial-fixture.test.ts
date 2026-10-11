@@ -7,6 +7,8 @@ import {
   pap437AtomicFailureBulkBody,
   pap437HappyBulkBody,
   preparePap437CommercialFixture,
+  Pap437RollbackIncompleteError,
+  resumePap437CommercialRollback,
   type Pap437FixturePort,
 } from "./pap437-commercial-fixture";
 import type { BoLearnerLifecycle, BoLearnerSubscription, BoParentSearchResult, BoProductPlan, BoSaleResult } from "./bo-model";
@@ -122,12 +124,12 @@ test("PAP-437 rolls back a contact-resolution race without touching the concurre
   assert.equal(activeParents[0]!.parent.status, "ACTIVE");
 });
 
-test("PAP-437 rolls back prepared topology when post-lookup Parent uniqueness conflict returns no intake result", async () => {
+test("PAP-437 reconciles post-lookup Parent uniqueness conflict into concurrent-claim rollback", async () => {
   const port = new FakePort();
   const contact = "pap437+atomic01@example.invalid";
   port.conflictParentAfterLookupOnNextIntake(contact);
-  await assert.rejects(() => preparePap437CommercialFixture(port, "atomic01", now), /first intake failed.*topology was rolled back/i);
-  assert.equal(port.students.size, 0);
+  await assert.rejects(() => preparePap437CommercialFixture(port, "atomic01", now), /synthetic Parent contact was concurrently claimed.*rolled back/i);
+  assert.equal([...port.students.values()].every((item) => item.lifecycle.student.status === "ARCHIVED"), true);
   assert.equal(port.bootstrap.paths.every((item) => item.status === "ARCHIVED"), true);
   assert.equal(port.bootstrap.learningSpaces.every((item) => item.status === "ARCHIVED"), true);
   assert.equal(port.bootstrap.runningClasses.every((item) => item.status === "ARCHIVED"), true);
@@ -136,6 +138,47 @@ test("PAP-437 rolls back prepared topology when post-lookup Parent uniqueness co
   assert.equal(activeParents[0]!.parent.status, "ACTIVE");
   await assert.rejects(() => preparePap437CommercialFixture(port, "atomic01", now), /already belongs to an active Parent/i);
   assert.equal(port.bootstrap.paths.filter((item) => item.status === "ACTIVE").length, 0);
+});
+
+test("PAP-437 reconciles first-intake commit response loss through the same idempotency key", async () => {
+  const port = new FakePort();
+  const contact = "pap437+intake01@example.invalid";
+  port.loseResponseAfterNext("student-intakes");
+  const fixture = await preparePap437CommercialFixture(port, "intake01", now);
+  assert.equal(fixture.parentContactValue, contact);
+  const intakeCalls = port.calls.filter((call) => call.path === "student-intakes" && call.key?.endsWith(":intake-a"));
+  assert.equal(intakeCalls.length, 2);
+  assert.equal(intakeCalls[0]!.key, intakeCalls[1]!.key);
+  assert.equal(port.students.size, 3);
+  await cleanupPap437CommercialFixture(port, fixture, now);
+  assert.deepEqual(await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`), []);
+});
+
+test("PAP-437 returns durable rollback state and converges when resumed after partial rollback failure", async () => {
+  const port = new FakePort();
+  const contact = "pap437+resume01@example.invalid";
+  port.loseResponseAfterNext("billing/sales");
+  port.failNextCommandContaining("/void");
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try {
+    await preparePap437CommercialFixture(port, "resume01", now);
+  } catch (error) {
+    assert.ok(error instanceof Pap437RollbackIncompleteError);
+    incomplete = error;
+  }
+  assert.ok(incomplete);
+  assert.equal(incomplete.rollbackState.runTag, "resume01");
+  assert.equal(incomplete.rollbackState.learnerIds.length, 3);
+  assert.ok(incomplete.rollbackErrors.length > 0);
+  assert.equal(JSON.parse(JSON.stringify(incomplete.rollbackState)).runTag, "resume01");
+  await resumePap437CommercialRollback(port, incomplete.rollbackState);
+  assert.equal([...port.students.values()].every((item) => item.lifecycle.student.status === "ARCHIVED"), true);
+  assert.equal(port.activeBillCount(), 0);
+  assert.deepEqual(await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`), []);
+  const readback = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+  assert.equal(readback.paths.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(readback.learningSpaces.every((item) => item.status === "ARCHIVED"), true);
+  assert.equal(readback.runningClasses.every((item) => item.status === "ARCHIVED"), true);
 });
 
 test("PAP-437 rolls back post-ownership response loss and allows a clean same-run retry", async () => {
@@ -191,6 +234,7 @@ class FakePort implements Pap437FixturePort {
   private raceParentContact: string | null = null;
   private conflictAfterLookupContact: string | null = null;
   private responseLossAfterPath: string | null = null;
+  private failNextCommandFragment: string | null = null;
   private next = 10;
   readonly plan: BoProductPlan = {
     id: uuid(3), cadence: 2, termWeeks: 12, purchasedUnits: 24, listPriceMinor: 3900000,
@@ -236,6 +280,11 @@ class FakePort implements Pap437FixturePort {
 
   async command<T>(method: "POST" | "PATCH", path: string, body: unknown, key?: string): Promise<T> {
     this.calls.push({ method, path, body: structuredClone(body), key });
+    if (this.failNextCommandFragment && path.includes(this.failNextCommandFragment)) {
+      const fragment = this.failNextCommandFragment;
+      this.failNextCommandFragment = null;
+      throw new Error(`simulated command failure for ${fragment}`);
+    }
     if (key) {
       const fingerprint = JSON.stringify({ method, path, body });
       const previous = this.replay.get(key);
@@ -348,6 +397,7 @@ class FakePort implements Pap437FixturePort {
   raceParentOnNextIntake(normalizedContact:string){ this.raceParentContact = normalizedContact.toLowerCase(); }
   conflictParentAfterLookupOnNextIntake(normalizedContact:string){ this.conflictAfterLookupContact = normalizedContact.toLowerCase(); }
   loseResponseAfterNext(path:string){ this.responseLossAfterPath = path; }
+  failNextCommandContaining(fragment:string){ this.failNextCommandFragment = fragment; }
   activeBillCount(){ return [...this.bills.values()].filter((bill) => !bill.bill.voidedAt).length; }
   parentStatus(parentId:string){ return this.parents.get(parentId)?.status ?? null; }
 
