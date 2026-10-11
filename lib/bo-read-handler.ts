@@ -189,7 +189,9 @@ function readQueryBody(path: string, url: URL): Record<string, unknown> | undefi
     const body: Record<string, unknown> = {};
     for (const key of ["centerId", "workDate", "startDate", "endDate", "staffMemberId", "status", "cursor"] as const) { const value = url.searchParams.get(key); if (value) body[key] = value; }
     const limit = url.searchParams.get("limit");
+    const offset = url.searchParams.get("offset");
     if (limit) body.limit = Number(limit);
+    if (offset) body.offset = Number(offset);
     return body;
   }
   if (path === "delivery/calendar-exclusions" || path === "delivery/calendar-exclusions/preview") {

@@ -1,74 +1,99 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  BoDataGrid,
+  BoDataGridCanonicalId,
+  BoDataGridSidePeek,
+  BoDataGridStatus,
+  useBoDataGridUrlState,
+  type BoDataGridColumn,
+} from "@/app/bo/components/data-grid";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
+import { loadBoTimekeepingPageForState } from "@/lib/bo-timekeeping-page-controller";
 import styles from "./timekeeping.module.css";
 
 type Mode = "today" | "history";
 type TimekeepingCenter = { id: string; displayName: string; timeZone: string };
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; page: BoTimekeepingPage };
+const PAGE_SIZES = [25, 50, 100] as const;
 
 export function TimekeepingView() {
   const [centers, setCenters] = useState<TimekeepingCenter[]>([]);
-  const [centerId, setCenterId] = useState("");
-  const [mode, setMode] = useState<Mode>("today");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [status, setStatus] = useState<"" | "OPEN" | "CLOSED">("");
-  const [staffId, setStaffId] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [refreshToken, setRefreshToken] = useState(0);
+  const { state, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: PAGE_SIZES });
+  const setPageRef = useRef(setPage);
+  setPageRef.current = setPage;
 
-  const selectedCenter = centers.find((center) => center.id === centerId) ?? null;
+  const mode: Mode = state.filters.mode === "history" ? "history" : "today";
+  const centerId = state.filters.center ?? centers[0]?.id ?? "";
+  const selectedCenter = centers.find((center) => center.id === centerId) ?? centers[0] ?? null;
   const today = selectedCenter ? localDate(selectedCenter.timeZone) : "";
+  const startDate = state.filters.from ?? today;
+  const endDate = state.filters.to ?? today;
+  const status = state.filters.status === "OPEN" || state.filters.status === "CLOSED" ? state.filters.status : "";
+  const staffId = state.filters.staff ?? "";
   const page = load.state === "ready" ? load.page : null;
-  const staffOptions = useMemo(
-    () => Array.from(new Map((page?.data ?? []).map((session) => [session.staff.id, session.staff])).values()).sort((a, b) => a.displayLabel.localeCompare(b.displayLabel)),
-    [page],
-  );
-  const selected = page?.data.find((session) => session.id === selectedId) ?? null;
   const timeZone = selectedCenter?.timeZone ?? "UTC";
+  const selected = page?.data.find((session) => session.id === selectedId) ?? null;
+  const staffOptions = useMemo(() => {
+    const map = new Map((page?.data ?? []).map((session) => [session.staff.id, session.staff]));
+    if (staffId && !map.has(staffId)) map.set(staffId, { id: staffId, displayLabel: short(staffId) });
+    return [...map.values()].sort((a, b) => a.displayLabel.localeCompare(b.displayLabel));
+  }, [page, staffId]);
+  const columns = useMemo<BoDataGridColumn<BoTimekeepingSession>[]>(() => [
+    { key: "staff", header: "Staff", sticky: true, minWidth: 220, render: (row) => <span><strong>{row.staff.displayLabel}</strong><br /><BoDataGridCanonicalId value={row.id} label="Copy TimekeepingSession ID" /></span> },
+    { key: "date", header: "Date", minWidth: 115, render: (row) => row.workDate },
+    { key: "checkIn", header: "Check-in", minWidth: 110, render: (row) => clock(row.effective.checkInAt, timeZone) },
+    { key: "checkOut", header: "Check-out", minWidth: 110, render: (row) => row.effective.checkOutAt ? clock(row.effective.checkOutAt, timeZone) : "—" },
+    { key: "duration", header: "Duration", minWidth: 105, render: (row) => duration(row.effective.durationSeconds) },
+    { key: "assignment", header: "Assignment", minWidth: 180, render: (row) => row.assignment?.shift?.displayLabel ?? (row.assignmentId ? short(row.assignmentId) : "Legacy") },
+    { key: "correction", header: "Provenance", minWidth: 135, render: (row) => row.latestCorrection ? <BoDataGridStatus value="CORRECTED" tone="info" /> : <span>Recorded</span> },
+    { key: "status", header: "Status", minWidth: 110, render: (row) => <BoDataGridStatus value={row.status} tone={row.status === "OPEN" ? "warning" : "success"} /> },
+  ], [timeZone]);
 
   useEffect(() => {
     let active = true;
     void boApi.timekeepingCenters().then((items) => {
       if (!active) return;
-      const next = items.map((center) => ({ id: center.id, displayName: center.displayLabel, timeZone: center.timeZone }));
-      setCenters(next);
-      const first = next[0];
-      if (first) {
-        setCenterId(first.id);
-        const date = localDate(first.timeZone);
-        setStartDate(date);
-        setEndDate(date);
-      }
+      setCenters(items.map((center) => ({ id: center.id, displayName: center.displayLabel, timeZone: center.timeZone })));
     }).catch((error) => active && setLoad({ state: "error", message: message(error) }));
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    if (!centerId || !selectedCenter) return;
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centerId, mode, startDate, endDate, status, staffId, selectedCenter?.timeZone]);
-
-  async function refresh(cursor?: string, silent = false) {
-    if (!silent) setLoad({ state: "loading" });
-    try {
-      const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate };
-      const result = await boApi.timekeeping({
+    if (!centerId || !selectedCenter || !today) return;
+    let active = true;
+    setLoad({ state: "loading" });
+    const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate };
+    void loadBoTimekeepingPageForState({
+      page: state.page,
+      pageSize: state.pageSize,
+      query: {
         ...params,
         ...(status ? { status } : {}),
         ...(staffId ? { staffMemberId: staffId } : {}),
-        limit: 100,
-        ...(cursor ? { cursor } : {}),
-      });
-      setLoad({ state: "ready", page: result });
-      setSelectedId((current) => result.data.some((session) => session.id === current) ? current : (result.data[0]?.id ?? ""));
-    } catch (error) {
-      setLoad({ state: "error", message: message(error) });
-    }
+      },
+      load: boApi.timekeeping,
+    }).then((result) => {
+      if (!active) return;
+      if (result.kind === "reconcile-page") {
+        setPageRef.current(result.page);
+        return;
+      }
+      setLoad({ state: "ready", page: result.data });
+      setSelectedId((current) => result.data.data.some((session) => session.id === current) ? current : "");
+    }).catch((error) => {
+      if (active) setLoad({ state: "error", message: message(error) });
+    });
+    return () => { active = false; };
+  }, [centerId, endDate, mode, refreshToken, staffId, startDate, state.page, state.pageSize, status, selectedCenter, today]);
+
+  function setMode(next: Mode) {
+    setFilter("mode", next === "today" ? null : next);
   }
 
   return <main className={styles.page}>
@@ -78,20 +103,6 @@ export function TimekeepingView() {
       <p>Recorded attendance stays immutable. Authorized corrections are appended as provenance and shown separately.</p>
     </header>
 
-    <section className={styles.toolbar}>
-      <div className={styles.tabs}>
-        <button className={mode === "today" ? styles.activeTab : ""} onClick={() => setMode("today")}>Today</button>
-        <button className={mode === "history" ? styles.activeTab : ""} onClick={() => setMode("history")}>History</button>
-      </div>
-      <label>Center<select value={centerId} onChange={(event) => { setCenterId(event.target.value); setStaffId(""); }}>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
-      {mode === "history" ? <>
-        <label>From<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-        <label>To<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
-      </> : <div className={styles.today}>{today}</div>}
-      <label>Status<select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="">All</option><option>OPEN</option><option>CLOSED</option></select></label>
-      <label>Staff<select value={staffId} onChange={(event) => setStaffId(event.target.value)}><option value="">All</option>{staffOptions.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayLabel}</option>)}</select></label>
-    </section>
-
     {page && mode === "today" ? <section className={styles.metrics}>
       <Metric label="Currently checked in" value={page.summary.openSessions} />
       <Metric label="Checked out today" value={page.summary.closedSessions} />
@@ -99,29 +110,43 @@ export function TimekeepingView() {
       <Metric label="Total sessions" value={page.summary.totalSessions} />
     </section> : null}
 
-    {load.state === "loading" ? <State text="Đang tải TimekeepingSession từ Core…" /> : null}
-    {load.state === "error" ? <State text={load.message} error /> : null}
-    {page ? <div className={styles.workspace}>
-      <section className={styles.listPanel}>
-        <div className={styles.listHead}><div><strong>{mode === "today" ? "Today" : "History"}</strong><span>{page.summary.totalSessions} sessions</span></div><span>Effective view</span></div>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead><tr><th>Staff</th><th>Date</th><th>Check-in</th><th>Check-out</th><th>Duration</th><th>Assignment</th><th>Status</th></tr></thead>
-            <tbody>{page.data.map((row) => <tr key={row.id} className={selectedId === row.id ? styles.selectedRow : ""} onClick={() => setSelectedId(row.id)}>
-              <td><strong>{row.staff.displayLabel}</strong><small>{row.latestCorrection ? "Corrected" : short(row.staff.id)}</small></td>
-              <td>{row.workDate}</td>
-              <td>{clock(row.effective.checkInAt, timeZone)}</td>
-              <td>{row.effective.checkOutAt ? clock(row.effective.checkOutAt, timeZone) : "—"}</td>
-              <td>{duration(row.effective.durationSeconds)}</td>
-              <td>{row.assignment?.shift?.displayLabel ?? (row.assignmentId ? short(row.assignmentId) : "Legacy")}</td>
-              <td><span className={row.status === "OPEN" ? styles.openPill : styles.closedPill}>{row.status}</span></td>
-            </tr>)}</tbody>
-          </table>
+    <BoDataGrid
+      rows={page?.data ?? []}
+      columns={columns}
+      rowKey={(row) => row.id}
+      caption={mode === "today" ? "Today timekeeping sessions" : "Timekeeping history"}
+      state={load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
+      stateMessage={load.state === "error" ? load.message : undefined}
+      filterChips={[
+        ...(mode === "history" ? [{ key: "mode", label: "View", value: "History", onClear: () => setMode("today") }] : []),
+        ...(status ? [{ key: "status", label: "Status", value: status, onClear: () => setFilter("status", null) }] : []),
+        ...(staffId ? [{ key: "staff", label: "Staff", value: staffOptions.find((staff) => staff.id === staffId)?.displayLabel ?? short(staffId), onClear: () => setFilter("staff", null) }] : []),
+      ]}
+      toolbarActions={<div className={styles.gridToolbarActions}>
+        <div className={styles.tabs}>
+          <button type="button" className={mode === "today" ? styles.activeTab : ""} onClick={() => setMode("today")}>Today</button>
+          <button type="button" className={mode === "history" ? styles.activeTab : ""} onClick={() => setMode("history")}>History</button>
         </div>
-        {page.nextCursor ? <button className={styles.more} onClick={() => void refresh(page.nextCursor!)}>Load next page</button> : null}
-      </section>
-      <aside className={styles.detail}>{selected ? <Detail row={selected} timeZone={timeZone} onSaved={() => refresh(undefined, true)} /> : <div className={styles.empty}>Chọn một TimekeepingSession để xem chi tiết.</div>}</aside>
-    </div> : null}
+        <label>Center<select aria-label="Filter Timekeeping by center" value={centerId} onChange={(event) => { setFilter("center", event.target.value || null); setFilter("staff", null); }}><option value="">Select center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
+        {mode === "history" ? <>
+          <label>From<input aria-label="Timekeeping history from" type="date" value={startDate} onChange={(event) => setFilter("from", event.target.value || null)} /></label>
+          <label>To<input aria-label="Timekeeping history to" type="date" value={endDate} onChange={(event) => setFilter("to", event.target.value || null)} /></label>
+        </> : <span className={styles.today}>{today}</span>}
+        <label>Status<select aria-label="Filter Timekeeping by status" value={status} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
+        <label>Staff<select aria-label="Filter Timekeeping by staff" value={staffId} onChange={(event) => setFilter("staff", event.target.value || null)}><option value="">All</option>{staffOptions.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayLabel}</option>)}</select></label>
+      </div>}
+      onRefresh={() => setRefreshToken((value) => value + 1)}
+      resultLabel={`${page?.summary.totalSessions ?? 0} sessions · effective view`}
+      pagination={page ? { page: state.page, pageSize: state.pageSize, total: page.summary.totalSessions, pageSizeOptions: PAGE_SIZES, onPageChange: setPage, onPageSizeChange: setPageSize } : undefined}
+      selectedRowKey={selectedId || null}
+      onRowOpen={(row) => setSelectedId(row.id)}
+      emptyTitle={mode === "today" ? "No timekeeping sessions today" : "No matching timekeeping history"}
+      emptyMessage="Adjust the bounded date, status or staff filters. Canonical attendance remains in Core."
+    />
+
+    {selected ? <BoDataGridSidePeek title={selected.staff.displayLabel} eyebrow={`TimekeepingSession · ${selected.workDate}`} onClose={() => setSelectedId("")}>
+      <Detail row={selected} timeZone={timeZone} onSaved={async () => { setRefreshToken((value) => value + 1); }} />
+    </BoDataGridSidePeek> : null}
   </main>;
 }
 
@@ -207,7 +232,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
     }
   }
 
-  return <>
+  return <div className={styles.peekDetail}>
     <div className={styles.detailHead}>
       <div><span>TimekeepingSession</span><h2>{row.staff.displayLabel}</h2><code>{row.id}</code></div>
       <span className={row.status === "OPEN" ? styles.openPill : styles.closedPill}>{row.status}</span>
@@ -268,7 +293,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
       </div>}
       {notice ? <p className={styles.correctionNotice}>{notice}</p> : null}
     </section>}
-  </>;
+  </div>;
 }
 
 function Fact({ label, value }: { label: string; value: string }) { return <div className={styles.fact}><span>{label}</span><strong>{value}</strong></div>; }
