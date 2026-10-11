@@ -392,7 +392,7 @@ export function StaffManagementView() {
         ]}
         resultLabel={`${sortedRows.length} / ${gridRows.length} staff`}
         selectedRowKey={selectedId || null}
-        onRowOpen={({ staff }) => { if (busy !== "password-reset") selectStaff(staff.id, "push"); }}
+        onRowOpen={busy === "password-reset" ? undefined : ({ staff }) => selectStaff(staff.id, "push")}
         emptyTitle="Không có Staff phù hợp"
         emptyMessage="Thử đổi search hoặc filter; canonical Staff/Access state không bị thay đổi."
         pagination={{ page: gridRange.page, pageSize: grid.state.pageSize, total: sortedRows.length, pageSizeOptions: STAFF_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
