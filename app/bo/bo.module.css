@@ -451,3 +451,17 @@
 .auditPayload { margin-top:18px; }
 .auditPayload > span { color:#777380; font-size:10px; font-weight:800; letter-spacing:.05em; }
 .auditPayload pre { max-height:320px; overflow:auto; margin:8px 0 0; padding:12px; border:1px solid #dedee8; border-radius:10px; background:#f7f7fa; white-space:pre-wrap; overflow-wrap:anywhere; }
+/* PAP-388 · Staff shared Data Grid migration */
+.staffGridToolbar { display: flex; align-items: center; gap: 7px; }
+.staffGridIdentity { min-width: 0; display: grid; gap: 4px; }
+.staffGridIdentity > div { min-width: 0; display: grid; gap: 4px; }
+.staffGridIdentity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #302c34; font-size: 10px; }
+.staffGridStack { display: grid; gap: 4px; align-items: start; }
+.staffGridStack strong { color: #4b4650; font-size: 9px; }
+.staffGridStack small { color: #8b8790; font-size: 8px; line-height: 1.35; }
+.staffGridBadges { display: flex; flex-wrap: wrap; gap: 4px; }
+.staffGridMuted { color: #97919c; font-size: 8px; }
+.staffGridPeek { display: grid; gap: 12px; }
+.staffGridPeek .staffDetailStack { display: grid; gap: 10px; }
+.staffGridPeek .panel { box-shadow: none; }
+@media (max-width: 640px) { .staffGridToolbar { width: 100%; flex-wrap: wrap; } .staffGridToolbar .gridToolbarFilter { flex: 1 1 150px; justify-content: space-between; } }
