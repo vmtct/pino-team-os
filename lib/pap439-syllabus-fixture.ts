@@ -129,9 +129,9 @@ export async function preparePap439SyllabusFixture(
     });
     if (foreignMedia.pathProgramId !== foreignPath.id) throw new Error("PAP-439 foreign worksheet media lost exact Path provenance.");
 
-    await expectForbidden(() => manager.get(`learning/syllabi/media?pathProgramId=${encodeURIComponent(foreignPath.id)}`), "foreign Path media list");
-    await expectForbidden(() => manager.previewWorksheetMedia({ mediaAssetId: foreignMedia.mediaAssetId, pathProgramId: foreignPath.id }), "foreign Path media preview");
-    await expectForbidden(() => manager.previewWorksheetMedia({ mediaAssetId: foreignMedia.mediaAssetId, pathProgramId: path.id }), "foreign media preview with authorized Path substituted");
+    await expectDenied(() => manager.get(`learning/syllabi/media?pathProgramId=${encodeURIComponent(foreignPath.id)}`), "foreign Path media list", [403]);
+    await expectDenied(() => manager.previewWorksheetMedia({ mediaAssetId: foreignMedia.mediaAssetId, pathProgramId: foreignPath.id }), "foreign Path media preview", [403]);
+    await expectDenied(() => manager.previewWorksheetMedia({ mediaAssetId: foreignMedia.mediaAssetId, pathProgramId: path.id }), "foreign media preview with authorized Path substituted", [400]);
 
     const existing = await manager.get<Array<{ syllabus: { code: string; lifecycle: string } }>>(`learning/syllabi?ownerType=HOUSE_PATH&ownerId=${encodeURIComponent(path.id)}`);
     if (existing.some(item => item.syllabus.code === syllabusCode)) throw new Error("PAP-439 fresh synthetic Path unexpectedly already owns this fixture Syllabus.");
@@ -148,16 +148,17 @@ export async function preparePap439SyllabusFixture(
     const syllabusId = created.syllabus.id;
     const draftV1 = requireDraft(created, 1);
 
+    const expectedWorksheetBytes = tinyPngBytes();
     const media = await manager.uploadWorksheetMedia({
       pathProgramId: path.id,
       fileName: `pap439-${runTag}.png`,
       mimeType: "image/png",
-      bytes: tinyPngBytes(),
+      bytes: expectedWorksheetBytes,
       idempotencyKey: replayKey(runTag, "worksheet-upload"),
     });
     if (media.pathProgramId !== path.id) throw new Error("PAP-439 worksheet media lost exact Path provenance.");
     const positivePreview = await manager.previewWorksheetMedia({ mediaAssetId: media.mediaAssetId, pathProgramId: path.id });
-    if (positivePreview.mimeType !== "image/png" || positivePreview.bytes.byteLength < 1) throw new Error("PAP-439 authorized worksheet preview did not return expected PNG bytes.");
+    if (positivePreview.mimeType !== "image/png" || !equalBytes(positivePreview.bytes, expectedWorksheetBytes)) throw new Error("PAP-439 authorized worksheet preview did not return exact uploaded PNG bytes.");
 
     const editedV1 = await manager.command<BoLearningSyllabusVersion>("POST", `learning/syllabi/${syllabusId}/draft`, {
       expectedRevision: draftV1.revision,
@@ -192,6 +193,20 @@ export async function preparePap439SyllabusFixture(
   }
 }
 
+export async function recoverPap439SyllabusFixture(
+  founder: Pap439ManagerPort,
+  manager: Pap439ManagerPort,
+  input: { runId: string; managerUserId: string },
+) {
+  const runTag = normalizeRunTag(input.runId);
+  const roles = await founder.get<BoAccessRole[]>("access/roles");
+  const managerRole = roles.find(item => item.roleKey.toLowerCase() === MANAGER_ROLE_KEY && item.status === "active");
+  if (!managerRole) throw new Error("PAP-439 recovery requires the active system Manager role identity.");
+  const cleanupErrors = await reconcileAndCleanup(founder, manager, { runTag, managerUserId: input.managerUserId, managerRoleId: managerRole.id });
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "PAP-439 recovery could not prove terminal synthetic state.");
+  return { cleaned: true as const, runTag, managerUserId: input.managerUserId };
+}
+
 export async function cleanupPap439SyllabusFixture(founder: Pap439ManagerPort, manager: Pap439ManagerPort, fixture: Pap439SyllabusFixture) {
   const cleanupErrors = await reconcileAndCleanup(founder, manager, { runTag: fixture.runTag, managerUserId: fixture.managerUserId, managerRoleId: fixture.managerRoleId });
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "PAP-439 cleanup could not prove terminal synthetic state.");
@@ -221,12 +236,12 @@ async function requireBoundedManager(founder: Pap439JsonPort, managerUserId: str
   return detail;
 }
 
-async function expectForbidden(action: () => Promise<unknown>, label: string) {
+async function expectDenied(action: () => Promise<unknown>, label: string, allowedStatuses: readonly number[]) {
   try { await action(); } catch (error) {
-    if (error instanceof Pap439HttpError && error.status === 403) return;
+    if (error instanceof Pap439HttpError && allowedStatuses.includes(error.status)) return;
     throw error;
   }
-  throw new Error(`PAP-439 expected 403 for ${label}.`);
+  throw new Error(`PAP-439 expected HTTP ${allowedStatuses.join("/")} denial for ${label}.`);
 }
 
 function requireDraft(detail: BoLearningSyllabusDetail, versionNumber: number) {
@@ -314,6 +329,12 @@ function normalizeRunTag(value: string) {
 }
 
 function replayKey(runTag: string, action: string) { return `pap439:${runTag}:${action}`; }
+
+function equalBytes(actual: ArrayBuffer, expected: Uint8Array) {
+  const view = new Uint8Array(actual);
+  if (view.byteLength !== expected.byteLength) return false;
+  return view.every((byte, index) => byte === expected[index]);
+}
 
 function tinyPngBytes() {
   return Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,8,215,99,248,207,192,240,31,0,5,0,1,255,137,153,61,29,0,0,0,0,73,69,78,68,174,66,96,130]);

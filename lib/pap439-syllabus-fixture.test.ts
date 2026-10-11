@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanupPap439SyllabusFixture, Pap439HttpError, preparePap439SyllabusFixture, type Pap439ManagerPort } from "./pap439-syllabus-fixture";
+import { cleanupPap439SyllabusFixture, Pap439HttpError, preparePap439SyllabusFixture, recoverPap439SyllabusFixture, type Pap439ManagerPort } from "./pap439-syllabus-fixture";
 import type { F3Path } from "./f3-delivery-api";
 import type { BoLearningSyllabusDetail, BoLearningSyllabusVersion, BoSyllabusWorksheetMedia } from "./bo-model";
 
@@ -111,6 +111,7 @@ class ManagerFake implements Pap439ManagerPort {
   syllabusCode: string | null = null;
   allowForeign = false;
   publishCount = 0;
+  corruptPositivePreview = false;
 
   constructor(private readonly shared: SharedState) {}
 
@@ -167,7 +168,9 @@ class ManagerFake implements Pap439ManagerPort {
   async previewWorksheetMedia(input: { mediaAssetId: string; pathProgramId: string }): Promise<{ mimeType: string; bytes: ArrayBuffer }> {
     const media = this.shared.media.get(input.mediaAssetId);
     if (!media) throw new Pap439HttpError(404, "not found");
-    if (!this.allowForeign && (input.pathProgramId !== this.shared.managerPathId || media.pathProgramId !== input.pathProgramId)) throw new Pap439HttpError(403, "forbidden");
+    if (!this.allowForeign && input.pathProgramId !== this.shared.managerPathId) throw new Pap439HttpError(403, "forbidden");
+    if (!this.allowForeign && media.pathProgramId !== input.pathProgramId) throw new Pap439HttpError(400, "Worksheet media is outside the authorized Path");
+    if (this.corruptPositivePreview && media.pathProgramId === this.shared.managerPathId) return { mimeType: media.mimeType, bytes: Uint8Array.from([0]).buffer };
     return { mimeType: media.mimeType, bytes: media.bytes.buffer.slice(media.bytes.byteOffset, media.bytes.byteOffset + media.bytes.byteLength) as ArrayBuffer };
   }
 }
@@ -202,7 +205,7 @@ test("PAP-439 requires publish permission and rejects GLOBAL publish-only author
 
 test("PAP-439 fails closed and rolls back when foreign media preview/provenance becomes readable", async () => {
   const shared = sharedState(); const founder = new FounderFake(shared); const manager = new ManagerFake(shared); manager.allowForeign = true;
-  await assert.rejects(() => preparePap439SyllabusFixture(founder, manager, { runId: "run-leak", managerUserId }), /expected 403/);
+  await assert.rejects(() => preparePap439SyllabusFixture(founder, manager, { runId: "run-leak", managerUserId }), /expected HTTP/);
   assert.equal(founder.assignments.size, 0); assert.ok(founder.paths.every(item => item.status === "ARCHIVED"));
 });
 
@@ -224,4 +227,21 @@ test("PAP-439 cleanup reconciles a committed assignment removal whose response w
   assert.equal(founder.assignments.size, 0, "simulated mutation committed before response loss");
   const retry = await cleanupPap439SyllabusFixture(founder, manager, fixture);
   assert.equal(retry.cleaned, true); assert.ok(founder.paths.every(item => item.status === "ARCHIVED"));
+});
+
+
+test("PAP-439 rejects corrupt authorized preview bytes", async () => {
+  const shared = sharedState(); const founder = new FounderFake(shared); const manager = new ManagerFake(shared); manager.corruptPositivePreview = true;
+  await assert.rejects(() => preparePap439SyllabusFixture(founder, manager, { runId: "run-corrupt-preview", managerUserId }), /exact uploaded PNG bytes/);
+  assert.equal(founder.assignments.size, 0); assert.ok(founder.paths.every(item => item.status === "ARCHIVED"));
+});
+
+test("PAP-439 exported recovery reconciles partial prepare after rollback response loss", async () => {
+  const shared = sharedState(); const founder = new FounderFake(shared); const manager = new ManagerFake(shared);
+  manager.allowForeign = true; founder.failArchiveAfterCommitOnceFor = "path-1";
+  await assert.rejects(() => preparePap439SyllabusFixture(founder, manager, { runId: "run-partial-recovery", managerUserId }), AggregateError);
+  assert.equal(founder.assignments.size, 1, "failed rollback should leave recoverable durable PATH authority evidence");
+  manager.allowForeign = false;
+  const recovery = await recoverPap439SyllabusFixture(founder, manager, { runId: "run-partial-recovery", managerUserId });
+  assert.equal(recovery.cleaned, true); assert.equal(founder.assignments.size, 0); assert.ok(founder.paths.every(item => item.status === "ARCHIVED"));
 });
