@@ -83,6 +83,25 @@ test("PAP-438 recognizes GLOBAL fallback without executing a mutating Draft-only
   assert.equal(port.bootstrap.upcomingSessions.length, 0);
 });
 
+test("PAP-438 rebinds GLOBAL authority at the exact probe time after preparation", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap438DeliveryFixture(port, "global02", now, 3);
+  assert.equal(fixture.initialGlobalPolicyMode, "ABSENT");
+  port.installGlobalPublishedPolicy(5, "2026-10-10T05:30:00.000Z");
+  const behavior = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
+  assert.equal(behavior.mode, "GLOBAL_FALLBACK_REMAINS_EFFECTIVE");
+  assert.equal(port.bootstrap.upcomingSessions.length, 0);
+});
+
+test("PAP-438 ignores future-effective GLOBAL authority at an earlier probe instant", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap438DeliveryFixture(port, "global03", now, 3);
+  port.installGlobalPublishedPolicy(5, "2026-10-10T07:00:00.000Z");
+  const behavior = await provePap438DraftOnlyBehavior(port, fixture, now.toISOString());
+  assert.equal(behavior.mode, "NO_EFFECTIVE_POLICY_BLOCKED");
+  assert.equal(port.bootstrap.upcomingSessions.length, 0);
+});
+
 test("PAP-438 refuses any pre-existing active E2E topology, including same-run-prefix drift", async () => {
   const port = new FakePort();
   port.bootstrap.runningClasses.push({
@@ -226,13 +245,13 @@ class FakePort implements Pap438FixturePort {
   }
 
   installIdleBaseline() { this.installPublishedPolicy(1); }
-  installGlobalPublishedPolicy(horizonDays:number) {
+  installGlobalPublishedPolicy(horizonDays:number, effectiveFrom="2026-10-01T00:00:00.000Z") {
     this.globalStream = this.newStream("GLOBAL", null);
     this.globalStream.revision = 2;
     this.globalStream.publishedVersionId = this.id();
     this.globalStream.publishedVersion = 1;
     this.globalStream.publishedValue = {horizonDays};
-    this.globalStream.effectiveFrom = "2026-10-01T00:00:00.000Z";
+    this.globalStream.effectiveFrom = effectiveFrom;
     this.syncPolicy();
   }
   installPublishedPolicy(horizonDays:number) {

@@ -114,8 +114,19 @@ export async function preparePap438DeliveryFixture(
 
 export async function provePap438DraftOnlyBehavior(port: Pap438FixturePort, fixture: Pap438DeliveryFixture, probeEffectiveAt = new Date().toISOString()) {
   if (fixture.initialPolicyMode === "ABSENT") {
-    if (fixture.initialGlobalPolicyMode === "EFFECTIVE") {
-      return { mode: "GLOBAL_FALLBACK_REMAINS_EFFECTIVE" as const, note: "The CENTER Draft is non-effective, but an already-published GLOBAL policy remains authoritative; no materialization probe is executed." };
+    const probeState = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+    const centerStreams = probeState.materializationPolicyStreams.filter((item) => item.targetType === "CENTER" && item.targetId === fixture.centerId);
+    if (centerStreams.length > 1) throw new Error("PAP-438 found multiple CENTER materialization streams at draft-only probe time.");
+    const globalStreams = probeState.materializationPolicyStreams.filter((item) => item.targetType === "GLOBAL");
+    if (globalStreams.length > 1) throw new Error("PAP-438 found multiple GLOBAL materialization streams at draft-only probe time.");
+
+    const effectiveCenter = centerStreams.find((item) => isPolicyEffectiveAt(item, probeEffectiveAt));
+    if (effectiveCenter) {
+      return { mode: "CENTER_POLICY_REMAINS_EFFECTIVE" as const, horizonDays: effectiveCenter.publishedValue!.horizonDays, note: "A CENTER policy became effective at the exact probe instant; no mutating Draft-only materialization probe is executed." };
+    }
+    const effectiveGlobal = globalStreams.find((item) => isPolicyEffectiveAt(item, probeEffectiveAt));
+    if (effectiveGlobal) {
+      return { mode: "GLOBAL_FALLBACK_REMAINS_EFFECTIVE" as const, horizonDays: effectiveGlobal.publishedValue!.horizonDays, note: "The CENTER Draft is non-effective, but a GLOBAL policy is effective at the exact probe instant; no materialization probe is executed." };
     }
     try {
       await port.command("POST", "delivery/materializations", {
@@ -133,6 +144,15 @@ export async function provePap438DraftOnlyBehavior(port: Pap438FixturePort, fixt
     horizonDays: IDLE_HORIZON_DAYS,
     note: "A Draft never overrides the already-published E2E idle baseline until explicit publish.",
   };
+}
+
+function isPolicyEffectiveAt(stream: F3PolicyStream, effectiveAt: string): boolean {
+  const at = Date.parse(effectiveAt);
+  if (!Number.isFinite(at) || new Date(at).toISOString() !== effectiveAt) throw new Error("PAP-438 probe effectiveAt must be a canonical UTC instant.");
+  if (!stream.publishedVersionId || !stream.publishedValue || !stream.effectiveFrom) return false;
+  const from = Date.parse(stream.effectiveFrom);
+  const until = stream.effectiveUntil === null ? null : Date.parse(stream.effectiveUntil);
+  return Number.isFinite(from) && from <= at && (until === null || (Number.isFinite(until) && until > at));
 }
 
 export async function publishAndMaterializePap438Fixture(
