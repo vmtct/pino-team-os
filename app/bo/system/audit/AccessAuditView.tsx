@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BoDataGrid,
   BoDataGridCanonicalId,
@@ -10,6 +10,7 @@ import {
   type BoDataGridColumn,
 } from "@/app/bo/components/data-grid";
 import { boApi, type BoAccessAuditPage } from "@/lib/bo-api";
+import { loadBoAccessAuditPageForState } from "@/lib/bo-access-audit-page-controller";
 import type { BoAccessAuditEvent } from "@/lib/bo-access-model";
 import styles from "../../bo.module.css";
 
@@ -29,20 +30,26 @@ export function AccessAuditView() {
     allowedPageSizes: PAGE_SIZES,
   });
   const outcome = state.filters.outcome ?? "";
+  const setPageRef = useRef(setPage);
+  setPageRef.current = setPage;
 
   const refresh = useCallback(() => setRefreshToken((value) => value + 1), []);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    void boApi.accessAuditPage({
-      limit: state.pageSize,
-      offset: (state.page - 1) * state.pageSize,
-      ...(state.search ? { query: state.search } : {}),
-      ...(outcome ? { outcome } : {}),
-    }).then((data) => {
+    void loadBoAccessAuditPageForState({
+      page: state.page,
+      pageSize: state.pageSize,
+      search: state.search,
+      outcome,
+    }, boApi.accessAuditPage).then((result) => {
       if (!active) return;
-      setResult(data);
+      if (result.kind === "reconcile-page") {
+        setPageRef.current(result.page);
+        return;
+      }
+      setResult(result.data);
       setError("");
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : "Không thể tải Access audit.");
