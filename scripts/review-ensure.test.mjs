@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync,spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {parseResetAt} from './review-ensure.mjs';
 
 const TOOL=fileURLToPath(new URL('./review-ensure.mjs',import.meta.url));
 const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
@@ -24,6 +25,33 @@ function authority(f,verdict='PASS'){
 }
 function run(f,env={}){const x=spawnSync(process.execPath,[TOOL,'ensure',f.spec],{encoding:'utf8',env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let json=null;try{json=JSON.parse(x.stdout||x.stderr)}catch{}return{x,json}}
 function runAsync(f,env={}){return new Promise(resolve=>{const x=spawn(process.execPath,[TOOL,'ensure',f.spec],{env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let out='',err='';x.stdout.on('data',d=>out+=d);x.stderr.on('data',d=>err+=d);x.on('close',code=>{let json=null;try{json=JSON.parse(out||err)}catch{}resolve({code,json,out,err})})})}
+
+
+test('RESET_AT parser normalizes real Codex clock-only quota horizon in Asia/Ho_Chi_Minh',()=>{
+ const parsed=parseResetAt("ERROR: You've hit your usage limit. Upgrade to Pro or try again at 6:04 PM.",'2026-10-12T09:35:36.087Z');
+ assert.deepEqual(parsed,{resetAtRaw:'6:04 PM',resetAt:'2026-10-12T18:04:00+07:00',timezone:'Asia/Ho_Chi_Minh',timezoneOffsetMinutes:420});
+ assert.equal(parseResetAt("ERROR: You've hit your usage limit.",'2026-10-12T09:35:36.087Z'),null);
+});
+
+function seedCapacityObservation(f,{minutesAhead=30}={}){
+ const observedAt=new Date(Date.now()-5*60*1000).toISOString(),futureLocal=new Date(Date.now()+minutesAhead*60*1000+7*60*60*1000);let h=futureLocal.getUTCHours();const marker=h>=12?'PM':'AM',h12=h%12||12,raw=`${h12}:${String(futureLocal.getUTCMinutes()).padStart(2,'0')} ${marker}`,providerEvidence=`ERROR: You've hit your usage limit. Upgrade to Pro or try again at ${raw}.`,parsed=parseResetAt(providerEvidence,observedAt),sourceCandidate='9'.repeat(40),sourcePath=path.join(f.root,'state','codex-fallback','INDIE-'+sourceCandidate+'.json'),source={schemaVersion:1,kind:'PINO_CODEX_FALLBACK_ELIGIBILITY',reviewKind:'INDIE',candidate:sourceCandidate,repository:'vmtct/pino-core',exitClass:'CAPACITY_EXHAUSTED',allAuthenticatedProfilesExhausted:true,profilesAttempted:['/home/tri/.codex-vmtct97'],createdAt:observedAt,evidenceLog:path.join(f.root,'source-codex.log')};
+ write(source.evidenceLog,providerEvidence+'\n');write(sourcePath,source);const observation={schemaVersion:1,kind:'PINO_CODEX_CAPACITY_OBSERVATION',provider:'OPENAI_CODEX',capacityDomain:'openai:vmtct97',profileId:'vmtct97',state:'EXHAUSTED',observedAt,...parsed,profilesAttempted:source.profilesAttempted,allAuthenticatedProfilesExhausted:true,sourceClass:'PROVIDER_USAGE_LIMIT',sourceReceiptPath:sourcePath,sourceReceiptHash:digest(source),sourceCandidate,sourceRepository:'vmtct/pino-core',evidenceLog:source.evidenceLog,evidenceLogSha256:crypto.createHash('sha256').update(fs.readFileSync(source.evidenceLog)).digest('hex'),providerEvidence,providerEvidenceSha256:crypto.createHash('sha256').update(providerEvidence).digest('hex'),persistedAt:new Date().toISOString()};
+ const observationPath=path.join(f.root,'state','codex-capacity','vmtct97.json');write(observationPath,observation);return{observation,observationPath,sourcePath};
+}
+
+test('fresh INDIE reuses active single-account exhaustion and skips redundant Codex launch',()=>{
+ const f=fixture('known-capacity-skip','6'.repeat(40)),seed=seedCapacityObservation(f),cf=path.join(f.root,'codex-should-not-run.json'),start=path.join(f.root,'chat-start.json');
+ write(cf,{schemaVersion:1,status:89,stdout:'',stderr:'SHOULD_NOT_RUN'});write(start,{auditWorkId:'review-ensure:known-capacity-skip:666666666666',conversationUrl:'https://chatgpt.com/c/known-capacity',label:'known-capacity-audit',round:1});
+ const a=run(f,{PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf,PINO_REVIEW_ENSURE_TEST_CHATGPT_START_FIXTURE:start});assert.equal(a.x.status,0);assert.equal(a.json.provider,'CHATGPT_AUDIT_FALLBACK');assert.equal(a.json.transition,'KNOWN_CAPACITY_EXHAUSTED_TO_CHATGPT_START_CONFIRMED');assert.equal(a.json.capacityEvidenceReused,true);assert.equal(a.json.codexAttemptedForCandidate,false);assert.equal(a.json.resetAt,seed.observation.resetAt);
+ const derivedPath=path.join(f.root,'state','codex-fallback','INDIE-'+f.head+'.json'),derived=JSON.parse(fs.readFileSync(derivedPath));assert.equal(derived.candidate,f.head);assert.equal(derived.capacityEvidenceReused,true);assert.equal(derived.codexAttemptedForCandidate,false);assert.equal(derived.capacityObservationHash,digest(seed.observation));assert.equal(derived.sourceCapacityReceiptHash,digest(JSON.parse(fs.readFileSync(seed.sourcePath))));
+ const state=JSON.parse(fs.readFileSync(f.state)),record=Object.values(state.records)[0];assert.equal(record.codexStartedAt,undefined);assert.equal(record.capacityEvidenceReused,true);
+});
+
+test('expired capacity horizon becomes retry-eligible and Codex is attempted again',()=>{
+ const f=fixture('expired-capacity-retry','7'.repeat(40)),seed=seedCapacityObservation(f),observation=JSON.parse(fs.readFileSync(seed.observationPath)),cf=path.join(f.root,'codex.json');observation.resetAt=new Date(Date.now()-60*1000).toISOString();write(seed.observationPath,observation);write(cf,{schemaVersion:1,status:89,stdout:'',stderr:'AUTH_FAILED'});
+ const a=run(f,{PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf});assert.equal(a.x.status,0);assert.equal(a.json.provider,'CODEX_DIRECT');assert.equal(a.json.status,'REVIEW_RUNNING');
+ const state=JSON.parse(fs.readFileSync(f.state)),record=Object.values(state.records)[0];assert.ok(record.codexStartedAt);assert.equal(record.capacityEvidenceReused,undefined);
+});
 
 test('Codex-first fixture reaches durable verdict and is idempotent across fresh processes',()=>{
  const f=fixture('codex-pass'),ap=authority(f),cf=path.join(f.root,'codex.json');write(cf,{schemaVersion:1,status:0,stdout:JSON.stringify({codexDirectReviewVerified:true,reviewAuthorityPath:ap})+'\n',stderr:''});
@@ -44,6 +72,7 @@ test('capacity exhaustion transitions to ChatGPT only after exact receipt and ST
  const b=run(f,env);assert.equal(b.x.status,0);assert.equal(b.json.status,'REVIEW_RUNNING');assert.equal(b.json.provider,'CHATGPT_AUDIT_FALLBACK');assert.equal(b.json.transition,'CAPACITY_EXHAUSTED_TO_CHATGPT_START_CONFIRMED');assert.equal(b.json.conversationUrl,start.conversationUrl??'https://chatgpt.com/c/test-fallback');
  write(status,{ok:true,work:{status:'REVIEW_PASS',currentRound:1,rounds:[{round:1,status:'PASS',result:{verdict:'PASS',p0:0,p1:0,blocking_findings:[],summary:'clean'},resultEvidenceHash:'fixture-hash',consumedAt:new Date().toISOString()}]}});
  const c=run(f,env);assert.equal(c.x.status,0);assert.equal(c.json.status,'REVIEW_VERDICT');assert.equal(c.json.provider,'CHATGPT_AUDIT_FALLBACK');assert.equal(c.json.verdict,'PASS');
+ assert.equal(fs.existsSync(path.join(f.root,'state','codex-capacity','vmtct97.json')),false,'capacity cache must not be invented when provider reset horizon is absent');
 });
 
 test('non-capacity Codex failure is fail-closed and never starts ChatGPT',()=>{
