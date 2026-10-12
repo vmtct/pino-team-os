@@ -516,6 +516,9 @@ export const boApi = {
     workDate: string;
     shiftTemplateId: string;
     timeBasis?: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+    coverageMode?: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
+    customStartLocal?: string;
+    customEndLocal?: string;
     termWeekId?: string;
     replacesAssignmentId?: string;
     roles: Array<

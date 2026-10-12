@@ -582,10 +582,17 @@ export interface BoWorkforceAssignment {
   workDate: string;
   shiftTemplateId: string;
   timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+  coverageMode: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
+  effectiveStartLocal: string | null;
+  effectiveEndLocal: string | null;
+  coverageSource: Record<string, unknown> | null;
+  coverageDecidedByUserId: string | null;
+  coverageDecidedAt: string | null;
   effectiveWork?: {
     assignmentId: string;
     timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
-    windows: Array<{ startsLocal: string; endsLocal: string; sourceType: "SHIFT_TEMPLATE" | "SESSION"; sourceIds: string[] }>;
+    coverageMode: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
+    windows: Array<{ startsLocal: string; endsLocal: string; sourceType: "SHIFT_TEMPLATE" | "SESSION" | "CUSTOM_RANGE"; sourceIds: string[] }>;
     reconciliationRequired: boolean;
   };
   termWeekId: string | null;

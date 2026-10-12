@@ -15,10 +15,10 @@ test("WFTB planner enables class-time only for Teacher-only plans", () => {
 test("WFTB weekly summary shows exact class windows and reconciliation state", () => {
   const assignment:BoWorkforceAssignment={
     id:"a",staffMemberId:"s",centerId:"c",workDate:"2026-10-06",shiftTemplateId:"t",
-    timeBasis:"TEACHING_SESSIONS",termWeekId:null,status:"ACTIVE",assignedByUserId:"u",assignedAt:"",
+    timeBasis:"TEACHING_SESSIONS",coverageMode:"CLASSROOM_TIME",effectiveStartLocal:null,effectiveEndLocal:null,coverageSource:null,coverageDecidedByUserId:null,coverageDecidedAt:null,termWeekId:null,status:"ACTIVE",assignedByUserId:"u",assignedAt:"",
     cancelledByUserId:null,cancelledAt:null,cancellationReason:null,replacesAssignmentId:null,createdAt:"",updatedAt:"",
     effectiveWork:{
-      assignmentId:"a",timeBasis:"TEACHING_SESSIONS",
+      assignmentId:"a",timeBasis:"TEACHING_SESSIONS",coverageMode:"CLASSROOM_TIME",
       windows:[
         {startsLocal:"2026-10-06T18:00",endsLocal:"2026-10-06T19:30",sourceType:"SESSION",sourceIds:["s1"]},
         {startsLocal:"2026-10-06T20:00",endsLocal:"2026-10-06T21:00",sourceType:"SESSION",sourceIds:["s2"]},
@@ -27,17 +27,23 @@ test("WFTB weekly summary shows exact class windows and reconciliation state", (
     },
   };
   assert.equal(assignmentTimeSummary(assignment),"Theo giờ lớp · 18:00–19:30, 20:00–21:00");
+  const custom={...assignment,coverageMode:"CUSTOM_RANGE" as const,timeBasis:"SHIFT_TEMPLATE" as const,effectiveWork:{assignmentId:"a",timeBasis:"SHIFT_TEMPLATE" as const,coverageMode:"CUSTOM_RANGE" as const,windows:[{startsLocal:"2026-10-06T17:45",endsLocal:"2026-10-06T20:45",sourceType:"CUSTOM_RANGE" as const,sourceIds:[]}],reconciliationRequired:false}};
+  assert.equal(assignmentTimeSummary(custom),"Tuỳ chỉnh · 17:45–20:45");
   assignment.effectiveWork!.reconciliationRequired=true;
   assignment.effectiveWork!.windows=[];
   assert.equal(assignmentTimeSummary(assignment),"Theo giờ lớp · Cần xử lý");
 });
 
-test("WFTB planner renders explicit Theo ca / Theo giờ lớp controls", async () => {
+test("WFTB planner renders explicit Full / Classroom / Custom coverage controls", async () => {
   const source=await readFile("app/bo/workforce/WorkforcePlanningView.tsx","utf8");
   assert.match(source,/Giờ làm/);
-  assert.match(source,/Theo ca/);
+  assert.match(source,/Toàn ca/);
   assert.match(source,/Theo giờ lớp/);
-  assert.match(source,/timeBasis: normalizedTimeBasis/);
+  assert.match(source,/Tuỳ chỉnh khung giờ/);
+  assert.match(source,/coverageMode/);
+  assert.match(source,/customStartLocal/);
+  assert.match(source,/customEndLocal/);
+  assert.doesNotMatch(source,/timeBasis: normalizedTimeBasis/);
 });
 
 test("WFTB cancelled Learning Owner Session does not block assignment cancellation", async () => {

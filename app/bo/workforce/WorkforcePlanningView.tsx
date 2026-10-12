@@ -6,7 +6,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
 import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
-import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, normalizeTimeBasis, type WorkforceShiftTimeBasis } from "@/lib/workforce-planning-time-basis";
+import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, type WorkforceShiftCoverageMode } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
@@ -23,7 +23,9 @@ export function WorkforcePlanningView() {
   const [frontDesk, setFrontDesk] = useState(false);
   const [teacherSessionIds, setTeacherSessionIds] = useState<string[]>([]);
   const [primarySessionIds, setPrimarySessionIds] = useState<string[]>([]);
-  const [timeBasis, setTimeBasis] = useState<WorkforceShiftTimeBasis>("SHIFT_TEMPLATE");
+  const [coverageMode, setCoverageMode] = useState<WorkforceShiftCoverageMode>("FULL_SHIFT");
+  const [customStartLocal, setCustomStartLocal] = useState("");
+  const [customEndLocal, setCustomEndLocal] = useState("");
   const [handoffReasons, setHandoffReasons] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
@@ -119,7 +121,7 @@ export function WorkforcePlanningView() {
     ? data.roleAssignments.filter((role) => activeAssignments.some((assignment) => assignment.id === role.shiftAssignmentId) && role.status === "ACTIVE")
     : [];
   const canUseTeachingTime = canUseTeachingSessionTime({ frontDesk, teacherSessionCount: teacherSessionIds.length });
-  const normalizedTimeBasis = normalizeTimeBasis(timeBasis, { frontDesk, teacherSessionCount: teacherSessionIds.length });
+  const customRangeReady = coverageMode !== "CUSTOM_RANGE" || (!!customStartLocal && !!customEndLocal && customStartLocal < customEndLocal);
   const handoffReasonMissing = data && selection
     ? primarySessionIds.some((sessionId) => {
         const owner = data.sessions.find((session) => session.id === sessionId)?.learningOwner;
@@ -198,14 +200,17 @@ export function WorkforcePlanningView() {
     ];
     if (!roles.length) { setNotice("Chọn ít nhất Front Desk hoặc một lớp Teacher."); return; }
     if (handoffReasonMissing) { setNotice("Cần nhập lý do bàn giao cho lớp đang có Phụ trách chính khác."); return; }
+    if (coverageMode === "CLASSROOM_TIME" && !canUseTeachingTime) { setNotice("Theo giờ lớp cần ít nhất một lớp Teacher và không dùng cùng Front Desk."); return; }
+    if (coverageMode === "CUSTOM_RANGE" && (!selectedTemplate || !customStartLocal || !customEndLocal || customEndLocal <= customStartLocal || customStartLocal < selectedTemplate.startLocalTime || customEndLocal > selectedTemplate.endLocalTime)) { setNotice("Khung giờ tuỳ chỉnh phải nằm trọn trong ca và giờ kết thúc phải sau giờ bắt đầu."); return; }
+    if (coverageMode === "CUSTOM_RANGE" && eligibleSessions.filter((session)=>teacherSessionIds.includes(session.id)).some((session)=>session.scheduledStartsLocal.slice(11,16)<customStartLocal||session.scheduledEndsLocal.slice(11,16)>customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher đã phân công."); return; }
     setBusy("assign"); setNotice("");
     try {
       await boApi.planOperationalWorkforceShift({
         staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
-        shiftTemplateId: templateId, timeBasis: normalizedTimeBasis, termWeekId: data.termWeekId, roles,
+        shiftTemplateId: templateId, coverageMode, ...(coverageMode === "CUSTOM_RANGE" ? { customStartLocal, customEndLocal } : {}), termWeekId: data.termWeekId, roles,
       }, crypto.randomUUID());
       setNotice("Ca và phân công operational đã được chốt.");
-      setFrontDesk(false); setTeacherSessionIds([]); setPrimarySessionIds([]); setTimeBasis("SHIFT_TEMPLATE"); setHandoffReasons({});
+      setFrontDesk(false); setTeacherSessionIds([]); setPrimarySessionIds([]); setCoverageMode("FULL_SHIFT"); setCustomStartLocal(""); setCustomEndLocal(""); setHandoffReasons({});
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
@@ -213,7 +218,7 @@ export function WorkforcePlanningView() {
   function toggleTeacher(sessionId: string, enabled: boolean) {
     setTeacherSessionIds((current) => {
       const next = enabled ? [...new Set([...current, sessionId])] : current.filter((id) => id !== sessionId);
-      if (!enabled && next.length === 0) setTimeBasis("SHIFT_TEMPLATE");
+      if (!enabled && next.length === 0 && coverageMode === "CLASSROOM_TIME") setCoverageMode("FULL_SHIFT");
       return next;
     });
     if (!enabled) {
@@ -341,7 +346,9 @@ export function WorkforcePlanningView() {
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
                     setReason("");
                     setFrontDesk(false);
-                    setTimeBasis(assigned[0]?.timeBasis ?? "SHIFT_TEMPLATE");
+                    setCoverageMode(assigned[0]?.coverageMode ?? (assigned[0]?.timeBasis === "TEACHING_SESSIONS" ? "CLASSROOM_TIME" : "FULL_SHIFT"));
+                    setCustomStartLocal(assigned[0]?.effectiveStartLocal?.slice(11,16) ?? "");
+                    setCustomEndLocal(assigned[0]?.effectiveEndLocal?.slice(11,16) ?? "");
                     setTeacherSessionIds([]);
                     setPrimarySessionIds([]);
                     setHandoffReasons({});
@@ -382,7 +389,8 @@ export function WorkforcePlanningView() {
           <label className={styles.field}>Shift Template
             <select value={templateId} onChange={(event) => {
               setTemplateId(event.target.value);
-              setTimeBasis("SHIFT_TEMPLATE");
+              setCoverageMode("FULL_SHIFT");
+              setCustomStartLocal(""); setCustomEndLocal("");
               setTeacherSessionIds([]);
               setPrimarySessionIds([]);
               setHandoffReasons({});
@@ -396,14 +404,16 @@ export function WorkforcePlanningView() {
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
             <strong>Phân công operational</strong>
             <label className={styles.field}>
-              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked); if(checked)setTimeBasis("SHIFT_TEMPLATE"); }} /> Front Desk</span>
+              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked); if(checked && coverageMode === "CLASSROOM_TIME")setCoverageMode("FULL_SHIFT"); }} /> Front Desk</span>
               <small>Front Desk áp dụng cho toàn ca; khoảng Session Teacher sẽ được ưu tiên tự động.</small>
             </label>
             <div className={styles.plannerHistory}>
-              <strong>Giờ làm</strong>
-              <label><input type="radio" name="time-basis" checked={timeBasis==="SHIFT_TEMPLATE"} onChange={() => setTimeBasis("SHIFT_TEMPLATE")} /> Theo ca · {selectedTemplate?.startLocalTime}–{selectedTemplate?.endLocalTime}</label>
-              <label><input type="radio" name="time-basis" checked={timeBasis==="TEACHING_SESSIONS"} disabled={!canUseTeachingTime} onChange={() => setTimeBasis("TEACHING_SESSIONS")} /> Theo giờ lớp</label>
-              <small>{canUseTeachingTime ? "Giờ bắt đầu/kết thúc derive từ exact Session đã chọn; khoảng trống giữa các lớp không phải required presence." : "Theo giờ lớp chỉ dùng khi không Front Desk và đã chọn ít nhất một lớp Teacher."}</small>
+              <strong>Giờ làm Manager chốt</strong>
+              <label><input type="radio" name="coverage-mode" checked={coverageMode==="FULL_SHIFT"} onChange={() => setCoverageMode("FULL_SHIFT")} /> Toàn ca · {selectedTemplate?.startLocalTime}–{selectedTemplate?.endLocalTime}</label>
+              <label><input type="radio" name="coverage-mode" checked={coverageMode==="CLASSROOM_TIME"} disabled={!canUseTeachingTime} onChange={() => setCoverageMode("CLASSROOM_TIME")} /> Theo giờ lớp</label>
+              <label><input type="radio" name="coverage-mode" checked={coverageMode==="CUSTOM_RANGE"} onChange={() => { setCoverageMode("CUSTOM_RANGE"); if(!customStartLocal)setCustomStartLocal(selectedTemplate?.startLocalTime??""); if(!customEndLocal)setCustomEndLocal(selectedTemplate?.endLocalTime??""); }} /> Tuỳ chỉnh khung giờ</label>
+              {coverageMode === "CUSTOM_RANGE" ? <div className={styles.subscriptionActions}><label className={styles.field}>Bắt đầu<input type="time" value={customStartLocal} min={selectedTemplate?.startLocalTime} max={selectedTemplate?.endLocalTime} onChange={(event)=>setCustomStartLocal(event.target.value)} /></label><label className={styles.field}>Kết thúc<input type="time" value={customEndLocal} min={selectedTemplate?.startLocalTime} max={selectedTemplate?.endLocalTime} onChange={(event)=>setCustomEndLocal(event.target.value)} /></label></div> : null}
+              <small>Staff vẫn đăng ký availability theo toàn ca. Chỉ Manager chốt coverage thực tế; custom phải bao phủ mọi lớp đã phân công.</small>
             </div>
             <div className={styles.plannerHistory}>
               <strong>Lớp phụ trách</strong>
@@ -429,7 +439,7 @@ export function WorkforcePlanningView() {
             </div>
           </div> : null}
 
-          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || (!frontDesk && !teacherSessionIds.length) || handoffReasonMissing || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận ca & phân công"}</button> : null}
+          {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || (!frontDesk && !teacherSessionIds.length) || handoffReasonMissing || !customRangeReady || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận ca & phân công"}</button> : null}
 
           {activeAssignments.length ? <label className={styles.field}>Lý do thay đổi
             <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Bắt buộc khi huỷ hoặc điều chỉnh" />
