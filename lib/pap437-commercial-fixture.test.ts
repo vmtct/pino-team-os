@@ -396,6 +396,60 @@ test("PAP-437 accepts Core PRESERVED_SHARED as a terminal foreign-parent boundar
   assert.equal(replayedCleanup.parentDisposition, "ARCHIVED");
 });
 
+test("PAP-437 resumes a lost owner-void response and recovers canonical PRESERVED_SHARED disposition", async () => {
+  const port = new FakePort();
+  port.preserveOwnedParentAsShared();
+  port.failNextCommandContaining("enrollments");
+  port.loseResponseAfterNthStudentVoid(3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try {
+    await preparePap437CommercialFixture(port, "sharedloss", now);
+  } catch (error) {
+    assert.ok(error instanceof Pap437RollbackIncompleteError);
+    incomplete = error;
+  }
+  assert.ok(incomplete);
+  const pendingVoid = incomplete.rollbackState.pendingOperations.find((operation) => operation.kind === "VOID_INTAKE");
+  assert.ok(pendingVoid);
+  assert.equal(pendingVoid.label, "a");
+  assert.equal(incomplete.rollbackState.parentDisposition, null);
+  assert.equal((await port.get<BoLearnerLifecycle>(`students/${pendingVoid.studentProfileId}/lifecycle`)).student.status, "ARCHIVED");
+  const preservedBeforeResume = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(incomplete.rollbackState.parentContactValue)}&limit=25`);
+  assert.equal(preservedBeforeResume.length, 1);
+  await resumePap437CommercialRollback(port, incomplete.rollbackState);
+  assert.equal(incomplete.rollbackState.pendingOperations.length, 0);
+  assert.equal(incomplete.rollbackState.parentDisposition, "PRESERVED_SHARED");
+  assert.equal(incomplete.rollbackState.ownsParentContact, false);
+  const preservedAfterResume = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(incomplete.rollbackState.parentContactValue)}&limit=25`);
+  assert.equal(preservedAfterResume.length, 1);
+});
+
+test("PAP-437 concurrent same-run attempts cannot archive the surviving attempt topology", async () => {
+  const port = new FakePort();
+  const outcomes = await Promise.allSettled([
+    preparePap437CommercialFixture(port, "parallel01", now),
+    preparePap437CommercialFixture(port, "parallel01", now),
+  ]);
+  const fulfilled = outcomes.filter((item): item is PromiseFulfilledResult<Awaited<ReturnType<typeof preparePap437CommercialFixture>>> => item.status === "fulfilled");
+  const rejected = outcomes.filter((item): item is PromiseRejectedResult => item.status === "rejected");
+  assert.equal(fulfilled.length, 1);
+  assert.equal(rejected.length, 1);
+  const winner = fulfilled[0]!.value;
+  const pathCreates = port.calls.filter((call) => call.method === "POST" && call.path === "catalog/paths");
+  assert.ok(pathCreates.length >= 1);
+  const pathCodes = pathCreates.map((call) => String((call.body as Record<string, unknown>).code));
+  assert.equal(new Set(pathCodes).size, pathCodes.length);
+  if (pathCodes.length > 1) assert.ok(pathCodes.every((code) => /-g1-a[a-f0-9]{16}$/.test(code)));
+  const live = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+  const activePaths = live.paths.filter((item) => item.status === "ACTIVE");
+  const activeSpaces = live.learningSpaces.filter((item) => item.status === "ACTIVE");
+  const activeClasses = live.runningClasses.filter((item) => item.status === "ACTIVE");
+  assert.deepEqual(activePaths.map((item) => item.id), [winner.path.id]);
+  assert.deepEqual(activeSpaces.map((item) => item.id), [winner.space.id]);
+  assert.deepEqual(new Set(activeClasses.map((item) => item.id)), new Set([...winner.happyClasses, winner.blockedClass].map((item) => item.id)));
+  await cleanupPap437CommercialFixture(port, winner, now);
+});
+
 test("PAP-437 fails closed without exactly one active E2E Comparator Center or a bounded run tag", async () => {
   const missing = new FakePort();
   missing.bootstrap.centers = missing.bootstrap.centers.filter((item) => item.centerKey !== "e2e-comparator");
@@ -425,6 +479,7 @@ class FakePort implements Pap437FixturePort {
   private raceParentContact: string | null = null;
   private conflictAfterLookupContact: string | null = null;
   private responseLosses = new Map<string, { skip: number; remaining: number }>();
+  private studentVoidResponseLoss: { skip: number; remaining: number } | null = null;
   private preCommitFailures = new Map<string, { skip: number; remaining: number }>();
   private failNextCommandFragment: string | null = null;
   private preserveNextOwnedParentShared = false;
@@ -603,7 +658,15 @@ class FakePort implements Pap437FixturePort {
   conflictParentAfterLookupOnNextIntake(normalizedContact:string){ this.conflictAfterLookupContact = normalizedContact.toLowerCase(); }
   loseResponseAfterNext(path:string, count = 1){ this.loseResponseAfterNth(path, 1, count); }
   loseResponseAfterNth(path:string, nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("response-loss schedule must be positive"); this.responseLosses.set(path, { skip: nth - 1, remaining: count }); }
-  private maybeLoseResponse(path:string){ const plan = this.responseLosses.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.responseLosses.delete(path); throw new Error(`simulated response loss after ${path}`); }
+  loseResponseAfterNthStudentVoid(nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("response-loss schedule must be positive"); this.studentVoidResponseLoss = { skip: nth - 1, remaining: count }; }
+  private maybeLoseResponse(path:string){
+    if (path.startsWith("student-intakes/") && path.endsWith("/void") && this.studentVoidResponseLoss) {
+      const plan = this.studentVoidResponseLoss;
+      if (plan.skip > 0) plan.skip -= 1;
+      else { plan.remaining -= 1; if (plan.remaining <= 0) this.studentVoidResponseLoss = null; throw new Error(`simulated response loss after ${path}`); }
+    }
+    const plan = this.responseLosses.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.responseLosses.delete(path); throw new Error(`simulated response loss after ${path}`);
+  }
   failBeforeNextCommit(path:string, count = 1){ this.failBeforeNthCommit(path, 1, count); }
   failBeforeNthCommit(path:string, nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("pre-commit failure schedule must be positive"); this.preCommitFailures.set(path, { skip: nth - 1, remaining: count }); }
   private maybeFailBeforeCommit(path:string){ const plan = this.preCommitFailures.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.preCommitFailures.delete(path); throw new Error(`simulated pre-commit transport failure for ${path}`); }
