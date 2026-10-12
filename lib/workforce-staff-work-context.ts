@@ -18,6 +18,9 @@ export function compactWorkDate(value: string) {
 }
 
 export function assignmentTime(row: Assignment) {
+  const windows=row.effectiveWork?.windows ?? [];
+  if(windows.length)return windows.map((window)=>`${window.startsLocal.slice(11,16)}–${window.endsLocal.slice(11,16)}`).join(", ");
+  if(row.effectiveStartLocal&&row.effectiveEndLocal)return `${row.effectiveStartLocal.slice(11,16)}–${row.effectiveEndLocal.slice(11,16)}`;
   return row.shift ? `${row.shift.startLocalTime}–${row.shift.endLocalTime}` : row.status;
 }
 
