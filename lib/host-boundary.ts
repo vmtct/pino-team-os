@@ -51,7 +51,7 @@ function isApprovedBoPinoriaOperationalPath(normalized: string): boolean {
   return normalized === "/api/bo/pinoria/worlds"
     || normalized === "/api/bo/pinoria/worlds/media"
     || normalized === "/api/bo/pinoria/worlds/learners"
-    || new RegExp(`^/api/bo/pinoria/worlds/(?:${id}|learners/${id}|learners/${id}/instances|scenes/${id}|scenes/${id}/layers|layers/${id}|instances/${id}|instances/${id}/(?:set-live|revoke|reactivate)|instances/${id}/scenes/${id}|instances/${id}/layers/${id}|students/${id}/live)$`).test(normalized)
+    || new RegExp(`^/api/bo/pinoria/worlds/(?:${id}|${id}/scenes|learners/${id}|learners/${id}/instances|scenes/${id}|scenes/${id}/layers|layers/${id}|instances/${id}|instances/${id}/(?:set-live|revoke|reactivate)|instances/${id}/scenes/${id}|instances/${id}/layers/${id}|students/${id}/live)$`).test(normalized)
     || normalized === "/api/bo/pinoria/onboarding/sets"
     || new RegExp(`^/api/bo/pinoria/onboarding/(?:sets/${id}|(?:students|staff)/${id}(?:/grant)?)$`).test(normalized);
 }
@@ -59,7 +59,7 @@ function isApprovedBoPinoriaOperationalPath(normalized: string): boolean {
 function isApprovedBoLegacyFounderPinoriaPath(normalized: string): boolean {
   const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   return normalized === "/api/founder/pinoria/wish/catalog"
-    || new RegExp(`^/api/founder/pinoria/wish/catalog/(?:bearers|sets|wearables|variants)(?:/${id})?$`).test(normalized)
+    || new RegExp(`^/api/founder/pinoria/wish/catalog/(?:bearers|sets)(?:/${id})?$`).test(normalized)
     || normalized === "/api/founder/pinoria/wish/banners"
     || new RegExp(`^/api/founder/pinoria/wish/banners/${id}(?:/(?:validation|schedule|activate|retire))?$`).test(normalized)
     || normalized === "/api/founder/pinoria/wish/rules"
