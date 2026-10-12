@@ -712,9 +712,8 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
         continue;
       }
       const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
-      if (lifecycle.student.status === "ARCHIVED") continue;
       const body = {
-        expectedStudentVersion: lifecycle.student.version,
+        expectedStudentVersion: cleanupVoidExpectedVersion(lifecycle),
         reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
       };
       const idempotencyKey = replayKey(state.operationTag, `rollback-void-student-${studentId}`);
@@ -736,19 +735,17 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
         const ownerLifecycle = lifecycle as BoLearnerLifecycle | null;
         if (lifecycleReadable && ownerLifecycle) {
           const existingPendingVoid = state.pendingOperations.find((operation): operation is Extract<Pap437RollbackPendingOperation, { kind: "VOID_INTAKE" }> => operation.kind === "VOID_INTAKE" && operation.studentProfileId === ownerId);
-          if (existingPendingVoid || ownerLifecycle.student.status !== "ARCHIVED") {
-            const body = existingPendingVoid?.body ?? {
-              expectedStudentVersion: ownerLifecycle.student.version,
-              reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
-            };
-            const idempotencyKey = existingPendingVoid?.idempotencyKey ?? replayKey(state.operationTag, `rollback-void-student-${ownerId}`);
-            const ok = await record(`void intake ${ownerId}`, async () => {
-              const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, body, idempotencyKey);
-              applyOwnerVoidResult(state, result, ownerId);
-            });
-            if (!ok && !existingPendingVoid) {
-              state.pendingOperations.push({ kind: "VOID_INTAKE", label: "a", studentProfileId: ownerId, idempotencyKey, body: { ...body } });
-            }
+          const body = existingPendingVoid?.body ?? {
+            expectedStudentVersion: cleanupVoidExpectedVersion(ownerLifecycle),
+            reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+          };
+          const idempotencyKey = existingPendingVoid?.idempotencyKey ?? replayKey(state.operationTag, `rollback-void-student-${ownerId}`);
+          const ok = await record(`void intake ${ownerId}`, async () => {
+            const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, body, idempotencyKey);
+            applyOwnerVoidResult(state, result, ownerId);
+          });
+          if (!ok && !existingPendingVoid) {
+            state.pendingOperations.push({ kind: "VOID_INTAKE", label: "a", studentProfileId: ownerId, idempotencyKey, body: { ...body } });
           }
         }
       } else {

@@ -537,6 +537,49 @@ test("PAP-437 rejects dependent cleanup that mutates Parent disposition", async 
   assert.ok(incomplete.rollbackState.pendingOperations.some((operation) => operation.kind === "VOID_INTAKE" && operation.label === "dependent"));
 });
 
+test("PAP-437 stale rollback checkpoint cannot bypass invalid dependent void evidence", async () => {
+  const port = new FakePort();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try { await preparePap437CommercialFixture(port, "staledep", now); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); incomplete = error; }
+  assert.ok(incomplete);
+  const checkpoint = structuredClone(incomplete.rollbackState);
+  const dependentId = checkpoint.learnerIds.at(-1)!;
+  const ownerId = checkpoint.learnerIds[0]!;
+  port.corruptNextDependentVoid("WRONG_STUDENT");
+  await assert.rejects(() => resumePap437CommercialRollback(port, incomplete!.rollbackState), Pap437RollbackIncompleteError);
+  assert.equal(port.parentStatus(checkpoint.parentUserId!), "ACTIVE");
+  let replayFailure: Pap437RollbackIncompleteError | null = null;
+  try { await resumePap437CommercialRollback(port, checkpoint); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); replayFailure = error; }
+  assert.ok(replayFailure);
+  assert.match(replayFailure.rollbackErrors.join(" | "), /wrong Student identity/i);
+  assert.equal(port.parentStatus(checkpoint.parentUserId!), "ACTIVE");
+  const dependentVoids = port.calls.filter((call) => call.path === `student-intakes/${dependentId}/void`);
+  assert.equal(dependentVoids.length, 2);
+  assert.equal(dependentVoids[0]!.key, dependentVoids[1]!.key);
+  assert.deepEqual(dependentVoids[0]!.body, dependentVoids[1]!.body);
+  assert.equal(port.calls.filter((call) => call.path === `student-intakes/${ownerId}/void`).length, 0);
+});
+
+test("PAP-437 stale rollback checkpoint replays owner void after lost response", async () => {
+  const port = new FakePort();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try { await preparePap437CommercialFixture(port, "staleowner", now); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); incomplete = error; }
+  assert.ok(incomplete);
+  const checkpoint = structuredClone(incomplete.rollbackState);
+  const ownerId = checkpoint.learnerIds[0]!;
+  port.loseResponseAfterNthStudentVoid(3);
+  await assert.rejects(() => resumePap437CommercialRollback(port, incomplete!.rollbackState), Pap437RollbackIncompleteError);
+  const firstOwnerVoid = port.calls.find((call) => call.path === `student-intakes/${ownerId}/void`);
+  assert.ok(firstOwnerVoid?.key);
+  const recovered = await resumePap437CommercialRollback(port, checkpoint);
+  assert.equal(recovered.cleaned, true);
+  const ownerVoids = port.calls.filter((call) => call.path === `student-intakes/${ownerId}/void`);
+  assert.equal(ownerVoids.length, 2);
+  assert.equal(ownerVoids[0]!.key, ownerVoids[1]!.key);
+  assert.deepEqual(ownerVoids[0]!.body, ownerVoids[1]!.body);
+});
 test("PAP-437 concurrent same-run attempts cannot archive the surviving attempt topology", async () => {
   const port = new FakePort();
   const outcomes = await Promise.allSettled([
