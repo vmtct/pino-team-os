@@ -419,24 +419,17 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
   let ownerParentDisposition: "ARCHIVED" | "PRESERVED_SHARED" = "ARCHIVED";
   for (const item of voidOrder) {
     const lifecycle = await port.get<BoLearnerLifecycle>(`students/${item.intake.studentProfileId}/lifecycle`);
-    if (lifecycle.student.status === "ARCHIVED") {
-      if (item.label === "a") {
-        const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(fixture.parentContactValue)}&limit=25`);
-        ownerParentDisposition = activeParents.some((candidate) => candidate.parent.id === fixture.learners.a.parentUserId && candidate.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === fixture.parentContactValue))
-          ? "PRESERVED_SHARED"
-          : "ARCHIVED";
-      }
-      continue;
-    }
+    const expectedStudentVersion = cleanupVoidExpectedVersion(lifecycle);
     const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${item.intake.studentProfileId}/void`, {
-      expectedStudentVersion: lifecycle.student.version,
+      expectedStudentVersion,
       reason: `${PREFIX} ${fixture.runTag} cleanup`,
     }, replayKey(fixture.operationTag, `void-student-${item.intake.studentProfileId}`));
-    if (result.parentUserId !== fixture.learners.a.parentUserId) throw new Error(`PAP-437 ${item.label} intake cleanup returned the wrong Parent.`);
     if (item.label !== "a") {
-      if (result.parentDisposition !== "REUSED_UNCHANGED") throw new Error(`PAP-437 ${item.label} intake cleanup returned unexpected Parent disposition.`);
+      assertDependentVoidEvidence(result, item.intake.studentProfileId, fixture.learners.a.parentUserId, item.label);
       continue;
     }
+    if (result.studentProfileId !== item.intake.studentProfileId) throw new Error("PAP-437 owner intake cleanup returned the wrong Student identity.");
+    if (result.parentUserId !== fixture.learners.a.parentUserId) throw new Error("PAP-437 owner intake cleanup returned the wrong Parent.");
     if (result.parentDisposition === "ARCHIVED") {
       if (result.retiredContactCount !== 1) throw new Error("PAP-437 owner intake cleanup did not retire the synthetic Parent contact.");
       ownerParentDisposition = "ARCHIVED";
@@ -797,11 +790,21 @@ function applyOwnerVoidResult(state: Pap437RollbackState, result: BoStudentIntak
 }
 
 function applyDependentVoidResult(state: Pap437RollbackState, result: BoStudentIntakeVoidResult, expectedStudentProfileId: string) {
-  if (result.studentProfileId !== expectedStudentProfileId) throw new Error("dependent intake cleanup returned the wrong Student identity");
   if (!state.parentUserId) throw new Error("dependent intake cleanup cannot validate Parent identity because rollback state is missing the owner Parent");
-  if (result.parentUserId !== state.parentUserId) throw new Error("dependent intake cleanup returned the wrong Parent identity");
-  if (result.parentDisposition !== "REUSED_UNCHANGED") throw new Error("dependent intake cleanup must return REUSED_UNCHANGED for the fixture-owned Parent");
-  if (result.retiredContactCount !== 0) throw new Error("dependent intake cleanup unexpectedly retired Parent contact authority");
+  assertDependentVoidEvidence(result, expectedStudentProfileId, state.parentUserId, "dependent");
+}
+
+function assertDependentVoidEvidence(result: BoStudentIntakeVoidResult, expectedStudentProfileId: string, expectedParentUserId: string, label: string) {
+  if (result.studentProfileId !== expectedStudentProfileId) throw new Error(`PAP-437 ${label} intake cleanup returned the wrong Student identity.`);
+  if (result.parentUserId !== expectedParentUserId) throw new Error(`PAP-437 ${label} intake cleanup returned the wrong Parent identity.`);
+  if (result.parentDisposition !== "REUSED_UNCHANGED") throw new Error(`PAP-437 ${label} intake cleanup must return REUSED_UNCHANGED for the fixture-owned Parent.`);
+  if (result.retiredContactCount !== 0) throw new Error(`PAP-437 ${label} intake cleanup unexpectedly retired Parent contact authority.`);
+}
+
+function cleanupVoidExpectedVersion(lifecycle: BoLearnerLifecycle) {
+  const expected = lifecycle.student.status === "ARCHIVED" ? lifecycle.student.version - 1 : lifecycle.student.version;
+  if (!Number.isInteger(expected) || expected < 1) throw new Error(`PAP-437 cannot reconstruct the exact StudentIntake void replay version for ${lifecycle.student.id}.`);
+  return expected;
 }
 
 function resolveRollbackTopology(bootstrap: F3BootstrapState, state: Pap437RollbackState) {

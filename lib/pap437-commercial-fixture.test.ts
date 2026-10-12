@@ -98,6 +98,43 @@ test("PAP-437 cleanup neutralizes commercial state and archives every synthetic 
   assert.deepEqual(activeParents, []);
 });
 
+test("PAP-437 ordinary cleanup exact-binds dependent Student identity before owner cleanup", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap437CommercialFixture(port, "badcleanstudent", now);
+  port.corruptNextDependentVoid("WRONG_STUDENT");
+  await assert.rejects(() => cleanupPap437CommercialFixture(port, fixture, now), /wrong Student identity/i);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ACTIVE");
+  await assert.rejects(() => cleanupPap437CommercialFixture(port, fixture, now), /wrong Student identity/i);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ACTIVE");
+});
+
+test("PAP-437 ordinary cleanup rejects dependent Parent-contact retirement before owner cleanup", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap437CommercialFixture(port, "badcleancontact", now);
+  port.corruptNextDependentVoid("CONTACT_RETIRED");
+  await assert.rejects(() => cleanupPap437CommercialFixture(port, fixture, now), /unexpectedly retired Parent contact authority/i);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ACTIVE");
+  await assert.rejects(() => cleanupPap437CommercialFixture(port, fixture, now), /unexpectedly retired Parent contact authority/i);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ACTIVE");
+});
+
+test("PAP-437 ordinary cleanup replays an archived dependent void after lost response before owner cleanup", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap437CommercialFixture(port, "cleanvoidloss", now);
+  port.loseResponseAfterNthStudentVoid(1);
+  await assert.rejects(() => cleanupPap437CommercialFixture(port, fixture, now), /simulated response loss/i);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ACTIVE");
+  const firstGuardVoid = port.calls.find((call) => call.path === `student-intakes/${fixture.learners.guard.studentProfileId}/void`);
+  assert.ok(firstGuardVoid?.key);
+  const result = await cleanupPap437CommercialFixture(port, fixture, now);
+  assert.equal(result.cleaned, true);
+  const guardVoids = port.calls.filter((call) => call.path === `student-intakes/${fixture.learners.guard.studentProfileId}/void`);
+  assert.equal(guardVoids.length, 2);
+  assert.equal(guardVoids[0]!.key, guardVoids[1]!.key);
+  assert.deepEqual(guardVoids[0]!.body, guardVoids[1]!.body);
+  assert.equal(port.parentStatus(fixture.learners.a.parentUserId), "ARCHIVED");
+});
+
 test("PAP-437 rejects a pre-existing exact Parent contact before any mutable fixture topology or Student is created", async () => {
   const port = new FakePort();
   const contact = "pap437+collision01@example.invalid";
@@ -604,7 +641,7 @@ class FakePort implements Pap437FixturePort {
   private preserveNextOwnedParentShared = false;
   private corruptNextOwnedParentVoidResult: "REUSED_UNCHANGED" | "WRONG_PARENT" | null = null;
   private corruptNextDependentIntakeResult: "WRONG_PARENT" | null = null;
-  private corruptNextDependentVoidResult: "WRONG_PARENT" | "ARCHIVED" | null = null;
+  private corruptNextDependentVoidResult: "WRONG_PARENT" | "ARCHIVED" | "WRONG_STUDENT" | "CONTACT_RETIRED" | null = null;
   private externalParentDependents = new Map<string, number>();
   private next = 10;
   readonly plan: BoProductPlan = {
@@ -779,8 +816,9 @@ class FakePort implements Pap437FixturePort {
       state.lifecycle.student.status = "ARCHIVED"; state.lifecycle.student.version += 1;
       const reportedParentUserId = corruption === "WRONG_PARENT" || dependentCorruption === "WRONG_PARENT" ? this.seedExistingParent(`wrong-${parent.contact?.normalizedValue ?? "parent@example.invalid"}`) : parent.id;
       const reportedDisposition = corruption === "REUSED_UNCHANGED" ? "REUSED_UNCHANGED" : dependentCorruption === "ARCHIVED" ? "ARCHIVED" : parentDisposition;
-      const reportedRetiredContactCount = dependentCorruption === "ARCHIVED" ? 1 : retiredContactCount;
-      return { studentProfileId: state.lifecycle.student.id, studentStatus: "ARCHIVED", guardianRelationshipId:state.intake.guardianRelationshipId, guardianStatus:"ENDED", parentUserId:reportedParentUserId, parentDisposition:reportedDisposition, retiredContactCount:reportedRetiredContactCount };
+      const reportedRetiredContactCount = dependentCorruption === "ARCHIVED" || dependentCorruption === "CONTACT_RETIRED" ? 1 : retiredContactCount;
+      const reportedStudentProfileId = dependentCorruption === "WRONG_STUDENT" ? this.id() : state.lifecycle.student.id;
+      return { studentProfileId: reportedStudentProfileId, studentStatus: "ARCHIVED", guardianRelationshipId:state.intake.guardianRelationshipId, guardianStatus:"ENDED", parentUserId:reportedParentUserId, parentDisposition:reportedDisposition, retiredContactCount:reportedRetiredContactCount };
     }
     throw new Error(`unexpected ${method} ${path}`);
   }
@@ -818,7 +856,7 @@ class FakePort implements Pap437FixturePort {
   preserveOwnedParentAsShared(){ this.preserveNextOwnedParentShared = true; }
   corruptNextOwnedParentVoid(mode: "REUSED_UNCHANGED" | "WRONG_PARENT"){ this.corruptNextOwnedParentVoidResult = mode; }
   corruptNextDependentIntake(mode: "WRONG_PARENT"){ this.corruptNextDependentIntakeResult = mode; }
-  corruptNextDependentVoid(mode: "WRONG_PARENT" | "ARCHIVED"){ this.corruptNextDependentVoidResult = mode; }
+  corruptNextDependentVoid(mode: "WRONG_PARENT" | "ARCHIVED" | "WRONG_STUDENT" | "CONTACT_RETIRED"){ this.corruptNextDependentVoidResult = mode; }
   activeBillCount(){ return [...this.bills.values()].filter((bill) => !bill.bill.voidedAt).length; }
   parentStatus(parentId:string){ return this.parents.get(parentId)?.status ?? null; }
 
