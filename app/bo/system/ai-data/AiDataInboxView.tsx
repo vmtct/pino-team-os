@@ -26,8 +26,9 @@ const PAGE_SIZES = [10, 25, 50, 100] as const;
 const SORT_KEYS: readonly AiDataInboxSort[] = ["purpose", "status", "operations", "submittedAt", "updatedAt"];
 const FILTERS: readonly AiDataInboxFilter[] = ["", "PENDING_APPROVAL", "NEEDS_RECONCILE", "APPLIED", "REJECTED"];
 
-type Operation={ref:string;resource:"operating_term"|"operating_term_week";op:"create";targetTable:"terms"|"term_weeks";recordId:string;data:Record<string,unknown>};
-type Detail=AiDataChangeSetSummary&{idempotencyKey:string;plan:{schemaVersion:"v1";operations:Operation[]};validation:Record<string,unknown>;approvedByUserId:string|null;rejectedByUserId:string|null;rejectionReason:string|null;applyAttemptId:string|null;applyStartedAt:string|null;applyReceipt:Record<string,unknown>|null;reconcile:Record<string,unknown>|null};
+type SnapshotBinding={stateHash:string;capturedAt?:string;scope:{centerIds:string[];termIds:string[];termWeekIds:string[]};capabilityVersions:Record<string,string>};
+type Operation={ref:string;resource:"operating_term"|"operating_term_week";op:"create"|"update";targetTable:"terms"|"term_weeks";recordId:string;capabilityId?:string;capabilityVersion?:string;data:Record<string,unknown>};
+type Detail=AiDataChangeSetSummary&{idempotencyKey:string;plan:{schemaVersion:"v1";snapshot?:SnapshotBinding;operations:Operation[]};validation:Record<string,unknown>&{snapshotCurrent?:boolean;snapshotCheckedAt?:string;operationDiffs?:unknown[]};approvedByUserId:string|null;rejectedByUserId:string|null;rejectionReason:string|null;applyAttemptId:string|null;applyStartedAt:string|null;applyReceipt:Record<string,unknown>|null;reconcile:Record<string,unknown>|null};
 
 export function AiDataInboxView(){
   const pathname=usePathname();
@@ -106,7 +107,7 @@ export function AiDataInboxView(){
     const ticket=mutationGuardRef.current.begin(target.id);
     let body:Record<string,unknown>={};
     if(action==="approve"){
-      if(!window.confirm(`Apply ${target.preview.operationCount} proposed create operations to Production data?\n\nPlan hash: ${target.planHash}`))return;
+      if(!window.confirm(`Apply ${target.preview.operationCount} proposed registered operations to Production data?\n\nPlan hash: ${target.planHash}`))return;
       body={expectedPlanHash:target.planHash};
     }
     if(action==="reject"){
@@ -133,8 +134,8 @@ export function AiDataInboxView(){
   const columns=useMemo<BoDataGridColumn<AiDataChangeSetSummary>[]>(()=>[
     {key:"purpose",header:"Change Set",sortable:true,sticky:true,minWidth:255,render:(item)=><div><strong>{item.purpose}</strong><BoDataGridCanonicalId value={item.id} label="Copy Change Set ID" /></div>},
     {key:"status",header:"Status",sortable:true,minWidth:175,render:(item)=><BoDataGridStatus value={formatStatus(item.status)} tone={statusTone(item.status)} />},
-    {key:"operations",header:"Operations",sortable:true,minWidth:210,render:(item)=><div><strong>{item.preview.operationCount} create{item.preview.operationCount===1?"":"s"}</strong><br /><small>{item.preview.destinationTables.map(target=>`${target.table} ×${target.creates}`).join(", ")||"No destinations"}</small></div>},
-    {key:"risk",header:"Destructive",minWidth:135,render:(item)=>item.preview.destructiveOperationCount===0?<BoDataGridBadge>CREATE ONLY</BoDataGridBadge>:<BoDataGridStatus value={`${item.preview.destructiveOperationCount} destructive`} tone="danger" />},
+    {key:"operations",header:"Operations",sortable:true,minWidth:230,render:(item)=><div><strong>{item.preview.operationCount} operation{item.preview.operationCount===1?"":"s"}</strong><br /><small>{item.preview.destinationTables.map(target=>operationTargetLabel(target)).join(", ")||"No destinations"}</small></div>},
+    {key:"risk",header:"Mutation class",minWidth:145,render:(item)=>item.preview.destructiveOperationCount>0?<BoDataGridStatus value={`${item.preview.destructiveOperationCount} destructive`} tone="danger" />:hasUpdates(item)?<BoDataGridBadge>REGISTERED OPS</BoDataGridBadge>:<BoDataGridBadge>CREATE ONLY</BoDataGridBadge>},
     {key:"submittedAt",header:"Submitted",sortable:true,minWidth:175,render:(item)=>new Date(item.submittedAt).toLocaleString("vi-VN")},
     {key:"updatedAt",header:"Updated",sortable:true,minWidth:175,render:(item)=>new Date(item.updatedAt).toLocaleString("vi-VN")},
     {key:"plan",header:"Plan hash",minWidth:170,render:(item)=><code>{item.planHash.slice(0,16)}…</code>},
@@ -145,7 +146,7 @@ export function AiDataInboxView(){
     <header className={styles.heading}>
       <span>PINO TEAM · SYSTEM</span>
       <h1>AI Data Inbox</h1>
-      <p>GPT can prepare create-only Change Sets here, but cannot apply them. Production writes cross the Founder authority boundary only after review of the exact plan hash.</p>
+      <p>AI can prepare registered Change Sets from bounded current truth here, but cannot apply them. Production writes cross the Founder authority boundary only after review of the exact plan hash; bound snapshot freshness is revalidated by Core.</p>
     </header>
 
     <section className={styles.metrics}>
@@ -179,7 +180,7 @@ export function AiDataInboxView(){
       selectedRowKey={selectedId||null}
       onRowOpen={(item)=>selectChangeSet(item.id)}
       emptyTitle={filtered?"No matching Change Sets":"No AI data proposals yet"}
-      emptyMessage={filtered?"Adjust search or review-state filter.":"GPT has not submitted a create-only Change Set for Founder review."}
+      emptyMessage={filtered?"Adjust search or review-state filter.":"AI has not submitted a governed Change Set for Founder review."}
     />
 
     {selectedId?<BoDataGridSidePeek title={detail?.purpose??"AI Data Change Set"} eyebrow="System · Founder review" onClose={()=>selectChangeSet("","replace")} footer={detail&&canRenderAiDataActions({selectedId,detailId:detail.id,detailLoading})?<ReviewActions detail={detail} busy={busy} mutate={mutate} />:undefined}>
@@ -205,20 +206,22 @@ function ChangeSetDetail({detail}:{detail:Detail}){
       <div><dt>Rejection reason</dt><dd>{detail.rejectionReason??"n/a"}</dd></div>
     </dl>
     <div className={local.hashBox}><span>Plan hash — approval binds to this exact payload</span><code>{detail.planHash}</code></div>
+    {detail.plan.snapshot?<div className={local.hashBox}><span>Bound live snapshot · {snapshotFreshnessLabel(detail)}</span><code>{detail.plan.snapshot.stateHash}</code><small>{detail.plan.snapshot.capturedAt?`Captured ${new Date(detail.plan.snapshot.capturedAt).toLocaleString("vi-VN")}`:"Capture time unavailable"} · Core revalidates again before apply</small></div>:<div className={local.hashBox}><span>Snapshot binding</span><strong>Legacy v1 proposal · no snapshot binding</strong></div>}
     <div className={local.operationList}>
       {detail.plan.operations.map(operation=><article key={operation.ref} className={local.operation}>
-        <div><strong>{operation.ref}</strong><span>{operation.op.toUpperCase()} · {operation.resource} → {operation.targetTable}</span></div>
+        <div><strong>{operation.ref}</strong><span>{operation.op.toUpperCase()} · {operation.capabilityId??operation.resource}{operation.capabilityVersion?`@${operation.capabilityVersion}`:""} → {operation.targetTable}</span></div>
         <code>{operation.recordId}</code>
         <pre>{JSON.stringify(operation.data,null,2)}</pre>
       </article>)}
     </div>
+    {detail.validation.operationDiffs?<details className={local.details}><summary>Validated before / after evidence</summary><pre>{JSON.stringify(detail.validation.operationDiffs,null,2)}</pre></details>:null}
     {detail.reconcile?<details className={local.details}><summary>Reconciliation evidence</summary><pre>{JSON.stringify(detail.reconcile,null,2)}</pre></details>:null}
     {detail.applyReceipt?<details className={local.details}><summary>Apply receipt</summary><pre>{JSON.stringify(detail.applyReceipt,null,2)}</pre></details>:null}
   </div>;
 }
 
 function ReviewActions({detail,busy,mutate}:{detail:Detail;busy:string;mutate:(action:"approve"|"reject"|"reconcile")=>Promise<void>}){
-  if(detail.status==="PENDING_APPROVAL")return <div className={local.actions}><button className={styles.primaryButton} disabled={Boolean(busy)} onClick={()=>void mutate("approve")}>{busy==="approve"?"Applying…":"Approve & Apply"}</button><button className={local.rejectButton} disabled={Boolean(busy)} onClick={()=>void mutate("reject")}>Reject</button></div>;
+  if(detail.status==="PENDING_APPROVAL"){const stale=detail.plan.snapshot&&detail.validation.snapshotCurrent===false;return <div className={local.actions}><button className={styles.primaryButton} disabled={Boolean(busy)||Boolean(stale)} onClick={()=>void mutate("approve")}>{stale?"Snapshot stale · re-plan":busy==="approve"?"Applying…":"Approve & Apply"}</button><button className={local.rejectButton} disabled={Boolean(busy)} onClick={()=>void mutate("reject")}>Reject</button></div>;}
   if(detail.status==="APPLYING"||detail.status==="OUTCOME_UNKNOWN")return <div className={local.actions}><button className={styles.primaryButton} disabled={Boolean(busy)} onClick={()=>void mutate("reconcile")}>{busy==="reconcile"?"Reconciling…":"Reconcile outcome"}</button></div>;
   return <span>Review complete · no inline mutation available.</span>;
 }
@@ -230,6 +233,9 @@ async function founderData<T>(path:string,init?:RequestInit):Promise<T>{
   if(payload.data===undefined)throw new Error("Founder API returned no data");
   return payload.data;
 }
+function operationTargetLabel(target:{table:string;creates:number;updates?:number}){const parts=[] as string[];if(target.creates)parts.push(`${target.creates} create${target.creates===1?"":"s"}`);if(target.updates)parts.push(`${target.updates} update${target.updates===1?"":"s"}`);return `${target.table} · ${parts.join(" + ")||"0 changes"}`;}
+function hasUpdates(item:AiDataChangeSetSummary){return item.preview.destinationTables.some(target=>(target.updates??0)>0);}
+function snapshotFreshnessLabel(detail:Detail){if(detail.status!=="PENDING_APPROVAL")return "historical binding";if(detail.validation.snapshotCurrent===true)return "CURRENT";if(detail.validation.snapshotCurrent===false)return "STALE · re-plan required";return "freshness unavailable";}
 function errorMessage(cause:unknown){return cause instanceof Error?cause.message:"AI Data request failed.";}
 function formatStatus(status:AiDataStatus){return status.replaceAll("_"," ");}
 function filterLabel(status:AiDataInboxFilter){return status==="NEEDS_RECONCILE"?"Needs reconcile":status.replaceAll("_"," ");}
