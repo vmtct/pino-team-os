@@ -63,16 +63,24 @@ export interface Pap437Fixture {
   };
 }
 
+export type Pap437RollbackPendingOperation =
+  | { kind: "INTAKE"; label: "a" | "b" | "guard"; idempotencyKey: string; body: Record<string, unknown> }
+  | { kind: "SALE"; label: "a" | "b"; idempotencyKey: string; body: Record<string, unknown> }
+  | { kind: "SUBSCRIPTION"; label: "guard"; idempotencyKey: string; body: Record<string, unknown> };
+
 export interface Pap437RollbackState {
   runTag: string;
   operationTag: string;
   nowIso: string;
   parentContactValue: string;
-  pathId: string;
-  spaceId: string;
+  ownsParentContact: boolean | null;
+  centerId: string;
+  pathId: string | null;
+  spaceId: string | null;
   classIds: string[];
   learnerIds: string[];
   billIds: string[];
+  pendingOperations: Pap437RollbackPendingOperation[];
 }
 
 export class Pap437RollbackIncompleteError extends Error {
@@ -135,26 +143,73 @@ export async function preparePap437CommercialFixture(
     throw new Error("PAP-437 synthetic Parent contact already belongs to an active Parent; choose a new run id.");
   }
 
-  const path = await ensurePath(port, bootstrap, runTag);
-  const space = await ensureSpace(port, bootstrap, centerId, runTag);
-  const happyA = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-a", 1, 8);
-  const happyB = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-b", 3, 8);
-  const blockedClass = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "blocked", 5, 1);
+  let path: F3Path | undefined;
+  let space: F3LearningSpace | undefined;
+  let happyA: F3RunningClass | undefined;
+  let happyB: F3RunningClass | undefined;
+  let blockedClass: F3RunningClass | undefined;
+  try {
+    path = await ensurePath(port, bootstrap, runTag);
+    space = await ensureSpace(port, bootstrap, centerId, runTag);
+    happyA = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-a", 1, 8);
+    happyB = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-b", 3, 8);
+    blockedClass = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "blocked", 5, 1);
+  } catch (error) {
+    const rollbackState: Pap437RollbackState = {
+      runTag,
+      operationTag: `${runTag}:topology`,
+      nowIso: now.toISOString(),
+      parentContactValue,
+      ownsParentContact: false,
+      centerId,
+      pathId: path?.id ?? null,
+      spaceId: space?.id ?? null,
+      classIds: [happyA, happyB, blockedClass].filter((item): item is F3RunningClass => item !== undefined).map((item) => item.id),
+      learnerIds: [],
+      billIds: [],
+      pendingOperations: [],
+    };
+    const rollbackErrors = await rollbackPap437OwnedPreparation(port, rollbackState);
+    const detail = error instanceof Error ? error.message : String(error);
+    if (rollbackErrors.length) {
+      throw new Pap437RollbackIncompleteError(
+        `PAP-437 topology prepare failed and rollback was incomplete: ${rollbackErrors.join(" | ")}. Original: ${detail}`,
+        rollbackState,
+        rollbackErrors,
+      );
+    }
+    throw new Error(`PAP-437 topology prepare failed; deterministic synthetic topology was rolled back. ${detail}`);
+  }
+  if (!path || !space || !happyA || !happyB || !blockedClass) throw new Error("PAP-437 topology preparation returned incomplete synthetic identities.");
 
   assertSyntheticTopology(centerId, path, space, [happyA, happyB, blockedClass], runTag);
   const operationTag = `${runTag}:v${path.version}`;
 
+  const intakeABody = studentIntakeBody(runTag, "a", localDate);
+  const intakeAKey = replayKey(operationTag, "intake-a");
   let learnerA: Pap437StudentIntake;
   try {
-    learnerA = await createLearner(port, runTag, operationTag, "a", localDate);
+    learnerA = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeABody, intakeAKey);
   } catch (error) {
     try {
-      learnerA = await createLearner(port, runTag, operationTag, "a", localDate);
+      learnerA = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeABody, intakeAKey);
     } catch (reconcileError) {
-      await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
+      const rollbackState = createRollbackState({
+        runTag, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
+        learners: [], sales: [],
+        pendingOperations: [{ kind: "INTAKE", label: "a", idempotencyKey: intakeAKey, body: intakeABody }],
+      });
+      const rollbackErrors = await rollbackPap437OwnedPreparation(port, rollbackState);
       const detail = error instanceof Error ? error.message : String(error);
       const reconcileDetail = reconcileError instanceof Error ? reconcileError.message : String(reconcileError);
-      throw new Error(`PAP-437 first intake failed before fixture Parent ownership was established and replay reconciliation did not recover an intake; synthetic topology was rolled back. ${detail} | replay: ${reconcileDetail}`);
+      if (rollbackErrors.length) {
+        throw new Pap437RollbackIncompleteError(
+          `PAP-437 first intake outcome remained unknown and rollback is incomplete: ${rollbackErrors.join(" | ")}. Original: ${detail} | replay: ${reconcileDetail}`,
+          rollbackState,
+          rollbackErrors,
+        );
+      }
+      throw new Error(`PAP-437 first intake failed before fixture Parent ownership was established; idempotent outcome reconciliation completed and synthetic state was rolled back. ${detail} | replay: ${reconcileDetail}`);
     }
   }
   if (learnerA.parentReused || !learnerA.createdContactIdentifierId) {
@@ -174,6 +229,13 @@ export async function preparePap437CommercialFixture(
   let saleABody: Record<string, unknown> | undefined;
   let saleBBody: Record<string, unknown> | undefined;
   let guardSubscriptionBody: Record<string, unknown> | undefined;
+  const intakeBBody = studentIntakeBody(runTag, "b", localDate, learnerA.parentUserId);
+  const guardIntakeBody = studentIntakeBody(runTag, "guard", localDate, learnerA.parentUserId);
+  const intakeBKey = replayKey(operationTag, "intake-b");
+  const guardIntakeKey = replayKey(operationTag, "intake-guard");
+  const saleAKey = replayKey(operationTag, "sale-a");
+  const saleBKey = replayKey(operationTag, "sale-b");
+  const guardSubscriptionKey = replayKey(operationTag, "guard-subscription");
   let learnerBAttempted = false;
   let guardAttempted = false;
   let saleAAttempted = false;
@@ -182,18 +244,16 @@ export async function preparePap437CommercialFixture(
 
   try {
     learnerBAttempted = true;
-    const preparedB = await createLearner(port, runTag, operationTag, "b", localDate, learnerA.parentUserId);
+    const preparedB = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeBBody, intakeBKey);
     learnerB = preparedB;
     guardAttempted = true;
-    const preparedGuard = await createLearner(port, runTag, operationTag, "guard", localDate, learnerA.parentUserId);
+    const preparedGuard = await port.command<Pap437StudentIntake>("POST", "student-intakes", guardIntakeBody, guardIntakeKey);
     guard = preparedGuard;
     assertReusedParentIntake(preparedB, learnerA.parentUserId, "B");
     assertReusedParentIntake(preparedGuard, learnerA.parentUserId, "guard");
 
     saleABody = saleBody(learnerA, path.id, centerId, productPlan.id, localDate, runTag, "a");
     saleBBody = saleBody(preparedB, path.id, centerId, productPlan.id, localDate, runTag, "b");
-    const saleAKey = replayKey(operationTag, "sale-a");
-    const saleBKey = replayKey(operationTag, "sale-b");
     saleAAttempted = true;
     saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody, saleAKey);
     saleBAttempted = true;
@@ -211,7 +271,7 @@ export async function preparePap437CommercialFixture(
       commercialReference: `${PREFIX} ${runTag} capacity-guard`,
     };
     guardSubscriptionAttempted = true;
-    guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody, replayKey(operationTag, "guard-subscription"));
+    guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody, guardSubscriptionKey);
     if (guardSubscription.studentProfileId !== preparedGuard.studentProfileId || guardSubscription.pathProgramId !== path.id || guardSubscription.weeklyCommitment !== 1) {
       throw new Error("PAP-437 guard Subscription did not bind to the synthetic learner/path.");
     }
@@ -250,15 +310,22 @@ export async function preparePap437CommercialFixture(
     const recover = async (label: string, action: () => Promise<void>) => {
       try { await action(); } catch (recoveryError) { recoveryErrors.push(`${label}: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`); }
     };
-    if (learnerBAttempted && !learnerB) await recover("recover intake B", async () => { learnerB = await createLearner(port, runTag, operationTag, "b", localDate, learnerA.parentUserId); });
-    if (guardAttempted && !guard) await recover("recover guard intake", async () => { guard = await createLearner(port, runTag, operationTag, "guard", localDate, learnerA.parentUserId); });
-    if (saleAAttempted && !saleA && saleABody) await recover("recover sale A", async () => { saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody!, replayKey(operationTag, "sale-a")); });
-    if (saleBAttempted && !saleB && saleBBody) await recover("recover sale B", async () => { saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody!, replayKey(operationTag, "sale-b")); });
-    if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) await recover("recover guard Subscription", async () => { guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody!, replayKey(operationTag, "guard-subscription")); });
+    if (learnerBAttempted && !learnerB) await recover("recover intake B", async () => { learnerB = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeBBody, intakeBKey); });
+    if (guardAttempted && !guard) await recover("recover guard intake", async () => { guard = await port.command<Pap437StudentIntake>("POST", "student-intakes", guardIntakeBody, guardIntakeKey); });
+    if (saleAAttempted && !saleA && saleABody) await recover("recover sale A", async () => { saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody!, saleAKey); });
+    if (saleBAttempted && !saleB && saleBBody) await recover("recover sale B", async () => { saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody!, saleBKey); });
+    if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) await recover("recover guard Subscription", async () => { guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody!, guardSubscriptionKey); });
+    const pendingOperations: Pap437RollbackPendingOperation[] = [];
+    if (learnerBAttempted && !learnerB) pendingOperations.push({ kind: "INTAKE", label: "b", idempotencyKey: intakeBKey, body: intakeBBody });
+    if (guardAttempted && !guard) pendingOperations.push({ kind: "INTAKE", label: "guard", idempotencyKey: guardIntakeKey, body: guardIntakeBody });
+    if (saleAAttempted && !saleA && saleABody) pendingOperations.push({ kind: "SALE", label: "a", idempotencyKey: saleAKey, body: saleABody });
+    if (saleBAttempted && !saleB && saleBBody) pendingOperations.push({ kind: "SALE", label: "b", idempotencyKey: saleBKey, body: saleBBody });
+    if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) pendingOperations.push({ kind: "SUBSCRIPTION", label: "guard", idempotencyKey: guardSubscriptionKey, body: guardSubscriptionBody });
     const rollbackState = createRollbackState({
-      runTag, operationTag, now, parentContactValue, path, space, classes: [happyA, happyB, blockedClass],
+      runTag, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
       learners: [learnerA, learnerB, guard].filter((item): item is Pap437StudentIntake => item !== undefined),
       sales: [saleA, saleB].filter((item): item is BoSaleResult => item !== undefined),
+      pendingOperations,
     });
     recoveryErrors.push(...await rollbackPap437OwnedPreparation(port, rollbackState));
     const detail = error instanceof Error ? error.message : String(error);
@@ -431,11 +498,13 @@ type Pap437OwnedPreparationRollbackInput = {
   operationTag: string;
   now: Date;
   parentContactValue: string;
+  centerId: string;
   path: F3Path;
   space: F3LearningSpace;
   classes: F3RunningClass[];
   learners: Pap437StudentIntake[];
   sales: BoSaleResult[];
+  pendingOperations?: Pap437RollbackPendingOperation[];
 };
 
 function createRollbackState(input: Pap437OwnedPreparationRollbackInput): Pap437RollbackState {
@@ -444,11 +513,14 @@ function createRollbackState(input: Pap437OwnedPreparationRollbackInput): Pap437
     operationTag: input.operationTag,
     nowIso: input.now.toISOString(),
     parentContactValue: input.parentContactValue,
+    ownsParentContact: input.learners.length ? (!input.learners[0]!.parentReused && input.learners[0]!.createdContactIdentifierId !== null) : null,
+    centerId: input.centerId,
     pathId: input.path.id,
     spaceId: input.space.id,
     classIds: [...new Set(input.classes.map((item) => item.id))],
     learnerIds: [...new Set(input.learners.map((item) => item.studentProfileId))],
     billIds: [...new Set(input.sales.map((item) => item.bill.bill.id))],
+    pendingOperations: (input.pendingOperations ?? []).map((item) => ({ ...item, body: { ...item.body } })),
   };
 }
 
@@ -464,6 +536,30 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
     }
   };
   const releaseLocalDate = houseLocalDate(new Date(state.nowIso));
+  const unresolved: Pap437RollbackPendingOperation[] = [];
+  for (const operation of state.pendingOperations ?? []) {
+    const reconciled = await record(`reconcile ${operation.kind.toLowerCase()} ${operation.label}`, async () => {
+      if (operation.kind === "INTAKE") {
+        const intake = await port.command<Pap437StudentIntake>("POST", "student-intakes", operation.body, operation.idempotencyKey);
+        if (operation.label === "a") {
+          state.ownsParentContact = !intake.parentReused && intake.createdContactIdentifierId !== null;
+          state.learnerIds = [intake.studentProfileId, ...state.learnerIds.filter((id) => id !== intake.studentProfileId)];
+        } else if (!state.learnerIds.includes(intake.studentProfileId)) {
+          state.learnerIds.push(intake.studentProfileId);
+        }
+        return;
+      }
+      if (operation.kind === "SALE") {
+        const sale = await port.command<BoSaleResult>("POST", "billing/sales", operation.body, operation.idempotencyKey);
+        if (!state.billIds.includes(sale.bill.bill.id)) state.billIds.push(sale.bill.bill.id);
+        if (!state.learnerIds.includes(sale.billItem.studentProfileId)) state.learnerIds.push(sale.billItem.studentProfileId);
+        return;
+      }
+      await port.command<BoLearnerSubscription>("POST", "subscriptions", operation.body, operation.idempotencyKey);
+    });
+    if (!reconciled) unresolved.push(operation);
+  }
+  state.pendingOperations = unresolved;
   const learnerIds = [...new Set(state.learnerIds)];
   for (const studentId of learnerIds) {
     await record(`neutralize ${studentId}`, async () => {
@@ -490,19 +586,22 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
   }
   await record("archive synthetic topology", async () => {
     const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
-    for (const classId of state.classIds) {
-      const current = latest.runningClasses.find((item) => item.id === classId);
-      if (current?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${current.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: current.version });
+    const resolved = resolveRollbackTopology(latest, state);
+    if (resolved.path) state.pathId = resolved.path.id;
+    if (resolved.space) state.spaceId = resolved.space.id;
+    state.classIds = [...new Set([...state.classIds, ...resolved.classes.map((item) => item.id)])];
+    for (const current of resolved.classes) {
+      if (current.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${current.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: current.version });
     }
-    const currentSpace = latest.learningSpaces.find((item) => item.id === state.spaceId);
-    if (currentSpace?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${currentSpace.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: currentSpace.version });
-    const currentPath = latest.paths.find((item) => item.id === state.pathId);
-    if (currentPath?.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${currentPath.id}`, { code: currentPath.code, displayName: currentPath.displayName, status: "ARCHIVED", expectedVersion: currentPath.version });
+    if (resolved.space?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${resolved.space.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: resolved.space.version });
+    if (resolved.path?.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${resolved.path.id}`, { code: resolved.path.code, displayName: resolved.path.displayName, status: "ARCHIVED", expectedVersion: resolved.path.version });
   });
 
   const ownerId = learnerIds[0];
   const dependentIds = learnerIds.slice(1).reverse();
-  let dependentsClean = true;
+  const unresolvedDependentIntake = state.pendingOperations.some((operation) => operation.kind === "INTAKE" && operation.label !== "a");
+  let dependentsClean = !unresolvedDependentIntake;
+  if (unresolvedDependentIntake && ownerId) errors.push(`void owner ${ownerId}: deferred until unknown dependent intake outcome is reconciled`);
   for (const studentId of dependentIds) {
     const ok = await record(`void intake ${studentId}`, async () => {
       const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
@@ -528,15 +627,40 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
       errors.push(`void owner ${ownerId}: deferred until dependent intake cleanup converges`);
     }
   }
-  await record("Parent/contact readback", async () => {
-    const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
-    if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
-  });
+  if (state.ownsParentContact !== false && !state.pendingOperations.some((operation) => operation.kind === "INTAKE")) {
+    await record("Parent/contact readback", async () => {
+      const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
+      if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
+    });
+  }
   await record("topology readback", async () => {
     const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
-    if (latest.paths.some((item) => item.id === state.pathId && item.status === "ACTIVE") || latest.learningSpaces.some((item) => item.id === state.spaceId && item.status === "ACTIVE") || latest.runningClasses.some((item) => state.classIds.includes(item.id) && item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
+    const resolved = resolveRollbackTopology(latest, state);
+    if (resolved.path?.status === "ACTIVE" || resolved.space?.status === "ACTIVE" || resolved.classes.some((item) => item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
   });
   return errors;
+}
+
+function resolveRollbackTopology(bootstrap: F3BootstrapState, state: Pap437RollbackState) {
+  const pathCode = `e2e-pap437-${state.runTag}`;
+  const spaceCode = `pap437-${state.runTag}`;
+  const classNames = new Set(["happy-a", "happy-b", "blocked"].map((suffix) => `${PREFIX} ${state.runTag} ${suffix}`));
+  const pathMatches = bootstrap.paths.filter((item) => item.id === state.pathId || item.code === pathCode);
+  if (pathMatches.length > 1) throw new Error(`multiple synthetic Path matches for ${state.runTag}`);
+  const path = pathMatches[0];
+  if (path) assertSyntheticName(path.displayName, state.runTag, "Path");
+  const spaceMatches = bootstrap.learningSpaces.filter((item) => item.centerId === state.centerId && (item.id === state.spaceId || item.code === spaceCode));
+  if (spaceMatches.length > 1) throw new Error(`multiple synthetic Learning Space matches for ${state.runTag}`);
+  const space = spaceMatches[0];
+  if (space) assertSyntheticName(space.displayName, state.runTag, "Learning Space");
+  const classes = bootstrap.runningClasses.filter((item) => state.classIds.includes(item.id) || (item.centerId === state.centerId && classNames.has(item.operationalName)));
+  for (const item of classes) {
+    if (item.centerId !== state.centerId) throw new Error(`synthetic Running Class ${item.id} escaped E2E Comparator Center`);
+    if (path && item.pathProgramId !== path.id) throw new Error(`synthetic Running Class ${item.id} escaped the fixture Path`);
+    if (space && item.learningSpaceId !== space.id) throw new Error(`synthetic Running Class ${item.id} escaped the fixture Learning Space`);
+    if (!classNames.has(item.operationalName)) throw new Error(`synthetic Running Class ${item.id} has unexpected identity`);
+  }
+  return { path, space, classes: [...new Map(classes.map((item) => [item.id, item])).values()] };
 }
 
 async function archivePreparedTopology(port: Pap437FixturePort, path: F3Path, space: F3LearningSpace, classes: F3RunningClass[]) {
@@ -547,7 +671,7 @@ async function archivePreparedTopology(port: Pap437FixturePort, path: F3Path, sp
   if (path.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${path.id}`, { code: path.code, displayName: path.displayName, status: "ARCHIVED", expectedVersion: path.version });
 }
 
-async function createLearner(port: Pap437FixturePort, runTag: string, operationTag: string, suffix: string, effectiveFrom: string, existingParentUserId?: string) {
+function studentIntakeBody(runTag: string, suffix: string, effectiveFrom: string, existingParentUserId?: string): Record<string, unknown> {
   const common = {
     displayName: `${PREFIX} ${runTag} ${suffix.toUpperCase()}`,
     birthYear: 2018,
@@ -557,10 +681,9 @@ async function createLearner(port: Pap437FixturePort, runTag: string, operationT
     relationshipType: "PARENT",
     effectiveFrom,
   };
-  const body = existingParentUserId
+  return existingParentUserId
     ? { ...common, existingParentUserId }
     : { ...common, existingParentUserId: null, guardianDisplayName: `${PREFIX} ${runTag} Parent`, contactType: "EMAIL", contactValue: syntheticParentContact(runTag) };
-  return port.command<Pap437StudentIntake>("POST", "student-intakes", body, replayKey(operationTag, `intake-${suffix}`));
 }
 
 function assertReusedParentIntake(intake: Pap437StudentIntake, expectedParentUserId: string, label: string) {
