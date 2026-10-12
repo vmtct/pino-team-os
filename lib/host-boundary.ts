@@ -46,8 +46,36 @@ export function requiresBoStaffPasswordSession(host: string, pathname: string): 
   return isPathWithin(normalized, "/bo");
 }
 
+function isApprovedBoPinoriaOperationalPath(normalized: string): boolean {
+  const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  return normalized === "/api/bo/pinoria/worlds"
+    || normalized === "/api/bo/pinoria/worlds/media"
+    || normalized === "/api/bo/pinoria/worlds/learners"
+    || new RegExp(`^/api/bo/pinoria/worlds/(?:${id}|${id}/scenes|learners/${id}|learners/${id}/instances|scenes/${id}|scenes/${id}/layers|layers/${id}|instances/${id}|instances/${id}/(?:set-live|revoke|reactivate)|instances/${id}/scenes/${id}|instances/${id}/layers/${id}|students/${id}/live)$`).test(normalized)
+    || normalized === "/api/bo/pinoria/onboarding/sets"
+    || new RegExp(`^/api/bo/pinoria/onboarding/(?:sets/${id}|(?:students|staff)/${id}(?:/grant)?)$`).test(normalized);
+}
+
+function isApprovedBoLegacyFounderPinoriaPath(normalized: string): boolean {
+  const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  return normalized === "/api/founder/pinoria/wish/catalog"
+    || new RegExp(`^/api/founder/pinoria/wish/catalog/(?:bearers|sets)(?:/${id})?$`).test(normalized)
+    || new RegExp(`^/api/founder/pinoria/wish/catalog/wearables/${id}/projection$`).test(normalized)
+    || normalized === "/api/founder/pinoria/wish/banners"
+    || new RegExp(`^/api/founder/pinoria/wish/banners/${id}(?:/(?:validation|schedule|activate|retire))?$`).test(normalized)
+    || normalized === "/api/founder/pinoria/wish/rules"
+    || normalized === "/api/founder/pinoria/wish/release-phases"
+    || new RegExp(`^/api/founder/pinoria/wish/release-phases/${id}(?:/(?:validation|publish|retire|assign))?$`).test(normalized)
+    || normalized === "/api/founder/pinoria/wish/resources/energy-seeds/learners"
+    || new RegExp(`^/api/founder/pinoria/wish/resources/energy-seeds/learners/${id}(?:/corrections)?$`).test(normalized)
+    || normalized === "/api/founder/pinoria/companions/species"
+    || new RegExp(`^/api/founder/pinoria/companions/species/${id}(?:/(?:activate|archive))?$`).test(normalized)
+    || normalized === "/api/founder/pinoria/companions/eggs";
+}
+
 function isApprovedBoPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  if (isApprovedBoPinoriaOperationalPath(normalized) || isApprovedBoLegacyFounderPinoriaPath(normalized)) return true;
   if ([
     "/bo",
     "/bo/profile",
@@ -71,6 +99,9 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/syllabus",
     "/bo/practice",
     "/bo/pinoria-effects",
+    "/bo/pinoria-world",
+    "/bo/pinoria-wish",
+    "/bo/pinoria-companions",
     "/bo/pinoria-ward",
     "/bo/pinoria-ward/sets",
     "/bo/pinoria-ward/learners",
