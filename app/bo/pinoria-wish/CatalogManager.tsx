@@ -12,6 +12,7 @@ type Catalog={bearers:Bearer[];sets:SetRow[];wearables:Wearable[];variants:Varia
 type Envelope<T>={data?:T;error?:{message?:string}};
 type MutableKind="bearer"|"set";
 type Edit={kind:MutableKind;id:string;version:number;status:Status}|null;
+type ProjectionEdit={wearableId:string;rarity:Wearable["rarity"];setId:string}|null;
 type CatalogRow=Bearer|SetRow|Wearable|Variant;
 
 async function request<T>(path:string,init?:RequestInit){
@@ -22,14 +23,15 @@ async function request<T>(path:string,init?:RequestInit){
 }
 
 export function CatalogManager({onChanged}:{onChanged:()=>void}){
- const[catalog,setCatalog]=useState<Catalog|null>(null),[busy,setBusy]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState(""),[edit,setEdit]=useState<Edit>(null);
+ const[catalog,setCatalog]=useState<Catalog|null>(null),[busy,setBusy]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState(""),[edit,setEdit]=useState<Edit>(null),[projection,setProjection]=useState<ProjectionEdit>(null);
  const[bearer,setBearer]=useState({key:"",displayName:"",title:"",loreText:"",regionKey:"",heroAssetKey:""});
  const[setForm,setSetForm]=useState({key:"",bearerId:"",displayName:"",descriptionText:""});
  const activeBearers=useMemo(()=>catalog?.bearers.filter(x=>x.status==="ACTIVE")??[],[catalog]);
+ const activeSets=useMemo(()=>catalog?.sets.filter(x=>x.status==="ACTIVE")??[],[catalog]);
  async function load(){try{const data=await request<Catalog>("pinoria/wish/catalog");setCatalog(data);setSetForm(x=>({...x,bearerId:x.bearerId||data.bearers.find(b=>b.status==="ACTIVE")?.id||""}));}catch(cause){setError(cause instanceof Error?cause.message:"Không tải được catalog");}}
  useEffect(()=>{void load();},[]);
  function done(text:string){setMessage(text);setError("");setEdit(null);void load();onChanged();}
- async function command(path:string,body:unknown,label:string,method:"POST"|"PATCH"){setBusy(label);setError("");try{await request(path,{method,headers:{"content-type":"application/json"},body:JSON.stringify(body)});done(label);}catch(cause){setError(cause instanceof Error?cause.message:"Catalog command failed");}finally{setBusy("");}}
+ async function command(path:string,body:unknown,label:string,method:"POST"|"PATCH"){setBusy(label);setError("");try{await request(path,{method,headers:{"content-type":"application/json"},body:JSON.stringify(body)});done(label);return true;}catch(cause){setError(cause instanceof Error?cause.message:"Catalog command failed");return false;}finally{setBusy("");}}
  async function saveBearer(){
   const editing=edit?.kind==="bearer"?edit:null;
   const current=editing?catalog?.bearers.find(x=>x.id===editing.id):null;
@@ -56,12 +58,15 @@ export function CatalogManager({onChanged}:{onChanged:()=>void}){
   if(kind==="set"){const x=item as SetRow;path=`pinoria/wish/catalog/sets/${x.id}`;body={...body,bearerId:x.bearerId,displayName:x.displayName,descriptionText:x.descriptionText,metadata:x.metadata};}
   await command(path,body,`${item.key}: ${status}`,"PATCH");
  }
+ function beginProjection(item:Wearable){setProjection({wearableId:item.id,rarity:item.rarity,setId:item.setId??""});}
+ async function saveProjection(){if(!projection)return;if(await command(`pinoria/wish/catalog/wearables/${projection.wearableId}/projection`,{rarity:projection.rarity,setId:projection.setId||null},"Đã cập nhật Wish projection","PATCH"))setProjection(null); }
  if(!catalog)return <section className={bo.panel}><div className={bo.state}><strong>Đang tải Wish catalog…</strong></div></section>;
  return <section className={bo.panel}>
   <div className={bo.panelHeading}><div><h2>Wish content catalog</h2><p>Wish quản trị Bearer và Set. Wearable/Variant là Ward-owned và chỉ hiển thị projection tại đây.</p></div><span className={bo.writePill}>BOUNDED WRITE</span></div>
   {error?<div className={`${bo.card} ${bo.denied}`}><strong>Lỗi catalog</strong><span>{error}</span></div>:null}
   {message?<div className={bo.successCard}><span>Catalog</span><strong>{message}</strong></div>:null}
   {edit?<div className={styles.editNotice}><strong>Đang sửa {edit.kind}</strong><span>v{edit.version} · {edit.status}</span><button className={bo.secondaryButton} onClick={cancel}>Hủy sửa</button></div>:null}
+  {projection?<div className={styles.projectionEditor}><div><strong>Cấu hình Wish projection</strong><small>Chỉ rarity + signature Set; definition/lifecycle vẫn thuộc Ward.</small></div><label className={bo.field}>Rarity<select value={projection.rarity} onChange={e=>setProjection(x=>x?{...x,rarity:e.target.value as Wearable["rarity"]}:x)}><option value="COMMON">COMMON</option><option value="RARE">RARE</option><option value="MYTHIC">MYTHIC</option></select></label><label className={bo.field}>Signature Set<select value={projection.setId} onChange={e=>setProjection(x=>x?{...x,setId:e.target.value}:x)}><option value="">Không gắn set</option>{activeSets.map(x=><option key={x.id} value={x.id}>{x.displayName}</option>)}</select></label><div className={styles.catalogActions}><button className={bo.primaryButton} disabled={!!busy} onClick={()=>void saveProjection()}>Lưu Wish projection</button><button className={bo.secondaryButton} disabled={!!busy} onClick={()=>setProjection(null)}>Hủy</button></div></div>:null}
   <div className={styles.catalogForms}>
    <div className={styles.catalogForm}><h3>Original Bearer</h3>
     <label className={bo.field}>Key<input disabled={edit?.kind==="bearer"} value={bearer.key} onChange={e=>setBearer(x=>({...x,key:e.target.value}))}/></label>
@@ -84,7 +89,7 @@ export function CatalogManager({onChanged}:{onChanged:()=>void}){
   <div className={styles.catalogLists}>
    <CatalogList title="Bearers" rows={catalog.bearers} onEdit={item=>begin("bearer",item as Bearer)} onStatus={(item,status)=>setStatus("bearer",item as Bearer,status)}/>
    <CatalogList title="Sets" rows={catalog.sets} onEdit={item=>begin("set",item as SetRow)} onStatus={(item,status)=>setStatus("set",item as SetRow,status)}/>
-   <CatalogList title="Wearables · Ward projection" rows={catalog.wearables} manageHref="/bo/pinoria-ward"/>
+   <WearableProjectionList rows={catalog.wearables} sets={catalog.sets} onConfigure={beginProjection}/>
    <CatalogList title="Variants · Ward projection" rows={catalog.variants} manageHref="/bo/pinoria-ward"/>
   </div>
  </section>;
@@ -95,5 +100,14 @@ function CatalogList({title,rows,onEdit,onStatus,manageHref}:{title:string;rows:
   <div><strong>{item.displayName}</strong><small>{item.key} · v{item.version}</small></div>
   <span className={bo.statusPill}>{item.status}</span>
   <div className={styles.catalogActions}>{manageHref?<a className={bo.secondaryButton} href={manageHref}>Manage in Ward</a>:<><button className={bo.secondaryButton} onClick={()=>onEdit?.(item)}>Edit</button>{item.status==="DRAFT"?<button className={bo.primaryButton} onClick={()=>void onStatus?.(item,"ACTIVE")}>Activate</button>:null}{item.status!=="ARCHIVED"?<button className={bo.secondaryButton} onClick={()=>void onStatus?.(item,"ARCHIVED")}>Archive</button>:null}</>}</div>
+ </div>)}</div>;
+}
+
+function WearableProjectionList({rows,sets,onConfigure}:{rows:Wearable[];sets:SetRow[];onConfigure:(item:Wearable)=>void}){
+ const setNames=new Map(sets.map(item=>[item.id,item.displayName]));
+ return <div className={styles.catalogList}><h3>Wearables · Wish projection <span>{rows.length}</span></h3>{rows.length===0?<small>Chưa có dữ liệu.</small>:rows.map(item=><div className={styles.catalogRow} key={item.id}>
+  <div><strong>{item.displayName}</strong><small>{item.key} · {item.rarity} · {item.setId?setNames.get(item.setId)??item.setId:"No signature set"}</small></div>
+  <span className={bo.statusPill}>{item.status}</span>
+  <div className={styles.catalogActions}><button className={bo.secondaryButton} disabled={item.status==="ARCHIVED"} onClick={()=>onConfigure(item)}>Configure Wish</button><a className={bo.secondaryButton} href="/bo/pinoria-ward">Manage in Ward</a></div>
  </div>)}</div>;
 }

@@ -60,6 +60,7 @@ function isApprovedBoLegacyFounderPinoriaPath(normalized: string): boolean {
   const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   return normalized === "/api/founder/pinoria/wish/catalog"
     || new RegExp(`^/api/founder/pinoria/wish/catalog/(?:bearers|sets)(?:/${id})?$`).test(normalized)
+    || new RegExp(`^/api/founder/pinoria/wish/catalog/wearables/${id}/projection$`).test(normalized)
     || normalized === "/api/founder/pinoria/wish/banners"
     || new RegExp(`^/api/founder/pinoria/wish/banners/${id}(?:/(?:validation|schedule|activate|retire))?$`).test(normalized)
     || normalized === "/api/founder/pinoria/wish/rules"
