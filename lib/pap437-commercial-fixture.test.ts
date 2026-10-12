@@ -511,6 +511,35 @@ test("PAP-437 rollback rejects archived owner evidence without the exact contact
   assert.ok(resumed.rollbackState.pendingOperations.some((operation) => operation.kind === "VOID_INTAKE" && operation.label === "a"));
 });
 
+test("PAP-437 rollback rejects malformed owner disposition on durable replay", async () => {
+  const port = new FakePort();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try { await preparePap437CommercialFixture(port, "ownbadpd", now); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); incomplete = error; }
+  assert.ok(incomplete);
+  port.corruptNextOwnedParentVoid("INVALID_DISPOSITION");
+  let first: Pap437RollbackIncompleteError | null = null;
+  try { await resumePap437CommercialRollback(port, incomplete.rollbackState); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); first = error; }
+  assert.ok(first);
+  assert.match(first.rollbackErrors.join(" | "), /invalid Parent disposition/i);
+  assert.ok(first.rollbackState.pendingOperations.some((operation) => operation.kind === "VOID_INTAKE" && operation.label === "a"));
+  await assert.rejects(() => resumePap437CommercialRollback(port, first!.rollbackState), /invalid Parent disposition/i);
+});
+
+test("PAP-437 rollback rejects owner receipt with missing disposition fields", async () => {
+  const port = new FakePort();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try { await preparePap437CommercialFixture(port, "ownmiss", now); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); incomplete = error; }
+  assert.ok(incomplete);
+  port.corruptNextOwnedParentVoid("MISSING_RECEIPT_FIELDS");
+  let resumed: Pap437RollbackIncompleteError | null = null;
+  try { await resumePap437CommercialRollback(port, incomplete.rollbackState); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); resumed = error; }
+  assert.ok(resumed);
+  assert.match(resumed.rollbackErrors.join(" | "), /invalid Parent disposition/i);
+  assert.ok(resumed.rollbackState.pendingOperations.some((operation) => operation.kind === "VOID_INTAKE" && operation.label === "a"));
+});
+
 test("PAP-437 fails closed when owner-void reports the wrong Parent identity", async () => {
   const port = new FakePort();
   port.corruptNextOwnedParentVoid("WRONG_PARENT");
@@ -711,7 +740,7 @@ class FakePort implements Pap437FixturePort {
   private preCommitFailures = new Map<string, { skip: number; remaining: number }>();
   private failNextCommandFragment: string | null = null;
   private preserveNextOwnedParentShared = false;
-  private corruptNextOwnedParentVoidResult: "REUSED_UNCHANGED" | "WRONG_PARENT" | "CONTACT_RETIRED" | "CONTACT_NOT_RETIRED" | null = null;
+  private corruptNextOwnedParentVoidResult: "REUSED_UNCHANGED" | "WRONG_PARENT" | "CONTACT_RETIRED" | "CONTACT_NOT_RETIRED" | "INVALID_DISPOSITION" | "MISSING_RECEIPT_FIELDS" | null = null;
   private corruptNextDependentIntakeResult: "WRONG_PARENT" | null = null;
   private corruptNextDependentVoidResult: "WRONG_PARENT" | "ARCHIVED" | "WRONG_STUDENT" | "CONTACT_RETIRED" | null = null;
   private externalParentDependents = new Map<string, number>();
@@ -887,10 +916,12 @@ class FakePort implements Pap437FixturePort {
       }
       state.lifecycle.student.status = "ARCHIVED"; state.lifecycle.student.version += 1;
       const reportedParentUserId = corruption === "WRONG_PARENT" || dependentCorruption === "WRONG_PARENT" ? this.seedExistingParent(`wrong-${parent.contact?.normalizedValue ?? "parent@example.invalid"}`) : parent.id;
-      const reportedDisposition = corruption === "REUSED_UNCHANGED" ? "REUSED_UNCHANGED" : dependentCorruption === "ARCHIVED" ? "ARCHIVED" : parentDisposition;
-      const reportedRetiredContactCount = corruption === "CONTACT_RETIRED" ? 1 : corruption === "CONTACT_NOT_RETIRED" ? 0 : dependentCorruption === "ARCHIVED" || dependentCorruption === "CONTACT_RETIRED" ? 1 : retiredContactCount;
+      const reportedDisposition = corruption === "REUSED_UNCHANGED" ? "REUSED_UNCHANGED" : corruption === "INVALID_DISPOSITION" ? "INVALID" : dependentCorruption === "ARCHIVED" ? "ARCHIVED" : parentDisposition;
+      const reportedRetiredContactCount = corruption === "INVALID_DISPOSITION" ? 99 : corruption === "CONTACT_RETIRED" ? 1 : corruption === "CONTACT_NOT_RETIRED" ? 0 : dependentCorruption === "ARCHIVED" || dependentCorruption === "CONTACT_RETIRED" ? 1 : retiredContactCount;
       const reportedStudentProfileId = dependentCorruption === "WRONG_STUDENT" ? this.id() : state.lifecycle.student.id;
-      return { studentProfileId: reportedStudentProfileId, studentStatus: "ARCHIVED", guardianRelationshipId:state.intake.guardianRelationshipId, guardianStatus:"ENDED", parentUserId:reportedParentUserId, parentDisposition:reportedDisposition, retiredContactCount:reportedRetiredContactCount };
+      const reported = { studentProfileId: reportedStudentProfileId, studentStatus: "ARCHIVED", guardianRelationshipId:state.intake.guardianRelationshipId, guardianStatus:"ENDED", parentUserId:reportedParentUserId, parentDisposition:reportedDisposition, retiredContactCount:reportedRetiredContactCount };
+      if (corruption === "MISSING_RECEIPT_FIELDS") { const { parentDisposition: _parentDisposition, retiredContactCount: _retiredContactCount, ...missing } = reported; return missing; }
+      return reported;
     }
     throw new Error(`unexpected ${method} ${path}`);
   }
@@ -926,7 +957,7 @@ class FakePort implements Pap437FixturePort {
   private maybeFailBeforeCommit(path:string){ const plan = this.preCommitFailures.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.preCommitFailures.delete(path); throw new Error(`simulated pre-commit transport failure for ${path}`); }
   failNextCommandContaining(fragment:string){ this.failNextCommandFragment = fragment; }
   preserveOwnedParentAsShared(){ this.preserveNextOwnedParentShared = true; }
-  corruptNextOwnedParentVoid(mode: "REUSED_UNCHANGED" | "WRONG_PARENT" | "CONTACT_RETIRED" | "CONTACT_NOT_RETIRED"){ this.corruptNextOwnedParentVoidResult = mode; }
+  corruptNextOwnedParentVoid(mode: "REUSED_UNCHANGED" | "WRONG_PARENT" | "CONTACT_RETIRED" | "CONTACT_NOT_RETIRED" | "INVALID_DISPOSITION" | "MISSING_RECEIPT_FIELDS"){ this.corruptNextOwnedParentVoidResult = mode; }
   corruptNextDependentIntake(mode: "WRONG_PARENT"){ this.corruptNextDependentIntakeResult = mode; }
   corruptNextDependentVoid(mode: "WRONG_PARENT" | "ARCHIVED" | "WRONG_STUDENT" | "CONTACT_RETIRED"){ this.corruptNextDependentVoidResult = mode; }
   activeBillCount(){ return [...this.bills.values()].filter((bill) => !bill.bill.voidedAt).length; }
