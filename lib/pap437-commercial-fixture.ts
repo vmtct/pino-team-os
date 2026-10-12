@@ -45,6 +45,7 @@ export interface Pap437StudentIntake {
 
 export interface Pap437Fixture {
   runTag: string;
+  generation: number;
   operationTag: string;
   centerId: string;
   path: F3Path;
@@ -70,10 +71,12 @@ export type Pap437RollbackPendingOperation =
 
 export interface Pap437RollbackState {
   runTag: string;
+  generation: number;
   operationTag: string;
   nowIso: string;
   parentContactValue: string;
   ownsParentContact: boolean | null;
+  parentDisposition: BoStudentIntakeVoidResult["parentDisposition"] | null;
   centerId: string;
   pathId: string | null;
   spaceId: string | null;
@@ -132,12 +135,13 @@ export async function preparePap437CommercialFixture(
   const centers = bootstrap.centers.filter((item) => item.centerKey === E2E_CENTER_KEY && item.status.toLowerCase() === "active");
   if (centers.length !== 1) throw new Error(`PAP-437 requires exactly one active ${E2E_CENTER_KEY} Center; found ${centers.length}.`);
   const centerId = centers[0]!.id;
+  const generation = nextTopologyGeneration(bootstrap, centerId, runTag);
 
   const productPlans = await port.get<BoProductPlan[]>("billing/product-plans");
   const productPlan = productPlans.find((item) => item.enabled && item.cadence === 2 && item.termWeeks === 12);
   if (!productPlan) throw new Error("PAP-437 requires an enabled 2x/week 12-week Product Plan; fixture will not mutate global plan config.");
 
-  const parentContactValue = syntheticParentContact(runTag);
+  const parentContactValue = syntheticParentContact(runTag, generation);
   const collisions = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(parentContactValue)}&limit=25`);
   if (collisions.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === parentContactValue))) {
     throw new Error("PAP-437 synthetic Parent contact already belongs to an active Parent; choose a new run id.");
@@ -149,18 +153,20 @@ export async function preparePap437CommercialFixture(
   let happyB: F3RunningClass | undefined;
   let blockedClass: F3RunningClass | undefined;
   try {
-    path = await ensurePath(port, bootstrap, runTag);
-    space = await ensureSpace(port, bootstrap, centerId, runTag);
-    happyA = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-a", 1, 8);
-    happyB = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "happy-b", 3, 8);
-    blockedClass = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, "blocked", 5, 1);
+    path = await ensurePath(port, bootstrap, runTag, generation);
+    space = await ensureSpace(port, bootstrap, centerId, runTag, generation);
+    happyA = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, generation, "happy-a", 1, 8);
+    happyB = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, generation, "happy-b", 3, 8);
+    blockedClass = await ensureClass(port, bootstrap, centerId, path.id, space.id, runTag, generation, "blocked", 5, 1);
   } catch (error) {
     const rollbackState: Pap437RollbackState = {
       runTag,
-      operationTag: `${runTag}:topology`,
+      generation,
+      operationTag: `${runTag}:g${generation}:topology`,
       nowIso: now.toISOString(),
       parentContactValue,
       ownsParentContact: false,
+      parentDisposition: null,
       centerId,
       pathId: path?.id ?? null,
       spaceId: space?.id ?? null,
@@ -182,10 +188,10 @@ export async function preparePap437CommercialFixture(
   }
   if (!path || !space || !happyA || !happyB || !blockedClass) throw new Error("PAP-437 topology preparation returned incomplete synthetic identities.");
 
-  assertSyntheticTopology(centerId, path, space, [happyA, happyB, blockedClass], runTag);
-  const operationTag = `${runTag}:v${path.version}`;
+  assertSyntheticTopology(centerId, path, space, [happyA, happyB, blockedClass], runTag, generation);
+  const operationTag = `${runTag}:g${generation}:v${path.version}`;
 
-  const intakeABody = studentIntakeBody(runTag, "a", localDate);
+  const intakeABody = studentIntakeBody(runTag, generation, "a", localDate);
   const intakeAKey = replayKey(operationTag, "intake-a");
   let learnerA: Pap437StudentIntake;
   try {
@@ -195,7 +201,7 @@ export async function preparePap437CommercialFixture(
       learnerA = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeABody, intakeAKey);
     } catch (reconcileError) {
       const rollbackState = createRollbackState({
-        runTag, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
+        runTag, generation, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
         learners: [], sales: [],
         pendingOperations: [{ kind: "INTAKE", label: "a", idempotencyKey: intakeAKey, body: intakeABody }],
       });
@@ -213,13 +219,19 @@ export async function preparePap437CommercialFixture(
     }
   }
   if (learnerA.parentReused || !learnerA.createdContactIdentifierId) {
-    const rollback = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${learnerA.studentProfileId}/void`, {
-      expectedStudentVersion: 1,
-      reason: `${PREFIX} ${runTag} Parent collision rollback`,
-    }, replayKey(operationTag, "rollback-intake-a"));
-    if (rollback.studentStatus !== "ARCHIVED") throw new Error("PAP-437 failed to roll back a raced Parent-contact collision.");
-    await archivePreparedTopology(port, path, space, [happyA, happyB, blockedClass]);
-    throw new Error("PAP-437 synthetic Parent contact was concurrently claimed; fresh intake and synthetic topology were rolled back.");
+    const rollbackState = createRollbackState({
+      runTag, generation, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
+      learners: [learnerA], sales: [],
+    });
+    const rollbackErrors = await rollbackPap437OwnedPreparation(port, rollbackState);
+    if (rollbackErrors.length) {
+      throw new Pap437RollbackIncompleteError(
+        `PAP-437 synthetic Parent contact was concurrently claimed and rollback was incomplete: ${rollbackErrors.join(" | ")}`,
+        rollbackState,
+        rollbackErrors,
+      );
+    }
+    throw new Error("PAP-437 synthetic Parent contact was concurrently claimed; fresh intake and synthetic topology were rolled back without mutating the foreign Parent.");
   }
   let learnerB: Pap437StudentIntake | undefined;
   let guard: Pap437StudentIntake | undefined;
@@ -229,8 +241,8 @@ export async function preparePap437CommercialFixture(
   let saleABody: Record<string, unknown> | undefined;
   let saleBBody: Record<string, unknown> | undefined;
   let guardSubscriptionBody: Record<string, unknown> | undefined;
-  const intakeBBody = studentIntakeBody(runTag, "b", localDate, learnerA.parentUserId);
-  const guardIntakeBody = studentIntakeBody(runTag, "guard", localDate, learnerA.parentUserId);
+  const intakeBBody = studentIntakeBody(runTag, generation, "b", localDate, learnerA.parentUserId);
+  const guardIntakeBody = studentIntakeBody(runTag, generation, "guard", localDate, learnerA.parentUserId);
   const intakeBKey = replayKey(operationTag, "intake-b");
   const guardIntakeKey = replayKey(operationTag, "intake-guard");
   const saleAKey = replayKey(operationTag, "sale-a");
@@ -288,6 +300,7 @@ export async function preparePap437CommercialFixture(
 
     return {
       runTag,
+      generation,
       operationTag,
       centerId,
       path,
@@ -322,7 +335,7 @@ export async function preparePap437CommercialFixture(
     if (saleBAttempted && !saleB && saleBBody) pendingOperations.push({ kind: "SALE", label: "b", idempotencyKey: saleBKey, body: saleBBody });
     if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) pendingOperations.push({ kind: "SUBSCRIPTION", label: "guard", idempotencyKey: guardSubscriptionKey, body: guardSubscriptionBody });
     const rollbackState = createRollbackState({
-      runTag, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
+      runTag, generation, operationTag, now, parentContactValue, centerId, path, space, classes: [happyA, happyB, blockedClass],
       learners: [learnerA, learnerB, guard].filter((item): item is Pap437StudentIntake => item !== undefined),
       sales: [saleA, saleB].filter((item): item is BoSaleResult => item !== undefined),
       pendingOperations,
@@ -382,22 +395,41 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
   const latestSpace = latestBootstrap.learningSpaces.find((item) => item.id === fixture.space.id);
   if (latestSpace?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${latestSpace.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: latestSpace.version });
 
-  const voidOrder: Array<{ label: string; intake: Pap437StudentIntake; expectedDisposition: BoStudentIntakeVoidResult["parentDisposition"] }> = [
-    { label: "guard", intake: fixture.learners.guard, expectedDisposition: "REUSED_UNCHANGED" },
-    { label: "b", intake: fixture.learners.b, expectedDisposition: "REUSED_UNCHANGED" },
-    { label: "a", intake: fixture.learners.a, expectedDisposition: "ARCHIVED" },
+  const voidOrder: Array<{ label: "guard" | "b" | "a"; intake: Pap437StudentIntake }> = [
+    { label: "guard", intake: fixture.learners.guard },
+    { label: "b", intake: fixture.learners.b },
+    { label: "a", intake: fixture.learners.a },
   ];
+  let ownerParentDisposition: "ARCHIVED" | "PRESERVED_SHARED" = "ARCHIVED";
   for (const item of voidOrder) {
     const lifecycle = await port.get<BoLearnerLifecycle>(`students/${item.intake.studentProfileId}/lifecycle`);
-    if (lifecycle.student.status === "ARCHIVED") continue;
+    if (lifecycle.student.status === "ARCHIVED") {
+      if (item.label === "a") {
+        const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(fixture.parentContactValue)}&limit=25`);
+        ownerParentDisposition = activeParents.some((candidate) => candidate.parent.id === fixture.learners.a.parentUserId && candidate.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === fixture.parentContactValue))
+          ? "PRESERVED_SHARED"
+          : "ARCHIVED";
+      }
+      continue;
+    }
     const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${item.intake.studentProfileId}/void`, {
       expectedStudentVersion: lifecycle.student.version,
       reason: `${PREFIX} ${fixture.runTag} cleanup`,
     }, replayKey(fixture.operationTag, `void-student-${item.intake.studentProfileId}`));
-    if (result.parentUserId !== fixture.learners.a.parentUserId || result.parentDisposition !== item.expectedDisposition) {
-      throw new Error(`PAP-437 ${item.label} intake cleanup returned unexpected Parent disposition.`);
+    if (result.parentUserId !== fixture.learners.a.parentUserId) throw new Error(`PAP-437 ${item.label} intake cleanup returned the wrong Parent.`);
+    if (item.label !== "a") {
+      if (result.parentDisposition !== "REUSED_UNCHANGED") throw new Error(`PAP-437 ${item.label} intake cleanup returned unexpected Parent disposition.`);
+      continue;
     }
-    if (item.label === "a" && result.retiredContactCount !== 1) throw new Error("PAP-437 owner intake cleanup did not retire the synthetic Parent contact.");
+    if (result.parentDisposition === "ARCHIVED") {
+      if (result.retiredContactCount !== 1) throw new Error("PAP-437 owner intake cleanup did not retire the synthetic Parent contact.");
+      ownerParentDisposition = "ARCHIVED";
+    } else if (result.parentDisposition === "PRESERVED_SHARED") {
+      if (result.retiredContactCount !== 0) throw new Error("PAP-437 shared Parent preservation unexpectedly retired contact authority.");
+      ownerParentDisposition = "PRESERVED_SHARED";
+    } else {
+      throw new Error("PAP-437 owner intake cleanup returned an invalid reused-Parent disposition.");
+    }
   }
 
   const finalBootstrap = await port.get<F3BootstrapState>("delivery/bootstrap-state");
@@ -419,10 +451,15 @@ export async function cleanupPap437CommercialFixture(port: Pap437FixturePort, fi
   ];
   if (stillActive.length) throw new Error("PAP-437 cleanup readback found active synthetic topology.");
   const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(fixture.parentContactValue)}&limit=25`);
-  if (activeParents.some((item) => item.parent.id === fixture.learners.a.parentUserId || item.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === fixture.parentContactValue))) {
-    throw new Error("PAP-437 cleanup readback found the synthetic Parent/contact still active.");
-  }
-  return { cleaned: true as const, readbackAt: readback.asOf, parentArchived: true as const };
+  const exactActiveParent = activeParents.find((item) => item.parent.id === fixture.learners.a.parentUserId && item.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === fixture.parentContactValue));
+  if (ownerParentDisposition === "ARCHIVED" && exactActiveParent) throw new Error("PAP-437 cleanup readback found the synthetic Parent/contact still active after ARCHIVED disposition.");
+  if (ownerParentDisposition === "PRESERVED_SHARED" && !exactActiveParent) throw new Error("PAP-437 cleanup readback lost a Parent/contact that Core explicitly preserved as shared.");
+  return {
+    cleaned: true as const,
+    readbackAt: readback.asOf,
+    parentArchived: ownerParentDisposition === "ARCHIVED",
+    parentDisposition: ownerParentDisposition,
+  };
 }
 
 function bulkBody(fixture: Pap437Fixture, effectiveFromLocalDate: string, policyEffectiveAt: string, blocked: boolean): Pap437BulkBody {
@@ -443,40 +480,28 @@ function bulkBody(fixture: Pap437Fixture, effectiveFromLocalDate: string, policy
   };
 }
 
-async function ensurePath(port: Pap437FixturePort, bootstrap: F3BootstrapState, runTag: string): Promise<F3Path> {
-  const code = `e2e-pap437-${runTag}`;
-  const name = `${PREFIX} ${runTag}`;
+async function ensurePath(port: Pap437FixturePort, bootstrap: F3BootstrapState, runTag: string, generation: number): Promise<F3Path> {
+  const code = fixturePathCode(runTag, generation);
+  const name = fixturePathName(runTag, generation);
   const existing = bootstrap.paths.find((item) => item.code === code);
-  if (existing) {
-    assertSyntheticName(existing.displayName, runTag, "Path");
-    if (existing.status === "ACTIVE") return existing;
-    return port.command<F3Path>("PATCH", `catalog/paths/${existing.id}`, { code, displayName: name, status: "ACTIVE", expectedVersion: existing.version });
-  }
+  if (existing) throw new Error(`PAP-437 topology generation ${generation} Path already exists; reconcile prior fixture state before preparing again.`);
   return port.command<F3Path>("POST", "catalog/paths", { code, displayName: name, status: "ACTIVE" });
 }
 
-async function ensureSpace(port: Pap437FixturePort, bootstrap: F3BootstrapState, centerId: string, runTag: string): Promise<F3LearningSpace> {
-  const code = `pap437-${runTag}`;
-  const name = `${PREFIX} ${runTag} Space`;
+async function ensureSpace(port: Pap437FixturePort, bootstrap: F3BootstrapState, centerId: string, runTag: string, generation: number): Promise<F3LearningSpace> {
+  const code = fixtureSpaceCode(runTag, generation);
+  const name = fixtureSpaceName(runTag, generation);
   const existing = bootstrap.learningSpaces.find((item) => item.centerId === centerId && item.code === code);
-  if (existing) {
-    assertSyntheticName(existing.displayName, runTag, "Learning Space");
-    if (existing.status === "ACTIVE") return existing;
-    return port.command<F3LearningSpace>("POST", `delivery/learning-spaces/${existing.id}/lifecycle`, { status: "ACTIVE", expectedVersion: existing.version });
-  }
+  if (existing) throw new Error(`PAP-437 topology generation ${generation} Learning Space already exists; reconcile prior fixture state before preparing again.`);
   return port.command<F3LearningSpace>("POST", "delivery/learning-spaces", {
     centerId, code, displayName: name, optimalConcurrentCapacity: 8, hardConcurrentCapacity: 8, status: "ACTIVE",
   });
 }
 
-async function ensureClass(port: Pap437FixturePort, bootstrap: F3BootstrapState, centerId: string, pathId: string, spaceId: string, runTag: string, suffix: string, weekdayIso: number, hard: number): Promise<F3RunningClass> {
-  const name = `${PREFIX} ${runTag} ${suffix}`;
+async function ensureClass(port: Pap437FixturePort, bootstrap: F3BootstrapState, centerId: string, pathId: string, spaceId: string, runTag: string, generation: number, suffix: string, weekdayIso: number, hard: number): Promise<F3RunningClass> {
+  const name = fixtureClassName(runTag, generation, suffix);
   const existing = bootstrap.runningClasses.find((item) => item.centerId === centerId && item.operationalName === name);
-  if (existing) {
-    if (existing.pathProgramId !== pathId || existing.learningSpaceId !== spaceId) throw new Error(`PAP-437 ${suffix} class collides with a non-fixture topology.`);
-    if (existing.status === "ACTIVE") return existing;
-    return port.command<F3RunningClass>("POST", `delivery/running-classes/${existing.id}/lifecycle`, { status: "ACTIVE", expectedVersion: existing.version });
-  }
+  if (existing) throw new Error(`PAP-437 topology generation ${generation} ${suffix} Running Class already exists; reconcile prior fixture state before preparing again.`);
   return port.command<F3RunningClass>("POST", "delivery/running-classes", {
     centerId,
     pathProgramId: pathId,
@@ -493,8 +518,37 @@ async function ensureClass(port: Pap437FixturePort, bootstrap: F3BootstrapState,
   });
 }
 
+function nextTopologyGeneration(bootstrap: F3BootstrapState, centerId: string, runTag: string): number {
+  const pathBase = `e2e-pap437-${runTag}`;
+  const spaceBase = `pap437-${runTag}`;
+  const classBase = `${PREFIX} ${runTag}`;
+  const matchingPaths = bootstrap.paths.filter((item) => item.code === pathBase || item.code.startsWith(`${pathBase}-g`));
+  const matchingSpaces = bootstrap.learningSpaces.filter((item) => item.centerId === centerId && (item.code === spaceBase || item.code.startsWith(`${spaceBase}-g`)));
+  const matchingClasses = bootstrap.runningClasses.filter((item) => item.centerId === centerId && (item.operationalName.startsWith(`${classBase} `) || item.operationalName === classBase));
+  if (matchingPaths.some((item) => item.status === "ACTIVE") || matchingSpaces.some((item) => item.status === "ACTIVE") || matchingClasses.some((item) => item.status === "ACTIVE")) {
+    throw new Error("PAP-437 found active prior synthetic topology for this run id; reconcile/cleanup it before starting a new generation.");
+  }
+  let maxGeneration = 0;
+  for (const item of matchingPaths) {
+    if (item.code === pathBase) maxGeneration = Math.max(maxGeneration, 1);
+    else {
+      const match = new RegExp(`^${escapeRegex(pathBase)}-g([1-9][0-9]*)$`).exec(item.code);
+      if (match) maxGeneration = Math.max(maxGeneration, Number(match[1]));
+    }
+  }
+  return maxGeneration + 1;
+}
+
+function fixturePathCode(runTag: string, generation: number) { return generation === 1 ? `e2e-pap437-${runTag}` : `e2e-pap437-${runTag}-g${generation}`; }
+function fixtureSpaceCode(runTag: string, generation: number) { return generation === 1 ? `pap437-${runTag}` : `pap437-${runTag}-g${generation}`; }
+function fixturePathName(runTag: string, generation: number) { return generation === 1 ? `${PREFIX} ${runTag}` : `${PREFIX} ${runTag} g${generation}`; }
+function fixtureSpaceName(runTag: string, generation: number) { return `${fixturePathName(runTag, generation)} Space`; }
+function fixtureClassName(runTag: string, generation: number, suffix: string) { return `${fixturePathName(runTag, generation)} ${suffix}`; }
+function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
 type Pap437OwnedPreparationRollbackInput = {
   runTag: string;
+  generation: number;
   operationTag: string;
   now: Date;
   parentContactValue: string;
@@ -510,10 +564,12 @@ type Pap437OwnedPreparationRollbackInput = {
 function createRollbackState(input: Pap437OwnedPreparationRollbackInput): Pap437RollbackState {
   return {
     runTag: input.runTag,
+    generation: input.generation,
     operationTag: input.operationTag,
     nowIso: input.now.toISOString(),
     parentContactValue: input.parentContactValue,
     ownsParentContact: input.learners.length ? (!input.learners[0]!.parentReused && input.learners[0]!.createdContactIdentifierId !== null) : null,
+    parentDisposition: null,
     centerId: input.centerId,
     pathId: input.path.id,
     spaceId: input.space.id,
@@ -560,6 +616,7 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
     if (!reconciled) unresolved.push(operation);
   }
   state.pendingOperations = unresolved;
+  const unresolvedCommercial = unresolved.some((operation) => operation.kind === "SALE" || operation.kind === "SUBSCRIPTION");
   const learnerIds = [...new Set(state.learnerIds)];
   for (const studentId of learnerIds) {
     await record(`neutralize ${studentId}`, async () => {
@@ -584,56 +641,83 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
       }, replayKey(state.operationTag, `rollback-void-bill-${current.bill.id}`));
     });
   }
-  await record("archive synthetic topology", async () => {
-    const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
-    const resolved = resolveRollbackTopology(latest, state);
-    if (resolved.path) state.pathId = resolved.path.id;
-    if (resolved.space) state.spaceId = resolved.space.id;
-    state.classIds = [...new Set([...state.classIds, ...resolved.classes.map((item) => item.id)])];
-    for (const current of resolved.classes) {
-      if (current.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${current.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: current.version });
-    }
-    if (resolved.space?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${resolved.space.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: resolved.space.version });
-    if (resolved.path?.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${resolved.path.id}`, { code: resolved.path.code, displayName: resolved.path.displayName, status: "ARCHIVED", expectedVersion: resolved.path.version });
-  });
+  if (unresolvedCommercial) {
+    errors.push("commercial prerequisite cleanup deferred until unknown sale/subscription outcome is reconciled");
+    await record("commercial prerequisite readback", async () => {
+      const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+      const resolved = resolveRollbackTopology(latest, state);
+      if (!resolved.path || resolved.path.status !== "ACTIVE") throw new Error("synthetic Path is not ACTIVE while a commercial outcome is unresolved");
+      for (const operation of unresolved) {
+        if (operation.kind !== "SALE" && operation.kind !== "SUBSCRIPTION") continue;
+        const studentId = String(operation.body.studentProfileId ?? "");
+        if (!studentId) throw new Error(`pending ${operation.kind} is missing studentProfileId`);
+        const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
+        if (lifecycle.student.status !== "ACTIVE") throw new Error(`student ${studentId} is not ACTIVE while ${operation.kind} is unresolved`);
+      }
+    });
+  } else {
+    await record("archive synthetic topology", async () => {
+      const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+      const resolved = resolveRollbackTopology(latest, state);
+      if (resolved.path) state.pathId = resolved.path.id;
+      if (resolved.space) state.spaceId = resolved.space.id;
+      state.classIds = [...new Set([...state.classIds, ...resolved.classes.map((item) => item.id)])];
+      for (const current of resolved.classes) {
+        if (current.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/running-classes/${current.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: current.version });
+      }
+      if (resolved.space?.status === "ACTIVE") await port.command<LifecycleResult>("POST", `delivery/learning-spaces/${resolved.space.id}/lifecycle`, { status: "ARCHIVED", expectedVersion: resolved.space.version });
+      if (resolved.path?.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${resolved.path.id}`, { code: resolved.path.code, displayName: resolved.path.displayName, status: "ARCHIVED", expectedVersion: resolved.path.version });
+    });
+  }
 
   const ownerId = learnerIds[0];
   const dependentIds = learnerIds.slice(1).reverse();
   const unresolvedDependentIntake = state.pendingOperations.some((operation) => operation.kind === "INTAKE" && operation.label !== "a");
   let dependentsClean = !unresolvedDependentIntake;
-  if (unresolvedDependentIntake && ownerId) errors.push(`void owner ${ownerId}: deferred until unknown dependent intake outcome is reconciled`);
-  for (const studentId of dependentIds) {
-    const ok = await record(`void intake ${studentId}`, async () => {
-      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
-      if (lifecycle.student.status === "ARCHIVED") return;
-      await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${studentId}/void`, {
-        expectedStudentVersion: lifecycle.student.version,
-        reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
-      }, replayKey(state.operationTag, `rollback-void-student-${studentId}`));
-    });
-    if (!ok) dependentsClean = false;
-  }
-  if (ownerId) {
-    if (dependentsClean) {
-      await record(`void intake ${ownerId}`, async () => {
-        const lifecycle = await port.get<BoLearnerLifecycle>(`students/${ownerId}/lifecycle`);
+  if (unresolvedCommercial) {
+    errors.push("identity cleanup deferred until unknown commercial outcome is reconciled");
+  } else {
+    if (unresolvedDependentIntake && ownerId) errors.push(`void owner ${ownerId}: deferred until unknown dependent intake outcome is reconciled`);
+    for (const studentId of dependentIds) {
+      const ok = await record(`void intake ${studentId}`, async () => {
+        const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
         if (lifecycle.student.status === "ARCHIVED") return;
-        await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, {
+        await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${studentId}/void`, {
           expectedStudentVersion: lifecycle.student.version,
           reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
-        }, replayKey(state.operationTag, `rollback-void-student-${ownerId}`));
+        }, replayKey(state.operationTag, `rollback-void-student-${studentId}`));
       });
-    } else {
-      errors.push(`void owner ${ownerId}: deferred until dependent intake cleanup converges`);
+      if (!ok) dependentsClean = false;
+    }
+    if (ownerId) {
+      if (dependentsClean) {
+        await record(`void intake ${ownerId}`, async () => {
+          const lifecycle = await port.get<BoLearnerLifecycle>(`students/${ownerId}/lifecycle`);
+          if (lifecycle.student.status === "ARCHIVED") return;
+          const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, {
+            expectedStudentVersion: lifecycle.student.version,
+            reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+          }, replayKey(state.operationTag, `rollback-void-student-${ownerId}`));
+          state.parentDisposition = result.parentDisposition;
+          if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
+        });
+      } else {
+        errors.push(`void owner ${ownerId}: deferred until dependent intake cleanup converges`);
+      }
     }
   }
-  if (state.ownsParentContact !== false && !state.pendingOperations.some((operation) => operation.kind === "INTAKE")) {
+  if (!unresolvedCommercial && state.ownsParentContact === true && !state.pendingOperations.some((operation) => operation.kind === "INTAKE")) {
     await record("Parent/contact readback", async () => {
       const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
       if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
     });
+  } else if (!unresolvedCommercial && state.parentDisposition === "PRESERVED_SHARED") {
+    await record("shared Parent preservation readback", async () => {
+      const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
+      if (!activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === state.parentContactValue))) throw new Error("shared Parent/contact disappeared after PRESERVED_SHARED disposition");
+    });
   }
-  await record("topology readback", async () => {
+  if (!unresolvedCommercial) await record("topology readback", async () => {
     const latest = await port.get<F3BootstrapState>("delivery/bootstrap-state");
     const resolved = resolveRollbackTopology(latest, state);
     if (resolved.path?.status === "ACTIVE" || resolved.space?.status === "ACTIVE" || resolved.classes.some((item) => item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
@@ -642,15 +726,16 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
 }
 
 function resolveRollbackTopology(bootstrap: F3BootstrapState, state: Pap437RollbackState) {
-  const pathCode = `e2e-pap437-${state.runTag}`;
-  const spaceCode = `pap437-${state.runTag}`;
-  const classNames = new Set(["happy-a", "happy-b", "blocked"].map((suffix) => `${PREFIX} ${state.runTag} ${suffix}`));
+  const generation = state.generation || 1;
+  const pathCode = fixturePathCode(state.runTag, generation);
+  const spaceCode = fixtureSpaceCode(state.runTag, generation);
+  const classNames = new Set(["happy-a", "happy-b", "blocked"].map((suffix) => fixtureClassName(state.runTag, generation, suffix)));
   const pathMatches = bootstrap.paths.filter((item) => item.id === state.pathId || item.code === pathCode);
-  if (pathMatches.length > 1) throw new Error(`multiple synthetic Path matches for ${state.runTag}`);
+  if (pathMatches.length > 1) throw new Error(`multiple synthetic Path matches for ${state.runTag} generation ${generation}`);
   const path = pathMatches[0];
   if (path) assertSyntheticName(path.displayName, state.runTag, "Path");
   const spaceMatches = bootstrap.learningSpaces.filter((item) => item.centerId === state.centerId && (item.id === state.spaceId || item.code === spaceCode));
-  if (spaceMatches.length > 1) throw new Error(`multiple synthetic Learning Space matches for ${state.runTag}`);
+  if (spaceMatches.length > 1) throw new Error(`multiple synthetic Learning Space matches for ${state.runTag} generation ${generation}`);
   const space = spaceMatches[0];
   if (space) assertSyntheticName(space.displayName, state.runTag, "Learning Space");
   const classes = bootstrap.runningClasses.filter((item) => state.classIds.includes(item.id) || (item.centerId === state.centerId && classNames.has(item.operationalName)));
@@ -671,7 +756,7 @@ async function archivePreparedTopology(port: Pap437FixturePort, path: F3Path, sp
   if (path.status === "ACTIVE") await port.command<F3Path>("PATCH", `catalog/paths/${path.id}`, { code: path.code, displayName: path.displayName, status: "ARCHIVED", expectedVersion: path.version });
 }
 
-function studentIntakeBody(runTag: string, suffix: string, effectiveFrom: string, existingParentUserId?: string): Record<string, unknown> {
+function studentIntakeBody(runTag: string, generation: number, suffix: string, effectiveFrom: string, existingParentUserId?: string): Record<string, unknown> {
   const common = {
     displayName: `${PREFIX} ${runTag} ${suffix.toUpperCase()}`,
     birthYear: 2018,
@@ -683,7 +768,7 @@ function studentIntakeBody(runTag: string, suffix: string, effectiveFrom: string
   };
   return existingParentUserId
     ? { ...common, existingParentUserId }
-    : { ...common, existingParentUserId: null, guardianDisplayName: `${PREFIX} ${runTag} Parent`, contactType: "EMAIL", contactValue: syntheticParentContact(runTag) };
+    : { ...common, existingParentUserId: null, guardianDisplayName: `${PREFIX} ${runTag} Parent`, contactType: "EMAIL", contactValue: syntheticParentContact(runTag, generation) };
 }
 
 function assertReusedParentIntake(intake: Pap437StudentIntake, expectedParentUserId: string, label: string) {
@@ -692,7 +777,7 @@ function assertReusedParentIntake(intake: Pap437StudentIntake, expectedParentUse
   }
 }
 
-function syntheticParentContact(runTag: string) { return `pap437+${runTag}@example.invalid`; }
+function syntheticParentContact(runTag: string, generation = 1) { return generation === 1 ? `pap437+${runTag}@example.invalid` : `pap437+${runTag}g${generation}@example.invalid`; }
 
 function saleBody(learner: Pap437StudentIntake, pathProgramId: string, centerId: string, productPlanId: string, contractualStartsOn: string, runTag: string, suffix: string) {
   return {
@@ -715,9 +800,9 @@ function assertSale(sale: BoSaleResult, studentId: string, pathId: string, produ
   if (!pathId) throw new Error("PAP-437 synthetic Path identity is missing.");
 }
 
-function assertSyntheticTopology(centerId: string, path: F3Path, space: F3LearningSpace, classes: F3RunningClass[], runTag: string) {
-  assertSyntheticName(path.displayName, runTag, "Path");
-  assertSyntheticName(space.displayName, runTag, "Learning Space");
+function assertSyntheticTopology(centerId: string, path: F3Path, space: F3LearningSpace, classes: F3RunningClass[], runTag: string, generation: number) {
+  if (path.displayName !== fixturePathName(runTag, generation)) throw new Error("PAP-437 Path generation identity is inconsistent.");
+  if (space.displayName !== fixtureSpaceName(runTag, generation)) throw new Error("PAP-437 Learning Space generation identity is inconsistent.");
   if (space.centerId !== centerId) throw new Error("PAP-437 Learning Space escaped E2E Comparator Center.");
   for (const item of classes) {
     assertSyntheticName(item.operationalName, runTag, "Running Class");

@@ -136,7 +136,11 @@ test("PAP-437 reconciles post-lookup Parent uniqueness conflict into concurrent-
   const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`);
   assert.equal(activeParents.length, 1);
   assert.equal(activeParents[0]!.parent.status, "ACTIVE");
-  await assert.rejects(() => preparePap437CommercialFixture(port, "atomic01", now), /already belongs to an active Parent/i);
+  const retry = await preparePap437CommercialFixture(port, "atomic01", now);
+  assert.equal(retry.generation, 2);
+  assert.equal(retry.parentContactValue, "pap437+atomic01g2@example.invalid");
+  assert.notEqual(retry.learners.a.parentUserId, activeParents[0]!.parent.id);
+  await cleanupPap437CommercialFixture(port, retry, now);
   assert.equal(port.bootstrap.paths.filter((item) => item.status === "ACTIVE").length, 0);
 });
 
@@ -314,11 +318,82 @@ test("PAP-437 rolls back post-ownership response loss and allows a clean same-ru
   assert.deepEqual(await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`), []);
 
   const retry = await preparePap437CommercialFixture(port, "recover01", now);
-  assert.equal(retry.parentContactValue, contact);
+  assert.equal(retry.generation, 2);
+  assert.match(retry.parentContactValue, /^pap437\+recover01g2@example\.invalid$/);
   assert.notEqual(retry.operationTag, "recover01:v1");
-  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`);
+  assert.equal(port.calls.some((call) => /delivery\/(learning-spaces|running-classes)\/.+\/lifecycle/.test(call.path) && (call.body as any)?.status === "ACTIVE"), false);
+  const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(retry.parentContactValue)}&limit=25`);
   assert.equal(activeParents.length, 1);
   assert.equal(activeParents[0]!.parent.id, retry.learners.a.parentUserId);
+});
+
+test("PAP-437 collision rollback returns a durable resumable state when the owned Student void fails", async () => {
+  const port = new FakePort();
+  const contact = "pap437+racevoid@example.invalid";
+  port.raceParentOnNextIntake(contact);
+  port.failNextCommandContaining("/void");
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try {
+    await preparePap437CommercialFixture(port, "racevoid", now);
+  } catch (error) {
+    assert.ok(error instanceof Pap437RollbackIncompleteError);
+    incomplete = error;
+  }
+  assert.ok(incomplete);
+  assert.equal(incomplete.rollbackState.ownsParentContact, false);
+  assert.equal(incomplete.rollbackState.learnerIds.length, 1);
+  await resumePap437CommercialRollback(port, incomplete.rollbackState);
+  const ownedStudent = port.students.get(incomplete.rollbackState.learnerIds[0]!)!;
+  assert.equal(ownedStudent.lifecycle.student.status, "ARCHIVED");
+  const foreign = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(contact)}&limit=25`);
+  assert.equal(foreign.length, 1);
+  assert.equal(foreign[0]!.parent.status, "ACTIVE");
+});
+
+test("PAP-437 preserves commercial prerequisites across repeated pre-commit sale failures until replay resolves", async () => {
+  const port = new FakePort();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try {
+    await preparePap437CommercialFixture(port, "precommit", now);
+  } catch (error) {
+    assert.ok(error instanceof Pap437RollbackIncompleteError);
+    incomplete = error;
+  }
+  assert.ok(incomplete);
+  assert.equal(incomplete.rollbackState.pendingOperations.length, 1);
+  assert.equal(incomplete.rollbackState.pendingOperations[0]!.kind, "SALE");
+  const pendingStudentId = String(incomplete.rollbackState.pendingOperations[0]!.body.studentProfileId);
+  assert.equal((await port.get<BoLearnerLifecycle>(`students/${pendingStudentId}/lifecycle`)).student.status, "ACTIVE");
+  assert.equal((await port.get<F3BootstrapState>("delivery/bootstrap-state")).paths.some((item) => item.id === incomplete!.rollbackState.pathId && item.status === "ACTIVE"), true);
+  await resumePap437CommercialRollback(port, incomplete.rollbackState);
+  assert.equal(incomplete.rollbackState.pendingOperations.length, 0);
+  assert.equal(port.activeBillCount(), 0);
+  assert.equal([...port.students.values()].every((item) => item.lifecycle.student.status === "ARCHIVED"), true);
+  const finalState = await port.get<F3BootstrapState>("delivery/bootstrap-state");
+  assert.equal(finalState.paths.every((item) => item.status !== "ACTIVE"), true);
+});
+
+test("PAP-437 accepts Core PRESERVED_SHARED as a terminal foreign-parent boundary and retries with a new generation", async () => {
+  const port = new FakePort();
+  port.preserveOwnedParentAsShared();
+  port.failNextCommandContaining("enrollments");
+  await assert.rejects(() => preparePap437CommercialFixture(port, "shared01", now), /post-ownership prepare failed.*rolled back/i);
+  const sharedContact = "pap437+shared01@example.invalid";
+  const preserved = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(sharedContact)}&limit=25`);
+  assert.equal(preserved.length, 1);
+  assert.equal(preserved[0]!.parent.status, "ACTIVE");
+  const retry = await preparePap437CommercialFixture(port, "shared01", now);
+  assert.equal(retry.generation, 2);
+  assert.equal(retry.parentContactValue, "pap437+shared01g2@example.invalid");
+  assert.notEqual(retry.learners.a.parentUserId, preserved[0]!.parent.id);
+  const cleaned = await cleanupPap437CommercialFixture(port, retry, now);
+  assert.equal(cleaned.parentDisposition, "ARCHIVED");
+  const stillPreserved = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(sharedContact)}&limit=25`);
+  assert.equal(stillPreserved.length, 1);
+  const replayedCleanup = await cleanupPap437CommercialFixture(port, retry, now);
+  assert.equal(replayedCleanup.cleaned, true);
+  assert.equal(replayedCleanup.parentDisposition, "ARCHIVED");
 });
 
 test("PAP-437 fails closed without exactly one active E2E Comparator Center or a bounded run tag", async () => {
@@ -350,7 +425,10 @@ class FakePort implements Pap437FixturePort {
   private raceParentContact: string | null = null;
   private conflictAfterLookupContact: string | null = null;
   private responseLosses = new Map<string, { skip: number; remaining: number }>();
+  private preCommitFailures = new Map<string, { skip: number; remaining: number }>();
   private failNextCommandFragment: string | null = null;
+  private preserveNextOwnedParentShared = false;
+  private externalParentDependents = new Map<string, number>();
   private next = 10;
   readonly plan: BoProductPlan = {
     id: uuid(3), cadence: 2, termWeeks: 12, purchasedUnits: 24, listPriceMinor: 3900000,
@@ -401,6 +479,7 @@ class FakePort implements Pap437FixturePort {
       this.failNextCommandFragment = null;
       throw new Error(`simulated command failure for ${fragment}`);
     }
+    this.maybeFailBeforeCommit(path);
     if (key) {
       const fingerprint = JSON.stringify({ method, path, body });
       const previous = this.replay.get(key);
@@ -428,6 +507,7 @@ class FakePort implements Pap437FixturePort {
     const pathUpdate = /^catalog\/paths\/(.+)$/.exec(path);
     if (method === "PATCH" && pathUpdate) {
       const item = this.bootstrap.paths.find((candidate) => candidate.id === pathUpdate[1])!;
+      if (item.status === "ARCHIVED" && input.status !== "ARCHIVED") throw new Error("ARCHIVED_RECORD_IMMUTABLE");
       Object.assign(item, { code: input.code, displayName: input.displayName, status: input.status, version: item.version + 1 }); return item;
     }
     if (method === "POST" && path === "delivery/learning-spaces") {
@@ -442,6 +522,8 @@ class FakePort implements Pap437FixturePort {
     if (method === "POST" && lifecycleClass) {
       const list = lifecycleClass[1] === "running-classes" ? this.bootstrap.runningClasses : this.bootstrap.learningSpaces;
       const item = list.find((candidate) => candidate.id === lifecycleClass[2])!;
+      if (input.status === "ACTIVE") throw new Error("canonical lifecycle endpoint does not support ACTIVE reactivation");
+      if (item.status === "ARCHIVED" && input.status !== "ARCHIVED") throw new Error("ARCHIVED_RECORD_IMMUTABLE");
       Object.assign(item, { status: input.status, version: item.version + 1 }); this.syncActive(); return item;
     }
     if (method === "POST" && path === "student-intakes") {
@@ -457,6 +539,10 @@ class FakePort implements Pap437FixturePort {
         createdContactIdentifierId = this.id();
         parent = { id:parentUserId, displayName:input.guardianDisplayName ?? "E2E Parent", status:"ACTIVE", version:1, contact:{id:createdContactIdentifierId,normalizedValue:String(input.contactValue).toLowerCase(),retiredAt:null} };
         this.parents.set(parentUserId, parent);
+        if (this.preserveNextOwnedParentShared) {
+          this.externalParentDependents.set(parentUserId, 1);
+          this.preserveNextOwnedParentShared = false;
+        }
       }
       const guardianRelationshipId = this.id();
       const result = { studentProfileId, parentUserId:parent.id, guardianRelationshipId, createdContactIdentifierId, parentReused };
@@ -498,7 +584,7 @@ class FakePort implements Pap437FixturePort {
     if (method === "POST" && voidStudent) {
       const state = this.students.get(voidStudent[1]!)!;
       const parent = this.parents.get(state.intake.parentUserId)!;
-      const otherActiveGuardians = [...this.students.entries()].filter(([id,item]) => id !== voidStudent[1] && item.intake.parentUserId === parent.id && item.lifecycle.student.status === "ACTIVE").length;
+      const otherActiveGuardians = [...this.students.entries()].filter(([id,item]) => id !== voidStudent[1] && item.intake.parentUserId === parent.id && item.lifecycle.student.status === "ACTIVE").length + (this.externalParentDependents.get(parent.id) ?? 0);
       let parentDisposition: "REUSED_UNCHANGED"|"PRESERVED_SHARED"|"ARCHIVED" = state.intake.parentReused ? "REUSED_UNCHANGED" : "PRESERVED_SHARED";
       let retiredContactCount = 0;
       if (!state.intake.parentReused && state.intake.createdContactIdentifierId && otherActiveGuardians === 0) {
@@ -518,7 +604,11 @@ class FakePort implements Pap437FixturePort {
   loseResponseAfterNext(path:string, count = 1){ this.loseResponseAfterNth(path, 1, count); }
   loseResponseAfterNth(path:string, nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("response-loss schedule must be positive"); this.responseLosses.set(path, { skip: nth - 1, remaining: count }); }
   private maybeLoseResponse(path:string){ const plan = this.responseLosses.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.responseLosses.delete(path); throw new Error(`simulated response loss after ${path}`); }
+  failBeforeNextCommit(path:string, count = 1){ this.failBeforeNthCommit(path, 1, count); }
+  failBeforeNthCommit(path:string, nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("pre-commit failure schedule must be positive"); this.preCommitFailures.set(path, { skip: nth - 1, remaining: count }); }
+  private maybeFailBeforeCommit(path:string){ const plan = this.preCommitFailures.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.preCommitFailures.delete(path); throw new Error(`simulated pre-commit transport failure for ${path}`); }
   failNextCommandContaining(fragment:string){ this.failNextCommandFragment = fragment; }
+  preserveOwnedParentAsShared(){ this.preserveNextOwnedParentShared = true; }
   activeBillCount(){ return [...this.bills.values()].filter((bill) => !bill.bill.voidedAt).length; }
   parentStatus(parentId:string){ return this.parents.get(parentId)?.status ?? null; }
 
@@ -543,8 +633,13 @@ test("PAP-437 fetch adapter preserves canonical envelope and exact replay header
   });
   assert.deepEqual(await port.get<{ok:boolean}>("delivery/bootstrap-state"), {ok:true});
   assert.deepEqual(await port.command<{ok:boolean}>("POST", "billing/sales", {x:1}, "pap437:adapter:sale"), {ok:true});
+  assert.deepEqual(await port.command<{ok:boolean}>("POST", "catalog/paths", {code:"e2e",displayName:"E2E",status:"ACTIVE"}), {ok:true});
+  assert.deepEqual(await port.command<{ok:boolean}>("PATCH", `catalog/paths/${uuid(999)}`, {code:"e2e",displayName:"E2E",status:"ARCHIVED",expectedVersion:1}), {ok:true});
   assert.equal(seen[0]!.url, "https://bo.pinohouse.art/api/bo/delivery/bootstrap-state");
   assert.equal(seen[1]!.url, "https://bo.pinohouse.art/api/bo/billing/sales");
+  assert.equal(seen[2]!.url, "https://bo.pinohouse.art/api/bo/catalog/paths");
+  assert.equal(seen[3]!.url, `https://bo.pinohouse.art/api/bo/catalog/paths/${uuid(999)}`);
   assert.equal(new Headers(seen[1]!.init?.headers).get("idempotency-key"), "pap437:adapter:sale");
+  assert.equal(seen[3]!.init?.method, "PATCH");
   assert.equal(seen[1]!.init?.credentials, "include");
 });
