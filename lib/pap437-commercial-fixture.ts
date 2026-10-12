@@ -78,6 +78,7 @@ export interface Pap437RollbackState {
   operationTag: string;
   nowIso: string;
   parentContactValue: string;
+  parentUserId: string | null;
   ownsParentContact: boolean | null;
   parentDisposition: BoStudentIntakeVoidResult["parentDisposition"] | null;
   centerId: string;
@@ -170,6 +171,7 @@ export async function preparePap437CommercialFixture(
       operationTag: `${runTag}:g${generation}:a${attemptToken}:topology`,
       nowIso: now.toISOString(),
       parentContactValue,
+      parentUserId: null,
       ownsParentContact: false,
       parentDisposition: null,
       centerId,
@@ -578,6 +580,7 @@ function createRollbackState(input: Pap437OwnedPreparationRollbackInput): Pap437
     operationTag: input.operationTag,
     nowIso: input.now.toISOString(),
     parentContactValue: input.parentContactValue,
+    parentUserId: input.learners.length ? input.learners[0]!.parentUserId : null,
     ownsParentContact: input.learners.length ? (!input.learners[0]!.parentReused && input.learners[0]!.createdContactIdentifierId !== null) : null,
     parentDisposition: null,
     centerId: input.centerId,
@@ -612,6 +615,7 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
       if (operation.kind === "INTAKE") {
         const intake = await port.command<Pap437StudentIntake>("POST", "student-intakes", operation.body, operation.idempotencyKey);
         if (operation.label === "a") {
+          state.parentUserId = intake.parentUserId;
           state.ownsParentContact = !intake.parentReused && intake.createdContactIdentifierId !== null;
           state.learnerIds = [intake.studentProfileId, ...state.learnerIds.filter((id) => id !== intake.studentProfileId)];
         } else if (!state.learnerIds.includes(intake.studentProfileId)) {
@@ -627,8 +631,7 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
       }
       if (operation.kind === "VOID_INTAKE") {
         const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${operation.studentProfileId}/void`, operation.body, operation.idempotencyKey);
-        state.parentDisposition = result.parentDisposition;
-        if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
+        applyOwnerVoidResult(state, result, operation.studentProfileId);
         return;
       }
       await port.command<BoLearnerSubscription>("POST", "subscriptions", operation.body, operation.idempotencyKey);
@@ -726,8 +729,7 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
             const idempotencyKey = existingPendingVoid?.idempotencyKey ?? replayKey(state.operationTag, `rollback-void-student-${ownerId}`);
             const ok = await record(`void intake ${ownerId}`, async () => {
               const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, body, idempotencyKey);
-              state.parentDisposition = result.parentDisposition;
-              if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
+              applyOwnerVoidResult(state, result, ownerId);
             });
             if (!ok && !existingPendingVoid) {
               state.pendingOperations.push({ kind: "VOID_INTAKE", label: "a", studentProfileId: ownerId, idempotencyKey, body: { ...body } });
@@ -741,13 +743,17 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
   }
   if (!unresolvedCommercial && state.ownsParentContact === true && !state.pendingOperations.some((operation) => operation.kind === "INTAKE")) {
     await record("Parent/contact readback", async () => {
+      if (!state.parentUserId) throw new Error("owned Parent identity is missing from rollback state");
       const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
-      if (activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error("synthetic Parent/contact remains active");
+      const exactActiveParent = activeParents.some((item) => item.parent.id === state.parentUserId && item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue));
+      if (exactActiveParent) throw new Error("synthetic Parent/contact remains active");
+      if (activeParents.some((item) => item.parent.id !== state.parentUserId && item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error("synthetic Parent contact was rebound to an unexpected Parent during rollback");
     });
-  } else if (!unresolvedCommercial && state.parentDisposition === "PRESERVED_SHARED") {
-    await record("shared Parent preservation readback", async () => {
+  } else if (!unresolvedCommercial && (state.parentDisposition === "PRESERVED_SHARED" || state.parentDisposition === "REUSED_UNCHANGED")) {
+    await record(`${state.parentDisposition} Parent preservation readback`, async () => {
+      if (!state.parentUserId) throw new Error("preserved Parent identity is missing from rollback state");
       const activeParents = await port.get<BoParentSearchResult[]>(`identity/parents?query=${encodeURIComponent(state.parentContactValue)}&limit=25`);
-      if (!activeParents.some((item) => item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.normalizedValue === state.parentContactValue))) throw new Error("shared Parent/contact disappeared after PRESERVED_SHARED disposition");
+      if (!activeParents.some((item) => item.parent.id === state.parentUserId && item.parent.status === "ACTIVE" && item.contacts.some((contact) => contact.retiredAt === null && contact.identifierType === "EMAIL" && contact.normalizedValue === state.parentContactValue))) throw new Error(`expected Parent/contact disappeared after ${state.parentDisposition} disposition`);
     });
   }
   if (!unresolvedCommercial) await record("topology readback", async () => {
@@ -756,6 +762,16 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
     if (resolved.path?.status === "ACTIVE" || resolved.space?.status === "ACTIVE" || resolved.classes.some((item) => item.status === "ACTIVE")) throw new Error("synthetic topology remains active");
   });
   return errors;
+}
+
+function applyOwnerVoidResult(state: Pap437RollbackState, result: BoStudentIntakeVoidResult, expectedStudentProfileId: string) {
+  if (result.studentProfileId !== expectedStudentProfileId) throw new Error("owner intake cleanup returned the wrong Student identity");
+  if (!state.parentUserId) throw new Error("owner Parent identity is missing from rollback state");
+  if (result.parentUserId !== state.parentUserId) throw new Error("owner intake cleanup returned the wrong Parent identity");
+  if (state.ownsParentContact === true && result.parentDisposition === "REUSED_UNCHANGED") throw new Error("owner intake cleanup returned REUSED_UNCHANGED for a fixture-owned Parent/contact");
+  if (state.ownsParentContact === false && result.parentDisposition === "ARCHIVED") throw new Error("owner intake cleanup archived a Parent/contact that rollback did not own");
+  state.parentDisposition = result.parentDisposition;
+  if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
 }
 
 function resolveRollbackTopology(bootstrap: F3BootstrapState, state: Pap437RollbackState) {
