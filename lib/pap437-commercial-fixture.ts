@@ -782,6 +782,11 @@ function applyOwnerVoidResult(state: Pap437RollbackState, result: BoStudentIntak
   if (result.parentUserId !== state.parentUserId) throw new Error("owner intake cleanup returned the wrong Parent identity");
   if (state.ownsParentContact === true && result.parentDisposition === "REUSED_UNCHANGED") throw new Error("owner intake cleanup returned REUSED_UNCHANGED for a fixture-owned Parent/contact");
   if (state.ownsParentContact === false && result.parentDisposition === "ARCHIVED") throw new Error("owner intake cleanup archived a Parent/contact that rollback did not own");
+  if (result.parentDisposition === "ARCHIVED") {
+    if (result.retiredContactCount !== 1) throw new Error("owner intake cleanup did not retire exactly the fixture-owned Parent contact");
+  } else if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") {
+    if (result.retiredContactCount !== 0) throw new Error("owner intake cleanup unexpectedly retired preserved Parent contact authority");
+  }
   state.parentDisposition = result.parentDisposition;
   if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
 }

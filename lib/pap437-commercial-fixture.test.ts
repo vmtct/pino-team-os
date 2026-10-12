@@ -482,6 +482,35 @@ test("PAP-437 fails closed when owned owner-void falsely reports REUSED_UNCHANGE
   await assert.rejects(() => resumePap437CommercialRollback(port, incomplete!.rollbackState), Pap437RollbackIncompleteError);
 });
 
+test("PAP-437 rollback rejects preserved owner evidence that reports retired contact authority", async () => {
+  const port = new FakePort();
+  port.preserveOwnedParentAsShared();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try { await preparePap437CommercialFixture(port, "ownctsh", now); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); incomplete = error; }
+  assert.ok(incomplete);
+  port.corruptNextOwnedParentVoid("CONTACT_RETIRED");
+  let resumed: Pap437RollbackIncompleteError | null = null;
+  try { await resumePap437CommercialRollback(port, incomplete.rollbackState); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); resumed = error; }
+  assert.ok(resumed);
+  assert.match(resumed.rollbackErrors.join(" | "), /unexpectedly retired preserved Parent contact authority/i);
+  assert.ok(resumed.rollbackState.pendingOperations.some((operation) => operation.kind === "VOID_INTAKE" && operation.label === "a"));
+});
+
+test("PAP-437 rollback rejects archived owner evidence without the exact contact retirement", async () => {
+  const port = new FakePort();
+  port.failBeforeNextCommit("billing/sales", 3);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try { await preparePap437CommercialFixture(port, "ownctar", now); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); incomplete = error; }
+  assert.ok(incomplete);
+  port.corruptNextOwnedParentVoid("CONTACT_NOT_RETIRED");
+  let resumed: Pap437RollbackIncompleteError | null = null;
+  try { await resumePap437CommercialRollback(port, incomplete.rollbackState); } catch (error) { assert.ok(error instanceof Pap437RollbackIncompleteError); resumed = error; }
+  assert.ok(resumed);
+  assert.match(resumed.rollbackErrors.join(" | "), /did not retire exactly the fixture-owned Parent contact/i);
+  assert.ok(resumed.rollbackState.pendingOperations.some((operation) => operation.kind === "VOID_INTAKE" && operation.label === "a"));
+});
+
 test("PAP-437 fails closed when owner-void reports the wrong Parent identity", async () => {
   const port = new FakePort();
   port.corruptNextOwnedParentVoid("WRONG_PARENT");
@@ -682,7 +711,7 @@ class FakePort implements Pap437FixturePort {
   private preCommitFailures = new Map<string, { skip: number; remaining: number }>();
   private failNextCommandFragment: string | null = null;
   private preserveNextOwnedParentShared = false;
-  private corruptNextOwnedParentVoidResult: "REUSED_UNCHANGED" | "WRONG_PARENT" | null = null;
+  private corruptNextOwnedParentVoidResult: "REUSED_UNCHANGED" | "WRONG_PARENT" | "CONTACT_RETIRED" | "CONTACT_NOT_RETIRED" | null = null;
   private corruptNextDependentIntakeResult: "WRONG_PARENT" | null = null;
   private corruptNextDependentVoidResult: "WRONG_PARENT" | "ARCHIVED" | "WRONG_STUDENT" | "CONTACT_RETIRED" | null = null;
   private externalParentDependents = new Map<string, number>();
@@ -859,7 +888,7 @@ class FakePort implements Pap437FixturePort {
       state.lifecycle.student.status = "ARCHIVED"; state.lifecycle.student.version += 1;
       const reportedParentUserId = corruption === "WRONG_PARENT" || dependentCorruption === "WRONG_PARENT" ? this.seedExistingParent(`wrong-${parent.contact?.normalizedValue ?? "parent@example.invalid"}`) : parent.id;
       const reportedDisposition = corruption === "REUSED_UNCHANGED" ? "REUSED_UNCHANGED" : dependentCorruption === "ARCHIVED" ? "ARCHIVED" : parentDisposition;
-      const reportedRetiredContactCount = dependentCorruption === "ARCHIVED" || dependentCorruption === "CONTACT_RETIRED" ? 1 : retiredContactCount;
+      const reportedRetiredContactCount = corruption === "CONTACT_RETIRED" ? 1 : corruption === "CONTACT_NOT_RETIRED" ? 0 : dependentCorruption === "ARCHIVED" || dependentCorruption === "CONTACT_RETIRED" ? 1 : retiredContactCount;
       const reportedStudentProfileId = dependentCorruption === "WRONG_STUDENT" ? this.id() : state.lifecycle.student.id;
       return { studentProfileId: reportedStudentProfileId, studentStatus: "ARCHIVED", guardianRelationshipId:state.intake.guardianRelationshipId, guardianStatus:"ENDED", parentUserId:reportedParentUserId, parentDisposition:reportedDisposition, retiredContactCount:reportedRetiredContactCount };
     }
@@ -897,7 +926,7 @@ class FakePort implements Pap437FixturePort {
   private maybeFailBeforeCommit(path:string){ const plan = this.preCommitFailures.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.preCommitFailures.delete(path); throw new Error(`simulated pre-commit transport failure for ${path}`); }
   failNextCommandContaining(fragment:string){ this.failNextCommandFragment = fragment; }
   preserveOwnedParentAsShared(){ this.preserveNextOwnedParentShared = true; }
-  corruptNextOwnedParentVoid(mode: "REUSED_UNCHANGED" | "WRONG_PARENT"){ this.corruptNextOwnedParentVoidResult = mode; }
+  corruptNextOwnedParentVoid(mode: "REUSED_UNCHANGED" | "WRONG_PARENT" | "CONTACT_RETIRED" | "CONTACT_NOT_RETIRED"){ this.corruptNextOwnedParentVoidResult = mode; }
   corruptNextDependentIntake(mode: "WRONG_PARENT"){ this.corruptNextDependentIntakeResult = mode; }
   corruptNextDependentVoid(mode: "WRONG_PARENT" | "ARCHIVED" | "WRONG_STUDENT" | "CONTACT_RETIRED"){ this.corruptNextDependentVoidResult = mode; }
   activeBillCount(){ return [...this.bills.values()].filter((bill) => !bill.bill.voidedAt).length; }
