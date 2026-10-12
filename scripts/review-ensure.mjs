@@ -1,0 +1,86 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {spawn,spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+
+const ROOT=process.env.PINO_SOP_ROOT??'C:/Users/ADMIN/Documents/PINO_SOP';
+const STATE=process.env.PINO_REVIEW_ENSURE_STATE??path.resolve(ROOT,'state','review-ensure.json');
+const AUDIT_WORK=path.resolve(ROOT,'tools','audit-work.mjs');
+const SELF=fileURLToPath(import.meta.url);
+const WSL_DISTRO='Ubuntu-24.04';
+const now=()=>new Date().toISOString();
+const readJson=(f,fb=null)=>{try{return JSON.parse(fs.readFileSync(f,'utf8').replace(/^\uFEFF/,''));}catch{return fb;}};
+const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
+const digest=v=>crypto.createHash('sha256').update(JSON.stringify(stable(v))).digest('hex');
+function fail(code,detail=''){const e=new Error(detail?`${code}:${detail}`:code);e.code=code;throw e}
+function atomic(file,value){fs.mkdirSync(path.dirname(file),{recursive:true});const tmp=file+'.tmp-'+process.pid+'-'+Date.now();fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n');fs.renameSync(tmp,file)}
+function loadState(file=STATE){const s=readJson(file,{schemaVersion:1,revision:0,records:{}});if(s?.schemaVersion!==1||!s.records)fail('REVIEW_ENSURE_STATE_INVALID');return s}
+function saveState(s,file=STATE){s.revision=Number(s.revision||0)+1;s.updatedAt=now();atomic(file,s);return s}
+function canonicalRepo(repo){let x=String(repo??'').trim().replace(/\.git$/,'');x=x.replace(/^git@github\.com:/,'').replace(/^https?:\/\/github\.com\//,'').replace(/^ssh:\/\/git@github\.com\//,'');return x}
+function winFromWsl(p){const m=String(p??'').trim().match(/^\/mnt\/([a-z])\/(.*)$/i);return m?`${m[1].toUpperCase()}:/${m[2]}`:String(p??'')}
+function pidAlive(pid){const n=Number(pid);if(!Number.isInteger(n)||n<=0)return false;try{process.kill(n,0);return true}catch{return false}}
+function withLock(key,fn,stateFile=STATE){const lock=stateFile+'.'+key.slice(0,16)+'.lock';fs.mkdirSync(path.dirname(lock),{recursive:true});let fd=null;for(let i=0;i<80;i++){try{fd=fs.openSync(lock,'wx');break}catch(e){if(e.code!=='EEXIST')throw e;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,25)}}if(fd===null)fail('REVIEW_ENSURE_LOCK_BUSY');try{return fn()}finally{try{fs.closeSync(fd)}catch{}try{fs.unlinkSync(lock)}catch{}}}
+function primaryCandidate(ledger){const x=Array.isArray(ledger?.candidate?.repos)&&ledger.candidate.repos.length?ledger.candidate.repos[0]:ledger?.candidate;const repo=canonicalRepo(x?.repo??ledger?.candidate?.repo),head=String(x?.finalHeadSha??x?.headSha??ledger?.candidate?.headSha??'').toLowerCase(),pr=Number(x?.pr??ledger?.candidate?.pr??0);if(!repo||!/^[0-9a-f]{40}$/.test(head))fail('REVIEW_ENSURE_CANDIDATE_REQUIRED');return{repo,head,pr:Number.isInteger(pr)&&pr>0?pr:null}}
+function obligation(spec,c){const reviewKind=String(spec.reviewKind??'INDIE').toUpperCase();if(reviewKind!=='INDIE')fail('REVIEW_ENSURE_REVIEW_KIND_UNSUPPORTED',reviewKind);const identity=String(spec.obligationId??spec.workId??'').trim();if(!identity)fail('REVIEW_ENSURE_OBLIGATION_ID_REQUIRED');return{reviewKind,identity,key:digest({repo:c.repo,head:c.head,reviewKind,identity})}}
+function assertCi(spec,c){const ci=spec.exactHeadCi??null;if(!ci)return null;const head=String(ci.headSha??ci.candidate??'').toLowerCase();if(head!==c.head)fail('REVIEW_ENSURE_CI_HEAD_MISMATCH');if(!['SUCCESS','PASS'].includes(String(ci.status??ci.result??'').toUpperCase()))fail('REVIEW_ENSURE_CI_NOT_SUCCESS');const runId=Number(ci.runId??ci.databaseId);if(!Number.isInteger(runId)||runId<=0)fail('REVIEW_ENSURE_CI_RUN_ID_REQUIRED');return{headSha:head,runId,status:'SUCCESS',evidenceRef:ci.evidenceRef??null}}
+function validateAuthority(file,c,source=null){const a=readJson(file);if(!a||a.schemaVersion!==1||a.kind!=='PINO_REVIEW_AUTHORITY'||a.independent!==true||a.reviewKind!=='INDIE')fail('REVIEW_ENSURE_AUTHORITY_INVALID',file);if(canonicalRepo(a.repository)!==c.repo||String(a.candidate??'').toLowerCase()!==c.head)fail('REVIEW_ENSURE_AUTHORITY_BINDING_MISMATCH',file);if(source&&a.source!==source)fail('REVIEW_ENSURE_AUTHORITY_SOURCE_MISMATCH',String(a.source));const {evidenceHash,...core}=a;if(!evidenceHash||digest(core)!==evidenceHash)fail('REVIEW_ENSURE_AUTHORITY_HASH_INVALID',file);const verdict=String(a.verdict??'').toUpperCase();if(!['PASS','FINDINGS','HOLD'].includes(verdict))fail('REVIEW_ENSURE_AUTHORITY_VERDICT_INVALID');if(verdict==='PASS'&&(Number(a.p0)!==0||Number(a.p1)!==0||!Array.isArray(a.blockingFindings)||a.blockingFindings.length))fail('REVIEW_ENSURE_DIRTY_PASS');return a}
+
+function parseJsonLine(text,pred){for(const line of String(text??'').split(/\r?\n/).reverse()){const t=line.trim();if(!t.startsWith('{'))continue;try{const j=JSON.parse(t);if(!pred||pred(j))return j}catch{}}return null}
+function parseReceipt(stderr){const hit=String(stderr??'').split(/\r?\n/).find(x=>x.startsWith('PINO_CODEX_FALLBACK_RECEIPT='));if(!hit)return null;return winFromWsl(hit.slice('PINO_CODEX_FALLBACK_RECEIPT='.length).trim())}
+function validateReceipt(file,c){const r=readJson(file);if(!r||r.schemaVersion!==1||r.kind!=='PINO_CODEX_FALLBACK_ELIGIBILITY'||r.reviewKind!=='INDIE'||canonicalRepo(r.repository)!==c.repo||String(r.candidate??'').toLowerCase()!==c.head||r.exitClass!=='CAPACITY_EXHAUSTED'||r.allAuthenticatedProfilesExhausted!==true||!Array.isArray(r.profilesAttempted)||r.profilesAttempted.length<1)fail('REVIEW_ENSURE_CAPACITY_RECEIPT_INVALID',file);const age=Date.now()-Date.parse(r.createdAt??'');if(!Number.isFinite(age)||age<0||age>60*60*1000)fail('REVIEW_ENSURE_CAPACITY_RECEIPT_STALE',file);return r}
+function wslWorktree(spec){const w=String(spec.wslWorktree??'').trim();if(!w.startsWith('/home/tri/pino-work/'))fail('REVIEW_ENSURE_WSL_WORKTREE_REQUIRED');return w}
+function verifyWorktree(spec,c){const w=wslWorktree(spec);const script=`cd ${JSON.stringify(w)} && printf '%s\\n' "$(git rev-parse HEAD)" "$(git status --porcelain | wc -l)" "$(git remote get-url origin)"`;const x=spawnSync('wsl.exe',['-d',WSL_DISTRO,'--','bash','-lc',script],{encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:1024*1024});if(x.error||x.status!==0)fail('REVIEW_ENSURE_WORKTREE_PROBE_FAILED',String(x.stderr||x.stdout||x.error?.message||x.status));const [head,dirty,origin]=String(x.stdout).trim().split(/\r?\n/);if(String(head).toLowerCase()!==c.head)fail('REVIEW_ENSURE_WORKTREE_HEAD_MISMATCH',String(head));if(Number(dirty)!==0)fail('REVIEW_ENSURE_WORKTREE_NOT_CLEAN');if(canonicalRepo(origin)!==c.repo)fail('REVIEW_ENSURE_WORKTREE_REPO_MISMATCH',String(origin));return{wslWorktree:w,head:c.head,repository:c.repo}}
+function workerSnapshot(spec,c,o,resultPath){const promptPath=path.resolve(String(spec.promptPath??''));if(!fs.existsSync(promptPath))fail('REVIEW_ENSURE_PROMPT_REQUIRED',promptPath);return{schemaVersion:1,workId:String(spec.workId??o.identity),obligationId:o.identity,reviewKind:o.reviewKind,repository:c.repo,candidate:c.head,wslWorktree:wslWorktree(spec),promptPath,sessionSlice:String(spec.sessionSlice??spec.workId??o.identity),projectCode:String(spec.projectCode??'PAP'),resultPath}}
+function spawnCodexWorker(snapshotPath){const child=spawn(process.execPath,[SELF,'worker-codex',snapshotPath],{cwd:ROOT,detached:true,stdio:'ignore',windowsHide:true});child.unref();return child.pid}
+function runCodexWorker(s){const prompt=fs.readFileSync(s.promptPath,'utf8');const envPrefix=`PINO_SESSION_SLICE=${JSON.stringify(s.sessionSlice)} PINO_PROJECT_CODE=${JSON.stringify(s.projectCode)}`;const cmd=`cd ${JSON.stringify(s.wslWorktree)} && ${envPrefix} /home/tri/bin/pino-codex-review exec -`;const x=spawnSync('wsl.exe',['-d',WSL_DISTRO,'--','bash','-lc',cmd],{input:prompt,encoding:'utf8',windowsHide:true,timeout:6*60*60*1000,maxBuffer:16*1024*1024});const out={schemaVersion:1,finishedAt:now(),status:x.status,signal:x.signal??null,error:x.error?String(x.error.message):null,stdout:String(x.stdout??''),stderr:String(x.stderr??'')};atomic(s.resultPath,out);return out}
+function startChatGptFallback(spec,c,o,receiptPath){validateReceipt(receiptPath,c);const fixture=testFixture('PINO_REVIEW_ENSURE_TEST_CHATGPT_START_FIXTURE');if(fixture){if(!fixture.conversationUrl)fail('REVIEW_ENSURE_TEST_CHATGPT_FIXTURE_INVALID');return fixture}const ledgerPath=path.resolve(String(spec.ledgerPath??''));const auditWorkId=`review-ensure:${o.identity}:${c.head.slice(0,12)}`;const tmp=path.resolve(ROOT,'state','review-ensure','tmp',o.key+'.audit.json');atomic(tmp,{workId:auditWorkId,ledgerPath,title:spec.title??o.identity,fallbackReason:'CAPACITY_EXHAUSTED',codexAttemptedHeadSha:c.head,codexEvidenceRef:receiptPath});const x=spawnSync(process.execPath,[AUDIT_WORK,'start',tmp],{encoding:'utf8',windowsHide:true,timeout:6*60*1000,maxBuffer:4*1024*1024,env:{...process.env,PINO_SOP_ROOT:ROOT}});if(x.error||x.status!==0)fail('REVIEW_ENSURE_CHATGPT_START_FAILED',String(x.stderr||x.stdout||x.error?.message||x.status));const j=parseJsonLine(x.stdout);if(!j?.ok||j.status!=='REVIEWING'||!j.conversationUrl)fail('REVIEW_ENSURE_CHATGPT_START_NOT_CONFIRMED',String(x.stdout));return{auditWorkId,conversationUrl:j.conversationUrl,label:j.label??null,round:j.round??1}}
+function auditWorkStatus(id){const fixture=testFixture('PINO_REVIEW_ENSURE_TEST_CHATGPT_STATUS_FIXTURE');if(fixture)return fixture;const x=spawnSync(process.execPath,[AUDIT_WORK,'status',id],{encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:4*1024*1024,env:{...process.env,PINO_SOP_ROOT:ROOT}});if(x.error||x.status!==0)fail('REVIEW_ENSURE_CHATGPT_STATUS_FAILED',String(x.stderr||x.stdout||x.error?.message||x.status));return JSON.parse(String(x.stdout))}
+
+function testFixture(name){if(process.env.NODE_ENV!=='test')return null;const p=process.env[name];return p?readJson(path.resolve(p)):null}
+async function ensureReview(spec,{stateFile=STATE}={}){
+  const ledgerPath=path.resolve(String(spec?.ledgerPath??''));const ledger=readJson(ledgerPath);if(!ledger)fail('REVIEW_ENSURE_LEDGER_MISSING',ledgerPath);if(ledger?.ownership?.stream!=='DEV')fail('REVIEW_ENSURE_DEV_OWNERSHIP_REQUIRED',String(ledger?.ownership?.stream));
+  const c=primaryCandidate(ledger),o=obligation(spec,c),ci=assertCi(spec,c);
+  if(!(process.env.NODE_ENV==='test'&&spec.testSkipWorktree===true))verifyWorktree(spec,c);
+  return withLock(o.key,()=>{
+    const s=loadState(stateFile);let r=s.records[o.key]??null;
+    if(r?.status==='REVIEW_VERDICT')return{ok:true,status:'REVIEW_VERDICT',idempotent:true,obligationKey:o.key,provider:r.provider,verdict:r.verdict,authorityPath:r.authorityPath??null,evidenceHash:r.evidenceHash??null};
+    if(r?.status==='BLOCKED')return{ok:false,status:'BLOCKED',idempotent:true,obligationKey:o.key,reason:r.blockReason,provider:r.provider??null};
+    if(r?.status==='CHATGPT_RUNNING'){
+      const st=auditWorkStatus(r.auditWorkId),w=st.work;
+      if(['REVIEW_PASS','REMEDIATION_REQUIRED','HOLD'].includes(w?.status)){
+        const round=(w.rounds??[]).find(x=>x.round===w.currentRound)??(w.rounds??[]).at(-1),result=round?.result;if(!result)fail('REVIEW_ENSURE_CHATGPT_RESULT_MISSING');
+        r.status='REVIEW_VERDICT';r.verdict=String(result.verdict).toUpperCase();r.p0=Number(result.p0??0);r.p1=Number(result.p1??0);r.blockingFindings=result.blocking_findings??[];r.evidenceHash=round.resultEvidenceHash??null;r.consumedAt=round.consumedAt??now();r.updatedAt=now();saveState(s,stateFile);
+        return{ok:true,status:'REVIEW_VERDICT',obligationKey:o.key,provider:'CHATGPT_AUDIT_FALLBACK',verdict:r.verdict,p0:r.p0,p1:r.p1,blockingFindings:r.blockingFindings,evidenceHash:r.evidenceHash,conversationUrl:r.conversationUrl};
+      }
+      if(['DISPATCH_FAILED','DISPATCH_UNCERTAIN','STALE_CANDIDATE'].includes(w?.status)){r.status='BLOCKED';r.blockReason='CHATGPT_'+w.status;r.updatedAt=now();saveState(s,stateFile);return{ok:false,status:'BLOCKED',obligationKey:o.key,provider:r.provider,reason:r.blockReason}}
+      return{ok:true,status:'REVIEW_RUNNING',obligationKey:o.key,provider:'CHATGPT_AUDIT_FALLBACK',conversationUrl:r.conversationUrl,auditWorkId:r.auditWorkId,startedAt:r.chatgptStartedAt};
+    }
+    if(r?.status==='CODEX_RUNNING'){
+      if(!fs.existsSync(r.codexResultPath)){
+        if(pidAlive(r.codexPid))return{ok:true,status:'REVIEW_RUNNING',obligationKey:o.key,provider:'CODEX_DIRECT',handle:`pid:${r.codexPid}`,startedAt:r.codexStartedAt};
+        r.status='BLOCKED';r.blockReason='CODEX_WORKER_EXITED_WITHOUT_RESULT';r.updatedAt=now();saveState(s,stateFile);return{ok:false,status:'BLOCKED',obligationKey:o.key,provider:'CODEX_DIRECT',reason:r.blockReason};
+      }
+      const x=readJson(r.codexResultPath);if(!x)fail('REVIEW_ENSURE_CODEX_RESULT_INVALID');
+      if(Number(x.status)===0){const j=parseJsonLine(x.stdout,z=>z?.codexDirectReviewVerified===true),authorityPath=winFromWsl(j?.reviewAuthorityPath??'');if(!j||!authorityPath)fail('REVIEW_ENSURE_CODEX_VERDICT_MISSING');const a=validateAuthority(authorityPath,c,'CODEX_DIRECT');r.status='REVIEW_VERDICT';r.provider='CODEX_DIRECT';r.verdict=a.verdict;r.p0=Number(a.p0??0);r.p1=Number(a.p1??0);r.blockingFindings=a.blockingFindings??[];r.authorityPath=authorityPath;r.evidenceHash=a.evidenceHash;r.consumedAt=now();r.updatedAt=now();saveState(s,stateFile);return{ok:true,status:'REVIEW_VERDICT',obligationKey:o.key,provider:r.provider,verdict:r.verdict,p0:r.p0,p1:r.p1,blockingFindings:r.blockingFindings,authorityPath,evidenceHash:a.evidenceHash};}
+      if(Number(x.status)===88){try{const receiptPath=parseReceipt(x.stderr);if(!receiptPath)fail('REVIEW_ENSURE_CAPACITY_RECEIPT_MISSING');validateReceipt(receiptPath,c);const started=startChatGptFallback(spec,c,o,receiptPath);r.status='CHATGPT_RUNNING';r.provider='CHATGPT_AUDIT_FALLBACK';r.capacityReceiptPath=receiptPath;r.auditWorkId=started.auditWorkId;r.conversationUrl=started.conversationUrl;r.auditLabel=started.label;r.chatgptStartedAt=now();r.updatedAt=now();saveState(s,stateFile);return{ok:true,status:'REVIEW_RUNNING',obligationKey:o.key,provider:r.provider,conversationUrl:r.conversationUrl,auditWorkId:r.auditWorkId,transition:'CAPACITY_EXHAUSTED_TO_CHATGPT_START_CONFIRMED'};}catch(error){r.status='BLOCKED';r.provider='CODEX_DIRECT';r.blockReason=String(error?.code??error?.message??error);r.updatedAt=now();saveState(s,stateFile);return{ok:false,status:'BLOCKED',obligationKey:o.key,provider:r.provider,reason:r.blockReason};}}
+      r.status='BLOCKED';r.provider='CODEX_DIRECT';r.blockReason=`CODEX_NON_CAPACITY_FAILURE_RC_${x.status}`;r.codexErrorTail=String(x.stderr||x.error||'').slice(-2000);r.updatedAt=now();saveState(s,stateFile);return{ok:false,status:'BLOCKED',obligationKey:o.key,provider:r.provider,reason:r.blockReason};
+    }
+    for(const old of Object.values(s.records)){if(old.obligationId===o.identity&&old.repository===c.repo&&old.reviewKind===o.reviewKind&&old.candidate!==c.head&&['CODEX_RUNNING','CHATGPT_RUNNING'].includes(old.status)){old.supersededByCandidate=c.head;old.supersededAt=now()}}
+    const base=path.resolve(ROOT,'state','review-ensure'),snapshotPath=path.join(base,'snapshots',o.key+'.json'),resultPath=path.join(base,'results',o.key+'.json');const snapshot=workerSnapshot(spec,c,o,resultPath);atomic(snapshotPath,snapshot);try{if(fs.existsSync(resultPath))fs.unlinkSync(resultPath)}catch{}
+    const testCodex=testFixture('PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE');let pid;if(testCodex){atomic(resultPath,testCodex);pid=null}else pid=spawnCodexWorker(snapshotPath);
+    r={schemaVersion:1,obligationKey:o.key,obligationId:o.identity,workId:String(spec.workId??o.identity),reviewKind:o.reviewKind,repository:c.repo,candidate:c.head,pr:c.pr,status:'CODEX_RUNNING',provider:'CODEX_DIRECT',exactHeadCi:ci,ledgerPath,wslWorktree:spec.wslWorktree,promptPath:path.resolve(String(spec.promptPath??'')),codexPid:pid,codexSnapshotPath:snapshotPath,codexResultPath:resultPath,codexStartedAt:now(),createdAt:now(),updatedAt:now()};s.records[o.key]=r;saveState(s,stateFile);
+    return{ok:true,status:'REVIEW_RUNNING',obligationKey:o.key,provider:'CODEX_DIRECT',handle:pid?`pid:${pid}`:'fixture:ready',startedAt:r.codexStartedAt};
+  },stateFile);
+}
+
+if(process.argv[2]==='worker-codex'){
+  try{const s=readJson(path.resolve(process.argv[3]));if(!s)fail('REVIEW_ENSURE_WORKER_SPEC_INVALID');runCodexWorker(s);process.exit(0)}catch(e){try{const s=readJson(path.resolve(process.argv[3]));if(s?.resultPath)atomic(s.resultPath,{schemaVersion:1,finishedAt:now(),status:91,error:String(e?.message??e),stdout:'',stderr:String(e?.stack??e)})}catch{}process.exit(91)}
+}else if(path.basename(process.argv[1]??'')===path.basename(SELF)){
+  const [cmd,arg]=process.argv.slice(2);try{if(cmd!=='ensure')fail('USAGE','review-ensure.mjs ensure <spec.json>');const spec=readJson(path.resolve(arg));if(!spec)fail('REVIEW_ENSURE_SPEC_INVALID');const out=await ensureReview(spec);console.log(JSON.stringify(out,null,2));if(out.status==='BLOCKED')process.exitCode=2}catch(e){console.error(JSON.stringify({ok:false,status:'BLOCKED',error:String(e?.message??e),code:e?.code??null},null,2));process.exitCode=1}
+}
+
+export{ensureReview,validateReceipt,validateAuthority};
+
+
+
