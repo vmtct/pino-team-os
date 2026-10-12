@@ -545,6 +545,7 @@ function nextTopologyGeneration(bootstrap: F3BootstrapState, centerId: string, r
   return maxGeneration + 1;
 }
 
+function isValidTopologyAttemptToken(value: string | null | undefined): value is string { return typeof value === "string" && /^[a-f0-9]{16}$/.test(value); }
 function newTopologyAttemptToken() { return crypto.randomUUID().replace(/-/g, "").slice(0, 16); }
 function fixturePathCode(runTag: string, generation: number, attemptToken: string) { return `e2e-pap437-${runTag}-g${generation}-a${attemptToken}`; }
 function fixtureSpaceCode(runTag: string, generation: number, attemptToken: string) { return `pap437-${runTag}-g${generation}-a${attemptToken}`; }
@@ -591,6 +592,10 @@ function createRollbackState(input: Pap437OwnedPreparationRollbackInput): Pap437
 
 async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pap437RollbackState): Promise<string[]> {
   const errors: string[] = [];
+  if (!isValidTopologyAttemptToken(state.attemptToken)) {
+    errors.push("topology ownership identity is missing or malformed; rollback cannot prove which synthetic resources belong to this attempt");
+    return errors;
+  }
   const record = async (label: string, action: () => Promise<void>) => {
     try {
       await action();
@@ -706,21 +711,27 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
     }
     if (ownerId) {
       if (dependentsClean) {
-        const lifecycle = await port.get<BoLearnerLifecycle>(`students/${ownerId}/lifecycle`);
-        const existingPendingVoid = state.pendingOperations.find((operation): operation is Extract<Pap437RollbackPendingOperation, { kind: "VOID_INTAKE" }> => operation.kind === "VOID_INTAKE" && operation.studentProfileId === ownerId);
-        if (existingPendingVoid || lifecycle.student.status !== "ARCHIVED") {
-          const body = existingPendingVoid?.body ?? {
-            expectedStudentVersion: lifecycle.student.version,
-            reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
-          };
-          const idempotencyKey = existingPendingVoid?.idempotencyKey ?? replayKey(state.operationTag, `rollback-void-student-${ownerId}`);
-          const ok = await record(`void intake ${ownerId}`, async () => {
-            const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, body, idempotencyKey);
-            state.parentDisposition = result.parentDisposition;
-            if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
-          });
-          if (!ok && !existingPendingVoid) {
-            state.pendingOperations.push({ kind: "VOID_INTAKE", label: "a", studentProfileId: ownerId, idempotencyKey, body: { ...body } });
+        let lifecycle: BoLearnerLifecycle | null = null;
+        const lifecycleReadable = await record(`read owner lifecycle ${ownerId}`, async () => {
+          lifecycle = await port.get<BoLearnerLifecycle>(`students/${ownerId}/lifecycle`);
+        });
+        const ownerLifecycle = lifecycle as BoLearnerLifecycle | null;
+        if (lifecycleReadable && ownerLifecycle) {
+          const existingPendingVoid = state.pendingOperations.find((operation): operation is Extract<Pap437RollbackPendingOperation, { kind: "VOID_INTAKE" }> => operation.kind === "VOID_INTAKE" && operation.studentProfileId === ownerId);
+          if (existingPendingVoid || ownerLifecycle.student.status !== "ARCHIVED") {
+            const body = existingPendingVoid?.body ?? {
+              expectedStudentVersion: ownerLifecycle.student.version,
+              reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+            };
+            const idempotencyKey = existingPendingVoid?.idempotencyKey ?? replayKey(state.operationTag, `rollback-void-student-${ownerId}`);
+            const ok = await record(`void intake ${ownerId}`, async () => {
+              const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${ownerId}/void`, body, idempotencyKey);
+              state.parentDisposition = result.parentDisposition;
+              if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
+            });
+            if (!ok && !existingPendingVoid) {
+              state.pendingOperations.push({ kind: "VOID_INTAKE", label: "a", studentProfileId: ownerId, idempotencyKey, body: { ...body } });
+            }
           }
         }
       } else {

@@ -450,6 +450,48 @@ test("PAP-437 concurrent same-run attempts cannot archive the surviving attempt 
   await cleanupPap437CommercialFixture(port, winner, now);
 });
 
+test("PAP-437 preserves durable rollback state when the owner lifecycle read fails", async () => {
+  const port = new FakePort();
+  port.failNextCommandContaining("enrollments");
+  port.failNthGetContaining("/lifecycle", 6);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try {
+    await preparePap437CommercialFixture(port, "ownerread", now);
+  } catch (error) {
+    assert.ok(error instanceof Pap437RollbackIncompleteError);
+    incomplete = error;
+  }
+  assert.ok(incomplete);
+  assert.match(incomplete.rollbackErrors.join(" | "), /read owner lifecycle/i);
+  assert.equal(incomplete.rollbackState.runTag, "ownerread");
+  assert.equal(JSON.parse(JSON.stringify(incomplete.rollbackState)).runTag, "ownerread");
+  assert.equal([...port.students.values()].some((item) => item.lifecycle.student.status === "ACTIVE"), true);
+  await resumePap437CommercialRollback(port, incomplete.rollbackState);
+  assert.equal([...port.students.values()].every((item) => item.lifecycle.student.status === "ARCHIVED"), true);
+});
+
+test("PAP-437 rejects missing topology attempt identity instead of falsely certifying ambiguous cleanup", async () => {
+  const port = new FakePort();
+  port.loseResponseAfterNext("catalog/paths");
+  port.failNthGetContaining("delivery/bootstrap-state", 2);
+  let incomplete: Pap437RollbackIncompleteError | null = null;
+  try {
+    await preparePap437CommercialFixture(port, "losttoken", now);
+  } catch (error) {
+    assert.ok(error instanceof Pap437RollbackIncompleteError);
+    incomplete = error;
+  }
+  assert.ok(incomplete);
+  assert.equal(incomplete.rollbackState.pathId, null);
+  assert.match(incomplete.rollbackState.attemptToken ?? "", /^[a-f0-9]{16}$/);
+  assert.equal(port.bootstrap.paths.some((item) => item.status === "ACTIVE"), true);
+  incomplete.rollbackState.attemptToken = null;
+  await assert.rejects(
+    () => resumePap437CommercialRollback(port, incomplete!.rollbackState),
+    (error: unknown) => error instanceof Pap437RollbackIncompleteError && /ownership identity is missing or malformed/i.test(error.rollbackErrors.join(" | ")),
+  );
+  assert.equal(port.bootstrap.paths.some((item) => item.status === "ACTIVE"), true);
+});
 test("PAP-437 fails closed without exactly one active E2E Comparator Center or a bounded run tag", async () => {
   const missing = new FakePort();
   missing.bootstrap.centers = missing.bootstrap.centers.filter((item) => item.centerKey !== "e2e-comparator");
@@ -479,6 +521,7 @@ class FakePort implements Pap437FixturePort {
   private raceParentContact: string | null = null;
   private conflictAfterLookupContact: string | null = null;
   private responseLosses = new Map<string, { skip: number; remaining: number }>();
+  private getFailures = new Map<string, { skip: number; remaining: number }>();
   private studentVoidResponseLoss: { skip: number; remaining: number } | null = null;
   private preCommitFailures = new Map<string, { skip: number; remaining: number }>();
   private failNextCommandFragment: string | null = null;
@@ -500,6 +543,7 @@ class FakePort implements Pap437FixturePort {
 
   async get<T>(path: string): Promise<T> {
     this.calls.push({ method: "GET", path });
+    this.maybeFailGet(path);
     if (path === "delivery/bootstrap-state") return structuredClone(this.bootstrap) as T;
     if (path === "billing/product-plans") return [this.plan] as T;
     if (path.startsWith("identity/parents?")) {
@@ -666,6 +710,16 @@ class FakePort implements Pap437FixturePort {
       else { plan.remaining -= 1; if (plan.remaining <= 0) this.studentVoidResponseLoss = null; throw new Error(`simulated response loss after ${path}`); }
     }
     const plan = this.responseLosses.get(path); if (!plan) return; if (plan.skip > 0) { plan.skip -= 1; return; } plan.remaining -= 1; if (plan.remaining <= 0) this.responseLosses.delete(path); throw new Error(`simulated response loss after ${path}`);
+  }
+  failNthGetContaining(fragment:string, nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("GET failure schedule must be positive"); this.getFailures.set(fragment, { skip: nth - 1, remaining: count }); }
+  private maybeFailGet(path:string){
+    for (const [fragment, plan] of this.getFailures) {
+      if (!path.includes(fragment)) continue;
+      if (plan.skip > 0) { plan.skip -= 1; return; }
+      plan.remaining -= 1;
+      if (plan.remaining <= 0) this.getFailures.delete(fragment);
+      throw new Error(`simulated GET failure for ${path}`);
+    }
   }
   failBeforeNextCommit(path:string, count = 1){ this.failBeforeNthCommit(path, 1, count); }
   failBeforeNthCommit(path:string, nth:number, count = 1){ if (nth < 1 || count < 1) throw new Error("pre-commit failure schedule must be positive"); this.preCommitFailures.set(path, { skip: nth - 1, remaining: count }); }
