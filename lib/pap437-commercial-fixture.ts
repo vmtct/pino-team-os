@@ -69,7 +69,7 @@ export type Pap437RollbackPendingOperation =
   | { kind: "INTAKE"; label: "a" | "b" | "guard"; idempotencyKey: string; body: Record<string, unknown> }
   | { kind: "SALE"; label: "a" | "b"; idempotencyKey: string; body: Record<string, unknown> }
   | { kind: "SUBSCRIPTION"; label: "guard"; idempotencyKey: string; body: Record<string, unknown> }
-  | { kind: "VOID_INTAKE"; label: "a"; studentProfileId: string; idempotencyKey: string; body: Record<string, unknown> };
+  | { kind: "VOID_INTAKE"; label: "a" | "dependent"; studentProfileId: string; idempotencyKey: string; body: Record<string, unknown> };
 
 export interface Pap437RollbackState {
   runTag: string;
@@ -331,8 +331,16 @@ export async function preparePap437CommercialFixture(
     const recover = async (label: string, action: () => Promise<void>) => {
       try { await action(); } catch (recoveryError) { recoveryErrors.push(`${label}: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`); }
     };
-    if (learnerBAttempted && !learnerB) await recover("recover intake B", async () => { learnerB = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeBBody, intakeBKey); });
-    if (guardAttempted && !guard) await recover("recover guard intake", async () => { guard = await port.command<Pap437StudentIntake>("POST", "student-intakes", guardIntakeBody, guardIntakeKey); });
+    if (learnerBAttempted && !learnerB) await recover("recover intake B", async () => {
+      const recovered = await port.command<Pap437StudentIntake>("POST", "student-intakes", intakeBBody, intakeBKey);
+      assertReusedParentIntake(recovered, learnerA.parentUserId, "B");
+      learnerB = recovered;
+    });
+    if (guardAttempted && !guard) await recover("recover guard intake", async () => {
+      const recovered = await port.command<Pap437StudentIntake>("POST", "student-intakes", guardIntakeBody, guardIntakeKey);
+      assertReusedParentIntake(recovered, learnerA.parentUserId, "guard");
+      guard = recovered;
+    });
     if (saleAAttempted && !saleA && saleABody) await recover("recover sale A", async () => { saleA = await port.command<BoSaleResult>("POST", "billing/sales", saleABody!, saleAKey); });
     if (saleBAttempted && !saleB && saleBBody) await recover("recover sale B", async () => { saleB = await port.command<BoSaleResult>("POST", "billing/sales", saleBBody!, saleBKey); });
     if (guardSubscriptionAttempted && !guardSubscription && guardSubscriptionBody) await recover("recover guard Subscription", async () => { guardSubscription = await port.command<BoLearnerSubscription>("POST", "subscriptions", guardSubscriptionBody!, guardSubscriptionKey); });
@@ -618,8 +626,10 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
           state.parentUserId = intake.parentUserId;
           state.ownsParentContact = !intake.parentReused && intake.createdContactIdentifierId !== null;
           state.learnerIds = [intake.studentProfileId, ...state.learnerIds.filter((id) => id !== intake.studentProfileId)];
-        } else if (!state.learnerIds.includes(intake.studentProfileId)) {
-          state.learnerIds.push(intake.studentProfileId);
+        } else {
+          if (!state.parentUserId) throw new Error(`dependent ${operation.label} intake cannot be reconciled without the durable owner Parent identity`);
+          assertReusedParentIntake(intake, state.parentUserId, operation.label === "b" ? "B" : "guard");
+          if (!state.learnerIds.includes(intake.studentProfileId)) state.learnerIds.push(intake.studentProfileId);
         }
         return;
       }
@@ -631,7 +641,8 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
       }
       if (operation.kind === "VOID_INTAKE") {
         const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${operation.studentProfileId}/void`, operation.body, operation.idempotencyKey);
-        applyOwnerVoidResult(state, result, operation.studentProfileId);
+        if (operation.label === "a") applyOwnerVoidResult(state, result, operation.studentProfileId);
+        else applyDependentVoidResult(state, result, operation.studentProfileId);
         return;
       }
       await port.command<BoLearnerSubscription>("POST", "subscriptions", operation.body, operation.idempotencyKey);
@@ -702,15 +713,26 @@ async function rollbackPap437OwnedPreparation(port: Pap437FixturePort, state: Pa
   } else {
     if (unresolvedDependentIntake && ownerId) errors.push(`void owner ${ownerId}: deferred until unknown dependent intake outcome is reconciled`);
     for (const studentId of dependentIds) {
+      const existingPendingVoid = state.pendingOperations.find((operation): operation is Extract<Pap437RollbackPendingOperation, { kind: "VOID_INTAKE" }> => operation.kind === "VOID_INTAKE" && operation.label === "dependent" && operation.studentProfileId === studentId);
+      if (existingPendingVoid) {
+        dependentsClean = false;
+        continue;
+      }
+      const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
+      if (lifecycle.student.status === "ARCHIVED") continue;
+      const body = {
+        expectedStudentVersion: lifecycle.student.version,
+        reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
+      };
+      const idempotencyKey = replayKey(state.operationTag, `rollback-void-student-${studentId}`);
       const ok = await record(`void intake ${studentId}`, async () => {
-        const lifecycle = await port.get<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
-        if (lifecycle.student.status === "ARCHIVED") return;
-        await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${studentId}/void`, {
-          expectedStudentVersion: lifecycle.student.version,
-          reason: `${PREFIX} ${state.runTag} failed-prepare rollback`,
-        }, replayKey(state.operationTag, `rollback-void-student-${studentId}`));
+        const result = await port.command<BoStudentIntakeVoidResult>("POST", `student-intakes/${studentId}/void`, body, idempotencyKey);
+        applyDependentVoidResult(state, result, studentId);
       });
-      if (!ok) dependentsClean = false;
+      if (!ok) {
+        dependentsClean = false;
+        state.pendingOperations.push({ kind: "VOID_INTAKE", label: "dependent", studentProfileId: studentId, idempotencyKey, body: { ...body } });
+      }
     }
     if (ownerId) {
       if (dependentsClean) {
@@ -772,6 +794,14 @@ function applyOwnerVoidResult(state: Pap437RollbackState, result: BoStudentIntak
   if (state.ownsParentContact === false && result.parentDisposition === "ARCHIVED") throw new Error("owner intake cleanup archived a Parent/contact that rollback did not own");
   state.parentDisposition = result.parentDisposition;
   if (result.parentDisposition === "PRESERVED_SHARED" || result.parentDisposition === "REUSED_UNCHANGED") state.ownsParentContact = false;
+}
+
+function applyDependentVoidResult(state: Pap437RollbackState, result: BoStudentIntakeVoidResult, expectedStudentProfileId: string) {
+  if (result.studentProfileId !== expectedStudentProfileId) throw new Error("dependent intake cleanup returned the wrong Student identity");
+  if (!state.parentUserId) throw new Error("dependent intake cleanup cannot validate Parent identity because rollback state is missing the owner Parent");
+  if (result.parentUserId !== state.parentUserId) throw new Error("dependent intake cleanup returned the wrong Parent identity");
+  if (result.parentDisposition !== "REUSED_UNCHANGED") throw new Error("dependent intake cleanup must return REUSED_UNCHANGED for the fixture-owned Parent");
+  if (result.retiredContactCount !== 0) throw new Error("dependent intake cleanup unexpectedly retired Parent contact authority");
 }
 
 function resolveRollbackTopology(bootstrap: F3BootstrapState, state: Pap437RollbackState) {
