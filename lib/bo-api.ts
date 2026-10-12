@@ -149,6 +149,16 @@ export type BoPancakeChannel = {
   updatedAt: string;
   version: number;
 };
+
+async function parseBoJson<T>(response: Response, fallback: string): Promise<T> {
+  const text = await response.text();
+  try { return JSON.parse(text) as T; }
+  catch {
+    if (response.status === 401 && typeof window !== "undefined") void recoverInvalidStaffPasswordSession();
+    throw new BoApiError(response.status, fallback, response.headers.get("x-request-id"), false);
+  }
+}
+
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
@@ -172,7 +182,7 @@ export type BoAcquisitionIntent = {
 
 async function read<T>(path: string): Promise<T[]> {
   const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
-  const body = await response.json() as { data?: T[]; error?: { message?: string; requestId?: string } };
+  const body = await parseBoJson<{ data?: T[]; error?: { message?: string; requestId?: string } }>(response, "Back Office returned an invalid response.");
   if (!response.ok || !body.data) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
 }
@@ -192,11 +202,11 @@ export type BoAccessAuditPage = {
 
 async function readAccessAuditPage(path: string): Promise<BoAccessAuditPage> {
   const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
-  const body = await response.json() as {
+  const body = await parseBoJson<{
     data?: BoAccessAuditEvent[];
     page?: BoAccessAuditPage["page"];
     error?: { message?: string; requestId?: string };
-  };
+  }>(response, "Back Office returned an invalid response.");
   if (!response.ok || !body.data || !body.page) throw apiError(response, body, "Access audit could not be loaded.");
   return { events: body.data, page: body.page };
 }
@@ -227,15 +237,15 @@ async function readAllPages<T>(pathForCursor: (cursor: string | null) => string)
       if (seen.has(cursor)) throw new BoApiError(502, "Back Office pagination cursor repeated.", null);
       seen.add(cursor);
     }
-    const response = await fetch(`/api/bo/${pathForCursor(cursor)}`, { cache: "no-store" });
-    const body = await response.json() as {
+    const response: Response = await fetch(`/api/bo/${pathForCursor(cursor)}`, { cache: "no-store" });
+    const body: { data?: T[]; page?: { nextCursor?: string | null }; error?: { message?: string; requestId?: string } } = await parseBoJson<{
       data?: T[];
       page?: { nextCursor?: string | null };
       error?: { message?: string; requestId?: string };
-    };
+    }>(response, "Back Office returned an invalid response.");
     if (!response.ok || !body.data) throw apiError(response, body, "Back Office paged data could not be loaded.");
     items.push(...body.data);
-    const nextCursor = body.page?.nextCursor ?? null;
+    const nextCursor: string | null = body.page?.nextCursor ?? null;
     if (!nextCursor) return items;
     cursor = nextCursor;
   }
@@ -243,7 +253,7 @@ async function readAllPages<T>(pathForCursor: (cursor: string | null) => string)
 
 async function readOne<T>(path: string): Promise<T> {
   const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
-  const body = await response.json() as { data?: T; error?: { message?: string; requestId?: string } };
+  const body = await parseBoJson<{ data?: T; error?: { message?: string; requestId?: string } }>(response, "Back Office returned an invalid response.");
   if (!response.ok || body.data === undefined) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
 }

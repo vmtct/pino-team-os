@@ -64,6 +64,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "acquisition/pancake/settings"
     || path === "acquisition/pancake/channels"
     || path === "delivery/bootstrap-state"
+    || path === "delivery/calendar-scope"
     || path === "delivery/calendar-exclusions"
     || path === "delivery/calendar-exclusions/preview"
     || path === "path-programs"
