@@ -25,6 +25,8 @@ test("TOSCTX-001 renders deterministic Vietnamese DOW/date and assignment time",
   assert.equal(assignmentTime(assignment("a", "2026-09-28")), "17:30–21:00");
   const custom={...assignment("custom","2026-09-28"),coverageMode:"CUSTOM_RANGE" as const,effectiveStartLocal:"2026-09-28T18:10",effectiveEndLocal:"2026-09-28T20:40",effectiveWork:{assignmentId:"custom",timeBasis:"SHIFT_TEMPLATE" as const,coverageMode:"CUSTOM_RANGE" as const,windows:[{startsLocal:"2026-09-28T18:10",endsLocal:"2026-09-28T20:40",sourceType:"CUSTOM_RANGE" as const,sourceIds:[]}],reconciliationRequired:false}};
   assert.equal(assignmentTime(custom), "18:10–20:40");
+  const classroom={...assignment("classroom","2026-09-28"),timeBasis:"TEACHING_SESSIONS" as const,coverageMode:"CLASSROOM_TIME" as const,effectiveWork:{assignmentId:"classroom",timeBasis:"TEACHING_SESSIONS" as const,coverageMode:"CLASSROOM_TIME" as const,windows:[{startsLocal:"2026-09-28T18:00",endsLocal:"2026-09-28T19:30",sourceType:"SESSION" as const,sourceIds:["s1"]},{startsLocal:"2026-09-28T20:00",endsLocal:"2026-09-28T21:00",sourceType:"SESSION" as const,sourceIds:["s2"]}],reconciliationRequired:false}};
+  assert.equal(assignmentTime(classroom), "18:00–19:30, 20:00–21:00");
 });
 
 test("TOSCTX-003 derives weekly count and next shift without changing assignment authority", () => {
@@ -55,6 +57,11 @@ test("TOSCTX-001/002 Today, Schedule and Check-in use human date and hide raw sh
   assert.match(source, /compactWorkDate\(state\.assignment\.workDate\)/);
   assert.match(source, /assignmentTime\(row\)/);
   assert.doesNotMatch(source, /row\.shift\.code/);
+});
+
+test("TOSCTX-007 Staff schedule never exposes Manager coverage mutation controls", async () => {
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  assert.doesNotMatch(source, /customStartLocal|customEndLocal|coverage-mode|CUSTOM_RANGE|CLASSROOM_TIME/);
 });
 
 test("TOSCTX-005 cancelled assignments leave operational schedule and background refresh is wired", async () => {

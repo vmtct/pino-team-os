@@ -137,6 +137,9 @@ test("WSRA operational assignment forwards exact role plan and replay key", asyn
     centerId: "center",
     workDate: "2026-10-06",
     shiftTemplateId: "shift",
+    coverageMode: "CUSTOM_RANGE",
+    customStartLocal: "18:00",
+    customEndLocal: "20:30",
     termWeekId: "week",
     roles: [
       { roleType: "FRONT_DESK" },
@@ -152,4 +155,18 @@ test("WSRA operational assignment forwards exact role plan and replay key", asyn
   assert.equal(response.status, 201);
   assert.equal(response.headers.get("x-request-id"), "wsra-core");
   assert.deepEqual(forwarded, [{ method: "POST", path: "operational-assignment", body, idempotencyKey: "wsra-plan-key" }]);
+});
+
+test("WSRA operational assignment preserves Core validation/version rejection details", async () => {
+  const errorBody = { error: { code: "WORKFORCE_ASSIGNMENT_VERSION_CONFLICT", message: "Assignment changed; reload before retry." } };
+  const b = binding(async () => ({ status: 409, body: errorBody, requestId: "wsra-conflict" }));
+  const request = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/operational-assignment", {
+    method: "POST",
+    headers: headers({ "content-type": "application/json", "idempotency-key": "wsra-conflict-key" }),
+    body: JSON.stringify({ staffMemberId: "staff", centerId: "center", workDate: "2026-10-06", shiftTemplateId: "shift", coverageMode: "CUSTOM_RANGE", customStartLocal: "20:30", customEndLocal: "18:00", termWeekId: "week", roles: [{ roleType: "TEACHER", sessionId: "session" }] }),
+  });
+  const response = await handleBoWorkforcePlanningRequest(request, env(b), "workforce/planning/operational-assignment");
+  assert.equal(response.status, 409);
+  assert.equal(response.headers.get("x-request-id"), "wsra-conflict");
+  assert.deepEqual(await response.json(), errorBody);
 });
