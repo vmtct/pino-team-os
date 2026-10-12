@@ -32,5 +32,9 @@ test("AI Data Inbox remains under BO System without exposing casual inline destr
   assert.match(nav,/href: "\/bo\/system\/ai-data", label: "AI Data Inbox"/);
   assert.doesNotMatch(view,/Delete Change Set|Raw SQL|Run SQL|Update row/i);
   assert.match(view,/CREATE ONLY/);
+  assert.match(view,/REGISTERED OPS/);
+  assert.match(view,/snapshotFreshnessLabel/);
+  assert.match(view,/Snapshot stale · re-plan/);
+  assert.match(view,/Validated before \/ after evidence/);
   assert.match(view,/Plan hash — approval binds to this exact payload/);
 });
