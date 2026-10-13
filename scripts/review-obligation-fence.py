@@ -58,6 +58,29 @@ def args_binding(a):
     vector,vh=norm_vector(getattr(a,'vector_json',None),a.repository,a.pr,a.candidate)
     if not re.fullmatch(r'[0-9a-f]{64}',a.risk_hash):fail('OBLIGATION_RISK_HASH_INVALID')
     return vector,vh,key_for(a.review_kind,a.repository,a.pr,a.candidate,vh,a.risk_hash)
+def binding_key(a):
+    vector,vh,key=args_binding(a)
+    print(json.dumps({'ok':True,'obligationKey':key,'candidateVectorHash':vh,'candidateVector':vector},separators=(',',':')))
+def claim_reused_capacity(a):
+    vector,vh,key=args_binding(a)
+    for value,label in ((a.capacity_receipt_hash,'CAPACITY_RECEIPT_HASH'),(a.source_hash,'SOURCE_HASH'),(a.observation_hash,'OBSERVATION_HASH')):
+        if not re.fullmatch(r'[0-9a-f]{64}',str(value or '')):fail('OBLIGATION_REUSED_'+label+'_INVALID')
+    if not re.fullmatch(r'[0-9a-f-]{36}',str(a.source_thread or '')):fail('OBLIGATION_REUSED_SOURCE_THREAD_INVALID')
+    if not re.fullmatch(r'[0-9a-f]{40}',str(a.source_candidate or '')):fail('OBLIGATION_REUSED_SOURCE_CANDIDATE_INVALID')
+    try: reset_at=float(a.reset_at_epoch)
+    except Exception: fail('OBLIGATION_REUSED_RESET_AT_INVALID')
+    if reset_at<=time.time():fail('OBLIGATION_REUSED_RESET_AT_EXPIRED')
+    cp,_=paths(key);lt,lp=acquire(key)
+    try:
+        existing=read_claim(cp)
+        if existing:
+            if existing.get('state')=='CODEX_CAPACITY' and existing.get('capacityEvidenceReused') is True and existing.get('capacityReceiptSha256')==a.capacity_receipt_hash and existing.get('sourceCapacityObservationHash')==a.observation_hash:
+                print(json.dumps({'ok':True,'idempotent':True,'obligationKey':key,'state':'CODEX_CAPACITY','claimPath':cp},separators=(',',':')));return
+            fail('OBLIGATION_ALREADY_CLAIMED:'+key)
+        claim={'schemaVersion':1,'kind':'PINO_REVIEW_OBLIGATION','obligationKey':key,'state':'CODEX_CAPACITY','reviewKind':a.review_kind,'repository':a.repository.lower(),'prNumber':a.pr,'candidate':a.candidate.lower(),'candidateVector':vector,'candidateVectorHash':vh,'riskContractHash':a.risk_hash,'capacityReceiptSha256':a.capacity_receipt_hash,'codexCapacitySourceThreadId':a.source_thread,'codexCapacitySourceReceiptSha256':a.source_hash,'sourceCapacityCandidate':a.source_candidate.lower(),'sourceCapacityObservationHash':a.observation_hash,'capacityEvidenceReused':True,'codexAttemptedForCandidate':False,'capacityResetAtEpoch':reset_at,'createdAt':time.time(),'capacityAt':time.time()}
+        write_claim(cp,claim,lp,lt)
+        print(json.dumps({'ok':True,'idempotent':False,'obligationKey':key,'state':'CODEX_CAPACITY','claimPath':cp,'candidateVectorHash':vh},separators=(',',':')))
+    finally:release(lp,lt)
 def claim_codex(a):
     vector,vh,key=args_binding(a);cp,_=paths(key);lt,lp=acquire(key)
     try:
@@ -126,10 +149,12 @@ def abort_prestart(a):
 p=argparse.ArgumentParser();sub=p.add_subparsers(dest='cmd',required=True)
 def binding_parser(name):
     x=sub.add_parser(name);x.add_argument('--review-kind',required=True);x.add_argument('--repository',required=True);x.add_argument('--pr',type=int,required=True);x.add_argument('--candidate',required=True);x.add_argument('--risk-hash',required=True);x.add_argument('--vector-json');return x
+bk=binding_parser('binding-key')
+rc=binding_parser('claim-reused-capacity');rc.add_argument('--capacity-receipt-hash',required=True);rc.add_argument('--source-thread',required=True);rc.add_argument('--source-hash',required=True);rc.add_argument('--source-candidate',required=True);rc.add_argument('--observation-hash',required=True);rc.add_argument('--reset-at-epoch',required=True)
 c=binding_parser('claim-codex')
 cc=sub.add_parser('codex-capacity');cc.add_argument('--key',required=True);cc.add_argument('--token',required=True);cc.add_argument('--source-thread',required=True);cc.add_argument('--source-hash',required=True);cc.add_argument('--capacity-receipt-hash',required=True)
 g=binding_parser('claim-chatgpt');g.add_argument('--capacity-receipt-hash',required=True);g.add_argument('--label',required=True)
 t=sub.add_parser('terminal');t.add_argument('--key',required=True);t.add_argument('--token',required=True);t.add_argument('--provider',choices=['CODEX','CHATGPT'],required=True);t.add_argument('--verdict',required=True);t.add_argument('--authority-hash',required=True)
 i=sub.add_parser('inspect');i.add_argument('--key',required=True)
 ab=sub.add_parser('abort-prestart');ab.add_argument('--key',required=True);ab.add_argument('--candidate',required=True);ab.add_argument('--risk-hash',required=True);ab.add_argument('--reason-hash',required=True)
-a=p.parse_args();{'claim-codex':claim_codex,'codex-capacity':codex_capacity,'claim-chatgpt':claim_chatgpt,'terminal':terminal,'inspect':inspect,'abort-prestart':abort_prestart}[a.cmd](a)
+a=p.parse_args();{'binding-key':binding_key,'claim-reused-capacity':claim_reused_capacity,'claim-codex':claim_codex,'codex-capacity':codex_capacity,'claim-chatgpt':claim_chatgpt,'terminal':terminal,'inspect':inspect,'abort-prestart':abort_prestart}[a.cmd](a)
