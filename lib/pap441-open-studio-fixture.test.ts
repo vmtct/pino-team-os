@@ -33,6 +33,7 @@ type FakeOptions = {
   initialClaimStatus?: "RESERVED" | "RELEASED" | "CONSUMED";
   failPublicAcquireOnce?: boolean;
   failNeutralPolicyOnceAt?: number;
+  failMemberEndOnce?: boolean;
 };
 
 function clone<T>(value: T): T {
@@ -52,6 +53,7 @@ function fakePort(options: FakeOptions = {}) {
   let identityOwnedByRun = options.identityDisposition === "OWNED_BY_RUN";
   let neutralPublishIndex = 0;
   let failNeutralPolicyOnceAt = options.failNeutralPolicyOnceAt ?? 0;
+  let failMemberEnd = options.failMemberEndOnce ?? false;
 
   const port: Pap441OpenStudioPort = {
     async loadCheckpoint(tag) {
@@ -103,7 +105,18 @@ function fakePort(options: FakeOptions = {}) {
     async firstPresent() { calls.push("first-present"); identityOwnedByRun = true; return { studentId: "student-1", houseMembershipId: "membership-1" }; },
     async assignMemberCenter() { calls.push("member-center:assign"); memberCenterActive = true; },
     async assignPathCenter() { calls.push("path-center:assign"); pathCenterActive = true; },
-    async clearFixtureAssignments() { calls.push("assignments:clear"); memberCenterActive = false; pathCenterActive = false; },
+    async endMemberCenter({ effectiveUntilExclusive, idempotencyKey }) {
+      calls.push(`member-center:end:${effectiveUntilExclusive}:${idempotencyKey}`);
+      if (failMemberEnd) {
+        failMemberEnd = false;
+        throw new Error("synthetic member end failure");
+      }
+      memberCenterActive = false;
+    },
+    async endPathCenter({ effectiveUntilExclusive, idempotencyKey }) {
+      calls.push(`path-center:end:${effectiveUntilExclusive}:${idempotencyKey}`);
+      pathCenterActive = false;
+    },
     async readFixtureAssignments() { calls.push("assignments:read"); return { memberCenterActive, pathCenterActive }; },
     async issueMonthlyPathPasses() { calls.push("monthly-pass"); return ["monthly-1"]; },
     async issueBringAFriendPasses() { calls.push("baf-pass"); return ["baf-1"]; },
@@ -154,7 +167,13 @@ test("PAP-441 prepares replay-safe member fixture and fully cleans reserved-clai
   assert.ok(calls.includes("pass:revoke:baf-1"));
   assert.ok(calls.includes("listing:cancel"));
   assert.ok(!calls.includes("listing:close"));
-  assert.ok(calls.includes("assignments:clear"));
+  assert.equal(calls.filter((call) => call.startsWith("path-center:end:")).length, 1);
+  assert.equal(calls.filter((call) => call.startsWith("member-center:end:")).length, 1);
+  const assignmentEndAt = getCheckpoint()?.cleanup.assignmentEndEffectiveAt;
+  assert.ok(assignmentEndAt);
+  assert.ok(Date.parse(assignmentEndAt) > Date.parse(input.effectiveAt));
+  assert.ok(calls.some((call) => call.endsWith(":pap441-test:path-center-end")));
+  assert.ok(calls.some((call) => call.endsWith(":pap441-test:member-center-end")));
   assert.equal(calls.filter((call) => call.startsWith("policy-read:")).length, 4);
   for (const call of calls.filter((value) => value.includes(":neutral:"))) {
     const effectiveAt = call.split(":neutral:")[1]!;
@@ -211,6 +230,21 @@ test("PAP-441 closes rather than cancels a listing when the owner claim is alrea
   assert.equal(fake.getCheckpoint()?.cleanup.listingTerminal, "CLOSED");
 });
 
+test("PAP-441 resumes assignment cleanup after member end failure without replaying completed path end", async () => {
+  const fake = fakePort({ failMemberEndOnce: true });
+  const state = await preparePap441OpenStudioFixture(fake.port, input);
+  await assert.rejects(() => cleanupPap441OpenStudioFixture(fake.port, input, state), /synthetic member end failure/);
+  const afterFailure = fake.getCheckpoint();
+  assert.equal(afterFailure?.cleanup.pathCenterEnded, true);
+  assert.equal(afterFailure?.cleanup.memberCenterEnded, undefined);
+  assert.equal(afterFailure?.cleanup.assignmentsCleared, undefined);
+
+  await cleanupPap441OpenStudioFixture(fake.port, input, state);
+  assert.equal(fake.calls.filter((call) => call.startsWith("path-center:end:")).length, 1);
+  assert.equal(fake.calls.filter((call) => call.startsWith("member-center:end:")).length, 2);
+  assert.equal(fake.getCheckpoint()?.cleanup.assignmentsCleared, true);
+});
+
 test("PAP-441 resumes cleanup after neutral-policy failure and converges with full readback", async () => {
   const fake = fakePort({ failNeutralPolicyOnceAt: 2 });
   const state = await preparePap441OpenStudioFixture(fake.port, input);
@@ -225,7 +259,8 @@ test("PAP-441 resumes cleanup after neutral-policy failure and converges with fu
   assert.equal(fake.calls.filter((call) => call === "pass:revoke:monthly-1").length, 1);
   assert.equal(fake.calls.filter((call) => call === "pass:revoke:baf-1").length, 1);
   assert.equal(fake.calls.filter((call) => call === "listing:cancel").length, 1);
-  assert.equal(fake.calls.filter((call) => call === "assignments:clear").length, 1);
+  assert.equal(fake.calls.filter((call) => call.startsWith("path-center:end:")).length, 1);
+  assert.equal(fake.calls.filter((call) => call.startsWith("member-center:end:")).length, 1);
   assert.equal(fake.getCheckpoint()?.cleanup.completed, true);
   assert.equal(fake.calls.filter((call) => call.startsWith("policy-read:")).length, 4);
   assert.equal(fake.calls.filter((call) => call.startsWith("pass:read:")).length, 2);

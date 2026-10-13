@@ -63,6 +63,9 @@ export interface Pap441FixtureCheckpoint extends Partial<Pap441FixtureState> {
     claimTerminal?: "RELEASED" | "CONSUMED";
     revokedPassIds: string[];
     listingTerminal?: "CLOSED" | "CANCELLED";
+    assignmentEndEffectiveAt?: string;
+    pathCenterEnded?: boolean;
+    memberCenterEnded?: boolean;
     assignmentsCleared?: boolean;
     neutralPolicyEffectiveAt: PolicyTimes;
     neutralPolicies: PolicyTimes;
@@ -83,7 +86,8 @@ export interface Pap441OpenStudioPort {
   firstPresent(input: { registrationId: string; recordedAt: string; idempotencyKey: string }): Promise<{ studentId: string; houseMembershipId: string }>;
   assignMemberCenter(input: { houseMembershipId: string; centerId: string; effectiveFrom: string; runTag: string }): Promise<void>;
   assignPathCenter(input: { houseMembershipId: string; pathProgramId: string; centerId: string; effectiveFrom: string; runTag: string }): Promise<void>;
-  clearFixtureAssignments(input: { houseMembershipId: string; pathProgramId: string; centerId: string; effectiveAt: string; runTag: string }): Promise<void>;
+  endMemberCenter(input: { houseMembershipId: string; centerId: string; effectiveUntilExclusive: string; reason: string; idempotencyKey: string }): Promise<void>;
+  endPathCenter(input: { houseMembershipId: string; pathProgramId: string; centerId: string; effectiveUntilExclusive: string; reason: string; idempotencyKey: string }): Promise<void>;
   readFixtureAssignments(input: { houseMembershipId: string; pathProgramId: string; centerId: string; effectiveAt: string }): Promise<{ memberCenterActive: boolean; pathCenterActive: boolean }>;
   issueMonthlyPathPasses(input: { houseMembershipId: string; pathProgramId: string; effectiveAt: string; runTag: string }): Promise<string[]>;
   issueBringAFriendPasses(input: { houseMembershipId: string; effectiveAt: string; runTag: string }): Promise<string[]>;
@@ -153,6 +157,12 @@ function assertCheckpointState(checkpoint: Pap441FixtureCheckpoint, state: Pap44
 
 async function save(port: Pap441OpenStudioPort, checkpoint: Pap441FixtureCheckpoint): Promise<void> {
   await port.saveCheckpoint(checkpoint);
+}
+
+function nextAssignmentEndInstant(effectiveAt: string): string {
+  const parsed = Date.parse(effectiveAt);
+  if (!Number.isFinite(parsed)) throw new Error("PAP-441 assignment effectiveAt is invalid");
+  return new Date(parsed + 1_000).toISOString();
 }
 
 function finalState(checkpoint: Pap441FixtureCheckpoint): Pap441FixtureState {
@@ -283,8 +293,38 @@ export async function cleanupPap441OpenStudioFixture(port: Pap441OpenStudioPort,
     await save(port, checkpoint);
   }
 
+  if (!checkpoint.cleanup.assignmentEndEffectiveAt) {
+    checkpoint.cleanup.assignmentEndEffectiveAt = nextAssignmentEndInstant(effectiveAt);
+    await save(port, checkpoint);
+  }
+  const assignmentEndAt = checkpoint.cleanup.assignmentEndEffectiveAt;
+  if (Date.parse(assignmentEndAt) <= Date.parse(effectiveAt)) {
+    throw new Error("PAP-441 assignment end instant must follow assignment start");
+  }
+  if (!checkpoint.cleanup.pathCenterEnded) {
+    await port.endPathCenter({
+      houseMembershipId: durable.houseMembershipId,
+      pathProgramId,
+      centerId: disposableCenterId,
+      effectiveUntilExclusive: assignmentEndAt,
+      reason: `${checkpoint.runTag}: cleanup`,
+      idempotencyKey: `${checkpoint.runTag}:path-center-end`,
+    });
+    checkpoint.cleanup.pathCenterEnded = true;
+    await save(port, checkpoint);
+  }
+  if (!checkpoint.cleanup.memberCenterEnded) {
+    await port.endMemberCenter({
+      houseMembershipId: durable.houseMembershipId,
+      centerId: disposableCenterId,
+      effectiveUntilExclusive: assignmentEndAt,
+      reason: `${checkpoint.runTag}: cleanup`,
+      idempotencyKey: `${checkpoint.runTag}:member-center-end`,
+    });
+    checkpoint.cleanup.memberCenterEnded = true;
+    await save(port, checkpoint);
+  }
   if (!checkpoint.cleanup.assignmentsCleared) {
-    await port.clearFixtureAssignments({ houseMembershipId: durable.houseMembershipId, pathProgramId, centerId: disposableCenterId, effectiveAt, runTag: checkpoint.runTag });
     checkpoint.cleanup.assignmentsCleared = true;
     await save(port, checkpoint);
   }
@@ -311,7 +351,9 @@ export async function cleanupPap441OpenStudioFixture(port: Pap441OpenStudioPort,
   for (const passId of [...durable.monthlyPassIds, ...durable.bringAFriendPassIds]) {
     if (!(await port.readPass({ passId })).revoked) throw new Error(`PAP-441 cleanup left pass active: ${passId}`);
   }
-  const assignments = await port.readFixtureAssignments({ houseMembershipId: durable.houseMembershipId, pathProgramId, centerId: disposableCenterId, effectiveAt });
+  const assignmentReadAt = checkpoint.cleanup.assignmentEndEffectiveAt;
+  if (!assignmentReadAt) throw new Error("PAP-441 cleanup missing assignment end checkpoint");
+  const assignments = await port.readFixtureAssignments({ houseMembershipId: durable.houseMembershipId, pathProgramId, centerId: disposableCenterId, effectiveAt: assignmentReadAt });
   if (assignments.memberCenterActive || assignments.pathCenterActive) throw new Error("PAP-441 cleanup left Center assignment authority active");
   for (const [key, value] of NEUTRAL_POLICIES) {
     const cleanupAt = checkpoint.cleanup.neutralPolicyEffectiveAt[key];
