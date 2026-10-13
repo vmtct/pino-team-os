@@ -26,6 +26,7 @@ function authority(f,verdict='PASS'){
 function runCommand(f,cmd,env={}){const x=spawnSync(process.execPath,[TOOL,cmd,f.spec],{encoding:'utf8',env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let json=null;try{json=JSON.parse(x.stdout||x.stderr)}catch{}return{x,json}}
 function run(f,env={}){return runCommand(f,'ensure',env)}
 function consume(f,env={}){return runCommand(f,'consume',env)}
+function recover(f,env={}){return runCommand(f,'recover-preflight',env)}
 function runAsyncCommand(f,cmd,env={}){return new Promise(resolve=>{const x=spawn(process.execPath,[TOOL,cmd,f.spec],{env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let out='',err='';x.stdout.on('data',d=>out+=d);x.stderr.on('data',d=>err+=d);x.on('close',code=>{let json=null;try{json=JSON.parse(out||err)}catch{}resolve({code,json,out,err})})})}
 function runAsync(f,env={}){return runAsyncCommand(f,'ensure',env)}
 function consumeAsync(f,env={}){return runAsyncCommand(f,'consume',env)}
@@ -136,6 +137,17 @@ test('Codex worker carries exact repository and PR binding into canonical launch
  assert.ok(source.includes('repository:c.repo,pr:c.pr,candidate:c.head'));
  assert.ok(source.includes('PINO_REVIEW_REPOSITORY=${JSON.stringify(s.repository)}'));
  assert.ok(source.includes('PINO_REVIEW_PR_NUMBER=${JSON.stringify(String(s.pr))}'));
+});
+
+test('proven pre-review RC90 can be recovered without consuming review budget and preserves receipt lineage',()=>{
+ const f=fixture('recover-preflight','8'.repeat(40)),cf=path.join(f.root,'codex-preflight.json');write(cf,{schemaVersion:1,status:90,stdout:'',stderr:'ERROR: REVIEW_RISK_CONTRACT_UNRESOLVED:ledger:FileNotFoundError\nERROR: canonical review risk contract unresolved\n'});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf};
+ const a=run(f,env);assert.equal(a.json.status,'REVIEW_RUNNING');const b=run(f,env);assert.equal(b.x.status,2);assert.equal(b.json.status,'BLOCKED');assert.equal(b.json.reason,'CODEX_NON_CAPACITY_FAILURE_RC_90');
+ const c=recover(f,env);assert.equal(c.x.status,0);assert.equal(c.json.status,'PRE_REVIEW_RETRY_READY');assert.equal(c.json.noSideEffect,true);assert.ok(fs.existsSync(c.json.recoveryReceiptPath));const receipt=JSON.parse(fs.readFileSync(c.json.recoveryReceiptPath));assert.equal(receipt.noSideEffect,true);assert.equal(receipt.failedBlockReason,'CODEX_NON_CAPACITY_FAILURE_RC_90');assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(f.state)).records),[]);
+ const ap=authority(f),ok=path.join(f.root,'codex-pass-after-recover.json');write(ok,{schemaVersion:1,status:0,stdout:JSON.stringify({codexDirectReviewVerified:true,reviewAuthorityPath:ap})+'\n',stderr:''});const d=run(f,{PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:ok});assert.equal(d.x.status,0);assert.equal(d.json.status,'REVIEW_RUNNING');assert.equal(d.json.provider,'CODEX_DIRECT');
+});
+
+test('pre-review recovery fails closed when candidate-bound side effect exists',()=>{
+ const f=fixture('recover-side-effect','a'.repeat(40)),cf=path.join(f.root,'codex-preflight.json');write(cf,{schemaVersion:1,status:90,stdout:'',stderr:'ERROR: canonical review risk contract unresolved\n'});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf};run(f,env);assert.equal(run(f,env).json.status,'BLOCKED');const receipt=path.join(f.root,'state','codex-source-receipts','INDIE-'+f.head+'.json');write(receipt,{schemaVersion:1,candidate:f.head});const c=recover(f,env);assert.equal(c.x.status,1);assert.match(c.x.stderr,/REVIEW_ENSURE_PRE_REVIEW_RECOVERY_SIDE_EFFECT/);assert.equal(Object.keys(JSON.parse(fs.readFileSync(f.state)).records).length,1);
 });
 
 test('worktree verifier runs git probes after cd and forbids pre-cd command substitution',()=>{

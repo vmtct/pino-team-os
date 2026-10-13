@@ -15,6 +15,11 @@ const CAPACITY_TIMEZONE='Asia/Ho_Chi_Minh';
 const CAPACITY_TZ_OFFSET_MINUTES=Number(process.env.PINO_CODEX_CAPACITY_TZ_OFFSET_MINUTES??420);
 const CAPACITY_OBSERVATION=path.resolve(ROOT,'state','codex-capacity',CAPACITY_PROFILE+'.json');
 const CODEX_FALLBACK_DIR=path.resolve(ROOT,'state','codex-fallback');
+const CODEX_SOURCE_RECEIPT_DIR=path.resolve(ROOT,'state','codex-source-receipts');
+const REVIEW_AUTHORITY_DIR=path.resolve(ROOT,'state','review-authority');
+const REVIEW_OBLIGATION_DIR=path.resolve(ROOT,'state','review-obligations');
+const CODEX_DIRECT_REVIEW_DIR=path.resolve(ROOT,'state','codex-direct-review');
+const PRE_REVIEW_RECOVERY_DIR=path.resolve(ROOT,'state','review-ensure','recoveries');
 const REVIEW_CHAIN_SHORT_CONFIG=path.resolve(ROOT,'state','experiments','review-chain-short-v1.json');
 const now=()=>new Date().toISOString();
 const readJson=(f,fb=null)=>{try{return JSON.parse(fs.readFileSync(f,'utf8').replace(/^\uFEFF/,''));}catch{return fb;}};
@@ -55,6 +60,18 @@ function startChatGptFallback(spec,c,o,receiptPath,{capacityEvidenceReused=false
 function auditWorkStatus(id){const fixture=testFixture('PINO_REVIEW_ENSURE_TEST_CHATGPT_STATUS_FIXTURE');if(fixture)return fixture;const x=spawnSync(process.execPath,[AUDIT_WORK,'status',id],{encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:4*1024*1024,env:{...process.env,PINO_SOP_ROOT:ROOT}});if(x.error||x.status!==0)fail('REVIEW_ENSURE_CHATGPT_STATUS_FAILED',String(x.stderr||x.stdout||x.error?.message||x.status));return JSON.parse(String(x.stdout))}
 
 function testFixture(name){if(process.env.NODE_ENV!=='test')return null;const p=process.env[name];return p?readJson(path.resolve(p)):null}
+function candidateArtifacts(dir,c){try{return fs.readdirSync(dir).filter(x=>x.endsWith('.json')).flatMap(name=>{const file=path.join(dir,name),j=readJson(file);if(!j)return[];const heads=[j.candidate,j.candidateSha,j.headSha].map(x=>String(x??'').toLowerCase()),vector=Array.isArray(j.candidateVector)?j.candidateVector:[];const hit=heads.includes(c.head)||vector.some(x=>String(x?.candidate??x?.headSha??'').toLowerCase()===c.head);return hit?[file]:[]})}catch{return[]}}
+function assertPreReviewNoSideEffect(r,c){
+  if(!r||r.status!=='BLOCKED'||r.provider!=='CODEX_DIRECT'||r.blockReason!=='CODEX_NON_CAPACITY_FAILURE_RC_90')fail('REVIEW_ENSURE_PRE_REVIEW_RECOVERY_NOT_ELIGIBLE',String(r?.blockReason??r?.status??'MISSING'));
+  const result=readJson(r.codexResultPath);if(!result||Number(result.status)!==90||String(result.stdout??'').trim())fail('REVIEW_ENSURE_PRE_REVIEW_RECOVERY_RESULT_UNSAFE');
+  const direct=[path.join(CODEX_SOURCE_RECEIPT_DIR,`INDIE-${c.head}.json`),path.join(CODEX_FALLBACK_DIR,`INDIE-${c.head}.json`)];for(const file of direct)if(fs.existsSync(file))fail('REVIEW_ENSURE_PRE_REVIEW_RECOVERY_SIDE_EFFECT',file);
+  for(const [dir,label] of [[REVIEW_AUTHORITY_DIR,'review-authority'],[REVIEW_OBLIGATION_DIR,'review-obligation'],[CODEX_DIRECT_REVIEW_DIR,'codex-direct-review']]){const hits=candidateArtifacts(dir,c);if(hits.length)fail('REVIEW_ENSURE_PRE_REVIEW_RECOVERY_SIDE_EFFECT',`${label}:${hits[0]}`)}
+  return{resultHash:digest(result),stderrTail:String(result.stderr??'').slice(-2000),checkedArtifacts:['codex-source-receipt','codex-fallback-receipt','review-authority','review-obligation','codex-direct-review']};
+}
+function recoverPreReview(spec,{stateFile=STATE}={}){
+  const ledgerPath=path.resolve(String(spec?.ledgerPath??'')),ledger=readJson(ledgerPath);if(!ledger)fail('REVIEW_ENSURE_LEDGER_MISSING',ledgerPath);if(ledger?.ownership?.stream!=='DEV')fail('REVIEW_ENSURE_DEV_OWNERSHIP_REQUIRED',String(ledger?.ownership?.stream));
+  const c=primaryCandidate(ledger),o=obligation(spec,c);return withLock(o.key,()=>{const s=loadState(stateFile),r=s.records[o.key]??null,proof=assertPreReviewNoSideEffect(r,c),receipt={schemaVersion:1,kind:'PINO_REVIEW_ENSURE_PRE_REVIEW_RECOVERY',obligationKey:o.key,obligationId:o.identity,repository:c.repo,pr:c.pr,candidate:c.head,failedProvider:r.provider,failedBlockReason:r.blockReason,failedStartedAt:r.codexStartedAt??null,codexResultPath:r.codexResultPath,codexResultHash:proof.resultHash,stderrTail:proof.stderrTail,checkedArtifacts:proof.checkedArtifacts,noSideEffect:true,recoveredAt:now(),action:'CLEAR_BLOCKED_RECORD_AFTER_PROVEN_PRE_REVIEW_NO_SIDE_EFFECT'};fs.mkdirSync(PRE_REVIEW_RECOVERY_DIR,{recursive:true});const receiptPath=path.join(PRE_REVIEW_RECOVERY_DIR,`${o.key}-${Date.now()}.json`);atomic(receiptPath,receipt);delete s.records[o.key];saveState(s,stateFile);return{ok:true,status:'PRE_REVIEW_RETRY_READY',obligationKey:o.key,recoveryReceiptPath:receiptPath,noSideEffect:true}} ,stateFile);
+}
 async function ensureReview(spec,{stateFile=STATE}={}){
   const ledgerPath=path.resolve(String(spec?.ledgerPath??''));const ledger=readJson(ledgerPath);if(!ledger)fail('REVIEW_ENSURE_LEDGER_MISSING',ledgerPath);if(ledger?.ownership?.stream!=='DEV')fail('REVIEW_ENSURE_DEV_OWNERSHIP_REQUIRED',String(ledger?.ownership?.stream));
   const c=primaryCandidate(ledger),o=obligation(spec,c),ci=assertCi(spec,c);
@@ -112,7 +129,7 @@ function consumeReview(spec,{stateFile=STATE}={}){
 if(process.argv[2]==='worker-codex'){
   try{const s=readJson(path.resolve(process.argv[3]));if(!s)fail('REVIEW_ENSURE_WORKER_SPEC_INVALID');runCodexWorker(s);process.exit(0)}catch(e){try{const s=readJson(path.resolve(process.argv[3]));if(s?.resultPath)atomic(s.resultPath,{schemaVersion:1,finishedAt:now(),status:91,error:String(e?.message??e),stdout:'',stderr:String(e?.stack??e)})}catch{}process.exit(91)}
 }else if(path.basename(process.argv[1]??'')===path.basename(SELF)){
-  const [cmd,arg]=process.argv.slice(2);try{if(!['ensure','consume'].includes(cmd))fail('USAGE','review-ensure.mjs <ensure|consume> <spec.json>');const spec=readJson(path.resolve(arg));if(!spec)fail('REVIEW_ENSURE_SPEC_INVALID');const out=cmd==='consume'?consumeReview(spec):await ensureReview(spec);console.log(JSON.stringify(out,null,2));if(out.status==='BLOCKED')process.exitCode=2}catch(e){console.error(JSON.stringify({ok:false,status:'BLOCKED',error:String(e?.message??e),code:e?.code??null},null,2));process.exitCode=1}
+  const [cmd,arg]=process.argv.slice(2);try{if(!['ensure','consume','recover-preflight'].includes(cmd))fail('USAGE','review-ensure.mjs <ensure|consume|recover-preflight> <spec.json>');const spec=readJson(path.resolve(arg));if(!spec)fail('REVIEW_ENSURE_SPEC_INVALID');const out=cmd==='consume'?consumeReview(spec):cmd==='recover-preflight'?recoverPreReview(spec):await ensureReview(spec);console.log(JSON.stringify(out,null,2));if(out.status==='BLOCKED')process.exitCode=2}catch(e){console.error(JSON.stringify({ok:false,status:'BLOCKED',error:String(e?.message??e),code:e?.code??null},null,2));process.exitCode=1}
 }
 
-export{ensureReview,consumeReview,validateReceipt,validateAuthority,parseResetAt,activeCapacityObservation,deriveCapacityReceipt};
+export{ensureReview,consumeReview,recoverPreReview,validateReceipt,validateAuthority,parseResetAt,activeCapacityObservation,deriveCapacityReceipt};
