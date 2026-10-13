@@ -35,6 +35,7 @@ function prelaunchFailureReason(result){
   if(parseVerified(result?.stdout)||launches.length!==0)return null;
   if(Number(result?.status)===90&&stderr.includes('REVIEW_RISK_CONTRACT_UNRESOLVED:')&&stderr.includes('canonical review risk contract unresolved'))return 'PRELAUNCH_RISK_ADMISSION_FAILED';
   if(Number(result?.status)===1&&stderr.includes('BRIEF_INVALID:')&&stderr.includes('Codex reviewer failed with non-capacity rc=1'))return 'PRELAUNCH_BRIEF_ADMISSION_FAILED';
+  if(Number(result?.status)===92&&/OBLIGATION_ALREADY_CLAIMED:[0-9a-f]{64}/.test(stderr)&&stderr.includes('immutable review obligation already claimed or fence unavailable'))return 'PRELAUNCH_OBLIGATION_FENCE_REJECTED';
   return null;
 }
 function prelaunchEvidence(result,record,reason=prelaunchFailureReason(result)){const stderr=String(result?.stderr??result?.stderrTail??'');if(!reason)throw new Error('REVIEW_CODEX_PRELAUNCH_EVIDENCE_UNPROVEN');return {operation:'CODEX_REVIEW',reason,status:Number(result?.status),attemptId:record.attemptId,dispatchId:record.dispatchId??null,resultHash:record.resultHash??null,stderrSha256:crypto.createHash('sha256').update(stderr).digest('hex')};}

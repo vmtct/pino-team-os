@@ -85,7 +85,8 @@ export function recoverCodexPrelaunchNoSideEffect(key,evidence){
     const stderrSha256=crypto.createHash('sha256').update(stderr).digest('hex');
     const exactRiskFailure=Number(result.status)===90&&result.provider==='CODEX'&&result.errorAfterStart===true&&!result.verified&&result.terminalLaunch==null&&!stderr.includes('PINO_TOOL_LAUNCH_JSON=')&&stderr.includes('REVIEW_RISK_CONTRACT_UNRESOLVED:')&&stderr.includes('canonical review risk contract unresolved');
     const exactBriefFailure=Number(result.status)===1&&result.provider==='CODEX'&&result.errorAfterStart===true&&!result.verified&&result.terminalLaunch==null&&!stderr.includes('PINO_TOOL_LAUNCH_JSON=')&&stderr.includes('BRIEF_INVALID:')&&stderr.includes('Codex reviewer failed with non-capacity rc=1');
-    const expectedReason=exactRiskFailure?'PRELAUNCH_RISK_ADMISSION_FAILED':exactBriefFailure?'PRELAUNCH_BRIEF_ADMISSION_FAILED':null;
+    const exactFenceFailure=Number(result.status)===92&&result.provider==='CODEX'&&result.errorAfterStart===true&&!result.verified&&result.terminalLaunch==null&&!stderr.includes('PINO_TOOL_LAUNCH_JSON=')&&/OBLIGATION_ALREADY_CLAIMED:[0-9a-f]{64}/.test(stderr)&&stderr.includes('immutable review obligation already claimed or fence unavailable');
+    const expectedReason=exactRiskFailure?'PRELAUNCH_RISK_ADMISSION_FAILED':exactBriefFailure?'PRELAUNCH_BRIEF_ADMISSION_FAILED':exactFenceFailure?'PRELAUNCH_OBLIGATION_FENCE_REJECTED':null;
     if(!expectedReason)throw new Error('REVIEW_TOOL_PRELAUNCH_RECOVERY_NOT_PROVEN');
     if(evidence.reason!==expectedReason||evidence.resultHash!==r.resultHash||evidence.stderrSha256!==stderrSha256)throw new Error('REVIEW_TOOL_PRELAUNCH_EVIDENCE_BINDING_INVALID');
     const h=digest(evidence);

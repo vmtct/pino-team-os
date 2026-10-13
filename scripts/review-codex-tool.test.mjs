@@ -40,6 +40,21 @@ test('brief admission rejection before Codex process is no-side-effect and same 
   const retry=claimReview(claim.binding,'CODEX',{reclaimNoSideEffect:true});assert.equal(retry.state,'CLAIMED');assert.equal(retry.attemptNo,2);
 });
 
+test('canonical obligation-fence rejection before Codex launch is no-side-effect and reclaimable',()=>{
+  const {claim,resultPath}=setup(627),lower='2'.repeat(64),stderr=`ERROR: OBLIGATION_ALREADY_CLAIMED:${lower}\nERROR: immutable review obligation already claimed or fence unavailable\n`;
+  fs.writeFileSync(resultPath,result(claim,{status:92,stdout:'',stderr}));
+  const noEffect=statusCodexReview({key:claim.obligationKey});assert.equal(noEffect.state,'NO_SIDE_EFFECT');assert.equal(noEffect.noSideEffectEvidence.reason,'PRELAUNCH_OBLIGATION_FENCE_REJECTED');
+  const retry=claimReview(claim.binding,'CODEX',{reclaimNoSideEffect:true});assert.equal(retry.state,'CLAIMED');assert.equal(retry.attemptNo,2);
+});
+
+test('legacy terminalized exact fence rejection can recover while arbitrary rc92 stays terminal',()=>{
+  const {claim}=setup(628),lower='3'.repeat(64),stderr=`ERROR: OBLIGATION_ALREADY_CLAIMED:${lower}\nERROR: immutable review obligation already claimed or fence unavailable\n`;
+  markReviewTerminal(claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:92,signal:null,error:null,terminalLaunch:null,stderrTail:stderr});
+  const recovered=statusCodexReview({key:claim.obligationKey});assert.equal(recovered.state,'NO_SIDE_EFFECT');assert.equal(recovered.noSideEffectEvidence.reason,'PRELAUNCH_OBLIGATION_FENCE_REJECTED');assert.equal(recovered.recoveredFromTerminalResultHash.length,64);
+  const other=setup(629);markReviewTerminal(other.claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:92,signal:null,error:null,terminalLaunch:null,stderrTail:'ERROR: unrelated rc92'});
+  const blocked=statusCodexReview({key:other.claim.obligationKey});assert.equal(blocked.state,'TERMINAL');
+});
+
 test('legacy terminalized brief admission can be recovered but arbitrary rc1 remains terminal',()=>{
   const {claim}=setup(625),stderr='BRIEF_INVALID: missing candidate,diff_scope\nERROR: Codex reviewer failed with non-capacity rc=1 on profile /home/tri/.codex-vmtct97; repair Codex path, ChatGPT fallback forbidden\n';
   markReviewTerminal(claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:1,signal:null,error:null,terminalLaunch:null,stderrTail:stderr});
