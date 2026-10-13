@@ -52,6 +52,7 @@ function validateRecord(record,key){
   if(record.state==='START_CONFIRMED'&&record.handleHash!==digest(record.handle))throw new Error('REVIEW_TOOL_HANDLE_HASH_INVALID');
   if(record.state==='UNCERTAIN_DISPATCH'&&record.uncertainEvidenceHash!==digest(record.uncertainEvidence))throw new Error('REVIEW_TOOL_UNCERTAIN_HASH_INVALID');
   if(record.state==='NO_SIDE_EFFECT'&&record.noSideEffectEvidenceHash!==digest(record.noSideEffectEvidence))throw new Error('REVIEW_TOOL_NO_SIDE_EFFECT_HASH_INVALID');
+  if(record.state==='NO_SIDE_EFFECT'&&record.recoveredFromTerminalResultHash){const stderr=String(record.result?.stderrTail??''),stderrSha256=crypto.createHash('sha256').update(stderr).digest('hex');if(record.resultHash!==digest(record.result)||record.recoveredFromTerminalResultHash!==record.resultHash||record.noSideEffectEvidence?.resultHash!==record.resultHash||record.noSideEffectEvidence?.stderrSha256!==stderrSha256)throw new Error('REVIEW_TOOL_RECOVERED_RESULT_HASH_INVALID');}
   if(['TERMINAL','CONSUMED'].includes(record.state)&&record.resultHash!==digest(record.result))throw new Error('REVIEW_TOOL_RESULT_HASH_INVALID');
   return {...record,binding,provider};
 }
@@ -75,6 +76,20 @@ export function reserveReviewDispatch(key,provider){return mutate(key,provider,r
 export function markReviewStarted(key,provider,handle,dispatchId=null){if(!handle||typeof handle!=='object'||Array.isArray(handle))throw new Error('REVIEW_TOOL_HANDLE_INVALID');const handleHash=digest(handle);return mutate(key,provider,r=>{if(r.state==='START_CONFIRMED'&&r.handleHash===handleHash)return {...r};if(r.provider==='CODEX'){if(r.state!=='DISPATCH_RESERVED'||!dispatchId||r.dispatchId!==dispatchId)throw new Error('REVIEW_TOOL_START_DISPATCH_INVALID');}else if(!['CLAIMED','UNCERTAIN_DISPATCH'].includes(r.state))throw new Error('REVIEW_TOOL_START_STATE_INVALID:'+r.state);return {...r,state:'START_CONFIRMED',handle,handleHash,startedAt:now()};});}
 export function markReviewUncertain(key,provider,evidence){if(!evidence||typeof evidence!=='object'||Array.isArray(evidence))throw new Error('REVIEW_TOOL_UNCERTAIN_EVIDENCE_INVALID');const h=digest(evidence);return mutate(key,provider,r=>{if(r.state==='UNCERTAIN_DISPATCH'&&r.uncertainEvidenceHash===h)return {...r};if(r.state!=='CLAIMED')throw new Error('REVIEW_TOOL_UNCERTAIN_STATE_INVALID:'+r.state);return {...r,state:'UNCERTAIN_DISPATCH',uncertainEvidence:evidence,uncertainEvidenceHash:h,uncertainAt:now()};});}
 export function markReviewNoSideEffect(key,provider,evidence){if(!evidence||typeof evidence!=='object'||Array.isArray(evidence))throw new Error('REVIEW_TOOL_NO_SIDE_EFFECT_EVIDENCE_INVALID');const h=digest(evidence);return mutate(key,provider,r=>{if(r.state==='NO_SIDE_EFFECT'&&r.noSideEffectEvidenceHash===h)return {...r};if(!['CLAIMED','DISPATCH_RESERVED','START_CONFIRMED','UNCERTAIN_DISPATCH'].includes(r.state))throw new Error('REVIEW_TOOL_NO_SIDE_EFFECT_STATE_INVALID:'+r.state);return {...r,state:'NO_SIDE_EFFECT',noSideEffectEvidence:evidence,noSideEffectEvidenceHash:h,noSideEffectAt:now()};});}
+export function recoverCodexPrelaunchNoSideEffect(key,evidence){
+  if(!evidence||typeof evidence!=='object'||Array.isArray(evidence))throw new Error('REVIEW_TOOL_PRELAUNCH_EVIDENCE_INVALID');
+  return mutate(key,'CODEX',r=>{
+    if(r.state==='NO_SIDE_EFFECT'&&r.noSideEffectEvidenceHash===digest(evidence))return {...r};
+    if(r.state!=='TERMINAL')throw new Error('REVIEW_TOOL_PRELAUNCH_RECOVERY_STATE_INVALID:'+r.state);
+    const result=r.result??{},stderr=String(result.stderrTail??'');
+    const stderrSha256=crypto.createHash('sha256').update(stderr).digest('hex');
+    const exactRiskFailure=Number(result.status)===90&&result.provider==='CODEX'&&result.errorAfterStart===true&&!result.verified&&result.terminalLaunch==null&&!stderr.includes('PINO_TOOL_LAUNCH_JSON=')&&stderr.includes('REVIEW_RISK_CONTRACT_UNRESOLVED:')&&stderr.includes('canonical review risk contract unresolved');
+    if(!exactRiskFailure)throw new Error('REVIEW_TOOL_PRELAUNCH_RECOVERY_NOT_PROVEN');
+    if(evidence.reason!=='PRELAUNCH_RISK_ADMISSION_FAILED'||evidence.resultHash!==r.resultHash||evidence.stderrSha256!==stderrSha256)throw new Error('REVIEW_TOOL_PRELAUNCH_EVIDENCE_BINDING_INVALID');
+    const h=digest(evidence);
+    return {...r,state:'NO_SIDE_EFFECT',noSideEffectEvidence:evidence,noSideEffectEvidenceHash:h,noSideEffectAt:now(),recoveredFromTerminalResultHash:r.resultHash,recoveredFromTerminalAt:r.terminalAt};
+  });
+}
 export function markReviewTerminal(key,provider,result){if(!result||typeof result!=='object'||Array.isArray(result))throw new Error('REVIEW_TOOL_RESULT_INVALID');const h=digest(result);return mutate(key,provider,r=>{if(r.state==='TERMINAL'&&r.resultHash===h)return {...r};if(r.state!=='START_CONFIRMED')throw new Error('REVIEW_TOOL_TERMINAL_STATE_INVALID:'+r.state);return {...r,state:'TERMINAL',result,resultHash:h,terminalAt:now()};});}
 export function consumeReview(key,provider){return mutate(key,provider,r=>{if(r.state==='CONSUMED')return {...r};if(r.state!=='TERMINAL')throw new Error('REVIEW_TOOL_CONSUME_STATE_INVALID:'+r.state);return {...r,state:'CONSUMED',consumedAt:now()};});}
 export function inspectReview(key){if(!/^[0-9a-f]{64}$/.test(String(key)))throw new Error('REVIEW_TOOL_KEY_INVALID');return loadRecord(recordPath(key),key);}

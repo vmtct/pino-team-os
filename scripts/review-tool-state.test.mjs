@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {claimReview,reserveReviewDispatch,markReviewStarted,markReviewNoSideEffect,markReviewTerminal,consumeReview,inspectReview} from './review-tool-state.mjs';
+import crypto from 'node:crypto';
+import {claimReview,reserveReviewDispatch,markReviewStarted,markReviewNoSideEffect,markReviewTerminal,recoverCodexPrelaunchNoSideEffect,consumeReview,inspectReview} from './review-tool-state.mjs';
 
 const candidate='a'.repeat(40),binding={reviewKind:'INDIE',repository:'vmtct/pino-team-os',prNumber:617,candidate};
 function root(){const p=fs.mkdtempSync(path.join(os.tmpdir(),'review-tool-state-'));process.env.PINO_REVIEW_TOOL_STATE_DIR=p;return p}
@@ -19,3 +20,5 @@ test('Codex dispatch reservation is atomic and exact before start',()=>{root();c
 test('parseable malformed persisted state fails closed instead of reopening',()=>{const dir=root(),a=claimReview(binding,'CODEX'),p=path.join(dir,a.obligationKey+'.json');fs.writeFileSync(p,'null\n');assert.throws(()=>inspectReview(a.obligationKey),/STATE_RECORD_INVALID/);assert.throws(()=>claimReview(binding,'CODEX'),/STATE_RECORD_INVALID/)});
 
 test('tampered no-side-effect evidence hash fails closed before reclaim',()=>{const dir=root(),a=claimReview(binding,'CODEX'),r=reserveReviewDispatch(a.obligationKey,'CODEX');markReviewStarted(a.obligationKey,'CODEX',{pid:8,dispatchId:r.dispatchId},r.dispatchId);markReviewNoSideEffect(a.obligationKey,'CODEX',{reason:'VERIFIED'});const p=path.join(dir,a.obligationKey+'.json'),j=JSON.parse(fs.readFileSync(p,'utf8'));j.noSideEffectEvidence={reason:'FORGED'};fs.writeFileSync(p,JSON.stringify(j));assert.throws(()=>claimReview(binding,'CHATGPT',{reclaimNoSideEffect:true}),/NO_SIDE_EFFECT_HASH_INVALID/)});
+
+test('recovered no-side-effect keeps the terminal result hash tamper-evident',()=>{const dir=root(),a=claimReview(binding,'CODEX'),r=reserveReviewDispatch(a.obligationKey,'CODEX');markReviewStarted(a.obligationKey,'CODEX',{pid:9,dispatchId:r.dispatchId},r.dispatchId);const result={provider:'CODEX',errorAfterStart:true,status:90,terminalLaunch:null,stderrTail:'ERROR: REVIEW_RISK_CONTRACT_UNRESOLVED:ledger:FileNotFoundError\nERROR: canonical review risk contract unresolved\n'};markReviewTerminal(a.obligationKey,'CODEX',result);const current=inspectReview(a.obligationKey),stderrSha256=crypto.createHash('sha256').update(result.stderrTail).digest('hex');recoverCodexPrelaunchNoSideEffect(a.obligationKey,{reason:'PRELAUNCH_RISK_ADMISSION_FAILED',resultHash:current.resultHash,stderrSha256,status:90});const p=path.join(dir,a.obligationKey+'.json'),j=JSON.parse(fs.readFileSync(p,'utf8'));j.result.stderrTail+='tampered';fs.writeFileSync(p,JSON.stringify(j));assert.throws(()=>inspectReview(a.obligationKey),/RECOVERED_RESULT_HASH_INVALID/)});
