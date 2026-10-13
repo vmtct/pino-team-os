@@ -115,10 +115,17 @@ async function findSendButton(page) {
   }
   return null;
 }
-async function pageSnapshot(page) {
+export async function pageSnapshot(page) {
   return page.evaluate(() => {
     const vis = el => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
-    const modernUsers = [...document.querySelectorAll('[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]')].filter(x => (x.getAttribute('data-chatgpt-search-unit-key') || '').endsWith(':user')).map(x => ({ id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null, text:(x.querySelector('[data-user-message-bubble="true"] [data-search-result-target]')?.innerText || x.querySelector('[data-user-message-bubble="true"]')?.innerText || x.innerText || '').trim() })).filter(x => x.id);
+    const modernUsers = [...document.querySelectorAll('[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]')].filter(x => (x.getAttribute('data-chatgpt-search-unit-key') || '').endsWith(':user')).map(x => {
+      const bubble=x.querySelector('[data-user-message-bubble="true"]');
+      const full=(bubble?.innerText || x.innerText || '').trim();
+      const target=(bubble?.querySelector('[data-search-result-target]')?.innerText || '').trim();
+      const suffix=target && full.startsWith(target) ? full.slice(target.length).trim() : null;
+      const targetComplete=Boolean(target) && (full===target || /^(?:…|\.\.\.)?\s*(?:\/\s*)?(?:show more|show less|xem thêm|thu gọn)$/i.test(suffix ?? ''));
+      return {id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null,text:targetComplete?target:full};
+    }).filter(x => x.id);
     const legacyUsers = [...document.querySelectorAll('[data-message-author-role="user"][data-message-id]')].map(x => ({ id:x.getAttribute('data-message-id'), text:(x.innerText || '').trim() }));
     const modernAssistants = [...document.querySelectorAll('[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]')].filter(x => (x.getAttribute('data-chatgpt-search-unit-key') || '').endsWith(':assistant')).map(x => ({ id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null, text:(x.innerText || '').trim() })).filter(x => x.id);
     const legacyAssistants = [...document.querySelectorAll('[data-message-author-role="assistant"][data-message-id]')].map(x => ({ id:x.getAttribute('data-message-id'), text:(x.innerText || '').trim() }));

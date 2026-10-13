@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { observeFc, sendFc, rotateFc, applyFcAuthority, FC_PROJECT_URL } from './fc-tool-core.mjs';
+import { observeFc, sendFc, rotateFc, applyFcAuthority, pageSnapshot, FC_PROJECT_URL } from './fc-tool-core.mjs';
 const FC_PROJECT_CONVERSATION=FC_PROJECT_URL.replace(/\/project\/?$/,'/c/22222222-2222-2222-2222-222222222222');
 
 function tempCache(){return fs.mkdtempSync(path.join(os.tmpdir(),'fc-tools-'));}
@@ -151,9 +151,27 @@ test('failed authority rollback keeps prompt fenced and durable recovery evidenc
   const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.authorityTxn.phase,'RECOVERY_REQUIRED');assert.equal(adapter.state.prompt,null);assert.equal(adapter.state.host,'PAP-777');
 });
 
-test('modern user snapshot excludes collapsed user-message controls',()=>{
-  const src=fs.readFileSync(new URL('./fc-tool-core.mjs',import.meta.url),'utf8');
-  assert.equal(src.includes("[data-user-message-bubble=\"true\"] [data-search-result-target]"),true);
+function snapshotPage({bubbleText,targetText}){
+  const target={innerText:targetText};
+  const bubble={innerText:bubbleText,querySelector:selector=>selector==='[data-search-result-target]'?target:null};
+  const user={innerText:bubbleText,getAttribute:name=>name==='data-chatgpt-search-unit-key'?'turn:user':name==='data-chatgpt-search-message-ids'?'u-new':null,querySelector:selector=>selector==='[data-user-message-bubble="true"]'?bubble:null};
+  return {evaluate:async fn=>{const prior={document:globalThis.document,getComputedStyle:globalThis.getComputedStyle,location:globalThis.location};globalThis.document={querySelectorAll:selector=>selector==='[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]'?[user]:[]};globalThis.getComputedStyle=()=>({display:'block',visibility:'visible'});globalThis.location={href:'https://chatgpt.com/g/g-p-test/c/11111111-1111-1111-1111-111111111111'};user.getBoundingClientRect=()=>({width:1,height:1});try{return fn();}finally{if(prior.document===undefined)delete globalThis.document;else globalThis.document=prior.document;if(prior.getComputedStyle===undefined)delete globalThis.getComputedStyle;else globalThis.getComputedStyle=prior.getComputedStyle;if(prior.location===undefined)delete globalThis.location;else globalThis.location=prior.location;}}};
+}
+
+test('modern user snapshot strips only proven collapse chrome',async()=>{
+  const snap=await pageSnapshot(snapshotPage({bubbleText:'opaque caller text\n…\nShow more',targetText:'opaque caller text'}));
+  assert.equal(snap.users[0].text,'opaque caller text');
+});
+
+test('partial modern content descendant cannot falsely reconcile exact delivery',async()=>{
+  const adapter=makeAdapter(),cacheDir=tempCache(),first=fakeLive();
+  const one=await sendFc('FC3','opaque',{operationId:'op-partial',adapter,transport:{openActive:async()=>first},cacheDir,skipWriterLease:true,verifyTimeoutMs:1});
+  assert.equal(one.status,'SEND_UNCERTAIN_VERIFY_TIMEOUT');
+  const extracted=await pageSnapshot(snapshotPage({bubbleText:'opaque\nadditional user payload',targetText:'opaque'}));
+  assert.equal(extracted.users[0].text,'opaque\nadditional user payload');
+  const second=fakeLive({users:extracted.users,lastRole:'user'});
+  const two=await sendFc('FC3','opaque',{operationId:'op-partial',adapter,transport:{openActive:async()=>second},cacheDir,skipWriterLease:true});
+  assert.equal(two.status,'SEND_UNCERTAIN_RECONCILE');assert.equal(second.clicks,0);
 });
 test('tool source contains no embedded FC strategy vocabulary',()=>{
   const src=fs.readFileSync(new URL('./fc-tool-core.mjs',import.meta.url),'utf8');
