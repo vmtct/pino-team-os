@@ -23,9 +23,12 @@ function authority(f,verdict='PASS'){
  const core={schemaVersion:1,kind:'PINO_REVIEW_AUTHORITY',source:'CODEX_DIRECT',independent:true,reviewerProfile:'vmtct97',launcher:'/home/tri/bin/pino-codex-review',repository:'vmtct/pino-core',prNumber:1,reviewKind:'INDIE',candidate:f.head,verdict,p0:0,p1:0,blockingFindings:[],riskFamiliesSwept:[],unsweptRiskFamilies:[],reviewerEvidenceSha256:'x',verifiedAt:new Date().toISOString()};
  const a={...core,evidenceHash:digest(core)},p=path.join(f.root,'authority.json');write(p,a);return p;
 }
-function run(f,env={}){const x=spawnSync(process.execPath,[TOOL,'ensure',f.spec],{encoding:'utf8',env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let json=null;try{json=JSON.parse(x.stdout||x.stderr)}catch{}return{x,json}}
-function runAsync(f,env={}){return new Promise(resolve=>{const x=spawn(process.execPath,[TOOL,'ensure',f.spec],{env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let out='',err='';x.stdout.on('data',d=>out+=d);x.stderr.on('data',d=>err+=d);x.on('close',code=>{let json=null;try{json=JSON.parse(out||err)}catch{}resolve({code,json,out,err})})})}
-
+function runCommand(f,cmd,env={}){const x=spawnSync(process.execPath,[TOOL,cmd,f.spec],{encoding:'utf8',env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let json=null;try{json=JSON.parse(x.stdout||x.stderr)}catch{}return{x,json}}
+function run(f,env={}){return runCommand(f,'ensure',env)}
+function consume(f,env={}){return runCommand(f,'consume',env)}
+function runAsyncCommand(f,cmd,env={}){return new Promise(resolve=>{const x=spawn(process.execPath,[TOOL,cmd,f.spec],{env:{...process.env,NODE_ENV:'test',PINO_SOP_ROOT:f.root,PINO_REVIEW_ENSURE_STATE:f.state,...env}});let out='',err='';x.stdout.on('data',d=>out+=d);x.stderr.on('data',d=>err+=d);x.on('close',code=>{let json=null;try{json=JSON.parse(out||err)}catch{}resolve({code,json,out,err})})})}
+function runAsync(f,env={}){return runAsyncCommand(f,'ensure',env)}
+function consumeAsync(f,env={}){return runAsyncCommand(f,'consume',env)}
 
 test('RESET_AT parser normalizes real Codex clock-only quota horizon in Asia/Ho_Chi_Minh',()=>{
  const parsed=parseResetAt("ERROR: You've hit your usage limit. Upgrade to Pro or try again at 6:04 PM.",'2026-10-12T09:35:36.087Z');
@@ -60,6 +63,17 @@ test('Codex-first fixture reaches durable verdict and is idempotent across fresh
  const b=run(f,env);assert.equal(b.x.status,0);assert.equal(b.json.status,'REVIEW_VERDICT');assert.equal(b.json.verdict,'PASS');assert.equal(b.json.provider,'CODEX_DIRECT');
  const c=run(f,env);assert.equal(c.json.idempotent,true);assert.equal(c.json.verdict,'PASS');
  const s=JSON.parse(fs.readFileSync(f.state));assert.equal(Object.keys(s.records).length,1);
+});
+
+test('review verdict consumption is atomic exactly-once and remains idempotent after restart',async()=>{
+ const f=fixture('consume-once','9'.repeat(40)),ap=authority(f),cf=path.join(f.root,'codex.json');write(cf,{schemaVersion:1,status:0,stdout:JSON.stringify({codexDirectReviewVerified:true,reviewAuthorityPath:ap})+'\n',stderr:''});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf};run(f,env);assert.equal(run(f,env).json.status,'REVIEW_VERDICT');
+ const [x,y]=await Promise.all([consumeAsync(f,env),consumeAsync(f,env)]);assert.equal(x.code,0);assert.equal(y.code,0);assert.deepEqual([x.json.idempotent,y.json.idempotent].sort(),[false,true]);assert.ok([x.json.status,y.json.status].every(v=>v==='CONSUMED'));
+ const s=JSON.parse(fs.readFileSync(f.state)),r=Object.values(s.records)[0];assert.equal(r.status,'CONSUMED');assert.equal(r.consumeCount,1);assert.ok(r.orchestratorConsumedAt);assert.equal(r.consumerId,'consume-once');
+ const c=consume(f,env);assert.equal(c.x.status,0);assert.equal(c.json.status,'CONSUMED');assert.equal(c.json.idempotent,true);const d=run(f,env);assert.equal(d.json.status,'CONSUMED');assert.equal(d.json.idempotent,true);
+});
+
+test('consume before verdict fails closed without creating state',()=>{
+ const f=fixture('consume-not-ready','0'.repeat(40)),a=consume(f,{});assert.equal(a.x.status,1);assert.match(a.x.stderr,/REVIEW_ENSURE_CONSUME_NOT_READY:MISSING/);assert.equal(fs.existsSync(f.state),false);
 });
 
 test('capacity exhaustion transitions to ChatGPT only after exact receipt and START_CONFIRMED',()=>{
@@ -105,3 +119,13 @@ test('concurrent cold-start ensure calls coalesce to one durable obligation',asy
  const f=fixture('concurrent','5'.repeat(40)),ap=authority(f),cf=path.join(f.root,'codex.json');write(cf,{schemaVersion:1,status:0,stdout:JSON.stringify({codexDirectReviewVerified:true,reviewAuthorityPath:ap})+'\n',stderr:''});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf};const [a,b]=await Promise.all([runAsync(f,env),runAsync(f,env)]);assert.equal(a.code,0);assert.equal(b.code,0);const s=JSON.parse(fs.readFileSync(f.state));assert.equal(Object.keys(s.records).length,1);const statuses=[a.json?.status,b.json?.status];assert.ok(statuses.every(x=>['REVIEW_RUNNING','REVIEW_VERDICT'].includes(x)));
 });
 
+
+
+test('global PAP-507 overlay blocks second Codex after prior blocking review and stop restores canonical retry',()=>{
+ const f=fixture('global-short-chain','6'.repeat(40)),prior='7'.repeat(40),config=path.join(f.root,'state','experiments','review-chain-short-v1.json');
+ write(config,{schemaVersion:1,kind:'PINO_REVIEW_EXPERIMENT_CONFIG',experiment:'REVIEW_CHAIN_SHORT_V1',jiraKey:'PAP-507',active:true,globalDefault:true,scopeMode:'GLOBAL_DEFAULT_UNTIL_FOUNDER_STOP',allowedHosts:['*'],effectiveFrom:'2026-10-12T00:00:00+07:00',maxCodexSubstantiveRunsPerChain:1,maxChatgptRemediationAuditsPerChain:1,maxIndependentReviewsPerChain:2});
+ write(f.state,{schemaVersion:1,revision:1,records:{prior:{schemaVersion:1,obligationKey:'prior',obligationId:'global-short-chain',workId:'global-short-chain',reviewKind:'INDIE',repository:'vmtct/pino-core',candidate:prior,pr:1,status:'CONSUMED',provider:'CODEX_DIRECT',verdict:'FINDINGS',p0:0,p1:1,blockingFindings:['P1 prior'],authorityPath:'C:/evidence/prior.json',evidenceHash:'8'.repeat(64),consumedAt:new Date().toISOString(),orchestratorConsumedAt:new Date().toISOString(),consumeCount:1,consumerId:'prior'}}});
+ const blocked=run(f,{});assert.equal(blocked.x.status,0);assert.equal(blocked.json.status,'REVIEW_CHAIN_SHORT_R2_REQUIRED');assert.equal(blocked.json.priorCandidate,prior);assert.equal(blocked.json.priorProvider,'CODEX_DIRECT');assert.equal(blocked.json.reason,'BLOCK_SECOND_CODEX_OR_FRESH_FULL_REVIEW_ROUTE_TO_NARROW_CHATGPT_REMEDIATION_VERIFY');
+ const c=JSON.parse(fs.readFileSync(config));c.active=false;c.globalDefault=false;write(config,c);
+ const ap=authority(f),cf=path.join(f.root,'codex-after-stop.json');write(cf,{schemaVersion:1,status:0,stdout:JSON.stringify({codexDirectReviewVerified:true,reviewAuthorityPath:ap})+'\n',stderr:''});const resumed=run(f,{PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf});assert.equal(resumed.x.status,0);assert.equal(resumed.json.status,'REVIEW_RUNNING');assert.equal(resumed.json.provider,'CODEX_DIRECT');
+});
