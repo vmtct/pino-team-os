@@ -151,6 +151,10 @@ test('failed authority rollback keeps prompt fenced and durable recovery evidenc
   const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.authorityTxn.phase,'RECOVERY_REQUIRED');assert.equal(adapter.state.prompt,null);assert.equal(adapter.state.host,'PAP-777');
 });
 
+test('modern user snapshot excludes collapsed user-message controls',()=>{
+  const src=fs.readFileSync(new URL('./fc-tool-core.mjs',import.meta.url),'utf8');
+  assert.equal(src.includes("[data-user-message-bubble=\"true\"] [data-search-result-target]"),true);
+});
 test('tool source contains no embedded FC strategy vocabulary',()=>{
   const src=fs.readFileSync(new URL('./fc-tool-core.mjs',import.meta.url),'utf8');
   for(const forbidden of ['PAP-507','ACTIVE FC PLAN','ROLE_DEPENDENCY','canonicalPrompt','nextAction']) assert.equal(src.includes(forbidden),false,forbidden);
