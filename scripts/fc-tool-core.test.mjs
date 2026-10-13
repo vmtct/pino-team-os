@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { observeFc, sendFc, rotateFc, applyFcAuthority } from './fc-tool-core.mjs';
+import { observeFc, sendFc, rotateFc, applyFcAuthority, FC_PROJECT_URL } from './fc-tool-core.mjs';
+const FC_PROJECT_CONVERSATION=FC_PROJECT_URL.replace(/\/project\/?$/,'/c/22222222-2222-2222-2222-222222222222');
 
 function tempCache(){return fs.mkdtempSync(path.join(os.tmpdir(),'fc-tools-'));}
 function clone(x){return JSON.parse(JSON.stringify(x));}
@@ -31,7 +32,7 @@ function fakeLive(initial={},options={}){
     snapshot:async()=>clone(snap),composerText:async()=>options.composerText??'',
     type:async t=>{typed=t},
     clickSend:async()=>{clicks++;if(options.onClick)await options.onClick(snap,typed,clicks)},
-    waitRealUrl:async()=> options.realUrl??'https://chatgpt.com/g/g-p-test/c/22222222-2222-2222-2222-222222222222',
+    waitRealUrl:async()=> options.realUrl??FC_PROJECT_CONVERSATION,
     waitAssistantStable:async()=> options.assistantText??'BOOTSTRAP_READY custom',
     close:async()=>{},closePage:async()=>{},url:()=>snap.href,_snap:snap
   };
@@ -83,16 +84,52 @@ test('exact conversation binding fails closed on wrong loaded conversation',asyn
 });
 
 test('rotate sends caller bootstrap exactly and activates only after exact receipt',async()=>{
-  const adapter=makeAdapter(),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({}, {assistantText:'BOOTSTRAP_READY custom'});
+  const adapter=makeAdapter(),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({href:FC_PROJECT_URL}, {assistantText:'BOOTSTRAP_READY custom'});
   const out=await rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport:{openActive:async()=>active,openProject:async()=>project},cacheDir,skipWriterLease:true});
   assert.equal(project.typed,'CALLER BOOTSTRAP EXACT');assert.equal(project.clicks,1);assert.equal(out.successor,'PAP-901');assert.equal(adapter.state.sessions.find(x=>x.key==='PAP-901').status,'In Progress');
 });
 
 test('ambiguous rotation activation is retained as recovery-required and cannot start over',async()=>{
-  const adapter=makeAdapter({badActivationUrl:true}),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({}, {assistantText:'BOOTSTRAP_READY custom'}),transport={openActive:async()=>active,openProject:async()=>project};
+  const adapter=makeAdapter({badActivationUrl:true}),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({href:FC_PROJECT_URL}, {assistantText:'BOOTSTRAP_READY custom'}),transport={openActive:async()=>active,openProject:async()=>project};
   await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/FC_TOOL_ACTIVATION_READBACK_MISMATCH/);
   const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.rotationTxn.phase,'RECOVERY_REQUIRED');
   await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/FC_TOOL_ROTATION_RECONCILE_REQUIRED/);
+});
+
+test('durable recovery fence blocks legacy writer until the exact send is reconciled',async()=>{
+  const adapter=makeAdapter(),cacheDir=tempCache(),legacy=tempCache(),first=fakeLive();
+  const one=await sendFc('FC3','fenced text',{operationId:'op-fence',adapter,transport:{openActive:async()=>first},cacheDir,legacyCacheDir:legacy,verifyTimeoutMs:1});
+  assert.equal(one.status,'SEND_UNCERTAIN_VERIFY_TIMEOUT');const lock=path.join(legacy,'fc-v2-fc3.lock');assert.equal(fs.statSync(lock).isDirectory(),true);
+  assert.throws(()=>{try{fs.unlinkSync(lock);}catch{}const fd=fs.openSync(lock,'wx');fs.closeSync(fd);},/EEXIST|EISDIR|EPERM/);
+  await assert.rejects(()=>sendFc('FC3','fenced text',{operationId:'op-fence',adapter,transport:{openActive:async()=>fakeLive()},cacheDir,legacyCacheDir:legacy}),/FC_TOOL_WRITER_LEASE_HELD/);
+  const ownerPath=path.join(lock,'owner.json'),owner=JSON.parse(fs.readFileSync(ownerPath,'utf8'));owner.pid=99999999;fs.writeFileSync(ownerPath,JSON.stringify(owner));
+  await assert.rejects(()=>sendFc('FC3','other',{operationId:'op-other',adapter,transport:{openActive:async()=>fakeLive()},cacheDir,legacyCacheDir:legacy}),/FC_TOOL_RECOVERY_FENCE_REQUIRES_MATCH/);
+  const second=fakeLive({users:[{id:'u2',text:'fenced text'}],lastRole:'user'});const two=await sendFc('FC3','fenced text',{operationId:'op-fence',adapter,transport:{openActive:async()=>second},cacheDir,legacyCacheDir:legacy});
+  assert.equal(two.status,'RECONCILED_ACCEPTED');assert.equal(fs.existsSync(lock),false);
+});
+
+test('rotation click error after possible dispatch is recovery-required and cannot retry',async()=>{
+  const adapter=makeAdapter(),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({href:FC_PROJECT_URL},{onClick:async()=>{throw new Error('CLICK_ACK_LOST')},assistantText:'BOOTSTRAP_READY custom'}),transport={openActive:async()=>active,openProject:async()=>project};
+  await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/CLICK_ACK_LOST/);
+  const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.rotationTxn.phase,'RECOVERY_REQUIRED');
+  await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/FC_TOOL_ROTATION_RECONCILE_REQUIRED/);
+});
+
+test('host-only activation mismatch cannot reconcile to completed',async()=>{
+  const adapter=makeAdapter({onActivate:async state=>{state.host='PAP-WRONG';}}),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({href:FC_PROJECT_URL},{assistantText:'BOOTSTRAP_READY custom'}),transport={openActive:async()=>active,openProject:async()=>project};
+  await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/FC_TOOL_ACTIVATION_READBACK_MISMATCH/);
+  const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.rotationTxn.phase,'RECOVERY_REQUIRED');
+});
+
+test('rotation refuses non-FC project before bootstrap side effect',async()=>{
+  const adapter=makeAdapter(),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({href:'https://chatgpt.com/g/g-p-wrong/project'}),transport={openActive:async()=>active,openProject:async()=>project};
+  await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/FC_TOOL_ROTATE_PROJECT_BINDING_INVALID/);assert.equal(project.clicks,0);
+});
+
+test('rotation refuses successor conversation outside exact FC project',async()=>{
+  const adapter=makeAdapter(),cacheDir=tempCache(),active=fakeLive(),project=fakeLive({href:FC_PROJECT_URL},{assistantText:'BOOTSTRAP_READY custom',realUrl:'https://chatgpt.com/g/g-p-wrong/c/22222222-2222-2222-2222-222222222222'}),transport={openActive:async()=>active,openProject:async()=>project};
+  await assert.rejects(()=>rotateFc('FC3',{bootstrap:'CALLER BOOTSTRAP EXACT',expectedReceipt:'BOOTSTRAP_READY custom'},{adapter,transport,cacheDir,skipWriterLease:true}),/FC_TOOL_ROTATE_CONVERSATION_PROJECT_MISMATCH/);
+  const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.rotationTxn.phase,'RECOVERY_REQUIRED');
 });
 
 test('authority apply uses prompt fence, exact active readback and ISO wake',async()=>{
