@@ -218,7 +218,7 @@ function validateDirectPublishedFile(record,payload){
   const inboxEvidenceHash=crypto.createHash('sha256').update(stable(payload)).digest('hex');
   return {...payload,inboxEvidenceHash};
 }
-function useLegacyIndieStartContract(record,reviewKind,resultTransport){return !!record&&reviewKind==='INDIE'&&resultTransport==='AUDIT_CHAT_V1'&&record.publicationAuthority==='AUDIT_CHAT_V1'&&record.indieFullAxisV1!==true}
+function legacyIndieStartContractNeeded(record,reviewKind,resultTransport){return !!record&&reviewKind==='INDIE'&&resultTransport==='AUDIT_CHAT_V1'&&record.publicationAuthority==='AUDIT_CHAT_V1'&&record.indieFullAxisV1!==true}
 function legacyIndieDirectPublishContractV0({label,reviewKind,repository,prNumber,candidate,sourcePromptSha256,reviewKey,riskSweepFamilies=[]}){
   const indie=reviewKind==='INDIE',deep=reviewKind==='DEEP_CONTRACT',riskFields=indie&&riskSweepFamilies.length?',"risk_families_swept":'+JSON.stringify(riskSweepFamilies)+',"unswept_risk_families":[]':'';
   const modeFields=(indie?',"adjacent_paths_swept":["<changed/adjacent path>"],"adjacent_critical_paths_unchecked":[]':deep?',"invariant_families_swept":["<family>"],"unswept_critical_paths":[]':'')+riskFields;
@@ -308,7 +308,7 @@ async function startAudit(promptPath,labelRaw,requesterConversationIdArg,request
   assertDeepExhaustiveBrief(sourcePrompt,reviewKind);
   const sourcePromptSha256=sha(sourcePrompt);
   const provisionalReviewKey=sha(PROJECT_ID+'\0'+label+'\0'+reviewKind+'\0'+repository+'\0'+prNumber+'\0'+candidate+'\0'+sourcePromptSha256).slice(0,40);
-  const legacyIndieStart=useLegacyIndieStartContract(existingRecord,reviewKind,resultTransport);
+  const legacyIndieStart=legacyIndieStartContractNeeded(existingRecord,reviewKind,resultTransport);
   const contract=resultTransport==='AUDIT_CHAT_V1'?(reviewExperiment?reviewChainShortContract({candidate,experiment:reviewExperiment}):(legacyIndieStart?legacyIndieDirectPublishContractV0:directPublishContract)({label,reviewKind,repository,prNumber,candidate,sourcePromptSha256,reviewKey:provisionalReviewKey,riskSweepFamilies})):'';
   const promptBase=resultTransport==='AUDIT_CHAT_V1'?sourcePrompt+'\n\n'+contract:sourcePrompt;
   const sourceBinding=reuseFallback?'\n\nPINO_REVIEW_SOURCE_BINDING\nPINO_RISK_CONTRACT_HASH: '+reuseFallback.receipt.riskContractHash+'\nPINO_REQUIRED_RISK_FAMILIES_JSON: '+JSON.stringify(reuseFallback.receipt.requiredRiskFamilies):(existingRecord?.riskContractHash?'\n\nPINO_REVIEW_SOURCE_BINDING\nPINO_RISK_CONTRACT_HASH: '+existingRecord.riskContractHash+'\nPINO_REQUIRED_RISK_FAMILIES_JSON: '+JSON.stringify(existingRecord.requiredRiskFamilies??[]):'');
