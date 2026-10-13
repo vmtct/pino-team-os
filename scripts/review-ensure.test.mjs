@@ -190,3 +190,20 @@ test('worktree verifier runs git probes after cd and forbids pre-cd command subs
  assert.ok(source.includes("const script=`set -o pipefail; cd ${JSON.stringify(w)} && git rev-parse HEAD && git status --porcelain | wc -l && git remote get-url origin`;"));
  assert.equal(source.includes('\"$(git rev-parse HEAD)\"'),false);
 });
+
+
+test('safe no-write ChatGPT start failure is restart-recoverable on the same review obligation',()=>{
+ const f=fixture('chatgpt-safe-start-recovery','4'.repeat(40)),seed=seedCapacityObservation(f),bad=path.join(f.root,'chat-start-bad.json'),good=path.join(f.root,'chat-start-good.json'),status=path.join(f.root,'chat-status-safe-retry.json'),risk=path.join(f.root,'risk-safe-retry.json'),binding=path.join(f.root,'binding-safe-retry.json'),claim=path.join(f.root,'claim-safe-retry.json'),label='safe-no-write-label',obligationKey='5'.repeat(64);
+ write(bad,{});
+ write(good,{conversationUrl:'https://chatgpt.com/c/safe-no-write-recovered',label,round:1});
+ write(status,{work:{status:'DISPATCH_UNCERTAIN',currentRound:1,rounds:[{round:1,label}]}});
+ write(risk,{bindingHash:'4'.repeat(64),families:['RUNTIME_BINDINGS']});write(binding,{ok:true,obligationKey,candidateVectorHash:'6'.repeat(64)});write(claim,{ok:true,state:'CODEX_CAPACITY',obligationKey});
+ write(path.join(f.root,'state','chatgpt-audit',label+'.json'),{schemaVersion:1,label,state:'OUTCOME_UNKNOWN',outcome:'NOT_STARTED',safeStartRetryCount:0,failure:{reason:'QUEUE_TTL_EXPIRED',operation:'SKIPPED',queueTtlMs:120000,writeAttempted:false}});
+ const fixtures={PINO_REVIEW_ENSURE_TEST_CHATGPT_STATUS_FIXTURE:status,PINO_REVIEW_ENSURE_TEST_RISK_FIXTURE:risk,PINO_REVIEW_ENSURE_TEST_FENCE_BINDING_FIXTURE:binding,PINO_REVIEW_ENSURE_TEST_REUSED_CAPACITY_CLAIM_FIXTURE:claim};
+ const first=run(f,{...fixtures,PINO_REVIEW_ENSURE_TEST_CHATGPT_START_FIXTURE:bad});
+ assert.equal(first.x.status,2);assert.equal(first.json.status,'BLOCKED');assert.equal(first.json.recoveryEligible,true);
+ const blockedState=JSON.parse(fs.readFileSync(f.state)),blocked=Object.values(blockedState.records)[0];assert.equal(blocked.chatgptStartRecoveryEligible,true);assert.equal(blocked.capacityEvidenceReused,true);assert.ok(blocked.capacityReceiptPath);
+ const second=run(f,{...fixtures,PINO_REVIEW_ENSURE_TEST_CHATGPT_START_FIXTURE:good});
+ assert.equal(second.x.status,0);assert.equal(second.json.status,'REVIEW_RUNNING');assert.equal(second.json.transition,'CHATGPT_SAFE_NO_WRITE_START_RECOVERED');assert.equal(second.json.conversationUrl,'https://chatgpt.com/c/safe-no-write-recovered');
+ const recoveredState=JSON.parse(fs.readFileSync(f.state)),recovered=Object.values(recoveredState.records)[0];assert.equal(recovered.status,'CHATGPT_RUNNING');assert.equal(recovered.chatgptStartRecoveryEligible,false);assert.equal(recovered.auditWorkId,'review-ensure:chatgpt-safe-start-recovery:444444444444');assert.ok(seed.observation.resetAt);
+});
