@@ -130,6 +130,14 @@ test('global PAP-507 overlay blocks second Codex after prior blocking review and
  const ap=authority(f),cf=path.join(f.root,'codex-after-stop.json');write(cf,{schemaVersion:1,status:0,stdout:JSON.stringify({codexDirectReviewVerified:true,reviewAuthorityPath:ap})+'\n',stderr:''});const resumed=run(f,{PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf});assert.equal(resumed.x.status,0);assert.equal(resumed.json.status,'REVIEW_RUNNING');assert.equal(resumed.json.provider,'CODEX_DIRECT');
 });
 
+test('Codex worker carries exact repository and PR binding into canonical launcher',()=>{
+ const source=fs.readFileSync(TOOL,'utf8');
+ assert.ok(source.includes("if(!c.pr)fail('REVIEW_ENSURE_PR_REQUIRED')"));
+ assert.ok(source.includes('repository:c.repo,pr:c.pr,candidate:c.head'));
+ assert.ok(source.includes('PINO_REVIEW_REPOSITORY=${JSON.stringify(s.repository)}'));
+ assert.ok(source.includes('PINO_REVIEW_PR_NUMBER=${JSON.stringify(String(s.pr))}'));
+});
+
 test('worktree verifier runs git probes after cd and forbids pre-cd command substitution',()=>{
  const source=fs.readFileSync(TOOL,'utf8');
  assert.ok(source.includes("const script=`set -o pipefail; cd ${JSON.stringify(w)} && git rev-parse HEAD && git status --porcelain | wc -l && git remote get-url origin`;"));
