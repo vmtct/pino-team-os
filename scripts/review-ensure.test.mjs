@@ -150,6 +150,18 @@ test('pre-review recovery fails closed when candidate-bound side effect exists',
  const f=fixture('recover-side-effect','a'.repeat(40)),cf=path.join(f.root,'codex-preflight.json');write(cf,{schemaVersion:1,status:90,stdout:'',stderr:'ERROR: canonical review risk contract unresolved\n'});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf};run(f,env);assert.equal(run(f,env).json.status,'BLOCKED');const receipt=path.join(f.root,'state','codex-source-receipts','INDIE-'+f.head+'.json');write(receipt,{schemaVersion:1,candidate:f.head});const c=recover(f,env);assert.equal(c.x.status,1);assert.match(c.x.stderr,/REVIEW_ENSURE_PRE_REVIEW_RECOVERY_SIDE_EFFECT/);assert.equal(Object.keys(JSON.parse(fs.readFileSync(f.state)).records).length,1);
 });
 
+test('brief-invalid pre-review failure aborts only the matching CODEX_INFLIGHT fence before retry',()=>{
+ const f=fixture('recover-brief-invalid','b'.repeat(40)),cf=path.join(f.root,'codex-brief-invalid.json'),abortFixture=path.join(f.root,'abort.json');write(cf,{schemaVersion:1,status:1,stdout:'',stderr:'BRIEF_INVALID: missing risk_family,adjacent_surfaces,adjacent_sweep_result\nERROR: Codex reviewer failed with non-capacity rc=1\n'});write(abortFixture,{ok:true,state:'ABORTED_PRESTART',obligationKey:'fence-key',archivePath:path.join(f.root,'state','review-obligations','fence-key.aborted-prestart-1.json')});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf,PINO_REVIEW_ENSURE_TEST_OBLIGATION_ABORT_FIXTURE:abortFixture};run(f,env);assert.equal(run(f,env).json.status,'BLOCKED');const od=path.join(f.root,'state','review-obligations'),op=path.join(od,'f'.repeat(64)+'.json');write(op,{schemaVersion:1,kind:'PINO_REVIEW_OBLIGATION',obligationKey:'fence-key',state:'CODEX_INFLIGHT',repository:'vmtct/pino-core',prNumber:1,candidate:f.head,riskContractHash:'1'.repeat(64)});const c=recover(f,env);assert.equal(c.x.status,0);assert.equal(c.json.status,'PRE_REVIEW_RETRY_READY');assert.equal(c.json.abortedReviewObligationKey,'fence-key');assert.equal(fs.existsSync(op),false);
+});
+
+test('arbitrary RC1 is not eligible for pre-review recovery',()=>{
+ const f=fixture('recover-rc1-unsafe','c'.repeat(40)),cf=path.join(f.root,'codex-rc1.json');write(cf,{schemaVersion:1,status:1,stdout:'',stderr:'AUTH_FAILED\n'});const env={PINO_REVIEW_ENSURE_TEST_CODEX_FIXTURE:cf};run(f,env);assert.equal(run(f,env).json.status,'BLOCKED');const c=recover(f,env);assert.equal(c.x.status,1);assert.match(c.x.stderr,/REVIEW_ENSURE_PRE_REVIEW_RECOVERY_NOT_ELIGIBLE/);
+});
+
+test('source-controlled obligation fence exposes governed abort-prestart primitive',()=>{
+ const source=fs.readFileSync(path.join(path.dirname(TOOL),'review-obligation-fence.py'),'utf8');assert.ok(source.includes('def abort_prestart(a):'));assert.ok(source.includes("state':'ABORTED_PRESTART"));assert.ok(source.includes("sub.add_parser('abort-prestart')"));
+});
+
 test('worktree verifier runs git probes after cd and forbids pre-cd command substitution',()=>{
  const source=fs.readFileSync(TOOL,'utf8');
  assert.ok(source.includes("const script=`set -o pipefail; cd ${JSON.stringify(w)} && git rev-parse HEAD && git status --porcelain | wc -l && git remote get-url origin`;"));
