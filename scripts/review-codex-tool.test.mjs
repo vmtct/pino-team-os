@@ -33,6 +33,23 @@ test('known risk-ledger failure before any Codex launch becomes no-side-effect a
   const retry=claimReview(claim.binding,'CODEX',{reclaimNoSideEffect:true});assert.equal(retry.state,'CLAIMED');assert.equal(retry.attemptNo,2);assert.equal(retry.reclaimed,true);
 });
 
+test('brief admission rejection before Codex process is no-side-effect and same obligation can be reclaimed',()=>{
+  const {claim,resultPath}=setup(624),stderr='BRIEF_INVALID: missing candidate,diff_scope\nERROR: Codex reviewer failed with non-capacity rc=1 on profile /home/tri/.codex-vmtct97; repair Codex path, ChatGPT fallback forbidden\n';
+  fs.writeFileSync(resultPath,result(claim,{status:1,stdout:'',stderr}));
+  const noEffect=statusCodexReview({key:claim.obligationKey});assert.equal(noEffect.state,'NO_SIDE_EFFECT');assert.equal(noEffect.noSideEffectEvidence.reason,'PRELAUNCH_BRIEF_ADMISSION_FAILED');
+  const retry=claimReview(claim.binding,'CODEX',{reclaimNoSideEffect:true});assert.equal(retry.state,'CLAIMED');assert.equal(retry.attemptNo,2);
+});
+
+test('legacy terminalized brief admission can be recovered but arbitrary rc1 remains terminal',()=>{
+  const {claim}=setup(625),stderr='BRIEF_INVALID: missing candidate,diff_scope\nERROR: Codex reviewer failed with non-capacity rc=1 on profile /home/tri/.codex-vmtct97; repair Codex path, ChatGPT fallback forbidden\n';
+  markReviewTerminal(claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:1,signal:null,error:null,terminalLaunch:null,stderrTail:stderr});
+  const recovered=statusCodexReview({key:claim.obligationKey});assert.equal(recovered.state,'NO_SIDE_EFFECT');assert.equal(recovered.noSideEffectEvidence.reason,'PRELAUNCH_BRIEF_ADMISSION_FAILED');
+  assert.equal(recovered.recoveredFromTerminalResultHash.length,64);
+
+  const other=setup(626);markReviewTerminal(other.claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:1,signal:null,error:null,terminalLaunch:null,stderrTail:'ERROR: unrelated rc1 tool failure'});
+  const blocked=statusCodexReview({key:other.claim.obligationKey});assert.equal(blocked.state,'TERMINAL');
+});
+
 test('legacy terminalized risk-ledger prelaunch failure can be narrowly recovered, but generic terminal failure cannot',()=>{
   const {claim}=setup(622),stderr='ERROR: REVIEW_RISK_CONTRACT_UNRESOLVED:ledger:FileNotFoundError\\nERROR: canonical review risk contract unresolved\\n';
   markReviewTerminal(claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:90,signal:null,error:null,terminalLaunch:null,stderrTail:stderr});

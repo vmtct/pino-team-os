@@ -84,8 +84,10 @@ export function recoverCodexPrelaunchNoSideEffect(key,evidence){
     const result=r.result??{},stderr=String(result.stderrTail??'');
     const stderrSha256=crypto.createHash('sha256').update(stderr).digest('hex');
     const exactRiskFailure=Number(result.status)===90&&result.provider==='CODEX'&&result.errorAfterStart===true&&!result.verified&&result.terminalLaunch==null&&!stderr.includes('PINO_TOOL_LAUNCH_JSON=')&&stderr.includes('REVIEW_RISK_CONTRACT_UNRESOLVED:')&&stderr.includes('canonical review risk contract unresolved');
-    if(!exactRiskFailure)throw new Error('REVIEW_TOOL_PRELAUNCH_RECOVERY_NOT_PROVEN');
-    if(evidence.reason!=='PRELAUNCH_RISK_ADMISSION_FAILED'||evidence.resultHash!==r.resultHash||evidence.stderrSha256!==stderrSha256)throw new Error('REVIEW_TOOL_PRELAUNCH_EVIDENCE_BINDING_INVALID');
+    const exactBriefFailure=Number(result.status)===1&&result.provider==='CODEX'&&result.errorAfterStart===true&&!result.verified&&result.terminalLaunch==null&&!stderr.includes('PINO_TOOL_LAUNCH_JSON=')&&stderr.includes('BRIEF_INVALID:')&&stderr.includes('Codex reviewer failed with non-capacity rc=1');
+    const expectedReason=exactRiskFailure?'PRELAUNCH_RISK_ADMISSION_FAILED':exactBriefFailure?'PRELAUNCH_BRIEF_ADMISSION_FAILED':null;
+    if(!expectedReason)throw new Error('REVIEW_TOOL_PRELAUNCH_RECOVERY_NOT_PROVEN');
+    if(evidence.reason!==expectedReason||evidence.resultHash!==r.resultHash||evidence.stderrSha256!==stderrSha256)throw new Error('REVIEW_TOOL_PRELAUNCH_EVIDENCE_BINDING_INVALID');
     const h=digest(evidence);
     return {...r,state:'NO_SIDE_EFFECT',noSideEffectEvidence:evidence,noSideEffectEvidenceHash:h,noSideEffectAt:now(),recoveredFromTerminalResultHash:r.resultHash,recoveredFromTerminalAt:r.terminalAt};
   });
