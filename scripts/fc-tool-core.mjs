@@ -115,10 +115,22 @@ async function findSendButton(page) {
   }
   return null;
 }
-async function pageSnapshot(page) {
+export async function pageSnapshot(page) {
   return page.evaluate(() => {
     const vis = el => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
-    const modernUsers = [...document.querySelectorAll('[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]')].filter(x => (x.getAttribute('data-chatgpt-search-unit-key') || '').endsWith(':user')).map(x => ({ id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null, text:(x.querySelector('[data-user-message-bubble="true"]')?.innerText || x.innerText || '').trim() })).filter(x => x.id);
+    const modernUsers = [...document.querySelectorAll('[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]')].filter(x => (x.getAttribute('data-chatgpt-search-unit-key') || '').endsWith(':user')).map(x => {
+      const bubble=x.querySelector('[data-user-message-bubble="true"]');
+      const full=(bubble?.innerText || x.innerText || '').trim();
+      const target=(bubble?.querySelector('[data-search-result-target]')?.innerText || '').trim();
+      const collapseChrome=bubble?[...bubble.querySelectorAll('[aria-hidden="true"],button,[role="button"]')].map(el=>{
+        const text=(el.innerText||el.textContent||'').trim();
+        const hiddenEllipsis=el.getAttribute('aria-hidden')==='true'&&/^(?:…|\.\.\.)$/.test(text);
+        const collapseControl=(el.tagName==='BUTTON'||el.getAttribute('role')==='button')&&/^(?:show more|show less|xem thêm|thu gọn)$/i.test(text)&&(el.getAttribute('data-markdown-copy')==='exclude'||el.getAttribute('data-thread-find-skip')==='true');
+        return hiddenEllipsis||collapseControl?text:null;
+      }).filter(Boolean):[];
+      const targetComplete=Boolean(target) && (full===target || (collapseChrome.length>0 && full===[target,...collapseChrome].join('\n')));
+      return {id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null,text:targetComplete?target:full};
+    }).filter(x => x.id);
     const legacyUsers = [...document.querySelectorAll('[data-message-author-role="user"][data-message-id]')].map(x => ({ id:x.getAttribute('data-message-id'), text:(x.innerText || '').trim() }));
     const modernAssistants = [...document.querySelectorAll('[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]')].filter(x => (x.getAttribute('data-chatgpt-search-unit-key') || '').endsWith(':assistant')).map(x => ({ id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null, text:(x.innerText || '').trim() })).filter(x => x.id);
     const legacyAssistants = [...document.querySelectorAll('[data-message-author-role="assistant"][data-message-id]')].map(x => ({ id:x.getAttribute('data-message-id'), text:(x.innerText || '').trim() }));

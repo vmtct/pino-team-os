@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { observeFc, sendFc, rotateFc, applyFcAuthority, FC_PROJECT_URL } from './fc-tool-core.mjs';
+import { observeFc, sendFc, rotateFc, applyFcAuthority, pageSnapshot, FC_PROJECT_URL } from './fc-tool-core.mjs';
 const FC_PROJECT_CONVERSATION=FC_PROJECT_URL.replace(/\/project\/?$/,'/c/22222222-2222-2222-2222-222222222222');
 
 function tempCache(){return fs.mkdtempSync(path.join(os.tmpdir(),'fc-tools-'));}
@@ -151,6 +151,48 @@ test('failed authority rollback keeps prompt fenced and durable recovery evidenc
   const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.authorityTxn.phase,'RECOVERY_REQUIRED');assert.equal(adapter.state.prompt,null);assert.equal(adapter.state.host,'PAP-777');
 });
 
+function snapshotPage({bubbleText,targetText,controls=[],ellipsis=false}){
+  const target={innerText:targetText};
+  const ellipsisNodes=ellipsis?[{tagName:'SPAN',innerText:'…',textContent:'…',getAttribute:name=>name==='aria-hidden'?'true':null}]:[];
+  const controlNodes=controls.map(text=>({tagName:'BUTTON',innerText:text,textContent:text,getAttribute:name=>name==='data-markdown-copy'?'exclude':name==='data-thread-find-skip'?'true':null}));
+  const bubble={innerText:bubbleText,querySelector:selector=>selector==='[data-search-result-target]'?target:null,querySelectorAll:selector=>selector==='[aria-hidden="true"],button,[role="button"]'?[...ellipsisNodes,...controlNodes]:[]};
+  const user={innerText:bubbleText,getAttribute:name=>name==='data-chatgpt-search-unit-key'?'turn:user':name==='data-chatgpt-search-message-ids'?'u-new':null,querySelector:selector=>selector==='[data-user-message-bubble="true"]'?bubble:null};
+  return {evaluate:async fn=>{const prior={document:globalThis.document,getComputedStyle:globalThis.getComputedStyle,location:globalThis.location};globalThis.document={querySelectorAll:selector=>selector==='[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]'?[user]:[]};globalThis.getComputedStyle=()=>({display:'block',visibility:'visible'});globalThis.location={href:'https://chatgpt.com/g/g-p-test/c/11111111-1111-1111-1111-111111111111'};user.getBoundingClientRect=()=>({width:1,height:1});try{return fn();}finally{if(prior.document===undefined)delete globalThis.document;else globalThis.document=prior.document;if(prior.getComputedStyle===undefined)delete globalThis.getComputedStyle;else globalThis.getComputedStyle=prior.getComputedStyle;if(prior.location===undefined)delete globalThis.location;else globalThis.location=prior.location;}}};
+}
+
+test('modern user snapshot strips only proven collapse chrome',async()=>{
+  const snap=await pageSnapshot(snapshotPage({bubbleText:'opaque caller text\n…\nShow more',targetText:'opaque caller text',controls:['Show more'],ellipsis:true}));
+  assert.equal(snap.users[0].text,'opaque caller text');
+});
+
+test('literal payload suffix cannot masquerade as collapse chrome',async()=>{
+  const snap=await pageSnapshot(snapshotPage({bubbleText:'opaque\nShow more',targetText:'opaque'}));
+  assert.equal(snap.users[0].text,'opaque\nShow more');
+});
+test('user payload punctuation beside a real collapse control remains factual payload',async()=>{
+  for(const residual of ['…','...','/']){
+    const full=`opaque\n${residual}\nShow more`;
+    const snap=await pageSnapshot(snapshotPage({bubbleText:full,targetText:'opaque',controls:['Show more']}));
+    assert.equal(snap.users[0].text,full);
+  }
+  const adapter=makeAdapter(),cacheDir=tempCache(),first=fakeLive();
+  const one=await sendFc('FC3','opaque',{operationId:'op-punct',adapter,transport:{openActive:async()=>first},cacheDir,skipWriterLease:true,verifyTimeoutMs:1});
+  assert.equal(one.status,'SEND_UNCERTAIN_VERIFY_TIMEOUT');
+  const extracted=await pageSnapshot(snapshotPage({bubbleText:'opaque\n…\nShow more',targetText:'opaque',controls:['Show more']}));
+  const second=fakeLive({users:extracted.users,lastRole:'user'});
+  const two=await sendFc('FC3','opaque',{operationId:'op-punct',adapter,transport:{openActive:async()=>second},cacheDir,skipWriterLease:true});
+  assert.equal(two.status,'SEND_UNCERTAIN_RECONCILE');assert.equal(second.clicks,0);
+});
+test('partial modern content descendant cannot falsely reconcile exact delivery',async()=>{
+  const adapter=makeAdapter(),cacheDir=tempCache(),first=fakeLive();
+  const one=await sendFc('FC3','opaque',{operationId:'op-partial',adapter,transport:{openActive:async()=>first},cacheDir,skipWriterLease:true,verifyTimeoutMs:1});
+  assert.equal(one.status,'SEND_UNCERTAIN_VERIFY_TIMEOUT');
+  const extracted=await pageSnapshot(snapshotPage({bubbleText:'opaque\nadditional user payload',targetText:'opaque'}));
+  assert.equal(extracted.users[0].text,'opaque\nadditional user payload');
+  const second=fakeLive({users:extracted.users,lastRole:'user'});
+  const two=await sendFc('FC3','opaque',{operationId:'op-partial',adapter,transport:{openActive:async()=>second},cacheDir,skipWriterLease:true});
+  assert.equal(two.status,'SEND_UNCERTAIN_RECONCILE');assert.equal(second.clicks,0);
+});
 test('tool source contains no embedded FC strategy vocabulary',()=>{
   const src=fs.readFileSync(new URL('./fc-tool-core.mjs',import.meta.url),'utf8');
   for(const forbidden of ['PAP-507','ACTIVE FC PLAN','ROLE_DEPENDENCY','canonicalPrompt','nextAction']) assert.equal(src.includes(forbidden),false,forbidden);
