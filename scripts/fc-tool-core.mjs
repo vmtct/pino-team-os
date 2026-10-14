@@ -122,10 +122,13 @@ export async function pageSnapshot(page) {
       const bubble=x.querySelector('[data-user-message-bubble="true"]');
       const full=(bubble?.innerText || x.innerText || '').trim();
       const target=(bubble?.querySelector('[data-search-result-target]')?.innerText || '').trim();
-      const suffix=target && full.startsWith(target) ? full.slice(target.length).trim() : null;
-      const collapseControls=bubble?[...bubble.querySelectorAll('button,[role="button"]')].map(el=>((el.innerText||el.getAttribute('aria-label')||'').trim())).filter(text=>/^(?:show more|show less|xem thêm|thu gọn)$/i.test(text)):[];
-      const normalizedSuffix=(suffix??'').replace(/^(?:…|\.\.\.)?\s*(?:\/\s*)?/,'').trim();
-      const targetComplete=Boolean(target) && (full===target || (suffix!==null && collapseControls.some(text=>normalizedSuffix===text)));
+      const collapseChrome=bubble?[...bubble.querySelectorAll('[aria-hidden="true"],button,[role="button"]')].map(el=>{
+        const text=(el.innerText||el.textContent||'').trim();
+        const hiddenEllipsis=el.getAttribute('aria-hidden')==='true'&&/^(?:…|\.\.\.)$/.test(text);
+        const collapseControl=(el.tagName==='BUTTON'||el.getAttribute('role')==='button')&&/^(?:show more|show less|xem thêm|thu gọn)$/i.test(text)&&(el.getAttribute('data-markdown-copy')==='exclude'||el.getAttribute('data-thread-find-skip')==='true');
+        return hiddenEllipsis||collapseControl?text:null;
+      }).filter(Boolean):[];
+      const targetComplete=Boolean(target) && (full===target || (collapseChrome.length>0 && full===[target,...collapseChrome].join('\n')));
       return {id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null,text:targetComplete?target:full};
     }).filter(x => x.id);
     const legacyUsers = [...document.querySelectorAll('[data-message-author-role="user"][data-message-id]')].map(x => ({ id:x.getAttribute('data-message-id'), text:(x.innerText || '').trim() }));
