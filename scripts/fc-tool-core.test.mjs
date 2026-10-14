@@ -151,18 +151,23 @@ test('failed authority rollback keeps prompt fenced and durable recovery evidenc
   const saved=JSON.parse(fs.readFileSync(path.join(cacheDir,'fc-tool-fc3-state.json'),'utf8'));assert.equal(saved.authorityTxn.phase,'RECOVERY_REQUIRED');assert.equal(adapter.state.prompt,null);assert.equal(adapter.state.host,'PAP-777');
 });
 
-function snapshotPage({bubbleText,targetText}){
+function snapshotPage({bubbleText,targetText,controls=[]}){
   const target={innerText:targetText};
-  const bubble={innerText:bubbleText,querySelector:selector=>selector==='[data-search-result-target]'?target:null};
+  const controlNodes=controls.map(text=>({innerText:text,getAttribute:name=>name==='aria-label'?text:null}));
+  const bubble={innerText:bubbleText,querySelector:selector=>selector==='[data-search-result-target]'?target:null,querySelectorAll:selector=>selector==='button,[role="button"]'?controlNodes:[]};
   const user={innerText:bubbleText,getAttribute:name=>name==='data-chatgpt-search-unit-key'?'turn:user':name==='data-chatgpt-search-message-ids'?'u-new':null,querySelector:selector=>selector==='[data-user-message-bubble="true"]'?bubble:null};
   return {evaluate:async fn=>{const prior={document:globalThis.document,getComputedStyle:globalThis.getComputedStyle,location:globalThis.location};globalThis.document={querySelectorAll:selector=>selector==='[data-chatgpt-search-unit-key][data-chatgpt-search-message-ids]'?[user]:[]};globalThis.getComputedStyle=()=>({display:'block',visibility:'visible'});globalThis.location={href:'https://chatgpt.com/g/g-p-test/c/11111111-1111-1111-1111-111111111111'};user.getBoundingClientRect=()=>({width:1,height:1});try{return fn();}finally{if(prior.document===undefined)delete globalThis.document;else globalThis.document=prior.document;if(prior.getComputedStyle===undefined)delete globalThis.getComputedStyle;else globalThis.getComputedStyle=prior.getComputedStyle;if(prior.location===undefined)delete globalThis.location;else globalThis.location=prior.location;}}};
 }
 
 test('modern user snapshot strips only proven collapse chrome',async()=>{
-  const snap=await pageSnapshot(snapshotPage({bubbleText:'opaque caller text\n…\nShow more',targetText:'opaque caller text'}));
+  const snap=await pageSnapshot(snapshotPage({bubbleText:'opaque caller text\n…\nShow more',targetText:'opaque caller text',controls:['Show more']}));
   assert.equal(snap.users[0].text,'opaque caller text');
 });
 
+test('literal payload suffix cannot masquerade as collapse chrome',async()=>{
+  const snap=await pageSnapshot(snapshotPage({bubbleText:'opaque\nShow more',targetText:'opaque'}));
+  assert.equal(snap.users[0].text,'opaque\nShow more');
+});
 test('partial modern content descendant cannot falsely reconcile exact delivery',async()=>{
   const adapter=makeAdapter(),cacheDir=tempCache(),first=fakeLive();
   const one=await sendFc('FC3','opaque',{operationId:'op-partial',adapter,transport:{openActive:async()=>first},cacheDir,skipWriterLease:true,verifyTimeoutMs:1});

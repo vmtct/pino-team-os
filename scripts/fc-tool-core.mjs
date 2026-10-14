@@ -123,7 +123,9 @@ export async function pageSnapshot(page) {
       const full=(bubble?.innerText || x.innerText || '').trim();
       const target=(bubble?.querySelector('[data-search-result-target]')?.innerText || '').trim();
       const suffix=target && full.startsWith(target) ? full.slice(target.length).trim() : null;
-      const targetComplete=Boolean(target) && (full===target || /^(?:…|\.\.\.)?\s*(?:\/\s*)?(?:show more|show less|xem thêm|thu gọn)$/i.test(suffix ?? ''));
+      const collapseControls=bubble?[...bubble.querySelectorAll('button,[role="button"]')].map(el=>((el.innerText||el.getAttribute('aria-label')||'').trim())).filter(text=>/^(?:show more|show less|xem thêm|thu gọn)$/i.test(text)):[];
+      const normalizedSuffix=(suffix??'').replace(/^(?:…|\.\.\.)?\s*(?:\/\s*)?/,'').trim();
+      const targetComplete=Boolean(target) && (full===target || (suffix!==null && collapseControls.some(text=>normalizedSuffix===text)));
       return {id:(x.getAttribute('data-chatgpt-search-message-ids') || '').trim().split(/\s+/)[0] || null,text:targetComplete?target:full};
     }).filter(x => x.id);
     const legacyUsers = [...document.querySelectorAll('[data-message-author-role="user"][data-message-id]')].map(x => ({ id:x.getAttribute('data-message-id'), text:(x.innerText || '').trim() }));
