@@ -72,5 +72,5 @@ test("F2 learner manager binds detail and mutations to the active learner reques
   assert.match(manager, /requestId!==detailRequest\.current\|\|d\.inventory\.studentProfileId!==id/);
   assert.match(manager, /detail\?\.inventory\.studentProfileId===selectedId/);
   assert.match(manager, /if\(!selectedId\|\|!detail\|\|!detailMatchesSelection\)return/);
-  assert.match(manager, /disabled=\{busy\|\|!detailMatchesSelection\}/);
+  assert.match(manager, /disabled=\{busy\|\|!detailMatchesSelection\|\|\(loadoutTab==="ACCESSORIES"&&\!accessories\)\}/);
 });
