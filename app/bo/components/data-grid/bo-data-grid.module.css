@@ -153,3 +153,7 @@
 /* PAP-615: keep sortable headers and horizontal navigation discoverable. */
 .sortButton { min-height: 36px; }
 .tableViewport { scrollbar-width: auto; }
+
+/* PAP-615 copy feedback and readable canonical IDs */
+.canonicalId code { font-size: 11px; }
+.copyFeedback { font-size: 11px; white-space: nowrap; color: #5f51ae; }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { boDataGridRange, type BoDataGridSortDirection } from "@/lib/bo-data-grid-state";
 import styles from "./bo-data-grid.module.css";
 
@@ -183,9 +183,19 @@ export function BoDataGridStatus({ value, tone = "neutral" }: { value: string; t
 }
 
 export function BoDataGridCanonicalId({ value, label = "Copy canonical ID" }: { value: string; label?: string }) {
-  return <span className={styles.canonicalId}><code title={value}>{value}</code><button type="button" onClick={(event) => { event.stopPropagation(); if (typeof navigator !== "undefined" && navigator.clipboard) void navigator.clipboard.writeText(value); }} aria-label={label}>⧉</button></span>;
+  const [feedback, setFeedback] = useState("");
+  async function copyId(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(value);
+      setFeedback("Copied");
+    } catch {
+      setFeedback("Copy failed");
+    }
+  }
+  return <span className={styles.canonicalId}><code title={value}>{value}</code><button type="button" onClick={(event) => void copyId(event)} aria-label={label}>⧉</button><span className={styles.copyFeedback} role="status" aria-live="polite">{feedback}</span></span>;
 }
-
 export function BoDataGridBadge({ children }: { children: ReactNode }) {
   return <span className={styles.badge}>{children}</span>;
 }
