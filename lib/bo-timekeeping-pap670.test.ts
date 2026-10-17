@@ -13,7 +13,7 @@ test("PAP-670 local-time correction and missing-checkout preserve Core contracts
  assert.match(view,/expectedLatestCorrectionId: row.latestCorrection\?\.id \?\? null/);
  assert.match(view,/missedCheckoutAttempt.current\?\.signature !== signature/);
  assert.match(view,/correctionAttempt.current\?\.signature !== signature/);
- assert.match(view,/matches.length === 1/);
+ assert.match(view,/import \{ isoToLocalInput, localInputToIso \}/);
  assert.match(view,/Date.parse\(correctedIso\) >= Date.parse\(other\)/);
 });
 
