@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {buildBrief,canonicalBinding,canonicalOutcome,worktreePaths} from './review-run.mjs';
 
-test('canonical binding is immutable PRE_MAIN_INDIE',()=>{
+test('canonical binding is immutable INDIE',()=>{
   const b=canonicalBinding('VMTCT/PINO-TEAM-OS',629,'d6e200c62462aea06339fca015f00475f6b7905d');
-  assert.deepEqual(b,{reviewKind:'PRE_MAIN_INDIE',repository:'vmtct/pino-team-os',prNumber:629,candidate:'d6e200c62462aea06339fca015f00475f6b7905d'});
+  assert.deepEqual(b,{reviewKind:'INDIE',repository:'vmtct/pino-team-os',prNumber:629,candidate:'d6e200c62462aea06339fca015f00475f6b7905d'});
 });
 
 test('worktree path is deterministic and exact-head named',()=>{

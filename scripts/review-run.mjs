@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {claimReview,consumeReview,inspectReview,normalizeBinding,obligationKey} from './review-tool-state.mjs';
@@ -11,7 +10,7 @@ const WSL=process.env.PINO_WSL_EXE||'C:/Windows/System32/wsl.exe';
 const DISTRO=process.env.PINO_WSL_DISTRO||'Ubuntu-24.04';
 const SOP=path.resolve(process.env.PINO_SOP_ROOT||'C:/Users/ADMIN/Documents/PINO_SOP');
 const BRIEF_ROOT=path.join(SOP,'state','review-tools','briefs');
-const REVIEW_KIND='PRE_MAIN_INDIE';
+const REVIEW_KIND='INDIE';
 const q=s=>`'${String(s).replaceAll("'",`'"'"'`)}'`;
 const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^-|-$/g,'');
 const readJson=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
@@ -80,15 +79,8 @@ export function buildBrief({binding,pr,jiraKey,ledger,risk,files}){
   return rows.map(([k,v])=>`${k}: ${line(v)}`).join('\n')+'\n\nPerform an independent PRE-MAIN review. Return only evidence supported by this exact candidate.\n';
 }
 function writeBrief(key,text){fs.mkdirSync(BRIEF_ROOT,{recursive:true});const p=path.join(BRIEF_ROOT,key+'.md'),tmp=p+'.tmp-'+process.pid;fs.writeFileSync(tmp,text);fs.renameSync(tmp,p);return p;}
-function validWaiver(file,binding){
-  if(!file)return null;const w=readJson(path.resolve(file));
-  const exact=w?.schemaVersion===1&&w?.kind==='PINO_REVIEW_WAIVER'&&String(w.authority||'').toUpperCase()==='FOUNDER'&&String(w.reviewKind||'').toUpperCase()===binding.reviewKind&&String(w.repository||'').toLowerCase()===binding.repository&&Number(w.prNumber)===binding.prNumber&&String(w.candidate||'').toLowerCase()===binding.candidate&&line(w.reason)&&line(w.authorizedAt);
-  if(!exact)throw new Error('ATOMIC_REVIEW_WAIVER_INVALID_OR_UNBOUND');
-  return {outcome:'WAIVED',authority:'FOUNDER',reason:w.reason,authorizedAt:w.authorizedAt,waiverSha256:crypto.createHash('sha256').update(fs.readFileSync(path.resolve(file))).digest('hex')};
-}
 function prepare(opts){
   const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate),key=obligationKey(binding);
-  const waiver=validWaiver(opts.waiver,binding);if(waiver)return {binding,key,pr,waiver};
   const wt=ensureExactWorktree({jiraKey:opts.jiraKey,repository:binding.repository,candidate:binding.candidate,baseRefName:pr.baseRefName,slice:opts.slice,project:opts.project});
   const {value:ledger}=loadSlice(opts.slice),risk=preflightCodexRisk(opts.slice),files=diffFiles(wt.target,pr.baseRefName,binding.candidate);
   const briefPath=writeBrief(key,buildBrief({binding,pr,jiraKey:opts.jiraKey,ledger,risk,files}));
@@ -96,17 +88,17 @@ function prepare(opts){
 }
 export function prepareAtomicReview(opts){return prepare(opts);}
 export function runAtomicReview(opts){
-  const p=prepare(opts);if(p.waiver)return p.waiver;
+  const p=prepare(opts);
   let claim;try{claim=claimReview(p.binding,'CODEX',{reclaimNoSideEffect:true});}catch(e){throw new Error('ATOMIC_REVIEW_CLAIM_FAILED:'+e.message);}
   const started=startCodexReview({key:p.key,promptPath:p.briefPath,wslWorktree:p.worktree,sessionSlice:opts.slice,projectCode:opts.project});
   return {...canonicalOutcome(started),candidate:p.binding.candidate,worktree:p.worktree,briefPath:p.briefPath};
 }
 export function statusAtomicReview(opts){
-  const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate),waiver=validWaiver(opts.waiver,binding);if(waiver)return waiver;
+  const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate);
   const key=obligationKey(binding);let record=inspectReview(key);if(record.provider==='CODEX'&&!['NO_SIDE_EFFECT','TERMINAL','CONSUMED'].includes(record.state))record=statusCodexReview({key});
   let out=canonicalOutcome(record);if(['PASS','HOLD'].includes(out.outcome)&&record.state==='TERMINAL'){record=consumeReview(key,record.provider);out=canonicalOutcome(record);}
   return {...out,candidate:binding.candidate};
 }
-function argsOf(argv){const a=[...argv],cmd=a.shift(),v=(n,required=true)=>{const i=a.indexOf(n);if(i<0){if(required)throw new Error('ARG_REQUIRED:'+n);return null;}if(i===a.length-1)throw new Error('ARG_REQUIRED:'+n);return a[i+1]};return {cmd,opts:{jiraKey:v('--jira'),repository:v('--repo'),prNumber:Number(v('--pr')),slice:v('--slice'),project:v('--project'),waiver:v('--waiver',false)}};}
-async function main(){const {cmd,opts}=argsOf(process.argv.slice(2));let out;if(cmd==='prepare')out=prepareAtomicReview(opts);else if(cmd==='run')out=runAtomicReview(opts);else if(cmd==='status')out=statusAtomicReview(opts);else throw new Error('USAGE: review-run.mjs prepare|run|status --jira PAP-N --repo owner/repo --pr N --slice PAP-N --project PRJ-X [--waiver file.json]');console.log(JSON.stringify(out,null,2));}
+function argsOf(argv){const a=[...argv],cmd=a.shift();if(a.includes('--waiver'))throw new Error('ATOMIC_REVIEW_WAIVER_UNSUPPORTED');const v=(n,required=true)=>{const i=a.indexOf(n);if(i<0){if(required)throw new Error('ARG_REQUIRED:'+n);return null;}if(i===a.length-1)throw new Error('ARG_REQUIRED:'+n);return a[i+1]};return {cmd,opts:{jiraKey:v('--jira'),repository:v('--repo'),prNumber:Number(v('--pr')),slice:v('--slice'),project:v('--project')}};}
+async function main(){const {cmd,opts}=argsOf(process.argv.slice(2));let out;if(cmd==='prepare')out=prepareAtomicReview(opts);else if(cmd==='run')out=runAtomicReview(opts);else if(cmd==='status')out=statusAtomicReview(opts);else throw new Error('USAGE: review-run.mjs prepare|run|status --jira PAP-N --repo owner/repo --pr N --slice PAP-N --project PRJ-X');console.log(JSON.stringify(out,null,2));}
 if(pathToFileURL(process.argv[1]||'').href===import.meta.url)main().catch(e=>{console.error('ERROR: '+e.message);process.exitCode=1});
