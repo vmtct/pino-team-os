@@ -352,6 +352,9 @@ export function WorkforcePlanningView() {
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
                     setReason("");
                     setFrontDesk(false);
+                    setShiftLeader(false);
+                    setTeacherRunningClassIds([]);
+                    setAssistantRunningClassIds([]);
                     setCoverageMode(assigned[0]?.coverageMode ?? (assigned[0]?.timeBasis === "TEACHING_SESSIONS" ? "CLASSROOM_TIME" : "FULL_SHIFT"));
                     setCustomStartLocal(assigned[0]?.effectiveStartLocal?.slice(11,16) ?? "");
                     setCustomEndLocal(assigned[0]?.effectiveEndLocal?.slice(11,16) ?? "");
