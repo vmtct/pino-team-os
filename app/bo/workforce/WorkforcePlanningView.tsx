@@ -474,12 +474,13 @@ export function WorkforcePlanningView() {
               const owner = session?.learningOwner?.staffMemberId === assignment.staffMemberId;
               return "TE · " + (session?.runningClassDisplayName ?? session?.id.slice(0, 8) ?? "Session") + (owner ? " · Phụ trách chính" : "");
             });
+            const runningClassRoleSummary = (data.runningClassResponsibilities ?? []).filter((role) => role.shiftAssignmentId === assignment.id && role.status === "ACTIVE").map((role) => role.roleType === "TEACHER" ? "TE · RunningClass" : "TA · RunningClass");
             return <article className={styles.plannerAssignmentCard} key={assignment.id}>
               <div>
                 <strong>{templateLabel(data, assignment.shiftTemplateId)}</strong>
                 <span>{assignment.status} · {assignment.id.slice(0, 8)}</span>
                 <span>{assignmentTimeSummary(assignment)}</span>
-                {roleSummary.map((item) => <span key={item}>{item}</span>)}
+                {[...roleSummary, ...runningClassRoleSummary].map((item, index) => <span key={`${item}:${index}`}>{item}</span>)}
                 {hasOwnerRole ? <span>Chuyển Phụ trách chính ở School → Classes → Sessions trước khi huỷ/đổi ca.</span> : null}
               </div>
               <div className={styles.subscriptionActions}>
