@@ -70,3 +70,26 @@ window.renderRitual = (asset) => root.render(React.createElement(CompanionRitual
   await page.evaluate(() => (window as unknown as {renderRitual:(url:string)=>void}).renderRitual('http://localhost/good-pet.png'));
   await expect(page.locator('img[src="http://localhost/good-pet.png"]')).toHaveCount(1);
 });
+
+test("House keeps other actors visible during missing assets and late materialization", async ({ page }) => {
+  const houseEntry = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { AmbientHouseRuntime } from './app/pinoria-tv/ambient-house-runtime';
+const root = createRoot(document.getElementById('root'));
+window.renderHouse = (ready) => root.render(React.createElement(AmbientHouseRuntime, {actors: [
+ {id:'learner-a', actorType:'LEARNER', name:'A', config: ready ? {hair:'http://localhost/ready.png',face:'http://localhost/ready.png',outfit:'http://localhost/ready.png'} : {}},
+ {id:'learner-b', actorType:'LEARNER', name:'B', config: {hair:'http://localhost/ready.png',face:'http://localhost/ready.png',outfit:'http://localhost/ready.png'}}
+]}));
+`;
+  const bundle = await build({ stdin: { contents: houseEntry, resolveDir: process.cwd(), sourcefile: "pinoria-house-browser.tsx", loader: "tsx" }, bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", loader: { ".module.css": "empty" } });
+  await page.route("**/ready.png", (route) => route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aQAAAABJRU5ErkJggg==", "base64") }));
+  await page.setContent('<div id="root"></div>');
+  await page.addScriptTag({ content: bundle.outputFiles[0]!.text });
+  await page.evaluate(() => (window as unknown as {renderHouse:(ready:boolean)=>void}).renderHouse(false));
+  await expect(page.locator('[data-ambient-runtime-self="learner-a"] [data-character-state="fallback"]')).toHaveCount(1);
+  await expect(page.locator('[data-ambient-runtime-self="learner-b"] img[src="http://localhost/ready.png"]')).toHaveCount(3);
+  await page.evaluate(() => (window as unknown as {renderHouse:(ready:boolean)=>void}).renderHouse(true));
+  await expect(page.locator('[data-ambient-runtime-self="learner-a"] img[src="http://localhost/ready.png"]')).toHaveCount(3);
+  await expect(page.locator('[data-ambient-runtime-character]')).toHaveCount(2);
+});
