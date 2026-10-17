@@ -193,7 +193,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   async function resolveMissingCheckout() {
     if (!resolveReason.trim() || !resolvedCheckOutAt) return;
     const checkoutIso = localInputToIso(resolvedCheckOutAt, timeZone);
-    if (!checkoutIso || new Date(checkoutIso).getTime() <= new Date(row.effective.checkInAt).getTime()) { setNotice("Giờ ra phải sau giờ vào và hợp lệ theo múi giờ trung tâm."); return; }
+    if (!checkoutIso || new Date(checkoutIso).getTime() <= new Date(row.effective.checkInAt).getTime()) { setNotice("Checkout must be later than check-in and valid in the center timezone."); return; }
     const command = { checkOutAt: checkoutIso, reason: resolveReason.trim() };
     const signature = JSON.stringify({ sessionId: row.id, ...command });
     if (missedCheckoutAttempt.current?.signature !== signature) missedCheckoutAttempt.current = { signature, key: crypto.randomUUID() };
@@ -216,9 +216,9 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   async function save() {
     if (!reason.trim() || !correctedAt) return;
     const correctedIso = localInputToIso(correctedAt, timeZone);
-    if (!correctedIso) { setNotice("Ngày giờ điều chỉnh không hợp lệ theo múi giờ trung tâm."); return; }
+    if (!correctedIso) { setNotice("Invalid or ambiguous local date/time for the center timezone."); return; }
     const other = correctionType === "CHECK_IN_AT" ? row.effective.checkOutAt : row.effective.checkInAt;
-    if (other && (correctionType === "CHECK_IN_AT" ? Date.parse(correctedIso) >= Date.parse(other) : Date.parse(correctedIso) <= Date.parse(other))) { setNotice("Giờ vào phải trước giờ ra."); return; }
+    if (other && (correctionType === "CHECK_IN_AT" ? Date.parse(correctedIso) >= Date.parse(other) : Date.parse(correctedIso) <= Date.parse(other))) { setNotice("Check-in must be earlier than check-out."); return; }
     const command = {
       correctionType,
       correctedAt: correctedIso,
