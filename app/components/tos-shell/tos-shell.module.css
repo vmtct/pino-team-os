@@ -292,3 +292,14 @@
   cursor: pointer;
 }
 .supportBanner button:disabled { opacity: .6; cursor: wait; }
+
+/* PAP-703: opt-in compact app shell; legacy routes remain unchanged until migrated. */
+.compactAppShell{width:min(100%,430px);max-width:430px;margin:0 auto;box-sizing:border-box;min-height:100dvh;background:#faf9f6;padding-bottom:80px}
+.compactAppShell .opsContent{width:100%;max-width:430px;box-sizing:border-box;padding:16px 14px 96px}
+.compactAppShell .opsFooter{left:50%;right:auto;transform:translateX(-50%);width:min(100%,430px);max-width:430px;box-sizing:border-box}
+.compactHeader{height:68px;display:flex;align-items:center;justify-content:center;position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #eee9e1;padding:10px 16px;box-sizing:border-box}
+.compactBack{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:38px;height:38px;display:grid;place-items:center;color:#454a4f;text-decoration:none;font-size:23px}
+.compactBrand{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;max-width:calc(100% - 100px)}
+.compactBrand h1{font-size:19px;font-weight:650;line-height:1.2;color:#41464b;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compactAppIcon{width:38px;height:38px;object-fit:contain;border-radius:11px;flex-shrink:0}
+@media(min-width:431px){body:has(.compactAppShell){background:#000}}
