@@ -13,8 +13,10 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
 import { loadBoTimekeepingPageForState } from "@/lib/bo-timekeeping-page-controller";
 import styles from "./timekeeping.module.css";
+import { isoToLocalInput, localInputToIso } from "@/lib/bo-timekeeping-local-time";
+// Attention cards share the Timekeeping stylesheet.
 
-type Mode = "today" | "history";
+type Mode = "today" | "history" | "attention";
 type TimekeepingCenter = { id: string; displayName: string; timeZone: string };
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; page: BoTimekeepingPage };
 const PAGE_SIZES = [25, 50, 100] as const;
@@ -28,12 +30,13 @@ export function TimekeepingView() {
   const setPageRef = useRef(setPage);
   setPageRef.current = setPage;
 
-  const mode: Mode = state.filters.mode === "history" ? "history" : "today";
+  const mode: Mode = state.filters.mode === "history" ? "history" : state.filters.mode === "attention" ? "attention" : "today";
   const centerId = state.filters.center ?? centers[0]?.id ?? "";
   const selectedCenter = centers.find((center) => center.id === centerId) ?? centers[0] ?? null;
   const today = selectedCenter ? localDate(selectedCenter.timeZone) : "";
-  const startDate = state.filters.from ?? today;
+  const startDate = state.filters.from ?? (mode === "attention" ? dateDaysBefore(today, 30) : today);
   const endDate = state.filters.to ?? today;
+  const invalidRange = mode !== "today" && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || startDate > endDate);
   const status = state.filters.status === "OPEN" || state.filters.status === "CLOSED" ? state.filters.status : "";
   const staffId = state.filters.staff ?? "";
   const page = load.state === "ready" ? load.page : null;
@@ -47,13 +50,15 @@ export function TimekeepingView() {
   const columns = useMemo<BoDataGridColumn<BoTimekeepingSession>[]>(() => [
     { key: "staff", header: "Staff", sticky: true, minWidth: 220, render: (row) => <span><strong>{row.staff.displayLabel}</strong><br /><BoDataGridCanonicalId value={row.id} label="Copy TimekeepingSession ID" /></span> },
     { key: "date", header: "Date", minWidth: 115, render: (row) => row.workDate },
-    { key: "checkIn", header: "Check-in", minWidth: 110, render: (row) => clock(row.effective.checkInAt, timeZone) },
-    { key: "checkOut", header: "Check-out", minWidth: 110, render: (row) => row.effective.checkOutAt ? clock(row.effective.checkOutAt, timeZone) : "—" },
+    { key: "checkIn", header: "Check-in", minWidth: 160, render: (row) => datetime(row.effective.checkInAt, timeZone) },
+    { key: "checkOut", header: "Check-out", minWidth: 160, render: (row) => row.effective.checkOutAt ? datetime(row.effective.checkOutAt, timeZone) : "—" },
     { key: "duration", header: "Duration", minWidth: 105, render: (row) => duration(row.effective.durationSeconds) },
     { key: "assignment", header: "Assignment", minWidth: 180, render: (row) => row.assignment?.shift?.displayLabel ?? (row.assignmentId ? short(row.assignmentId) : "Legacy") },
+    { key: "canonical", header: "Core anomalies", minWidth: 175, render: (row) => <span title="Canonical Core anomaly flags">{row.anomalyFlags.join(", ") || "—"}</span> },
+    { key: "review", header: "Review signals", minWidth: 175, render: (row) => <span title="UI-derived review signals, not canonical Core anomalies">{reviewSignals(row, today, timeZone).join(", ") || "—"}</span> },
     { key: "correction", header: "Provenance", minWidth: 135, render: (row) => row.latestCorrection ? <BoDataGridStatus value="CORRECTED" tone="info" /> : <span>Recorded</span> },
     { key: "status", header: "Status", minWidth: 110, render: (row) => <BoDataGridStatus value={row.status} tone={row.status === "OPEN" ? "warning" : "success"} /> },
-  ], [timeZone]);
+  ], [timeZone, today]);
 
   useEffect(() => {
     let active = true;
@@ -65,7 +70,7 @@ export function TimekeepingView() {
   }, []);
 
   useEffect(() => {
-    if (!centerId || !selectedCenter || !today) return;
+    if (!centerId || !selectedCenter || !today || invalidRange) return;
     let active = true;
     setLoad({ state: "loading" });
     const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate };
@@ -74,7 +79,7 @@ export function TimekeepingView() {
       pageSize: state.pageSize,
       query: {
         ...params,
-        ...(status ? { status } : {}),
+        ...(mode === "attention" ? { status: "OPEN" as const } : status ? { status } : {}),
         ...(staffId ? { staffMemberId: staffId } : {}),
       },
       load: boApi.timekeeping,
@@ -90,7 +95,7 @@ export function TimekeepingView() {
       if (active) setLoad({ state: "error", message: message(error) });
     });
     return () => { active = false; };
-  }, [centerId, endDate, mode, refreshToken, staffId, startDate, state.page, state.pageSize, status, selectedCenter, today]);
+  }, [centerId, endDate, mode, refreshToken, staffId, startDate, state.page, state.pageSize, status, selectedCenter, today, invalidRange]);
 
   function setMode(next: Mode) {
     setFilter("mode", next === "today" ? null : next);
@@ -110,29 +115,41 @@ export function TimekeepingView() {
       <Metric label="Total sessions" value={page.summary.totalSessions} />
     </section> : null}
 
+    {mode !== "today" && page && !invalidRange ? <section className={styles.attentionSummary} aria-label="Review signals on current page">
+      <div className={styles.attentionSummaryHead}><strong>Review signals on this page</strong><span>Page {state.page} · {page.data.length} loaded sessions · not all-time totals</span></div>
+      <div className={styles.attentionCards}>
+        {(["Overdue OPEN", "Zero duration", "Long duration", "Overnight"] as const).map((signal) => {
+          const count = page.data.filter((session) => reviewSignals(session, today, timeZone).includes(signal)).length;
+          return <div className={styles.attentionCard} key={signal}><span>{signal}</span><strong>{count}</strong><small>UI-derived · current page only</small></div>;
+        })}
+      </div>
+    </section> : null}
+    {invalidRange ? <p role="alert">Invalid date range: From must be on or before To.</p> : null}
+    {mode === "attention" ? <p role="note">Review OPEN sessions within the selected date range. Signals are derived in the UI; Core anomaly flags remain authoritative. Results are paginated, not an all-time count.</p> : null}
     <BoDataGrid
-      rows={page?.data ?? []}
+      rows={invalidRange ? [] : (page?.data ?? [])}
       columns={columns}
       rowKey={(row) => row.id}
-      caption={mode === "today" ? "Today timekeeping sessions" : "Timekeeping history"}
-      state={load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
+      caption={mode === "today" ? "Today timekeeping sessions" : mode === "attention" ? "OPEN sessions for review" : "Timekeeping history"}
+      state={invalidRange ? "ready" : load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
       stateMessage={load.state === "error" ? load.message : undefined}
       filterChips={[
-        ...(mode === "history" ? [{ key: "mode", label: "View", value: "History", onClear: () => setMode("today") }] : []),
-        ...(status ? [{ key: "status", label: "Status", value: status, onClear: () => setFilter("status", null) }] : []),
+        ...(mode !== "today" ? [{ key: "mode", label: "View", value: mode === "history" ? "History" : "Needs Attention", onClear: () => setMode("today") }] : []),
+        ...(status && mode !== "attention" ? [{ key: "status", label: "Status", value: status, onClear: () => setFilter("status", null) }] : []),
         ...(staffId ? [{ key: "staff", label: "Staff", value: staffOptions.find((staff) => staff.id === staffId)?.displayLabel ?? short(staffId), onClear: () => setFilter("staff", null) }] : []),
       ]}
       toolbarActions={<div className={styles.gridToolbarActions}>
         <div className={styles.tabs}>
           <button type="button" className={mode === "today" ? styles.activeTab : ""} onClick={() => setMode("today")}>Today</button>
           <button type="button" className={mode === "history" ? styles.activeTab : ""} onClick={() => setMode("history")}>History</button>
+          <button type="button" className={mode === "attention" ? styles.activeTab : ""} onClick={() => setMode("attention")}>Needs Attention</button>
         </div>
         <label>Center<select aria-label="Filter Timekeeping by center" value={centerId} onChange={(event) => { setFilter("center", event.target.value || null); setFilter("staff", null); }}><option value="">Select center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
-        {mode === "history" ? <>
+        {mode !== "today" ? <>
           <label>From<input aria-label="Timekeeping history from" type="date" value={startDate} onChange={(event) => setFilter("from", event.target.value || null)} /></label>
           <label>To<input aria-label="Timekeeping history to" type="date" value={endDate} onChange={(event) => setFilter("to", event.target.value || null)} /></label>
         </> : <span className={styles.today}>{today}</span>}
-        <label>Status<select aria-label="Filter Timekeeping by status" value={status} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
+        {mode !== "attention" ? <label>Status<select aria-label="Filter Timekeeping by status" value={status} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label> : null}
         <label>Staff<select aria-label="Filter Timekeeping by staff" value={staffId} onChange={(event) => setFilter("staff", event.target.value || null)}><option value="">All</option>{staffOptions.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayLabel}</option>)}</select></label>
       </div>}
       onRefresh={() => setRefreshToken((value) => value + 1)}
@@ -140,12 +157,12 @@ export function TimekeepingView() {
       pagination={page ? { page: state.page, pageSize: state.pageSize, total: page.summary.totalSessions, pageSizeOptions: PAGE_SIZES, onPageChange: setPage, onPageSizeChange: setPageSize } : undefined}
       selectedRowKey={selectedId || null}
       onRowOpen={(row) => setSelectedId(row.id)}
-      emptyTitle={mode === "today" ? "No timekeeping sessions today" : "No matching timekeeping history"}
+      emptyTitle={mode === "today" ? "No timekeeping sessions today" : mode === "attention" ? "No OPEN sessions in this date range" : "No matching timekeeping history"}
       emptyMessage="Adjust the bounded date, status or staff filters. Canonical attendance remains in Core."
     />
 
     {selected ? <BoDataGridSidePeek title={selected.staff.displayLabel} eyebrow={`TimekeepingSession · ${selected.workDate}`} onClose={() => setSelectedId("")}>
-      <Detail row={selected} timeZone={timeZone} onSaved={async () => { setRefreshToken((value) => value + 1); }} />
+      <Detail row={selected} timeZone={timeZone} onSaved={async () => { const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate }; const result = await loadBoTimekeepingPageForState({ page: state.page, pageSize: state.pageSize, query: { ...params, ...(mode === "attention" ? { status: "OPEN" as const } : status ? { status } : {}), ...(staffId ? { staffMemberId: staffId } : {}) }, load: boApi.timekeeping }); if (result.kind === "reconcile-page") { setPage(result.page); return; } setLoad({ state: "ready", page: result.data }); setSelectedId((current) => result.data.data.some((session) => session.id === current) ? current : ""); }} />
     </BoDataGridSidePeek> : null}
   </main>;
 }
@@ -157,10 +174,10 @@ function Metric({ label, value }: { label: string; value: number }) {
 function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZone: string; onSaved: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [correctionType, setCorrectionType] = useState<"CHECK_IN_AT" | "CHECK_OUT_AT">("CHECK_IN_AT");
-  const [correctedAt, setCorrectedAt] = useState(row.effective.checkInAt);
+  const [correctedAt, setCorrectedAt] = useState(() => isoToLocalInput(row.effective.checkInAt, timeZone));
   const [reason, setReason] = useState("");
   const [resolving, setResolving] = useState(false);
-  const [resolvedCheckOutAt, setResolvedCheckOutAt] = useState("");
+  const [resolvedCheckOutAt, setResolvedCheckOutAt] = useState(() => isoToLocalInput(row.effective.checkOutAt ?? new Date().toISOString(), timeZone));
   const [resolveReason, setResolveReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -170,10 +187,10 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   useEffect(() => {
     setEditing(false);
     setCorrectionType("CHECK_IN_AT");
-    setCorrectedAt(row.effective.checkInAt);
+    setCorrectedAt(isoToLocalInput(row.effective.checkInAt, timeZone));
     setReason("");
     setResolving(false);
-    setResolvedCheckOutAt("");
+    setResolvedCheckOutAt(isoToLocalInput(row.effective.checkOutAt ?? new Date().toISOString(), timeZone));
     setResolveReason("");
     setNotice("");
     correctionAttempt.current = null;
@@ -182,12 +199,14 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
 
   function changeType(next: "CHECK_IN_AT" | "CHECK_OUT_AT") {
     setCorrectionType(next);
-    setCorrectedAt(next === "CHECK_IN_AT" ? row.effective.checkInAt : (row.effective.checkOutAt ?? ""));
+    setCorrectedAt(isoToLocalInput(next === "CHECK_IN_AT" ? row.effective.checkInAt : (row.effective.checkOutAt ?? ""), timeZone));
   }
 
   async function resolveMissingCheckout() {
     if (!resolveReason.trim() || !resolvedCheckOutAt) return;
-    const command = { checkOutAt: resolvedCheckOutAt, reason: resolveReason.trim() };
+    const checkoutIso = localInputToIso(resolvedCheckOutAt, timeZone);
+    if (!checkoutIso || new Date(checkoutIso).getTime() <= new Date(row.effective.checkInAt).getTime()) { setNotice("Checkout must be later than check-in and valid in the center timezone."); return; }
+    const command = { checkOutAt: checkoutIso, reason: resolveReason.trim() };
     const signature = JSON.stringify({ sessionId: row.id, ...command });
     if (missedCheckoutAttempt.current?.signature !== signature) missedCheckoutAttempt.current = { signature, key: crypto.randomUUID() };
     const idempotencyKey = missedCheckoutAttempt.current.key;
@@ -208,9 +227,13 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
 
   async function save() {
     if (!reason.trim() || !correctedAt) return;
+    const correctedIso = localInputToIso(correctedAt, timeZone);
+    if (!correctedIso) { setNotice("Invalid or ambiguous local date/time for the center timezone."); return; }
+    const other = correctionType === "CHECK_IN_AT" ? row.effective.checkOutAt : row.effective.checkInAt;
+    if (other && (correctionType === "CHECK_IN_AT" ? Date.parse(correctedIso) >= Date.parse(other) : Date.parse(correctedIso) <= Date.parse(other))) { setNotice("Check-in must be earlier than check-out."); return; }
     const command = {
       correctionType,
-      correctedAt,
+      correctedAt: correctedIso,
       reason: reason.trim(),
       expectedLatestCorrectionId: row.latestCorrection?.id ?? null,
     };
@@ -270,14 +293,15 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
       </> : null}
     </section>
 
-    <section><h3>Provenance / anomalies</h3>{row.anomalyFlags.length ? row.anomalyFlags.map((flag) => <span key={flag} className={styles.anomaly}>{flag}</span>) : <p className={styles.muted}>No current canonical anomaly flags.</p>}</section>
+    <section><h3>Core anomaly flags (canonical)</h3>{row.anomalyFlags.length ? row.anomalyFlags.map((flag) => <span key={flag} className={styles.anomaly}>{flag}</span>) : <p className={styles.muted}>No current canonical anomaly flags.</p>}</section>
+    <section><h3>UI review signals (derived)</h3>{reviewSignals(row, localDate(timeZone), timeZone).length ? reviewSignals(row, localDate(timeZone), timeZone).map((signal) => <span key={signal} className={styles.anomaly}>{signal}</span>) : <p className={styles.muted}>No UI-derived review signals.</p>}</section>
     <section className={styles.timeline}><h3>Timeline</h3><div><i /><span>Recorded check-in · {datetime(row.recorded.checkInAt, timeZone)}</span></div>{row.recorded.checkOutAt ? <div><i /><span>Recorded check-out · {datetime(row.recorded.checkOutAt, timeZone)}</span></div> : <div><i /><span>Session remains OPEN</span></div>}{row.latestCorrection ? <div><i /><span>Correction appended · {datetime(row.latestCorrection.createdAt, timeZone)}</span></div> : null}</section>
 
     {row.status === "CLOSED" ? <section className={styles.correctionSection}>
       {!editing ? <button className={styles.correctButton} onClick={() => setEditing(true)}>Correct attendance</button> : <div className={styles.correctionForm}>
         <div className={styles.correctionHeading}><div><strong>Correct attendance</strong><span>Creates a new append-only correction. Recorded values above do not change.</span></div><button onClick={() => setEditing(false)}>Cancel</button></div>
         <label>Correction type<select value={correctionType} onChange={(event) => changeType(event.target.value as "CHECK_IN_AT" | "CHECK_OUT_AT")}><option value="CHECK_IN_AT">Check-in time</option><option value="CHECK_OUT_AT">Check-out time</option></select></label>
-        <label>Corrected timestamp (UTC ISO)<input value={correctedAt} onChange={(event) => setCorrectedAt(event.target.value)} placeholder="2026-09-06T01:15:00.000Z" /></label>
+        <label>Ngày và giờ thực tế · {timeZone}<input type="datetime-local" value={correctedAt} onChange={(event) => setCorrectedAt(event.target.value)} /></label>
         <label>Reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Why is this correction required?" /></label>
         <div className={styles.resultPreview}><span>Current effective</span><strong>{correctionType === "CHECK_IN_AT" ? datetime(row.effective.checkInAt, timeZone) : (row.effective.checkOutAt ? datetime(row.effective.checkOutAt, timeZone) : "—")}</strong></div>
         <button className={styles.saveCorrection} disabled={busy || !reason.trim() || !correctedAt} onClick={() => void save()}>{busy ? "Saving…" : "Save correction"}</button>
@@ -287,7 +311,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
       {!resolving ? <button className={styles.correctButton} onClick={() => setResolving(true)}>Resolve missing checkout</button> : <div className={styles.correctionForm}>
         <div className={styles.correctionHeading}><div><strong>Resolve missing checkout</strong><span>Closes this exact OPEN session in Core. Enter the actual checkout time; PINO will not infer it.</span></div><button onClick={() => setResolving(false)}>Cancel</button></div>
         <div className={styles.resultPreview}><span>Recorded check-in</span><strong>{datetime(row.recorded.checkInAt, timeZone)}</strong></div>
-        <label>Actual checkout timestamp (UTC ISO)<input value={resolvedCheckOutAt} onChange={(event) => setResolvedCheckOutAt(event.target.value)} placeholder="2026-09-06T04:30:00.000Z" /></label>
+        <label>Ngày và giờ ra thực tế · {timeZone}<input type="datetime-local" value={resolvedCheckOutAt} onChange={(event) => setResolvedCheckOutAt(event.target.value)} /></label>
         <label>Reason<textarea value={resolveReason} onChange={(event) => setResolveReason(event.target.value)} rows={3} placeholder="How was the actual checkout time confirmed?" /></label>
         <button className={styles.saveCorrection} disabled={busy || !resolveReason.trim() || !resolvedCheckOutAt} onClick={() => void resolveMissingCheckout()}>{busy ? "Resolving…" : "Resolve checkout"}</button>
       </div>}
@@ -296,9 +320,18 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   </div>;
 }
 
+function reviewSignals(row: BoTimekeepingSession, today: string, timeZone: string): string[] {
+  const signals: string[] = [];
+  if (row.status === "OPEN" && row.workDate < today) signals.push("Overdue OPEN");
+  if (row.status === "CLOSED" && row.effective.durationSeconds === 0) signals.push("Zero duration");
+  if (row.effective.durationSeconds !== null && row.effective.durationSeconds > 16 * 3600) signals.push("Long duration");
+  if (row.effective.checkOutAt && isoToLocalInput(row.effective.checkInAt, timeZone).slice(0, 10) !== isoToLocalInput(row.effective.checkOutAt, timeZone).slice(0, 10)) signals.push("Overnight");
+  return signals;
+}
 function Fact({ label, value }: { label: string; value: string }) { return <div className={styles.fact}><span>{label}</span><strong>{value}</strong></div>; }
 function State({ text, error = false }: { text: string; error?: boolean }) { return <div className={`${styles.state} ${error ? styles.error : ""}`}>{text}</div>; }
-function localDate(timeZone: string) { return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date()); }
+function localDate(timeZone: string) { return isoToLocalInput(new Date().toISOString(), timeZone).slice(0, 10); }
+function dateDaysBefore(value: string, days: number) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value; const date = new Date(value + "T12:00:00Z"); date.setUTCDate(date.getUTCDate() - days); return date.toISOString().slice(0, 10); }
 function clock(value: string, timeZone: string) { return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(new Date(value)); }
 function datetime(value: string, timeZone: string) { return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(value)); }
 function duration(value: number | null) { if (value === null) return "—"; const hours = Math.floor(value / 3600), minutes = Math.floor((value % 3600) / 60); return hours ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`; }
