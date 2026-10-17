@@ -532,7 +532,8 @@ export const boApi = {
     termWeekId?: string;
     replacesAssignmentId?: string;
     roles: Array<
-      | { roleType: "FRONT_DESK" }
+      | { roleType: "FRONT_DESK" | "SHIFT_LEADER" }
+      | { roleType: "TEACHER" | "TEACHING_ASSISTANT"; runningClassId: string }
       | {
           roleType: "TEACHER";
           sessionId: string;
