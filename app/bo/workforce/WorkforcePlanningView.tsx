@@ -122,7 +122,7 @@ export function WorkforcePlanningView() {
   const selectedActiveRoleAssignments = data
     ? data.roleAssignments.filter((role) => activeAssignments.some((assignment) => assignment.id === role.shiftAssignmentId) && role.status === "ACTIVE")
     : [];
-  const canUseTeachingTime = canUseTeachingSessionTime({ frontDesk, teacherSessionCount: teacherSessionIds.length });
+  const canUseTeachingTime = canUseTeachingSessionTime({ frontDesk, teacherSessionCount: teacherSessionIds.length + assistantRunningClassIds.length });
   const customRangeReady = coverageMode !== "CUSTOM_RANGE" || (!!customStartLocal && !!customEndLocal && customStartLocal < customEndLocal);
   const handoffReasonMissing = data && selection
     ? primarySessionIds.some((sessionId) => {
@@ -204,9 +204,9 @@ export function WorkforcePlanningView() {
     ];
     if (!roles.length) { setNotice("Chọn ít nhất Front Desk, Shift Leader, Teacher hoặc Teaching Assistant."); return; }
     if (handoffReasonMissing) { setNotice("Cần nhập lý do bàn giao cho lớp đang có Phụ trách chính khác."); return; }
-    if (coverageMode === "CLASSROOM_TIME" && !canUseTeachingTime) { setNotice("Theo giờ lớp cần ít nhất một lớp Teacher."); return; }
+    if (coverageMode === "CLASSROOM_TIME" && !canUseTeachingTime) { setNotice("Theo giờ lớp cần ít nhất một lớp Teacher hoặc Teaching Assistant."); return; }
     if (coverageMode === "CUSTOM_RANGE" && (!selectedTemplate || !customStartLocal || !customEndLocal || customEndLocal <= customStartLocal || customStartLocal < selectedTemplate.startLocalTime || customEndLocal > selectedTemplate.endLocalTime)) { setNotice("Khung giờ tuỳ chỉnh phải nằm trọn trong ca và giờ kết thúc phải sau giờ bắt đầu."); return; }
-    if (coverageMode === "CUSTOM_RANGE" && eligibleSessions.filter((session)=>teacherSessionIds.includes(session.id)).some((session)=>session.scheduledStartsLocal.slice(11,16)<customStartLocal||session.scheduledEndsLocal.slice(11,16)>customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher đã phân công."); return; }
+    if (coverageMode === "CUSTOM_RANGE" && eligibleSessions.filter((session)=>teacherSessionIds.includes(session.id)||(!!session.runningClassId&&assistantRunningClassIds.includes(session.runningClassId))).some((session)=>session.scheduledStartsLocal.slice(11,16)<customStartLocal||session.scheduledEndsLocal.slice(11,16)>customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher đã phân công."); return; }
     setBusy("assign"); setNotice("");
     try {
       await boApi.planOperationalWorkforceShift({
@@ -222,7 +222,7 @@ export function WorkforcePlanningView() {
   function toggleTeacher(sessionId: string, enabled: boolean) {
     setTeacherSessionIds((current) => {
       const next = enabled ? [...new Set([...current, sessionId])] : current.filter((id) => id !== sessionId);
-      if (!enabled && next.length === 0 && coverageMode === "CLASSROOM_TIME") setCoverageMode("FULL_SHIFT");
+      if (!enabled && next.length === 0 && assistantRunningClassIds.length === 0 && coverageMode === "CLASSROOM_TIME") setCoverageMode("FULL_SHIFT");
       return next;
     });
     if (!enabled) {
