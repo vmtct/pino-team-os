@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faGear, faCalendarDays, faDesktop, faClock, faLocationDot, faLock, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { shortDisplayName } from "@/lib/display-name";
+import { SupportSessionBanner } from "@/app/components/tos-shell/SupportSessionBanner";
 import { workforceApi, type Assignment, type WorkforceContext, type StaffProfile } from "@/lib/workforce-api";
 import styles from "./tos-home-v2.module.css";
 
@@ -71,6 +72,7 @@ export default function TosHome() {
  const shiftTime=assignment?(assignment.effectiveStartLocal&&assignment.effectiveEndLocal?`${assignment.effectiveStartLocal.slice(0,5)}–${assignment.effectiveEndLocal.slice(0,5)}`:assignment.shift?`${assignment.shift.startLocalTime.slice(0,5)}–${assignment.shift.endLocalTime.slice(0,5)}`:"Chưa rõ giờ"):"";
  const openApp=(id:string,href?:string,enabled=false)=>{if(!enabled){setNotice("Ca này bạn chưa có quyền");return;}if(href)router.push(href);else setNotice("Ứng dụng chưa sẵn sàng.");};
  return <main className={styles.screen}>
+   <SupportSessionBanner />
    <div className={`${styles.background} ${backgroundReady?styles.backgroundLoaded:""}`} style={backgroundReady?{backgroundImage:`url("${R2_BASE}/Background.jpg")`}:undefined} aria-hidden="true"/>
    <div className={styles.content}>
      <header className={styles.header}>
