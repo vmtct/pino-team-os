@@ -150,7 +150,7 @@ export function TimekeepingView() {
     />
 
     {selected ? <BoDataGridSidePeek title={selected.staff.displayLabel} eyebrow={`TimekeepingSession · ${selected.workDate}`} onClose={() => setSelectedId("")}>
-      <Detail row={selected} timeZone={timeZone} onSaved={async () => { setRefreshToken((value) => value + 1); }} />
+      <Detail row={selected} timeZone={timeZone} onSaved={async () => { const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate }; const result = await loadBoTimekeepingPageForState({ page: state.page, pageSize: state.pageSize, query: { ...params, ...(mode === "attention" ? { status: "OPEN" as const } : status ? { status } : {}), ...(staffId ? { staffMemberId: staffId } : {}) }, load: boApi.timekeeping }); if (result.kind === "reconcile-page") { setPage(result.page); return; } setLoad({ state: "ready", page: result.data }); setSelectedId((current) => result.data.data.some((session) => session.id === current) ? current : ""); }} />
     </BoDataGridSidePeek> : null}
   </main>;
 }
