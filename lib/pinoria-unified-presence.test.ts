@@ -23,6 +23,7 @@ function actor(index: number, actorType: "LEARNER" | "STAFF" = "LEARNER"): Prese
     character: actorType === "STAFF" && index === 39 ? null : character,
     loadout: actorType === "STAFF" && index === 39 ? null : { version: 2, slots: { OUTFIT: `variant-${index}` } },
     wardRender: actorType === "STAFF" && index === 39 ? null : { mode: "LAYERED" as const, webmAssetKey: null, variants: [] },
+    experience: null,
     sources: [{ actorType, sourceType, sourceId: `source-${index}`, openedAt: "2026-09-07T04:00:00.000Z" }],
   };
 }
@@ -38,7 +39,38 @@ test("mixed 30 learner + 10 Staff snapshot preserves one actor per Pinoria Self"
 
 
 
-test("presence snapshot accepts bounded canonical Ward render projection and rejects invalid set shape", () => {
+
+test("learner experience projection parses canonical context and rejects malformed resources", () => {
+  const row = actor(88);
+  row.experience = {
+    schemaVersion: 1,
+    studentProfileId: "student-88",
+    path: { id: "path-88", code: "artchitect", displayName: "Artchitect" },
+    runningClass: { id: "class-88", operationalName: "Art Friday" },
+    learningSpace: { id: "space-88", code: "art-room", displayName: "Art Room" },
+    companion: {
+      id: "companion-88",
+      species: { id: "species-88", key: "mori", displayName: "Mori", assetKey: "companions/mori.webp", presentationProfileKey: "mori" },
+      materializationLevel: 2,
+      state: "GROWING",
+      stageFeedCount: 3,
+    },
+    resources: { plsBalance: 42, fruitBalance: 5 },
+  };
+  const parsed = parsePresenceSnapshot({ cursor: 88, actors: [row] }).actors[0]!;
+  assert.deepEqual(parsed.experience, row.experience);
+  assert.throws(() => parsePresenceSnapshot({ cursor: 88, actors: [{ ...row, experience: { ...row.experience, schemaVersion: 2 } }] }), /PINORIA_PRESENCE_EXPERIENCE_VERSION_INVALID/);
+  assert.throws(() => parsePresenceSnapshot({ cursor: 88, actors: [{ ...row, experience: { ...row.experience, resources: { plsBalance: -1, fruitBalance: 0 } } }] }), /PINORIA_PRESENCE_RESOURCES_INVALID/);
+});
+
+test("Staff and rolling old snapshots normalize missing learner experience to null", () => {
+  const staff = actor(89, "STAFF");
+  staff.experience = null;
+  assert.equal(parsePresenceSnapshot({ cursor: 89, actors: [staff] }).actors[0]?.experience, null);
+  const legacy = { ...actor(90) } as Record<string, unknown>;
+  delete legacy.experience;
+  assert.equal(parsePresenceSnapshot({ cursor: 90, actors: [legacy] }).actors[0]?.experience, null);
+});test("presence snapshot accepts bounded canonical Ward render projection and rejects invalid set shape", () => {
   const row = actor(30);
   row.wardRender = {
     mode: "LAYERED",
