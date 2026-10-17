@@ -49,3 +49,24 @@ test("Ward WEBM failure hides video and restores layered fallback", async ({ pag
   await expect(page.locator('[data-ward-set-webm]')).toHaveCount(0);
   await expect(page.locator('#root img')).toHaveCount(3);
 });
+
+test("Companion ritual hides broken species asset and recovers for a new asset", async ({ page }) => {
+  const ritualEntry = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { CompanionRitualScene } from './app/pinoria-tv/companion-ritual-scene';
+const root = createRoot(document.getElementById('root'));
+window.renderRitual = (asset) => root.render(React.createElement(CompanionRitualScene, {
+ ritual: {subject: {displayName:'Piner',character:{config:{hair:'http://localhost/base.png',face:'http://localhost/base.png',outfit:'http://localhost/base.png'}}},companion:{id:'pet',displayName:'Mori',assetKey:asset,sigilAssetKey:null,fromLevel:1,toLevel:2},experience:{profileKey:'x'}}
+}));
+`;
+  const bundle = await build({ stdin: { contents: ritualEntry, resolveDir: process.cwd(), sourcefile: "pinoria-ritual-browser.tsx", loader: "tsx" }, bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", loader: { ".module.css": "empty" } });
+  await page.route("**/broken-pet.png", (route) => route.fulfill({ status: 404, body: "missing" }));
+  await page.route("**/good-pet.png", (route) => route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aQAAAABJRU5ErkJggg==", "base64") }));
+  await page.setContent('<div id="root"></div>');
+  await page.addScriptTag({ content: bundle.outputFiles[0]!.text });
+  await page.evaluate(() => (window as unknown as {renderRitual:(url:string)=>void}).renderRitual('http://localhost/broken-pet.png'));
+  await expect(page.locator('section div').filter({hasText:'✦'}).first()).toBeVisible();
+  await page.evaluate(() => (window as unknown as {renderRitual:(url:string)=>void}).renderRitual('http://localhost/good-pet.png'));
+  await expect(page.locator('img[src="http://localhost/good-pet.png"]')).toHaveCount(1);
+});
