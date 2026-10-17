@@ -36,7 +36,7 @@ export function canonicalOutcome(record){
     if(record.noSideEffectEvidence?.reason==='CAPACITY_EXHAUSTED_VERIFIED')return {outcome:'BLOCKED_EXTERNAL',reason:'CODEX_CAPACITY_EXHAUSTED',key:record.obligationKey};
     throw new Error('ATOMIC_REVIEW_LOCAL_FAILURE:'+(record.noSideEffectEvidence?.reason||'NO_SIDE_EFFECT'));
   }
-  if(['CLAIMED','DISPATCH_RESERVED','START_CONFIRMED'].includes(record?.state))return {outcome:'RUNNING',key:record.obligationKey,state:record.state};
+  if(['CLAIMED','DISPATCH_RESERVED','START_CONFIRMED','RUNNING','RESULT_PENDING'].includes(record?.state))return {outcome:'RUNNING',key:record.obligationKey,state:record.state};
   if(['TERMINAL','CONSUMED'].includes(record?.state)){
     const verdict=String(record.result?.verified?.verdict||record.result?.auditResult?.verdict||'').toUpperCase();
     if(verdict==='PASS')return {outcome:'PASS',key:record.obligationKey,verdict};
