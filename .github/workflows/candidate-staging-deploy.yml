@@ -59,12 +59,10 @@ jobs:
           }
 
           previous_version="$(active_version)"
-          core_version="$(npx wrangler deployments list --name pino-core-staging --json | jq -r '.[0].versions[]? | select(.percentage==100) | .version_id' | head -1)"
           test -n "$previous_version"
-          test -n "$core_version"
 
           short_sha="${TEAM_SHA:0:12}"
-          message="staging sha=${TEAM_SHA} core=${core_version} run=${GITHUB_RUN_ID}"
+          message="staging sha=${TEAM_SHA} run=${GITHUB_RUN_ID}"
           npx wrangler deploy -c wrangler.staging.jsonc --tag "staging-${short_sha}" --message "$message"
 
           npx wrangler deployments list -c wrangler.staging.jsonc --json > deployment.json
@@ -99,9 +97,8 @@ jobs:
             --arg worker "$TEAM_STAGING_WORKER" \
             --arg previousVersionId "$previous_version" \
             --arg activeVersionId "$deployed_version" \
-            --arg coreVersionId "$core_version" \
             --arg runId "$GITHUB_RUN_ID" \
-            '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:$runtime,sourceSha:$sourceSha,worker:$worker,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,coreVersionId:$coreVersionId,runId:$runId,result:"PASS",productionMutation:false}' \
+            '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:$runtime,sourceSha:$sourceSha,worker:$worker,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,runId:$runId,result:"PASS",productionMutation:false}' \
             | tee staging-receipt.json
       - uses: actions/upload-artifact@v4
         with:
