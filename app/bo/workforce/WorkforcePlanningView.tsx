@@ -206,7 +206,7 @@ export function WorkforcePlanningView() {
     if (handoffReasonMissing) { setNotice("Cần nhập lý do bàn giao cho lớp đang có Phụ trách chính khác."); return; }
     if (coverageMode === "CLASSROOM_TIME" && !canUseTeachingTime) { setNotice("Theo giờ lớp cần ít nhất một lớp Teacher hoặc Teaching Assistant."); return; }
     if (coverageMode === "CUSTOM_RANGE" && (!selectedTemplate || !customStartLocal || !customEndLocal || customEndLocal <= customStartLocal || customStartLocal < selectedTemplate.startLocalTime || customEndLocal > selectedTemplate.endLocalTime)) { setNotice("Khung giờ tuỳ chỉnh phải nằm trọn trong ca và giờ kết thúc phải sau giờ bắt đầu."); return; }
-    if (coverageMode === "CUSTOM_RANGE" && eligibleSessions.filter((session)=>teacherSessionIds.includes(session.id)||(!!session.runningClassId&&assistantRunningClassIds.includes(session.runningClassId))).some((session)=>session.scheduledStartsLocal.slice(11,16)<customStartLocal||session.scheduledEndsLocal.slice(11,16)>customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher đã phân công."); return; }
+    if (coverageMode === "CUSTOM_RANGE" && eligibleSessions.filter((session)=>teacherSessionIds.includes(session.id)||(!!session.runningClassId&&assistantRunningClassIds.includes(session.runningClassId))).some((session)=>session.scheduledStartsLocal.slice(11,16)<customStartLocal||session.scheduledEndsLocal.slice(11,16)>customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher và Teaching Assistant đã phân công."); return; }
     setBusy("assign"); setNotice("");
     try {
       await boApi.planOperationalWorkforceShift({
@@ -396,6 +396,7 @@ export function WorkforcePlanningView() {
               setCoverageMode("FULL_SHIFT");
               setCustomStartLocal(""); setCustomEndLocal("");
               setTeacherSessionIds([]);
+              setAssistantRunningClassIds([]);
               setPrimarySessionIds([]);
               setHandoffReasons({});
             }}>
