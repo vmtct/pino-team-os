@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {claimReview,reserveReviewDispatch,markReviewStarted,markReviewTerminal,inspectReview} from './review-tool-state.mjs';
-import {preflightCodexRisk,statusCodexReview} from './review-codex-tool.mjs';
+import {claimWorkerExecution,preflightCodexRisk,statusCodexReview} from './review-codex-internal.mjs';
 
 function setup(pr){const root=fs.mkdtempSync(path.join(os.tmpdir(),'review-codex-'));process.env.PINO_REVIEW_TOOL_STATE_DIR=path.join(root,'state');process.env.PINO_REVIEW_CODEX_STATE_DIR=path.join(root,'codex');const binding={reviewKind:'INDIE',repository:'vmtct/pino-team-os',prNumber:pr,candidate:String(pr).padStart(40,'b').slice(-40)},claim=claimReview(binding,'CODEX'),reserved=reserveReviewDispatch(claim.obligationKey,'CODEX'),resultPath=path.join(root,'result.json'),snapshotPath=path.join(root,'snapshot.json');markReviewStarted(claim.obligationKey,'CODEX',{workerPid:999999,resultPath,snapshotPath,attemptId:reserved.attemptId,dispatchId:reserved.dispatchId},reserved.dispatchId);return {root,claim:reserved,resultPath}}
 function result(claim,body){return JSON.stringify({attemptId:claim.attemptId,dispatchId:claim.dispatchId,...body})}
@@ -73,4 +73,14 @@ test('legacy terminalized risk-ledger prelaunch failure can be narrowly recovere
 
   const other=setup(623);markReviewTerminal(other.claim.obligationKey,'CODEX',{provider:'CODEX',errorAfterStart:true,status:90,signal:null,error:null,terminalLaunch:null,stderrTail:'ERROR: unrelated tool failure'});
   const blocked=statusCodexReview({key:other.claim.obligationKey});assert.equal(blocked.state,'TERMINAL');assert.equal(inspectReview(other.claim.obligationKey).state,'TERMINAL');
+});
+
+
+test('worker execution claim is canonical-path bound and single-use',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'review-worker-once-'));process.env.PINO_REVIEW_TOOL_STATE_DIR=path.join(root,'state');process.env.PINO_REVIEW_CODEX_STATE_DIR=path.join(root,'codex');
+  const binding={reviewKind:'INDIE',repository:'vmtct/pino-team-os',prNumber:630,candidate:'d'.repeat(40)},claim=claimReview(binding,'CODEX'),reserved=reserveReviewDispatch(claim.obligationKey,'CODEX');
+  const base=path.join(process.env.PINO_REVIEW_CODEX_STATE_DIR,reserved.obligationKey+'-'+reserved.attemptId+'-'+reserved.dispatchId),snapshot=base+'.snapshot.json';fs.mkdirSync(path.dirname(snapshot),{recursive:true});fs.writeFileSync(snapshot,'{}');
+  const first=claimWorkerExecution(reserved,snapshot);assert.equal(first.snapshot,snapshot);assert.ok(fs.existsSync(first.execution));
+  assert.throws(()=>claimWorkerExecution(reserved,snapshot),/REVIEW_CODEX_WORKER_ALREADY_CLAIMED/);
+  const copied=path.join(root,'copied.snapshot.json');fs.copyFileSync(snapshot,copied);assert.throws(()=>claimWorkerExecution(reserved,copied),/REVIEW_CODEX_WORKER_SNAPSHOT_BINDING_INVALID/);
 });
