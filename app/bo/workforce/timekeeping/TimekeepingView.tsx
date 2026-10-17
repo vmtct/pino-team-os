@@ -32,7 +32,7 @@ export function TimekeepingView() {
   const centerId = state.filters.center ?? centers[0]?.id ?? "";
   const selectedCenter = centers.find((center) => center.id === centerId) ?? centers[0] ?? null;
   const today = selectedCenter ? localDate(selectedCenter.timeZone) : "";
-  const startDate = state.filters.from ?? today;
+  const startDate = state.filters.from ?? (mode === "attention" ? dateDaysBefore(today, 14) : today);
   const endDate = state.filters.to ?? today;
   const invalidRange = mode !== "today" && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || startDate > endDate);
   const status = state.filters.status === "OPEN" || state.filters.status === "CLOSED" ? state.filters.status : "";
@@ -339,7 +339,8 @@ function reviewSignals(row: BoTimekeepingSession, today: string, timeZone: strin
 }
 function Fact({ label, value }: { label: string; value: string }) { return <div className={styles.fact}><span>{label}</span><strong>{value}</strong></div>; }
 function State({ text, error = false }: { text: string; error?: boolean }) { return <div className={`${styles.state} ${error ? styles.error : ""}`}>{text}</div>; }
-function localDate(timeZone: string) { return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date()); }
+function localDate(timeZone: string) { return isoToLocalInput(new Date().toISOString(), timeZone).slice(0, 10); }
+function dateDaysBefore(value: string, days: number) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value; const date = new Date(value + "T12:00:00Z"); date.setUTCDate(date.getUTCDate() - days); return date.toISOString().slice(0, 10); }
 function clock(value: string, timeZone: string) { return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(new Date(value)); }
 function datetime(value: string, timeZone: string) { return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(value)); }
 function duration(value: number | null) { if (value === null) return "—"; const hours = Math.floor(value / 3600), minutes = Math.floor((value % 3600) / 60); return hours ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`; }
