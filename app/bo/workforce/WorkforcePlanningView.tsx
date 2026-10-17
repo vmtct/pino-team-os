@@ -200,7 +200,7 @@ export function WorkforcePlanningView() {
     ];
     if (!roles.length) { setNotice("Chọn ít nhất Front Desk hoặc một lớp Teacher."); return; }
     if (handoffReasonMissing) { setNotice("Cần nhập lý do bàn giao cho lớp đang có Phụ trách chính khác."); return; }
-    if (coverageMode === "CLASSROOM_TIME" && !canUseTeachingTime) { setNotice("Theo giờ lớp cần ít nhất một lớp Teacher và không dùng cùng Front Desk."); return; }
+    if (coverageMode === "CLASSROOM_TIME" && !canUseTeachingTime) { setNotice("Theo giờ lớp cần ít nhất một lớp Teacher."); return; }
     if (coverageMode === "CUSTOM_RANGE" && (!selectedTemplate || !customStartLocal || !customEndLocal || customEndLocal <= customStartLocal || customStartLocal < selectedTemplate.startLocalTime || customEndLocal > selectedTemplate.endLocalTime)) { setNotice("Khung giờ tuỳ chỉnh phải nằm trọn trong ca và giờ kết thúc phải sau giờ bắt đầu."); return; }
     if (coverageMode === "CUSTOM_RANGE" && eligibleSessions.filter((session)=>teacherSessionIds.includes(session.id)).some((session)=>session.scheduledStartsLocal.slice(11,16)<customStartLocal||session.scheduledEndsLocal.slice(11,16)>customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher đã phân công."); return; }
     setBusy("assign"); setNotice("");
@@ -404,7 +404,7 @@ export function WorkforcePlanningView() {
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
             <strong>Phân công operational</strong>
             <label className={styles.field}>
-              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked); if(checked && coverageMode === "CLASSROOM_TIME")setCoverageMode("FULL_SHIFT"); }} /> Front Desk</span>
+              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked);  }} /> Front Desk</span>
               <small>Front Desk áp dụng cho toàn ca; khoảng Session Teacher sẽ được ưu tiên tự động.</small>
             </label>
             <div className={styles.plannerHistory}>

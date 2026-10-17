@@ -4,11 +4,11 @@ import { readFile } from "node:fs/promises";
 import type { BoWorkforceAssignment, BoWorkforceTeachingSession } from "./bo-model";
 import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, normalizeTimeBasis } from "./workforce-planning-time-basis";
 
-test("WFTB planner enables class-time only for Teacher-only plans", () => {
+test("WFTB planner allows Front Desk alongside classroom-time Teacher", () => {
   assert.equal(canUseTeachingSessionTime({frontDesk:false,teacherSessionCount:1}), true);
-  assert.equal(canUseTeachingSessionTime({frontDesk:true,teacherSessionCount:1}), false);
+  assert.equal(canUseTeachingSessionTime({frontDesk:true,teacherSessionCount:1}), true);
   assert.equal(canUseTeachingSessionTime({frontDesk:false,teacherSessionCount:0}), false);
-  assert.equal(normalizeTimeBasis("TEACHING_SESSIONS",{frontDesk:true,teacherSessionCount:1}), "SHIFT_TEMPLATE");
+  assert.equal(normalizeTimeBasis("TEACHING_SESSIONS",{frontDesk:true,teacherSessionCount:1}), "TEACHING_SESSIONS");
   assert.equal(normalizeTimeBasis("TEACHING_SESSIONS",{frontDesk:false,teacherSessionCount:1}), "TEACHING_SESSIONS");
 });
 
