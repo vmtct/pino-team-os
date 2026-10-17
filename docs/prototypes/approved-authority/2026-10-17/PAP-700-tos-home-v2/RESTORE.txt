@@ -1,0 +1,8 @@
+﻿BASE_COMMIT=1565e0bc138862330410bee61745290521a04081
+SOURCE_WORKTREE=D:\PINO\worktrees\PAP-686-tos-home
+RESTORE_1=git checkout 1565e0bc138862330410bee61745290521a04081
+RESTORE_2=copy archived app/prototype/tos-home-v2 files into matching repo path and rename *.snapshot back to original .tsx names
+RESTORE_3=copy runtime-overlay/package.json and package-lock.json to repo root; copy runtime-overlay/next.config.ts.snapshot to repo root as next.config.ts
+DEPENDENCIES=@fortawesome/fontawesome-svg-core@^7.3.1;@fortawesome/free-solid-svg-icons@^7.3.1;@fortawesome/react-fontawesome@^3.5.0
+CONFIG_OVERLAY=next.config.ts devIndicators=false
+ARCHIVE_RULE=.ts/.tsx files use .snapshot extension so repo build does not compile reference artifacts
