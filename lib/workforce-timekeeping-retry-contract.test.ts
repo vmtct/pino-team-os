@@ -44,3 +44,13 @@ test("TOS workforce facade fails closed when timekeeping mutation lacks an idemp
   assert.match(facade, /corePath==="\/timekeeping\/check-in"\|\|corePath==="\/timekeeping\/check-out"/);
   assert.match(facade, /!idempotencyKey\)return Response\.json\(\{error:\{code:"PLATFORM_INVALID_INPUT",message:"Idempotency-Key is required"\}/);
 });
+
+
+test("PAP-704 keeps successful check-in on the Ca Lam Today surface", () => {
+  const dashboardSource = fs.readFileSync(path.join(process.cwd(), "app/dashboard/page.tsx"), "utf8");
+  assert.doesNotMatch(dutySource, /router\.push\("\/tasks"\)/);
+  assert.match(dutySource, /await workforceApi\.checkIn\([\s\S]*clockAttempt\.current = null;\s*await load\(\)/);
+  assert.match(dashboardSource, /DutyAwareCheckInOut/);
+  assert.match(dutySource, /activeFooterId="today"[\s\S]*compactAppHeader/);
+  assert.match(dutySource, /Giờ công tháng này[\s\S]*Chưa sẵn sàng/);
+});
