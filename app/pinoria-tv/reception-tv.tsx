@@ -219,8 +219,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
   const arrivalCompanion = scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
   const arrivalCompanionAsset = arrivalCompanion ? pinoriaAssetUrl(arrivalCompanion.species.assetKey) : null;
-  const [failedArrivalCompanionAsset, setFailedArrivalCompanionAsset] = useState<string | null>(null);
-  const visibleArrivalCompanionAsset = arrivalCompanionAsset !== failedArrivalCompanionAsset ? arrivalCompanionAsset : null;
+  const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
+  const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
+  const visibleArrivalCompanionAsset = arrivalCompanionIdentity !== failedArrivalCompanionIdentity ? arrivalCompanionAsset : null;
   const sceneIsCurrent = !scene || housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource);
 
   useEffect(() => {
@@ -393,7 +394,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
       {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
       <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} />
-      {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => setFailedArrivalCompanionAsset(visibleArrivalCompanionAsset)} alt="" /></> : null}
+      {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => setFailedArrivalCompanionIdentity(arrivalCompanionIdentity)} alt="" /></> : null}
       <div className={styles.copy}>
         <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
         <h1>{visualScene.kind === "arrival" ? `Chào ${visualScene.name} ✦` : visualScene.name}</h1>
