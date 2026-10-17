@@ -84,3 +84,15 @@ test("TOSCTX-004 profile is read-only by default and edit keeps existing PATCH c
   assert.match(source, /editing \? <div className="grid">/);
   assert.match(source, /workforceApi\.updateProfile\(\{ email, mobile, legalAddress \}\)/);
 });
+
+
+test("PAP-705 unifies schedule and weekly availability without inventing assignment truth", async () => {
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  assert.match(source, /view !== "availability" && view !== "schedule"/);
+  assert.match(source, /view === "schedule" \|\| view === "availability" \? <ShiftCalendarPanel/);
+  assert.match(source, /Đăng ký chỉ thể hiện thời gian bạn có thể làm[\s\S]*đăng ký không phải assignment/);
+  assert.match(source, /replaceAvailability\(\{ submissionId: availability\.id, expectedVersion: availability\.version, items \}\)/);
+  assert.match(source, /submitAvailability\(\{ submissionId: availability\.id, expectedVersion: availability\.version \}\)/);
+  assert.match(source, /Vai trò ca · Chưa sẵn sàng/);
+  assert.match(source, /dayInZone\(center\.timeZone\)/);
+});
