@@ -533,7 +533,7 @@ export const boApi = {
     replacesAssignmentId?: string;
     roles: Array<
       | { roleType: "FRONT_DESK" | "SHIFT_LEADER" }
-      | { roleType: "TEACHING_ASSISTANT"; runningClassId: string }
+      | { roleType: "TEACHER" | "TEACHING_ASSISTANT"; runningClassId: string }
       | {
           roleType: "TEACHER";
           sessionId: string;
