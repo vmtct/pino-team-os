@@ -140,6 +140,7 @@ function LayerMedia({ layer, rainbow = false }: { layer: ResolvedLayer; rainbow?
   if (layer.media === "VIDEO") {
     return <video
       key={layer.key}
+      onError={() => setFailed(true)}
       src={layer.src}
       poster={layer.poster ?? undefined}
       autoPlay
