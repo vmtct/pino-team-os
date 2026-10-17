@@ -29,6 +29,9 @@ test("Rainbow removes broken masks and retries when canonical asset changes", as
   await page.evaluate(() => (window as unknown as {renderCharacter: (url: string, effect: string) => void}).renderCharacter("http://localhost/broken-b.png", "RAINBOW"));
   await expect(page.locator(".pino-effect-rainbow-layer")).toHaveCount(0);
   await expect(page.locator("#root img")).toHaveCount(0);
+  await page.route("**/recovered.png", (route) => route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aQAAAABJRU5ErkJggg==", "base64") }));
+  await page.evaluate(() => (window as unknown as {renderCharacter: (url: string, effect: string) => void}).renderCharacter("http://localhost/recovered.png", "RAINBOW"));
+  await expect(page.locator(".pino-effect-rainbow-layer")).toHaveCount(3);
 });
 
 test("Ward WEBM failure hides video and restores layered fallback", async ({ page }) => {
