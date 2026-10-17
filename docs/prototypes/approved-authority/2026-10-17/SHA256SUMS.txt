@@ -21,12 +21,12 @@ feb618cd180484ae83001972cd54df2a6b62c61e4ec916fe9453491d34fc4c90  docs/prototype
 f574e0b6cc3621f95513f5306404776d671e5eb1445e3d0f4fda61c3367a025e  docs/prototypes/approved-authority/2026-10-17/PAP-670-timekeeping-ux-v1/refine.cjs
 3ae21f7b0bc211e0199da7c415f2d85c849061be8cbc0d95332021ba019030bd  docs/prototypes/approved-authority/2026-10-17/PAP-670-timekeeping-ux-v1/server.js
 1b0ec7ab5d526acd1c71fac48746d2ca22f77f12ae569b2a579f4b7b822a11f4  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/page.module.css
-9a7ab12c736e919bd77ac4b9b2372b41ffacb574563235fc68eef00f92096b01  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/page.tsx
+9a7ab12c736e919bd77ac4b9b2372b41ffacb574563235fc68eef00f92096b01  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/page.tsx.snapshot
 cf12b008eec1cdccad8675d0a2f255439054b2219bfe699a84bebf09f4e2ac75  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/shift.module.css
-99b6ffba9bc3df1d8bdb9598358229048f221d27e5d4a652812f5778137c13c9  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/ShiftPrototype.tsx
+99b6ffba9bc3df1d8bdb9598358229048f221d27e5d4a652812f5778137c13c9  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/ShiftPrototype.tsx.snapshot
 ba0c83beb669042b9423cdcb66016dec729f3b862b8299f35f5e98e46d8e92bf  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/docs/prototypes/tos-home-v2.md
-9cacd88f7ba7376fd70e2b1fd1a19ac8b534ee0a476a978d54a128cdb363d742  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/RESTORE.txt
-1777fd1a69a4135b9bfa0af0c9ada6080fe3ca924d87c9d8ccf398538091844e  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/runtime-overlay/next.config.ts
+eb5e22034a1d3185ae8c85cc38eeda94ddcf3c059af888f404af200d0ba04d11  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/RESTORE.txt
+1777fd1a69a4135b9bfa0af0c9ada6080fe3ca924d87c9d8ccf398538091844e  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/runtime-overlay/next.config.ts.snapshot
 4fbf124894f31ff3bc118cf001a53de68f0c75a33a0f1cd97b3dd696bc6237c8  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/runtime-overlay/package.json
 950b9bd5f86b3356658195417920f4ebde6ee6b9f5f1ff04307e4761ae568ec7  docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/runtime-overlay/package-lock.json
 efed4b7c1ba486883608e60df8bf84828da24edc2d41a5b5fbb36c83986bfdef  docs/prototypes/approved-authority/2026-10-17/PAP-727-learning-mission-diary-v1/index.html
