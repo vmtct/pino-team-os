@@ -7,6 +7,7 @@ import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
 import contextStyles from "./workforce-context.module.css";
 import calendarStyles from "./workforce-shift-calendar.module.css";
+import timesheetStyles from "./workforce-timesheet.module.css";
 import {
   activeAssignments,
   availabilityRegistrationWeeks,
@@ -234,12 +235,12 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     finally { setSaving(false); }
   }
 
-  const title = view === "profile" ? "Hồ sơ của tôi" : view === "history" ? "Chấm công" : view === "check-in" ? "Check-in/out" : view === "schedule" || view === "availability" ? "Ca làm" : "Hôm nay";
+  const title = view === "profile" ? "Hồ sơ của tôi" : view === "history" || view === "schedule" || view === "availability" ? "Ca làm" : view === "check-in" ? "Check-in/out" : "Hôm nay";
   const active = view === "history" ? "history" : view === "schedule" || view === "availability" ? "schedule" : view === "dashboard" || view === "check-in" ? "today" : undefined;
   const activeSchedule = useMemo(() => activeAssignments(assignments), [assignments]);
   const todayAssignments = activeSchedule.filter((row) => row.workDate === today());
 
-  const compactShiftApp = view === "schedule" || view === "availability";
+  const compactShiftApp = view === "schedule" || view === "availability" || view === "history";
   return <TosShell title={title} subtitle={profile?.displayLabel ?? "PINO Team"} theme="shift" footerItems={TOS_SHIFT_FOOTER} activeFooterId={active} compactAppHeader={compactShiftApp} backHref={compactShiftApp ? "/" : undefined} appIconSrc={compactShiftApp ? "https://pub-892fa79b018d4d2f9b0808189dd2ce46.r2.dev/AppIcon/shift.png" : undefined}>
     {loading ? <p>Đang tải dữ liệu an toàn từ Core…</p> : <>
       {error ? <div className="alert">{error}</div> : null}
@@ -254,7 +255,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
       </> : null}
       {view === "schedule" || view === "availability" ? <ShiftCalendarPanel rows={activeSchedule} centerName={center?.displayName ?? "—"} centerToday={centerToday} week={availabilityWeek ?? currentWeek} weeks={availabilityWeeks} selectedWeekId={(availabilityWeek ?? currentWeek)?.id ?? ""} availability={availability} window={availabilityWindow} templates={templates} saving={saving} onSelectWeek={setAvailabilityWeekId} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
       {view === "check-in" ? <CheckInPanel current={current} state={checkInState} saving={saving} centerReady={Boolean(center)} formOpen={requestFormOpen} reason={requestReason} onReason={setRequestReason} onOpenForm={() => setRequestFormOpen(true)} onCancelForm={() => { setRequestFormOpen(false); setRequestReason(""); }} onClock={() => void clock(current ? "out" : "in")} onRequest={() => void requestUnscheduledCheckIn()} /> : null}
-      {view === "history" ? <History rows={history} /> : null}
+      {view === "history" ? <TimesheetPanel rows={history} current={current} centerToday={centerToday} /> : null}
     </>}
   </TosShell>;
 }
@@ -326,7 +327,20 @@ function shortDate(value: string) { return new Intl.DateTimeFormat("vi-VN", { da
 function weekday(value: string) { return new Intl.DateTimeFormat("vi-VN", { weekday: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
 function dayNumber(value: string) { return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
 function monthLabel(value: string) { return new Intl.DateTimeFormat("vi-VN", { month: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
-function History({ rows }: { rows: TimekeepingSession[] }) { return <section className="card section">{rows.length ? <div className="list">{rows.map((row) => <div className="list-item" key={row.id}><strong>{row.workDate}</strong><div>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "Đang mở"}</div></div>)}</div> : <p className="muted">Chưa có phiên chấm công.</p>}</section>; }
+function TimesheetPanel({ rows, current, centerToday }: { rows: TimekeepingSession[]; current: TimekeepingSession | null; centerToday: string }) {
+  const period = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(centerToday + "T00:00:00Z"));
+  const recent = [...rows].sort((a, b) => b.workDate.localeCompare(a.workDate)).slice(0, 8);
+  return <div className={timesheetStyles.stack}>
+    <section className={timesheetStyles.intro}><span>GIỜ CÔNG</span><h2>{period}</h2><p>Lịch sử chấm công thật từ Core. Tổng giờ và trạng thái duyệt chỉ hiển thị khi có projection authoritative.</p></section>
+    <div className={timesheetStyles.summary}>
+      <article><span>Đã ghi nhận</span><strong>Chưa sẵn sàng</strong><small>Không cộng raw session ở client.</small></article>
+      <article><span>Chờ duyệt</span><strong>Chưa sẵn sàng</strong><small>Core chưa projection approval state cho Staff.</small></article>
+    </div>
+    {current ? <section className={timesheetStyles.openSession}><span>PHIÊN ĐANG MỞ</span><strong>{compactWorkDate(current.workDate)}</strong><p>Bắt đầu {new Date(current.checkInAt).toLocaleString("vi-VN")}. Phiên mở không được tính vào tổng finalized.</p></section> : null}
+    <section className={timesheetStyles.card}><div className={timesheetStyles.row}><h3>Ca gần đây</h3><span>{recent.length} bản ghi</span></div>{recent.length ? <div className={timesheetStyles.history}>{recent.map((row) => <article key={row.id}><div><strong>{compactWorkDate(row.workDate)}</strong><small>{row.status === "OPEN" ? "Đang mở" : "Đã đóng"}</small></div><p>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "Chưa check-out"}</p><em>Hiệu lực điều chỉnh / trạng thái duyệt · Chưa sẵn sàng</em></article>)}</div> : <p className={timesheetStyles.muted}>Chưa có phiên chấm công.</p>}</section>
+    <section className={timesheetStyles.card}><h3>Yêu cầu điều chỉnh</h3><p className={timesheetStyles.muted}>Core hiện chỉ có correction service dành cho Manager/BO. TOS chưa có staff self-service request contract nên không gửi hoặc giả lập yêu cầu.</p><button type="button" disabled>Chưa sẵn sàng</button></section>
+  </div>;
+}
 function Profile({ profile, assignments, center, week, onSaved }: { profile: StaffProfile; assignments: Assignment[]; center: WorkforceContext["centers"][number] | null; week: WorkforceContext["termWeeks"][number] | null; onSaved: (value: StaffProfile) => void }) {
   const [email, setEmail] = useState(profile.email ?? "");
   const [mobile, setMobile] = useState(profile.mobile ?? "");
