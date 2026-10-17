@@ -8,6 +8,7 @@ export function assignmentRoleSummary(data: BoWorkforceWeeklyPlanning, assignmen
 
   const parts: string[] = [];
   if (roles.some((role) => role.roleType === "FRONT_DESK")) parts.push("FD");
+  if (roles.some((role) => role.roleType === "SHIFT_LEADER")) parts.push("Shift Leader");
   const teachers = roles.filter((role) => role.roleType === "TEACHER");
   if (teachers.length === 1) {
     const session = data.sessions.find((item) => item.id === teachers[0]!.targetId);

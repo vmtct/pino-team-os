@@ -654,9 +654,26 @@ export interface BoWorkforceTeachingSession {
   };
 }
 
+export interface BoWorkforceRunningClassResponsibility {
+  id: string;
+  shiftAssignmentId: string;
+  roleType: "TEACHER" | "TEACHING_ASSISTANT";
+  runningClassId: string;
+  status: "ACTIVE" | "CANCELLED";
+  version: number;
+  assignedByUserId: string;
+  assignedAt: string;
+  cancelledByUserId: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BoOperationalShiftPlanResult {
   assignment: BoWorkforceAssignment;
   roleAssignments: BoWorkforceShiftRoleAssignment[];
+  runningClassResponsibilities?: BoWorkforceRunningClassResponsibility[];
   learningOwners: BoWorkforceTeachingSession["learningOwner"][];
 }
 
@@ -671,6 +688,7 @@ export interface BoWorkforceWeeklyPlanning {
   availabilityHistory: BoWorkforceAvailability[];
   assignments: BoWorkforceAssignment[];
   roleAssignments: BoWorkforceShiftRoleAssignment[];
+  runningClassResponsibilities?: BoWorkforceRunningClassResponsibility[];
   sessions: BoWorkforceTeachingSession[];
   windows?: { availability: BoWorkforceWindowDecision; planning: BoWorkforceWindowDecision };
 }
