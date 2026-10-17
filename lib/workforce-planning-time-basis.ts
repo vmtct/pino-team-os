@@ -4,7 +4,7 @@ export type WorkforceShiftTimeBasis = "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
 export type WorkforceShiftCoverageMode = "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
 
 export function canUseTeachingSessionTime(input:{frontDesk:boolean;teacherSessionCount:number}):boolean {
-  return !input.frontDesk && input.teacherSessionCount > 0;
+  return input.teacherSessionCount > 0;
 }
 
 // Legacy compatibility for callers that still send timeBasis. New Manager UI sends coverageMode.
