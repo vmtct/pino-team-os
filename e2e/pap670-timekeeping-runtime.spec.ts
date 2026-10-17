@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 const center={id:"center-test",displayLabel:"Can Tho",timeZone:"Asia/Ho_Chi_Minh"};
 const base={id:"tk-670",staff:{id:"staff-670",displayLabel:"Test Staff"},centerId:center.id,workDate:"2026-10-17",assignmentId:null,assignment:null,checkInAt:"2026-10-17T01:00:00.000Z",checkOutAt:"2026-10-17T05:00:00.000Z",status:"CLOSED",durationSeconds:14400,anomalyFlags:[],recorded:{checkInAt:"2026-10-17T01:00:00.000Z",checkOutAt:"2026-10-17T05:00:00.000Z",durationSeconds:14400},effective:{checkInAt:"2026-10-17T01:00:00.000Z",checkOutAt:"2026-10-17T05:00:00.000Z",durationSeconds:14400},latestCorrection:null};
-test.skip("PAP-670 actual React page: correct mutation refetches canonical data",async({page})=>{
- // Requires an isolated authorized BO session fixture; middleware redirects anonymous browser to staff login.
+const authorizedStorageState = process.env.PAP670_E2E_STORAGE_STATE;
+if (authorizedStorageState) test.use({ storageState: authorizedStorageState });
+test("PAP-670 actual React page: correct mutation refetches canonical data",async({page})=>{
+ test.skip(!authorizedStorageState, "Requires PAP670_E2E_STORAGE_STATE with an authorized isolated BO test session; never bypass middleware.");
  test.setTimeout(120000);
  const writes:any[]=[];let sessions:any[]=[{...base}];
- await page.route("**/api/bo/workforce/timekeeping/**",async(route)=>{
+ await page.route("**/api/bo/workforce/timekeeping*",async(route)=>{
   const request=route.request(),url=new URL(request.url()),path=url.pathname;
   if(request.method()==="POST"){
    const body=request.postDataJSON();writes.push({path,body,headers:request.headers()});
