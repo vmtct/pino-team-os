@@ -34,14 +34,15 @@ test("contextual app footers replace Home navigation", () => {
     assert.equal(footer.length <= 5, true);
     assert.equal(footer.some((item) => item.id === "home" || item.href === "/"), false);
   }
-  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.id), ["today", "schedule", "register", "check", "history"]);
-  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.href), ["/dashboard", "/schedule", "/availability", "/check-in", "/timesheet"]);
+  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.id), ["today", "schedule", "history", "income"]);
+  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.href), ["/dashboard", "/schedule", "/timesheet", "/earnings"]);
   assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.id), ["presence", "onboarding", "attendance"]);
 });
 
 test("new TOS app routes stay inside the staff-session perimeter", () => {
   assert.equal(requiresTosStaffSession("tos.pinohouse.art", "/tasks"), true);
   assert.equal(requiresTosStaffSession("tos.pinohouse.art", "/availability"), true);
+  assert.equal(requiresTosStaffSession("tos.pinohouse.art", "/earnings"), true);
   assert.equal(requiresTosStaffSession("bo.pinohouse.art", "/tasks"), false);
 });
 
