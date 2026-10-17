@@ -119,7 +119,7 @@ export function TimekeepingView() {
       rows={invalidRange ? [] : (page?.data ?? [])}
       columns={columns}
       rowKey={(row) => row.id}
-      caption={mode === "today" ? "Today timekeeping sessions" : mode === "attention" ? "OPEN sessions requiring review" : "Timekeeping history"}
+      caption={mode === "today" ? "Today timekeeping sessions" : mode === "attention" ? "OPEN sessions for review" : "Timekeeping history"}
       state={invalidRange ? "ready" : load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
       stateMessage={load.state === "error" ? load.message : undefined}
       filterChips={[
@@ -282,7 +282,8 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
       </> : null}
     </section>
 
-    <section><h3>Provenance / anomalies</h3>{row.anomalyFlags.length ? row.anomalyFlags.map((flag) => <span key={flag} className={styles.anomaly}>{flag}</span>) : <p className={styles.muted}>No current canonical anomaly flags.</p>}</section>
+    <section><h3>Core anomaly flags (canonical)</h3>{row.anomalyFlags.length ? row.anomalyFlags.map((flag) => <span key={flag} className={styles.anomaly}>{flag}</span>) : <p className={styles.muted}>No current canonical anomaly flags.</p>}</section>
+    <section><h3>UI review signals (derived)</h3>{reviewSignals(row, localDate(timeZone), timeZone).length ? reviewSignals(row, localDate(timeZone), timeZone).map((signal) => <span key={signal} className={styles.anomaly}>{signal}</span>) : <p className={styles.muted}>No UI-derived review signals.</p>}</section>
     <section className={styles.timeline}><h3>Timeline</h3><div><i /><span>Recorded check-in · {datetime(row.recorded.checkInAt, timeZone)}</span></div>{row.recorded.checkOutAt ? <div><i /><span>Recorded check-out · {datetime(row.recorded.checkOutAt, timeZone)}</span></div> : <div><i /><span>Session remains OPEN</span></div>}{row.latestCorrection ? <div><i /><span>Correction appended · {datetime(row.latestCorrection.createdAt, timeZone)}</span></div> : null}</section>
 
     {row.status === "CLOSED" ? <section className={styles.correctionSection}>
