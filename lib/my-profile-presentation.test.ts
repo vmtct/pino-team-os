@@ -11,7 +11,9 @@ test("TOS current user identity uses canonical profile displayLabel and links to
   assert.match(user, /workforceApi\.profile\(\)/);
   assert.match(user, /shortDisplayName\(profile\?\.displayLabel\)/);
   assert.match(user, /href="\/info"/);
-  assert.match(home, /<TosGreeting \/>/);
+  assert.match(home, /workforceApi\.profile\(\)/);
+  assert.match(home, /shortDisplayName\(profile\?\.displayLabel\)/);
+  assert.match(home, /router\.push\("\/info"\)/);
 });
 
 test("BO shell receives canonical current-user context and exposes My Profile", () => {
