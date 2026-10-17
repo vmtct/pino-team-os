@@ -118,12 +118,12 @@ export function TimekeepingView() {
       rows={invalidRange ? [] : (page?.data ?? [])}
       columns={columns}
       rowKey={(row) => row.id}
-      caption={mode === "today" ? "Today timekeeping sessions" : "Timekeeping history"}
+      caption={mode === "today" ? "Today timekeeping sessions" : mode === "attention" ? "OPEN sessions requiring review" : "Timekeeping history"}
       state={invalidRange ? "ready" : load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
       stateMessage={load.state === "error" ? load.message : undefined}
       filterChips={[
-        ...(mode === "history" ? [{ key: "mode", label: "View", value: "History", onClear: () => setMode("today") }] : []),
-        ...(status ? [{ key: "status", label: "Status", value: status, onClear: () => setFilter("status", null) }] : []),
+        ...(mode !== "today" ? [{ key: "mode", label: "View", value: mode === "history" ? "History" : "Needs Attention", onClear: () => setMode("today") }] : []),
+        ...(status && mode !== "attention" ? [{ key: "status", label: "Status", value: status, onClear: () => setFilter("status", null) }] : []),
         ...(staffId ? [{ key: "staff", label: "Staff", value: staffOptions.find((staff) => staff.id === staffId)?.displayLabel ?? short(staffId), onClear: () => setFilter("staff", null) }] : []),
       ]}
       toolbarActions={<div className={styles.gridToolbarActions}>
@@ -145,7 +145,7 @@ export function TimekeepingView() {
       pagination={page ? { page: state.page, pageSize: state.pageSize, total: page.summary.totalSessions, pageSizeOptions: PAGE_SIZES, onPageChange: setPage, onPageSizeChange: setPageSize } : undefined}
       selectedRowKey={selectedId || null}
       onRowOpen={(row) => setSelectedId(row.id)}
-      emptyTitle={mode === "today" ? "No timekeeping sessions today" : "No matching timekeeping history"}
+      emptyTitle={mode === "today" ? "No timekeeping sessions today" : mode === "attention" ? "No OPEN sessions in this date range" : "No matching timekeeping history"}
       emptyMessage="Adjust the bounded date, status or staff filters. Canonical attendance remains in Core."
     />
 
