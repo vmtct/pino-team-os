@@ -34,7 +34,7 @@ export function TimekeepingView() {
   const today = selectedCenter ? localDate(selectedCenter.timeZone) : "";
   const startDate = state.filters.from ?? today;
   const endDate = state.filters.to ?? today;
-  const invalidRange = mode !== "today" && startDate > endDate;
+  const invalidRange = mode !== "today" && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || startDate > endDate);
   const status = state.filters.status === "OPEN" || state.filters.status === "CLOSED" ? state.filters.status : "";
   const staffId = state.filters.staff ?? "";
   const page = load.state === "ready" ? load.page : null;
@@ -55,7 +55,7 @@ export function TimekeepingView() {
     { key: "review", header: "Review signals", minWidth: 175, render: (row) => <span title="UI-derived review signals, not canonical Core anomalies">{reviewSignals(row, today, timeZone).join(", ") || "—"}</span> },
     { key: "correction", header: "Provenance", minWidth: 135, render: (row) => row.latestCorrection ? <BoDataGridStatus value="CORRECTED" tone="info" /> : <span>Recorded</span> },
     { key: "status", header: "Status", minWidth: 110, render: (row) => <BoDataGridStatus value={row.status} tone={row.status === "OPEN" ? "warning" : "success"} /> },
-  ], [timeZone]);
+  ], [timeZone, today]);
 
   useEffect(() => {
     let active = true;
@@ -76,7 +76,7 @@ export function TimekeepingView() {
       pageSize: state.pageSize,
       query: {
         ...params,
-        ...(status ? { status } : {}),
+        ...(mode === "attention" ? { status: "OPEN" as const } : status ? { status } : {}),
         ...(staffId ? { staffMemberId: staffId } : {}),
       },
       load: boApi.timekeeping,
@@ -115,7 +115,7 @@ export function TimekeepingView() {
     {invalidRange ? <p role="alert">Invalid date range: From must be on or before To.</p> : null}
     {mode === "attention" ? <p role="note">Review OPEN sessions within the selected date range. Signals are derived in the UI; Core anomaly flags remain authoritative. Results are paginated, not an all-time count.</p> : null}
     <BoDataGrid
-      rows={invalidRange ? [] : (mode === "attention" ? (page?.data ?? []).filter((row) => row.status === "OPEN") : page?.data ?? [])}
+      rows={invalidRange ? [] : (page?.data ?? [])}
       columns={columns}
       rowKey={(row) => row.id}
       caption={mode === "today" ? "Today timekeeping sessions" : "Timekeeping history"}
@@ -137,7 +137,7 @@ export function TimekeepingView() {
           <label>From<input aria-label="Timekeeping history from" type="date" value={startDate} onChange={(event) => setFilter("from", event.target.value || null)} /></label>
           <label>To<input aria-label="Timekeeping history to" type="date" value={endDate} onChange={(event) => setFilter("to", event.target.value || null)} /></label>
         </> : <span className={styles.today}>{today}</span>}
-        <label>Status<select aria-label="Filter Timekeeping by status" value={status} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
+        {mode !== "attention" ? <label>Status<select aria-label="Filter Timekeeping by status" value={status} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label> : null}
         <label>Staff<select aria-label="Filter Timekeeping by staff" value={staffId} onChange={(event) => setFilter("staff", event.target.value || null)}><option value="">All</option>{staffOptions.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayLabel}</option>)}</select></label>
       </div>}
       onRefresh={() => setRefreshToken((value) => value + 1)}
