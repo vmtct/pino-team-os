@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./LogoutButton";
 import { TosCurrentUserChip } from "./TosCurrentUser";
@@ -59,7 +61,7 @@ export function TosShell({
     <div className={`${styles.opsShell} ${themeClass[theme]} ${compactAppHeader ? styles.compactAppShell : ""}`}>
       <SupportSessionBanner />
       {compactAppHeader && !home ? <header className={styles.compactHeader}>
-        <Link href={backHref ?? homeHref} className={styles.compactBack} aria-label="Quay về TOS Home">←</Link>
+        <Link href={backHref ?? homeHref} className={styles.compactBack} aria-label="Quay về TOS Home"><FontAwesomeIcon icon={faArrowLeft} /></Link>
         <div className={styles.compactBrand}>{appIconSrc ? <img src={appIconSrc} alt="" className={styles.compactAppIcon} /> : null}<h1>{title}</h1></div>
       </header> : <header className={styles.opsHeader}>
         <div className={styles.opsHeaderCopy}>
