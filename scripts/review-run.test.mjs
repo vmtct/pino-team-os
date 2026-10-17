@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {buildBrief,canonicalBinding,canonicalOutcome,validateSliceLedger,worktreePaths} from './review-run.mjs';
+import {assertRiskBinding,buildBrief,canonicalBinding,canonicalOutcome,validateSliceLedger,worktreePaths} from './review-run.mjs';
 
 test('canonical binding is immutable INDIE',()=>{
   const b=canonicalBinding('VMTCT/PINO-TEAM-OS',629,'d6e200c62462aea06339fca015f00475f6b7905d');
@@ -40,4 +40,12 @@ test('slice ledger must bind exact jira repo PR head and green CI',()=>{
   assert.equal(validateSliceLedger(good,'PAP-712',binding),'PAP-712');
   assert.throws(()=>validateSliceLedger({...good,candidate:{...good.candidate,repo:'vmtct/pino-core'}},'PAP-712',binding),/SLICE_BINDING_MISMATCH/);
   assert.throws(()=>validateSliceLedger({...good,dev:{exactHeadCi:{status:'SUCCESS',runId:123,headSha:'b'.repeat(40)}}},'PAP-712',binding),/EXACT_HEAD_CI_REQUIRED/);
+});
+
+
+test('terminal or consumed review reuse must retain exact risk binding',()=>{
+  const risk={bindingHash:'a'.repeat(64)};
+  assert.doesNotThrow(()=>assertRiskBinding({state:'CLAIMED'},risk));
+  assert.doesNotThrow(()=>assertRiskBinding({state:'TERMINAL',handle:{riskPreflight:{bindingHash:risk.bindingHash}}},risk));
+  assert.throws(()=>assertRiskBinding({state:'CONSUMED',handle:{riskPreflight:{bindingHash:'b'.repeat(64)}}},risk),/ATOMIC_REVIEW_RISK_BINDING_STALE/);
 });

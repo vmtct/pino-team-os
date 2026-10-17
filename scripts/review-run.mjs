@@ -70,7 +70,7 @@ export function validateSliceLedger(ledger,jiraKey,binding){
   return sliceId;
 }
 function canonicalSlice(jiraKey,binding){const {value:ledger}=loadSlice(jiraKey),sliceId=validateSliceLedger(ledger,jiraKey,binding);return {sliceId,ledger};}
-function assertRiskBinding(record,risk){const bound=record?.handle?.riskPreflight;if(bound&&bound.bindingHash!==risk.bindingHash)throw new Error('ATOMIC_REVIEW_RISK_BINDING_STALE');}
+export function assertRiskBinding(record,risk){const bound=record?.handle?.riskPreflight;if(bound&&bound.bindingHash!==risk.bindingHash)throw new Error('ATOMIC_REVIEW_RISK_BINDING_STALE');}
 function line(v){return String(v??'').replace(/\r?\n/g,' ').replace(/\s+/g,' ').trim();}
 function diffFiles(worktree,base,candidate){const out=wsl(`cd ${q(worktree)} && git diff --name-only origin/${q(base)}...${q(candidate)}`);return out.split(/\r?\n/).filter(Boolean);}
 export function buildBrief({binding,pr,jiraKey,ledger,risk,files}){
@@ -101,7 +101,9 @@ export function prepareAtomicReview(opts){return prepare(opts);}
 export function runAtomicReview(opts){
   const p=prepare(opts);
   let claim;try{claim=claimReview(p.binding,'CODEX',{reclaimNoSideEffect:true});}catch(e){throw new Error('ATOMIC_REVIEW_CLAIM_FAILED:'+e.message);}
+  assertRiskBinding(claim,p.risk);
   const started=startCodexReview({key:p.key,promptPath:p.briefPath,wslWorktree:p.worktree,sessionSlice:p.sliceId,projectCode:opts.project});
+  assertRiskBinding(started,p.risk);
   return {...canonicalOutcome(started),candidate:p.binding.candidate,worktree:p.worktree,briefPath:p.briefPath};
 }
 export function statusAtomicReview(opts){
