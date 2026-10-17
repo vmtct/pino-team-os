@@ -33,7 +33,7 @@ export function TimekeepingView() {
   const centerId = state.filters.center ?? centers[0]?.id ?? "";
   const selectedCenter = centers.find((center) => center.id === centerId) ?? centers[0] ?? null;
   const today = selectedCenter ? localDate(selectedCenter.timeZone) : "";
-  const startDate = state.filters.from ?? (mode === "attention" ? dateDaysBefore(today, 14) : today);
+  const startDate = state.filters.from ?? (mode === "attention" ? dateDaysBefore(today, 30) : today);
   const endDate = state.filters.to ?? today;
   const invalidRange = mode !== "today" && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || startDate > endDate);
   const status = state.filters.status === "OPEN" || state.filters.status === "CLOSED" ? state.filters.status : "";
@@ -53,6 +53,7 @@ export function TimekeepingView() {
     { key: "checkOut", header: "Check-out", minWidth: 160, render: (row) => row.effective.checkOutAt ? datetime(row.effective.checkOutAt, timeZone) : "—" },
     { key: "duration", header: "Duration", minWidth: 105, render: (row) => duration(row.effective.durationSeconds) },
     { key: "assignment", header: "Assignment", minWidth: 180, render: (row) => row.assignment?.shift?.displayLabel ?? (row.assignmentId ? short(row.assignmentId) : "Legacy") },
+    { key: "canonical", header: "Core anomalies", minWidth: 175, render: (row) => <span title="Canonical Core anomaly flags">{row.anomalyFlags.join(", ") || "—"}</span> },
     { key: "review", header: "Review signals", minWidth: 175, render: (row) => <span title="UI-derived review signals, not canonical Core anomalies">{reviewSignals(row, today, timeZone).join(", ") || "—"}</span> },
     { key: "correction", header: "Provenance", minWidth: 135, render: (row) => row.latestCorrection ? <BoDataGridStatus value="CORRECTED" tone="info" /> : <span>Recorded</span> },
     { key: "status", header: "Status", minWidth: 110, render: (row) => <BoDataGridStatus value={row.status} tone={row.status === "OPEN" ? "warning" : "success"} /> },
