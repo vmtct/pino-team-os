@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./LogoutButton";
 import { TosCurrentUserChip } from "./TosCurrentUser";
@@ -38,6 +40,8 @@ export function TosShell({
   footerItems,
   activeFooterId,
   home = false,
+  compactAppHeader = false,
+  appIconSrc,
 }: {
   children: ReactNode;
   title: string;
@@ -48,13 +52,18 @@ export function TosShell({
   footerItems: TosFooterItem[];
   activeFooterId?: string;
   home?: boolean;
+  compactAppHeader?: boolean;
+  appIconSrc?: string;
 }) {
   assertFooterLimit(footerItems);
 
   return (
-    <div className={`${styles.opsShell} ${themeClass[theme]}`}>
+    <div className={`${styles.opsShell} ${themeClass[theme]} ${compactAppHeader ? styles.compactAppShell : ""}`}>
       <SupportSessionBanner />
-      <header className={styles.opsHeader}>
+      {compactAppHeader && !home ? <header className={styles.compactHeader}>
+        <Link href={backHref ?? homeHref} className={styles.compactBack} aria-label="Quay về TOS Home"><FontAwesomeIcon icon={faArrowLeft} /></Link>
+        <div className={styles.compactBrand}>{appIconSrc ? <img src={appIconSrc} alt="" className={styles.compactAppIcon} /> : null}<h1>{title}</h1></div>
+      </header> : <header className={styles.opsHeader}>
         <div className={styles.opsHeaderCopy}>
           <span className={styles.opsKicker}>{home ? "PINO TEAM · TOS" : "TOS APP"}</span>
           <h1>{title}</h1>
@@ -74,11 +83,11 @@ export function TosShell({
           <TosCurrentUserChip />
           <LogoutButton className={styles.logoutButton} />
         </div>
-      </header>
+      </header>}
 
       <main className={styles.opsContent}>{children}</main>
 
-      <nav
+      {footerItems.length > 0 ? <nav
         className={`${styles.opsFooter} ${home ? styles.opsFooterHome : styles.opsFooterFeature}`}
         aria-label={home ? "Điều hướng ứng dụng TOS" : `Điều hướng ${title}`}
       >
@@ -93,7 +102,7 @@ export function TosShell({
             <small>{item.label}</small>
           </Link>
         ))}
-      </nav>
+      </nav> : null}
     </div>
   );
 }
