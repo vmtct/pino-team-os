@@ -14,7 +14,7 @@ test("invalid character projection fails visibly instead of throwing", () => {
   assert.equal(hasRenderableCharacterConfig({}), false);
   assert.equal(pinoriaAssetUrl(42), null);
   const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config: {} }));
-  assert.match(html, /data-character-state="invalid"/);
+  assert.match(html, /data-character-state="fallback"/);
   assert.match(html, /Nhân vật chưa sẵn sàng/);
 });
 
@@ -29,7 +29,7 @@ test("partial canonical character projections fail visibly", () => {
   for (const config of partials) {
     assert.equal(hasRenderableCharacterConfig(config), false);
     const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config }));
-    assert.match(html, /data-character-state="invalid"/);
+    assert.match(html, /data-character-state="fallback"/);
   }
 });
 
