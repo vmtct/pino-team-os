@@ -14,6 +14,7 @@ import type { BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
 import { loadBoTimekeepingPageForState } from "@/lib/bo-timekeeping-page-controller";
 import styles from "./timekeeping.module.css";
 import { isoToLocalInput, localInputToIso } from "@/lib/bo-timekeeping-local-time";
+// Attention cards share the Timekeeping stylesheet.
 
 type Mode = "today" | "history" | "attention";
 type TimekeepingCenter = { id: string; displayName: string; timeZone: string };
@@ -114,6 +115,15 @@ export function TimekeepingView() {
       <Metric label="Total sessions" value={page.summary.totalSessions} />
     </section> : null}
 
+    {mode !== "today" && page && !invalidRange ? <section className={styles.attentionSummary} aria-label="Review signals on current page">
+      <div className={styles.attentionSummaryHead}><strong>Review signals on this page</strong><span>Page {state.page} · {page.data.length} loaded sessions · not all-time totals</span></div>
+      <div className={styles.attentionCards}>
+        {(["Overdue OPEN", "Zero duration", "Long duration", "Overnight"] as const).map((signal) => {
+          const count = page.data.filter((session) => reviewSignals(session, today, timeZone).includes(signal)).length;
+          return <div className={styles.attentionCard} key={signal}><span>{signal}</span><strong>{count}</strong><small>UI-derived · current page only</small></div>;
+        })}
+      </div>
+    </section> : null}
     {invalidRange ? <p role="alert">Invalid date range: From must be on or before To.</p> : null}
     {mode === "attention" ? <p role="note">Review OPEN sessions within the selected date range. Signals are derived in the UI; Core anomaly flags remain authoritative. Results are paginated, not an all-time count.</p> : null}
     <BoDataGrid
