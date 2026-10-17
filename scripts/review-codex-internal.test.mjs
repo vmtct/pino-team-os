@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {claimReview,reserveReviewDispatch,markReviewStarted,markReviewTerminal,inspectReview} from './review-tool-state.mjs';
-import {preflightCodexRisk,statusCodexReview} from './review-codex-tool.mjs';
+import {preflightCodexRisk,statusCodexReview} from './review-codex-internal.mjs';
 
 function setup(pr){const root=fs.mkdtempSync(path.join(os.tmpdir(),'review-codex-'));process.env.PINO_REVIEW_TOOL_STATE_DIR=path.join(root,'state');process.env.PINO_REVIEW_CODEX_STATE_DIR=path.join(root,'codex');const binding={reviewKind:'INDIE',repository:'vmtct/pino-team-os',prNumber:pr,candidate:String(pr).padStart(40,'b').slice(-40)},claim=claimReview(binding,'CODEX'),reserved=reserveReviewDispatch(claim.obligationKey,'CODEX'),resultPath=path.join(root,'result.json'),snapshotPath=path.join(root,'snapshot.json');markReviewStarted(claim.obligationKey,'CODEX',{workerPid:999999,resultPath,snapshotPath,attemptId:reserved.attemptId,dispatchId:reserved.dispatchId},reserved.dispatchId);return {root,claim:reserved,resultPath}}
 function result(claim,body){return JSON.stringify({attemptId:claim.attemptId,dispatchId:claim.dispatchId,...body})}
