@@ -165,7 +165,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
   const [correctedAt, setCorrectedAt] = useState(() => isoToLocalInput(row.effective.checkInAt, timeZone));
   const [reason, setReason] = useState("");
   const [resolving, setResolving] = useState(false);
-  const [resolvedCheckOutAt, setResolvedCheckOutAt] = useState("");
+  const [resolvedCheckOutAt, setResolvedCheckOutAt] = useState(() => isoToLocalInput(row.effective.checkOutAt ?? new Date().toISOString(), timeZone));
   const [resolveReason, setResolveReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -178,7 +178,7 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
     setCorrectedAt(isoToLocalInput(row.effective.checkInAt, timeZone));
     setReason("");
     setResolving(false);
-    setResolvedCheckOutAt("");
+    setResolvedCheckOutAt(isoToLocalInput(row.effective.checkOutAt ?? new Date().toISOString(), timeZone));
     setResolveReason("");
     setNotice("");
     correctionAttempt.current = null;
@@ -217,6 +217,8 @@ function Detail({ row, timeZone, onSaved }: { row: BoTimekeepingSession; timeZon
     if (!reason.trim() || !correctedAt) return;
     const correctedIso = localInputToIso(correctedAt, timeZone);
     if (!correctedIso) { setNotice("Ngày giờ điều chỉnh không hợp lệ theo múi giờ trung tâm."); return; }
+    const other = correctionType === "CHECK_IN_AT" ? row.effective.checkOutAt : row.effective.checkInAt;
+    if (other && (correctionType === "CHECK_IN_AT" ? Date.parse(correctedIso) >= Date.parse(other) : Date.parse(correctedIso) <= Date.parse(other))) { setNotice("Giờ vào phải trước giờ ra."); return; }
     const command = {
       correctionType,
       correctedAt: correctedIso,
