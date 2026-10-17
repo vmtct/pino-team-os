@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {buildBrief,canonicalBinding,canonicalOutcome,worktreePaths} from './review-run.mjs';
+import {buildBrief,canonicalBinding,canonicalOutcome,validateSliceLedger,worktreePaths} from './review-run.mjs';
 
 test('canonical binding is immutable INDIE',()=>{
   const b=canonicalBinding('VMTCT/PINO-TEAM-OS',629,'d6e200c62462aea06339fca015f00475f6b7905d');
@@ -31,4 +31,13 @@ test('canonical outcomes never mislabel local failure as external wait',()=>{
 test('legacy review entrypoint files are removed',()=>{
   const dir=fileURLToPath(new URL('.',import.meta.url));
   for(const name of ['review-claim-tool.mjs','review-codex-tool.mjs','review-chatgpt-tool.mjs'])assert.equal(fs.existsSync(dir+name),false,name);
+});
+
+
+test('slice ledger must bind exact jira repo PR head and green CI',()=>{
+  const binding=canonicalBinding('vmtct/pino-team-os',634,'a'.repeat(40));
+  const good={slice:{id:'PAP-712'},candidate:{repo:'vmtct/pino-team-os',pr:634,headSha:'a'.repeat(40)},dev:{exactHeadCi:{status:'SUCCESS',runId:123,headSha:'a'.repeat(40)}}};
+  assert.equal(validateSliceLedger(good,'PAP-712',binding),'PAP-712');
+  assert.throws(()=>validateSliceLedger({...good,candidate:{...good.candidate,repo:'vmtct/pino-core'}},'PAP-712',binding),/SLICE_BINDING_MISMATCH/);
+  assert.throws(()=>validateSliceLedger({...good,dev:{exactHeadCi:{status:'SUCCESS',runId:123,headSha:'b'.repeat(40)}}},'PAP-712',binding),/EXACT_HEAD_CI_REQUIRED/);
 });

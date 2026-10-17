@@ -61,6 +61,16 @@ function ensureExactWorktree({jiraKey,repository,candidate,baseRefName,slice,pro
 }
 function slicePaths(jiraKey){const name=slug(jiraKey)+'.json';return {ledger:path.join(SOP,'state','slices',name),manifest:path.join(SOP,'state','test-impact',name)};}
 function loadSlice(jiraKey){const p=slicePaths(jiraKey).ledger;if(!fs.existsSync(p))throw new Error('ATOMIC_REVIEW_SLICE_LEDGER_MISSING:'+p);return {path:p,value:readJson(p)};}
+export function validateSliceLedger(ledger,jiraKey,binding){
+  const sliceId=String(jiraKey||'').trim().toUpperCase();
+  const candidate=ledger?.candidate||{},ci=ledger?.dev?.exactHeadCi||{};
+  const exact=String(ledger?.slice?.id||'').trim().toUpperCase()===sliceId&&String(candidate.repo||'').trim().toLowerCase()===binding.repository&&Number(candidate.pr)===binding.prNumber&&String(candidate.headSha||'').trim().toLowerCase()===binding.candidate;
+  if(!exact)throw new Error('ATOMIC_REVIEW_SLICE_BINDING_MISMATCH:'+sliceId);
+  if(String(ci.status||'').toUpperCase()!=='SUCCESS'||String(ci.headSha||'').trim().toLowerCase()!==binding.candidate||!ci.runId)throw new Error('ATOMIC_REVIEW_EXACT_HEAD_CI_REQUIRED:'+sliceId);
+  return sliceId;
+}
+function canonicalSlice(jiraKey,binding){const {value:ledger}=loadSlice(jiraKey),sliceId=validateSliceLedger(ledger,jiraKey,binding);return {sliceId,ledger};}
+function assertRiskBinding(record,risk){const bound=record?.handle?.riskPreflight;if(bound&&bound.bindingHash!==risk.bindingHash)throw new Error('ATOMIC_REVIEW_RISK_BINDING_STALE');}
 function line(v){return String(v??'').replace(/\r?\n/g,' ').replace(/\s+/g,' ').trim();}
 function diffFiles(worktree,base,candidate){const out=wsl(`cd ${q(worktree)} && git diff --name-only origin/${q(base)}...${q(candidate)}`);return out.split(/\r?\n/).filter(Boolean);}
 export function buildBrief({binding,pr,jiraKey,ledger,risk,files}){
@@ -81,24 +91,25 @@ export function buildBrief({binding,pr,jiraKey,ledger,risk,files}){
 function writeBrief(key,text){fs.mkdirSync(BRIEF_ROOT,{recursive:true});const p=path.join(BRIEF_ROOT,key+'.md'),tmp=p+'.tmp-'+process.pid;fs.writeFileSync(tmp,text);fs.renameSync(tmp,p);return p;}
 function prepare(opts){
   const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate),key=obligationKey(binding);
-  const wt=ensureExactWorktree({jiraKey:opts.jiraKey,repository:binding.repository,candidate:binding.candidate,baseRefName:pr.baseRefName,slice:opts.slice,project:opts.project});
-  const {value:ledger}=loadSlice(opts.slice),risk=preflightCodexRisk(opts.slice),files=diffFiles(wt.target,pr.baseRefName,binding.candidate);
-  const briefPath=writeBrief(key,buildBrief({binding,pr,jiraKey:opts.jiraKey,ledger,risk,files}));
-  return {binding,key,pr,worktree:wt.target,briefPath,risk,files};
+  const {sliceId,ledger}=canonicalSlice(opts.jiraKey,binding),risk=preflightCodexRisk(sliceId);
+  const wt=ensureExactWorktree({jiraKey:sliceId,repository:binding.repository,candidate:binding.candidate,baseRefName:pr.baseRefName,slice:sliceId,project:opts.project});
+  const files=diffFiles(wt.target,pr.baseRefName,binding.candidate);
+  const briefPath=writeBrief(key,buildBrief({binding,pr,jiraKey:sliceId,ledger,risk,files}));
+  return {binding,key,pr,sliceId,worktree:wt.target,briefPath,risk,files};
 }
 export function prepareAtomicReview(opts){return prepare(opts);}
 export function runAtomicReview(opts){
   const p=prepare(opts);
   let claim;try{claim=claimReview(p.binding,'CODEX',{reclaimNoSideEffect:true});}catch(e){throw new Error('ATOMIC_REVIEW_CLAIM_FAILED:'+e.message);}
-  const started=startCodexReview({key:p.key,promptPath:p.briefPath,wslWorktree:p.worktree,sessionSlice:opts.slice,projectCode:opts.project});
+  const started=startCodexReview({key:p.key,promptPath:p.briefPath,wslWorktree:p.worktree,sessionSlice:p.sliceId,projectCode:opts.project});
   return {...canonicalOutcome(started),candidate:p.binding.candidate,worktree:p.worktree,briefPath:p.briefPath};
 }
 export function statusAtomicReview(opts){
-  const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate);
-  const key=obligationKey(binding);let record=inspectReview(key);if(record.provider==='CODEX'&&!['NO_SIDE_EFFECT','TERMINAL','CONSUMED'].includes(record.state))record=statusCodexReview({key});
+  const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate),{sliceId}=canonicalSlice(opts.jiraKey,binding),risk=preflightCodexRisk(sliceId);
+  const key=obligationKey(binding);let record=inspectReview(key);assertRiskBinding(record,risk);if(record.provider==='CODEX'&&!['NO_SIDE_EFFECT','TERMINAL','CONSUMED'].includes(record.state))record=statusCodexReview({key});assertRiskBinding(record,risk);
   let out=canonicalOutcome(record);if(['PASS','HOLD'].includes(out.outcome)&&record.state==='TERMINAL'){record=consumeReview(key,record.provider);out=canonicalOutcome(record);}
   return {...out,candidate:binding.candidate};
 }
-function argsOf(argv){const a=[...argv],cmd=a.shift();if(a.includes('--waiver'))throw new Error('ATOMIC_REVIEW_WAIVER_UNSUPPORTED');const v=(n,required=true)=>{const i=a.indexOf(n);if(i<0){if(required)throw new Error('ARG_REQUIRED:'+n);return null;}if(i===a.length-1)throw new Error('ARG_REQUIRED:'+n);return a[i+1]};return {cmd,opts:{jiraKey:v('--jira'),repository:v('--repo'),prNumber:Number(v('--pr')),slice:v('--slice'),project:v('--project')}};}
-async function main(){const {cmd,opts}=argsOf(process.argv.slice(2));let out;if(cmd==='prepare')out=prepareAtomicReview(opts);else if(cmd==='run')out=runAtomicReview(opts);else if(cmd==='status')out=statusAtomicReview(opts);else throw new Error('USAGE: review-run.mjs prepare|run|status --jira PAP-N --repo owner/repo --pr N --slice PAP-N --project PRJ-X');console.log(JSON.stringify(out,null,2));}
+function argsOf(argv){const a=[...argv],cmd=a.shift();if(a.includes('--waiver'))throw new Error('ATOMIC_REVIEW_WAIVER_UNSUPPORTED');if(a.includes('--slice'))throw new Error('ATOMIC_REVIEW_SLICE_ARGUMENT_RETIRED');const v=(n,required=true)=>{const i=a.indexOf(n);if(i<0){if(required)throw new Error('ARG_REQUIRED:'+n);return null;}if(i===a.length-1)throw new Error('ARG_REQUIRED:'+n);return a[i+1]};return {cmd,opts:{jiraKey:v('--jira'),repository:v('--repo'),prNumber:Number(v('--pr')),project:v('--project')}};}
+async function main(){const {cmd,opts}=argsOf(process.argv.slice(2));let out;if(cmd==='prepare')out=prepareAtomicReview(opts);else if(cmd==='run')out=runAtomicReview(opts);else if(cmd==='status')out=statusAtomicReview(opts);else throw new Error('USAGE: review-run.mjs prepare|run|status --jira PAP-N --repo owner/repo --pr N --project PRJ-X');console.log(JSON.stringify(out,null,2));}
 if(pathToFileURL(process.argv[1]||'').href===import.meta.url)main().catch(e=>{console.error('ERROR: '+e.message);process.exitCode=1});
