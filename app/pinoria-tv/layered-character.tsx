@@ -38,7 +38,8 @@ export function pinoriaAssetUrl(path: unknown) {
 export function hasRenderableCharacterConfig(config: unknown) {
   if (!config || typeof config !== "object" || Array.isArray(config)) return false;
   const source = config as Record<string, unknown>;
-  return ["hair", "face", "outfit"].every((key) => pinoriaAssetUrl(source[key]) !== null);
+  return pinoriaAssetUrl(source.hair) !== null && pinoriaAssetUrl(source.face) !== null
+    && pinoriaAssetUrl(source.outfit ?? source.body) !== null;
 }
 
 const BASE_LAYER_ORDER: Array<{ slot: PinoriaWardSlot | "EYEWEAR"; source: (config: PinoriaCharacterConfig) => string | undefined; zIndex: number }> = [

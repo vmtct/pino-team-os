@@ -131,3 +131,11 @@ test("canonical character layers remain renderable", () => {
   const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config }));
   assert.match(html, /https:\/\/assets\.pinohouse\.art\/draft\/Body\.png/);
 });
+
+test("legacy body alias remains renderable when outfit is absent", () => {
+  const config = { hair: "draft/Hair.png", face: "draft/Face.png", body: "draft/Body.png" };
+  assert.equal(hasRenderableCharacterConfig(config), true);
+  const html = renderToStaticMarkup(React.createElement(LayeredCharacter, { config }));
+  assert.doesNotMatch(html, /data-character-state="fallback"/);
+  assert.match(html, /draft\/Body\.png/);
+});
