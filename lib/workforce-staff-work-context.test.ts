@@ -96,3 +96,16 @@ test("PAP-705 unifies schedule and weekly availability without inventing assignm
   assert.match(source, /Vai trò ca · Chưa sẵn sàng/);
   assert.match(source, /dayInZone\(center\.timeZone\)/);
 });
+
+
+test("PAP-706 keeps Giờ công truthful while effective totals and correction request are unavailable", async () => {
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  const api = await readFile("lib/workforce-api.ts", "utf8");
+  assert.match(source, /view === "history" \? <TimesheetPanel rows=\{history\} current=\{current\}/);
+  assert.match(source, /Đã ghi nhận[\s\S]*Chưa sẵn sàng/);
+  assert.match(source, /Chờ duyệt[\s\S]*Chưa sẵn sàng/);
+  assert.match(source, /Phiên mở không được tính vào tổng finalized/);
+  assert.match(source, /Yêu cầu điều chỉnh[\s\S]*staff self-service request contract[\s\S]*disabled/);
+  assert.doesNotMatch(source, /reduce\([\s\S]*checkOutAt/);
+  assert.doesNotMatch(api, /requestTimekeepingCorrection|timekeeping\/correction-request/);
+});
