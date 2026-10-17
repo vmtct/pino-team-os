@@ -484,7 +484,7 @@ export function WorkforcePlanningView() {
               </div>
               <div className={styles.subscriptionActions}>
                 <button className={styles.secondaryButton} disabled={!reason.trim() || hasOwnerRole || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void cancel(assignment)}>{busy === `cancel:${assignment.id}` ? "…" : "Huỷ ca"}</button>
-                <button className={styles.primaryButton} disabled={!reason.trim() || roles.length > 0 || !templateId || templateId === assignment.shiftTemplateId || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Đổi sang ca đã chọn"}</button>
+                <button className={styles.primaryButton} disabled={!reason.trim() || (roles.length > 0 || (data.runningClassResponsibilities ?? []).some((role) => role.shiftAssignmentId === assignment.id && role.status === "ACTIVE")) || !templateId || templateId === assignment.shiftTemplateId || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Đổi sang ca đã chọn"}</button>
               </div>
             </article>;
           })}
