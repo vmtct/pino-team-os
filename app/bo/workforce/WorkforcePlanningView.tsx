@@ -409,6 +409,7 @@ export function WorkforcePlanningView() {
               <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked);  }} /> Front Desk</span>
               <small>Front Desk áp dụng cho toàn ca; khoảng Session Teacher sẽ được ưu tiên tự động.</small>
             </label>
+            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Shift Leader</span><small>Phụ trách ca tại trung tâm; không gắn lớp học.</small></label>
             <div className={styles.plannerHistory}>
               <strong>Giờ làm Manager chốt</strong>
               <label><input type="radio" name="coverage-mode" checked={coverageMode==="FULL_SHIFT"} onChange={() => setCoverageMode("FULL_SHIFT")} /> Toàn ca · {selectedTemplate?.startLocalTime}–{selectedTemplate?.endLocalTime}</label>
