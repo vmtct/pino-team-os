@@ -1,0 +1,53 @@
+.screen {
+  --ink: #383b3f; --muted: #64676b; position: relative; isolation: isolate; min-height: 100svh; overflow: hidden;
+  background: #000; color: var(--ink);
+  font-family: "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+  font-synthesis: none; text-rendering: optimizeLegibility;
+}
+.background {
+  position: fixed; z-index: -2; top: 0; bottom: 0; left: 50%; width: min(100vw, 430px); transform: translateX(-50%);
+  background: radial-gradient(ellipse at 15% 14%, rgba(255,255,255,.9) 0 9%, transparent 24%),
+    radial-gradient(ellipse at 82% 22%, rgba(255,255,255,.82) 0 10%, transparent 27%),
+    radial-gradient(ellipse at 20% 78%, rgba(134,190,143,.25) 0 7%, transparent 21%),
+    linear-gradient(180deg, #b8e0ff 0%, #fff9ef 52%, #ffe9c6 100%);
+  background-size: cover; background-position: center;
+}
+.backgroundLoaded::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(255,255,255,.89) 16%, rgba(255,255,255,.65) 33%, rgba(255,255,255,.30) 49%, rgba(255,255,255,0) 72%); }
+.backgroundLoaded::after { content: none; }
+.content { position: relative; z-index: 1; width: min(100%, 430px); min-height: 100svh; margin: 0 auto; padding: max(22px, env(safe-area-inset-top)) 22px max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 22px; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.greeting { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.avatar { flex: 0 0 auto; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 17px; background: linear-gradient(145deg, #ffcfab, #e9785f); border: 2px solid rgba(255,255,255,.9); box-shadow: 0 7px 18px rgba(123,78,53,.13); color: white; font-size: 17px; font-weight: 900; }
+.kicker { display: block; margin-bottom: 4px; font-size: 9px; letter-spacing: .14em; font-weight: 700; color: #91675b; }
+.header h1 { margin: 0; font-size: clamp(21px, 5vw, 27px); line-height: 1.08; letter-spacing: -.035em; font-weight: 700; color: #34383d; }
+.headerActions { display: flex; gap: 8px; }
+.headerButton { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #ddd; border-radius: 14px; color: #484c50; background: rgba(255,255,255,.9); cursor: pointer; }
+.shiftCard { width: 100%; display: grid; gap: 7px; padding: 12px 15px; text-align: left; color: #3e4246; cursor: pointer; border: 1px solid rgba(225,225,225,.95); border-radius: 19px; background: rgba(255,255,255,.94); box-shadow: none; }
+.shiftTopline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.statusDot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 99px; background: #e7a54d; box-shadow: 0 0 0 4px rgba(231,165,77,.16); }
+.shiftTopline strong { font-size: 13px; font-weight: 650; }
+.shiftTime { margin-left: auto; white-space: nowrap; font-size: 14px; font-weight: 700; letter-spacing: -.02em; }
+.shiftChevron { color: #a77b65; font-size: 11px; }
+.shiftPlace { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: #5a5e62; font-size: 11px; font-weight: 500; }
+.shiftPlace svg { color: #c66f57; font-size: 10px; }
+.separator { color: #d0b9a8; } .rolePlus { color: #b57a63; font-weight: 900; }
+.appsSection { margin-top: 2px; }
+.sectionHeading { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 15px; }
+.sectionHeading h2 { margin: 0; font-size: 16px; letter-spacing: -.025em; color: #393d41; font-weight: 650; text-shadow: none; } .sectionHeading span { color: #666a6e; font-size: 10px; font-weight: 600; }
+.appGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 14px; }
+.appTile { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.iconFrame { position: relative; display: grid; place-items: center; width: clamp(68px, 21vw, 88px); aspect-ratio: 1; border-radius: 23px; overflow: visible; }
+.appTile:focus-visible { outline: 2px solid #000; outline-offset: 4px; border-radius: 10px; }
+.appImage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 23px; display: block; opacity: 1; }
+.iconFallback { width: 100%; height: 100%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.86); border-radius: 23px; background: linear-gradient(145deg, var(--icon-light), var(--icon-dark)); color: white; font-size: 28px; box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+.blue { --icon-light: #91c8ed; --icon-dark: #377fbc; } .green { --icon-light: #9fd7b5; --icon-dark: #4b936b; } .coral { --icon-light: #ffad8d; --icon-dark: #e76c55; } .violet { --icon-light: #c0a4f3; --icon-dark: #7853c5; }
+.appLabel { max-width: 100%; color: #44484c; font-size: 12px; line-height: 1.2; font-weight: 650; text-align: center; text-wrap: balance; text-shadow: none; }
+.disabled .iconFrame { filter: grayscale(.95) saturate(.35) opacity(.66); } .disabled .appLabel { color: #6c7074; }
+.lockBadge { position: absolute; right: -5px; bottom: -4px; width: 24px; height: 24px; display: grid; place-items: center; border: 2px solid #fff9f1; border-radius: 99px; background: #837970; color: white; font-size: 9px; box-shadow: 0 3px 8px #493c3026; }
+.fallbackCat { position: fixed; z-index: 0; right: 8%; bottom: 7%; font-size: clamp(42px, 13vw, 74px); color: rgba(183,118,82,.24); pointer-events: none; }
+.footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: rgba(100,82,68,.75); font-size: 10px; }
+.footerPill { padding: 6px 9px; border: 1px solid rgba(255,255,255,.72); border-radius: 99px; background: rgba(255,255,255,.48); font-size: 8px; font-weight: 900; letter-spacing: .08em; }
+.toast { position: fixed; z-index: 10; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100vw - 28px)); display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border: 1px solid rgba(255,255,255,.9); border-radius: 15px; background: rgba(54,45,39,.92); color: #fff; backdrop-filter: blur(16px); box-shadow: 0 12px 35px rgba(39,30,22,.25); font-size: 12px; line-height: 1.45; }
+.toast svg { margin-top: 2px; flex: 0 0 auto; }
+@media (min-width: 760px) { .content { width: min(100%, 430px); padding: 30px 22px 26px; gap: 24px; } .shiftCard, .appGrid, .footer { max-width: 100%; } .appGrid { gap: 22px 16px; } .iconFrame { width: 82px; } .appLabel { font-size: 12px; } }
+@media (max-width: 380px) { .content { padding-left: 16px; padding-right: 16px; gap: 18px; } .shiftCard { padding: 12px 13px; } .shiftTime { font-size: 12px; } .shiftPlace { font-size: 10px; } .appGrid { gap: 17px 8px; } .iconFrame { width: 68px; border-radius: 19px; } .appImage, .iconFallback { border-radius: 19px; } }

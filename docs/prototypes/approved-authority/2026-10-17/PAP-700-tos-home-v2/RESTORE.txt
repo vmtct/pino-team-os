@@ -1,0 +1,5 @@
+﻿BASE_COMMIT=1565e0bc138862330410bee61745290521a04081
+SOURCE_WORKTREE=D:\PINO\worktrees\PAP-686-tos-home
+DEPENDENCIES=@fortawesome/fontawesome-svg-core@^7.3.1;@fortawesome/free-solid-svg-icons@^7.3.1;@fortawesome/react-fontawesome@^3.5.0
+CONFIG_OVERLAY=next.config.ts devIndicators=false
+RESTORE=checkout BASE_COMMIT, copy archived app/docs files, then apply runtime-overlay.patch
