@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { resolvePinoriaEffectPresentation, type PinoriaEffectPresentationKey } from "../../lib/pinoria-effect-presentation";
 
 export type PinoriaCharacterConfig = Record<string, string>;
@@ -187,8 +187,13 @@ function RainbowLayers({ layers, surface }: { layers: ResolvedLayer[]; surface: 
 
 function RainbowMaskLayer({ layer, surface }: { layer: ResolvedLayer; surface: PinoriaEffectSurface }) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const probe = new Image();
+    probe.onerror = () => setFailed(true);
+    probe.src = layer.src;
+    return () => { probe.onerror = null; };
+  }, [layer.src]);
   return <>
-    <img src={layer.src} alt="" aria-hidden="true" onError={() => setFailed(true)} style={{ display: "none" }} />
     {!failed ? <span
           className="pino-effect-rainbow-layer"
           data-rainbow-source={layer.src}
