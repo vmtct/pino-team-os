@@ -618,7 +618,7 @@ export interface BoUnscheduledCheckInRequest {
 export interface BoWorkforceShiftRoleAssignment {
   id: string;
   shiftAssignmentId: string;
-  roleType: "FRONT_DESK" | "TEACHER";
+  roleType: "FRONT_DESK" | "SHIFT_LEADER" | "TEACHER";
   targetType: "CENTER" | "SESSION";
   targetId: string;
   status: "ACTIVE" | "CANCELLED";

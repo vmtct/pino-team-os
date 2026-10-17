@@ -455,6 +455,7 @@ export function WorkforcePlanningView() {
               ));
             const roleSummary = roles.map((role) => {
               if (role.roleType === "FRONT_DESK") return "FD";
+              if (role.roleType === "SHIFT_LEADER") return "Shift Leader";
               const session = data.sessions.find((item) => item.id === role.targetId);
               const owner = session?.learningOwner?.staffMemberId === assignment.staffMemberId;
               return "TE · " + (session?.runningClassDisplayName ?? session?.id.slice(0, 8) ?? "Session") + (owner ? " · Phụ trách chính" : "");
