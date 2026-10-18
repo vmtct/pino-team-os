@@ -1,11 +1,14 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { BoDataGridSidePeek } from "@/app/bo/components/data-grid";
+import { PinoriaInstancePreview } from "./PinoriaInstancePreview";
+import type { PinoriaCharacterConfig, PinoriaWardRender } from "@/app/pinoria-tv/layered-character";
 
-type Layer={id:string;kind:"MEDIA"|"CHARACTER";displayName:string;mediaType:string|null;enabled:boolean};
-type Scene={id:string;displayName:string;baseAssetKey:string;layers:Layer[]};
+type Layer={id:string;kind:"MEDIA"|"CHARACTER";displayName:string;mediaType:string|null;assetKey?:string|null;positionX?:number;positionY?:number;scale?:number;zIndex?:number;anchor?:"CENTER"|"BOTTOM_CENTER";enabled:boolean};
+type Scene={id:string;displayName:string;baseAssetKey:string;canvasWidth?:number;canvasHeight?:number;layers:Layer[]};
 type World={displayName:string;scenes:Scene[]};
-type Detail={id:string;studentProfileId:string;displayLabel:string;status:"LIVE"|"INACTIVE"|"REVOKED";grantedAt:string;world:World;sceneAccess:Record<string,boolean>;unlockedLayerIds:string[]};
+type Character={id:string;config:PinoriaCharacterConfig;wardRender:PinoriaWardRender|null}|null;
+type Detail={character?:Character;id:string;studentProfileId:string;displayLabel:string;status:"LIVE"|"INACTIVE"|"REVOKED";grantedAt:string;world:World;sceneAccess:Record<string,boolean>;unlockedLayerIds:string[]};
 type Envelope<T>={data?:T;error?:{message?:string}};
 async function core<T>(path:string,init?:RequestInit):Promise<T>{
  const response=await fetch(`/api/bo/${path}`,{cache:"no-store",...init});
@@ -72,7 +75,7 @@ export function PinoriaInstanceDetail({id,onClose,onChanged}:{id:string;onClose:
    </section>:null}
    {tab==="preview"?<section><h3>Runtime projection</h3><p>Canonical World: {detail.world.displayName}</p>
     {detail.world.scenes.map(s=><p key={s.id}>{s.displayName}: {detail.sceneAccess[s.id]?"Accessible":"Locked"} · {s.layers.filter(l=>l.kind==="MEDIA"&&detail.unlockedLayerIds.includes(l.id)).length} unlocked media layers</p>)}
-    <p>Rendered Character/Ward preview remains in legacy controls until its shared WorldStage is migrated here.</p>
+    {detail.world.scenes.filter(s=>detail.sceneAccess[s.id]).map(s=><PinoriaInstancePreview key={s.id} scene={s} accessible={Boolean(detail.sceneAccess[s.id])} unlocked={detail.unlockedLayerIds} character={detail.character??null}/>)}
    </section>:null}
   </>}
  </BoDataGridSidePeek>;
