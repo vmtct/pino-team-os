@@ -31,6 +31,16 @@ for (const width of [390, 768, 1440]) {
       await page.screenshot({ path: "test-results/pap709-home-" + width + ".png", fullPage: true });
     });
 
+
+    test("Unavailable Home tile shows denial toast without navigation", async ({ page }) => {
+      await page.goto("/");
+      const denied = page.locator("button[aria-disabled='true']").first();
+      if (await denied.count() === 0) test.skip(true, "No denied apps in this authenticated assignment");
+      await denied.click();
+      await expect(page.getByRole("status")).toContainText("Ca này bạn chưa có quyền");
+      await expect(page).toHaveURL(/\/$/);
+    });
+
     test("Ca Làm has compact Back and exactly four contextual tabs", async ({ page }) => {
       await page.goto("/dashboard");
       await expect(page.getByRole("link", { name: "Quay về TOS Home" })).toBeVisible();
