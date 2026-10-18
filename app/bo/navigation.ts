@@ -36,6 +36,7 @@ export const boNavigation: BoNavGroup[] = [
     label: "Learning",
     items: [
       { href: "/bo/syllabus", label: "Programs & Syllabus" },
+      { href: "/bo/missions", label: "Missions" },
       { href: "/bo/practice", label: "Practice" },
     ],
   }  ,{
