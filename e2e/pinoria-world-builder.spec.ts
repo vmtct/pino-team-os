@@ -45,7 +45,15 @@ test("PAP-735 World Builder opens a canonical World and isolates unsaved draft",
     descriptionText: "Original", worldType: "CORE", status: "DRAFT",
     version: 1, thumbnailAssetKey: null, metadata: {}, scenes: [],
   };
+  let patchPayload: Record<string, unknown> | undefined;
   await page.route("http://world.local/**", async (route) => {
+    if (route.request().method() === "PATCH") {
+      patchPayload = route.request().postDataJSON();
+      world.displayName = String(patchPayload?.displayName);
+      world.version += 1;
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: world }) });
+      return;
+    }
     if (route.request().url().includes("/api/bo/pinoria/worlds")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { worlds: [world] } }) });
     } else {
@@ -60,4 +68,8 @@ test("PAP-735 World Builder opens a canonical World and isolates unsaved draft",
   await page.getByRole("textbox", { name: "Name" }).last().fill("Chroma Sea Revised");
   await expect(page.getByRole("table", { name: "World definitions" })).toContainText("Chroma Sea");
   await expect(page.getByRole("table", { name: "World definitions" })).not.toContainText("Chroma Sea Revised");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Save World" }).click();
+  await expect(page.getByRole("table", { name: "World definitions" })).toContainText("Chroma Sea Revised");
+  expect(patchPayload).toMatchObject({ expectedVersion: 1, displayName: "Chroma Sea Revised" });
 });
