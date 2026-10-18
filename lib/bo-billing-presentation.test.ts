@@ -80,7 +80,8 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   for (const field of ["payerParentUserId", "studentProfileId", "pathProgramId", "centerId", "productPlanId", "contractualStartsOn"]) {
     assert.match(saleCall, new RegExp(field));
   }
-  assert.doesNotMatch(saleCall, /listPriceMinor|purchasedUnits|termWeeks|cadence|contractualEndsOn/);
+  assert.doesNotMatch(saleCall, /listPriceMinor|purchasedUnits|termWeeks|cadence/);
+  assert.ok(saleCall.includes("contractualEndsOn: contractEndsOn || null"));
 });
 
 test("Billing presentation keeps financial truth in Core and retries exact sale/payment commands", async () => {
@@ -161,12 +162,13 @@ test("New registration passes only canonical sale inputs and keeps manual cadenc
   assert.ok(start >= 0 && end > start);
   const call = billing.slice(start, end);
   assert.match(call, /centerId/);
-  assert.doesNotMatch(call, /weeklyCommitment|purchasedUnits|contractualEndsOn|listPriceMinor/);
+  assert.doesNotMatch(call, /weeklyCommitment|purchasedUnits|listPriceMinor/);
+  assert.ok(call.includes("contractualEndsOn: contractEndsOn || null"));
   assert.match(billing, /authoritativePlacementCenterId\(placements, eligibleClasses\)/);
   assert.match(billing, /Running Classes đã chọn phải có Center hợp lệ/);
   assert.match(billing, /Các Running Classes đã chọn phải thuộc cùng một Center/);
-  assert.match(view, /Manual repair only/);
-  assert.match(view, /New registrations phải dùng Product Plan \+ exact cadence placement phía trên/);
+  assert.doesNotMatch(view, /boApi\.createSubscription/);
+  assert.match(billing, /deferActivation: true/);
 });
 
 
