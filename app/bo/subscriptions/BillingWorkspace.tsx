@@ -16,6 +16,7 @@ export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
   const [pathId, setPathId] = useState("");
   const [payerId, setPayerId] = useState("");
   const [startsOn, setStartsOn] = useState(today());
+  const [contractEndsOn, setContractEndsOn] = useState("");
   const [itemDiscount, setItemDiscount] = useState("0");
   const [billDiscount, setBillDiscount] = useState("0");
   const [dueOn, setDueOn] = useState("");
@@ -73,10 +74,10 @@ export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
     if (!planId || !pathId || !payerId) { setError("Chọn Product Plan, Path và Parent thanh toán."); return; }
     await runReplay("sale", (idempotencyKey) => boApi.createBillingSale({
       payerParentUserId: payerId, studentProfileId: lifecycle.student.id, pathProgramId: pathId,
-      productPlanId: planId, contractualStartsOn: startsOn,
+      productPlanId: planId, contractualStartsOn: startsOn, contractualEndsOn: contractEndsOn || null, deferActivation: true,
       itemDiscountMinor: money(itemDiscount), billDiscountMinor: money(billDiscount),
       ...(dueOn ? { dueOn } : {}), ...(campaign.trim() ? { campaignReference: campaign.trim() } : {}),
-    }, idempotencyKey).then((sale) => { setLatestSale(sale); return sale; }), "Đã tạo Bill + Subscription + entitlement atomically.");
+    }, idempotencyKey).then((sale) => { setLatestSale(sale); return sale; }), "Đã tạo DRAFT Subscription và Bill. Xếp đủ lớp rồi mới kích hoạt.");
   }
 
   async function configure(plan: BoProductPlan) {
@@ -142,12 +143,13 @@ export function BillingWorkspace({ lifecycle, paths, onChanged }: Props) {
           <option value="">Chọn Parent</option>{lifecycle.guardians.filter((item) => item.parent.status === "ACTIVE").map((item) => <option key={item.parent.id} value={item.parent.id}>{item.parent.displayName ?? item.parent.contacts[0]?.value ?? item.parent.id}</option>)}
         </select></label>
         <label>Contract starts<input type="date" required disabled={Boolean(busy || pending)} value={startsOn} onChange={(event) => setStartsOn(event.target.value)} /></label>
+        <label>Contract ends (optional)<input type="date" disabled={Boolean(busy || pending)} value={contractEndsOn} onChange={(event) => setContractEndsOn(event.target.value)} /></label>
         <label>Item discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending)} value={itemDiscount} onChange={(event) => setItemDiscount(event.target.value)} /></label>
         <label>Bill discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending)} value={billDiscount} onChange={(event) => setBillDiscount(event.target.value)} /></label>
         <label>Due date<input type="date" disabled={Boolean(busy || pending)} value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label>
         <label>Campaign<input disabled={Boolean(busy || pending)} value={campaign} onChange={(event) => setCampaign(event.target.value)} placeholder="Tuỳ chọn" /></label>
       </div>
-      {selectedPlan ? <p className={styles.hint}>Core plan: {selectedPlan.cadence} buổi/tuần · {selectedPlan.termWeeks} tuần · {selectedPlan.purchasedUnits} units. Contract end được Core tính; UI không gửi units/price/end date.</p> : null}
+      {selectedPlan ? <p className={styles.hint}>Core plan: {selectedPlan.cadence} buổi/tuần · {selectedPlan.termWeeks} tuần · {selectedPlan.purchasedUnits} units. Contract end độc lập: chọn ngày cụ thể hoặc để trống (null). Core vẫn giữ quyền giá và Service Units.</p> : null}
       <button className={styles.primary} disabled={Boolean(busy || pending)} type="submit">{busy === "sale" ? "Đang tạo…" : "Tạo sale"}</button>
       {latestSale ? <p className={styles.saleResult}>Bill {latestSale.bill.bill.id.slice(0,8)}… · {latestSale.purchasedUnits} units · contract {latestSale.contractualStartsOn} → {latestSale.contractualEndsOn}</p> : null}
     </form>

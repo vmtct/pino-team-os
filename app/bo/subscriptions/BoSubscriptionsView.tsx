@@ -2,30 +2,63 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
+import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionDirectoryPage, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import { BillingWorkspace } from "./BillingWorkspace";
 import styles from "./bo-subscriptions.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
-type CreateDraft = { pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: string; purchasedUnits: string; commercialReference: string };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
-const EMPTY_CREATE: CreateDraft = { pathProgramId: "", serviceStartsOn: today(), contractualEndsOn: "", weeklyCommitment: "2", purchasedUnits: "24", commercialReference: "" };
 
 export function BoSubscriptionsView() {
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
+  const [subscriptionGrid, setSubscriptionGrid] = useState<Load<BoSubscriptionDirectoryPage>>({ state: "loading" });
+  const [gridQuery, setGridQuery] = useState("");
+  const [gridLifecycle, setGridLifecycle] = useState("");
+  const [gridPath, setGridPath] = useState("");
+  const [appliedGridFilters, setAppliedGridFilters] = useState<{query:string;lifecycle:string;pathProgramId:string}>({query:"",lifecycle:"",pathProgramId:""});
+  const [gridCursorHistory, setGridCursorHistory] = useState<Array<{createdAt:string;id:string}|null>>([null]);
+  const [gridPageIndex, setGridPageIndex] = useState(0);
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [lifecycle, setLifecycle] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [query, setQuery] = useState("");
-  const [createDraft, setCreateDraft] = useState<CreateDraft>(EMPTY_CREATE);
   const [placementClass, setPlacementClass] = useState<Record<string, string>>({});
   const [placementDate, setPlacementDate] = useState<Record<string, string>>({});
   const [commandState, setCommandState] = useState<{ busy: string | null; notice: string | null; error: string | null }>({ busy: null, notice: null, error: null });
   const [pendingAttempt, setPendingAttempt] = useState<CommandAttempt | null>(null);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
+
+  async function loadSubscriptionGrid(filters = appliedGridFilters, cursor: {createdAt:string;id:string}|null = null) {
+    setSubscriptionGrid({ state: "loading" });
+    try {
+      const data = await boApi.subscriptionDirectory({ ...filters, limit: 25, ...(cursor ? { beforeCreatedAt: cursor.createdAt, beforeSubscriptionId: cursor.id } : {}) });
+      setSubscriptionGrid({ state: "ready", data });
+    } catch (error) { setSubscriptionGrid({ state: "error", message: message(error) }); }
+  }
+
+  async function applyGridFilters(event: React.FormEvent) {
+    event.preventDefault();
+    const filters = { query: gridQuery.trim(), lifecycle: gridLifecycle, pathProgramId: gridPath };
+    setAppliedGridFilters(filters); setGridCursorHistory([null]); setGridPageIndex(0);
+    await loadSubscriptionGrid(filters, null);
+  }
+
+  async function nextGridPage() {
+    if (subscriptionGrid.state !== "ready" || !subscriptionGrid.data.nextCursor) return;
+    const cursor = subscriptionGrid.data.nextCursor;
+    const history = [...gridCursorHistory.slice(0, gridPageIndex + 1), cursor];
+    setGridCursorHistory(history); setGridPageIndex(history.length - 1);
+    await loadSubscriptionGrid(appliedGridFilters, cursor);
+  }
+
+  async function previousGridPage() {
+    if (gridPageIndex <= 0) return;
+    const index = gridPageIndex - 1; setGridPageIndex(index);
+    await loadSubscriptionGrid(appliedGridFilters, gridCursorHistory[index] ?? null);
+  }
 
   async function readDirectory() {
     return collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId));
@@ -67,14 +100,14 @@ export function BoSubscriptionsView() {
   useEffect(() => {
     let active = true;
     const requested = new URLSearchParams(window.location.search).get("studentId");
-    void Promise.all([readDirectory(), boApi.scopeCatalog()]).then(([rows, scope]) => {
+    void Promise.all([readDirectory(), boApi.scopeCatalog(), boApi.subscriptionDirectory({ limit: 25 })]).then(([rows, scope, subscriptionRows]) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
       setCatalog({ state: "ready", data: { paths: scope.paths, classes: scope.classes } });
+      setSubscriptionGrid({ state: "ready", data: subscriptionRows });
       const next = requested && rows.some((row) => row.id === requested) ? requested : rows[0]?.id ?? null;
       selectedRef.current = next;
       setSelectedId(next);
-      setCreateDraft((draft) => ({ ...draft, pathProgramId: scope.paths.find((path) => path.status === "ACTIVE")?.id ?? scope.paths[0]?.id ?? "" }));
     }).catch((error: unknown) => {
       if (!active) return;
       const text = message(error);
@@ -99,6 +132,8 @@ export function BoSubscriptionsView() {
     try {
       await attempt.action(attempt.idempotencyKey);
       await refreshSelected();
+      setGridCursorHistory([null]); setGridPageIndex(0);
+      await loadSubscriptionGrid(appliedGridFilters, null);
       setPendingAttempt(null);
       setCommandState({ busy: null, notice: attempt.success, error: null });
     } catch (error) {
@@ -123,12 +158,8 @@ export function BoSubscriptionsView() {
     if (pendingAttempt) await executeAttempt(pendingAttempt);
   }
 
-  async function createSubscription(event: React.FormEvent) {
-    event.preventDefault();
-    const studentId = selectedRef.current;
-    if (!studentId) return;
-    const body = { studentProfileId: studentId, pathProgramId: createDraft.pathProgramId, serviceStartsOn: createDraft.serviceStartsOn, contractualEndsOn: createDraft.contractualEndsOn, weeklyCommitment: Number(createDraft.weeklyCommitment), purchasedUnits: Number(createDraft.purchasedUnits), ...(createDraft.commercialReference.trim() ? { commercialReference: createDraft.commercialReference.trim() } : {}) };
-    await runCommand("create", (idempotencyKey) => boApi.createSubscription(body, idempotencyKey), "Đã tạo và kích hoạt Subscription từ canonical Core.");
+  async function activate(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
+    await runCommand(`activate:${subscription.id}`, (idempotencyKey) => boApi.activateSubscription(subscription.id, {serviceStartsOn: subscription.serviceStartsOn ?? today(), expectedVersion: subscription.version}, idempotencyKey), "Đã kích hoạt sau khi Core xác nhận đủ placements.");
   }
 
   async function place(subscriptionId: string) {
@@ -156,7 +187,9 @@ export function BoSubscriptionsView() {
   async function cancel(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
     const reason = window.prompt("Lý do huỷ Subscription");
     if (!reason?.trim()) return;
-    const body = { expectedVersion: subscription.version, reason: reason.trim() };
+    const until = window.prompt("Ngày huỷ hiệu lực (YYYY-MM-DD, exclusive)", today());
+    if (!until?.trim()) return;
+    const body = { expectedVersion: subscription.version, reason: reason.trim(), effectiveUntilExclusiveLocalDate: until.trim() };
     await runCommand(`cancel:${subscription.id}`, (idempotencyKey) => boApi.cancelSubscription(subscription.id, body, idempotencyKey), "Đã huỷ Subscription theo canonical lifecycle.");
   }
 
@@ -180,6 +213,40 @@ export function BoSubscriptionsView() {
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
+    <section className={styles.section}>
+      <div className={styles.sectionHead}><div><span>Subscription history</span><h3>Quản lý Subscription</h3></div><small>{subscriptionGrid.state === "ready" ? `${subscriptionGrid.data.total} bản ghi khớp bộ lọc` : "Dữ liệu trực tiếp từ Core"}</small></div>
+      <form className={styles.gridFilters} onSubmit={(event) => void applyGridFilters(event)}>
+        <input aria-label="Tìm subscription" value={gridQuery} onChange={(event) => setGridQuery(event.target.value)} placeholder="Tìm mã, học viên, nhánh, commercial reference" />
+        <select aria-label="Lọc lifecycle" value={gridLifecycle} onChange={(event) => setGridLifecycle(event.target.value)}>
+          <option value="">Tất cả trạng thái</option><option value="DRAFT">Draft</option><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="SUPERSEDED">Superseded</option><option value="CANCELLED">Cancelled</option>
+        </select>
+        <select aria-label="Lọc Path" value={gridPath} onChange={(event) => setGridPath(event.target.value)}>
+          <option value="">Tất cả Path</option>{catalog.state === "ready" ? catalog.data.paths.map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>) : null}
+        </select>
+        <button className={styles.primary} type="submit" disabled={subscriptionGrid.state === "loading"}>Lọc</button>
+      </form>
+      {subscriptionGrid.state === "loading" ? <p className={styles.muted}>Đang tải Subscription history…</p> : null}
+      {subscriptionGrid.state === "error" ? <div className={styles.error}>{subscriptionGrid.message}<button type="button" onClick={() => void loadSubscriptionGrid()}>Thử lại</button></div> : null}
+      {subscriptionGrid.state === "ready" ? <>
+        <div className={styles.gridWrap}>
+          <table className={styles.historyTable}>
+            <thead><tr><th>Subscription</th><th>Học viên</th><th>Path / buổi</th><th>Hiệu lực hợp đồng</th><th>Giá cuối</th><th>Units còn lại</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody>{subscriptionGrid.data.items.map((item) => <tr key={item.id}>
+              <td><button type="button" className={styles.recordLink} onClick={() => selectStudent(item.studentProfileId)}>{item.id.slice(0, 8)}…</button><small>{item.commercialReference ?? "—"}</small></td>
+              <td><button type="button" className={styles.recordLink} onClick={() => selectStudent(item.studentProfileId)}>{item.studentDisplayName}</button></td>
+              <td>{item.pathDisplayName}<small>{item.weeklyCommitment} buổi/tuần · {item.termWeeks ?? "—"} tuần</small></td>
+              <td>{item.serviceStartsOn ?? "—"}<small>→ {item.contractualEndsOn ?? "Không đặt"}</small></td>
+              <td>{item.finalAmountMinor === null ? "—" : moneyMinor(item.finalAmountMinor)}<small>{item.itemDiscountMinor + item.billDiscountMinor ? `Giảm ${moneyMinor(item.itemDiscountMinor + item.billDiscountMinor)}` : "Không giảm"}</small></td>
+              <td>{item.effectiveAvailableUnits}<small>tổng sổ: {item.historicalBalance}</small></td>
+              <td><span className={styles.statusPill} data-status={item.lifecycle}>{item.lifecycle}</span></td>
+              <td><button type="button" className={styles.rowAction} onClick={() => selectStudent(item.studentProfileId)}>Chi tiết</button></td>
+            </tr>)}
+            {!subscriptionGrid.data.items.length ? <tr><td colSpan={8}><p className={styles.empty}>Không có subscription phù hợp.</p></td></tr> : null}</tbody>
+          </table>
+        </div>
+        <div className={styles.gridPager}><span>Trang {gridPageIndex + 1} · {subscriptionGrid.data.items.length} dòng trên trang</span><div><button type="button" disabled={gridPageIndex === 0} onClick={() => void previousGridPage()}>Trước</button><button type="button" disabled={!subscriptionGrid.data.nextCursor} onClick={() => void nextGridPage()}>Tiếp</button></div></div>
+      </> : null}
+    </section>
     <section className={styles.workspace}>
       <aside className={styles.directory}>
         <div className={styles.search}><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên…" /></div>
@@ -193,9 +260,9 @@ export function BoSubscriptionsView() {
         </div>
       </aside>
       <section className={styles.detail}>
-        {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data} draft={createDraft} setDraft={setCreateDraft} createSubscription={createSubscription}
+        {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
-          place={place} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} blocked={Boolean(commandState.busy || pendingAttempt)}
+          place={place} activate={activate} renew={renew} cancel={cancel} endEnrollment={endEnrollment} busy={commandState.busy} blocked={Boolean(commandState.busy || pendingAttempt)}
           onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
     </section>
@@ -203,10 +270,10 @@ export function BoSubscriptionsView() {
 }
 
 function CommercialWorkspace(props: {
-  load: Load<BoLearnerLifecycle> | null; catalog: Catalog; draft: CreateDraft; setDraft: React.Dispatch<React.SetStateAction<CreateDraft>>;
-  createSubscription: (event: React.FormEvent) => Promise<void>; placementClass: Record<string, string>; setPlacementClass: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  load: Load<BoLearnerLifecycle> | null; catalog: Catalog;
+  placementClass: Record<string, string>; setPlacementClass: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   placementDate: Record<string, string>; setPlacementDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
+  place: (subscriptionId: string) => Promise<void>; activate: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   cancel: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null; blocked: boolean;
   onChanged: () => Promise<void>;
@@ -223,28 +290,13 @@ function CommercialWorkspace(props: {
 
     <BillingWorkspace lifecycle={data} paths={props.catalog.paths} onChanged={props.onChanged} />
 
-    <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
-      <div className={styles.sectionHead}><div><span>New commercial lifecycle</span><h3>Tạo & kích hoạt Subscription</h3></div><small>Core atomically creates + activates + PURCHASED units</small></div>
-      <div className={styles.formGrid}>
-        <label>Path<select disabled={props.blocked} required value={props.draft.pathProgramId} onChange={(event) => props.setDraft((draft) => ({ ...draft, pathProgramId: event.target.value }))}>
-          <option value="">Chọn Path</option>{props.catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
-        </select></label>
-        <label>Service starts<input disabled={props.blocked} type="date" required value={props.draft.serviceStartsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, serviceStartsOn: event.target.value }))} /></label>
-        <label>Contract ends<input disabled={props.blocked} type="date" required value={props.draft.contractualEndsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, contractualEndsOn: event.target.value }))} /></label>
-        <label>Buổi / tuần<input disabled={props.blocked} type="number" min="1" required value={props.draft.weeklyCommitment} onChange={(event) => props.setDraft((draft) => ({ ...draft, weeklyCommitment: event.target.value }))} /></label>
-        <label>Service Units<input disabled={props.blocked} type="number" min="1" required value={props.draft.purchasedUnits} onChange={(event) => props.setDraft((draft) => ({ ...draft, purchasedUnits: event.target.value }))} /></label>
-        <label className={styles.span2}>Commercial reference<input disabled={props.blocked} value={props.draft.commercialReference} onChange={(event) => props.setDraft((draft) => ({ ...draft, commercialReference: event.target.value }))} placeholder="Tuỳ chọn" /></label>
-      </div>
-      <button className={styles.primary} disabled={props.blocked} type="submit">{props.busy === "create" ? "Đang tạo…" : "Tạo & kích hoạt"}</button>
-      <p className={styles.hint}>2 buổi/tuần và 24 units chỉ là convenience defaults của form, không phải business policy.</p>
-    </form>
-
     <section className={styles.section}>
       <div className={styles.sectionHead}><div><span>Canonical lifecycle</span><h3>Subscriptions</h3></div><small>Không có client-side unit decrement</small></div>
       {data.subscriptions.length ? <div className={styles.cards}>{data.subscriptions.map((entry) => {
         const sub = entry.subscription;
         const eligibleClasses = props.catalog.classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === sub.pathProgramId);
         const current = entry.enrollments.filter(isCurrentEnrollment);
+        const placedAtStart = entry.enrollments.filter((enrollment) => enrollment.effectiveFromLocalDate <= (sub.serviceStartsOn ?? today()) && (enrollment.effectiveUntilExclusiveLocalDate === null || enrollment.effectiveUntilExclusiveLocalDate > (sub.serviceStartsOn ?? today()))).length;
         return <article className={styles.subscription} key={sub.id}>
           <div className={styles.subHead}>
             <div><span>{sub.lifecycle}</span><strong>{sub.pathDisplayName}</strong><small>{sub.weeklyCommitment} buổi/tuần · v{sub.version}</small></div>
@@ -255,18 +307,18 @@ function CommercialWorkspace(props: {
           <div className={styles.enrollments}><strong>Enrollment hiện tại</strong>
             {current.length ? current.map((enrollment) => <div key={enrollment.id}><span>{enrollment.runningClassName}</span><small>{enrollment.effectiveFromLocalDate}</small><button type="button" disabled={props.blocked} onClick={() => void props.endEnrollment(enrollment)}>Kết thúc</button></div>) : <p>Chưa có placement hiệu lực.</p>}
           </div>
-          {sub.lifecycle === "ACTIVE" ? <div className={styles.placement}>
+          {(sub.lifecycle === "DRAFT" || sub.lifecycle === "ACTIVE") ? <div className={styles.placement}>
             <select disabled={props.blocked} value={props.placementClass[sub.id] ?? ""} onChange={(event) => props.setPlacementClass((state) => ({ ...state, [sub.id]: event.target.value }))}>
               <option value="">Chọn Running Class cùng Path</option>{eligibleClasses.map((item) => <option key={item.id} value={item.id}>{item.name} · {scheduleLabel(item)}</option>)}
             </select>
-            <input disabled={props.blocked} type="date" value={props.placementDate[sub.id] ?? today()} onChange={(event) => props.setPlacementDate((state) => ({ ...state, [sub.id]: event.target.value }))} />
+            <input disabled={props.blocked} type="date" value={props.placementDate[sub.id] ?? sub.serviceStartsOn ?? today()} onChange={(event) => props.setPlacementDate((state) => ({ ...state, [sub.id]: event.target.value }))} />
             <button type="button" disabled={props.blocked} onClick={() => void props.place(sub.id)}>Xếp lớp</button>
           </div> : null}
-          <div className={styles.actions}><button type="button" disabled={props.blocked} onClick={() => void props.renew(sub)}>Renew</button>
+          <div className={styles.actions}>{sub.lifecycle === "DRAFT" ? <button type="button" disabled={props.blocked || placedAtStart !== sub.weeklyCommitment} onClick={() => void props.activate(sub)}>Kích hoạt khi đủ {sub.weeklyCommitment} lớp</button> : null}<button type="button" disabled={props.blocked || sub.lifecycle !== "ACTIVE"} onClick={() => void props.renew(sub)}>Renew</button>
             {sub.lifecycle === "ACTIVE" ? <button className={styles.danger} type="button" disabled={props.blocked} onClick={() => void props.cancel(sub)}>Huỷ Subscription</button> : null}
           </div>
         </article>;
-      })}</div> : <p className={styles.empty}>Student chưa có Subscription. Tạo lifecycle đầu tiên ở form phía trên.</p>}
+      })}</div> : <p className={styles.empty}>Student chưa có Subscription. Tạo DRAFT qua New sale phía trên, xếp lớp rồi kích hoạt.</p>}
     </section>
   </>;
 }
@@ -298,6 +350,7 @@ function isCurrentEnrollment(enrollment: BoLearnerLifecycle["subscriptions"][num
 }
 function scheduleLabel(item: BoRunningClass) { const day = ["", "T2", "T3", "T4", "T5", "T6", "T7", "CN"]; return `${day[item.recurrenceWeekdays[0] ?? 0] ?? ""} ${item.startLocalTime}`; }
 function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(-2).map((part) => part[0]).join("").toUpperCase(); }
+function moneyMinor(value: number) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value); }
 function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
 function message(error: unknown) { return error instanceof BoApiError ? `${error.message}${error.requestId ? ` · ${error.requestId}` : ""}` : error instanceof Error ? error.message : "Operation failed."; }
 function State({ text, error = false }: { text: string; error?: boolean }) { return <div className={`${styles.state} ${error ? styles.stateError : ""}`}><strong>{error ? "Không thể tải" : "PINO BO"}</strong><span>{text}</span></div>; }

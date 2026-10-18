@@ -330,6 +330,18 @@ export interface BoLearnerLifecycle {
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;
 }
 
+export interface BoSubscriptionDirectoryItem {
+  id:string; studentProfileId:string; studentDisplayName:string; pathProgramId:string; pathDisplayName:string; lifecycle:string;
+  serviceStartsOn:string|null; contractualEndsOn:string|null; weeklyCommitment:number; termWeeks:number|null;
+  commercialReference:string|null; productPlanId:string|null; listPriceMinor:number|null; itemDiscountMinor:number;
+  billDiscountMinor:number; finalAmountMinor:number|null; historicalBalance:number; effectiveAvailableUnits:number;
+  createdAt:string; updatedAt:string; version:number;
+}
+export interface BoSubscriptionDirectoryPage {
+  items:BoSubscriptionDirectoryItem[]; limit:number; total:number;
+  nextCursor:{createdAt:string;id:string}|null;
+}
+
 export type BoCompanionFeedUnavailableReason = "NO_OPEN_VISIT" | "MULTIPLE_OPEN_VISITS" | "NO_FRUIT" | "RITUAL_READY" | "FEED_LIMIT_REACHED" | "LEVEL_UNDEFINED" | "NOT_AUTHORIZED" | null;
 export interface BoStudentPinoriaSummary {
   fruitBalance: number;

@@ -197,6 +197,7 @@ export function isAllowedPostPath(path: string): boolean {
     || BILLING_TRANSACTION_PATH.test(path)
     || BILLING_BILL_VOID_PATH.test(path)
     || BILLING_TRANSACTION_VOID_PATH.test(path)
+    || ENROLLMENT_BULK_PATHS.has(path)
     || WEB_CMS_WRITE.test(path);
 }
 
