@@ -26,3 +26,9 @@ test("PAP-736 honors bounded paging and fail-closed permission state", () => {
   assert.match(directory, /"permission"/);
   assert.match(directory, /if\(!response\.ok\|\|!payload\.data\)/);
 });
+
+test("PAP-736 primary grid does not eagerly load first learner details", () => {
+  assert.doesNotMatch(manager, /Promise\.all\(\[loadCatalog\(\),loadLearners\(\)\]\)/);
+  assert.match(manager, /if\(!legacyOpen\)return/);
+  assert.match(manager, /if\(!legacyOpen\|\|!studentId\)/);
+});
