@@ -229,3 +229,5 @@
 .peekDetail .learningGrid, .peekDetail .lowerGrid { grid-template-columns: 1fr; }
 .peekDetail .sectionCard { padding: 13px; }
 @media (max-width: 640px) { .gridToolbarFilter { width: 100%; justify-content: space-between; } .gridToolbarFilter select { flex: 1; } }
+
+.intakeDrawerForm{display:grid;gap:16px;min-width:0}.intakeDrawerIntro{margin:0;color:#77706b;font-size:11px;line-height:1.55}.intakeDrawerForm>small{color:#817a75;font-size:10px;line-height:1.5}.intakeDrawerForm footer{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.intakeDrawerForm footer button{min-width:0}
