@@ -33,6 +33,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   const [pathId, setPathId] = useState("");
   const [payerId, setPayerId] = useState("");
   const [startsOn, setStartsOn] = useState(today());
+  const [contractEndsOn, setContractEndsOn] = useState("");
   const [placementStartsOn, setPlacementStartsOn] = useState(today());
   const [itemDiscount, setItemDiscount] = useState("0");
   const [billDiscount, setBillDiscount] = useState("0");
@@ -91,9 +92,8 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   const eligibleClasses = useMemo(() => classes.filter((item) => item.status === "ACTIVE" && item.pathProgramId === pathId), [classes, pathId]);
   const pendingRegistrationEntries = useMemo(() => lifecycle.subscriptions.filter((entry) => {
     const sub = entry.subscription;
-    return sub.lifecycle === "ACTIVE"
-      && entry.enrollments.length === 0
-      && Boolean(sub.productPlanId && sub.contractualStartsOn && sub.contractualEndsOn)
+    return (sub.lifecycle === "DRAFT" || (sub.lifecycle === "ACTIVE" && entry.enrollments.length === 0))
+      && Boolean(sub.productPlanId && sub.contractualStartsOn)
       && /^bill:[0-9a-f-]{36}$/.test(sub.commercialReference ?? "");
   }), [lifecycle.subscriptions]);
   const selectedPlacementCount = placements.filter(Boolean).length;
@@ -166,7 +166,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     const sub = entry.subscription;
     const billId = /^bill:([0-9a-f-]{36})$/.exec(sub.commercialReference ?? "")?.[1] ?? null;
     const plan = plans.find((item) => item.id === sub.productPlanId) ?? null;
-    if (!billId || !plan || !sub.contractualStartsOn || !sub.contractualEndsOn || sub.weeklyCommitment !== plan.cadence) {
+    if (!billId || !plan || !sub.contractualStartsOn || sub.weeklyCommitment !== plan.cadence) {
       setError("Pending registration không khớp canonical Product Plan/Bill snapshot.");
       return;
     }
@@ -181,6 +181,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       setPathId(sub.pathProgramId);
       setPayerId(bill.bill.payerParentUserId);
       setStartsOn(sub.contractualStartsOn);
+      setContractEndsOn(sub.contractualEndsOn ?? "");
       setPlacementStartsOn(maxLocalDate(sub.contractualStartsOn, today()));
       setPlacements(Array.from({ length: plan.cadence }, () => ""));
       setPlacementEntryTimes(Array.from({ length: plan.cadence }, () => ""));
@@ -203,6 +204,15 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     }
   }
 
+  async function ensureActivation(subscriptionId:string,serviceStartsOn:string){
+    const live=await boApi.learnerLifecycle(lifecycle.student.id);
+    const sub=live.subscriptions.find((entry)=>entry.subscription.id===subscriptionId)?.subscription;
+    if(!sub)throw new Error("Core chưa xác nhận Subscription vừa tạo.");
+    if(sub.lifecycle==="ACTIVE")return;
+    if(sub.lifecycle!=="DRAFT")throw new Error("Không thể kích hoạt Subscription ở lifecycle hiện tại.");
+    await boApi.activateSubscription(subscriptionId,{serviceStartsOn,expectedVersion:sub.version},crypto.randomUUID());
+  }
+
   async function submitRegistration(event: React.FormEvent) {
     event.preventDefault();
     if (!planId || !pathId || !payerId || !selectedPlan) { setError("Chọn Product Plan, Path và Parent thanh toán."); return; }
@@ -216,12 +226,13 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     await runReplay("registration", async (idempotencyKey) => {
       const sale = await boApi.createBillingSale({
         payerParentUserId: payerId, studentProfileId: lifecycle.student.id, pathProgramId: pathId, centerId,
-        productPlanId: planId, contractualStartsOn: startsOn,
+        productPlanId: planId, contractualStartsOn: startsOn, contractualEndsOn: contractEndsOn || null, deferActivation: true,
         itemDiscountMinor: money(itemDiscount), billDiscountMinor: money(billDiscount),
         ...(dueOn ? { dueOn } : {}), ...(campaign.trim() ? { campaignReference: campaign.trim() } : {}),
       }, idempotencyKey);
       setLatestSale(sale);
       await placeRegistration(sale, `${idempotencyKey}:placement`, policyEffectiveAt);
+      await ensureActivation(sale.subscriptionId, sale.contractualStartsOn);
       setRegistrationComplete(true);
       return sale;
     }, `Đã tạo Subscription và xếp đủ ${selectedPlan.cadence}/${selectedPlan.cadence} Running Classes.`);
@@ -232,6 +243,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     const policyEffectiveAt = new Date().toISOString();
     await runReplay(`placement:${latestSale.subscriptionId}`, async (idempotencyKey) => {
       const result = await placeRegistration(latestSale, idempotencyKey, policyEffectiveAt);
+      await ensureActivation(latestSale.subscriptionId, latestSale.contractualStartsOn);
       setRegistrationComplete(true);
       return result;
     }, `Đã hoàn tất placement ${selectedPlan.cadence}/${selectedPlan.cadence} cho Subscription hiện hữu.`);
@@ -310,6 +322,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
           <option value="">Chọn Parent</option>{lifecycle.guardians.filter((item) => item.parent.status === "ACTIVE").map((item) => <option key={item.parent.id} value={item.parent.id}>{item.parent.displayName ?? item.parent.contacts[0]?.value ?? item.parent.id}</option>)}
         </select></label>
         <label>Contract starts<input type="date" required disabled={Boolean(busy || pending || commercialLocked)} value={startsOn} onChange={(event) => { const value = event.target.value; setStartsOn(value); if (!commercialLocked) setPlacementStartsOn(maxLocalDate(value, today())); }} /></label>
+        <label>Contract ends (optional)<input type="date" disabled={Boolean(busy || pending || commercialLocked)} value={contractEndsOn} onChange={(event) => setContractEndsOn(event.target.value)} /></label>
         <label>Item discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={itemDiscount} onChange={(event) => setItemDiscount(event.target.value)} /></label>
         <label>Bill discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={billDiscount} onChange={(event) => setBillDiscount(event.target.value)} /></label>
         <label>Due date<input type="date" disabled={Boolean(busy || pending || commercialLocked)} value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label>

@@ -8,7 +8,7 @@ const read = (path: string) => readFile(path, "utf8");
 
 test("Subscriptions owner surface composes canonical commercial facades only", async () => {
   const view = await read("app/bo/subscriptions/BoSubscriptionsView.tsx");
-  for (const command of ["createSubscription", "renewSubscription", "neutralizeSubscription", "placeEnrollment", "endEnrollment"]) {
+  for (const command of ["renewSubscription", "neutralizeSubscription", "placeEnrollment", "endEnrollment"]) {
     assert.match(view, new RegExp(`boApi\\.${command}`));
   }
   assert.match(view, /boApi\.learnerLifecycle/);
@@ -25,8 +25,8 @@ test("Subscriptions owner surface keeps Core policy and scope authoritative", as
   assert.match(view, /policyEffectiveAt: new Date\(\)\.toISOString\(\)/);
   assert.match(view, /expectedVersion: subscription\.version/);
   assert.match(view, /expectedVersion: enrollment\.version/);
-  assert.match(view, /Repair path legacy/);
-  assert.match(view, /Manual repair only/);
+  assert.doesNotMatch(view, /boApi\.createSubscription/);
+  assert.match(view, /Core-owned commercial truth/);
   assert.match(view, /Contract ends/);
   assert.match(view, /Forecast ends/);
   assert.match(view, /contractualEndsOn/);
@@ -72,7 +72,7 @@ test("Commercial commands preserve exact replay evidence across uncertain outcom
   assert.match(view, /definitiveRejection = error instanceof BoApiError && error\.structuredResponse && error\.status >= 400 && error\.status < 500/);
   assert.match(view, /Thử lại cùng yêu cầu/);
   assert.match(view, /blocked=\{Boolean\(commandState\.busy \|\| pendingAttempt \|\| billingReplay\.busy \|\| billingReplay\.pending\)\}/);
-  for (const command of ["createSubscription", "renewSubscription", "neutralizeSubscription", "placeEnrollment", "endEnrollment"]) {
+  for (const command of ["renewSubscription", "neutralizeSubscription", "placeEnrollment", "endEnrollment"]) {
     assert.match(api, new RegExp(`${command}:[^\n]+idempotencyKey: string`));
   }
   assert.doesNotMatch(api, /(?:createSubscription|renewSubscription|cancelSubscription|placeEnrollment|endEnrollment):[^\n]+crypto\.randomUUID\(\)/);
@@ -88,4 +88,23 @@ test("Projected completion is admitted through the complete BO read facade", asy
 
   const handler = await read("lib/bo-read-handler.ts");
   assert.match(handler, /SUBSCRIPTION_PROJECTED_COMPLETION_READ\.test\(path\)[\s\S]*effectiveAt: url\.searchParams\.get\("effectiveAt"\)/);
+});
+
+test("New registration defers activation until Core confirms Path-compatible placement", async () => {
+  const view = await read("app/bo/subscriptions/BoSubscriptionsView.tsx");
+  const billing = await read("app/bo/subscriptions/BillingWorkspace.tsx");
+  assert.doesNotMatch(view, /props\.createSubscription/);
+  assert.match(billing, /deferActivation: true/);
+  assert.match(billing, /contractualEndsOn: contractEndsOn \|\| null/);
+  assert.match(billing, /await ensureActivation\(sale\.subscriptionId/);
+  assert.match(billing, /await ensureActivation\(latestSale\.subscriptionId/);
+  assert.match(billing, /item\.pathProgramId === pathId/);
+});
+
+test("PAP-623 History Grid refreshes from Core after successful BO writes", async () => {
+  const [view, grid] = await Promise.all([read("app/bo/subscriptions/BoSubscriptionsView.tsx"), read("app/bo/subscriptions/SubscriptionHistoryGrid.tsx")]);
+  assert.match(view, /setHistoryRevision/);
+  assert.match(view, /refreshVersion=\{historyRevision\}/);
+  assert.match(grid, /activeFilters\.current/);
+  assert.match(grid, /\[load, refreshVersion\]/);
 });

@@ -374,7 +374,7 @@ export interface BoBillItem { id: string; billId: string; productPlanId: string;
 export interface BoSpecialtyBillItem { id: string; billId: string; specialtyPurchaseId: string; specialtyOfferId: string; studentProfileId: string; quantity: number; unitPriceMinor: number; discountAmountMinor: number; descriptionSnapshot: string; createdAt: string }
 export interface BoPaymentTransaction { id: string; billId: string; transactionKind: BoPaymentTransactionKind; amountMinor: number; occurredAt: string; method: BoPaymentMethod; reference: string | null; note: string | null; status: "CONFIRMED" | "VOID"; createdAt: string; updatedAt: string; version: number }
 export interface BoBillSummary { bill: BoBill; items: BoBillItem[]; specialtyItems: BoSpecialtyBillItem[]; transactions: BoPaymentTransaction[]; grossAmountMinor: number; itemDiscountMinor: number; netAmountMinor: number; collectedAmountMinor: number; balanceMinor: number; paymentState: "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOID"; isOverdue: boolean }
-export interface BoSaleResult { productPlan: BoProductPlan; bill: BoBillSummary; billItem: BoBillItem; subscriptionId: string; contractualStartsOn: string; contractualEndsOn: string; purchasedUnits: number }
+export interface BoSaleResult { productPlan: BoProductPlan; bill: BoBillSummary; billItem: BoBillItem; subscriptionId: string; contractualStartsOn: string; contractualEndsOn: string | null; purchasedUnits: number }
 
 export interface BoSpecialtyFamily { id:string; pathProgramId:string; code:string; displayName:string; sortOrder:number; status:string; version:number; createdAt:string; updatedAt:string }
 export interface BoSpecialtyModule { id:string; familyId:string; pathProgramId:string; code:string; displayName:string; level:number; sortOrder:number; status:string; version:number; createdAt:string; updatedAt:string }
@@ -749,4 +749,16 @@ export interface BoTimekeepingPage {
   data: BoTimekeepingSession[];
   nextCursor: string | null;
   summary: { totalSessions: number; openSessions: number; closedSessions: number };
+}
+
+export interface BoSubscriptionDirectoryItem {
+  id:string; studentProfileId:string; studentDisplayName:string; pathProgramId:string; pathDisplayName:string; lifecycle:string;
+  serviceStartsOn:string|null; contractualEndsOn:string|null; weeklyCommitment:number; termWeeks:number|null;
+  commercialReference:string|null; productPlanId:string|null; listPriceMinor:number|null; itemDiscountMinor:number;
+  billDiscountMinor:number; finalAmountMinor:number|null; historicalBalance:number; effectiveAvailableUnits:number;
+  createdAt:string; updatedAt:string; version:number;
+}
+export interface BoSubscriptionDirectoryPage {
+  items:BoSubscriptionDirectoryItem[]; limit:number; total:number;
+  nextCursor:{createdAt:string;id:string}|null;
 }
