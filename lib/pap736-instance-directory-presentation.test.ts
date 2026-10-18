@@ -14,7 +14,7 @@ test("PAP-736 list reads bounded canonical global directory, not N+1 learner fan
 });
 
 test("PAP-736 row detail is lazy, authenticated, and surfaced in common side peek", () => {
-  assert.match(directory, /PinoriaInstanceDetail id=\{selected\.id\}/);
+  assert.match(directory, /PinoriaInstanceDetail key=\{selectedId\} id=\{selectedId\}/);
   assert.doesNotMatch(directory, /pinoria\/worlds\/instances\/\$\{selected\.id\}/);
   assert.match(directory, /<PinoriaInstanceDetail\s/);
   assert.match(directory, /cache:"no-store"/);

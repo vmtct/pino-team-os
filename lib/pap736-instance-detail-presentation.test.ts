@@ -7,7 +7,7 @@ test("Instance drawer fetches only selected authenticated detail and fences stal
  assert.match(detail,/pinoria\/worlds\/instances\/\$\{id\}/);
  assert.match(detail,/const controller=new AbortController/);
  assert.match(detail,/controller\.abort\(\)/);
- assert.match(directory,/PinoriaInstanceDetail id=\{selected\.id\}/);
+ assert.match(directory,/PinoriaInstanceDetail key=\{selectedId\} id=\{selectedId\}/);
 });
 test("Instance mutations use existing Core authority and confirmed guarded commands",()=>{
  for(const action of ["set-live","revoke","reactivate"]) assert.match(detail,new RegExp(action));

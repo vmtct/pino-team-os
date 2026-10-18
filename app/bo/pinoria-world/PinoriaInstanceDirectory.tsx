@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { parseInstanceGridParams, writeInstanceGridParams, type InstanceGridUrlState } from "@/lib/pap736-instance-url-state";
 import { BoDataGrid, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { PinoriaGrantDrawer } from "./PinoriaGrantDrawer";
 import { PinoriaInstanceDetail } from "./PinoriaInstanceDetail";
@@ -31,8 +32,28 @@ export function PinoriaInstanceDirectory() {
   const [sortKey,setSortKey]=useState("grantedAt"),[sortDirection,setSortDirection]=useState<"asc"|"desc">("desc");
   const [data,setData]=useState<Directory>({items:[],total:0,limit:25,offset:0});
   const [state,setState]=useState<"loading"|"ready"|"error"|"permission">("loading"),[error,setError]=useState("");
-  const [selected,setSelected]=useState<Row|null>(null);
+  const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [urlReady,setUrlReady]=useState(false),skipUrlWrite=useRef(true);
   const [epoch,setEpoch]=useState(0),[grantOpen,setGrantOpen]=useState(false);
+  useEffect(()=>{
+    const restore=()=>{
+      const parsed=parseInstanceGridParams(new URLSearchParams(window.location.search));
+      skipUrlWrite.current=true;
+      setQuery(parsed.query);setStatus(parsed.status);setWorldId(parsed.worldId);setPage(parsed.page);setSize(parsed.size);
+      setSortKey(parsed.sortKey);setSortDirection(parsed.sortDirection);setSelectedId(parsed.instanceId);
+    };
+    restore();setUrlReady(true);
+    window.addEventListener("popstate",restore);
+    return ()=>window.removeEventListener("popstate",restore);
+  },[]);
+  useEffect(()=>{
+    if(!urlReady)return;
+    if(skipUrlWrite.current){skipUrlWrite.current=false;return;}
+    const next:InstanceGridUrlState={query,status,worldId,page,size:size as InstanceGridUrlState["size"],sortKey:sortKey as InstanceGridUrlState["sortKey"],sortDirection,instanceId:selectedId};
+    const url=new URL(window.location.href);
+    const nextQuery=writeInstanceGridParams(url.searchParams,next).toString();
+    if(nextQuery!==url.searchParams.toString())window.history.pushState(window.history.state,"",url.pathname+(nextQuery?"?"+nextQuery:"")+url.hash);
+  },[urlReady,query,status,worldId,page,size,sortKey,sortDirection,selectedId]);
   useEffect(()=>{
     const controller=new AbortController();
     const params=new URLSearchParams({limit:String(size),offset:String((page-1)*size),sortKey,sortDirection:sortDirection.toUpperCase()});
@@ -55,9 +76,9 @@ export function PinoriaInstanceDirectory() {
       state={state} stateMessage={error} search={query} onSearchChange={value=>{setQuery(value);setPage(1);}}
       sortKey={sortKey} sortDirection={sortDirection} onSortChange={(key,direction)=>{setSortKey(key);setSortDirection(direction);setPage(1);}}
       pagination={{page,pageSize:size,total:data.total,pageSizeOptions:[10,25,50,100],onPageChange:setPage,onPageSizeChange:n=>{setSize(n);setPage(1);}}}
-      resultLabel={`${data.total} canonical instances`} selectedRowKey={selected?.id??null} onRowOpen={setSelected}
+      resultLabel={`${data.total} canonical instances`} selectedRowKey={selectedId} onRowOpen={row=>setSelectedId(row.id)}
       onRefresh={()=>setEpoch(n=>n+1)} emptyTitle="No WorldInstances" emptyMessage="No matching canonical instances were returned."/>
-    {grantOpen?<PinoriaGrantDrawer onClose={()=>setGrantOpen(false)} onGranted={id=>{setGrantOpen(false);setSelected(null);setQuery(id);setPage(1);setEpoch(n=>n+1);}}/>:null}
-    {selected?<PinoriaInstanceDetail id={selected.id} onClose={()=>setSelected(null)} onChanged={()=>setEpoch(n=>n+1)}/>:null}
+    {grantOpen?<PinoriaGrantDrawer onClose={()=>setGrantOpen(false)} onGranted={id=>{setGrantOpen(false);setSelectedId(id);setQuery(id);setPage(1);setEpoch(n=>n+1);}}/>:null}
+    {selectedId?<PinoriaInstanceDetail key={selectedId} id={selectedId} onClose={()=>setSelectedId(null)} onChanged={()=>setEpoch(n=>n+1)}/>:null}
   </section>;
 }
