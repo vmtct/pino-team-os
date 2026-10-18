@@ -52,21 +52,48 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Cloudflare API is the canonical deployment readback; Wrangler JSON shape differs.
+          fetch_deployments() {
+            curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_STAGING_WORKER}/deployments?per_page=10"
+          }
+
           active_version() {
-            npx wrangler deployments list -c wrangler.staging.jsonc --json \
-              | jq -r '.[0].versions[]? | select(.percentage==100) | .version_id' \
-              | head -1
+            fetch_deployments | jq -er '
+              if .success != true then error("Cloudflare deployments API failed") else
+                [.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id]
+                | if length == 1 then .[0] else error("Expected exactly one active 100-percent version") end
+              end'
           }
 
           previous_version="$(active_version)"
           test -n "$previous_version"
-
-          short_sha="${TEAM_SHA:0:12}"
           message="staging sha=${TEAM_SHA} run=${GITHUB_RUN_ID}"
-          npx wrangler deploy -c wrangler.staging.jsonc --tag "staging-${short_sha}" --message "$message"
+          active_message="$(fetch_deployments | jq -er 'if .success == true then (.result.deployments[0].annotations["workers/message"] // "") else error("Cloudflare deployments API failed") end')"
+          deployed_this_run=false
+          deployment_run_id="$GITHUB_RUN_ID"
 
-          npx wrangler deployments list -c wrangler.staging.jsonc --json > deployment.json
-          deployed_version="$(jq -r --arg m "$message" '[.[] | select(.annotations["workers/message"]==$m)] | first | .versions[]? | select(.percentage==100) | .version_id' deployment.json)"
+          if [[ "$active_message" == "staging sha=${TEAM_SHA} run="* ]]; then
+            echo "Active Worker already matches exact source SHA; reusing version and running smoke only"
+            deployed_version="$previous_version"
+            deployment_run_id="${active_message##* run=}"
+          else
+            short_sha="${TEAM_SHA:0:12}"
+            npx wrangler deploy -c wrangler.staging.jsonc --tag "staging-${short_sha}" --message "$message"
+            deployed_this_run=true
+            fetch_deployments > deployment.json
+            deployed_version="$(jq -er --arg m "$message" '
+              if .success != true then error("Cloudflare deployments API failed") else
+                .result.deployments[0] as $d
+                | if $d.annotations["workers/message"] != $m then
+                    error("Latest deployment does not match this run and SHA")
+                  else
+                    [$d.versions[]? | select(.percentage == 100) | .version_id]
+                    | if length == 1 then .[0] else error("Expected exactly one deployed 100-percent version") end
+                  end
+              end' deployment.json)"
+          fi
           test -n "$deployed_version"
           test "$(active_version)" = "$deployed_version"
 
@@ -82,11 +109,11 @@ jobs:
 
           if [ "$smoke_ok" != true ]; then
             current_version="$(active_version)"
-            if [ "$current_version" = "$deployed_version" ]; then
+            if [ "$deployed_this_run" = true ] && [ "$current_version" = "$deployed_version" ]; then
               npx wrangler rollback "$previous_version" -c wrangler.staging.jsonc --message "staging rollback failed-sha=${TEAM_SHA} run=${GITHUB_RUN_ID}"
               test "$(active_version)" = "$previous_version"
             else
-              echo "Staging changed after this deployment; refusing rollback" >&2
+              echo "Not owner of active staging version or source already deployed; refusing rollback" >&2
             fi
             exit 1
           fi
@@ -98,7 +125,9 @@ jobs:
             --arg previousVersionId "$previous_version" \
             --arg activeVersionId "$deployed_version" \
             --arg runId "$GITHUB_RUN_ID" \
-            '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:$runtime,sourceSha:$sourceSha,worker:$worker,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,runId:$runId,result:"PASS",productionMutation:false}' \
+            --arg deploymentRunId "$deployment_run_id" \
+            --arg reusedExistingDeployment "$([ "$deployed_this_run" = false ] && echo true || echo false)" \
+            '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:$runtime,sourceSha:$sourceSha,worker:$worker,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,runId:$runId,deploymentRunId:$deploymentRunId,reusedExistingDeployment:($reusedExistingDeployment=="true"),smokeResult:"PASS",result:"PASS",productionMutation:false}' \
             | tee staging-receipt.json
       - uses: actions/upload-artifact@v4
         with:
