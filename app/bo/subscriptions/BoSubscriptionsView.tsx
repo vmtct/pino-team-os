@@ -25,6 +25,7 @@ export function BoSubscriptionsView() {
   const [commandState, setCommandState] = useState<{ busy: string | null; notice: string | null; error: string | null }>({ busy: null, notice: null, error: null });
   const [pendingAttempt, setPendingAttempt] = useState<CommandAttempt | null>(null);
   const [billingReplay, setBillingReplay] = useState<BillingReplayState>(EMPTY_BILLING_REPLAY);
+  const [historyRevision, setHistoryRevision] = useState(0);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
 
@@ -63,6 +64,7 @@ export function BoSubscriptionsView() {
     const id = selectedRef.current;
     if (!id) return;
     await Promise.all([refreshDirectory(id), refreshLifecycle(id)]);
+    setHistoryRevision((value) => value + 1);
   }
 
   useEffect(() => {
@@ -174,7 +176,7 @@ export function BoSubscriptionsView() {
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
-    <SubscriptionHistoryGrid paths={catalog.data.paths} />
+    <SubscriptionHistoryGrid paths={catalog.data.paths} refreshVersion={historyRevision} />
     <section className={styles.workspace}>
       <aside className={styles.directory}>
         <div className={styles.search}><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên…" /></div>

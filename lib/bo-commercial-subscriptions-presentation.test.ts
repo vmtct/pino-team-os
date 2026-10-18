@@ -100,3 +100,11 @@ test("New registration defers activation until Core confirms Path-compatible pla
   assert.match(billing, /await ensureActivation\(latestSale\.subscriptionId/);
   assert.match(billing, /item\.pathProgramId === pathId/);
 });
+
+test("PAP-623 History Grid refreshes from Core after successful BO writes", async () => {
+  const [view, grid] = await Promise.all([read("app/bo/subscriptions/BoSubscriptionsView.tsx"), read("app/bo/subscriptions/SubscriptionHistoryGrid.tsx")]);
+  assert.match(view, /setHistoryRevision/);
+  assert.match(view, /refreshVersion=\{historyRevision\}/);
+  assert.match(grid, /activeFilters\.current/);
+  assert.match(grid, /\[load, refreshVersion\]/);
+});

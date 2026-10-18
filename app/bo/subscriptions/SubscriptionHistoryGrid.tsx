@@ -9,7 +9,7 @@ type Cursor = { createdAt: string; id: string } | null;
 type Filters = { query: string; lifecycle: string; pathProgramId: string };
 const INITIAL: Filters = { query: "", lifecycle: "", pathProgramId: "" };
 
-export function SubscriptionHistoryGrid({ paths }: { paths: BoPathProgram[] }) {
+export function SubscriptionHistoryGrid({ paths, refreshVersion }: { paths: BoPathProgram[]; refreshVersion: number }) {
   const [draft, setDraft] = useState<Filters>(INITIAL);
   const [filters, setFilters] = useState<Filters>(INITIAL);
   const [history, setHistory] = useState<Cursor[]>([null]);
@@ -18,6 +18,7 @@ export function SubscriptionHistoryGrid({ paths }: { paths: BoPathProgram[] }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const serial = useRef(0);
+  const activeFilters = useRef<Filters>(INITIAL);
 
   const load = useCallback(async (nextFilters: Filters, cursor: Cursor) => {
     const current = ++serial.current;
@@ -41,13 +42,15 @@ export function SubscriptionHistoryGrid({ paths }: { paths: BoPathProgram[] }) {
   }, []);
 
   useEffect(() => {
-    void load(INITIAL, null);
+    setPage(0); setHistory([null]);
+    void load(activeFilters.current, null);
     return () => { serial.current++; };
-  }, [load]);
+  }, [load, refreshVersion]);
 
   function apply(event: React.FormEvent) {
     event.preventDefault();
     const next = { ...draft, query: draft.query.trim() };
+    activeFilters.current = next;
     setFilters(next);
     setHistory([null]);
     setPage(0);
