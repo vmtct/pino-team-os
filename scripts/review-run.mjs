@@ -108,7 +108,7 @@ export function runAtomicReview(opts){
 }
 export function statusAtomicReview(opts){
   const pr=prTruth(opts.repository,opts.prNumber),binding=canonicalBinding(opts.repository,opts.prNumber,pr.candidate),{sliceId}=canonicalSlice(opts.jiraKey,binding),risk=preflightCodexRisk(sliceId);
-  const key=obligationKey(binding);let record=inspectReview(key);if(record.state!=='DISPATCH_RESERVED')assertRiskBinding(record,risk);if(record.provider==='CODEX'&&!['NO_SIDE_EFFECT','TERMINAL','CONSUMED'].includes(record.state)){statusCodexReview({key});record=inspectReview(key);}assertRiskBinding(record,risk);
+  const key=obligationKey(binding);let record=inspectReview(key);if(record.state!=='DISPATCH_RESERVED')assertRiskBinding(record,risk);if(record.provider==='CODEX'&&!['NO_SIDE_EFFECT','CONSUMED'].includes(record.state)){statusCodexReview({key});record=inspectReview(key);}assertRiskBinding(record,risk);
   let out=canonicalOutcome(record);if(['PASS','HOLD'].includes(out.outcome)&&record.state==='TERMINAL'){record=consumeReview(key,record.provider);out=canonicalOutcome(record);}
   return {...out,candidate:binding.candidate};
 }
