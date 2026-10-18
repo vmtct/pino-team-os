@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { BoDataGrid, BoDataGridSidePeek, type BoDataGridColumn } from "@/app/bo/components/data-grid";
+import { PinoriaGrantDrawer } from "./PinoriaGrantDrawer";
 
 type Status = "LIVE" | "INACTIVE" | "REVOKED";
 type Row = {
@@ -30,7 +31,7 @@ export function PinoriaInstanceDirectory() {
   const [data,setData]=useState<Directory>({items:[],total:0,limit:25,offset:0});
   const [state,setState]=useState<"loading"|"ready"|"error"|"permission">("loading"),[error,setError]=useState("");
   const [selected,setSelected]=useState<Row|null>(null),[detail,setDetail]=useState<unknown>(null),[detailError,setDetailError]=useState("");
-  const [epoch,setEpoch]=useState(0);
+  const [epoch,setEpoch]=useState(0),[grantOpen,setGrantOpen]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
     const params=new URLSearchParams({limit:String(size),offset:String((page-1)*size),sortKey,sortDirection:sortDirection.toUpperCase()});
@@ -51,7 +52,7 @@ export function PinoriaInstanceDirectory() {
     return ()=>controller.abort();
   },[selected]);
   return <section aria-label="Global WorldInstances directory" style={{minWidth:0,width:"100%"}}>
-    <div style={{display:"flex",gap:12,marginBottom:12,flexWrap:"wrap"}}>
+    <div style={{display:"flex",gap:12,marginBottom:12,flexWrap:"wrap"}}><button type="button" onClick={()=>setGrantOpen(true)}>+ Grant World</button>
       <label>Status <select value={status} onChange={e=>{setStatus(e.target.value as Status|"");setPage(1);}}><option value="">All statuses</option><option>LIVE</option><option>INACTIVE</option><option>REVOKED</option></select></label>
       <label>World ID <input value={worldId} onChange={e=>{setWorldId(e.target.value);setPage(1);}} placeholder="Filter by World ID"/></label>
     </div>
@@ -61,6 +62,7 @@ export function PinoriaInstanceDirectory() {
       pagination={{page,pageSize:size,total:data.total,pageSizeOptions:[10,25,50,100],onPageChange:setPage,onPageSizeChange:n=>{setSize(n);setPage(1);}}}
       resultLabel={`${data.total} canonical instances`} selectedRowKey={selected?.id??null} onRowOpen={setSelected}
       onRefresh={()=>setEpoch(n=>n+1)} emptyTitle="No WorldInstances" emptyMessage="No matching canonical instances were returned."/>
+    {grantOpen?<PinoriaGrantDrawer onClose={()=>setGrantOpen(false)} onGranted={id=>{setGrantOpen(false);setSelected(null);setQuery(id);setPage(1);setEpoch(n=>n+1);}}/>:null}
     {selected?<BoDataGridSidePeek title={selected.displayLabel} eyebrow={selected.studentDisplayName} onClose={()=>setSelected(null)}>
       <p>World: {selected.worldName} · {selected.status}</p><p>Student ID: <code>{selected.studentProfileId}</code></p>
       <p>Instance ID: <code>{selected.id}</code></p>
