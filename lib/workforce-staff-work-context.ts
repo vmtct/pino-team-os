@@ -54,3 +54,10 @@ export function staffInitials(displayLabel: string) {
   const words = displayLabel.trim().split(/\s+/).filter(Boolean);
   return (words.length > 1 ? `${words[0][0]}${words.at(-1)?.[0] ?? ""}` : words[0]?.slice(0, 2) ?? "P").toUpperCase();
 }
+
+/** Presentation facts only; Core remains the authority for every action. */
+export function shiftResponsibilityLabels(row: Assignment): string[] {
+  if (row.status !== "ACTIVE") return [];
+  const names = new Set((row.roleAssignments ?? []).filter((role) => role.targetType === "SESSION" && role.roleType === "TEACHER" || role.targetType === "CENTER" && (role.roleType === "FRONT_DESK" || role.roleType === "SHIFT_LEADER")).map((role) => role.roleType));
+  return ["FRONT_DESK", "TEACHER", "SHIFT_LEADER"].filter((role) => names.has(role as "FRONT_DESK" | "TEACHER" | "SHIFT_LEADER")).map((role) => role === "FRONT_DESK" ? "Lễ tân" : role === "TEACHER" ? "Giảng dạy" : "Trưởng ca");
+}

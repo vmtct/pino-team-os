@@ -9,6 +9,7 @@ import {
   compactWorkDate,
   nextAssignment,
   staffInitials,
+  shiftResponsibilityLabels,
   workDateParts,
 } from "./workforce-staff-work-context";
 import type { Assignment, WorkforceContext } from "./workforce-api";
@@ -108,4 +109,11 @@ test("PAP-706 keeps Giờ công truthful while effective totals and correction r
   assert.match(source, /Yêu cầu điều chỉnh[\s\S]*staff self-service request contract[\s\S]*disabled/);
   assert.doesNotMatch(source, /reduce\([\s\S]*checkOutAt/);
   assert.doesNotMatch(api, /requestTimekeepingCorrection|timekeeping\/correction-request/);
+});
+
+test("PAP-708 shows only active authoritative shift role facts", () => {
+  const row = { ...assignment("a", "2026-10-18"), roleAssignments: [{roleType:"SHIFT_LEADER" as const,targetType:"CENTER" as const,targetId:"center-1"},{roleType:"TEACHER" as const,targetType:"SESSION" as const,targetId:"lesson-1"},{roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"center-1"}] };
+  assert.deepEqual(shiftResponsibilityLabels(row), ["Lễ tân", "Giảng dạy", "Trưởng ca"]);
+  assert.deepEqual(shiftResponsibilityLabels({...row,status:"CANCELLED"}), []);
+  assert.deepEqual(shiftResponsibilityLabels(assignment("old","2026-10-18")), []);
 });
