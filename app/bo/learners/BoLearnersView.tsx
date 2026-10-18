@@ -124,7 +124,7 @@ export function BoLearnersView() {
         <h1>Học viên</h1>
         <p>Manager nhìn ngay ai đang học, học chương trình nào, còn bao nhiêu buổi và đang ở lớp nào.</p>
       </div>
-      <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => setShowCreate(true)}>+ Thêm học viên</button><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
+      <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>+ Thêm học viên</button><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
     </header>
 
     <section className={styles.metrics}>
@@ -238,9 +238,9 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
   function closeIfSafe() { if (!busy && !uncertainAttempt) onClose(); }
   function switchParentMode(next: "EXISTING" | "NEW") { if (!attemptLocked) { setParentMode(next); setSelectedParentId(null); setError(""); } }
 
-  return <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeIfSafe(); }}>
-    <form className={styles.modal} onSubmit={(event) => void submit(event)}>
-      <header><div><span>School · Student intake</span><h2>Thêm học viên</h2><p>Tạo Student Profile và nối đúng Parent/Guardian trong một canonical command.</p></div><button type="button" onClick={closeIfSafe} disabled={busy || uncertainAttempt}>×</button></header>
+  return <BoDataGridSidePeek title="Thêm học viên" eyebrow="School · Student intake" onClose={closeIfSafe}>
+    <form className={styles.intakeDrawerForm} onSubmit={(event) => void submit(event)}>
+      <p className={styles.intakeDrawerIntro}>Tạo Student Profile và nối đúng Parent/Guardian trong một canonical command.</p>
       {error ? <div className={styles.formError}>{error}{uncertainAttempt ? <><br /><small>Kết quả chưa xác định. Hãy thử lại cùng yêu cầu để đối soát an toàn.</small></> : null}</div> : null}
       <div className={styles.formGrid}>
         <label className={styles.fullField}>Tên học viên<input required disabled={attemptLocked} value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Nguyễn Minh Anh" /></label>
@@ -268,7 +268,7 @@ function CreateStudentIntake({ onClose, onCreated }: { onClose: () => void; onCr
       <small>{parentMode === "EXISTING" ? "Student mới sẽ nối trực tiếp vào Parent đã chọn; không tạo hoặc sửa contact của Parent." : "Nếu contact canonical đã thuộc Parent hiện có, Core vẫn reuse Parent như safety net; Student không tự merge theo tên/ngày sinh."}</small>
       <footer>{attemptLocked && error && canResetAttempt ? <button type="button" className={styles.secondaryButton} onClick={resetAttempt} disabled={busy}>Sửa dữ liệu</button> : null}<button type="button" className={styles.secondaryButton} onClick={closeIfSafe} disabled={busy || uncertainAttempt}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy}>{busy ? "Đang tạo…" : attemptLocked ? "Thử lại cùng yêu cầu" : "Tạo học viên"}</button></footer>
     </form>
-  </div>;
+  </BoDataGridSidePeek>;
 }
 
 function NeutralizeStudentIntake({ lifecycle, onClose, onNeutralized }: { lifecycle: BoLearnerLifecycle; onClose: () => void; onNeutralized: () => Promise<void> }) {
