@@ -28,7 +28,7 @@ for (const width of [390,768,1440]) {
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const denied=apps.nth(1);
     await expect(denied).toHaveAttribute("aria-disabled","true");
-    await denied.click({force:true});
+    await denied.evaluate((el: HTMLButtonElement) => el.click());
     await expect(page.getByRole("status")).toContainText("Ca này bạn chưa có quyền");
     await page.screenshot({path:`test-results/local-home-${width}.png`,fullPage:true});
   });
