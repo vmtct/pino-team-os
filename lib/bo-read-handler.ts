@@ -34,6 +34,7 @@ export async function handleBoOperationalReadRequest(
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
+    if (error instanceof RangeError) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Invalid directory filter" } }, 400);
     if (error instanceof TeamAuthError) {
       return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     }
@@ -96,6 +97,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^pinoria\/ward\/learners\/[0-9a-f-]{36}(?:\/accessories)?$/.test(path)
     || path === "pinoria/ward/set-webm-assets"
     || path === "pinoria/worlds"
+    || path === "pinoria/worlds/instances"
     || path === "pinoria/worlds/learners"
     || /^pinoria\/worlds\/learners\/[0-9a-f-]{36}$/.test(path)
     || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}$/.test(path)
@@ -173,6 +175,28 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "pinoria/worlds/instances") {
+    const permitted=["query","worldId","status","limit","offset","sortKey","sortDirection"];
+    for(const key of url.searchParams.keys()) if(!permitted.includes(key)) throw new RangeError("Invalid World instance directory query key");
+    const body:Record<string,unknown>={};
+    for(const key of ["query","worldId","status","sortKey","sortDirection"]) {
+      const value=url.searchParams.get(key);
+      if(value!==null && value!=="") body[key]=value;
+    }
+    for(const key of ["limit","offset"]) {
+      const value=url.searchParams.get(key);
+      if(value!==null) {
+        if(!/^(?:0|[1-9][0-9]*)$/.test(value)) throw new RangeError("Invalid directory page");
+        body[key]=Number(value);
+      }
+    }
+    if(body.limit!==undefined && ((body.limit as number)<1||(body.limit as number)>100)) throw new RangeError("Invalid directory limit");
+    if(body.status && !["LIVE","INACTIVE","REVOKED"].includes(String(body.status))) throw new RangeError("Invalid directory status");
+    if(body.sortKey && !["grantedAt","studentName","worldName","status","label"].includes(String(body.sortKey))) throw new RangeError("Invalid directory sort key");
+    if(body.sortDirection && !["ASC","DESC"].includes(String(body.sortDirection))) throw new RangeError("Invalid directory sort direction");
+    return body;
+  }
+
   if (path === "student-visits" || STUDENT_VISIT_DETAIL_READ.test(path)) {
     const body: Record<string, unknown> = {};
     for (const key of ["centerId", "studentProfileId", "query", "status", "startAt", "endBefore", "sort", "order"] as const) {
