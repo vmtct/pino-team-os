@@ -16,6 +16,7 @@ import {
   compactWorkDate,
   nextAssignment,
   staffInitials,
+  shiftResponsibilityLabels,
   workDateParts,
 } from "@/lib/workforce-staff-work-context";
 import {
@@ -276,7 +277,7 @@ function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {
     const date = workDateParts(row.workDate);
     return <div className={contextStyles.shiftRow} key={row.id}>
       <div className={contextStyles.shiftDate} aria-label={compactWorkDate(row.workDate)}><span>{date.weekday}</span><strong>{date.day}</strong><small>thg {date.month}</small></div>
-      <div className={contextStyles.shiftCopy}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><span>{assignmentTime(row)}</span></div>
+      <div className={contextStyles.shiftCopy}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><span>{assignmentTime(row)}</span><small>{shiftResponsibilityLabels(row).join(" · ") || "Chưa phân công vai trò"}</small></div>
     </div>;
   })}</div> : <p className="muted">Chưa có ca được phân công.</p>}</section>;
 }
@@ -297,7 +298,7 @@ function ShiftCalendarPanel({ rows, centerName, centerToday, week, weeks, select
     {week ? <div className={calendarStyles.week}>{dates.map((date) => <button key={date} type="button" className={selectedDate === date ? calendarStyles.selected : ""} onClick={() => setSelectedDate(date)}><small>{weekday(date)}</small><strong>{dayNumber(date)}</strong></button>)}</div> : <section className={calendarStyles.card}><h3>Chưa có tuần vận hành</h3><p>Core chưa trả TermWeek khả dụng cho Center này.</p></section>}
     {selectedDate ? <section className={calendarStyles.card}>
       <div className={calendarStyles.row}><h3>Ngày {shortDate(selectedDate)}</h3><span className={calendarStyles.pill}>{assigned.length ? "Đã phân công" : registered.length ? "Đã đăng ký" : "Chưa có ca"}</span></div>
-      {assigned.length ? <div className={calendarStyles.assignmentList}>{assigned.map((row) => <article key={row.id}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><p>{assignmentTime(row)} · {centerName}</p><small>Vai trò ca · Chưa sẵn sàng</small></article>)}</div> : <>
+      {assigned.length ? <div className={calendarStyles.assignmentList}>{assigned.map((row) => <article key={row.id}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><p>{assignmentTime(row)} · {centerName}</p><small>{shiftResponsibilityLabels(row).length ? `Vai trò ca · ${shiftResponsibilityLabels(row).join(" · ")}` : "Vai trò ca · Chưa được phân công"}</small></article>)}</div> : <>
         <p className={calendarStyles.muted}>Đăng ký chỉ thể hiện thời gian bạn có thể làm. Manager phân công ca/vai trò sau; đăng ký không phải assignment.</p>
         {!availability ? <button className={calendarStyles.primary} disabled={saving || locked || !window} onClick={() => void onOpen()}>{locked ? "Đã khóa đăng ký" : "Bắt đầu đăng ký tuần"}</button> : templates.length ? <div className={calendarStyles.templateList}>{templates.map((template) => { const selected = registered.some((item) => item.shiftTemplateId === template.id); return <button key={template.id} type="button" className={selected ? calendarStyles.templateSelected : calendarStyles.template} disabled={saving || immutable} onClick={() => void onToggle(selectedDate, template.id)} aria-pressed={selected}><strong>{selected ? "✓ " : ""}{template.displayLabel}</strong><span>{template.startLocalTime}–{template.endLocalTime}</span></button>; })}</div> : <p className={calendarStyles.muted}>ShiftTemplate chưa sẵn sàng cho tuần này.</p>}
       </>}
