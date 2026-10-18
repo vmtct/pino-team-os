@@ -39,7 +39,7 @@ export default function TosHome() {
  const [assignment,setAssignment]=useState<Assignment|null>(null);
  const [assignments,setAssignments]=useState<Assignment[]>([]);
  const [scheduleReady,setScheduleReady]=useState(false);
- const [today,setToday]=useState("");
+
  const [nowLocal,setNowLocal]=useState("");
  const [centerId,setCenterId]=useState<string|null>(null);
  const [centerName,setCenterName]=useState("");
@@ -52,6 +52,9 @@ export default function TosHome() {
    const media=window.matchMedia("(min-width: 760px)");
    const update=()=>setDesktop(media.matches);update();media.addEventListener("change",update);
    const img=new Image();img.onload=()=>{if(live)setBackgroundReady(true)};img.onerror=()=>{if(live)setBackgroundReady(false)};img.src=`${R2_BASE}/Background.jpg`;
+   let clockZone:string|null=null;
+   const refreshClock=()=>{if(!clockZone)return;const now=new Date();const zone=clockZone;const today=centerDate(zone,now);const time=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(now);setNowLocal(today+"T"+time);};
+   const clock=setInterval(refreshClock,60000);
    void Promise.allSettled([workforceApi.profile(),workforceApi.context()]).then(async results=>{
      if(!live)return;
      if(results[0].status==="fulfilled")setProfile(results[0].value.data);
@@ -62,22 +65,22 @@ export default function TosHome() {
          setCenterName(center.displayName);setCenterId(center.id);
          const zone=center.timeZone||"Asia/Ho_Chi_Minh";
          const now=new Date();
-         const today=centerDate(zone,now);setToday(today);
+         const today=centerDate(zone,now);
          const localTime=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(now);setNowLocal(today+"T"+localTime);
          const future=new Date();future.setUTCDate(future.getUTCDate()+14);
          try{
-           const scheduled=await workforceApi.schedule({centerId:center.id,startDate:today,endDate:centerDate(zone,future)});
+           const scheduled=await workforceApi.schedule({centerId:center.id,startDate:centerDate(zone,new Date(now.getTime()-86400000)),endDate:centerDate(zone,future)});
            if(live){setAssignments(scheduled.data);setAssignment(relevantAssignment(scheduled.data,today));setScheduleReady(true);}
          }catch{if(live)setNotice("Không thể tải lịch ca hiện tại.");}
        }
      }
      if(live)setLoading(false);
    });
-   return()=>{live=false;media.removeEventListener("change",update)};
+   return()=>{live=false;clearInterval(clock);media.removeEventListener("change",update)};
  },[]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(""),2600);return()=>clearTimeout(t)},[notice]);
  const name=shortDisplayName(profile?.displayLabel)||"bạn";
- const access=resolveTosAppAccess({assignments,centerId,today,nowLocal,desktop,scheduleReady});
+ const access=resolveTosAppAccess({assignments,centerId,nowLocal,desktop,scheduleReady});
  const shiftTime=assignment?(assignment.effectiveStartLocal&&assignment.effectiveEndLocal?`${assignment.effectiveStartLocal.slice(0,5)}–${assignment.effectiveEndLocal.slice(0,5)}`:assignment.shift?`${assignment.shift.startLocalTime.slice(0,5)}–${assignment.shift.endLocalTime.slice(0,5)}`:"Chưa rõ giờ"):"";
  const openApp=(id:string,href?:string,enabled=false)=>{if(!enabled){setNotice("Ca này bạn chưa có quyền");return;}if(href)router.push(href);else setNotice("Ứng dụng chưa sẵn sàng.");};
  return <main className={styles.screen}>
