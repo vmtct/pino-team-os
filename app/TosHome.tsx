@@ -9,6 +9,7 @@ import { shortDisplayName } from "@/lib/display-name";
 import { SupportSessionBanner } from "@/app/components/tos-shell/SupportSessionBanner";
 import { workforceApi, type Assignment, type WorkforceContext, type StaffProfile } from "@/lib/workforce-api";
 import styles from "./tos-home-v2.module.css";
+import { resolveTosAppAccess } from "@/lib/tos-app-access";
 
 const R2_BASE = process.env.NEXT_PUBLIC_TOS_ASSET_BASE ?? "https://pub-892fa79b018d4d2f9b0808189dd2ce46.r2.dev";
 const APPS: { id:string; title:string; asset:string; fallback:IconDefinition; tone:string; href?:string }[] = [
@@ -16,7 +17,7 @@ const APPS: { id:string; title:string; asset:string; fallback:IconDefinition; to
   { id:"reception", title:"Tiếp tân", asset:"frontdesk.png", fallback:faLocationDot, tone:"blue" },
   { id:"station", title:"Trạm TOS", asset:"tosStation.png", fallback:faDesktop, tone:"violet" },
   { id:"shift-lead", title:"Trưởng ca", asset:"shiftlead.png", fallback:faClock, tone:"coral" },
-  { id:"classroom", title:"Lớp học", asset:"class.png", fallback:faCalendarDays, tone:"green" },
+  { id:"classroom", title:"Lớp học", asset:"class.png", fallback:faCalendarDays, tone:"green", href:"/classroom" },
 ];
 function centerDate(timeZone:string, date:Date) {
   return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -36,6 +37,10 @@ export default function TosHome() {
  const [profile,setProfile]=useState<StaffProfile|null>(null);
  const [context,setContext]=useState<WorkforceContext|null>(null);
  const [assignment,setAssignment]=useState<Assignment|null>(null);
+ const [assignments,setAssignments]=useState<Assignment[]>([]);
+ const [scheduleReady,setScheduleReady]=useState(false);
+ const [today,setToday]=useState("");
+ const [centerId,setCenterId]=useState<string|null>(null);
  const [centerName,setCenterName]=useState("");
  const [notice,setNotice]=useState("");
  const [desktop,setDesktop]=useState(false);
@@ -53,13 +58,13 @@ export default function TosHome() {
        const ctx=results[1].value.data;setContext(ctx);
        const center=ctx.centers[0];
        if(center){
-         setCenterName(center.displayName);
+         setCenterName(center.displayName);setCenterId(center.id);
          const zone=center.timeZone||"Asia/Ho_Chi_Minh";
-         const today=centerDate(zone,new Date());
+         const today=centerDate(zone,new Date());setToday(today);
          const future=new Date();future.setUTCDate(future.getUTCDate()+14);
          try{
            const scheduled=await workforceApi.schedule({centerId:center.id,startDate:today,endDate:centerDate(zone,future)});
-           if(live)setAssignment(relevantAssignment(scheduled.data,today));
+           if(live){setAssignments(scheduled.data);setAssignment(relevantAssignment(scheduled.data,today));setScheduleReady(true);}
          }catch{if(live)setNotice("Không thể tải lịch ca hiện tại.");}
        }
      }
@@ -69,6 +74,7 @@ export default function TosHome() {
  },[]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(""),2600);return()=>clearTimeout(t)},[notice]);
  const name=shortDisplayName(profile?.displayLabel)||"bạn";
+ const access=resolveTosAppAccess({assignments,centerId,today,desktop,scheduleReady});
  const shiftTime=assignment?(assignment.effectiveStartLocal&&assignment.effectiveEndLocal?`${assignment.effectiveStartLocal.slice(0,5)}–${assignment.effectiveEndLocal.slice(0,5)}`:assignment.shift?`${assignment.shift.startLocalTime.slice(0,5)}–${assignment.shift.endLocalTime.slice(0,5)}`:"Chưa rõ giờ"):"";
  const openApp=(id:string,href?:string,enabled=false)=>{if(!enabled){setNotice("Ca này bạn chưa có quyền");return;}if(href)router.push(href);else setNotice("Ứng dụng chưa sẵn sàng.");};
  return <main className={styles.screen}>
@@ -81,9 +87,9 @@ export default function TosHome() {
      </header>
      <button type="button" className={styles.shiftCard} onClick={()=>router.push("/dashboard")}>
        <div className={styles.shiftTopline}><span className={styles.statusDot}/><strong>{loading?"Đang tải ca":assignment?"Ca được phân công":"Chưa có ca sắp tới"}</strong><span className={styles.shiftTime}>{shiftTime}</span><FontAwesomeIcon className={styles.shiftChevron} icon={faChevronRight}/></div>
-       <div className={styles.shiftPlace}><FontAwesomeIcon icon={faLocationDot}/><span>{centerName||"Chưa xác định trung tâm"}</span>{assignment?<><span className={styles.separator}>·</span><span>{assignment.shift?.displayLabel||assignment.workDate}</span></>:null}<span>{assignment?" · Vai trò ca chưa khả dụng":context?"":" · Đang tải dữ liệu"}</span></div>
+       <div className={styles.shiftPlace}><FontAwesomeIcon icon={faLocationDot}/><span>{centerName||"Chưa xác định trung tâm"}</span>{assignment?<><span className={styles.separator}>·</span><span>{assignment.shift?.displayLabel||assignment.workDate}</span></>:null}<span>{assignment?" · Vai trò dựa trên lịch phân công":context?"":" · Đang tải dữ liệu"}</span></div>
      </button>
-     <section className={styles.appsSection} aria-label="Ứng dụng PINO"><div className={styles.sectionHeading}><h2>Ứng dụng</h2><span>5 apps</span></div><div className={styles.appGrid}>{APPS.map(app=><Tile key={app.id} app={app} enabled={app.id==="shift" || (app.id==="station" && desktop)} onClick={()=>openApp(app.id,app.href,app.id==="shift" || (app.id==="station" && desktop))}/>)}</div></section>
+     <section className={styles.appsSection} aria-label="Ứng dụng PINO"><div className={styles.sectionHeading}><h2>Ứng dụng</h2><span>5 apps</span></div><div className={styles.appGrid}>{APPS.map(app=><Tile key={app.id} app={app} enabled={access[app.id as keyof typeof access]} onClick={()=>openApp(app.id,app.href,access[app.id as keyof typeof access])}/>)}</div></section>
      <footer className={styles.footer}><span className={styles.footerPill}>PINO TEAM</span><span>{desktop?"Desktop":"Mobile-first"}</span></footer>
    </div>
    {notice?<div className={styles.toast} role="status"><FontAwesomeIcon icon={faLock}/><span>{notice}</span></div>:null}
