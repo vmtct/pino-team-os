@@ -33,3 +33,19 @@ test("PAP-709 unavailable payroll must not invent money", () => {
   assert.match(page, /Chưa sẵn sàng/);
   assert.doesNotMatch(page, /1\.625\.000|2\.100\.000/);
 });
+
+test("PAP-709 Ca Làm compact header has back control and no duplicate Home action", () => {
+  const shell = read("app/components/tos-shell/TosShell.tsx");
+  assert.match(shell, /compactAppHeader && !home[\s\S]*compactBack[\s\S]*aria-label="Quay về TOS Home"/);
+  assert.match(shell, /compactBrand[\s\S]*appIconSrc/);
+  const workforce = read("app/components/WorkforceWorkspace.tsx");
+  assert.match(workforce, /TOS_SHIFT_FOOTER/);
+});
+test("PAP-709 app availability and shift-clock gates are source-backed and fail closed", () => {
+  const access = read("lib/tos-app-access.ts");
+  assert.match(access, /assignmentActiveNow/);
+  assert.match(access, /row\.status !== "ACTIVE"/);
+  assert.match(access, /effectiveWork\?\.windows/);
+  assert.match(access, /input\.scheduleReady && input\.centerId/);
+  assert.doesNotMatch(access, /roleLabel|mockRole|Math\.random/);
+});
