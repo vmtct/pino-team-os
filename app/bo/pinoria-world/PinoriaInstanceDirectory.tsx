@@ -78,7 +78,7 @@ export function PinoriaInstanceDirectory() {
       pagination={{page,pageSize:size,total:data.total,pageSizeOptions:[10,25,50,100],onPageChange:setPage,onPageSizeChange:n=>{setSize(n);setPage(1);}}}
       resultLabel={`${data.total} canonical instances`} selectedRowKey={selectedId} onRowOpen={row=>setSelectedId(row.id)}
       onRefresh={()=>setEpoch(n=>n+1)} emptyTitle="No WorldInstances" emptyMessage="No matching canonical instances were returned."/>
-    {grantOpen?<PinoriaGrantDrawer onClose={()=>setGrantOpen(false)} onGranted={id=>{setGrantOpen(false);setSelectedId(id);setQuery(id);setPage(1);setEpoch(n=>n+1);}}/>:null}
+    {grantOpen?<PinoriaGrantDrawer onClose={()=>setGrantOpen(false)} onGranted={id=>{setGrantOpen(false);setSelectedId(id);setQuery(id);setStatus("");setWorldId("");setPage(1);setEpoch(n=>n+1);}}/>:null}
     {selectedId?<PinoriaInstanceDetail key={selectedId} id={selectedId} onClose={()=>setSelectedId(null)} onChanged={()=>setEpoch(n=>n+1)}/>:null}
   </section>;
 }

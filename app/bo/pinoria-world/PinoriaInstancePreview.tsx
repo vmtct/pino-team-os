@@ -11,9 +11,9 @@ export function PinoriaInstancePreview({scene,accessible,unlocked,character}:{sc
    if(layer.kind==="MEDIA"&&(!layer.enabled||!unlocked.includes(layer.id)))return null;
    const asset=layer.kind==="MEDIA"?pinoriaAssetUrl(layer.assetKey??null):null;
    const placement={position:"absolute" as const,left:`${50+(layer.positionX??0)}%`,top:`${50+(layer.positionY??0)}%`,zIndex:layer.zIndex??1,transform:`translate(-50%,${layer.anchor==="BOTTOM_CENTER"?"-100%":"-50%"}) scale(${layer.scale??1})`};
-   if(layer.kind==="CHARACTER")return <div key={layer.id} style={placement}>{character?<LayeredCharacter config={character.config} wardRender={character.wardRender}/>:<div role="status">Character unavailable</div>}</div>;
+   if(layer.kind==="CHARACTER")return <div key={layer.id} style={{...placement,width:"22%",height:"46%",transformOrigin:"50% 100%"}}>{character?<LayeredCharacter config={character.config} wardRender={character.wardRender}/>:<div role="status">Character unavailable</div>}</div>;
    if(!asset)return null;
-   return <div key={layer.id} style={placement}>{layer.mediaType==="WEBM"?<video src={asset} autoPlay loop muted playsInline/>:<img src={asset} alt={layer.displayName}/>}</div>;
+   return <div key={layer.id} style={{...placement,width:"30%",height:"40%"}}>{layer.mediaType==="WEBM"?<video src={asset} autoPlay loop muted playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain"}}/>:<img src={asset} alt={layer.displayName} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain"}}/>}</div>;
   })}
  </div>;
 }
