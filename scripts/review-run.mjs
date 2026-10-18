@@ -70,7 +70,7 @@ export function validateSliceLedger(ledger,jiraKey,binding){
   return sliceId;
 }
 function canonicalSlice(jiraKey,binding){const {value:ledger}=loadSlice(jiraKey),sliceId=validateSliceLedger(ledger,jiraKey,binding);return {sliceId,ledger};}
-export function assertRiskBinding(record,risk){const bound=record?.handle?.riskPreflight;if(bound&&bound.bindingHash!==risk.bindingHash)throw new Error('ATOMIC_REVIEW_RISK_BINDING_STALE');}
+export function assertRiskBinding(record,risk){const bound=record?.handle?.riskPreflight;if(!bound){if(['DISPATCH_RESERVED','START_CONFIRMED','RUNNING','RESULT_PENDING','TERMINAL','CONSUMED'].includes(record?.state))throw new Error('ATOMIC_REVIEW_RISK_BINDING_MISSING');return;}if(bound.bindingHash!==risk.bindingHash||bound.manifestSha256!==risk.manifestSha256)throw new Error('ATOMIC_REVIEW_RISK_BINDING_STALE');}
 function line(v){return String(v??'').replace(/\r?\n/g,' ').replace(/\s+/g,' ').trim();}
 function diffFiles(worktree,base,candidate){const out=wsl(`cd ${q(worktree)} && git diff --name-only origin/${q(base)}...${q(candidate)}`);return out.split(/\r?\n/).filter(Boolean);}
 export function buildBrief({binding,pr,jiraKey,ledger,risk,files}){

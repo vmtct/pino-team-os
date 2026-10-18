@@ -49,3 +49,5 @@ test('terminal or consumed review reuse must retain exact risk binding',()=>{
   assert.doesNotThrow(()=>assertRiskBinding({state:'TERMINAL',handle:{riskPreflight:{bindingHash:risk.bindingHash}}},risk));
   assert.throws(()=>assertRiskBinding({state:'CONSUMED',handle:{riskPreflight:{bindingHash:'b'.repeat(64)}}},risk),/ATOMIC_REVIEW_RISK_BINDING_STALE/);
 });
+
+test('interrupted dispatch terminal without risk binding fails closed',()=>{const risk={bindingHash:'a'.repeat(64),manifestSha256:'c'.repeat(64)};assert.throws(()=>assertRiskBinding({state:'TERMINAL',handle:{reconciledFromResult:true},result:{verified:{verdict:'PASS'}}},risk),/ATOMIC_REVIEW_RISK_BINDING_MISSING/);assert.throws(()=>assertRiskBinding({state:'CONSUMED',handle:{riskPreflight:{bindingHash:risk.bindingHash,manifestSha256:'d'.repeat(64)}}},risk),/ATOMIC_REVIEW_RISK_BINDING_STALE/);});
