@@ -34,11 +34,21 @@ for (const width of [390, 768, 1440]) {
     test("Ca Làm has compact Back and exactly four contextual tabs", async ({ page }) => {
       await page.goto("/dashboard");
       await expect(page.getByRole("link", { name: "Quay về TOS Home" })).toBeVisible();
-      for (const name of ["Hôm nay", "Lịch ca", "Giờ công", "Thu nhập"]) {
-        await expect(page.getByRole("navigation").getByText(name, { exact: true })).toBeVisible();
+      const tabs = [
+        { name: "Hôm nay", href: "/dashboard" },
+        { name: "Lịch ca", href: "/schedule" },
+        { name: "Giờ công", href: "/timesheet" },
+        { name: "Thu nhập", href: "/earnings" },
+      ];
+      for (const tab of tabs) {
+        const link = page.getByRole("navigation").getByRole("link", { name: tab.name, exact: true });
+        await expect(link).toBeVisible();
+        await link.click();
+        await expect(page).toHaveURL(new RegExp(tab.href + "$"));
+        await expect(page.getByRole("link", { name: "Quay về TOS Home" })).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await page.screenshot({ path: "test-results/pap709-" + tab.href.slice(1) + "-" + width + ".png", fullPage: true });
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-      await page.screenshot({ path: "test-results/pap709-shift-" + width + ".png", fullPage: true });
     });
   });
 }
