@@ -9,6 +9,7 @@ export const boNavigation: BoNavGroup[] = [
     label: "School",
     items: [
       { href: "/bo/learners", label: "Students" },
+      { href: "/bo/student-visits", label: "Student Visits" },
       { href: "/bo/subscriptions", label: "Subscriptions" },
       {
         href: "/bo/running-classes",
