@@ -40,6 +40,7 @@ export default function TosHome() {
  const [assignments,setAssignments]=useState<Assignment[]>([]);
  const [scheduleReady,setScheduleReady]=useState(false);
  const [today,setToday]=useState("");
+ const [nowLocal,setNowLocal]=useState("");
  const [centerId,setCenterId]=useState<string|null>(null);
  const [centerName,setCenterName]=useState("");
  const [notice,setNotice]=useState("");
@@ -60,7 +61,9 @@ export default function TosHome() {
        if(center){
          setCenterName(center.displayName);setCenterId(center.id);
          const zone=center.timeZone||"Asia/Ho_Chi_Minh";
-         const today=centerDate(zone,new Date());setToday(today);
+         const now=new Date();
+         const today=centerDate(zone,now);setToday(today);
+         const localTime=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(now);setNowLocal(today+"T"+localTime);
          const future=new Date();future.setUTCDate(future.getUTCDate()+14);
          try{
            const scheduled=await workforceApi.schedule({centerId:center.id,startDate:today,endDate:centerDate(zone,future)});
@@ -74,7 +77,7 @@ export default function TosHome() {
  },[]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(""),2600);return()=>clearTimeout(t)},[notice]);
  const name=shortDisplayName(profile?.displayLabel)||"bạn";
- const access=resolveTosAppAccess({assignments,centerId,today,desktop,scheduleReady});
+ const access=resolveTosAppAccess({assignments,centerId,today,nowLocal,desktop,scheduleReady});
  const shiftTime=assignment?(assignment.effectiveStartLocal&&assignment.effectiveEndLocal?`${assignment.effectiveStartLocal.slice(0,5)}–${assignment.effectiveEndLocal.slice(0,5)}`:assignment.shift?`${assignment.shift.startLocalTime.slice(0,5)}–${assignment.shift.endLocalTime.slice(0,5)}`:"Chưa rõ giờ"):"";
  const openApp=(id:string,href?:string,enabled=false)=>{if(!enabled){setNotice("Ca này bạn chưa có quyền");return;}if(href)router.push(href);else setNotice("Ứng dụng chưa sẵn sàng.");};
  return <main className={styles.screen}>

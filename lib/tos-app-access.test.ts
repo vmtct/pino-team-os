@@ -6,10 +6,10 @@ import type { Assignment } from "./workforce-api";
 const base: Assignment = {
   id: "a", centerId: "c1", workDate: "2026-10-18", shiftTemplateId: "s",
   timeBasis: "SHIFT_TEMPLATE", coverageMode: "FULL_SHIFT", effectiveStartLocal: null,
-  effectiveEndLocal: null, termWeekId: null, status: "ACTIVE", shift: null,
+  effectiveEndLocal: null, termWeekId: null, status: "ACTIVE", shift: {code:"DAY",displayLabel:"Day",startLocalTime:"08:00",endLocalTime:"20:00"},
 };
 const resolve = (assignments: Assignment[], opts: Partial<Parameters<typeof resolveTosAppAccess>[0]> = {}) =>
-  resolveTosAppAccess({ assignments, centerId: "c1", today: "2026-10-18", desktop: false, scheduleReady: true, ...opts });
+  resolveTosAppAccess({ assignments, centerId: "c1", today: "2026-10-18", nowLocal: "2026-10-18T12:00", desktop: false, scheduleReady: true, ...opts });
 test("PAP-702 defaults fail closed when role evidence absent or schedule fails", () => {
   for (const a of [[], [{...base}], [{...base, roleAssignments: []}]]) {
     assert.deepEqual(resolve(a), {shift:true,reception:false,station:false,"shift-lead":false,classroom:false});
@@ -35,3 +35,4 @@ test("PAP-702 rejects wrong target scope and ignores profile roles", () => {
   assert.equal(resolve([{...base,roleAssignments:roles}]).classroom,false);
   assert.equal(resolve([{...base,roleAssignments:roles}])["shift-lead"],false);
 });
+test("PAP-702 denies role access outside current shift clock", () => { const role = {roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"c1"}; assert.equal(resolve([{...base,roleAssignments:[role]}],{nowLocal:"2026-10-18T20:01"}).reception,false); });

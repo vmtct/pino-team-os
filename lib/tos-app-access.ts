@@ -7,12 +7,13 @@ export function resolveTosAppAccess(input: {
   assignments: Assignment[];
   centerId: string | null;
   today: string;
+  nowLocal: string;
   desktop: boolean;
   scheduleReady: boolean;
 }): Record<TosAppId, boolean> {
   const todayAssignments = input.scheduleReady && input.centerId
     ? input.assignments.filter((row) =>
-      row.centerId === input.centerId && row.workDate === input.today && row.status === "ACTIVE")
+      row.centerId === input.centerId && row.status === "ACTIVE" && row.workDate === input.today && Boolean(row.shift) && (row.workDate + "T" + row.shift!.startLocalTime.slice(0,5)) <= input.nowLocal && input.nowLocal < (row.workDate + "T" + row.shift!.endLocalTime.slice(0,5)))
     : [];
   const roles = new Set(todayAssignments.flatMap((row) => row.roleAssignments ?? [])
     .filter((role) => role.targetId && (
