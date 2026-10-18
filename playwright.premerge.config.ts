@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   workers: 1,
-  reporter: [["list"], ["html", { open:"never", outputFolder:"test-results/premerge-report" }]],
+  reporter: [["list"], ["html", { open:"never", outputFolder:"playwright-report/premerge-local" }]],
   use: {
     baseURL: "http://127.0.0.1:3109",
     trace: "retain-on-failure",
@@ -15,7 +15,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev -- -H 127.0.0.1 -p 3109",
+    command: "node node_modules/next/dist/bin/next dev -H 127.0.0.1 -p 3109",
     url: "http://127.0.0.1:3109/",
     reuseExistingServer: false,
     timeout: 120000,
