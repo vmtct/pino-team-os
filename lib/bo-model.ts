@@ -762,3 +762,16 @@ export interface BoSubscriptionDirectoryPage {
   items:BoSubscriptionDirectoryItem[]; limit:number; total:number;
   nextCursor:{createdAt:string;id:string}|null;
 }
+/** PAP-731: salary only arrives through an explicit authorized private reveal. */
+export interface BoStaffCompensationEntry {
+  id: string;
+  staffMemberId: string;
+  effectiveFrom: string;
+  periodUntilExclusive: string | null;
+  state: "CURRENT" | "HISTORICAL" | "SCHEDULED";
+  amountMinor: number;
+  currency: "VND";
+  note: string | null;
+  version: number;
+  updatedAt: string;
+}

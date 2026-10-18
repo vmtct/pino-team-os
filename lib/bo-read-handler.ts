@@ -55,6 +55,13 @@ export function isStaffRegistrationProtectedReadPath(path: string): boolean {
   return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests";
 }
 
+export function isStaffCompensationPath(path: string): boolean {
+  const p=path.split("/");
+  return (p.length===5||p.length===6) && p[0]==="workforce" && p[1]==="staff-records"
+    && /^[0-9a-f-]{36}$/.test(p[2]??"") && p[3]==="private" && p[4]==="compensation"
+    && (p.length===5||/^[0-9a-f-]{36}$/.test(p[5]??""));
+}
+
 export function isOperationalReadPath(path: string): boolean {
   return path === "subscriptions"
     || path === "billing/product-plans"
@@ -87,6 +94,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || (isStaffCompensationPath(path) && path.split("/").length===5)
     || path === "workforce/timekeeping"
     || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
@@ -168,6 +176,10 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (isStaffCompensationPath(path)) {
+    const centerId=url.searchParams.get("centerId")?.trim();
+    return centerId?{centerId}:undefined;
+  }
   if (path === "learners" || path === "open-studio/learners" || path === "student-visits" || STUDENT_VISIT_DETAIL_READ.test(path) || /^(?:open-studio\/)?students\/[0-9a-f-]{36}\/lifecycle$/.test(path)) {
     const centerId = url.searchParams.get("centerId")?.trim();
     return centerId ? { centerId } : undefined;
