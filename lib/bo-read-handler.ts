@@ -55,7 +55,8 @@ export function isStaffRegistrationProtectedReadPath(path: string): boolean {
 }
 
 export function isOperationalReadPath(path: string): boolean {
-  return path === "billing/product-plans"
+  return path === "subscriptions"
+    || path === "billing/product-plans"
     || BILLING_BILL_READ.test(path)
     || path === "specialty/catalog"
     || SPECIALTY_STUDENT_READ.test(path)
@@ -173,6 +174,7 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "subscriptions") { const result:Record<string,unknown>={}; for(const key of ["query","lifecycle","pathProgramId","centerId","beforeCreatedAt","beforeSubscriptionId"]){ const value=url.searchParams.get(key); if(value!==null&&value!=="")result[key]=value; } const limit=url.searchParams.get("limit"); if(limit!==null&&/^\d+$/.test(limit))result.limit=Number(limit); return result; }
   if (path === "student-visits" || STUDENT_VISIT_DETAIL_READ.test(path)) {
     const body: Record<string, unknown> = {};
     for (const key of ["centerId", "studentProfileId", "query", "status", "startAt", "endBefore", "sort", "order"] as const) {

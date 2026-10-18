@@ -4,15 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
+import { SubscriptionHistoryGrid } from "./SubscriptionHistoryGrid";
 import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
 import { SpecialtyWorkspace } from "./SpecialtyWorkspace";
 import styles from "./bo-subscriptions.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
-type CreateDraft = { pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: string; purchasedUnits: string; commercialReference: string };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
-const EMPTY_CREATE: CreateDraft = { pathProgramId: "", serviceStartsOn: today(), contractualEndsOn: "", weeklyCommitment: "2", purchasedUnits: "24", commercialReference: "" };
 const EMPTY_BILLING_REPLAY: BillingReplayState = { pending: null, busy: null, notice: null, error: null };
 
 export function BoSubscriptionsView() {
@@ -21,7 +20,6 @@ export function BoSubscriptionsView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [lifecycle, setLifecycle] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [query, setQuery] = useState("");
-  const [createDraft, setCreateDraft] = useState<CreateDraft>(EMPTY_CREATE);
   const [placementClass, setPlacementClass] = useState<Record<string, string>>({});
   const [placementDate, setPlacementDate] = useState<Record<string, string>>({});
   const [commandState, setCommandState] = useState<{ busy: string | null; notice: string | null; error: string | null }>({ busy: null, notice: null, error: null });
@@ -77,7 +75,6 @@ export function BoSubscriptionsView() {
       const next = requested && rows.some((row) => row.id === requested) ? requested : rows[0]?.id ?? null;
       selectedRef.current = next;
       setSelectedId(next);
-      setCreateDraft((draft) => ({ ...draft, pathProgramId: scope.paths.find((path) => path.status === "ACTIVE")?.id ?? scope.paths[0]?.id ?? "" }));
     }).catch((error: unknown) => {
       if (!active) return;
       const text = message(error);
@@ -124,14 +121,6 @@ export function BoSubscriptionsView() {
 
   async function retryPending() {
     if (pendingAttempt) await executeAttempt(pendingAttempt);
-  }
-
-  async function createSubscription(event: React.FormEvent) {
-    event.preventDefault();
-    const studentId = selectedRef.current;
-    if (!studentId) return;
-    const body = { studentProfileId: studentId, pathProgramId: createDraft.pathProgramId, serviceStartsOn: createDraft.serviceStartsOn, contractualEndsOn: createDraft.contractualEndsOn, weeklyCommitment: Number(createDraft.weeklyCommitment), purchasedUnits: Number(createDraft.purchasedUnits), ...(createDraft.commercialReference.trim() ? { commercialReference: createDraft.commercialReference.trim() } : {}) };
-    await runCommand("create", (idempotencyKey) => boApi.createSubscription(body, idempotencyKey), "Đã tạo và kích hoạt Subscription từ canonical Core.");
   }
 
   async function place(subscriptionId: string) {
@@ -185,6 +174,7 @@ export function BoSubscriptionsView() {
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
+    <SubscriptionHistoryGrid paths={catalog.data.paths} />
     <section className={styles.workspace}>
       <aside className={styles.directory}>
         <div className={styles.search}><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên…" /></div>
@@ -198,7 +188,7 @@ export function BoSubscriptionsView() {
         </div>
       </aside>
       <section className={styles.detail}>
-        {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data} draft={createDraft} setDraft={setCreateDraft} createSubscription={createSubscription}
+        {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
           place={place} renew={renew} neutralize={neutralize} endEnrollment={endEnrollment} busy={commandState.busy}
           blocked={Boolean(commandState.busy || pendingAttempt || billingReplay.busy || billingReplay.pending)}
@@ -209,8 +199,8 @@ export function BoSubscriptionsView() {
 }
 
 function CommercialWorkspace(props: {
-  load: Load<BoLearnerLifecycle> | null; catalog: Catalog; draft: CreateDraft; setDraft: React.Dispatch<React.SetStateAction<CreateDraft>>;
-  createSubscription: (event: React.FormEvent) => Promise<void>; placementClass: Record<string, string>; setPlacementClass: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  load: Load<BoLearnerLifecycle> | null; catalog: Catalog;
+  placementClass: Record<string, string>; setPlacementClass: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   placementDate: Record<string, string>; setPlacementDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   neutralize: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
@@ -232,22 +222,6 @@ function CommercialWorkspace(props: {
       replayState={props.billingReplay} setReplayState={props.setBillingReplay} />
 
     <SpecialtyWorkspace lifecycle={data} paths={props.catalog.paths} blocked={props.blocked} onChanged={props.onChanged} />
-
-    <form className={styles.createCard} onSubmit={(event) => void props.createSubscription(event)}>
-      <div className={styles.sectionHead}><div><span>Manual repair only</span><h3>Tạo Subscription thủ công</h3></div><small>New registrations phải dùng Product Plan + exact cadence placement phía trên</small></div>
-      <div className={styles.formGrid}>
-        <label>Path<select disabled={props.blocked} required value={props.draft.pathProgramId} onChange={(event) => props.setDraft((draft) => ({ ...draft, pathProgramId: event.target.value }))}>
-          <option value="">Chọn Path</option>{props.catalog.paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
-        </select></label>
-        <label>Service starts<input disabled={props.blocked} type="date" required value={props.draft.serviceStartsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, serviceStartsOn: event.target.value }))} /></label>
-        <label>Contract ends<input disabled={props.blocked} type="date" required value={props.draft.contractualEndsOn} onChange={(event) => props.setDraft((draft) => ({ ...draft, contractualEndsOn: event.target.value }))} /></label>
-        <label>Buổi / tuần<input disabled={props.blocked} type="number" min="1" required value={props.draft.weeklyCommitment} onChange={(event) => props.setDraft((draft) => ({ ...draft, weeklyCommitment: event.target.value }))} /></label>
-        <label>Service Units<input disabled={props.blocked} type="number" min="1" required value={props.draft.purchasedUnits} onChange={(event) => props.setDraft((draft) => ({ ...draft, purchasedUnits: event.target.value }))} /></label>
-        <label className={styles.span2}>Commercial reference<input disabled={props.blocked} value={props.draft.commercialReference} onChange={(event) => props.setDraft((draft) => ({ ...draft, commercialReference: event.target.value }))} placeholder="Tuỳ chọn" /></label>
-      </div>
-      <button className={styles.primary} disabled={props.blocked} type="submit">{props.busy === "create" ? "Đang tạo…" : "Tạo manual Subscription"}</button>
-      <p className={styles.hint}>Repair path legacy: cadence/units nhập tay chỉ dùng cho correction; không dùng cho manager registration mới.</p>
-    </form>
 
     <section className={styles.section}>
       <div className={styles.sectionHead}><div><span>Canonical lifecycle</span><h3>Subscriptions</h3></div><small>Không có client-side unit decrement</small></div>
