@@ -14,6 +14,7 @@ const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/sylla
 const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/projected-completion$/;
 const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
 const SPECIALTY_STUDENT_READ = /^specialty\/students\/[0-9a-f-]{36}$/;
+const STUDENT_VISIT_DETAIL_READ = /^student-visits\/[0-9a-f-]{36}$/;
 const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(effective|stream)$/;
 
 export async function handleBoOperationalReadRequest(
@@ -104,6 +105,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "web-cms/slots"
     || WEB_CMS_SLOT_READ.test(path)
     || path === "learners"
+    || path === "student-visits"
+    || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
@@ -162,7 +165,7 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
-  if (path === "learners" || path === "open-studio/learners" || /^(?:open-studio\/)?students\/[0-9a-f-]{36}\/lifecycle$/.test(path)) {
+  if (path === "learners" || path === "open-studio/learners" || path === "student-visits" || STUDENT_VISIT_DETAIL_READ.test(path) || /^(?:open-studio\/)?students\/[0-9a-f-]{36}\/lifecycle$/.test(path)) {
     const centerId = url.searchParams.get("centerId")?.trim();
     return centerId ? { centerId } : undefined;
   }
@@ -170,6 +173,18 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "student-visits" || STUDENT_VISIT_DETAIL_READ.test(path)) {
+    const body: Record<string, unknown> = {};
+    for (const key of ["centerId", "studentProfileId", "query", "status", "startAt", "endBefore", "sort", "order"] as const) {
+      const value = url.searchParams.get(key);
+      if (value !== null && value !== "") body[key] = value;
+    }
+    for (const key of ["limit", "offset"] as const) {
+      const value = url.searchParams.get(key);
+      if (value !== null && value !== "") body[key] = Number(value);
+    }
+    return body;
+  }
   if (/^pinoria\/onboarding\/(students|staff)\/[0-9a-f-]{36}$/.test(path)) {
     const centerId = url.searchParams.get("centerId")?.trim();
     return centerId ? { centerId } : undefined;
