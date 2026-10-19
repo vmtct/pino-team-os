@@ -161,4 +161,38 @@ test("simultaneous actors never violate clearance during preferred multi-hop rou
   const traversing = { ...queued, connectorId: "old-route", connectorFromLaneId: "start", connectorToLaneId: "old", connectorProgress: 0, x: 200, y: 100 };
   const [continued] = stepAmbientAgents([traversing], routeGraph, 80, { preferredLaneIds: new Map([["reroute", ["new"]]]) });
   assert.equal(continued?.connectorId, "old-route");
+});test("active connector finishes safely before routing to a revised area", () => {
+  const graph3: AmbientMotionGraph = {
+    ...graph,
+    horizontalLanes: [
+      { id: "start", x1: 0, x2: 400, y: 100, midLayer: "front" },
+      { id: "middle", x1: 0, x2: 400, y: 200, midLayer: "behind" },
+      { id: "target", x1: 0, x2: 400, y: 300, midLayer: "front" },
+    ],
+    rawConnectors: [
+      { id: "first-hop", from: { x: 100, y: 100 }, to: { x: 100, y: 200 } },
+      { id: "second-hop", from: { x: 100, y: 200 }, to: { x: 100, y: 300 } },
+    ],
+  };
+  let [agent] = reconcileAmbientAgents([], ["switching"], graph3, new Map([["switching", ["start"]]]));
+  assert.ok(agent);
+  // At the moment context changes, this traversal has already claimed its endpoints.
+  agent = {
+    ...agent!, laneId: "start", x: 100, y: 100,
+    connectorId: "first-hop", connectorFromLaneId: "start",
+    connectorToLaneId: "middle", connectorProgress: 0, targetConnectorId: "first-hop",
+  };
+  let sawMiddle = false;
+  let sawTarget = false;
+  const preferred = new Map([["switching", ["target"]]]);
+  for (let i = 0; i < 4500; i++) {
+    const [next] = stepAmbientAgents([agent!], graph3, 80, { preferredLaneIds: preferred });
+    assert.ok(next);
+    assert.ok(Math.hypot(next!.x - agent!.x, next!.y - agent!.y) < 80);
+    agent = next;
+    if (agent!.laneId === "middle" && !agent!.connectorId) sawMiddle = true;
+    if (agent!.laneId === "target" && !agent!.connectorId) { sawTarget = true; break; }
+  }
+  assert.ok(sawMiddle, "claimed connector finishes in original destination");
+  assert.ok(sawTarget, "subsequent routing eventually reaches the new target");
 });
