@@ -1,3 +1,4 @@
+import { tvActiveStatusProjection } from "./status-projection";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { authenticatePinoriaTvRequest, PinoriaTvAuthError, type PinoriaTvAuthEnv } from "@/lib/pinoria-tv-auth";
 import type { PinoriaTvCoreBinding } from "@/lib/pinoria-tv-core";
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       }
       const state = await env.PINO_PINORIA_TV_CORE.inspectPresentation(centerId);
       // Authenticated TV status only: never leak queued IDs, immutable projections or operator metadata.
-      return json({ ok: true, activePresentationId: state.current?.id ?? null });
+      return json(tvActiveStatusProjection(state));
     }
     if (body.op === "complete") {
       const presentationId = typeof body.presentationId === "string" ? body.presentationId.trim() : "";
