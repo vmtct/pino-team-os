@@ -383,6 +383,7 @@ export function reconcileAmbientAgents(
   previous: readonly AmbientAgent[],
   ids: readonly string[],
   graph: AmbientMotionGraph,
+  preferredLaneIds: ReadonlyMap<string, readonly string[]> = new Map(),
 ): AmbientAgent[] {
   const desired = new Set(ids);
   const retained = previous.filter((agent) => desired.has(agent.id));
@@ -391,7 +392,11 @@ export function reconcileAmbientAgents(
   const next = [...retained];
   const candidates = placementCandidates(graph);
   for (const id of missing) {
-    const slot = candidates.find((candidate) => slotCanReserve(candidate, next, graph));
+    const preferred = new Set(preferredLaneIds.get(id) ?? []);
+    const preferredSlot = preferred.size
+      ? candidates.find((candidate) => preferred.has(candidate.lane.id) && slotCanReserve(candidate, next, graph))
+      : undefined;
+    const slot = preferredSlot ?? candidates.find((candidate) => slotCanReserve(candidate, next, graph));
     if (!slot) throw new Error("AMBIENT_HOUSE_CAPACITY_EXCEEDED");
     next.push(createAmbientAgentAtSlot(id, slot));
   }
