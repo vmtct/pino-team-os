@@ -40,7 +40,7 @@ export function TvRuntimeHost({displayId}:{displayId:string}){
   if(!context||!actual)return <main className={styles.state}><strong>Connecting…</strong></main>;
   if(actual!==context.display.orientation)return <main className={styles.state} data-tv-orientation-mismatch="true"><strong>Rotate display</strong><span>{context.display.displayName} requires {context.display.orientation} · {context.display.targetAspectRatio}. Current viewport is {actual}.</span></main>;
   if(context.display.runtimeType==="PINORIA_HOUSE"&&context.display.scopeType==="CENTER"&&context.display.scopeId){
-    return <div className={styles.runtime} data-tv-runtime-active={context.display.runtimeType}><ReceptionTv fixedCenterId={context.display.scopeId} apiBase={`/api/tv/runtime/${displayId}/pinoria-house`}/></div>;
+    return <div className={styles.runtime} data-tv-runtime-active={context.display.runtimeType}><ReceptionTv fixedCenterId={context.display.scopeId} runtimeIdentity={{displayId,sessionId:context.sessionId}} apiBase={`/api/tv/runtime/${displayId}/pinoria-house`}/></div>;
   }
   return <main className={styles.state}><strong>Unsupported TV runtime</strong><span>{context.display.runtimeType}</span></main>;
 }
