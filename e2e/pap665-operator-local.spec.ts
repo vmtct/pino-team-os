@@ -137,3 +137,48 @@ test("PAP-665 409 stale claim forces authoritative reload without false success"
   await expect(page.getByRole("status")).toHaveCount(0);
   expect(closeCalls).toBe(1);
 });
+test("PAP-665 Center switch during pending Close never applies stale receipt to new Center", async ({ page }) => {
+  const otherCenter = "33333333-3333-4333-8333-333333333333";
+  let releaseClose!: () => void;
+  const closeGate = new Promise<void>((resolve) => { releaseClose = resolve; });
+  let closeCalls = 0;
+  let queueForOldCenterAfterClose = 0;
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.route("**/api/workforce/profile", (route) => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
+  await page.route("**/api/tos-learning/pinoria/presentations/**", async (route) => {
+    const request = route.request();
+    const action = new URL(request.url()).pathname.split("/").pop();
+    if (action === "queue") {
+      const center = new URL(request.url()).searchParams.get("centerId");
+      if (center === CENTER && closeCalls > 0) queueForOldCenterAfterClose++;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        data: { current: center === CENTER ? { id: PRESENTATION, kind: "EGG_HATCH", claimedAt: CLAIM, projection: {} } : null,
+          queued: [], revision: 1, hasMore: false },
+      }) });
+    }
+    if (action === "close") {
+      closeCalls++;
+      await closeGate;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        data: { presentationId: PRESENTATION, completedAt: "2026-10-19T17:17:00Z" },
+      }) });
+    }
+    return route.fulfill({ status: 404, body: "unexpected operation" });
+  });
+  await page.goto("/pinoria/tv-operator", { waitUntil: "domcontentloaded", timeout: 90000 });
+  const input = page.getByRole("textbox", { name: "Center ID" });
+  await expect.poll(() => input.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactProps$"))), { timeout: 60000 }).toBe(true);
+  await input.fill(CENTER);
+  await page.getByRole("button", { name: "Làm mới" }).click();
+  await expect(page.getByText(PRESENTATION)).toBeVisible();
+  await page.getByRole("button", { name: "Đóng presentation" }).click();
+  await expect.poll(() => closeCalls).toBe(1);
+  await input.fill(otherCenter);
+  releaseClose();
+  await expect(page.getByText(PRESENTATION)).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Làm mới" })).toBeEnabled();
+  await page.getByRole("button", { name: "Làm mới" }).click();
+  await expect(page.getByText("Không có presentation đang chạy.")).toBeVisible();
+  expect(queueForOldCenterAfterClose).toBe(0);
+});
