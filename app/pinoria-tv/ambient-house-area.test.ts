@@ -139,4 +139,26 @@ test("simultaneous actors never violate clearance during preferred multi-hop rou
     assert.equal(agents.length, 5);
     assert.ok(ambientMinimumVisibleSeparation(agents) >= 72, `clearance frame ${i}`);
   }
+});test("context change overrides stale queued connector without interrupting traversal", () => {
+  const routeGraph: AmbientMotionGraph = {
+    ...graph,
+    horizontalLanes: [
+      { id: "start", x1: 0, x2: 400, y: 100, midLayer: "front" },
+      { id: "old", x1: 0, x2: 400, y: 200, midLayer: "behind" },
+      { id: "new", x1: 0, x2: 400, y: 300, midLayer: "front" },
+    ],
+    rawConnectors: [
+      { id: "old-route", from: { x: 200, y: 100 }, to: { x: 200, y: 200 } },
+      { id: "new-route", from: { x: 300, y: 100 }, to: { x: 300, y: 300 } },
+    ],
+  };
+  const [spawned] = reconcileAmbientAgents([], ["reroute"], routeGraph, new Map([["reroute", ["start"]]]));
+  assert.ok(spawned);
+  const queued = { ...spawned!, targetConnectorId: "old-route" };
+  const [rerouted] = stepAmbientAgents([queued], routeGraph, 80, { preferredLaneIds: new Map([["reroute", ["new"]]]) });
+  assert.equal(rerouted?.targetConnectorId, "new-route");
+  assert.ok(Math.hypot(rerouted!.x - queued.x, rerouted!.y - queued.y) < 80);
+  const traversing = { ...queued, connectorId: "old-route", connectorFromLaneId: "start", connectorToLaneId: "old", connectorProgress: 0, x: 200, y: 100 };
+  const [continued] = stepAmbientAgents([traversing], routeGraph, 80, { preferredLaneIds: new Map([["reroute", ["new"]]]) });
+  assert.equal(continued?.connectorId, "old-route");
 });

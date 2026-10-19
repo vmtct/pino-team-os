@@ -521,10 +521,15 @@ export function stepAmbientAgents(
       return { ...agent, ...activity, x, direction, targetConnectorId: undefined };
     }
 
-    let target = agent.targetConnectorId
-      ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId)
+    const preferredTarget = connectorCooldownMs <= 0
+      ? choosePreferredConnector({ ...agent, activityEpoch }, connectors, previous, options.preferredLaneIds?.get(agent.id))
       : undefined;
-    if (!target && connectorCooldownMs <= 0) target = choosePreferredConnector({ ...agent, activityEpoch }, connectors, previous, options.preferredLaneIds?.get(agent.id)) ?? chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
+    // A changed canonical area overrides a stale queued connector, never an
+    // already active traversal (those must finish for reservation safety).
+    let target = preferredTarget ?? (agent.targetConnectorId
+      ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId)
+      : undefined);
+    if (!target && connectorCooldownMs <= 0) target = chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
 
     if (target) {
       const delta = target.from.x - agent.x;
