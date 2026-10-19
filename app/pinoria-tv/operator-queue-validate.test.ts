@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseOperatorQueue } from "./operator-queue-validate";
+import { parseOperatorQueue, parseOperatorSnapshot } from "./operator-queue-validate";
 
 const valid = {
   current: { id: "active", kind: "WISH_REVEAL", claimedAt: "2026-10-19T15:45:00Z", projection: {} },
@@ -26,5 +26,17 @@ test("rejects malformed queue/active snapshots and duplicate or overlapping IDs"
   ];
   for (const snapshot of malformed) {
     assert.throws(() => parseOperatorQueue(snapshot), /operator.*snapshot|active presentation/i);
+  }
+});
+
+test("claimed snapshot metadata is validated before operator display", () => {
+  const snapshot = valid.current;
+  assert.equal(parseOperatorSnapshot(snapshot), snapshot);
+  for (const malformed of [
+    null, {}, { ...snapshot, id: "" }, { ...snapshot, kind: "" },
+    { ...snapshot, claimedAt: "" }, { ...snapshot, claimedAt: null },
+    { ...snapshot, projection: null }, { ...snapshot, projection: [] },
+  ]) {
+    assert.throws(() => parseOperatorSnapshot(malformed), /Invalid operator claimed snapshot/);
   }
 });

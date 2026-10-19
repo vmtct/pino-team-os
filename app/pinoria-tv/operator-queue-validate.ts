@@ -29,3 +29,15 @@ export function parseOperatorQueue(value: unknown): OperatorQueue {
   }
   return value as OperatorQueue;
 }
+
+/** Fail closed on malformed claim snapshots before displaying any operator metadata. */
+export function parseOperatorSnapshot(value: unknown): {
+  id: string; kind: string; claimedAt: string; projection: Record<string, unknown>;
+} {
+  if (!record(value) || !entry(value) ||
+      typeof value.claimedAt !== "string" || !value.claimedAt.trim() ||
+      !record(value.projection)) {
+    throw new Error("Invalid operator claimed snapshot");
+  }
+  return value as { id: string; kind: string; claimedAt: string; projection: Record<string, unknown> };
+}

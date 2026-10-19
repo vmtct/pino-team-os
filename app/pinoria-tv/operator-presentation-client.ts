@@ -1,4 +1,4 @@
-import { parseOperatorQueue } from "./operator-queue-validate";
+import { parseOperatorQueue, parseOperatorSnapshot } from "./operator-queue-validate";
 
 /**
  * PAP-665 authenticated operator boundary. This is intentionally separate
@@ -43,10 +43,10 @@ export const operatorPresentationClient = {
   queue: async (centerId: string) =>
     parseOperatorQueue(await operatorRequest<unknown>(`queue?centerId=${encodeURIComponent(centerId)}`)),
   // View-only inspection. Core authorizes pinoria.presentation.view and audits the read.
-  inspectSnapshot: (centerId: string, presentationId: string) =>
-    operatorRequest<{ id: string; kind: string; claimedAt: string; projection: Record<string, unknown> }>(
+  inspectSnapshot: async (centerId: string, presentationId: string) =>
+    parseOperatorSnapshot(await operatorRequest<unknown>(
       "snapshot?centerId=" + encodeURIComponent(centerId) + "&presentationId=" + encodeURIComponent(presentationId),
-    ),
+    )),
   // An authenticated snapshot lookup, not a dispatch/replay of business events.
   replaySnapshotInspect: (centerId: string, presentationId: string) =>
     operatorRequest<{ id: string; kind: string; projection: Record<string, unknown>; claimedAt: string }>(
