@@ -46,7 +46,8 @@ export function decidePresentationCommand(
          queued.has(state.currentPresentationId) ||
          completed.has(state.currentPresentationId)))) {
     return { kind: "REJECT", reason: "INVALID_STATE" };
-  }  const active = state.currentPresentationId === command.presentationId;
+  }
+  const active = state.currentPresentationId === command.presentationId;
   if (command.op === "REPLAY_SNAPSHOT") {
     if (!active) {
       return { kind: "REJECT", reason: "NOT_ACTIVE" };
