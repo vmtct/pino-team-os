@@ -43,6 +43,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
   const [inside, setInside] = useState<PresenceActor[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
+  const activePresentationIdRef = useRef<string | null>(null);
+  activePresentationIdRef.current = presentation?.id ?? null;
+  const runtimeDisplayId=runtimeIdentity?.displayId ?? "";
+  const runtimeSessionId=runtimeIdentity?.sessionId ?? "";
   const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
   const replayBusy = useRef(false);
   const replayLastRevision = useRef(0);
@@ -230,7 +234,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
   }, [apiBase, centerId, presentation]);
   // The TV runtime cookie is HttpOnly. Never fall back to the shared center-only relay.
   useEffect(() => {
-    const scope=runtimeIdentity?`${centerId}:${runtimeIdentity.displayId}:${runtimeIdentity.sessionId}`:"";
+    const scope=runtimeDisplayId&&runtimeSessionId?`${centerId}:${runtimeDisplayId}:${runtimeSessionId}`:"";
     replayScope.current=scope;
     replayLastRevision.current=0;
     replayLoadedCommand.current="";
@@ -238,7 +242,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
     setReplaySceneKey("");
     setReplayedPresentationId("");
     setReplayFrame(null);
-    if(!scope||!centerId||!runtimeIdentity)return;
+    if(!scope||!centerId)return;
     let disposed=false;
     const check=async()=>{
       if(disposed||replayBusy.current)return;
@@ -246,12 +250,12 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
       try{
         const command=await pollPendingReplay(apiBase);
         if(disposed||replayScope.current!==scope||!command||replayLoadedCommand.current===command.id)return;
-        if(!presentation||!acceptsTvReplayInstruction({
-          centerId,displayId:runtimeIdentity.displayId,sessionId:runtimeIdentity.sessionId,
-          revision:replayLastRevision.current,activePresentationId:presentation.id,
+        if(!activePresentationIdRef.current||!acceptsTvReplayInstruction({
+          centerId,displayId:runtimeDisplayId,sessionId:runtimeSessionId,
+          revision:replayLastRevision.current,activePresentationId:activePresentationIdRef.current,
         },{...command,activePresentationId:command.presentationId}))return;
         const loaded=await loadReplayProjection(apiBase,command);
-        if(disposed||replayScope.current!==scope||presentation.id!==loaded.presentation.id)return;
+        if(disposed||replayScope.current!==scope||activePresentationIdRef.current!==loaded.presentation.id)return;
         // Same presentation, new React key: forces effects/animation to begin at frame zero.
         replayLoadedCommand.current=command.id;
         setReplaySceneKey(command.id);
@@ -265,13 +269,13 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
     const timer=window.setInterval(()=>void check(),1200);
     void check();
     return()=>{disposed=true;window.clearInterval(timer);};
-  },[apiBase,centerId,runtimeIdentity?.displayId,runtimeIdentity?.sessionId,presentation?.id]);
+  },[apiBase,centerId,runtimeDisplayId,runtimeSessionId]);
 
   // Passive effect runs only AFTER the keyed scene has committed to React.
   // Two paint frames further prevent acknowledging a command only staged in state.
   useEffect(()=>{
-    if(!replayFrame||!runtimeIdentity||presentation?.id!==replayFrame.command.presentationId)return;
-    const scope=`${centerId}:${runtimeIdentity.displayId}:${runtimeIdentity.sessionId}`;
+    if(!replayFrame||!runtimeDisplayId||!runtimeSessionId||presentation?.id!==replayFrame.command.presentationId)return;
+    const scope=`${centerId}:${runtimeDisplayId}:${runtimeSessionId}`;
     const {command,generation}=replayFrame;
     if(replayScope.current!==scope||generation<=0)return;
     let disposed=false,first=0,second=0,retry=0;
@@ -288,7 +292,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
     };
     first=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>void ack());});
     return()=>{disposed=true;cancelAnimationFrame(first);cancelAnimationFrame(second);window.clearTimeout(retry);};
-  },[apiBase,centerId,presentation?.id,replayFrame,runtimeIdentity?.displayId,runtimeIdentity?.sessionId]);
+  },[apiBase,centerId,presentation?.id,replayFrame,runtimeDisplayId,runtimeSessionId]);
   const pollPresentation = useCallback(async () => {
     if (!centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
     presentationBusy.current = true;
