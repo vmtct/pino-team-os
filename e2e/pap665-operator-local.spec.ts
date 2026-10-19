@@ -182,3 +182,45 @@ test("PAP-665 Center switch during pending Close never applies stale receipt to 
   await expect(page.getByText("Không có presentation đang chạy.")).toBeVisible();
   expect(queueForOldCenterAfterClose).toBe(0);
 });
+test("PAP-665 physical replay checks target and sends idempotent Core dispatch", async ({ page }) => {
+  const displayId = "33333333-3333-4333-8333-333333333333";
+  let targetChecks = 0;
+  const dispatches: Array<{ body: unknown; key: string | undefined }> = [];
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.route("**/api/workforce/profile", (route) => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
+  await page.route("**/api/tos-learning/pinoria/presentations/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const action = url.pathname.split("/").pop();
+    if (action === "queue") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: {
+      current: { id: PRESENTATION, kind: "EGG_HATCH", claimedAt: CLAIM, projection: {} }, queued: [], revision: 1, hasMore: false,
+    } }) });
+    if (action === "replay-target") {
+      targetChecks++;
+      expect(url.searchParams.get("centerId")).toBe(CENTER);
+      expect(url.searchParams.get("displayId")).toBe(displayId);
+      expect(url.searchParams.get("presentationId")).toBe(PRESENTATION);
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: {
+        available: true, target: { displayId, deviceId: "44444444-4444-4444-8444-444444444444" },
+      } }) });
+    }
+    if (action === "replay-dispatch") {
+      dispatches.push({ body: request.postDataJSON(), key: request.headers()["idempotency-key"] });
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ data: { accepted: true } }) });
+    }
+    return route.fulfill({ status: 404, body: "unexpected operation" });
+  });
+  await page.goto("/pinoria/tv-operator", { waitUntil: "domcontentloaded", timeout: 90000 });
+  const input = page.getByRole("textbox", { name: "Center ID" });
+  await expect.poll(() => input.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactProps$"))), { timeout: 60000 }).toBe(true);
+  await input.fill(CENTER);
+  await page.getByRole("button", { name: "Làm mới" }).click();
+  await expect(page.getByText(PRESENTATION)).toBeVisible();
+  await page.getByRole("textbox", { name: "Display ID để replay" }).fill(displayId);
+  await page.getByRole("button", { name: "Phát lại trên TV" }).click();
+  await expect(page.getByRole("status")).toContainText("chưa có xác nhận TV vật lý đã render");
+  expect(targetChecks).toBe(1);
+  expect(dispatches).toHaveLength(1);
+  expect(dispatches[0].body).toEqual({ centerId: CENTER, displayId, presentationId: PRESENTATION });
+  expect(dispatches[0].key).toMatch(/^[0-9a-f-]{36}$/i);
+});
