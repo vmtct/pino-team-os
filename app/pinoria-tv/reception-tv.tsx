@@ -218,6 +218,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const sceneActor = scene ? inside.find((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId) ?? null : null;
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
   const arrivalCompanion = scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
+  const arrivalPath = scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
   const arrivalCompanionAsset = arrivalCompanion ? pinoriaAssetUrl(arrivalCompanion.species.assetKey) : null;
   const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
   const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
@@ -393,11 +394,12 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} aria-hidden="true"><div className={styles.arrivalHouseLayers}><span style={{ backgroundImage: `url("${HOUSE_ASSETS.back}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.mid}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.front}")` }} /></div></div> : null}
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
       {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
-      <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} />
+      <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} wardRender={visualScene.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.wardRender ?? undefined : undefined} />
       {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => setFailedArrivalCompanionIdentity(arrivalCompanionIdentity)} alt="" /></> : null}
       <div className={styles.copy}>
         <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
         <h1>{visualScene.kind === "arrival" ? `Chào ${visualScene.name} ✦` : visualScene.name}</h1>
+        {visualScene.kind === "arrival" && arrivalPath ? <div className={styles.arrivalPath} data-arrival-path={arrivalPath.code} aria-label={`Hành trình ${arrivalPath.displayName}`}>{arrivalPath.displayName}</div> : null}
         <p>{visualScene.kind === "arrival" ? arrivalCompanion ? `Hôm nay ${arrivalCompanion.species.displayName} đi cùng mình!` : "Chào mừng bạn đến Pinoria!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
