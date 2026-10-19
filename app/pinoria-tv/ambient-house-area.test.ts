@@ -106,4 +106,37 @@ test("a changed context never teleports a live actor and new entrants use the up
   }
   assert.ok(touchedMiddle);
   assert.ok(reached);
+});test("disconnected area never teleports or throws and retains valid lane", () => {
+  const noEdges: AmbientMotionGraph = { ...graph, rawConnectors: [] };
+  let [agent] = reconcileAmbientAgents([], ["disconnected"], noEdges, new Map([["disconnected", ["lane-art"]]]));
+  assert.ok(agent);
+  for (let i = 0; i < 100; i++) {
+    const [next] = stepAmbientAgents([agent!], noEdges, 80, { preferredLaneIds: new Map([["disconnected", ["lane-piano"]]]) });
+    assert.ok(next);
+    assert.equal(next!.laneId, "lane-art");
+    assert.ok(Math.hypot(next!.x - agent!.x, next!.y - agent!.y) < 80);
+    agent = next;
+  }
+});
+test("simultaneous actors never violate clearance during preferred multi-hop routing", () => {
+  const busyGraph: AmbientMotionGraph = {
+    ...graph,
+    horizontalLanes: [
+      { id: "west", x1: 0, x2: 400, y: 100, midLayer: "front" },
+      { id: "middle", x1: 0, x2: 400, y: 200, midLayer: "behind" },
+      { id: "east", x1: 0, x2: 400, y: 300, midLayer: "front" },
+    ],
+    rawConnectors: [
+      { id: "w-m", from: { x: 200, y: 100 }, to: { x: 200, y: 200 } },
+      { id: "m-e", from: { x: 200, y: 200 }, to: { x: 200, y: 300 } },
+    ],
+  };
+  const start = new Map(Array.from({ length: 5 }, (_, i) => [`learner-${i}`, ["west"]] as const));
+  const target = new Map(Array.from({ length: 5 }, (_, i) => [`learner-${i}`, ["east"]] as const));
+  let agents = reconcileAmbientAgents([], [...start.keys()], busyGraph, start);
+  for (let i = 0; i < 400; i++) {
+    agents = stepAmbientAgents(agents, busyGraph, 80, { preferredLaneIds: target });
+    assert.equal(agents.length, 5);
+    assert.ok(ambientMinimumVisibleSeparation(agents) >= 72, `clearance frame ${i}`);
+  }
 });
