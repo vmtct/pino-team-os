@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { operatorPresentationClient, type OperatorQueue } from "@/app/pinoria-tv/operator-presentation-client";
+import { isCurrentOperatorQueueResponse } from "./operator-queue-response";
 
 /**
  * PAP-665 bounded operator view. Explicit manual refresh only; no TV relay,
@@ -12,18 +13,23 @@ export function TvOperatorQueue() {
   const [centerId, setCenterId] = useState("");
   const [queue, setQueue] = useState<OperatorQueue | null>(null);
   const [busy, setBusy] = useState(false);
+  const generation = useRef(0);
+  const centerRef = useRef("");
   const [error, setError] = useState("");
   const refresh = useCallback(async () => {
     if (!centerId.trim() || busy) return;
+    const requestedCenter = centerId.trim();
+    const requestedGeneration = ++generation.current;
     setBusy(true);
     setError("");
     setQueue(null);
     try {
-      setQueue(await operatorPresentationClient.queue(centerId.trim()));
+      const response = await operatorPresentationClient.queue(requestedCenter);
+      if (isCurrentOperatorQueueResponse(requestedCenter, requestedGeneration, centerRef.current, generation.current)) setQueue(response);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể tải danh sách trình chiếu");
+      if (isCurrentOperatorQueueResponse(requestedCenter, requestedGeneration, centerRef.current, generation.current)) setError(cause instanceof Error ? cause.message : "Không thể tải danh sách trình chiếu");
     } finally {
-      setBusy(false);
+      if (requestedGeneration === generation.current) setBusy(false);
     }
   }, [centerId, busy]);
   return (
@@ -36,7 +42,11 @@ export function TvOperatorQueue() {
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
           Center ID
           <input aria-label="Center ID" className="rounded border px-3 py-2" value={centerId} onChange={(event) => {
+            generation.current += 1;
+            centerRef.current = event.target.value.trim();
+            setBusy(false);
             setCenterId(event.target.value);
+            setError("");
             setQueue(null);
           }} required />
         </label>
