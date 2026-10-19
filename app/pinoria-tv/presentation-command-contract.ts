@@ -28,7 +28,9 @@ export function decidePresentationCommand(
   command: PresentationOperatorCommand,
 ): PresentationCommandDecision {
   if (!command.presentationId.trim()) return { kind: "REJECT", reason: "INVALID_ID" };
-  if (!Number.isSafeInteger(command.expectedRevision) || command.expectedRevision !== state.revision) {
+  if (!Number.isSafeInteger(state.revision) || state.revision < 0 ||
+      !Number.isSafeInteger(command.expectedRevision) || command.expectedRevision < 0 ||
+      command.expectedRevision !== state.revision) {
     return { kind: "REJECT", reason: "STALE_REVISION" };
   }
   const active = state.currentPresentationId === command.presentationId;
@@ -51,8 +53,14 @@ export function decidePresentationCommand(
       ? { kind: "NOOP", next: state }
       : { kind: "REJECT", reason: "NOT_ACTIVE" };
   }
+  if (state.revision === Number.MAX_SAFE_INTEGER) return { kind: "REJECT", reason: "STALE_REVISION" };
   return {
     kind: "APPLY",
-    next: { ...state, currentPresentationId: null, revision: state.revision + 1 },
+    next: {
+      ...state,
+      currentPresentationId: null,
+      revision: state.revision + 1,
+      completedPresentationIds: [...new Set([...(state.completedPresentationIds ?? []), command.presentationId])],
+    },
   };
 }

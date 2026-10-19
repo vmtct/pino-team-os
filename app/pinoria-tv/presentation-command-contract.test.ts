@@ -6,7 +6,7 @@ const state = { currentPresentationId: "active", revision: 7, queuedPresentation
 
 test("return to ambient releases only active presentation without consuming queue", () => {
   assert.deepEqual(decidePresentationCommand(state, { op: "RETURN_TO_AMBIENT", presentationId: "active", expectedRevision: 7 }), {
-    kind: "APPLY", next: { currentPresentationId: null, revision: 8, queuedPresentationIds: ["next"] },
+    kind: "APPLY", next: { currentPresentationId: null, revision: 8, queuedPresentationIds: ["next"], completedPresentationIds: ["active"] },
   });
   assert.deepEqual(state, { currentPresentationId: "active", revision: 7, queuedPresentationIds: ["next"] });
 });
@@ -65,6 +65,26 @@ test("stale operator revisions cannot replay or clear newly changed singleton", 
     kind: "REJECT", reason: "STALE_REVISION",
   });
   assert.deepEqual(decidePresentationCommand(changed, { op: "CLOSE_PRESENTATION", presentationId: "second", expectedRevision: Number.NaN }), {
+    kind: "REJECT", reason: "STALE_REVISION",
+  });
+});
+test("successful release proposes durable completion receipt for idempotent replay of command", () => {
+  const decision = decidePresentationCommand(state, { op: "RETURN_TO_AMBIENT", presentationId: "active", expectedRevision: 7 });
+  assert.equal(decision.kind, "APPLY");
+  if (decision.kind !== "APPLY") return;
+  assert.deepEqual(decision.next.completedPresentationIds, ["active"]);
+  assert.deepEqual(decidePresentationCommand(decision.next, { op: "RETURN_TO_AMBIENT", presentationId: "active", expectedRevision: 8 }), {
+    kind: "NOOP", next: decision.next,
+  });
+});
+
+test("invalid and overflowing revisions cannot mutate presentation state", () => {
+  const max = { ...state, revision: Number.MAX_SAFE_INTEGER };
+  assert.deepEqual(decidePresentationCommand(max, { op: "CLOSE_PRESENTATION", presentationId: "active", expectedRevision: max.revision }), {
+    kind: "REJECT", reason: "STALE_REVISION",
+  });
+  const negative = { ...state, revision: -1 };
+  assert.deepEqual(decidePresentationCommand(negative, { op: "CLOSE_PRESENTATION", presentationId: "active", expectedRevision: -1 }), {
     kind: "REJECT", reason: "STALE_REVISION",
   });
 });
