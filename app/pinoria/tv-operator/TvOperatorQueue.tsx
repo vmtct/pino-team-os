@@ -11,6 +11,7 @@ import { isCurrentOperatorQueueResponse, matchesInspectedPresentation, isConfirm
  */
 export function TvOperatorQueue() {
   const [centerId, setCenterId] = useState("");
+  const [replayDisplayId, setReplayDisplayId] = useState("");
   const [queue, setQueue] = useState<OperatorQueue | null>(null);
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
@@ -86,7 +87,41 @@ export function TvOperatorQueue() {
       if (version === generation.current) setBusy(false);
     }
   }, [queue, centerId, busy]);
-  const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
+  const dispatchReplay = useCallback(async () => {
+    const active = queue?.current;
+    const center = centerId.trim();
+    const displayId = replayDisplayId.trim();
+    if (!active || !center || !displayId || busy || commandInFlight.current) return;
+    if (!("randomUUID" in crypto) || typeof crypto.randomUUID !== "function") {
+      setError("Không thể tạo khóa idempotency an toàn trên browser này.");
+      return;
+    }
+    commandInFlight.current = true;
+    const version = ++generation.current;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const target = await operatorPresentationClient.replayTarget(center, displayId, active.id);
+      if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
+      if (!target.available || target.target?.displayId !== displayId) {
+        throw new Error("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.");
+      }
+      if (!window.confirm(`Phát lại ${active.id} trên TV ${displayId}?`)) return;
+      await operatorPresentationClient.replayDispatch(center, displayId, active.id, crypto.randomUUID());
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setMessage("Core đã nhận replay dispatch; chưa có xác nhận TV vật lý đã render.");
+      }
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setQueue(null);
+        setError(cause instanceof Error ? cause.message : "Không thể gửi replay; tải lại queue.");
+      }
+    } finally {
+      commandInFlight.current = false;
+      setBusy(false);
+    }
+  }, [queue, centerId, replayDisplayId, busy]);  const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
     const active = queue?.current;
     const center = centerId.trim();
     if (!active || !center || busy || commandInFlight.current || !active.claimedAt) return;
@@ -157,7 +192,7 @@ export function TvOperatorQueue() {
           <p className="text-sm">Revision: {queue.revision} · {queue.hasMore ? "Danh sách chỉ hiển thị 50 mục đầu" : "Đã hiển thị tất cả mục đang chờ"}</p>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang trình chiếu</h2>
-            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void replayInspect()}>Kiểm tra replay snapshot (không phát TV)</button><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Trở về Ambient</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
+            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void replayInspect()}>Kiểm tra replay snapshot (không phát TV)</button><div className="flex flex-wrap gap-2"><input aria-label="Display ID để replay" placeholder="Display ID" className="rounded border px-3 py-1" value={replayDisplayId} onChange={(event) => setReplayDisplayId(event.target.value)} /><button type="button" disabled={busy || !replayDisplayId.trim()} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void dispatchReplay()}>Phát lại trên TV</button></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Trở về Ambient</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
           </section>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang chờ ({queue.queued.length})</h2>
