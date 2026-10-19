@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { LayeredCharacter, pinoriaAssetUrl, type PinoriaCharacterConfig } from "./layered-character";
 import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import type { AmbientHouseArea } from "./ambient-house-area";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
 import { claimPresentation, completePresentation } from "./presentation-client";
@@ -34,7 +35,7 @@ const ARRIVAL_HANDOFF_MS = 1800;
 const DEPARTURE_TRANSITION_MS = 1200;
 const DEPARTURE_PERFORMANCE_MS = 5200;
 
-export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fixedCenterId?: string; apiBase?: string } = {}) {
+export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[] } = {}) {
   const [centerId, setCenterId] = useState("");
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
@@ -377,7 +378,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <AmbientHouseRuntime actors={ambientActors} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
+    </header>    <AmbientHouseRuntime actors={ambientActors} areas={approvedHouseAreas} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
 
     {visualScene ? <section
       key={visualScene.id}
