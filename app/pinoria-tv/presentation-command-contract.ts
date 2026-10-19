@@ -7,6 +7,8 @@
 export type PresentationQueueState = {
   currentPresentationId: string | null;
   queuedPresentationIds: readonly string[];
+  /** IDs proven completed by canonical persistent receipts, not mere absence. */
+  completedPresentationIds?: readonly string[];
 };
 
 export type PresentationOperatorCommand =
@@ -40,7 +42,9 @@ export function decidePresentationCommand(
     if (state.currentPresentationId !== null || state.queuedPresentationIds.includes(command.presentationId)) {
       return { kind: "REJECT", reason: "NOT_ACTIVE" };
     }
-    return { kind: "NOOP", next: state };
+    return state.completedPresentationIds?.includes(command.presentationId)
+      ? { kind: "NOOP", next: state }
+      : { kind: "REJECT", reason: "NOT_ACTIVE" };
   }
   return {
     kind: "APPLY",

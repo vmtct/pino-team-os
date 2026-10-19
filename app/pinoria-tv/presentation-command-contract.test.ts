@@ -35,11 +35,24 @@ test("stale commands are idempotent and cannot close another active presentation
   });
 });
 test("repeated close is a no-op only after the active singleton has been released", () => {
-  const released = { currentPresentationId: null, queuedPresentationIds: ["next"] };
+  const released = { currentPresentationId: null, queuedPresentationIds: ["next"], completedPresentationIds: ["active"] };
   assert.deepEqual(decidePresentationCommand(released, { op: "CLOSE_PRESENTATION", presentationId: "active" }), {
     kind: "NOOP", next: released,
   });
   assert.deepEqual(decidePresentationCommand(released, { op: "REPLAY_SNAPSHOT", presentationId: "next" }), {
     kind: "REJECT", reason: "NOT_ACTIVE",
+  });
+});
+test("absence alone is not completion evidence for stale or forged command", () => {
+  const empty = { currentPresentationId: null, queuedPresentationIds: [] };
+  assert.deepEqual(decidePresentationCommand(empty, { op: "CLOSE_PRESENTATION", presentationId: "invented" }), {
+    kind: "REJECT", reason: "NOT_ACTIVE",
+  });
+  assert.deepEqual(decidePresentationCommand(empty, { op: "RETURN_TO_AMBIENT", presentationId: "invented" }), {
+    kind: "REJECT", reason: "NOT_ACTIVE",
+  });
+  const completed = { ...empty, completedPresentationIds: ["completed"] };
+  assert.deepEqual(decidePresentationCommand(completed, { op: "CLOSE_PRESENTATION", presentationId: "completed" }), {
+    kind: "NOOP", next: completed,
   });
 });
