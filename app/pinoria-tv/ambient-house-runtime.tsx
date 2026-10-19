@@ -6,7 +6,6 @@ import graphData from "./ambient-house-motion-graph.saved.json";
 import { LayeredCharacter, type PinoriaCharacterConfig, type PinoriaWardRender } from "./layered-character";
 import { resolvePinoriaEffectPresentation } from "../../lib/pinoria-effect-presentation";
 import {
-  createAmbientAgents,
   reconcileAmbientAgents,
   stepAmbientAgents,
   type AmbientAgent,
@@ -47,7 +46,7 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
   const frozenKey = JSON.stringify(frozenIds);
-  const [agents, setAgents] = useState<AmbientAgent[]>(() => createAmbientAgents(actors.map((actor) => actor.id), GRAPH));
+  const [agents, setAgents] = useState<AmbientAgent[]>(() => reconcileAmbientAgents([], actors.map((actor) => actor.id), GRAPH, preferredLaneIds));
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
 
