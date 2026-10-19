@@ -68,3 +68,40 @@ test("PAP-665 TV session preserves scene on status outage and releases after Cor
   expect(completionCalls).toBe(0);
   expect(claimCalls).toBeGreaterThanOrEqual(1);
 });
+
+test("PAP-665 revoked display session unmounts renderer, transient context outage does not", async ({ page }) => {
+  let contextStatus = 200;
+  let contextReads = 0;
+  await page.route("**/api/tv/runtime/**", async (route) => {
+    const suffix = new URL(route.request().url()).pathname.split("/").pop();
+    const respond = (value: unknown, status = 200) =>
+      route.fulfill({ status, contentType: "application/json", body: JSON.stringify(value) });
+    if (suffix === "context") {
+      contextReads++;
+      if (contextStatus !== 200) return respond({ error: { message: "Denied" } }, contextStatus);
+      return respond({ data: {
+        sessionId: "local-valid", expiresAt: "2026-10-20T00:00:00Z",
+        display: { id: DISPLAY, key: "reception-pinoria", displayName: "Reception TV",
+          runtimeType: "PINORIA_HOUSE", scopeType: "CENTER", scopeId: CENTER,
+          orientation: "LANDSCAPE", targetAspectRatio: "16:9" },
+      } });
+    }
+    if (suffix === "snapshot") return respond({ data: { cursor: 0, actors: [] } });
+    if (suffix === "events") return respond({ data: { cursor: 0, events: [] } });
+    if (suffix === "onboarding-preview") return respond({ data: null });
+    if (suffix === "presentation") return respond({ presentation: null, ok: true, activePresentationId: null });
+    return respond({ error: "unexpected" }, 404);
+  });
+  await page.goto("/tv/" + DISPLAY, { waitUntil: "domcontentloaded", timeout: 90000 });
+  const activeRuntime = page.locator('[data-tv-runtime-active="PINORIA_HOUSE"]');
+  await expect(activeRuntime).toBeVisible({ timeout: 45000 });
+  const initialReads = contextReads;
+  contextStatus = 503;
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect.poll(() => contextReads).toBeGreaterThan(initialReads);
+  await expect(activeRuntime).toBeVisible();
+  contextStatus = 403;
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect(page.getByText("TV runtime session expired or revoked")).toBeVisible({ timeout: 10000 });
+  await expect(activeRuntime).toHaveCount(0);
+});

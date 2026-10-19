@@ -6,7 +6,36 @@ type Context={sessionId:string;expiresAt:string;display:{id:string;key:string;di
 export function TvRuntimeHost({displayId}:{displayId:string}){
   const [context,setContext]=useState<Context|null>(null);const [error,setError]=useState("");const [actual,setActual]=useState<"LANDSCAPE"|"PORTRAIT"|null>(null);
   useEffect(()=>{const measure=()=>setActual(innerWidth>=innerHeight?"LANDSCAPE":"PORTRAIT");measure();addEventListener("resize",measure);return()=>removeEventListener("resize",measure);},[]);
-  useEffect(()=>{void fetch(`/api/tv/runtime/${displayId}/context`,{cache:"no-store"}).then(async response=>{const json=await response.json() as {data?:Context;error?:{message?:string}};if(!response.ok||!json.data)throw new Error(json.error?.message??"TV runtime unavailable");setContext(json.data);}).catch(cause=>setError(cause instanceof Error?cause.message:"TV runtime unavailable"));},[displayId]);
+  useEffect(()=>{
+    let disposed=false;
+    let inFlight=false;
+    let initialized=false;
+    const refresh=async()=>{
+      if(inFlight||disposed)return;
+      inFlight=true;
+      try{
+        const response=await fetch(`/api/tv/runtime/${displayId}/context`,{cache:"no-store"});
+        if(response.status===401||response.status===403){
+          // Revoked/expired display authority must unmount the renderer immediately.
+          if(!disposed){setContext(null);setError("TV runtime session expired or revoked");}
+          return;
+        }
+        if(!response.ok)throw new Error("TV runtime unavailable");
+        const json=await response.json() as {data?:Context};
+        if(!json.data)throw new Error("TV runtime unavailable");
+        if(!disposed){setContext(json.data);setError("");}
+      }catch{
+        // Transient outages are not evidence of revocation. Keep any previously
+        // validated runtime mounted; never infer a scene release from 5xx/network.
+        if(!disposed&&!initialized)setError("TV runtime unavailable");
+      }finally{initialized=true;inFlight=false;}
+    };
+    void refresh();
+    const timer=window.setInterval(()=>void refresh(),15000);
+    const onVisible=()=>{if(document.visibilityState==="visible")void refresh();};
+    document.addEventListener("visibilitychange",onVisible);
+    return()=>{disposed=true;window.clearInterval(timer);document.removeEventListener("visibilitychange",onVisible);};
+  },[displayId]);
   if(error)return <main className={styles.state}><strong>TV unavailable</strong><span>{error}</span></main>;
   if(!context||!actual)return <main className={styles.state}><strong>Connecting…</strong></main>;
   if(actual!==context.display.orientation)return <main className={styles.state} data-tv-orientation-mismatch="true"><strong>Rotate display</strong><span>{context.display.displayName} requires {context.display.orientation} · {context.display.targetAspectRatio}. Current viewport is {actual}.</span></main>;
