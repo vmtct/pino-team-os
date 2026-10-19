@@ -48,11 +48,11 @@ export const operatorPresentationClient = {
       "snapshot?centerId=" + encodeURIComponent(centerId) + "&presentationId=" + encodeURIComponent(presentationId),
     )),
   // An authenticated snapshot lookup, not a dispatch/replay of business events.
-  replaySnapshotInspect: (centerId: string, presentationId: string) =>
-    operatorRequest<{ id: string; kind: string; projection: Record<string, unknown>; claimedAt: string }>(
+  replaySnapshotInspect: async (centerId: string, presentationId: string) =>
+    parseOperatorSnapshot(await operatorRequest<unknown>(
       "replay-snapshot",
       { method: "POST", body: JSON.stringify({ centerId, presentationId }) },
-    ),
+    )),
   returnToAmbient: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("return-to-ambient", centerId, presentationId, expectedClaimedAt, idempotencyKey),
   close: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("close", centerId, presentationId, expectedClaimedAt, idempotencyKey),
 };
