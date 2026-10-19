@@ -8,3 +8,12 @@ export function isCurrentOperatorQueueResponse(
   return requestedCenter === visibleCenter &&
     requestedGeneration === currentGeneration;
 }
+
+/** Reject a snapshot whose claim token no longer matches the inspected singleton. */
+export function matchesInspectedPresentation(
+  active: { id: string; claimedAt: string },
+  inspected: { id: string; claimedAt: string },
+): boolean {
+  return active.id === inspected.id &&
+    active.claimedAt === inspected.claimedAt;
+}

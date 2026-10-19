@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { operatorPresentationClient, type OperatorQueue } from "@/app/pinoria-tv/operator-presentation-client";
-import { isCurrentOperatorQueueResponse } from "./operator-queue-response";
+import { isCurrentOperatorQueueResponse, matchesInspectedPresentation } from "./operator-queue-response";
 
 /**
  * PAP-665 bounded operator view. Explicit manual refresh only; no TV relay,
@@ -44,7 +44,7 @@ export function TvOperatorQueue() {
     try {
       const current = await operatorPresentationClient.inspectSnapshot(center, active.id);
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current) &&
-          current.id === active.id) {
+          matchesInspectedPresentation(active, current)) {
         // Do not display the private projection on an operator/shared screen.
         setInspected({ id: current.id, kind: current.kind, claimedAt: current.claimedAt });
       }
