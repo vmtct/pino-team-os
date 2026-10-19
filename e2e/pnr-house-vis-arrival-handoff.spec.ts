@@ -47,15 +47,19 @@ test("PAP-658 B-only House blur keeps branded Arrival visible when a House asset
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/draft/HouseMid.png", (route) => route.abort("failed"));
-  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
+  await page.route("**/api/tv/runtime/pap658-visual/pinoria-house/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
   let delivered = false;
-  await page.route("**/api/pinoria-tv/events**", (route) => {
+  await page.route("**/api/tv/runtime/pap658-visual/pinoria-house/events**", (route) => {
     const events = delivered ? [] : [presenceEvent(1, "ARRIVAL", "self-house", "LEARNER", "visit-house", "House")];
     delivered = true;
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events } }) });
   });
-  await noPresentations(page);
-  await page.goto("/pinoria-tv?centerId=pap658-house-blur");
+  await page.route("**/api/tv/runtime/pap658-visual/context", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: {
+    sessionId: "test-session", expiresAt: "2026-10-20T00:00:00Z",
+    display: { id: "pap658-visual", key: "pap658", displayName: "PAP-658", runtimeType: "PINORIA_HOUSE", scopeType: "CENTER", scopeId: "pap658-house-blur", orientation: "LANDSCAPE", targetAspectRatio: "16:9" },
+  } }) }));
+  await page.route("**/api/tv/runtime/pap658-visual/pinoria-house/presentation", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ presentation: null }) }));
+  await page.goto("/tv/pap658-visual");
   const scene = page.locator('[data-arrival-scene="true"]');
   await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào House ✦");
   const backdrop = scene.locator('[aria-hidden="true"]').filter({ has: page.locator('span[style*="HouseBack.png"]') }).first();
