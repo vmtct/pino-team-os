@@ -60,3 +60,20 @@ test("replay is snapshot inspection only; ACL failures are propagated", async ()
     assert.deepEqual(calls, ["/api/tos-learning/pinoria/presentations/replay-snapshot"]);
   } finally { globalThis.fetch = previous; }
 });
+
+test("return-to-ambient uses authenticated Core command path and persists safety tokens", async () => {
+  const previous = globalThis.fetch;
+  const calls: Array<[string, RequestInit]> = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push([url, init]);
+    return Response.json({ data: { presentationId: "p", completedAt: "done" } });
+  }) as typeof fetch;
+  try {
+    await operatorPresentationClient.returnToAmbient("c", "p", "claim", "receipt");
+    assert.equal(calls[0]?.[0], "/api/tos-learning/pinoria/presentations/return-to-ambient");
+    assert.equal(new Headers(calls[0]?.[1].headers).get("idempotency-key"), "receipt");
+    assert.deepEqual(JSON.parse(calls[0]?.[1].body as string), {
+      centerId: "c", presentationId: "p", expectedClaimedAt: "claim",
+    });
+  } finally { globalThis.fetch = previous; }
+});

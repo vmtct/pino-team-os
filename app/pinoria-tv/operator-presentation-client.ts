@@ -46,17 +46,19 @@ export const operatorPresentationClient = {
       "replay-snapshot",
       { method: "POST", body: JSON.stringify({ centerId, presentationId }) },
     ),
-  close: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => {
+  returnToAmbient: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("return-to-ambient", centerId, presentationId, expectedClaimedAt, idempotencyKey),
+  close: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("close", centerId, presentationId, expectedClaimedAt, idempotencyKey),
+};
+function completeOperatorPresentation(action: "close" | "return-to-ambient", centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) {
     if (!expectedClaimedAt.trim() || !idempotencyKey.trim()) {
       throw new Error("Operator close requires claim token and idempotency key");
     }
     return operatorRequest<{ presentationId: string; completedAt: string }>(
-      "close",
+      action,
       {
         method: "POST",
         headers: { "idempotency-key": idempotencyKey },
         body: JSON.stringify({ centerId, presentationId, expectedClaimedAt }),
       },
     );
-  },
-};
+}
