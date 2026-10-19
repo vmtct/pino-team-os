@@ -6,7 +6,7 @@ import { isCurrentOperatorQueueResponse, matchesInspectedPresentation } from "./
 
 /**
  * PAP-665 bounded operator view. Explicit manual refresh only; no TV relay,
- * claim, complete, command dispatch, auto-polling or client-side role grants.
+ * claim, complete, auto-polling or client-side role grants.
  * Core TOS ACL remains authoritative for every read.
  */
 export function TvOperatorQueue() {
@@ -14,12 +14,14 @@ export function TvOperatorQueue() {
   const [queue, setQueue] = useState<OperatorQueue | null>(null);
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
+  // Synchronous fence: React busy state alone does not stop rapid double-clicks.
+  const commandInFlight = useRef(false);
   const centerRef = useRef("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [inspected, setInspected] = useState<{ id: string; kind: string; claimedAt: string } | null>(null);
   const refresh = useCallback(async () => {
-    if (!centerId.trim() || busy) return;
+    if (!centerId.trim() || busy || commandInFlight.current) return;
     const requestedCenter = centerId.trim();
     const requestedGeneration = ++generation.current;
     setBusy(true);
@@ -37,7 +39,7 @@ export function TvOperatorQueue() {
   }, [centerId, busy]);
   const inspectCurrent = useCallback(async () => {
     const active = queue?.current;
-    if (!active || busy) return;
+    if (!active || busy || commandInFlight.current) return;
     const center = centerId.trim();
     const version = ++generation.current;
     setBusy(true);
@@ -61,13 +63,14 @@ export function TvOperatorQueue() {
   const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
     const active = queue?.current;
     const center = centerId.trim();
-    if (!active || !center || busy || !active.claimedAt) return;
+    if (!active || !center || busy || commandInFlight.current || !active.claimedAt) return;
     const verb = action === "close" ? "Đóng presentation" : "Trở về Ambient";
     if (!window.confirm(verb + " " + active.id + "? Thao tác này kết thúc presentation đang chạy.")) return;
     if (!("randomUUID" in crypto) || typeof crypto.randomUUID !== "function") {
       setError("Không thể tạo khóa idempotency an toàn trên browser này.");
       return;
     }
+    commandInFlight.current = true;
     const version = ++generation.current;
     const receiptKey = crypto.randomUUID();
     setBusy(true);
@@ -90,7 +93,9 @@ export function TvOperatorQueue() {
         setError(cause instanceof Error ? cause.message : "Không thể điều khiển presentation");
       }
     } finally {
-      if (version === generation.current) setBusy(false);
+      commandInFlight.current = false;
+      // A Center switch may invalidate the result, but must not strand the UI in busy state.
+      setBusy(false);
     }
   }, [queue, centerId, busy]);
   return (
@@ -105,7 +110,7 @@ export function TvOperatorQueue() {
           <input aria-label="Center ID" className="rounded border px-3 py-2" value={centerId} onChange={(event) => {
             generation.current += 1;
             centerRef.current = event.target.value.trim();
-            setBusy(false);
+            if (!commandInFlight.current) setBusy(false);
             setCenterId(event.target.value);
             setError("");
             setMessage("");
