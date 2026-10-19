@@ -62,7 +62,7 @@ test("claim presentation rejects malformed Core envelope without displaying scen
   assert.equal(isValidClaimedTvPresentation(valid), true);
   for (const bad of [
     {}, { ...valid, id: "invalid" }, { ...valid, kind: "UNKNOWN" },
-    { ...valid, claimedAt: "" }, { ...valid, projection: null },
+    { ...valid, claimedAt: "" }, { ...valid, claimedAt: "not-a-timestamp" }, { ...valid, projection: null },
     { ...valid, projection: [] },
   ]) {
     assert.equal(isValidClaimedTvPresentation(bad), false);

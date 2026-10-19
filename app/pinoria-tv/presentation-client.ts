@@ -45,7 +45,7 @@ export function isValidClaimedTvPresentation(value: unknown): value is PinoriaPr
   const item = value as Record<string, unknown>;
   return typeof item.id === "string" && CANONICAL_UUID.test(item.id) &&
     typeof item.kind === "string" && PRESENTATION_KINDS.has(item.kind) &&
-    typeof item.claimedAt === "string" && item.claimedAt.trim().length > 0 &&
+    typeof item.claimedAt === "string" && item.claimedAt.trim().length > 0 && Number.isFinite(Date.parse(item.claimedAt)) &&
     !!item.projection && typeof item.projection === "object" && !Array.isArray(item.projection);
 }
 /** Only a canonical release/other-active response can change the displayed TV scene. */
