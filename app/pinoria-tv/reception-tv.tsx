@@ -46,6 +46,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
   const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
   const replayBusy = useRef(false);
   const replayLastRevision = useRef(0);
+  const replayLoadedCommand = useRef("");
+  const [replaySceneKey, setReplaySceneKey] = useState("");
   const replayScope = useRef("");
   const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
   const cursor = useRef(0);
@@ -230,7 +232,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
     const scope=runtimeIdentity?`${centerId}:${runtimeIdentity.displayId}:${runtimeIdentity.sessionId}`:"";
     replayScope.current=scope;
     replayLastRevision.current=0;
+    replayLoadedCommand.current="";
     replayBusy.current=false;
+    setReplaySceneKey("");
     setReplayFrame(null);
     if(!scope||!centerId||!runtimeIdentity)return;
     let disposed=false;
@@ -239,7 +243,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
       replayBusy.current=true;
       try{
         const command=await pollPendingReplay(apiBase);
-        if(disposed||replayScope.current!==scope||!command)return;
+        if(disposed||replayScope.current!==scope||!command||replayLoadedCommand.current===command.id)return;
         if(!presentation||!acceptsTvReplayInstruction({
           centerId,displayId:runtimeIdentity.displayId,sessionId:runtimeIdentity.sessionId,
           revision:replayLastRevision.current,activePresentationId:presentation.id,
@@ -247,6 +251,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
         const loaded=await loadReplayProjection(apiBase,command);
         if(disposed||replayScope.current!==scope||presentation.id!==loaded.presentation.id)return;
         // Same presentation, new React key: forces effects/animation to begin at frame zero.
+        replayLoadedCommand.current=command.id;
+        setReplaySceneKey(command.id);
         setPresentation({...loaded.presentation});
         setReplayFrame({command,generation:Date.now()});
       }catch{
@@ -527,10 +533,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
       <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
     </section> : null}
 
-    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replayFrame?.command.id ?? presentation.id} reveal={presentation.projection} /> : null}
-    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replayFrame?.command.id ?? presentation.id} hatch={presentation.projection} /> : null}
-    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replayFrame?.command.id ?? presentation.id} ritual={presentation.projection} /> : null}
-    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene key={replayFrame?.command.id ?? presentation.id} ceremony={presentation.projection} /> : null}
+    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey || presentation.id} reveal={presentation.projection} /> : null}
+    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey || presentation.id} hatch={presentation.projection} /> : null}
+    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey || presentation.id} ritual={presentation.projection} /> : null}
+    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene key={replaySceneKey || presentation.id} ceremony={presentation.projection} /> : null}
     {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
     {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
 
