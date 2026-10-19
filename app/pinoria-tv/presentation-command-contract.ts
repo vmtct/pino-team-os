@@ -6,26 +6,31 @@
  */
 export type PresentationQueueState = {
   currentPresentationId: string | null;
+  /** Persisted queue revision, incremented atomically by Core. */
+  revision: number;
   queuedPresentationIds: readonly string[];
   /** IDs proven completed by canonical persistent receipts, not mere absence. */
   completedPresentationIds?: readonly string[];
 };
 
 export type PresentationOperatorCommand =
-  | { op: "RETURN_TO_AMBIENT"; presentationId: string }
-  | { op: "REPLAY_SNAPSHOT"; presentationId: string }
-  | { op: "CLOSE_PRESENTATION"; presentationId: string };
+  | { op: "RETURN_TO_AMBIENT"; presentationId: string; expectedRevision: number }
+  | { op: "REPLAY_SNAPSHOT"; presentationId: string; expectedRevision: number }
+  | { op: "CLOSE_PRESENTATION"; presentationId: string; expectedRevision: number };
 
 export type PresentationCommandDecision =
   | { kind: "APPLY"; next: PresentationQueueState; replayPresentationId?: string }
   | { kind: "NOOP"; next: PresentationQueueState }
-  | { kind: "REJECT"; reason: "INVALID_ID" | "NOT_ACTIVE" | "NOT_QUEUED" };
+  | { kind: "REJECT"; reason: "INVALID_ID" | "NOT_ACTIVE" | "STALE_REVISION" };
 
 export function decidePresentationCommand(
   state: PresentationQueueState,
   command: PresentationOperatorCommand,
 ): PresentationCommandDecision {
   if (!command.presentationId.trim()) return { kind: "REJECT", reason: "INVALID_ID" };
+  if (!Number.isSafeInteger(command.expectedRevision) || command.expectedRevision !== state.revision) {
+    return { kind: "REJECT", reason: "STALE_REVISION" };
+  }
   const active = state.currentPresentationId === command.presentationId;
   if (command.op === "REPLAY_SNAPSHOT") {
     if (!active) {
@@ -48,6 +53,6 @@ export function decidePresentationCommand(
   }
   return {
     kind: "APPLY",
-    next: { currentPresentationId: null, queuedPresentationIds: state.queuedPresentationIds },
+    next: { ...state, currentPresentationId: null, revision: state.revision + 1 },
   };
 }
