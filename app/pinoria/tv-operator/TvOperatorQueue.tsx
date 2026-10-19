@@ -65,7 +65,7 @@ export function TvOperatorQueue() {
     const center = centerId.trim();
     if (!active || !center || busy || commandInFlight.current || !active.claimedAt) return;
     const verb = action === "close" ? "Đóng presentation" : "Trở về Ambient";
-    if (!window.confirm(verb + " " + active.id + "? Thao tác này kết thúc presentation đang chạy.")) return;
+    if (!window.confirm(verb + " " + active.id + "? Core sẽ giải phóng presentation. Không đảm bảo TV vật lý đã chuyển cảnh.")) return;
     if (!("randomUUID" in crypto) || typeof crypto.randomUUID !== "function") {
       setError("Không thể tạo khóa idempotency an toàn trên browser này.");
       return;
@@ -88,7 +88,7 @@ export function TvOperatorQueue() {
       }
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
         setQueue(fresh);
-        setMessage(verb + ": Core đã xác nhận và làm mới hàng đợi.");
+        setMessage(verb + ": Core đã ghi receipt và giải phóng queue. Trạng thái hình ảnh TV chưa được xác nhận.");
       }
     } catch (cause) {
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
@@ -105,7 +105,7 @@ export function TvOperatorQueue() {
     <section aria-label="TV operator queue" className="mx-auto max-w-3xl space-y-4 p-5">
       <header>
         <h1 className="text-xl font-semibold">Điều khiển TV · Hàng đợi</h1>
-        <p className="text-sm opacity-70">Chỉ xem trạng thái Core. Không thực thi lại sự kiện hoặc thay đổi presentation.</p>
+        <p className="text-sm opacity-70">Xem queue và thực hiện lệnh Close/Return-to-Ambient có phân quyền tại Core. Các lệnh không chạy lại nghiệp vụ và chưa xác nhận TV vật lý đã chuyển cảnh.</p>
       </header>
       <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void refresh(); }}>
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
