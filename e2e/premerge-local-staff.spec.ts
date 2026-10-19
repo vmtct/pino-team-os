@@ -67,11 +67,13 @@ for (const width of [390, 768, 1440]) {
     await expect(page.getByTestId("staff-quick-peek")).toBeVisible();
     await expect(page).toHaveURL(/staff=staff-02/);
     await expect(page.getByTestId("staff-quick-peek")).not.toContainText("PRIVATE_");
+    await page.screenshot({ path: "test-results/pap781-local-quick-" + width + ".png", fullPage: true });
     expect(mock.countPrivate()).toBe(0);
     await page.getByTestId("staff-open-full-detail").click();
     await expect(page).toHaveURL(/\/bo\/staff\/staff-02\?from=/, {timeout: 45000});
     await expect(page.getByTestId("staff-full-detail")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Trần Hân" }).first()).toBeVisible();
+    await page.screenshot({ path: "test-results/pap781-local-full-" + width + ".png", fullPage: true });
     expect(mock.countPrivate()).toBe(0);
     await page.getByRole("link", { name: /Trở về danh sách/ }).click();
     await expect(page).toHaveURL(/\/bo\/staff\?q=H%C3%A2n/);

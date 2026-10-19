@@ -30,7 +30,7 @@ If the sandbox already exists, first inspect its status and SHA. Do not blindly 
 - Responsive Staff Directory/Quick Peek → Full Detail → Directory query round-trip: **390/768/1440px**.
 - Unknown deep-linked Staff ID renders bounded not-found/error; no unrelated profile.
 - No private/compensation document fetch in directory/peek/default detail. No sensitive fake values in Quick Peek.
-- Screenshots: `test-results/pap781-local-staff-{390,768,1440}.png`; traces on failure.
+- Screenshots: `test-results/pap781-local-staff-{390,768,1440}.png` (return Directory), `pap781-local-quick-{390,768,1440}.png` (Quick Peek), and `pap781-local-full-{390,768,1440}.png` (Full Detail); traces on failure.
 
 Previous PAP-388 fixture screenshot mismatch on Windows due to missing golden reference is **separate** from this real React component suite. Keep unapproved baselines unapproved.
 
@@ -39,3 +39,7 @@ Only claim **LOCAL UI E2E PASS** on success. Role permissions, real BO auth and 
 ## Handoff
 
 Record exact candidate SHA, sandbox fixture overlay, command/results, 390/768/1440 artifacts, CI run, unverified integration gates and visual gaps on PAP-781. FC1 remains sole merger; this runbook grants no merge/staging/Production authority.
+
+## Visual scope note (2026-10-19)
+
+Local screenshot inspection confirmed PAP-781 Quick Peek and route function at 390/768/1440. Full Detail still contains the legacy long-running operational forms: tabbed Information Architecture / Overview visual parity is owned by PAP-782, not this navigation slice. Sandbox does not render the real BO shell; shell/auth parity remains separate evidence. No final PAP-778 full-workspace visual approval is implied.
