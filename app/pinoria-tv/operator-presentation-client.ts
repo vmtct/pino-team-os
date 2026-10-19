@@ -1,3 +1,5 @@
+import { parseOperatorQueue } from "./operator-queue-validate";
+
 /**
  * PAP-665 authenticated operator boundary. This is intentionally separate
  * from the public/TV presentation relay: Core's TOS control plane enforces
@@ -38,8 +40,8 @@ async function operatorRequest<T>(path: string, init: RequestInit = {}): Promise
 }
 
 export const operatorPresentationClient = {
-  queue: (centerId: string) =>
-    operatorRequest<OperatorQueue>(`queue?centerId=${encodeURIComponent(centerId)}`),
+  queue: async (centerId: string) =>
+    parseOperatorQueue(await operatorRequest<unknown>(`queue?centerId=${encodeURIComponent(centerId)}`)),
   // View-only inspection. Core authorizes pinoria.presentation.view and audits the read.
   inspectSnapshot: (centerId: string, presentationId: string) =>
     operatorRequest<{ id: string; kind: string; claimedAt: string; projection: Record<string, unknown> }>(
