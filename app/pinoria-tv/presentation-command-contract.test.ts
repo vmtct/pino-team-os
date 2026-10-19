@@ -104,3 +104,7 @@ test("fail closed on duplicate and overlapping canonical queue snapshots", () =>
     });
   }
 });
+test('rejects inconsistent replay snapshots before emitting a replay instruction', () => {
+  const invalid = { ...state, queuedPresentationIds: ['active', 'next'] };
+  assert.deepEqual(decidePresentationCommand(invalid, { op: 'REPLAY_SNAPSHOT', presentationId: 'active', expectedRevision: 7 }), { kind: 'REJECT', reason: 'INVALID_STATE' });
+});
