@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LayeredCharacter, pinoriaAssetUrl, type PinoriaCharacterConfig } from "./layered-character";
 import { WardSessionTv } from "./ward-session-tv";
-import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import { AmbientHouseRuntime, HOUSE_ASSETS } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
 import { claimPresentation, completePresentation } from "./presentation-client";
@@ -390,7 +390,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
       style={handoffStyle}
     >
-      {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} /> : null}
+      {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} aria-hidden="true"><div className={styles.arrivalHouseLayers}><span style={{ backgroundImage: `url("${HOUSE_ASSETS.back}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.mid}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.front}")` }} /></div></div> : null}
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
       {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
       <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} />
