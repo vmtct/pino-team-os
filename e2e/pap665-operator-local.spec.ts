@@ -224,3 +224,30 @@ test("PAP-665 physical replay checks target and sends idempotent Core dispatch",
   expect(dispatches[0].body).toEqual({ centerId: CENTER, displayId, presentationId: PRESENTATION });
   expect(dispatches[0].key).toMatch(/^[0-9a-f-]{36}$/i);
 });
+
+test("PAP-665 physical replay fails closed when target lacks a device session", async ({ page }) => {
+  const displayId = "33333333-3333-4333-8333-333333333333";
+  let dispatches = 0;
+  await page.route("**/api/workforce/profile", (route) => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
+  await page.route("**/api/tos-learning/pinoria/presentations/**", async (route) => {
+    const action = new URL(route.request().url()).pathname.split("/").pop();
+    if (action === "queue") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: {
+      current: { id: PRESENTATION, kind: "EGG_HATCH", claimedAt: CLAIM, projection: {} }, queued: [], revision: 1, hasMore: false,
+    } }) });
+    if (action === "replay-target") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+      data: { available: true, target: { displayId } },
+    }) });
+    if (action === "replay-dispatch") dispatches++;
+    return route.fulfill({ status: 404, body: "unexpected operation" });
+  });
+  await page.goto("/pinoria/tv-operator", { waitUntil: "domcontentloaded", timeout: 90000 });
+  const input = page.getByRole("textbox", { name: "Center ID" });
+  await expect.poll(() => input.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactProps$"))), { timeout: 60000 }).toBe(true);
+  await input.fill(CENTER);
+  await page.getByRole("button", { name: "Làm mới" }).click();
+  await expect(page.getByText(PRESENTATION)).toBeVisible();
+  await page.getByRole("textbox", { name: "Display ID để replay" }).fill(displayId);
+  await page.getByRole("button", { name: "Phát lại trên TV" }).click();
+  await expect(page.getByText("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.")).toBeVisible();
+  expect(dispatches).toBe(0);
+});

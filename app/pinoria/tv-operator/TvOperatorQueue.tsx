@@ -104,7 +104,7 @@ export function TvOperatorQueue() {
     try {
       const target = await operatorPresentationClient.replayTarget(center, displayId, active.id);
       if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
-      if (!target.available || target.target?.displayId !== displayId) {
+      if (!target.available || target.target?.displayId !== displayId || !target.target.deviceId) {
         throw new Error("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.");
       }
       if (!window.confirm(`Phát lại ${active.id} trên TV ${displayId}?`)) return;
