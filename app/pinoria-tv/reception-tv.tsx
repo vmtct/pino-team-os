@@ -6,7 +6,7 @@ import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
-import { claimPresentation, completePresentation, presentationStatus, shouldReleaseTvScene } from "./presentation-client";
+import { claimPresentation, completePresentation, presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
@@ -46,6 +46,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
   const presentationBusy = useRef(false);
+  const presentationGeneration = useRef(0);
+  const presentationCenter = useRef("");
   const housePollInFlight = useRef(false);
   const houseSnapshotRefreshedAt = useRef(0);
   const houseGeneration = useRef(0);
@@ -220,21 +222,29 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const pollPresentation = useCallback(async () => {
     if (!centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
     presentationBusy.current = true;
+    const requestedGeneration = presentationGeneration.current;
     try {
       const claimed = await claimPresentation(centerId, apiBase);
-      if (claimed) setPresentation(claimed);
+      if (claimed && isCurrentTvPresentationClaim(centerId, requestedGeneration, presentationCenter.current, presentationGeneration.current)) setPresentation(claimed);
     } catch {
       // House presence remains usable if the Wish relay is temporarily unavailable.
     } finally {
-      presentationBusy.current = false;
+      if (requestedGeneration === presentationGeneration.current) presentationBusy.current = false;
     }
   }, [apiBase, centerId, onboardingPreview, scenes.length, presentation]);
 
   useEffect(() => {
+    presentationGeneration.current += 1;
+    presentationCenter.current = centerId;
+    presentationBusy.current = false;
     if (!centerId) return;
     void pollPresentation();
     const timer = window.setInterval(() => void pollPresentation(), 1000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      presentationGeneration.current += 1;
+      presentationBusy.current = false;
+    };
   }, [centerId, pollPresentation]);
 
   const scene = scenes[0] ?? null;
@@ -335,6 +345,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     if (!value) return;
     localStorage.setItem(CENTER_STORAGE, value);
     houseGeneration.current += 1;
+    presentationGeneration.current += 1;
+    presentationCenter.current = value;
     housePollInFlight.current = false;
     cursor.current = 0;
     presentedSequence.current = 0;
@@ -349,6 +361,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
 
   function resetCenter() {
     localStorage.removeItem(CENTER_STORAGE);
+    presentationGeneration.current += 1;
+    presentationCenter.current = "";
     houseGeneration.current += 1;
     housePollInFlight.current = false;
     cursor.current = 0;

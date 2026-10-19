@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { presentationStatus, shouldReleaseTvScene } from "./presentation-client";
+import { presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim } from "./presentation-client";
 
 test("TV status reads only current ID without claiming or completing", async () => {
   const previous = globalThis.fetch;
@@ -45,4 +45,10 @@ test("TV release decision requires canonical current ID and changed Core active 
   assert.equal(shouldReleaseTvScene(current, null), true);
   assert.equal(shouldReleaseTvScene(current, "22222222-2222-4222-8222-222222222222"), true);
   assert.equal(shouldReleaseTvScene("not-a-real-id", null), false);
+});
+test("claims arriving after Center change or request generation invalidation are discarded", () => {
+  assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-a", 5), true);
+  assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-b", 6), false);
+  assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-a", 6), false);
+  assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-b", 5), false);
 });

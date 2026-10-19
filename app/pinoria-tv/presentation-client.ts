@@ -53,3 +53,12 @@ export async function presentationStatus(centerId: string, apiBase = "/api/pinor
   }
   return payload.activePresentationId as string | null;
 }
+/** A late claim may only be displayed in its original Center generation. */
+export function isCurrentTvPresentationClaim(
+  requestedCenter: string,
+  requestedGeneration: number,
+  visibleCenter: string,
+  currentGeneration: number,
+): boolean {
+  return requestedCenter === visibleCenter && requestedGeneration === currentGeneration;
+}
