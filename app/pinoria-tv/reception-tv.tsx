@@ -6,7 +6,7 @@ import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
-import { claimPresentation, completePresentation } from "./presentation-client";
+import { claimPresentation, completePresentation, presentationStatus } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
@@ -194,6 +194,29 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     return () => window.clearInterval(timer);
   }, [centerId, pollOnboardingPreview]);
 
+  // Observe Core release while a scene is displayed. Never claim a new event for status.
+  useEffect(() => {
+    if (!centerId || !presentation) return;
+    let disposed = false;
+    let inFlight = false;
+    const currentId = presentation.id;
+    const check = async () => {
+      if (inFlight || disposed) return;
+      inFlight = true;
+      try {
+        const activeId = await presentationStatus(centerId, apiBase);
+        if (!disposed && activeId !== currentId) {
+          setPresentation((value) => value?.id === currentId ? null : value);
+        }
+      } catch {
+        // Unknown status: keep the current scene, never interpret an outage as release.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = window.setInterval(() => void check(), 1500);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [apiBase, centerId, presentation]);
   const pollPresentation = useCallback(async () => {
     if (!centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
     presentationBusy.current = true;

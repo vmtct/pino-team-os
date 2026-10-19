@@ -29,3 +29,20 @@ export async function claimPresentation(centerId: string, apiBase?: string) {
 export async function completePresentation(centerId: string, presentationId: string, apiBase?: string) {
   await post({ op: "complete", centerId, presentationId }, apiBase);
 }
+
+/** Authenticated TV relay read. Never claims/advances the queue. */
+export async function presentationStatus(centerId: string, apiBase = "/api/pinoria-tv"): Promise<string | null> {
+  const response = await fetch(apiBase + "/presentation", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ op: "status", centerId }),
+  });
+  const payload = await response.json() as { ok?: boolean; activePresentationId?: unknown };
+  if (!response.ok || payload.ok !== true ||
+      (payload.activePresentationId !== null &&
+       (typeof payload.activePresentationId !== "string" || !payload.activePresentationId))) {
+    throw new Error("Pinoria TV presentation status unavailable");
+  }
+  return payload.activePresentationId as string | null;
+}
