@@ -33,3 +33,16 @@ test("operator facade preserves Core read and command paths", () => {
   assert.match(source, /method: request\.method/);
   assert.match(source, /idempotencyKey \? \{ idempotencyKey \} : \{\}/);
 });
+
+test("operator facade fails closed when support or Cloudflare binding is absent", async () => {
+  const request = { method: "GET", path: "/pinoria/presentations/queue" };
+  const binding = { executeWithStaffPassword: async () => ({ status: 200, body: {}, requestId: "unused" }) };
+  assert.throws(
+    () => callTosLearningCoreWithCredential(binding, request, { kind: "support", token: "support-token" }),
+    /TOS_SUPPORT_SESSION_UNAVAILABLE/,
+  );
+  assert.throws(
+    () => callTosLearningCoreWithCredential(binding, request, { kind: "cloudflare", identity: {} } as never),
+    /TOS_CLOUDFLARE_COMPATIBILITY_UNAVAILABLE/,
+  );
+});
