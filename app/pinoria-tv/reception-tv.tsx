@@ -48,6 +48,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
   const replayLastRevision = useRef(0);
   const replayLoadedCommand = useRef("");
   const [replaySceneKey, setReplaySceneKey] = useState("");
+  const [replayedPresentationId, setReplayedPresentationId] = useState("");
   const replayScope = useRef("");
   const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
   const cursor = useRef(0);
@@ -235,6 +236,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
     replayLoadedCommand.current="";
     replayBusy.current=false;
     setReplaySceneKey("");
+    setReplayedPresentationId("");
     setReplayFrame(null);
     if(!scope||!centerId||!runtimeIdentity)return;
     let disposed=false;
@@ -253,6 +255,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
         // Same presentation, new React key: forces effects/animation to begin at frame zero.
         replayLoadedCommand.current=command.id;
         setReplaySceneKey(command.id);
+        setReplayedPresentationId(command.presentationId);
         setPresentation({...loaded.presentation});
         setReplayFrame({command,generation:Date.now()});
       }catch{
@@ -533,10 +536,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", runtim
       <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
     </section> : null}
 
-    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey || presentation.id} reveal={presentation.projection} /> : null}
-    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey || presentation.id} hatch={presentation.projection} /> : null}
-    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey || presentation.id} ritual={presentation.projection} /> : null}
-    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene key={replaySceneKey || presentation.id} ceremony={presentation.projection} /> : null}
+    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey && replayedPresentationId===presentation.id ? replaySceneKey : presentation.id} reveal={presentation.projection} /> : null}
+    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey && replayedPresentationId===presentation.id ? replaySceneKey : presentation.id} hatch={presentation.projection} /> : null}
+    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey && replayedPresentationId===presentation.id ? replaySceneKey : presentation.id} ritual={presentation.projection} /> : null}
+    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene key={replaySceneKey && replayedPresentationId===presentation.id ? replaySceneKey : presentation.id} ceremony={presentation.projection} /> : null}
     {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
     {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
 
