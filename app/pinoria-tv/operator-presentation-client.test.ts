@@ -131,3 +131,25 @@ test("operator client preserves access failures without speculative fallback to 
     assert.match(calls[0]!, /^\/api\/tos-learning\/pinoria\/presentations\/queue\?/);
   } finally { globalThis.fetch = previous; }
 });
+test("replay snapshot inspection validates canonical projection before exposing it", async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = (async () => Response.json({ data: { id: "p", kind: "WELCOME", claimedAt: "now", projection: null } })) as typeof fetch;
+  try {
+    await assert.rejects(operatorPresentationClient.replaySnapshotInspect("center", "p"), /Invalid operator claimed snapshot/);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("replay snapshot inspection accepts a valid immutable snapshot without dispatch", async () => {
+  const previous = globalThis.fetch;
+  const calls: Array<[string, RequestInit]> = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push([url, init]);
+    return Response.json({ data: { id: "p", kind: "WELCOME", claimedAt: "now", projection: { path: "art" } } });
+  }) as typeof fetch;
+  try {
+    const snapshot = await operatorPresentationClient.replaySnapshotInspect("center", "p");
+    assert.equal(snapshot.id, "p");
+    assert.equal(calls[0]?.[0], "/api/tos-learning/pinoria/presentations/replay-snapshot");
+    assert.equal(calls[0]?.[1].method, "POST");
+  } finally { globalThis.fetch = previous; }
+});
