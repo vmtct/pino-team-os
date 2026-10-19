@@ -13,6 +13,8 @@ import {
   type AmbientMotionGraph,
 } from "./ambient-house-motion";
 import styles from "./ambient-house.module.css";
+import { resolveAmbientHouseArea, type AmbientHouseArea } from "./ambient-house-area";
+import type { PresenceExperience } from "./presence-contract";
 
 export type AmbientHouseActor = {
   id: string;
@@ -21,17 +23,26 @@ export type AmbientHouseActor = {
   config: PinoriaCharacterConfig | null;
   wardRender?: PinoriaWardRender | null;
   effectKey?: string | null;
+  experience?: PresenceExperience;
 };
 
 const GRAPH = graphData as AmbientMotionGraph;
+const NO_APPROVED_AREAS: readonly AmbientHouseArea[] = [];
 const HOUSE_ASSETS = {
   back: "https://assets.pinohouse.art/draft/HouseBack.png",
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ actors, departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
   const idsKey = actors.map((actor) => actor.id).sort().join("|");
   const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
+  // Areas are supplied by an explicitly approved House configuration.
+  // No mapping is inferred from labels or sample data; empty config safely uses global routing.
+  const preferredLaneIds = useMemo(() => new Map(actors.flatMap((actor) => {
+    const result = resolveAmbientHouseArea(actor.experience ?? null, GRAPH, areas);
+    return result.kind === "AREA" ? [[actor.id, result.laneIds] as const] : [];
+  })), [actors, areas]);
+  const preferredLaneKey = JSON.stringify([...preferredLaneIds.entries()].sort(([a], [b]) => a.localeCompare(b)));
   const speedMultipliers = useMemo(() => new Map(actors.map((actor) => [actor.id, resolvePinoriaEffectPresentation(actor.effectKey)?.speedMultiplier ?? 1])), [actors]);
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
@@ -42,9 +53,9 @@ export function AmbientHouseRuntime({ actors, departingId = null, suppressedIds 
 
   useEffect(() => {
     const desiredIds = idsKey ? idsKey.split("|") : [];
-    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH));
+    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH, preferredLaneIds));
     previousFrame.current = null;
-  }, [idsKey]);
+  }, [idsKey, preferredLaneKey, preferredLaneIds]);
 
   useEffect(() => {
     const frozen = new Set(JSON.parse(frozenKey) as string[]);

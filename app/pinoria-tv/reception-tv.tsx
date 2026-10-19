@@ -338,7 +338,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setOnboardingPreview(null);
     setCenterId("");
   }
-  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: actor.displayName, config: actor.character, wardRender: actor.wardRender })), [inside]);
+  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: actor.displayName, config: actor.character, wardRender: actor.wardRender, experience: actor.experience })), [inside]);
   const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((actor) => actor.wardSession?.status === "OPEN") ?? newest.find((actor) => actor.wardSession) ?? null; }, [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
