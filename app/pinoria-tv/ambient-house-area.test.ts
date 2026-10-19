@@ -52,3 +52,12 @@ test("full preferred lane safely falls back and reconciliation retains live posi
   assert.ok(agents.some((agent) => agent.laneId === "lane-piano"));
   assert.deepEqual(reconcileAmbientAgents(agents, ["first", "second"], narrowGraph, preferred), agents);
 });
+test("a changed context never teleports a live actor and new entrants use the updated area", () => {
+  const initialArea = new Map([["existing", ["lane-art"]]]);
+  const original = reconcileAmbientAgents([], ["existing"], graph, initialArea);
+  const movedContext = new Map([["existing", ["lane-piano"]], ["newcomer", ["lane-piano"]]]);
+  const reconciled = reconcileAmbientAgents(original, ["existing", "newcomer"], graph, movedContext);
+  assert.deepEqual(reconciled.find((actor) => actor.id === "existing"), original[0]);
+  assert.equal(reconciled.find((actor) => actor.id === "newcomer")?.laneId, "lane-piano");
+  assert.ok(ambientMinimumVisibleSeparation(reconciled) >= 72);
+});
