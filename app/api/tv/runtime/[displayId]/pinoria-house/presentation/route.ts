@@ -1,4 +1,4 @@
-import { projectTvRuntimeStatus } from "./status-projection";
+import { handleTvRuntimePresentationStatus } from "./status-handler";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { runtimeJson, tvRuntimeCookie, type TvRuntimeCoreBinding } from "@/lib/tv-runtime-core";
 
@@ -26,13 +26,7 @@ export async function POST(request:Request,context:Context){
     return adaptedJson({presentation:envelope.data??null},200,result.requestId);
   }
   if(body.op==="status"){
-    const result=await env.PINO_TV_RUNTIME_CORE.presentationStatus(token,displayId);
-    if(result.status!==200)return runtimeJson(result);
-    try{
-      return adaptedJson(projectTvRuntimeStatus(result.body),200,result.requestId);
-    }catch{
-      return adaptedJson({error:{code:"TV_PRESENTATION_STATUS_UNAVAILABLE",message:"TV status unavailable"}},503,result.requestId);
-    }
+    return handleTvRuntimePresentationStatus(token,displayId,env.PINO_TV_RUNTIME_CORE);
   }
   if(body.op==="complete"&&typeof body.presentationId==="string"){
     const result=await env.PINO_TV_RUNTIME_CORE.completePresentation(token,displayId,body.presentationId);
