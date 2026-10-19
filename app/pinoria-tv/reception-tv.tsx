@@ -233,18 +233,23 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     }
   }, [apiBase, centerId, onboardingPreview, scenes.length, presentation]);
 
+  // Only a Center transition invalidates a pending claim. Callback changes caused by
+  // house scenes/re-renders must not release the in-flight lock and double-claim Core.
   useEffect(() => {
     presentationGeneration.current += 1;
     presentationCenter.current = centerId;
     presentationBusy.current = false;
-    if (!centerId) return;
-    void pollPresentation();
-    const timer = window.setInterval(() => void pollPresentation(), 1000);
     return () => {
-      window.clearInterval(timer);
       presentationGeneration.current += 1;
       presentationBusy.current = false;
     };
+  }, [centerId]);
+
+  useEffect(() => {
+    if (!centerId) return;
+    void pollPresentation();
+    const timer = window.setInterval(() => void pollPresentation(), 1000);
+    return () => window.clearInterval(timer);
   }, [centerId, pollPresentation]);
 
   const scene = scenes[0] ?? null;
