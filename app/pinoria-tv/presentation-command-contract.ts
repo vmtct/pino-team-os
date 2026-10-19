@@ -26,9 +26,10 @@ export function decidePresentationCommand(
   if (!command.presentationId.trim()) return { kind: "REJECT", reason: "INVALID_ID" };
   const active = state.currentPresentationId === command.presentationId;
   if (command.op === "REPLAY_SNAPSHOT") {
-    if (!active && !state.queuedPresentationIds.includes(command.presentationId)) {
-      return { kind: "REJECT", reason: "NOT_QUEUED" };
+    if (!active) {
+      return { kind: "REJECT", reason: "NOT_ACTIVE" };
     }
+    // Only the active singleton can replay; queued events must not leapfrog.
     // A replay is only the immutable snapshot. It does not dequeue/claim the
     // event, trigger original domain effects, or mutate the active singleton.
     return { kind: "APPLY", next: state, replayPresentationId: command.presentationId };
@@ -36,9 +37,10 @@ export function decidePresentationCommand(
   if (!active) {
     // Repeated close/return after a successful completion is safe, but an
     // unrelated queued presentation must never be closed by accident.
-    return state.queuedPresentationIds.includes(command.presentationId)
-      ? { kind: "REJECT", reason: "NOT_ACTIVE" }
-      : { kind: "NOOP", next: state };
+    if (state.currentPresentationId !== null || state.queuedPresentationIds.includes(command.presentationId)) {
+      return { kind: "REJECT", reason: "NOT_ACTIVE" };
+    }
+    return { kind: "NOOP", next: state };
   }
   return {
     kind: "APPLY",
