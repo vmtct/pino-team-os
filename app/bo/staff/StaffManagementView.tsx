@@ -2,11 +2,14 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoDataGrid, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
+import { staffDirectoryHref, staffFullDetailHref } from "@/lib/bo-staff-detail-navigation";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -374,14 +377,11 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     } finally { setBusy(""); }
   }
 
-  const returnQuery = new URLSearchParams(detailOnly ? (searchParams.get("from") ?? "") : searchParams.toString());
-  returnQuery.delete("staff");
-  returnQuery.delete("from");
-  const returnHref = "/bo/staff" + (returnQuery.size ? "?" + returnQuery.toString() : "");
-  const fullDetailHref = "/bo/staff/" + encodeURIComponent(selectedId) + (returnQuery.size ? "?from=" + encodeURIComponent(returnQuery.toString()) : "");
+  const returnHref = staffDirectoryHref(searchParams.toString(), detailOnly);
+  const fullDetailHref = staffFullDetailHref(selectedId, searchParams.toString());
   const detailContents = (
     <div className={styles.staffDetailStack}>
-          {!selected || !profile ? <section className={styles.panel}><p>Đang tải hồ sơ Staff…</p></section> : <>
+          {!selected || !profile ? <section className={styles.panel}>{error ? <p role="alert">Không thể tải hồ sơ Staff. Kiểm tra quyền truy cập hoặc mã nhân viên.</p> : <p>Đang tải hồ sơ Staff…</p>}</section> : <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>{profile.displayLabel}</h2><p>Operational profile · {profile.status}</p></div><span className={styles.writePill}>{profile.status}</span></div>
               <div className={styles.formGrid}>
@@ -523,7 +523,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
 
   return (
     <section id="staff-management" className={styles.page}>
-      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref}>← Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
+      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
       {!detailOnly ? <BoDataGrid
         rows={visibleRows}
@@ -555,7 +555,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
       {selectedId ? (detailOnly ? <div className={styles.staffFullWorkspace} data-testid="staff-full-detail">
         <div className={styles.staffFullIdentity}>
           <div><span className={styles.staffFullEyebrow}>STAFF DETAIL · {selectedId}</span><h2>{selected?.displayLabel ?? "Đang tải Staff..."}</h2><p>{selected?.roleLabel ?? selected?.department ?? "Chưa phân nhóm"} · {selected?.status ?? "Loading"}</p></div>
-          <Link className={styles.secondaryButton} href={returnHref}>← Danh sách</Link>
+          <Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Danh sách</Link>
         </div>
         {detailContents}
       </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
@@ -569,7 +569,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
             <div><dt>Attention</dt><dd>{selected ? staffAttention(selected, accessUser).label : "Loading"}</dd></div>
           </dl>
           <p>Chỉ hiển thị dữ liệu Staff/Access thông thường. Hồ sơ nhạy cảm và các tác vụ rủi ro chỉ có trong chi tiết đầy đủ.</p>
-          <Link className={styles.primaryButton} href={fullDetailHref} data-testid="staff-open-full-detail">Mở chi tiết →</Link>
+          <Link className={styles.primaryButton} href={fullDetailHref} data-testid="staff-open-full-detail">Mở chi tiết <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" /></Link>
         </div>
       </BoDataGridSidePeek>) : null}
     </section>
