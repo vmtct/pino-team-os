@@ -6,7 +6,7 @@ import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
-import { claimPresentation, completePresentation, presentationStatus } from "./presentation-client";
+import { claimPresentation, completePresentation, presentationStatus, shouldReleaseTvScene } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
@@ -205,7 +205,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       inFlight = true;
       try {
         const activeId = await presentationStatus(centerId, apiBase);
-        if (!disposed && activeId !== currentId) {
+        if (!disposed && shouldReleaseTvScene(currentId, activeId)) {
           setPresentation((value) => value?.id === currentId ? null : value);
         }
       } catch {

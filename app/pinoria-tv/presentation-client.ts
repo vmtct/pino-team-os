@@ -30,6 +30,13 @@ export async function completePresentation(centerId: string, presentationId: str
   await post({ op: "complete", centerId, presentationId }, apiBase);
 }
 
+const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Only a canonical release/other-active response can change the displayed TV scene. */
+export function shouldReleaseTvScene(displayedId: string, activeId: string | null): boolean {
+  return CANONICAL_UUID.test(displayedId) && activeId !== displayedId;
+}
+
 /** Authenticated TV relay read. Never claims/advances the queue. */
 export async function presentationStatus(centerId: string, apiBase = "/api/pinoria-tv"): Promise<string | null> {
   const response = await fetch(apiBase + "/presentation", {
@@ -41,7 +48,7 @@ export async function presentationStatus(centerId: string, apiBase = "/api/pinor
   const payload = await response.json() as { ok?: boolean; activePresentationId?: unknown };
   if (!response.ok || payload.ok !== true ||
       (payload.activePresentationId !== null &&
-       (typeof payload.activePresentationId !== "string" || !payload.activePresentationId))) {
+       (typeof payload.activePresentationId !== "string" || !CANONICAL_UUID.test(payload.activePresentationId)))) {
     throw new Error("Pinoria TV presentation status unavailable");
   }
   return payload.activePresentationId as string | null;
