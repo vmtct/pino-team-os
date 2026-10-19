@@ -43,6 +43,37 @@ async function noPresentations(page: Page) {
   }));
 }
 
+test("PAP-658 B-only House blur keeps branded Arrival visible when a House asset fails", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/draft/HouseMid.png", (route) => route.abort("failed"));
+  await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
+  let delivered = false;
+  await page.route("**/api/pinoria-tv/events**", (route) => {
+    const events = delivered ? [] : [presenceEvent(1, "ARRIVAL", "self-house", "LEARNER", "visit-house", "House")];
+    delivered = true;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 1, events } }) });
+  });
+  await noPresentations(page);
+  await page.goto("/pinoria-tv?centerId=pap658-house-blur");
+  const scene = page.locator('[data-arrival-scene="true"]');
+  await expect(scene.getByRole("heading", { level: 1 })).toHaveText("Chào House ✦");
+  const backdrop = scene.locator('[aria-hidden="true"]').filter({ has: page.locator('span[style*="HouseBack.png"]') }).first();
+  await expect(backdrop).toHaveCount(1);
+  const layers = backdrop.locator('span[style*="House"]');
+  await expect(layers).toHaveCount(3);
+  const appearance = await backdrop.evaluate((element) => {
+    const sheet = getComputedStyle(element);
+    const house = element.firstElementChild as HTMLElement;
+    const layer = house.querySelector('span') as HTMLElement;
+    return { background: sheet.backgroundImage, blur: getComputedStyle(house).filter, transform: getComputedStyle(house).transform, image: getComputedStyle(layer).backgroundImage };
+  });
+  expect(appearance.background).toContain('gradient');
+  expect(appearance.blur).toContain('blur');
+  expect(appearance.image).toContain('HouseBack.png');
+  expect(appearance.transform).toBe('none');
+  await scene.screenshot({ path: testInfo.outputPath('pap658-arrival-house-b-1920x1080-reduced-motion-mid-missing.png'), animations: 'disabled' });
+});
 test("learner and Staff arrivals hand off sequentially into Self-keyed ambient actors", async ({ page }) => {
   let delivered = false;
   await page.route("**/api/pinoria-tv/snapshot**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { cursor: 0, actors: [] } }) }));
