@@ -6,7 +6,7 @@ import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
-import { claimPresentation, completePresentation, presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim } from "./presentation-client";
+import { claimPresentation, completePresentation, presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim, completionAlreadyReleased } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
@@ -322,11 +322,27 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     let cancelled = false;
     let timer = 0;
 
-    const finish = async () => {      try {
+    const finish = async () => {
+      if (cancelled) return;
+      try {
         await completePresentation(centerId, presentationId, apiBase);
-        if (cancelled) return;
-        setPresentation((current) => current?.id === presentationId ? null : current);
+        if (!cancelled) {
+          setPresentation((current) => current?.id === presentationId ? null : current);
+        }
       } catch {
+        if (cancelled) return;
+        // An operator can close the singleton while the TV completion is in flight.
+        // Before retrying a stale complete, inspect Core state without re-claiming.
+        try {
+          const released = await completionAlreadyReleased(centerId, presentationId, apiBase);
+          if (cancelled) return;
+          if (released) {
+            setPresentation((current) => current?.id === presentationId ? null : current);
+            return;
+          }
+        } catch {
+          // Core status unavailable: preserve the scene and retry safely.
+        }
         if (!cancelled) timer = window.setTimeout(() => void finish(), 1500);
       }
     };

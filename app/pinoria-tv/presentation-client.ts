@@ -78,3 +78,10 @@ export function isCurrentTvPresentationClaim(
 ): boolean {
   return requestedCenter === visibleCenter && requestedGeneration === currentGeneration;
 }
+/** Recover a failed TV completion only from authoritative Core state; never claim again. */
+export async function completionAlreadyReleased(
+  centerId: string, presentationId: string, apiBase?: string,
+): Promise<boolean> {
+  const activeId = await presentationStatus(centerId, apiBase);
+  return shouldReleaseTvScene(presentationId, activeId);
+}
