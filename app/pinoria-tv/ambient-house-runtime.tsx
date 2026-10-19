@@ -37,11 +37,16 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
   const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
   // Areas are supplied by an explicitly approved House configuration.
   // No mapping is inferred from labels or sample data; empty config safely uses global routing.
-  const preferredLaneIds = useMemo(() => new Map(actors.flatMap((actor) => {
+  // Stabilize the semantic routing snapshot, not the parent actor-array identity:
+  // presence polling can replace actor objects without changing any approved area.
+  const resolvedLaneKey = JSON.stringify(actors.flatMap((actor) => {
     const result = resolveAmbientHouseArea(actor.experience ?? null, GRAPH, areas);
     return result.kind === "AREA" ? [[actor.id, result.laneIds] as const] : [];
-  })), [actors, areas]);
-  const preferredLaneKey = JSON.stringify([...preferredLaneIds.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  }).sort(([a], [b]) => a.localeCompare(b)));
+  const preferredLaneIds = useMemo(
+    () => new Map<string, readonly string[]>(JSON.parse(resolvedLaneKey) as [string, string[]][]),
+    [resolvedLaneKey],
+  );
   const speedMultipliers = useMemo(() => new Map(actors.map((actor) => [actor.id, resolvePinoriaEffectPresentation(actor.effectKey)?.speedMultiplier ?? 1])), [actors]);
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
@@ -54,7 +59,7 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
     const desiredIds = idsKey ? idsKey.split("|") : [];
     setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH, preferredLaneIds));
     previousFrame.current = null;
-  }, [idsKey, preferredLaneKey, preferredLaneIds]);
+  }, [idsKey, resolvedLaneKey, preferredLaneIds]);
 
   useEffect(() => {
     const frozen = new Set(JSON.parse(frozenKey) as string[]);
@@ -71,7 +76,7 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [departing, frozenKey, speedMultipliers, preferredLaneKey, preferredLaneIds]);
+  }, [departing, frozenKey, speedMultipliers, resolvedLaneKey, preferredLaneIds]);
 
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");
