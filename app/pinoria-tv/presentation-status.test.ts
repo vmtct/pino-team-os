@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim } from "./presentation-client";
+import { presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim, isValidClaimedTvPresentation, claimPresentation } from "./presentation-client";
 
 test("TV status reads only current ID without claiming or completing", async () => {
   const previous = globalThis.fetch;
@@ -51,4 +51,29 @@ test("claims arriving after Center change or request generation invalidation are
   assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-b", 6), false);
   assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-a", 6), false);
   assert.equal(isCurrentTvPresentationClaim("center-a", 5, "center-b", 5), false);
+});
+test("claim presentation rejects malformed Core envelope without displaying scene", async () => {
+  const valid = {
+    id: "11111111-1111-4111-8111-111111111111",
+    kind: "WISH_REVEAL",
+    claimedAt: "2026-10-19T16:40:00Z",
+    projection: { schemaVersion: 1 },
+  };
+  assert.equal(isValidClaimedTvPresentation(valid), true);
+  for (const bad of [
+    {}, { ...valid, id: "invalid" }, { ...valid, kind: "UNKNOWN" },
+    { ...valid, claimedAt: "" }, { ...valid, projection: null },
+    { ...valid, projection: [] },
+  ]) {
+    assert.equal(isValidClaimedTvPresentation(bad), false);
+  }
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = (async () => Response.json({ presentation: { ...valid, kind: "UNKNOWN" } })) as typeof fetch;
+    await assert.rejects(claimPresentation("center"), /claimed presentation invalid/);
+    globalThis.fetch = (async () => Response.json({ presentation: null })) as typeof fetch;
+    assert.equal(await claimPresentation("center"), null);
+  } finally {
+    globalThis.fetch = previous;
+  }
 });
