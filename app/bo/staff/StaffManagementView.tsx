@@ -10,6 +10,7 @@ import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGr
 import { boApi } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { staffDirectoryHref, staffFullDetailHref } from "@/lib/bo-staff-detail-navigation";
+import { buildStaffQuickPeekModel } from "@/lib/bo-staff-quick-peek";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -103,6 +104,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
 
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
   const accessUser = useMemo(() => data.users.find((item) => item.staffMemberId === selectedId) ?? null, [data.users, selectedId]);
+  const quickPeek = buildStaffQuickPeekModel(selected, accessUser, selected ? staffAttention(selected, accessUser).label : "Loading", selectedId);
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
   const privateCenterOptions = useMemo(() => {
     const ids = new Set((accessUser?.assignments ?? []).filter((item) => item.scopeType === "CENTER" && item.scopeId).map((item) => item.scopeId!));
@@ -560,14 +562,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
         {detailContents}
       </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
         <div className={styles.staffQuickPeek} data-testid="staff-quick-peek">
-          <div className={styles.staffQuickIdentity}><h3>{selected?.displayLabel ?? "Đang tải Staff..."}</h3><span>{selected?.id ?? selectedId}</span></div>
-          <dl>
-            <div><dt>Staff</dt><dd>{selected?.status ?? "Loading"}</dd></div>
-            <div><dt>Access</dt><dd>{accessUser?.status ?? "Not provisioned"}</dd></div>
-            <div><dt>Department</dt><dd>{selected?.department ?? "Chưa phân nhóm"}</dd></div>
-            <div><dt>Role label</dt><dd>{selected?.roleLabel ?? "Chưa có"}</dd></div>
-            <div><dt>Attention</dt><dd>{selected ? staffAttention(selected, accessUser).label : "Loading"}</dd></div>
-          </dl>
+          <div className={styles.staffQuickIdentity}><h3>{quickPeek.displayLabel}</h3><span>{quickPeek.staffId}</span></div>
+          <dl>{quickPeek.facts.map((fact) => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>
           <p>Chỉ hiển thị dữ liệu Staff/Access thông thường. Hồ sơ nhạy cảm và các tác vụ rủi ro chỉ có trong chi tiết đầy đủ.</p>
           <Link className={styles.primaryButton} href={fullDetailHref} data-testid="staff-open-full-detail">Mở chi tiết <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" /></Link>
         </div>
