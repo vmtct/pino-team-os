@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { operatorPresentationClient, type OperatorQueue } from "@/app/pinoria-tv/operator-presentation-client";
-import { isCurrentOperatorQueueResponse, matchesInspectedPresentation } from "./operator-queue-response";
+import { isCurrentOperatorQueueResponse, matchesInspectedPresentation, isConfirmedPresentationRelease } from "./operator-queue-response";
 
 /**
  * PAP-665 bounded operator view. Explicit manual refresh only; no TV relay,
@@ -79,10 +79,13 @@ export function TvOperatorQueue() {
     setInspected(null);
     try {
       const command = action === "close" ? operatorPresentationClient.close : operatorPresentationClient.returnToAmbient;
-      await command(center, active.id, active.claimedAt, receiptKey);
+      const receipt = await command(center, active.id, active.claimedAt, receiptKey);
       if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
       // Read-after-write from canonical Core. Never synthesize the next queue locally.
       const fresh = await operatorPresentationClient.queue(center);
+      if (!isConfirmedPresentationRelease(active.id, receipt, fresh)) {
+        throw new Error("Core chưa xác nhận presentation đã được giải phóng; hãy tải lại hàng đợi.");
+      }
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
         setQueue(fresh);
         setMessage(verb + ": Core đã xác nhận và làm mới hàng đợi.");
