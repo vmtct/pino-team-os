@@ -527,9 +527,16 @@ export function stepAmbientAgents(
     // A changed canonical area overrides a stale queued connector, never an
     // already active traversal (those must finish for reservation safety).
     let target = preferredTarget ?? (agent.targetConnectorId
-      ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId)
+      ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId && (!options.preferredLaneIds?.get(agent.id)?.includes(agent.laneId) || options.preferredLaneIds.get(agent.id)!.includes(connector.toLaneId)))
       : undefined);
-    if (!target && connectorCooldownMs <= 0) target = chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
+    if (!target && connectorCooldownMs <= 0) {
+      const configuredArea = options.preferredLaneIds?.get(agent.id);
+      const allowed = configuredArea?.includes(agent.laneId)
+        ? connectors.filter((connector) => configuredArea.includes(connector.fromLaneId) && configuredArea.includes(connector.toLaneId))
+        : connectors;
+      target = chooseClearConnector({ ...agent, activityEpoch }, allowed, previous)
+        ?? chooseConnector({ ...agent, activityEpoch }, allowed);
+    }
 
     if (target) {
       const delta = target.from.x - agent.x;
@@ -573,7 +580,7 @@ export function stepAmbientAgents(
     if (proposed <= bounds.x1) { proposed = bounds.x1; direction = 1; }
     if (proposed >= bounds.x2) { proposed = bounds.x2; direction = -1; }
     const x = furthestClearX(agent.x, proposed, lane.y, previous, agent.id);
-    return { ...agent, ...activity, x, direction };
+    return { ...agent, ...activity, x, direction, targetConnectorId: undefined };
   });
 
   // Every proposal is checked against the previous collision-free frame. Two peers

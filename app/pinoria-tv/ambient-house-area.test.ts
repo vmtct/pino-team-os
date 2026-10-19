@@ -195,4 +195,22 @@ test("simultaneous actors never violate clearance during preferred multi-hop rou
   }
   assert.ok(sawMiddle, "claimed connector finishes in original destination");
   assert.ok(sawTarget, "subsequent routing eventually reaches the new target");
+});test("actor inside an approved area never roams out through an unrelated connector", () => {
+  const safeGraph: AmbientMotionGraph = {
+    ...graph,
+    rawConnectors: [{ id: "exit", from: { x: 100, y: 100 }, to: { x: 100, y: 200 } }],
+  };
+  let [agent] = reconcileAmbientAgents([], ["resident"], safeGraph, new Map([["resident", ["lane-art"]]]));
+  assert.ok(agent);
+  const area = new Map([["resident", ["lane-art"]]]);
+  for (let i = 0; i < 2000; i++) {
+    const [next] = stepAmbientAgents([agent!], safeGraph, 80, { preferredLaneIds: area });
+    assert.ok(next);
+    assert.equal(next!.laneId, "lane-art");
+    assert.equal(next!.connectorId, undefined);
+    agent = next;
+  }
+  const queued = { ...agent!, targetConnectorId: "exit" };
+  const [next] = stepAmbientAgents([queued], safeGraph, 80, { preferredLaneIds: area });
+  assert.equal(next?.targetConnectorId, undefined);
 });
