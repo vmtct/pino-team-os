@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { PresenceExperience } from "./presence-contract";
 import { reconcileAmbientAgents, stepAmbientAgents, ambientMinimumVisibleSeparation, type AmbientMotionGraph } from "./ambient-house-motion";
 import { resolveAmbientHouseArea } from "./ambient-house-area";
+import savedGraph from "./ambient-house-motion-graph.saved.json";
 
 const graph = { horizontalLanes: [{ id: "lane-art", x1: 0, x2: 200, y: 100, midLayer: "front" }, { id: "lane-piano", x1: 0, x2: 200, y: 200, midLayer: "behind" }] } as AmbientMotionGraph;
 const areas = [
@@ -213,4 +214,16 @@ test("simultaneous actors never violate clearance during preferred multi-hop rou
   const queued = { ...agent!, targetConnectorId: "exit" };
   const [next] = stepAmbientAgents([queued], safeGraph, 80, { preferredLaneIds: area });
   assert.equal(next?.targetConnectorId, undefined);
+});
+test("saved 1920x1080 House graph preserves clearance for 40 mixed actors", () => {
+  const house = savedGraph as AmbientMotionGraph;
+  assert.equal(house.canvas.width, 1920);
+  assert.equal(house.canvas.height, 1080);
+  const ids = Array.from({ length: 40 }, (_, index) => `house-actor-${index}`);
+  let actors = reconcileAmbientAgents([], ids, house);
+  assert.equal(actors.length, 40);
+  for (let frame = 0; frame < 120; frame++) {
+    actors = stepAmbientAgents(actors, house, 80);
+    assert.ok(ambientMinimumVisibleSeparation(actors) >= 72, `real House frame ${frame}`);
+  }
 });
