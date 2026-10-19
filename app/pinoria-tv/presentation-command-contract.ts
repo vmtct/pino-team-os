@@ -21,7 +21,7 @@ export type PresentationOperatorCommand =
 export type PresentationCommandDecision =
   | { kind: "APPLY"; next: PresentationQueueState; replayPresentationId?: string }
   | { kind: "NOOP"; next: PresentationQueueState }
-  | { kind: "REJECT"; reason: "INVALID_ID" | "NOT_ACTIVE" | "STALE_REVISION" };
+  | { kind: "REJECT"; reason: "INVALID_ID" | "INVALID_STATE" | "NOT_ACTIVE" | "STALE_REVISION" };
 
 export function decidePresentationCommand(
   state: PresentationQueueState,
@@ -33,7 +33,20 @@ export function decidePresentationCommand(
       command.expectedRevision !== state.revision) {
     return { kind: "REJECT", reason: "STALE_REVISION" };
   }
-  const active = state.currentPresentationId === command.presentationId;
+  // Fail closed on inconsistent Core snapshots. A malformed/duplicated queue
+  // cannot be safely acted on even when the requested revision happens to match.
+  const queued = new Set(state.queuedPresentationIds);
+  const completed = new Set(state.completedPresentationIds ?? []);
+  if (queued.size !== state.queuedPresentationIds.length ||
+      completed.size !== (state.completedPresentationIds?.length ?? 0) ||
+      [...queued, ...completed].some((id) => !id.trim()) ||
+      [...queued].some((id) => completed.has(id)) ||
+      (state.currentPresentationId !== null &&
+        (!state.currentPresentationId.trim() ||
+         queued.has(state.currentPresentationId) ||
+         completed.has(state.currentPresentationId)))) {
+    return { kind: "REJECT", reason: "INVALID_STATE" };
+  }  const active = state.currentPresentationId === command.presentationId;
   if (command.op === "REPLAY_SNAPSHOT") {
     if (!active) {
       return { kind: "REJECT", reason: "NOT_ACTIVE" };

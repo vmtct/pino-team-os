@@ -88,3 +88,19 @@ test("invalid and overflowing revisions cannot mutate presentation state", () =>
     kind: "REJECT", reason: "STALE_REVISION",
   });
 });
+test("fail closed on duplicate and overlapping canonical queue snapshots", () => {
+  const command = { op: "RETURN_TO_AMBIENT" as const, presentationId: "active", expectedRevision: 7 };
+  const malformed = [
+    { ...state, queuedPresentationIds: ["next", "next"] },
+    { ...state, queuedPresentationIds: ["active", "next"] },
+    { ...state, completedPresentationIds: ["active"] },
+    { ...state, queuedPresentationIds: ["next"], completedPresentationIds: ["next"] },
+    { ...state, queuedPresentationIds: [" "] },
+    { ...state, completedPresentationIds: ["x", "x"] },
+  ];
+  for (const snapshot of malformed) {
+    assert.deepEqual(decidePresentationCommand(snapshot, command), {
+      kind: "REJECT", reason: "INVALID_STATE",
+    });
+  }
+});
