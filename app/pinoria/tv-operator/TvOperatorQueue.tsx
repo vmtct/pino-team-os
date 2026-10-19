@@ -42,7 +42,7 @@ export function TvOperatorQueue() {
     setError("");
     setInspected(null);
     try {
-      const current = await operatorPresentationClient.replaySnapshotInspect(center, active.id);
+      const current = await operatorPresentationClient.inspectSnapshot(center, active.id);
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current) &&
           current.id === active.id) {
         // Do not display the private projection on an operator/shared screen.
@@ -84,7 +84,7 @@ export function TvOperatorQueue() {
           <p className="text-sm">Revision: {queue.revision} · {queue.hasMore ? "Danh sách chỉ hiển thị 50 mục đầu" : "Đã hiển thị tất cả mục đang chờ"}</p>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang trình chiếu</h2>
-            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Kiểm tra snapshot (chỉ đọc)</button>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
+            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
           </section>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang chờ ({queue.queued.length})</h2>

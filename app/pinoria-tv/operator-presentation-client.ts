@@ -40,6 +40,11 @@ async function operatorRequest<T>(path: string, init: RequestInit = {}): Promise
 export const operatorPresentationClient = {
   queue: (centerId: string) =>
     operatorRequest<OperatorQueue>(`queue?centerId=${encodeURIComponent(centerId)}`),
+  // View-only inspection. Core authorizes pinoria.presentation.view and audits the read.
+  inspectSnapshot: (centerId: string, presentationId: string) =>
+    operatorRequest<{ id: string; kind: string; claimedAt: string; projection: Record<string, unknown> }>(
+      "snapshot?centerId=" + encodeURIComponent(centerId) + "&presentationId=" + encodeURIComponent(presentationId),
+    ),
   // An authenticated snapshot lookup, not a dispatch/replay of business events.
   replaySnapshotInspect: (centerId: string, presentationId: string) =>
     operatorRequest<{ id: string; kind: string; projection: Record<string, unknown>; claimedAt: string }>(

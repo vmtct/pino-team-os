@@ -77,3 +77,19 @@ test("return-to-ambient uses authenticated Core command path and persists safety
     });
   } finally { globalThis.fetch = previous; }
 });
+
+test("view-only snapshot uses GET and encoded scope, without requiring control authority", async () => {
+  const previous = globalThis.fetch;
+  const calls: Array<[string, RequestInit]> = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push([url, init]);
+    return Response.json({ data: { id: "p", kind: "WELCOME", claimedAt: "now", projection: {} } });
+  }) as typeof fetch;
+  try {
+    const snapshot = await operatorPresentationClient.inspectSnapshot("center/1", "presentation/2");
+    assert.equal(snapshot.id, "p");
+    assert.equal(calls[0]?.[0], "/api/tos-learning/pinoria/presentations/snapshot?centerId=center%2F1&presentationId=presentation%2F2");
+    assert.equal(calls[0]?.[1].method, undefined);
+    assert.equal(calls[0]?.[1].cache, "no-store");
+  } finally { globalThis.fetch = previous; }
+});
