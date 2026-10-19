@@ -60,6 +60,32 @@ export function TvOperatorQueue() {
       if (version === generation.current) setBusy(false);
     }
   }, [queue, centerId, busy]);
+  const replayInspect = useCallback(async () => {
+    const active = queue?.current;
+    const center = centerId.trim();
+    if (!active || !center || busy || commandInFlight.current) return;
+    const version = ++generation.current;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setInspected(null);
+    try {
+      const snapshot = await operatorPresentationClient.replaySnapshotInspect(center, active.id);
+      if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
+      if (!matchesInspectedPresentation(active, snapshot)) {
+        throw new Error("Snapshot không còn khớp presentation đang chạy; tải lại queue.");
+      }
+      setInspected({ id: snapshot.id, kind: snapshot.kind, claimedAt: snapshot.claimedAt });
+      setMessage("Đã xác minh snapshot replay tại Core; chưa phát lại trên TV vật lý.");
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setQueue(null);
+        setError(cause instanceof Error ? cause.message : "Không thể xác minh replay snapshot");
+      }
+    } finally {
+      if (version === generation.current) setBusy(false);
+    }
+  }, [queue, centerId, busy]);
   const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
     const active = queue?.current;
     const center = centerId.trim();
@@ -131,7 +157,7 @@ export function TvOperatorQueue() {
           <p className="text-sm">Revision: {queue.revision} · {queue.hasMore ? "Danh sách chỉ hiển thị 50 mục đầu" : "Đã hiển thị tất cả mục đang chờ"}</p>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang trình chiếu</h2>
-            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Trở về Ambient</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
+            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void replayInspect()}>Kiểm tra replay snapshot (không phát TV)</button><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Trở về Ambient</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
           </section>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang chờ ({queue.queued.length})</h2>
