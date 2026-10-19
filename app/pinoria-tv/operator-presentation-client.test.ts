@@ -153,3 +153,27 @@ test("replay snapshot inspection accepts a valid immutable snapshot without disp
     assert.equal(calls[0]?.[1].method, "POST");
   } finally { globalThis.fetch = previous; }
 });
+test("physical replay target inspection encodes all scope identifiers", async () => {
+  const previous = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (url: string) => { calls.push(url); return Response.json({ data: { available: false, target: null } }); }) as typeof fetch;
+  try {
+    assert.deepEqual(await operatorPresentationClient.replayTarget("c/1", "d/2", "p/3"), { available: false, target: null });
+    assert.deepEqual(calls, ["/api/tos-learning/pinoria/presentations/replay-target?centerId=c%2F1&displayId=d%2F2&presentationId=p%2F3"]);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("physical replay dispatch requires receipt and forwards exact immutable target", async () => {
+  const previous = globalThis.fetch;
+  const calls: Array<[string, RequestInit]> = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => { calls.push([url, init]); return Response.json({ data: { accepted: true } }); }) as typeof fetch;
+  try {
+    assert.throws(() => operatorPresentationClient.replayDispatch("c", "d", "p", " "), /idempotency key/);
+    await operatorPresentationClient.replayDispatch("c", "d", "p", "receipt");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.[0], "/api/tos-learning/pinoria/presentations/replay-dispatch");
+    assert.equal(calls[0]?.[1].method, "POST");
+    assert.equal(new Headers(calls[0]?.[1].headers).get("idempotency-key"), "receipt");
+    assert.deepEqual(JSON.parse(calls[0]?.[1].body as string), { centerId: "c", displayId: "d", presentationId: "p" });
+  } finally { globalThis.fetch = previous; }
+});
