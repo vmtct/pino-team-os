@@ -93,3 +93,41 @@ test("view-only snapshot uses GET and encoded scope, without requiring control a
     assert.equal(calls[0]?.[1].cache, "no-store");
   } finally { globalThis.fetch = previous; }
 });
+
+test("malformed Core queue fails closed before operator display", async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = (async () => Response.json({ data: {
+    current: { id: "same", kind: "WISH_REVEAL", claimedAt: "claimed", projection: {} },
+    queued: [{ id: "same", kind: "EGG_HATCH" }],
+    revision: 3, hasMore: false,
+  } })) as typeof fetch;
+  try {
+    await assert.rejects(operatorPresentationClient.queue("center"), /Ambiguous operator queue snapshot/);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("malformed claimed snapshot fails closed before operator display", async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = (async () => Response.json({ data: {
+    id: "active", kind: "WISH_REVEAL", claimedAt: "", projection: {},
+  } })) as typeof fetch;
+  try {
+    await assert.rejects(operatorPresentationClient.inspectSnapshot("center", "active"), /Invalid operator claimed snapshot/);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("operator client preserves access failures without speculative fallback to TV relay", async () => {
+  const previous = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (url: string) => {
+    calls.push(url);
+    return Response.json({ error: { code: "IDENTITY_PERMISSION_DENIED", message: "Scope denied" } }, { status: 403 });
+  }) as typeof fetch;
+  try {
+    await assert.rejects(operatorPresentationClient.queue("denied-center"),
+      (error: unknown) => error instanceof OperatorPresentationError &&
+        error.status === 403 && error.code === "IDENTITY_PERMISSION_DENIED");
+    assert.equal(calls.length, 1);
+    assert.match(calls[0]!, /^\/api\/tos-learning\/pinoria\/presentations\/queue\?/);
+  } finally { globalThis.fetch = previous; }
+});
