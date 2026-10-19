@@ -35,9 +35,9 @@ export function parseOperatorSnapshot(value: unknown): {
   id: string; kind: string; claimedAt: string; projection: Record<string, unknown>;
 } {
   if (!record(value) || !entry(value) ||
-      typeof value.claimedAt !== "string" || !value.claimedAt.trim() ||
-      !record(value.projection)) {
+      typeof (value as Record<string, unknown>).claimedAt !== "string" || !((value as Record<string, unknown>).claimedAt as string).trim() ||
+      !record((value as Record<string, unknown>).projection)) {
     throw new Error("Invalid operator claimed snapshot");
   }
-  return value as { id: string; kind: string; claimedAt: string; projection: Record<string, unknown> };
+  return value as unknown as { id: string; kind: string; claimedAt: string; projection: Record<string, unknown> };
 }
