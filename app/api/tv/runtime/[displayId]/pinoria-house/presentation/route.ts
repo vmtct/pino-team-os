@@ -33,6 +33,15 @@ export async function POST(request:Request,context:Context){
     if(result.status!==200)return runtimeJson(result);
     return adaptedJson(result.body,200,result.requestId);
   }
+  if(body.op==="replay-projection"){
+    const commandId=typeof body.commandId==="string"?body.commandId:"";
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(commandId)){
+      return Response.json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid replay command"}},{status:400});
+    }
+    const result=await env.PINO_TV_RUNTIME_CORE.replayProjection(token,displayId,commandId);
+    if(result.status!==200)return runtimeJson(result);
+    return adaptedJson(result.body,200,result.requestId);
+  }
   if(body.op==="replay-ack"){
     const commandId=typeof body.commandId==="string"?body.commandId:"";
     const revision=body.revision;
