@@ -64,14 +64,14 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
       previousFrame.current = now;
       if (now - lastCommit.current >= 40) {
         const elapsed = now - previous;
-        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing, frozenIds: frozen, speedMultipliers }));
+        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing, frozenIds: frozen, speedMultipliers, preferredLaneIds }));
         lastCommit.current = now;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [departing, frozenKey, speedMultipliers]);
+  }, [departing, frozenKey, speedMultipliers, preferredLaneKey, preferredLaneIds]);
 
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");

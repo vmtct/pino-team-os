@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { PresenceExperience } from "./presence-contract";
-import { reconcileAmbientAgents, ambientMinimumVisibleSeparation, type AmbientMotionGraph } from "./ambient-house-motion";
+import { reconcileAmbientAgents, stepAmbientAgents, ambientMinimumVisibleSeparation, type AmbientMotionGraph } from "./ambient-house-motion";
 import { resolveAmbientHouseArea } from "./ambient-house-area";
 
 const graph = { horizontalLanes: [{ id: "lane-art", x1: 0, x2: 200, y: 100, midLayer: "front" }, { id: "lane-piano", x1: 0, x2: 200, y: 200, midLayer: "behind" }] } as AmbientMotionGraph;
@@ -60,4 +60,23 @@ test("a changed context never teleports a live actor and new entrants use the up
   assert.deepEqual(reconciled.find((actor) => actor.id === "existing"), original[0]);
   assert.equal(reconciled.find((actor) => actor.id === "newcomer")?.laneId, "lane-piano");
   assert.ok(ambientMinimumVisibleSeparation(reconciled) >= 72);
+});test("approved new area is reached via safe connector steps, without teleport", () => {
+  const connectedGraph: AmbientMotionGraph = {
+    ...graph,
+    rawConnectors: [{ id: "area-link", from: { x: 100, y: 100 }, to: { x: 100, y: 200 } }],
+  };
+  let [agent] = reconcileAmbientAgents([], ["moving"], connectedGraph, new Map([["moving", ["lane-art"]]]));
+  assert.ok(agent);
+  const start = { x: agent!.x, y: agent!.y };
+  const destination = new Map([["moving", ["lane-piano"]]]);
+  let crossed = false;
+  for (let i = 0; i < 2800; i++) {
+    const [next] = stepAmbientAgents([agent!], connectedGraph, 80, { preferredLaneIds: destination });
+    assert.ok(next);
+    assert.ok(Math.hypot(next!.x - agent!.x, next!.y - agent!.y) < 80);
+    agent = next;
+    if (agent!.laneId === "lane-piano" && !agent!.connectorId) { crossed = true; break; }
+  }
+  assert.equal(crossed, true);
+  assert.notDeepEqual({ x: agent!.x, y: agent!.y }, start);
 });

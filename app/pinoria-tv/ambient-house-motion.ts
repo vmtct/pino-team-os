@@ -308,6 +308,23 @@ function connectorPathCanReserve(target: DirectedConnector, agents: readonly Amb
   return pathIsClear(target.path, agents, agentId);
 }
 
+/** On context changes, prioritize a safe one-hop connector toward a known approved area.
+ * There is no teleport, reservation bypass or synthetic routing if no direct edge exists.
+ */
+function choosePreferredConnector(
+  agent: AmbientAgent,
+  connectors: readonly DirectedConnector[],
+  agents: readonly AmbientAgent[],
+  preferred: readonly string[] | undefined,
+) {
+  if (!preferred?.length || preferred.includes(agent.laneId)) return undefined;
+  const targetLanes = new Set(preferred);
+  return connectors
+    .filter((connector) => connector.fromLaneId === agent.laneId
+      && targetLanes.has(connector.toLaneId)
+      && connectorPathCanReserve(connector, agents, agent.id))
+    .sort((a, b) => a.id.localeCompare(b.id))[0];
+}
 function chooseClearConnector(agent: AmbientAgent, connectors: readonly DirectedConnector[], agents: readonly AmbientAgent[]) {
   const options = connectors.filter((connector) => connector.fromLaneId === agent.laneId && connectorPathCanReserve(connector, agents, agent.id));
   if (!options.length) return undefined;
@@ -406,7 +423,7 @@ export function stepAmbientAgents(
   previous: readonly AmbientAgent[],
   graph: AmbientMotionGraph,
   elapsedMs: number,
-  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string>; speedMultipliers?: ReadonlyMap<string, number> } = {},
+  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string>; speedMultipliers?: ReadonlyMap<string, number>; preferredLaneIds?: ReadonlyMap<string, readonly string[]> } = {},
 ): AmbientAgent[] {
   const laneList = usableLanes(graph);
   const lanes = new Map(laneList.map((lane) => [lane.id, lane]));
@@ -488,7 +505,7 @@ export function stepAmbientAgents(
     let target = agent.targetConnectorId
       ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId)
       : undefined;
-    if (!target && connectorCooldownMs <= 0) target = chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
+    if (!target && connectorCooldownMs <= 0) target = choosePreferredConnector({ ...agent, activityEpoch }, connectors, previous, options.preferredLaneIds?.get(agent.id)) ?? chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
 
     if (target) {
       const delta = target.from.x - agent.x;
