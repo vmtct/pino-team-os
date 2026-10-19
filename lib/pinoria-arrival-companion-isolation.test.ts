@@ -24,3 +24,13 @@ test("Arrival companion cannot leak across actors or replaced visit source", () 
   assert.equal(forScene("c", "visit-c").companion, null);
   assert.equal(forScene("missing", "visit-b").companion, null);
 });
+
+test('Arrival canonical Path is source-bound and optional', () => {
+  const current = actor('p', 'visit-p', true);
+  if (!current.experience) throw new Error('fixture missing experience');
+  current.experience.path = { id: 'path-p', code: 'PINO_PATH', displayName: 'Hành trình của P' };
+  const resolvePath = (sourceId: string) => actorHasSource(current, 'STUDENT_VISIT', sourceId) ? current.experience?.path ?? null : null;
+  assert.equal(resolvePath('visit-old'), null);
+  assert.equal(resolvePath('visit-p')?.displayName, 'Hành trình của P');
+  assert.equal(actor('q', 'visit-q', false).experience?.path ?? null, null);
+});
