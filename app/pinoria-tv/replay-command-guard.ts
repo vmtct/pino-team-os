@@ -12,3 +12,13 @@ export function acceptsTvReplayInstruction(cursor: TvReplayCursor, instruction: 
     Number.isSafeInteger(cursor.revision) && cursor.revision >= 0 &&
     Number.isSafeInteger(instruction.revision) && instruction.revision > cursor.revision;
 }
+
+/** ACK admission fence only; caller must still authenticate session and persist receipt atomically. */
+export type TvReplayAck = { centerId: string; displayId: string; sessionId: string; presentationId: string; revision: number };
+export function acceptsTvReplayAck(instruction: TvReplayInstruction, ack: TvReplayAck): boolean {
+  return UUID.test(instruction.presentationId) &&
+    Number.isSafeInteger(instruction.revision) && instruction.revision > 0 &&
+    ack.centerId === instruction.centerId && ack.displayId === instruction.displayId &&
+    ack.sessionId === instruction.sessionId && ack.presentationId === instruction.presentationId &&
+    Number.isSafeInteger(ack.revision) && ack.revision === instruction.revision;
+}
