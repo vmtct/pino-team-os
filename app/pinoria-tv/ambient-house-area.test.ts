@@ -79,4 +79,31 @@ test("a changed context never teleports a live actor and new entrants use the up
   }
   assert.equal(crossed, true);
   assert.notDeepEqual({ x: agent!.x, y: agent!.y }, start);
+});test("context routing traverses a multi-hop House graph without teleport", () => {
+  const multiGraph: AmbientMotionGraph = {
+    ...graph,
+    horizontalLanes: [
+      { id: "west", x1: 0, x2: 200, y: 100, midLayer: "front" },
+      { id: "middle", x1: 0, x2: 200, y: 200, midLayer: "behind" },
+      { id: "east", x1: 0, x2: 200, y: 300, midLayer: "front" },
+    ],
+    rawConnectors: [
+      { id: "west-middle", from: { x: 100, y: 100 }, to: { x: 100, y: 200 } },
+      { id: "middle-east", from: { x: 100, y: 200 }, to: { x: 100, y: 300 } },
+    ],
+  };
+  let [agent] = reconcileAmbientAgents([], ["multi"], multiGraph, new Map([["multi", ["west"]]]));
+  assert.ok(agent);
+  let touchedMiddle = false;
+  let reached = false;
+  for (let i = 0; i < 4500; i++) {
+    const [next] = stepAmbientAgents([agent!], multiGraph, 80, { preferredLaneIds: new Map([["multi", ["east"]]]) });
+    assert.ok(next);
+    assert.ok(Math.hypot(next!.x - agent!.x, next!.y - agent!.y) < 80);
+    agent = next;
+    if (agent!.laneId === "middle") touchedMiddle = true;
+    if (agent!.laneId === "east" && !agent!.connectorId) { reached = true; break; }
+  }
+  assert.ok(touchedMiddle);
+  assert.ok(reached);
 });

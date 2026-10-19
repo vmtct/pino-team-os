@@ -319,11 +319,30 @@ function choosePreferredConnector(
 ) {
   if (!preferred?.length || preferred.includes(agent.laneId)) return undefined;
   const targetLanes = new Set(preferred);
+  // Breadth-first from destination lanes computes a deterministic shortest path.
+  // A blocked first hop is not taken; ordinary safe roaming remains the fallback.
+  const distance = new Map<string, number>();
+  const queue = [...targetLanes].sort();
+  for (const laneId of queue) distance.set(laneId, 0);
+  for (let i = 0; i < queue.length; i++) {
+    const lane = queue[i]!;
+    const previousLanes = connectors
+      .filter((connector) => connector.toLaneId === lane)
+      .map((connector) => connector.fromLaneId).sort();
+    for (const prev of previousLanes) {
+      if (distance.has(prev)) continue;
+      distance.set(prev, distance.get(lane)! + 1);
+      queue.push(prev);
+    }
+  }
+  const currentDistance = distance.get(agent.laneId);
+  if (currentDistance === undefined) return undefined;
   return connectors
     .filter((connector) => connector.fromLaneId === agent.laneId
-      && targetLanes.has(connector.toLaneId)
+      && (distance.get(connector.toLaneId) ?? Infinity) < currentDistance
       && connectorPathCanReserve(connector, agents, agent.id))
-    .sort((a, b) => a.id.localeCompare(b.id))[0];
+    .sort((a, b) => (distance.get(a.toLaneId)! - distance.get(b.toLaneId)!)
+      || a.id.localeCompare(b.id))[0];
 }
 function chooseClearConnector(agent: AmbientAgent, connectors: readonly DirectedConnector[], agents: readonly AmbientAgent[]) {
   const options = connectors.filter((connector) => connector.fromLaneId === agent.laneId && connectorPathCanReserve(connector, agents, agent.id));
