@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import styles from "./tv.module.css";
 
 type TvDefinition={id:string;key:string;displayName:string;description:string|null;runtimeType:string;scopeType:"GLOBAL"|"CENTER";scopeId:string|null;orientation:"LANDSCAPE"|"PORTRAIT";targetAspectRatio:"16:9"|"9:16";status:string};
@@ -21,7 +22,7 @@ export function TvLauncher(){
     }catch(cause){setError(cause instanceof Error?cause.message:"Không thể mở TV.");setBusy(null);}
   }
   return <div className={styles.launcher}>
-    <header className={styles.heading}><span>TV PLATFORM</span><h1>TV</h1><p>Chọn màn hình được phân quyền để mở trên browser này.</p></header>
+    <header className={styles.heading}><span>TV PLATFORM</span><h1>TV</h1><p>Chọn màn hình được phân quyền để mở trên browser này.</p><Link href="/pinoria/tv-operator">Xem hàng đợi TV (chỉ đọc)</Link></header>
     {error?<div className={styles.error}>{error}</div>:null}
     <section className={styles.grid} aria-label="TV được phép mở">
       {items.map(tv=><article key={tv.id} className={styles.card}
