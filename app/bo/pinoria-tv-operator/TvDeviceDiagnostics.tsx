@@ -27,7 +27,7 @@ export function TvDeviceDiagnostics(){
       const allowedCenters=[...new Set(payload.data.map(device=>device.centerId).filter((id):id is string=>Boolean(id)))];
       const selectedCenter=allowedCenters.includes(centerId.trim())?centerId.trim():allowedCenters.length===1?allowedCenters[0]:null;
       const operatorHealth=selectedCenter?await operatorPresentationClient.operatorHealth(selectedCenter):null;
-      if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setHealth(operatorHealth);}
+      if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setCenterId(selectedCenter??"");setHealth(operatorHealth);}
     }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
     finally{if(generation===requestGeneration.current)setBusy(false);}
   }
@@ -37,6 +37,7 @@ export function TvDeviceDiagnostics(){
     <label>Center được phép xem <select aria-label="Center for operator health" value={centerId} onChange={e=>{requestGeneration.current+=1;setCenterId(e.target.value);setHealth(null);setBusy(false);}}><option value="">Tự chọn khi chỉ có một center</option>{[...new Set((devices??[]).map(device=>device.centerId).filter((id):id is string=>Boolean(id)))].map(id=><option key={id} value={id}>{id}</option>)}</select></label>
     <button type="button" disabled={busy} onClick={()=>void refresh()}>{busy?"Đang tải…":"Làm mới thiết bị"}</button>
     {error?<p role="alert">{error}</p>:null}
+    {devices && !centerId && [...new Set(devices.map(device=>device.centerId).filter(Boolean))].length>1?<p role="status">Chọn center trong danh sách rồi làm mới để đọc queue health.</p>:null}
     {health?<p role="status">Core queue revision {health.queueRevision} · Pending {health.queuedCount} · Active {health.activePresentation?.kind??"None"} · Renderer ACK chưa xác thực</p>:null}
     {devices?.length===0?<p>Không có thiết bị được cấp quyền xem.</p>:null}
     <p><small>Chẩn đoán phiên TV thời gian thực, build manifest, phiên bản cấu hình đã áp dụng và tình trạng tài nguyên: chưa có read projection do Core xác thực. Không hiển thị dữ liệu giả hoặc sử dụng token của TV.</small></p>
