@@ -189,7 +189,7 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
   return undefined;
 }
 
-function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
   if (TV_SPATIAL_CONFIG_READ.has(path)) {
     const supported = path.endsWith("/active") ? ["centerId"] : path.endsWith("/version") ? ["scope","centerId","versionId"] : ["scope","centerId"];
     for (const key of url.searchParams.keys()) if (!supported.includes(key)) throw new RangeError("Unknown spatial config query key");

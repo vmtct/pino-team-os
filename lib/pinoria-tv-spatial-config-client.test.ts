@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {test} from "node:test";
 import graph from "../app/pinoria-tv/ambient-house-motion-graph.saved.json";
 import {configIssues,draftFromSavedGraph,spatialConfigReadPath,type Lane,type Connector} from "./pinoria-tv-spatial-config-client";
-import {isOperationalReadPath} from "./bo-read-handler";
+import {isOperationalReadPath,readQueryBody} from "./bo-read-handler";
 import {isAllowedPostPath} from "./bo-write-handler";
 
 test("PAP-656 BO config reads are explicitly allowlisted",()=>{
@@ -27,4 +27,14 @@ test("PAP-656 seed reuses saved 16:9 House graph and validates missing area lane
   assert.deepEqual(configIssues(seeded),[]);
   seeded.areas.push({id:"area-a",bounds:{x:0,y:0,width:500,height:500},laneIds:["missing"],pathCodes:["ARTCHITECT"]});
   assert.ok(configIssues(seeded).some(e=>e.includes("missing lane")));
+});
+
+test("PAP-656 GET facade serializes scope without browser GET bodies",()=>{
+  const centerId="0199f8e7-7c07-7c26-b673-595ba51ef1d1";
+  const base="https://team.test/api/bo/pinoria/tv-config/spatial/";
+  assert.deepEqual(readQueryBody("pinoria/tv-config/spatial/head",new URL(base+"head?scope=DEFAULT")),{scope:{kind:"DEFAULT"}});
+  assert.deepEqual(readQueryBody("pinoria/tv-config/spatial/versions",new URL(base+"versions?scope=CENTER&centerId="+centerId)),{scope:{kind:"CENTER",centerId}});
+  assert.deepEqual(readQueryBody("pinoria/tv-config/spatial/active",new URL(base+"active?centerId="+centerId)),{centerId});
+  assert.throws(()=>readQueryBody("pinoria/tv-config/spatial/head",new URL(base+"head?scope=DEFAULT&centerId="+centerId)),RangeError);
+  assert.throws(()=>readQueryBody("pinoria/tv-config/spatial/version",new URL(base+"version?scope=DEFAULT")),RangeError);
 });
