@@ -573,7 +573,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
             aria-current={activeTab === tab.key ? "page" : undefined}>{tab.label}</Link>)}
         </nav>
         {activeTab === "overview" ? <section className={styles.staffV2Overview} data-testid="staff-v2-overview">
-          {!selected || !profile ? <p role="status">Chưa tải được hồ sơ Staff. Kiểm tra quyền hoặc mã nhân viên.</p> : <>
+          {!selected || !profile ? <p role={error ? "alert" : "status"}>{error ? "Không thể tải hồ sơ Staff. Kiểm tra quyền truy cập hoặc mã nhân viên." : "Đang tải hồ sơ Staff…"}</p> : <>
             <article><span>Staff status</span><strong>{profile.status}</strong></article>
             <article><span>Access status</span><strong>{accessUser?.status ?? "Chưa có Access"}</strong></article>
             <article><span>Phân nhóm</span><strong>{profile.roleLabel || profile.department || "Chưa có"}</strong></article>
