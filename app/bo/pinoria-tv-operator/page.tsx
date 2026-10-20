@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TvDeviceDiagnostics } from "./TvDeviceDiagnostics";
 import { TvOperatorQueue } from "@/app/pinoria/tv-operator/TvOperatorQueue";
 
 /** BO entry for PAP-659. Core TOS ACL remains authoritative for every command. */
@@ -9,5 +10,6 @@ export default function PinoriaTvOperatorPage() {
       <Link href="/bo/tvs">Quản lý thiết bị ↗</Link>
     </header>
     <TvOperatorQueue />
+    <TvDeviceDiagnostics />
   </main>;
 }
