@@ -43,9 +43,10 @@ export function TvDeviceDiagnostics(){
     {devices && !centerId && [...new Set(devices.map(device=>device.centerId).filter(Boolean))].length>1?<p role="status">Chọn center trong danh sách rồi làm mới để đọc queue health.</p>:null}
     {health?<p role="status">Core queue revision {health.queueRevision} · Pending {health.queuedCount} · Active {health.activePresentation?.kind??"None"} · Renderer ACK chưa xác thực</p>:null}
     {devices?.length===0?<p>Không có thiết bị được cấp quyền xem.</p>:null}
+    {devices && centerId && !devices.some(device=>device.centerId===centerId)?<p role="status">Center đã chọn không còn thiết bị được cấp quyền xem.</p>:null}
     <p><small>Chẩn đoán phiên TV thời gian thực, build manifest, phiên bản cấu hình đã áp dụng và tình trạng tài nguyên: chưa có read projection do Core xác thực. Không hiển thị dữ liệu giả hoặc sử dụng token của TV.</small></p>
     {displays?.map(display=><article key={display.id} style={{padding:"8px 0"}}><strong>{display.displayName}</strong> · {display.status}<p>Runtime: {display.runtimeType} · Scope: {display.scopeType} · Aspect: {display.targetAspectRatio} · Definition v{display.definitionVersion}</p></article>)}
-    {devices?.map(device=><article key={device.id} style={{padding:"10px 0",borderBottom:"1px solid #eee"}}>
+    {devices?.filter(device=>!centerId||device.centerId===centerId).map(device=><article key={device.id} style={{padding:"10px 0",borderBottom:"1px solid #eee"}}>
       <strong>{device.displayName}</strong> · {device.status}
       <p>Center: {device.centerId??"Chưa gán"} · Display: {device.defaultDisplayId??"Chưa gán"}</p>
       <p>TV definition: {displays?.find(display=>display.id===device.defaultDisplayId)?.displayName??"Không tìm thấy trong danh sách được phép xem"}</p>
