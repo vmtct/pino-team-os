@@ -16,6 +16,7 @@ import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import { staffProfileDraftDirty, staffProfileDraftErrors } from "@/lib/bo-staff-profile-edit";
 import { staffAccessCanRevoke, staffAccessScopeValid } from "@/lib/bo-staff-access-scope";
+import { canOpenStaffSupport } from "@/lib/bo-staff-support-guard";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -81,6 +82,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const refreshFenceRef = useRef(0);
   const privateRevealFenceRef = useRef(createStaffPrivateRevealFence());
   const profileEditFenceRef = useRef(0);
+  const activeTabRef = useRef(activeTab);
   const [profileError, setProfileError] = useState("");
 
   // Initial directory load plus refresh after onboarding mutations.
@@ -95,7 +97,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     privateRevealFenceRef.current.invalidate();
     profileEditFenceRef.current += 1;
     setProfileError("");
-    setBusy((state) => state === "profile" || state === "role" || state.startsWith("revoke:") ? "" : state);
+    setBusy((state) => state === "profile" || state === "role" || state === "support" || state.startsWith("revoke:") ? "" : state);
     setRoleId(""); setScopeType("GLOBAL"); setScopeId(""); setSuspendReason("");
     selectedIdRef.current = selectedId;
     setPasswordReset(null); setPasswordCopied(false); setProfileEditing(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
@@ -127,6 +129,13 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     if (!detailOnly || activeTab === "profile") return;
     privateRevealFenceRef.current.invalidate();
     setPrivateData({ status: "idle" });
+  }, [activeTab, detailOnly]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+    if (!detailOnly || activeTab === "access") return;
+    setPasswordReset(null);
+    setPasswordCopied(false);
   }, [activeTab, detailOnly]);
 
   function confirmProfileNavigation(event: { preventDefault: () => void }) {
@@ -164,6 +173,11 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     accessUser.staffMemberId === selectedId &&
     profile.status === "active" &&
     accessUser.status === "active"
+  );
+
+  const canStartSupportSession = Boolean(
+    profile?.id === selectedId && accessUser?.staffMemberId === selectedId &&
+    canOpenStaffSupport(data.actor?.permissionKeys ?? [], profile?.status ?? null, accessUser?.status ?? null, supportReason)
   );
 
   const staffStatusFilter = grid.state.filters.staffStatus === "inactive" ? "inactive" : grid.state.filters.staffStatus === "all" ? "all" : "active";
@@ -363,7 +377,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     setBusy("password-reset"); setError(""); setMessage(""); setPasswordReset(null); setPasswordCopied(false);
     try {
       const result = await boApi.resetStaffPassword(targetUserId, idempotencyKey);
-      if (selectedIdRef.current !== targetStaffId) return;
+      if (selectedIdRef.current !== targetStaffId || (detailOnly && activeTabRef.current !== "access")) return;
       setPasswordResetAttempts((value) => { const next = { ...value }; delete next[targetUserId]; return next; });
       if (!result.temporaryPassword) {
         setError("Reset đã hoàn tất nhưng mật khẩu tạm không còn được trả lại. Bấm Reset password lần nữa để phát credential tạm mới.");
@@ -387,12 +401,14 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   }
 
   async function startSupportSession() {
-    if (!accessUser || !profile || profile.status !== "active" || accessUser.status !== "active") return;
+    if (!accessUser || !profile || !canStartSupportSession || busy) return;
+    const targetStaffId = selectedIdRef.current;
+    const targetAccessId = accessUser.id;
     const reason = supportReason.trim();
-    if (reason.length < 3) { setError("Nhập lý do debug tối thiểu 3 ký tự."); return; }
     setBusy("support"); setError(""); setMessage("");
     try {
-      const session = await boApi.startSupportSession(accessUser.id, supportMode, reason);
+      const session = await boApi.startSupportSession(targetAccessId, supportMode, reason);
+      if (selectedIdRef.current !== targetStaffId) return;
       const form = document.createElement("form");
       form.method = "POST";
       form.action = window.location.hostname === "bo.pinohouse.art"
@@ -578,6 +594,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
               <p className={styles.staffAccessMeta}>Staff: {profile.status} · Access: {accessUser?.status ?? "not provisioned"} — hai vòng đời được cập nhật độc lập.</p>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
                 <p className={styles.staffAccessMeta}>{accessUser.email ?? "No email"} · {accessUser.assignments.length} assignment(s)</p>
+                <details className={styles.staffSupportPanel} data-testid="staff-sensitive-actions"><summary>Bảo mật & hỗ trợ — mật khẩu và phiên hỗ trợ có giám sát</summary>
                 <div className={styles.staffPinPanel}>
                   <div><strong>Staff password</strong><p>Email + mật khẩu là credential Staff duy nhất. Reset sẽ vô hiệu mật khẩu hiện tại và mọi phiên Staff, sau đó phát mật khẩu tạm một lần.</p></div>
                   <div className={styles.staffActions}>
@@ -594,10 +611,12 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
                   <div className={styles.staffSupportFields}>
                     <label className={styles.field}>Mode<select value={supportMode} onChange={(event) => setSupportMode(event.target.value as "VIEW" | "ACT")}><option value="VIEW">View as · read only</option><option value="ACT">Act as · audited Workforce actions</option></select></label>
                     <label className={styles.field}>Lý do<input value={supportReason} onChange={(event) => setSupportReason(event.target.value)} placeholder="VD: Điều tra lỗi check-in" maxLength={500} /></label>
-                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || profile.status !== "active" || accessUser.status !== "active" || supportReason.trim().length < 3} onClick={() => void startSupportSession()}>{busy === "support" ? "Đang mở TOS…" : "Mở TOS như Staff"}</button>
+                    <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !canStartSupportSession} onClick={() => void startSupportSession()}>{busy === "support" ? "Đang mở TOS…" : "Mở TOS như Staff"}</button>
+                    {!data.actor?.permissionKeys.includes("access.support.impersonate") ? <small>Bạn không có quyền mở phiên hỗ trợ Staff.</small> : null}
                   </div>
                 </div>
 
+                </details>
                 <div className={styles.staffAssignmentList}>{accessUser.assignments.length === 0 ? <p>Chưa có role assignment nào được cấp cho Access này.</p> : null}{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={!staffAccessCanRevoke(assignment) || Boolean(busy)} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>
