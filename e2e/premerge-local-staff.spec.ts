@@ -110,6 +110,11 @@ test("PAP-782 Staff full-detail tab routing, browser history and no private auto
   await expect(page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link")).toHaveCount(8);
   await expect(page.getByTestId("staff-v2-overview")).toContainText("Access status");
   await expect(page.getByTestId("staff-v2-overview")).toContainText("suspended");
+  const rail = page.getByTestId("staff-v2-rail");
+  await expect(rail).toBeVisible();
+  await expect(rail).toContainText("Staff active nhưng Access chưa sẵn sàng.");
+  await expect(rail.getByRole("link", { name: "Kiểm tra Access" })).toHaveAttribute("href", /tab=access/);
+  await page.screenshot({ path: "test-results/pap782-overview-with-rail-390.png", fullPage: true });
   expect(mock.countPrivate()).toBe(0);
   await page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link", {name: "Thu nhập"}).click();
   await expect(page).toHaveURL(/tab=income/, {timeout:30000});
