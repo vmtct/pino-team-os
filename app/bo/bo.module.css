@@ -524,3 +524,11 @@
 @media(max-width:640px) { .staffV2Overview { grid-template-columns:1fr; } .staffV2Tabs { position:sticky; top:0; z-index:5; } }
 
 .staffV2HeaderBadges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.staffV2HeaderBadges span{max-width:100%;padding:6px 9px;background:#f6f3fa;border:1px solid #e7e0f1;border-radius:8px;font-size:10px;font-weight:750;color:#5f5274;overflow-wrap:anywhere}
+/* PAP-782 operational actions rail; only existing verified status facts. */
+.staffV2Overview{grid-template-columns:repeat(2,minmax(0,1fr)) minmax(210px,.9fr);align-items:start}
+.staffV2Rail{grid-column:3;grid-row:1 / span 3;display:grid;gap:11px;padding:17px;border:1px solid #ebe4f3;border-radius:12px;background:#fff}
+.staffV2Rail h3{font-size:12px;margin:0;color:#3c3450}.staffV2Rail p,.staffV2Rail small{margin:0;font-size:11px;line-height:1.5;color:#756c80}
+.staffV2Rail a{display:block;padding:10px 12px;text-decoration:none;border-radius:9px;background:#f4f0fb;color:#523887;font-weight:750;font-size:11px}
+.staffV2Rail a:focus-visible{outline:3px solid #8260d1;outline-offset:2px}
+@media(max-width:900px){.staffV2Overview{grid-template-columns:repeat(2,minmax(0,1fr))}.staffV2Rail{grid-column:1 / -1;grid-row:auto}}
+@media(max-width:640px){.staffV2Overview{grid-template-columns:1fr}}

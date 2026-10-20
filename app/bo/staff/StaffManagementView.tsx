@@ -578,6 +578,18 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
             <article><span>Access status</span><strong>{accessUser?.status ?? "Chưa có Access"}</strong></article>
             <article><span>Phân nhóm</span><strong>{profile.roleLabel || profile.department || "Chưa có"}</strong></article>
             <article><span>Access assignments</span><strong>{accessUser ? accessUser.assignments.length : "Chưa có Access"}</strong></article>
+            <aside className={styles.staffV2Rail} aria-label="Staff actions" data-testid="staff-v2-rail">
+              <h3>Cần chú ý</h3>
+              <p>{profile.status === "inactive" && accessUser?.status === "active"
+                ? "Staff inactive nhưng Access vẫn active; cần kiểm tra offboarding."
+                : profile.status === "active" && accessUser?.status !== "active"
+                  ? "Staff active nhưng Access chưa sẵn sàng."
+                  : "Chưa phát hiện lệch trạng thái Staff / Access từ dữ liệu hiện có."}</p>
+              <h3>Thao tác tiếp theo</h3>
+              <Link href={staffDetailTabHref(pathname, searchParams.toString(), "profile")}>Xem hồ sơ</Link>
+              <Link href={staffDetailTabHref(pathname, searchParams.toString(), "access")}>Kiểm tra Access</Link>
+              <small>Chỉ điều hướng; mọi chỉnh sửa và dữ liệu riêng tư vẫn dùng gate của từng tab.</small>
+            </aside>
             {profile.status === "inactive" && accessUser?.status === "active" ? <p className={styles.staffV2Alert} role="alert">Staff đã inactive nhưng Access còn active. Kiểm tra tại tab Access.</p> : null}
             {profile.status === "active" && (!accessUser || accessUser.status === "suspended") ? <p className={styles.staffV2Alert} role="status">Staff active nhưng Access chưa sẵn sàng.</p> : null}
           </>}
