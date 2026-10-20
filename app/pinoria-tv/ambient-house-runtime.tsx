@@ -6,13 +6,14 @@ import graphData from "./ambient-house-motion-graph.saved.json";
 import { LayeredCharacter, type PinoriaCharacterConfig, type PinoriaWardRender } from "./layered-character";
 import { resolvePinoriaEffectPresentation } from "../../lib/pinoria-effect-presentation";
 import {
-  createAmbientAgents,
   reconcileAmbientAgents,
   stepAmbientAgents,
   type AmbientAgent,
   type AmbientMotionGraph,
 } from "./ambient-house-motion";
 import styles from "./ambient-house.module.css";
+import { resolveAmbientHouseArea, type AmbientHouseArea } from "./ambient-house-area";
+import type { PresenceExperience } from "./presence-contract";
 
 export type AmbientHouseActor = {
   id: string;
@@ -21,30 +22,55 @@ export type AmbientHouseActor = {
   config: PinoriaCharacterConfig | null;
   wardRender?: PinoriaWardRender | null;
   effectKey?: string | null;
+  experience?: PresenceExperience;
 };
 
-const GRAPH = graphData as AmbientMotionGraph;
+const SAVED_GRAPH = graphData as AmbientMotionGraph;
+const NO_APPROVED_AREAS: readonly AmbientHouseArea[] = [];
 export const HOUSE_ASSETS = {
   back: "https://assets.pinohouse.art/draft/HouseBack.png",
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ actors, departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionGraph, emergencePins = [], departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; motionGraph?: AmbientMotionGraph | null; emergencePins?: readonly {id:string;areaId?:string;laneId:string;x:number;y:number}[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+  const GRAPH = motionGraph ?? SAVED_GRAPH;
   const idsKey = actors.map((actor) => actor.id).sort().join("|");
   const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
+  // Areas are supplied by an explicitly approved House configuration.
+  // No mapping is inferred from labels or sample data; empty config safely uses global routing.
+  // Stabilize the semantic routing snapshot, not the parent actor-array identity:
+  // presence polling can replace actor objects without changing any approved area.
+  const resolvedLaneKey = JSON.stringify(actors.flatMap((actor) => {
+    const result = resolveAmbientHouseArea(actor.experience ?? null, GRAPH, areas);
+    return result.kind === "AREA" ? [[actor.id, result.laneIds] as const] : [];
+  }).sort(([a], [b]) => a.localeCompare(b)));
+  const preferredLaneIds = useMemo(
+    () => new Map<string, readonly string[]>(JSON.parse(resolvedLaneKey) as [string, string[]][]),
+    [resolvedLaneKey],
+  );
+  const emergenceKey = JSON.stringify(actors.flatMap((actor) => {
+    const resolved = resolveAmbientHouseArea(actor.experience ?? null, GRAPH, areas);
+    const assigned = resolved.kind === "AREA" ? emergencePins.filter((pin) => pin.areaId === resolved.areaId) : [];
+    const pins = assigned.length ? assigned : emergencePins.filter((pin) => !pin.areaId);
+    return [[actor.id, pins
+      .map((pin) => ({laneId:pin.laneId,x:pin.x}))] as const];
+  }).sort(([a],[b]) => a.localeCompare(b)));
+  const preferredEmergencePins = useMemo(() =>
+    new Map<string, readonly {laneId:string;x:number}[]>(JSON.parse(emergenceKey) as [string,{laneId:string;x:number}[]][]),
+    [emergenceKey]);
   const speedMultipliers = useMemo(() => new Map(actors.map((actor) => [actor.id, resolvePinoriaEffectPresentation(actor.effectKey)?.speedMultiplier ?? 1])), [actors]);
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
   const frozenKey = JSON.stringify(frozenIds);
-  const [agents, setAgents] = useState<AmbientAgent[]>(() => createAmbientAgents(actors.map((actor) => actor.id), GRAPH));
+  const [agents, setAgents] = useState<AmbientAgent[]>(() => reconcileAmbientAgents([], actors.map((actor) => actor.id), GRAPH, preferredLaneIds, preferredEmergencePins));
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
 
   useEffect(() => {
     const desiredIds = idsKey ? idsKey.split("|") : [];
-    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH));
+    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH, preferredLaneIds, preferredEmergencePins));
     previousFrame.current = null;
-  }, [idsKey]);
+  }, [idsKey, resolvedLaneKey, preferredLaneIds, preferredEmergencePins, GRAPH]);
 
   useEffect(() => {
     const frozen = new Set(JSON.parse(frozenKey) as string[]);
@@ -54,14 +80,14 @@ export function AmbientHouseRuntime({ actors, departingId = null, suppressedIds 
       previousFrame.current = now;
       if (now - lastCommit.current >= 40) {
         const elapsed = now - previous;
-        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing, frozenIds: frozen, speedMultipliers }));
+        setAgents((current) => stepAmbientAgents(current, GRAPH, elapsed, { departingIds: departing, frozenIds: frozen, speedMultipliers, preferredLaneIds }));
         lastCommit.current = now;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [departing, frozenKey, speedMultipliers]);
+  }, [departing, frozenKey, speedMultipliers, resolvedLaneKey, preferredLaneIds, GRAPH]);
 
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");
