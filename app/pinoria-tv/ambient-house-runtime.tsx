@@ -27,7 +27,7 @@ export type AmbientHouseActor = {
 
 const SAVED_GRAPH = graphData as AmbientMotionGraph;
 const NO_APPROVED_AREAS: readonly AmbientHouseArea[] = [];
-const HOUSE_ASSETS = {
+export const HOUSE_ASSETS = {
   back: "https://assets.pinohouse.art/draft/HouseBack.png",
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
