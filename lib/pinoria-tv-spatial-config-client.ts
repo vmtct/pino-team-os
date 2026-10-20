@@ -1,10 +1,11 @@
+import {validPolygon,boundsOfPoints,pointInsidePolygon} from "./pinoria-tv-mesh-geometry";
 export const HOUSE_CANVAS = { width: 1920, height: 1080 } as const;
 export type TvConfigScope = {kind:"DEFAULT"} | {kind:"CENTER";centerId:string};
 export type Point = {x:number;y:number};
 export type Lane = {id:string;x1:number;x2:number;y:number;midLayer:"front"|"behind"};
 export type Connector = {id:string;from:Point;to:Point};
-export type Area = {id:string;laneIds:string[];bounds:{x:number;y:number;width:number;height:number};pathCodes?:string[];learningSpaceCodes?:string[]};
-export type EmergencePin = {id:string;areaId:string;laneId:string;x:number;y:number};
+export type Area = {id:string;laneIds:string[];bounds:{x:number;y:number;width:number;height:number};points?:Point[];pathCodes?:string[];learningSpaceCodes?:string[]};
+export type EmergencePin = {id:string;areaId?:string;laneId:string;x:number;y:number};
 export type SpatialConfig = {schemaVersion:1;canvas:{width:1920;height:1080};graph:{horizontalLanes:Lane[];rawConnectors:Connector[]};areas:Area[];emergencePins:EmergencePin[]};
 export type SpatialVersion = {id:string;revision:number;createdBy:string;createdAt:string;applied:boolean};
 export type SpatialHead = {revision:number;active_version_id:string|null};
@@ -54,7 +55,11 @@ export function configIssues(config:SpatialConfig):string[] {
   if(lanes.length===0)issues.push("Add at least one walkable lane");
   for(const lane of lanes)if(lane.x1<0||lane.x2>1920||lane.y<0||lane.y>1080||lane.x2-lane.x1<72)issues.push("Invalid lane "+lane.id);
   for(const a of config.areas){
-    if(a.laneIds.some(id=>!ids.has(id)))issues.push("Area "+a.id+" refers to a missing lane");
+    if(a.laneIds.length===0||a.laneIds.some(id=>!ids.has(id)))issues.push("Area "+a.id+" refers to a missing lane or has no lanes");
+    if(a.points){
+      if(!validPolygon(a.points))issues.push("Invalid polygon "+a.id);
+      else{const b=boundsOfPoints(a.points);if(b.x<a.bounds.x||b.y<a.bounds.y||b.x+b.width>a.bounds.x+a.bounds.width||b.y+b.height>a.bounds.y+a.bounds.height)issues.push("Polygon outside bounds "+a.id);}
+    }
     if(a.bounds.x<0||a.bounds.y<0||a.bounds.width<=0||a.bounds.height<=0||a.bounds.x+a.bounds.width>1920||a.bounds.y+a.bounds.height>1080)issues.push("Invalid bounds "+a.id);
   }
   const owner=new Map<string,string>();
@@ -64,7 +69,8 @@ export function configIssues(config:SpatialConfig):string[] {
   }
   for(const pin of config.emergencePins){
     const area=config.areas.find(a=>a.id===pin.areaId),lane=lanes.find(l=>l.id===pin.laneId);
-    if(!area||!lane||!area.laneIds.includes(lane.id)||pin.x<lane.x1+36||pin.x>lane.x2-36||Math.abs(pin.y-lane.y)>0.01)issues.push("Invalid emergence "+pin.id);
+    if(!lane||(pin.areaId&&(!area||!area.laneIds.includes(lane.id)))||pin.x<lane.x1+36||pin.x>lane.x2-36||Math.abs(pin.y-lane.y)>0.01
+      ||(area?.points&&!pointInsidePolygon({x:pin.x,y:pin.y},area.points)))issues.push("Invalid emergence "+pin.id);
   }
   return issues;
 }
