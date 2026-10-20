@@ -67,9 +67,11 @@ test("TOS consumers use centralized domain navigation instead of global route fo
 test("PAP-707 keeps Thu nhập structurally present without fabricating payroll truth", async () => {
   const earnings = await readFile("app/earnings/page.tsx", "utf8");
   assert.match(earnings, /activeFooterId="income"/);
-  assert.match(earnings, /THU NHẬP[\s\S]*Chưa sẵn sàng/);
-  assert.match(earnings, /Tiền công cơ bản[\s\S]*Điều chỉnh[\s\S]*Đã thanh toán[\s\S]*Trạng thái/);
-  assert.match(earnings, /Không suy đoán số tiền, đơn giá, số giờ tính lương hoặc trạng thái chốt/);
+  assert.match(earnings, /THU NHẬP[\s\S]*Thu nhập của tôi/);
+  assert.match(earnings, /ownIncome\(centerId/);
+  assert.match(earnings, /current\.status==="DRAFT"&&!current\.estimateAvailable/);
+  assert.match(earnings, /Không suy đoán từ giờ chấm công/);
+  assert.match(earnings, /money\(current\.amountMinor\)/);
   assert.doesNotMatch(earnings, /1\.625\.000|50\.000|2\.100\.000|Tạm tính · Chưa chốt/);
-  assert.doesNotMatch(earnings, /workforceApi|timekeeping|hourly|rate/i);
+  assert.doesNotMatch(earnings, /localStorage|sessionStorage/);
 });

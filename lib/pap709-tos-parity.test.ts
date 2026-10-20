@@ -30,7 +30,9 @@ test("PAP-709 Home 430px centered and black gutters", () => {
 
 test("PAP-709 unavailable payroll must not invent money", () => {
   const page = read("app/earnings/page.tsx");
-  assert.match(page, /Chưa sẵn sàng/);
+  assert.match(page, /Chưa khả dụng/);
+  assert.match(page, /current\.status==="DRAFT"&&!current\.estimateAvailable/);
+  assert.match(page, /money\(current\.amountMinor\)/);
   assert.doesNotMatch(page, /1\.625\.000|2\.100\.000/);
 });
 
