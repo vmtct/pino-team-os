@@ -50,7 +50,7 @@ export function TvDeviceDiagnostics(){
       <strong>{device.displayName}</strong> · {device.status}
       <p>Center: {device.centerId??"Chưa gán"} · Display: {device.defaultDisplayId??"Chưa gán"}</p>
       <p>TV definition: {displays?.find(display=>display.id===device.defaultDisplayId)?.displayName??"Không tìm thấy trong danh sách được phép xem"} · Device ID: {device.id}</p>
-      <small>Last seen: {device.lastSeenAt??"Chưa ghi nhận"} · Session: chưa xác thực · Viewport: {device.viewportWidth&&device.viewportHeight?`${device.viewportWidth}×${device.viewportHeight}`:"Chưa ghi nhận"}</small>
+      <small>Last seen: {device.lastSeenAt??"Chưa ghi nhận"} · Kết nối thực tế: chưa xác thực · Session: chưa xác thực · Viewport: {device.viewportWidth&&device.viewportHeight?`${device.viewportWidth}×${device.viewportHeight}`:"Chưa ghi nhận"}</small>
       <p><small>Phiên hoạt động, phiên bản cấu hình áp dụng và asset health: chưa có bằng chứng xác thực từ Core; không suy diễn từ Last seen.</small></p>
     </article>)}
   </section>;
