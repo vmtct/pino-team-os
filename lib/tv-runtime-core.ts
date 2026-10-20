@@ -2,6 +2,7 @@ export interface TvRuntimeResponse{status:number;body:unknown;requestId:string}
 export interface TvRuntimeCoreBinding{
   context(token:string,displayId:string):Promise<TvRuntimeResponse>;
   snapshot(token:string,displayId:string):Promise<TvRuntimeResponse>;
+  spatialConfig(token:string,displayId:string):Promise<TvRuntimeResponse>;
   events(token:string,displayId:string,after:number,limit?:number):Promise<TvRuntimeResponse>;
   onboardingPreview(token:string,displayId:string):Promise<TvRuntimeResponse>;
   claimPresentation(token:string,displayId:string):Promise<TvRuntimeResponse>;

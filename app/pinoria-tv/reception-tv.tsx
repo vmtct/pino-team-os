@@ -77,7 +77,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     setSpatial({active:null,pending:null});
     async function pollSpatial(){
       try{
-        const response=await fetch(`${apiBase}/spatial-config?centerId=${encodeURIComponent(centerId)}`,{cache:"no-store"});
+        const response=await fetch(`${apiBase}/spatial-config`,{cache:"no-store"});
         if(!response.ok)throw new Error("TV spatial config unavailable");
         const body=await response.json() as {data?:unknown};
         if(cancelled)return;
