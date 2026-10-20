@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import styles from "./earnings.module.css";
@@ -35,6 +36,11 @@ export default function EarningsPage() {
           <div className={styles.row}><span>Trạng thái</span><strong>Chưa sẵn sàng</strong></div>
         </section>
 
+        <section className={styles.card}>
+          <h3>Yêu cầu tính thêm giờ</h3>
+          <p className={styles.muted}>Gửi khoảng giờ đã làm nhưng chưa được tính trong giờ công chuẩn. Chỉ yêu cầu được duyệt mới được cộng vào lương.</p>
+          <Link href="/earnings/extra-time" className={styles.action}>Tạo yêu cầu / Xem lịch sử →</Link>
+        </section>
         <section className={styles.card}>
           <h3>Kỳ lương trước</h3>
           <p className={styles.muted}>Chưa có staff-self payroll contract để đọc kỳ trước một cách an toàn.</p>
