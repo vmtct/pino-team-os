@@ -15,6 +15,7 @@ import { STAFF_DETAIL_TABS, resolveStaffDetailTab, staffDetailTabHref } from "@/
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import { staffProfileDraftDirty, staffProfileDraftErrors } from "@/lib/bo-staff-profile-edit";
+import { staffAccessCanRevoke, staffAccessScopeValid } from "@/lib/bo-staff-access-scope";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -94,7 +95,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     privateRevealFenceRef.current.invalidate();
     profileEditFenceRef.current += 1;
     setProfileError("");
-    setBusy((state) => state === "profile" ? "" : state);
+    setBusy((state) => state === "profile" || state === "role" || state.startsWith("revoke:") ? "" : state);
+    setRoleId(""); setScopeType("GLOBAL"); setScopeId(""); setSuspendReason("");
     selectedIdRef.current = selectedId;
     setPasswordReset(null); setPasswordCopied(false); setProfileEditing(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
     setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
@@ -148,6 +150,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const accessUser = useMemo(() => data.users.find((item) => item.staffMemberId === selectedId) ?? null, [data.users, selectedId]);
   const quickPeek = buildStaffQuickPeekModel(selected, accessUser, selected ? staffAttention(selected, accessUser).label : "Loading", selectedId);
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
+  const canComposeRole = activeRoles.some((role) => role.id === roleId) && staffAccessScopeValid(scopeType, scopeId, data);
   const privateCenterOptions = useMemo(() => {
     const ids = new Set((accessUser?.assignments ?? []).filter((item) => item.scopeType === "CENTER" && item.scopeId).map((item) => item.scopeId!));
     return [...ids].map((id) => ({ id, label: data.centers.find((center) => center.id === id)?.displayName ?? id }));
@@ -316,18 +319,36 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   }
 
   async function assignRole() {
-    if (!accessUser || !roleId || (scopeType !== "GLOBAL" && !scopeId)) return;
+    const targetStaffId = selectedIdRef.current;
+    const targetAccessId = accessUser?.id;
+    if (!targetStaffId || !targetAccessId || !canComposeRole || busy) return;
+    const command = { userId: targetAccessId, roleId, scopeType, scopeId: scopeType === "GLOBAL" ? null : scopeId };
     setBusy("role"); setError(""); setMessage("");
-    try { await boApi.assignAccessRole({ userId: accessUser.id, roleId, scopeType, scopeId: scopeType === "GLOBAL" ? null : scopeId }); await refresh(selectedId); setRoleId(""); setScopeId(""); setMessage("Đã thêm Access role."); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể thêm role."); }
-    finally { setBusy(""); }
+    try {
+      await boApi.assignAccessRole(command);
+      if (selectedIdRef.current !== targetStaffId) return;
+      await refresh(targetStaffId);
+      if (selectedIdRef.current === targetStaffId) {
+        setRoleId(""); setScopeId(""); setMessage("Đã thêm Access role.");
+      }
+    } catch (cause) {
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể thêm role.");
+    } finally { if (selectedIdRef.current === targetStaffId) setBusy(""); }
   }
   async function revokeRole(assignmentId: string) {
+    const targetStaffId = selectedIdRef.current;
+    const assignment = accessUser?.assignments.find((item) => item.assignmentId === assignmentId);
+    if (!targetStaffId || !staffAccessCanRevoke(assignment) || busy) return;
     if (!confirm("Gỡ role assignment này?")) return;
     setBusy(`revoke:${assignmentId}`); setError(""); setMessage("");
-    try { await boApi.removeAccessAssignment(assignmentId); await refresh(selectedId); setMessage("Đã gỡ role assignment."); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể gỡ role."); }
-    finally { setBusy(""); }
+    try {
+      await boApi.removeAccessAssignment(assignmentId);
+      if (selectedIdRef.current !== targetStaffId) return;
+      await refresh(targetStaffId);
+      if (selectedIdRef.current === targetStaffId) setMessage("Đã gỡ role assignment.");
+    } catch (cause) {
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể gỡ role.");
+    } finally { if (selectedIdRef.current === targetStaffId) setBusy(""); }
   }
 
   async function resetStaffPassword() {
@@ -554,6 +575,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
             {(!detailOnly || activeTab === "access") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>Access</h2><p>Role, scope và login state là canonical Access state riêng với Staff status.</p></div><span className={styles.writePill}>{accessUser?.status ?? "not provisioned"}</span></div>
+              <p className={styles.staffAccessMeta}>Staff: {profile.status} · Access: {accessUser?.status ?? "not provisioned"} — hai vòng đời được cập nhật độc lập.</p>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
                 <p className={styles.staffAccessMeta}>{accessUser.email ?? "No email"} · {accessUser.assignments.length} assignment(s)</p>
                 <div className={styles.staffPinPanel}>
@@ -576,13 +598,13 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
                   </div>
                 </div>
 
-                <div className={styles.staffAssignmentList}>{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={assignment.roleKey === "founder" || busy === `revoke:${assignment.assignmentId}`} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
+                <div className={styles.staffAssignmentList}>{accessUser.assignments.length === 0 ? <p>Chưa có role assignment nào được cấp cho Access này.</p> : null}{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={!staffAccessCanRevoke(assignment) || Boolean(busy)} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>
                   <label className={styles.field}>Thêm role<select value={roleId} onChange={(event) => setRoleId(event.target.value)}><option value="">Chọn role…</option>{activeRoles.map((role) => <option value={role.id} key={role.id}>{role.displayName}</option>)}</select></label>
                   <label className={styles.field}>Scope<select value={scopeType} onChange={(event) => { setScopeType(event.target.value as ScopeType); setScopeId(""); }}><option value="GLOBAL">Global</option><option value="CENTER">Center</option><option value="PATH">Path</option><option value="RUNNING_CLASS">Running Class</option></select></label>
                   {scopeType === "GLOBAL" ? <div /> : <ScopeSelect type={scopeType} value={scopeId} data={data} onChange={setScopeId} />}
-                  <button type="button" className={styles.secondaryButton} disabled={!roleId || (scopeType !== "GLOBAL" && !scopeId) || busy === "role"} onClick={() => void assignRole()}>+ Add role</button>
+                  <button type="button" className={styles.secondaryButton} disabled={!canComposeRole || Boolean(busy)} onClick={() => void assignRole()}>+ Add role</button>
                 </div>
                 <div className={styles.staffAccessStatus}>
                   {accessUser.status === "active" ? <><label className={styles.field}>Suspend reason<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Required to suspend" /></label><button type="button" className={styles.secondaryButton} disabled={!suspendReason.trim() || busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("suspended")}>Suspend Access only</button></> : <button type="button" className={styles.secondaryButton} disabled={busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("active")}>Reactivate Access</button>}
