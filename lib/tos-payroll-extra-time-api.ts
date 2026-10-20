@@ -2,7 +2,9 @@
 export interface OwnExtraTimeRequest {
   id:string;centerId:string;staffMemberId:string;assignmentId:string;
   workDate:string;startAt:string;endAt:string;reason:string;
-  status:"PENDING"|"WITHDRAWN";createdAt:string;createdByUserId:string;
+  status:"PENDING"|"WITHDRAWN"|"APPROVED"|"REJECTED";createdAt:string;createdByUserId:string;
+  review?:{type:"APPROVED"|"REJECTED";reason:string;approvedStartAt:string|null;
+    approvedEndAt:string|null;reviewedAt:string}|null;
 }
 export interface ExtraTimePage {
   data:OwnExtraTimeRequest[];total:number;nextOffset:number|null;

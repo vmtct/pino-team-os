@@ -51,7 +51,10 @@ function niceDate(value:string){
     ?value.slice(8,10)+"/"+value.slice(5,7)+"/"+value.slice(0,4):value;
 }
 function statusName(status:OwnExtraTimeRequest["status"]){
-  return status==="PENDING"?"Đang chờ duyệt":"Đã rút yêu cầu";
+  if(status==="PENDING")return "Đang chờ duyệt";
+  if(status==="APPROVED")return "Đã duyệt";
+  if(status==="REJECTED")return "Bị từ chối";
+  return "Đã rút yêu cầu";
 }
 
 export default function ExtraTimeDesk(){
@@ -197,6 +200,12 @@ export default function ExtraTimeDesk(){
               <span className={styles.badge}>{statusName(row.status)}</span></div>
             <strong className={styles.hours}>{formatVietnamTime(row.startAt)} – {formatVietnamTime(row.endAt)}</strong>
             <p>{row.reason}</p>
+            {row.review?<div className={styles.reference}>
+              <strong>{row.review.type==="APPROVED"?"Đã được duyệt":"Quản lý từ chối"}</strong>
+              {row.review.type==="APPROVED"&&row.review.approvedStartAt&&row.review.approvedEndAt?
+                <span>{formatVietnamTime(row.review.approvedStartAt)} – {formatVietnamTime(row.review.approvedEndAt)}</span>:null}
+              <small>{row.review.reason}</small>
+            </div>:null}
             <small>Gửi lúc {new Date(row.createdAt).toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh"})}</small>
           </article>):<div className={styles.card}><p>Chưa có yêu cầu tính thêm giờ.</p></div>}
           {nextOffset!==null?<button type="button" className={styles.secondary} disabled={loadingMore}
