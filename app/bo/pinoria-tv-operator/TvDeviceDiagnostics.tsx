@@ -32,12 +32,12 @@ export function TvDeviceDiagnostics(){
       if(selectedCenter){try{operatorHealth=await operatorPresentationClient.operatorHealth(selectedCenter);}catch(cause){if(generation===requestGeneration.current)setError(cause instanceof Error?cause.message:"Core health không khả dụng");}}
       if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setCenterId(selectedCenter??"");setHealth(operatorHealth);}
     }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
-    finally{refreshInFlight.current=false;if(generation===requestGeneration.current)setBusy(false);}
+    finally{refreshInFlight.current=false;setBusy(false);}
   }
   return <section aria-label="TV device diagnostics" style={{border:"1px solid #ddd",borderRadius:12,padding:16,marginTop:16}}>
     <h2>Thiết bị & trạng thái kết nối</h2>
     <p>Chỉ báo cáo trạng thái thiết bị từ BO. Last seen không phải xác nhận TV đã render/ACK. Mở hoặc focus cửa sổ TV từ trình duyệt BO không được hỗ trợ.</p>
-    <label>Center được phép xem <select aria-label="Center for operator health" value={centerId} onChange={e=>{requestGeneration.current+=1;setCenterId(e.target.value);setHealth(null);setBusy(false);}}><option value="">Tự chọn khi chỉ có một center</option>{[...new Set((devices??[]).map(device=>device.centerId).filter((id):id is string=>Boolean(id)))].map(id=><option key={id} value={id}>{id}</option>)}</select></label>
+    <label>Center được phép xem <select aria-label="Center for operator health" value={centerId} onChange={e=>{requestGeneration.current+=1;setCenterId(e.target.value);setHealth(null);}}><option value="">Tự chọn khi chỉ có một center</option>{[...new Set((devices??[]).map(device=>device.centerId).filter((id):id is string=>Boolean(id)))].map(id=><option key={id} value={id}>{id}</option>)}</select></label>
     <button type="button" disabled={busy} onClick={()=>void refresh()}>{busy?"Đang tải…":"Làm mới thiết bị"}</button>
     {error?<p role="alert">{error}</p>:null}
     {devices && !centerId && [...new Set(devices.map(device=>device.centerId).filter(Boolean))].length>1?<p role="status">Chọn center trong danh sách rồi làm mới để đọc queue health.</p>:null}
