@@ -257,6 +257,11 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
       {view === "schedule" || view === "availability" ? <ShiftCalendarPanel rows={activeSchedule} centerName={center?.displayName ?? "—"} centerToday={centerToday} week={availabilityWeek ?? currentWeek} weeks={availabilityWeeks} selectedWeekId={(availabilityWeek ?? currentWeek)?.id ?? ""} availability={availability} window={availabilityWindow} templates={templates} saving={saving} onSelectWeek={setAvailabilityWeekId} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
       {view === "check-in" ? <CheckInPanel current={current} state={checkInState} saving={saving} centerReady={Boolean(center)} formOpen={requestFormOpen} reason={requestReason} onReason={setRequestReason} onOpenForm={() => setRequestFormOpen(true)} onCancelForm={() => { setRequestFormOpen(false); setRequestReason(""); }} onClock={() => void clock(current ? "out" : "in")} onRequest={() => void requestUnscheduledCheckIn()} /> : null}
       {view === "history" ? <TimesheetPanel rows={history} current={current} centerToday={centerToday} /> : null}
+      {view === "history" ? <section className="card section">
+        <h2>Yêu cầu tính thêm giờ</h2>
+        <p className="muted">Khoảng đã làm nhưng chưa được tính vào giờ công chuẩn cần quản lý phê duyệt.</p>
+        <Link className="button" href="/earnings/extra-time">Tạo yêu cầu / Xem lịch sử</Link>
+      </section> : null}
     </>}
   </TosShell>;
 }
