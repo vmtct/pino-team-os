@@ -564,7 +564,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
 
       {selectedId ? (detailOnly ? <div className={styles.staffFullWorkspace} data-testid="staff-full-detail">
         <div className={styles.staffFullIdentity}>
-          <div><span className={styles.staffFullEyebrow}>STAFF DETAIL · {selectedId}</span><h2>{selected?.displayLabel ?? "Đang tải Staff..."}</h2><p>{selected?.roleLabel ?? selected?.department ?? "Chưa phân nhóm"} · {selected?.status ?? "Loading"}</p></div>
+          <div><span className={styles.staffFullEyebrow}>STAFF DETAIL · {selectedId}</span><h2>{selected?.displayLabel ?? "Đang tải Staff..."}</h2><p>{selected?.roleLabel ?? selected?.department ?? "Chưa phân nhóm"} · {profile?.employmentType ?? "Chưa có loại hợp đồng"}</p><div className={styles.staffV2HeaderBadges}><span>Staff: {selected?.status ?? "Đang tải"}</span><span>Access: {accessUser?.status ?? "Chưa có Access"}</span><span>Center: {accessUser?.assignments.filter((item) => item.scopeType === "CENTER").map((item) => data.centers.find((center) => center.id === item.scopeId)?.displayName ?? item.scopeId).filter(Boolean).join(", ") || "Chưa xác định"}</span></div></div>
           <Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Danh sách</Link>
         </div>
         <nav className={styles.staffV2Tabs} aria-label="Staff detail sections" data-testid="staff-v2-tabs">

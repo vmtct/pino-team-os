@@ -522,3 +522,5 @@
 .staffV2Overview article strong { font-size:16px; overflow-wrap:anywhere; color:#3b314f; }
 .staffV2Alert { grid-column:1/-1; padding:13px; border:1px solid #e6c9a6; border-radius:10px; background:#fffcf5; color:#644c32; font-size:11px; }
 @media(max-width:640px) { .staffV2Overview { grid-template-columns:1fr; } .staffV2Tabs { position:sticky; top:0; z-index:5; } }
+
+.staffV2HeaderBadges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.staffV2HeaderBadges span{max-width:100%;padding:6px 9px;background:#f6f3fa;border:1px solid #e7e0f1;border-radius:8px;font-size:10px;font-weight:750;color:#5f5274;overflow-wrap:anywhere}
