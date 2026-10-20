@@ -42,3 +42,4 @@ test("PAP-659 health read uses only centers returned by authorized device lookup
  assert.match(diagnostics,/<select aria-label="Center for operator health"/);
  assert.doesNotMatch(diagnostics,/<input aria-label="Center ID for operator health"/);
 });
+test("PAP-659 diagnostics prevents overlapping refresh",()=>{const diagnostics=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(diagnostics,/refreshInFlight\.current=true/);assert.match(diagnostics,/if\(refreshInFlight\.current\)return/);assert.match(diagnostics,/finally\{refreshInFlight\.current=false/);});

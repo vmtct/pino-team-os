@@ -10,12 +10,14 @@ export function TvDeviceDiagnostics(){
   const [displays,setDisplays]=useState<Display[]|null>(null);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
+  const refreshInFlight=useRef(false);
   const [centerId,setCenterId]=useState("");
   const [health,setHealth]=useState<OperatorHealth|null>(null);
   const requestGeneration=useRef(0);
   useEffect(()=>()=>{requestGeneration.current+=1;},[]);
   async function refresh(){
-    if(busy)return;
+    if(refreshInFlight.current)return;
+    refreshInFlight.current=true;
     const generation=++requestGeneration.current;
     setBusy(true);setError("");setDevices(null);setDisplays(null);setHealth(null);
     try{
@@ -30,7 +32,7 @@ export function TvDeviceDiagnostics(){
       if(selectedCenter){try{operatorHealth=await operatorPresentationClient.operatorHealth(selectedCenter);}catch(cause){if(generation===requestGeneration.current)setError(cause instanceof Error?cause.message:"Core health không khả dụng");}}
       if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setCenterId(selectedCenter??"");setHealth(operatorHealth);}
     }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
-    finally{if(generation===requestGeneration.current)setBusy(false);}
+    finally{refreshInFlight.current=false;if(generation===requestGeneration.current)setBusy(false);}
   }
   return <section aria-label="TV device diagnostics" style={{border:"1px solid #ddd",borderRadius:12,padding:16,marginTop:16}}>
     <h2>Thiết bị & trạng thái kết nối</h2>
