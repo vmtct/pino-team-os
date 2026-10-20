@@ -2,19 +2,23 @@
 import { useState } from "react";
 
 type Device = {id:string;displayName:string;centerId:string|null;status:string;lastSeenAt:string|null;defaultDisplayId:string|null;viewportWidth:number|null;viewportHeight:number|null};
+type Display = {id:string;displayName:string;runtimeType:string;scopeType:string;scopeId:string|null;targetAspectRatio:string;definitionVersion:number;status:string};
 /** Read-only BO diagnostics. Server authorizes device reads; never infer physical ACK. */
 export function TvDeviceDiagnostics(){
   const [devices,setDevices]=useState<Device[]|null>(null);
+  const [displays,setDisplays]=useState<Display[]|null>(null);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   async function refresh(){
     if(busy)return;
-    setBusy(true);setError("");setDevices(null);
+    setBusy(true);setError("");setDevices(null);setDisplays(null);
     try{
-      const response=await fetch("/api/bo/tv/devices",{cache:"no-store"});
+      const [response,displayResponse]=await Promise.all([fetch("/api/bo/tv/devices",{cache:"no-store"}),fetch("/api/bo/tv/displays",{cache:"no-store"})]);
       const payload=await response.json() as {data?:Device[];error?:{message?:string}};
       if(!response.ok || !Array.isArray(payload.data))throw new Error(payload.error?.message??"Không thể đọc device status");
-      setDevices(payload.data);
+      const displayPayload=await displayResponse.json() as {data?:Display[];error?:{message?:string}};
+      if(!displayResponse.ok || !Array.isArray(displayPayload.data))throw new Error(displayPayload.error?.message??"Không thể đọc TV definitions");
+      setDevices(payload.data);setDisplays(displayPayload.data);
     }catch(e){setError(e instanceof Error?e.message:"Không thể đọc device status");}
     finally{setBusy(false);}
   }
@@ -24,6 +28,7 @@ export function TvDeviceDiagnostics(){
     <button type="button" disabled={busy} onClick={()=>void refresh()}>{busy?"Đang tải…":"Làm mới thiết bị"}</button>
     {error?<p role="alert">{error}</p>:null}
     {devices?.length===0?<p>Không có thiết bị được cấp quyền xem.</p>:null}
+    {displays?.map(display=><article key={display.id} style={{padding:"8px 0"}}><strong>{display.displayName}</strong> · {display.status}<p>Runtime: {display.runtimeType} · Scope: {display.scopeType} · Aspect: {display.targetAspectRatio} · Definition v{display.definitionVersion}</p></article>)}
     {devices?.map(device=><article key={device.id} style={{padding:"10px 0",borderBottom:"1px solid #eee"}}>
       <strong>{device.displayName}</strong> · {device.status}<p>Center: {device.centerId??"Chưa gán"} · Display: {device.defaultDisplayId??"Chưa gán"}</p>
       <small>Last seen: {device.lastSeenAt??"Chưa ghi nhận"} · Viewport: {device.viewportWidth&&device.viewportHeight?`${device.viewportWidth}×${device.viewportHeight}`:"Chưa ghi nhận"}</small>
