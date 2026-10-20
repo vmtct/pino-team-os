@@ -11,6 +11,7 @@ import { boApi } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { staffDirectoryHref, staffFullDetailHref } from "@/lib/bo-staff-detail-navigation";
 import { buildStaffQuickPeekModel } from "@/lib/bo-staff-quick-peek";
+import { STAFF_DETAIL_TABS, resolveStaffDetailTab, staffDetailTabHref } from "@/lib/bo-staff-detail-tabs";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -51,6 +52,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const searchParams = useSearchParams();
   const grid = useBoDataGridUrlState(STAFF_GRID_OPTIONS);
   const detailOnly = detailStaffId !== undefined;
+  const activeTab = resolveStaffDetailTab(searchParams.get("tab"));
   const selectedId = detailStaffId ?? searchParams.get("staff") ?? "";
   const [data, setData] = useState<Data>(emptyData);
   const [profile, setProfile] = useState<BoStaffProfile | null>(null);
@@ -384,6 +386,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const detailContents = (
     <div className={styles.staffDetailStack}>
           {!selected || !profile ? <section className={styles.panel}>{error ? <p role="alert">Không thể tải hồ sơ Staff. Kiểm tra quyền truy cập hoặc mã nhân viên.</p> : <p>Đang tải hồ sơ Staff…</p>}</section> : <>
+            {(!detailOnly || activeTab === "profile") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>{profile.displayLabel}</h2><p>Operational profile · {profile.status}</p></div><span className={styles.writePill}>{profile.status}</span></div>
               <div className={styles.formGrid}>
@@ -444,6 +447,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
               </div> : null}
             </section>
 
+            </> : null}
+            {(!detailOnly || activeTab === "pinoria") ? <>
             <section className={styles.panel} data-testid="staff-pinoria-panel">
               <div className={styles.panelHeading}>
                 <div><h2>Pinoria</h2><p>Read-only canonical Self, character/loadout và House presence.</p></div>
@@ -482,6 +487,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
               </div> : null}
             </section>
 
+            </> : null}
+            {(!detailOnly || activeTab === "access") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>Access</h2><p>Role, scope và login state là canonical Access state riêng với Staff status.</p></div><span className={styles.writePill}>{accessUser?.status ?? "not provisioned"}</span></div>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
@@ -519,6 +526,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
                 </div>
               </>}
             </section>
+            </> : null}
           </>}
     </div>
   );
@@ -559,7 +567,24 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
           <div><span className={styles.staffFullEyebrow}>STAFF DETAIL · {selectedId}</span><h2>{selected?.displayLabel ?? "Đang tải Staff..."}</h2><p>{selected?.roleLabel ?? selected?.department ?? "Chưa phân nhóm"} · {selected?.status ?? "Loading"}</p></div>
           <Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Danh sách</Link>
         </div>
-        {detailContents}
+        <nav className={styles.staffV2Tabs} aria-label="Staff detail sections" data-testid="staff-v2-tabs">
+          {STAFF_DETAIL_TABS.map((tab) => <Link key={tab.key} href={staffDetailTabHref(pathname, searchParams.toString(), tab.key)}
+            className={activeTab === tab.key ? styles.staffV2TabActive : styles.staffV2Tab}
+            aria-current={activeTab === tab.key ? "page" : undefined}>{tab.label}</Link>)}
+        </nav>
+        {activeTab === "overview" ? <section className={styles.staffV2Overview} data-testid="staff-v2-overview">
+          {!selected || !profile ? <p role="status">Chưa tải được hồ sơ Staff. Kiểm tra quyền hoặc mã nhân viên.</p> : <>
+            <article><span>Staff status</span><strong>{profile.status}</strong></article>
+            <article><span>Access status</span><strong>{accessUser?.status ?? "Chưa có Access"}</strong></article>
+            <article><span>Phân nhóm</span><strong>{profile.roleLabel || profile.department || "Chưa có"}</strong></article>
+            <article><span>Access assignments</span><strong>{accessUser ? accessUser.assignments.length : "Chưa có Access"}</strong></article>
+            {profile.status === "inactive" && accessUser?.status === "active" ? <p className={styles.staffV2Alert} role="alert">Staff đã inactive nhưng Access còn active. Kiểm tra tại tab Access.</p> : null}
+            {profile.status === "active" && (!accessUser || accessUser.status === "suspended") ? <p className={styles.staffV2Alert} role="status">Staff active nhưng Access chưa sẵn sàng.</p> : null}
+          </>}
+        </section> : null}
+        {(["profile", "pinoria", "access"] as const).includes(activeTab as "profile" | "pinoria" | "access") ? detailContents : null}
+        {(["assignments", "training", "income", "audit"] as const).includes(activeTab as "assignments" | "training" | "income" | "audit")
+          ? <section className={styles.panel} data-testid="staff-v2-unavailable"><h2>{STAFF_DETAIL_TABS.find(tab => tab.key === activeTab)?.label}</h2><p>Chức năng đang được triển khai. Chưa có dữ liệu được xác minh để hiển thị.</p></section> : null}
       </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
         <div className={styles.staffQuickPeek} data-testid="staff-quick-peek">
           <div className={styles.staffQuickIdentity}><h3>{quickPeek.displayLabel}</h3><span>{quickPeek.staffId}</span></div>
