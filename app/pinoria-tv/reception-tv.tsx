@@ -13,6 +13,7 @@ import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
 import { CompanionRitualScene, COMPANION_RITUAL_SCENE_MS } from "./companion-ritual-scene";
 import { OnboardingCeremonyScene, OnboardingPreviewScene, ONBOARDING_CEREMONY_SCENE_MS } from "./onboarding-ceremony-scene";
 import type { OnboardingPreview } from "./onboarding-ceremony-types";
+import { eligibleTvEvent, readSafeTvPolicy, displayNameForSharedTv, defaultSharedTvPolicy, redactTvPresentationName } from "@/lib/pinoria-tv-policy-runtime";
 import styles from "./reception-tv.module.css";
 
 
@@ -20,6 +21,7 @@ type Scene = {
   id: string;
   kind: "arrival" | "departure";
   name: string;
+  occurredAt: string;
   config: PinoriaCharacterConfig;
   actorType: PresenceActorType;
   pinoriaSelfId: string;
@@ -42,6 +44,26 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
   const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
+  const [policy,setPolicy] = useState(defaultSharedTvPolicy);
+  useEffect(() => {
+    if(!centerId)return;
+    setPolicy(defaultSharedTvPolicy()); // Never carry a permissive Center policy across TV scopes.
+    let mounted=true;
+    const pull=async()=>{
+      try{
+        const response=await fetch(apiBase+"/policy",{cache:"no-store"});
+        if(!response.ok)return;
+        const body=await response.json() as {data?:unknown};
+        const parsed=readSafeTvPolicy(body.data,centerId);
+        if(mounted&&parsed)setPolicy(parsed);
+      }catch{
+        // Keep last-known-good; the initial default hides optional private fields.
+      }
+    };
+    void pull();
+    const timer=window.setInterval(()=>void pull(),30000);
+    return()=>{mounted=false;window.clearInterval(timer)};
+  },[apiBase,centerId]);
   const cursor = useRef(0);
   const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
@@ -134,14 +156,15 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     } finally {
       if (generation === houseGeneration.current) housePollInFlight.current = false;
     }
-  }, [apiBase, centerId]);
+  }, [apiBase, centerId, policy]);
   function enqueuePresenceEvents(events: PresenceEvent[]) {
     setScenes((queue) => [
       ...queue,
-      ...events.map((event) => ({
+      ...events.filter(event=>eligibleTvEvent(policy,event.type,event.occurredAt,new Date())).map((event) => ({
         id: `${event.sequence}`,
         kind: event.type === "ARRIVAL" ? "arrival" as const : "departure" as const,
-        name: event.payload.displayName,
+        name: displayNameForSharedTv(policy,event.payload.displayName),
+        occurredAt: event.occurredAt,
         config: event.payload.character ?? {},
         actorType: event.actorType,
         pinoriaSelfId: event.pinoriaSelfId,
@@ -180,12 +203,12 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       const json = await response.json() as { data?: OnboardingPreview | null };
       if (!response.ok) throw new Error("preview unavailable");
       const next = json.data ?? null;
-      setOnboardingPreview(next);
-      if (next) setScenes([]);
+      setOnboardingPreview(eligibleTvEvent(policy,"ONBOARDING_CEREMONY",new Date().toISOString(),new Date()) && next ? {...next,displayName:displayNameForSharedTv(policy,next.displayName)} : null);
+      if (next && eligibleTvEvent(policy,"ONBOARDING_CEREMONY",new Date().toISOString(),new Date())) setScenes([]);
     } catch {
       setOnboardingPreview(null);
     }
-  }, [apiBase, centerId]);
+  }, [apiBase, centerId, policy]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -199,13 +222,16 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     presentationBusy.current = true;
     try {
       const claimed = await claimPresentation(centerId, apiBase);
-      if (claimed) setPresentation(claimed);
+      if (claimed) {
+        if(eligibleTvEvent(policy,claimed.kind,claimed.claimedAt,new Date()) && (policy.visibleContext.companion || (claimed.kind!=="EGG_HATCH" && claimed.kind!=="COMPANION_RITUAL")))setPresentation(redactTvPresentationName(policy,claimed));
+        else await completePresentation(centerId,claimed.id,apiBase); // Presentation receipt only; never domain reward.
+      }
     } catch {
       // House presence remains usable if the Wish relay is temporarily unavailable.
     } finally {
       presentationBusy.current = false;
     }
-  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation]);
+  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation, policy]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -217,8 +243,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const scene = scenes[0] ?? null;
   const sceneActor = scene ? inside.find((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId) ?? null : null;
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
-  const arrivalCompanion = scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
-  const arrivalPath = scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
+  const arrivalCompanion = policy.visibleContext.companion && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
+  const arrivalPath = policy.visibleContext.path && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
   const arrivalCompanionAsset = arrivalCompanion ? pinoriaAssetUrl(arrivalCompanion.species.assetKey) : null;
   const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
   const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
@@ -322,6 +348,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setScenes([]);
     setPresentation(null);
     setOnboardingPreview(null);
+    setPolicy(defaultSharedTvPolicy());
     setCenterId(value);
   }
 
@@ -337,9 +364,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setScenes([]);
     setPresentation(null);
     setOnboardingPreview(null);
+    setPolicy(defaultSharedTvPolicy());
     setCenterId("");
   }
-  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: actor.displayName, config: actor.character, wardRender: actor.wardRender })), [inside]);
+  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: displayNameForSharedTv(policy,actor.displayName), config: actor.character, wardRender: actor.wardRender })), [inside,policy]);
   const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((actor) => actor.wardSession?.status === "OPEN") ?? newest.find((actor) => actor.wardSession) ?? null; }, [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
@@ -353,7 +381,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     </main>;
   }
 
-  const visualScene = !onboardingPreview && (scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff")) ? scene : null;
+  const visualScene = !onboardingPreview && scene && eligibleTvEvent(policy,scene.kind==="arrival"?"ARRIVAL":"DEPARTURE",scene.occurredAt,new Date()) && (scene.phase === "performance" || (scene.kind === "arrival" && scene.phase === "handoff")) ? scene : null;
   const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.pinoriaSelfId);
   const departingId = scene?.kind === "departure" && scene.phase === "transition"
     && inside.some((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId && actorHasSource(actor, scene.sourceType, scene.sourceId))
@@ -366,7 +394,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     "--arrival-target-width": arrivalHandoffTarget.width,
     "--arrival-target-height": arrivalHandoffTarget.height,
   } as CSSProperties) : undefined;
-  const active = Boolean(visualScene || presentation || onboardingPreview);
+  const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
+  const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
   return <main ref={stageRef} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
@@ -397,8 +426,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} wardRender={visualScene.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.wardRender ?? undefined : undefined} />
       {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => setFailedArrivalCompanionIdentity(arrivalCompanionIdentity)} alt="" /></> : null}
       <div className={styles.copy}>
-        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
-        <h1>{visualScene.kind === "arrival" ? `Chào ${visualScene.name} ✦` : visualScene.name}</h1>
+        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${displayNameForSharedTv(policy,visualScene.name).toUpperCase()}` : "HẸN GẶP LẠI"}</span>
+        <h1>{visualScene.kind === "arrival" ? `Chào ${displayNameForSharedTv(policy,visualScene.name)} ✦` : displayNameForSharedTv(policy,visualScene.name)}</h1>
         {visualScene.kind === "arrival" && arrivalPath ? <div className={styles.arrivalPath} data-arrival-path={arrivalPath.code} aria-label={`Hành trình ${arrivalPath.displayName}`}>{arrivalPath.displayName}</div> : null}
         <p>{visualScene.kind === "arrival" ? arrivalCompanion ? `Hôm nay ${arrivalCompanion.species.displayName} đi cùng mình!` : "Chào mừng bạn đến Pinoria!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
@@ -410,12 +439,12 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
     </section> : null}
 
-    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
-    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
-    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={presentation.projection} /> : null}
-    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene ceremony={presentation.projection} /> : null}
+    {visiblePresentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={visiblePresentation.projection} /> : null}
+    {visiblePresentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={visiblePresentation.projection} /> : null}
+    {visiblePresentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={visiblePresentation.projection} /> : null}
+    {visiblePresentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene ceremony={visiblePresentation.projection} /> : null}
     {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
-    {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
+    {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession && eligibleTvEvent(policy,"QUICK_CHOICE",new Date().toISOString(),new Date()) ? <WardSessionTv learnerName={displayNameForSharedTv(policy,wardLearner.displayName)} session={wardLearner.wardSession} /> : null}
 
     <footer>
       <span>{new Date().toLocaleDateString("vi-VN", {

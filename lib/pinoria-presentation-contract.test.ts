@@ -14,8 +14,8 @@ test("Pinoria TV uses the unified Core presentation queue", () => {
   assert.match(binding, /completePresentation/);
   assert.match(route, /PINO_PINORIA_TV_CORE\.claimPresentation/);
   assert.match(route, /PINO_PINORIA_TV_CORE\.completePresentation/);
-  assert.match(reception, /presentation\?\.kind === "WISH_REVEAL"/);
-  assert.match(reception, /presentation\?\.kind === "EGG_HATCH"/);
+  assert.match(reception, /visiblePresentation\?\.kind === "WISH_REVEAL"/);
+  assert.match(reception, /visiblePresentation\?\.kind === "EGG_HATCH"/);
 });
 
 test("Egg Hatch presentation preserves the approved Mori visual recipe", () => {
