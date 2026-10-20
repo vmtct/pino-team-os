@@ -19,7 +19,7 @@ export function TvDeviceDiagnostics(){
     if(refreshInFlight.current)return;
     refreshInFlight.current=true;
     const generation=++requestGeneration.current;
-    setBusy(true);setError("");setDevices(null);setDisplays(null);setHealth(null);
+    setBusy(true);setError("");setHealth(null);
     try{
       const [response,displayResponse]=await Promise.all([fetch("/api/bo/tv/devices",{cache:"no-store"}),fetch("/api/bo/tv/displays",{cache:"no-store"})]);
       const payload=await response.json() as {data?:Device[];error?:{message?:string}};
