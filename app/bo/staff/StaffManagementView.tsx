@@ -1,11 +1,17 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoDataGrid, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
+import { staffDirectoryHref, staffFullDetailHref } from "@/lib/bo-staff-detail-navigation";
+import { buildStaffQuickPeekModel } from "@/lib/bo-staff-quick-peek";
+import { STAFF_DETAIL_TABS, resolveStaffDetailTab, staffDetailTabHref } from "@/lib/bo-staff-detail-tabs";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -40,12 +46,14 @@ const emptyData: Data = { actor: null, staff: [], users: [], roles: [], centers:
 const STAFF_GRID_OPTIONS = { defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] as const };
 type StaffGridRow = { staff: BoStaffRecord; user: BoAccessUser | null };
 
-export function StaffManagementView() {
+export function StaffManagementView({ detailStaffId }: { detailStaffId?: string } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const grid = useBoDataGridUrlState(STAFF_GRID_OPTIONS);
-  const selectedId = searchParams.get("staff") ?? "";
+  const detailOnly = detailStaffId !== undefined;
+  const activeTab = resolveStaffDetailTab(searchParams.get("tab"));
+  const selectedId = detailStaffId ?? searchParams.get("staff") ?? "";
   const [data, setData] = useState<Data>(emptyData);
   const [profile, setProfile] = useState<BoStaffProfile | null>(null);
   const [pinoria, setPinoria] = useState<PinoriaLoadState>({ status: "idle" });
@@ -98,6 +106,7 @@ export function StaffManagementView() {
 
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
   const accessUser = useMemo(() => data.users.find((item) => item.staffMemberId === selectedId) ?? null, [data.users, selectedId]);
+  const quickPeek = buildStaffQuickPeekModel(selected, accessUser, selected ? staffAttention(selected, accessUser).label : "Loading", selectedId);
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
   const privateCenterOptions = useMemo(() => {
     const ids = new Set((accessUser?.assignments ?? []).filter((item) => item.scopeType === "CENTER" && item.scopeId).map((item) => item.scopeId!));
@@ -145,6 +154,7 @@ export function StaffManagementView() {
   ], []);
 
   function selectStaff(nextId: string, history: "push" | "replace" = "replace") {
+    if (detailOnly) return;
     if (selectedIdRef.current !== nextId) {
       privateRevealFenceRef.current.invalidate();
       setPrivateData({ status: "idle" });
@@ -371,40 +381,12 @@ export function StaffManagementView() {
     } finally { setBusy(""); }
   }
 
-  return (
-    <section id="staff-management" className={styles.page}>
-      <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>
-      {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
-      <BoDataGrid
-        rows={visibleRows}
-        columns={columns}
-        rowKey={({ staff }) => staff.id}
-        caption="Staff directory"
-        search={grid.state.search}
-        onSearchChange={grid.setSearch}
-        searchPlaceholder="Tìm Staff, department, role, email…"
-        sortKey={grid.state.sortKey ?? "staff"}
-        sortDirection={grid.state.sortDirection}
-        onSortChange={grid.setSort}
-        filterChips={[
-          ...(staffStatusFilter === "all" ? [] : [{ key: "staffStatus", label: "Staff", value: staffStatusFilter, onClear: () => grid.setFilter("staffStatus", "all") }]),
-          ...(accessStatusFilter === "all" ? [] : [{ key: "accessStatus", label: "Access", value: accessStatusFilter, onClear: () => grid.setFilter("accessStatus", "all") }]),
-        ]}
-        resultLabel={`${sortedRows.length} / ${gridRows.length} staff`}
-        selectedRowKey={selectedId || null}
-        onRowOpen={busy === "password-reset" ? undefined : ({ staff }) => selectStaff(staff.id, "push")}
-        emptyTitle="Không có Staff phù hợp"
-        emptyMessage="Thử đổi search hoặc filter; canonical Staff/Access state không bị thay đổi."
-        pagination={{ page: gridRange.page, pageSize: grid.state.pageSize, total: sortedRows.length, pageSizeOptions: STAFF_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
-        toolbarActions={<div className={styles.staffGridToolbar}>
-          <label className={styles.gridToolbarFilter}>Staff<select aria-label="Filter Staff by status" value={staffStatusFilter} onChange={(event) => grid.setFilter("staffStatus", event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="all">All</option></select></label>
-          <label className={styles.gridToolbarFilter}>Access<select aria-label="Filter Staff by access" value={accessStatusFilter} onChange={(event) => grid.setFilter("accessStatus", event.target.value)}><option value="all">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="none">Not provisioned</option></select></label>
-        </div>}
-      />
-
-      {selectedId ? <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff detail" onClose={() => selectStaff("")}>
-        <div className={styles.staffGridPeek}><div className={styles.staffDetailStack}>
-          {!selected || !profile ? <section className={styles.panel}><p>Đang tải hồ sơ Staff…</p></section> : <>
+  const returnHref = staffDirectoryHref(searchParams.toString(), detailOnly);
+  const fullDetailHref = staffFullDetailHref(selectedId, searchParams.toString());
+  const detailContents = (
+    <div className={styles.staffDetailStack}>
+          {!selected || !profile ? <section className={styles.panel}>{error ? <p role="alert">Không thể tải hồ sơ Staff. Kiểm tra quyền truy cập hoặc mã nhân viên.</p> : <p>Đang tải hồ sơ Staff…</p>}</section> : <>
+            {(!detailOnly || activeTab === "profile") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>{profile.displayLabel}</h2><p>Operational profile · {profile.status}</p></div><span className={styles.writePill}>{profile.status}</span></div>
               <div className={styles.formGrid}>
@@ -465,6 +447,8 @@ export function StaffManagementView() {
               </div> : null}
             </section>
 
+            </> : null}
+            {(!detailOnly || activeTab === "pinoria") ? <>
             <section className={styles.panel} data-testid="staff-pinoria-panel">
               <div className={styles.panelHeading}>
                 <div><h2>Pinoria</h2><p>Read-only canonical Self, character/loadout và House presence.</p></div>
@@ -503,6 +487,8 @@ export function StaffManagementView() {
               </div> : null}
             </section>
 
+            </> : null}
+            {(!detailOnly || activeTab === "access") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>Access</h2><p>Role, scope và login state là canonical Access state riêng với Staff status.</p></div><span className={styles.writePill}>{accessUser?.status ?? "not provisioned"}</span></div>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
@@ -540,9 +526,85 @@ export function StaffManagementView() {
                 </div>
               </>}
             </section>
+            </> : null}
           </>}
-        </div></div>
-      </BoDataGridSidePeek> : null}
+    </div>
+  );
+
+  return (
+    <section id="staff-management" className={styles.page}>
+      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
+      {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
+      {!detailOnly ? <BoDataGrid
+        rows={visibleRows}
+        columns={columns}
+        rowKey={({ staff }) => staff.id}
+        caption="Staff directory"
+        search={grid.state.search}
+        onSearchChange={grid.setSearch}
+        searchPlaceholder="Tìm Staff, department, role, email…"
+        sortKey={grid.state.sortKey ?? "staff"}
+        sortDirection={grid.state.sortDirection}
+        onSortChange={grid.setSort}
+        filterChips={[
+          ...(staffStatusFilter === "all" ? [] : [{ key: "staffStatus", label: "Staff", value: staffStatusFilter, onClear: () => grid.setFilter("staffStatus", "all") }]),
+          ...(accessStatusFilter === "all" ? [] : [{ key: "accessStatus", label: "Access", value: accessStatusFilter, onClear: () => grid.setFilter("accessStatus", "all") }]),
+        ]}
+        resultLabel={`${sortedRows.length} / ${gridRows.length} staff`}
+        selectedRowKey={selectedId || null}
+        onRowOpen={busy === "password-reset" ? undefined : ({ staff }) => selectStaff(staff.id, "push")}
+        emptyTitle="Không có Staff phù hợp"
+        emptyMessage="Thử đổi search hoặc filter; canonical Staff/Access state không bị thay đổi."
+        pagination={{ page: gridRange.page, pageSize: grid.state.pageSize, total: sortedRows.length, pageSizeOptions: STAFF_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
+        toolbarActions={<div className={styles.staffGridToolbar}>
+          <label className={styles.gridToolbarFilter}>Staff<select aria-label="Filter Staff by status" value={staffStatusFilter} onChange={(event) => grid.setFilter("staffStatus", event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="all">All</option></select></label>
+          <label className={styles.gridToolbarFilter}>Access<select aria-label="Filter Staff by access" value={accessStatusFilter} onChange={(event) => grid.setFilter("accessStatus", event.target.value)}><option value="all">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="none">Not provisioned</option></select></label>
+        </div>}
+      /> : null}
+
+      {selectedId ? (detailOnly ? <div className={styles.staffFullWorkspace} data-testid="staff-full-detail">
+        <div className={styles.staffFullIdentity}>
+          <div><span className={styles.staffFullEyebrow}>STAFF DETAIL · {selectedId}</span><h2>{selected?.displayLabel ?? "Đang tải Staff..."}</h2><p>{selected?.roleLabel ?? selected?.department ?? "Chưa phân nhóm"} · {profile?.employmentType ?? "Chưa có loại hợp đồng"}</p><div className={styles.staffV2HeaderBadges}><span>Staff: {selected?.status ?? "Đang tải"}</span><span>Access: {accessUser?.status ?? "Chưa có Access"}</span><span>Center: {accessUser?.assignments.filter((item) => item.scopeType === "CENTER").map((item) => data.centers.find((center) => center.id === item.scopeId)?.displayName ?? item.scopeId).filter(Boolean).join(", ") || "Chưa xác định"}</span></div></div>
+          <Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Danh sách</Link>
+        </div>
+        <nav className={styles.staffV2Tabs} aria-label="Staff detail sections" data-testid="staff-v2-tabs">
+          {STAFF_DETAIL_TABS.map((tab) => <Link key={tab.key} href={staffDetailTabHref(pathname, searchParams.toString(), tab.key)}
+            className={activeTab === tab.key ? styles.staffV2TabActive : styles.staffV2Tab}
+            aria-current={activeTab === tab.key ? "page" : undefined}>{tab.label}</Link>)}
+        </nav>
+        {activeTab === "overview" ? <section className={styles.staffV2Overview} data-testid="staff-v2-overview">
+          {!selected || !profile ? <p role={error ? "alert" : "status"}>{error ? "Không thể tải hồ sơ Staff. Kiểm tra quyền truy cập hoặc mã nhân viên." : "Đang tải hồ sơ Staff…"}</p> : <>
+            <article><span>Staff status</span><strong>{profile.status}</strong></article>
+            <article><span>Access status</span><strong>{accessUser?.status ?? "Chưa có Access"}</strong></article>
+            <article><span>Phân nhóm</span><strong>{profile.roleLabel || profile.department || "Chưa có"}</strong></article>
+            <article><span>Access assignments</span><strong>{accessUser ? accessUser.assignments.length : "Chưa có Access"}</strong></article>
+            <aside className={styles.staffV2Rail} aria-label="Staff actions" data-testid="staff-v2-rail">
+              <h3>Cần chú ý</h3>
+              <p>{profile.status === "inactive" && accessUser?.status === "active"
+                ? "Staff inactive nhưng Access vẫn active; cần kiểm tra offboarding."
+                : profile.status === "active" && accessUser?.status !== "active"
+                  ? "Staff active nhưng Access chưa sẵn sàng."
+                  : "Chưa phát hiện lệch trạng thái Staff / Access từ dữ liệu hiện có."}</p>
+              <h3>Thao tác tiếp theo</h3>
+              <Link href={staffDetailTabHref(pathname, searchParams.toString(), "profile")}>Xem hồ sơ</Link>
+              <Link href={staffDetailTabHref(pathname, searchParams.toString(), "access")}>Kiểm tra Access</Link>
+              <small>Chỉ điều hướng; mọi chỉnh sửa và dữ liệu riêng tư vẫn dùng gate của từng tab.</small>
+            </aside>
+            {profile.status === "inactive" && accessUser?.status === "active" ? <p className={styles.staffV2Alert} role="alert">Staff đã inactive nhưng Access còn active. Kiểm tra tại tab Access.</p> : null}
+            {profile.status === "active" && (!accessUser || accessUser.status === "suspended") ? <p className={styles.staffV2Alert} role="status">Staff active nhưng Access chưa sẵn sàng.</p> : null}
+          </>}
+        </section> : null}
+        {(["profile", "pinoria", "access"] as const).includes(activeTab as "profile" | "pinoria" | "access") ? detailContents : null}
+        {(["assignments", "training", "income", "audit"] as const).includes(activeTab as "assignments" | "training" | "income" | "audit")
+          ? <section className={styles.panel} data-testid="staff-v2-unavailable"><h2>{STAFF_DETAIL_TABS.find(tab => tab.key === activeTab)?.label}</h2><p>Chức năng đang được triển khai. Chưa có dữ liệu được xác minh để hiển thị.</p></section> : null}
+      </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
+        <div className={styles.staffQuickPeek} data-testid="staff-quick-peek">
+          <div className={styles.staffQuickIdentity}><h3>{quickPeek.displayLabel}</h3><span>{quickPeek.staffId}</span></div>
+          <dl>{quickPeek.facts.map((fact) => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>
+          <p>Chỉ hiển thị dữ liệu Staff/Access thông thường. Hồ sơ nhạy cảm và các tác vụ rủi ro chỉ có trong chi tiết đầy đủ.</p>
+          <Link className={styles.primaryButton} href={fullDetailHref} data-testid="staff-open-full-detail">Mở chi tiết <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" /></Link>
+        </div>
+      </BoDataGridSidePeek>) : null}
     </section>
   );
 }

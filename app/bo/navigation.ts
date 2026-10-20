@@ -36,6 +36,7 @@ export const boNavigation: BoNavGroup[] = [
     label: "Learning",
     items: [
       { href: "/bo/syllabus", label: "Programs & Syllabus" },
+      { href: "/bo/missions", label: "Missions" },
       { href: "/bo/practice", label: "Practice" },
     ],
   }  ,{
@@ -47,6 +48,7 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/workforce/timekeeping", label: "Timekeeping" },
       { href: "/bo/workforce/compensation", label: "Lịch sử lương" },
       { href: "/bo/workforce/duty-exceptions", label: "Duty Exceptions" },
+      { href: "/bo/workforce/payroll/extra-time", label: "Duyệt thêm giờ" },
       { href: "/bo/training", label: "Training" },
     ],
   },
