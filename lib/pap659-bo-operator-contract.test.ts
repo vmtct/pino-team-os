@@ -25,3 +25,10 @@ test("PAP-659 diagnostics is explicit read-only BO status, never a physical ACK"
  assert.match(diagnostics,/Last seen không phải xác nhận TV đã render\/ACK/);
  assert.doesNotMatch(diagnostics,/method:\s*"POST"|method:\s*"PUT"|method:\s*"DELETE"/);
 });
+
+test("PAP-659 BO diagnostics never leaks TV runtime bearer or treats heartbeat as render acknowledgement",()=>{
+ const diagnostics=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");
+ assert.doesNotMatch(diagnostics,/\/api\/tv\/runtime\/|runtimeToken|PINO_TV_SESSION/);
+ assert.match(diagnostics,/không suy diễn từ Last seen/);
+ assert.match(diagnostics,/displays\?\.find/);
+});
