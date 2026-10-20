@@ -5,6 +5,9 @@ import { LayeredCharacter, pinoriaAssetUrl, type PinoriaCharacterConfig } from "
 import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime } from "./ambient-house-runtime";
 import type { AmbientHouseArea } from "./ambient-house-area";
+import savedSpatialGraph from "./ambient-house-motion-graph.saved.json";
+import type { AmbientMotionGraph } from "./ambient-house-motion";
+import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh,type HouseSpatialRefresh} from "../../lib/pinoria-house-spatial-runtime";
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
 import { claimPresentation, completePresentation } from "./presentation-client";
@@ -37,6 +40,8 @@ const DEPARTURE_PERFORMANCE_MS = 5200;
 
 export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[] } = {}) {
   const [centerId, setCenterId] = useState("");
+  const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
+  const liveActorCountRef=useRef(0);
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
   const [inside, setInside] = useState<PresenceActor[]>([]);
@@ -62,6 +67,37 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     setDraft(value);
     if (query && !fixedCenterId) localStorage.setItem(CENTER_STORAGE, query);
   }, [fixedCenterId]);
+  liveActorCountRef.current=inside.length+scenes.length+(presentation?1:0);
+  // Device-authenticated read of Core published TV config. An outage or invalid
+  // payload never replaces last-known-good. New geometry waits until House is empty.
+  useEffect(()=>{
+    if(!centerId){setSpatial({active:null,pending:null});return;}
+    let cancelled=false;
+    setSpatial({active:null,pending:null});
+    async function pollSpatial(){
+      try{
+        const response=await fetch(`${apiBase}/spatial-config?centerId=${encodeURIComponent(centerId)}`,{cache:"no-store"});
+        if(!response.ok)throw new Error("TV spatial config unavailable");
+        const body=await response.json() as {data?:unknown};
+        if(cancelled)return;
+        const candidate=parsePublishedHouseSpatialConfig(body.data);
+        if(candidate)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,candidate,liveActorCountRef.current));
+      }catch{/* Fails closed: keep saved/default or last-known-good revision. */}
+    }
+    void pollSpatial();
+    const timer=window.setInterval(()=>void pollSpatial(),12000);
+    return()=>{cancelled=true;window.clearInterval(timer);};
+  },[centerId,apiBase]);
+  useEffect(()=>{
+    if(inside.length===0&&scenes.length===0&&!presentation)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,null,0));
+  },[inside.length,scenes.length,presentation]);
+  const spatialGraph=useMemo<AmbientMotionGraph | undefined>(()=>{
+    const current=spatial.active?.configuration;
+    if(!current)return undefined;
+    return {...(savedSpatialGraph as AmbientMotionGraph),canvas:current.canvas,
+      horizontalLanes:current.graph.horizontalLanes,rawConnectors:current.graph.rawConnectors};
+  },[spatial.active]);
+  const configuredAreas=spatial.active?.configuration.areas ?? approvedHouseAreas;
   const pollHouse = useCallback(async () => {
     if (!centerId || housePollInFlight.current) return;
     housePollInFlight.current = true;
@@ -378,7 +414,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <AmbientHouseRuntime actors={ambientActors} areas={approvedHouseAreas} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
+    </header>    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
 
     {visualScene ? <section
       key={visualScene.id}

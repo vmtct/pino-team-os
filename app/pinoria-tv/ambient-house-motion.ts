@@ -420,6 +420,7 @@ export function reconcileAmbientAgents(
   ids: readonly string[],
   graph: AmbientMotionGraph,
   preferredLaneIds: ReadonlyMap<string, readonly string[]> = new Map(),
+  emergencePins: ReadonlyMap<string, readonly {laneId: string; x: number}[]> = new Map(),
 ): AmbientAgent[] {
   const desired = new Set(ids);
   const retained = previous.filter((agent) => desired.has(agent.id));
@@ -429,10 +430,15 @@ export function reconcileAmbientAgents(
   const candidates = placementCandidates(graph);
   for (const id of missing) {
     const preferred = new Set(preferredLaneIds.get(id) ?? []);
+    const pinnedSlot = (emergencePins.get(id) ?? []).map((pin) => {
+      const lane = graph.horizontalLanes.find((candidate) => candidate.id === pin.laneId);
+      return lane && Number.isFinite(pin.x) && pin.x >= lane.x1 + 36 && pin.x <= lane.x2 - 36
+        ? {lane, x:pin.x, y:lane.y} : null;
+    }).find((candidate) => candidate && slotCanReserve(candidate, next, graph));
     const preferredSlot = preferred.size
       ? candidates.find((candidate) => preferred.has(candidate.lane.id) && slotCanReserve(candidate, next, graph))
       : undefined;
-    const slot = preferredSlot ?? candidates.find((candidate) => slotCanReserve(candidate, next, graph));
+    const slot = pinnedSlot ?? preferredSlot ?? candidates.find((candidate) => slotCanReserve(candidate, next, graph));
     if (!slot) throw new Error("AMBIENT_HOUSE_CAPACITY_EXCEEDED");
     next.push(createAmbientAgentAtSlot(id, slot));
   }

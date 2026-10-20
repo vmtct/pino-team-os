@@ -25,14 +25,15 @@ export type AmbientHouseActor = {
   experience?: PresenceExperience;
 };
 
-const GRAPH = graphData as AmbientMotionGraph;
+const SAVED_GRAPH = graphData as AmbientMotionGraph;
 const NO_APPROVED_AREAS: readonly AmbientHouseArea[] = [];
 const HOUSE_ASSETS = {
   back: "https://assets.pinohouse.art/draft/HouseBack.png",
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionGraph, emergencePins = [], departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; motionGraph?: AmbientMotionGraph | null; emergencePins?: readonly {id:string;areaId:string;laneId:string;x:number;y:number}[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+  const GRAPH = motionGraph ?? SAVED_GRAPH;
   const idsKey = actors.map((actor) => actor.id).sort().join("|");
   const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
   // Areas are supplied by an explicitly approved House configuration.
@@ -47,19 +48,28 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
     () => new Map<string, readonly string[]>(JSON.parse(resolvedLaneKey) as [string, string[]][]),
     [resolvedLaneKey],
   );
+  const emergenceKey = JSON.stringify(actors.flatMap((actor) => {
+    const resolved = resolveAmbientHouseArea(actor.experience ?? null, GRAPH, areas);
+    if (resolved.kind !== "AREA") return [];
+    return [[actor.id, emergencePins.filter((pin) => pin.areaId === resolved.areaId)
+      .map((pin) => ({laneId:pin.laneId,x:pin.x}))] as const];
+  }).sort(([a],[b]) => a.localeCompare(b)));
+  const preferredEmergencePins = useMemo(() =>
+    new Map<string, readonly {laneId:string;x:number}[]>(JSON.parse(emergenceKey) as [string,{laneId:string;x:number}[]][]),
+    [emergenceKey]);
   const speedMultipliers = useMemo(() => new Map(actors.map((actor) => [actor.id, resolvePinoriaEffectPresentation(actor.effectKey)?.speedMultiplier ?? 1])), [actors]);
   const departing = useMemo(() => new Set(departingId ? [departingId] : []), [departingId]);
   const suppressed = new Set(suppressedIds);
   const frozenKey = JSON.stringify(frozenIds);
-  const [agents, setAgents] = useState<AmbientAgent[]>(() => reconcileAmbientAgents([], actors.map((actor) => actor.id), GRAPH, preferredLaneIds));
+  const [agents, setAgents] = useState<AmbientAgent[]>(() => reconcileAmbientAgents([], actors.map((actor) => actor.id), GRAPH, preferredLaneIds, preferredEmergencePins));
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
 
   useEffect(() => {
     const desiredIds = idsKey ? idsKey.split("|") : [];
-    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH, preferredLaneIds));
+    setAgents((current) => reconcileAmbientAgents(current, desiredIds, GRAPH, preferredLaneIds, preferredEmergencePins));
     previousFrame.current = null;
-  }, [idsKey, resolvedLaneKey, preferredLaneIds]);
+  }, [idsKey, resolvedLaneKey, preferredLaneIds, preferredEmergencePins, GRAPH]);
 
   useEffect(() => {
     const frozen = new Set(JSON.parse(frozenKey) as string[]);
@@ -76,7 +86,7 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, departi
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [departing, frozenKey, speedMultipliers, resolvedLaneKey, preferredLaneIds]);
+  }, [departing, frozenKey, speedMultipliers, resolvedLaneKey, preferredLaneIds, GRAPH]);
 
   const behind = agents.filter((agent) => agent.depth === "behind");
   const front = agents.filter((agent) => agent.depth === "front");
