@@ -31,7 +31,7 @@ export default function PayrollPeriodsView(){
    .catch(()=>{/* Staff directory is optional, Core enforces payroll ACL. */});
   return()=>{live=false;};
  },[]);
- useEffect(()=>{fence.current++;setSelected(null);setPage(null);setStaffRows([]);setActiveStaff(null);
+ useEffect(()=>{fence.current++;setPeriods([]);setPeriodOffset(null);setSelected(null);setPage(null);setStaffRows([]);setActiveStaff(null);
   setDetail(null);setEditing(false);setError("");setNotice("");pendingKey.current=null;
   if(!centerId)return;const id=fence.current;setLoading(true);
   void periodApi.list(centerId).then(r=>{if(id!==fence.current)return;setPeriods(r.data.data);
