@@ -24,7 +24,9 @@ export function TvDeviceDiagnostics(){
       if(!response.ok || !Array.isArray(payload.data))throw new Error(payload.error?.message??"Không thể đọc device status");
       const displayPayload=await displayResponse.json() as {data?:Display[];error?:{message?:string}};
       if(!displayResponse.ok || !Array.isArray(displayPayload.data))throw new Error(displayPayload.error?.message??"Không thể đọc TV definitions");
-      const operatorHealth=centerId.trim()?await operatorPresentationClient.operatorHealth(centerId.trim()):null;
+      const allowedCenters=[...new Set(payload.data.map(device=>device.centerId).filter((id):id is string=>Boolean(id)))];
+      const selectedCenter=allowedCenters.includes(centerId.trim())?centerId.trim():allowedCenters.length===1?allowedCenters[0]:null;
+      const operatorHealth=selectedCenter?await operatorPresentationClient.operatorHealth(selectedCenter):null;
       if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setHealth(operatorHealth);}
     }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
     finally{if(generation===requestGeneration.current)setBusy(false);}
@@ -32,7 +34,7 @@ export function TvDeviceDiagnostics(){
   return <section aria-label="TV device diagnostics" style={{border:"1px solid #ddd",borderRadius:12,padding:16,marginTop:16}}>
     <h2>Thiết bị & trạng thái kết nối</h2>
     <p>Chỉ báo cáo trạng thái thiết bị từ BO. Last seen không phải xác nhận TV đã render/ACK. Mở hoặc focus cửa sổ TV từ trình duyệt BO không được hỗ trợ.</p>
-    <label>Center ID cho health projection <input aria-label="Center ID for operator health" value={centerId} onChange={e=>{requestGeneration.current+=1;setCenterId(e.target.value);setHealth(null);setBusy(false);}} /></label>
+    <label>Center được phép xem <select aria-label="Center for operator health" value={centerId} onChange={e=>{requestGeneration.current+=1;setCenterId(e.target.value);setHealth(null);setBusy(false);}}><option value="">Tự chọn khi chỉ có một center</option>{[...new Set((devices??[]).map(device=>device.centerId).filter((id):id is string=>Boolean(id)))].map(id=><option key={id} value={id}>{id}</option>)}</select></label>
     <button type="button" disabled={busy} onClick={()=>void refresh()}>{busy?"Đang tải…":"Làm mới thiết bị"}</button>
     {error?<p role="alert">{error}</p>:null}
     {health?<p role="status">Core queue revision {health.queueRevision} · Pending {health.queuedCount} · Active {health.activePresentation?.kind??"None"} · Renderer ACK chưa xác thực</p>:null}
