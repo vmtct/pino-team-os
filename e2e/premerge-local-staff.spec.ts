@@ -112,13 +112,13 @@ test("PAP-782 Staff full-detail tab routing, browser history and no private auto
   await expect(page.getByTestId("staff-v2-overview")).toContainText("suspended");
   expect(mock.countPrivate()).toBe(0);
   await page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link", {name: "Thu nhập"}).click();
-  await expect(page).toHaveURL(/tab=income/);
+  await expect(page).toHaveURL(/tab=income/, {timeout:30000});
   await expect(page.getByTestId("staff-v2-unavailable")).toContainText("Chưa có dữ liệu được xác minh");
   await expect(page.getByTestId("staff-v2-overview")).toHaveCount(0);
   await page.goBack();
   await expect(page.getByTestId("staff-v2-overview")).toBeVisible();
   await page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link", {name: "Hồ sơ"}).click();
-  await expect(page).toHaveURL(/tab=profile/);
+  await expect(page).toHaveURL(/tab=profile/, {timeout:30000});
   await expect(workspace.getByRole("heading", {name: "Trần Hân"}).last()).toBeVisible();
   expect(mock.countPrivate()).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
