@@ -26,7 +26,8 @@ export function TvDeviceDiagnostics(){
       if(!displayResponse.ok || !Array.isArray(displayPayload.data))throw new Error(displayPayload.error?.message??"Không thể đọc TV definitions");
       const allowedCenters=[...new Set(payload.data.map(device=>device.centerId).filter((id):id is string=>Boolean(id)))];
       const selectedCenter=allowedCenters.includes(centerId.trim())?centerId.trim():allowedCenters.length===1?allowedCenters[0]:null;
-      const operatorHealth=selectedCenter?await operatorPresentationClient.operatorHealth(selectedCenter):null;
+      let operatorHealth:OperatorHealth|null=null;
+      if(selectedCenter){try{operatorHealth=await operatorPresentationClient.operatorHealth(selectedCenter);}catch(cause){if(generation===requestGeneration.current)setError(cause instanceof Error?cause.message:"Core health không khả dụng");}}
       if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setCenterId(selectedCenter??"");setHealth(operatorHealth);}
     }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
     finally{if(generation===requestGeneration.current)setBusy(false);}

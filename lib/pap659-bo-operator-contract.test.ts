@@ -37,7 +37,8 @@ test("PAP-659 health read uses only centers returned by authorized device lookup
  const diagnostics=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");
  assert.match(diagnostics,/allowedCenters\.includes\(centerId\.trim\(\)\)/);
  assert.match(diagnostics,/allowedCenters\.length===1\?allowedCenters\[0\]:null/);
- assert.match(diagnostics,/selectedCenter\?await operatorPresentationClient\.operatorHealth\(selectedCenter\):null/);
+ assert.match(diagnostics,/operatorHealth=await operatorPresentationClient\.operatorHealth\(selectedCenter\)/);
+ assert.match(diagnostics,/catch\(cause\).*setError/);
  assert.match(diagnostics,/<select aria-label="Center for operator health"/);
  assert.doesNotMatch(diagnostics,/<input aria-label="Center ID for operator health"/);
 });
