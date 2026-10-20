@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Device = {id:string;displayName:string;centerId:string|null;status:string;lastSeenAt:string|null;defaultDisplayId:string|null;viewportWidth:number|null;viewportHeight:number|null};
 type Display = {id:string;displayName:string;runtimeType:string;scopeType:string;scopeId:string|null;targetAspectRatio:string;definitionVersion:number;status:string};
@@ -9,8 +9,11 @@ export function TvDeviceDiagnostics(){
   const [displays,setDisplays]=useState<Display[]|null>(null);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
+  const requestGeneration=useRef(0);
+  useEffect(()=>()=>{requestGeneration.current+=1;},[]);
   async function refresh(){
     if(busy)return;
+    const generation=++requestGeneration.current;
     setBusy(true);setError("");setDevices(null);setDisplays(null);
     try{
       const [response,displayResponse]=await Promise.all([fetch("/api/bo/tv/devices",{cache:"no-store"}),fetch("/api/bo/tv/displays",{cache:"no-store"})]);
@@ -18,9 +21,9 @@ export function TvDeviceDiagnostics(){
       if(!response.ok || !Array.isArray(payload.data))throw new Error(payload.error?.message??"Không thể đọc device status");
       const displayPayload=await displayResponse.json() as {data?:Display[];error?:{message?:string}};
       if(!displayResponse.ok || !Array.isArray(displayPayload.data))throw new Error(displayPayload.error?.message??"Không thể đọc TV definitions");
-      setDevices(payload.data);setDisplays(displayPayload.data);
-    }catch(e){setError(e instanceof Error?e.message:"Không thể đọc device status");}
-    finally{setBusy(false);}
+      if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);}
+    }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
+    finally{if(generation===requestGeneration.current)setBusy(false);}
   }
   return <section aria-label="TV device diagnostics" style={{border:"1px solid #ddd",borderRadius:12,padding:16,marginTop:16}}>
     <h2>Thiết bị & trạng thái kết nối</h2>
