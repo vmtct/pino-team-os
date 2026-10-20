@@ -493,3 +493,19 @@
 .accessGridFacts span { color: #8b8790; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .accessGridFacts strong { color: #4b4650; font-size: 9px; }
 @media (max-width: 640px) { .accessGridFacts { grid-template-columns: 1fr; } }
+
+/* PAP-781 — bounded Staff quick peek and full detail navigation */
+.staffQuickPeek { display:grid; gap:17px; color:#443e50; }
+.staffQuickIdentity { display:grid; gap:5px; padding:6px 0 12px; border-bottom:1px solid #eeeaf4; }
+.staffQuickIdentity h3 { font-size:17px; margin:0; }
+.staffQuickIdentity span, .staffQuickPeek p { font-size:11px; line-height:1.65; color:#898393; }
+.staffQuickPeek dl { margin:0; display:grid; gap:0; }
+.staffQuickPeek dl>div { display:flex; align-items:center; justify-content:space-between; gap:15px; border-bottom:1px solid #f0eef4; padding:11px 0; font-size:11px; }
+.staffQuickPeek dt { color:#827e8b; } .staffQuickPeek dd { margin:0; font-weight:750; text-align:right; }
+.staffQuickPeek>a { justify-self:start; text-decoration:none; }
+.staffFullWorkspace { display:grid; gap:18px; width:100%; min-width:0; }
+.staffFullIdentity { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:21px 24px; border:1px solid #ebe7f1; background:#fff; border-radius:15px; }
+.staffFullEyebrow { font-size:10px; color:#887baa; letter-spacing:.13em; font-weight:800; }
+.staffFullIdentity h2 { font-size:23px; margin:7px 0 4px; } .staffFullIdentity p { font-size:11px; color:#827d89; margin:0; }
+.staffFullWorkspace .staffDetailStack { display:grid; gap:17px; }
+@media(max-width:640px){.staffFullIdentity {padding:16px; align-items:start; flex-direction:column;} .staffFullIdentity h2{font-size:19px;} }
