@@ -9,6 +9,7 @@ const DELIVERY_FUTURE_RESERVATION_POLICY_READ = /^policies\/delivery\/future_res
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
 const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY|AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/(effective|stream)$/;
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
+const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/projected-completion$/;
@@ -99,6 +100,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || TV_SPATIAL_CONFIG_READ.has(path)
     || path === "pinoria/effects/catalog"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
@@ -187,7 +189,27 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
   return undefined;
 }
 
-function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (TV_SPATIAL_CONFIG_READ.has(path)) {
+    const supported = path.endsWith("/active") ? ["centerId"] : path.endsWith("/version") ? ["scope","centerId","versionId"] : ["scope","centerId"];
+    for (const key of url.searchParams.keys()) if (!supported.includes(key)) throw new RangeError("Unknown spatial config query key");
+    const centerId = url.searchParams.get("centerId")?.trim();
+    if (path.endsWith("/active")) {
+      if (!centerId) throw new RangeError("centerId is required");
+      return { centerId };
+    }
+    const kind = url.searchParams.get("scope");
+    if (kind !== "DEFAULT" && kind !== "CENTER") throw new RangeError("Invalid spatial config scope");
+    if (kind === "DEFAULT" && centerId) throw new RangeError("Unexpected Center on default scope");
+    if (kind === "CENTER" && !centerId) throw new RangeError("Center scope requires centerId");
+    const body: Record<string, unknown> = { scope: kind === "DEFAULT" ? {kind:"DEFAULT"} : {kind:"CENTER",centerId} };
+    if (path.endsWith("/version")) {
+      const versionId = url.searchParams.get("versionId")?.trim();
+      if (!versionId) throw new RangeError("versionId is required");
+      body.versionId = versionId;
+    }
+    return body;
+  }
   if (path === "subscriptions") { const result:Record<string,unknown>={}; for(const key of ["query","lifecycle","pathProgramId","centerId","beforeCreatedAt","beforeSubscriptionId"]){ const value=url.searchParams.get(key); if(value!==null&&value!=="")result[key]=value; } const limit=url.searchParams.get("limit"); if(limit!==null&&/^\d+$/.test(limit))result.limit=Number(limit); return result; }
   if (path === "pinoria/worlds/instances") {
     const permitted=["query","worldId","status","limit","offset","sortKey","sortDirection"];
