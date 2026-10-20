@@ -31,6 +31,7 @@ export function TvDeviceDiagnostics(){
     <button type="button" disabled={busy} onClick={()=>void refresh()}>{busy?"Đang tải…":"Làm mới thiết bị"}</button>
     {error?<p role="alert">{error}</p>:null}
     {devices?.length===0?<p>Không có thiết bị được cấp quyền xem.</p>:null}
+    <p><small>Chẩn đoán phiên TV thời gian thực, build manifest, phiên bản cấu hình đã áp dụng và tình trạng tài nguyên: chưa có read projection do Core xác thực. Không hiển thị dữ liệu giả hoặc sử dụng token của TV.</small></p>
     {displays?.map(display=><article key={display.id} style={{padding:"8px 0"}}><strong>{display.displayName}</strong> · {display.status}<p>Runtime: {display.runtimeType} · Scope: {display.scopeType} · Aspect: {display.targetAspectRatio} · Definition v{display.definitionVersion}</p></article>)}
     {devices?.map(device=><article key={device.id} style={{padding:"10px 0",borderBottom:"1px solid #eee"}}>
       <strong>{device.displayName}</strong> · {device.status}
