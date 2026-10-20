@@ -18,6 +18,9 @@ test("PAP-659 diagnostics is explicit read-only BO status, never a physical ACK"
  const diagnostics=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");
  assert.match(page,/TvDeviceDiagnostics/);
  assert.match(diagnostics,/\/api\/bo\/tv\/devices/);
+ assert.match(diagnostics,/\/api\/bo\/tv\/displays/);
+ assert.match(diagnostics,/definitionVersion/);
+ assert.match(diagnostics,/runtimeType/);
  assert.match(diagnostics,/cache:"no-store"/);
  assert.match(diagnostics,/Last seen không phải xác nhận TV đã render\/ACK/);
  assert.doesNotMatch(diagnostics,/method:\s*"POST"|method:\s*"PUT"|method:\s*"DELETE"/);
