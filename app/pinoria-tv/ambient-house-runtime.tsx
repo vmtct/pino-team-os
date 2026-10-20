@@ -32,7 +32,7 @@ export const HOUSE_ASSETS = {
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionGraph, emergencePins = [], departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; motionGraph?: AmbientMotionGraph | null; emergencePins?: readonly {id:string;areaId:string;laneId:string;x:number;y:number}[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionGraph, emergencePins = [], departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; motionGraph?: AmbientMotionGraph | null; emergencePins?: readonly {id:string;areaId?:string;laneId:string;x:number;y:number}[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
   const GRAPH = motionGraph ?? SAVED_GRAPH;
   const idsKey = actors.map((actor) => actor.id).sort().join("|");
   const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
@@ -50,8 +50,9 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionG
   );
   const emergenceKey = JSON.stringify(actors.flatMap((actor) => {
     const resolved = resolveAmbientHouseArea(actor.experience ?? null, GRAPH, areas);
-    if (resolved.kind !== "AREA") return [];
-    return [[actor.id, emergencePins.filter((pin) => pin.areaId === resolved.areaId)
+    const assigned = resolved.kind === "AREA" ? emergencePins.filter((pin) => pin.areaId === resolved.areaId) : [];
+    const pins = assigned.length ? assigned : emergencePins.filter((pin) => !pin.areaId);
+    return [[actor.id, pins
       .map((pin) => ({laneId:pin.laneId,x:pin.x}))] as const];
   }).sort(([a],[b]) => a.localeCompare(b)));
   const preferredEmergencePins = useMemo(() =>

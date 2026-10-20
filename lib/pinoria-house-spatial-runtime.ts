@@ -9,7 +9,7 @@ export type PublishedHouseSpatialConfig = {
     canvas: { width: 1920; height: 1080 };
     graph: { horizontalLanes: AmbientMotionGraph["horizontalLanes"]; rawConnectors: NonNullable<AmbientMotionGraph["rawConnectors"]> };
     areas: AmbientHouseArea[];
-    emergencePins: Array<{ id: string; areaId: string; laneId: string; x: number; y: number }>;
+    emergencePins: Array<{ id: string; areaId?: string; laneId: string; x: number; y: number }>;
   };
 };
 export type HouseSpatialRefresh = { active: PublishedHouseSpatialConfig | null; pending: PublishedHouseSpatialConfig | null };
@@ -43,6 +43,10 @@ export function parsePublishedHouseSpatialConfig(input: unknown): PublishedHouse
       || !finite(area.bounds.width) || !finite(area.bounds.height) || area.bounds.width<=0 || area.bounds.height<=0
       || area.bounds.x < 0 || area.bounds.y < 0
       || area.bounds.x+area.bounds.width>1920 || area.bounds.y+area.bounds.height>1080) return null;
+    if(area.points!==undefined){
+      if(!Array.isArray(area.points)||area.points.length<3||area.points.length>32
+        ||area.points.some((p:unknown)=>!record(p)||!point(p)))return null;
+    }
     for (const key of ["pathCodes", "learningSpaceCodes"] as const) {
       const codes = area[key];
       if (codes!==undefined && (!Array.isArray(codes) || codes.some(x=>typeof x!=="string"))) return null;
@@ -53,7 +57,7 @@ export function parsePublishedHouseSpatialConfig(input: unknown): PublishedHouse
       }
     }
   }
-  for(const pin of pins) if(!record(pin)||typeof pin.id!=="string"||typeof pin.areaId!=="string"||typeof pin.laneId!=="string"||!point(pin))return null;
+  for(const pin of pins) if(!record(pin)||typeof pin.id!=="string"||(pin.areaId!==undefined&&typeof pin.areaId!=="string")||typeof pin.laneId!=="string"||!point(pin))return null;
   return input as PublishedHouseSpatialConfig;
 }
 /**
