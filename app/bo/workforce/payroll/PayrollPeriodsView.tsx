@@ -57,9 +57,9 @@ export default function PayrollPeriodsView(){
   window.addEventListener("pagehide",clear);document.addEventListener("visibilitychange",visibility);
   return()=>{window.removeEventListener("pagehide",clear);document.removeEventListener("visibilitychange",visibility);};
  },[]);
- function choose(period:PayPeriod){setSelected(period);setActiveStaff(null);setDetail(null);setStaffSearch("");
+ function choose(period:PayPeriod){fence.current++;setSelected(period);setActiveStaff(null);setDetail(null);setStaffSearch("");
   setPaymentDate("");setPaymentReference("");setAck(false);setEditing(false);setNotice("");setError("");}
- function edit(period:PayPeriod){setSelected(period);setForm({name:period.name,startDate:period.startDate,endDate:period.endDate});
+ function edit(period:PayPeriod){fence.current++;setSelected(period);setForm({name:period.name,startDate:period.startDate,endDate:period.endDate});
   setEditing(true);setError("");}
  function fresh(){setRevision(x=>x+1);}
  async function save(e:FormEvent){e.preventDefault();if(busy||!centerId||!validPeriodInput(form))return;
@@ -71,12 +71,14 @@ export default function PayrollPeriodsView(){
    pendingKey.current=null;setEditing(false);setNotice("Core đã lưu kỳ lương.");fresh();
   }catch(e){setError(errorText(e));}finally{setBusy(false);}
  }
- async function morePeriods(){if(periodOffset===null||loading)return;setLoading(true);
-  try{const r=await periodApi.list(centerId,periodOffset);setPeriods(x=>[...x,...r.data.data]);
-   setPeriodOffset(r.data.nextOffset);}catch(e){setError(errorText(e));}finally{setLoading(false);}
+ async function morePeriods(){if(periodOffset===null||loading)return;const token=fence.current;setLoading(true);
+  try{const r=await periodApi.list(centerId,periodOffset);if(token!==fence.current)return;
+   setPeriods(x=>[...x,...r.data.data]);setPeriodOffset(r.data.nextOffset);}catch(e){setError(errorText(e));}finally{setLoading(false);}
  }
- async function moreStaff(){if(!selected||staffOffset===null||loading)return;setLoading(true);
-  try{const r=await periodApi.staff(centerId,selected.id,staffOffset);
+ async function moreStaff(){if(!selected||staffOffset===null||loading)return;
+  const token=fence.current,periodId=selected.id;setLoading(true);
+  try{const r=await periodApi.staff(centerId,periodId,staffOffset);
+   if(token!==fence.current)return;
    setStaffRows(x=>[...x,...r.data.rows]);setStaffOffset(r.data.nextOffset);
   }catch(e){setError(errorText(e));}finally{setLoading(false);}
  }
