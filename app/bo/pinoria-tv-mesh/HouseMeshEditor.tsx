@@ -5,6 +5,7 @@ import prototypeAreas from "../../pinoria-tv/ambient-house-areas.prototype.json"
 import prototypeEmergence from "../../pinoria-tv/ambient-house-emergence.prototype.json";
 import {prototypeSpatialDraft,boundsOfPoints,translatePolygon} from "@/lib/pinoria-tv-mesh-geometry";
 import {draftFromSavedGraph,spatialTvConfigApi,configIssues,type Area,type Connector,type EmergencePin,type Lane,type Point,type SpatialConfig,type SpatialHead,type SpatialVersion,type TvConfigScope} from "@/lib/pinoria-tv-spatial-config-client";
+import {createAmbientAgents,stepAmbientAgents,ambientMinimumVisibleSeparation,type AmbientAgent,type AmbientMotionGraph} from "../../pinoria-tv/ambient-house-motion";
 import styles from "./mesh.module.css";
 type Mode="select"|"lane"|"connector"|"area"|"pin";
 type Pick={kind:"lane"|"area"|"pin"|"connector";id:string}|null;
@@ -16,8 +17,24 @@ export function HouseMeshEditor(){
  const svg=useRef<SVGSVGElement>(null),history=useRef<SpatialConfig[]>([]),anchor=useRef<Point|null>(null),drag=useRef<{pick:Pick;origin:SpatialConfig;from:Point;vertexIndex?:number}|null>(null);
  const[config,setConfig]=useState<SpatialConfig>(seedConfig),[mode,setMode]=useState<Mode>("select"),[pick,setPick]=useState<Pick>(null),[scopeKind,setScopeKind]=useState<"DEFAULT"|"CENTER">("DEFAULT"),[centerId,setCenterId]=useState("");
  const[head,setHead]=useState<SpatialHead|null>(null),[versions,setVersions]=useState<SpatialVersion[]>([]),[chosenVersion,setChosenVersion]=useState(""),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[info,setInfo]=useState(""),[error,setError]=useState("");
- const[zoom,setZoom]=useState(1),[snap,setSnap]=useState(true),[globalPin,setGlobalPin]=useState(true);
+ const[zoom,setZoom]=useState(1),[snap,setSnap]=useState(true),[globalPin,setGlobalPin]=useState(true),[simulating,setSimulating]=useState(false),[previewActors,setPreviewActors]=useState<AmbientAgent[]>([]);
  const issues=useMemo(()=>configIssues(config),[config]),scope:TvConfigScope=scopeKind==="DEFAULT"?{kind:"DEFAULT"}:{kind:"CENTER",centerId};
+ const previewGraph=useMemo<AmbientMotionGraph>(()=>({
+   canvas:{width:1920,height:1080},miniCharacter:{width:164,height:115},
+   horizontalLanes:config.graph.horizontalLanes,rawConnectors:config.graph.rawConnectors,
+ }),[config]);
+ useEffect(()=>{
+   if(!simulating||issues.length){setPreviewActors([]);return;}
+   const ids=Array.from({length:20},(_,i)=>`preview-actor-${i+1}`);
+   let current:AmbientAgent[];
+   try{current=createAmbientAgents(ids,previewGraph);}catch{setSimulating(false);setError("Mesh preview has no safe placement");return;}
+   setPreviewActors(current);
+   const timer=window.setInterval(()=>{
+     try{current=stepAmbientAgents(current,previewGraph,64);setPreviewActors(current);}
+     catch{window.clearInterval(timer);setSimulating(false);setError("Mesh preview stopped: motion constraint failed");}
+   },64);
+   return()=>window.clearInterval(timer);
+ },[simulating,previewGraph,issues.length]);
  const selectedArea=pick?.kind==="area"?config.areas.find(a=>a.id===pick.id):config.areas[0];
  const selected=pick?.kind==="lane"?config.graph.horizontalLanes.find(a=>a.id===pick.id):pick?.kind==="area"?config.areas.find(a=>a.id===pick.id):pick?.kind==="pin"?config.emergencePins.find(a=>a.id===pick.id):pick?.kind==="connector"?config.graph.rawConnectors.find(a=>a.id===pick.id):null;
  function mutate(edit:(v:SpatialConfig)=>void){setConfig(prev=>{history.current.push(structuredClone(prev));const next=structuredClone(prev);edit(next);return next;});setDirty(true);setError("");}
@@ -84,7 +101,7 @@ export function HouseMeshEditor(){
  return <main className={styles.page}><header><div><small>PINORIA TV · PAP-656</small><h1>House Mesh Configurator</h1><p>16:9 · 1920×1080 canvas · versioned Core authority</p></div><div className={styles.row}><button onClick={()=>{const h=history.current.pop();if(h){setConfig(h);setDirty(true);}}}>Undo</button><button onClick={()=>void load()}>Reload</button><button onClick={()=>void save("drafts")} disabled={busy||!dirty}>Save draft</button></div></header>
  <nav className={styles.row}><label>Scope <select value={scopeKind} onChange={e=>setScopeKind(e.target.value as "DEFAULT"|"CENTER")}><option>DEFAULT</option><option>CENTER</option></select></label>{scopeKind==="CENTER"&&<label>Center ID <input value={centerId} onChange={e=>setCenterId(e.target.value)} placeholder="Center UUID"/></label>}<button onClick={()=>void load()} disabled={busy}>Open</button><label>Zoom <input aria-label="Canvas zoom" type="range" min="1" max="2.5" step=".25" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/>{Math.round(zoom*100)}%</label><label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap 10px</label><span>Revision {head?.revision??0} · {dirty?"Unsaved":"Synced"}</span></nav>
  {error&&<p role="alert" className={styles.error}>{error}</p>}{info&&<p role="status">{info}</p>}
- <section className={styles.workbench}><aside className={styles.panel}><h3>Tools</h3>{(["select","lane","connector","area","pin"] as Mode[]).map(v=><button key={v} className={mode===v?styles.active:""} onClick={()=>{setMode(v);anchor.current=null;}}>{({select:"↖ Select / drag",lane:"━ Lane",connector:"╱ Connector",area:"▧ Area bounds",pin:"● Emergence pin"})[v]}</button>)}<hr/><small>{config.graph.horizontalLanes.length} lanes · {config.graph.rawConnectors.length} connectors</small><small>{config.areas.length} areas · {config.emergencePins.length} pins</small><label><input type="checkbox" checked={globalPin} onChange={e=>setGlobalPin(e.target.checked)}/>Global emergence</label></aside>
+ <section className={styles.workbench}><aside className={styles.panel}><h3>Tools</h3>{(["select","lane","connector","area","pin"] as Mode[]).map(v=><button key={v} className={mode===v?styles.active:""} onClick={()=>{setMode(v);anchor.current=null;}}>{({select:"↖ Select / drag",lane:"━ Lane",connector:"╱ Connector",area:"▧ Area bounds",pin:"● Emergence pin"})[v]}</button>)}<hr/><small>{config.graph.horizontalLanes.length} lanes · {config.graph.rawConnectors.length} connectors</small><small>{config.areas.length} areas · {config.emergencePins.length} pins</small><button disabled={issues.length>0} onClick={()=>setSimulating(value=>!value)}>{simulating?"Stop motion preview":"Preview 20 actors"}</button><label><input type="checkbox" checked={globalPin} onChange={e=>setGlobalPin(e.target.checked)}/>Global emergence</label></aside>
  <div className={styles.stage}><svg ref={svg} viewBox={`${960-960/zoom} ${540-540/zoom} ${1920/zoom} ${1080/zoom}`} preserveAspectRatio="xMidYMid meet" onPointerDown={down} onPointerMove={move} onPointerUp={up} aria-label="Pinoria House mesh editor" role="img"><defs><pattern id="pap656-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="#fff" strokeOpacity=".14"/></pattern></defs><rect width="1920" height="1080" fill="#17263d"/><image href="https://assets.pinohouse.art/draft/HouseBack.png" width="1920" height="1080" preserveAspectRatio="xMidYMid slice" opacity=".7"/><rect width="1920" height="1080" fill="url(#pap656-grid)" pointerEvents="none"/>
  {config.areas.map(a=><g key={a.id}>
    {a.points?.length
@@ -99,7 +116,7 @@ export function HouseMeshEditor(){
  </g>)}
  {config.graph.rawConnectors.map(c=><line key={c.id} data-kind="connector" data-id={c.id} x1={c.from.x} y1={c.from.y} x2={c.to.x} y2={c.to.y} stroke="#f8b867" strokeWidth="8" strokeDasharray="18 7"/>)}
  {config.graph.horizontalLanes.map(l=><g key={l.id}><line data-kind="lane" data-id={l.id} x1={l.x1} x2={l.x2} y1={l.y} y2={l.y} stroke={pick?.id===l.id?"#fff7a0":l.midLayer==="behind"?"#8da1ff":"#93f2be"} strokeWidth={pick?.id===l.id?13:8} strokeLinecap="round"/><text x={l.x1+10} y={l.y-16} fontSize="20" fill="white" pointerEvents="none">{l.id}</text></g>)}
- {config.emergencePins.map(p=><circle key={p.id} data-kind="pin" data-id={p.id} cx={p.x} cy={p.y} r={pick?.id===p.id?27:20} fill="#f87cbf" stroke="white" strokeWidth="5"/>)}</svg><small>House canvas: 1920×1080, uniformly scaled.</small></div>
+ {config.emergencePins.map(p=><circle key={p.id} data-kind="pin" data-id={p.id} cx={p.x} cy={p.y} r={pick?.id===p.id?27:20} fill="#f87cbf" stroke="white" strokeWidth="5"/>)}{previewActors.map(actor=><g key={actor.id} pointerEvents="none"><circle cx={actor.x} cy={actor.y} r="21" stroke="white" strokeWidth="4" fill={actor.depth==="front"?"#9ae6ca":"#9ba9ff"}/><text x={actor.x} y={actor.y+6} textAnchor="middle" fontSize="15" fill="#193048">{actor.id.slice(-2)}</text></g>)}</svg><small>House canvas: 1920×1080 · production motion engine simulation · {previewActors.length? `minimum clearance ${Math.round(ambientMinimumVisibleSeparation(previewActors))}px`:"uniformly scaled"}</small></div>
  <aside className={styles.panel}><h3>Inspector</h3>{!selected?<p>Select an item to edit.</p>:<><strong>{selected.id}</strong>{"midLayer" in selected&&<label>Depth <select value={selected.midLayer} onChange={e=>edit("midLayer",e.target.value)}><option>front</option><option>behind</option></select></label>}
  {"x1" in selected&&(["x1","x2","y"] as const).map(k=><label key={k}>{k} <input type="number" value={selected[k]} onChange={e=>edit(k,Number(e.target.value))}/></label>)}
  {"bounds" in selected&&<>{(["x","y","width","height"] as const).map(k=><label key={k}>Bounds {k}<input type="number" value={selected.bounds[k]} onChange={e=>mutate(v=>{const a=v.areas.find(a=>a.id===selected.id);if(a)a.bounds[k]=Number(e.target.value);})}/></label>)}<label>Lane IDs <input value={selected.laneIds.join(",")} onChange={e=>edit("laneIds",comma(e.target.value))}/></label><label>Path codes <input value={(selected.pathCodes??[]).join(",")} onChange={e=>edit("pathCodes",comma(e.target.value))}/></label><label>LearningSpace codes <input value={(selected.learningSpaceCodes??[]).join(",")} onChange={e=>edit("learningSpaceCodes",comma(e.target.value))}/></label></>}

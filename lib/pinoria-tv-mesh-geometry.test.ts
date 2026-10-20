@@ -33,3 +33,15 @@ test("PAP-656 geometric preview uses polygon occupancy rather than bounding rect
  assert.equal(pointInsidePolygon({x:700,y:850},a.points!),true);
  assert.equal(pointInsidePolygon({x:300,y:850},a.points!),false);
 });
+
+test("PAP-656 preview uses production motion engine and preserves 72px clearance",async()=>{
+ const {createAmbientAgents,stepAmbientAgents,ambientMinimumVisibleSeparation}=await import("../app/pinoria-tv/ambient-house-motion");
+ const config=seeded();
+ const motion={canvas:config.canvas,miniCharacter:{width:164,height:115},...config.graph};
+ let actors=createAmbientAgents(Array.from({length:20},(_,i)=>"bo-preview-"+i),motion);
+ for(let frame=0;frame<120;frame++){
+   actors=stepAmbientAgents(actors,motion,64);
+   assert.ok(ambientMinimumVisibleSeparation(actors)>=71.999);
+ }
+ assert.equal(actors.length,20);
+});
