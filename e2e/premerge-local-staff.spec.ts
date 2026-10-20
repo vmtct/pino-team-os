@@ -96,3 +96,35 @@ test("PAP-781 unknown deep-linked Staff surfaces an error, never another person'
   await expect(page.getByText("Trần Hân", { exact: true })).toHaveCount(0);
   expect(mock.countPrivate()).toBe(0);
 });
+
+test("PAP-782 Staff full-detail tab routing, browser history and no private auto-reveal", async ({ page }) => {
+  test.setTimeout(90000);
+  await page.setViewportSize({ width: 390, height: 900 });
+  const mock = await mockStaffApi(page);
+  await page.context().addCookies([{
+    name: "pino_staff_password_session", value: "LOCAL_UI_ONLY_NOT_AUTH", url: "http://127.0.0.1:3109",
+  }]);
+  await page.goto("/bo/staff/staff-02?from=q%3DHan");
+  const workspace = page.getByTestId("staff-full-detail");
+  await expect(workspace).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link")).toHaveCount(8);
+  await expect(page.getByTestId("staff-v2-overview")).toContainText("Access status");
+  await expect(page.getByTestId("staff-v2-overview")).toContainText("suspended");
+  const rail = page.getByTestId("staff-v2-rail");
+  await expect(rail).toBeVisible();
+  await expect(rail).toContainText("Staff active nhưng Access chưa sẵn sàng.");
+  await expect(rail.getByRole("link", { name: "Kiểm tra Access" })).toHaveAttribute("href", /tab=access/);
+  await page.screenshot({ path: "test-results/pap782-overview-with-rail-390.png", fullPage: true });
+  expect(mock.countPrivate()).toBe(0);
+  await page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link", {name: "Thu nhập"}).click();
+  await expect(page).toHaveURL(/tab=income/, {timeout:30000});
+  await expect(page.getByTestId("staff-v2-unavailable")).toContainText("Chưa có dữ liệu được xác minh");
+  await expect(page.getByTestId("staff-v2-overview")).toHaveCount(0);
+  await page.goBack();
+  await expect(page.getByTestId("staff-v2-overview")).toBeVisible();
+  await page.getByRole("navigation", { name: "Staff detail sections" }).getByRole("link", {name: "Hồ sơ"}).click();
+  await expect(page).toHaveURL(/tab=profile/, {timeout:30000});
+  await expect(workspace.getByRole("heading", {name: "Trần Hân"}).last()).toBeVisible();
+  expect(mock.countPrivate()).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
