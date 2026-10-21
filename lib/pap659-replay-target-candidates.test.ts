@@ -24,6 +24,11 @@ test("PAP-659 ambiguous and malformed identity hints are not selectable", () => 
   assert.deepEqual(verifiedReplayCandidates(health([candidate, { ...candidate }, malformed]), "center-a"), []);
 });
 
+test("PAP-659 refuses a display with multiple fresh sessions even if IDs differ", () => {
+  const sameDisplay = { ...candidate, sessionId: "session-b", deviceId: "device-b" };
+  const unrelated = { ...candidate, displayId: "display-other", sessionId: "session-c", deviceId: "device-c" };
+  assert.deepEqual(verifiedReplayCandidates(health([candidate, sameDisplay, unrelated]), "center-a"), [unrelated]);
+});
 test("PAP-659 replay preflight must match ALL three selected target keys", () => {
   const target = { displayId: candidate.displayId, deviceId: candidate.deviceId, sessionId: candidate.sessionId };
   assert.equal(targetMatchesSelected(candidate, target), true);

@@ -144,8 +144,8 @@ export function TvOperatorQueue() {
     const active = queue?.current;
     const center = centerId.trim();
     if (!active || !center || busy || commandInFlight.current || !active.claimedAt) return;
-    const verb = action === "close" ? "Đóng presentation" : "Trở về Ambient";
-    if (!window.confirm(verb + " " + active.id + "? Core sẽ giải phóng presentation. Không đảm bảo TV vật lý đã chuyển cảnh.")) return;
+    const verb = action === "close" ? "Đóng presentation toàn Center" : "Giải phóng queue về Ambient toàn Center";
+    if (!window.confirm(verb + " " + active.id + "? Đây là lệnh release presentation TOÀN CENTER, không chọn TV/session vật lý. TV có thể vẫn hiển thị hình cũ. Tiếp tục?")) return;
     if (!("randomUUID" in crypto) || typeof crypto.randomUUID !== "function") {
       setError("Không thể tạo khóa idempotency an toàn trên browser này.");
       return;
@@ -185,7 +185,7 @@ export function TvOperatorQueue() {
     <section aria-label="TV operator queue" className="mx-auto max-w-3xl space-y-4 p-5">
       <header>
         <h1 className="text-xl font-semibold">Điều khiển TV · Hàng đợi</h1>
-        <p className="text-sm opacity-70">Xem queue và thực hiện lệnh Close/Return-to-Ambient có phân quyền tại Core. Các lệnh không chạy lại nghiệp vụ và chưa xác nhận TV vật lý đã chuyển cảnh.</p>
+        <p className="text-sm opacity-70">Xem queue và chọn đúng TV/session để replay. Close/Return chỉ giải phóng presentation cấp Center, không điều khiển màn hình riêng lẻ hoặc xác nhận TV đã chuyển cảnh.</p>
       </header>
       <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void refresh(); }}>
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
@@ -213,7 +213,7 @@ export function TvOperatorQueue() {
           <p className="text-sm">Revision: {queue.revision} · {queue.hasMore ? "Danh sách chỉ hiển thị 50 mục đầu" : "Đã hiển thị tất cả mục đang chờ"}</p>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang trình chiếu</h2>
-            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void replayInspect()}>Kiểm tra replay snapshot (không phát TV)</button><div className="flex flex-wrap gap-2"><select aria-label="Chọn TV/session để replay" className="min-w-0 max-w-full rounded border px-3 py-1" value={replaySessionId} onChange={(event) => setReplaySessionId(event.target.value)}><option value="">Chọn TV đang có heartbeat</option>{replayCandidates.map(session => <option key={session.sessionId} value={session.sessionId}>{session.deviceId} · Display {session.displayId} · Session {session.sessionId}</option>)}</select><button type="button" disabled={busy || !replaySessionId || !replayCandidates.some(session => session.sessionId === replaySessionId)} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void dispatchReplay()}>Phát lại trên TV</button></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Trở về Ambient</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
+            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void replayInspect()}>Kiểm tra replay snapshot (không phát TV)</button><div className="flex flex-wrap gap-2"><select aria-label="Chọn TV/session để replay" className="min-w-0 max-w-full rounded border px-3 py-1" value={replaySessionId} onChange={(event) => setReplaySessionId(event.target.value)}><option value="">Chọn TV đang có heartbeat</option>{replayCandidates.map(session => <option key={session.sessionId} value={session.sessionId}>{session.deviceId} · Display {session.displayId} · Session {session.sessionId}</option>)}</select><button type="button" disabled={busy || !replaySessionId || !replayCandidates.some(session => session.sessionId === replaySessionId)} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void dispatchReplay()}>Phát lại trên TV</button></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Release về Ambient (toàn Center)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation (toàn Center)</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
           </section>
           <section className="rounded border p-3">
             <h2 className="font-medium">Đang chờ ({queue.queued.length})</h2>
