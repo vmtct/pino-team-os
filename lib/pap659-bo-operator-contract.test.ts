@@ -29,7 +29,7 @@ test("PAP-659 diagnostics is explicit read-only BO status, never a physical ACK"
 test("PAP-659 BO diagnostics never leaks TV runtime bearer or treats heartbeat as render acknowledgement",()=>{
  const diagnostics=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");
  assert.doesNotMatch(diagnostics,/\/api\/tv\/runtime\/|runtimeToken|PINO_TV_SESSION/);
- assert.match(diagnostics,/không suy diễn từ Last seen/);
+ assert.match(diagnostics,/không phải xác nhận kết nối vật lý hay renderer ACK/);
  assert.match(diagnostics,/displays\?\.find/);
 });
 
@@ -46,6 +46,6 @@ test("PAP-659 diagnostics prevents overlapping refresh",()=>{const diagnostics=s
 test("PAP-659 selection during refresh cannot leave busy UI stuck",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/finally\{refreshInFlight\.current=false;setBusy\(false\);\}/);assert.doesNotMatch(d,/setHealth\(null\);setBusy\(false\);/);});
 test("PAP-659 refresh preserves last authorized BO device inventory",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/setBusy\(true\);setError\(""\);setHealth\(null\);/);assert.doesNotMatch(d,/setBusy\(true\);setError\(""\);setDevices\(null\)/);});
 test("PAP-659 diagnostics scopes visible device cards to selected center",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/devices\?\.filter\(device=>!centerId\|\|device\.centerId===centerId\)/);});
-test("PAP-659 shows device identifier but never claims an authenticated live session",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/Device ID: \{device\.id\}/);assert.match(d,/Session: chưa xác thực/);});
-test("PAP-659 does not mistake device heartbeat for connectivity",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/Kết nối thực tế: chưa xác thực/);assert.match(d,/Last seen không phải xác nhận TV đã render\/ACK/);});
+test("PAP-659 shows scoped session evidence but never claims a physical renderer ACK",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/Device ID: \{device\.id\}/);assert.match(d,/describeDeviceSession\(health,centerId,device\)/);assert.match(d,/không xác nhận offline/);assert.match(d,/Renderer ACK, build\/config đã áp dụng và asset health: chưa xác thực/);});
+test("PAP-659 does not mistake device heartbeat for connectivity",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");assert.match(d,/không phải xác nhận kết nối vật lý hay renderer ACK/);assert.match(d,/Last seen không phải xác nhận TV đã render\/ACK/);});
 test("PAP-659 BO shows Core-verified per-device sessions with heartbeat caveat",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");const client=source("app/pinoria-tv/operator-presentation-client.ts");assert.match(client,/deviceSessions:OperatorDeviceSession\[\]/);assert.match(d,/health\?\.deviceSessions\?\.filter/);assert.match(d,/Heartbeat gần đây \(không phải ACK\)/);});
