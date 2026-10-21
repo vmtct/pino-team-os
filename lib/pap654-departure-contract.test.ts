@@ -26,4 +26,7 @@ test("departure removal is scoped to exact learner AND originating presence sour
 });test("repeated delivery of same presence event does not duplicate queued farewell",()=>{
  assert.match(source,/!queue\.some\(existing=>existing\.id===`\$\{event\.sequence\}`/);
  assert.match(source,/existing\.sourceType===event\.sourceType && existing\.sourceId===event\.sourceId/);
+});test("same-batch duplicate presence delivery is deduplicated before enqueue",()=>{
+ assert.match(source,/events\.filter\(\(event,index\)=>events\.findIndex\(candidate=>candidate\.sequence===event\.sequence/);
+ assert.match(source,/candidate\.sourceType===event\.sourceType && candidate\.sourceId===event\.sourceId\)===index/);
 });
