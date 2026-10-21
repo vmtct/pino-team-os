@@ -2,17 +2,39 @@
 import {useMemo,useState} from "react";
 import {parseDialogueConfig} from "@/lib/pap657-dialogue-config";
 import {advanceSpatialDialogue} from "@/lib/pap657-dialogue-proximity-engine";
+import {dialogueConfigApi} from "@/lib/pap657-dialogue-config-client";
 const actors=[{id:"a",zoneId:"art",x:20,y:20},{id:"b",zoneId:"art",x:65,y:25},{id:"c",zoneId:"music",x:20,y:20},{id:"d",zoneId:"music",x:65,y:25},{id:"e",zoneId:"lounge",x:20,y:20},{id:"f",zoneId:"lounge",x:65,y:25}];
 /** Draft/simulation only. Do not claim backend publish authority. */
 export function DialogueEditor(){
  const[durationMs,setDuration]=useState(5000),[proximityPx,setProximity]=useState(90);
  const[pool,setPool]=useState<string[][]>([["Xin chào","Chào bạn"]]);
  const[simulating,setSimulating]=useState(false);
+ const[loading,setLoading]=useState(false),[notice,setNotice]=useState("");
+ const[revision,setRevision]=useState(0);
+ async function loadDefault(){
+  setLoading(true);setNotice("");
+  try{
+   const scope={kind:"DEFAULT"} as const;
+   const [head,versions]=await Promise.all([dialogueConfigApi.head(scope),dialogueConfigApi.versions(scope)]);
+   setRevision(head?.revision??0);
+   const active=versions.find(v=>v.applied);
+   if(!active){setNotice("Chưa có cấu hình được publish.");return;}
+   const version=await dialogueConfigApi.version(scope,active.id);
+   const loaded=parseDialogueConfig(version?.configuration);
+   if(!loaded)throw new Error("Published configuration invalid");
+   setDuration(loaded.durationMs);setProximity(loaded.proximityPx);
+   setPool(loaded.pool.map(pair=>[...pair]));
+   setNotice("Đã tải published version "+active.id+". Revision "+(head?.revision??0));
+  }catch(error){setNotice(error instanceof Error?error.message:"Load failed");}
+  finally{setLoading(false);}
+ }
  const config=useMemo(()=>parseDialogueConfig({revision:1,durationMs,proximityPx,maxTvBubbles:3,maxZoneBubbles:1,pool}),[durationMs,proximityPx,pool]);
  const sample=useMemo(()=>simulating&&config?advanceSpatialDialogue({published:config,now:100,actors,active:[]}):[],[config,simulating]);
  const edit=(i:number,j:number,v:string)=>setPool(previous=>previous.map((pair,k)=>k===i?pair.map((s,l)=>l===j?v:s):pair));
  return <main style={{padding:24,maxWidth:900,margin:"auto"}}><h1>Pinoria TV · Social Dialogue</h1>
  <p>Bản nháp / mô phỏng. Chưa ghi vào cấu hình publish.</p>
+ <button type="button" disabled={loading} onClick={()=>void loadDefault()}>Tải bản đã publish (Default)</button>
+ <p role="status">{loading?"Đang tải...":notice||`Core revision đã đọc: ${revision}`}</p>
  <label>Thời lượng (ms) <input type="number" min={1000} max={15000} value={durationMs} onChange={e=>setDuration(Number(e.target.value))}/></label>
  <label>Khoảng cách (px) <input type="number" min={40} max={140} value={proximityPx} onChange={e=>setProximity(Number(e.target.value))}/></label>
  <h2>Kho hội thoại</h2>{pool.map((pair,i)=><div key={i}>{pair.map((s,j)=><input key={j} aria-label={`Cặp ${i+1} lời ${j+1}`} value={s} maxLength={120} onChange={e=>edit(i,j,e.target.value)}/>)}
