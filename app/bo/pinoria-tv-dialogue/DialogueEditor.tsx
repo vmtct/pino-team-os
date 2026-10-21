@@ -29,6 +29,15 @@ export function DialogueEditor(){
   }catch(error){setNotice(error instanceof Error?error.message:"Publish thất bại");}
   finally{setLoading(false);}
  }
+ async function revertSelected(){
+  if(!versionId||loading||!window.confirm("Revert về version đã chọn? Core sẽ ghi audit và giữ lịch sử."))return;
+  setLoading(true);setNotice("");
+  try{const scope={kind:"DEFAULT"} as const;const head=await dialogueConfigApi.head(scope);
+   await dialogueConfigApi.write("revert",{scope,expectedRevision:head?.revision??0,versionId});
+   setNotice("Core đã xác nhận revert. Tải lại versions để kiểm tra.");
+  }catch(error){setNotice(error instanceof Error?error.message:"Revert thất bại");}
+  finally{setLoading(false);}
+ }
  async function saveDefaultDraft(){
   if(!config||loading)return;
   setLoading(true);setNotice("");
@@ -76,6 +85,7 @@ export function DialogueEditor(){
  <button type="button" disabled={loading} onClick={()=>void refreshVersions()}>Tải danh sách version</button>
  <select aria-label="Version để publish" disabled={loading} value={versionId} onChange={e=>setVersionId(e.target.value)}><option value="">Chọn version</option>{versions.map(v=><option key={v.id} value={v.id}>Revision {v.revision}{v.applied?" · Đang áp dụng":""}</option>)}</select>
  <button type="button" disabled={loading||!versionId} onClick={()=>void publishSelected()}>Publish version đã chọn</button>
+ <button type="button" disabled={loading||!versionId} onClick={()=>void revertSelected()}>Revert về version đã chọn</button>
  {simulating&&<section><h2>Preview</h2><p>{sample.length} hội thoại / 3 cặp trong 3 zone · tối đa 3 trên TV, 1 mỗi zone</p>{sample.map(d=><p key={d.zoneId}>{d.zoneId}: {d.lines.join(" ↔ ")}</p>)}</section>}
  </main>;
 }
