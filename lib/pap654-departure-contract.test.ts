@@ -19,4 +19,8 @@ test("departure removal is scoped to exact learner AND originating presence sour
  const css = readFileSync(new URL("../app/pinoria-tv/reception-tv.module.css", import.meta.url), "utf8");
  assert.match(css, /@keyframes departureExtract/);
  assert.match(css, /prefers-reduced-motion:reduce\)\{\.departure \.character\{animation:none/);
+});test("re-entered learner with changed source cancels stale departure", () => {
+ assert.match(source, /scene\.kind === "departure" && sceneActor && !sceneHasMatchingSource \? false/);
+ assert.match(source, /if \(!sceneIsCurrent\) \{/);
+ assert.match(source, /queue\[0\]\?\.id === scene\.id \? queue\.slice\(1\) : queue/);
 });

@@ -460,7 +460,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
   const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
   const visibleArrivalCompanionAsset = arrivalCompanionIdentity !== failedArrivalCompanionIdentity ? arrivalCompanionAsset : null;
-  const sceneIsCurrent = !scene || housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource);
+  // If the learner has re-entered via another presence source, discard the stale farewell.
+  const sceneIsCurrent = !scene || (scene.kind === "departure" && sceneActor && !sceneHasMatchingSource ? false : housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource));
 
   useEffect(() => {
     if (!scene || presentation) return;
