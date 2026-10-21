@@ -11,4 +11,12 @@ test("departure uses matching source and policy-gated canonical projection", () 
 });
 test("departure removal is scoped to exact learner AND originating presence source", () => {
  assert.match(source, /current\.filter\(\(actor\) => actor\.pinoriaSelfId !== scene\.pinoriaSelfId\s*\|\| !actorHasSource\(actor, scene\.sourceType, scene\.sourceId\)/);
+});test("departure extraction uses measured matching actor with a motion-safe fallback", () => {
+ assert.match(source, /if \(!sceneHasMatchingSource\) \{ setDepartureOrigin\(null\); return; \}/);
+ assert.match(source, /element\.dataset\.ambientRuntimeSelf === scene\.pinoriaSelfId/);
+ assert.match(source, /setDepartureOrigin\(\{/);
+ assert.match(source, /visualScene\.kind === "departure" \? departureStyle : handoffStyle/);
+ const css = readFileSync(new URL("../app/pinoria-tv/reception-tv.module.css", import.meta.url), "utf8");
+ assert.match(css, /@keyframes departureExtract/);
+ assert.match(css, /prefers-reduced-motion:reduce\)\{\.departure \.character\{animation:none/);
 });
