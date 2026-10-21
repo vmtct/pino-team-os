@@ -10,6 +10,9 @@ import type { AmbientMotionGraph } from "./ambient-house-motion";
 import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh,type HouseSpatialRefresh} from "../../lib/pinoria-house-spatial-runtime";
 import {assetStatusFromEvidence,recordAssetFailure,type AssetEvidence} from "../../lib/pap659-asset-observation";
 import {fetchBuildManifestProvenance} from "../../lib/pap659-build-provenance-client";
+import {observedRuntimeFacts} from "../../lib/pap659-runtime-facts";
+import {makeRuntimeObservation,sendRuntimeObservation} from "../../lib/pap659-runtime-observation-client";
+import {readAppliedSpatialRevision} from "../../lib/pinoria-house-spatial-runtime";
 
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
@@ -70,6 +73,15 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   activePresentationIdRef.current = presentation?.id ?? null;
   const runtimeDisplayId=runtimeIdentity?.displayId ?? "";
   const runtimeSessionId=runtimeIdentity?.sessionId ?? "";
+  const runtimeDeviceId=runtimeIdentity?.deviceId ?? null;
+  const appliedRevision=readAppliedSpatialRevision(spatial);
+  useEffect(()=>{
+    if(!runtimeSessionId||!runtimeDisplayId||!runtimeDeviceId)return;
+    const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,assetEvidence}));
+    if(!observation)return;
+    // A session-bound report only; Core retains rendererAcknowledged:false until actual render proof.
+    void sendRuntimeObservation(`${apiBase}/observation`,observation);
+  },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,assetEvidence,apiBase]);
   const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
   const replayBusy = useRef(false);
   const replayLastRevision = useRef(0);
