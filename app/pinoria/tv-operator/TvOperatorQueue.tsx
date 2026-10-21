@@ -56,8 +56,9 @@ export function TvOperatorQueue() {
       if (requestedGeneration === generation.current) setBusy(false);
     }
   }, [centerId, busy]);
+  const activePresentation = queue?.current;
   const inspectCurrent = useCallback(async () => {
-    const active = queue?.current;
+    const active = activePresentation;
     if (!active || busy || commandInFlight.current) return;
     const center = centerId.trim();
     const version = ++generation.current;
@@ -78,9 +79,9 @@ export function TvOperatorQueue() {
     } finally {
       if (version === generation.current) setBusy(false);
     }
-  }, [queue, centerId, busy]);
+  }, [activePresentation, centerId, busy]);
   const replayInspect = useCallback(async () => {
-    const active = queue?.current;
+    const active = activePresentation;
     const center = centerId.trim();
     if (!active || !center || busy || commandInFlight.current) return;
     const version = ++generation.current;
@@ -104,9 +105,9 @@ export function TvOperatorQueue() {
     } finally {
       if (version === generation.current) setBusy(false);
     }
-  }, [queue, centerId, busy]);
+  }, [activePresentation, centerId, busy]);
   const dispatchReplay = useCallback(async () => {
-    const active = queue?.current;
+    const active = activePresentation;
     const center = centerId.trim();
     const selected = replayCandidates.find(session => session.sessionId === replaySessionId);
     if (!active || !center || !selected || busy || commandInFlight.current) return;
@@ -140,8 +141,8 @@ export function TvOperatorQueue() {
       commandInFlight.current = false;
       setBusy(false);
     }
-  }, [queue, centerId, replaySessionId, replayCandidates, busy]);  const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
-    const active = queue?.current;
+  }, [activePresentation, centerId, replaySessionId, replayCandidates, busy]);  const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
+    const active = activePresentation;
     const center = centerId.trim();
     if (!active || !center || busy || commandInFlight.current || !active.claimedAt) return;
     const verb = action === "close" ? "Đóng presentation toàn Center" : "Giải phóng queue về Ambient toàn Center";
@@ -180,7 +181,7 @@ export function TvOperatorQueue() {
       // A Center switch may invalidate the result, but must not strand the UI in busy state.
       setBusy(false);
     }
-  }, [queue, centerId, busy]);
+  }, [activePresentation, centerId, busy]);
   return (
     <section aria-label="TV operator queue" className="mx-auto max-w-3xl space-y-4 p-5">
       <header>
