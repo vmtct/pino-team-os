@@ -11,6 +11,24 @@ export function DialogueEditor(){
  const[simulating,setSimulating]=useState(false);
  const[loading,setLoading]=useState(false),[notice,setNotice]=useState("");
  const[revision,setRevision]=useState(0);
+ const[versionId,setVersionId]=useState(""),[versions,setVersions]=useState<{id:string;revision:number;applied:boolean}[]>([]);
+ async function refreshVersions(){
+  setLoading(true);setNotice("");
+  try{const scope={kind:"DEFAULT"} as const;
+   const [head,items]=await Promise.all([dialogueConfigApi.head(scope),dialogueConfigApi.versions(scope)]);
+   setRevision(head?.revision??0);setVersions(items);setVersionId(head?.active_version_id??items[0]?.id??"");
+  }catch(error){setNotice(error instanceof Error?error.message:"Không tải được versions");}
+  finally{setLoading(false);}
+ }
+ async function publishSelected(){
+  if(!versionId||loading||!window.confirm("Publish version đã chọn lên Pinoria TV Default?"))return;
+  setLoading(true);setNotice("");
+  try{const scope={kind:"DEFAULT"} as const;const head=await dialogueConfigApi.head(scope);
+   await dialogueConfigApi.write("publish",{scope,expectedRevision:head?.revision??0,versionId});
+   setNotice("Core đã xác nhận publish. Tải lại versions để kiểm tra.");
+  }catch(error){setNotice(error instanceof Error?error.message:"Publish thất bại");}
+  finally{setLoading(false);}
+ }
  async function saveDefaultDraft(){
   if(!config||loading)return;
   setLoading(true);setNotice("");
@@ -55,7 +73,9 @@ export function DialogueEditor(){
  <button type="button" disabled={pool.length>=40} onClick={()=>setPool(current=>[...current,["Xin chào","Chào bạn"]])}>Thêm hội thoại</button>
  <p role="status">{config?"Bản nháp hợp lệ":"Cấu hình không hợp lệ"}</p>
  <button type="button" disabled={!config} onClick={()=>setSimulating(s=>!s)}>{simulating?"Dừng mô phỏng":"Mô phỏng"}</button>
- <button type="button" disabled>Publish (chưa có API)</button>
+ <button type="button" disabled={loading} onClick={()=>void refreshVersions()}>Tải danh sách version</button>
+ <select aria-label="Version để publish" disabled={loading} value={versionId} onChange={e=>setVersionId(e.target.value)}><option value="">Chọn version</option>{versions.map(v=><option key={v.id} value={v.id}>Revision {v.revision}{v.applied?" · Đang áp dụng":""}</option>)}</select>
+ <button type="button" disabled={loading||!versionId} onClick={()=>void publishSelected()}>Publish version đã chọn</button>
  {simulating&&<section><h2>Preview</h2><p>{sample.length} hội thoại / 3 cặp trong 3 zone · tối đa 3 trên TV, 1 mỗi zone</p>{sample.map(d=><p key={d.zoneId}>{d.zoneId}: {d.lines.join(" ↔ ")}</p>)}</section>}
  </main>;
 }
