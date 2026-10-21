@@ -48,6 +48,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const [centerId, setCenterId] = useState("");
   const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
   const [assetEvidence,setAssetEvidence]=useState<AssetEvidence>({failedAssetIds:[]});
+  // Asset failures belong to a single authenticated TV session, not the next device session.
+  useEffect(()=>{setAssetEvidence({failedAssetIds:[]});},[runtimeIdentity?.sessionId]);
   const observedAssetStatus=assetStatusFromEvidence(assetEvidence);
   const liveActorCountRef=useRef(0);
   const [draft, setDraft] = useState("");
