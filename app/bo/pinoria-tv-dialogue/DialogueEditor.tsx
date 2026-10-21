@@ -2,7 +2,7 @@
 import {useMemo,useState} from "react";
 import {parseDialogueConfig} from "@/lib/pap657-dialogue-config";
 import {advanceSpatialDialogue} from "@/lib/pap657-dialogue-proximity-engine";
-const actors=[{id:"a",zoneId:"art",x:20,y:20},{id:"b",zoneId:"art",x:65,y:25},{id:"c",zoneId:"music",x:40,y:20}];
+const actors=[{id:"a",zoneId:"art",x:20,y:20},{id:"b",zoneId:"art",x:65,y:25},{id:"c",zoneId:"music",x:20,y:20},{id:"d",zoneId:"music",x:65,y:25},{id:"e",zoneId:"lounge",x:20,y:20},{id:"f",zoneId:"lounge",x:65,y:25}];
 /** Draft/simulation only. Do not claim backend publish authority. */
 export function DialogueEditor(){
  const[durationMs,setDuration]=useState(5000),[proximityPx,setProximity]=useState(90);
@@ -21,6 +21,6 @@ export function DialogueEditor(){
  <p role="status">{config?"Bản nháp hợp lệ":"Cấu hình không hợp lệ"}</p>
  <button type="button" disabled={!config} onClick={()=>setSimulating(s=>!s)}>{simulating?"Dừng mô phỏng":"Mô phỏng"}</button>
  <button type="button" disabled>Publish (chưa có API)</button>
- {simulating&&<section><h2>Preview</h2><p>{sample.length} hội thoại · tối đa 3 TV, 1 zone</p>{sample.map(d=><p key={d.zoneId}>{d.zoneId}: {d.lines.join(" ↔ ")}</p>)}</section>}
+ {simulating&&<section><h2>Preview</h2><p>{sample.length} hội thoại / 3 cặp trong 3 zone · tối đa 3 trên TV, 1 mỗi zone</p>{sample.map(d=><p key={d.zoneId}>{d.zoneId}: {d.lines.join(" ↔ ")}</p>)}</section>}
  </main>;
 }
