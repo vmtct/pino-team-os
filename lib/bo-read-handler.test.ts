@@ -23,3 +23,35 @@ test("timekeeping read forwards only bounded canonical filters",async()=>{const 
 test("calendar closure reads forward only bounded impact filters",async()=>{const forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:[]},requestId:"calendar"};}};const centerId="01912345-6789-7abc-8def-0123456789ab",url=new Request(`https://bo.pinohouse.art/api/bo/delivery/calendar-exclusions/preview?centerId=${centerId}&scopeType=HOUSE&startsOnLocalDate=2030-09-04&endsBeforeLocalDate=2030-09-05&effectiveAt=2029-12-01T00%3A00%3A00.000Z&userId=forged`,{headers:{cookie:`pino_staff_password_session=${token}`}});assert.equal((await handleBoOperationalReadRequest(url,env(binding),"delivery/calendar-exclusions/preview")).status,200);assert.deepEqual(forwarded,[{method:"GET",path:"delivery/calendar-exclusions/preview",body:{centerId,scopeType:"HOUSE",startsOnLocalDate:"2030-09-04",endsBeforeLocalDate:"2030-09-05",effectiveAt:"2029-12-01T00:00:00.000Z"}}]);});
 
 test("calendar scope bootstrap is admitted and forwarded to the canonical Core route",async()=>{const forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:{centers:[],paths:[],runningClasses:[]}},requestId:"calendar-scope"};}};const response=await handleBoOperationalReadRequest(req("delivery/calendar-scope"),env(binding),"delivery/calendar-scope");assert.equal(response.status,200);assert.deepEqual(forwarded,[{method:"GET",path:"delivery/calendar-scope"}]);assert.equal((await handleBoOperationalReadRequest(req("delivery/calendar-scope/extra"),env(binding),"delivery/calendar-scope/extra")).status,404);});
+
+
+test("PAP-863: Missions read forwards only catalog filters, never caller identity", async () => {
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){
+    forwarded.push(request);return {status:200,body:{data:[]},requestId:"missions"};
+  }};
+  const request = new Request("https://bo.pinohouse.art/api/bo/learning/missions?search=Art&status=ACTIVE&level=2&limit=25&offset=0&userId=spoofed",{
+    headers:{cookie:"pino_staff_password_session="+token}
+  });
+  const response = await handleBoOperationalReadRequest(request,env(binding),"learning/missions");
+  assert.equal(response.status,200);
+  assert.deepEqual(forwarded,[{method:"GET",path:"learning/missions?search=Art&status=ACTIVE&level=2&limit=25&offset=0"}]);
+});
+
+test("PAP-863: private TV policy reads pass bounded scope to Core, deny invalid scope", async () => {
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){
+    forwarded.push(request);return{status:200,body:{data:null},requestId:"tv-policy"};
+  }};
+  const centerId="0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const request = new Request("https://bo.pinohouse.art/api/bo/pinoria/tv-config/policy/head?scope=CENTER&centerId="+centerId,{
+    headers:{cookie:"pino_staff_password_session="+token}
+  });
+  assert.equal((await handleBoOperationalReadRequest(request,env(binding),"pinoria/tv-config/policy/head")).status,200);
+  assert.deepEqual(forwarded,[{method:"GET",path:"pinoria/tv-config/policy/head",body:{scope:{kind:"CENTER",centerId}}}]);
+  const bad = new Request("https://bo.pinohouse.art/api/bo/pinoria/tv-config/policy/head?scope=EVERYONE",{
+    headers:{cookie:"pino_staff_password_session="+token}
+  });
+  assert.equal((await handleBoOperationalReadRequest(bad,env(binding),"pinoria/tv-config/policy/head")).status,400);
+  assert.equal(forwarded.length,1);
+});

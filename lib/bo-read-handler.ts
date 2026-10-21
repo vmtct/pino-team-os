@@ -9,6 +9,8 @@ const DELIVERY_FUTURE_RESERVATION_POLICY_READ = /^policies\/delivery\/future_res
 const OPEN_STUDIO_POLICY_READ = /^policies\/open_studio\/(monthly_path_pass\.v1|bring_a_friend\.v1|public_acquisition\.v1|cancellation\.v1)\/(effective|stream)$/;
 const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|TIMEKEEPING_ELIGIBILITY|AVAILABILITY_WINDOW_V1|PLANNING_WINDOW_V1)\/(effective|stream)$/;
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
+const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
+const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
@@ -82,6 +84,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "running-classes"
     || path === "syllabi"
     || path === "learning/syllabi"
+    || MISSION_CATALOG_READ.test(path)
+    || TV_POLICY_READ.has(path)
     || path === "learning/syllabi/owners"
     || path === "learning/syllabi/media"
     || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
@@ -165,6 +169,17 @@ function readCorePath(path: string, url: URL): string {
     const pathProgramId = url.searchParams.get("pathProgramId")?.trim() ?? "";
     return pathProgramId ? `${path}?pathProgramId=${encodeURIComponent(pathProgramId)}` : path;
   }
+  if (path === "learning/missions") {
+    // Core parses the Mission catalog filters from the request path, not the
+    // BO facade resource. Strip caller-controlled user/permission fields.
+    const params = new URLSearchParams();
+    for (const key of ["search", "status", "level", "pathProgramId", "limit", "offset"] as const) {
+      const value = url.searchParams.get(key);
+      if (value !== null) params.set(key, value);
+    }
+    const query = params.toString();
+    return query ? path + "?" + query : path;
+  }
   if (path === "learning/syllabi") {
     const params = new URLSearchParams();
     const ownerType = url.searchParams.get("ownerType");
@@ -190,7 +205,7 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
-  if (TV_SPATIAL_CONFIG_READ.has(path)) {
+  if (TV_SPATIAL_CONFIG_READ.has(path) || TV_POLICY_READ.has(path)) {
     const supported = path.endsWith("/active") ? ["centerId"] : path.endsWith("/version") ? ["scope","centerId","versionId"] : ["scope","centerId"];
     for (const key of url.searchParams.keys()) if (!supported.includes(key)) throw new RangeError("Unknown spatial config query key");
     const centerId = url.searchParams.get("centerId")?.trim();
