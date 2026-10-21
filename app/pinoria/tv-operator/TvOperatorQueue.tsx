@@ -107,7 +107,7 @@ export function TvOperatorQueue() {
       if (!target.available || target.target?.displayId !== displayId || !target.target.deviceId || !target.target.sessionId) {
         throw new Error("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.");
       }
-      if (!window.confirm(`Phát lại ${active.id} trên TV ${displayId}?`)) return;
+      if (!window.confirm(`Phát lại ${active.id}?\nDisplay: ${displayId}\nDevice: ${target.target.deviceId}\nSession: ${target.target.sessionId}\nLệnh chỉ ghi dispatch; chưa xác nhận TV đã render.`)) return;
       await operatorPresentationClient.replayDispatch(center, displayId, active.id, crypto.randomUUID(), target.target.deviceId, target.target.sessionId);
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
         setMessage("Core đã nhận replay dispatch; chưa có xác nhận TV vật lý đã render.");
