@@ -15,6 +15,11 @@ export type PublishedHouseSpatialConfig = {
   };
 };
 export type HouseSpatialRefresh = { active: PublishedHouseSpatialConfig | null; pending: PublishedHouseSpatialConfig | null };
+/** Renderer-side telemetry may report only the actually applied config, never a queued revision. */
+export function readAppliedSpatialRevision(state: HouseSpatialRefresh): number | null {
+  const revision = state.active?.appliedRevision;
+  return typeof revision === "number" && Number.isSafeInteger(revision) && revision > 0 ? revision : null;
+}
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 const finite = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
 const point = (x: unknown) => record(x) && finite(x.x) && finite(x.y) && x.x >= 0 && x.y >= 0 && x.x <= 1920 && x.y <= 1080;

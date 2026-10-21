@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 import saved from "../app/pinoria-tv/ambient-house-motion-graph.saved.json";
-import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh} from "./pinoria-house-spatial-runtime";
+import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh,readAppliedSpatialRevision} from "./pinoria-house-spatial-runtime";
 const valid = () => ({
   appliedVersion:"0199e0f2-0ca0-7d88-9ff6-12ab553a1b30", scope:"CENTER:test",
   configuration:{
@@ -31,6 +31,14 @@ test("PAP-651 never switches spatial graph while any TV actor is alive",()=>{
   assert.equal(held.active,null);assert.equal(held.pending?.appliedVersion,cfg.appliedVersion);
   const applied=reconcileHouseSpatialRefresh(held,null,0);
   assert.equal(applied.active?.appliedVersion,cfg.appliedVersion);assert.equal(applied.pending,null);
+});
+test("PAP-659 telemetry reports applied revision only, never a pending revision",()=>{
+  const active=parsePublishedHouseSpatialConfig({...valid(),appliedRevision:2})!;
+  const pending=parsePublishedHouseSpatialConfig({...valid(),appliedVersion:"next",appliedRevision:4})!;
+  assert.equal(readAppliedSpatialRevision({active:null,pending}),null);
+  assert.equal(readAppliedSpatialRevision({active,pending}),2);
+  assert.equal(readAppliedSpatialRevision({active:pending,pending:null}),4);
+  assert.equal(readAppliedSpatialRevision({active:parsePublishedHouseSpatialConfig(valid()),pending:null}),null);
 });
 test("PAP-651 keeps last-known-good when remote config is unavailable",()=>{
   const cfg=parsePublishedHouseSpatialConfig(valid())!;
