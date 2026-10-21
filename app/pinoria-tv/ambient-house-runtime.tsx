@@ -14,6 +14,8 @@ import {
 import styles from "./ambient-house.module.css";
 import { resolveAmbientHouseArea, type AmbientHouseArea } from "./ambient-house-area";
 import type { PresenceExperience } from "./presence-contract";
+import { advanceSpatialDialogue } from "../../lib/pap657-dialogue-proximity-engine";
+import type { ActiveDialogue } from "../../lib/pap657-dialogue-runtime";
 
 export type AmbientHouseActor = {
   id: string;
@@ -32,7 +34,7 @@ export const HOUSE_ASSETS = {
   mid: "https://assets.pinohouse.art/draft/HouseMid.png",
   front: "https://assets.pinohouse.art/draft/HouseFront.png",
 } as const;
-export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionGraph, emergencePins = [], departingId = null, suppressedIds = [], frozenIds = [] }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; motionGraph?: AmbientMotionGraph | null; emergencePins?: readonly {id:string;areaId?:string;laneId:string;x:number;y:number}[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[] }) {
+export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionGraph, emergencePins = [], departingId = null, suppressedIds = [], frozenIds = [], publishedDialogue = null }: { actors: readonly AmbientHouseActor[]; areas?: readonly AmbientHouseArea[]; motionGraph?: AmbientMotionGraph | null; emergencePins?: readonly {id:string;areaId?:string;laneId:string;x:number;y:number}[]; departingId?: string | null; suppressedIds?: readonly string[]; frozenIds?: readonly string[]; publishedDialogue?: unknown }) {
   const GRAPH = motionGraph ?? SAVED_GRAPH;
   const idsKey = actors.map((actor) => actor.id).sort().join("|");
   const byId = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
@@ -65,6 +67,25 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionG
   const [agents, setAgents] = useState<AmbientAgent[]>(() => reconcileAmbientAgents([], actors.map((actor) => actor.id), GRAPH, preferredLaneIds, preferredEmergencePins));
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
+  const [dialogues, setDialogues] = useState<ActiveDialogue[]>([]);
+  useEffect(() => {
+    if (!publishedDialogue) { setDialogues([]); return; }
+    const tick = () => {
+      const now = Date.now();
+      const positioned = agents.flatMap((agent) => {
+        if (departing.has(agent.id) || suppressed.has(agent.id)) return [];
+        const actor = byId.get(agent.id);
+        const area = resolveAmbientHouseArea(actor?.experience ?? null, GRAPH, areas);
+        return area.kind === "AREA" && area.laneIds.includes(agent.laneId)
+          ? [{ id: agent.id, zoneId: area.areaId, x: agent.x, y: agent.y }]
+          : [];
+      });
+      setDialogues((current) => advanceSpatialDialogue({ published: publishedDialogue, now, active: current, actors: positioned }));
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [publishedDialogue, agents, byId, GRAPH, areas, departingId, suppressedIds]);
 
   useEffect(() => {
     const desiredIds = idsKey ? idsKey.split("|") : [];
@@ -104,6 +125,11 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionG
     return <div key={agent.id} className={styles.agent} style={style} data-pinoria-effect={effect?.key ?? ""} data-effect-speed={effect?.speedMultiplier ?? 1} data-ambient-runtime-character={agent.id} data-ambient-runtime-self={agent.id} data-ambient-runtime-actor-type={actor.actorType} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
       <LayeredCharacter className={styles.character} config={actor.config ?? {}} wardRender={actor.wardRender} effectKey={actor.effectKey} effectSurface="HOUSE_MINI" />
       <span>{actor.name}</span>
+      {dialogues.filter((dialogue) => dialogue.actorA === agent.id || dialogue.actorB === agent.id).map((dialogue) => (
+        <span key={`${dialogue.actorA}-${dialogue.actorB}`} role="status" aria-live="off" data-social-dialogue={dialogue.zoneId} style={{ display: "block", maxWidth: 180, padding: "4px 8px", background: "white", borderRadius: 12, color: "#222" }}>
+          {dialogue.lines[dialogue.actorA === agent.id ? 0 : 1]}
+        </span>
+      ))}
     </div>;
   };
 
