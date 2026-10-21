@@ -14,7 +14,12 @@ for spec in "${specs[@]}"; do
  IFS='|' read -r workflow display_prefix marker_prefix terminal_prefix <<<"$spec"
  runs="$(GH_TOKEN="$core_token" gh api --paginate --slurp "/repos/${repo}/actions/workflows/${workflow}/runs?event=issues&status=completed&per_page=100")"
  while IFS=$'\t' read -r run_id run_attempt conclusion display; do
-  [ -n "$run_id" ] || continue; [ "$conclusion" != "success" ] || continue
+  [ -n "$run_id" ] || continue
+  # Completed skipped workflows never entered a job and cannot have armed a
+  # production mutation. Scanning their issues consumes thousands of GitHub
+  # API reads (Core has >1000 historic no-op issue events); retain strict
+  # recovery checks for every failed, cancelled, or otherwise uncertain run.
+  case "$conclusion" in success|skipped) continue ;; esac
   issue="$(sed -nE "s/^${display_prefix//\#/\\#}([1-9][0-9]*) @ [0-9a-f]{40}$/\\1/p" <<<"$display")"; [ -n "$issue" ] || continue
   comments="$(GH_TOKEN="$core_token" gh api --paginate --slurp "/repos/${repo}/issues/${issue}/comments?per_page=100")"
   marker="$(jq -c --arg p "$marker_prefix" --arg run "$run_id" --arg attempt "$run_attempt" '[.[][]|select(.user.login=="github-actions[bot]")|select(((.body//"")|startswith($p+": **RECOVERY_ARMED**")) and ((.body//"")|contains("Workflow run: "+$run)) and (((.body//"")|contains("Workflow attempt: "+$attempt)) or ($attempt=="1" and (((.body//"")|contains("Workflow attempt:"))|not))))]|last//empty' <<<"$comments")"; [ -n "$marker" ] || continue
