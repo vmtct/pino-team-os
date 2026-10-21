@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {parseDialogueConfig,type DialogueConfig} from "../../lib/pap657-dialogue-config";
 import { LayeredCharacter, pinoriaAssetUrl, type PinoriaCharacterConfig } from "./layered-character";
 import { WardSessionTv } from "./ward-session-tv";
 import { AmbientHouseRuntime, HOUSE_ASSETS } from "./ambient-house-runtime";
@@ -97,6 +98,26 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const replayScope = useRef("");
   const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
   const [policy,setPolicy] = useState(defaultSharedTvPolicy);
+  const [publishedDialogue,setPublishedDialogue] = useState<DialogueConfig|null>(null);
+  useEffect(()=>{
+    if(!centerId){setPublishedDialogue(null);return;}
+    let mounted=true;
+    setPublishedDialogue(null); // Never carry another Center dialogue configuration.
+    const pull=async()=>{
+      try{
+        const response=await fetch(apiBase+"/dialogue-config",{cache:"no-store"});
+        if(!response.ok)return;
+        const body=await response.json() as {data?:{configuration?:unknown}|null};
+        const parsed=parseDialogueConfig(body.data?.configuration);
+        if(mounted)setPublishedDialogue(parsed); // Null/invalid active config disables dialogue.
+      }catch{
+        // Keep last-known-good for transient network errors within this session/Center.
+      }
+    };
+    void pull();
+    const timer=window.setInterval(()=>void pull(),30000);
+    return()=>{mounted=false;window.clearInterval(timer);};
+  },[apiBase,centerId]);
   useEffect(() => {
     if(!centerId)return;
     setPolicy(defaultSharedTvPolicy()); // Never carry a permissive Center policy across TV scopes.
@@ -612,7 +633,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         <i className={connected ? styles.online : styles.offline} />
         {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
       </div>
-    </header>    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
+    </header>    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} publishedDialogue={publishedDialogue} />
 
     {visualScene ? <section
       key={visualScene.id}
