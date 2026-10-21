@@ -1,13 +1,29 @@
-# PAP-780 Staff parity source inventory — partial
+# PAP-780 — Staff V2 prototype-to-main and authenticated BO runtime audit
 
-Date: 2026-10-21. Source: Team OS main e4f7bf3.
+Date 2026-10-21 ICT, i5 Windows Chrome + Playwright. **Read-only**; no BO command writes, deploy or Production changes.
 
-Approved PAP-778 prototype is in i5 OneDrive/PINO/GPT Technical/Prototype/PAP-778-staff-detail-ux-v1. Its README explicitly states fictional in-memory mock data. Screenshots 01–07 depict the prototype; screenshot 08 shows an unauthenticated BO login redirect, not an authorized Staff Detail.
+## Approved prototype vs source truth
+- Canonical PAP-778: i5 OneDrive/PINO/GPT Technical/Prototype/PAP-778-staff-detail-ux-v1. Prototype `README.md` explicitly describes fictional, client-only in-memory data. Its screenshots 01–07 show mock interaction/parity, not live staff or production UI.
+- Source baseline Team OS `origin/main e4f7bf3`: `app/bo/staff/page.tsx` has Staff Registration Intake, Review Queue, Staff Management, Roster Access Activation and Onboarding. `lib/bo-staff-detail-tabs.ts` specifies overview, profile, assignments, training, income, access, pinoria, audit and URL selection; PAP-781/782 merged to main. PAP-783–791 source remains on open PRs; integration candidate PR #684 builds it all together.
+- Canonical owners: Workforce Shift Role/shift assignment, Training assignment/qualification, Compensation private salary, Pinoria Self/House Presence from timekeeping, Access credentials and revocation. Prototype shift counts, PIN flows, salary KPIs and event timelines are NOT canonical data.
+- True/optional read-plane gaps: Staff across all centers/weeks lacks a confirmed safe aggregate (PAP-787 approved Staff-filtered Workforce source fallback). Server-side Staff-scoped cross-domain paginated audit timeline lacks confirmed API (PAP-791 approved source-link fallback, NOT full timeline).
 
-Current main app/bo/staff/page.tsx includes intake, registration review, Staff management, roster activation, onboarding. The canonical tab URL contract is lib/bo-staff-detail-tabs.ts with overview, profile, assignments, training, income, access, pinoria, audit. Other PAP-779 stories are on independent unmerged PRs and must not be claimed present on main.
+## Authenticated browser read-only verification
+- Initial listener scan only found FC1-owned Chrome CDP 9331; **9331 was never used**. Dedicated persisted Manager Chrome profile `D:\pino-ai-ops\chrome-manager-9343` was available and not running. Started isolated Chrome debugging on **127.0.0.1:9343**, attached via Windows Playwright `chromium.connectOverCDP`, using a separate read-only tab; no WSL CDP.
+- Browser opened `https://bo.pinohouse.art/bo/staff`, HTTP **200**, no Staff-login redirect and no password input. This confirms BO browser authorization in that profile; the *server-side actor role* was not independently asserted. Environment is the Production **domain**; this is *not* evidence that pending PR code has shipped.
+- Viewport readback from current deployed directory:
 
-Canonical domains: Workforce shift assignments; Training qualifications; Compensation private salary; Pinoria Self/House presence; Access credentials and revocation. Prototype KPIs, pay ledger, audit timeline are illustrative, not live facts. PAP-787 cross-center assignment read-model and PAP-791 paginated Staff audit aggregation are outstanding.
+| Width | Document scroll width | Outer horizontal overflow | Table | Staff V2 tabs | Redacted screenshot |
+|---:|---:|---|---|---:|---|
+| 390 | 375 | No | present | 0 | local `bo-staff-390-redacted.png` |
+| 768 | 753 | No | present | 0 | local `bo-staff-768-redacted.png` |
+| 1440 | 1425 | No | present | 0 | local `bo-staff-1440-redacted.png` |
 
-Windows CDP listener scan: only FC1 port 9331 was listening among policy ports 9331,9332,9333,9342,9343,9344. Independent read-only authenticated Manager session unavailable at 9343; FC1 listener must not be used. Therefore authenticated desktop/tablet/mobile screenshots and role-specific runtime parity are not verified. PAP-780 remains In Progress.
+- All screenshots are in private i5 `D:\PINO\audits\pap780-staff-20261021`, **not committed or uploaded** because live Staff data may remain visible outside screenshot masks. Table/input/peek content is masked. They are diagnostic layout evidence only.
+- Current deployed BO Staff had **17 table rows** at the tested viewport; clicking the first row produced neither the new Staff V2 Quick Peek test ID nor Full Detail CTA; tab nav on directory was absent. This is an observed **deployment parity gap** from the PAP-778 approved prototype/new PR, not evidence of a broken feature on the not-yet-deployed integration branch.
+- Thus actual authenticated Staff *full-detail* UI at 390/768/1440 remains unavailable on deployed site. No attempt to run mutation E2E, reveal employee salary, support impersonation, password reset, offboard or change any live record. No live Full Detail pass claim.
 
-Next: authorized isolated Manager browser read-only audit at 1440/768/390; compare to approved prototype, log real URL/role and visual deltas. No claims of runtime PASS. PAP-792 cannot close until source/CI/merge and acceptance evidence is complete. No staging or Production action.
+## Remediation / honest acceptance boundary
+- Staff V2 implementation in PR #684 integrates the approved tab navigation and existing domain read-planes; local typecheck/lint/46 targeted tests and production build PASS. It must pass its **own exact-head CI** and FC1 review/merge before any post-ship visual claim.
+- PAP-780 read-only authenticated Directory audit is verified; **Full Detail production parity cannot be signed off until the feature is shipped**, which is explicitly outside PAP-512 current authorization. Founder PAP-512 allows premerge E2E/visual proof to be skipped as a *gate*; it never allows pretending unobserved runtime was tested.
+- FC1 can evaluate this honest partial audit as Review evidence. Preserve outstanding Production full-detail visual comparison as a nonblocking post-ship validation request if separately authorized. No staging, Production or D1 actions by this audit.
