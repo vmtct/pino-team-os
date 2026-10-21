@@ -80,7 +80,13 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,assetEvidence}));
     if(!observation)return;
     // A session-bound report only; Core retains rendererAcknowledged:false until actual render proof.
-    void sendRuntimeObservation(`${apiBase}/observation`,observation);
+    // Core considers observations stale after 30s; keep a 15s heartbeat while mounted.
+    // The same strictly validated report is renewed without fabricating render ACK.
+    let inFlight=false;
+    const report=async()=>{if(inFlight)return;inFlight=true;try{await sendRuntimeObservation(`${apiBase}/observation`,observation);}finally{inFlight=false;}};
+    void report();
+    const timer=window.setInterval(()=>void report(),15000);
+    return()=>window.clearInterval(timer);
   },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,assetEvidence,apiBase]);
   const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
   const replayBusy = useRef(false);
