@@ -6,3 +6,4 @@ test('valid published dialogue config is copied',()=>{const parsed=parseDialogue
 test('reject invalid caps, injected text, duration and malformed pools',()=>{
  for(const candidate of [{...good,maxTvBubbles:4},{...good,maxZoneBubbles:2},{...good,durationMs:30000},{...good,revision:0},{...good,pool:[['<script>','B']]},{...good,pool:[['only one']]},{...good,proximityPx:-1}])assert.equal(parseDialogueConfig(candidate),null);
 });
+test('empty dialogue pool fails closed',()=>{assert.equal(parseDialogueConfig({...good,pool:[]}),null);});
