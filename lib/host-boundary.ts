@@ -52,6 +52,7 @@ function isApprovedBoPinoriaOperationalPath(normalized: string): boolean {
     || normalized === "/api/bo/pinoria/worlds/media"
     || normalized === "/api/bo/pinoria/worlds/learners"
     || new RegExp(`^/api/bo/pinoria/worlds/(?:${id}|${id}/scenes|learners/${id}|learners/${id}/instances|scenes/${id}|scenes/${id}/layers|layers/${id}|instances/${id}|instances/${id}/(?:set-live|revoke|reactivate)|instances/${id}/scenes/${id}|instances/${id}/layers/${id}|students/${id}/live)$`).test(normalized)
+    || normalized === "/api/bo/pinoria/worlds/instances"
     || normalized === "/api/bo/pinoria/onboarding/sets"
     || new RegExp(`^/api/bo/pinoria/onboarding/(?:sets/${id}|(?:students|staff)/${id}(?:/grant)?)$`).test(normalized);
 }
@@ -84,9 +85,13 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/workforce/check-in-exceptions",
     "/bo/workforce/timekeeping",
     "/bo/workforce/duty-exceptions",
+    "/bo/workforce/compensation",
+    "/bo/workforce/payroll",
+    "/bo/workforce/payroll/extra-time",
     "/bo/training",
     "/bo/training/builder",
     "/bo/learners",
+    "/bo/student-visits",
     "/bo/subscriptions",
     "/bo/sales/leads",
     "/bo/open-studio",
@@ -98,8 +103,10 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/registrations",
     "/bo/syllabus",
     "/bo/practice",
+    "/bo/missions",
     "/bo/pinoria-effects",
     "/bo/pinoria-world",
+    "/bo/pinoria-tv-policy",
     "/bo/pinoria-wish",
     "/bo/pinoria-companions",
     "/bo/pinoria-ward",
@@ -191,6 +198,15 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/access/perimeter-reconcile",
     "/favicon.ico",
   ].includes(normalized)) return true;
+  // PAP-863: source-backed, exact BO contracts only. All operations still require Staff
+  // password authentication and the canonical Core permission checks.
+  if (/^\/api\/bo\/learning\/missions(?:\/[0-9a-f-]{36})?$/.test(normalized)
+    || /^\/api\/bo\/student-visits(?:\/check-in|\/[0-9a-f-]{36}(?:\/(?:check-out|correct))?)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/payroll\/periods(?:\/[0-9a-f-]{36}(?:\/(?:staff-rollup|settlements)|\/staff\/[0-9a-f-]{36}\/(?:preview|finalize))?)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/payroll\/settlements\/[0-9a-f-]{36}\/paid$/.test(normalized)
+    || /^\/api\/bo\/workforce\/payroll\/extra-time\/reviews(?:\/[0-9a-f-]{36}(?:\/decision)?)?$/.test(normalized)
+    || /^\/api\/bo\/workforce\/staff-records\/[0-9a-f-]{36}\/private\/compensation(?:\/[0-9a-f-]{36})?$/.test(normalized)
+    || /^\/api\/bo\/pinoria\/tv-config\/policy\/(?:head|versions|version|active|drafts|publish|revert)$/.test(normalized)) return true;
   if (normalized === "/api/founder/web-cms/manifests/sync") return true;
   if (/^\/api\/founder\/ai\/change-sets(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:approve|reject|reconcile))?)?$/.test(normalized)) return true;
   return /^\/api\/bo\/learning\/syllabi(?:\/owners|\/media(?:\/[0-9a-f-]{36}\/preview)?|\/[0-9a-f-]{36}(?:\/(?:draft|publish|next-draft|archive))?|\/versions\/[0-9a-f-]{36}\/(?:artchitect-profile|pianohouse-profile|little-piner-profile))?$/.test(normalized)

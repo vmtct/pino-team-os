@@ -121,3 +121,47 @@ test("local and preview hosts retain existing development behavior", () => {
   assert.deepEqual(decideHostBoundary("localhost:3000", "/dashboard"), { action: "next" });
   assert.deepEqual(decideHostBoundary("preview.example.workers.dev", "/bo"), { action: "next" });
 });
+
+
+test("PAP-863: exact P0 BO pages and transport APIs are admitted, but never on TOS host", () => {
+  const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const approved = [
+    "/bo/student-visits", "/bo/missions", "/bo/workforce/compensation",
+    "/bo/workforce/payroll", "/bo/workforce/payroll/extra-time", "/bo/pinoria-tv-policy",
+    "/api/bo/learning/missions", "/api/bo/learning/missions/" + id,
+    "/api/bo/student-visits", "/api/bo/student-visits/check-in", "/api/bo/student-visits/" + id,
+    "/api/bo/student-visits/" + id + "/check-out", "/api/bo/student-visits/" + id + "/correct",
+    "/api/bo/workforce/payroll/periods", "/api/bo/workforce/payroll/periods/" + id,
+    "/api/bo/workforce/payroll/periods/" + id + "/staff-rollup",
+    "/api/bo/workforce/payroll/periods/" + id + "/settlements",
+    "/api/bo/workforce/payroll/periods/" + id + "/staff/" + id + "/preview",
+    "/api/bo/workforce/payroll/periods/" + id + "/staff/" + id + "/finalize",
+    "/api/bo/workforce/payroll/settlements/" + id + "/paid",
+    "/api/bo/workforce/payroll/extra-time/reviews",
+    "/api/bo/workforce/payroll/extra-time/reviews/" + id,
+    "/api/bo/workforce/payroll/extra-time/reviews/" + id + "/decision",
+    "/api/bo/workforce/staff-records/" + id + "/private/compensation",
+    "/api/bo/workforce/staff-records/" + id + "/private/compensation/" + id,
+    "/api/bo/pinoria/worlds/instances",
+    ...["head","versions","version","active","drafts","publish","revert"]
+      .map(suffix => "/api/bo/pinoria/tv-config/policy/" + suffix),
+  ];
+  for (const route of approved) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, route), {action:"next"}, route);
+    assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, route), {action:"not_found"}, route);
+    if (route.startsWith("/bo/")) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, route), true, route);
+  }
+});
+
+test("PAP-863: BO P0 allowlist cannot widen to arbitrary private API or unapproved routes", () => {
+  for (const route of [
+    "/bo/workforce/payroll/any", "/bo/missions/delete", "/bo/student-visits/extra",
+    "/api/bo/learning/missions/forged", "/api/bo/student-visits/extra",
+    "/api/bo/student-visits/check-in/extra", "/api/bo/workforce/payroll/periods/forged",
+    "/api/bo/workforce/payroll/periods/0000/staff-rollup",
+    "/api/bo/workforce/payroll/extra-time/reviews/forged/decision",
+    "/api/bo/workforce/staff-records/forged/private/compensation",
+    "/api/bo/pinoria/tv-config/policy/delete", "/api/bo/pinoria/worlds/instances/private",
+    "/api/bo/any-private-resource", "/api/bo/admin", "/api/tos-learning/sessions/day",
+  ]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME, route), {action:"not_found"}, route);
+});
