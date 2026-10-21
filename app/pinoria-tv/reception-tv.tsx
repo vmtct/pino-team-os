@@ -149,6 +149,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const houseGeneration = useRef(0);
   const stageRef = useRef<HTMLElement | null>(null);
   const [arrivalHandoffTarget, setArrivalHandoffTarget] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
+  const [departureOrigin, setDepartureOrigin] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
 
   useEffect(() => {
     const query = fixedCenterId?.trim() || new URLSearchParams(location.search).get("centerId")?.trim() || "";
@@ -493,6 +494,22 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   }, [presentation, scene, sceneIsCurrent]);
 
   useLayoutEffect(() => {
+    if (!scene || scene.kind !== "departure") { setDepartureOrigin(null); return; }
+    if (scene.phase !== "transition") return;
+    if (!sceneHasMatchingSource) { setDepartureOrigin(null); return; }
+    const stage = stageRef.current;
+    const target = Array.from(stage?.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]") ?? [])
+      .find((element) => element.dataset.ambientRuntimeSelf === scene.pinoriaSelfId);
+    if (!stage || !target) { setDepartureOrigin(null); return; }
+    const bounds = stage.getBoundingClientRect(), actor = target.getBoundingClientRect();
+    if (!bounds.width || !bounds.height || !actor.width || !actor.height) { setDepartureOrigin(null); return; }
+    setDepartureOrigin({
+      left: `${((actor.left + actor.width / 2 - bounds.left) / bounds.width) * 100}%`,
+      top: `${((actor.top + actor.height / 2 - bounds.top) / bounds.height) * 100}%`,
+      width: `${actor.width}px`, height: `${actor.height}px`,
+    });
+  }, [scene, sceneHasMatchingSource]);
+  useLayoutEffect(() => {
     if (!scene || scene.kind !== "arrival" || scene.phase !== "handoff") {
       setArrivalHandoffTarget(null);
       return;
@@ -618,6 +635,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     ? scene.pinoriaSelfId
     : null;
   const isArrivalHandoff = visualScene?.kind === "arrival" && visualScene.phase === "handoff";
+  const departureStyle = visualScene?.kind === "departure" && departureOrigin ? ({
+    "--departure-from-left": departureOrigin.left, "--departure-from-top": departureOrigin.top,
+    "--departure-from-width": departureOrigin.width, "--departure-from-height": departureOrigin.height,
+  } as CSSProperties) : undefined;
   const handoffStyle = isArrivalHandoff && arrivalHandoffTarget ? ({
     "--arrival-target-left": arrivalHandoffTarget.left,
     "--arrival-target-top": arrivalHandoffTarget.top,
@@ -648,7 +669,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       data-arrival-source-id={visualScene.kind === "arrival" ? visualScene.sourceId : undefined}
       data-presence-actor-type={visualScene.actorType}
       className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
-      style={handoffStyle}
+      style={visualScene.kind === "departure" ? departureStyle : handoffStyle}
     >
       {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} aria-hidden="true"><div className={styles.arrivalHouseLayers}><span style={{ backgroundImage: `url("${HOUSE_ASSETS.back}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.mid}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.front}")` }} /></div></div> : null}
       <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" onError={() => setAssetEvidence(previous=>recordAssetFailure(previous,"scene-aura"))} alt="" /></div>
