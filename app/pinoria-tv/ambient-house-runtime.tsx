@@ -16,6 +16,7 @@ import { resolveAmbientHouseArea, type AmbientHouseArea } from "./ambient-house-
 import type { PresenceExperience } from "./presence-contract";
 import { advanceSpatialDialogue } from "../../lib/pap657-dialogue-proximity-engine";
 import type { ActiveDialogue } from "../../lib/pap657-dialogue-runtime";
+import { visibleDialogueLine } from "../../lib/pap657-dialogue-turn";
 
 export type AmbientHouseActor = {
   id: string;
@@ -127,9 +128,9 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionG
     return <div key={agent.id} className={styles.agent} style={style} data-pinoria-effect={effect?.key ?? ""} data-effect-speed={effect?.speedMultiplier ?? 1} data-ambient-runtime-character={agent.id} data-ambient-runtime-self={agent.id} data-ambient-runtime-actor-type={actor.actorType} data-suppressed={suppressed.has(agent.id) ? "true" : "false"} data-lane={agent.laneId} data-motion-state={agent.motionState} data-connector={agent.connectorId ?? ""} data-departing={departing.has(agent.id) ? "true" : "false"}>
       <LayeredCharacter className={styles.character} config={actor.config ?? {}} wardRender={actor.wardRender} effectKey={actor.effectKey} effectSurface="HOUSE_MINI" />
       <span>{actor.name}</span>
-      {dialogues.filter((dialogue) => dialogue.actorA === agent.id || dialogue.actorB === agent.id).map((dialogue) => (
+      {dialogues.filter((dialogue) => visibleDialogueLine(dialogue, agent.id, Date.now()) !== null).map((dialogue) => (
         <span key={`${dialogue.actorA}-${dialogue.actorB}`} role="status" aria-live="off" data-social-dialogue={dialogue.zoneId} style={{ display: "block", maxWidth: 180, padding: "4px 8px", background: "white", borderRadius: 12, color: "#222" }}>
-          {dialogue.lines[dialogue.actorA === agent.id ? 0 : 1]}
+          {visibleDialogueLine(dialogue, agent.id, Date.now())}
         </span>
       ))}
     </div>;
