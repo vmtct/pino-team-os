@@ -11,6 +11,18 @@ export function DialogueEditor(){
  const[simulating,setSimulating]=useState(false);
  const[loading,setLoading]=useState(false),[notice,setNotice]=useState("");
  const[revision,setRevision]=useState(0);
+ async function saveDefaultDraft(){
+  if(!config||loading)return;
+  setLoading(true);setNotice("");
+  try{
+   const scope={kind:"DEFAULT"} as const;
+   const head=await dialogueConfigApi.head(scope);
+   const result=await dialogueConfigApi.write("drafts",{scope,expectedRevision:head?.revision??0,configuration:config});
+   setRevision(Number(result.revision??0));
+   setNotice("Draft đã lưu; chưa publish. Version "+String(result.id??""));
+  }catch(error){setNotice(error instanceof Error?error.message:"Lưu draft thất bại");}
+  finally{setLoading(false);}
+ }
  async function loadDefault(){
   setLoading(true);setNotice("");
   try{
@@ -34,6 +46,7 @@ export function DialogueEditor(){
  return <main style={{padding:24,maxWidth:900,margin:"auto"}}><h1>Pinoria TV · Social Dialogue</h1>
  <p>Bản nháp / mô phỏng. Chưa ghi vào cấu hình publish.</p>
  <button type="button" disabled={loading} onClick={()=>void loadDefault()}>Tải bản đã publish (Default)</button>
+ <button type="button" disabled={loading||!config} onClick={()=>void saveDefaultDraft()}>Lưu draft (Default)</button>
  <p role="status">{loading?"Đang tải...":notice||`Core revision đã đọc: ${revision}`}</p>
  <label>Thời lượng (ms) <input type="number" min={1000} max={15000} value={durationMs} onChange={e=>setDuration(Number(e.target.value))}/></label>
  <label>Khoảng cách (px) <input type="number" min={40} max={140} value={proximityPx} onChange={e=>setProximity(Number(e.target.value))}/></label>
