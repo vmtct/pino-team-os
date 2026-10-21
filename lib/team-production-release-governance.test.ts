@@ -222,3 +222,18 @@ test("TOS authorization closure rejects every allow path that can bypass the can
   assert.match(externalEval, /assert-tos-evaluator-policy-closure\.mjs/);
   assert.match(googleIdp, /assert-tos-evaluator-policy-closure\.mjs/);
 });
+
+
+test("PAP-865: bounded Core terminal history is attested, server-filtered, and provider failures are distinguishable", () => {
+  assert.match(coreVerificationGuard, /39549944942/);
+  assert.match(coreVerificationGuard, /CORE_RECOVERY_BASELINE_INVALID/);
+  assert.match(coreVerificationGuard, /github-actions\\[bot\\]/);
+  assert.match(coreVerificationGuard, /terminal_conclusion in failure cancelled timed_out action_required neutral stale startup_failure/);
+  assert.match(coreVerificationGuard, /created=>=2026-10-21T05:00:00Z/);
+  assert.doesNotMatch(coreVerificationGuard, /event=issues&status=completed&per_page=100/);
+  assert.match(coreVerificationGuard, /CORE_GITHUB_API_RATE_LIMIT_OR_FORBIDDEN/);
+  assert.match(coreVerificationGuard, /CORE_GITHUB_API_UNAVAILABLE/);
+  assert.match(coreVerificationGuard, /CORE_GITHUB_API_READ_FAILURE/);
+  assert.match(coreVerificationGuard, /Core production mutation\\/recovery workflow/);
+  assert.match(coreVerificationGuard, /Completed Core run retains unresolved recovery/);
+});
