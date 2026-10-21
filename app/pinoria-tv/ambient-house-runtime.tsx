@@ -68,11 +68,13 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionG
   const previousFrame = useRef<number | null>(null);
   const lastCommit = useRef(0);
   const [dialogues, setDialogues] = useState<ActiveDialogue[]>([]);
+  const dialogueAgentsRef = useRef(agents);
+  dialogueAgentsRef.current = agents;
   useEffect(() => {
     if (!publishedDialogue) { setDialogues([]); return; }
     const tick = () => {
       const now = Date.now();
-      const positioned = agents.flatMap((agent) => {
+      const positioned = dialogueAgentsRef.current.flatMap((agent) => {
         if (departing.has(agent.id) || suppressed.has(agent.id)) return [];
         const actor = byId.get(agent.id);
         const area = resolveAmbientHouseArea(actor?.experience ?? null, GRAPH, areas);
@@ -85,7 +87,7 @@ export function AmbientHouseRuntime({ actors, areas = NO_APPROVED_AREAS, motionG
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [publishedDialogue, agents, byId, GRAPH, areas, departingId, suppressedIds]);
+  }, [publishedDialogue, byId, GRAPH, areas, departingId, suppressedIds]);
 
   useEffect(() => {
     const desiredIds = idsKey ? idsKey.split("|") : [];
