@@ -34,3 +34,14 @@ jobs:
         run: bun run test
       - name: Build
         run: bun run build
+      - name: Verify PAP-659 build manifest provenance
+        run: |
+          node --test scripts/pap659-build-provenance.test.mjs
+          node scripts/pap659-build-provenance.mjs .next
+      - name: Retain PAP-659 build provenance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap659-build-provenance
+          path: .next/pap659-build-provenance.json
+          if-no-files-found: error
+          retention-days: 7
