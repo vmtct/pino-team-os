@@ -7,6 +7,11 @@ test('approved spatial proximity drives actual scheduler',()=>{
  const result=advanceSpatialDialogue({published,now:100,active:[],actors});
  assert.equal(result.length,1);assert.equal(result[0].zoneId,'art');
 });
+test('existing dialogues close when an actor leaves the approved zone or proximity',()=>{
+ const active=advanceSpatialDialogue({published,now:100,active:[],actors});
+ assert.equal(advanceSpatialDialogue({published,now:200,active,actors:[actors[0],{...actors[1],zoneId:'piano'}]}).length,0);
+ assert.equal(advanceSpatialDialogue({published,now:200,active,actors:[actors[0],{...actors[1],x:200}]}).length,0);
+});
 test('distance, zone and invalid publish fail closed',()=>{
  assert.equal(advanceSpatialDialogue({published,now:100,active:[],actors:[actors[0],{...actors[1],x:200}]}).length,0);
  assert.equal(advanceSpatialDialogue({published,now:100,active:[],actors:[actors[0],{...actors[1],zoneId:'piano'}]}).length,0);

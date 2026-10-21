@@ -7,5 +7,7 @@ export function advanceSpatialDialogue(input:Readonly<{published:unknown;now:num
  const config=parseDialogueConfig(input.published);
  if(!config)return [];
  const nearby=nearbyDialoguePairs(input.actors,config.proximityPx);
- return advancePublishedDialogue({published:config,now:input.now,active:input.active,nearby});
+ const eligible=new Set(nearby.map(p=>[p.actorA,p.actorB,p.zoneId].join('|')));
+ const active=input.active.filter(x=>eligible.has([x.actorA,x.actorB,x.zoneId].join('|')));
+ return advancePublishedDialogue({published:config,now:input.now,active,nearby});
 }
