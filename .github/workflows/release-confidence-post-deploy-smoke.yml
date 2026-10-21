@@ -1,0 +1,39 @@
+name: Release Confidence Post-Deploy Read-Only Smoke
+
+on:
+  workflow_run:
+    workflows: ["Team Runtime Production Release"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  product-readonly-smoke:
+    # Independent post-release observer: NEVER a promotion or merge admission gate.
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact Team source used by release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Read-only perimeter smoke with immutable release receipt
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
+          TEAM_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPORT_FILE: release-confidence-smoke.json
+        run: node scripts/release-confidence-smoke.mjs
+      - name: Preserve Product Smoke receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-smoke-${{ github.event.workflow_run.id }}
+          path: release-confidence-smoke.json
+          retention-days: 30
+          if-no-files-found: warn

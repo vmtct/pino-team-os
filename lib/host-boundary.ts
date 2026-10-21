@@ -108,6 +108,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/pinoria-world",
     "/bo/pinoria-tv-policy",
     "/bo/pinoria-wish",
+    "/bo/pinoria-activities",
     "/bo/pinoria-companions",
     "/bo/pinoria-ward",
     "/bo/pinoria-ward/sets",
