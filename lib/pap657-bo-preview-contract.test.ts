@@ -20,3 +20,12 @@ test('BO dialogue mutation requires explicit Core authority, scope and operator 
  assert.doesNotMatch(editor,/localStorage|sessionStorage/);
  assert.match(editor,/Bản nháp/);
 });
+test('BO proxy routes all dialogue config reads and guarded mutations to Core',()=>{
+ const read=readFileSync(new URL('../lib/bo-read-handler.ts',import.meta.url),'utf8');
+ const write=readFileSync(new URL('../lib/bo-write-handler.ts',import.meta.url),'utf8');
+ for(const action of ['head','versions','version','active'])assert.match(read,new RegExp('pinoria/tv-config/dialogue/'+action));
+ for(const action of ['drafts','publish','revert'])assert.match(write,new RegExp('pinoria/tv-config/dialogue/'+action));
+ assert.match(read,/TV_DIALOGUE_CONFIG_READ\.has\(path\)/);
+ assert.match(write,/TV_DIALOGUE_CONFIG_POST\.has\(path\)/);
+ assert.match(write,/Idempotency-Key is required/);
+});
