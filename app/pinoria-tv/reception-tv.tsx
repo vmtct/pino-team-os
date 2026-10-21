@@ -268,7 +268,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   function enqueuePresenceEvents(events: PresenceEvent[]) {
     setScenes((queue) => [
       ...queue,
-      ...events.filter(event=>eligibleTvEvent(policy,event.type,event.occurredAt,new Date())).map((event) => ({
+      ...events.filter(event=>eligibleTvEvent(policy,event.type,event.occurredAt,new Date())
+        && !queue.some(existing=>existing.id===`${event.sequence}` && existing.pinoriaSelfId===event.pinoriaSelfId
+          && existing.sourceType===event.sourceType && existing.sourceId===event.sourceId)).map((event) => ({
         id: `${event.sequence}`,
         kind: event.type === "ARRIVAL" ? "arrival" as const : "departure" as const,
         name: displayNameForSharedTv(policy,event.payload.displayName),

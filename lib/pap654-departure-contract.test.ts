@@ -23,4 +23,7 @@ test("departure removal is scoped to exact learner AND originating presence sour
  assert.match(source, /scene\.kind === "departure" && sceneActor && !sceneHasMatchingSource \? false/);
  assert.match(source, /if \(!sceneIsCurrent\) \{/);
  assert.match(source, /queue\[0\]\?\.id === scene\.id \? queue\.slice\(1\) : queue/);
+});test("repeated delivery of same presence event does not duplicate queued farewell",()=>{
+ assert.match(source,/!queue\.some\(existing=>existing\.id===`\$\{event\.sequence\}`/);
+ assert.match(source,/existing\.sourceType===event\.sourceType && existing\.sourceId===event\.sourceId/);
 });
