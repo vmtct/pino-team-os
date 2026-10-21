@@ -32,6 +32,8 @@ jobs:
         run: bun run lint
       - name: Unit tests
         run: bun run test
+      - name: Release confidence smoke and recovery regression tests
+        run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
       - name: Build
         run: bun run build
       - name: Verify PAP-659 build manifest provenance

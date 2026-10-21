@@ -17,10 +17,10 @@ test("PAP-863: Core production history guard skips never-started workflows witho
   // runs still require exhaustive bot-owned recovery/rollback receipts.
   assert.ok(coreVerificationGuard.includes('case "$conclusion" in success|skipped) continue ;; esac'));
   assert.ok(coreVerificationGuard.includes('for status in queued in_progress; do'));
-  assert.ok(coreVerificationGuard.includes('Core production mutation/recovery workflow'));
+  assert.ok(coreVerificationGuard.includes('CORE_OVERLAP: production mutation/recovery workflow'));
   assert.ok(coreVerificationGuard.includes('RECOVERY_ARMED'));
   assert.ok(coreVerificationGuard.includes('WATCHDOG_RECOVERED'));
-  assert.ok(coreVerificationGuard.includes('Completed Core run retains unresolved recovery'));
+  assert.ok(coreVerificationGuard.includes('UNRESOLVED_RECOVERY'));
   assert.ok(coreVerificationGuard.includes('GH_TOKEN="$core_token" gh api'));
 });
 
@@ -231,9 +231,9 @@ test("PAP-865: bounded Core terminal history is attested, server-filtered, and p
   assert.match(coreVerificationGuard, /terminal_conclusion in failure cancelled timed_out action_required neutral stale startup_failure/);
   assert.match(coreVerificationGuard, /created=>=2026-10-21T05:00:00Z/);
   assert.doesNotMatch(coreVerificationGuard, /event=issues&status=completed&per_page=100/);
-  assert.match(coreVerificationGuard, /CORE_GITHUB_API_RATE_LIMIT_OR_FORBIDDEN/);
-  assert.match(coreVerificationGuard, /CORE_GITHUB_API_UNAVAILABLE/);
-  assert.match(coreVerificationGuard, /CORE_GITHUB_API_READ_FAILURE/);
-  assert.ok(coreVerificationGuard.includes('Core production mutation/recovery workflow'));
-  assert.match(coreVerificationGuard, /Completed Core run retains unresolved recovery/);
+  assert.match(coreVerificationGuard, /CORE_RECOVERY_GITHUB_RATE_LIMIT_OR_FORBIDDEN/);
+  assert.match(coreVerificationGuard, /CORE_RECOVERY_GITHUB_PROVIDER_UNAVAILABLE/);
+  assert.match(coreVerificationGuard, /CORE_RECOVERY_GITHUB_READ_FAILURE/);
+  assert.ok(coreVerificationGuard.includes('CORE_OVERLAP: production mutation/recovery workflow'));
+  assert.match(coreVerificationGuard, /UNRESOLVED_RECOVERY/);
 });
