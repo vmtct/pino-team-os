@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 import {makeRuntimeObservation,sendRuntimeObservation} from "./pap659-runtime-observation-client";
-const identity={sessionId:"session",displayId:"display",deviceId:"device"};
+const identity={sessionId:"display_runtime_session_12345678",displayId:"display_definition_12345678",deviceId:"display_device_12345678"};
 const facts={buildDigest:"a".repeat(64),appliedConfigRevision:1,assetStatus:"READY" as const};
 test("no authoritative facts means no observation",()=>{
   assert.equal(makeRuntimeObservation(identity,null),null);
   assert.equal(makeRuntimeObservation({...identity,deviceId:null},facts),null);
+  assert.equal(makeRuntimeObservation({...identity,sessionId:"session"},facts),null);
+  assert.equal(makeRuntimeObservation({...identity,displayId:"display"},facts),null);
   assert.equal(makeRuntimeObservation(identity,{...facts,buildDigest:"A".repeat(64)}),null);
   assert.equal(makeRuntimeObservation(identity,{...facts,appliedConfigRevision:0}),null);
 });

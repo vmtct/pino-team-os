@@ -1,8 +1,10 @@
 /** Runtime observation requires independently known facts; never manufacture a build/config receipt. */
 export type RuntimeObservationFacts=Readonly<{buildDigest:string;appliedConfigRevision:number;assetStatus:"READY"|"DEGRADED"|"UNKNOWN"}>;
 const digest=/^[0-9a-f]{64}$/;
+const canonical=/^[a-z][a-z0-9_]*_[0-9a-f-]{8,}$/i;
+const validIdentity=(id:string)=>canonical.test(id);
 export function makeRuntimeObservation(identity:{sessionId:string;displayId:string;deviceId:string|null},facts:RuntimeObservationFacts|null):unknown|null{
-  if(!facts||!identity.deviceId||!identity.sessionId||!identity.displayId)return null;
+  if(!facts||!identity.deviceId||!validIdentity(identity.deviceId)||!validIdentity(identity.sessionId)||!validIdentity(identity.displayId))return null;
   if(!digest.test(facts.buildDigest)||!Number.isSafeInteger(facts.appliedConfigRevision)||facts.appliedConfigRevision<1)return null;
   if(!["READY","DEGRADED","UNKNOWN"].includes(facts.assetStatus))return null;
   return {version:1,sessionId:identity.sessionId,displayId:identity.displayId,deviceId:identity.deviceId,...facts};
