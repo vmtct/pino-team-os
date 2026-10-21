@@ -575,7 +575,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
   const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
-  return <main ref={stageRef} data-tv-asset-evidence={observedAssetStatus} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
+  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
     <div className={styles.orbTwo} />
