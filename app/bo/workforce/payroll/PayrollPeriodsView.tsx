@@ -4,6 +4,7 @@ import {boApi} from "@/lib/bo-api";
 import {periodApi,money,validPeriodInput,type PayPeriod,type PeriodStaff,type PeriodStaffPage,
  type SettlementPreview} from "@/lib/bo-payroll-period-api";
 import styles from "./payroll-periods.module.css";
+import {CheckInPhotoGrid} from "./CheckInPhotoGrid";
 type Center={id:string;displayName:string;status:string};
 type Form={name:string;startDate:string;endDate:string};
 const empty:Form={name:"",startDate:"",endDate:""};
@@ -152,9 +153,10 @@ export default function PayrollPeriodsView(){
      <ul>{detail.days.map(x=><li key={x.workDate}>{x.workDate}: {x.status} · {money(x.amountMinor)}</li>)}</ul>
      {detail.warnings.length?<p role="alert">Cảnh báo: {detail.warnings.join(", ")}</p>:null}
     </>:null}
+    {detail?<CheckInPhotoGrid centerId={centerId} periodId={selected.id} staffId={activeStaff.staffMemberId} workDates={detail.days.map(x=>x.workDate)}/>:null}
     {activeStaff.status==="DRAFT"||activeStaff.status==="PENDING"?<div>
      <label><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)}/>
-      Tôi đã kiểm tra số tiền và xác nhận các cảnh báo của nhân viên này.</label>
+      Tôi đã kiểm tra số tiền, bằng chứng Check-in và các cảnh báo của nhân viên này.</label>
      <button disabled={busy||!ack||!detail||selected.status!=="ACTIVE"} onClick={()=>void finalize()}>Chốt nhân viên</button>
     </div>:null}
     {activeStaff.status==="FINALIZED"&&<div className={styles.form}>
