@@ -24,4 +24,11 @@ test("missing report makes no request; rejected response is not success",async()
   assert.equal(await sendRuntimeObservation("/api/runtime",{...(makeRuntimeObservation(identity,facts) as object),rendererAcknowledged:true},fetcher as typeof fetch),false);
   assert.equal(await sendRuntimeObservation("/api/runtime",{version:1,sessionId:"s"},fetcher as typeof fetch),false);
   assert.equal(calls,1);
+  const report=makeRuntimeObservation(identity,facts);
+  const success=async()=>Response.json({data:{valid:true,persisted:true,rendererAcknowledged:false}});
+  const forged=async()=>Response.json({data:{valid:true,persisted:true,rendererAcknowledged:true}});
+  const empty=async()=>new Response(null,{status:200});
+  assert.equal(await sendRuntimeObservation("/api/runtime",report,success as typeof fetch),true);
+  assert.equal(await sendRuntimeObservation("/api/runtime",report,forged as typeof fetch),false);
+  assert.equal(await sendRuntimeObservation("/api/runtime",report,empty as typeof fetch),false);
 });

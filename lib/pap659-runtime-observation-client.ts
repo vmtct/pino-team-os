@@ -14,6 +14,10 @@ export async function sendRuntimeObservation(endpoint:string,observation:unknown
   if(Object.keys(value).sort().join(",")!=="appliedConfigRevision,assetStatus,buildDigest,deviceId,displayId,sessionId,version")return false;
   if(value.version!==1||typeof value.sessionId!=="string"||!value.sessionId||typeof value.displayId!=="string"||!value.displayId||typeof value.deviceId!=="string"||!value.deviceId||typeof value.buildDigest!=="string"||!digest.test(value.buildDigest)||typeof value.appliedConfigRevision!=="number"||!Number.isSafeInteger(value.appliedConfigRevision)||value.appliedConfigRevision<1||!["READY","DEGRADED","UNKNOWN"].includes(String(value.assetStatus)))return false;
   try{const result=await fetcher(endpoint,{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",cache:"no-store",body:JSON.stringify(observation)});
-    return result.ok;
+    if(!result.ok)return false;
+    const payload:unknown=await result.json().catch(()=>null);
+    if(!payload||typeof payload!=="object"||Array.isArray(payload))return false;
+    const data=(payload as {data?:unknown}).data;
+    return !!data&&typeof data==="object"&&!Array.isArray(data)&&(data as Record<string,unknown>).persisted===true&&(data as Record<string,unknown>).valid===true&&(data as Record<string,unknown>).rendererAcknowledged===false;
   }catch{return false;}
 }
