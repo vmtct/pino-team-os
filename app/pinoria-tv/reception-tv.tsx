@@ -106,7 +106,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     const pull=async()=>{
       try{
         const response=await fetch(apiBase+"/dialogue-config",{cache:"no-store"});
-        if(!response.ok)return;
+        if(response.status===401||response.status===403){if(mounted)setPublishedDialogue(null);return;}
+        if(!response.ok)return; // Transient outage: retain same-session LKG.
         const body=await response.json() as {data?:{configuration?:unknown}|null};
         const parsed=parseDialogueConfig(body.data?.configuration);
         if(mounted)setPublishedDialogue(parsed); // Null/invalid active config disables dialogue.
