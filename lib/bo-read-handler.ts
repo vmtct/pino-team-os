@@ -11,6 +11,7 @@ const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|T
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
+const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
@@ -104,7 +105,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
-    || TV_SPATIAL_CONFIG_READ.has(path)
+    || TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path)
     || path === "pinoria/effects/catalog"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
@@ -205,7 +206,7 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
-  if (TV_SPATIAL_CONFIG_READ.has(path) || TV_POLICY_READ.has(path)) {
+  if (TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path) || TV_POLICY_READ.has(path)) {
     const supported = path.endsWith("/active") ? ["centerId"] : path.endsWith("/version") ? ["scope","centerId","versionId"] : ["scope","centerId"];
     for (const key of url.searchParams.keys()) if (!supported.includes(key)) throw new RangeError("Unknown spatial config query key");
     const centerId = url.searchParams.get("centerId")?.trim();
