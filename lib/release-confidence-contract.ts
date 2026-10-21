@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { boNavigation } from "../app/bo/navigation";
+import { TOS_HOME_FOOTER, TOS_SHIFT_FOOTER, TOS_CLASSROOM_FOOTER, TOS_TASKS_FOOTER, TOS_PINORIA_FOOTER, TOS_OPEN_STUDIO_FOOTER, TOS_TV_FOOTER } from "../app/components/tos-shell/navigation";
 import { BO_HOSTNAME, TOS_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession } from "./host-boundary";
 
 type NavItem = { href?: string; children?: NavItem[] };
@@ -49,7 +50,7 @@ export function verifyReleaseRouteContracts(root: string): string[] {
   const boHrefs = collectNavHrefs(boNavigation.flatMap((g) => g.items as NavItem[]));
   if (boHrefs.length < 20) problems.push("suspiciously_empty_bo_navigation");
   for (const href of boHrefs) for (const issue of checkPageContract(root, BO_HOSTNAME, href)) problems.push("bo_nav:"+href+":"+issue);
-  const tosAppHrefs = ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/timesheet", "/check-in", "/earnings", "/tasks"];
+  const tosAppHrefs = [...new Set([...collectNavHrefs([...TOS_HOME_FOOTER, ...TOS_SHIFT_FOOTER, ...TOS_CLASSROOM_FOOTER, ...TOS_TASKS_FOOTER, ...TOS_PINORIA_FOOTER, ...TOS_OPEN_STUDIO_FOOTER, ...TOS_TV_FOOTER]), "/training", "/check-in"])];
   for (const href of tosAppHrefs) for (const issue of checkPageContract(root, TOS_HOSTNAME, href)) problems.push("tos_nav:"+href+":"+issue);
   for (const api of coreApis) for (const issue of checkApiContract(root, api.path, api.handler, api.marker)) problems.push("bo_api:"+api.path+":"+issue);
   return problems;
