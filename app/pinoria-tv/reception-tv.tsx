@@ -9,6 +9,7 @@ import savedSpatialGraph from "./ambient-house-motion-graph.saved.json";
 import type { AmbientMotionGraph } from "./ambient-house-motion";
 import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh,type HouseSpatialRefresh} from "../../lib/pinoria-house-spatial-runtime";
 import {assetStatusFromEvidence,recordAssetFailure,type AssetEvidence} from "../../lib/pap659-asset-observation";
+import {fetchBuildManifestProvenance} from "../../lib/pap659-build-provenance-client";
 
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
@@ -51,6 +52,14 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   // Asset failures belong to a single authenticated TV session, not the next device session.
   useEffect(()=>{setAssetEvidence({failedAssetIds:[]});},[runtimeIdentity?.sessionId]);
   const observedAssetStatus=assetStatusFromEvidence(assetEvidence);
+  const [manifestDigest,setManifestDigest]=useState<string|null>(null);
+  useEffect(()=>{
+    let cancelled=false;
+    setManifestDigest(null);
+    if(!runtimeIdentity?.sessionId)return;
+    void fetchBuildManifestProvenance().then(value=>{if(!cancelled)setManifestDigest(value);});
+    return()=>{cancelled=true;};
+  },[runtimeIdentity?.sessionId]);
   const liveActorCountRef=useRef(0);
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
@@ -575,7 +584,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
   const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
-  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
+  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
     <div className={styles.orbTwo} />
