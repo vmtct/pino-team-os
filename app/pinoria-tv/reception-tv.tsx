@@ -8,7 +8,7 @@ import type { AmbientHouseArea } from "./ambient-house-area";
 import savedSpatialGraph from "./ambient-house-motion-graph.saved.json";
 import type { AmbientMotionGraph } from "./ambient-house-motion";
 import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh,type HouseSpatialRefresh} from "../../lib/pinoria-house-spatial-runtime";
-import {assetStatusFromEvidence,recordAssetFailure} from "../../lib/pap659-asset-observation";
+import {assetStatusFromEvidence,recordAssetFailure,type AssetEvidence} from "../../lib/pap659-asset-observation";
 
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
@@ -47,7 +47,7 @@ const DEPARTURE_PERFORMANCE_MS = 5200;
 export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas, runtimeIdentity }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[]; runtimeIdentity?: {displayId:string;sessionId:string;deviceId:string|null} } = {}) {
   const [centerId, setCenterId] = useState("");
   const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
-  const [assetEvidence,setAssetEvidence]=useState({failedAssetIds:[] as string[]});
+  const [assetEvidence,setAssetEvidence]=useState<AssetEvidence>({failedAssetIds:[]});
   const observedAssetStatus=assetStatusFromEvidence(assetEvidence);
   const liveActorCountRef=useRef(0);
   const [draft, setDraft] = useState("");
