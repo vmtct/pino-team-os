@@ -36,7 +36,7 @@ jobs:
         run: bun run build
       - name: Verify PAP-659 build manifest provenance
         run: |
-          node --test scripts/pap659-build-provenance.test.mjs
+          node --test scripts/pap659-build-provenance.test.mjs scripts/pap659-package-provenance.test.mjs
           node scripts/pap659-build-provenance.mjs .next
       - name: Retain PAP-659 build provenance evidence
         uses: actions/upload-artifact@v4
