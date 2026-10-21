@@ -17,3 +17,9 @@ test('distance, zone and invalid publish fail closed',()=>{
  assert.equal(advanceSpatialDialogue({published,now:100,active:[],actors:[actors[0],{...actors[1],zoneId:'piano'}]}).length,0);
  assert.equal(advanceSpatialDialogue({published:{...published,revision:0},now:100,active:[],actors}).length,0);
 });
+
+test('multi-zone preview enforces three-TV and one-zone cap',()=>{
+ const zone=(n:number)=>[{id:'a'+n,zoneId:'zone'+n,x:0,y:0},{id:'b'+n,zoneId:'zone'+n,x:30,y:20}];
+ const result=advanceSpatialDialogue({published,now:100,active:[],actors:[...zone(1),...zone(2),...zone(3),...zone(4)]});
+ assert.equal(result.length,3);assert.equal(new Set(result.map(x=>x.zoneId)).size,3);
+});
