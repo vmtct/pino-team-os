@@ -104,11 +104,11 @@ export function TvOperatorQueue() {
     try {
       const target = await operatorPresentationClient.replayTarget(center, displayId, active.id);
       if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
-      if (!target.available || target.target?.displayId !== displayId || !target.target.deviceId) {
+      if (!target.available || target.target?.displayId !== displayId || !target.target.deviceId || !target.target.sessionId) {
         throw new Error("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.");
       }
       if (!window.confirm(`Phát lại ${active.id} trên TV ${displayId}?`)) return;
-      await operatorPresentationClient.replayDispatch(center, displayId, active.id, crypto.randomUUID(), target.target.deviceId);
+      await operatorPresentationClient.replayDispatch(center, displayId, active.id, crypto.randomUUID(), target.target.deviceId, target.target.sessionId);
       if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
         setMessage("Core đã nhận replay dispatch; chưa có xác nhận TV vật lý đã render.");
       }

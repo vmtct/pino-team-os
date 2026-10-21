@@ -58,14 +58,14 @@ export const operatorPresentationClient = {
     )),
   // Physical replay is an explicit control command, not snapshot inspection.
   replayTarget: (centerId: string, displayId: string, presentationId: string) =>
-    operatorRequest<{ available: boolean; target: { displayId: string; deviceId: string } | null }>(
+    operatorRequest<{ available: boolean; target: { displayId: string; deviceId: string; sessionId: string } | null }>(
       `replay-target?centerId=${encodeURIComponent(centerId)}&displayId=${encodeURIComponent(displayId)}&presentationId=${encodeURIComponent(presentationId)}`,
     ),
-  replayDispatch: (centerId: string, displayId: string, presentationId: string, idempotencyKey: string, expectedDeviceId: string) => {
-    if (!idempotencyKey.trim() || !expectedDeviceId.trim()) throw new Error("Replay dispatch requires idempotency key and verified device");
+  replayDispatch: (centerId: string, displayId: string, presentationId: string, idempotencyKey: string, expectedDeviceId: string, expectedSessionId: string) => {
+    if (!idempotencyKey.trim() || !expectedDeviceId.trim() || !expectedSessionId.trim()) throw new Error("Replay dispatch requires idempotency key and verified device");
     return operatorRequest<unknown>("replay-dispatch", {
       method: "POST", headers: { "idempotency-key": idempotencyKey },
-      body: JSON.stringify({ centerId, displayId, presentationId, expectedDeviceId }),
+      body: JSON.stringify({ centerId, displayId, presentationId, expectedDeviceId, expectedSessionId }),
     });
   },  returnToAmbient: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("return-to-ambient", centerId, presentationId, expectedClaimedAt, idempotencyKey),
   close: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("close", centerId, presentationId, expectedClaimedAt, idempotencyKey),
