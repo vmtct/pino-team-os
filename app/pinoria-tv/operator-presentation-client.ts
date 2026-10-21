@@ -61,11 +61,11 @@ export const operatorPresentationClient = {
     operatorRequest<{ available: boolean; target: { displayId: string; deviceId: string } | null }>(
       `replay-target?centerId=${encodeURIComponent(centerId)}&displayId=${encodeURIComponent(displayId)}&presentationId=${encodeURIComponent(presentationId)}`,
     ),
-  replayDispatch: (centerId: string, displayId: string, presentationId: string, idempotencyKey: string) => {
-    if (!idempotencyKey.trim()) throw new Error("Replay dispatch requires idempotency key");
+  replayDispatch: (centerId: string, displayId: string, presentationId: string, idempotencyKey: string, expectedDeviceId: string) => {
+    if (!idempotencyKey.trim() || !expectedDeviceId.trim()) throw new Error("Replay dispatch requires idempotency key and verified device");
     return operatorRequest<unknown>("replay-dispatch", {
       method: "POST", headers: { "idempotency-key": idempotencyKey },
-      body: JSON.stringify({ centerId, displayId, presentationId }),
+      body: JSON.stringify({ centerId, displayId, presentationId, expectedDeviceId }),
     });
   },  returnToAmbient: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("return-to-ambient", centerId, presentationId, expectedClaimedAt, idempotencyKey),
   close: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("close", centerId, presentationId, expectedClaimedAt, idempotencyKey),
