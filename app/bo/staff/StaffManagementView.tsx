@@ -12,6 +12,7 @@ import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { staffDirectoryHref, staffFullDetailHref } from "@/lib/bo-staff-detail-navigation";
 import { buildStaffQuickPeekModel } from "@/lib/bo-staff-quick-peek";
 import { STAFF_DETAIL_TABS, resolveStaffDetailTab, staffDetailTabHref } from "@/lib/bo-staff-detail-tabs";
+import { StaffTrainingTab } from "./StaffTrainingTab";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import { staffProfileDraftDirty, staffProfileDraftErrors } from "@/lib/bo-staff-profile-edit";
@@ -744,7 +745,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
           <p>Đối chiếu Staff ID này tại lịch phân ca Workforce. Chỉ nguồn Workforce được phép chỉnh sửa phân công.</p>
           <Link className={styles.secondaryButton} href={`/bo/workforce?staff=${encodeURIComponent(selectedId)}`}>Mở Workforce · lọc Staff này <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" /></Link>
         </section> : null}
-        {(["training", "income", "audit"] as const).includes(activeTab as "training" | "income" | "audit")
+        {activeTab === "training" && selectedId ? <StaffTrainingTab staffId={selectedId} /> : null}
+        {(["income", "audit"] as const).includes(activeTab as "income" | "audit")
           ? <section className={styles.panel} data-testid="staff-v2-unavailable"><h2>{STAFF_DETAIL_TABS.find(tab => tab.key === activeTab)?.label}</h2><p>Chức năng đang được triển khai. Chưa có dữ liệu được xác minh để hiển thị.</p></section> : null}
       </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
         <div className={styles.staffQuickPeek} data-testid="staff-quick-peek">
