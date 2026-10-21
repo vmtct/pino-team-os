@@ -5,10 +5,24 @@ import test from "node:test";
 
 const release = readFileSync(".github/workflows/team-runtime-production-release.yml", "utf8");
 const coreAuthority = readFileSync("scripts/assert-core-production-authority.sh", "utf8");
+const coreVerificationGuard = readFileSync("scripts/assert-no-core-verification-in-flight.sh", "utf8");
 function decide(input: Record<string, string>) {
   return execFileSync(process.execPath, ["scripts/team-production-release-fence.mjs", JSON.stringify(input)], { encoding: "utf8" }).trim();
 }
 const base = { oldDeploymentId: "d-old", oldVersion: "v-old", candidateDeploymentId: "", candidateVersion: "v-new", candidateMarker: "run", currentDeploymentId: "d-new", currentVersion: "v-new", currentMarker: "run", previousDeploymentId: "d-old" };
+
+test("PAP-863: Core production history guard skips never-started workflows without relaxing recovery safety", () => {
+  // A skipped GitHub Actions workflow contains no executed job, so it cannot
+  // have emitted an authenticated RECOVERY_ARMED marker. Failed and cancelled
+  // runs still require exhaustive bot-owned recovery/rollback receipts.
+  assert.ok(coreVerificationGuard.includes('case "$conclusion" in success|skipped) continue ;; esac'));
+  assert.ok(coreVerificationGuard.includes('for status in queued in_progress; do'));
+  assert.ok(coreVerificationGuard.includes('Core production mutation/recovery workflow'));
+  assert.ok(coreVerificationGuard.includes('RECOVERY_ARMED'));
+  assert.ok(coreVerificationGuard.includes('WATCHDOG_RECOVERED'));
+  assert.ok(coreVerificationGuard.includes('Completed Core run retains unresolved recovery'));
+  assert.ok(coreVerificationGuard.includes('GH_TOKEN="$core_token" gh api'));
+});
 
 test("Team rollback restores only exact run-owned successor", () => {
   assert.equal(decide(base), "RESTORE");
