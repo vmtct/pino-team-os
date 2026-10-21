@@ -21,7 +21,7 @@ test("PAP-867: route failure is detected without changing the deployed release",
   assert.ok(r.probes.some(p=>p.httpStatus===404&&p.status==="FAIL"));
 });
 test("PAP-867: successful read-only perimeter checks never imply Product UAT",async()=>{
- const statuses=[200,307,401,401,404,404];let i=0;
+ const statuses=probes.map(p=>p.allowed[0]);let i=0;
  const r=await smoke(async()=>({status:statuses[i++],headers:new Headers({"location":"/staff-login"})}),{sourceSha:sha});
  assert.equal(r.status,"PASS");
  assert.equal(r.authenticatedProductUat,"NOT_RUN");

@@ -4,6 +4,12 @@ import { pathToFileURL } from "node:url";
 export const probes = Object.freeze([
   { name:"bo_login_public", url:"https://bo.pinohouse.art/staff-login", allowed:[200] },
   { name:"bo_missions_login_redirect", url:"https://bo.pinohouse.art/bo/missions", allowed:[307,302,303] },
+  { name:"bo_payroll_login_redirect", url:"https://bo.pinohouse.art/bo/workforce/payroll", allowed:[307,302,303] },
+  { name:"bo_extra_time_login_redirect", url:"https://bo.pinohouse.art/bo/workforce/payroll/extra-time", allowed:[307,302,303] },
+  { name:"bo_compensation_login_redirect", url:"https://bo.pinohouse.art/bo/workforce/compensation", allowed:[307,302,303] },
+  { name:"bo_visits_login_redirect", url:"https://bo.pinohouse.art/bo/student-visits", allowed:[307,302,303] },
+  { name:"bo_tv_policy_login_redirect", url:"https://bo.pinohouse.art/bo/pinoria-tv-policy", allowed:[307,302,303] },
+  { name:"bo_pinoria_world_login_redirect", url:"https://bo.pinohouse.art/bo/pinoria-world", allowed:[307,302,303] },
   { name:"bo_missions_api_denied", url:"https://bo.pinohouse.art/api/bo/learning/missions", allowed:[401,403] },
   { name:"bo_instances_api_denied", url:"https://bo.pinohouse.art/api/bo/pinoria/worlds/instances", allowed:[401,403] },
   { name:"bo_host_not_exposed_on_tos", url:"https://tos.pinohouse.art/bo/missions", allowed:[404] },
@@ -35,7 +41,7 @@ export async function smoke(fetcher, identity, cases=probes) {
       const response=await fetcher(check.url,{method:"GET",redirect:"manual",signal:AbortSignal.timeout(10000)});
       const passed=check.allowed.includes(response.status);
       const location=response.headers?.get?.("location")||"";
-      const redirectSafe=check.name === "bo_missions_login_redirect" ? new URL(location,"https://bo.pinohouse.art").pathname === "/staff-login" : true;
+      const redirectSafe=check.name.endsWith("_login_redirect") ? (()=>{const u=new URL(location,"https://bo.pinohouse.art");return u.hostname==="bo.pinohouse.art" && u.pathname==="/staff-login";})() : true;
       results.push({name:check.name,httpStatus:response.status,status:passed&&redirectSafe?"PASS":"FAIL"});
     }catch(e){results.push({name:check.name,status:"FAIL",error:e?.name==="TimeoutError"?"TIMEOUT":"NETWORK_OR_PROVIDER_ERROR"});}
   }
