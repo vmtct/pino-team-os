@@ -123,7 +123,7 @@ export function TvOperatorQueue() {
     try {
       const target = await operatorPresentationClient.replayTarget(center, displayId, active.id);
       if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
-      if (!target.available || !targetMatchesSelected(selected, target.target)) {
+      if (!target.available || !target.target || !targetMatchesSelected(selected, target.target)) {
         throw new Error("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.");
       }
       if (!window.confirm(`Phát lại ${active.id}?\nDisplay: ${displayId}\nDevice: ${target.target.deviceId}\nSession: ${target.target.sessionId}\nLệnh chỉ ghi dispatch; chưa xác nhận TV đã render.`)) return;
