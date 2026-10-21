@@ -14,6 +14,9 @@ const valid = () => ({
 test("PAP-651 TV spatial decoder accepts versioned approved House graph",()=>{
   const cfg=parsePublishedHouseSpatialConfig(valid());
   assert.ok(cfg);assert.equal(cfg.configuration.graph.horizontalLanes.length,8);
+  assert.equal(parsePublishedHouseSpatialConfig({...valid(),appliedRevision:2})?.appliedRevision,2);
+  assert.equal(parsePublishedHouseSpatialConfig({...valid(),appliedRevision:0}),null);
+  assert.equal(parsePublishedHouseSpatialConfig({...valid(),appliedRevision:"2"}),null);
 });
 test("PAP-651 TV runtime fails closed on invalid 16:9 canvas or ambiguous mapping",()=>{
   const bad=valid();bad.configuration.canvas.height=720;
