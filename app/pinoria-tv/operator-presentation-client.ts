@@ -39,7 +39,8 @@ async function operatorRequest<T>(path: string, init: RequestInit = {}): Promise
   return payload.data;
 }
 
-export type OperatorHealth = {centerId:string;queueRevision:number;activePresentation:{id:string;kind:string;claimedAt:string}|null;queuedCount:number;hasMore:boolean;runtimeConnectivity:null;buildIdentity:null;appliedConfigVersion:null;assetHealth:null;rendererAcknowledged:boolean};
+export type OperatorDeviceSession = {sessionId:string;deviceId:string;displayId:string;lastSeenAt:string;expiresAt:string;definitionVersion:number;runtimeType:string;heartbeatFresh:boolean};
+export type OperatorHealth = {deviceSessions:OperatorDeviceSession[];centerId:string;queueRevision:number;activePresentation:{id:string;kind:string;claimedAt:string}|null;queuedCount:number;hasMore:boolean;runtimeConnectivity:null;buildIdentity:null;appliedConfigVersion:null;assetHealth:null;rendererAcknowledged:boolean};
 export const operatorPresentationClient = {
   operatorHealth: (centerId:string) => operatorRequest<OperatorHealth>(`operator-health?centerId=${encodeURIComponent(centerId)}`),
   queue: async (centerId: string) =>

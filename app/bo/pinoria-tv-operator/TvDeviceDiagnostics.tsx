@@ -42,6 +42,7 @@ export function TvDeviceDiagnostics(){
     {error?<p role="alert">{error}</p>:null}
     {devices && !centerId && [...new Set(devices.map(device=>device.centerId).filter(Boolean))].length>1?<p role="status">Chọn center trong danh sách rồi làm mới để đọc queue health.</p>:null}
     {health?<p role="status">Core queue revision {health.queueRevision} · Pending {health.queuedCount} · Active {health.activePresentation?.kind??"None"} · Renderer ACK chưa xác thực</p>:null}
+    {health?.deviceSessions?.filter(session=>!centerId||devices?.some(device=>device.id===session.deviceId && device.centerId===centerId)).map(session=><p key={session.sessionId}>TV session: {session.sessionId} · Device: {session.deviceId} · Display: {session.displayId} · {session.heartbeatFresh?"Heartbeat gần đây (không phải ACK)":"Heartbeat cũ/offline chưa xác thực"} · Definition v{session.definitionVersion}</p>)}
     {devices?.length===0?<p>Không có thiết bị được cấp quyền xem.</p>:null}
     {devices && centerId && !devices.some(device=>device.centerId===centerId)?<p role="status">Center đã chọn không còn thiết bị được cấp quyền xem.</p>:null}
     <p><small>Chẩn đoán phiên TV thời gian thực, build manifest, phiên bản cấu hình đã áp dụng và tình trạng tài nguyên: chưa có read projection do Core xác thực. Không hiển thị dữ liệu giả hoặc sử dụng token của TV.</small></p>
