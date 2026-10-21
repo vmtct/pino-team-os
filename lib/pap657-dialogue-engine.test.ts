@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {advancePublishedDialogue} from './pap657-dialogue-engine.ts';
+import {advancePublishedDialogue} from './pap657-dialogue-engine';
 const published={revision:2,durationMs:4000,proximityPx:90,maxTvBubbles:3,maxZoneBubbles:1,pool:[['Xin chào','Chào bạn']]};
 const nearby=[{actorA:'a',actorB:'b',zoneId:'zone1'}];
 test('published text drives a bounded dialogue without generating learner claims',()=>{

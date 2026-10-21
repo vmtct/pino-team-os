@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {advanceSpatialDialogue} from './pap657-dialogue-proximity-engine.ts';
+import {advanceSpatialDialogue} from './pap657-dialogue-proximity-engine';
 const published={revision:3,durationMs:4000,proximityPx:90,maxTvBubbles:3,maxZoneBubbles:1,pool:[['Chào bạn','Chào cậu']]};
 const actors=[{id:'a',zoneId:'art',x:0,y:0},{id:'b',zoneId:'art',x:40,y:30}];
 test('approved spatial proximity drives actual scheduler',()=>{

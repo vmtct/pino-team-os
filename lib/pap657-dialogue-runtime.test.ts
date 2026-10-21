@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {scheduleDialogue} from './pap657-dialogue-runtime.ts';
+import {scheduleDialogue} from './pap657-dialogue-runtime';
 const pair=(n:number,zoneId=`zone${n}`)=>({actorA:`a${n}`,actorB:`b${n}`,zoneId,lines:['Xin chào','Chào bạn']});
 test('one active dialogue per zone, three total, no actor overlap',()=>{
  const output=scheduleDialogue({now:1000,durationMs:5000,candidates:[pair(1),pair(2,'zone1'),pair(3),pair(4),pair(5)],active:[]});

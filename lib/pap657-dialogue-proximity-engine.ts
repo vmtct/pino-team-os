@@ -1,7 +1,7 @@
-import {parseDialogueConfig} from './pap657-dialogue-config.ts';
-import {advancePublishedDialogue} from './pap657-dialogue-engine.ts';
-import {nearbyDialoguePairs,type PositionedActor} from './pap657-dialogue-proximity.ts';
-import type {ActiveDialogue} from './pap657-dialogue-runtime.ts';
+import {parseDialogueConfig} from './pap657-dialogue-config';
+import {advancePublishedDialogue} from './pap657-dialogue-engine';
+import {nearbyDialoguePairs,type PositionedActor} from './pap657-dialogue-proximity';
+import type {ActiveDialogue} from './pap657-dialogue-runtime';
 /** The configured proximity threshold is authoritative; never accept supplied pair claims. */
 export function advanceSpatialDialogue(input:Readonly<{published:unknown;now:number;active:readonly ActiveDialogue[];actors:readonly PositionedActor[]}>):ActiveDialogue[]{
  const config=parseDialogueConfig(input.published);

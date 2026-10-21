@@ -1,4 +1,4 @@
-import type {DialoguePair} from './pap657-dialogue-runtime.ts';
+import type {DialoguePair} from './pap657-dialogue-runtime';
 export type PositionedActor=Readonly<{id:string;zoneId:string;x:number;y:number}>;
 /** Proximity derives only pair identities and approved zone, never learner claims. */
 export function nearbyDialoguePairs(actors:readonly PositionedActor[],proximityPx:number):Omit<DialoguePair,'lines'>[]{
