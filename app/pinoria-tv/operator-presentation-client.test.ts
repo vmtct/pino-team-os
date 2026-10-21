@@ -168,12 +168,14 @@ test("physical replay dispatch requires receipt and forwards exact immutable tar
   const calls: Array<[string, RequestInit]> = [];
   globalThis.fetch = (async (url: string, init: RequestInit) => { calls.push([url, init]); return Response.json({ data: { accepted: true } }); }) as typeof fetch;
   try {
-    assert.throws(() => operatorPresentationClient.replayDispatch("c", "d", "p", " "), /idempotency key/);
-    await operatorPresentationClient.replayDispatch("c", "d", "p", "receipt");
+    assert.throws(() => operatorPresentationClient.replayDispatch("c", "d", "p", " ", "device-1", "session-1"), /idempotency key/);
+    assert.throws(() => operatorPresentationClient.replayDispatch("c", "d", "p", "receipt", " ", "session-1"), /verified device/);
+    assert.throws(() => operatorPresentationClient.replayDispatch("c", "d", "p", "receipt", "device-1", " "), /verified device/);
+    await operatorPresentationClient.replayDispatch("c", "d", "p", "receipt", "device-1", "session-1");
     assert.equal(calls.length, 1);
     assert.equal(calls[0]?.[0], "/api/tos-learning/pinoria/presentations/replay-dispatch");
     assert.equal(calls[0]?.[1].method, "POST");
     assert.equal(new Headers(calls[0]?.[1].headers).get("idempotency-key"), "receipt");
-    assert.deepEqual(JSON.parse(calls[0]?.[1].body as string), { centerId: "c", displayId: "d", presentationId: "p" });
+    assert.deepEqual(JSON.parse(calls[0]?.[1].body as string), { centerId: "c", displayId: "d", presentationId: "p", expectedDeviceId: "device-1", expectedSessionId: "session-1" });
   } finally { globalThis.fetch = previous; }
 });
