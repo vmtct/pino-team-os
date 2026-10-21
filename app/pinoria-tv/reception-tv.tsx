@@ -118,7 +118,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     void pull();
     const timer=window.setInterval(()=>void pull(),30000);
     return()=>{mounted=false;window.clearInterval(timer);};
-  },[apiBase,centerId]);
+  },[apiBase,centerId,runtimeSessionId]);
   useEffect(() => {
     if(!centerId)return;
     setPolicy(defaultSharedTvPolicy()); // Never carry a permissive Center policy across TV scopes.
