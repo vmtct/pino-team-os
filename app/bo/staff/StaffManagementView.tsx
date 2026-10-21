@@ -17,6 +17,7 @@ import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence"
 import { staffProfileDraftDirty, staffProfileDraftErrors } from "@/lib/bo-staff-profile-edit";
 import { staffAccessCanRevoke, staffAccessScopeValid } from "@/lib/bo-staff-access-scope";
 import { canOpenStaffSupport } from "@/lib/bo-staff-support-guard";
+import { shouldLoadStaffPinoria } from "@/lib/bo-staff-pinoria-gate";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -84,6 +85,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const profileEditFenceRef = useRef(0);
   const activeTabRef = useRef(activeTab);
   const [profileError, setProfileError] = useState("");
+  const pinoriaReadFenceRef = useRef(0);
+  const pinoriaViewRef = useRef(false);
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -101,17 +104,12 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     setRoleId(""); setScopeType("GLOBAL"); setScopeId(""); setSuspendReason("");
     selectedIdRef.current = selectedId;
     setPasswordReset(null); setPasswordCopied(false); setProfileEditing(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
-    setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
-    setOnboarding(selectedId ? { status: "loading" } : { status: "idle" });
+    setPinoria({ status: "idle" });
+    setOnboarding({ status: "idle" });
     if (!selectedId) return () => { current = false; };
     setError("");
     void boApi.staffRecord(selectedId).then((next) => { if (current) { setProfile(next); setForm(profileForm(next)); } }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể tải hồ sơ."); });
-    void boApi.staffPinoria(selectedId).then(async(next) => {
-      if (!current) return;
-      setPinoria({ status: "ready", data: next });
-      try { const status=await boApi.staffPinoriaOnboarding(selectedId,next.presence.centerId??undefined); if(current)setOnboarding({status:"ready",data:status}); }
-      catch(cause){if(current)setOnboarding({status:"error",message:cause instanceof Error?cause.message:"Không thể tải onboarding."});}
-    }).catch((cause) => { if (current) {setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });setOnboarding({status:"error",message:"Pinoria identity unavailable"});} });
+
     return () => { current = false; };
   }, [selectedId]);
 
@@ -154,6 +152,36 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     privateRevealFenceRef.current.invalidate();
     setPrivateData({ status: "idle" });
   }
+
+  // Only the dedicated Pinoria tab reads canonical Self/House/onboarding projection.
+  // Switching Staff or leaving the tab invalidates all outstanding read responses.
+  useEffect(() => {
+    const generation = ++pinoriaReadFenceRef.current;
+    pinoriaViewRef.current = shouldLoadStaffPinoria(detailOnly, activeTab, selectedId);
+    if (!pinoriaViewRef.current) {
+      return () => { pinoriaReadFenceRef.current += 1; pinoriaViewRef.current = false; };
+    }
+    setPinoria({ status: "loading" });
+    setOnboarding({ status: "loading" });
+    void boApi.staffPinoria(selectedId).then(async (next) => {
+      if (generation !== pinoriaReadFenceRef.current) return;
+      setPinoria({ status: "ready", data: next });
+      try {
+        const state = await boApi.staffPinoriaOnboarding(selectedId, next.presence.centerId ?? undefined);
+        if (generation === pinoriaReadFenceRef.current) setOnboarding({ status: "ready", data: state });
+      } catch (cause) {
+        if (generation === pinoriaReadFenceRef.current) setOnboarding({
+          status: "error",
+          message: cause instanceof Error ? cause.message : "Không thể tải onboarding.",
+        });
+      }
+    }).catch((cause) => {
+      if (generation !== pinoriaReadFenceRef.current) return;
+      setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });
+      setOnboarding({ status: "error", message: "Pinoria identity unavailable" });
+    });
+    return () => { pinoriaReadFenceRef.current += 1; pinoriaViewRef.current = false; };
+  }, [selectedId, detailOnly, activeTab]);
 
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
   const accessUser = useMemo(() => data.users.find((item) => item.staffMemberId === selectedId) ?? null, [data.users, selectedId]);
@@ -241,17 +269,26 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
 
   async function refreshPinoria() {
     const targetId = selectedIdRef.current;
-    if (!targetId) return;
+    if (!targetId || !pinoriaViewRef.current) return;
+    const generation = ++pinoriaReadFenceRef.current;
     setPinoria({ status: "loading" });
+    setOnboarding({ status: "loading" });
     try {
       const next = await boApi.staffPinoria(targetId);
-      if (selectedIdRef.current === targetId) {
-        setPinoria({ status: "ready", data: next });
-        try { setOnboarding({status:"ready",data:await boApi.staffPinoriaOnboarding(targetId,next.presence.centerId??undefined)}); }
-        catch(cause){setOnboarding({status:"error",message:cause instanceof Error?cause.message:"Không thể tải onboarding."});}
+      if (selectedIdRef.current !== targetId || generation !== pinoriaReadFenceRef.current) return;
+      setPinoria({ status: "ready", data: next });
+      try {
+        const status = await boApi.staffPinoriaOnboarding(targetId, next.presence.centerId ?? undefined);
+        if (selectedIdRef.current === targetId && generation === pinoriaReadFenceRef.current) setOnboarding({ status: "ready", data: status });
+      } catch (cause) {
+        if (selectedIdRef.current === targetId && generation === pinoriaReadFenceRef.current) setOnboarding({
+          status: "error", message: cause instanceof Error ? cause.message : "Không thể tải onboarding.",
+        });
       }
     } catch (cause) {
-      if (selectedIdRef.current === targetId) setPinoria({ status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria." });
+      if (selectedIdRef.current === targetId && generation === pinoriaReadFenceRef.current) setPinoria({
+        status: "error", message: cause instanceof Error ? cause.message : "Không thể tải Pinoria.",
+      });
     }
   }
 
@@ -266,9 +303,10 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     try{
       if(onboarding.data.available)await boApi.revokeStaffPinoriaOnboarding(targetId,centerId);
       else await boApi.grantStaffPinoriaOnboarding(targetId,centerId);
+      if(selectedIdRef.current !== targetId || !pinoriaViewRef.current) return;
       await refreshPinoria();
-      setMessage(onboarding.data.available?"Đã tắt ceremony grant.":"Onboarding Ceremony đã sẵn sàng.");
-    }catch(cause){setError(cause instanceof Error?cause.message:"Không thể cập nhật onboarding.");}
+      if(selectedIdRef.current === targetId && pinoriaViewRef.current) setMessage(onboarding.data.available?"Đã tắt ceremony grant.":"Onboarding Ceremony đã sẵn sàng.");
+    }catch(cause){if(selectedIdRef.current === targetId && pinoriaViewRef.current)setError(cause instanceof Error?cause.message:"Không thể cập nhật onboarding.");}
     finally{setBusy("");}
   }
 
