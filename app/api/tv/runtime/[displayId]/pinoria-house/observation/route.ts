@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { runtimeJson, tvRuntimeCookie, type TvRuntimeCoreBinding } from "@/lib/tv-runtime-core";
+import { tvRuntimeCookie, type TvRuntimeCoreBinding } from "@/lib/tv-runtime-core";
+import {handleRuntimeObservation} from "./handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,5 +17,5 @@ export async function POST(request:Request,context:Context) {
   }
   const {env} = await getCloudflareContext({async:true}) as unknown as {env:Env};
   // Never accept a caller-selected center, token or session outside Core's strict report validator.
-  return runtimeJson(await env.PINO_TV_RUNTIME_CORE.validateRuntimeObservation(token,displayId,report));
+  return handleRuntimeObservation(token,displayId,report,env.PINO_TV_RUNTIME_CORE);
 }
