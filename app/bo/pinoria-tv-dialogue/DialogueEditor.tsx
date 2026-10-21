@@ -11,19 +11,22 @@ export function DialogueEditor(){
  const[simulating,setSimulating]=useState(false);
  const[loading,setLoading]=useState(false),[notice,setNotice]=useState("");
  const[revision,setRevision]=useState(0);
+ const[scopeKind,setScopeKind]=useState<"DEFAULT"|"CENTER">("DEFAULT"),[centerId,setCenterId]=useState("");
+ const scope=scopeKind==="DEFAULT"?{kind:"DEFAULT"} as const:{kind:"CENTER",centerId:centerId.trim()} as const;
+ const scopeValid=scope.kind==="DEFAULT"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(scope.centerId);
  const[versionId,setVersionId]=useState(""),[versions,setVersions]=useState<{id:string;revision:number;applied:boolean}[]>([]);
  async function refreshVersions(){
   setLoading(true);setNotice("");
-  try{const scope={kind:"DEFAULT"} as const;
+  try{if(!scopeValid)throw new Error("Center ID không hợp lệ");
    const [head,items]=await Promise.all([dialogueConfigApi.head(scope),dialogueConfigApi.versions(scope)]);
    setRevision(head?.revision??0);setVersions(items);setVersionId(head?.active_version_id??items[0]?.id??"");
   }catch(error){setNotice(error instanceof Error?error.message:"Không tải được versions");}
   finally{setLoading(false);}
  }
  async function publishSelected(){
-  if(!versionId||loading||!window.confirm("Publish version đã chọn lên Pinoria TV Default?"))return;
+  if(!versionId||loading||!window.confirm("Publish version đã chọn lên Pinoria TV tại scope hiện tại?"))return;
   setLoading(true);setNotice("");
-  try{const scope={kind:"DEFAULT"} as const;const head=await dialogueConfigApi.head(scope);
+  try{if(!scopeValid)throw new Error("Center ID không hợp lệ");const head=await dialogueConfigApi.head(scope);
    await dialogueConfigApi.write("publish",{scope,expectedRevision:head?.revision??0,versionId});
    setNotice("Core đã xác nhận publish. Tải lại versions để kiểm tra.");
   }catch(error){setNotice(error instanceof Error?error.message:"Publish thất bại");}
@@ -32,7 +35,7 @@ export function DialogueEditor(){
  async function revertSelected(){
   if(!versionId||loading||!window.confirm("Revert về version đã chọn? Core sẽ ghi audit và giữ lịch sử."))return;
   setLoading(true);setNotice("");
-  try{const scope={kind:"DEFAULT"} as const;const head=await dialogueConfigApi.head(scope);
+  try{if(!scopeValid)throw new Error("Center ID không hợp lệ");const head=await dialogueConfigApi.head(scope);
    await dialogueConfigApi.write("revert",{scope,expectedRevision:head?.revision??0,versionId});
    setNotice("Core đã xác nhận revert. Tải lại versions để kiểm tra.");
   }catch(error){setNotice(error instanceof Error?error.message:"Revert thất bại");}
@@ -42,7 +45,7 @@ export function DialogueEditor(){
   if(!config||loading)return;
   setLoading(true);setNotice("");
   try{
-   const scope={kind:"DEFAULT"} as const;
+   if(!scopeValid)throw new Error("Center ID không hợp lệ");
    const head=await dialogueConfigApi.head(scope);
    const result=await dialogueConfigApi.write("drafts",{scope,expectedRevision:head?.revision??0,configuration:config});
    setRevision(Number(result.revision??0));
@@ -53,7 +56,7 @@ export function DialogueEditor(){
  async function loadDefault(){
   setLoading(true);setNotice("");
   try{
-   const scope={kind:"DEFAULT"} as const;
+   if(!scopeValid)throw new Error("Center ID không hợp lệ");
    const [head,versions]=await Promise.all([dialogueConfigApi.head(scope),dialogueConfigApi.versions(scope)]);
    setRevision(head?.revision??0);
    const active=versions.find(v=>v.applied);
@@ -72,8 +75,10 @@ export function DialogueEditor(){
  const edit=(i:number,j:number,v:string)=>setPool(previous=>previous.map((pair,k)=>k===i?pair.map((s,l)=>l===j?v:s):pair));
  return <main style={{padding:24,maxWidth:900,margin:"auto"}}><h1>Pinoria TV · Social Dialogue</h1>
  <p>Bản nháp / mô phỏng. Chưa ghi vào cấu hình publish.</p>
- <button type="button" disabled={loading} onClick={()=>void loadDefault()}>Tải bản đã publish (Default)</button>
- <button type="button" disabled={loading||!config} onClick={()=>void saveDefaultDraft()}>Lưu draft (Default)</button>
+ <label>Scope <select value={scopeKind} onChange={e=>{setScopeKind(e.target.value as "DEFAULT"|"CENTER");setVersions([]);setVersionId("");}}><option value="DEFAULT">Default</option><option value="CENTER">Center</option></select></label>
+ {scopeKind==="CENTER"&&<label>Center ID <input value={centerId} onChange={e=>{setCenterId(e.target.value);setVersions([]);setVersionId("");}} placeholder="UUID"/></label>}
+ <button type="button" disabled={loading||!scopeValid} onClick={()=>void loadDefault()}>Tải bản đã publish</button>
+ <button type="button" disabled={loading||!scopeValid||!config} onClick={()=>void saveDefaultDraft()}>Lưu draft</button>
  <p role="status">{loading?"Đang tải...":notice||`Core revision đã đọc: ${revision}`}</p>
  <label>Thời lượng (ms) <input type="number" min={1000} max={15000} value={durationMs} onChange={e=>setDuration(Number(e.target.value))}/></label>
  <label>Khoảng cách (px) <input type="number" min={40} max={140} value={proximityPx} onChange={e=>setProximity(Number(e.target.value))}/></label>
@@ -82,10 +87,10 @@ export function DialogueEditor(){
  <button type="button" disabled={pool.length>=40} onClick={()=>setPool(current=>[...current,["Xin chào","Chào bạn"]])}>Thêm hội thoại</button>
  <p role="status">{config?"Bản nháp hợp lệ":"Cấu hình không hợp lệ"}</p>
  <button type="button" disabled={!config} onClick={()=>setSimulating(s=>!s)}>{simulating?"Dừng mô phỏng":"Mô phỏng"}</button>
- <button type="button" disabled={loading} onClick={()=>void refreshVersions()}>Tải danh sách version</button>
+ <button type="button" disabled={loading||!scopeValid} onClick={()=>void refreshVersions()}>Tải danh sách version</button>
  <select aria-label="Version để publish" disabled={loading} value={versionId} onChange={e=>setVersionId(e.target.value)}><option value="">Chọn version</option>{versions.map(v=><option key={v.id} value={v.id}>Revision {v.revision}{v.applied?" · Đang áp dụng":""}</option>)}</select>
- <button type="button" disabled={loading||!versionId} onClick={()=>void publishSelected()}>Publish version đã chọn</button>
- <button type="button" disabled={loading||!versionId} onClick={()=>void revertSelected()}>Revert về version đã chọn</button>
+ <button type="button" disabled={loading||!scopeValid||!versionId} onClick={()=>void publishSelected()}>Publish version đã chọn</button>
+ <button type="button" disabled={loading||!scopeValid||!versionId} onClick={()=>void revertSelected()}>Revert về version đã chọn</button>
  {simulating&&<section><h2>Preview</h2><p>{sample.length} hội thoại / 3 cặp trong 3 zone · tối đa 3 trên TV, 1 mỗi zone</p>{sample.map(d=><p key={d.zoneId}>{d.zoneId}: {d.lines.join(" ↔ ")}</p>)}</section>}
  </main>;
 }
