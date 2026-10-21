@@ -1,0 +1,14 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const source = readFileSync(new URL("../app/pinoria-tv/reception-tv.tsx", import.meta.url), "utf8");
+test("departure uses matching source and policy-gated canonical projection", () => {
+ assert.match(source, /sceneHasMatchingSource = Boolean\(scene && sceneActor && actorHasSource\(/);
+ assert.match(source, /departurePath = policy\.visibleContext\.path && scene\?\.kind === "departure" && sceneHasMatchingSource/);
+ assert.match(source, /departureCompanion = policy\.visibleContext\.companion && scene\?\.kind === "departure" && sceneHasMatchingSource/);
+ assert.match(source, /data-departure-companion="canonical"/);
+ assert.doesNotMatch(source, /departureCompanion.*(?:Mori|PLS\s*[=:]\s*[0-9])/);
+});
+test("departure removal is scoped to exact learner AND originating presence source", () => {
+ assert.match(source, /current\.filter\(\(actor\) => actor\.pinoriaSelfId !== scene\.pinoriaSelfId\s*\|\| !actorHasSource\(actor, scene\.sourceType, scene\.sourceId\)/);
+});
