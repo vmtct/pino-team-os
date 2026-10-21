@@ -10,8 +10,13 @@ test('BO TV management links to draft-only social dialogue simulator',()=>{
  assert.match(page,/DialogueEditor/);
  assert.match(editor,/advanceSpatialDialogue/);
 });
-test('no unauthorised persistence, publish or fabricated runtime truth in preview UI',()=>{
- assert.match(editor,/disabled>Publish/);
- assert.doesNotMatch(editor,/fetch\s*\(|spatialTvConfigApi\.write|localStorage|sessionStorage/);
+test('BO dialogue mutation requires explicit Core authority, scope and operator action',()=>{
+ assert.match(editor,/dialogueConfigApi\.head\(scope\)/);
+ assert.match(editor,/dialogueConfigApi\.write\("drafts"/);
+ assert.match(editor,/dialogueConfigApi\.write\("publish"/);
+ assert.match(editor,/dialogueConfigApi\.write\("revert"/);
+ assert.match(editor,/window\.confirm\(/);
+ assert.match(editor,/scopeValid/);
+ assert.doesNotMatch(editor,/localStorage|sessionStorage/);
  assert.match(editor,/Bản nháp/);
 });
