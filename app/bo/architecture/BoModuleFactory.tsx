@@ -6,6 +6,7 @@ import {
   type BoDataGridColumn,
 } from "@/app/bo/components/data-grid";
 import { requireBoModule } from "./registry";
+import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
 
 /**
  * PAP-926 V1 factory: one registered entrypoint, existing canonical grid +
@@ -24,7 +25,7 @@ function displayValue(value: unknown): string {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
   return "—";
 }
-export function BoModuleFactory({ moduleKey, adapter }: { moduleKey: string; adapter: BoModuleReadAdapter }) {
+export function BoModuleFactory({ moduleKey, adapter, publicViewRuntime }: { moduleKey: string; adapter: BoModuleReadAdapter; publicViewRuntime?: BoPublicViewRuntime }) {
   // Deny an unknown entrypoint BEFORE issuing a domain read.
   const definition=requireBoModule(moduleKey);
   const [rows,setRows]=useState<readonly Record<string,unknown>[]>([]);
@@ -53,7 +54,7 @@ export function BoModuleFactory({ moduleKey, adapter }: { moduleKey: string; ada
     <section aria-label={title}>
       <h1>{title}</h1>
       <BoDataGrid rows={rows} columns={columns} rowKey={row=>String(row.id)}
-        caption={title} state={status} onRowOpen={setSelected}
+        caption={title} state={status} onRowOpen={setSelected} publicViewRuntime={publicViewRuntime}
         emptyTitle="Không có bản ghi" emptyMessage="Chưa có dữ liệu có quyền truy cập." />
       {selected && <BoDataGridSidePeek title={displayValue(selected.name??selected.id)}
         onClose={()=>setSelected(null)}>
