@@ -61,7 +61,7 @@ function checkRoute(root,key,route){
  const owner=key==="students"?(graph.get("app/bo/learners/BoLearnersView.tsx")??""):(graph.get("app/bo/BoOperationalView.tsx")??"");
  const checks=[
   ["canonical_table",jsx("BoDataGrid")||jsx("BoModuleFactory"),"actual page mounts canonical Table"],
-  ["first_cell_opener",/Bo(?:DataGrid)?(?:QuickView|Drawer)Opener|data-bo-v23-opener/.test(combined),"first-cell compact Quick View opener"],
+  ["first_cell_opener",(/<BoDataGrid\b[\s\S]*?\bquickViewOpener\b/.test(owner)&&/\bshowQuickViewOpener\s*=\s*quickViewOpener\s*&&\s*Boolean\(onRowOpen\)/.test(grid))||/Bo(?:DataGrid)?(?:QuickView|Drawer)Opener|data-bo-v23-opener/.test(owner),"first-cell compact Quick View opener"],
   ["id_separate_column",/key\s*:\s*["']id["']/.test(owner)||jsx("BoModuleFactory"),"canonical ID has own readonly/copyable column"],
   ["editable_drawer",jsx("BoDrawer")||jsx("BoEditableDrawer")||jsx("BoEditableQuickView"),"one editable property Drawer"],
   ["typed_inline_edit",/\bonCell(?:Commit|Edit|Change)\b|\bonField(?:Commit|Edit|Change)\b|\bBoTypedCellEditor\b|\btypedEditor\b/.test(grid+"\n"+combined),"typed mutation-capable inline cell editor"],
