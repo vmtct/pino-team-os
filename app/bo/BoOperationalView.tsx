@@ -138,7 +138,7 @@ function RunningClasses({ data }: { data: Data }) {
   ], []);
 
   const filtered = Boolean(state.search || statusFilter || typedSettings.group.filters.length);
-  if (detailId) return <RunningClassFullDetail record={data.classes.find((item) => item.id === detailId) ?? null} sessions={data.sessions} blocks={data.classBlocks} centerName={data.centers.find((center) => center.id === data.classes.find((item) => item.id === detailId)?.centerId)?.displayName ?? null} pathName={data.paths.find((path) => path.id === data.classes.find((item) => item.id === detailId)?.pathProgramId)?.displayName ?? null} spaceName={data.learningSpaces.find((space) => space.id === data.classes.find((item) => item.id === detailId)?.learningSpaceId)?.displayName ?? null} />;
+  if (detailId) return <RunningClassFullDetail record={data.classes.find((item) => item.id === detailId) ?? null} sessions={data.sessions} blocks={data.classBlocks} centerTimeZone={data.centers.find((center) => center.id === data.classes.find((item) => item.id === detailId)?.centerId)?.timeZone ?? null} centerName={data.centers.find((center) => center.id === data.classes.find((item) => item.id === detailId)?.centerId)?.displayName ?? null} pathName={data.paths.find((path) => path.id === data.classes.find((item) => item.id === detailId)?.pathProgramId)?.displayName ?? null} spaceName={data.learningSpaces.find((space) => space.id === data.classes.find((item) => item.id === detailId)?.learningSpaceId)?.displayName ?? null} />;
   return (
     <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
       <BoDataGrid
