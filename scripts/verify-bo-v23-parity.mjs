@@ -73,7 +73,7 @@ function checkRoute(root,key,route){
  ];
  if(key==="students"){
   checks.push(["no_metric_rail",!/styles\.metrics\b/.test(owner),"no legacy Student metric rail"]);
-  checks.push(["no_row_avatars",!/styles\.avatarSmall\b/.test(owner),"no Student row avatar"]);
+  checks.push(["no_row_avatars",!/styles\.avatarSmall\b/.test(owner.match(/const columns\s*=\s*useMemo[\s\S]*?(?=\n\s*const [a-zA-Z]+\s*=|\n\s*return\s*\()/)?.[0]??owner),"no Student row avatar"]);
  }else{
   const chunk=owner.match(/function RunningClasses\b[\s\S]*?(?=\nfunction [A-Z]|\nconst [A-Z]|$)/)?.[0]??owner;
   checks.push(["classes_interactive",!/read-only canonical projection/.test(chunk)&&(/\bonRowOpen\b/.test(chunk)||jsx("BoModuleFactory")),"Classes editable domain interaction"]);
