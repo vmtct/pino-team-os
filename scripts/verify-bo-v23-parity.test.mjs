@@ -141,3 +141,9 @@ test("null inline draft preserves null when unchanged",()=>{
  const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
  assert.match(cell,/value === null && draft === "" \? null : draft/);
 });
+
+test("invalid numeric draft exposes accessible validation feedback",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/setError\("Enter a valid number"\)/);
+ assert.match(cell,/role="alert"/);
+});
