@@ -129,3 +129,10 @@ test("numeric inline draft uses numeric input without implying server persistenc
  assert.match(cell,/inputMode=\{typeof value === "number" \? "decimal" : undefined\}/);
  assert.match(cell,/onStage\(\{/);
 });
+
+test("boolean draft uses a constrained true/false select",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/typeof value === "boolean" \? <select/);
+ assert.match(cell,/<option value="true">True<\/option>/);
+ assert.match(cell,/<option value="false">False<\/option>/);
+});
