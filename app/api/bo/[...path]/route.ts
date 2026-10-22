@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public-view-handler";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-handler";
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
@@ -16,13 +17,14 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
+type BoEnv = BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
   if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   if (isBoPayrollReviewPath(joined)) return handleBoPayrollReviewRequest(request, env, joined);
@@ -37,6 +39,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
   if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   if (isBoPayrollReviewPath(joined)) return handleBoPayrollReviewRequest(request, env, joined);
@@ -54,6 +57,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoPayrollPeriodPath(joined)) return handleBoPayrollPeriodRequest(request, env, joined);
   return handleBoWriteRequest(request, env, joined);
 }
@@ -61,11 +65,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 export async function PUT(request: Request, context: RouteContext): Promise<Response> {
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
-  return handleBoWriteRequest(request, env, path.join("/"));
+  const joined = path.join("/");
+  if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
+  return handleBoWriteRequest(request, env, joined);
 }
 
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
-  return handleBoWriteRequest(request, env, path.join("/"));
+  const joined = path.join("/");
+  if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
+  return handleBoWriteRequest(request, env, joined);
 }
