@@ -164,3 +164,8 @@ test("Escape cancels inline draft and clears validation state",()=>{
  const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
  assert.equal((cell.match(/if \(event.key === "Escape"\) \{ setError\(""\); setDraft\(String\(value \?\? ""\)\); setOpen\(false\); \}/g)||[]).length,2);
 });
+
+test("Cancel restores baseline and clears validation state",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/<button type="button" onClick=\{\(\) => \{ setError\(""\); setDraft\(String\(value \?\? ""\)\); setOpen\(false\); \}\}>Cancel<\/button>/);
+});
