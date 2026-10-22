@@ -94,6 +94,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
     || /^learning\/syllabi\/versions\/[0-9a-f-]{36}\/(artchitect-profile|pianohouse-profile|little-piner-profile)$/.test(path)
     || path === "sessions"
+    || /^sessions\/[0-9a-f-]{36}\/roster$/.test(path)
     || SESSION_SYLLABUS_BINDING_READ.test(path)
     || path === "tv/displays"
     || path === "tv/devices"
