@@ -23,6 +23,7 @@ export function undoBoInlineEdit(state: BoInlineEditState): BoInlineEditState {
   if (!edit) return state;
   const pending = state.pending.filter((entry) => entry.rowKey !== edit.rowKey || entry.field !== edit.field);
   const prior = state.pending.find((entry) => entry.rowKey === edit.rowKey && entry.field === edit.field);
-  if (prior && prior.before !== edit.before) pending.push({ ...prior, after: edit.before });
+  const original = state.undo.find((entry) => entry.rowKey === edit.rowKey && entry.field === edit.field)?.before ?? edit.before;
+  if (original !== edit.before) pending.push({ rowKey: edit.rowKey, field: edit.field, before: original, after: edit.before });
   return { pending, undo: state.undo.slice(0, -1) };
 }
