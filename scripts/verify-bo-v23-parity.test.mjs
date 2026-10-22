@@ -152,3 +152,10 @@ test("draft input change clears stale validation feedback",()=>{
  const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
  assert.match(cell,/onChange=\{\(event\) => \{ setDraft\(event.target.value\); setError\(""\); \}\}/);
 });
+
+test("invalid numeric draft is programmatically associated with its accessible error",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/aria-invalid=\{Boolean\(error\)\}/);
+ assert.match(cell,/aria-describedby=\{error \? `draft-error-\$\{field\}` : undefined\}/);
+ assert.match(cell,/id=\{`draft-error-\$\{field\}`\} role="alert"/);
+});
