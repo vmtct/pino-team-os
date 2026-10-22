@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { RunningClassFullDetail } from "./running-classes/RunningClassFullDetail";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
@@ -93,6 +96,8 @@ function Overview({ data }: { data: Data }) {
 }
 
 function RunningClasses({ data }: { data: Data }) {
+  const query = useSearchParams();
+  const detailId = query.get("detail");
   const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
   const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
   const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
@@ -121,6 +126,7 @@ function RunningClasses({ data }: { data: Data }) {
   ], []);
 
   const filtered = Boolean(state.search || statusFilter);
+  if (detailId) return <RunningClassFullDetail classId={detailId} />;
   return (
     <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
       <BoDataGrid
@@ -143,7 +149,7 @@ function RunningClasses({ data }: { data: Data }) {
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
         emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
       />
-      {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)}>
+      {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)} footer={<Link href={`/bo/running-classes?${new URLSearchParams([...query.entries(), ["detail", selectedClass.item.id]]).toString()}`}>Full Detail →</Link>}>
         <dl><dt>Program</dt><dd>{selectedClass.programName}</dd><dt>Schedule</dt><dd>{selectedClass.patternLabel}</dd><dt>Capacity</dt><dd>{selectedClass.capacityLabel}</dd><dt>Status</dt><dd>{selectedClass.item.status}</dd><dt>Canonical ID</dt><dd>{selectedClass.item.id}</dd></dl>
       </BoDataGridSidePeek> : null}
     </Page>
