@@ -104,3 +104,12 @@ test("import graph does not count unrelated declared components",()=>{
   assert.ok(!graph.has("app/bo/Unreferenced.tsx"));
  });
 });
+
+test("Students owner cannot claim typed mutation from create/void-only API",()=>{
+ const api=fs.readFileSync(path.join(repo,"lib/bo-api.ts"),"utf8");
+ const owner=fs.readFileSync(path.join(repo,"app/bo/learners/BoLearnersView.tsx"),"utf8");
+ assert.match(api,/createStudentIntake:/);
+ assert.match(api,/voidStudentIntake:/);
+ assert.doesNotMatch(api,/\bupdateStudent\s*:|\bupdateLearner\s*:/);
+ assert.doesNotMatch(owner,/\bonStageCellEdit\s*=|\bonCellCommit\s*=|\bonFieldCommit\s*=/);
+});
