@@ -9,6 +9,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { auditCanonicalBoRoute } from "./bo-route-import-guard.mjs";
+import { verifyBoLegacyLedger } from "./verify-bo-legacy-ledger.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASELINE_SHA256 = "6eb9110b8838b72d4bc6af9e55c4182bf1dc3fd85cbeee0e006ef74bb384c472";
@@ -164,22 +166,26 @@ export function verifyBoModuleContract(root=DEFAULT_ROOT) {
     const def=href&&byHref.get(href);
     if(!def){issues.push(`Unregistered NEW BO page: ${file}`);continue;}
     canonicalRoute(root,file,def.key,issues);
+    auditCanonicalBoRoute(root,file,def.key,issues);
   }
   for(const href of newNav){
     if(!byHref.has(href))issues.push(`Unregistered NEW BO navigation path: ${href}`);
   }
   for(const def of defs){
     const route=`app/bo/${def.href.slice(4)}/page.tsx`;
-    if(!newRoutes.includes(route))issues.push(`Registered BO module ${def.key} lacks NEW canonical page ${route}`);
+    if(!routes.includes(route))issues.push(`Registered BO module ${def.key} lacks canonical page ${route}`);
     if(!nav.includes(def.href))issues.push(`Registered BO module ${def.key} missing from BO navigation`);
   }
+  const ledger=verifyBoLegacyLedger({root,baseline,routes,nav,definitions:defs,issues,
+    canonical:(file,key)=>{canonicalRoute(root,file,key,issues);auditCanonicalBoRoute(root,file,key,issues);}});
   return {issues,baselineRoutes:legacyRoutes.size,baselineNav:legacyNav.size,
-    newRoutes:newRoutes.length,newNav:newNav.length,registered:defs.length};
+    newRoutes:newRoutes.length,newNav:newNav.length,registered:defs.length,
+    strictLegacy:ledger.strictLegacy,legacyCoverage:ledger.coverage};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const result=verifyBoModuleContract(process.env.PINO_BO_CONTRACT_ROOT?path.resolve(process.env.PINO_BO_CONTRACT_ROOT):DEFAULT_ROOT);
   if(result.issues.length){
     for(const issue of result.issues)console.error("BO_CONTRACT_FAIL:",issue);
     process.exitCode=1;
-  }else console.log(`BO_CONTRACT_PASS legacy_routes=${result.baselineRoutes} legacy_nav=${result.baselineNav} new_routes=${result.newRoutes} registered=${result.registered}`);
+  }else console.log(`BO_CONTRACT_PASS legacy_routes=${result.baselineRoutes} legacy_nav=${result.baselineNav} new_routes=${result.newRoutes} registered=${result.registered} adopted_routes=${result.legacyCoverage.adoptedRoutes} retired_routes=${result.legacyCoverage.retiredRoutes} adopted_nav=${result.legacyCoverage.adoptedNavigation} retired_nav=${result.legacyCoverage.retiredNavigation} strict=${result.strictLegacy}`);
 }
