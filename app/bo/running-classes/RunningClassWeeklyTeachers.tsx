@@ -48,7 +48,7 @@ export function RunningClassWeeklyTeachers({ centerId, runningClassId }: { cente
     {!loaded ? <button type="button" onClick={() => void loadWeeks()} disabled={loading}>{loading ? "Loading…" : "Choose a week to view teachers"}</button> : <label>Term week <select value={weekId} onChange={event => void loadPlanning(event.target.value)} disabled={loading}><option value="">Select week</option>{weeks.map(week => <option key={week.id} value={week.id}>{week.label}</option>)}</select></label>}
     {loaded && !weeks.length ? <p>No term weeks for this center.</p> : null}
     {loading ? <p role="status">Loading workforce planning…</p> : null}
-    {error ? <p role="alert">{error}</p> : null}
+    {error ? <div><p role="alert">{error}</p>{weekId ? <button type="button" disabled={loading} onClick={() => void loadPlanning(weekId)}>Retry selected week</button> : null}</div> : null}
     {planning ? responsibilities.length ? <ul>{responsibilities.map(item => <li key={item.id}>{item.date} · {item.role === "TEACHER" ? "Teacher" : "Teaching assistant"} · {item.name}</li>)}</ul> : <p>No active teaching assignments for this class in the selected week.</p> : null}
   </section>;
 }
