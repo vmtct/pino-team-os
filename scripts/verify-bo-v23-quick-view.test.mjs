@@ -23,3 +23,10 @@ test("PAP-874 opener width is scoped to BO V2.3 token", () => {
   assert.match(css, /\.quickViewOpenerCell\s*\{[^}]*--bo-v23-opener-column-width, 37px/);
   assert.match(css, /\.quickViewOpenerButton\s*\{[^}]*--bo-v23-color-accent-table/);
 });
+
+test("PAP-879 Students and Classes pilots explicitly opt into shared Quick View", () => {
+  const students = readFileSync(new URL("../app/bo/learners/BoLearnersView.tsx", import.meta.url), "utf8");
+  const classes = readFileSync(new URL("../app/bo/BoOperationalView.tsx", import.meta.url), "utf8");
+  assert.match(students, /<BoDataGrid[\s\S]*?onRowOpen=\{\(student\)[\s\S]*?quickViewOpener/);
+  assert.match(classes, /<BoDataGrid[\s\S]*?onRowOpen=\{setSelectedClass\}[\s\S]*?quickViewOpener/);
+});
