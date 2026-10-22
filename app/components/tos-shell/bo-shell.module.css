@@ -1,11 +1,11 @@
 .shell {
-  --bo-accent: #6f5bd6;
-  --bo-sidebar: #1c1c23;
+  --bo-accent: var(--bo-v23-color-accent, #6f5bd6);
+  --bo-sidebar: var(--bo-v23-color-sidebar, #1c1c23);
   min-height: 100vh;
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
-  background: #f6f5f2;
-  color: #18181f;
+  background: var(--bo-v23-color-canvas, #f6f5f2);
+  color: var(--bo-v23-color-strong, #18181f);
 }
 
 .sidebar {
