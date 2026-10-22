@@ -232,23 +232,56 @@ export function BoDataGridBadge({ children }: { children: ReactNode }) {
   return <span className={styles.badge}>{children}</span>;
 }
 
-export function BoDataGridSidePeek({ title, eyebrow, onClose, children, footer }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+export type BoDrawerMode = "view" | "create" | "edit";
+export type BoDrawerSize = "sm" | "md" | "lg";
+export type BoDrawerProps = {
+  title: string;
+  eyebrow?: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  mode?: BoDrawerMode;
+  size?: BoDrawerSize;
+  busy?: boolean;
+  /** Domain-owned guard: return false to keep unsaved work open. */
+  canClose?: () => boolean;
+};
+
+/**
+ * Canonical BO drawer shell. Owns interaction/accessibility/layout only.
+ * Each module owns fields, validation, authorization and mutations.
+ */
+export function BoDrawer({ title, eyebrow, onClose, children, footer, mode = "view", size = "md", busy = false, canClose }: BoDrawerProps) {
   const dialogRef = useRef<HTMLElement>(null);
+  const labelId = useId();
   const onCloseRef = useRef(onClose);
+  const busyRef = useRef(busy);
+  const canCloseRef = useRef(canClose);
   onCloseRef.current = onClose;
+  busyRef.current = busy;
+  canCloseRef.current = canClose;
+
+  function requestClose() {
+    if (busyRef.current || (canCloseRef.current && !canCloseRef.current())) return;
+    onCloseRef.current();
+  }
+  const closeRef = useRef(requestClose);
+  closeRef.current = requestClose;
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     const activeDialog = dialog;
     const restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusable = () => [...activeDialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((node) => !node.hasAttribute("disabled") && node.getAttribute("aria-hidden") !== "true");
-    (focusable()[0] ?? activeDialog).focus();
+    const focusable = () => [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((node) =>
+      !node.hasAttribute("disabled") && node.getAttribute("aria-hidden") !== "true" && node.getAttribute("tabindex") !== "-1"
+    );
+    (focusable()[0] ?? dialog).focus();
 
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onCloseRef.current();
+        closeRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -260,7 +293,7 @@ export function BoDataGridSidePeek({ title, eyebrow, onClose, children, footer }
       }
       const first = items[0]!;
       const last = items[items.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -268,22 +301,39 @@ export function BoDataGridSidePeek({ title, eyebrow, onClose, children, footer }
         first.focus();
       }
     }
-
-    activeDialog.addEventListener("keydown", handleKeyDown);
+    dialog.addEventListener("keydown", handleKeyDown);
     return () => {
-      activeDialog.removeEventListener("keydown", handleKeyDown);
+      dialog.removeEventListener("keydown", handleKeyDown);
       if (restoreFocus?.isConnected) restoreFocus.focus();
     };
   }, []);
 
   return <>
-    <button type="button" className={styles.peekBackdrop} onClick={onClose} aria-label="Close detail" tabIndex={-1} />
-    <aside ref={dialogRef} className={styles.peek} role="dialog" aria-modal="true" aria-label={`${title} detail`} tabIndex={-1}>
-      <header className={styles.peekHeader}><div>{eyebrow ? <span>{eyebrow}</span> : null}<h2>{title}</h2></div><button type="button" onClick={onClose} aria-label="Close detail">×</button></header>
+    <button type="button" className={styles.peekBackdrop} onClick={requestClose} aria-label="Close detail" tabIndex={-1} />
+    <aside
+      ref={dialogRef}
+      className={styles.peek}
+      data-mode={mode}
+      data-size={size}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelId}
+      aria-busy={busy || undefined}
+      tabIndex={-1}
+    >
+      <header className={styles.peekHeader}>
+        <div>{eyebrow ? <span>{eyebrow}</span> : null}<h2 id={labelId}>{title}</h2></div>
+        <button type="button" disabled={busy} onClick={requestClose} aria-label="Close detail">×</button>
+      </header>
       <div className={styles.peekBody}>{children}</div>
       {footer ? <footer className={styles.peekFooter}>{footer}</footer> : null}
     </aside>
   </>;
+}
+
+/** Kept for already-migrated BO views; uses the same single drawer implementation. */
+export function BoDataGridSidePeek(props: Pick<BoDrawerProps, "title" | "eyebrow" | "onClose" | "children" | "footer">) {
+  return <BoDrawer {...props} />;
 }
 
 const FOCUSABLE_SELECTOR = 'a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])';
