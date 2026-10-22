@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { boDataGridRange, type BoDataGridSortDirection } from "@/lib/bo-data-grid-state";
 import styles from "./bo-data-grid.module.css";
+import { BoGridFilterSettings } from "./BoGridFilterSettings";
 import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 
 export type BoDataGridColumn<Row> = {
@@ -50,6 +51,7 @@ export function BoDataGrid<Row>({
   filterChips = [],
   typedFilterSettings,
   typedFilterFields,
+  onTypedFilterSettingsChange,
   onOpenFilters,
   onOpenSort,
   onOpenColumns,
@@ -78,6 +80,7 @@ export function BoDataGrid<Row>({
   filterChips?: readonly BoDataGridFilterChip[];
   typedFilterSettings?: BoFilterSettings;
   typedFilterFields?: readonly BoFilterField[];
+  onTypedFilterSettingsChange?: (settings: BoFilterSettings) => void;
   onOpenFilters?: () => void;
   onOpenSort?: () => void;
   onOpenColumns?: () => void;
@@ -110,6 +113,7 @@ export function BoDataGrid<Row>({
         <span aria-hidden="true">⌕</span>
         <input value={search ?? ""} onChange={(event) => onSearchChange(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} />
       </label> : null}
+      {typedFilterSettings && typedFilterFields && onTypedFilterSettingsChange ? <BoGridFilterSettings fields={typedFilterFields} value={typedFilterSettings} onChange={onTypedFilterSettingsChange} /> : null}
       {onOpenFilters ? <button className={styles.toolButton} type="button" onClick={onOpenFilters}>☷ Filter{filterChips.length ? <b>{filterChips.length}</b> : null}</button> : null}
       {onOpenSort ? <button className={styles.toolButton} type="button" onClick={onOpenSort}>↕ Sort</button> : onSortChange ? <span className={styles.sortHint} aria-label={sortKey ? `Sorted by ${sortKey} ${sortDirection}` : "Not sorted"}>↕ Sort</span> : null}
       {onOpenColumns ? <button className={styles.toolButton} type="button" onClick={onOpenColumns}>▥ Columns</button> : null}
