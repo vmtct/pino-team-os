@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { boDataGridRange, type BoDataGridSortDirection } from "@/lib/bo-data-grid-state";
 import styles from "./bo-data-grid.module.css";
+import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 
 export type BoDataGridColumn<Row> = {
   key: string;
@@ -47,6 +48,8 @@ export function BoDataGrid<Row>({
   sortDirection = "asc",
   onSortChange,
   filterChips = [],
+  typedFilterSettings,
+  typedFilterFields,
   onOpenFilters,
   onOpenSort,
   onOpenColumns,
@@ -73,6 +76,8 @@ export function BoDataGrid<Row>({
   sortDirection?: BoDataGridSortDirection;
   onSortChange?: (key: string, direction: BoDataGridSortDirection) => void;
   filterChips?: readonly BoDataGridFilterChip[];
+  typedFilterSettings?: BoFilterSettings;
+  typedFilterFields?: readonly BoFilterField[];
   onOpenFilters?: () => void;
   onOpenSort?: () => void;
   onOpenColumns?: () => void;
@@ -89,6 +94,9 @@ export function BoDataGrid<Row>({
   const captionId = useId();
   const range = pagination ? boDataGridRange(pagination.page, pagination.pageSize, pagination.total) : null;
   const interactiveRows = Boolean(onRowOpen);
+  const visibleRows = typedFilterSettings && typedFilterFields
+    ? applyBoFilterSettings(rows as readonly Record<string, unknown>[], typedFilterSettings, typedFilterFields) as readonly Row[]
+    : rows;
 
   function openRow(event: KeyboardEvent<HTMLTableRowElement>, row: Row) {
     if (!onRowOpen || !["Enter", " "].includes(event.key) || isInteractiveDescendant(event.target, event.currentTarget)) return;
@@ -134,7 +142,7 @@ export function BoDataGrid<Row>({
         })}</tr></thead>
         <tbody>
           {state === "loading" ? <SkeletonRows columns={columns.length} /> : null}
-          {state === "ready" ? rows.map((row) => {
+          {state === "ready" ? visibleRows.map((row) => {
             const key = rowKey(row);
             return <tr
               key={key}
@@ -149,7 +157,7 @@ export function BoDataGrid<Row>({
         </tbody>
       </table>
       {state !== "ready" && state !== "loading" ? <BoDataGridState kind={state} message={stateMessage} /> : null}
-      {state === "ready" && !rows.length ? <BoDataGridState kind="empty" title={emptyTitle} message={emptyMessage} /> : null}
+      {state === "ready" && !visibleRows.length ? <BoDataGridState kind="empty" title={emptyTitle} message={emptyMessage} /> : null}
     </div>
 
     {pagination ? <footer className={styles.pagination}>
