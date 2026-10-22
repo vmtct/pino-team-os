@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { boApi } from "@/lib/bo-api";
@@ -9,8 +9,7 @@ import type { BoLearnerLifecycle } from "@/lib/bo-model";
 type DetailState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoLearnerLifecycle };
 
 /** Read-only canonical student detail. Domain ACL remains enforced by BO API. */
-export function StudentFullDetail({ params }: { params: Promise<{ studentId: string }> }) {
-  const { studentId } = use(params);
+export function StudentFullDetail({ studentId }: { studentId: string }) {
   const pathname = usePathname();
   const search = useSearchParams();
   const [detail, setDetail] = useState<DetailState>({ state: "loading" });
@@ -30,7 +29,9 @@ export function StudentFullDetail({ params }: { params: Promise<{ studentId: str
   const query = new URLSearchParams(search.toString());
   const activeTab = query.get("tab");
   query.delete("tab");
-  const returnTo = `/bo/learners${query.size ? `?${query}` : ""}`;
+  query.delete("detail");
+  query.set("student", studentId);
+  const returnTo = `/bo/learners?${query}`;
   return <BoFullDetail title={record.student.displayName} description={`Student ID: ${studentId}`} currentUrl={`${pathname}?${search}`} returnTo={returnTo} activeTab={activeTab} tabs={[
     { id: "overview", label: "Tổng quan", content: <dl><dt>Student ID</dt><dd>{studentId}</dd><dt>Trạng thái</dt><dd>{record.student.status}</dd><dt>Năm sinh</dt><dd>{record.student.birthYear ?? "Chưa có"}</dd><dt>House member</dt><dd>{record.houseMembership ? "Có" : "Không"}</dd><dt>Subscriptions</dt><dd>{record.subscriptions.length}</dd></dl> },
     { id: "guardians", label: "Người giám hộ", content: <ul>{record.guardians.map(entry => <li key={entry.relationshipId}>{entry.parent.displayName ?? entry.parent.id} · {entry.relationshipType}</li>)}</ul> },
