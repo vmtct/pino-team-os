@@ -37,7 +37,18 @@ test("valid integrated fixture passes static contract detection for both pilots"
  assert.equal(r.status,"STATIC_PASS_ONLY",r.failures.join("\n"));
  assert.equal(r.selectedRoutes,2);
 });
-test("strict pilot rejects missing actual BO table despite component source existing",()=>{
+test("draft-only grid capability without owner mutation wiring cannot satisfy typed inline edit",()=>{
+ const r=withFixture(({root,write,load})=>{
+  const grid="app/bo/components/data-grid/BoDataGrid.tsx";
+  write(grid,'export function BoDataGrid({onStageCellEdit}){return <BoInlineDraftCell/>;}');
+  for(const owner of ["app/bo/learners/BoLearnersView.tsx","app/bo/BoOperationalView.tsx"]){
+   write(owner,load(owner).replace(/ onCellCommit=\{\(\)=>\{\}\}/g,""));
+  }
+  return auditBoV23(root,"pilot");
+ });
+ for(const key of ["students","classes"])
+  assert.ok(r.failures.some(x=>x.includes(key+":typed_inline_edit")),key);
+});test("strict pilot rejects missing actual BO table despite component source existing",()=>{
  const r=withFixture(({root,write})=>{
   write("app/bo/learners/BoLearnersView.tsx","export function Students(){return <section/>}");
   return auditBoV23(root,"pilot");
