@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "authority": "PAP-879/PAP-885 Founder approved 2026-10-21",
+  "receipt": "PAP-879 comment 15120",
+  "oneDriveRelative": "PINO/GPT Technical/Prototype/APPROVED_UI_AUTHORITY/PAP-879-BO-V2.3-20261022/source",
+  "immutable": true,
+  "sourceSha256": {
+    "app.js": "16DB25F834805841EF7C31FBDE5972297FF6559F85497AEBCAC37098C8311E76",
+    "AUTHORITY_V2_3.md": "14BFF7EEA544DBB27173C47D6D1742052AB06EC2CDD8AAD8E3CDC43DC718D47E",
+    "index.html": "EEC5BB6158315586EC78FDA821C499F440223841EF43CCFA1CF8AF7A46C9195D",
+    "playground-v22.css": "2BB0D9A8C911A5B7EA9E0D732159C89E136ED548CAB7E5856CB57352D0AAD65C",
+    "playground-v22.extension.js": "454F167BB65A3821D7AFE87DEE796281A0E7BF35F000C930FC7A1CF51B8C0494",
+    "playground-v23.css": "9A06EE1031FFA9A3B0AC5D94EE3A7E987391F22A5FBCC07C15C185E92DB70AFB",
+    "playground-v23.extension.js": "EA43CD6D9EC461E1F1BE38071A1B15AA5F4CA9C12EE136FDDF57C9BBEAC0DB02",
+    "playground.css": "597D8516EB149098D82CFEFBCAAFC3C858FC8E729669CF8EEE573DCB67E48B09",
+    "playground.html": "44C30E1FB9E98A8B81337691DAE090637FC47F0CC1F8C50A1F1DD9451F0F21AD",
+    "playground.js": "D5AA75741FCD9DD0E650C314CD7951B3F43B7D572B7ADFE431202E7583150DBC",
+    "README.md": "F2489B2F6F1CC4DBA4CABD1D3B52A6BE62430F9A37BC7AF35E9BB131EB33A341",
+    "server.cjs": "BC41CD2E062FF15CDF73CF18E40F668DD55DD4BC728B3304D3D94D047678F7B7",
+    "styles.css": "C690F8593C628306695DFA727F806449505527F181017BA9DBE39DD819C139C8"
+  },
+  "pilot": {
+    "students": {
+      "route": "app/bo/learners/page.tsx",
+      "jira": "PAP-891"
+    },
+    "classes": {
+      "route": "app/bo/running-classes/page.tsx",
+      "jira": "PAP-893"
+    }
+  },
+  "requirements": [
+    "one Level-1 canonical Table, no metric rail/row avatar/demo chrome",
+    "Search outside Settings; typed filters/groups/columns inside single Settings beside Create",
+    "small first-cell Quick View opener and independently copyable read-only ID column",
+    "property-level editable Drawer with domain ACL; no global View/Edit mode toggle",
+    "schema typed inline edit; read-only ID/formula; validation and safe domain mutations",
+    "shared tabbed Full Detail with table return context",
+    "shared Public Views tabs, Manager persisted Core updates, Staff local-only draft",
+    "responsive 390/768/1440 and keyboard/ARIA/focus; Founder Production signoff separate"
+  ],
+  "policy": {
+    "ciAdmission": "adopted",
+    "pilotReadiness": "pilot",
+    "browserVisualE2EIsPremergeGate": false
+  }
+}

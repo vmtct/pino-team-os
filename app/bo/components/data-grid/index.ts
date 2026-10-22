@@ -15,3 +15,5 @@ export {
   type BoDataGridPagination,
 } from "./BoDataGrid";
 export { useBoDataGridUrlState } from "./useBoDataGridUrlState";
+
+export { BoGridFilterSettings } from "./BoGridFilterSettings";

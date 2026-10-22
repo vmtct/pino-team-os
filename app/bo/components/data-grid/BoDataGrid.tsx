@@ -3,11 +3,18 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { boDataGridRange, type BoDataGridSortDirection } from "@/lib/bo-data-grid-state";
 import styles from "./bo-data-grid.module.css";
+import { BoInlineDraftCell } from "./BoInlineDraftCell";
+import { type BoInlineEdit, type BoInlineEditValue } from "@/lib/bo-inline-edit-state";
+import { BoGridFilterSettings } from "./BoGridFilterSettings";
+import { BoSharedViewTabs } from "./BoSharedViewTabs";
+import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
+import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 
 export type BoDataGridColumn<Row> = {
   key: string;
   header: ReactNode;
   render: (row: Row) => ReactNode;
+  draftValue?: (row: Row) => BoInlineEditValue;
   sortable?: boolean;
   minWidth?: number;
   width?: number | string;
@@ -47,6 +54,10 @@ export function BoDataGrid<Row>({
   sortDirection = "asc",
   onSortChange,
   filterChips = [],
+  typedFilterSettings,
+  publicViewRuntime,
+  typedFilterFields,
+  onTypedFilterSettingsChange,
   onOpenFilters,
   onOpenSort,
   onOpenColumns,
@@ -56,7 +67,10 @@ export function BoDataGrid<Row>({
   toolbarActions,
   pagination,
   selectedRowKey = null,
+  editableFieldKeys,
+  onStageCellEdit,
   onRowOpen,
+  quickViewOpener = false,
   emptyTitle = "No records",
   emptyMessage = "There is no canonical data for this view yet.",
 }: {
@@ -73,6 +87,10 @@ export function BoDataGrid<Row>({
   sortDirection?: BoDataGridSortDirection;
   onSortChange?: (key: string, direction: BoDataGridSortDirection) => void;
   filterChips?: readonly BoDataGridFilterChip[];
+  typedFilterSettings?: BoFilterSettings;
+  publicViewRuntime?: BoPublicViewRuntime;
+  typedFilterFields?: readonly BoFilterField[];
+  onTypedFilterSettingsChange?: (settings: BoFilterSettings) => void;
   onOpenFilters?: () => void;
   onOpenSort?: () => void;
   onOpenColumns?: () => void;
@@ -82,13 +100,25 @@ export function BoDataGrid<Row>({
   toolbarActions?: ReactNode;
   pagination?: BoDataGridPagination;
   selectedRowKey?: string | null;
+  editableFieldKeys?: ReadonlySet<string>;
+  onStageCellEdit?: (edit: BoInlineEdit) => void;
   onRowOpen?: (row: Row) => void;
+  /** Opt-in V2.3 first-cell Quick View control; no behavior without onRowOpen. */
+  quickViewOpener?: boolean;
   emptyTitle?: string;
   emptyMessage?: string;
 }) {
   const captionId = useId();
   const range = pagination ? boDataGridRange(pagination.page, pagination.pageSize, pagination.total) : null;
-  const interactiveRows = Boolean(onRowOpen);
+  // V2.3: only the explicit opener opens the drawer; legacy rows retain click-to-open.
+  const interactiveRows = Boolean(onRowOpen) && !quickViewOpener;
+  const showQuickViewOpener = quickViewOpener && Boolean(onRowOpen);
+  const visibleColumns = typedFilterSettings && typedFilterFields && typedFilterSettings.visibleKeys.length
+    ? columns.filter((column) => typedFilterSettings.visibleKeys.includes(column.key))
+    : columns;
+  const visibleRows = typedFilterSettings && typedFilterFields
+    ? applyBoFilterSettings(rows as readonly Record<string, unknown>[], typedFilterSettings, typedFilterFields) as readonly Row[]
+    : rows;
 
   function openRow(event: KeyboardEvent<HTMLTableRowElement>, row: Row) {
     if (!onRowOpen || !["Enter", " "].includes(event.key) || isInteractiveDescendant(event.target, event.currentTarget)) return;
@@ -97,11 +127,13 @@ export function BoDataGrid<Row>({
   }
 
   return <section className={styles.surface} aria-busy={state === "loading" || undefined}>
+    {publicViewRuntime ? <BoSharedViewTabs runtime={publicViewRuntime} /> : null}
     <div className={styles.toolbar}>
       {onSearchChange ? <label className={styles.searchBox}>
         <span aria-hidden="true">⌕</span>
         <input value={search ?? ""} onChange={(event) => onSearchChange(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} />
       </label> : null}
+      {typedFilterSettings && typedFilterFields && onTypedFilterSettingsChange ? <BoGridFilterSettings fields={typedFilterFields} value={typedFilterSettings} onChange={onTypedFilterSettingsChange} /> : null}
       {onOpenFilters ? <button className={styles.toolButton} type="button" onClick={onOpenFilters}>☷ Filter{filterChips.length ? <b>{filterChips.length}</b> : null}</button> : null}
       {onOpenSort ? <button className={styles.toolButton} type="button" onClick={onOpenSort}>↕ Sort</button> : onSortChange ? <span className={styles.sortHint} aria-label={sortKey ? `Sorted by ${sortKey} ${sortDirection}` : "Not sorted"}>↕ Sort</span> : null}
       {onOpenColumns ? <button className={styles.toolButton} type="button" onClick={onOpenColumns}>▥ Columns</button> : null}
@@ -122,7 +154,7 @@ export function BoDataGrid<Row>({
     <div className={styles.tableViewport}>
       <table aria-describedby={captionId}>
         <caption id={captionId}>{caption}</caption>
-        <thead><tr>{columns.map((column) => {
+        <thead><tr>{showQuickViewOpener ? <th scope="col" className={styles.quickViewOpenerCell}><span className={styles.visuallyHidden}>Quick View</span></th> : null}{visibleColumns.map((column) => {
           const activeSort = sortKey === column.key;
           const ariaSort = activeSort ? (sortDirection === "asc" ? "ascending" : "descending") : column.sortable ? "none" : undefined;
           const style = columnStyle(column);
@@ -133,8 +165,8 @@ export function BoDataGrid<Row>({
           </th>;
         })}</tr></thead>
         <tbody>
-          {state === "loading" ? <SkeletonRows columns={columns.length} /> : null}
-          {state === "ready" ? rows.map((row) => {
+          {state === "loading" ? <SkeletonRows columns={visibleColumns.length + (showQuickViewOpener ? 1 : 0)} /> : null}
+          {state === "ready" ? visibleRows.map((row) => {
             const key = rowKey(row);
             return <tr
               key={key}
@@ -142,14 +174,14 @@ export function BoDataGrid<Row>({
               data-selected={selectedRowKey === key || undefined}
               tabIndex={interactiveRows ? 0 : undefined}
               aria-selected={interactiveRows ? selectedRowKey === key : undefined}
-              onClick={onRowOpen ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen(row); } : undefined}
+              onClick={interactiveRows ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen?.(row); } : undefined}
               onKeyDown={interactiveRows ? (event) => openRow(event, row) : undefined}
-            >{columns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{column.render(row)}</td>)}</tr>;
+            >{showQuickViewOpener ? <td className={styles.quickViewOpenerCell}><button type="button" className={styles.quickViewOpenerButton} onClick={() => onRowOpen?.(row)} aria-label={`Open Quick View for ${key}`} title="Quick View">↗</button></td> : null}{visibleColumns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
           }) : null}
         </tbody>
       </table>
       {state !== "ready" && state !== "loading" ? <BoDataGridState kind={state} message={stateMessage} /> : null}
-      {state === "ready" && !rows.length ? <BoDataGridState kind="empty" title={emptyTitle} message={emptyMessage} /> : null}
+      {state === "ready" && !visibleRows.length ? <BoDataGridState kind="empty" title={emptyTitle} message={emptyMessage} /> : null}
     </div>
 
     {pagination ? <footer className={styles.pagination}>

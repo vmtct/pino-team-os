@@ -127,3 +127,10 @@
 
 /* PAP-653: canonical journey identity, visible only when live Path exists. */
 .arrivalPath{display:inline-flex;align-items:center;justify-content:center;max-width:min(76vw,540px);margin:0 auto 10px;padding:6px 18px;border:1px solid rgba(241,212,156,.42);border-radius:999px;background:rgba(28,20,28,.58);backdrop-filter:blur(12px);color:#f5dfb2;font-size:clamp(11px,1.1vw,16px);font-weight:750;letter-spacing:.09em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+/* PAP-654: interpolate the departing actor's measured DOM origin to hero. */
+.departure .character{animation:departureExtract .9s ease-out both,charFloat 5s .9s ease-in-out infinite}
+@keyframes departureExtract{
+ from{left:var(--departure-from-left,50%);top:var(--departure-from-top,45%);width:var(--departure-from-width,min(35vw,530px));height:var(--departure-from-height,auto);transform:translate(-50%,-50%);opacity:.65}
+ to{left:50%;top:45%;width:min(35vw,530px);height:auto;transform:translate(-50%,-50%);opacity:1}
+}
+@media(prefers-reduced-motion:reduce){.departure .character{animation:none;left:50%;top:45%;width:min(35vw,530px);height:auto}}
