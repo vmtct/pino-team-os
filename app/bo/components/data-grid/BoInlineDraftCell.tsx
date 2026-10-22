@@ -7,7 +7,7 @@ export function BoInlineDraftCell({ value, rowKey, field, editable, onStage }: {
  if (!editable) return <span>{String(value ?? "")}</span>;
  function save() {
   if (typeof value === "number" && (draft.trim() === "" || !Number.isFinite(Number(draft)))) return;
-  onStage({ rowKey, field, before: value, after: typeof value === "number" ? Number(draft) : typeof value === "boolean" ? draft === "true" : draft });
+  onStage({ rowKey, field, before: value, after: typeof value === "number" ? Number(draft) : typeof value === "boolean" ? draft === "true" : value === null && draft === "" ? null : draft });
   setOpen(false);
  }
  if (!open) return <button type="button" aria-label={`Edit ${field}`} onClick={() => { setDraft(String(value ?? "")); setOpen(true); }}>{String(value ?? "")}</button>;
