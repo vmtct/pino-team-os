@@ -7,6 +7,8 @@ import { BoDataGrid, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek,
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
+import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "@/lib/bo-student-pilot-fields";
+import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoParentSearchResult, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
@@ -24,6 +26,7 @@ export function BoLearnersView() {
   const grid = useBoDataGridUrlState(STUDENT_GRID_OPTIONS);
   const selectedId = searchParams.get("student");
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
+  const [pilotSettings, setPilotSettings] = useState<BoFilterSettings>({ group: { combinator: "and", filters: [] }, visibleKeys: BO_STUDENT_PILOT_DEFAULT_COLUMNS });
   const [detail, setDetail] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [showCreate, setShowCreate] = useState(false);
@@ -135,8 +138,11 @@ export function BoLearnersView() {
     </section>
 
     <BoDataGrid
-      rows={directory.state === "ready" ? visibleRows : []}
+      rows={directory.state === "ready" ? visibleRows.map((student) => ({ ...student, ...studentPilotFilterRow(student) })) : []}
       columns={columns}
+      typedFilterSettings={pilotSettings}
+      typedFilterFields={BO_STUDENT_PILOT_FIELDS}
+      onTypedFilterSettingsChange={setPilotSettings}
       rowKey={(student) => student.id}
       caption="School Students directory"
       state={directory.state === "loading" ? "loading" : directory.state === "error" ? "error" : "ready"}
