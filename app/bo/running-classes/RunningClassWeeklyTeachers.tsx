@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
+import { runningClassWeeklyTeachers } from "@/lib/running-class-weekly-teachers";
 
 export function RunningClassWeeklyTeachers({ centerId, runningClassId }: { centerId: string; runningClassId: string }) {
   const [weekId, setWeekId] = useState("");
@@ -36,12 +37,7 @@ export function RunningClassWeeklyTeachers({ centerId, runningClassId }: { cente
     finally { setLoading(false); }
   }
 
-  const assignments = new Map(planning?.assignments.filter(item => item.status === "ACTIVE").map(item => [item.id, item]) ?? []);
-  const staff = new Map(planning?.staff.map(item => [item.id, item.displayLabel]) ?? []);
-  const responsibilities = (planning?.runningClassResponsibilities ?? []).filter(item => item.status === "ACTIVE" && item.runningClassId === runningClassId).flatMap(item => {
-    const assignment = assignments.get(item.shiftAssignmentId);
-    return assignment ? [{ id: item.id, role: item.roleType, name: staff.get(assignment.staffMemberId) ?? assignment.staffMemberId, date: assignment.workDate }] : [];
-  });
+  const responsibilities = planning ? runningClassWeeklyTeachers(planning, runningClassId) : [];
 
   return <section aria-label="Weekly teaching assignments">
     <h3>Weekly teaching assignments</h3>
