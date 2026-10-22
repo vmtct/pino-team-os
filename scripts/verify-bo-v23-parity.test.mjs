@@ -159,3 +159,8 @@ test("invalid numeric draft is programmatically associated with its accessible e
  assert.match(cell,/aria-describedby=\{error \? `draft-error-\$\{field\}` : undefined\}/);
  assert.match(cell,/id=\{`draft-error-\$\{field\}`\} role="alert"/);
 });
+
+test("Escape cancels inline draft and clears validation state",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.equal((cell.match(/if \(event.key === "Escape"\) \{ setError\(""\); setDraft\(String\(value \?\? ""\)\); setOpen\(false\); \}/g)||[]).length,2);
+});
