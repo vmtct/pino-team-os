@@ -172,7 +172,7 @@ test("Cancel restores baseline and clears validation state",()=>{
 
 test("draft validation error IDs are unique per rendered cell",()=>{
  const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
- assert.match(cell,/import \{ useId, useState \} from "react"/);
+ assert.match(cell,/import .*useId.* from "react"/);
  assert.match(cell,/const errorId = `draft-error-\$\{useId\(\)\}`/);
  assert.match(cell,/aria-describedby=\{error \? errorId : undefined\}/);
  assert.match(cell,/id=\{errorId\} role="alert"/);
