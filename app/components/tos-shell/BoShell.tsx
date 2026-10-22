@@ -98,7 +98,7 @@ export function BoShell({
     setCommandOpen(false);
     setQuery("");
   }  return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-bo-design-system="v23">
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.brand}>
           <span className={styles.brandMark}>P</span>

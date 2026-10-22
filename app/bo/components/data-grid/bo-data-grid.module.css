@@ -1,21 +1,21 @@
 .surface {
-  --grid-border: #e2e1e5;
-  --grid-border-soft: #ecebf0;
-  --grid-muted: #807d88;
-  --grid-text: #26242b;
-  --grid-accent: #6655c7;
+  --grid-border: var(--bo-v23-color-border, #e2e1e5);
+  --grid-border-soft: var(--bo-v23-color-border-subtle, #ecebf0);
+  --grid-muted: var(--bo-v23-color-muted, #807d88);
+  --grid-text: var(--bo-v23-color-text, #26242b);
+  --grid-accent: var(--bo-v23-color-accent-table, #6655c7);
   width: 100%;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--grid-border);
-  border-radius: 13px;
-  background: #fff;
+  border-radius: var(--bo-v23-radius-surface, 13px);
+  background: var(--bo-v23-color-surface, #fff);
   color: var(--grid-text);
   box-shadow: 0 7px 28px rgba(28, 25, 38, .035);
 }
 
 .toolbar {
-  min-height: 49px;
+  min-height: var(--bo-v23-toolbar-min-height, 49px);
   display: flex;
   align-items: center;
   gap: 7px;
@@ -32,7 +32,7 @@
   gap: 7px;
   padding: 0 9px;
   border: 1px solid #dddce2;
-  border-radius: 8px;
+  border-radius: var(--bo-v23-radius-control, 8px);
   background: #fff;
   color: #8e8a94;
 }
