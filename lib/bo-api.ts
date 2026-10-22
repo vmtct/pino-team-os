@@ -314,6 +314,7 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  sessionRoster: (sessionId: string) => readOne<import("./tos-learning-api").SessionRoster>(`sessions/${encodeURIComponent(sessionId)}/roster`),
   context: () => readOne<BoContext>("context"),
   calendarScope: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/calendar-scope");
