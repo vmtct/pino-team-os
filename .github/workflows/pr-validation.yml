@@ -32,6 +32,10 @@ jobs:
         run: |
           node scripts/verify-bo-module-contract.mjs
           node --test scripts/verify-bo-module-contract.test.mjs
+      - name: Check BO V2.3 pilot parity contract (PAP-889)
+        run: |
+          node --test scripts/verify-bo-v23-parity.test.mjs
+          node scripts/verify-bo-v23-parity.mjs --mode=adopted
       - name: Lint
         run: bun run lint
       - name: Unit tests
