@@ -70,6 +70,7 @@ export function BoDataGrid<Row>({
   editableFieldKeys,
   onStageCellEdit,
   onRowOpen,
+  quickViewOpener = false,
   emptyTitle = "No records",
   emptyMessage = "There is no canonical data for this view yet.",
 }: {
@@ -102,12 +103,15 @@ export function BoDataGrid<Row>({
   editableFieldKeys?: ReadonlySet<string>;
   onStageCellEdit?: (edit: BoInlineEdit) => void;
   onRowOpen?: (row: Row) => void;
+  /** Opt-in V2.3 first-cell Quick View control; no behavior without onRowOpen. */
+  quickViewOpener?: boolean;
   emptyTitle?: string;
   emptyMessage?: string;
 }) {
   const captionId = useId();
   const range = pagination ? boDataGridRange(pagination.page, pagination.pageSize, pagination.total) : null;
   const interactiveRows = Boolean(onRowOpen);
+  const showQuickViewOpener = quickViewOpener && Boolean(onRowOpen);
   const visibleColumns = typedFilterSettings && typedFilterFields && typedFilterSettings.visibleKeys.length
     ? columns.filter((column) => typedFilterSettings.visibleKeys.includes(column.key))
     : columns;
@@ -149,7 +153,7 @@ export function BoDataGrid<Row>({
     <div className={styles.tableViewport}>
       <table aria-describedby={captionId}>
         <caption id={captionId}>{caption}</caption>
-        <thead><tr>{visibleColumns.map((column) => {
+        <thead><tr>{showQuickViewOpener ? <th scope="col" className={styles.quickViewOpenerCell}><span className={styles.visuallyHidden}>Quick View</span></th> : null}{visibleColumns.map((column) => {
           const activeSort = sortKey === column.key;
           const ariaSort = activeSort ? (sortDirection === "asc" ? "ascending" : "descending") : column.sortable ? "none" : undefined;
           const style = columnStyle(column);
@@ -160,7 +164,7 @@ export function BoDataGrid<Row>({
           </th>;
         })}</tr></thead>
         <tbody>
-          {state === "loading" ? <SkeletonRows columns={visibleColumns.length} /> : null}
+          {state === "loading" ? <SkeletonRows columns={visibleColumns.length + (showQuickViewOpener ? 1 : 0)} /> : null}
           {state === "ready" ? visibleRows.map((row) => {
             const key = rowKey(row);
             return <tr
@@ -171,7 +175,7 @@ export function BoDataGrid<Row>({
               aria-selected={interactiveRows ? selectedRowKey === key : undefined}
               onClick={onRowOpen ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen(row); } : undefined}
               onKeyDown={interactiveRows ? (event) => openRow(event, row) : undefined}
-            >{visibleColumns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
+            >{showQuickViewOpener ? <td className={styles.quickViewOpenerCell}><button type="button" className={styles.quickViewOpenerButton} onClick={() => onRowOpen?.(row)} aria-label={`Open Quick View for ${key}`} title="Quick View">↗</button></td> : null}{visibleColumns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
           }) : null}
         </tbody>
       </table>

@@ -157,3 +157,8 @@
 /* PAP-615 copy feedback and readable canonical IDs */
 .canonicalId code { font-size: 11px; }
 .copyFeedback { font-size: 11px; white-space: nowrap; color: #5f51ae; }
+/* PAP-874 V2.3 opt-in opener: isolated from legacy table density. */
+.quickViewOpenerCell { width: var(--bo-v23-opener-column-width, 37px); min-width: var(--bo-v23-opener-column-width, 37px); max-width: var(--bo-v23-opener-column-width, 37px); padding: 0 4px !important; text-align: center !important; }
+.quickViewOpenerButton { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: var(--bo-v23-radius-xs, 5px); background: transparent; color: var(--bo-v23-color-accent-table, #6655c7); cursor: pointer; }
+.quickViewOpenerButton:hover, .quickViewOpenerButton:focus-visible { background: var(--bo-v23-color-selected, #f5f2ff); outline: 2px solid var(--bo-v23-color-focus, #8e7ddd); outline-offset: 1px; }
+.visuallyHidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
