@@ -104,6 +104,9 @@ export function BoDataGrid<Row>({
   const captionId = useId();
   const range = pagination ? boDataGridRange(pagination.page, pagination.pageSize, pagination.total) : null;
   const interactiveRows = Boolean(onRowOpen);
+  const visibleColumns = typedFilterSettings && typedFilterFields && typedFilterSettings.visibleKeys.length
+    ? columns.filter((column) => typedFilterSettings.visibleKeys.includes(column.key))
+    : columns;
   const visibleRows = typedFilterSettings && typedFilterFields
     ? applyBoFilterSettings(rows as readonly Record<string, unknown>[], typedFilterSettings, typedFilterFields) as readonly Row[]
     : rows;
@@ -141,7 +144,7 @@ export function BoDataGrid<Row>({
     <div className={styles.tableViewport}>
       <table aria-describedby={captionId}>
         <caption id={captionId}>{caption}</caption>
-        <thead><tr>{columns.map((column) => {
+        <thead><tr>{visibleColumns.map((column) => {
           const activeSort = sortKey === column.key;
           const ariaSort = activeSort ? (sortDirection === "asc" ? "ascending" : "descending") : column.sortable ? "none" : undefined;
           const style = columnStyle(column);
@@ -152,7 +155,7 @@ export function BoDataGrid<Row>({
           </th>;
         })}</tr></thead>
         <tbody>
-          {state === "loading" ? <SkeletonRows columns={columns.length} /> : null}
+          {state === "loading" ? <SkeletonRows columns={visibleColumns.length} /> : null}
           {state === "ready" ? visibleRows.map((row) => {
             const key = rowKey(row);
             return <tr
@@ -163,7 +166,7 @@ export function BoDataGrid<Row>({
               aria-selected={interactiveRows ? selectedRowKey === key : undefined}
               onClick={onRowOpen ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen(row); } : undefined}
               onKeyDown={interactiveRows ? (event) => openRow(event, row) : undefined}
-            >{columns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
+            >{visibleColumns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
           }) : null}
         </tbody>
       </table>
