@@ -15,3 +15,15 @@ test("Classes typed filter maps canonical row fields without mutating input", ()
   assert.deepEqual(filterRunningClassGridRows(rows, settings("id", "one")).map((r) => r.item.id), ["one"]);
   assert.equal(rows.length, 2);
 });
+
+test("Classes typed filters support conjunction, exact status, and no-match results", () => {
+  const exact = (field: string, value: string) => ({ field, operator: "equals" as const, value });
+  const filter = (filters: ReturnType<typeof exact>[]) => ({
+    visibleKeys: runningClassFilterFields.map((field) => field.key),
+    group: { combinator: "and" as const, filters },
+  });
+  assert.deepEqual(filterRunningClassGridRows(rows, filter([exact("status", "ACTIVE")])).map((row) => row.item.id), ["one"]);
+  assert.deepEqual(filterRunningClassGridRows(rows, filter([exact("program", "Piano"), exact("status", "INACTIVE")])).map((row) => row.item.id), ["two"]);
+  assert.deepEqual(filterRunningClassGridRows(rows, filter([exact("program", "Piano"), exact("status", "ACTIVE")])).map((row) => row.item.id), []);
+  assert.deepEqual(filterRunningClassGridRows(rows, filter([])).map((row) => row.item.id), ["one", "two"]);
+});
