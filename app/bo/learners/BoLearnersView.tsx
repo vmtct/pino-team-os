@@ -89,7 +89,6 @@ export function BoLearnersView() {
   }, [selectedId]);
 
   const rows = useMemo(() => directory.state === "ready" ? directory.data : [], [directory]);
-  const activeRows = useMemo(() => rows.filter((student) => student.activeSubscriptions > 0), [rows]);
   const learningFilter: LearningFilter = grid.state.filters.learning === "inactive" ? "inactive" : grid.state.filters.learning === "all" ? "all" : "active";
   const filtered = useMemo(() => {
     const term = grid.state.search.trim().toLocaleLowerCase("vi");
@@ -132,12 +131,6 @@ export function BoLearnersView() {
       <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>+ Thêm học viên</button><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
     </header>
 
-    <section className={styles.metrics}>
-      <Metric label="Tổng hồ sơ" value={rows.length} note="canonical Student" />
-      <Metric label="Đang học" value={activeRows.length} note="có active Path" />
-      <Metric label="House Member" value={rows.filter((item) => item.houseMember).length} note="membership hiện có" />
-      <Metric label="Chưa active" value={rows.filter((item) => item.activeSubscriptions === 0).length} note="chưa có active Path" />
-    </section>
 
     <BoDataGrid
       rows={directory.state === "ready" ? visibleRows : []}
@@ -331,9 +324,6 @@ function NeutralizeStudentIntake({ lifecycle, onClose, onNeutralized }: { lifecy
   </div>;
 }
 
-function Metric({ label, value, note }: { label: string; value: number; note: string }) {
-  return <article className={styles.metric}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
-}
 
 function LearnerDetail({ load, catalog, onNeutralize }: { load: Load<BoLearnerLifecycle> | null; catalog: Catalog; onNeutralize: (lifecycle: BoLearnerLifecycle) => void }) {
   if (!load || load.state === "loading") return <State text="Đang tải lifecycle…" />;
