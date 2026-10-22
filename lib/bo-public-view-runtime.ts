@@ -110,6 +110,12 @@ export class BoPublicViewRuntime {
   /** A read-only refresh always uses Core as canonical list; selected tab is kept when still available. */
   async load(selectedId?: string | null): Promise<BoPublicViewRuntimeSnapshot> {
     this.idle();
+    if (this.snapshotData.state?.views.some(v => {
+      const entry = this.queue.snapshot(v.id);
+      return entry && entry.status !== "idle";
+    })) {
+      throw new Error("Resolve or flush pending public view writes before reloading");
+    }
     const serial = ++this.loadNumber;
     this.set({ status: "loading", error: null });
     try {
@@ -187,6 +193,11 @@ export class BoPublicViewRuntime {
     this.set({status:"mutating",error:null});
     try {
       await this.queue.flush();
+      const blocked = this.snapshotData.state?.views.find(v => {
+        const entry=this.queue.snapshot(v.id);
+        return entry?.status==="failed" || entry?.status==="conflict";
+      });
+      if (blocked) throw new Error("Resolve failed or conflicted public view update before structural changes");
       const conflicts=this.snapshotData.state?.conflict;
       if (conflicts) throw new Error("Resolve update conflict before changing view structure");
       const result=await command();

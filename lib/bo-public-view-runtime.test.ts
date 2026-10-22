@@ -215,3 +215,22 @@ test("disposing prevents callbacks, clears queue and stops further commands",asy
   assert.throws(()=>rt.select(null),/disposed/);
   assert.equal(env.calls.filter(c=>c.method!=="GET").length,0);
 });
+
+test("failed queued update blocks structural writes and blind reload until resolved",async()=>{
+  const env=fakeServer([record(ids[0],0),record(ids[1],1)]);
+  const rt=env.runtime();
+  await rt.load(ids[0]);
+  env.failNext();
+  rt.edit(edited("conflicted write"));
+  await rt.flush();
+  await assert.rejects(rt.rename(ids[1],"Unsafe"),/Resolve failed or conflicted/);
+  await assert.rejects(rt.reorder([ids[1],ids[0]]),/Resolve failed or conflicted/);
+  await assert.rejects(rt.load(ids[0]),/Resolve or flush pending/);
+  assert.equal(env.calls.filter(c=>c.method==="PATCH").length,1);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.ok(rt.getSnapshot().state?.conflict);
+  await rt.resolveUpdateConflict("discard");
+  await rt.rename(ids[1],"Safe");
+  assert.equal(env.rows.get(ids[1])?.name,"Safe");
+  rt.dispose();
+});

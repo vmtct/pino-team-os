@@ -8,12 +8,12 @@ Team #712 (state manager) → #713 (serialized update queue) → #714 (Core HTTP
 
 ## New files only
 - `lib/bo-public-view-runtime.ts`: class `BoPublicViewRuntime` with `load/select/edit/flush/create/rename/remove/reorder/resolveUpdateConflict/dispose` and subscription notifications, composed from PAP-887's pure state, Core-client and queue. Authorized Manager writes are versioned and serialized; Staff editing is local-only. Create uses provisional client ID only for constructing a snapshot, then selects the durable Core UUID from the authoritative response and reload. On 409 the runtime fetches Core view definition, holds and presents a discard/reapply choice; no silent retry.
-- `lib/bo-public-view-runtime.test.ts`: 9 integration-style unit tests with in-memory fake Core HTTP: two Managers conflict/reapply, Staff deny, snapshot create ID mapping, CRUD/order/version, local observer safety, dispose and no retry on failed create.
+- `lib/bo-public-view-runtime.test.ts`: 10 integration-style unit tests with in-memory fake Core HTTP: two Managers conflict/reapply, Staff deny, snapshot create ID mapping, CRUD/order/version, local observer safety, dispose and no retry on failed create.
 - `app/bo/components/data-grid/useBoPublicViewRuntime.ts`: small React subscription hook with read-load lifecycle.
 - `app/bo/components/data-grid/BoSharedViewTabs.tsx`, `bo-shared-view-tabs.module.css`: reusable dense public view tabs component: Tất cả, + snapshot, rename/delete accessible menu and context-click, drag-tab order, keyboard move left/right. No user-private views.
 
 ## Verification
-- `node node_modules/tsx/dist/cli.mjs --test lib/bo-public-view-state.test.ts lib/bo-public-view-update-queue.test.ts lib/bo-public-view-core-client.test.ts lib/bo-public-view-runtime.test.ts` **41/41 PASS**.
+- `node node_modules/tsx/dist/cli.mjs --test lib/bo-public-view-state.test.ts lib/bo-public-view-update-queue.test.ts lib/bo-public-view-core-client.test.ts lib/bo-public-view-runtime.test.ts` **42/42 PASS**.
 - Targeted strict TypeScript including `next-env.d.ts` and React/CSS module imports: **PASS**.
 - Local lint cannot resolve a pre-existing incomplete i5 junction `eslint-config-next/core-web-vitals`. Use PR exact-head required Team CI to establish real lint/build truth. Do not claim local lint PASS.
 
