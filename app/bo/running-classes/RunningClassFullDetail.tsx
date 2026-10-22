@@ -23,8 +23,8 @@ export function RunningClassFullDetail({ record, sessions, blocks, centerName, p
     }
     setSaving(true); setError("");
     try {
-      const { id, ...original } = record;
-      await f3DeliveryApi.updateRunningClass(id, { ...original, operationalName: name.trim(), optimalConcurrentCapacity: nextCapacity });
+      const { id, version, ...original } = record;
+      await f3DeliveryApi.updateRunningClass(id, { ...original, expectedVersion: version, operationalName: name.trim(), optimalConcurrentCapacity: nextCapacity });
       window.location.reload();
     } catch (caught) {
       setError(caught instanceof BoApiError && caught.status === 409 ? "Class changed elsewhere. Reload before retrying." : caught instanceof BoApiError && caught.status === 403 ? "You do not have permission to update this class." : caught instanceof Error ? caught.message : "Class update failed.");
