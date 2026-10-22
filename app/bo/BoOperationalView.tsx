@@ -12,7 +12,7 @@ import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwn
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
 import { f3DeliveryApi, type F3Center, type F3LearningSpace, type F3Path, type F3RunningClass, type F3RunningClassBlock, type F3Session } from "@/lib/f3-delivery-api";
 import { buildRunningClassGridRows, isRunningClassGridSortKey, type RunningClassGridRow } from "@/lib/bo-running-classes-grid";
-import { BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
+import { BoDataGrid, BoTypedCellEditor, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
@@ -203,7 +203,7 @@ function RunningClassInlineCell({ record, field, onSaved }: { record: F3RunningC
     } finally { setSaving(false); }
   }
   if (!editing) return <button type="button" aria-label={`Edit ${field} for ${record.operationalName}`} onClick={(event) => { event.stopPropagation(); setDraft(String(record[field])); setError(""); setEditing(true); }}>{String(record[field])}</button>;
-  return <span onClick={(event) => event.stopPropagation()}><input aria-label={`${field} for ${record.operationalName}`} type={field === "optimalConcurrentCapacity" ? "number" : "text"} min={field === "optimalConcurrentCapacity" ? 1 : undefined} value={draft} disabled={saving} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setEditing(false); if (event.key === "Enter") { event.preventDefault(); void submit(); } }} /><button type="button" disabled={saving} onClick={() => void submit()}>Save</button><button type="button" disabled={saving} onClick={() => setEditing(false)}>Cancel</button>{error ? <span role="alert">{error}</span> : null}</span>;
+  return <BoTypedCellEditor label={`${field} for ${record.operationalName}`} value={draft} type={field === "optimalConcurrentCapacity" ? "number" : "text"} min={field === "optimalConcurrentCapacity" ? 1 : undefined} saving={saving} error={error} onChange={setDraft} onCommit={() => void submit()} onCancel={() => setEditing(false)} commitLabel="Save" cancelLabel="Cancel" />;
 }
 function runningClassStatusTone(status: F3RunningClass["status"]): "success" | "neutral" | "warning" {
   return status === "ACTIVE" ? "success" : status === "INACTIVE" ? "warning" : "neutral";
