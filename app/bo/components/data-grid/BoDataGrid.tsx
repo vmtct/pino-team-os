@@ -6,6 +6,8 @@ import styles from "./bo-data-grid.module.css";
 import { BoInlineDraftCell } from "./BoInlineDraftCell";
 import { type BoInlineEdit, type BoInlineEditValue } from "@/lib/bo-inline-edit-state";
 import { BoGridFilterSettings } from "./BoGridFilterSettings";
+import { BoSharedViewTabs } from "./BoSharedViewTabs";
+import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
 import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 
 export type BoDataGridColumn<Row> = {
@@ -53,6 +55,7 @@ export function BoDataGrid<Row>({
   onSortChange,
   filterChips = [],
   typedFilterSettings,
+  publicViewRuntime,
   typedFilterFields,
   onTypedFilterSettingsChange,
   onOpenFilters,
@@ -84,6 +87,7 @@ export function BoDataGrid<Row>({
   onSortChange?: (key: string, direction: BoDataGridSortDirection) => void;
   filterChips?: readonly BoDataGridFilterChip[];
   typedFilterSettings?: BoFilterSettings;
+  publicViewRuntime?: BoPublicViewRuntime;
   typedFilterFields?: readonly BoFilterField[];
   onTypedFilterSettingsChange?: (settings: BoFilterSettings) => void;
   onOpenFilters?: () => void;
@@ -118,6 +122,7 @@ export function BoDataGrid<Row>({
   }
 
   return <section className={styles.surface} aria-busy={state === "loading" || undefined}>
+    {publicViewRuntime ? <BoSharedViewTabs runtime={publicViewRuntime} /> : null}
     <div className={styles.toolbar}>
       {onSearchChange ? <label className={styles.searchBox}>
         <span aria-hidden="true">⌕</span>
