@@ -9,6 +9,8 @@ test("PAP-874 Quick View is opt-in and requires existing row opener", () => {
   assert.match(source, /quickViewOpener = false/);
   assert.match(source, /showQuickViewOpener = quickViewOpener && Boolean\(onRowOpen\)/);
   assert.match(source, /onClick=\{\(\) => onRowOpen\?\.\(row\)\}/);
+  assert.match(source, /interactiveRows = Boolean\(onRowOpen\) && !quickViewOpener/);
+  assert.match(source, /onClick=\{interactiveRows \?/);
 });
 
 test("PAP-874 opener remains keyboard-accessible and loading columns align", () => {
