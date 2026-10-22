@@ -52,7 +52,7 @@ export interface BoRunningClass {
   centerId?: string;
   name: string;
   pathProgramId: string;
-  timezone: "Asia/Ho_Chi_Minh";
+  timezone: string;
   recurrenceWeekdays: number[];
   startLocalTime: string;
   endLocalTime: string;
