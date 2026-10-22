@@ -1,5 +1,6 @@
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
+import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
 
 export interface BoReadEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
@@ -82,6 +83,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "delivery/calendar-exclusions"
     || path === "delivery/calendar-exclusions/preview"
     || path === "path-programs"
+    || Boolean(boPublicViewCoreRoute(path, "GET"))
     || path === "running-classes"
     || path === "syllabi"
     || path === "learning/syllabi"
