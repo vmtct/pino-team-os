@@ -113,3 +113,12 @@ test("Students owner cannot claim typed mutation from create/void-only API",()=>
  assert.doesNotMatch(api,/\bupdateStudent\s*:|\bupdateLearner\s*:/);
  assert.doesNotMatch(owner,/\bonStageCellEdit\s*=|\bonCellCommit\s*=|\bonFieldCommit\s*=/);
 });
+
+test("Apply draft remains explicitly local and cannot impersonate a server commit",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ const state=fs.readFileSync(path.join(repo,"lib/bo-inline-edit-state.ts"),"utf8");
+ assert.match(cell,/onStage\(\{/);
+ assert.match(cell,/>Apply draft</);
+ assert.doesNotMatch(cell,/\bfetch\s*\(|\bboApi\.|\bf3DeliveryApi\./);
+ assert.match(state,/does not grant server-side mutation authority/);
+});
