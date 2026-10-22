@@ -6,7 +6,7 @@ import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwn
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
 import { f3DeliveryApi, type F3Path, type F3RunningClass, type F3Session } from "@/lib/f3-delivery-api";
 import { buildRunningClassGridRows, isRunningClassGridSortKey, type RunningClassGridRow } from "@/lib/bo-running-classes-grid";
-import { BoDataGrid, BoDataGridCanonicalId, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
+import { BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
@@ -93,6 +93,7 @@ function Overview({ data }: { data: Data }) {
 }
 
 function RunningClasses({ data }: { data: Data }) {
+  const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
   const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
   const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
   const statusFilter = state.filters.status ?? "";
@@ -126,6 +127,8 @@ function RunningClasses({ data }: { data: Data }) {
         rows={pageRows}
         columns={columns}
         rowKey={(row) => row.item.id}
+        onRowOpen={setSelectedClass}
+        selectedRowKey={selectedClass?.item.id ?? null}
         caption="Running Classes"
         search={state.search}
         onSearchChange={setSearch}
@@ -140,6 +143,9 @@ function RunningClasses({ data }: { data: Data }) {
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
         emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
       />
+      {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)}>
+        <dl><dt>Program</dt><dd>{selectedClass.programName}</dd><dt>Schedule</dt><dd>{selectedClass.patternLabel}</dd><dt>Capacity</dt><dd>{selectedClass.capacityLabel}</dd><dt>Status</dt><dd>{selectedClass.item.status}</dd><dt>Canonical ID</dt><dd>{selectedClass.item.id}</dd></dl>
+      </BoDataGridSidePeek> : null}
     </Page>
   );
 }
