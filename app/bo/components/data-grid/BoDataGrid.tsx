@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { boDataGridRange, type BoDataGridSortDirection } from "@/lib/bo-data-grid-state";
 import styles from "./bo-data-grid.module.css";
+import { BoInlineDraftCell } from "./BoInlineDraftCell";
+import { type BoInlineEdit, type BoInlineEditValue } from "@/lib/bo-inline-edit-state";
 import { BoGridFilterSettings } from "./BoGridFilterSettings";
 import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 
@@ -10,6 +12,7 @@ export type BoDataGridColumn<Row> = {
   key: string;
   header: ReactNode;
   render: (row: Row) => ReactNode;
+  draftValue?: (row: Row) => BoInlineEditValue;
   sortable?: boolean;
   minWidth?: number;
   width?: number | string;
@@ -61,6 +64,8 @@ export function BoDataGrid<Row>({
   toolbarActions,
   pagination,
   selectedRowKey = null,
+  editableFieldKeys,
+  onStageCellEdit,
   onRowOpen,
   emptyTitle = "No records",
   emptyMessage = "There is no canonical data for this view yet.",
@@ -90,6 +95,8 @@ export function BoDataGrid<Row>({
   toolbarActions?: ReactNode;
   pagination?: BoDataGridPagination;
   selectedRowKey?: string | null;
+  editableFieldKeys?: ReadonlySet<string>;
+  onStageCellEdit?: (edit: BoInlineEdit) => void;
   onRowOpen?: (row: Row) => void;
   emptyTitle?: string;
   emptyMessage?: string;
@@ -156,7 +163,7 @@ export function BoDataGrid<Row>({
               aria-selected={interactiveRows ? selectedRowKey === key : undefined}
               onClick={onRowOpen ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen(row); } : undefined}
               onKeyDown={interactiveRows ? (event) => openRow(event, row) : undefined}
-            >{columns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{column.render(row)}</td>)}</tr>;
+            >{columns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
           }) : null}
         </tbody>
       </table>
