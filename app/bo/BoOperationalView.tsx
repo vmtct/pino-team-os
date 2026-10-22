@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { RunningClassFullDetail } from "./running-classes/RunningClassFullDetail";
+import { filterRunningClassGridRows, runningClassFilterFields } from "@/lib/bo-running-classes-typed-filter";
+import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
+import { BoGridFilterSettings } from "./components/data-grid/BoGridFilterSettings";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
@@ -99,6 +102,7 @@ function RunningClasses({ data }: { data: Data }) {
   const query = useSearchParams();
   const detailId = query.get("detail");
   const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
+  const [typedSettings, setTypedSettings] = useState<BoFilterSettings>({ group: { combinator: "and", filters: [] }, visibleKeys: runningClassFilterFields.map((field) => field.key) });
   const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
   const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
   const statusFilter = state.filters.status ?? "";
@@ -108,9 +112,10 @@ function RunningClasses({ data }: { data: Data }) {
     sortKey,
     sortDirection: state.sortDirection,
   }), [data.classes, data.paths, sortKey, state.search, state.sortDirection, statusFilter]);
-  const pageCount = Math.max(1, Math.ceil(rows.length / state.pageSize));
+  const filteredRows = useMemo(() => filterRunningClassGridRows(rows, typedSettings), [rows, typedSettings]);
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / state.pageSize));
   const page = Math.min(state.page, pageCount);
-  const pageRows = rows.slice((page - 1) * state.pageSize, page * state.pageSize);
+  const pageRows = filteredRows.slice((page - 1) * state.pageSize, page * state.pageSize);
 
   useEffect(() => {
     if (state.page > pageCount) setPage(pageCount);
@@ -143,9 +148,9 @@ function RunningClasses({ data }: { data: Data }) {
         sortDirection={state.sortDirection}
         onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
-        toolbarActions={<label className={styles.gridToolbarFilter}>Status<select aria-label="Filter Running Classes by status" value={statusFilter} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></select></label>}
-        resultLabel={`${rows.length} of ${data.classes.length} classes`}
-        pagination={{ page, pageSize: state.pageSize, total: rows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
+        toolbarActions={<><BoGridFilterSettings fields={runningClassFilterFields} value={typedSettings} onChange={setTypedSettings} /><label className={styles.gridToolbarFilter}>Status<select aria-label="Filter Running Classes by status" value={statusFilter} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></select></label></>}
+        resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
+        pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
         emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
       />
