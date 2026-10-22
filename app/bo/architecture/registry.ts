@@ -12,13 +12,13 @@ export const boModuleRegistry: readonly BoModuleContract[] = defineBoModuleRegis
 ]);
 
 export function requireBoModule(key: string) {
-  const module=boModuleRegistry.find(item=>item.key===key);
-  if (!module) throw new Error(`Unregistered BO module denied: ${key}`);
-  return module;
+  const entry=boModuleRegistry.find(item=>item.key===key);
+  if (!entry) throw new Error(`Unregistered BO module denied: ${key}`);
+  return entry;
 }
 
 export function requireBoModuleForRoute(route: string) {
-  const module=boModuleRegistry.find(item=>item.href===route);
-  if (!module) throw new Error(`Unregistered BO route denied: ${route}`);
-  return module;
+  const entry=boModuleRegistry.find(item=>item.href===route);
+  if (!entry) throw new Error(`Unregistered BO route denied: ${route}`);
+  return entry;
 }
