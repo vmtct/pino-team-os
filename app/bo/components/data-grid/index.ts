@@ -17,3 +17,5 @@ export {
 export { useBoDataGridUrlState } from "./useBoDataGridUrlState";
 
 export { BoGridFilterSettings } from "./BoGridFilterSettings";
+
+export { BoTypedCellEditor } from './BoTypedCellEditor';

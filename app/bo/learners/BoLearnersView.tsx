@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BoDataGrid, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridState, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
+import { BoDataGrid, BoTypedCellEditor, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridState, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
@@ -37,7 +37,7 @@ function StudentNameInlineCell({ student, onSaved }: { student: BoLearnerDirecto
     } finally { setSaving(false); }
   }
   if (!editing) return <button type="button" aria-label={`Chỉnh sửa tên ${student.displayName}`} onClick={(event) => { event.stopPropagation(); setDraft(student.displayName); setError(""); setEditing(true); }}>{student.displayName}</button>;
-  return <span onClick={(event) => event.stopPropagation()}><input aria-label={`Tên học viên ${student.displayName}`} value={draft} disabled={saving} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setEditing(false); if (event.key === "Enter") { event.preventDefault(); void submit(); } }} /><button type="button" disabled={saving} onClick={() => void submit()}>Lưu</button><button type="button" disabled={saving} onClick={() => setEditing(false)}>Hủy</button>{error ? <span role="alert">{error}</span> : null}</span>;
+  return <BoTypedCellEditor label={`Tên học viên ${student.displayName}`} value={draft} saving={saving} error={error} onChange={setDraft} onCommit={() => void submit()} onCancel={() => setEditing(false)} />;
 }
 export function BoLearnersView() {
   const pathname = usePathname();
