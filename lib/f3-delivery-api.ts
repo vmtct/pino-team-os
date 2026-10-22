@@ -7,7 +7,7 @@ export interface F3Center { id: string; centerKey: string; displayName: string; 
 export interface F3Path { id: string; code: string; displayName: string; status: string; version: number }
 export interface F3LearningSpace { id: string; centerId: string; code: string; displayName: string; optimalConcurrentCapacity: number; hardConcurrentCapacity: number | null; status: DeliveryStatus; version: number }
 export interface F3RunningClass { id: string; centerId: string; pathProgramId: string; learningSpaceId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: DeliveryTopology; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; hardConcurrentCapacity: number | null; status: DeliveryStatus; version: number }
-export type F3RunningClassUpdate = Omit<F3RunningClass, "id">;
+export type F3RunningClassUpdate = Omit<F3RunningClass, "id" | "version"> & { expectedVersion: number };
 export interface F3RunningClassBlock { id: string; runningClassId: string; blockKind: "LEARNING" | "BRIDGE" | "TRANSITION"; startsOffsetMinutes: number; endsOffsetMinutes: number; sharedBlockKey: string | null; label: string | null }
 export interface F3Term { id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; updatedAt: string; weekCount: number }
 export interface F3TermWeek { id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; updatedAt: string }
