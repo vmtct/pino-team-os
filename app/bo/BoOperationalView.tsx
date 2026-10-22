@@ -19,6 +19,8 @@ export type BoView = "overview" | "running-classes" | "sessions" | "registration
 
 interface OperationalSession extends BoAttendanceSession {
   startsAt: string;
+  startsLocal: string;
+  endsLocal: string;
   endsAt: string;
   localDate: string;
   timeZone: string;
@@ -55,6 +57,8 @@ export function BoOperationalView({ view }: { view: BoView }) {
           pathProgramId: session.pathProgramId,
           syllabusId: session.primarySyllabusId,
           startsAt: session.startsAt,
+          startsLocal: session.startsLocal,
+          endsLocal: session.endsLocal,
           endsAt: session.endsAt,
           localDate: session.localDate,
           timeZone: session.timeZone,
