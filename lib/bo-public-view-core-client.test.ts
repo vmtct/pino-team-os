@@ -139,3 +139,20 @@ test("invalid JSON response is safe failure, not a retry",async()=>{
     (e:unknown)=>e instanceof BoPublicViewHttpError && e.status===502);
   assert.equal(o.seen.length,1);
 });
+
+test("cookie BO transport uses same-origin BFF without bearer and holds 409",async()=>{
+  const before=Object.getOwnPropertyDescriptor(globalThis,"window");
+  Object.defineProperty(globalThis,"window",{configurable:true,value:{location:{href:"https://bo.pinohouse.art/bo"}}});
+  try {
+    const calls:Array<{url:string;init:RequestInit|undefined}>=[];
+    const client=new BoPublicViewCoreClient({baseUrl:"https://bo.pinohouse.art",moduleKey:"staff",allowedFields:fields,role:"manager",authMode:"team_cookie",
+      fetchImpl:async (input,init)=>{calls.push({url:String(input),init});return new Response(JSON.stringify({error:{code:"PLATFORM_CONFLICT"}}),{status:409});}});
+    await assert.rejects(client.update({kind:"update",moduleKey:"staff",id:id1,expectedVersion:4,config}),
+      (error:unknown)=>error instanceof BoPublicViewHttpError && error.status===409);
+    assert.equal(calls.length,1);assert.equal(calls[0].url,`https://bo.pinohouse.art/api/bo/views/staff/${id1}`);
+    assert.equal(calls[0].init?.credentials,"same-origin");
+    assert.equal(new Headers(calls[0].init?.headers).has("authorization"),false);
+  } finally {
+    if(before)Object.defineProperty(globalThis,"window",before);else Reflect.deleteProperty(globalThis,"window");
+  }
+});
