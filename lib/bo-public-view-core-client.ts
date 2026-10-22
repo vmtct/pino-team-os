@@ -27,7 +27,9 @@ export type BoViewCoreOptions = {
   allowedFields: readonly string[];
   /** The authenticated BO access context is managed externally. */
   role: BoViewRole;
-  bearer: () => Promise<string> | string;
+  bearer?: () => Promise<string> | string;
+  /** Explicit same-origin BO BFF transport; cookie remains HttpOnly. */
+  authMode?: "core_bearer" | "team_cookie";
   fetchImpl?: typeof fetch;
 };
 type CoreRow = {
@@ -90,8 +92,12 @@ export class BoPublicViewCoreClient {
     if (this.options.role !== "manager") throw new Error("Staff can modify only a transient local view draft");
   }
   private async call(path: string, method: string, input?: unknown): Promise<unknown> {
-    const token = await this.options.bearer();
-    if (!token || typeof token !== "string" || /[\r\n]/.test(token)) {
+    const cookieMode = this.options.authMode === "team_cookie";
+    if (cookieMode && (typeof window === "undefined" || new URL(window.location.href).origin !== this.base.origin)) {
+      throw new Error("BO cookie transport requires a same-origin browser session");
+    }
+    const token = cookieMode ? null : await this.options.bearer?.();
+    if (!cookieMode && (!token || typeof token !== "string" || /[\r\n]/.test(token))) {
       throw new BoPublicViewHttpError(401, "unauthorized");
     }
     const endpoint = new URL(path, this.base);
@@ -99,12 +105,13 @@ export class BoPublicViewCoreClient {
     const response = await (this.options.fetchImpl ?? fetch)(endpoint.toString(), {
       method,
       headers: {
-        authorization: `Bearer ${token}`,
+        ...(!cookieMode ? { authorization: `Bearer ${token}` } : {}),
         accept: "application/json",
         ...(input !== undefined ? { "content-type": "application/json" } : {}),
       },
       ...(input !== undefined ? { body: JSON.stringify(input) } : {}),
       cache: "no-store",
+      ...(cookieMode ? {credentials:"same-origin" as const} : {}),
     });
     if (!response.ok) {
       const reason = response.status === 409 ? "conflict"
@@ -122,7 +129,7 @@ export class BoPublicViewCoreClient {
     return (body as { data: unknown }).data;
   }
   private collection(): string {
-    return `/v1/team/bo/views/${encodeURIComponent(this.options.moduleKey)}`;
+    return `${this.options.authMode === "team_cookie" ? "/api/bo" : "/v1/team/bo"}/views/${encodeURIComponent(this.options.moduleKey)}`;
   }
   private item(id: string): string {
     if (!UUID.test(id)) throw new Error("Core durable Saved View ID must be a UUID");
