@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
     "test:e2e": "playwright test",
+    "bo:contract:check": "node scripts/verify-bo-module-contract.mjs && node --test scripts/verify-bo-module-contract.test.mjs",
+    "bo:module:new": "node scripts/create-bo-module.mjs",
     "delivery:enter": "node scripts/delivery-entry.mjs",
     "pino:resume": "node scripts/delivery-entry.mjs",
     "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
