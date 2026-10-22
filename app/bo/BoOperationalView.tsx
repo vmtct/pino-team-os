@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { detailHref } from "@/lib/bo-full-detail-navigation";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
@@ -143,7 +145,7 @@ function RunningClasses({ data }: { data: Data }) {
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
         emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
       />
-      {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)}>
+      {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)} footer={<Link href={detailHref(`/bo/running-classes/${encodeURIComponent(selectedClass.item.id)}`, `/bo/running-classes${typeof window !== "undefined" ? window.location.search : ""}`)}>Full Detail →</Link>}>
         <dl><dt>Program</dt><dd>{selectedClass.programName}</dd><dt>Schedule</dt><dd>{selectedClass.patternLabel}</dd><dt>Capacity</dt><dd>{selectedClass.capacityLabel}</dd><dt>Status</dt><dd>{selectedClass.item.status}</dd><dt>Canonical ID</dt><dd>{selectedClass.item.id}</dd></dl>
       </BoDataGridSidePeek> : null}
     </Page>
