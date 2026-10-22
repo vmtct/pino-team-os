@@ -10,7 +10,7 @@ import { BoGridFilterSettings } from "./components/data-grid/BoGridFilterSetting
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
-import { f3DeliveryApi, type F3Center, type F3LearningSpace, type F3Path, type F3RunningClass, type F3Session } from "@/lib/f3-delivery-api";
+import { f3DeliveryApi, type F3Center, type F3LearningSpace, type F3Path, type F3RunningClass, type F3RunningClassBlock, type F3Session } from "@/lib/f3-delivery-api";
 import { buildRunningClassGridRows, isRunningClassGridSortKey, type RunningClassGridRow } from "@/lib/bo-running-classes-grid";
 import { BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
 import styles from "./bo.module.css";
@@ -31,6 +31,7 @@ interface Data {
   learningSpaces: F3LearningSpace[];
   paths: F3Path[];
   classes: F3RunningClass[];
+  classBlocks: F3RunningClassBlock[];
   sessions: OperationalSession[];
   termWeekCount: number;
 }
@@ -61,7 +62,7 @@ export function BoOperationalView({ view }: { view: BoView }) {
           hardConcurrentCapacity: session.hardConcurrentCapacity,
           status: session.status,
         }));
-        setState({ status: "ready", data: { centers: snapshot.centers, learningSpaces: snapshot.learningSpaces, paths: snapshot.paths, classes: snapshot.runningClasses, sessions, termWeekCount: snapshot.termWeeks.length } });
+        setState({ status: "ready", data: { centers: snapshot.centers, learningSpaces: snapshot.learningSpaces, paths: snapshot.paths, classes: snapshot.runningClasses, classBlocks: snapshot.runningClassBlocks, sessions, termWeekCount: snapshot.termWeeks.length } });
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -133,7 +134,7 @@ function RunningClasses({ data }: { data: Data }) {
   ], []);
 
   const filtered = Boolean(state.search || statusFilter || typedSettings.group.filters.length);
-  if (detailId) return <RunningClassFullDetail record={data.classes.find((item) => item.id === detailId) ?? null} sessions={data.sessions} centerName={data.centers.find((center) => center.id === data.classes.find((item) => item.id === detailId)?.centerId)?.displayName ?? null} pathName={data.paths.find((path) => path.id === data.classes.find((item) => item.id === detailId)?.pathProgramId)?.displayName ?? null} spaceName={data.learningSpaces.find((space) => space.id === data.classes.find((item) => item.id === detailId)?.learningSpaceId)?.displayName ?? null} />;
+  if (detailId) return <RunningClassFullDetail record={data.classes.find((item) => item.id === detailId) ?? null} sessions={data.sessions} blocks={data.classBlocks} centerName={data.centers.find((center) => center.id === data.classes.find((item) => item.id === detailId)?.centerId)?.displayName ?? null} pathName={data.paths.find((path) => path.id === data.classes.find((item) => item.id === detailId)?.pathProgramId)?.displayName ?? null} spaceName={data.learningSpaces.find((space) => space.id === data.classes.find((item) => item.id === detailId)?.learningSpaceId)?.displayName ?? null} />;
   return (
     <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
       <BoDataGrid
