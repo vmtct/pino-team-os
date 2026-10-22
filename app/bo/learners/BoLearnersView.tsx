@@ -153,7 +153,7 @@ export function BoLearnersView() {
       pagination={{ page: range.page, pageSize: grid.state.pageSize, total: pilotFiltered.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
     />
     {selectedId ? <BoDataGridSidePeek title={selectedRow?.displayName ?? "Học viên"} eyebrow="School · Student detail" onClose={() => selectStudent(null)}>
-      <div className={styles.peekDetail}><LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
+      <div className={styles.peekDetail}><Link href={`/bo/learners/${encodeURIComponent(selectedId)}`}>Mở chi tiết đầy đủ →</Link><LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
     </BoDataGridSidePeek> : null}
     {showCreate ? <CreateStudentIntake onClose={() => setShowCreate(false)} onCreated={async (studentId) => { setShowCreate(false); await loadDirectory(); selectStudent(studentId); }} /> : null}
     {neutralizeTarget ? <NeutralizeStudentIntake lifecycle={neutralizeTarget} onClose={() => setNeutralizeTarget(null)} onNeutralized={async () => {
