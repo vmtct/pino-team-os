@@ -31,3 +31,15 @@ test("interleaved edits undo only their own cell", () => {
  assert.deepEqual(undone.pending,[{rowKey:"2",field:"status",before:"Open",after:"Closed"},{rowKey:"1",field:"name",before:"A",after:"B"}]);
  assert.deepEqual(undoBoInlineEdit(undone).pending,[{rowKey:"1",field:"name",before:"A",after:"B"}]);
 });
+
+test("multiple interleaved undos restore original baseline", () => {
+ const allowed=new Set(["name","status"]);
+ const edits=[{rowKey:"1",field:"name",before:"A",after:"B"},{rowKey:"2",field:"status",before:"Open",after:"Closed"},{rowKey:"1",field:"name",before:"B",after:"C"}];
+ const staged=edits.reduce((state,edit)=>stageBoInlineEdit(state,edit,allowed),emptyBoInlineEditState);
+ const once=undoBoInlineEdit(staged);
+ const twice=undoBoInlineEdit(once);
+ const thrice=undoBoInlineEdit(twice);
+ assert.deepEqual(twice.pending,[{rowKey:"1",field:"name",before:"A",after:"B"}]);
+ assert.deepEqual(thrice.pending,[]);
+ assert.deepEqual(thrice.undo,[]);
+});
