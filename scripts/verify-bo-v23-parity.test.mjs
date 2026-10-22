@@ -122,3 +122,10 @@ test("Apply draft remains explicitly local and cannot impersonate a server commi
  assert.doesNotMatch(cell,/\bfetch\s*\(|\bboApi\.|\bf3DeliveryApi\./);
  assert.match(state,/does not grant server-side mutation authority/);
 });
+
+test("numeric inline draft uses numeric input without implying server persistence",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/type=\{typeof value === "number" \? "number" : "text"\}/);
+ assert.match(cell,/inputMode=\{typeof value === "number" \? "decimal" : undefined\}/);
+ assert.match(cell,/onStage\(\{/);
+});
