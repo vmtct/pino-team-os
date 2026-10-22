@@ -131,7 +131,7 @@ function RunningClasses({ data }: { data: Data }) {
   ], []);
 
   const filtered = Boolean(state.search || statusFilter);
-  if (detailId) return <RunningClassFullDetail classId={detailId} />;
+  if (detailId) return <RunningClassFullDetail record={data.classes.find((item) => item.id === detailId) ?? null} />;
   return (
     <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
       <BoDataGrid
