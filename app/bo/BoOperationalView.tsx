@@ -190,7 +190,7 @@ function RunningClassInlineCell({ record, field, onSaved }: { record: F3RunningC
   async function submit() {
     if (saving) return;
     const value = field === "operationalName" ? draft.trim() : Number(draft);
-    if (field === "operationalName" ? !draft.trim() : !Number.isSafeInteger(value) || Number(value) < 1 || (record.hardConcurrentCapacity !== null && Number(value) > record.hardConcurrentCapacity)) {
+    if (field === "operationalName" ? !draft.trim() : draft.trim() === "" || !Number.isSafeInteger(value) || Number(value) < 1 || (record.hardConcurrentCapacity !== null && Number(value) > record.hardConcurrentCapacity)) {
       setError("Invalid class name or capacity."); return;
     }
     setSaving(true); setError("");
