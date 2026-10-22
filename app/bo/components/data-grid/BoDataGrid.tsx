@@ -110,7 +110,8 @@ export function BoDataGrid<Row>({
 }) {
   const captionId = useId();
   const range = pagination ? boDataGridRange(pagination.page, pagination.pageSize, pagination.total) : null;
-  const interactiveRows = Boolean(onRowOpen);
+  // V2.3: only the explicit opener opens the drawer; legacy rows retain click-to-open.
+  const interactiveRows = Boolean(onRowOpen) && !quickViewOpener;
   const showQuickViewOpener = quickViewOpener && Boolean(onRowOpen);
   const visibleColumns = typedFilterSettings && typedFilterFields && typedFilterSettings.visibleKeys.length
     ? columns.filter((column) => typedFilterSettings.visibleKeys.includes(column.key))
@@ -173,7 +174,7 @@ export function BoDataGrid<Row>({
               data-selected={selectedRowKey === key || undefined}
               tabIndex={interactiveRows ? 0 : undefined}
               aria-selected={interactiveRows ? selectedRowKey === key : undefined}
-              onClick={onRowOpen ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen(row); } : undefined}
+              onClick={interactiveRows ? (event) => { if (!isInteractiveDescendant(event.target, event.currentTarget)) onRowOpen?.(row); } : undefined}
               onKeyDown={interactiveRows ? (event) => openRow(event, row) : undefined}
             >{showQuickViewOpener ? <td className={styles.quickViewOpenerCell}><button type="button" className={styles.quickViewOpenerButton} onClick={() => onRowOpen?.(row)} aria-label={`Open Quick View for ${key}`} title="Quick View">↗</button></td> : null}{visibleColumns.map((column) => <td key={column.key} data-align={column.align ?? "left"} data-sticky={column.sticky || undefined} style={columnStyle(column)}>{onStageCellEdit && editableFieldKeys?.has(column.key) && column.draftValue ? <BoInlineDraftCell rowKey={key} field={column.key} value={column.draftValue(row)} editable={true} onStage={onStageCellEdit} /> : column.render(row)}</td>)}</tr>;
           }) : null}
