@@ -9,6 +9,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { auditCanonicalBoRoute } from "./bo-route-import-guard.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASELINE_SHA256 = "6eb9110b8838b72d4bc6af9e55c4182bf1dc3fd85cbeee0e006ef74bb384c472";
@@ -164,6 +165,7 @@ export function verifyBoModuleContract(root=DEFAULT_ROOT) {
     const def=href&&byHref.get(href);
     if(!def){issues.push(`Unregistered NEW BO page: ${file}`);continue;}
     canonicalRoute(root,file,def.key,issues);
+    auditCanonicalBoRoute(root,file,def.key,issues);
   }
   for(const href of newNav){
     if(!byHref.has(href))issues.push(`Unregistered NEW BO navigation path: ${href}`);

@@ -111,3 +111,91 @@ test("a registered module cannot omit navigation, ID, or permission mappings",()
     assert.ok(errors.some(s=>s.includes("read-only canonical id")));
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
+
+/* PAP-928 import-graph and decoy-entry regression tests. */
+function readyNewModule(root){
+  const outcome=scaffold(root);
+  assert.equal(outcome.status,0,outcome.stderr);
+  edit(root,regFile,s=>s.replace("TODO_READ_PERMISSION","studio.record.view")
+    .replace("TODO_WRITE_PERMISSION","studio.record.manage"));
+  edit(root,"app/bo/studio-test/adapter.ts",s=>s.replace(
+    'throw new Error("TODO_BO_DOMAIN_ADAPTER: implement Core-authenticated list with domain ACL");',
+    "return []; // fixture domain read"));
+}
+test("PAP-928 canonical generated route with ordinary domain helper imports passes",()=>{
+  const root=fixture();
+  try {
+    readyNewModule(root);
+    const adapter="app/bo/studio-test/adapter.ts";
+    edit(root,adapter,s=>'import { assertDomain } from "./domain";\n'+s);
+    const domain=path.join(root,"app/bo/studio-test/domain.ts");
+    fs.writeFileSync(domain,'export const assertDomain = (x:unknown) => x !== null;\n');
+    assert.deepEqual(check(root),[]);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 fake unused canonical JSX cannot authorize a bespoke default page",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/page.tsx",s=>s.replace(
+      'return <BoModuleFactory moduleKey="studio-test" adapter={moduleAdapter} />;',
+      'return <article>Not the BO Factory</article>;'));
+    assert.ok(check(root).some(s=>s.includes("single canonical")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 dead extra JSX or a wrapper beside Factory fails",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/page.tsx",s=>s+
+      '\nfunction Hidden(){ return <table><tbody /></table> }\n');
+    assert.ok(check(root).some(s=>s.includes("hidden extra JSX")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 blocks a transitive direct imported custom table renderer",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/adapter.ts",s=>s+'\nimport { OddTable } from "./OddTable";\n');
+    fs.writeFileSync(path.join(root,"app/bo/studio-test/OddTable.tsx"),
+      'export function OddTable(){return <table><tbody /></table>};\n');
+    assert.ok(check(root).some(s=>s.includes("transitive custom JSX renderer")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 blocks a multi-hop aliased custom JSX renderer import",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/adapter.ts",s=>s+'\nimport "./domain";\n');
+    fs.writeFileSync(path.join(root,"app/bo/studio-test/domain.ts"),
+      'import { Rogue } from "./presenter"; export const x = true;\n');
+    fs.writeFileSync(path.join(root,"app/bo/studio-test/presenter.tsx"),
+      'export const Rogue=()=> <div>Other view</div>;\n');
+    assert.ok(check(root).some(s=>s.includes("transitive custom JSX renderer")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 blocks lazy import bypass in adapter",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/adapter.ts",s=>s+'\nconst lazy=()=>import("./other");\n');
+    assert.ok(check(root).some(s=>s.includes("dynamic imports/element construction")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 blocks unresolvable local adapter dependencies",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/adapter.ts",s=>s+'\nimport { hidden } from "./not-present";\n');
+    assert.ok(check(root).some(s=>s.includes("Unresolved local import")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+test("PAP-928 blocks React.createElement() transitive UI bypass",()=>{
+  const root=fixture();
+  try{
+    readyNewModule(root);
+    edit(root,"app/bo/studio-test/adapter.ts",s=>s+
+      '\nimport React from "react"; const hidden=React.createElement("table");\n');
+    assert.ok(check(root).some(s=>s.includes("dynamic imports/element construction")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
