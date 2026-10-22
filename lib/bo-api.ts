@@ -397,6 +397,7 @@ export const boApi = {
   voidStudentIntake: (studentId: string, body: { expectedStudentVersion: number; reason: string }, idempotencyKey: string) =>
     write<BoStudentIntakeVoidResult>("student-intakes/" + encodeURIComponent(studentId) + "/void", body, idempotencyKey),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
+  updateStudentProfile: (studentId: string, body: { displayName: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED"; expectedVersion: number }) => command<{ id: string; displayName: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED"; version: number }>("PATCH", `students/${encodeURIComponent(studentId)}`, body),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   pinoriaOnboardingSets: () => read<BoPinoriaOnboardingStarterSet>("pinoria/onboarding/sets"),
   studentPinoriaOnboarding: (studentId: string, centerId?: string) => readOne<BoPinoriaOnboardingStatus>(`pinoria/onboarding/students/${encodeURIComponent(studentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
