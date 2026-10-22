@@ -65,7 +65,7 @@ function checkRoute(root,key,route){
   ["id_separate_column",/key\s*:\s*["']id["']/.test(owner)||jsx("BoModuleFactory"),"canonical ID has own readonly/copyable column"],
   ["editable_drawer",jsx("BoDrawer")||jsx("BoEditableDrawer")||jsx("BoEditableQuickView"),"one editable property Drawer"],
   ["typed_inline_edit",/\bonCell(?:Commit|Edit|Change)\b|\bonField(?:Commit|Edit|Change)\b|\bBoTypedCellEditor\b|\btypedEditor\b/.test(grid+"\n"+combined),"typed mutation-capable inline cell editor"],
-  ["settings_panel",jsx("BoTableSettings")||jsx("BoGridSettings")||jsx("BoSettingsPanel"),"mounted typed Settings panel"],
+  ["settings_panel",jsx("BoTableSettings")||jsx("BoGridSettings")||jsx("BoGridFilterSettings")||jsx("BoSettingsPanel"),"mounted typed Settings panel"],
   ["saved_view_tabs",jsx("BoSharedViewTabs"),"mounted public saved view tabs, not just standalone definition"],
   ["full_detail",jsx("BoFullDetail"),"mounted shared Full Detail tabs"],
   ["no_legacy_readonly",!/Thuộc tính chỉ xem ở V1|Read-only until the PAP-874/.test(combined),"no legacy readonly placeholder"],
