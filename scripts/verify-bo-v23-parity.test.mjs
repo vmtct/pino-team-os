@@ -136,3 +136,8 @@ test("boolean draft uses a constrained true/false select",()=>{
  assert.match(cell,/<option value="true">True<\/option>/);
  assert.match(cell,/<option value="false">False<\/option>/);
 });
+
+test("null inline draft preserves null when unchanged",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/value === null && draft === "" \? null : draft/);
+});
