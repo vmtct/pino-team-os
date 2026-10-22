@@ -69,3 +69,15 @@ test("Running Classes surface consumes PAP-383 shared mechanics instead of a pag
   assert.doesNotMatch(block, /<Table\b/);
   assert.doesNotMatch(block, /transitionRunningClass|createRunningClass|fetch\(/);
 });
+
+test("PAP-879 Classes does not advertise inline mutation without a canonical update adapter", () => {
+  const source = readFileSync("app/bo/BoOperationalView.tsx", "utf8");
+  const start = source.indexOf("function RunningClasses");
+  const end = source.indexOf("function Sessions", start);
+  assert.ok(start >= 0 && end > start);
+  const block = source.slice(start, end);
+  assert.doesNotMatch(block, /onStageCellEdit|editableFieldKeys|onCellCommit|onFieldCommit/);
+  const api = readFileSync("lib/f3-delivery-api.ts", "utf8");
+  assert.match(api, /transitionRunningClass:/);
+  assert.doesNotMatch(api, /updateRunningClass:/);
+});
