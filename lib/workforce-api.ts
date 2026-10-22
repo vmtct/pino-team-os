@@ -31,7 +31,16 @@ export const workforceApi={
  currentTimekeeping:(centerId?:string)=>request<{data:TimekeepingSession|null}>(`/timekeeping/current${centerId?`?${query({centerId})}`:""}`),history:(body:{centerId:string;startDate:string;endDate:string})=>request<{data:TimekeepingSession[]}>(`/timekeeping/history?${query(body)}`),
  checkInExceptionStatus:(centerId:string)=>request<{data:UnscheduledCheckInSelfState}>(`/check-in-exceptions/status?${query({centerId})}`),
  requestUnscheduledCheckIn:(centerId:string,reason:string,idempotencyKey:string)=>request<{data:UnscheduledCheckInRequest}>("/check-in-exceptions",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:JSON.stringify({centerId,reason})}),
- checkIn:(centerId:string,assignmentId:string|null|undefined,idempotencyKey:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-in",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:JSON.stringify({centerId,assignmentId:assignmentId??null})}),checkOut:(idempotencyKey:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-out",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:"{}"}),
+ checkIn:(centerId:string,assignmentId:string|null|undefined,idempotencyKey:string,photoId?:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-in",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:JSON.stringify({centerId,assignmentId:assignmentId??null,...(photoId?{photoId}:{})})}),checkOut:(idempotencyKey:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-out",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:"{}"}),
+ uploadCheckInPhoto:async(centerId:string,assignmentId:string,blob:Blob,clientUploadKey:string)=>{
+  const params=new URLSearchParams({centerId,assignmentId,clientUploadKey});
+  const response=await fetch("/api/workforce/timekeeping/photo/upload?"+params.toString(),{
+    method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":blob.type},body:blob,
+  });
+  const data=await response.json() as {data?:{photoId:string;capturedAt:string;expiresAt:string};error?:{code:string;message:string}};
+  if(!response.ok||!data.data)throw new WorkforceApiError(response.status,data.error?.code??"PHOTO_UPLOAD_FAILED",data.error?.message??"Không thể gửi ảnh check-in.");
+  return data.data;
+ },
  dutyBoard:(body:{centerId:string;workDate:string;action?:DutyGateAction;milestoneRef?:string})=>request<{data:StaffDutyBoard}>(`/duty/board?${query(body)}`),
  acknowledgeDutyBriefing:(body:{centerId:string;workDate:string;briefingRef:string;briefingRevision:string})=>request<{data:StaffDutyAcknowledgement}>("/duty/briefing/acknowledge",{method:"POST",body:JSON.stringify(body)}),
  requestCheckoutException:(reason:string)=>request<{data:StaffDutyCheckoutException}>("/duty/checkout-exceptions",{method:"POST",body:JSON.stringify({reason})}),

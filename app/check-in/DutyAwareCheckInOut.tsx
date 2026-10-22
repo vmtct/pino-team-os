@@ -19,6 +19,7 @@ import {
   type WorkforceContext,
 } from "@/lib/workforce-api";
 import styles from "./check-in.module.css";
+import {CheckInCameraPanel} from "./CheckInCameraPanel";
 
 function dayInZone(timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
@@ -64,6 +65,8 @@ export default function DutyAwareCheckInOut() {
   const [context, setContext] = useState<WorkforceContext | null>(null);
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [current, setCurrent] = useState<TimekeepingSession | null>(null);
+  const [photoOpen,setPhotoOpen]=useState(false);
+  const photoAttempt=useRef<{blob:Blob;centerId:string;assignmentId:string;key:string;photoId:string|null}|null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [board, setBoard] = useState<StaffDutyBoard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,7 +148,7 @@ export default function DutyAwareCheckInOut() {
     finally { setBusy(""); }
   }
 
-  async function checkIn() {
+  async function checkIn(blob:Blob) {
     if (!center || !checkInReady || !assignment) return;
     setBusy("check-in"); setError("");
     try {
@@ -159,7 +162,20 @@ export default function DutyAwareCheckInOut() {
       const prior = clockAttempt.current;
       const idempotencyKey = prior?.action === "in" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
       clockAttempt.current = { action: "in", fingerprint, key: idempotencyKey };
-      await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
+      const oldPhoto=photoAttempt.current;
+      const activePhoto=oldPhoto&&oldPhoto.blob===blob&&oldPhoto.centerId===center.id&&
+        oldPhoto.assignmentId===state.data.assignment.id?oldPhoto:{
+        blob,centerId:center.id,assignmentId:state.data.assignment.id,
+        key:crypto.randomUUID().replace(/-/g,""),photoId:null,
+      };
+      photoAttempt.current=activePhoto;
+      if(!activePhoto.photoId){
+        const uploaded=await workforceApi.uploadCheckInPhoto(center.id,state.data.assignment.id,blob,activePhoto.key);
+        activePhoto.photoId=uploaded.photoId;
+      }
+      await workforceApi.checkIn(center.id,state.data.assignment.id,idempotencyKey,activePhoto.photoId);
+      photoAttempt.current=null;
+      setPhotoOpen(false);
       clockAttempt.current = null;
       await load();
     } catch (cause) { setError(apiMessage(cause)); }
@@ -235,7 +251,8 @@ export default function DutyAwareCheckInOut() {
           <p>{assignment?.shift ? `${assignment.shift.startLocalTime}–${assignment.shift.endLocalTime}` : "Không có ShiftAssignment active trong ngày."}</p>
           <small>{board?.workDate ?? "—"} · {center?.displayName ?? "—"}</small>
           <p className={styles.roleUnavailable}>Vai trò ca · Chưa sẵn sàng</p>
-          <button className={styles.primaryAction} disabled={!checkInReady || Boolean(busy)} onClick={() => void checkIn()}>{busy === "check-in" ? "Đang check-in…" : "Check-in"}</button>
+          <button className={styles.primaryAction} disabled={!checkInReady || Boolean(busy)} onClick={() => setPhotoOpen(true)}>{busy === "check-in" ? "Đang check-in…" : "Chụp ảnh & Check-in"}</button>
+          {photoOpen?<CheckInCameraPanel busy={Boolean(busy)} onCancel={()=>setPhotoOpen(false)} onConfirm={checkIn}/>:null}
         </section>
         <div className={styles.stats}><article><span>Giờ công tháng này</span><strong className={styles.unavailable}>Chưa sẵn sàng</strong><small>Chờ effective timekeeping từ PAP-706.</small></article><article><span>Ca tiếp theo</span><strong>{nextAssignment ? compactDate(nextAssignment.workDate) : "Chưa có"}</strong><small>{nextAssignment?.shift ? `${nextAssignment.shift.startLocalTime}–${nextAssignment.shift.endLocalTime}` : "Không có assignment sắp tới."}</small></article></div>
         <section className={styles.briefingCard}>
