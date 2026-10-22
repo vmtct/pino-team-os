@@ -147,3 +147,8 @@ test("invalid numeric draft exposes accessible validation feedback",()=>{
  assert.match(cell,/setError\("Enter a valid number"\)/);
  assert.match(cell,/role="alert"/);
 });
+
+test("draft input change clears stale validation feedback",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/onChange=\{\(event\) => \{ setDraft\(event.target.value\); setError\(""\); \}\}/);
+});
