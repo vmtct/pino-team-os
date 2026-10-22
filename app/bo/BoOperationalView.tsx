@@ -130,7 +130,7 @@ function RunningClasses({ data }: { data: Data }) {
     { key: "id", header: "Canonical ID", minWidth: 185, render: (row) => <BoDataGridCanonicalId value={row.item.id} label={`Copy ${row.item.operationalName} canonical ID`} /> },
   ], []);
 
-  const filtered = Boolean(state.search || statusFilter);
+  const filtered = Boolean(state.search || statusFilter || typedSettings.group.filters.length);
   if (detailId) return <RunningClassFullDetail record={data.classes.find((item) => item.id === detailId) ?? null} />;
   return (
     <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
