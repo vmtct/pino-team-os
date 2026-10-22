@@ -8,7 +8,7 @@ import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGr
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "@/lib/bo-student-pilot-fields";
-import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
+import { applyBoFilterSettings, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoParentSearchResult, BoPathProgram, BoRunningClass } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
@@ -105,8 +105,9 @@ export function BoLearnersView() {
     const direction = grid.state.sortDirection === "desc" ? -1 : 1;
     return [...filtered].sort((left, right) => direction * compareStudents(left, right, key));
   }, [filtered, grid.state.sortDirection, grid.state.sortKey]);
-  const range = boDataGridRange(grid.state.page, grid.state.pageSize, sorted.length);
-  const visibleRows = sorted.slice((range.page - 1) * grid.state.pageSize, range.page * grid.state.pageSize);
+  const pilotFiltered = useMemo(() => applyBoFilterSettings(sorted.map((student) => ({ ...student, ...studentPilotFilterRow(student) })), pilotSettings, BO_STUDENT_PILOT_FIELDS), [sorted, pilotSettings]);
+  const range = boDataGridRange(grid.state.page, grid.state.pageSize, pilotFiltered.length);
+  const visibleRows = pilotFiltered.slice((range.page - 1) * grid.state.pageSize, range.page * grid.state.pageSize);
   const selectedRow = rows.find((student) => student.id === selectedId) ?? null;
   const columns = useMemo<BoDataGridColumn<BoLearnerDirectoryItem>[]>(() => [
     { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <div className={styles.gridIdentity}><span className={styles.avatarSmall}>{initials(student.displayName)}</span><div><strong>{student.displayName}</strong><BoDataGridCanonicalId value={student.id} label="Copy Student ID" /></div></div> },
@@ -138,7 +139,7 @@ export function BoLearnersView() {
     </section>
 
     <BoDataGrid
-      rows={directory.state === "ready" ? visibleRows.map((student) => ({ ...student, ...studentPilotFilterRow(student) })) : []}
+      rows={directory.state === "ready" ? visibleRows : []}
       columns={columns}
       typedFilterSettings={pilotSettings}
       typedFilterFields={BO_STUDENT_PILOT_FIELDS}
@@ -154,12 +155,12 @@ export function BoLearnersView() {
       sortDirection={grid.state.sortDirection}
       onSortChange={grid.setSort}
       filterChips={learningFilter === "all" ? [] : [{ key: "learning", label: "Learning", value: learningFilter === "active" ? "Đang học" : "Chưa active", onClear: () => grid.setFilter("learning", "all") }]}
-      resultLabel={`${sorted.length} / ${rows.length} học viên`}
+      resultLabel={`${pilotFiltered.length} / ${rows.length} học viên`}
       selectedRowKey={selectedId}
       onRowOpen={(student) => selectStudent(student.id, "push")}
       emptyTitle="Không có học viên phù hợp"
       emptyMessage="Thử đổi search hoặc Learning filter; canonical Student directory không bị thay đổi."
-      pagination={{ page: range.page, pageSize: grid.state.pageSize, total: sorted.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
+      pagination={{ page: range.page, pageSize: grid.state.pageSize, total: pilotFiltered.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
       toolbarActions={<label className={styles.gridToolbarFilter}>Learning<select aria-label="Lọc học viên theo trạng thái học" value={learningFilter} onChange={(event) => grid.setFilter("learning", event.target.value)}><option value="active">Đang học</option><option value="inactive">Chưa active</option><option value="all">Tất cả</option></select></label>}
     />
     {selectedId ? <BoDataGridSidePeek title={selectedRow?.displayName ?? "Học viên"} eyebrow="School · Student detail" onClose={() => selectStudent(null)}>
