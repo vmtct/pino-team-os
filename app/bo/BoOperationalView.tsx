@@ -158,6 +158,7 @@ function RunningClasses({ data }: { data: Data }) {
         columns={columns}
         rowKey={(row) => row.item.id}
         onRowOpen={setSelectedClass}
+        quickViewOpener
         selectedRowKey={selectedClass?.item.id ?? null}
         caption="Running Classes"
         search={state.search}

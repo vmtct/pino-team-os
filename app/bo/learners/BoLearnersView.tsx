@@ -158,6 +158,7 @@ export function BoLearnersView() {
       resultLabel={`${pilotFiltered.length} / ${rows.length} học viên`}
       selectedRowKey={selectedId}
       onRowOpen={(student) => selectStudent(student.id, "push")}
+      quickViewOpener
       emptyTitle="Không có học viên phù hợp"
       emptyMessage="Thử đổi search hoặc Learning filter; canonical Student directory không bị thay đổi."
       pagination={{ page: range.page, pageSize: grid.state.pageSize, total: pilotFiltered.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
