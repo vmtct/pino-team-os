@@ -156,8 +156,8 @@ test("draft input change clears stale validation feedback",()=>{
 test("invalid numeric draft is programmatically associated with its accessible error",()=>{
  const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
  assert.match(cell,/aria-invalid=\{Boolean\(error\)\}/);
- assert.match(cell,/aria-describedby=\{error \? `draft-error-\$\{field\}` : undefined\}/);
- assert.match(cell,/id=\{`draft-error-\$\{field\}`\} role="alert"/);
+ assert.match(cell,/aria-describedby=\{error \? errorId : undefined\}/);
+ assert.match(cell,/id=\{errorId\} role="alert"/);
 });
 
 test("Escape cancels inline draft and clears validation state",()=>{
@@ -168,4 +168,12 @@ test("Escape cancels inline draft and clears validation state",()=>{
 test("Cancel restores baseline and clears validation state",()=>{
  const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
  assert.match(cell,/<button type="button" onClick=\{\(\) => \{ setError\(""\); setDraft\(String\(value \?\? ""\)\); setOpen\(false\); \}\}>Cancel<\/button>/);
+});
+
+test("draft validation error IDs are unique per rendered cell",()=>{
+ const cell=fs.readFileSync(path.join(repo,"app/bo/components/data-grid/BoInlineDraftCell.tsx"),"utf8");
+ assert.match(cell,/import \{ useId, useState \} from "react"/);
+ assert.match(cell,/const errorId = `draft-error-\$\{useId\(\)\}`/);
+ assert.match(cell,/aria-describedby=\{error \? errorId : undefined\}/);
+ assert.match(cell,/id=\{errorId\} role="alert"/);
 });
