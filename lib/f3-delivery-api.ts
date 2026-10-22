@@ -7,6 +7,7 @@ export interface F3Center { id: string; centerKey: string; displayName: string; 
 export interface F3Path { id: string; code: string; displayName: string; status: string; version: number }
 export interface F3LearningSpace { id: string; centerId: string; code: string; displayName: string; optimalConcurrentCapacity: number; hardConcurrentCapacity: number | null; status: DeliveryStatus; version: number }
 export interface F3RunningClass { id: string; centerId: string; pathProgramId: string; learningSpaceId: string; operationalName: string; weekdayIso: number; windowStartsLocal: string; windowEndsLocal: string; deliveryTopology: DeliveryTopology; defaultParticipationMinutes: number | null; optimalConcurrentCapacity: number; hardConcurrentCapacity: number | null; status: DeliveryStatus; version: number }
+export type F3RunningClassUpdate = Omit<F3RunningClass, "id">;
 export interface F3RunningClassBlock { id: string; runningClassId: string; blockKind: "LEARNING" | "BRIDGE" | "TRANSITION"; startsOffsetMinutes: number; endsOffsetMinutes: number; sharedBlockKey: string | null; label: string | null }
 export interface F3Term { id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; updatedAt: string; weekCount: number }
 export interface F3TermWeek { id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; updatedAt: string }
@@ -38,6 +39,7 @@ export const f3DeliveryApi = {
   createLearningSpace: (body: unknown) => writeOne<F3LearningSpace>("delivery/learning-spaces", body),
   transitionLearningSpace: (id: string, body: unknown) => writeOne<F3LearningSpace>(`delivery/learning-spaces/${encodeURIComponent(id)}/lifecycle`, body),
   createRunningClass: (body: unknown) => writeOne<F3RunningClass>("delivery/running-classes", body),
+  updateRunningClass: (id: string, body: F3RunningClassUpdate) => patchOne<F3RunningClass>(`delivery/running-classes/${encodeURIComponent(id)}`, body),
   transitionRunningClass: (id: string, body: unknown) => writeOne<F3RunningClass>(`delivery/running-classes/${encodeURIComponent(id)}/lifecycle`, body),
   createRunningClassBlock: (body: unknown) => writeOne<F3RunningClassBlock>("delivery/running-class-blocks", body),
   createMaterializationPolicyDraft: (body: unknown) => writeOne<{ streamId: string; versionId: string; version: number; revision: number }>("policies/delivery/materialization.v1/versions", body),
@@ -57,6 +59,11 @@ async function writeOne<T>(path: string, body: unknown, idempotencyKey?: string)
     body: JSON.stringify(body),
   });
   return parse<T>(response, "Back Office delivery command could not be completed.");
+}
+
+async function patchOne<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`/api/bo/${path}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return parse<T>(response, "Back Office delivery update could not be completed.");
 }
 
 async function parse<T>(response: Response, fallback: string): Promise<T> {
