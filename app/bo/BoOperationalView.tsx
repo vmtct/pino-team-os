@@ -109,16 +109,17 @@ function RunningClasses({ data }: { data: Data }) {
   const query = useSearchParams();
   const detailId = query.get("detail");
   const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
+  const [classOverrides, setClassOverrides] = useState<Record<string, F3RunningClass>>({});
   const [typedSettings, setTypedSettings] = useState<BoFilterSettings>({ group: { combinator: "and", filters: [] }, visibleKeys: runningClassFilterFields.map((field) => field.key) });
   const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
   const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
   const statusFilter = state.filters.status ?? "";
-  const rows = useMemo(() => buildRunningClassGridRows(data.classes, data.paths, {
+  const rows = useMemo(() => buildRunningClassGridRows(data.classes.map((item) => classOverrides[item.id] ?? item), data.paths, {
     search: state.search,
     status: statusFilter,
     sortKey,
     sortDirection: state.sortDirection,
-  }), [data.classes, data.paths, sortKey, state.search, state.sortDirection, statusFilter]);
+  }), [classOverrides, data.classes, data.paths, sortKey, state.search, state.sortDirection, statusFilter]);
   const filteredRows = useMemo(() => filterRunningClassGridRows(rows, typedSettings), [rows, typedSettings]);
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / state.pageSize));
   const page = Math.min(state.page, pageCount);
@@ -129,10 +130,10 @@ function RunningClasses({ data }: { data: Data }) {
   }, [pageCount, setPage, state.page]);
 
   const columns = useMemo<BoDataGridColumn<RunningClassGridRow>[]>(() => [
-    { key: "class", header: "Class", sortable: true, sticky: true, minWidth: 180, render: (row) => <strong>{row.item.operationalName}</strong> },
+    { key: "class", header: "Class", sortable: true, sticky: true, minWidth: 180, render: (row) => <RunningClassInlineCell record={row.item} field="operationalName" onSaved={(updated) => setClassOverrides((previous) => ({ ...previous, [updated.id]: updated }))} /> },
     { key: "program", header: "Program", sortable: true, minWidth: 150, render: (row) => row.programName },
     { key: "pattern", header: "Pattern", sortable: true, minWidth: 165, render: (row) => row.patternLabel },
-    { key: "capacity", header: "Capacity", sortable: true, align: "right", minWidth: 110, render: (row) => row.capacityLabel },
+    { key: "capacity", header: "Capacity", sortable: true, align: "right", minWidth: 110, render: (row) => <RunningClassInlineCell record={row.item} field="optimalConcurrentCapacity" onSaved={(updated) => setClassOverrides((previous) => ({ ...previous, [updated.id]: updated }))} /> },
     { key: "status", header: "Status", sortable: true, minWidth: 110, render: (row) => <BoDataGridStatus value={row.item.status} tone={runningClassStatusTone(row.item.status)} /> },
     { key: "id", header: "Canonical ID", minWidth: 185, render: (row) => <BoDataGridCanonicalId value={row.item.id} label={`Copy ${row.item.operationalName} canonical ID`} /> },
   ], []);
@@ -152,7 +153,7 @@ function RunningClasses({ data }: { data: Data }) {
     />;
   }
   return (
-    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
+    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · versioned inline edits.">
       <BoDataGrid
         rows={pageRows}
         columns={columns}
@@ -181,6 +182,29 @@ function RunningClasses({ data }: { data: Data }) {
   );
 }
 
+function RunningClassInlineCell({ record, field, onSaved }: { record: F3RunningClass; field: "operationalName" | "optimalConcurrentCapacity"; onSaved: (updated: F3RunningClass) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(record[field]));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function submit() {
+    if (saving) return;
+    const value = field === "operationalName" ? draft.trim() : Number(draft);
+    if (field === "operationalName" ? !draft.trim() : !Number.isSafeInteger(value) || Number(value) < 1 || (record.hardConcurrentCapacity !== null && Number(value) > record.hardConcurrentCapacity)) {
+      setError("Invalid class name or capacity."); return;
+    }
+    setSaving(true); setError("");
+    try {
+      const { id, version, ...rest } = record;
+      const updated = await f3DeliveryApi.updateRunningClass(id, { ...rest, expectedVersion: version, [field]: value });
+      onSaved(updated); setEditing(false);
+    } catch (caught) {
+      setError(caught instanceof BoApiError && caught.status === 409 ? "Class changed elsewhere; reload and retry." : caught instanceof Error ? caught.message : "Update failed.");
+    } finally { setSaving(false); }
+  }
+  if (!editing) return <button type="button" aria-label={`Edit ${field} for ${record.operationalName}`} onClick={(event) => { event.stopPropagation(); setDraft(String(record[field])); setError(""); setEditing(true); }}>{String(record[field])}</button>;
+  return <span onClick={(event) => event.stopPropagation()}><input aria-label={`${field} for ${record.operationalName}`} type={field === "optimalConcurrentCapacity" ? "number" : "text"} min={field === "optimalConcurrentCapacity" ? 1 : undefined} value={draft} disabled={saving} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setEditing(false); if (event.key === "Enter") { event.preventDefault(); void submit(); } }} /><button type="button" disabled={saving} onClick={() => void submit()}>Save</button><button type="button" disabled={saving} onClick={() => setEditing(false)}>Cancel</button>{error ? <span role="alert">{error}</span> : null}</span>;
+}
 function runningClassStatusTone(status: F3RunningClass["status"]): "success" | "neutral" | "warning" {
   return status === "ACTIVE" ? "success" : status === "INACTIVE" ? "warning" : "neutral";
 }
