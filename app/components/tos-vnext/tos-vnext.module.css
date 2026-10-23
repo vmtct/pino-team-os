@@ -79,5 +79,5 @@
 .trainingCourseIcon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:#f1ebfc;color:#7456b6;font-size:24px}
 .trainingCourseMain{flex:1;min-width:0;overflow-wrap:anywhere}
 
-.stationSectionLabel{font-size:10px;font-weight:800;letter-spacing:.12em;color:#a5adba;margin:14px 15px}
-.stationKicker{font-size:10px;font-weight:820;letter-spacing:.15em;color:#a5a7c1;margin:10px 0 0}
+.stationSectionLabel{font-size:12px;font-weight:800;letter-spacing:.12em;color:#a5adba;margin:14px 15px}
+.stationKicker{font-size:12px;font-weight:820;letter-spacing:.15em;color:#a5a7c1;margin:10px 0 0}
