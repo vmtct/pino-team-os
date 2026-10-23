@@ -167,7 +167,7 @@ test("PAP-863: BO P0 allowlist cannot widen to arbitrary private API or unapprov
 });
 
 test("Shared Views BO paths are host-isolated and module-scoped", () => {
-  for (const path of ["/api/bo/views/students", "/api/bo/views/classes", "/api/bo/views/classes/reorder", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345"]) {
+  for (const path of ["/api/bo/views/students", "/api/bo/views/classes", "/api/bo/views/classes/reorder", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345"]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
   }
