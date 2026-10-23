@@ -175,3 +175,17 @@ test("Shared Views BO paths are host-isolated and module-scoped", () => {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
   }
 });
+
+import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
+
+test("Shared Views transport operations pass both BO host and Core route guards", () => {
+  const id = "12345678-1234-4123-8123-123456789abc";
+  for (const module of ["students", "classes"]) {
+    for (const [suffix, method] of [["", "GET"], ["", "POST"], ["/reorder", "PUT"], ["/" + id, "PATCH"], ["/" + id, "DELETE"], ["/" + id + "/rename", "PATCH"]] as const) {
+      const path = "/api/bo/views/" + module + suffix;
+      assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+      assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
+      assert.equal(boPublicViewCoreRoute(path.slice("/api/bo/".length), method), path.slice("/api/bo/".length));
+    }
+  }
+});
