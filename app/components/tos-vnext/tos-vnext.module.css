@@ -91,3 +91,4 @@
 .stationQuickGrid button span{align-self:flex-end}
 .stationQuickGrid button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
 @media(max-width:1200px){.stationQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stationMetricUnknown{display:block;font-size:30px;line-height:1.2;color:#667786;margin-bottom:8px}

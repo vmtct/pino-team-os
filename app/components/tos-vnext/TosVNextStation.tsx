@@ -42,6 +42,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
     {tab==="students"&&<p className={styles.secondary}>Danh sách học viên cần Core kiểm tra quyền truy cập theo trạm.</p>}
     {(tab==="devices"||tab==="tv")&&<p className={styles.secondary}>Chỉ điều khiển sau khi Core xác thực quyền và phản hồi trạng thái thực.</p>}
    </section>
+   {tab==="overview"&&<section aria-label="Chỉ số Trạm TOS" className={styles.stationQuickGrid}>{(["Học viên tại PINO","Wish đang chờ","Thiết bị cần kiểm tra","Trạng thái TV"] as const).map(label=><TosVNextCard key={label}><strong className={styles.stationMetricUnknown}>—</strong><p className={styles.body}>{label}</p><small className={styles.secondary}>Chưa có dữ liệu Core được xác minh</small></TosVNextCard>)}</section>}
    {tab==="overview"&&<section aria-label="Thao tác nhanh Trạm TOS">
     <TosVNextHeading title="Thao tác nhanh" meta="Workstation"/>
     <div className={styles.stationQuickGrid}>
