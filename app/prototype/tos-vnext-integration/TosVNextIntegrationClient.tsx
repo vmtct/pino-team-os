@@ -18,7 +18,7 @@ import {
  tosVNextStyle,type TosVNextAppId
 } from "@/app/components/tos-vnext/TosVNextUI";
 import {
- TOS_BACKEND_MATRIX,staffContext,shiftReadModel
+ TOS_BACKEND_MATRIX,staffContext,shiftReadModel,type TosVNextShiftReadWarnings
 } from "@/app/components/tos-vnext/core-adapters";
 import type {Assignment,TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
@@ -26,7 +26,7 @@ import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 
 
 type Section="home"|TosVNextAppId;
-type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[];income:OwnIncomePage};
+type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
 type ReadData={shift?:ShiftData};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
@@ -71,7 +71,7 @@ export default function TosVNextIntegrationPreview(){
   let active=true;
   setError("");setLoading(true);setData({});
   void shiftReadModel(centerId,today(zone,-1),today(zone,14)).then(v=>{
-   if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income}}));
+   if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income,warnings:v.warnings}}));
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
@@ -100,7 +100,7 @@ export default function TosVNextIntegrationPreview(){
     <TosVNextHeading title={{today:"Hôm nay",calendar:"Lịch ca",hours:"Giờ công",pay:"Thu nhập"}[shiftTab]} meta={today(zone)}/>
     {shiftTab==="today"&&<TosVNextCard>
      <h2 style={{fontSize:18,margin:"0 0 12px"}}>Trạng thái chấm công</h2>
-     {data.shift?.current?<><TosVNextStatus>{data.shift.current.status}</TosVNextStatus><p className={tosVNextStyle.body}>Check-in: {data.shift.current.checkInAt}</p></>:<p className={tosVNextStyle.secondary}>Không có ca chấm công đang mở.</p>}
+     {data.shift?.warnings.timekeeping?<p role="alert" className={tosVNextStyle.secondary}>Không tải được phiên chấm công: {data.shift.warnings.timekeeping}</p>:data.shift?.current?<><TosVNextStatus>{data.shift.current.status}</TosVNextStatus><p className={tosVNextStyle.body}>Check-in: {data.shift.current.checkInAt}</p></>:<p className={tosVNextStyle.secondary}>Không có ca chấm công đang mở.</p>}
      <TosVNextButton disabled>Check-in yêu cầu ảnh thật + Core PAP-869</TosVNextButton>
      <p className={tosVNextStyle.secondary}>Không gọi legacy checkIn trực tiếp; cần ảnh camera liên kết atomic timekeeping.</p>
     </TosVNextCard>}
@@ -108,15 +108,17 @@ export default function TosVNextIntegrationPreview(){
       {(data.shift?.assignments??[]).map(s=><p className={tosVNextStyle.body} key={s.id}>{s.workDate} · {s.shift?.displayLabel||s.coverageMode} · {s.status}</p>)}
       {!data.shift?.assignments.length&&<p className={tosVNextStyle.secondary}>Không có ca theo bộ lọc.</p>}
      </TosVNextCard>}
-    {shiftTab==="hours"&&<TosVNextCard><TosVNextHeading title="Lịch sử giờ công" meta={String(data.shift?.history.length??0)+" phiên"}/>
+    {shiftTab==="hours"&&<TosVNextCard><TosVNextHeading title="Lịch sử giờ công" meta={data.shift?.history?String(data.shift.history.length)+" phiên":"Chưa có dữ liệu"}/>
+       {data.shift?.warnings.history&&<p role="alert" className={tosVNextStyle.secondary}>Không tải được lịch sử: {data.shift.warnings.history}</p>}
        {(data.shift?.history??[]).map(row=><div key={row.id}>
         <p className={tosVNextStyle.body}><strong>{row.workDate}</strong> · {row.status==="OPEN"?"Đang trong ca":"Đã kết thúc"}</p>
         <p className={tosVNextStyle.secondary}>Check-in: {row.checkInAt} · Check-out: {row.checkOutAt??"Chưa có"}</p>
        </div>)}
-       {!data.shift?.history.length&&<p className={tosVNextStyle.secondary}>Chưa có phiên chấm công trong khoảng ngày được chọn.</p>}
+       {data.shift?.history?.length===0&&<p className={tosVNextStyle.secondary}>Chưa có phiên chấm công trong khoảng ngày được chọn.</p>}
       </TosVNextCard>}
-    {shiftTab==="pay"&&<TosVNextCard><TosVNextHeading title="Thu nhập của tôi" meta={String(data.shift?.income.total??0)+" kỳ"}/>
-      {(data.shift?.income.data??[]).map(x=><p className={tosVNextStyle.body} key={x.periodId}>{x.name} · {x.status} · {x.amountMinor===null?"Chưa có số liệu":new Intl.NumberFormat("vi-VN").format(x.amountMinor/100)+" ₫"}</p>)}
+    {shiftTab==="pay"&&<TosVNextCard><TosVNextHeading title="Thu nhập của tôi" meta={data.shift?.income?String(data.shift.income.total)+" kỳ":"Chưa có dữ liệu"}/>
+      {data.shift?.warnings.income&&<p role="alert" className={tosVNextStyle.secondary}>Không tải được thu nhập: {data.shift.warnings.income}</p>}
+      {(data.shift?.income?.data??[]).map(x=><p className={tosVNextStyle.body} key={x.periodId}>{x.name} · {x.status} · {x.amountMinor===null?"Chưa có số liệu":new Intl.NumberFormat("vi-VN").format(x.amountMinor/100)+" ₫"}</p>)}
       <p className={tosVNextStyle.secondary}>Dữ liệu từ API self; không truyền staff ID, không tự tính lại kỳ đã chốt.</p></TosVNextCard>}
    </>}
    {app==="reception"&&<TosVNextReception centerId={centerId} workDate={today(zone)}

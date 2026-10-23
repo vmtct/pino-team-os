@@ -45,6 +45,8 @@ test("PAP-938 real Shift read wiring preserves Core session and salary self scop
  try{
   const model=await shiftReadModel("center-1","2026-10-22","2026-10-30");
   assert.equal(model.current?.id,"t1");
+  assert.ok(model.history,"history must be loaded in healthy Core case");
+  assert.ok(model.income,"payroll must be loaded in healthy Core case");
   assert.equal(model.history[0]?.id,"t1");
   assert.equal(model.assignments.length,1);
   assert.ok(mock.calls.some(x=>x.url.includes("/api/workforce/timekeeping/history?")));
@@ -92,5 +94,66 @@ test("PAP-938 wrong-center request fails closed before visiting sensitive backen
  try{
   await assert.rejects(receptionVisitReadModel("center-other","st-1"),TosVNextScopeError);
   assert.equal(mock.calls.some(x=>x.url.includes("/visits/")),false);
+ }finally{mock.restore()}
+});
+
+test("PAP-941 optional income outage preserves Core-backed schedule and exposes unavailable marker",async()=>{
+ const mock=mockFetch(url=>{
+  if(url.startsWith("/api/tos-learning/workforce/payroll/income?"))
+   return {status:503,error:{code:"SERVICE_UNAVAILABLE",message:"Payroll temporarily unavailable"}};
+  return backend(url);
+ });
+ try{
+  const model=await shiftReadModel("center-1","2026-10-23","2026-10-30");
+  assert.equal(model.assignments.length,1,"authorization schedule must still load");
+  assert.equal(model.current?.id,"t1");
+  assert.equal(model.income,null,"outage is UNKNOWN, not zero VND");
+  assert.equal(model.warnings.income,"Payroll temporarily unavailable");
+  assert.equal(model.warnings.history,undefined);
+  assert.ok(mock.calls.some(c=>c.url.includes("/api/workforce/schedule?")));
+ }finally{mock.restore()}
+});
+test("PAP-941 optional history outage is not presented as empty history",async()=>{
+ const mock=mockFetch(url=>url.startsWith("/api/workforce/timekeeping/history?")
+  ?{status:503,error:{code:"SERVICE_UNAVAILABLE",message:"History offline"}}:backend(url));
+ try{
+  const model=await shiftReadModel("center-1","2026-10-23","2026-10-30");
+  assert.equal(model.assignments.length,1);
+  assert.equal(model.history,null,"outage must differ from successful empty array");
+  assert.equal(model.warnings.history,"History offline");
+ }finally{mock.restore()}
+});
+test("PAP-941 session 401 invalidates all optional reads and prevents stale access",async()=>{
+ for(const target of ["timekeeping/current","timekeeping/history","workforce/payroll/income"]){
+  const mock=mockFetch(url=>url.includes(target)
+   ?{status:401,error:{code:"UNAUTHORIZED",message:"Session expired"}}:backend(url));
+  try{
+   await assert.rejects(shiftReadModel("center-1","2026-10-23","2026-10-30"),
+    (e:unknown)=>e instanceof Error&&"status" in e&&e.status===401);
+  }finally{mock.restore()}
+ }
+});
+test("PAP-941 optional 403 masks only denied feature, preserves schedule permission truth",async()=>{
+ for(const [target,key] of [
+  ["timekeeping/current","timekeeping"],["timekeeping/history","history"],["workforce/payroll/income","income"]
+ ] as const){
+  const mock=mockFetch(url=>url.includes(target)
+   ?{status:403,error:{code:"FORBIDDEN",message:"No permission"}}:backend(url));
+  try{
+   const model=await shiftReadModel("center-1","2026-10-23","2026-10-30");
+   assert.equal(model.assignments.length,1);
+   assert.ok(model.warnings[key],"Must explain restricted feature");
+   if(key==="income")assert.equal(model.income,null);
+   if(key==="history")assert.equal(model.history,null);
+   if(key==="timekeeping")assert.equal(model.current,null);
+  }finally{mock.restore()}
+ }
+});
+test("PAP-941 schedule access failure stops before auxiliary private reads",async()=>{
+ const mock=mockFetch(url=>url.startsWith("/api/workforce/schedule?")
+  ?{status:403,error:{code:"FORBIDDEN",message:"Schedule denied"}}:backend(url));
+ try{
+  await assert.rejects(shiftReadModel("center-1","2026-10-23","2026-10-30"));
+  assert.equal(mock.calls.some(c=>c.url.includes("/timekeeping/")||c.url.includes("/payroll/")),false);
  }finally{mock.restore()}
 });

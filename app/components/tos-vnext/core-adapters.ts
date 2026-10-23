@@ -39,22 +39,45 @@ export function assertOwnCenter(context:WorkforceContext,centerId:string){
  return center;
 }
 /** Fail closed if context or Core scope fails. Read-only; no client trust of mock role. */
+export type TosVNextShiftReadWarnings=Partial<Record<"timekeeping"|"history"|"income",string>>;
 export async function shiftReadModel(centerId:string,fromDate:string,toDate:string):Promise<{
  context:WorkforceContext;
  assignments:Assignment[];
  current:TimekeepingSession|null;
- history:TimekeepingSession[];
- income:OwnIncomePage;
+ history:TimekeepingSession[]|null;
+ income:OwnIncomePage|null;
+ warnings:TosVNextShiftReadWarnings;
 }>{
  const context=await staffContext();
  assertOwnCenter(context,centerId);
- const [assignments,current,history,income]=await Promise.all([
-  workforceApi.schedule({centerId,startDate:fromDate,endDate:toDate}),
+ // Schedule is the mandatory source of shift-role access. NEVER infer permissions
+ // from optional payroll/timekeeping success or preserve stale shift assignments.
+ const assignments=await workforceApi.schedule({centerId,startDate:fromDate,endDate:toDate});
+ const [current,history,income]=await Promise.allSettled([
   workforceApi.currentTimekeeping(centerId),
   workforceApi.history({centerId,startDate:fromDate,endDate:toDate}),
   ownIncome(centerId,20,0)
  ]);
- return {context,assignments:assignments.data,current:current.data,history:history.data,income};
+ // Session expiry invalidates the entire read. A 403 can instead mean
+ // a single optional feature is forbidden: keep that feature hidden while
+ // preserving Core-backed schedule access to otherwise authorized apps.
+ for(const result of [current,history,income]){
+  if(result.status==="rejected"&&result.reason?.status===401)throw result.reason;
+ }
+ const warnings:TosVNextShiftReadWarnings={};
+ const unavailable=(name:keyof TosVNextShiftReadWarnings,reason:unknown)=>{
+  warnings[name]=reason instanceof Error?reason.message:"Không thể tải dữ liệu Core.";
+ };
+ if(current.status==="rejected")unavailable("timekeeping",current.reason);
+ if(history.status==="rejected")unavailable("history",history.reason);
+ if(income.status==="rejected")unavailable("income",income.reason);
+ return {
+  context,assignments:assignments.data,
+  current:current.status==="fulfilled"?current.value.data:null,
+  history:history.status==="fulfilled"?history.value.data:null,
+  income:income.status==="fulfilled"?income.value:null,
+  warnings
+ };
 }
 export async function receptionVisitReadModel(centerId:string,studentProfileId:string):Promise<StudentVisit|null>{
  assertOwnCenter(await staffContext(),centerId);
