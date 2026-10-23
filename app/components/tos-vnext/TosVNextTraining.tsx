@@ -113,7 +113,7 @@ export function TosVNextTraining(){
    <p className={styles.secondary}>Mã: {selected.code} · Path: {selected.path} · {selected.track}</p>
    <p className={styles.body}>{selected.description||selected.summary||"Chưa có mô tả."}</p>
    <p className={styles.secondary}>Số giờ tối thiểu: {selected.minHours}</p>
-   <p className={styles.secondary}>Trạng thái đăng ký: {registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")?.status?registrationLabel[registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")!.status]:"Chưa đăng ký"}</p>
+   <p className={styles.secondary}>Trạng thái đăng ký: {(()=>{const record=registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED");return record?registrationLabel[record.status]:"Chưa đăng ký"})()}</p>
    {selected.prerequisiteModuleIds.length>0&&<p className={styles.secondary}>Học phần tiên quyết: {selected.prerequisiteModuleIds.join(", ")}</p>}
    {safeTrainingGuideUrl(selected.guideUrl)&&<a href={safeTrainingGuideUrl(selected.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở tài liệu hướng dẫn</a>}
    {eligibilityBusy&&<p role="status" className={styles.secondary}>Đang kiểm tra điều kiện từ Core…</p>}
