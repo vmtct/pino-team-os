@@ -35,7 +35,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
     <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||"?"} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
   {selected.roster.some(student=>student.status==="CONFLICT")&&<p role="alert" className={styles.trainingError}>Lớp có học viên xung đột từ Core. Cần đối chiếu danh sách trước khi ghi nhật ký.</p>}
-  {detailTab==="students"&&<section role="tabpanel" aria-label="Học viên">
+  {detailTab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students">
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
    <TosVNextHeading title={student.studentDisplayName} meta={student.status==="CONFLICT"?"Cần kiểm tra":"Dự kiến"}/>
@@ -45,16 +45,16 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   </TosVNextCard>)}
   {selected.roster.length===0&&<TosVNextCard><p className={styles.secondary}>Core không trả học viên dự kiến cho lớp này.</p></TosVNextCard>}
   </section>}
-  {detailTab==="missions"&&<TosVNextCard role="tabpanel" aria-label="Nhiệm vụ">
+  {detailTab==="missions"&&<TosVNextCard role="tabpanel" id="tos-classroom-panel-missions" aria-labelledby="tos-classroom-tab-missions">
    <TosVNextHeading title="Nhiệm vụ hôm nay" meta="Chưa đồng bộ Mission Catalog"/>
    <p className={styles.secondary}>Mission Catalog theo Path phải lấy từ Core; không hiển thị nhiệm vụ giả.</p>
    <TosVNextButton disabled>Đọc giáo án · chờ Core</TosVNextButton>
   </TosVNextCard>}
-  {detailTab==="diary"&&<TosVNextCard role="tabpanel" aria-label="Nhật ký"><TosVNextStatus>Diary Core pending</TosVNextStatus>
+  {detailTab==="diary"&&<TosVNextCard role="tabpanel" id="tos-classroom-panel-diary" aria-labelledby="tos-classroom-tab-diary"><TosVNextStatus>Diary Core pending</TosVNextStatus>
    <p className={styles.secondary}>Path Diary V18b phải xác minh quyền, Mission, media riêng tư và Core PR #1770 trước khi ghi.</p>
    <TosVNextButton disabled>Ghi / đóng nhật ký · chờ Core</TosVNextButton>
   </TosVNextCard>}
-  <div data-tos-vnext-class-tabs="v18b"><TosVNextBottomNav label="Mục trong lớp học" active={detailTab} onChange={id=>setDetailTab(id as typeof detailTab)} items={[{id:"students",label:"Học viên",icon:"◉"},{id:"missions",label:"Nhiệm vụ",icon:"◇"},{id:"diary",label:"Nhật ký",icon:"▤"}]}/></div>
+  <div data-tos-vnext-class-tabs="v18b"><TosVNextBottomNav label="Mục trong lớp học" tabPanelPrefix="tos-classroom" active={detailTab} onChange={id=>setDetailTab(id as typeof detailTab)} items={[{id:"students",label:"Học viên",icon:"◉"},{id:"missions",label:"Nhiệm vụ",icon:"◇"},{id:"diary",label:"Nhật ký",icon:"▤"}]}/></div>
  </>;
  return <>
   <TosVNextHeading title="Lớp Học" meta={localDate}/>

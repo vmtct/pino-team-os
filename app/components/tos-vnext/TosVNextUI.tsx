@@ -34,12 +34,12 @@ export function TosVNextButton({variant="primary",children,...props}:PropsWithCh
  return <button {...props} type={props.type??"button"} className={[styles.button,kind,props.className].filter(Boolean).join(" ")}>{children}</button>;
 }
 export type TosNavItem={id:string;label:string;icon:ReactNode};
-export function TosVNextBottomNav({label,items,active,onChange}:{
- label:string;items:TosNavItem[];active:string;onChange:(id:string)=>void
+export function TosVNextBottomNav({label,items,active,onChange,tabPanelPrefix}:{
+ label:string;items:TosNavItem[];active:string;onChange:(id:string)=>void;tabPanelPrefix?:string
 }){
  if(items.length<2||items.length>5)throw new Error("TOS AppBottomNav requires 2–5 tabs");
- return <nav data-tos-vnext="bottom-nav" className={styles.nav} aria-label={label}>
-  {items.map(item=><button key={item.id} type="button" className={styles.tab} aria-current={item.id===active?"page":undefined} onClick={()=>onChange(item.id)}>
+ return <nav data-tos-vnext="bottom-nav" className={styles.nav} aria-label={label} role={tabPanelPrefix?"tablist":undefined}>
+  {items.map(item=><button key={item.id} type="button" className={styles.tab} role={tabPanelPrefix?"tab":undefined} id={tabPanelPrefix?`${tabPanelPrefix}-tab-${item.id}`:undefined} aria-controls={tabPanelPrefix?`${tabPanelPrefix}-panel-${item.id}`:undefined} aria-selected={tabPanelPrefix?item.id===active:undefined} aria-current={!tabPanelPrefix&&item.id===active?"page":undefined} onClick={()=>onChange(item.id)}>
    <span className={styles.tabIcon} aria-hidden="true">{item.icon}</span><span>{item.label}</span></button>)}
  </nav>;
 }
