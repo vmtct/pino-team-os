@@ -53,7 +53,7 @@ async function rejectWrite():Promise<never>{
 export const tosClassroomV18bApi={
  today:(centerId:string,localDate:string)=>{
   const center=requireValue(centerId,"CENTER");
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(localDate))throw new V18bCoreError(400,"INVALID_DATE","Ngày lớp không hợp lệ.");
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(localDate)||!Number.isFinite(Date.parse(localDate+"T12:00:00Z"))||new Date(localDate+"T12:00:00Z").toISOString().slice(0,10)!==localDate)throw new V18bCoreError(400,"INVALID_DATE","Ngày lớp không hợp lệ.");
   return read<V18bClassroomToday>("/classroom/day?centerId="+center+"&localDate="+encodeURIComponent(localDate));
  },
  diary:(diaryId:string,centerId:string)=>read<V18bPathDiary>(

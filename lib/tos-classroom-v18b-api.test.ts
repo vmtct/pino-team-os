@@ -30,6 +30,7 @@ test("PAP-945 malformed scope denied before any sensitive fetch",async()=>{
  try{
   assert.throws(()=>tosClassroomV18bApi.today("","2026-10-23"),V18bCoreError);
   assert.throws(()=>tosClassroomV18bApi.today("center-1","23/10/2026"),V18bCoreError);
+  assert.throws(()=>tosClassroomV18bApi.today("center-1","2026-02-30"),V18bCoreError);
   assert.equal(called,false);
  }finally{globalThis.fetch=old}
 });
