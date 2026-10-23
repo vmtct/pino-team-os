@@ -4,7 +4,7 @@
  * Do not project demo-store user/device/TV data into authenticated runtime.
  */
 import {useState} from "react";
-import {STATION_DESKTOP_TABS,stationHasVerifiedDeviceControl,type StationDesktopTab} from "@/lib/tos-vnext-station";
+import {STATION_DESKTOP_TABS,type StationDesktopTab} from "@/lib/tos-vnext-station";
 import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
 const tabCopy:Record<StationDesktopTab,{heading:string;description:string;dependency:string}>={
@@ -46,7 +46,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
    </div>
    {tab==="devices"||tab==="tv"?<TosVNextCard>
     <TosVNextHeading title="Điều khiển"/>
-    <button type="button" className={styles.stationDisabledAction} disabled={!stationHasVerifiedDeviceControl}>
+    <button type="button" className={styles.stationDisabledAction} disabled title="Chưa có API điều khiển và xác nhận kết quả từ Core">
      Các lệnh điều khiển chưa khả dụng
     </button>
    </TosVNextCard>:null}
