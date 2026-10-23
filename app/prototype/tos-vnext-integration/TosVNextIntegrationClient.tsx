@@ -107,7 +107,12 @@ export default function TosVNextIntegrationPreview(){
  }
  const isDesktop=app==="station";
  const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate);
- if(app==="home")return <TosVNextHome profileLabel={profileLabel} centerName={center?.displayName}
+ // Render-guard, not only useEffect cleanup: never paint stale privileged app content
+ // during a Core schedule revalidation or immediately after role revocation.
+ const appRenderable=app!=="home"&&!loading&&canOpenVNextApp(app,{
+  authenticated:!!ctx,centerReady:!!centerId,scheduleReady:!!data.shift,desktop,access
+ });
+ if(!appRenderable)return <TosVNextHome profileLabel={profileLabel} centerName={center?.displayName}
   authorizedCenters={ctx?.centers??[]} selectedCenterId={centerId}
   onCenterChange={id=>{
    if(!ctx)return;
