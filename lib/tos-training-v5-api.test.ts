@@ -68,3 +68,8 @@ test("PAP-946 eligibility returns Core prerequisite and hour deficits without lo
  globalThis.fetch=(async()=>new Response(JSON.stringify({data:expected}),{status:200})) as typeof fetch;
  try{assert.deepEqual(await tosTrainingV5Api.eligibility("module-3"),expected)}finally{globalThis.fetch=old}
 });
+test("PAP-946 catalog pagination sends the requested Core window",async()=>{
+ const old=globalThis.fetch;let uri="";
+ globalThis.fetch=(async(input:RequestInfo|URL)=>{uri=String(input);return new Response(JSON.stringify({data:{items:[],total:72,limit:30,offset:30}}),{status:200})}) as typeof fetch;
+ try{const page=await tosTrainingV5Api.catalog({query:"art",limit:30,offset:30});const params=new URL(uri,"https://local.test").searchParams;assert.equal(params.get("limit"),"30");assert.equal(params.get("offset"),"30");assert.equal(page.total,72);assert.equal(page.offset,30);}finally{globalThis.fetch=old}
+});
