@@ -3,7 +3,7 @@
 import {useEffect,useState} from "react";
 import type {StaffDutyBoard} from "@/lib/workforce-api";
 import {dutyContextReadModel} from "./core-adapters";
-import {ownShiftLeadDutySummary,SHIFT_LEAD_STATION_WIDE_WRITES_ADMITTED} from "@/lib/tos-vnext-shift-lead";
+import {ownShiftLeadDutySummary} from "@/lib/tos-vnext-shift-lead";
 import {TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
 export function TosVNextShiftLead({centerId,workDate}:{centerId:string;workDate:string}){
@@ -44,7 +44,7 @@ export function TosVNextShiftLead({centerId,workDate}:{centerId:string;workDate:
     {!!summary.unavailableSources.length&&
      <p className={styles.trainingError}>Nguồn Core chưa sẵn sàng: {summary.unavailableSources.join(", ")}</p>}
     <p className={styles.secondary}>Closeout, ngoại lệ và settlement vẫn do Core quyết định; chưa cấp tác vụ Station-wide từ UI mới.</p>
-    <TosVNextButton disabled={!SHIFT_LEAD_STATION_WIDE_WRITES_ADMITTED}>Xác nhận bàn giao</TosVNextButton>
+    <TosVNextButton disabled title="Chưa tích hợp Core handoff write và readback">Xác nhận bàn giao</TosVNextButton>
    </TosVNextCard>
   </>}
  </>;
