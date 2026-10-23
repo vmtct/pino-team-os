@@ -29,6 +29,7 @@ export function useAuthorizedBoPublicView(moduleKey: string, moduleReadPermissio
     return () => {
       active = false;
       current?.dispose();
+      setRuntime((previous) => previous === current ? null : previous);
     };
   }, [moduleKey, moduleReadPermission, allowedFields]);
   return runtime;
