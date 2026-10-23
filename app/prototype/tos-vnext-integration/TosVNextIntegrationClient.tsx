@@ -10,6 +10,7 @@ import {TosVNextTraining} from "@/app/components/tos-vnext/TosVNextTraining";
 import {TosVNextClassroom} from "@/app/components/tos-vnext/TosVNextClassroom";
 import {TosVNextReception} from "@/app/components/tos-vnext/TosVNextReception";
 import {TosVNextStation} from "@/app/components/tos-vnext/TosVNextStation";
+import {TosVNextShiftLead} from "@/app/components/tos-vnext/TosVNextShiftLead";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
@@ -17,16 +18,16 @@ import {
  tosVNextStyle,type TosVNextAppId
 } from "@/app/components/tos-vnext/TosVNextUI";
 import {
- TOS_BACKEND_MATRIX,staffContext,shiftReadModel,dutyContextReadModel
+ TOS_BACKEND_MATRIX,staffContext,shiftReadModel
 } from "@/app/components/tos-vnext/core-adapters";
-import type {Assignment,TimekeepingSession,StaffDutyBoard} from "@/lib/workforce-api";
+import type {Assignment,TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 
 
 
 type Section="home"|TosVNextAppId;
 type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[];income:OwnIncomePage};
-type ReadData={shift?:ShiftData;duty?:StaffDutyBoard};
+type ReadData={shift?:ShiftData};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -82,10 +83,7 @@ export default function TosVNextIntegrationPreview(){
   if(next==="reception"&&!access?.reception){setError("Ca này chưa có quyền Tiếp Tân.");return}
   if(next==="classroom"&&!access?.classroom){setError("Ca này chưa có quyền Lớp Học.");return}
   if(next==="shift-lead"&&!access?.["shift-lead"]){setError("Ca này chưa có quyền Trưởng Ca.");return}
-  setApp(next);setError("");setLoading(true);
-  try{
-   if(next==="shift-lead"){const duty=await dutyContextReadModel(centerId,today(zone));setData(prev=>({...prev,duty}))}
-  }catch(e){setError(e instanceof Error?e.message:"Không thể tải dữ liệu.")}finally{setLoading(false)}
+  setApp(next);setError("");
  }
  const isDesktop=app==="station";
  const nextAssignment=[...(data.shift?.assignments??[])].filter(row=>row.status!=="CANCELLED" && row.workDate>=fromDate)
@@ -126,13 +124,7 @@ export default function TosVNextIntegrationPreview(){
    {app==="classroom"&&<TosVNextClassroom centerId={centerId} localDate={today(zone)}
     onDetailChange={setClassDetailOpen}/>}
    {app==="training"&&<TosVNextTraining/>}
-   {app==="shift-lead"&&<>
-    <TosVNextHeading title="Trưởng Ca · Duty Context" meta="Core read"/>
-    <TosVNextCard><p className={tosVNextStyle.body}>Obligation: {data.duty?.duties.length??"Chưa tải"}</p>
-      {(data.duty?.duties??[]).map(x=><p className={tosVNextStyle.secondary} key={x.obligationId}>{x.type} · {x.status} · {x.sourceDomain}</p>)}
-      <p className={tosVNextStyle.secondary}>Không có app Nhiệm Vụ riêng. Quyền thay đổi và settlement cần PAP-944.</p>
-    </TosVNextCard>
-   </>}
+   {app==="shift-lead"&&<TosVNextShiftLead centerId={centerId} workDate={today(zone)}/>}
    {app==="station"&&<TosVNextStation desktop={desktop} centerName={center?.displayName||""}
     onHome={()=>void choose("home")}/>}
    {loading&&<p role="status">Đang tải dữ liệu Core thực…</p>}
