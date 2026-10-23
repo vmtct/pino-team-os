@@ -8,19 +8,19 @@ import {workforceApi,type WorkforceContext} from "@/lib/workforce-api";
 import {TosVNextHome} from "@/app/components/tos-vnext/TosVNextHome";
 import {TosVNextTraining} from "@/app/components/tos-vnext/TosVNextTraining";
 import {TosVNextClassroom} from "@/app/components/tos-vnext/TosVNextClassroom";
+import {TosVNextReception} from "@/app/components/tos-vnext/TosVNextReception";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
  TosVNextCard,TosVNextHeading,TosVNextBottomNav,TosVNextButton,TosVNextStatus,
- TosVNextField,tosVNextStyle,type TosVNextAppId
+ tosVNextStyle,type TosVNextAppId
 } from "@/app/components/tos-vnext/TosVNextUI";
 import {
- TOS_BACKEND_MATRIX,staffContext,shiftReadModel,receptionVisitReadModel,
- dutyContextReadModel
+ TOS_BACKEND_MATRIX,staffContext,shiftReadModel,dutyContextReadModel
 } from "@/app/components/tos-vnext/core-adapters";
 import type {Assignment,TimekeepingSession,StaffDutyBoard} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
-import type {StudentVisit} from "@/lib/tos-day-of-learning-api";
+
 
 
 type Section="home"|TosVNextAppId;
@@ -41,9 +41,6 @@ export default function TosVNextIntegrationPreview(){
  const [data,setData]=useState<ReadData>({});
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
- const [studentId,setStudentId]=useState("");
- const [visit,setVisit]=useState<StudentVisit|null|undefined>(undefined);
- const [visitPending,setVisitPending]=useState(false);
  const [desktop,setDesktop]=useState(false);
  useEffect(()=>{if(!homeNotice)return;const timer=setTimeout(()=>setHomeNotice(""),2700);return()=>clearTimeout(timer)},[homeNotice]);
  const center=ctx?.centers.find(c=>c.id===centerId);
@@ -89,13 +86,6 @@ export default function TosVNextIntegrationPreview(){
    if(next==="shift-lead"){const duty=await dutyContextReadModel(centerId,today(zone));setData(prev=>({...prev,duty}))}
   }catch(e){setError(e instanceof Error?e.message:"Không thể tải dữ liệu.")}finally{setLoading(false)}
  }
- async function checkVisit(){
-  if(!studentId.trim()||!centerId)return;
-  setVisitPending(true);setVisit(undefined);setError("");
-  try{setVisit(await receptionVisitReadModel(centerId,studentId.trim()))}
-  catch(e){setError(e instanceof Error?e.message:"Không thể tải tình trạng học viên.")}
-  finally{setVisitPending(false)}
- }
  const isDesktop=app==="station";
  const nextAssignment=[...(data.shift?.assignments??[])].filter(row=>row.status!=="CANCELLED" && row.workDate>=fromDate)
   .sort((a,b)=>a.workDate.localeCompare(b.workDate))[0]??null;
@@ -130,14 +120,8 @@ export default function TosVNextIntegrationPreview(){
       {(data.shift?.income.data??[]).map(x=><p className={tosVNextStyle.body} key={x.periodId}>{x.name} · {x.status} · {x.amountMinor===null?"Chưa có số liệu":new Intl.NumberFormat("vi-VN").format(x.amountMinor/100)+" ₫"}</p>)}
       <p className={tosVNextStyle.secondary}>Dữ liệu từ API self; không truyền staff ID, không tự tính lại kỳ đã chốt.</p></TosVNextCard>}
    </>}
-   {app==="reception"&&<>
-    <TosVNextHeading title="Tiếp Tân · Core Attendance" meta="READ ONLY"/>
-    <TosVNextCard><p className={tosVNextStyle.secondary}>Đọc trạng thái Student Visit từ Core. Đón–trả và Pinoria chưa bật write khi chưa có đầy đủ xác nhận người đón/quyền thao tác.</p>
-     <TosVNextField label="Mã học viên (Core Student ID)"><input value={studentId} onChange={e=>setStudentId(e.target.value)} placeholder="Nhập ID thật để tra cứu" /></TosVNextField>
-     <TosVNextButton onClick={()=>void checkVisit()} disabled={!studentId.trim()||visitPending}>{visitPending?"Đang truy vấn…":"Xem Student Visit"}</TosVNextButton>
-     {visit!==undefined?<p className={tosVNextStyle.body}>{visit===null?"Không có Student Visit đang mở.":visit.checkedOutAt?"Đã trả: "+visit.checkedOutAt:"Đã đến: "+visit.checkedInAt}</p>:null}
-    </TosVNextCard>
-   </>}
+   {app==="reception"&&<TosVNextReception centerId={centerId} workDate={today(zone)}
+    assignments={data.shift?.assignments??[]}/>}
    {app==="classroom"&&<TosVNextClassroom centerId={centerId} localDate={today(zone)}
     onDetailChange={setClassDetailOpen}/>}
    {app==="training"&&<TosVNextTraining/>}
