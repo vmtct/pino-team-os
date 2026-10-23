@@ -22,3 +22,10 @@ test("PAP-945 V18b bottom nav follows classroom content",()=>{
  const nav=source.indexOf('data-tos-vnext-class-tabs="v18b"');
  assert.ok(nav>source.indexOf('detailTab==="diary"'),"bottom nav must render after all three panels");
 });
+
+test("PAP-945 surfaces Core roster conflict without treating it as a completed diary",()=>{
+ assert.match(source,/student\.status==="CONFLICT"/);
+ assert.match(source,/role="alert"/);
+ assert.match(source,/Kiểm tra trước khi ghi nhật ký/);
+ assert.match(source,/setRefresh\(x=>x\+1\)/);
+});
