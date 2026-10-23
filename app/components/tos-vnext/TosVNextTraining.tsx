@@ -128,7 +128,7 @@ export function TosVNextTraining(){
    {eligibility&&!eligibility.eligible&&eligibility.missingHours>0&&<p className={styles.secondary}>Còn thiếu {eligibility.missingHours} giờ được Core xác nhận.</p>}
    {eligibility&&eligibility.missingPrerequisiteModuleIds.length>0&&<p className={styles.secondary}>Tiên quyết chưa đạt: {eligibility.missingPrerequisiteModuleIds.join(", ")}</p>}
    <p className={styles.secondary}>Đăng ký và xác nhận điều kiện do Core Training V5 quyết định.</p>
-   <TosVNextButton disabled>Đăng ký · chờ Core V5</TosVNextButton>
+   <TosVNextButton disabled>{registrations.some(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")?"Thao tác đăng ký · chờ Core V5":"Đăng ký · chờ Core V5"}</TosVNextButton>
   </TosVNextSheet>}
   <TosVNextBottomNav label="Điều hướng Thăng Tiến" active={tab}
    onChange={id=>setTab(id as Tab)}
