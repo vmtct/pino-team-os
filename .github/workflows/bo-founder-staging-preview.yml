@@ -105,8 +105,10 @@ jobs:
           set -euo pipefail
           url="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/pino-team-os-greenfield-preview/deployments"
           curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$url" > /tmp/preview-rollback-current.json
-          jq -e --arg sha "$GITHUB_SHA" --arg previous "$PREVIOUS" '.success and (.result.deployments[0].versions | length == 1) and (.result.deployments[0].versions[0].percentage == 100) and (.result.deployments[0].versions[0].version_id != $previous) and (.result.deployments[0].annotations["workers/message"] | contains($sha))' /tmp/preview-rollback-current.json
+          jq -e --arg sha "$GITHUB_SHA" --arg run "$GITHUB_RUN_ID" --arg previous "$PREVIOUS" '.success and (.result.deployments[0].versions | length == 1) and (.result.deployments[0].versions[0].percentage == 100) and (.result.deployments[0].versions[0].version_id != $previous) and (.result.deployments[0].annotations["workers/message"] | contains("sha=" + $sha) and contains("run=" + $run))' /tmp/preview-rollback-current.json
           jq -n --arg version "$PREVIOUS" --arg sha "$GITHUB_SHA" '{strategy:"percentage",versions:[{version_id:$version,percentage:100}],annotations:{"workers/message":("pap963 guarded rollback from sha="+$sha)}}' > /tmp/preview-rollback.json
           curl --fail-with-body -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data-binary @/tmp/preview-rollback.json "$url" > /tmp/preview-rollback-result.json
           jq -e '.success' /tmp/preview-rollback-result.json
+          curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$url" > /tmp/preview-rollback-readback.json
+          jq -e --arg previous "$PREVIOUS" '.success and (.result.deployments[0].versions | length == 1) and (.result.deployments[0].versions[0].percentage == 100) and (.result.deployments[0].versions[0].version_id == $previous)' /tmp/preview-rollback-readback.json
           echo 'Failed preview validation: CAS-guarded prior version restored.' >> "$GITHUB_STEP_SUMMARY"
