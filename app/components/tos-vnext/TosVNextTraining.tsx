@@ -2,7 +2,7 @@
 /** PAP-946: approved two-tab Thăng Tiến / Chứng Nhận, no mock state. */
 import {useEffect,useState} from "react";
 import {tosTrainingV5Api,TrainingV5ApiError,TRAINING_V5_WRITE_ADMITTED,
- type TrainingV5CatalogItem,type TrainingV5Registration} from "@/lib/tos-training-v5-api";
+ type TrainingV5CatalogItem,type TrainingV5Eligibility,type TrainingV5Registration} from "@/lib/tos-training-v5-api";
 import {workforceTraining} from "@/lib/workforce-training-client";
 import {safeTrainingGuideUrl} from "@/lib/tos-training-guide-url";
 import type {StaffQualification} from "@/lib/training-model";
@@ -18,6 +18,9 @@ export function TosVNextTraining(){
  const [tab,setTab]=useState<Tab>("progress");
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
  const [selected,setSelected]=useState<TrainingV5CatalogItem|null>(null);
+ const [eligibility,setEligibility]=useState<TrainingV5Eligibility|null>(null);
+ const [eligibilityError,setEligibilityError]=useState("");
+ const [eligibilityBusy,setEligibilityBusy]=useState(false);
  const [search,setSearch]=useState("");
  const [path,setPath]=useState("");
  const [statusFilter,setStatusFilter]=useState<"all"|"registered"|"unregistered">("all");
@@ -49,6 +52,13 @@ export function TosVNextTraining(){
    .finally(()=>{if(active)setCertBusy(false)});
   return()=>{active=false};
  },[certVersion]);
+ useEffect(()=>{
+  if(!selected){setEligibility(null);setEligibilityError("");setEligibilityBusy(false);return;}
+  let active=true;setEligibility(null);setEligibilityError("");setEligibilityBusy(true);
+  void tosTrainingV5Api.eligibility(selected.moduleId).then(result=>{if(active)setEligibility(result)}).catch(err=>{if(active)setEligibilityError(errorText(err))}).finally(()=>{if(active)setEligibilityBusy(false)});
+  return()=>{active=false};
+ },[selected]);
+
  return <>
   {tab==="progress"?<>
    <TosVNextHeading title="Thăng Tiến" meta="Core Training V5"/>
@@ -103,6 +113,9 @@ export function TosVNextTraining(){
    <p className={styles.secondary}>Trạng thái đăng ký: {registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")?.status??"Chưa đăng ký"}</p>
    {selected.prerequisiteModuleIds.length>0&&<p className={styles.secondary}>Học phần tiên quyết: {selected.prerequisiteModuleIds.join(", ")}</p>}
    {safeTrainingGuideUrl(selected.guideUrl)&&<a href={safeTrainingGuideUrl(selected.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở tài liệu hướng dẫn</a>}
+   {eligibilityBusy&&<p role="status" className={styles.secondary}>Đang kiểm tra điều kiện từ Core…</p>}
+   {eligibilityError&&<p role="alert" className={styles.trainingError}>{eligibilityError}</p>}
+   {eligibility&&<p className={styles.secondary}>Điều kiện Core: {eligibility.eligible?"Đủ điều kiện":"Chưa đủ điều kiện"} · {eligibility.confirmedHours}/{eligibility.requiredHours} giờ xác nhận · {eligibility.missingPrerequisiteModuleIds.length} học phần còn thiếu.</p>}
    <p className={styles.secondary}>Đăng ký và xác nhận điều kiện do Core Training V5 quyết định.</p>
    <TosVNextButton disabled>Đăng ký · chờ Core V5</TosVNextButton>
   </TosVNextSheet>}
