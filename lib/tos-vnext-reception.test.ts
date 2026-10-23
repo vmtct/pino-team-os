@@ -25,3 +25,9 @@ test('PAP-942 excludes unconfirmed reception assignments',()=>{
  const unknown={...confirmed,id:'unknown',status:'UNKNOWN'};
  assert.deepEqual(ownReceptionAssignments([draft,cancelled,unknown,confirmed],'center-1','2026-10-23'),[confirmed]);
 });
+
+test('PAP-942 fails closed on missing center or malformed date',()=>{
+ const row=core('center-1','2026-10-23','FRONT_DESK');
+ assert.deepEqual(ownReceptionAssignments([row],'','2026-10-23'),[]);
+ assert.deepEqual(ownReceptionAssignments([row],'center-1','invalid'),[]);
+});
