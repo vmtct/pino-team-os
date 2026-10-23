@@ -6,7 +6,7 @@ import {tosTrainingV5Api,TrainingV5ApiError,TRAINING_V5_WRITE_ADMITTED,
 import {workforceTraining} from "@/lib/workforce-training-client";
 import {safeTrainingGuideUrl} from "@/lib/tos-training-guide-url";
 import type {StaffQualification} from "@/lib/training-model";
-import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus,TosVNextSheet} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
 type Tab="progress"|"certificates";
 function errorText(e:unknown){
@@ -17,6 +17,7 @@ function errorText(e:unknown){
 export function TosVNextTraining(){
  const [tab,setTab]=useState<Tab>("progress");
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
+ const [selected,setSelected]=useState<TrainingV5CatalogItem|null>(null);
  const [search,setSearch]=useState("");
  const [path,setPath]=useState("");
  const [statusFilter,setStatusFilter]=useState<"all"|"registered"|"unregistered">("all");
@@ -31,7 +32,7 @@ export function TosVNextTraining(){
  useEffect(()=>{
   let active=true;
   setBusy(true);
-  setError("");setCatalog([]);setRegistrations([]);
+  setError("");setCatalog([]);setRegistrations([]);setSelected(null);
   const timer=setTimeout(()=>{void Promise.all([tosTrainingV5Api.catalog({query:search.trim(),path:path.trim()}),tosTrainingV5Api.registrations()])
    .then(([page,rows])=>{if(active){setCatalog(page.items);setRegistrations(rows);setError("");}})
    .catch(e=>{if(active){setCatalog([]);setRegistrations([]);setError(errorText(e));}})
@@ -72,6 +73,7 @@ export function TosVNextTraining(){
     const record=registrations.find(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");
     return <TosVNextCard key={item.moduleId}>
      <TosVNextHeading title={item.title} meta={item.code}/>
+     <TosVNextButton variant="secondary" onClick={()=>setSelected(item)}>Chi tiết</TosVNextButton>
      <p className={styles.body}>{item.summary||item.description||"Chưa có mô tả."}</p>
      <p className={styles.secondary}>{item.path} · {item.track} · {item.minHours} giờ yêu cầu</p>
      {!!item.prerequisiteModuleIds.length&&<p className={styles.secondary}>Có {item.prerequisiteModuleIds.length} học phần tiên quyết (Core xác định điều kiện).</p>}
@@ -94,6 +96,15 @@ export function TosVNextTraining(){
     </div>)}
    </TosVNextCard>
   </>}
+  {selected&&<TosVNextSheet title={selected.title} onClose={()=>setSelected(null)}>
+   <p className={styles.secondary}>Mã: {selected.code} · Path: {selected.path} · {selected.track}</p>
+   <p className={styles.body}>{selected.description||selected.summary||"Chưa có mô tả."}</p>
+   <p className={styles.secondary}>Số giờ tối thiểu: {selected.minHours}</p>
+   {selected.prerequisiteModuleIds.length>0&&<p className={styles.secondary}>Học phần tiên quyết: {selected.prerequisiteModuleIds.join(", ")}</p>}
+   {safeTrainingGuideUrl(selected.guideUrl)&&<a href={safeTrainingGuideUrl(selected.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở tài liệu hướng dẫn</a>}
+   <p className={styles.secondary}>Đăng ký và xác nhận điều kiện do Core Training V5 quyết định.</p>
+   <TosVNextButton disabled>Đăng ký · chờ Core V5</TosVNextButton>
+  </TosVNextSheet>}
   <TosVNextBottomNav label="Điều hướng Thăng Tiến" active={tab}
    onChange={id=>setTab(id as Tab)}
    items={[{id:"progress",label:"Thăng Tiến",icon:"◈"},{id:"certificates",label:"Chứng Nhận",icon:"✧"}]}/>
