@@ -29,3 +29,10 @@ test("PAP-945 surfaces Core roster conflict without treating it as a completed d
  assert.match(source,/Kiểm tra trước khi ghi nhật ký/);
  assert.match(source,/setRefresh\(x=>x\+1\)/);
 });
+
+test('PAP-945 opening evidence remains visibly Core-gated, never simulated',()=>{
+ assert.match(source,/Mở lớp · chụp ảnh setup: chờ Core xác nhận lượt mở và bằng chứng/);
+ assert.match(source,/Vào lớp/);
+ assert.doesNotMatch(source,/Đã mở lớp thành công/);
+ assert.doesNotMatch(source,/Ảnh setup đã lưu/);
+});
