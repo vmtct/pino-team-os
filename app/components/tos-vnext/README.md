@@ -1,49 +1,51 @@
-# PAP-938 — TOS VNext Runtime Foundation / First Wiring Boundary
+# PAP-938 — TOS VNext six-app integration
 
-**Status: WIP, isolated worktree; NOT deployed, NOT feature-complete.**
+**Status: FC2 DEV / Draft PR #810. NOT merged, NOT staff-facing, NOT Production-ready.**
 
-Parent Jira: https://vmtct97.atlassian.net/browse/PAP-938
-Foundation: https://vmtct97.atlassian.net/browse/PAP-939
-Sources: PAP-934 Master V8 (6 apps) / TOS Design System V1.
+Authoritative sources: [PAP-938](https://vmtct97.atlassian.net/browse/PAP-938), PAP-934 Master V8 + Design System V1, and PAP-512 ownership (FC2 DEV, FC1 merge-only).
 
-## Files
+## Scope implemented in this isolated branch
 
-- `identity.ts` — immutable six-app product registry, no standalone `Nhiệm Vụ`; `station` desktop.
-- `tos-vnext.module.css` — scoped semantic tokens (body 15px, labels/buttons 14px, headings 16/18/20/24px, 4px spacing, 44px tap, 48px CTA).
-- `TosVNextUI.tsx` — typed components for mobile/desktop frames, app header, bottom nav, card, button, sheet, field, toast and status.
-- `core-adapters.ts` — delegates to EXISTING APIs; no shadow Core truth or demo writes. Explicit status matrix `WIRED_READ | LEGACY_ONLY | SECURITY_DEPENDENCY | MISSING_CONTRACT`.
-- `app/prototype/tos-vnext-integration/page.tsx` — **server-side hard-off production fence**. This route returns 404 in any Production build. Local Next development requires `PAP938_VNEXT_LOCAL_PREVIEW=true` (server-only flag). Its client preview resides in `TosVNextIntegrationClient.tsx`; it is diagnostic, NOT the approved visual baseline and NOT production-ready. It reads authenticated Core URLs with no fake business records.
-- `lib/pap938-tos-vnext-bridge.test.ts` — mock-network contract tests verifying calls & fail-closed auth scope. Mock tests are NOT proof of successful authenticated live/staging integration.
+- Exactly **six** Home apps: Ca Làm, Tiếp Tân, Trạm TOS (desktop), Trưởng Ca, Lớp Học, Thăng Tiến. No separate Nhiệm Vụ.
+- Shared semantic tokens and accessible UI primitives: frame, header, bottom app nav, card, button, form field, toast, status and focus-trapped bottom sheet.
+- Actual Core reads from the authenticated staff session, never demo business records or user-supplied staff identities.
+- Ca Làm: own assignment, current/historical Timekeeping, self pay-period snapshots. Camera-only check-in still blocked on atomic PAP-869 evidence.
+- Tiếp Tân: Hôm Nay/Đón–Trả/Pinoria; own FRONT_DESK shift facts and Core Student Visit read. Check-in/checkout, pickup and Wish write policies still unverified and disabled.
+- Trạm TOS: full-width desktop shell with Tổng quan/Pinoria/Học viên/Thiết bị/TV. No mocked metrics or device controls.
+- Trưởng Ca: own Core Duty board, obligation/blocker and closeout-gate readback. Station-wide management and closeout writes not enabled.
+- Lớp Học: session-free Classroom Day projection with top-down list, roster and single detail header. V18b Path Diary DTO/read contract is typed; all Diary mutations disabled until PAP-724 source and private R2 verified.
+- Thăng Tiến: exactly 2 tabs (Thăng Tiến/Chứng Nhận); V5 typed Catalog/Registration/Eligibility reads and actual F0 qualifications with provenance. All V5 writes disabled until PAP-848/849 Core verified.
 
-## Precisely what is wired now
+## Source directory
 
-| App/flow | Existing client used | Readiness |
-|---|---|---|
-| Ca Làm schedule & open timekeeping | `workforceApi.context/schedule/currentTimekeeping` | Real API read wired, stage auth/browser readback pending |
-| Ca Làm staff income by pay period | `ownIncome(centerId)` (never accepts staffId) | Real API read wired, stage auth/browser readback pending |
-| Reception student open visit | `tosDayOfLearningApi.openVisit` | Real API read wired, pickup/write policy pending |
-| Contextual Duty (Trưởng Ca) | `workforceApi.dutyBoard` | Real API read wired, leader-management writes unapproved |
-| Classroom available sessions | `tosLearningApi.sessionsDay` | LEGACY session-only; not approved V18b session-free Diary |
-| Thăng Tiến own assignments | `workforceTraining.self` | LEGACY Training F0 only; V5 register/cert missing |
-| Station desktop | Workforce center context only | Device/TV/Pinoria operator contract missing |
-| Photo check-in | **No direct legacy checkIn write call** | Blocked on PAP-869 private R2/atomic proof |
-| Classroom Path Diary / media | **No mock write** | Blocked on PAP-724/945 contract |
-| Training V5 register/certificate | **No mock write** | Blocked on PAP-848/849/850 |
-| Front Desk arrival/pickup | Visit GET only | Real Core read available; write requires PAP-942 auth/policy |
+- `identity.ts` defines immutable app identities; `TosVNextUI.tsx` and `tos-vnext.module.css` supply reusable design-system primitives.
+- `TosVNextHome.tsx`, `TosVNextReception.tsx`, `TosVNextStation.tsx`, `TosVNextShiftLead.tsx`, `TosVNextClassroom.tsx`, `TosVNextTraining.tsx` own presentation.
+- `core-adapters.ts` delegates to existing authenticated Core clients, with readiness statuses `WIRED_READ`, `LEGACY_ONLY`, `CORE_PR_PENDING`, `SECURITY_DEPENDENCY` and `MISSING_CONTRACT`.
+- `lib/tos-classroom-v18b-api.ts` and `lib/tos-training-v5-api.ts` implement typed Core contracts with **write-before-network fail-closed** guards.
 
-**Important:** The Core API methods used by adapters themselves enforce authorization. UI role gating cannot substitute server authorization. Unverified/missing contracts are explicitly blocked rather than simulated.
+## Production and data-safety fence
 
-## Tests
+`/prototype/tos-vnext-integration` is a developer-only diagnostic route. The server component returns 404 unless **both** `NODE_ENV=development` and server-only `PAP938_VNEXT_LOCAL_PREVIEW=true`. It is hard-off on Production builds. No existing `app/TosHome.tsx` or active staff navigation is replaced by this branch.
 
-Run inside the worktree with installed dependencies:
+**A client-side role gate never grants Core authority.** Every read/write must be reauthorized in Core. Never display mock check-in success, paid minutes, Classroom Diary closure, Qualification, Pinoria Wish balance or TV/device state. Never infer V18b readiness from legacy Session Diaries or Training V5 readiness from F0 qualifications.
+
+## Source-owned blockers
+
+- pino-core **PR #1770** (PAP-724 V18b Path Diary/private R2) open with conflict; not verified in deployed Core.
+- pino-core **PR #1793** (PAP-848 metadata catalog) and **#1794** (PAP-849 register & eligibility, stacked on #1793) draft/unmerged.
+- PAP-868/869 camera-only check-in, PAP-759 opening/pickup, authenticated Station/TV/Wish write commands and Shift Leader station-wide policy.
+- Founder-approved screenshot parity at 320/390/430/768/1024/1440/1920, server-authenticated E2E, required exact-head CI and final single-release acceptance remain outstanding.
+
+## Tests and CI
 
 ```powershell
-node --import tsx --test lib/pap938-tos-vnext-bridge.test.ts
+node --import tsx --test lib/pap938-preview-gate.test.ts lib/pap938-tos-vnext-bridge.test.ts lib/tos-classroom-v18b-api.test.ts lib/tos-training-v5-api.test.ts lib/tos-vnext-reception.test.ts lib/tos-vnext-station.test.ts lib/tos-vnext-shift-lead.test.ts
 npm run typecheck
+git diff --check origin/main...HEAD
 ```
 
-These tests verify DTO wiring and fail-closed center scope, and are not authenticated production data tests. Not yet a complete V8 visual parity test, build, staging or functional E2E.
+At draft head `08173218`, **22/22 targeted contract tests PASS**, TypeScript PASS and Git whitespace check PASS. Local lint/build remain **unverified**: this worktree's `node_modules` Junction points to Next / eslint-config-next v15.5.23 while package.json specifies v16.4.2. Do not claim local lint/build PASS. Use CI with pinned Bun lockfile for exact-head proof.
 
-## Git/release safety
+PR metadata on [#810](https://github.com/vmtct/pino-team-os/pull/810): `Project-Code: PRJ-WFM`, `Entry-Class: EXISTING_GOVERNED_FEATURE`. These are required by current repository validation; do not bypass CI.
 
-This branch is based on upstream `origin/main` snapshot and lives at `D:\pino-worktrees\pap938-tos-vnext-foundation-20261023`. It must not be merged to currently serving public routes until proper feature isolation, full dependency readiness, PAP-185 CI release verification and Founder one-shot TOS VNext authorization. PAP-512 FC1 queue and BO TR-41 train unchanged.
+FC2 may prepare, push, test and repair this Draft PR. **FC2 must not merge into main, deploy, stage, migrate data or flip live flags**. FC1 accepts a non-Draft GREEN PR only after concrete Founder-authorized handoff and PAP-184/PAP-507/PAP-185 safety gates. TOS VNext will only release as one coordinated train after all six apps and APIs are verified.
