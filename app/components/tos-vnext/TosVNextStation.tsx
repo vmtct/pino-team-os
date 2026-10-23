@@ -1,0 +1,55 @@
+"use client";
+/**
+ * PAP-943: authoritative five-section Desktop station shell.
+ * Do not project demo-store user/device/TV data into authenticated runtime.
+ */
+import {useState} from "react";
+import {STATION_DESKTOP_TABS,stationHasVerifiedDeviceControl,type StationDesktopTab} from "@/lib/tos-vnext-station";
+import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import styles from "./tos-vnext.module.css";
+const tabCopy:Record<StationDesktopTab,{heading:string;description:string;dependency:string}>={
+ overview:{heading:"Trạm TOS",description:"Không có chỉ số Station-wide được xác minh từ Core. Bảng điều phối sẽ hiển thị khi API node có quyền truy cập.",dependency:"Workstation node inventory & access"},
+ pinoria:{heading:"Pinoria",description:"Không sử dụng Wardrobe hoặc Wish demo làm dữ liệu Core.",dependency:"Authorized Pinoria Ward & inventory API"},
+ students:{heading:"Học viên",description:"Không tự sinh bảng danh sách học viên từ dữ liệu prototype.",dependency:"Station-wide Student status & privacy access"},
+ devices:{heading:"Thiết bị",description:"Không gửi lệnh điều khiển thiết bị nếu chưa có API, chứng minh quyền và receipt.",dependency:"Node health & device command receipts"},
+ tv:{heading:"TV",description:"Không gọi lệnh Play/Pause bằng các API giả, chưa gắn với Pinoria TV Core.",dependency:"TV playback authorization + readback"},
+};
+export function TosVNextStation({desktop,centerName,onHome}:{
+ desktop:boolean;centerName:string;onHome:()=>void;
+}){
+ const [tab,setTab]=useState<StationDesktopTab>("overview");
+ if(!desktop)return <TosVNextCard><p role="alert" className={styles.body}>Trạm TOS chỉ sử dụng trên màn hình desktop rộng từ 1024px.</p></TosVNextCard>;
+ const copy=tabCopy[tab];
+ return <div className={styles.stationShell} data-tos-vnext-station="desktop">
+  <aside className={styles.stationSidebar}>
+   <div className={styles.stationBrand}><strong>PINO · TRẠM TOS</strong><small>{centerName||"Chưa xác định cơ sở"}</small></div>
+   <nav aria-label="Điều hướng Trạm TOS">
+    {STATION_DESKTOP_TABS.map(item=><button type="button" key={item.id}
+     aria-current={item.id===tab?"page":undefined} onClick={()=>setTab(item.id)}>
+     {item.label}</button>)}
+   </nav>
+   <button type="button" className={styles.stationBack} onClick={onHome}>← Về TOS Home</button>
+  </aside>
+  <main className={styles.stationWorkspace}>
+   <header className={styles.stationWorkspaceHeader}>
+    <div><small>TRẠM TOS · {centerName}</small><h1>{copy.heading}</h1></div>
+    <TosVNextStatus>Đang tích hợp Core</TosVNextStatus>
+   </header>
+   <div className={styles.stationDashboardGrid}>
+    <TosVNextCard><TosVNextHeading title="Trạng thái Core" meta="Chưa xác minh"/>
+     <p className={styles.body}>{copy.description}</p>
+    </TosVNextCard>
+    <TosVNextCard><TosVNextHeading title="Backend cần có" meta="PAP-943"/>
+     <p className={styles.secondary}>{copy.dependency}</p>
+     <p className={styles.secondary}>Chưa có xác nhận dữ liệu/command trên Production hoặc Staging.</p>
+    </TosVNextCard>
+   </div>
+   {tab==="devices"||tab==="tv"?<TosVNextCard>
+    <TosVNextHeading title="Điều khiển"/>
+    <button type="button" className={styles.stationDisabledAction} disabled={!stationHasVerifiedDeviceControl}>
+     Các lệnh điều khiển chưa khả dụng
+    </button>
+   </TosVNextCard>:null}
+  </main>
+ </div>;
+}

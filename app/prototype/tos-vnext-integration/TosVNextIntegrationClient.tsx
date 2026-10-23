@@ -9,6 +9,7 @@ import {TosVNextHome} from "@/app/components/tos-vnext/TosVNextHome";
 import {TosVNextTraining} from "@/app/components/tos-vnext/TosVNextTraining";
 import {TosVNextClassroom} from "@/app/components/tos-vnext/TosVNextClassroom";
 import {TosVNextReception} from "@/app/components/tos-vnext/TosVNextReception";
+import {TosVNextStation} from "@/app/components/tos-vnext/TosVNextStation";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
@@ -95,7 +96,7 @@ export default function TosVNextIntegrationPreview(){
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
   notice={homeNotice||error}/>;
  return <TosVNextFrame app={app} mode={isDesktop?"desktop":"mobile"}>
-  {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
+  {(app!=="station"&&(app!=="classroom"||!classDetailOpen))&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
   <TosVNextContent>
    {app==="shift"&&<>
     <TosVNextHeading title={{today:"Hôm nay",calendar:"Lịch ca",hours:"Giờ công",pay:"Thu nhập"}[shiftTab]} meta={today(zone)}/>
@@ -132,12 +133,8 @@ export default function TosVNextIntegrationPreview(){
       <p className={tosVNextStyle.secondary}>Không có app Nhiệm Vụ riêng. Quyền thay đổi và settlement cần PAP-944.</p>
     </TosVNextCard>
    </>}
-   {app==="station"&&<>
-    <TosVNextHeading title="Trạm TOS · full-width desktop" meta="Core API GAP"/>
-    <TosVNextCard><p className={tosVNextStyle.body}>Node / Center: {center?.displayName||"Chưa có quyền"}</p>
-      <p className={tosVNextStyle.secondary}>Thiết bị/TV/Pinoria chưa được xác minh API điều khiển. Không cấp nút tác động giả.</p>
-    </TosVNextCard>
-   </>}
+   {app==="station"&&<TosVNextStation desktop={desktop} centerName={center?.displayName||""}
+    onHome={()=>void choose("home")}/>}
    {loading&&<p role="status">Đang tải dữ liệu Core thực…</p>}
    {error&&<TosVNextCard><p role="alert" style={{color:"#a32b39",margin:0,fontSize:14}}>{error}</p></TosVNextCard>}
    <TosVNextCard>
