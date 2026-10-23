@@ -24,7 +24,7 @@ export const TOS_BACKEND_MATRIX=[
  {app:"shift-lead",capability:"shift-context duty projections",status:"WIRED_READ",owner:"PAP-671",description:"workforceApi.dutyBoard, Core still enforces permissions"},
  {app:"shift-lead",capability:"station-wide management",status:"MISSING_CONTRACT",owner:"PAP-944",description:"Shift-leader scope/action policy not yet accepted"},
  {app:"classroom",capability:"legacy session/day roster read",status:"LEGACY_ONLY",owner:"PAP-727",description:"tosLearningApi.sessionsDay/roster returns Session-based data; not approved V18b session-free Path Diary"},
- {app:"classroom",capability:"Path Diary REGISTERED/CLOSED",status:"CORE_PR_PENDING",owner:"PAP-724/945",description:"Core PR #1770 unmerged/conflicting; V18b Diary register/draft/missions/evidence/close needs verified live contract"},
+ {app:"classroom",capability:"Path Diary REGISTERED/CLOSED",status:"CORE_PR_PENDING",owner:"PAP-724/945",description:"Core PR #1770 unmerged with failing CI migration-wave verification; V18b Diary register/draft/missions/evidence/close needs verified live contract"},
  {app:"training",capability:"staff own legacy training",status:"LEGACY_ONLY",owner:"PAP-847",description:"workforceTraining.self is old assignment/Skill Passport, NOT Training V5 register/cert API"},
  {app:"training",capability:"V5 catalog/registration/eligibility",status:"CORE_PR_PENDING",owner:"PAP-848/849/946",description:"Typed read UI ready; Core PRs #1793/#1794 unmerged; registration/cancel disabled until verified Core"}
 ] as const satisfies readonly TosBackendSurface[];

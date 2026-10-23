@@ -31,8 +31,8 @@ Authoritative sources: [PAP-938](https://vmtct97.atlassian.net/browse/PAP-938), 
 
 ## Source-owned blockers
 
-- pino-core **PR #1770** (PAP-724 V18b Path Diary/private R2) open with conflict; not verified in deployed Core.
-- pino-core **PR #1793** (PAP-848 metadata catalog) and **#1794** (PAP-849 register & eligibility, stacked on #1793) draft/unmerged.
+- pino-core **PR #1770** (PAP-724 V18b Path Diary/private R2) open and mergeable but CI FAIL on TR-39 migration-wave manifest drift (0130/0131); not verified in deployed Core.
+- pino-core **PR #1793** (PAP-848 metadata catalog) and **#1794** (PAP-849 register & eligibility, stacked on #1793) draft/unmerged, mergeable but CI FAIL; do not assume their live APIs are available.
 - PAP-868/869 camera-only check-in, PAP-759 opening/pickup, authenticated Station/TV/Wish write commands and Shift Leader station-wide policy.
 - Founder-approved screenshot parity at 320/390/430/768/1024/1440/1920, server-authenticated E2E, required exact-head CI and final single-release acceptance remain outstanding.
 
