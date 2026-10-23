@@ -34,4 +34,9 @@ test("PAP-940 Home sorts confirmed shifts deterministically by local start",()=>
  assert.equal(nextConfirmedAssignment(rows,"center-1","bad"),null);
  assert.equal(nextConfirmedAssignment(rows,"center-1","2026-99-99","10:00"),null);
  assert.equal(nextConfirmedAssignment(rows,"center-1","2026-02-30","10:00"),null);
+ const yearEnd={...overnight,workDate:"2026-12-31"};
+ assert.equal(nextConfirmedAssignment([yearEnd],"center-1","2027-01-01","02:59")?.id,"night");
+ assert.equal(nextConfirmedAssignment([yearEnd],"center-1","2027-01-01","03:00"),null);
+ const leapDate={...overnight,workDate:"2028-02-29"};
+ assert.equal(nextConfirmedAssignment([leapDate],"center-1","2028-03-01","02:59")?.id,"night");
 });
