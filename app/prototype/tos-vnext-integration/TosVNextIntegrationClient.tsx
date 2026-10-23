@@ -22,7 +22,7 @@ import type {StudentVisit} from "@/lib/tos-day-of-learning-api";
 import type {DaySession} from "@/lib/tos-learning-api";
 
 type Section="home"|TosVNextAppId;
-type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;income:OwnIncomePage};
+type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[];income:OwnIncomePage};
 type ReadData={shift?:ShiftData;classroom?:DaySession[];training?:{assignments:number;qualifications:number};duty?:StaffDutyBoard};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
@@ -69,7 +69,7 @@ export default function TosVNextIntegrationPreview(){
   let active=true;
   setError("");setLoading(true);setData({});
   void shiftReadModel(centerId,today(zone,-1),today(zone,14)).then(v=>{
-   if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,income:v.income}}));
+   if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income}}));
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
@@ -118,9 +118,12 @@ export default function TosVNextIntegrationPreview(){
       {(data.shift?.assignments??[]).map(s=><p className={tosVNextStyle.body} key={s.id}>{s.workDate} · {s.shift?.displayLabel||s.coverageMode} · {s.status}</p>)}
       {!data.shift?.assignments.length&&<p className={tosVNextStyle.secondary}>Không có ca theo bộ lọc.</p>}
      </TosVNextCard>}
-    {shiftTab==="hours"&&<TosVNextCard><TosVNextHeading title="Timekeeping Core"/>
-       <p className={tosVNextStyle.body}>{data.shift?.current?data.shift.current.status:"Chưa có phiên chấm công mở"}</p>
-       <p className={tosVNextStyle.secondary}>Lịch sử chi tiết dùng workforceApi.history; không giả lập giờ công.</p>
+    {shiftTab==="hours"&&<TosVNextCard><TosVNextHeading title="Lịch sử giờ công" meta={String(data.shift?.history.length??0)+" phiên"}/>
+       {(data.shift?.history??[]).map(row=><div key={row.id}>
+        <p className={tosVNextStyle.body}><strong>{row.workDate}</strong> · {row.status==="OPEN"?"Đang trong ca":"Đã kết thúc"}</p>
+        <p className={tosVNextStyle.secondary}>Check-in: {row.checkInAt} · Check-out: {row.checkOutAt??"Chưa có"}</p>
+       </div>)}
+       {!data.shift?.history.length&&<p className={tosVNextStyle.secondary}>Chưa có phiên chấm công trong khoảng ngày được chọn.</p>}
       </TosVNextCard>}
     {shiftTab==="pay"&&<TosVNextCard><TosVNextHeading title="Thu nhập của tôi" meta={String(data.shift?.income.total??0)+" kỳ"}/>
       {(data.shift?.income.data??[]).map(x=><p className={tosVNextStyle.body} key={x.periodId}>{x.name} · {x.status} · {x.amountMinor===null?"Chưa có số liệu":new Intl.NumberFormat("vi-VN").format(x.amountMinor/100)+" ₫"}</p>)}

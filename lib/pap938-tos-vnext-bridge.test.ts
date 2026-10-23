@@ -22,6 +22,7 @@ function backend(url:string){
  if(url==="/api/workforce/context")return {data:ctx};
  if(url.startsWith("/api/workforce/schedule?"))return {data:[{id:"a1",centerId:"center-1",workDate:"2026-10-23",status:"ACTIVE",roleAssignments:[]}]};
  if(url.startsWith("/api/workforce/timekeeping/current"))return {data:session};
+ if(url.startsWith("/api/workforce/timekeeping/history?"))return {data:[session]};
  if(url.startsWith("/api/tos-learning/workforce/payroll/income?"))return {data:{data:[{periodId:"sep",name:"09/2026",status:"FINALIZED",amountMinor:1300000}],total:1,nextOffset:null}};
  if(url==="/api/tos-learning/students/st-1/visits/open?centerId=center-1")return {data:{id:"visit-1",studentProfileId:"st-1",centerId:"center-1",checkedInAt:"2026-10-23T10:00:00Z",checkedOutAt:null,version:1}};
  if(url.startsWith("/api/tos-learning/sessions/day?"))return {data:{centerId:"center-1",localDate:"2026-10-23",sessions:[{id:"legacy-s1",operationalName:"ART"}]}};
@@ -44,7 +45,9 @@ test("PAP-938 real Shift read wiring preserves Core session and salary self scop
  try{
   const model=await shiftReadModel("center-1","2026-10-22","2026-10-30");
   assert.equal(model.current?.id,"t1");
+  assert.equal(model.history[0]?.id,"t1");
   assert.equal(model.assignments.length,1);
+  assert.ok(mock.calls.some(x=>x.url.includes("/api/workforce/timekeeping/history?")));
   assert.equal(model.income.data[0].status,"FINALIZED");
   assert.equal(model.income.data[0].amountMinor,1300000);
   assert.ok(mock.calls.some(x=>x.url.includes("/api/workforce/schedule?")));

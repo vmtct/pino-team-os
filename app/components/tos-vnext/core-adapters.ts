@@ -43,16 +43,18 @@ export async function shiftReadModel(centerId:string,fromDate:string,toDate:stri
  context:WorkforceContext;
  assignments:Assignment[];
  current:TimekeepingSession|null;
+ history:TimekeepingSession[];
  income:OwnIncomePage;
 }>{
  const context=await staffContext();
  assertOwnCenter(context,centerId);
- const [assignments,current,income]=await Promise.all([
+ const [assignments,current,history,income]=await Promise.all([
   workforceApi.schedule({centerId,startDate:fromDate,endDate:toDate}),
   workforceApi.currentTimekeeping(centerId),
+  workforceApi.history({centerId,startDate:fromDate,endDate:toDate}),
   ownIncome(centerId,20,0)
  ]);
- return {context,assignments:assignments.data,current:current.data,income};
+ return {context,assignments:assignments.data,current:current.data,history:history.data,income};
 }
 export async function receptionVisitReadModel(centerId:string,studentProfileId:string):Promise<StudentVisit|null>{
  assertOwnCenter(await staffContext(),centerId);
