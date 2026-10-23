@@ -48,8 +48,8 @@
 .stationSidebar{align-self:start;position:sticky;top:0;display:flex;flex-direction:column;gap:16px;padding:25px 16px 18px;background:white;border-right:1px solid var(--tos-line);border-radius:0;min-height:100dvh}
 .stationBrand{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--tos-line);padding-bottom:18px;font-size:16px}
 .stationBrand div{display:flex;flex-direction:column;gap:3px;min-width:0}
-.stationBrand img{width:40px;height:40px;object-fit:contain;flex:none}
-.stationBrand small{font-size:13px;color:var(--tos-muted);overflow-wrap:anywhere}
+.stationBrand img{width:51px;height:51px;object-fit:contain;flex:none;border-radius:15px}
+.stationBrand small{font-size:10px;font-weight:760;letter-spacing:.04em;color:#a2a7b0;overflow-wrap:anywhere}
 .stationSidebar nav{display:flex;flex-direction:column;gap:4px}
 .stationSidebar nav button,.stationBack{width:100%;min-height:44px;padding:10px 14px;text-align:left;border:0;background:transparent;border-radius:10px;font-size:14px;font-weight:650;color:var(--tos-text);cursor:pointer}
 /* PAP-943: V8 station sidebar touch geometry; back-home remains a separate compact action. */
