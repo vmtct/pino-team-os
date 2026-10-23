@@ -153,7 +153,7 @@ function RunningClasses({ data }: { data: Data }) {
     />;
   }
   return (
-    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · versioned inline edits.">
+    <Page title="Classes" subtitle="">
       <BoDataGrid
         rows={pageRows}
         columns={columns}
@@ -512,7 +512,7 @@ function SessionTable({ sessions, data }: { sessions: OperationalSession[]; data
 }
 
 function Page({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
-  return <section className={styles.page}><header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>{title}</h1><p>{subtitle}</p></header>{children}</section>;
+  return <section className={styles.page}><header className={styles.heading}><h1>{title}</h1>{subtitle ? <p>{subtitle}</p> : null}</header>{children}</section>;
 }
 function Panel({ title, hint, children, mode = "read" }: { title: string; hint: string; children: ReactNode; mode?: "read" | "write" }) {
   return <section className={styles.panel}><div className={styles.panelHeading}><div><h2>{title}</h2><p>{hint}</p></div><span className={mode === "write" ? styles.writePill : styles.readOnly}>{mode === "write" ? "Controlled write" : "Read only"}</span></div>{children}</section>;

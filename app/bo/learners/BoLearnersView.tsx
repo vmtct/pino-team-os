@@ -143,11 +143,9 @@ export function BoLearnersView() {
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div>
-        <span>School · Student management</span>
         <h1>Học viên</h1>
-        <p>Manager nhìn ngay ai đang học, học chương trình nào, còn bao nhiêu buổi và đang ở lớp nào.</p>
       </div>
-      <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>+ Thêm học viên</button><Link className={styles.secondaryButton} href="/bo/running-classes">Mở Classes</Link></div>
+      <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>＋ Tạo mới</button></div>
     </header>
 
 
