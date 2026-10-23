@@ -65,3 +65,9 @@
 .homeCenterLabel{display:flex;flex-direction:column;gap:6px;color:#39494a;font-size:13px;font-weight:650}
 .homeCenterLabel select{width:100%;min-height:44px;padding:9px 11px;border:1px solid #c9d5d4;border-radius:9px;background:#fff;color:#293642;font:500 14px/1.4 "Segoe UI",sans-serif}
 .homeCenterLabel select:focus-visible{outline:2px solid #16816b;outline-offset:2px}
+
+/* PAP-946: approved V8 Thăng Tiến introductory hero, no demo state. */
+.trainingHero{padding:22px 18px;border-radius:18px;background:linear-gradient(135deg,#ede5ff,#f7f1ff);color:#52368d}
+.trainingHero small{font-size:11px;font-weight:800;letter-spacing:.12em}
+.trainingHero h2{font-size:23px;line-height:1.3;margin:7px 0 8px}
+.trainingHero p{font-size:14px;line-height:1.5;margin:0}

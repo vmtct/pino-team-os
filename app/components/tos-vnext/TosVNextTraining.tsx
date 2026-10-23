@@ -66,7 +66,7 @@ export function TosVNextTraining(){
 
  return <>
   {tab==="progress"?<>
-   <TosVNextHeading title="Thăng Tiến" meta="Core Training V5"/>
+   <section className={styles.trainingHero} aria-label="Giới thiệu Thăng Tiến"><small>THĂNG TIẾN</small><h2>Phát triển kỹ năng 💜</h2><p>Chọn chương trình phù hợp với vai trò và hành trình của bạn.</p></section>
    <TosVNextCard>
     <p className={styles.body}>Khám phá chương trình và tiến độ của bạn.</p>
     {!TRAINING_V5_WRITE_ADMITTED&&<p className={styles.secondary} role="status">Đăng ký chưa mở: Core PAP-848/849 chưa được xác nhận phát hành.</p>}
