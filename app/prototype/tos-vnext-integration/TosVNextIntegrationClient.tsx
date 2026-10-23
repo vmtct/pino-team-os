@@ -12,6 +12,7 @@ import {TosVNextReception} from "@/app/components/tos-vnext/TosVNextReception";
 import {TosVNextStation} from "@/app/components/tos-vnext/TosVNextStation";
 import {TosVNextShiftLead} from "@/app/components/tos-vnext/TosVNextShiftLead";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
+import {canOpenVNextApp} from "@/lib/tos-vnext-active-access";
 import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
  TosVNextCard,TosVNextHeading,TosVNextBottomNav,TosVNextButton,TosVNextStatus,
@@ -68,10 +69,8 @@ export default function TosVNextIntegrationPreview(){
  useEffect(()=>{
   if(app==="home"||loading)return;
   if(!ctx||!centerId||!data.shift){setApp("home");setClassDetailOpen(false);return}
-  const denied=(app==="reception"&&!access?.reception)||
-   (app==="classroom"&&!access?.classroom)||
-   (app==="shift-lead"&&!access?.["shift-lead"])||
-   (app==="station"&&!desktop);
+  const denied=!canOpenVNextApp(app,{authenticated:!!ctx,centerReady:!!centerId,
+   scheduleReady:!!data.shift,desktop,access});
   if(denied){setApp("home");setClassDetailOpen(false);setHomeNotice("Ca này bạn chưa có quyền.");}
  },[app,loading,ctx,centerId,data.shift,access,desktop]);
  useEffect(()=>{
@@ -98,10 +97,10 @@ export default function TosVNextIntegrationPreview(){
  async function choose(next:Section){
   if(next==="home"){setApp("home");return}
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
-  if(next==="station"&&!desktop){setHomeNotice("Trạm TOS chỉ sử dụng trên máy tính.");return}
-  if(next==="reception"&&!access?.reception){setError("Ca này chưa có quyền Tiếp Tân.");return}
-  if(next==="classroom"&&!access?.classroom){setError("Ca này chưa có quyền Lớp Học.");return}
-  if(next==="shift-lead"&&!access?.["shift-lead"]){setError("Ca này chưa có quyền Trưởng Ca.");return}
+  if(!canOpenVNextApp(next,{authenticated:!!ctx,centerReady:!!centerId,
+   scheduleReady:!!data.shift,desktop,access})){
+   setHomeNotice("Ca này bạn chưa có quyền.");return;
+  }
   setApp(next);setError("");
  }
  const isDesktop=app==="station";
