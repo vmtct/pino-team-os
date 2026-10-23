@@ -44,7 +44,7 @@ async function read<T>(path:string):Promise<T>{
 }
 const requireValue=(value:string,name:string)=>{
  if(!value.trim())throw new V18bCoreError(400,"MISSING_"+name,"Thiếu "+name);
- return encodeURIComponent(value);
+ return encodeURIComponent(value.trim());
 };
 async function rejectWrite():Promise<never>{
  throw new V18bCoreError(503,"CORE_V18B_WRITE_NOT_ADMITTED",

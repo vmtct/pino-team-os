@@ -51,3 +51,9 @@ test("PAP-945 every Path Diary mutation fails closed until PAP-724 private R2 is
   assert.equal(called,false);
  }finally{globalThis.fetch=old}
 });
+
+test('PAP-945 trims Classroom scope identifiers before Core request',async()=>{
+ const old=globalThis.fetch;let url='';
+ globalThis.fetch=(async(input:RequestInfo|URL)=>{url=String(input);return new Response(JSON.stringify({data:{occurrences:[]}}),{status:200})}) as typeof fetch;
+ try{await tosClassroomV18bApi.today(' center-1 ','2026-10-23');assert.ok(url.includes('centerId=center-1&'));}finally{globalThis.fetch=old}
+});
