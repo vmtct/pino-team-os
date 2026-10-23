@@ -74,7 +74,8 @@ export function TosVNextHome({profileLabel,centerName,authorizedCenters,selected
     </label>}
     <LogoutButton className={shell.homeLogout}/>
    </section>}
-   <button type="button" className={home.shiftCard} disabled={busy}
+   <button type="button" className={home.shiftCard} disabled={busy||!allowed("shift")}
+    aria-label={busy||!allowed("shift")?"Chưa xác minh lịch ca":"Mở Ca Làm"}
     onClick={()=>onOpen("shift")}>
     <span className={home.shiftTopline}><span className={home.statusDot}/>
      <strong>{busy?"Đang tải ca":nextAssignment?"Ca được phân công":"Chưa có ca sắp tới"}</strong>
