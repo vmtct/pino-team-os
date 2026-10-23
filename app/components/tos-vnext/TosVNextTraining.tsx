@@ -4,6 +4,7 @@ import {useEffect,useState} from "react";
 import {tosTrainingV5Api,TrainingV5ApiError,TRAINING_V5_WRITE_ADMITTED,
  type TrainingV5CatalogItem,type TrainingV5Registration} from "@/lib/tos-training-v5-api";
 import {workforceTraining} from "@/lib/workforce-training-client";
+import {safeTrainingGuideUrl} from "@/lib/tos-training-guide-url";
 import type {StaffQualification} from "@/lib/training-model";
 import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
@@ -58,8 +59,8 @@ export function TosVNextTraining(){
      <p className={styles.secondary}>{item.path} · {item.track} · {item.minHours} giờ yêu cầu</p>
      {!!item.prerequisiteModuleIds.length&&<p className={styles.secondary}>Có {item.prerequisiteModuleIds.length} học phần tiên quyết (Core xác định điều kiện).</p>}
      {record?<TosVNextStatus>{record.status}</TosVNextStatus>:
-      <TosVNextButton disabled={!TRAINING_V5_WRITE_ADMITTED}>Đăng ký</TosVNextButton>}
-     {item.guideUrl&&<p className={styles.secondary}>Tài liệu: <a href={item.guideUrl} target="_blank" rel="noopener noreferrer">Mở hướng dẫn</a></p>}
+      <TosVNextButton disabled title="Chờ tích hợp thao tác đăng ký Core V5">Đăng ký</TosVNextButton>}
+     {safeTrainingGuideUrl(item.guideUrl)&&<p className={styles.secondary}>Tài liệu: <a href={safeTrainingGuideUrl(item.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở hướng dẫn</a></p>}
     </TosVNextCard>;
    })}
   </>:<>
