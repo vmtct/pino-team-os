@@ -41,6 +41,7 @@ interface Data {
 
 type LoadState = { status: "loading" } | { status: "error"; message: string; requestId: string | null } | { status: "ready"; data: Data };
 
+const CLASS_SHARED_VIEW_FIELDS = ["id", "class", "program", "pattern", "capacity", "status"] as const;
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function BoOperationalView({ view }: { view: BoView }) {
@@ -106,9 +107,8 @@ function Overview({ data }: { data: Data }) {
   );
 }
 
-const CLASS_VIEW_FIELDS = ["id", "class", "program", "pattern", "capacity", "status"] as const;
 function RunningClasses({ data }: { data: Data }) {
-  const publicViewRuntime = useAuthorizedBoPublicView("classes", "delivery.schedule.view", CLASS_VIEW_FIELDS);
+  const publicViewRuntime = useAuthorizedBoPublicView("classes", "delivery.schedule.view", CLASS_SHARED_VIEW_FIELDS);
   const query = useSearchParams();
   const detailId = query.get("detail");
   const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
@@ -160,6 +160,7 @@ function RunningClasses({ data }: { data: Data }) {
       <BoDataGrid
         rows={pageRows}
         columns={columns}
+        publicViewRuntime={publicViewRuntime ?? undefined}
         rowKey={(row) => row.item.id}
         onRowOpen={setSelectedClass}
         quickViewOpener

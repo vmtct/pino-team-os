@@ -165,3 +165,27 @@ test("PAP-863: BO P0 allowlist cannot widen to arbitrary private API or unapprov
     "/api/bo/any-private-resource", "/api/bo/admin", "/api/tos-learning/sessions/day",
   ]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME, route), {action:"not_found"}, route);
 });
+
+test("Shared Views BO paths are host-isolated and module-scoped", () => {
+  for (const path of ["/api/bo/views/students", "/api/bo/views/classes", "/api/bo/views/classes/reorder", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345"]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+    assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
+  }
+  for (const path of ["/api/bo/views/other", "/api/bo/views/students/garbage", "/api/bo/views/classes/abc/more"]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
+  }
+});
+
+import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
+
+test("Shared Views transport operations pass both BO host and Core route guards", () => {
+  const id = "12345678-1234-4123-8123-123456789abc";
+  for (const moduleKey of ["students", "classes"]) {
+    for (const [suffix, method] of [["", "GET"], ["", "POST"], ["/reorder", "PUT"], ["/" + id, "PATCH"], ["/" + id, "DELETE"], ["/" + id + "/rename", "PATCH"]] as const) {
+      const path = "/api/bo/views/" + moduleKey + suffix;
+      assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+      assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
+      assert.equal(boPublicViewCoreRoute(path.slice("/api/bo/".length), method), path.slice("/api/bo/".length));
+    }
+  }
+});
