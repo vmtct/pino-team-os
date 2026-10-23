@@ -68,6 +68,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <p className={styles.secondary}>{row.roster.length} học viên · {row.rosterCoverage==="ENROLLMENTS_AND_GRACE_ONLY"?"Enrollment / Grace":"Theo Core"}</p>
    {row.roster.some(student=>student.status==="CONFLICT")&&<p role="alert" className={styles.trainingError}>Danh sách lớp có học viên xung đột từ Core. Kiểm tra trước khi ghi nhật ký.</p>}
    <p className={styles.secondary}>Mở lớp · chụp ảnh setup: chờ Core xác nhận lượt mở và bằng chứng.</p>
+   <TosVNextButton disabled title="Chờ Core xác thực lượt mở lớp và lưu bằng chứng ảnh">Mở lớp · chụp ảnh setup</TosVNextButton>
    <TosVNextButton variant="secondary" onClick={()=>open(row)}>Vào lớp</TosVNextButton>
   </TosVNextCard>)}
  </>;
