@@ -17,3 +17,11 @@ test("PAP-942 no client-side pickup success without Core authority",()=>{
  assert.equal(RECEPTION_VNEXT_WRITE_ADMITTED,false);
  assert.equal(pickupRequiresCoreVerification(),true);
 });
+
+test('PAP-942 excludes unconfirmed reception assignments',()=>{
+ const confirmed=core('center-1','2026-10-23','FRONT_DESK');
+ const draft={...confirmed,id:'draft',status:'DRAFT'};
+ const cancelled={...confirmed,id:'cancelled',status:'CANCELLED'};
+ const unknown={...confirmed,id:'unknown',status:'UNKNOWN'};
+ assert.deepEqual(ownReceptionAssignments([draft,cancelled,unknown,confirmed],'center-1','2026-10-23'),[confirmed]);
+});
