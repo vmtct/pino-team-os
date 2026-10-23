@@ -28,6 +28,7 @@ export function BoGridFilterSettings({ fields, value, onChange }: {
         {(["contains", "not_contains", "equals", "not_equals", "is_empty", "is_not_empty"] as const).filter((op) => selected.type === "text" || !["contains", "not_contains"].includes(op)).map((op) => <option key={op} value={op}>{op}</option>)}
       </select></label>
       {!["is_empty", "is_not_empty"].includes(operator) ? <label>Value <input aria-label="Filter value" value={filter?.value ?? ""} onChange={(event) => update(selected.key, operator, event.target.value)} /></label> : null}</> : <p>No filterable properties.</p>}
+      <fieldset aria-label="Hiển thị cột"><legend>Hiển thị cột</legend>{fields.map((field) => <label key={field.key} style={{ display: "block" }}><input type="checkbox" checked={value.visibleKeys.includes(field.key)} onChange={(event) => { const next = event.target.checked ? [...value.visibleKeys, field.key] : value.visibleKeys.filter((key) => key !== field.key); if (next.length) onChange({ ...value, visibleKeys: next }); }} />{field.key}</label>)}</fieldset>
       <button type="button" onClick={() => onChange({ ...value, group: { combinator: "and", filters: [] } })}>Clear filters</button>
     </section> : null}
   </div>;
