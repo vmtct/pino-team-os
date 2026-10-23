@@ -76,7 +76,7 @@ export function TosVNextTraining(){
     {certError&&<p role="alert" className={styles.trainingError}>{certError}</p>}
     {certError&&<TosVNextButton variant="secondary" onClick={()=>setCertVersion(x=>x+1)}>Thử tải lại chứng nhận</TosVNextButton>}
     {!certBusy&&!certError&&!qualifications.length&&<p className={styles.body}>Bạn chưa có chứng nhận từ Core.</p>}
-    {qualifications.map(cert=><div className={styles.trainingCertRow} key={cert.id}>
+    {!certBusy&&!certError&&qualifications.map(cert=><div className={styles.trainingCertRow} key={cert.id}>
       <strong>{cert.qualificationCode}</strong><TosVNextStatus>{cert.status}</TosVNextStatus>
       <small>Ngày cấp: {cert.grantedAt}{cert.expiresAt?" · Hết hạn: "+cert.expiresAt:""}</small>
     </div>)}
