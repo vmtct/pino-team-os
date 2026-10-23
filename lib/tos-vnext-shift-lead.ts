@@ -7,7 +7,7 @@ export function ownShiftLeadDutySummary(board:StaffDutyBoard){
   dutyCount:board.duties.length,
   pendingCount:pending.length,
   blockingCount:blocked.length,
-  checkoutAllowed:board.gate.allowed&&board.gate.blockers.length===0,
+  checkoutAllowed:board.gate.allowed&&board.gate.blockers.length===0&&board.gate.unavailableSources.length===0,
   checkoutGateMode:board.gate.mode,
   unavailableSources:[...board.gate.unavailableSources],
  };

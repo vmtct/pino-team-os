@@ -20,3 +20,8 @@ test("PAP-944 does not infer station-wide closeout authority from self-duty gate
  assert.equal(ownShiftLeadDutySummary(permitted).checkoutAllowed,true);
  assert.equal(SHIFT_LEAD_STATION_WIDE_WRITES_ADMITTED,false);
 });
+
+test('PAP-944 fails closed when Core duty source is unavailable',()=>{
+ const uncertain={...board,gate:{...board.gate,allowed:true,blockers:[],unavailableSources:['MEDIA']}} as StaffDutyBoard;
+ assert.equal(ownShiftLeadDutySummary(uncertain).checkoutAllowed,false);
+});
