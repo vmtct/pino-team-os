@@ -45,3 +45,9 @@ jobs:
         run: bun run test
       - name: Build
         run: bun run build
+
+      - name: Build isolated greenfield preview artifact
+        run: |
+          bunx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+          bunx wrangler deploy --dry-run --config wrangler.greenfield-preview.json
