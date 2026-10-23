@@ -65,6 +65,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <TosVNextHeading title={row.operationalName}
     meta={row.occurrence.localInterval?`${row.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||localDate}–${row.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}/>
    <p className={styles.secondary}>{row.roster.length} học viên · {row.rosterCoverage==="ENROLLMENTS_AND_GRACE_ONLY"?"Enrollment / Grace":"Theo Core"}</p>
+   {row.roster.some(student=>student.status==="CONFLICT")&&<p role="alert" className={styles.trainingError}>Danh sách lớp có học viên xung đột từ Core. Kiểm tra trước khi ghi nhật ký.</p>}
    <TosVNextButton variant="secondary" onClick={()=>open(row)}>Vào lớp</TosVNextButton>
   </TosVNextCard>)}
  </>;
