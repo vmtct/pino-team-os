@@ -7,7 +7,14 @@ export function nextConfirmedAssignment(
 ):Assignment|null{
  if(!centerId||!/^\d{4}-\d{2}-\d{2}$/.test(localDate))return null;
  return [...assignments]
-  .filter(a=>a.centerId===centerId&&a.status==="ACTIVE"&&a.workDate>=localDate&&
+  .filter(a=>a.centerId===centerId&&a.status==="ACTIVE"&&
+   (a.workDate>=localDate||(
+    nowLocalTime&&a.workDate===new Date(Date.parse(localDate+"T12:00:00Z")-86400000).toISOString().slice(0,10)&&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nowLocalTime)&&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveStartLocal??a.shift?.startLocalTime??"")&&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveEndLocal??a.shift?.endLocalTime??"")&&
+    (a.effectiveStartLocal??a.shift?.startLocalTime??"")>(a.effectiveEndLocal??a.shift?.endLocalTime??"")&&
+    nowLocalTime<(a.effectiveEndLocal??a.shift?.endLocalTime??"")))&&
    !(nowLocalTime&&a.workDate===localDate&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nowLocalTime)&&
     /^([01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveEndLocal??a.shift?.endLocalTime??"")&&
     /^([01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveStartLocal??a.shift?.startLocalTime??"")&&
