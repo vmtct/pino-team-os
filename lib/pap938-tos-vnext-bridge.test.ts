@@ -67,6 +67,15 @@ test("PAP-938 Reception StudentVisit read delegates to existing authorized Core"
   assert.ok(mock.calls.every(x=>x.method==="GET"));
  }finally{mock.restore()}
 });
+test("PAP-942 expired Core session must reject Student Visit rather than show empty visit",async()=>{
+ const mock=mockFetch(url=>url==="/api/workforce/context"?{data:ctx}:
+  url.includes("/visits/open?")?{status:401,error:{code:"UNAUTHORIZED",message:"Session expired"}}:backend(url));
+ try{
+  await assert.rejects(receptionVisitReadModel("center-1","st-1"),error=>error instanceof Error);
+  assert.equal(mock.calls.filter(x=>x.url.includes("/visits/open?")).length,1);
+  assert.ok(mock.calls.every(x=>x.method==="GET"));
+ }finally{mock.restore()}
+});
 test("PAP-938 legacy Classroom projection never falsely marked V18b",async()=>{
  const mock=mockFetch((url)=>backend(url));
  try{
