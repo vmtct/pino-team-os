@@ -50,6 +50,8 @@
 .stationBrand small{font-size:13px;color:var(--tos-muted);overflow-wrap:anywhere}
 .stationSidebar nav{display:flex;flex-direction:column;gap:4px}
 .stationSidebar nav button,.stationBack{width:100%;min-height:44px;padding:10px 14px;text-align:left;border:0;background:transparent;border-radius:10px;font-size:14px;font-weight:650;color:var(--tos-text);cursor:pointer}
+/* PAP-943: V8 station sidebar touch geometry; back-home remains a separate compact action. */
+.stationSidebar nav button{min-height:62px;padding:13px 14px;border-radius:13px;display:flex;align-items:center;gap:13px}
 .stationSidebar nav button[aria-current=page]{background:var(--tos-tint);color:var(--tos-tone)}
 .stationBack{margin-top:auto;color:var(--tos-tone);border-top:1px solid var(--tos-line);border-radius:0}
 .stationWorkspace{display:flex;flex-direction:column;gap:20px;min-width:0}
