@@ -21,6 +21,9 @@ test("PAP-940 Home sorts confirmed shifts deterministically by local start",()=>
  const overnight={...assignment("night","2026-10-23","ACTIVE","center-1","22:00"),shift:{code:"N",displayLabel:"Ca đêm",startLocalTime:"22:00",endLocalTime:"03:00"}};
  assert.equal(nextConfirmedAssignment([overnight],"center-1","2026-10-23","11:03")?.id,"night");
  assert.equal(nextConfirmedAssignment([overnight],"center-1","2026-10-24","02:59")?.id,"night");
+ const nextDay=assignment("morning","2026-10-24","ACTIVE","center-1","08:00");
+ assert.equal(nextConfirmedAssignment([nextDay,overnight],"center-1","2026-10-24","02:59")?.id,"night");
+ assert.equal(nextConfirmedAssignment([nextDay,overnight],"center-1","2026-10-24","03:00")?.id,"morning");
  assert.equal(nextConfirmedAssignment([overnight],"center-1","2026-10-24","03:00"),null);
  assert.equal(nextConfirmedAssignment([overnight],"center-1","2026-10-25","02:00"),null);
  const invalid={...assignment("unknown-start","2026-10-23","ACTIVE"),shift:{code:"X",displayLabel:"Ca chưa xác minh",startLocalTime:"",endLocalTime:"10:00"}};
