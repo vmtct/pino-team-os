@@ -35,7 +35,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
     <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||"?"} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
   {selected.roster.some(student=>student.status==="CONFLICT")&&<p role="alert" className={styles.trainingError}>Lớp có học viên xung đột từ Core. Cần đối chiếu danh sách trước khi ghi nhật ký.</p>}
-  {detailTab==="students"&&<>
+  {detailTab==="students"&&<section role="tabpanel" aria-label="Học viên">
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
    <TosVNextHeading title={student.studentDisplayName} meta={student.status==="CONFLICT"?"Cần kiểm tra":"Dự kiến"}/>
@@ -44,13 +44,13 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <TosVNextButton disabled title="Chưa triển khai thao tác mở Path Diary trong UI">Mở Path Diary</TosVNextButton>
   </TosVNextCard>)}
   {selected.roster.length===0&&<TosVNextCard><p className={styles.secondary}>Core không trả học viên dự kiến cho lớp này.</p></TosVNextCard>}
-  </>}
-  {detailTab==="missions"&&<TosVNextCard>
+  </section>}
+  {detailTab==="missions"&&<TosVNextCard role="tabpanel" aria-label="Nhiệm vụ">
    <TosVNextHeading title="Nhiệm vụ hôm nay" meta="Chưa đồng bộ Mission Catalog"/>
    <p className={styles.secondary}>Mission Catalog theo Path phải lấy từ Core; không hiển thị nhiệm vụ giả.</p>
    <TosVNextButton disabled>Đọc giáo án · chờ Core</TosVNextButton>
   </TosVNextCard>}
-  {detailTab==="diary"&&<TosVNextCard><TosVNextStatus>Diary Core pending</TosVNextStatus>
+  {detailTab==="diary"&&<TosVNextCard role="tabpanel" aria-label="Nhật ký"><TosVNextStatus>Diary Core pending</TosVNextStatus>
    <p className={styles.secondary}>Path Diary V18b phải xác minh quyền, Mission, media riêng tư và Core PR #1770 trước khi ghi.</p>
    <TosVNextButton disabled>Ghi / đóng nhật ký · chờ Core</TosVNextButton>
   </TosVNextCard>}
