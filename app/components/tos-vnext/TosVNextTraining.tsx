@@ -88,7 +88,7 @@ export function TosVNextTraining(){
    {!busy&&!error&&catalog.length>0&&statusFilter!=="all"&&!catalog.some(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="registered"?registered:!registered})&&<TosVNextCard><p className={styles.secondary}>Không có Training phù hợp bộ lọc trạng thái trên trang này.</p></TosVNextCard>}
    {!busy&&!error&&catalog.filter(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="all"||(statusFilter==="registered"?registered:!registered)}).map(item=>{
     const record=registrations.find(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");
-    return <TosVNextCard key={item.moduleId}>
+    return <TosVNextCard key={item.moduleId}><div className={styles.trainingCourseRow}><span className={styles.trainingCourseIcon} aria-hidden="true">✧</span><div className={styles.trainingCourseMain}>
      <TosVNextHeading title={item.title} meta={item.code}/>
      <TosVNextButton variant="secondary" onClick={()=>setSelected(item)}>Chi tiết</TosVNextButton>
      <p className={styles.body}>{item.summary||item.description||"Chưa có mô tả."}</p>
@@ -97,7 +97,7 @@ export function TosVNextTraining(){
      {record?<TosVNextStatus>{registrationLabel[record.status]}</TosVNextStatus>:
       <TosVNextButton disabled title="Chờ tích hợp thao tác đăng ký Core V5">Đăng ký</TosVNextButton>}
      {safeTrainingGuideUrl(item.guideUrl)&&<p className={styles.secondary}>Tài liệu: <a href={safeTrainingGuideUrl(item.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở hướng dẫn</a></p>}
-    </TosVNextCard>;
+    </div></div></TosVNextCard>;
    })}
   </>:<>
    <TosVNextHeading title="Chứng Nhận" meta="Core đã cấp"/>
