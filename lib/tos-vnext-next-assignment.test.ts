@@ -32,4 +32,6 @@ test("PAP-940 Home sorts confirmed shifts deterministically by local start",()=>
  assert.equal(nextConfirmedAssignment(tied,"center-1","2026-10-23")?.id,"a");
  assert.equal(nextConfirmedAssignment([...tied].reverse(),"center-1","2026-10-23")?.id,"a");
  assert.equal(nextConfirmedAssignment(rows,"center-1","bad"),null);
+ assert.equal(nextConfirmedAssignment(rows,"center-1","2026-99-99","10:00"),null);
+ assert.equal(nextConfirmedAssignment(rows,"center-1","2026-02-30","10:00"),null);
 });

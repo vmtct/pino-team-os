@@ -6,10 +6,13 @@ export function nextConfirmedAssignment(
  assignments:readonly Assignment[], centerId:string, localDate:string, nowLocalTime?:string
 ):Assignment|null{
  if(!centerId||!/^\d{4}-\d{2}-\d{2}$/.test(localDate))return null;
+ const localDay=new Date(localDate+"T12:00:00Z");
+ if(!Number.isFinite(localDay.getTime())||localDay.toISOString().slice(0,10)!==localDate)return null;
+ const previousDate=new Date(localDay.getTime()-86400000).toISOString().slice(0,10);
  return [...assignments]
   .filter(a=>a.centerId===centerId&&a.status==="ACTIVE"&&
    (a.workDate>=localDate||(
-    nowLocalTime&&a.workDate===new Date(Date.parse(localDate+"T12:00:00Z")-86400000).toISOString().slice(0,10)&&
+    nowLocalTime&&a.workDate===previousDate&&
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nowLocalTime)&&
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveStartLocal??a.shift?.startLocalTime??"")&&
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveEndLocal??a.shift?.endLocalTime??"")&&
