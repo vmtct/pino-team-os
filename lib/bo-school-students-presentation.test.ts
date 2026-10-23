@@ -40,7 +40,8 @@ test("PAP-387 Students directory uses shared Data Grid with URL-persisted browse
   assert.match(view, /searchParams\.get\("student"\)/);
   assert.match(view, /params\.set\("student", id\)/);
   assert.match(view, /router\.push\(href, \{ scroll: false \}\)/);
-  assert.match(view, /f_learning|setFilter\("learning"/);
+  assert.match(view, /typedFilterSettings=\{pilotSettings\}/);
+  assert.match(view, /onTypedFilterSettingsChange=\{setPilotSettings\}/);
   assert.match(view, /BoDataGridSidePeek/);
   assert.match(view, /selectedRowKey=\{selectedId\}/);
   assert.match(view, /onRowOpen=\{\(student\) => selectStudent\(student\.id, "push"\)\}/);

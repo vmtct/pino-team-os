@@ -55,3 +55,18 @@ test("PAP-863: private TV policy reads pass bounded scope to Core, deny invalid 
   assert.equal((await handleBoOperationalReadRequest(bad,env(binding),"pinoria/tv-config/policy/head")).status,400);
   assert.equal(forwarded.length,1);
 });
+
+test("PAP-893: BO session roster read is bounded, authenticated, and Core-authorized",async()=>{
+  const id="01912345-6789-7abc-8def-0123456789ab",path=`sessions/${id}/roster`;
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:403,body:{error:{code:"ACCESS_PERMISSION_DENIED"}},requestId:"roster-denied"};}};
+  const response=await handleBoOperationalReadRequest(req(path),env(binding),path);
+  assert.equal(response.status,403);
+  assert.equal(response.headers.get("x-request-id"),"roster-denied");
+  assert.deepEqual(forwarded,[{method:"GET",path}]);
+  for(const bad of [`sessions/not-an-id/roster`,`sessions/${id}/roster/extra`,`sessions/${id}/attendance`]){
+    assert.equal((await handleBoOperationalReadRequest(req(bad),env(binding),bad)).status,404);
+  }
+  assert.equal((await handleBoOperationalReadRequest(req(path,false),env(binding),path)).status,401);
+  assert.equal(forwarded.length,1);
+});

@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { RunningClassFullDetail } from "./running-classes/RunningClassFullDetail";
+import { filterRunningClassGridRows, runningClassFilterFields } from "@/lib/bo-running-classes-typed-filter";
+import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
+import { BoGridFilterSettings } from "./components/data-grid/BoGridFilterSettings";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
-import { f3DeliveryApi, type F3Path, type F3RunningClass, type F3Session } from "@/lib/f3-delivery-api";
+import { f3DeliveryApi, type F3Center, type F3LearningSpace, type F3Path, type F3RunningClass, type F3RunningClassBlock, type F3Session } from "@/lib/f3-delivery-api";
 import { buildRunningClassGridRows, isRunningClassGridSortKey, type RunningClassGridRow } from "@/lib/bo-running-classes-grid";
-import { BoDataGrid, BoDataGridCanonicalId, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
+import { BoDataGrid, BoTypedCellEditor, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "./components/data-grid";
 import styles from "./bo.module.css";
 
 export type BoView = "overview" | "running-classes" | "sessions" | "registrations" | "syllabus";
 
 interface OperationalSession extends BoAttendanceSession {
   startsAt: string;
+  startsLocal: string;
+  endsLocal: string;
   endsAt: string;
   localDate: string;
   timeZone: string;
@@ -21,8 +29,11 @@ interface OperationalSession extends BoAttendanceSession {
 }
 
 interface Data {
+  centers: F3Center[];
+  learningSpaces: F3LearningSpace[];
   paths: F3Path[];
   classes: F3RunningClass[];
+  classBlocks: F3RunningClassBlock[];
   sessions: OperationalSession[];
   termWeekCount: number;
 }
@@ -46,6 +57,8 @@ export function BoOperationalView({ view }: { view: BoView }) {
           pathProgramId: session.pathProgramId,
           syllabusId: session.primarySyllabusId,
           startsAt: session.startsAt,
+          startsLocal: session.startsLocal,
+          endsLocal: session.endsLocal,
           endsAt: session.endsAt,
           localDate: session.localDate,
           timeZone: session.timeZone,
@@ -53,7 +66,7 @@ export function BoOperationalView({ view }: { view: BoView }) {
           hardConcurrentCapacity: session.hardConcurrentCapacity,
           status: session.status,
         }));
-        setState({ status: "ready", data: { paths: snapshot.paths, classes: snapshot.runningClasses, sessions, termWeekCount: snapshot.termWeeks.length } });
+        setState({ status: "ready", data: { centers: snapshot.centers, learningSpaces: snapshot.learningSpaces, paths: snapshot.paths, classes: snapshot.runningClasses, classBlocks: snapshot.runningClassBlocks, sessions, termWeekCount: snapshot.termWeeks.length } });
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -93,39 +106,61 @@ function Overview({ data }: { data: Data }) {
 }
 
 function RunningClasses({ data }: { data: Data }) {
+  const query = useSearchParams();
+  const detailId = query.get("detail");
+  const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
+  const [classOverrides, setClassOverrides] = useState<Record<string, F3RunningClass>>({});
+  const [typedSettings, setTypedSettings] = useState<BoFilterSettings>({ group: { combinator: "and", filters: [] }, visibleKeys: runningClassFilterFields.map((field) => field.key) });
   const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
   const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
   const statusFilter = state.filters.status ?? "";
-  const rows = useMemo(() => buildRunningClassGridRows(data.classes, data.paths, {
+  const rows = useMemo(() => buildRunningClassGridRows(data.classes.map((item) => classOverrides[item.id] ?? item), data.paths, {
     search: state.search,
     status: statusFilter,
     sortKey,
     sortDirection: state.sortDirection,
-  }), [data.classes, data.paths, sortKey, state.search, state.sortDirection, statusFilter]);
-  const pageCount = Math.max(1, Math.ceil(rows.length / state.pageSize));
+  }), [classOverrides, data.classes, data.paths, sortKey, state.search, state.sortDirection, statusFilter]);
+  const filteredRows = useMemo(() => filterRunningClassGridRows(rows, typedSettings), [rows, typedSettings]);
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / state.pageSize));
   const page = Math.min(state.page, pageCount);
-  const pageRows = rows.slice((page - 1) * state.pageSize, page * state.pageSize);
+  const pageRows = filteredRows.slice((page - 1) * state.pageSize, page * state.pageSize);
 
   useEffect(() => {
     if (state.page > pageCount) setPage(pageCount);
   }, [pageCount, setPage, state.page]);
 
   const columns = useMemo<BoDataGridColumn<RunningClassGridRow>[]>(() => [
-    { key: "class", header: "Class", sortable: true, sticky: true, minWidth: 180, render: (row) => <strong>{row.item.operationalName}</strong> },
+    { key: "class", header: "Class", sortable: true, sticky: true, minWidth: 180, render: (row) => <RunningClassInlineCell record={row.item} field="operationalName" onSaved={(updated) => setClassOverrides((previous) => ({ ...previous, [updated.id]: updated }))} /> },
     { key: "program", header: "Program", sortable: true, minWidth: 150, render: (row) => row.programName },
     { key: "pattern", header: "Pattern", sortable: true, minWidth: 165, render: (row) => row.patternLabel },
-    { key: "capacity", header: "Capacity", sortable: true, align: "right", minWidth: 110, render: (row) => row.capacityLabel },
+    { key: "capacity", header: "Capacity", sortable: true, align: "right", minWidth: 110, render: (row) => <RunningClassInlineCell record={row.item} field="optimalConcurrentCapacity" onSaved={(updated) => setClassOverrides((previous) => ({ ...previous, [updated.id]: updated }))} /> },
     { key: "status", header: "Status", sortable: true, minWidth: 110, render: (row) => <BoDataGridStatus value={row.item.status} tone={runningClassStatusTone(row.item.status)} /> },
     { key: "id", header: "Canonical ID", minWidth: 185, render: (row) => <BoDataGridCanonicalId value={row.item.id} label={`Copy ${row.item.operationalName} canonical ID`} /> },
   ], []);
 
-  const filtered = Boolean(state.search || statusFilter);
+  const filtered = Boolean(state.search || statusFilter || typedSettings.group.filters.length);
+  if (detailId) {
+    const record = data.classes.find((item) => item.id === detailId) ?? null;
+    const center = data.centers.find((item) => item.id === record?.centerId);
+    return <RunningClassFullDetail
+      record={record}
+      sessions={data.sessions}
+      blocks={data.classBlocks}
+      centerTimeZone={center?.timeZone ?? null}
+      centerName={center?.displayName ?? null}
+      pathName={data.paths.find((item) => item.id === record?.pathProgramId)?.displayName ?? null}
+      spaceName={data.learningSpaces.find((item) => item.id === record?.learningSpaceId)?.displayName ?? null}
+    />;
+  }
   return (
-    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · read-only canonical projection.">
+    <Page title="Running Classes" subtitle="Recurring operational schedule masters from Core · versioned inline edits.">
       <BoDataGrid
         rows={pageRows}
         columns={columns}
         rowKey={(row) => row.item.id}
+        onRowOpen={setSelectedClass}
+        quickViewOpener
+        selectedRowKey={selectedClass?.item.id ?? null}
         caption="Running Classes"
         search={state.search}
         onSearchChange={setSearch}
@@ -134,16 +169,42 @@ function RunningClasses({ data }: { data: Data }) {
         sortDirection={state.sortDirection}
         onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
-        toolbarActions={<label className={styles.gridToolbarFilter}>Status<select aria-label="Filter Running Classes by status" value={statusFilter} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></select></label>}
-        resultLabel={`${rows.length} of ${data.classes.length} classes`}
-        pagination={{ page, pageSize: state.pageSize, total: rows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
+        toolbarActions={<><BoGridFilterSettings fields={runningClassFilterFields} value={typedSettings} onChange={setTypedSettings} /><label className={styles.gridToolbarFilter}>Status<select aria-label="Filter Running Classes by status" value={statusFilter} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></select></label></>}
+        resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
+        pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
         emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
       />
+      {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)} footer={<Link href={`/bo/running-classes?${new URLSearchParams([...query.entries(), ["detail", selectedClass.item.id]]).toString()}`}>Full Detail →</Link>}>
+        <dl><dt>Program</dt><dd>{selectedClass.programName}</dd><dt>Schedule</dt><dd>{selectedClass.patternLabel}</dd><dt>Capacity</dt><dd>{selectedClass.capacityLabel}</dd><dt>Status</dt><dd>{selectedClass.item.status}</dd><dt>Canonical ID</dt><dd>{selectedClass.item.id}</dd></dl>
+      </BoDataGridSidePeek> : null}
     </Page>
   );
 }
 
+function RunningClassInlineCell({ record, field, onSaved }: { record: F3RunningClass; field: "operationalName" | "optimalConcurrentCapacity"; onSaved: (updated: F3RunningClass) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(record[field]));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function submit() {
+    if (saving) return;
+    const value = field === "operationalName" ? draft.trim() : Number(draft);
+    if (field === "operationalName" ? !draft.trim() : draft.trim() === "" || !Number.isSafeInteger(value) || Number(value) < 1 || (record.hardConcurrentCapacity !== null && Number(value) > record.hardConcurrentCapacity)) {
+      setError("Invalid class name or capacity."); return;
+    }
+    setSaving(true); setError("");
+    try {
+      const { id, version, ...rest } = record;
+      const updated = await f3DeliveryApi.updateRunningClass(id, { ...rest, expectedVersion: version, [field]: value });
+      onSaved(updated); setEditing(false);
+    } catch (caught) {
+      setError(caught instanceof BoApiError && caught.status === 409 ? "Class changed elsewhere; reload and retry." : caught instanceof Error ? caught.message : "Update failed.");
+    } finally { setSaving(false); }
+  }
+  if (!editing) return <button type="button" aria-label={`Edit ${field} for ${record.operationalName}`} onClick={(event) => { event.stopPropagation(); setDraft(String(record[field])); setError(""); setEditing(true); }}>{String(record[field])}</button>;
+  return <BoTypedCellEditor label={`${field} for ${record.operationalName}`} value={draft} type={field === "optimalConcurrentCapacity" ? "number" : "text"} min={field === "optimalConcurrentCapacity" ? 1 : undefined} saving={saving} error={error} onChange={setDraft} onCommit={() => void submit()} onCancel={() => setEditing(false)} commitLabel="Save" cancelLabel="Cancel" />;
+}
 function runningClassStatusTone(status: F3RunningClass["status"]): "success" | "neutral" | "warning" {
   return status === "ACTIVE" ? "success" : status === "INACTIVE" ? "warning" : "neutral";
 }

@@ -3,6 +3,10 @@ export {
   BoDataGridBadge,
   BoDataGridCanonicalId,
   BoDataGridSidePeek,
+  BoDrawer,
+  type BoDrawerMode,
+  type BoDrawerProps,
+  type BoDrawerSize,
   BoDataGridState,
   BoDataGridStatus,
   type BoDataGridColumn,
@@ -11,3 +15,7 @@ export {
   type BoDataGridPagination,
 } from "./BoDataGrid";
 export { useBoDataGridUrlState } from "./useBoDataGridUrlState";
+
+export { BoGridFilterSettings } from "./BoGridFilterSettings";
+
+export { BoTypedCellEditor } from './BoTypedCellEditor';

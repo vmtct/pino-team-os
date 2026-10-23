@@ -1,11 +1,11 @@
 .shell {
-  --bo-accent: #6f5bd6;
-  --bo-sidebar: #1c1c23;
+  --bo-accent: var(--bo-v23-color-accent, #6f5bd6);
+  --bo-sidebar: var(--bo-v23-color-sidebar, #1c1c23);
   min-height: 100vh;
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
-  background: #f6f5f2;
-  color: #18181f;
+  background: var(--bo-v23-color-canvas, #f6f5f2);
+  color: var(--bo-v23-color-strong, #18181f);
 }
 
 .sidebar {
@@ -278,3 +278,10 @@
   border: 0; border-radius: 8px; background: transparent; color: #4d4a57; font: inherit; font-size: 10px; font-weight: 750; text-align: left; cursor: pointer;
 }
 .userPopover > a:hover, .userPopover > a:focus-visible, .userLogout:hover, .userLogout:focus-visible { background: #f5f2ff; color: #4f419c; }
+
+/* PAP-882: module search stays within BO sidebar, not the global command palette. */
+.sidebarSearch { display:flex; gap:4px; padding:6px 3px 10px; }
+.sidebarSearch input { flex:1; width:0; min-width:0; padding:8px; background:#292933; color:#fff; border:1px solid #555562; border-radius:6px; }
+.sidebarSearch button { min-width:28px; cursor:pointer; color:#fff; border:1px solid #555562; border-radius:6px; background:#30303b; }
+.navGroup > button { width:100%; text-align:left; background:none; color:inherit; border:0; cursor:pointer; font:inherit; padding:8px 4px; }
+.navGroup > button:focus-visible, .sidebarSearch button:focus-visible, .sidebarSearch input:focus-visible { outline:2px solid #c8baff; outline-offset:2px; }

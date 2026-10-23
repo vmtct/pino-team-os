@@ -314,17 +314,18 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  sessionRoster: (sessionId: string) => readOne<import("./tos-learning-api").SessionRoster>(`sessions/${encodeURIComponent(sessionId)}/roster`),
   context: () => readOne<BoContext>("context"),
   calendarScope: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/calendar-scope");
-    return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
+    return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: state.centers.find((center) => center.id === item.centerId)?.timeZone ?? "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
   },
   scopeCatalog: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
-      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: state.centers.find((center) => center.id === item.centerId)?.timeZone ?? "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
   centers: () => read<BoCenter>("centers"),
@@ -396,6 +397,7 @@ export const boApi = {
   voidStudentIntake: (studentId: string, body: { expectedStudentVersion: number; reason: string }, idempotencyKey: string) =>
     write<BoStudentIntakeVoidResult>("student-intakes/" + encodeURIComponent(studentId) + "/void", body, idempotencyKey),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
+  updateStudentProfile: (studentId: string, body: { displayName: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED"; expectedVersion: number }) => command<{ id: string; displayName: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED"; version: number }>("PATCH", `students/${encodeURIComponent(studentId)}`, body),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   pinoriaOnboardingSets: () => read<BoPinoriaOnboardingStarterSet>("pinoria/onboarding/sets"),
   studentPinoriaOnboarding: (studentId: string, centerId?: string) => readOne<BoPinoriaOnboardingStatus>(`pinoria/onboarding/students/${encodeURIComponent(studentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),

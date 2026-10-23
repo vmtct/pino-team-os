@@ -28,6 +28,17 @@ jobs:
         run: node scripts/verify-pr-project-code.mjs
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Enforce BO Architecture Contract (PAP-926)
+        run: |
+          node scripts/verify-bo-module-contract.mjs
+          node --test scripts/verify-bo-module-contract.test.mjs
+      - name: Check BO V2.3 pilot parity contract (PAP-889)
+        run: |
+          node --test scripts/verify-bo-v23-parity.test.mjs
+          node scripts/verify-bo-v23-parity.mjs --mode=adopted
+          node --test scripts/verify-bo-v23-foundation.test.mjs
+          node scripts/verify-bo-v23-foundation.mjs
+          node --test scripts/verify-bo-v23-quick-view.test.mjs
       - name: Lint
         run: bun run lint
       - name: Unit tests
