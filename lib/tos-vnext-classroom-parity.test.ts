@@ -17,3 +17,8 @@ test("PAP-945 does not claim unverified Path Diary or Mission writes",()=>{
  assert.match(source,/Đọc giáo án · chờ Core/);
  assert.match(source,/Ghi \/ đóng nhật ký · chờ Core/);
 });
+
+test("PAP-945 V18b bottom nav follows classroom content",()=>{
+ const nav=source.indexOf('data-tos-vnext-class-tabs="v18b"');
+ assert.ok(nav>source.indexOf('detailTab==="diary"'),"bottom nav must render after all three panels");
+});

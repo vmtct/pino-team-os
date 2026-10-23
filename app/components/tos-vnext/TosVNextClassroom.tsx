@@ -34,7 +34,6 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <div><strong>{selected.operationalName}</strong>
     <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||"?"} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
-  <div data-tos-vnext-class-tabs="v18b"><TosVNextBottomNav label="Mục trong lớp học" active={detailTab} onChange={id=>setDetailTab(id as typeof detailTab)} items={[{id:"students",label:"Học viên",icon:"◉"},{id:"missions",label:"Nhiệm vụ",icon:"◇"},{id:"diary",label:"Nhật ký",icon:"▤"}]}/></div>
   {detailTab==="students"&&<>
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
@@ -54,6 +53,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <p className={styles.secondary}>Path Diary V18b phải xác minh quyền, Mission, media riêng tư và Core PR #1770 trước khi ghi.</p>
    <TosVNextButton disabled>Ghi / đóng nhật ký · chờ Core</TosVNextButton>
   </TosVNextCard>}
+  <div data-tos-vnext-class-tabs="v18b"><TosVNextBottomNav label="Mục trong lớp học" active={detailTab} onChange={id=>setDetailTab(id as typeof detailTab)} items={[{id:"students",label:"Học viên",icon:"◉"},{id:"missions",label:"Nhiệm vụ",icon:"◇"},{id:"diary",label:"Nhật ký",icon:"▤"}]}/></div>
  </>;
  return <>
   <TosVNextHeading title="Lớp Học" meta={localDate}/>
