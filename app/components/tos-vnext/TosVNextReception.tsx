@@ -17,16 +17,17 @@ export function TosVNextReception({centerId,workDate,assignments}:{
  const [pending,setPending]=useState(false);
  const [error,setError]=useState("");
  const requestEpoch=useRef(0);
- useEffect(()=>{requestEpoch.current++;setVisit(undefined);setError("");setPending(false);setStudentId("");},[centerId,workDate]);
+ const requestPending=useRef(false);
+ useEffect(()=>{requestEpoch.current++;requestPending.current=false;setVisit(undefined);setError("");setPending(false);setStudentId("");},[centerId,workDate]);
  useEffect(()=>()=>{requestEpoch.current++;},[]);
  const today=ownReceptionAssignments(assignments,centerId,workDate);
  async function findVisit(){
-  if(pending||!studentId.trim()||!centerId)return;
+  if(requestPending.current||!studentId.trim()||!centerId)return;
   const epoch=++requestEpoch.current;
-  setPending(true);setError("");setVisit(undefined);
+  requestPending.current=true;setPending(true);setError("");setVisit(undefined);
   try{const result=await receptionVisitReadModel(centerId,studentId.trim());if(requestEpoch.current===epoch)setVisit(result)}
   catch(e){if(requestEpoch.current===epoch)setError(e instanceof Error?e.message:"Không thể tra cứu Student Visit.")}
-  finally{if(requestEpoch.current===epoch)setPending(false)}
+  finally{if(requestEpoch.current===epoch){requestPending.current=false;setPending(false)}}
  }
  return <>
   {tab==="today"&&<>
@@ -50,7 +51,7 @@ export function TosVNextReception({centerId,workDate,assignments}:{
    <TosVNextHeading title="Đón–Trả" meta="Student Visit · Core"/>
    <TosVNextCard>
     <TosVNextField label="Mã học viên Core">
-     <input value={studentId} onChange={e=>{requestEpoch.current++;setPending(false);setStudentId(e.target.value);setVisit(undefined);setError("")}}
+     <input value={studentId} onChange={e=>{requestEpoch.current++;requestPending.current=false;setPending(false);setStudentId(e.target.value);setVisit(undefined);setError("")}}
       onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();void findVisit();}}}
       placeholder="Nhập ID học viên để tra cứu"/>
     </TosVNextField>
