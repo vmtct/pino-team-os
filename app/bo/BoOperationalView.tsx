@@ -7,6 +7,7 @@ import { RunningClassFullDetail } from "./running-classes/RunningClassFullDetail
 import { filterRunningClassGridRows, runningClassFilterFields } from "@/lib/bo-running-classes-typed-filter";
 import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import { BoGridFilterSettings } from "./components/data-grid/BoGridFilterSettings";
+import { useAuthorizedBoPublicView } from "./components/data-grid/useAuthorizedBoPublicView";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
@@ -105,7 +106,9 @@ function Overview({ data }: { data: Data }) {
   );
 }
 
+const CLASS_VIEW_FIELDS = ["id", "class", "program", "pattern", "capacity", "status"] as const;
 function RunningClasses({ data }: { data: Data }) {
+  const publicViewRuntime = useAuthorizedBoPublicView("classes", "delivery.schedule.view", CLASS_VIEW_FIELDS);
   const query = useSearchParams();
   const detailId = query.get("detail");
   const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
@@ -169,6 +172,7 @@ function RunningClasses({ data }: { data: Data }) {
         sortDirection={state.sortDirection}
         onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
+        publicViewRuntime={publicViewRuntime ?? undefined}
         typedFilterSettings={typedSettings} typedFilterFields={runningClassFilterFields} onTypedFilterSettingsChange={setTypedSettings}
         resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
         pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
