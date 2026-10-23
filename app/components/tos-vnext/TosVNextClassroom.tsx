@@ -34,6 +34,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <div><strong>{selected.operationalName}</strong>
     <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||"?"} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
+  {selected.roster.some(student=>student.status==="CONFLICT")&&<p role="alert" className={styles.trainingError}>Lớp có học viên xung đột từ Core. Cần đối chiếu danh sách trước khi ghi nhật ký.</p>}
   {detailTab==="students"&&<>
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
