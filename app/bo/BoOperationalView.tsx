@@ -169,7 +169,7 @@ function RunningClasses({ data }: { data: Data }) {
         sortDirection={state.sortDirection}
         onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
-        toolbarActions={<><BoGridFilterSettings fields={runningClassFilterFields} value={typedSettings} onChange={setTypedSettings} /><label className={styles.gridToolbarFilter}>Status<select aria-label="Filter Running Classes by status" value={statusFilter} onChange={(event) => setFilter("status", event.target.value || null)}><option value="">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></select></label></>}
+        toolbarActions={<BoGridFilterSettings fields={runningClassFilterFields} value={typedSettings} onChange={setTypedSettings} />}
         resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
         pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
