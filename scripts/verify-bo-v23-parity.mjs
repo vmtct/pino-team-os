@@ -66,7 +66,7 @@ function checkRoute(root,key,route){
   ["editable_drawer",jsx("BoDrawer")||jsx("BoEditableDrawer")||jsx("BoEditableQuickView"),"one editable property Drawer"],
   ["typed_inline_edit",/\bonCell(?:Commit|Edit|Change)\b|\bonField(?:Commit|Edit|Change)\b|\bBoTypedCellEditor\b|\btypedEditor\b/.test(grid+"\n"+combined),"typed mutation-capable inline cell editor"],
   ["settings_panel",jsx("BoTableSettings")||jsx("BoGridSettings")||jsx("BoGridFilterSettings")||jsx("BoSettingsPanel"),"mounted typed Settings panel"],
-  ["saved_view_tabs",jsx("BoSharedViewTabs") && /\bpublicViewRuntime\s*=/.test(owner), "pilot route actually passes publicViewRuntime to mounted grid (not just an imported tabs definition)"],
+  ["saved_view_tabs",jsx("BoSharedViewTabs") && /<BoDataGrid\b[^>]*\bpublicViewRuntime\s*=\s*\{[A-Za-z_$][\w.$]*\}/s.test(owner), "pilot route actually passes publicViewRuntime to mounted grid (not just an imported tabs definition)"],
   ["full_detail",jsx("BoFullDetail"),"mounted shared Full Detail tabs"],
   ["no_legacy_readonly",!/Thuộc tính chỉ xem ở V1|Read-only until the PAP-874/.test(combined),"no legacy readonly placeholder"],
   ["no_separate_filter",!/toolbarActions\s*=\s*\{\s*<label\b/.test(owner),"configuration controls in Settings instead of old toolbar"]
