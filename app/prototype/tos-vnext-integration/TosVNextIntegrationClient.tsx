@@ -46,11 +46,12 @@ export default function TosVNextIntegrationPreview(){
  const [error,setError]=useState("");
  const [desktop,setDesktop]=useState(false);
  const [clockNow,setClockNow]=useState(()=>new Date());
+ const [scheduleRefresh,setScheduleRefresh]=useState(0);
  useEffect(()=>{if(!homeNotice)return;const timer=setTimeout(()=>setHomeNotice(""),2700);return()=>clearTimeout(timer)},[homeNotice]);
  useEffect(()=>{
   const refresh=()=>setClockNow(new Date());
   const interval=window.setInterval(refresh,60_000);
-  const onVisible=()=>{if(document.visibilityState==="visible")refresh()};
+  const onVisible=()=>{if(document.visibilityState==="visible"){refresh();setScheduleRefresh(n=>n+1)}};
   document.addEventListener("visibilitychange",onVisible);
   return()=>{window.clearInterval(interval);document.removeEventListener("visibilitychange",onVisible)};
  },[]);
@@ -93,7 +94,7 @@ export default function TosVNextIntegrationPreview(){
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
- },[centerId,ctx,zone,fromDate]);
+ },[centerId,ctx,zone,fromDate,scheduleRefresh]);
  async function choose(next:Section){
   if(next==="home"){setApp("home");return}
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
