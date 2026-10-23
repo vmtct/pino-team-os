@@ -4,9 +4,12 @@
  * Do not project demo-store user/device/TV data into authenticated runtime.
  */
 import {useState} from "react";
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
+import {faDesktop,faStar,faUsers,faGear,faTv,faChevronRight} from "@fortawesome/free-solid-svg-icons";
 import {STATION_DESKTOP_TABS,type StationDesktopTab} from "@/lib/tos-vnext-station";
 import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
+const stationIcons={overview:faDesktop,pinoria:faStar,students:faUsers,devices:faGear,tv:faTv} as const;
 const sectionDetail:Record<StationDesktopTab,string>={overview:"Bảng điều phối",pinoria:"House & Wardrobe",students:"Tra cứu & trạng thái",devices:"Quản lý node",tv:"Nội dung trình chiếu"};
 const tabCopy:Record<StationDesktopTab,{heading:string;description:string;dependency:string}>={
  overview:{heading:"Tổng quan",description:"Không có chỉ số Station-wide được xác minh từ Core. Bảng điều phối sẽ hiển thị khi API node có quyền truy cập.",dependency:"Workstation node inventory & access"},
@@ -28,7 +31,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
    <nav aria-label="Điều hướng Trạm TOS">
     {STATION_DESKTOP_TABS.map(item=><button type="button" key={item.id}
      aria-current={item.id===tab?"page":undefined} aria-controls="tos-vnext-station-workspace" onClick={()=>setTab(item.id)}>
-     <span><strong>{item.label}</strong><small>{sectionDetail[item.id]}</small></span></button>)}
+     <FontAwesomeIcon icon={stationIcons[item.id]}/><span><strong>{item.label}</strong><small>{sectionDetail[item.id]}</small></span>{item.id===tab?<FontAwesomeIcon icon={faChevronRight} aria-hidden="true"/>:null}</button>)}
    </nav>
    <button type="button" className={styles.stationBack} onClick={onHome}>← Về TOS Home</button>
   </aside>
