@@ -40,3 +40,4 @@ test("PAP-940 Home sorts confirmed shifts deterministically by local start",()=>
  const leapDate={...overnight,workDate:"2028-02-29"};
  assert.equal(nextConfirmedAssignment([leapDate],"center-1","2028-03-01","02:59")?.id,"night");
 });
+test("PAP-940 excludes malformed dates from Core assignment records",()=>{ assert.equal(nextConfirmedAssignment([assignment("bad","2026-99-99","ACTIVE"),assignment("good","2026-10-24","ACTIVE")],"center-1","2026-10-23")?.id,"good"); assert.equal(nextConfirmedAssignment([assignment("invalid","2026-02-30","ACTIVE")],"center-1","2026-02-28"),null); });

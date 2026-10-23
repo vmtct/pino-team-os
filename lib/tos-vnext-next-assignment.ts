@@ -10,7 +10,7 @@ export function nextConfirmedAssignment(
  if(!Number.isFinite(localDay.getTime())||localDay.toISOString().slice(0,10)!==localDate)return null;
  const previousDate=new Date(localDay.getTime()-86400000).toISOString().slice(0,10);
  return [...assignments]
-  .filter(a=>a.centerId===centerId&&a.status==="ACTIVE"&&
+  .filter(a=>a.centerId===centerId&&a.status==="ACTIVE"&&/^\d{4}-\d{2}-\d{2}$/.test(a.workDate)&&Number.isFinite(new Date(a.workDate+"T12:00:00Z").getTime())&&new Date(a.workDate+"T12:00:00Z").toISOString().slice(0,10)===a.workDate&&
    (a.workDate>=localDate||(
     nowLocalTime&&a.workDate===previousDate&&
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nowLocalTime)&&
