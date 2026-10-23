@@ -13,7 +13,7 @@ export function plan(paths,repo){
  return {files:f,syntax:f.filter(p=>/\.(?:mjs|cjs|js)$/.test(p)),workflows:f.filter(p=>/^\.github\/workflows\/[^/]+\.ya?ml$/.test(p)),nodeTests:f.filter(p=>/\.node-test\.mjs$/.test(p)),coreTests:repo==="pino-core"?f.filter(p=>/^(?:test|src)\/.+\.test\.tsx?$/.test(p)):[],teamTests:repo==="pino-team-os"?f.filter(p=>/^lib\/[^/]+\.test\.ts$/.test(p)):[],ts:f.some(p=>/\.tsx?$/.test(p))};
 }
 function exec(file,args,quiet=true){
- try {const o=execFileSync(file,args,{cwd:root,encoding:"utf8",maxBuffer:8000000,stdio:["ignore","pipe","pipe"]});if(!quiet&&o.trim())console.log(o);return o;}
+ try {const opts={cwd:root,encoding:"utf8",maxBuffer:8000000,stdio:["ignore","pipe","pipe"]};let o; if(file==="git")o=execFileSync("git",args,opts);else if(file==="node")o=execFileSync(process.execPath,args,opts);else if(file==="actionlint")o=execFileSync("actionlint",args,opts);else throw new Error("unsupported local tool "+file);if(!quiet&&o.trim())console.log(o);return o;}
  catch(e){throw new Error([file,...args].join(" ")+": "+String(e.stderr||e.message).slice(0,1500));}
 }
 const git=(...args)=>exec("git",args).trim();
@@ -37,16 +37,16 @@ export function run(base="origin/main"){
  });
  const p=plan(changed,repo);
  console.log("[PAP-961] repo="+repo+" changed="+p.files.length+" workflows="+p.workflows.length);
- step("Changed JS syntax",()=>{for(const f of p.syntax)if(existsSync(resolve(root,f)))exec(process.execPath,["--check",f]);});
+ step("Changed JS syntax",()=>{for(const f of p.syntax)if(existsSync(resolve(root,f)))exec("node",["--check",f]);});
  step("Core Vitest/filesystem runner mismatch",()=>{for(const f of p.files)if(f.endsWith(".test.mjs")&&existsSync(resolve(root,f))&&mismatch(f,readFileSync(resolve(root,f),"utf8"),repo))throw new Error(f+" must use .node-test.mjs with node --test (filesystem-based suite)");});
  if(p.workflows.length)step("actionlint changed workflows",()=>{
-  const tool=process.env.PINO_ACTIONLINT||"actionlint";if(process.env.PINO_ACTIONLINT&&!existsSync(tool))throw new Error("PINO_ACTIONLINT missing");
-  try{exec(tool,p.workflows);}catch(e){throw new Error(e.message+"; install actionlint or set PINO_ACTIONLINT");}
+  const tool="actionlint";
+  try{exec(tool,p.workflows);}catch(e){throw new Error(e.message+"; install actionlint on PATH");}
  });
  if(p.ts)step("TypeScript tooling",()=>{if(!existsSync(resolve(root,"node_modules/typescript/package.json")))throw new Error("TOOLING_MISSING: TypeScript dependency; install deps with repo lockfile; not a business-test failure");});
- if(p.nodeTests.length)step("Changed Node suites",()=>exec(process.execPath,["--test",...p.nodeTests]));
- if(p.coreTests.length)step("Changed Core Vitest suites",()=>{const bin=resolve(root,"node_modules/vitest/vitest.mjs");if(!existsSync(bin))throw new Error("TOOLING_MISSING: Vitest");exec(process.execPath,[bin,"run",...p.coreTests]);});
- if(p.teamTests.length)step("Changed Team node+tsx suites",()=>{if(!existsSync(resolve(root,"node_modules/tsx/package.json")))throw new Error("TOOLING_MISSING: tsx");exec(process.execPath,["--import","tsx","--test","--test-concurrency=1",...p.teamTests]);});
+ if(p.nodeTests.length)step("Changed Node suites",()=>exec("node",["--test",...p.nodeTests]));
+ if(p.coreTests.length)step("Changed Core Vitest suites",()=>{const bin=resolve(root,"node_modules/vitest/vitest.mjs");if(!existsSync(bin))throw new Error("TOOLING_MISSING: Vitest");exec("node",[bin,"run",...p.coreTests]);});
+ if(p.teamTests.length)step("Changed Team node+tsx suites",()=>{if(!existsSync(resolve(root,"node_modules/tsx/package.json")))throw new Error("TOOLING_MISSING: tsx");exec("node",["--import","tsx","--test","--test-concurrency=1",...p.teamTests]);});
  console.log("[PAP-961] LOCAL_PREFLIGHT_PASS (not exact-head CI or Production admission)");
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))try{

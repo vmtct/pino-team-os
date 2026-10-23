@@ -4,7 +4,7 @@ Before pushing a PR, from the active owner worktree run:
 
     npm run preflight:local
 
-Checks Git unfinished operations/whitespace, changed JS syntax, Core filesystem test runner naming, changed GitHub Actions YAML through actionlint, local TypeScript tooling and changed tests only. For workflow changes actionlint must be installed; optionally set PINO_ACTIONLINT to a verified executable.
+Checks Git unfinished operations/whitespace, changed JS syntax, Core filesystem test runner naming, changed GitHub Actions YAML through actionlint, local TypeScript tooling and changed tests only. For workflow changes actionlint must be installed; put its verified executable on PATH.
 
 The command does not push, merge, deploy, open a browser, mutate D1 or install hooks. Hook activation is a separate owner-controlled operation at a verified safe boundary. A local PASS never replaces exact-head GitHub CI, PAP-507 review status, PAP-185 production admission, migration backup/restore proof, or runtime security acceptance.
 
