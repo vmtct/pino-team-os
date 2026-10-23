@@ -173,7 +173,6 @@ function RunningClasses({ data }: { data: Data }) {
         sortDirection={state.sortDirection}
         onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
-        publicViewRuntime={publicViewRuntime ?? undefined}
         typedFilterSettings={typedSettings} typedFilterFields={runningClassFilterFields} onTypedFilterSettingsChange={setTypedSettings}
         resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
         pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
