@@ -7,6 +7,7 @@ import {useEffect,useMemo,useState} from "react";
 import {workforceApi,type WorkforceContext} from "@/lib/workforce-api";
 import {TosVNextHome} from "@/app/components/tos-vnext/TosVNextHome";
 import {TosVNextTraining} from "@/app/components/tos-vnext/TosVNextTraining";
+import {TosVNextClassroom} from "@/app/components/tos-vnext/TosVNextClassroom";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
@@ -15,16 +16,16 @@ import {
 } from "@/app/components/tos-vnext/TosVNextUI";
 import {
  TOS_BACKEND_MATRIX,staffContext,shiftReadModel,receptionVisitReadModel,
- classroomLegacyReadModel,dutyContextReadModel
+ dutyContextReadModel
 } from "@/app/components/tos-vnext/core-adapters";
 import type {Assignment,TimekeepingSession,StaffDutyBoard} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 import type {StudentVisit} from "@/lib/tos-day-of-learning-api";
-import type {DaySession} from "@/lib/tos-learning-api";
+
 
 type Section="home"|TosVNextAppId;
 type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[];income:OwnIncomePage};
-type ReadData={shift?:ShiftData;classroom?:DaySession[];duty?:StaffDutyBoard};
+type ReadData={shift?:ShiftData;duty?:StaffDutyBoard};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -36,6 +37,7 @@ export default function TosVNextIntegrationPreview(){
  const [centerId,setCenterId]=useState("");
  const [app,setApp]=useState<Section>("home");
  const [shiftTab,setShiftTab]=useState<"today"|"calendar"|"hours"|"pay">("today");
+ const [classDetailOpen,setClassDetailOpen]=useState(false);
  const [data,setData]=useState<ReadData>({});
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -84,7 +86,6 @@ export default function TosVNextIntegrationPreview(){
   if(next==="shift-lead"&&!access?.["shift-lead"]){setError("Ca này chưa có quyền Trưởng Ca.");return}
   setApp(next);setError("");setLoading(true);
   try{
-   if(next==="classroom"){const sessions=await classroomLegacyReadModel(centerId,today(zone));setData(prev=>({...prev,classroom:sessions}))}
    if(next==="shift-lead"){const duty=await dutyContextReadModel(centerId,today(zone));setData(prev=>({...prev,duty}))}
   }catch(e){setError(e instanceof Error?e.message:"Không thể tải dữ liệu.")}finally{setLoading(false)}
  }
@@ -104,7 +105,7 @@ export default function TosVNextIntegrationPreview(){
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
   notice={homeNotice||error}/>;
  return <TosVNextFrame app={app} mode={isDesktop?"desktop":"mobile"}>
-  <TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/>
+  {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
   <TosVNextContent>
    {app==="shift"&&<>
     <TosVNextHeading title={{today:"Hôm nay",calendar:"Lịch ca",hours:"Giờ công",pay:"Thu nhập"}[shiftTab]} meta={today(zone)}/>
@@ -137,13 +138,8 @@ export default function TosVNextIntegrationPreview(){
      {visit!==undefined?<p className={tosVNextStyle.body}>{visit===null?"Không có Student Visit đang mở.":visit.checkedOutAt?"Đã trả: "+visit.checkedOutAt:"Đã đến: "+visit.checkedInAt}</p>:null}
     </TosVNextCard>
    </>}
-   {app==="classroom"&&<>
-    <TosVNextHeading title="Lớp học · Core hiện hữu" meta="LEGACY ONLY"/>
-    <TosVNextCard><p className={tosVNextStyle.secondary}>API sessionsDay hiện có vẫn theo Session, chưa được chứng minh đáp ứng V18b Path Diary. Không mở ghi chú Diary giả.</p>
-      {(data.classroom??[]).map(x=><p key={x.id} className={tosVNextStyle.body}>{x.operationalName||x.pathDisplayName} · {x.scheduledStartsLocal}</p>)}
-      {!data.classroom?.length&&<p className={tosVNextStyle.secondary}>Core không trả lớp trong ngày hoặc quyền chưa đủ.</p>}
-    </TosVNextCard>
-   </>}
+   {app==="classroom"&&<TosVNextClassroom centerId={centerId} localDate={today(zone)}
+    onDetailChange={setClassDetailOpen}/>}
    {app==="training"&&<TosVNextTraining/>}
    {app==="shift-lead"&&<>
     <TosVNextHeading title="Trưởng Ca · Duty Context" meta="Core read"/>
