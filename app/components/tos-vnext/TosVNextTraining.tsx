@@ -85,7 +85,7 @@ export function TosVNextTraining(){
    </TosVNextCard>
    {!busy&&!error&&(total>30||offset>0)&&<TosVNextCard><p className={styles.secondary}>Trang {Math.floor(offset/30)+1} · {total} học phần từ Core</p><TosVNextButton variant="secondary" disabled={offset===0} onClick={()=>setOffset(x=>Math.max(0,x-30))}>Trang trước</TosVNextButton><TosVNextButton variant="secondary" disabled={offset+30>=total} onClick={()=>setOffset(x=>x+30)}>Trang sau</TosVNextButton></TosVNextCard>}
    {!busy&&!error&&catalog.length===0&&<TosVNextCard><p className={styles.secondary}>{offset>0?"Trang này không còn học phần phù hợp. Hãy quay lại trang trước.":"Chưa có Training đang mở trong Core."}</p></TosVNextCard>}
-   {!busy&&!error&&catalog.length>0&&statusFilter!=="all"&&!catalog.some(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="registered"?registered:!registered})&&<TosVNextCard><p className={styles.secondary}>Không có Training phù hợp bộ lọc trạng thái.</p></TosVNextCard>}
+   {!busy&&!error&&catalog.length>0&&statusFilter!=="all"&&!catalog.some(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="registered"?registered:!registered})&&<TosVNextCard><p className={styles.secondary}>Không có Training phù hợp bộ lọc trạng thái trên trang này.</p></TosVNextCard>}
    {!busy&&!error&&catalog.filter(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="all"||(statusFilter==="registered"?registered:!registered)}).map(item=>{
     const record=registrations.find(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");
     return <TosVNextCard key={item.moduleId}>
