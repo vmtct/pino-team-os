@@ -63,6 +63,17 @@ export default function TosVNextIntegrationPreview(){
    nowLocal:fromDate+"T"+new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow),
    desktop,scheduleReady:!!data.shift});
  },[ctx,centerId,data.shift,desktop,zone,fromDate,clockNow]);
+ // Do not leave privileged app content mounted after the shift window ends,
+ // the center changes, or the station shrinks below desktop size.
+ useEffect(()=>{
+  if(app==="home"||loading)return;
+  if(!ctx||!centerId||!data.shift){setApp("home");setClassDetailOpen(false);return}
+  const denied=(app==="reception"&&!access?.reception)||
+   (app==="classroom"&&!access?.classroom)||
+   (app==="shift-lead"&&!access?.["shift-lead"])||
+   (app==="station"&&!desktop);
+  if(denied){setApp("home");setClassDetailOpen(false);setHomeNotice("Ca này bạn chưa có quyền.");}
+ },[app,loading,ctx,centerId,data.shift,access,desktop]);
  useEffect(()=>{
   const media=window.matchMedia("(min-width:1024px)");
   const fn=()=>setDesktop(media.matches);fn();media.addEventListener("change",fn);
