@@ -25,7 +25,7 @@ export function TosVNextShiftLead({centerId,workDate}:{centerId:string;workDate:
   {loading&&<p role="status" className={styles.secondary}>Đang đọc nghĩa vụ từ Core…</p>}
   {error&&<TosVNextCard><p role="alert" className={styles.trainingError}>{error}</p>
    <TosVNextButton variant="secondary" onClick={()=>setEpoch(x=>x+1)}>Thử lại</TosVNextButton></TosVNextCard>}
-  {board&&summary&&<>
+  {!loading&&!error&&board&&summary&&<>
    <TosVNextCard><TosVNextHeading title="Nghĩa vụ của ca" meta={summary.dutyCount+" mục"}/>
     <p className={styles.body}>Cần xử lý: {summary.pendingCount} · Đang chặn: {summary.blockingCount}</p>
     <TosVNextStatus>{summary.checkoutAllowed?"Core gate: được phép":"Core gate: chưa cho phép"}</TosVNextStatus>
