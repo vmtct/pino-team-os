@@ -45,7 +45,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   {selected.roster.length===0&&<TosVNextCard><p className={styles.secondary}>Core không trả học viên dự kiến cho lớp này.</p></TosVNextCard>}
   </>}
   {detailTab==="missions"&&<TosVNextCard>
-   <TosVNextHeading title="Nhiệm vụ hôm nay"/>
+   <TosVNextHeading title="Nhiệm vụ hôm nay" meta="Chưa đồng bộ Mission Catalog"/>
    <p className={styles.secondary}>Mission Catalog theo Path phải lấy từ Core; không hiển thị nhiệm vụ giả.</p>
    <TosVNextButton disabled>Đọc giáo án · chờ Core</TosVNextButton>
   </TosVNextCard>}
