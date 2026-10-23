@@ -78,6 +78,7 @@ export function TosVNextTraining(){
     <select id="tos-vnext-training-status" value={statusFilter} onChange={e=>setStatusFilter(e.target.value as typeof statusFilter)}>
      <option value="all">Tất cả</option><option value="registered">Đã đăng ký</option><option value="unregistered">Chưa đăng ký</option>
     </select>
+    {statusFilter!=="all"&&<p className={styles.secondary}>Bộ lọc trạng thái áp dụng trên trang danh mục hiện tại; dùng Trang sau để xem các học phần tiếp theo.</p>}
     {busy&&<p className={styles.secondary} role="status">Đang tải danh mục…</p>}
     {error&&<p role="alert" className={styles.trainingError}>{error}</p>}
     {error&&<TosVNextButton variant="secondary" onClick={()=>{setBusy(true);setVersion(x=>x+1);}}>Thử tải lại</TosVNextButton>}
