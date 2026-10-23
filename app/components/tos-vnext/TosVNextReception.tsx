@@ -1,6 +1,6 @@
 "use client";
 /** PAP-942: exactly 3 Reception tabs, authenticated Core reads only. */
-import {useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import type {Assignment} from "@/lib/workforce-api";
 import type {StudentVisit} from "@/lib/tos-day-of-learning-api";
 import {receptionVisitReadModel} from "./core-adapters";
@@ -16,13 +16,16 @@ export function TosVNextReception({centerId,workDate,assignments}:{
  const [visit,setVisit]=useState<StudentVisit|null|undefined>();
  const [pending,setPending]=useState(false);
  const [error,setError]=useState("");
+ const requestEpoch=useRef(0);
+ useEffect(()=>{requestEpoch.current++;setVisit(undefined);setError("");setPending(false);},[centerId,workDate]);
  const today=ownReceptionAssignments(assignments,centerId,workDate);
  async function findVisit(){
   if(pending||!studentId.trim()||!centerId)return;
+  const epoch=++requestEpoch.current;
   setPending(true);setError("");setVisit(undefined);
-  try{setVisit(await receptionVisitReadModel(centerId,studentId.trim()))}
-  catch(e){setError(e instanceof Error?e.message:"Không thể tra cứu Student Visit.")}
-  finally{setPending(false)}
+  try{const result=await receptionVisitReadModel(centerId,studentId.trim());if(requestEpoch.current===epoch)setVisit(result)}
+  catch(e){if(requestEpoch.current===epoch)setError(e instanceof Error?e.message:"Không thể tra cứu Student Visit.")}
+  finally{if(requestEpoch.current===epoch)setPending(false)}
  }
  return <>
   {tab==="today"&&<>
@@ -46,7 +49,7 @@ export function TosVNextReception({centerId,workDate,assignments}:{
    <TosVNextHeading title="Đón–Trả" meta="Student Visit · Core"/>
    <TosVNextCard>
     <TosVNextField label="Mã học viên Core">
-     <input value={studentId} onChange={e=>{setStudentId(e.target.value);setVisit(undefined);setError("")}}
+     <input value={studentId} onChange={e=>{requestEpoch.current++;setPending(false);setStudentId(e.target.value);setVisit(undefined);setError("")}}
       placeholder="Nhập ID học viên để tra cứu"/>
     </TosVNextField>
     <TosVNextButton onClick={()=>void findVisit()} disabled={pending||!studentId.trim()}>
