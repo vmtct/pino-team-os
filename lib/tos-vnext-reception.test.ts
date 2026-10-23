@@ -31,3 +31,8 @@ test('PAP-942 fails closed on missing center or malformed date',()=>{
  assert.deepEqual(ownReceptionAssignments([row],'','2026-10-23'),[]);
  assert.deepEqual(ownReceptionAssignments([row],'center-1','invalid'),[]);
 });
+
+test('PAP-942 rejects impossible calendar dates',()=>{
+ const row=core('center-1','2026-02-30','FRONT_DESK');
+ assert.deepEqual(ownReceptionAssignments([row],'center-1','2026-02-30'),[]);
+});
