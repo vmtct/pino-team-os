@@ -67,6 +67,7 @@ export function TosVNextTraining(){
     {error&&<TosVNextButton variant="secondary" onClick={()=>{setBusy(true);setVersion(x=>x+1);}}>Thử tải lại</TosVNextButton>}
    </TosVNextCard>
    {!busy&&!error&&catalog.length===0&&<TosVNextCard><p className={styles.secondary}>Chưa có Training đang mở trong Core.</p></TosVNextCard>}
+   {!busy&&!error&&catalog.length>0&&statusFilter!=="all"&&!catalog.some(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="registered"?registered:!registered})&&<TosVNextCard><p className={styles.secondary}>Không có Training phù hợp bộ lọc trạng thái.</p></TosVNextCard>}
    {!busy&&!error&&catalog.filter(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="all"||(statusFilter==="registered"?registered:!registered)}).map(item=>{
     const record=registrations.find(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");
     return <TosVNextCard key={item.moduleId}>
