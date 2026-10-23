@@ -33,7 +33,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
   </aside>
   <main className={styles.stationWorkspace} id="tos-vnext-station-workspace" aria-label="Nội dung Trạm TOS">
    <header className={styles.stationWorkspaceHeader}>
-    <div><small>TRẠM TOS · {sectionDetail[tab].toUpperCase()}</small><h1>{copy.heading}</h1></div>
+    <div><small>Ứng dụng › {STATION_DESKTOP_TABS.find(item=>item.id===tab)?.label} · {centerName||"Chưa xác định cơ sở"}</small><h1>{copy.heading}</h1></div>
     <TosVNextStatus>Đang tích hợp Core</TosVNextStatus>
    </header>
    <section aria-label="Không gian làm việc Trạm TOS" data-station-workspace={tab}>
