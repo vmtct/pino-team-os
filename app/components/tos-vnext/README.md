@@ -44,7 +44,7 @@ npm run typecheck
 git diff --check origin/main...HEAD
 ```
 
-The latest confirmed exact-head `4a1d60cc` passed GitHub Validation and Workers Build. This is CI evidence, not visual parity or a production-API readiness verdict. Re-run local tests and CI after every commit. Local lint/build remain **unverified**: this worktree's `node_modules` Junction may not match the pinned package.json version. Do not claim local lint/build PASS; use exact-head CI evidence.
+As of 2026-10-24, the last verified exact-head `e9f0da9b` passed GitHub Validation and Workers Build. Targeted local Station/Classroom/Training tests passed 19/19. This is a dated evidence snapshot, not a standing claim about future heads. This is CI evidence, not visual parity or a production-API readiness verdict. Re-run local tests and CI after every commit. Local lint/build remain **unverified**: this worktree's `node_modules` Junction may not match the pinned package.json version. Do not claim local lint/build PASS; use exact-head CI evidence.
 
 PR metadata on [#810](https://github.com/vmtct/pino-team-os/pull/810): `Project-Code: PRJ-WFM`, `Entry-Class: EXISTING_GOVERNED_FEATURE`. These are required by current repository validation; do not bypass CI.
 
