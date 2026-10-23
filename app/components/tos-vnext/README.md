@@ -31,8 +31,8 @@ Authoritative sources: [PAP-938](https://vmtct97.atlassian.net/browse/PAP-938), 
 
 ## Source-owned blockers
 
-- pino-core **PR #1770** (PAP-724 V18b Path Diary/private R2) open and mergeable but CI FAIL on TR-39 migration-wave manifest drift (0130/0131); not verified in deployed Core.
-- pino-core **PR #1793** (PAP-848 metadata catalog) and **#1794** (PAP-849 register & eligibility, stacked on #1793) draft/unmerged, mergeable but CI FAIL; do not assume their live APIs are available.
+- pino-core **PR #1770** (PAP-724 V18b Path Diary/private R2) open and previously reported CI PASS; still not verified in deployed Core. Recheck exact head before treating the contract as ready.
+- pino-core **PR #1793** (PAP-848 metadata catalog) and **#1794** (PAP-849 register & eligibility, stacked on #1793) unmerged; #1793 previously reported CI PASS, while #1794 schema-epoch gate failed. Independent fix PR #1810 was CI PASS but is not incorporated into #1794. Recheck exact heads and deployment before use.
 - PAP-868/869 camera-only check-in, PAP-759 opening/pickup, authenticated Station/TV/Wish write commands and Shift Leader station-wide policy.
 - Founder-approved screenshot parity at 320/390/430/768/1024/1440/1920, server-authenticated E2E, required exact-head CI and final single-release acceptance remain outstanding.
 
@@ -44,7 +44,7 @@ npm run typecheck
 git diff --check origin/main...HEAD
 ```
 
-As of FC2 commit `67fc70b1`, **46/46 targeted Node contract tests PASS** and Git whitespace check PASS. Previous exact-head `87205d7d` passed GitHub validate and Workers Build; CI for new commits must be checked independently. Local lint/build remain **unverified**: this worktree's `node_modules` Junction may not match the pinned package.json version. Do not claim local lint/build PASS; use exact-head CI evidence.
+The latest confirmed exact-head `4a1d60cc` passed GitHub Validation and Workers Build. This is CI evidence, not visual parity or a production-API readiness verdict. Re-run local tests and CI after every commit. Local lint/build remain **unverified**: this worktree's `node_modules` Junction may not match the pinned package.json version. Do not claim local lint/build PASS; use exact-head CI evidence.
 
 PR metadata on [#810](https://github.com/vmtct/pino-team-os/pull/810): `Project-Code: PRJ-WFM`, `Entry-Class: EXISTING_GOVERNED_FEATURE`. These are required by current repository validation; do not bypass CI.
 
