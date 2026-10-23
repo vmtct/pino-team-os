@@ -62,3 +62,9 @@ test('PAP-946 combines Core catalog query and Path filters',async()=>{
  globalThis.fetch=(async(input:RequestInfo|URL)=>{uri=String(input);return new Response(JSON.stringify({data:{items:[],total:0,limit:30,offset:0}}),{status:200})}) as typeof fetch;
  try{await tosTrainingV5Api.catalog({query:'  sketch  ',path:'  ART-01  '});const url=new URL(uri,'https://local.test');assert.equal(url.searchParams.get('query'),'sketch');assert.equal(url.searchParams.get('path'),'ART-01');}finally{globalThis.fetch=old}
 });
+`ntest("PAP-946 eligibility returns Core prerequisite and hour deficits without local inference",async()=>{
+ const old=globalThis.fetch;
+ const expected={moduleId:"module-3",eligible:false,confirmedHours:1,requiredHours:5,missingHours:4,missingPrerequisiteModuleIds:["module-1"],reason:"MISSING_PREREQUISITES"};
+ globalThis.fetch=(async()=>new Response(JSON.stringify({data:expected}),{status:200})) as typeof fetch;
+ try{assert.deepEqual(await tosTrainingV5Api.eligibility("module-3"),expected)}finally{globalThis.fetch=old}
+});
