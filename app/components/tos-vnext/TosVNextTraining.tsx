@@ -18,6 +18,7 @@ export function TosVNextTraining(){
  const [tab,setTab]=useState<Tab>("progress");
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
  const [search,setSearch]=useState("");
+ const [path,setPath]=useState("");
  const [registrations,setRegistrations]=useState<TrainingV5Registration[]>([]);
  const [qualifications,setQualifications]=useState<StaffQualification[]>([]);
  const [error,setError]=useState("");
@@ -30,12 +31,12 @@ export function TosVNextTraining(){
   let active=true;
   setBusy(true);
   setError("");setCatalog([]);setRegistrations([]);
-  const timer=setTimeout(()=>{void Promise.all([tosTrainingV5Api.catalog({query:search.trim()}),tosTrainingV5Api.registrations()])
+  const timer=setTimeout(()=>{void Promise.all([tosTrainingV5Api.catalog({query:search.trim(),path:path.trim()}),tosTrainingV5Api.registrations()])
    .then(([page,rows])=>{if(active){setCatalog(page.items);setRegistrations(rows);setError("");}})
    .catch(e=>{if(active){setCatalog([]);setRegistrations([]);setError(errorText(e));}})
    .finally(()=>{if(active)setBusy(false)});},250);
   return()=>{active=false;clearTimeout(timer)};
- },[version,search]);
+ },[version,search,path]);
  useEffect(()=>{
   let active=true;
   setCertBusy(true);
@@ -54,6 +55,8 @@ export function TosVNextTraining(){
     {!TRAINING_V5_WRITE_ADMITTED&&<p className={styles.secondary} role="status">Đăng ký chưa mở: Core PAP-848/849 chưa được xác nhận phát hành.</p>}
     <label className={styles.secondary} htmlFor="tos-vnext-training-search">Tìm theo mã hoặc tên</label>
     <input id="tos-vnext-training-search" type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Mã hoặc tên Training" />
+    <label className={styles.secondary} htmlFor="tos-vnext-training-path">Lọc Path</label>
+    <input id="tos-vnext-training-path" type="search" value={path} onChange={e=>setPath(e.target.value)} placeholder="Mã Path" />
     {busy&&<p className={styles.secondary} role="status">Đang tải danh mục…</p>}
     {error&&<p role="alert" className={styles.trainingError}>{error}</p>}
     {error&&<TosVNextButton variant="secondary" onClick={()=>{setBusy(true);setVersion(x=>x+1);}}>Thử tải lại</TosVNextButton>}
