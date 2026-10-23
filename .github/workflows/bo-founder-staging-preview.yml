@@ -74,7 +74,7 @@ jobs:
           curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$url" > /tmp/preview-before.json
           jq -e --arg previous "$PREVIOUS" '.success and (.result.deployments[0].versions | length == 1) and (.result.deployments[0].versions[0].percentage == 100) and (.result.deployments[0].versions[0].version_id == $previous)' /tmp/preview-before.json
           curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/pino-team-os-greenfield-preview/settings" > /tmp/preview-settings.json
-          jq -e '.success and ([.result.bindings[] | select(.name=="FOUNDER_EMAIL" and .type=="plain_text" and (.text|length>0))] | length == 1) and ([.result.bindings[] | select((.name | test("BYPASS|INGRESS")))] | length == 0) and ([.result.bindings[] | select(.type=="service")] | all(.service=="pino-core-staging"))' /tmp/preview-settings.json
+          jq -e '.success and ([.result.bindings[] | select(.name=="FOUNDER_EMAIL" and .type=="plain_text" and (.text == ""))] | length == 1) and ([.result.bindings[] | select((.name | test("BYPASS|INGRESS")))] | length == 0) and ([.result.bindings[] | select(.type=="service")] | all(.service=="pino-core-staging"))' /tmp/preview-settings.json
           echo "Previous active preview version $PREVIOUS; protected Founder config and staging service bindings present"
       - name: Deploy isolated preview (not Production)
         id: preview_deploy
