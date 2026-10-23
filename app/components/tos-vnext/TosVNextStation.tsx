@@ -35,6 +35,11 @@ export function TosVNextStation({desktop,centerName,onHome}:{
     <div><small>TRẠM TOS · {centerName}</small><h1>{copy.heading}</h1></div>
     <TosVNextStatus>Đang tích hợp Core</TosVNextStatus>
    </header>
+   <section aria-label="Không gian làm việc Trạm TOS" data-station-workspace={tab}>
+    <TosVNextHeading title={tab==="overview"?"Tổng quan trạm":tab==="pinoria"?"Pinoria tại trạm":tab==="students"?"Học viên tại trạm":tab==="devices"?"Thiết bị tại trạm":"Màn hình TV"}/>
+    {tab==="students"&&<p className={styles.secondary}>Danh sách học viên cần Core kiểm tra quyền truy cập theo trạm.</p>}
+    {(tab==="devices"||tab==="tv")&&<p className={styles.secondary}>Chỉ điều khiển sau khi Core xác thực quyền và phản hồi trạng thái thực.</p>}
+   </section>
    <div className={styles.stationDashboardGrid}>
     <TosVNextCard><TosVNextHeading title="Trạng thái Core" meta="Chưa xác minh"/>
      <p className={styles.body}>{copy.description}</p>
