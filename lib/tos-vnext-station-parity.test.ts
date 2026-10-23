@@ -24,3 +24,9 @@ test('PAP-943 V8 overview metrics remain unknown until verified Core',()=>{
  assert.match(station,/Thiết bị cần kiểm tra/);
  assert.match(station,/Trạng thái TV/);
 });
+
+test('PAP-943 mobile gate matches frozen V8 station guidance',()=>{
+ assert.match(station,/Trạm TOS chỉ dùng trên máy tính/);
+ assert.match(station,/Mở màn hình rộng từ 1024px để sử dụng giao diện workstation/);
+ assert.match(station,/onClick=\{onHome\}/);
+});
