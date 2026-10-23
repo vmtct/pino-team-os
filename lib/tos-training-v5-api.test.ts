@@ -51,3 +51,8 @@ test('PAP-946 eligibility normalizes surrounding module whitespace',async()=>{
  globalThis.fetch=(async(input:RequestInfo|URL)=>{url=String(input);return new Response(JSON.stringify({data:{moduleId:'module-1',eligible:true}}),{status:200})}) as typeof fetch;
  try{await tosTrainingV5Api.eligibility('  module-1  ');assert.ok(url.endsWith('moduleId=module-1'));}finally{globalThis.fetch=old}
 });
+
+test('PAP-946 invalid catalog pagination fails before Core fetch',async()=>{
+ const old=globalThis.fetch;let calls=0;globalThis.fetch=(async()=>{calls++;throw new Error('unexpected fetch')}) as typeof fetch;
+ try{for(const input of [{limit:0},{limit:1.5},{offset:-1},{offset:NaN}])await assert.rejects(tosTrainingV5Api.catalog(input),(e:unknown)=>e instanceof TrainingV5ApiError&&e.code==='INVALID_PAGINATION');assert.equal(calls,0);}finally{globalThis.fetch=old}
+});

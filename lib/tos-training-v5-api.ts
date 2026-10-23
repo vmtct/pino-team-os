@@ -42,6 +42,7 @@ async function read<T>(route:string):Promise<T>{
 }
 export const tosTrainingV5Api={
  catalog:(input:{query?:string;path?:string;popularOnly?:boolean;limit?:number;offset?:number}={})=>{
+  if(input.limit!==undefined&&(!Number.isInteger(input.limit)||input.limit<1)||input.offset!==undefined&&(!Number.isInteger(input.offset)||input.offset<0))return Promise.reject(new TrainingV5ApiError(400,"INVALID_PAGINATION","Phân trang Training không hợp lệ."));
   const params=new URLSearchParams();
   if(input.query?.trim())params.set("query",input.query.trim());
   if(input.path?.trim())params.set("path",input.path.trim());
