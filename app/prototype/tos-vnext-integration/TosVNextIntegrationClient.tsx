@@ -117,7 +117,8 @@ export default function TosVNextIntegrationPreview(){
    setLoading(true);setData({});setCenterId(id);setHomeNotice("");
   }}
   nextAssignment={nextAssignment} busy={loading||!ctx}
-  allowed={id=>id==="shift"||id==="training"?!!ctx:id==="station"?!!ctx&&desktop:!!access?.[id]}
+  allowed={id=>canOpenVNextApp(id,{authenticated:!!ctx,centerReady:!!centerId,
+   scheduleReady:!!data.shift,desktop,access})}
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
   notice={homeNotice||error}/>;
  return <TosVNextFrame app={app} mode={isDesktop?"desktop":"mobile"}>
