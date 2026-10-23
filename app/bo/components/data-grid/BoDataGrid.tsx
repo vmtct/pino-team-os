@@ -135,7 +135,7 @@ export function BoDataGrid<Row>({
       </label> : null}
       {typedFilterSettings && typedFilterFields && onTypedFilterSettingsChange ? <BoGridFilterSettings fields={typedFilterFields} value={typedFilterSettings} onChange={onTypedFilterSettingsChange} /> : null}
       {onOpenFilters ? <button className={styles.toolButton} type="button" onClick={onOpenFilters}>☷ Filter{filterChips.length ? <b>{filterChips.length}</b> : null}</button> : null}
-      {onOpenSort ? <button className={styles.toolButton} type="button" onClick={onOpenSort}>↕ Sort</button> : onSortChange ? <span className={styles.sortHint} aria-label={sortKey ? `Sorted by ${sortKey} ${sortDirection}` : "Not sorted"}>↕ Sort</span> : null}
+      {onOpenSort ? <button className={styles.toolButton} type="button" onClick={onOpenSort}>↕ Sort</button> : null}
       {onOpenColumns ? <button className={styles.toolButton} type="button" onClick={onOpenColumns}>▥ Columns</button> : null}
       <div className={styles.toolbarSpacer} />
       {resultLabel ? <span className={styles.resultLabel}>{resultLabel}</span> : null}
