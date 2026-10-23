@@ -8,6 +8,7 @@ import { filterRunningClassGridRows, runningClassFilterFields } from "@/lib/bo-r
 import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import { BoGridFilterSettings } from "./components/data-grid/BoGridFilterSettings";
 import { useAuthorizedBoPublicView } from "./components/data-grid/useAuthorizedBoPublicView";
+import { useAuthorizedBoPublicView } from "./components/data-grid/useAuthorizedBoPublicView";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
@@ -43,6 +44,7 @@ type LoadState = { status: "loading" } | { status: "error"; message: string; req
 
 const CLASS_SHARED_VIEW_FIELDS = ["id", "class", "program", "pattern", "capacity", "status"] as const;
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const RUNNING_CLASS_VIEW_COLUMNS = ["id", "class", "program", "pattern", "capacity", "status"] as const;
 
 export function BoOperationalView({ view }: { view: BoView }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -108,6 +110,7 @@ function Overview({ data }: { data: Data }) {
 }
 
 function RunningClasses({ data }: { data: Data }) {
+  const publicViewRuntime = useAuthorizedBoPublicView("classes", "delivery.schedule.view", RUNNING_CLASS_VIEW_COLUMNS);
   const publicViewRuntime = useAuthorizedBoPublicView("classes", "delivery.schedule.view", CLASS_SHARED_VIEW_FIELDS);
   const query = useSearchParams();
   const detailId = query.get("detail");
@@ -173,6 +176,7 @@ function RunningClasses({ data }: { data: Data }) {
         sortDirection={state.sortDirection}
         onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
+        publicViewRuntime={publicViewRuntime ?? undefined}
         typedFilterSettings={typedSettings} typedFilterFields={runningClassFilterFields} onTypedFilterSettingsChange={setTypedSettings}
         resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
         pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
