@@ -24,6 +24,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
  return <div className={styles.stationShell} data-tos-vnext-station="desktop">
   <aside className={styles.stationSidebar}>
    <div className={styles.stationBrand}><strong>PINO · TRẠM TOS</strong><small>{centerName||"Chưa xác định cơ sở"}</small></div>
+   <p className={styles.stationSectionLabel}>KHÔNG GIAN VẬN HÀNH</p>
    <nav aria-label="Điều hướng Trạm TOS">
     {STATION_DESKTOP_TABS.map(item=><button type="button" key={item.id}
      aria-current={item.id===tab?"page":undefined} aria-controls="tos-vnext-station-workspace" onClick={()=>setTab(item.id)}>
@@ -33,7 +34,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
   </aside>
   <main className={styles.stationWorkspace} id="tos-vnext-station-workspace" aria-label="Nội dung Trạm TOS">
    <header className={styles.stationWorkspaceHeader}>
-    <div><small>Ứng dụng › {STATION_DESKTOP_TABS.find(item=>item.id===tab)?.label} · {centerName||"Chưa xác định cơ sở"}</small><h1>{copy.heading}</h1></div>
+    <div><small>Ứng dụng › {STATION_DESKTOP_TABS.find(item=>item.id===tab)?.label} · {centerName||"Chưa xác định cơ sở"}</small><p className={styles.stationKicker}>TRẠM TOS · WORKSTATION</p><h1>{copy.heading}</h1></div>
     <TosVNextStatus>Đang tích hợp Core</TosVNextStatus>
    </header>
    <section aria-label="Không gian làm việc Trạm TOS" data-station-workspace={tab}>
