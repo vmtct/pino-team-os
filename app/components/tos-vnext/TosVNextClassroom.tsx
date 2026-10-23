@@ -31,7 +31,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   <header className={styles.classDetailHeader} data-tos-vnext="classroom-detail-header">
    <button type="button" onClick={back} aria-label="Trở về danh sách lớp">‹</button>
    <div><strong>{selected.operationalName}</strong>
-    <small>{selected.occurrence.localInterval?.startsAt||localDate}</small></div>
+    <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
