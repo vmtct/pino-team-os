@@ -12,7 +12,7 @@ Sources: PAP-934 Master V8 (6 apps) / TOS Design System V1.
 - `tos-vnext.module.css` — scoped semantic tokens (body 15px, labels/buttons 14px, headings 16/18/20/24px, 4px spacing, 44px tap, 48px CTA).
 - `TosVNextUI.tsx` — typed components for mobile/desktop frames, app header, bottom nav, card, button, sheet, field, toast and status.
 - `core-adapters.ts` — delegates to EXISTING APIs; no shadow Core truth or demo writes. Explicit status matrix `WIRED_READ | LEGACY_ONLY | SECURITY_DEPENDENCY | MISSING_CONTRACT`.
-- `app/prototype/tos-vnext-integration/page.tsx` — **worktree-only** read-only integration surface, intentionally NOT the approved visual baseline and NOT production-ready. It consumes actual authenticated Core API URLs at runtime; no built-in fake data.
+- `app/prototype/tos-vnext-integration/page.tsx` — **server-side hard-off production fence**. This route returns 404 in any Production build. Local Next development requires `PAP938_VNEXT_LOCAL_PREVIEW=true` (server-only flag). Its client preview resides in `TosVNextIntegrationClient.tsx`; it is diagnostic, NOT the approved visual baseline and NOT production-ready. It reads authenticated Core URLs with no fake business records.
 - `lib/pap938-tos-vnext-bridge.test.ts` — mock-network contract tests verifying calls & fail-closed auth scope. Mock tests are NOT proof of successful authenticated live/staging integration.
 
 ## Precisely what is wired now

@@ -1,6 +1,6 @@
 "use client";
 /** PAP-939: shared TOS VNext primitives. Isolated until the six-app release. */
-import type {ButtonHTMLAttributes,HTMLAttributes,PropsWithChildren,ReactNode} from "react";
+import {useEffect,useRef,type ButtonHTMLAttributes,type HTMLAttributes,type PropsWithChildren,type ReactNode} from "react";
 import styles from "./tos-vnext.module.css";
 
 import {SIX_TOS_APPS,appIcon,appIdentity,type TosVNextAppId,type TosVNextMode} from "./identity";
@@ -43,10 +43,37 @@ export function TosVNextBottomNav({label,items,active,onChange}:{
    <span className={styles.tabIcon} aria-hidden="true">{item.icon}</span><span>{item.label}</span></button>)}
  </nav>;
 }
+/** Accessible dialog: focus stays in the sheet, Escape closes, origin regains focus. */
 export function TosVNextSheet({title,onClose,children}:PropsWithChildren<{title:string;onClose:()=>void}>){
- return <div data-tos-vnext="sheet" role="presentation" className={styles.sheetBackdrop} onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-  <section role="dialog" aria-modal="true" aria-label={title} className={styles.sheet}>
-   <header className={styles.sheetHeader}><h2>{title}</h2><button type="button" onClick={onClose} aria-label="Đóng">✕</button></header>
+ const dialogRef=useRef<HTMLElement>(null);
+ const onCloseRef=useRef(onClose);onCloseRef.current=onClose;
+ useEffect(()=>{
+  const dialog=dialogRef.current;
+  if(!dialog)return;
+  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  const previousOverflow=document.body.style.overflow;
+  document.body.style.overflow="hidden";
+  const focusables=()=>Array.from(dialog.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+   .filter(el=>el.getClientRects().length>0);
+  (focusables()[0]??dialog).focus();
+  const onKeyDown=(e:KeyboardEvent)=>{
+   if(e.key==="Escape"){e.preventDefault();onCloseRef.current();return;}
+   if(e.key!=="Tab")return;
+   const elements=focusables();
+   if(!elements.length){e.preventDefault();dialog.focus();return;}
+   const first=elements[0],last=elements[elements.length-1];
+   if(e.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){
+    e.preventDefault();last.focus();
+   }else if(!e.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){
+    e.preventDefault();first.focus();
+   }
+  };
+  document.addEventListener("keydown",onKeyDown);
+  return()=>{document.removeEventListener("keydown",onKeyDown);document.body.style.overflow=previousOverflow;previous?.focus();};
+ },[]);
+ return <div data-tos-vnext="sheet" role="presentation" className={styles.sheetBackdrop} onMouseDown={e=>{if(e.target===e.currentTarget)onCloseRef.current()}}>
+  <section ref={dialogRef} role="dialog" tabIndex={-1} aria-modal="true" aria-label={title} className={styles.sheet}>
+   <header className={styles.sheetHeader}><h2>{title}</h2><button type="button" onClick={()=>onCloseRef.current()} aria-label="Đóng">✕</button></header>
    {children}
   </section>
  </div>;
