@@ -20,6 +20,8 @@ const registrationLabel:Record<TrainingV5Registration["status"],string>={
 export function TosVNextTraining(){
  const [tab,setTab]=useState<Tab>("progress");
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
+ const [offset,setOffset]=useState(0);
+ const [total,setTotal]=useState(0);
  const [selected,setSelected]=useState<TrainingV5CatalogItem|null>(null);
  const [eligibility,setEligibility]=useState<TrainingV5Eligibility|null>(null);
  const [eligibilityError,setEligibilityError]=useState("");
@@ -38,13 +40,13 @@ export function TosVNextTraining(){
  useEffect(()=>{
   let active=true;
   setBusy(true);
-  setError("");setCatalog([]);setRegistrations([]);setSelected(null);
-  const timer=setTimeout(()=>{void Promise.all([tosTrainingV5Api.catalog({query:search.trim(),path:path.trim()}),tosTrainingV5Api.registrations()])
-   .then(([page,rows])=>{if(active){setCatalog(page.items);setRegistrations(rows);setError("");}})
+  setError("");setCatalog([]);setRegistrations([]);setSelected(null);setTotal(0);
+  const timer=setTimeout(()=>{void Promise.all([tosTrainingV5Api.catalog({query:search.trim(),path:path.trim(),limit:30,offset}),tosTrainingV5Api.registrations()])
+   .then(([page,rows])=>{if(active){setCatalog(page.items);setTotal(page.total);setRegistrations(rows);setError("");}})
    .catch(e=>{if(active){setCatalog([]);setRegistrations([]);setError(errorText(e));}})
    .finally(()=>{if(active)setBusy(false)});},250);
   return()=>{active=false;clearTimeout(timer)};
- },[version,search,path]);
+ },[version,search,path,offset]);
  useEffect(()=>{
   let active=true;
   setCertBusy(true);
@@ -69,9 +71,9 @@ export function TosVNextTraining(){
     <p className={styles.body}>Khám phá chương trình và tiến độ của bạn.</p>
     {!TRAINING_V5_WRITE_ADMITTED&&<p className={styles.secondary} role="status">Đăng ký chưa mở: Core PAP-848/849 chưa được xác nhận phát hành.</p>}
     <label className={styles.secondary} htmlFor="tos-vnext-training-search">Tìm theo mã hoặc tên</label>
-    <input id="tos-vnext-training-search" type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Mã hoặc tên Training" />
+    <input id="tos-vnext-training-search" type="search" value={search} onChange={e=>{setOffset(0);setSearch(e.target.value)}} placeholder="Mã hoặc tên Training" />
     <label className={styles.secondary} htmlFor="tos-vnext-training-path">Lọc Path</label>
-    <input id="tos-vnext-training-path" type="search" value={path} onChange={e=>setPath(e.target.value)} placeholder="Mã Path" />
+    <input id="tos-vnext-training-path" type="search" value={path} onChange={e=>{setOffset(0);setPath(e.target.value)}} placeholder="Mã Path" />
     <label className={styles.secondary} htmlFor="tos-vnext-training-status">Trạng thái đăng ký</label>
     <select id="tos-vnext-training-status" value={statusFilter} onChange={e=>setStatusFilter(e.target.value as typeof statusFilter)}>
      <option value="all">Tất cả</option><option value="registered">Đã đăng ký</option><option value="unregistered">Chưa đăng ký</option>
@@ -80,6 +82,7 @@ export function TosVNextTraining(){
     {error&&<p role="alert" className={styles.trainingError}>{error}</p>}
     {error&&<TosVNextButton variant="secondary" onClick={()=>{setBusy(true);setVersion(x=>x+1);}}>Thử tải lại</TosVNextButton>}
    </TosVNextCard>
+   {!busy&&!error&&total>30&&<TosVNextCard><p className={styles.secondary}>Trang {Math.floor(offset/30)+1} · {total} học phần từ Core</p><TosVNextButton variant="secondary" disabled={offset===0} onClick={()=>setOffset(x=>Math.max(0,x-30))}>Trang trước</TosVNextButton><TosVNextButton variant="secondary" disabled={offset+30>=total} onClick={()=>setOffset(x=>x+30)}>Trang sau</TosVNextButton></TosVNextCard>}
    {!busy&&!error&&catalog.length===0&&<TosVNextCard><p className={styles.secondary}>Chưa có Training đang mở trong Core.</p></TosVNextCard>}
    {!busy&&!error&&catalog.length>0&&statusFilter!=="all"&&!catalog.some(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="registered"?registered:!registered})&&<TosVNextCard><p className={styles.secondary}>Không có Training phù hợp bộ lọc trạng thái.</p></TosVNextCard>}
    {!busy&&!error&&catalog.filter(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="all"||(statusFilter==="registered"?registered:!registered)}).map(item=>{
