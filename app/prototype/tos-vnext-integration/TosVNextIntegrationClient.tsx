@@ -44,7 +44,15 @@ export default function TosVNextIntegrationPreview(){
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [desktop,setDesktop]=useState(false);
+ const [clockNow,setClockNow]=useState(()=>new Date());
  useEffect(()=>{if(!homeNotice)return;const timer=setTimeout(()=>setHomeNotice(""),2700);return()=>clearTimeout(timer)},[homeNotice]);
+ useEffect(()=>{
+  const refresh=()=>setClockNow(new Date());
+  const interval=window.setInterval(refresh,60_000);
+  const onVisible=()=>{if(document.visibilityState==="visible")refresh()};
+  document.addEventListener("visibilitychange",onVisible);
+  return()=>{window.clearInterval(interval);document.removeEventListener("visibilitychange",onVisible)};
+ },[]);
  const center=ctx?.centers.find(c=>c.id===centerId);
  const zone=center?.timeZone||"Asia/Ho_Chi_Minh";
  const fromDate=today(zone);
@@ -52,9 +60,9 @@ export default function TosVNextIntegrationPreview(){
   if(!ctx||!centerId)return null;
   // Existing resolver enforces local role presentation. API endpoints MUST independently enforce server authority.
   return resolveTosAppAccess({assignments:data.shift?.assignments??[],centerId,
-   nowLocal:fromDate+"T"+new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date()),
+   nowLocal:fromDate+"T"+new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow),
    desktop,scheduleReady:!!data.shift});
- },[ctx,centerId,data.shift,desktop,zone,fromDate]);
+ },[ctx,centerId,data.shift,desktop,zone,fromDate,clockNow]);
  useEffect(()=>{
   const media=window.matchMedia("(min-width:1024px)");
   const fn=()=>setDesktop(media.matches);fn();media.addEventListener("change",fn);
@@ -75,7 +83,7 @@ export default function TosVNextIntegrationPreview(){
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
- },[centerId,ctx,zone]);
+ },[centerId,ctx,zone,fromDate]);
  async function choose(next:Section){
   if(next==="home"){setApp("home");return}
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
