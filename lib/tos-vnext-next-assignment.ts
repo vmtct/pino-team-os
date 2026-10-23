@@ -10,6 +10,7 @@ export function nextConfirmedAssignment(
   .filter(a=>a.centerId===centerId&&a.status==="ACTIVE"&&a.workDate>=localDate&&
    !(nowLocalTime&&a.workDate===localDate&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nowLocalTime)&&
     /^([01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveEndLocal??a.shift?.endLocalTime??"")&&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(a.effectiveStartLocal??a.shift?.startLocalTime??"")&&
     (a.effectiveEndLocal??a.shift?.endLocalTime??"")>(a.effectiveStartLocal??a.shift?.startLocalTime??"")&&
     (a.effectiveEndLocal??a.shift?.endLocalTime??"")<=nowLocalTime))
   .sort((a,b)=>a.workDate.localeCompare(b.workDate)||
