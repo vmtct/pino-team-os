@@ -1,0 +1,96 @@
+name: BO V2.3 Founder Staging Preview (PAP-963)
+on:
+  workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: "Exact current Team main SHA approved for staging"
+        required: true
+        type: string
+      expected_previous_version:
+        description: "100% serving preview version ID read from Cloudflare immediately before dispatch"
+        required: true
+        type: string
+permissions:
+  contents: read
+  checks: read
+concurrency:
+  group: pino-greenfield-preview-isolated-worker
+  cancel-in-progress: false
+jobs:
+  deploy-preview:
+    if: github.repository == 'vmtct/pino-team-os' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Pin exact main source and verify CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVED_SHA: ${{ inputs.approved_sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "$APPROVED_SHA"
+          test "$(git rev-parse HEAD)" = "$APPROVED_SHA"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$APPROVED_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/commits/$APPROVED_SHA/check-runs" --jq '.check_runs | any(.name == "validate" and .conclusion == "success")' | grep -qx true
+      - name: Verify staging-only Worker config
+        run: |
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const c = require('./wrangler.greenfield-preview.json');
+          assert.equal(c.name, 'pino-team-os-greenfield-preview');
+          assert.equal(c.workers_dev, false);
+          assert.equal(c.preview_urls, false);
+          assert.equal(c.keep_vars, true);
+          assert.ok(!c.routes && !c.route && !c.custom_domains && !c.send_email);
+          assert.equal(Object.hasOwn(c.vars, 'FOUNDER_EMAIL'), false);
+          assert.equal(c.services.length, 8);
+          for (const s of c.services) assert.equal(s.service, 'pino-core-staging');
+          for (const key of Object.keys(c.vars)) assert.ok(!/BYPASS|INGRESS/i.test(key));
+          NODE
+      - run: npm ci --no-audit --no-fund
+      - name: Build exact-source preview
+        run: |
+          npm run build
+          npx opennextjs-cloudflare build
+          test -s .open-next/worker.js
+          npx wrangler deploy --dry-run -c wrangler.greenfield-preview.json
+      - name: Preflight preview serving version (CAS)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+          PREVIOUS: ${{ inputs.expected_previous_version }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$PREVIOUS"
+          url="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/pino-team-os-greenfield-preview/deployments"
+          curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$url" > /tmp/preview-before.json
+          jq -e --arg previous "$PREVIOUS" '.success and (.result.deployments[0].versions | length == 1) and (.result.deployments[0].versions[0].percentage == 100) and (.result.deployments[0].versions[0].version_id == $previous)' /tmp/preview-before.json
+          curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/pino-team-os-greenfield-preview/settings" > /tmp/preview-settings.json
+          jq -e '.success and ([.result.bindings[] | select(.name=="FOUNDER_EMAIL" and .type=="plain_text" and (.text|length>0))] | length == 1) and ([.result.bindings[] | select((.name | test("BYPASS|INGRESS")))] | length == 0) and ([.result.bindings[] | select(.type=="service")] | all(.service=="pino-core-staging"))' /tmp/preview-settings.json
+          echo "Previous active preview version $PREVIOUS; protected Founder config and staging service bindings present"
+      - name: Deploy isolated preview (not Production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          set -euo pipefail
+          npx wrangler deploy -c wrangler.greenfield-preview.json --message "pap963 preview sha=$GITHUB_SHA run=$GITHUB_RUN_ID"
+      - name: Verify preview serving truth
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          set -euo pipefail
+          url="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/pino-team-os-greenfield-preview/deployments"
+          curl --fail-with-body -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$url" > /tmp/preview-after.json
+          jq -e --arg sha "$GITHUB_SHA" '.success and (.result.deployments[0].versions | length == 1) and (.result.deployments[0].versions[0].percentage == 100) and (.result.deployments[0].annotations["workers/message"] | contains($sha))' /tmp/preview-after.json
+          jq '{id:.result.deployments[0].id,versions:.result.deployments[0].versions,created_on:.result.deployments[0].created_on,annotations:.result.deployments[0].annotations}' /tmp/preview-after.json >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only isolated preview was deployed. Authentication, staging data and Founder approval require separate verification.' >> "$GITHUB_STEP_SUMMARY"
