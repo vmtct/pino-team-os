@@ -7,6 +7,7 @@ import {useState} from "react";
 import {STATION_DESKTOP_TABS,type StationDesktopTab} from "@/lib/tos-vnext-station";
 import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
+const sectionDetail:Record<StationDesktopTab,string>={overview:"Bảng điều phối",pinoria:"House & Wardrobe",students:"Tra cứu & trạng thái",devices:"Quản lý node",tv:"Nội dung trình chiếu"};
 const tabCopy:Record<StationDesktopTab,{heading:string;description:string;dependency:string}>={
  overview:{heading:"Trạm TOS",description:"Không có chỉ số Station-wide được xác minh từ Core. Bảng điều phối sẽ hiển thị khi API node có quyền truy cập.",dependency:"Workstation node inventory & access"},
  pinoria:{heading:"Pinoria",description:"Không sử dụng Wardrobe hoặc Wish demo làm dữ liệu Core.",dependency:"Authorized Pinoria Ward & inventory API"},
@@ -26,13 +27,13 @@ export function TosVNextStation({desktop,centerName,onHome}:{
    <nav aria-label="Điều hướng Trạm TOS">
     {STATION_DESKTOP_TABS.map(item=><button type="button" key={item.id}
      aria-current={item.id===tab?"page":undefined} onClick={()=>setTab(item.id)}>
-     {item.label}</button>)}
+     <span><strong>{item.label}</strong><small>{sectionDetail[item.id]}</small></span></button>)}
    </nav>
    <button type="button" className={styles.stationBack} onClick={onHome}>← Về TOS Home</button>
   </aside>
   <main className={styles.stationWorkspace}>
    <header className={styles.stationWorkspaceHeader}>
-    <div><small>TRẠM TOS · {centerName}</small><h1>{copy.heading}</h1></div>
+    <div><small>TRẠM TOS · {sectionDetail[tab].toUpperCase()}</small><h1>{copy.heading}</h1></div>
     <TosVNextStatus>Đang tích hợp Core</TosVNextStatus>
    </header>
    <section aria-label="Không gian làm việc Trạm TOS" data-station-workspace={tab}>
