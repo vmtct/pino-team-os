@@ -5,11 +5,12 @@
  */
 import {useEffect,useMemo,useState} from "react";
 import {workforceApi,type WorkforceContext} from "@/lib/workforce-api";
+import {TosVNextHome} from "@/app/components/tos-vnext/TosVNextHome";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {
- appIdentity,SIX_TOS_APPS,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
+ appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
  TosVNextCard,TosVNextHeading,TosVNextBottomNav,TosVNextButton,TosVNextStatus,
- TosVNextField,TosVNextAppTile,tosVNextStyle,type TosVNextAppId
+ TosVNextField,tosVNextStyle,type TosVNextAppId
 } from "@/app/components/tos-vnext/TosVNextUI";
 import {
  TOS_BACKEND_MATRIX,staffContext,shiftReadModel,receptionVisitReadModel,
@@ -29,6 +30,8 @@ function today(timeZone:string,offsetDays=0){
 }
 export default function TosVNextIntegrationPreview(){
  const [ctx,setCtx]=useState<WorkforceContext|null>(null);
+ const [profileLabel,setProfileLabel]=useState<string|null>(null);
+ const [homeNotice,setHomeNotice]=useState("");
  const [centerId,setCenterId]=useState("");
  const [app,setApp]=useState<Section>("home");
  const [shiftTab,setShiftTab]=useState<"today"|"calendar"|"hours"|"pay">("today");
@@ -39,6 +42,7 @@ export default function TosVNextIntegrationPreview(){
  const [visit,setVisit]=useState<StudentVisit|null|undefined>(undefined);
  const [visitPending,setVisitPending]=useState(false);
  const [desktop,setDesktop]=useState(false);
+ useEffect(()=>{if(!homeNotice)return;const timer=setTimeout(()=>setHomeNotice(""),2700);return()=>clearTimeout(timer)},[homeNotice]);
  const center=ctx?.centers.find(c=>c.id===centerId);
  const zone=center?.timeZone||"Asia/Ho_Chi_Minh";
  const fromDate=today(zone);
@@ -52,7 +56,9 @@ export default function TosVNextIntegrationPreview(){
  useEffect(()=>{
   const media=window.matchMedia("(min-width:1024px)");
   const fn=()=>setDesktop(media.matches);fn();media.addEventListener("change",fn);
-  let valid=true;void staffContext().then(value=>{
+  let valid=true;
+  void workforceApi.profile().then(value=>{if(valid)setProfileLabel(value.data.displayLabel)}).catch(()=>{});
+  void staffContext().then(value=>{
    if(!valid)return;setCtx(value);setCenterId(value.centers[0]?.id||"");if(!value.centers.length)setError("Tài khoản không có trung tâm được cấp quyền.");
   }).catch(e=>{if(valid)setError(e instanceof Error?e.message:"Không thể xác thực người dùng.")})
    .finally(()=>{if(valid)setLoading(false)});
@@ -70,7 +76,8 @@ export default function TosVNextIntegrationPreview(){
  },[centerId,ctx,zone]);
  async function choose(next:Section){
   if(next==="home"){setApp("home");return}
-  if(next==="station"&&!desktop){setError("Trạm TOS chỉ sử dụng trên máy tính.");return}
+  if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
+  if(next==="station"&&!desktop){setHomeNotice("Trạm TOS chỉ sử dụng trên máy tính.");return}
   if(next==="reception"&&!access?.reception){setError("Ca này chưa có quyền Tiếp Tân.");return}
   if(next==="classroom"&&!access?.classroom){setError("Ca này chưa có quyền Lớp Học.");return}
   if(next==="shift-lead"&&!access?.["shift-lead"]){setError("Ca này chưa có quyền Trưởng Ca.");return}
@@ -89,23 +96,16 @@ export default function TosVNextIntegrationPreview(){
   finally{setVisitPending(false)}
  }
  const isDesktop=app==="station";
- return <TosVNextFrame app={app==="home"?"shift":app} mode={isDesktop?"desktop":"mobile"}>
-  {app!=="home"&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/>}
+ const nextAssignment=[...(data.shift?.assignments??[])].filter(row=>row.status!=="CANCELLED" && row.workDate>=fromDate)
+  .sort((a,b)=>a.workDate.localeCompare(b.workDate))[0]??null;
+ if(app==="home")return <TosVNextHome profileLabel={profileLabel} centerName={center?.displayName}
+  nextAssignment={nextAssignment} busy={loading||!ctx}
+  allowed={id=>id==="shift"||id==="training"?!!ctx:id==="station"?!!ctx&&desktop:!!access?.[id]}
+  onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
+  notice={homeNotice||error}/>;
+ return <TosVNextFrame app={app} mode={isDesktop?"desktop":"mobile"}>
+  <TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/>
   <TosVNextContent>
-   {app==="home"&&<>
-    <small className={tosVNextStyle.caption}>PINO · TEAM OPS · VNext integration, chưa phát hành</small>
-    <h1 style={{fontSize:24,margin:0,lineHeight:1.25}}>TOS VNext · 6 ứng dụng</h1>
-    <p className={tosVNextStyle.secondary}>Dữ liệu Core thực, chỉ đọc. Không có demo check-in hoặc ghi nhận Diary.</p>
-    <TosVNextCard><TosVNextHeading title="Tài khoản / cơ sở" meta={loading?"Đang tải":"Đã xác thực"}/>
-     <p className={tosVNextStyle.body}>{center?.displayName??"Không có trung tâm"}</p>
-     {ctx?.centers.length && ctx.centers.length>1?<TosVNextField label="Trung tâm"><select value={centerId} onChange={e=>setCenterId(e.target.value)}>{ctx.centers.map(c=><option value={c.id} key={c.id}>{c.displayName}</option>)}</select></TosVNextField>:null}
-    </TosVNextCard>
-    <TosVNextHeading title="Ứng dụng" meta="6 apps"/>
-    <div className={tosVNextStyle.grid}>{SIX_TOS_APPS.map(a=><TosVNextAppTile key={a.id} app={a.id}
-     disabled={!ctx||loading||(a.id==="station"&&!desktop)||(a.id==="reception"&&!access?.reception)||(a.id==="classroom"&&!access?.classroom)||(a.id==="shift-lead"&&!access?.["shift-lead"])}
-     onClick={()=>void choose(a.id)}/>)}</div>
-    <p className={tosVNextStyle.secondary}>Tiếp Tân/Lớp Học/Trưởng Ca được kiểm soát theo ca. Trạm TOS chỉ desktop. Thăng Tiến có dữ liệu Training F0 hiện hữu, chưa phải V5.</p>
-   </>}
    {app==="shift"&&<>
     <TosVNextHeading title={{today:"Hôm nay",calendar:"Lịch ca",hours:"Giờ công",pay:"Thu nhập"}[shiftTab]} meta={today(zone)}/>
     {shiftTab==="today"&&<TosVNextCard>
@@ -163,10 +163,10 @@ export default function TosVNextIntegrationPreview(){
    </>}
    {loading&&<p role="status">Đang tải dữ liệu Core thực…</p>}
    {error&&<TosVNextCard><p role="alert" style={{color:"#a32b39",margin:0,fontSize:14}}>{error}</p></TosVNextCard>}
-   {app!=="home"&&<TosVNextCard>
+   <TosVNextCard>
      <TosVNextHeading title="Backend readiness" meta={appIdentity(app).title}/>
      {TOS_BACKEND_MATRIX.filter(r=>r.app===app).map(r=><p className={tosVNextStyle.secondary} key={r.capability}><strong>{r.status}</strong> · {r.capability} — {r.description}</p>)}
-   </TosVNextCard>}
+   </TosVNextCard>
   </TosVNextContent>
   {app==="shift"&&<TosVNextBottomNav label="Điều hướng Ca Làm" active={shiftTab} onChange={x=>setShiftTab(x as typeof shiftTab)}
     items={[{id:"today",label:"Hôm nay",icon:"◉"},{id:"calendar",label:"Lịch ca",icon:"▦"},{id:"hours",label:"Giờ công",icon:"◷"},{id:"pay",label:"Thu nhập",icon:"₫"}]}/>}

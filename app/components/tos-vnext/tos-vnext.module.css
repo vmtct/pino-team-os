@@ -22,3 +22,9 @@
 .body{font-size:15px;line-height:1.55;margin:0}.secondary{font-size:13px;line-height:1.5;color:var(--tos-muted);margin:0}.caption{font-size:12px;line-height:1.5;color:var(--tos-muted)}
 .button:focus-visible,.tab:focus-visible,.home:focus-visible,.tile:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
 @media(max-width:360px){.content{padding:12px}.tile img{width:58px;height:58px}.sheet{padding-inline:14px}}
+
+/* Approved Home keeps its original shell; only contextual settings need new scope. */
+.homeSettingsMenu{position:relative;z-index:30;margin:0 16px 12px auto;max-width:250px;background:#fff;border:1px solid #e3e9e9;border-radius:12px;box-shadow:0 12px 28px #122a3230;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:#293642}
+.homeLogout{display:block;min-height:44px;padding:10px 12px;text-align:left;border:0;border-radius:9px;background:#f3f7f7;font-size:14px;font-weight:650;color:#293642;cursor:pointer}
+.homeIconFallback{display:grid;place-items:center;width:64px;height:64px;border-radius:17px;background:#e7eff7;font:700 24px/1 "Segoe UI",sans-serif;color:#526aa1}
+.homeLogout:focus-visible{outline:2px solid #16816b;outline-offset:2px}
