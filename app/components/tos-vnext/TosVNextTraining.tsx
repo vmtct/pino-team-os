@@ -115,6 +115,7 @@ export function TosVNextTraining(){
    {safeTrainingGuideUrl(selected.guideUrl)&&<a href={safeTrainingGuideUrl(selected.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở tài liệu hướng dẫn</a>}
    {eligibilityBusy&&<p role="status" className={styles.secondary}>Đang kiểm tra điều kiện từ Core…</p>}
    {eligibilityError&&<p role="alert" className={styles.trainingError}>{eligibilityError}</p>}
+   {eligibilityError&&<TosVNextButton variant="secondary" onClick={()=>setSelected({...selected})}>Thử kiểm tra lại điều kiện</TosVNextButton>}
    {eligibility&&<p className={styles.secondary}>Điều kiện Core: {eligibility.eligible?"Đủ điều kiện":"Chưa đủ điều kiện"} · {eligibility.confirmedHours}/{eligibility.requiredHours} giờ xác nhận · {eligibility.missingPrerequisiteModuleIds.length} học phần còn thiếu.</p>}
    {eligibility&&!eligibility.eligible&&eligibility.missingHours>0&&<p className={styles.secondary}>Còn thiếu {eligibility.missingHours} giờ được Core xác nhận.</p>}
    {eligibility&&eligibility.missingPrerequisiteModuleIds.length>0&&<p className={styles.secondary}>Tiên quyết chưa đạt: {eligibility.missingPrerequisiteModuleIds.join(", ")}</p>}
