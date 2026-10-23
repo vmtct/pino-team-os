@@ -9,7 +9,7 @@ import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
 const sectionDetail:Record<StationDesktopTab,string>={overview:"Bảng điều phối",pinoria:"House & Wardrobe",students:"Tra cứu & trạng thái",devices:"Quản lý node",tv:"Nội dung trình chiếu"};
 const tabCopy:Record<StationDesktopTab,{heading:string;description:string;dependency:string}>={
- overview:{heading:"Trạm TOS",description:"Không có chỉ số Station-wide được xác minh từ Core. Bảng điều phối sẽ hiển thị khi API node có quyền truy cập.",dependency:"Workstation node inventory & access"},
+ overview:{heading:"Tổng quan",description:"Không có chỉ số Station-wide được xác minh từ Core. Bảng điều phối sẽ hiển thị khi API node có quyền truy cập.",dependency:"Workstation node inventory & access"},
  pinoria:{heading:"Pinoria",description:"Không sử dụng Wardrobe hoặc Wish demo làm dữ liệu Core.",dependency:"Authorized Pinoria Ward & inventory API"},
  students:{heading:"Học viên",description:"Không tự sinh bảng danh sách học viên từ dữ liệu prototype.",dependency:"Station-wide Student status & privacy access"},
  devices:{heading:"Thiết bị",description:"Không gửi lệnh điều khiển thiết bị nếu chưa có API, chứng minh quyền và receipt.",dependency:"Node health & device command receipts"},
