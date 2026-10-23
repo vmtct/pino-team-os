@@ -23,7 +23,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
  const copy=tabCopy[tab];
  return <div className={styles.stationShell} data-tos-vnext-station="desktop">
   <aside className={styles.stationSidebar}>
-   <div className={styles.stationBrand}><strong>PINO · TRẠM TOS</strong><small>{centerName||"Chưa xác định cơ sở"}</small></div>
+   <div className={styles.stationBrand}><img src="https://assets.pinohouse.art/core/Pino%20Sigil.png" alt="" /><div><strong>Trạm TOS</strong><small>WORKSTATION · PINO HOUSE</small><small>{centerName||"Chưa xác định cơ sở"}</small></div></div>
    <p className={styles.stationSectionLabel}>KHÔNG GIAN VẬN HÀNH</p>
    <nav aria-label="Điều hướng Trạm TOS">
     {STATION_DESKTOP_TABS.map(item=><button type="button" key={item.id}
