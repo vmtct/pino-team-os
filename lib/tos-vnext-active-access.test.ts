@@ -20,3 +20,7 @@ test("PAP-940 enter and mid-session revocation share the same decision",()=>{
  assert.equal(canOpenVNextApp("shift",{...ready,access:null}),true);
  assert.equal(canOpenVNextApp("training",{...ready,access:null}),true);
 });
+
+test('PAP-940 unknown app identity must fail closed at runtime',()=>{
+ assert.equal(canOpenVNextApp('unknown' as never,ready),false);
+});

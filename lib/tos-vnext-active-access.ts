@@ -13,4 +13,5 @@ export function canOpenVNextApp(app:TosVNextAppId,options:{
   case "classroom":return Boolean(options.access?.classroom);
   case "shift-lead":return Boolean(options.access?.["shift-lead"]);
  }
+ return false;
 }
