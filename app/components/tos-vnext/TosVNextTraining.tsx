@@ -24,6 +24,7 @@ export function TosVNextTraining(){
  const [busy,setBusy]=useState(true);
  const [certBusy,setCertBusy]=useState(true);
  const [version,setVersion]=useState(0);
+ const [certVersion,setCertVersion]=useState(0);
  useEffect(()=>{
   let active=true;
   setBusy(true);
@@ -43,7 +44,7 @@ export function TosVNextTraining(){
    .catch(e=>{if(active){setQualifications([]);setCertError(e instanceof Error?e.message:"Không thể tải chứng nhận.");}})
    .finally(()=>{if(active)setCertBusy(false)});
   return()=>{active=false};
- },[]);
+ },[certVersion]);
  return <>
   {tab==="progress"?<>
    <TosVNextHeading title="Thăng Tiến" meta="Core Training V5"/>
@@ -73,6 +74,7 @@ export function TosVNextTraining(){
     <p className={styles.secondary}>Chứng nhận thực từ Training Core hiện hữu (F0). Không quy đổi thành chứng chỉ V5 khi Core chưa xác nhận.</p>
     {certBusy&&<p role="status" className={styles.secondary}>Đang tải chứng nhận…</p>}
     {certError&&<p role="alert" className={styles.trainingError}>{certError}</p>}
+    {certError&&<TosVNextButton variant="secondary" onClick={()=>setCertVersion(x=>x+1)}>Thử tải lại chứng nhận</TosVNextButton>}
     {!certBusy&&!certError&&!qualifications.length&&<p className={styles.body}>Bạn chưa có chứng nhận từ Core.</p>}
     {qualifications.map(cert=><div className={styles.trainingCertRow} key={cert.id}>
       <strong>{cert.qualificationCode}</strong><TosVNextStatus>{cert.status}</TosVNextStatus>
