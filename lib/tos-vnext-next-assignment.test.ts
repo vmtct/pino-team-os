@@ -16,5 +16,9 @@ test("PAP-940 Home excludes non-ACTIVE and other-center shifts",()=>{
 test("PAP-940 Home sorts confirmed shifts deterministically by local start",()=>{
  const rows=[assignment("later","2026-10-23","ACTIVE","center-1","19:00"),assignment("earlier","2026-10-23","ACTIVE","center-1","18:00")];
  assert.equal(nextConfirmedAssignment(rows,"center-1","2026-10-23")?.id,"earlier");
+ assert.equal(nextConfirmedAssignment(rows,"center-1","2026-10-23","21:00"),null);
+ assert.equal(nextConfirmedAssignment(rows,"center-1","2026-10-23","20:59")?.id,"earlier");
+ const overnight={...assignment("night","2026-10-23","ACTIVE","center-1","22:00"),shift:{code:"N",displayLabel:"Ca đêm",startLocalTime:"22:00",endLocalTime:"03:00"}};
+ assert.equal(nextConfirmedAssignment([overnight],"center-1","2026-10-23","11:03")?.id,"night");
  assert.equal(nextConfirmedAssignment(rows,"center-1","bad"),null);
 });

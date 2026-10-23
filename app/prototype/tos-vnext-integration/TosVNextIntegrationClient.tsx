@@ -106,7 +106,8 @@ export default function TosVNextIntegrationPreview(){
   setApp(next);setError("");
  }
  const isDesktop=app==="station";
- const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate);
+ const nowLocalTime=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow);
+ const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate,nowLocalTime);
  // Render-guard, not only useEffect cleanup: never paint stale privileged app content
  // during a Core schedule revalidation or immediately after role revocation.
  const appRenderable=app!=="home"&&!loading&&canOpenVNextApp(app,{
