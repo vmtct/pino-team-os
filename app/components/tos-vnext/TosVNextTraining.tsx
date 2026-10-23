@@ -30,11 +30,11 @@ export function TosVNextTraining(){
   let active=true;
   setBusy(true);
   setError("");setCatalog([]);setRegistrations([]);
-  void Promise.all([tosTrainingV5Api.catalog({query:search.trim()}),tosTrainingV5Api.registrations()])
+  const timer=setTimeout(()=>{void Promise.all([tosTrainingV5Api.catalog({query:search.trim()}),tosTrainingV5Api.registrations()])
    .then(([page,rows])=>{if(active){setCatalog(page.items);setRegistrations(rows);setError("");}})
    .catch(e=>{if(active){setCatalog([]);setRegistrations([]);setError(errorText(e));}})
-   .finally(()=>{if(active)setBusy(false)});
-  return()=>{active=false};
+   .finally(()=>{if(active)setBusy(false)});},250);
+  return()=>{active=false;clearTimeout(timer)};
  },[version,search]);
  useEffect(()=>{
   let active=true;
