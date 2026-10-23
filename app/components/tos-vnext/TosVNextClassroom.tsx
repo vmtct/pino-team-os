@@ -32,7 +32,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   <header className={styles.classDetailHeader} data-tos-vnext="classroom-detail-header">
    <button type="button" onClick={back} aria-label="Trở về danh sách lớp">‹</button>
    <div><strong>{selected.operationalName}</strong>
-    <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
+    <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||"?"} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
   <div data-tos-vnext-class-tabs="v18b"><TosVNextBottomNav label="Mục trong lớp học" active={detailTab} onChange={id=>setDetailTab(id as typeof detailTab)} items={[{id:"students",label:"Học viên",icon:"◉"},{id:"missions",label:"Nhiệm vụ",icon:"◇"},{id:"diary",label:"Nhật ký",icon:"▤"}]}/></div>
   {detailTab==="students"&&<>
