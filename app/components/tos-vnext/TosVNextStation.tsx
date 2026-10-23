@@ -42,7 +42,16 @@ export function TosVNextStation({desktop,centerName,onHome}:{
     {tab==="students"&&<p className={styles.secondary}>Danh sách học viên cần Core kiểm tra quyền truy cập theo trạm.</p>}
     {(tab==="devices"||tab==="tv")&&<p className={styles.secondary}>Chỉ điều khiển sau khi Core xác thực quyền và phản hồi trạng thái thực.</p>}
    </section>
-   <div className={styles.stationDashboardGrid}>
+   {tab==="overview"&&<section aria-label="Thao tác nhanh Trạm TOS">
+    <TosVNextHeading title="Thao tác nhanh" meta="Workstation"/>
+    <div className={styles.stationQuickGrid}>
+     {(["pinoria","tv","students","devices"] as const).map(id=><button key={id} type="button" onClick={()=>setTab(id)}>
+      <strong>{id==="pinoria"?"Pinoria House":id==="tv"?"Trình chiếu TV":id==="students"?"Học viên":"Thiết bị"}</strong>
+      <small>{sectionDetail[id]}</small>
+      <span aria-hidden="true">→</span>
+     </button>)}
+    </div>
+   </section>}   <div className={styles.stationDashboardGrid}>
     <TosVNextCard><TosVNextHeading title="Trạng thái Core" meta="Chưa xác minh"/>
      <p className={styles.body}>{copy.description}</p>
     </TosVNextCard>
