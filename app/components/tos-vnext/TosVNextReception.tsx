@@ -17,7 +17,8 @@ export function TosVNextReception({centerId,workDate,assignments}:{
  const [pending,setPending]=useState(false);
  const [error,setError]=useState("");
  const requestEpoch=useRef(0);
- useEffect(()=>{requestEpoch.current++;setVisit(undefined);setError("");setPending(false);},[centerId,workDate]);
+ useEffect(()=>{requestEpoch.current++;setVisit(undefined);setError("");setPending(false);setStudentId("");},[centerId,workDate]);
+ useEffect(()=>()=>{requestEpoch.current++;},[]);
  const today=ownReceptionAssignments(assignments,centerId,workDate);
  async function findVisit(){
   if(pending||!studentId.trim()||!centerId)return;
