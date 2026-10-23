@@ -14,6 +14,9 @@ function errorText(e:unknown){
   return "Core Training V5 chưa được phát hành. Chức năng Đăng ký tạm khóa.";
  return e instanceof Error?e.message:"Không thể tải Training.";
 }
+const registrationLabel:Record<TrainingV5Registration["status"],string>={
+ REQUESTED:"Đã gửi đăng ký",ACCEPTED:"Đã chấp nhận",IN_TRAINING:"Đang học",COMPLETED:"Hoàn thành",CANCELLED:"Đã hủy"
+};
 export function TosVNextTraining(){
  const [tab,setTab]=useState<Tab>("progress");
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
@@ -87,7 +90,7 @@ export function TosVNextTraining(){
      <p className={styles.body}>{item.summary||item.description||"Chưa có mô tả."}</p>
      <p className={styles.secondary}>{item.path} · {item.track} · {item.minHours} giờ yêu cầu</p>
      {!!item.prerequisiteModuleIds.length&&<p className={styles.secondary}>Có {item.prerequisiteModuleIds.length} học phần tiên quyết (Core xác định điều kiện).</p>}
-     {record?<TosVNextStatus>{record.status}</TosVNextStatus>:
+     {record?<TosVNextStatus>{registrationLabel[record.status]}</TosVNextStatus>:
       <TosVNextButton disabled title="Chờ tích hợp thao tác đăng ký Core V5">Đăng ký</TosVNextButton>}
      {safeTrainingGuideUrl(item.guideUrl)&&<p className={styles.secondary}>Tài liệu: <a href={safeTrainingGuideUrl(item.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở hướng dẫn</a></p>}
     </TosVNextCard>;
@@ -110,7 +113,7 @@ export function TosVNextTraining(){
    <p className={styles.secondary}>Mã: {selected.code} · Path: {selected.path} · {selected.track}</p>
    <p className={styles.body}>{selected.description||selected.summary||"Chưa có mô tả."}</p>
    <p className={styles.secondary}>Số giờ tối thiểu: {selected.minHours}</p>
-   <p className={styles.secondary}>Trạng thái đăng ký: {registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")?.status??"Chưa đăng ký"}</p>
+   <p className={styles.secondary}>Trạng thái đăng ký: {registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")?.status?registrationLabel[registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")!.status]:"Chưa đăng ký"}</p>
    {selected.prerequisiteModuleIds.length>0&&<p className={styles.secondary}>Học phần tiên quyết: {selected.prerequisiteModuleIds.join(", ")}</p>}
    {safeTrainingGuideUrl(selected.guideUrl)&&<a href={safeTrainingGuideUrl(selected.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở tài liệu hướng dẫn</a>}
    {eligibilityBusy&&<p role="status" className={styles.secondary}>Đang kiểm tra điều kiện từ Core…</p>}
