@@ -19,6 +19,7 @@ export function TosVNextTraining(){
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
  const [search,setSearch]=useState("");
  const [path,setPath]=useState("");
+ const [statusFilter,setStatusFilter]=useState<"all"|"registered"|"unregistered">("all");
  const [registrations,setRegistrations]=useState<TrainingV5Registration[]>([]);
  const [qualifications,setQualifications]=useState<StaffQualification[]>([]);
  const [error,setError]=useState("");
@@ -57,12 +58,16 @@ export function TosVNextTraining(){
     <input id="tos-vnext-training-search" type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Mã hoặc tên Training" />
     <label className={styles.secondary} htmlFor="tos-vnext-training-path">Lọc Path</label>
     <input id="tos-vnext-training-path" type="search" value={path} onChange={e=>setPath(e.target.value)} placeholder="Mã Path" />
+    <label className={styles.secondary} htmlFor="tos-vnext-training-status">Trạng thái đăng ký</label>
+    <select id="tos-vnext-training-status" value={statusFilter} onChange={e=>setStatusFilter(e.target.value as typeof statusFilter)}>
+     <option value="all">Tất cả</option><option value="registered">Đã đăng ký</option><option value="unregistered">Chưa đăng ký</option>
+    </select>
     {busy&&<p className={styles.secondary} role="status">Đang tải danh mục…</p>}
     {error&&<p role="alert" className={styles.trainingError}>{error}</p>}
     {error&&<TosVNextButton variant="secondary" onClick={()=>{setBusy(true);setVersion(x=>x+1);}}>Thử tải lại</TosVNextButton>}
    </TosVNextCard>
    {!busy&&!error&&catalog.length===0&&<TosVNextCard><p className={styles.secondary}>Chưa có Training đang mở trong Core.</p></TosVNextCard>}
-   {!busy&&!error&&catalog.map(item=>{
+   {!busy&&!error&&catalog.filter(item=>{const registered=registrations.some(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");return statusFilter==="all"||(statusFilter==="registered"?registered:!registered)}).map(item=>{
     const record=registrations.find(r=>r.moduleId===item.moduleId&&r.status!=="CANCELLED");
     return <TosVNextCard key={item.moduleId}>
      <TosVNextHeading title={item.title} meta={item.code}/>
