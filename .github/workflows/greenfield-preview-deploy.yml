@@ -1,0 +1,44 @@
+name: Greenfield BO Preview Deploy
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: greenfield-bo-preview-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Assert preview isolation
+        run: |
+          set -euo pipefail
+          node - <<'JS'
+          const fs = require('fs');
+          const c = JSON.parse(fs.readFileSync('wrangler.greenfield-preview.json','utf8'));
+          if(c.name!=='pino-team-os-greenfield-preview'||c.workers_dev!==false||c.preview_urls!==false)process.exit(1);
+          if(c.services.length!==8||c.services.some(s=>s.service!=='pino-core-staging'))process.exit(1);
+          if(Object.keys(c.vars||{}).some(k=>/BYPASS|INGRESS/.test(k)))process.exit(1);
+          JS
+      - name: Build isolated preview
+        run: |
+          npm run build
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+          npx wrangler deploy --dry-run -c wrangler.greenfield-preview.json
+      - name: Deploy without public ingress
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          npx wrangler deploy -c wrangler.greenfield-preview.json --message "greenfield-preview sha=${GITHUB_SHA} run=${GITHUB_RUN_ID}"
