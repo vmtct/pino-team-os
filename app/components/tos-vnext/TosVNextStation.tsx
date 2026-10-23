@@ -26,12 +26,12 @@ export function TosVNextStation({desktop,centerName,onHome}:{
    <div className={styles.stationBrand}><strong>PINO · TRẠM TOS</strong><small>{centerName||"Chưa xác định cơ sở"}</small></div>
    <nav aria-label="Điều hướng Trạm TOS">
     {STATION_DESKTOP_TABS.map(item=><button type="button" key={item.id}
-     aria-current={item.id===tab?"page":undefined} onClick={()=>setTab(item.id)}>
+     aria-current={item.id===tab?"page":undefined} aria-controls="tos-vnext-station-workspace" onClick={()=>setTab(item.id)}>
      <span><strong>{item.label}</strong><small>{sectionDetail[item.id]}</small></span></button>)}
    </nav>
    <button type="button" className={styles.stationBack} onClick={onHome}>← Về TOS Home</button>
   </aside>
-  <main className={styles.stationWorkspace}>
+  <main className={styles.stationWorkspace} id="tos-vnext-station-workspace" aria-label="Nội dung Trạm TOS">
    <header className={styles.stationWorkspaceHeader}>
     <div><small>TRẠM TOS · {sectionDetail[tab].toUpperCase()}</small><h1>{copy.heading}</h1></div>
     <TosVNextStatus>Đang tích hợp Core</TosVNextStatus>
