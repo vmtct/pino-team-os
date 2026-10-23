@@ -13,6 +13,7 @@ import {TosVNextStation} from "@/app/components/tos-vnext/TosVNextStation";
 import {TosVNextShiftLead} from "@/app/components/tos-vnext/TosVNextShiftLead";
 import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {canOpenVNextApp} from "@/lib/tos-vnext-active-access";
+import {nextConfirmedAssignment} from "@/lib/tos-vnext-next-assignment";
 import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
  TosVNextCard,TosVNextHeading,TosVNextBottomNav,TosVNextButton,TosVNextStatus,
@@ -105,8 +106,7 @@ export default function TosVNextIntegrationPreview(){
   setApp(next);setError("");
  }
  const isDesktop=app==="station";
- const nextAssignment=[...(data.shift?.assignments??[])].filter(row=>row.status!=="CANCELLED" && row.workDate>=fromDate)
-  .sort((a,b)=>a.workDate.localeCompare(b.workDate))[0]??null;
+ const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate);
  if(app==="home")return <TosVNextHome profileLabel={profileLabel} centerName={center?.displayName}
   authorizedCenters={ctx?.centers??[]} selectedCenterId={centerId}
   onCenterChange={id=>{
