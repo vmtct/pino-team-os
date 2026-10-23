@@ -7,10 +7,12 @@ import { expect, test } from "@playwright/test";
  * isolated BO staging actor via PAP879_AUTH_STATE=<path> if needed.
  */
 const localBase = process.env.PAP879_LOCAL_BASE_URL;
+const authState = process.env.PAP879_AUTH_STATE;
+const authState = process.env.PAP879_AUTH_STATE;
 const safeLocal = !!localBase && /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/?$/.test(localBase);
-test.skip(!safeLocal, "Requires explicit i5 localhost BO staging URL; never tests production implicitly.");
+test.skip(!safeLocal || !authState, "Requires explicit localhost BO staging URL and authenticated actor storage state; never tests production implicitly.");
 
-test.use({ baseURL: safeLocal ? localBase : "http://127.0.0.1:1" });
+test.use({ baseURL: safeLocal ? localBase : "http://127.0.0.1:1", ...(authState ? { storageState: authState } : {}) });
 
 for (const entry of [
   { path: "/bo/learners", title: "Học viên", caption: "School Students directory" },
