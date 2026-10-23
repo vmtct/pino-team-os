@@ -19,7 +19,7 @@ export function TosVNextStation({desktop,centerName,onHome}:{
  desktop:boolean;centerName:string;onHome:()=>void;
 }){
  const [tab,setTab]=useState<StationDesktopTab>("overview");
- if(!desktop)return <TosVNextCard><p role="alert" className={styles.body}>Trạm TOS chỉ sử dụng trên màn hình desktop rộng từ 1024px.</p></TosVNextCard>;
+ if(!desktop)return <TosVNextCard><p role="alert" className={styles.body}>Trạm TOS chỉ sử dụng trên màn hình desktop rộng từ 1024px.</p><button type="button" className={styles.stationBack} onClick={onHome}>← Về TOS Home</button></TosVNextCard>;
  const copy=tabCopy[tab];
  return <div className={styles.stationShell} data-tos-vnext-station="desktop">
   <aside className={styles.stationSidebar}>
