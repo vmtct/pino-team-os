@@ -44,7 +44,7 @@ npm run typecheck
 git diff --check origin/main...HEAD
 ```
 
-At draft head `08173218`, **22/22 targeted contract tests PASS**, TypeScript PASS and Git whitespace check PASS. Local lint/build remain **unverified**: this worktree's `node_modules` Junction points to Next / eslint-config-next v15.5.23 while package.json specifies v16.4.2. Do not claim local lint/build PASS. Use CI with pinned Bun lockfile for exact-head proof.
+As of FC2 commit `67fc70b1`, **46/46 targeted Node contract tests PASS** and Git whitespace check PASS. Previous exact-head `87205d7d` passed GitHub validate and Workers Build; CI for new commits must be checked independently. Local lint/build remain **unverified**: this worktree's `node_modules` Junction may not match the pinned package.json version. Do not claim local lint/build PASS; use exact-head CI evidence.
 
 PR metadata on [#810](https://github.com/vmtct/pino-team-os/pull/810): `Project-Code: PRJ-WFM`, `Entry-Class: EXISTING_GOVERNED_FEATURE`. These are required by current repository validation; do not bypass CI.
 
