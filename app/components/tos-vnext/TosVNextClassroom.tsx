@@ -1,7 +1,7 @@
 "use client";
 /** PAP-945: top-down V18b Classroom projection with exact single detail header. */
 import {useEffect,useState} from "react";
-import {tosClassroomV18bApi,V18bCoreError,V18B_WRITE_ADMITTED,type V18bClassroomOccurrence}
+import {tosClassroomV18bApi,V18bCoreError,type V18bClassroomOccurrence}
  from "@/lib/tos-classroom-v18b-api";
 import {TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
@@ -37,7 +37,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
    <TosVNextHeading title={student.studentDisplayName} meta={student.status==="CONFLICT"?"Cần kiểm tra":"Dự kiến"}/>
    <p className={styles.secondary}>{student.includedManually?"Được thêm vào lớp":"Theo Enrollment / Renewal Grace"}</p>
-   <TosVNextButton disabled={!V18B_WRITE_ADMITTED}>Mở Path Diary</TosVNextButton>
+   <TosVNextButton disabled title="Chưa triển khai thao tác mở Path Diary trong UI">Mở Path Diary</TosVNextButton>
   </TosVNextCard>)}
   {selected.roster.length===0&&<TosVNextCard><p className={styles.secondary}>Core không trả học viên dự kiến cho lớp này.</p></TosVNextCard>}
   <TosVNextCard><TosVNextStatus>Diary Core pending</TosVNextStatus>
