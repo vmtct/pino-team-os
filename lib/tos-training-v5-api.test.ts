@@ -78,3 +78,8 @@ test("PAP-946 eligibility 403 is not converted to locally inferred approval",asy
  globalThis.fetch=(async()=>new Response(JSON.stringify({error:{code:"FORBIDDEN",message:"Not authorized"}}),{status:403})) as typeof fetch;
  try{await assert.rejects(tosTrainingV5Api.eligibility("module-1"),(error:unknown)=>error instanceof TrainingV5ApiError&&error.status===403&&error.code==="FORBIDDEN")}finally{globalThis.fetch=previous}
 });
+test("PAP-946 eligibility 503 keeps unavailable Core separate from approval",async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=(async()=>new Response(JSON.stringify({error:{code:"SERVICE_UNAVAILABLE",message:"Core unavailable"}}),{status:503})) as typeof fetch;
+ try{await assert.rejects(tosTrainingV5Api.eligibility("module-2"),(error:unknown)=>error instanceof TrainingV5ApiError&&error.status===503&&error.code==="SERVICE_UNAVAILABLE")}finally{globalThis.fetch=previous}
+});
