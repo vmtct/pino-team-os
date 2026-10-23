@@ -26,6 +26,7 @@ export function TosVNextTraining(){
  const [version,setVersion]=useState(0);
  useEffect(()=>{
   let active=true;
+  setBusy(true);
   void Promise.all([tosTrainingV5Api.catalog(),tosTrainingV5Api.registrations()])
    .then(([page,rows])=>{if(active){setCatalog(page.items);setRegistrations(rows);setError("");}})
    .catch(e=>{if(active){setCatalog([]);setRegistrations([]);setError(errorText(e));}})
@@ -34,6 +35,7 @@ export function TosVNextTraining(){
  },[version]);
  useEffect(()=>{
   let active=true;
+  setCertBusy(true);
   void workforceTraining.self()
    .then(x=>{if(active){setQualifications(x.qualifications);setCertError("");}})
    .catch(e=>{if(active)setCertError(e instanceof Error?e.message:"Không thể tải chứng nhận.");})
