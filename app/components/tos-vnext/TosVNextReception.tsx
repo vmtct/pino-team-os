@@ -52,7 +52,7 @@ export function TosVNextReception({centerId,workDate,assignments}:{
    <TosVNextCard>
     <TosVNextField label="Mã học viên Core">
      <input value={studentId} onChange={e=>{requestEpoch.current++;requestPending.current=false;setPending(false);setStudentId(e.target.value);setVisit(undefined);setError("")}}
-      onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();void findVisit();}}}
+      onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing){e.preventDefault();void findVisit();}}}
       placeholder="Nhập ID học viên để tra cứu"/>
     </TosVNextField>
     <TosVNextButton onClick={()=>void findVisit()} disabled={pending||!studentId.trim()}>
