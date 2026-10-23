@@ -10,6 +10,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
 }){
  const [rows,setRows]=useState<V18bClassroomOccurrence[]>([]);
  const [selected,setSelected]=useState<V18bClassroomOccurrence|null>(null);
+ const [detailTab,setDetailTab]=useState<"students"|"missions"|"diary">("students");
  const [busy,setBusy]=useState(true);
  const [error,setError]=useState("");
  const [refresh,setRefresh]=useState(0);
@@ -25,7 +26,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
  // onDetailChange is only used at transition; avoid resetting on callback identity changes.
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[centerId,localDate,refresh]);
- function open(row:V18bClassroomOccurrence){setSelected(row);onDetailChange(true)}
+ function open(row:V18bClassroomOccurrence){setDetailTab("students");setSelected(row);onDetailChange(true)}
  function back(){setSelected(null);onDetailChange(false)}
  if(selected&&!busy&&!error)return <>
   <header className={styles.classDetailHeader} data-tos-vnext="classroom-detail-header">
@@ -33,6 +34,11 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <div><strong>{selected.operationalName}</strong>
     <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
+  <nav aria-label="Mục trong lớp học" data-tos-vnext-class-tabs="v18b" style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBlock:12}}>
+   {([{id:"students",label:"Học viên"},{id:"missions",label:"Nhiệm vụ"},{id:"diary",label:"Nhật ký"}] as const).map(item=>
+    <button key={item.id} type="button" aria-current={detailTab===item.id?"page":undefined} onClick={()=>setDetailTab(item.id)} style={{minHeight:44,borderRadius:12,border:"1px solid currentColor",fontWeight:detailTab===item.id?700:400}}>{item.label}</button>)}
+  </nav>
+  {detailTab==="students"&&<>
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
    <TosVNextHeading title={student.studentDisplayName} meta={student.status==="CONFLICT"?"Cần kiểm tra":"Dự kiến"}/>
@@ -40,9 +46,16 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <TosVNextButton disabled title="Chưa triển khai thao tác mở Path Diary trong UI">Mở Path Diary</TosVNextButton>
   </TosVNextCard>)}
   {selected.roster.length===0&&<TosVNextCard><p className={styles.secondary}>Core không trả học viên dự kiến cho lớp này.</p></TosVNextCard>}
-  <TosVNextCard><TosVNextStatus>Diary Core pending</TosVNextStatus>
+  </>}
+  {detailTab==="missions"&&<TosVNextCard>
+   <TosVNextHeading title="Nhiệm vụ hôm nay"/>
+   <p className={styles.secondary}>Mission Catalog theo Path phải lấy từ Core; không hiển thị nhiệm vụ giả.</p>
+   <TosVNextButton disabled>Đọc giáo án · chờ Core</TosVNextButton>
+  </TosVNextCard>}
+  {detailTab==="diary"&&<TosVNextCard><TosVNextStatus>Diary Core pending</TosVNextStatus>
    <p className={styles.secondary}>Path Diary V18b phải xác minh quyền, Mission, media riêng tư và Core PR #1770 trước khi ghi.</p>
-  </TosVNextCard>
+   <TosVNextButton disabled>Ghi / đóng nhật ký · chờ Core</TosVNextButton>
+  </TosVNextCard>}
  </>;
  return <>
   <TosVNextHeading title="Lớp Học" meta={localDate}/>
