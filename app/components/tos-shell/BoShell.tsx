@@ -7,6 +7,7 @@ import { BoCurrentUserMenu } from "./BoCurrentUserMenu";
 import { LogoutButton } from "./LogoutButton";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import styles from "./bo-shell.module.css";
+import { normalizeSidebarSearch, toggleBoSidebarGroup } from "@/lib/bo-sidebar-state";
 
 export type BoNavChild = {
   label: string;
@@ -55,6 +56,9 @@ export function BoShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [sidebarQuery, setSidebarQuery] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+  const normalizedSidebarQuery = normalizeSidebarSearch(sidebarQuery);
 
   const destinations = useMemo(() => groups.flatMap((group) => group.items.flatMap((item) => {
     const own = item.href ? [{ group: group.label, label: item.label, href: item.href }] : [];
@@ -94,7 +98,7 @@ export function BoShell({
     setCommandOpen(false);
     setQuery("");
   }  return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-bo-design-system="v23">
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.brand}>
           <span className={styles.brandMark}>P</span>
@@ -103,11 +107,16 @@ export function BoShell({
         </div>
         <div className={styles.foundationBadge}>PLT-BO · CANONICAL</div>
 
+        <div className={styles.sidebarSearch}>
+          <input aria-label="Tìm module BO" placeholder="Tìm module…" value={sidebarQuery} onChange={event => setSidebarQuery(event.target.value)} />
+          <button type="button" onClick={() => setCollapsedGroups(groups.map(group => group.label))} aria-label="Thu gọn tất cả nhóm">−</button>
+          <button type="button" onClick={() => setCollapsedGroups([])} aria-label="Mở rộng tất cả nhóm">+</button>
+        </div>
         <nav className={styles.nav} aria-label="Điều hướng Back Office">
-          {groups.map((group) => (
+          {groups.map(group => ({...group, items: normalizedSidebarQuery ? group.items.filter(item => normalizeSidebarSearch(group.label).includes(normalizedSidebarQuery) || normalizeSidebarSearch(item.label).includes(normalizedSidebarQuery) || item.children?.some(child => normalizeSidebarSearch(child.label).includes(normalizedSidebarQuery))) : group.items})).filter(group => !normalizedSidebarQuery || group.items.length).map((group) => (
             <section className={styles.navGroup} key={group.label}>
-              <span>{group.label}</span>
-              {group.items.map((item) => {
+              <button type="button" aria-expanded={normalizedSidebarQuery ? true : !collapsedGroups.includes(group.label)} onClick={() => setCollapsedGroups(current => toggleBoSidebarGroup(current, group.label))}>{group.label}</button>
+              {(normalizedSidebarQuery || !collapsedGroups.includes(group.label)) && group.items.map((item) => {
                 const active = itemIsActive(pathname, item);
                 return (
                   <div key={`${group.label}:${item.label}`}>

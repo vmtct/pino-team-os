@@ -81,6 +81,7 @@ export const boNavigation: BoNavGroup[] = [
       },
       { href: "/bo/pinoria-effects", label: "Effects" },
       { href: "/bo/pinoria-tv-policy", label: "TV Projection Policy" },
+      { href: "/bo/pinoria-tv-operator", label: "TV Operations" },
     ],
   },
   {

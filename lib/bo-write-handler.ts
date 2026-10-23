@@ -13,6 +13,7 @@ const TV_DEVICE_CREATE = "tv/devices";
 const TV_POLICY_POST = new Set(["pinoria/tv-config/policy/drafts","pinoria/tv-config/policy/publish","pinoria/tv-config/policy/revert"]);
 const MISSION_CATALOG_CREATE = "learning/missions";
 const MISSION_CATALOG_UPDATE = /^learning\/missions\/[0-9a-f-]{36}$/;
+const TV_DIALOGUE_CONFIG_POST = new Set(["pinoria/tv-config/dialogue/drafts","pinoria/tv-config/dialogue/publish","pinoria/tv-config/dialogue/revert"]);
 const TV_SPATIAL_CONFIG_POST = new Set(["pinoria/tv-config/spatial/drafts","pinoria/tv-config/spatial/publish","pinoria/tv-config/spatial/revert"]);
 const TV_DEVICE_UPDATE = /^tv\/devices\/[0-9a-f-]{36}\/update$/;
 const STAFF_REGISTRATION_SETTINGS_PATH = "workforce/staff-registration-settings";
@@ -45,6 +46,8 @@ const DELIVERY_POST_PATHS = new Set([
 ]);
 const TERM_WEEK_COMMAND = /^delivery\/term-weeks\/[0-9a-f-]{36}\/(update|delete)$/;
 const TERM_NEUTRALIZE_COMMAND = /^delivery\/terms\/[0-9a-f-]{36}\/neutralize$/;
+const RUNNING_CLASS_PATCH = /^delivery\/running-classes\/[0-9a-f-]{36}$/;
+const STUDENT_PROFILE_PATCH = /^students\/[0-9a-f-]{36}$/;
 const DELIVERY_CONFIG_LIFECYCLE = /^delivery\/(?:learning-spaces|running-classes)\/[0-9a-f-]{36}\/lifecycle$/;
 const DELIVERY_FUTURE_RESERVATION_POLICY_VERSION = "policies/delivery/future_reservation.v1/versions";
 const DELIVERY_FUTURE_RESERVATION_POLICY_PUBLISH = /^policies\/delivery\/future_reservation\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
@@ -154,16 +157,16 @@ export async function handleBoWriteRequest(
     }
     if (
       request.method !== "POST"
-      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path) || MISSION_CATALOG_UPDATE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    if (!isAllowedPostPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if ((TV_SPATIAL_CONFIG_POST.has(path) || TV_POLICY_POST.has(path) || path === MISSION_CATALOG_CREATE || MISSION_CATALOG_UPDATE.test(path) || path === PAP21_LEGACY_IMPORT_EXECUTE || path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_VISIT_CHECK_IN || STUDENT_VISIT_COMMAND.test(path) || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || ACQUISITION_LEAD_ARCHIVE.test(path) || path === PANCAKE_SETTINGS_COMMAND || PANCAKE_CHANNEL_CONFIG.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || isStaffCompensationPath(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
+    if (((TV_SPATIAL_CONFIG_POST.has(path) || TV_DIALOGUE_CONFIG_POST.has(path)) || TV_POLICY_POST.has(path) || path === MISSION_CATALOG_CREATE || MISSION_CATALOG_UPDATE.test(path) || path === PAP21_LEGACY_IMPORT_EXECUTE || path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_VISIT_CHECK_IN || STUDENT_VISIT_COMMAND.test(path) || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || ACQUISITION_LEAD_ARCHIVE.test(path) || path === PANCAKE_SETTINGS_COMMAND || PANCAKE_CHANNEL_CONFIG.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || isStaffCompensationPath(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -246,7 +249,7 @@ export function isOpenStudioPostPath(path: string): boolean {
 }
 
 export function isAllowedPostPath(path: string): boolean {
-  return TV_SPATIAL_CONFIG_POST.has(path)
+  return (TV_SPATIAL_CONFIG_POST.has(path) || TV_DIALOGUE_CONFIG_POST.has(path))
     || TV_POLICY_POST.has(path)
     || path === MISSION_CATALOG_CREATE
     || MISSION_CATALOG_UPDATE.test(path)

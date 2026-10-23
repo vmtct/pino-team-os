@@ -5,6 +5,7 @@ import { BoShell } from "@/app/components/tos-shell";
 import { authorizeBoShell, BoShellGateError, type BoShellContext, type BoShellGateEnv } from "@/lib/bo-shell-gate";
 import { BoSessionBoundary } from "./BoSessionBoundary";
 import { boNavigation } from "./navigation";
+import "./design-system/foundation.css";
 
 export const dynamic = "force-dynamic";
 
