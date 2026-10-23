@@ -4,6 +4,9 @@ import { expect, test } from "@playwright/test";
 const localBase = process.env.PAP879_LOCAL_BASE_URL;
 const authState = process.env.PAP879_AUTH_STATE;
 const safeLocal = !!localBase && /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/?$/.test(localBase);
+if (process.env.PAP879_REQUIRE_E2E === "1" && (!safeLocal || !authState)) {
+  throw new Error("PAP-512 E2E required, but isolated localhost URL or authenticated actor state is missing; refusing skipped green verdict.");
+}
 test.skip(!safeLocal || !authState, "Requires explicit localhost BO staging URL and authenticated actor storage state.");
 test.use({ baseURL: safeLocal ? localBase : "http://127.0.0.1:1", ...(authState ? { storageState: authState } : {}) });
 
