@@ -45,3 +45,9 @@ test("PAP-946 eligibility requires module ID and preserves server authority",asy
  await assert.rejects(tosTrainingV5Api.eligibility(" "),(e:unknown)=>
   e instanceof TrainingV5ApiError&&e.status===400);
 });
+
+test('PAP-946 eligibility normalizes surrounding module whitespace',async()=>{
+ const old=globalThis.fetch;let url='';
+ globalThis.fetch=(async(input:RequestInfo|URL)=>{url=String(input);return new Response(JSON.stringify({data:{moduleId:'module-1',eligible:true}}),{status:200})}) as typeof fetch;
+ try{await tosTrainingV5Api.eligibility('  module-1  ');assert.ok(url.endsWith('moduleId=module-1'));}finally{globalThis.fetch=old}
+});

@@ -53,7 +53,7 @@ export const tosTrainingV5Api={
  registrations:()=>read<TrainingV5Registration[]>("/registrations"),
  eligibility:(moduleId:string)=>{
   if(!moduleId.trim())return Promise.reject(new TrainingV5ApiError(400,"INVALID_MODULE","Thiếu mã Training."));
-  return read<TrainingV5Eligibility>("/eligibility?moduleId="+encodeURIComponent(moduleId));
+  return read<TrainingV5Eligibility>("/eligibility?moduleId="+encodeURIComponent(moduleId.trim()));
  },
  /** Refuse every write while source-owned contracts remain unmerged. */
  register:async (_moduleId:string,_idempotencyKey:string):Promise<never>=>{
