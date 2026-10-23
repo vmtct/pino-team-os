@@ -6,6 +6,7 @@ const source=readFileSync(new URL("../app/components/tos-vnext/TosVNextClassroom
 
 test("PAP-945 class detail preserves V18b three-tab navigation and one contextual header",()=>{
  assert.match(source,/data-tos-vnext-class-tabs="v18b"/);
+ assert.match(source,/TosVNextBottomNav label="Mục trong lớp học"/);
  for(const label of ["Học viên","Nhiệm vụ","Nhật ký"]){assert.ok(source.includes(`label:"${label}"`),`missing ${label} tab`)}
  assert.match(source,/setDetailTab\("students"\);setSelected\(row\)/);
  assert.equal((source.match(/data-tos-vnext="classroom-detail-header"/g)??[]).length,1);

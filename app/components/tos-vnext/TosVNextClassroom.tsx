@@ -3,7 +3,7 @@
 import {useEffect,useState} from "react";
 import {tosClassroomV18bApi,V18bCoreError,type V18bClassroomOccurrence}
  from "@/lib/tos-classroom-v18b-api";
-import {TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
 import styles from "./tos-vnext.module.css";
 export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
  centerId:string;localDate:string;onDetailChange:(open:boolean)=>void
@@ -34,10 +34,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
    <div><strong>{selected.operationalName}</strong>
     <small>{selected.occurrence.localInterval?`${selected.occurrence.localInterval.startsAt} – ${selected.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}</small></div>
   </header>
-  <nav aria-label="Mục trong lớp học" data-tos-vnext-class-tabs="v18b" style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBlock:12}}>
-   {([{id:"students",label:"Học viên"},{id:"missions",label:"Nhiệm vụ"},{id:"diary",label:"Nhật ký"}] as const).map(item=>
-    <button key={item.id} type="button" aria-current={detailTab===item.id?"page":undefined} onClick={()=>setDetailTab(item.id)} style={{minHeight:44,borderRadius:12,border:"1px solid currentColor",fontWeight:detailTab===item.id?700:400}}>{item.label}</button>)}
-  </nav>
+  <div data-tos-vnext-class-tabs="v18b"><TosVNextBottomNav label="Mục trong lớp học" active={detailTab} onChange={id=>setDetailTab(id as typeof detailTab)} items={[{id:"students",label:"Học viên",icon:"◉"},{id:"missions",label:"Nhiệm vụ",icon:"◇"},{id:"diary",label:"Nhật ký",icon:"▤"}]}/></div>
   {detailTab==="students"&&<>
   <TosVNextHeading title="Học viên" meta={selected.roster.length+" học viên"}/>
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
