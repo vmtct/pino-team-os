@@ -56,3 +56,9 @@ test('PAP-946 invalid catalog pagination fails before Core fetch',async()=>{
  const old=globalThis.fetch;let calls=0;globalThis.fetch=(async()=>{calls++;throw new Error('unexpected fetch')}) as typeof fetch;
  try{for(const input of [{limit:0},{limit:1.5},{offset:-1},{offset:NaN}])await assert.rejects(tosTrainingV5Api.catalog(input),(e:unknown)=>e instanceof TrainingV5ApiError&&e.code==='INVALID_PAGINATION');assert.equal(calls,0);}finally{globalThis.fetch=old}
 });
+
+test('PAP-946 combines Core catalog query and Path filters',async()=>{
+ const old=globalThis.fetch;let uri='';
+ globalThis.fetch=(async(input:RequestInfo|URL)=>{uri=String(input);return new Response(JSON.stringify({data:{items:[],total:0,limit:30,offset:0}}),{status:200})}) as typeof fetch;
+ try{await tosTrainingV5Api.catalog({query:'  sketch  ',path:'  ART-01  '});const url=new URL(uri,'https://local.test');assert.equal(url.searchParams.get('query'),'sketch');assert.equal(url.searchParams.get('path'),'ART-01');}finally{globalThis.fetch=old}
+});
