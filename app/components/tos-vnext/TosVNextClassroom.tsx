@@ -14,7 +14,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
  const [error,setError]=useState("");
  const [refresh,setRefresh]=useState(0);
  useEffect(()=>{
-  let valid=true;setBusy(true);setError("");setSelected(null);onDetailChange(false);
+  let valid=true;setBusy(true);setError("");setRows([]);setSelected(null);onDetailChange(false);
   void tosClassroomV18bApi.today(centerId,localDate)
    .then(day=>{if(valid)setRows(day.occurrences)})
    .catch(e=>{if(valid){setRows([]);setError(e instanceof V18bCoreError&&[404,501,503].includes(e.status)?
@@ -27,7 +27,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
  },[centerId,localDate,refresh]);
  function open(row:V18bClassroomOccurrence){setSelected(row);onDetailChange(true)}
  function back(){setSelected(null);onDetailChange(false)}
- if(selected)return <>
+ if(selected&&!busy&&!error)return <>
   <header className={styles.classDetailHeader} data-tos-vnext="classroom-detail-header">
    <button type="button" onClick={back} aria-label="Trở về danh sách lớp">‹</button>
    <div><strong>{selected.operationalName}</strong>
