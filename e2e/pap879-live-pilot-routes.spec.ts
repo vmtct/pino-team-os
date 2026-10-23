@@ -29,6 +29,7 @@ for (const entry of [
       await expect(page).not.toHaveURL(/\/(?:staff-login|login)\b/);
       await expect(page.getByRole("heading", { name: entry.title })).toBeVisible();
       await expect(page.getByRole("table", { name: entry.caption })).toBeVisible();
+      await expect(page.getByLabel("Các chế độ xem dùng chung"), "Core-authorized route must mount Shared Views runtime").toBeVisible();
       expect(errors, "No JS runtime exceptions").toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await page.screenshot({ path: testInfo.outputPath(`pap879-${entry.path.split("/").pop()}-${width}.png`), fullPage: true });
