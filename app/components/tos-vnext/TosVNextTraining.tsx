@@ -99,7 +99,7 @@ export function TosVNextTraining(){
   {selected&&<TosVNextSheet title={selected.title} onClose={()=>setSelected(null)}>
    <p className={styles.secondary}>Mã: {selected.code} · Path: {selected.path} · {selected.track}</p>
    <p className={styles.body}>{selected.description||selected.summary||"Chưa có mô tả."}</p>
-   <p className={styles.secondary}>Số giờ tối thiểu: {selected.minHours}</p>
+   <p className={styles.secondary}>Số giờ tối thiểu: {selected.minHours}</p>\n   <p className={styles.secondary}>Trạng thái đăng ký: {registrations.find(r=>r.moduleId===selected.moduleId&&r.status!=="CANCELLED")?.status??"Chưa đăng ký"}</p>
    {selected.prerequisiteModuleIds.length>0&&<p className={styles.secondary}>Học phần tiên quyết: {selected.prerequisiteModuleIds.join(", ")}</p>}
    {safeTrainingGuideUrl(selected.guideUrl)&&<a href={safeTrainingGuideUrl(selected.guideUrl)!} target="_blank" rel="noopener noreferrer">Mở tài liệu hướng dẫn</a>}
    <p className={styles.secondary}>Đăng ký và xác nhận điều kiện do Core Training V5 quyết định.</p>
