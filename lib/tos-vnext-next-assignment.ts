@@ -15,5 +15,5 @@ export function nextConfirmedAssignment(
     (a.effectiveEndLocal??a.shift?.endLocalTime??"")<=nowLocalTime))
   .sort((a,b)=>a.workDate.localeCompare(b.workDate)||
     (a.effectiveStartLocal??a.shift?.startLocalTime??"").localeCompare(
-     b.effectiveStartLocal??b.shift?.startLocalTime??""))[0]??null;
+     b.effectiveStartLocal??b.shift?.startLocalTime??"")||a.id.localeCompare(b.id))[0]??null;
 }
