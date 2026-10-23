@@ -1,0 +1,59 @@
+name: Greenfield Preview Isolated Worker
+on:
+  push:
+    branches: [fc1/tr41-minpilot-20261023]
+    paths:
+      - '.github/workflows/greenfield-preview-isolated.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pino-greenfield-preview-isolated-worker
+  cancel-in-progress: false
+jobs:
+  deploy-isolated:
+    if: github.repository == 'vmtct/pino-team-os' && github.ref == 'refs/heads/fc1/tr41-minpilot-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify fail-closed preview configuration
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const c = JSON.parse(fs.readFileSync('wrangler.greenfield-preview.json','utf8'));
+          const assert = require('node:assert/strict');
+          assert.equal(c.name,'pino-team-os-greenfield-preview');
+          assert.equal(c.workers_dev,false);
+          assert.equal(c.preview_urls,false);
+          assert.equal(c.keep_vars,false);
+          assert.ok(!c.routes && !c.route && !c.custom_domains);
+          assert.ok(!c.send_email);
+          assert.equal(c.vars.FOUNDER_EMAIL,'');
+          assert.equal(c.services.length,8);
+          for(const svc of c.services) assert.equal(svc.service,'pino-core-staging');
+          for(const [key] of Object.entries(c.vars)) assert.ok(!/BYPASS|INGRESS/i.test(key));
+          console.log('PREVIEW_FENCE_PASS');
+          NODE
+      - run: npm ci --no-audit --no-fund
+      - name: Build isolated Cloudflare artifact
+        run: |
+          npm run build
+          npx opennextjs-cloudflare build
+          test -s .open-next/worker.js
+          npx wrangler deploy --dry-run -c wrangler.greenfield-preview.json
+      - name: Deploy isolated worker without ingress
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}"
+          npx wrangler deploy -c wrangler.greenfield-preview.json --message "greenfield-preview sha=${GITHUB_SHA} run=${GITHUB_RUN_ID}"
+          echo "Preview Worker deployed with workers_dev=false and no public routes. Ingress remains unconfigured."
