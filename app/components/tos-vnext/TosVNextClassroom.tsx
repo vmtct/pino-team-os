@@ -40,6 +40,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   {selected.roster.map(student=><TosVNextCard key={student.studentProfileId}>
    <TosVNextHeading title={student.studentDisplayName} meta={student.status==="CONFLICT"?"Cần kiểm tra":"Dự kiến"}/>
    <p className={styles.secondary}>{student.includedManually?"Được thêm vào lớp":"Theo Enrollment / Renewal Grace"}</p>
+   {student.status==="CONFLICT"&&<p role="alert" className={styles.trainingError}>Học viên có xung đột trong danh sách dự kiến từ Core; cần xác minh trước khi ghi nhật ký.</p>}
    <TosVNextButton disabled title="Chưa triển khai thao tác mở Path Diary trong UI">Mở Path Diary</TosVNextButton>
   </TosVNextCard>)}
   {selected.roster.length===0&&<TosVNextCard><p className={styles.secondary}>Core không trả học viên dự kiến cho lớp này.</p></TosVNextCard>}
