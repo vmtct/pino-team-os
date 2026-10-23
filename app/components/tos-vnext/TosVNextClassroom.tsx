@@ -15,7 +15,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
  const [refresh,setRefresh]=useState(0);
  useEffect(()=>{
   let valid=true;setBusy(true);setError("");setRows([]);setSelected(null);onDetailChange(false);
-  void tosClassroomV18bApi.today(centerId,localDate)
+  void Promise.resolve().then(()=>tosClassroomV18bApi.today(centerId,localDate))
    .then(day=>{if(valid)setRows(day.occurrences)})
    .catch(e=>{if(valid){setRows([]);setError(e instanceof V18bCoreError&&[404,501,503].includes(e.status)?
     "Core Classroom V18b chưa được phát hành hoặc chưa khả dụng. Không hiển thị danh sách giả.":
