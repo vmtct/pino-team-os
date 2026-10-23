@@ -28,3 +28,9 @@
 .homeLogout{display:block;min-height:44px;padding:10px 12px;text-align:left;border:0;border-radius:9px;background:#f3f7f7;font-size:14px;font-weight:650;color:#293642;cursor:pointer}
 .homeIconFallback{display:grid;place-items:center;width:64px;height:64px;border-radius:17px;background:#e7eff7;font:700 24px/1 "Segoe UI",sans-serif;color:#526aa1}
 .homeLogout:focus-visible{outline:2px solid #16816b;outline-offset:2px}
+
+/* PAP-946: Training V5 two-tab cards and certificate evidence. */
+.trainingError{font-size:14px;line-height:1.55;margin:12px 0;color:#9b333f;overflow-wrap:anywhere}
+.trainingCertRow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 0;border-top:1px solid var(--tos-line)}
+.trainingCertRow strong{font-size:15px;flex:1}
+.trainingCertRow small{color:var(--tos-muted);font-size:13px;line-height:1.5;width:100%}

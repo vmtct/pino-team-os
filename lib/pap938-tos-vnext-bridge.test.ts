@@ -33,7 +33,7 @@ function backend(url:string){
 test("PAP-938 exactly six approved TOS app identities, no standalone Duty",()=>{
  assert.deepEqual(SIX_TOS_APPS.map(x=>x.id),["shift","reception","station","shift-lead","classroom","training"]);
  assert.equal(SIX_TOS_APPS.find(x=>x.id==="station")?.mode,"desktop");
- assert.equal(TOS_BACKEND_MATRIX.some(x=>x.app==="classroom"&&x.status==="MISSING_CONTRACT"),true);
+ assert.equal(TOS_BACKEND_MATRIX.some(x=>x.app==="classroom"&&x.status==="CORE_PR_PENDING"),true);
  assert.equal(TOS_BACKEND_MATRIX.some(x=>x.app==="training"&&x.status==="LEGACY_ONLY"),true);
 });
 test("PAP-938 center must match authenticated Core Workforce context",()=>{
@@ -71,7 +71,8 @@ test("PAP-938 legacy Classroom projection never falsely marked V18b",async()=>{
   const rows=await classroomLegacyReadModel("center-1","2026-10-23");
   assert.equal(rows[0].id,"legacy-s1");
   assert.ok(mock.calls.some(x=>x.url.includes("/api/tos-learning/sessions/day?")));
-  assert.ok(TOS_BACKEND_MATRIX.some(x=>x.capability==="Path Diary REGISTERED/CLOSED"&&x.status==="MISSING_CONTRACT"));
+  assert.ok(TOS_BACKEND_MATRIX.some(x=>x.capability==="Path Diary REGISTERED/CLOSED"&&x.status==="CORE_PR_PENDING"));
+ assert.ok(TOS_BACKEND_MATRIX.some(x=>x.app==="training"&&x.capability.includes("V5")&&x.status==="CORE_PR_PENDING"));
  }finally{mock.restore()}
 });
 test("PAP-938 Training F0 read and contextual Duty do not synthesize V5/standalone-app truth",async()=>{

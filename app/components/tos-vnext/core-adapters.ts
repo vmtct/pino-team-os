@@ -11,7 +11,7 @@ import {workforceTraining} from "@/lib/workforce-training-client";
 import type {TrainingSelfProjection} from "@/lib/training-model";
 import type {TosVNextAppId} from "./identity";
 
-export type TosBackendReadiness="WIRED_READ"|"LEGACY_ONLY"|"MISSING_CONTRACT"|"SECURITY_DEPENDENCY";
+export type TosBackendReadiness="WIRED_READ"|"LEGACY_ONLY"|"CORE_PR_PENDING"|"MISSING_CONTRACT"|"SECURITY_DEPENDENCY";
 export interface TosBackendSurface {app:TosVNextAppId;capability:string;status:TosBackendReadiness;owner:string;description:string}
 export const TOS_BACKEND_MATRIX=[
  {app:"shift",capability:"shift schedule/timekeeping",status:"WIRED_READ",owner:"PAP-700",description:"workforceApi.context/schedule/currentTimekeeping"},
@@ -24,9 +24,9 @@ export const TOS_BACKEND_MATRIX=[
  {app:"shift-lead",capability:"shift-context duty projections",status:"WIRED_READ",owner:"PAP-671",description:"workforceApi.dutyBoard, Core still enforces permissions"},
  {app:"shift-lead",capability:"station-wide management",status:"MISSING_CONTRACT",owner:"PAP-944",description:"Shift-leader scope/action policy not yet accepted"},
  {app:"classroom",capability:"legacy session/day roster read",status:"LEGACY_ONLY",owner:"PAP-727",description:"tosLearningApi.sessionsDay/roster returns Session-based data; not approved V18b session-free Path Diary"},
- {app:"classroom",capability:"Path Diary REGISTERED/CLOSED",status:"MISSING_CONTRACT",owner:"PAP-724/945",description:"Real one student×occurrence×Path, multi Mission write+readback unverified"},
+ {app:"classroom",capability:"Path Diary REGISTERED/CLOSED",status:"CORE_PR_PENDING",owner:"PAP-724/945",description:"Core PR #1770 unmerged/conflicting; V18b Diary register/draft/missions/evidence/close needs verified live contract"},
  {app:"training",capability:"staff own legacy training",status:"LEGACY_ONLY",owner:"PAP-847",description:"workforceTraining.self is old assignment/Skill Passport, NOT Training V5 register/cert API"},
- {app:"training",capability:"V5 registration and certification",status:"MISSING_CONTRACT",owner:"PAP-848/849/850/946",description:"Do not fabricate eligibility or training completion"}
+ {app:"training",capability:"V5 catalog/registration/eligibility",status:"CORE_PR_PENDING",owner:"PAP-848/849/946",description:"Typed read UI ready; Core PRs #1793/#1794 unmerged; registration/cancel disabled until verified Core"}
 ] as const satisfies readonly TosBackendSurface[];
 
 export class TosVNextScopeError extends Error {
