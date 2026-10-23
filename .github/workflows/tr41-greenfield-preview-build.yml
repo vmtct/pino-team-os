@@ -1,0 +1,38 @@
+name: TR41 Greenfield Preview Artifact
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - wrangler.greenfield-preview.json
+      - .github/workflows/tr41-greenfield-preview-build.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.15
+      - run: bun install --frozen-lockfile
+      - name: Verify isolated preview config
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const c=JSON.parse(fs.readFileSync('wrangler.greenfield-preview.json','utf8'));
+          if(c.name!=='pino-team-os-greenfield-preview'||c.workers_dev!==false||c.preview_urls!==false||c.keep_vars!==false) process.exit(1);
+          if(c.services?.length!==8||c.services.some(s=>s.service!=='pino-core-staging')) process.exit(1);
+          if(Object.keys(c.vars||{}).some(k=>/BYPASS|INGRESS/.test(k))) process.exit(1);
+          if(c.send_email) process.exit(1);
+          NODE
+      - run: bun run build
+      - run: bunx opennextjs-cloudflare build
+      - name: Validate preview bundle without deployment
+        run: |
+          test -s .open-next/worker.js
+          bunx wrangler deploy --dry-run -c wrangler.greenfield-preview.json
