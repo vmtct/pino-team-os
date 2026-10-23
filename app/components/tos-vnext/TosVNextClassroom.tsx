@@ -52,7 +52,7 @@ export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
   {!busy&&!error&&rows.length===0&&<TosVNextCard><p className={styles.secondary}>Không có lớp được phân công/được phép xem hôm nay.</p></TosVNextCard>}
   {!busy&&!error&&rows.map(row=><TosVNextCard key={row.teachingContextKey}>
    <TosVNextHeading title={row.operationalName}
-    meta={row.occurrence.localInterval?.startsAt?.split("T")[1]?.slice(0,5)||localDate}/>
+    meta={row.occurrence.localInterval?`${row.occurrence.localInterval.startsAt.split("T")[1]?.slice(0,5)||localDate}–${row.occurrence.localInterval.endsAt.split("T")[1]?.slice(0,5)||"?"}`:localDate}/>
    <p className={styles.secondary}>{row.roster.length} học viên · {row.rosterCoverage==="ENROLLMENTS_AND_GRACE_ONLY"?"Enrollment / Grace":"Theo Core"}</p>
    <TosVNextButton variant="secondary" onClick={()=>open(row)}>Vào lớp</TosVNextButton>
   </TosVNextCard>)}
