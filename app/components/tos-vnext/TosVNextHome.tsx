@@ -65,10 +65,15 @@ export function TosVNextHome({profileLabel,centerName,authorizedCenters,selected
       aria-expanded={settingsOpen} aria-controls="tos-vnext-home-settings" onClick={()=>setSettingsOpen(v=>!v)}>⚙</button>
     </div>
    </header>
-   {settingsOpen&&<div role="menu" aria-label="Cài đặt" className={shell.homeSettingsMenu}>
+   {settingsOpen&&<section id="tos-vnext-home-settings" aria-label="Cài đặt" className={shell.homeSettingsMenu}>
     <span>{profileLabel||"Tài khoản TOS"}</span>
+    {authorizedCenters.length>1&&<label className={shell.homeCenterLabel}>Trung tâm
+     <select value={selectedCenterId} disabled={busy} onChange={e=>{onCenterChange(e.target.value);setSettingsOpen(false)}}>
+      {authorizedCenters.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}
+     </select>
+    </label>}
     <LogoutButton className={shell.homeLogout}/>
-   </div>}
+   </section>}
    <button type="button" className={home.shiftCard} disabled={busy}
     onClick={()=>onOpen("shift")}>
     <span className={home.shiftTopline}><span className={home.statusDot}/>
