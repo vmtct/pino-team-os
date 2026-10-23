@@ -73,3 +73,8 @@ test("PAP-946 catalog pagination sends the requested Core window",async()=>{
  globalThis.fetch=(async(input:RequestInfo|URL)=>{uri=String(input);return new Response(JSON.stringify({data:{items:[],total:72,limit:30,offset:30}}),{status:200})}) as typeof fetch;
  try{const page=await tosTrainingV5Api.catalog({query:"art",limit:30,offset:30});const params=new URL(uri,"https://local.test").searchParams;assert.equal(params.get("limit"),"30");assert.equal(params.get("offset"),"30");assert.equal(page.total,72);assert.equal(page.offset,30);}finally{globalThis.fetch=old}
 });
+test("PAP-946 eligibility 403 is not converted to locally inferred approval",async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=(async()=>new Response(JSON.stringify({error:{code:"FORBIDDEN",message:"Not authorized"}}),{status:403})) as typeof fetch;
+ try{await assert.rejects(tosTrainingV5Api.eligibility("module-1"),(error:unknown)=>error instanceof TrainingV5ApiError&&error.status===403&&error.code==="FORBIDDEN")}finally{globalThis.fetch=previous}
+});
