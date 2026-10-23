@@ -8,7 +8,6 @@ import { expect, test } from "@playwright/test";
  */
 const localBase = process.env.PAP879_LOCAL_BASE_URL;
 const authState = process.env.PAP879_AUTH_STATE;
-const authState = process.env.PAP879_AUTH_STATE;
 const safeLocal = !!localBase && /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/?$/.test(localBase);
 test.skip(!safeLocal || !authState, "Requires explicit localhost BO staging URL and authenticated actor storage state; never tests production implicitly.");
 
