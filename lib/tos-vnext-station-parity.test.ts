@@ -15,3 +15,12 @@ test("PAP-943 unverified device and TV actions stay disabled until Core truth",(
  assert.match(station,/stationDisabledAction\} disabled/);
  assert.match(station,/Chưa có xác nhận dữ liệu\/command/);
 });
+
+test('PAP-943 V8 overview metrics remain unknown until verified Core',()=>{
+ assert.match(station,/Chưa có dữ liệu Core được xác minh/);
+ assert.match(station,/stationMetricUnknown/);
+ assert.match(station,/Học viên tại PINO/);
+ assert.match(station,/Wish đang chờ/);
+ assert.match(station,/Thiết bị cần kiểm tra/);
+ assert.match(station,/Trạng thái TV/);
+});
