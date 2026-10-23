@@ -16,6 +16,9 @@ import shell from "./tos-vnext.module.css";
 type HomeProps={
  profileLabel?:string|null;
  centerName?:string|null;
+ authorizedCenters:readonly {id:string;displayName:string}[];
+ selectedCenterId:string;
+ onCenterChange:(centerId:string)=>void;
  nextAssignment?:Assignment|null;
  busy:boolean;
  allowed:(app:TosVNextAppId)=>boolean;
@@ -31,7 +34,7 @@ function shiftHours(assignment:Assignment|null|undefined){
  const end=time(assignment.effectiveEndLocal)||time(assignment.shift?.endLocalTime);
  return start&&end?`${start}–${end}`:"";
 }
-export function TosVNextHome({profileLabel,centerName,nextAssignment,busy,allowed,onOpen,onNotify,notice}:HomeProps){
+export function TosVNextHome({profileLabel,centerName,authorizedCenters,selectedCenterId,onCenterChange,nextAssignment,busy,allowed,onOpen,onNotify,notice}:HomeProps){
  const [backgroundReady,setBackgroundReady]=useState(false);
  const [settingsOpen,setSettingsOpen]=useState(false);
  const [broken,setBroken]=useState<Partial<Record<TosVNextAppId,boolean>>>({});
@@ -59,7 +62,7 @@ export function TosVNextHome({profileLabel,centerName,nextAssignment,busy,allowe
      <button type="button" className={home.headerButton} aria-label="Thông báo"
       onClick={onNotify}>♧</button>
      <button type="button" className={home.headerButton} aria-label="Cài đặt"
-      aria-haspopup="menu" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(v=>!v)}>⚙</button>
+      aria-expanded={settingsOpen} aria-controls="tos-vnext-home-settings" onClick={()=>setSettingsOpen(v=>!v)}>⚙</button>
     </div>
    </header>
    {settingsOpen&&<div role="menu" aria-label="Cài đặt" className={shell.homeSettingsMenu}>

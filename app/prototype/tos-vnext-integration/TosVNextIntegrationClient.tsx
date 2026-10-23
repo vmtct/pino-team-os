@@ -18,7 +18,7 @@ import {
  tosVNextStyle,type TosVNextAppId
 } from "@/app/components/tos-vnext/TosVNextUI";
 import {
- TOS_BACKEND_MATRIX,staffContext,shiftReadModel,type TosVNextShiftReadWarnings
+ TOS_BACKEND_MATRIX,staffContext,assertOwnCenter,shiftReadModel,type TosVNextShiftReadWarnings
 } from "@/app/components/tos-vnext/core-adapters";
 import type {Assignment,TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
@@ -89,6 +89,14 @@ export default function TosVNextIntegrationPreview(){
  const nextAssignment=[...(data.shift?.assignments??[])].filter(row=>row.status!=="CANCELLED" && row.workDate>=fromDate)
   .sort((a,b)=>a.workDate.localeCompare(b.workDate))[0]??null;
  if(app==="home")return <TosVNextHome profileLabel={profileLabel} centerName={center?.displayName}
+  authorizedCenters={ctx?.centers??[]} selectedCenterId={centerId}
+  onCenterChange={id=>{
+   if(!ctx)return;
+   try{assertOwnCenter(ctx,id)}
+   catch{setHomeNotice("Cơ sở chưa được cấp quyền.");return}
+   if(id===centerId)return;
+   setLoading(true);setData({});setCenterId(id);setHomeNotice("");
+  }}
   nextAssignment={nextAssignment} busy={loading||!ctx}
   allowed={id=>id==="shift"||id==="training"?!!ctx:id==="station"?!!ctx&&desktop:!!access?.[id]}
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}

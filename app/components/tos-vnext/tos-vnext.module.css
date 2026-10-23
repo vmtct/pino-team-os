@@ -60,3 +60,8 @@
 .stationDisabledAction{min-height:44px;padding:12px 16px;border:1px solid var(--tos-line);border-radius:10px;font-size:14px;background:#eff3f4;color:var(--tos-muted);cursor:not-allowed}
 .stationSidebar button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
 @media(max-width:1200px){.stationShell{grid-template-columns:200px minmax(0,1fr);gap:16px}.stationDashboardGrid{grid-template-columns:1fr}}
+
+/* PAP-940: authorized multi-center switcher (Home settings only). */
+.homeCenterLabel{display:flex;flex-direction:column;gap:6px;color:#39494a;font-size:13px;font-weight:650}
+.homeCenterLabel select{width:100%;min-height:44px;padding:9px 11px;border:1px solid #c9d5d4;border-radius:9px;background:#fff;color:#293642;font:500 14px/1.4 "Segoe UI",sans-serif}
+.homeCenterLabel select:focus-visible{outline:2px solid #16816b;outline-offset:2px}
