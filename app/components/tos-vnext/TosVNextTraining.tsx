@@ -17,6 +17,7 @@ function errorText(e:unknown){
 export function TosVNextTraining(){
  const [tab,setTab]=useState<Tab>("progress");
  const [catalog,setCatalog]=useState<TrainingV5CatalogItem[]>([]);
+ const [search,setSearch]=useState("");
  const [registrations,setRegistrations]=useState<TrainingV5Registration[]>([]);
  const [qualifications,setQualifications]=useState<StaffQualification[]>([]);
  const [error,setError]=useState("");
@@ -29,12 +30,12 @@ export function TosVNextTraining(){
   let active=true;
   setBusy(true);
   setError("");setCatalog([]);setRegistrations([]);
-  void Promise.all([tosTrainingV5Api.catalog(),tosTrainingV5Api.registrations()])
+  void Promise.all([tosTrainingV5Api.catalog({query:search.trim()}),tosTrainingV5Api.registrations()])
    .then(([page,rows])=>{if(active){setCatalog(page.items);setRegistrations(rows);setError("");}})
    .catch(e=>{if(active){setCatalog([]);setRegistrations([]);setError(errorText(e));}})
    .finally(()=>{if(active)setBusy(false)});
   return()=>{active=false};
- },[version]);
+ },[version,search]);
  useEffect(()=>{
   let active=true;
   setCertBusy(true);
@@ -51,6 +52,8 @@ export function TosVNextTraining(){
    <TosVNextCard>
     <p className={styles.body}>Khám phá chương trình và tiến độ của bạn.</p>
     {!TRAINING_V5_WRITE_ADMITTED&&<p className={styles.secondary} role="status">Đăng ký chưa mở: Core PAP-848/849 chưa được xác nhận phát hành.</p>}
+    <label className={styles.secondary} htmlFor="tos-vnext-training-search">Tìm theo mã hoặc tên</label>
+    <input id="tos-vnext-training-search" type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Mã hoặc tên Training" />
     {busy&&<p className={styles.secondary} role="status">Đang tải danh mục…</p>}
     {error&&<p role="alert" className={styles.trainingError}>{error}</p>}
     {error&&<TosVNextButton variant="secondary" onClick={()=>{setBusy(true);setVersion(x=>x+1);}}>Thử tải lại</TosVNextButton>}
