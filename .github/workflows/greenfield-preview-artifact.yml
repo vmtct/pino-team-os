@@ -1,0 +1,47 @@
+name: Greenfield Preview Artifact
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'wrangler.greenfield-preview.json'
+      - '.github/workflows/greenfield-preview-artifact.yml'
+permissions:
+  contents: read
+jobs:
+  preview-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify isolated target
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const c=require('./wrangler.greenfield-preview.json');
+          if(c.name!=='pino-team-os-greenfield-preview'||c.workers_dev!==false||c.preview_urls!==false)process.exit(1);
+          if(!Array.isArray(c.services)||!c.services.length||c.services.some(s=>s.service!=='pino-core-staging'))process.exit(1);
+          if(Object.keys(c.vars||{}).some(k=>/BYPASS|INGRESS/.test(k)))process.exit(1);
+          NODE
+      - name: Build OpenNext and dry run only
+        run: |
+          set -euo pipefail
+          npm run build
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+          npx wrangler deploy --dry-run --config wrangler.greenfield-preview.json
+      - name: Retain preview artifact for isolated deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenfield-preview-${{ github.event.pull_request.head.sha }}
+          path: |
+            .open-next/
+            wrangler.greenfield-preview.json
+          retention-days: 3
