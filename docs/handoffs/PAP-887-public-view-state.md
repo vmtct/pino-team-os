@@ -2,7 +2,7 @@
 
 **Founder UI Authority:** PAP-879, i3 V2.3 http://192.168.1.22:8791/playground.html
 **Ownership:** this conversation DEV only, FC1 sole merger; no stage/ship/Core or live D1.
-**PR metadata:** `Project-Code: PRJ-PLT`, `Entry-Class: EXISTING_GOVERNED_FEATURE` (mandatory current Team CI). First Draft CI attempt lacked Project-Code and failed at metadata step; PR body now corrected and this note update creates a fresh validation head.
+**Historical metadata (PAP-599):** On 2026-10-21 this handoff required Project-Code and Entry-Class under the PLT-CARE-era Team CI. The first Draft CI failed because Project-Code was missing. PAP-599 retires that metadata check; these old receipts are HISTORY_ONLY, not current PR admission rules.
 **Branch:** `dev/pap887-public-views-v23-20261021`
 **Worktree:** `D:\PINO\worktrees\pap887-public-views-20261021`
 **Base SHA:** `73b6116271d7d7651c06ee39777f670ed9913c2d`

@@ -1,13 +1,10 @@
-## PINO Delivery Entry
+## Jira scope and delivery authority
 
-Feature-Code: 
-Feature-Id: 
-Feature-Domain: 
-Project-Code:
-Entry-Class: 
-Exemption-Reason: 
+Jira item: PAP-
+Scope / source owner:
+Verification / release boundary:
 
-Material Team work must reference the matching canonical Core feature code + ID. Use `NON_MATERIAL_APP_LOCAL` only for genuinely presentation/tooling/docs changes with a concrete exemption reason.
+Development and merge authority comes from the live Jira job/directives and exact Git/CI evidence, not legacy PLT feature/project metadata.
 
 ## Team Surface Decision
 
