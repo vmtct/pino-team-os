@@ -41,5 +41,8 @@
       const markup = value ? (/trạng thái|kết quả|đồng bộ|kết nối/i.test(p.key) && typeof badgeHtml === 'function' ? badgeHtml(value) : '<span>'+esc(value)+'</span>') : '<span class="property-placeholder">Chưa có</span>';
       return '<div class="drawer-field"><dt>'+esc(p.label)+'</dt><dd><button type="button" class="property-edit" data-prop="'+esc(p.key)+'" title="Click để sửa '+esc(p.label)+'">'+markup+'<span class="property-pencil">✎</span></button></dd></div>';
     }).join('');
-  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows });
+  }  function renderTableHeader({ columns, sortKey, descending = false, escapeHtml }) {
+    if (!Array.isArray(columns) || typeof escapeHtml !== 'function') throw new Error('invalid table header inputs');
+    return '<tr>'+columns.map(({key,label}) => '<th data-key="'+escapeHtml(key)+'" data-sort="'+(sortKey === key ? 'active' : '')+'">'+escapeHtml(label)+' <span class="sort-icon">'+(sortKey === key ? (descending ? '↓' : '↑') : '↕')+'</span></th>').join('')+'<th class="row-action-column"></th></tr>';
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader });
 });

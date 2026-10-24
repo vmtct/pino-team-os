@@ -211,7 +211,7 @@ function renderTable(){
  const rows=filtered.slice((state.page-1)*per,state.page*per),cols=state.compact?m.cols.slice(0,2):m.cols;
  const sharedColumns=window.PinoBODesignSystem.tableColumns({noun:m.noun,fields:m.cols,compact:state.compact});
  const header=(key,label)=>'<th data-key="'+esc(key)+'" data-sort="'+(state.sort===key?'active':'')+'">'+esc(label)+' <span class="sort-icon">'+(state.sort===key?(state.sortDesc?'↓':'↑'):'↕')+'</span></th>';
- d("table-head").innerHTML='<tr>'+sharedColumns.map(c=>header(c.key,c.label)).join("")+'<th class="row-action-column"></th></tr>';
+ d("table-head").innerHTML=window.PinoBODesignSystem.renderTableHeader({columns:sharedColumns,sortKey:state.sort,descending:state.sortDesc,escapeHtml:esc});
  d("table-head").querySelectorAll("th[data-key]").forEach(th=>th.onclick=()=>{
   if(state.sort===th.dataset.key)state.sortDesc=!state.sortDesc;else{state.sort=th.dataset.key;state.sortDesc=false;}
   state.page=1;renderTable();saveUrl();
