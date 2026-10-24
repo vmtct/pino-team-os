@@ -1,0 +1,20 @@
+{
+  "machine": "DESKTOP-ISRDREN / Intel i5-13420H",
+  "authority": "C:/Users/ADMIN/OneDrive/PINO/GPT Technical/Prototype/APPROVED_UI_AUTHORITY/PAP-879-BO-V2.5-FULLDETAIL-20261024/source",
+  "files": [
+    {
+      "name": "playground.js",
+      "sha256": "35605c4f7fafbdcddf3d3ef82e48f12f0d2b74ef096eb544c65717340e024e65"
+    },
+    {
+      "name": "full-detail-v24.css",
+      "sha256": "99c1a813eaa42cbe09dbf06b3f70d92892351e389fa288e1f930841a2efe87da"
+    },
+    {
+      "name": "full-detail-v25.css",
+      "sha256": "7d0c9c8011418be8397fc7786695813d427ac7eee5eccca2d73062a41534eaf1"
+    }
+  ],
+  "comparison": "Same Chromium/browser, locale vi-VN, timezone Asia/Ho_Chi_Minh; #detail-screen PNG byte equality for registration fixture, nine comparisons. Students/Classes domain content is different; 18 corresponding screenshots and structural/functional assertions, not claimed pixel-equal domain content.",
+  "live": "LIVE_VERIFICATION_PENDING"
+}

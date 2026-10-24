@@ -2,7 +2,7 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/pap879-core-pilot-adapters-20261024]
   push:
     branches: [main]
 
@@ -44,6 +44,20 @@ jobs:
         run: bun run lint
       - name: Unit tests
         run: bun run test
+      - name: PAP-979 local Full Detail and Table regression (no shared APIs)
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/verify-bo-ui-replica.mjs
+          node scripts/verify-bo-full-detail-v25.mjs
+      - name: Retain PAP-979 local fixture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap979-full-detail-fixtures
+          path: .pap979-evidence
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Release confidence smoke and recovery regression tests
         run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
       - name: Build

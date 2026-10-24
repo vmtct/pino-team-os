@@ -368,24 +368,19 @@ function BOQuickView(){
 let renderDrawer=BOQuickView;
 function openDetail(id){
  closeEditor();const rec=rows.find(r=>r.id===id);if(!rec)return;
- state.detail=id;state.tab="Tổng quan";
+ fullDetail.reset();state.detail=id;state.tab="Detail";
  $("drawer").classList.remove("open");$("drawer-scrim").classList.remove("visible");$("drawer").setAttribute("aria-hidden","true");
  document.body.style.overflow="";state.drawer=null;
  $("list-screen").classList.add("hidden");$("detail-screen").classList.remove("hidden");
  renderDetail();window.scrollTo(0,0);
 }
-function BOFullDetail(){
- const rec=rows.find(r=>r.id===state.detail);if(!rec)return;
- $("detail-name").textContent=rec.name;$("detail-title").textContent=rec.name;
- const tabs=window.PinoBODesignSystem.detailTabs();
- $("detail-tabs").innerHTML=tabs.map(tab=>'<button type="button" class="detail-tab '+(state.tab===tab?"selected":"")+'" data-tab="'+tab+'">'+tab+'</button>').join("");
- const intro={ "Tổng quan":"Full Detail nhận cùng schema typed properties, nhưng có không gian riêng cho bảng liên quan, editor chuyên sâu và lịch.",
- "Hoạt động":"Các thay đổi theo thời gian, audit log và command history sẽ là nội dung riêng của từng module.",
- "Tài liệu":"Tài liệu, media và workflow dài có thể dùng tab riêng; không làm Drawer trở nên quá tải."};
- $("detail-body").innerHTML='<div class="detail-panel lab-section-panel"><h3>'+esc(state.tab)+'</h3><p>'+intro[state.tab]+'</p><div class="drawer-fields">'+FIELDS.filter(f=>pilot?!["name","id"].includes(f.key):["status","sessions","price","start","student","owner"].includes(f.key)).map(f=>'<div class="drawer-field"><dt>'+esc(f.label)+'</dt><dd>'+formatValue(f,val(rec,f.key))+'</dd></div>').join("")+'</div></div>'+
- '<div class="detail-panel detail-explain"><h3>Shared Full Detail skeleton</h3><p>Header, breadcrumbs, tab bar và responsive là dùng chung. Nội dung trong tab được module cung cấp.</p><p><strong>'+ (pilot?'ID:':'Formula:') +'</strong> '+esc(pilot?rec.id:currency(computed(rec)))+'</p><div class="detail-tile"><div><strong>01</strong><small>Table</small></div><div><strong>02</strong><small>Drawer</small></div><div><strong>03</strong><small>Full page</small></div></div></div>';
- qa("[data-tab]",$("detail-tabs")).forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;renderDetail()});
-}
+const fullDetail=window.PinoBOFullDetail.create({
+ $,qa,esc,norm,rows,state,FIELD_MAP,FIELDS,val,formatValue,openEditor,toast,currency,computed,datetime,coreMode,
+ moduleKey:pilot?.key||"registration",subjectType:pilot?.key==="students"?"student":pilot?.key==="classes"?"running_class":"registration",
+ canEdit:f=>pilot?.canManage===true&&!f.readonly&&(f.key==="name"||(pilot.key==="classes"&&f.key==="capacity")),
+ history:window.PinoBOHistory.create(),slots:window.PinoBOFullDetailSlots
+});
+function BOFullDetail(){fullDetail.render();}
 let renderDetail=BOFullDetail;
 function bind(){
  $("nav-search").oninput=e=>{state.navQuery=e.target.value;renderNav()};
@@ -407,9 +402,9 @@ function bind(){
  $("next-page").onclick=()=>{state.page++;renderTable()};
  $("add-record").onclick=()=>openDrawer();
  $("drawer-close").onclick=closeDrawer;$("drawer-scrim").onclick=closeDrawer;
- $("back-to-list").onclick=()=>{state.detail=null;$("detail-screen").classList.add("hidden");$("list-screen").classList.remove("hidden");renderTable();window.scrollTo(0,0)};
+ $("back-to-list").onclick=()=>{closeEditor();fullDetail.reset();state.detail=null;$("detail-screen").classList.add("hidden");$("list-screen").classList.remove("hidden");renderTable();window.scrollTo(0,0)};
  document.addEventListener("pointerdown",e=>{
-  if(state.popover&&!e.target.closest("#popover")&&!e.target.closest("[data-edit],[data-prop],#drawer-name"))closeEditor();
+  if(state.popover&&!e.target.closest("#popover")&&!e.target.closest("[data-edit],[data-prop],[data-detail-edit],#drawer-name"))closeEditor();
  });
  document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
