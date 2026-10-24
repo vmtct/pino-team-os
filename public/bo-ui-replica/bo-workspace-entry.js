@@ -7,13 +7,18 @@
   document.querySelector('.topbar-breadcrumb strong').textContent=key==='classes'?'Classes':'Học viên';
   document.querySelector('#table-count').textContent='Đang tải…';
   document.querySelector('#add-record').disabled=true;
+  document.querySelector('.sidebar-footer strong').textContent='Back Office';
+  document.querySelector('.sidebar-footer small').textContent='Đang xác thực…';
   try{
    const adapter=await window.PinoBOCorePilot.create(key,window.fetch.bind(window));
    window.PinoBOPilotAdapters=Object.freeze({[key]:adapter});
+   document.querySelector('.sidebar-footer strong').textContent=adapter.actorName;
+   document.querySelector('.sidebar-footer small').textContent='Back Office';
+   for(const icon of document.querySelectorAll('.sidebar-footer .avatar,.top-avatar'))icon.textContent=adapter.actorName.slice(0,1).toLocaleUpperCase('vi');
   }catch(error){
    const cell=document.createElement('td');cell.colSpan=8;cell.textContent=error.message;cell.setAttribute('role','alert');
    const row=document.createElement('tr');row.append(cell);document.querySelector('#table-body').replaceChildren(row);
-   document.querySelector('#table-count').textContent='Không thể tải dữ liệu';return;
+   document.querySelector('#table-count').textContent='Không thể tải dữ liệu';document.querySelector('.sidebar-footer small').textContent='Không thể xác thực';return;
   }
  }
  const script=document.createElement('script');script.src='./playground.js';document.body.append(script);

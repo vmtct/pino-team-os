@@ -254,7 +254,7 @@ function applyCell(rec,f,next){
   void pilot.commit(rec,f.key,next).then(confirmed=>{
    Object.assign(rec,confirmed);if(state.popover===editorTicket)closeEditor();renderTable();
    if(state.drawer===rec.id)renderDrawer();if(state.detail===rec.id)renderDetail();
-   toast("Đã lưu và đọc lại từ Core");
+   toast("Đã lưu thay đổi");
   }).catch(error=>{const box=state.popover===editorTicket?$("edit-error"):null;if(box)box.textContent=error.message;else toast(error.message);if(button?.isConnected)button.disabled=false;});
   return false;
  }
@@ -540,6 +540,7 @@ function vCurrentView(){
   hideEmpty:v22.hideEmpty,hiddenGroups:[...v22.hiddenGroups]};
 }
 function applySavedView(id){
+ if(coreMode){try{pilot.viewRuntime.select(id);coreViewUrl(id);}catch(error){toast(error.message);return;}}
  const item=v22.savedViews.find(x=>x.id===id);if(!item)return;
  recordUndo("Chuyển Quick View");
  const v=item.config;state.rules=vclone(v.rules);state.logic=v.logic;state.sort=v.sort;state.desc=v.desc;
@@ -670,7 +671,7 @@ function renderGroupSettings(){
  });
 }
 function saveNamedView(name){
- if(coreMode)return; // Do not claim local draft metadata is persisted Core truth.
+ if(coreMode){void coreCreateView(name);return;}
 
  const clean=name.trim().slice(0,38);if(!clean){toast("Cần nhập tên Quick View");return;}
  recordUndo("Lưu Quick View");
@@ -825,13 +826,14 @@ function v23Sync(){
 }
 function v23CloseMenu(){if(v23.menu){v23.menu.remove();v23.menu=null;}}
 function v23Rename(id){
+ if(coreMode&&pilot.viewRole!=="manager")return;
  const view=v22.savedViews.find(x=>x.id===id),tab=q('.saved-tab[data-saved="'+id+'"]');
  if(!view||!tab)return;
  v23CloseMenu();
  const input=document.createElement("input");input.className="view-rename-input";input.value=view.name;tab.replaceWith(input);
  let finished=false;
  const finish=save=>{if(finished)return;finished=true;const name=input.value.trim().slice(0,38);
-  if(save&&name&&name!==view.name){recordUndo("Đổi tên view");view.name=name;}
+  if(save&&name&&name!==view.name){if(coreMode){void coreViewCommand(()=>pilot.viewRuntime.rename(id,name));return;}recordUndo("Đổi tên view");view.name=name;}
   renderTable();
  };
  input.onblur=()=>finish(true);
@@ -840,12 +842,14 @@ function v23Rename(id){
  input.focus();input.select();
 }
 function v23Delete(id){
+ if(coreMode){void coreViewCommand(()=>pilot.viewRuntime.remove(id));return;}
  const index=v22.savedViews.findIndex(x=>x.id===id);if(index<0)return;
  recordUndo("Xóa view");v22.savedViews.splice(index,1);
  if(v22.activeView===id){v22.activeView=null;state.view="all";}
  v23CloseMenu();renderTable();toast("Đã xóa view");
 }
 function v23Menu(id,x,y){
+ if(coreMode&&pilot.viewRole!=="manager")return;
  v23CloseMenu();const menu=document.createElement("div");menu.id="view-context-menu";menu.className="view-context";
  menu.setAttribute("role","menu");menu.innerHTML='<button role="menuitem" data-vaction="rename">✎ &nbsp; Đổi tên</button><button role="menuitem" data-vaction="delete">⌫ &nbsp; Xóa view</button>';
  document.body.append(menu);const b=menu.getBoundingClientRect();
@@ -854,6 +858,7 @@ function v23Menu(id,x,y){
  v23.menu=menu;q("button",menu).focus();
 }
 function v23ViewOrder(src,dst){
+ if(coreMode){const ids=v22.savedViews.map(v=>v.id),a=ids.indexOf(src),b=ids.indexOf(dst);if(a<0||b<0||a===b)return;ids.splice(b,0,ids.splice(a,1)[0]);void coreViewCommand(()=>pilot.viewRuntime.reorder(ids));return;}
  const i=v22.savedViews.findIndex(x=>x.id===src),j=v22.savedViews.findIndex(x=>x.id===dst);
  if(src===dst||i<0||j<0)return;
  recordUndo("Đổi thứ tự view");const [item]=v22.savedViews.splice(i,1);v22.savedViews.splice(j,0,item);renderTable();
@@ -879,7 +884,7 @@ vRenderSavedTabs=function(){
   let n=1;while(v22.savedViews.some(x=>x.name==="View "+n))n++;
   v23Sync();saveNamedView("View "+n);vSettingsToggle(false);v23Rename(v22.activeView);
  };
- if(coreMode)add.disabled=true;
+ if(coreMode){add.disabled=pilot.viewRole!=="manager";add.onclick=()=>{void coreCreateView("View "+(v22.savedViews.length+1));};}
  parent.append(add);
 };
 const oldApplyView=applySavedView;
@@ -941,6 +946,57 @@ function setupV23(){
 }
 setupV23();
 
+let coreViewFingerprint=null,coreViewBusy=false;
+function coreViewUrl(id){const url=new URL(location.href);if(id)url.searchParams.set('publicView',id);else url.searchParams.delete('publicView');history.replaceState(null,'',url);}
+function coreViewSnapshot(){
+ const snap=pilot.viewRuntime.getSnapshot();
+ if(snap.error)throw new Error(snap.error.message);
+ return snap;
+}
+function coreRenderViews(){
+ const snap=coreViewSnapshot();
+ v22.savedViews=snap.state.views.map(v=>({id:v.id,name:v.name,config:pilot.viewFromCore(v.config)}));
+ v22.activeView=snap.state.activeId;
+ const v=pilot.viewFromCore(snap.state.effective);
+ state.rules=v.rules;state.logic=v.logic;state.sort=v.sort;state.desc=v.desc;state.view='all';state.search=v.search;state.page=1;
+ v22.order=v.order;v22.visible=new Set(v.visible);v22.groupField=v.groupField;v22.hideEmpty=v.hideEmpty;v22.hiddenGroups=new Set();
+ $("search").value=state.search;coreViewUrl(v22.activeView);coreViewFingerprint=JSON.stringify(pilot.viewToCore(vCurrentView()));
+}
+function coreSyncView(){
+ if(!coreMode||coreViewBusy)return;
+ try{const config=pilot.viewToCore(vCurrentView()),fingerprint=JSON.stringify(config);
+  if(fingerprint===coreViewFingerprint)return;
+  pilot.viewRuntime.edit(config);coreViewFingerprint=fingerprint;
+ }catch(error){toast(error.message);}
+}
+async function coreViewCommand(command){
+ if(coreViewBusy||pilot.viewRole!=="manager")return;
+ coreViewBusy=true;
+ try{await pilot.viewRuntime.flush();await command();coreRenderViews();renderTable();if(v22.settingsOpen)renderSettings();}
+ catch(error){toast(error.message);renderTable();if(v22.settingsOpen)renderSettings();}
+ finally{coreViewBusy=false;}
+}
+async function coreCreateView(name){
+ if(!name.trim()||pilot.viewRole!=="manager")return;
+ coreSyncView();
+ await coreViewCommand(()=>pilot.viewRuntime.create(name.trim()));
+}
+if(coreMode){
+ coreRenderViews();
+ const baseRenderTable=renderTable;
+ renderTable=function(){baseRenderTable();coreSyncView();};
+ pilot.viewRuntime.subscribe(snap=>{
+  if(snap.error){toast(snap.error.message);return;}
+  if(snap.state&&!coreViewBusy){v22.savedViews=snap.state.views.map(v=>({id:v.id,name:v.name,config:pilot.viewFromCore(v.config)}));}
+ });
+ document.addEventListener('click',event=>{
+  if(!event.target.closest('.view-tab[data-view="all"]'))return;
+  event.preventDefault();event.stopImmediatePropagation();
+  void pilot.viewRuntime.flush().then(()=>{pilot.viewRuntime.select(null);coreRenderViews();renderRules();renderTable();}).catch(error=>toast(error.message));
+ },true);
+ window.addEventListener('pagehide',()=>pilot.viewRuntime.dispose(),{once:true});
+}
+
 if(pilot){
  document.title=pilot.label+" · PINO BO";
  $("list-screen").querySelector("h1").textContent=pilot.label;
@@ -961,8 +1017,13 @@ if(coreMode){
   if(["students","classes"].includes(url.searchParams.get("module"))){url.searchParams.set("data","core");link.href=url.href;}
   else link.onclick=event=>event.preventDefault();
  }
- $("add-view-tab").disabled=true; // Core public-view persistence is a separate governed adapter; never fabricate success.
+ $("add-view-tab").disabled=pilot.viewRole!=="manager";
  const originalSettings=renderSettings;
- renderSettings=function(){originalSettings();for(const b of qa('[data-settings="views"],#confirm-save-view'))b.disabled=true;};
+ renderSettings=function(){originalSettings();
+  for(const hint of qa("#settings-content .settings-hint"))if(/mock|mô phỏng|bộ nhớ tab/.test(hint.textContent))hint.textContent=pilot.viewRole==="manager"?"Shared Views dùng chung; chỉ báo đã lưu sau khi máy chủ xác nhận.":"Thay đổi bố cục chỉ tạm thời; không ghi Shared Views dùng chung.";
+  for(const button of qa('#confirm-save-view,[data-rename-view],[data-delete-view]'))button.disabled=pilot.viewRole!=="manager";
+  qa('[data-rename-view]').forEach(b=>b.onclick=()=>v23Rename(b.dataset.renameView));
+  qa('[data-delete-view]').forEach(b=>b.onclick=()=>v23Delete(b.dataset.deleteView));
+ };
 }
 })();

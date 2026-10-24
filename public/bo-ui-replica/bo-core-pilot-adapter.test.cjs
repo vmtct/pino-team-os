@@ -35,3 +35,11 @@ test('class update retains complete canonical configuration/version and enforces
  const a=await create('classes',f.fetch);await assert.rejects(a.commit(a.rows[0],'capacity',13),/giới hạn/);assert.equal(f.calls.some(c=>c.options.method==='PATCH'),false);
  const updated=await a.commit(a.rows[0],'capacity',10);assert.equal(updated.capacity,10);assert.equal(a.rows[0].capacity,8);
 });
+test('shared-view contract uses canonical fields and never substitutes profile lifecycle for learning',async()=>{
+ const f=fixture(url=>url.endsWith('context')?{data:context}:{data:[{...student,activeSubscriptions:0,houseMember:true,birthYear:2018}]});
+ const a=await create('students',f.fetch);assert.equal(a.rows[0].status,'ACTIVE');assert.equal(a.rows[0].learning,'inactive');assert.equal(a.rows[0].member,true);
+ const cfg={search:'An',sort:'birth',desc:false,rules:[],logic:'AND',groupField:null,hideEmpty:true,order:a.fields.map(f=>f.key),visible:a.fields.map(f=>f.key)};
+ const canonical=a.viewToCore(cfg);assert.deepEqual(canonical.columns.order,['name','id','paths','birth','learning','member','attention']);assert.equal(canonical.columns.order.includes('age'),false);
+ assert.deepEqual(a.viewFromCore(canonical),{...cfg,view:'all',hiddenGroups:[]});
+ assert.throws(()=>a.viewToCore({...cfg,order:['salary']}),/field/);
+});
