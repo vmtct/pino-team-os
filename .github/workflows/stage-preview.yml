@@ -12,10 +12,6 @@ on:
         description: 'Exact Team main SHA for preview'
         required: true
         type: string
-      expected_previous_version:
-        description: '100% serving version readback (CAS precondition)'
-        required: true
-        type: string
 permissions:
   contents: read
   actions: write
@@ -32,13 +28,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           APP: ${{ inputs.app }}
           SHA: ${{ inputs.approved_sha }}
-          PREVIOUS: ${{ inputs.expected_previous_version }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           test "$SHA" = "$GITHUB_SHA"
           test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/main | cut -f1)" = "$SHA"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
-          test -n "$PREVIOUS"
+          test -n "$CLOUDFLARE_API_TOKEN"
           case "$APP" in
             bo) workflow='bo-founder-staging-preview.yml' ;;
             pinoria-tv|tos|staff)
@@ -46,6 +42,8 @@ jobs:
               exit 1 ;;
             *) exit 1 ;;
           esac
+          response="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/952c3c8a236f8e4cbcf6ee10b86ad70c/workers/scripts/pino-team-os-greenfield-preview/deployments?per_page=10")"
+          PREVIOUS="$(jq -er 'if .success == true then [.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id] | if length == 1 then .[0] else error("No single active preview version") end else error("Cloudflare readback failed") end' <<<"$response")"
           gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main \
             -f approved_sha="$SHA" -f expected_previous_version="$PREVIOUS"
           echo "Dispatch sent for $APP/$SHA. Parent dispatch is NOT proof of deployment; child workflow serving readback and Founder acceptance required." >> "$GITHUB_STEP_SUMMARY"
