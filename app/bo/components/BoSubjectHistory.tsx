@@ -37,7 +37,7 @@ export function BoSubjectHistory({ subjectType, subjectId }: {
     }).catch((error: unknown) => {
       if (ticket === generation.current) setHistory({ phase: "error", message: errorText(error) });
     });
-    return () => { generation.current++; };
+    return () => { if (generation.current === ticket) generation.current++; };
   }, [subjectType, subjectId, query, refresh]);
 
   async function nextPage() {
