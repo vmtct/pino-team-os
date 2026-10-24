@@ -1,0 +1,94 @@
+.mobile,.desktop{--tos-heading-xl:24px;--tos-heading-lg:20px;--tos-heading-md:18px;--tos-heading-sm:16px;--tos-body:15px;--tos-label:14px;--tos-button:14px;--tos-secondary:13px;--tos-caption:12px;--tos-s1:4px;--tos-s2:8px;--tos-s3:12px;--tos-s4:16px;--tos-s5:20px;--tos-s6:24px;--tos-s8:32px;--tos-hit:44px;--tos-cta:48px;--tos-tone:#16816b;--tos-tint:#e8f8f3;--tos-text:#293642;--tos-muted:#627483;--tos-line:#e3e9e9;font:400 var(--tos-body)/1.55 "Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;color:var(--tos-text);background:#f9fbfa;box-sizing:border-box;min-height:100dvh}
+.mobile *,.desktop *{box-sizing:border-box}
+.mobile{max-width:430px;width:100%;margin:auto;padding-bottom:calc(76px + env(safe-area-inset-bottom));box-shadow:0 8px 28px #14293618}
+.desktop{width:100%;max-width:none;min-height:100vh}
+.mobile[data-tone=shift]{--tos-tone:#357ea7;--tos-tint:#e7f2fc}.mobile[data-tone=reception]{--tos-tone:#188f77;--tos-tint:#e5f7f2}.mobile[data-tone=classroom]{--tos-tone:#a27a27;--tos-tint:#fff6db}.mobile[data-tone=training]{--tos-tone:#7456b6;--tos-tint:#f1ebfc}.mobile[data-tone=shift-lead]{--tos-tone:#ba6855;--tos-tint:#fff0eb}.desktop[data-tone=station]{--tos-tone:#526aa1;--tos-tint:#edf2ff}
+.header{height:60px;position:sticky;top:0;z-index:15;display:flex;gap:10px;align-items:center;padding:6px 16px;border-bottom:1px solid var(--tos-line);background:#fffffff2;backdrop-filter:blur(10px)}
+.icon{height:31px;width:31px;object-fit:cover;flex:none;border-radius:10px}.headerText{min-width:0;flex:1}.headerText strong{font-size:16px;line-height:1.25;display:block}.headerText small{font-size:12px;line-height:1.4;color:var(--tos-muted);display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.home{width:44px;height:44px;min-width:44px;min-height:44px;flex:none;display:grid;place-items:center;border-radius:12px;background:#f1f9fc;border:0;color:#237fa6;font-size:20px;cursor:pointer}
+.content{padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}.desktop .content{padding:24px 32px}
+.card{border:1px solid var(--tos-line);padding:16px;border-radius:16px;background:white;box-shadow:0 4px 16px #142b3510;min-width:0}
+.heading{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.heading h2{margin:0;font-size:16px;line-height:1.4}.heading small{font-size:12px;color:var(--tos-muted)}
+.button{min-height:48px;padding:12px 16px;border:1px solid var(--tos-tone);border-radius:11px;background:var(--tos-tone);color:white;font-family:inherit;font-size:14px;line-height:1.4;font-weight:750;cursor:pointer}.buttonSecondary{background:var(--tos-tint);color:var(--tos-tone)}.buttonQuiet{background:transparent;border-color:transparent;color:var(--tos-tone)}.button:disabled{opacity:.5;cursor:not-allowed}
+.nav{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(430px,100vw);height:76px;box-sizing:border-box;display:flex;padding:4px 5px max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--tos-line);background:white;z-index:20}
+.tab{flex:1;min-width:0;min-height:44px;border:0;border-radius:9px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;font-size:12px;line-height:1.35;font-weight:600;color:var(--tos-muted);cursor:pointer}.tab[aria-current=page]{color:var(--tos-tone)}.tabIcon{font-size:19px}
+.sheetBackdrop{position:fixed;inset:0;z-index:50;background:#172b3377;display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:min(430px,100vw);max-height:92dvh;overflow-y:auto;background:white;border-radius:22px 22px 0 0;padding:18px 18px calc(24px + env(safe-area-inset-bottom));font-size:15px;line-height:1.55}
+.sheetHeader{display:flex;justify-content:space-between;align-items:center;gap:12px}.sheetHeader h2{margin:0;font-size:18px;line-height:1.3}.sheetHeader button{min-width:44px;min-height:44px;border:0;border-radius:11px}
+.field{display:flex;flex-direction:column;gap:8px;margin:0 0 16px;font-size:14px;font-weight:750}.field :is(input,textarea,select){min-height:44px;font-family:inherit;font-size:15px;line-height:1.55;font-weight:400;border:1px solid var(--tos-line);border-radius:11px;padding:12px;color:var(--tos-text)}
+.toast{position:fixed;z-index:60;left:50%;bottom:90px;transform:translateX(-50%);max-width:calc(100vw - 24px);border-radius:12px;padding:12px 16px;background:#293642;color:white;font-size:13px;pointer-events:none}
+.status{display:inline-block;border-radius:30px;padding:5px 10px;background:var(--tos-tint);color:var(--tos-tone);font-size:12px;font-weight:750}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 8px}.tile{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;background:none;border:0;padding:6px 1px;font-family:inherit;font-size:13px;line-height:1.4;font-weight:650;color:var(--tos-text);cursor:pointer}.tile:disabled{opacity:.55;cursor:not-allowed}.tile img{width:64px;height:64px;border-radius:17px;object-fit:cover}.tile span{text-align:center}
+.body{font-size:15px;line-height:1.55;margin:0}.secondary{font-size:13px;line-height:1.5;color:var(--tos-muted);margin:0}.caption{font-size:12px;line-height:1.5;color:var(--tos-muted)}
+.button:focus-visible,.tab:focus-visible,.home:focus-visible,.tile:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+@media(max-width:360px){.content{padding:12px}.tile img{width:58px;height:58px}.sheet{padding-inline:14px}}
+
+/* Approved Home keeps its original shell; only contextual settings need new scope. */
+.homeSettingsMenu{position:relative;z-index:30;margin:0 16px 12px auto;max-width:250px;background:#fff;border:1px solid #e3e9e9;border-radius:12px;box-shadow:0 12px 28px #122a3230;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:#293642}
+.homeLogout{display:block;min-height:44px;padding:10px 12px;text-align:left;border:0;border-radius:9px;background:#f3f7f7;font-size:14px;font-weight:650;color:#293642;cursor:pointer}
+.homeIconFallback{display:grid;place-items:center;width:64px;height:64px;border-radius:17px;background:#e7eff7;font:700 24px/1 "Segoe UI",sans-serif;color:#526aa1}
+.homeLogout:focus-visible{outline:2px solid #16816b;outline-offset:2px}
+
+/* PAP-946: Training V5 two-tab cards and certificate evidence. */
+.trainingError{font-size:14px;line-height:1.55;margin:12px 0;color:#9b333f;overflow-wrap:anywhere}
+.trainingCertRow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 0;border-top:1px solid var(--tos-line)}
+.trainingCertRow strong{font-size:15px;flex:1}
+.trainingCertRow small{color:var(--tos-muted);font-size:13px;line-height:1.5;width:100%}
+
+/* PAP-945: class detail has one header, with Back navigation; no nested app header. */
+.classDetailHeader{min-height:60px;display:flex;align-items:center;gap:12px;padding:0 0 12px;border-bottom:1px solid var(--tos-line)}
+.classDetailHeader button{display:grid;place-items:center;min-width:44px;min-height:44px;background:var(--tos-tint);border:0;border-radius:11px;color:var(--tos-tone);font-size:26px;cursor:pointer}
+.classDetailHeader div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.classDetailHeader strong{font-size:18px;line-height:1.3}
+.classDetailHeader small{font-size:13px;color:var(--tos-muted);line-height:1.5}
+.classDetailHeader button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+
+/* PAP-943 station uses the desktop workspace, never the 430px mobile shell. */
+.stationShell{display:grid;grid-template-columns:256px minmax(0,1fr);gap:0;min-width:0;min-height:calc(100dvh - 48px)}
+.stationSidebar{align-self:start;position:sticky;top:0;display:flex;flex-direction:column;gap:16px;padding:25px 16px 18px;background:white;border-right:1px solid var(--tos-line);border-radius:0;min-height:100dvh}
+.stationBrand{display:flex;align-items:center;gap:13px;padding:6px 9px 29px;font-size:16px}
+.stationBrand div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.stationBrand img{width:51px;height:51px;object-fit:contain;flex:none;border-radius:15px}
+.stationBrand strong{font-size:20px;font-weight:770;letter-spacing:-.04em;color:#33415b}.stationBrand small{font-size:9px;font-weight:760;letter-spacing:.08em;color:#a2a7b0;overflow-wrap:anywhere}
+.stationSidebar nav{display:flex;flex-direction:column;gap:6px}
+.stationSidebar nav button,.stationBack{width:100%;min-height:44px;padding:10px 14px;text-align:left;border:0;background:transparent;border-radius:10px;font-size:14px;font-weight:650;color:var(--tos-text);cursor:pointer}
+/* PAP-943: V8 station sidebar touch geometry; back-home remains a separate compact action. */
+.stationSidebar nav button{min-height:62px;padding:13px 14px;border-radius:13px;display:flex;align-items:center;gap:13px}
+.stationSidebar nav button[aria-current=page]{background:var(--tos-tint);color:var(--tos-tone)}
+.stationBack{margin-top:auto;color:var(--tos-tone);border-top:1px solid var(--tos-line);border-radius:0}
+.stationWorkspace{display:flex;flex-direction:column;gap:20px;min-width:0;background:#f5f7fa;padding:0 38px 58px}
+.stationWorkspaceHeader{display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:76px;background:#fff;border-bottom:1px solid #e5e9ef;margin:0 -38px;padding:15px 32px}
+.stationWorkspaceHeader small{font-size:12px;color:var(--tos-muted)}
+.stationWorkspaceHeader h1{font-size:24px;line-height:1.3;margin:2px 0}
+.stationDashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.stationDisabledAction{min-height:44px;padding:12px 16px;border:1px solid var(--tos-line);border-radius:10px;font-size:14px;background:#eff3f4;color:var(--tos-muted);cursor:not-allowed}
+.stationSidebar button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+@media(max-width:1200px){.stationShell{grid-template-columns:256px minmax(0,1fr);gap:0}.stationDashboardGrid{grid-template-columns:1fr}}
+
+/* PAP-940: authorized multi-center switcher (Home settings only). */
+.homeCenterLabel{display:flex;flex-direction:column;gap:6px;color:#39494a;font-size:13px;font-weight:650}
+.homeCenterLabel select{width:100%;min-height:44px;padding:9px 11px;border:1px solid #c9d5d4;border-radius:9px;background:#fff;color:#293642;font:500 14px/1.4 "Segoe UI",sans-serif}
+.homeCenterLabel select:focus-visible{outline:2px solid #16816b;outline-offset:2px}
+
+/* PAP-946: approved V8 Thăng Tiến introductory hero, no demo state. */
+.trainingHero{padding:22px 18px;border-radius:18px;background:linear-gradient(135deg,#ede5ff,#f7f1ff);color:#52368d}
+.trainingHero small{font-size:11px;font-weight:800;letter-spacing:.12em}
+.trainingHero h2{font-size:23px;line-height:1.3;margin:7px 0 8px}
+.trainingHero p{font-size:14px;line-height:1.5;margin:0}
+
+/* PAP-946: V8 Training Library row composition; contents come exclusively from Core. */
+.trainingCourseRow{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.trainingCourseIcon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:#f1ebfc;color:#7456b6;font-size:24px}
+.trainingCourseMain{flex:1;min-width:0;overflow-wrap:anywhere}
+
+.stationSectionLabel{font-size:12px;font-weight:800;letter-spacing:.12em;color:#a5adba;margin:14px 15px}
+.stationKicker{font-size:12px;font-weight:820;letter-spacing:.15em;color:#a5a7c1;margin:10px 0 0}
+
+.stationQuickGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stationQuickGrid button{display:flex;align-items:flex-start;flex-direction:column;gap:7px;text-align:left;min-height:95px;padding:14px;border:1px solid #e5e9ef;border-radius:12px;background:#fff;color:#24343e;cursor:pointer;font:inherit}
+.stationQuickGrid button strong{font-size:14px}
+.stationQuickGrid button small{font-size:12px;color:#65717b}
+.stationQuickGrid button span{align-self:flex-end}
+.stationQuickGrid button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+@media(max-width:1200px){.stationQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stationMetricUnknown{display:block;font-size:30px;line-height:1.2;color:#667786;margin-bottom:8px}
