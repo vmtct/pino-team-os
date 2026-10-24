@@ -216,10 +216,7 @@ function renderTable(){
   if(state.sort===th.dataset.key)state.sortDesc=!state.sortDesc;else{state.sort=th.dataset.key;state.sortDesc=false;}
   state.page=1;renderTable();saveUrl();
  });
- const cell=(r,c)=>{
-  const value=r.values[c]??"",markup=/trạng thái|kết quả|đồng bộ|kết nối/i.test(c)?badge(value):esc(value);
-  return '<td class="value-cell"><button type="button" class="editable-cell" data-field="'+esc(c)+'" aria-label="Sửa '+esc(c)+' của '+esc(r.title)+'" title="Click để sửa">'+markup+'</button></td>';
- };
+ const cell=(r,c)=>window.PinoBODesignSystem.renderValueCell({row:r,field:c,escapeHtml:esc,badgeHtml:badge});
  d("table-body").innerHTML=rows.map(r=>'<tr data-id="'+r.id+'" class="'+(state.selected===r.id?'selected':'')+'" tabindex="0" aria-label="Bản ghi '+esc(r.title)+'; click vùng trống để xem Quick View"><td class="name-cell"><button type="button" class="editable-cell identity-name" data-field="title" aria-label="Sửa tên '+esc(r.title)+'">'+esc(r.title)+'</button></td><td class="id-cell"><button type="button" class="copy-id" title="Copy ID" aria-label="Copy ID '+esc(r.id)+'">'+esc(r.id)+'</button></td>'+cols.map(c=>cell(r,c)).join("")+'<td class="action-cell"><button type="button" class="open-quick" aria-label="Quick View '+esc(r.title)+'" title="Quick View">↗</button></td></tr>').join("")||'<tr><td colspan="'+(cols.length+3)+'"><div class="empty-state"><strong>Không tìm thấy bản ghi</strong>Thử thay đổi bộ lọc hoặc tìm kiếm.</div></td></tr>';
  d("table-body").querySelectorAll("tr[data-id]").forEach(tr=>{
   const r=rowById(tr.dataset.id);

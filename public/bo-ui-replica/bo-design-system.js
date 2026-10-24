@@ -44,5 +44,10 @@
   }  function renderTableHeader({ columns, sortKey, descending = false, escapeHtml }) {
     if (!Array.isArray(columns) || typeof escapeHtml !== 'function') throw new Error('invalid table header inputs');
     return '<tr>'+columns.map(({key,label}) => '<th data-key="'+escapeHtml(key)+'" data-sort="'+(sortKey === key ? 'active' : '')+'">'+escapeHtml(label)+' <span class="sort-icon">'+(sortKey === key ? (descending ? '↓' : '↑') : '↕')+'</span></th>').join('')+'<th class="row-action-column"></th></tr>';
-  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader });
+  }  function renderValueCell({ row, field, escapeHtml, badgeHtml }) {
+    if (!row || typeof escapeHtml !== 'function') throw new Error('invalid table cell renderer inputs');
+    const esc = escapeHtml, value = row.values?.[field] ?? '';
+    const markup = /trạng thái|kết quả|đồng bộ|kết nối/i.test(field) && typeof badgeHtml === 'function' ? badgeHtml(value) : esc(value);
+    return '<td class="value-cell"><button type="button" class="editable-cell" data-field="'+esc(field)+'" aria-label="Sửa '+esc(field)+' của '+esc(row.title)+'" title="Click để sửa">'+markup+'</button></td>';
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell });
 });
