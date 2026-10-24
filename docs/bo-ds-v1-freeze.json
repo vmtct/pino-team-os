@@ -1,0 +1,19 @@
+{
+  "version": "BO_DS_V1",
+  "founderUiApproval": "APPROVED_STUDENTS_CLASSES",
+  "baselineSource": "087c7799bea39de44aa910a47645c400aef51fac",
+  "modules": [
+    "students",
+    "classes"
+  ],
+  "functionalApproval": "PENDING",
+  "assets": {
+    "styles.css": "c690f8593c628306695dfa727f806449505527f181017ba9dbe39dd819c139c8",
+    "playground.css": "597d8516eb149098d82cfefbcaafc3c858fc8e729669cf8eee573dcb67e48b09",
+    "playground-v22.css": "2bb0d9a8c911a5b7ea9e0d732159c89e136ed548cab7e5856cb57352d0aad65c",
+    "playground-v23.css": "9a06ee1031ffa9a3b0ac5d94ee3a7e987391f22a5fbcc07c15c185e92db70afb",
+    "playground.html": "d220b766ec96e7479a2485f1bdc14145fa99856772ed68b8df1f0bf38071f765",
+    "playground.js": "d2e794720fa68faab681e1ed0b16d9bff8c475e95f6e67adc72ddf498191fbd2",
+    "bo-pilot-adapters.js": "ce4fd0e74b00d4ae303cf1cb16c91fbff02bd0710552df2d2c44280b21d26039"
+  }
+}
