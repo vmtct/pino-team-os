@@ -1,0 +1,49 @@
+# PAP-512 governed preview router; child deployment readback is authoritative.
+name: Stage Preview — governed entrypoint
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Preview app (only BO adapter currently admitted)'
+        type: choice
+        options: [bo, pinoria-tv, tos, staff]
+        required: true
+      approved_sha:
+        description: 'Exact Team main SHA for preview'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: governed-stage-preview-router
+  cancel-in-progress: false
+jobs:
+  route:
+    if: github.repository == 'vmtct/pino-team-os' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pin current main and reject unsafe or unavailable adapters
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP: ${{ inputs.app }}
+          SHA: ${{ inputs.approved_sha }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$SHA" = "$GITHUB_SHA"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/main | cut -f1)" = "$SHA"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          test -n "$CLOUDFLARE_API_TOKEN"
+          case "$APP" in
+            bo) workflow='bo-founder-staging-preview.yml' ;;
+            pinoria-tv|tos|staff)
+              echo "HOLD: no audited immutable-sha+CAS preview adapter for $APP yet" >&2
+              exit 1 ;;
+            *) exit 1 ;;
+          esac
+          response="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/952c3c8a236f8e4cbcf6ee10b86ad70c/workers/scripts/pino-team-os-greenfield-preview/deployments?per_page=10")"
+          PREVIOUS="$(jq -er 'if .success == true then [.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id] | if length == 1 then .[0] else error("No single active preview version") end else error("Cloudflare readback failed") end' <<<"$response")"
+          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main \
+            -f approved_sha="$SHA" -f expected_previous_version="$PREVIOUS"
+          echo "Dispatch sent for $APP/$SHA. Parent dispatch is NOT proof of deployment; child workflow serving readback and Founder acceptance required." >> "$GITHUB_STEP_SUMMARY"
