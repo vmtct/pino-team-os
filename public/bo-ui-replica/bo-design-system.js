@@ -25,5 +25,12 @@
     const shown = compact ? fields.slice(0, 2) : fields;
     return Object.freeze([{ key: 'title', label: noun }, { key: 'id', label: 'ID', readonly: true }, ...shown.map(key => ({ key, label: key }))].map(x => Object.freeze(x)));
   }
-  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns });
+  function drawerProperties({ fields, record, isCreate = false }) {
+    if (!Array.isArray(fields)) throw new Error('drawer fields must be an array');
+    const values = record?.values || {};
+    const props = fields.map(key => Object.freeze({ key, label: key, value: values[key] ?? '', editable: true }));
+    props.push(Object.freeze({ key: 'id', label: 'ID', value: isCreate ? 'Tự tạo khi lưu' : (record?.id || ''), editable: false }));
+    return Object.freeze(props);
+  }
+  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties });
 });
