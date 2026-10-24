@@ -14,6 +14,8 @@ import { buildStaffQuickPeekModel } from "@/lib/bo-staff-quick-peek";
 import { STAFF_DETAIL_TABS, resolveStaffDetailTab, staffDetailTabHref } from "@/lib/bo-staff-detail-tabs";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
+import { staffProfileDraftDirty, staffProfileDraftErrors } from "@/lib/bo-staff-profile-edit";
+import { staffAccessCanRevoke, staffAccessScopeValid } from "@/lib/bo-staff-access-scope";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
 import styles from "../bo.module.css";
 
@@ -61,6 +63,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const [privateData, setPrivateData] = useState<PrivateLoadState>({ status: "idle" });
   const [privateCenterId, setPrivateCenterId] = useState("");
   const [form, setForm] = useState<BoStaffProfilePatch>({});
+  const [profileEditing, setProfileEditing] = useState(false);
   const [roleId, setRoleId] = useState("");
   const [scopeType, setScopeType] = useState<ScopeType>("GLOBAL");
   const [scopeId, setScopeId] = useState("");
@@ -77,6 +80,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   const passwordResetInFlightRef = useRef<string | null>(null);
   const refreshFenceRef = useRef(0);
   const privateRevealFenceRef = useRef(createStaffPrivateRevealFence());
+  const profileEditFenceRef = useRef(0);
+  const [profileError, setProfileError] = useState("");
 
   // Initial directory load plus refresh after onboarding mutations.
   useEffect(() => {
@@ -88,8 +93,12 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   useEffect(() => {
     let current = true;
     privateRevealFenceRef.current.invalidate();
+    profileEditFenceRef.current += 1;
+    setProfileError("");
+    setBusy((state) => state === "profile" || state === "role" || state.startsWith("revoke:") ? "" : state);
+    setRoleId(""); setScopeType("GLOBAL"); setScopeId(""); setSuspendReason("");
     selectedIdRef.current = selectedId;
-    setPasswordReset(null); setPasswordCopied(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
+    setPasswordReset(null); setPasswordCopied(false); setProfileEditing(false); setProfile(null); setPrivateData({ status: "idle" }); setPrivateCenterId("");
     setPinoria(selectedId ? { status: "loading" } : { status: "idle" });
     setOnboarding(selectedId ? { status: "loading" } : { status: "idle" });
     if (!selectedId) return () => { current = false; };
@@ -104,10 +113,44 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
     return () => { current = false; };
   }, [selectedId]);
 
+  const profileDirty = profile !== null && staffProfileDraftDirty(profileForm(profile), form);
+  const profileValidation = profileEditing ? staffProfileDraftErrors(form) : [];
+
+  useEffect(() => {
+    if (!profileEditing || !profileDirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [profileEditing, profileDirty]);
+
+  useEffect(() => {
+    if (!detailOnly || activeTab === "profile") return;
+    privateRevealFenceRef.current.invalidate();
+    setPrivateData({ status: "idle" });
+  }, [activeTab, detailOnly]);
+
+  function confirmProfileNavigation(event: { preventDefault: () => void }) {
+    if (profileEditing && (profileDirty || busy === "profile") &&
+        !window.confirm("Hồ sơ có thay đổi chưa lưu. Rời khỏi trang và hủy thay đổi?")) {
+      event.preventDefault();
+      return;
+    }
+    if (profileEditing) {
+      profileEditFenceRef.current += 1;
+      setBusy((state) => state === "profile" ? "" : state);
+      setForm(profile ? profileForm(profile) : {});
+      setProfileEditing(false);
+      setProfileError("");
+    }
+    privateRevealFenceRef.current.invalidate();
+    setPrivateData({ status: "idle" });
+  }
+
   const selected = data.staff.find((item) => item.id === selectedId) ?? null;
   const accessUser = useMemo(() => data.users.find((item) => item.staffMemberId === selectedId) ?? null, [data.users, selectedId]);
   const quickPeek = buildStaffQuickPeekModel(selected, accessUser, selected ? staffAttention(selected, accessUser).label : "Loading", selectedId);
   const activeRoles = useMemo(() => data.roles.filter((item) => item.status === "active" && item.roleKey !== "founder"), [data.roles]);
+  const canComposeRole = activeRoles.some((role) => role.id === roleId) && staffAccessScopeValid(scopeType, scopeId, data);
   const privateCenterOptions = useMemo(() => {
     const ids = new Set((accessUser?.assignments ?? []).filter((item) => item.scopeType === "CENTER" && item.scopeId).map((item) => item.scopeId!));
     return [...ids].map((id) => ({ id, label: data.centers.find((center) => center.id === id)?.displayName ?? id }));
@@ -243,13 +286,28 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   }
 
   async function saveProfile() {
-    if (!selectedId) return;
-    setBusy("profile"); setError(""); setMessage("");
+    const targetId = selectedIdRef.current;
+    if (!targetId || profile?.id !== targetId || !profileEditing || !profileDirty) return;
+    const errors = staffProfileDraftErrors(form);
+    if (errors.length) { setProfileError(errors.join(" ")); return; }
+    const requestFence = profileEditFenceRef.current;
+    const patch = { ...form };
+    setBusy("profile"); setProfileError(""); setError(""); setMessage("");
     try {
-      const next = await boApi.updateStaff(selectedId, form);
-      setProfile(next); setForm(profileForm(next)); await refresh(selectedId); setMessage("Đã lưu hồ sơ nhân viên.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể lưu hồ sơ."); }
-    finally { setBusy(""); }
+      const next = await boApi.updateStaff(targetId, patch);
+      if (selectedIdRef.current !== targetId || profileEditFenceRef.current !== requestFence) return;
+      setProfile(next);
+      setForm(profileForm(next));
+      setProfileEditing(false);
+      await refresh(targetId);
+      if (selectedIdRef.current === targetId && profileEditFenceRef.current === requestFence) setMessage("Đã lưu hồ sơ nhân viên.");
+    } catch (cause) {
+      if (selectedIdRef.current === targetId && profileEditFenceRef.current === requestFence) {
+        setProfileError(cause instanceof Error ? cause.message : "Không thể lưu hồ sơ.");
+      }
+    } finally {
+      if (selectedIdRef.current === targetId && profileEditFenceRef.current === requestFence) setBusy("");
+    }
   }
 
   async function changeStaffStatus(status: "active" | "inactive") {
@@ -261,18 +319,36 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
   }
 
   async function assignRole() {
-    if (!accessUser || !roleId || (scopeType !== "GLOBAL" && !scopeId)) return;
+    const targetStaffId = selectedIdRef.current;
+    const targetAccessId = accessUser?.id;
+    if (!targetStaffId || !targetAccessId || !canComposeRole || busy) return;
+    const command = { userId: targetAccessId, roleId, scopeType, scopeId: scopeType === "GLOBAL" ? null : scopeId };
     setBusy("role"); setError(""); setMessage("");
-    try { await boApi.assignAccessRole({ userId: accessUser.id, roleId, scopeType, scopeId: scopeType === "GLOBAL" ? null : scopeId }); await refresh(selectedId); setRoleId(""); setScopeId(""); setMessage("Đã thêm Access role."); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể thêm role."); }
-    finally { setBusy(""); }
+    try {
+      await boApi.assignAccessRole(command);
+      if (selectedIdRef.current !== targetStaffId) return;
+      await refresh(targetStaffId);
+      if (selectedIdRef.current === targetStaffId) {
+        setRoleId(""); setScopeId(""); setMessage("Đã thêm Access role.");
+      }
+    } catch (cause) {
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể thêm role.");
+    } finally { if (selectedIdRef.current === targetStaffId) setBusy(""); }
   }
   async function revokeRole(assignmentId: string) {
+    const targetStaffId = selectedIdRef.current;
+    const assignment = accessUser?.assignments.find((item) => item.assignmentId === assignmentId);
+    if (!targetStaffId || !staffAccessCanRevoke(assignment) || busy) return;
     if (!confirm("Gỡ role assignment này?")) return;
     setBusy(`revoke:${assignmentId}`); setError(""); setMessage("");
-    try { await boApi.removeAccessAssignment(assignmentId); await refresh(selectedId); setMessage("Đã gỡ role assignment."); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể gỡ role."); }
-    finally { setBusy(""); }
+    try {
+      await boApi.removeAccessAssignment(assignmentId);
+      if (selectedIdRef.current !== targetStaffId) return;
+      await refresh(targetStaffId);
+      if (selectedIdRef.current === targetStaffId) setMessage("Đã gỡ role assignment.");
+    } catch (cause) {
+      if (selectedIdRef.current === targetStaffId) setError(cause instanceof Error ? cause.message : "Không thể gỡ role.");
+    } finally { if (selectedIdRef.current === targetStaffId) setBusy(""); }
   }
 
   async function resetStaffPassword() {
@@ -389,17 +465,25 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
             {(!detailOnly || activeTab === "profile") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>{profile.displayLabel}</h2><p>Operational profile · {profile.status}</p></div><span className={styles.writePill}>{profile.status}</span></div>
-              <div className={styles.formGrid}>
-                <Field label="Tên hiển thị" value={form.displayLabel ?? ""} onChange={(value) => setForm((v) => ({ ...v, displayLabel: value }))} />
-                <Field label="Email hồ sơ" type="email" value={form.email ?? ""} onChange={(value) => setForm((v) => ({ ...v, email: value }))} />
-                <Field label="Mobile" value={form.mobile ?? ""} onChange={(value) => setForm((v) => ({ ...v, mobile: value }))} />
-                <Field label="Department" value={form.department ?? ""} onChange={(value) => setForm((v) => ({ ...v, department: value }))} />
-                <Field label="Role label" value={form.roleLabel ?? ""} onChange={(value) => setForm((v) => ({ ...v, roleLabel: value }))} />
-                <Field label="Employment type" value={form.employmentType ?? ""} onChange={(value) => setForm((v) => ({ ...v, employmentType: value }))} />
-                <Field label="Start date" type="date" value={form.startDate ?? ""} onChange={(value) => setForm((v) => ({ ...v, startDate: value }))} />
-              </div>
               <div className={styles.staffActions}>
-                <button type="button" className={styles.primaryButton} disabled={busy === "profile" || !(form.displayLabel ?? "").trim()} onClick={() => void saveProfile()}>{busy === "profile" ? "Đang lưu…" : "Lưu hồ sơ"}</button>
+                <span className={styles.readOnly}>{profileEditing ? "Đang chỉnh sửa hồ sơ" : "Chế độ xem · thông tin nhân sự"}</span>
+                {!profileEditing ? <button type="button" className={styles.secondaryButton} onClick={() => setProfileEditing(true)}>Chỉnh sửa hồ sơ</button> : null}
+              </div>
+              <div className={styles.formGrid}>
+                <Field label="Tên hiển thị" value={form.displayLabel ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, displayLabel: value }))} />
+                <Field label="Email hồ sơ" type="email" value={form.email ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, email: value }))} />
+                <Field label="Mobile" value={form.mobile ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, mobile: value }))} />
+                <Field label="Department" value={form.department ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, department: value }))} />
+                <Field label="Role label" value={form.roleLabel ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, roleLabel: value }))} />
+                <Field label="Employment type" value={form.employmentType ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, employmentType: value }))} />
+                <Field label="Start date" type="date" value={form.startDate ?? ""} readOnly={!profileEditing} onChange={(value) => setForm((v) => ({ ...v, startDate: value }))} />
+              </div>
+              {profileEditing && (profileError || profileValidation.length > 0) ? <p role="alert" className={styles.ownerError}>{profileError || profileValidation.join(" ")}</p> : null}
+              {profileEditing ? <div className={styles.staffActions}>
+                <button type="button" className={styles.primaryButton} disabled={busy === "profile" || !profileDirty || profileValidation.length > 0} onClick={() => void saveProfile()}>{busy === "profile" ? "Đang lưu…" : "Lưu hồ sơ"}</button>
+                <button type="button" className={styles.secondaryButton} disabled={busy === "profile"} onClick={() => { setForm(profileForm(profile)); setProfileEditing(false); setProfileError(""); }}>Hủy thay đổi</button>
+              </div> : null}
+              <div className={styles.staffActions}>
                 <button type="button" className={styles.secondaryButton} disabled={busy === "staff-status" || busy === "offboarding"} onClick={() => void changeStaffStatus(profile.status === "active" ? "inactive" : "active")}>{profile.status === "active" ? "Deactivate Staff only" : "Reactivate Staff"}</button>
               </div>
               {profile.status === "inactive" && accessUser?.status === "active" ? <p className={styles.staffWarning}>Staff đã inactive nhưng Access vẫn active. Dùng “Hoàn tất offboarding” bên dưới để đóng quyền truy cập.</p> : null}
@@ -491,6 +575,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
             {(!detailOnly || activeTab === "access") ? <>
             <section className={styles.panel}>
               <div className={styles.panelHeading}><div><h2>Access</h2><p>Role, scope và login state là canonical Access state riêng với Staff status.</p></div><span className={styles.writePill}>{accessUser?.status ?? "not provisioned"}</span></div>
+              <p className={styles.staffAccessMeta}>Staff: {profile.status} · Access: {accessUser?.status ?? "not provisioned"} — hai vòng đời được cập nhật độc lập.</p>
               {!accessUser ? <p>Chưa có Access. Dùng “Provision existing Staff” ở phần Add staff bên dưới.</p> : <>
                 <p className={styles.staffAccessMeta}>{accessUser.email ?? "No email"} · {accessUser.assignments.length} assignment(s)</p>
                 <div className={styles.staffPinPanel}>
@@ -513,13 +598,13 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
                   </div>
                 </div>
 
-                <div className={styles.staffAssignmentList}>{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={assignment.roleKey === "founder" || busy === `revoke:${assignment.assignmentId}`} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
+                <div className={styles.staffAssignmentList}>{accessUser.assignments.length === 0 ? <p>Chưa có role assignment nào được cấp cho Access này.</p> : null}{accessUser.assignments.map((assignment) => <div className={styles.staffAssignmentCard} key={assignment.assignmentId}><div><strong>{assignment.roleName}</strong><small>{scopeLabel(assignment.scopeType, assignment.scopeId, data)}</small></div><button type="button" className={styles.secondaryButton} disabled={!staffAccessCanRevoke(assignment) || Boolean(busy)} onClick={() => void revokeRole(assignment.assignmentId)}>Gỡ</button></div>)}</div>
 
                 <div className={styles.staffAccessComposer}>
                   <label className={styles.field}>Thêm role<select value={roleId} onChange={(event) => setRoleId(event.target.value)}><option value="">Chọn role…</option>{activeRoles.map((role) => <option value={role.id} key={role.id}>{role.displayName}</option>)}</select></label>
                   <label className={styles.field}>Scope<select value={scopeType} onChange={(event) => { setScopeType(event.target.value as ScopeType); setScopeId(""); }}><option value="GLOBAL">Global</option><option value="CENTER">Center</option><option value="PATH">Path</option><option value="RUNNING_CLASS">Running Class</option></select></label>
                   {scopeType === "GLOBAL" ? <div /> : <ScopeSelect type={scopeType} value={scopeId} data={data} onChange={setScopeId} />}
-                  <button type="button" className={styles.secondaryButton} disabled={!roleId || (scopeType !== "GLOBAL" && !scopeId) || busy === "role"} onClick={() => void assignRole()}>+ Add role</button>
+                  <button type="button" className={styles.secondaryButton} disabled={!canComposeRole || Boolean(busy)} onClick={() => void assignRole()}>+ Add role</button>
                 </div>
                 <div className={styles.staffAccessStatus}>
                   {accessUser.status === "active" ? <><label className={styles.field}>Suspend reason<input value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} placeholder="Required to suspend" /></label><button type="button" className={styles.secondaryButton} disabled={!suspendReason.trim() || busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("suspended")}>Suspend Access only</button></> : <button type="button" className={styles.secondaryButton} disabled={busy === "access-status" || busy === "offboarding"} onClick={() => void changeAccessStatus("active")}>Reactivate Access</button>}
@@ -533,7 +618,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
 
   return (
     <section id="staff-management" className={styles.page}>
-      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
+      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref} onClick={confirmProfileNavigation}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
       {!detailOnly ? <BoDataGrid
         rows={visibleRows}
@@ -565,11 +650,11 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
       {selectedId ? (detailOnly ? <div className={styles.staffFullWorkspace} data-testid="staff-full-detail">
         <div className={styles.staffFullIdentity}>
           <div><span className={styles.staffFullEyebrow}>STAFF DETAIL · {selectedId}</span><h2>{selected?.displayLabel ?? "Đang tải Staff..."}</h2><p>{selected?.roleLabel ?? selected?.department ?? "Chưa phân nhóm"} · {profile?.employmentType ?? "Chưa có loại hợp đồng"}</p><div className={styles.staffV2HeaderBadges}><span>Staff: {selected?.status ?? "Đang tải"}</span><span>Access: {accessUser?.status ?? "Chưa có Access"}</span><span>Center: {accessUser?.assignments.filter((item) => item.scopeType === "CENTER").map((item) => data.centers.find((center) => center.id === item.scopeId)?.displayName ?? item.scopeId).filter(Boolean).join(", ") || "Chưa xác định"}</span></div></div>
-          <Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Danh sách</Link>
+          <Link className={styles.secondaryButton} href={returnHref} onClick={confirmProfileNavigation}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Danh sách</Link>
         </div>
         <nav className={styles.staffV2Tabs} aria-label="Staff detail sections" data-testid="staff-v2-tabs">
           {STAFF_DETAIL_TABS.map((tab) => <Link key={tab.key} href={staffDetailTabHref(pathname, searchParams.toString(), tab.key)}
-            className={activeTab === tab.key ? styles.staffV2TabActive : styles.staffV2Tab}
+            className={activeTab === tab.key ? styles.staffV2TabActive : styles.staffV2Tab} onClick={confirmProfileNavigation}
             aria-current={activeTab === tab.key ? "page" : undefined}>{tab.label}</Link>)}
         </nav>
         {activeTab === "overview" ? <section className={styles.staffV2Overview} data-testid="staff-v2-overview">
@@ -648,8 +733,8 @@ function profileForm(profile: BoStaffProfile): BoStaffProfilePatch {
   return { displayLabel: profile.displayLabel, email: profile.email ?? "", mobile: profile.mobile ?? "", employmentType: profile.employmentType ?? "", department: profile.department ?? "", roleLabel: profile.roleLabel ?? "", startDate: profile.startDate ?? "" };
 }
 
-function Field({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
-  return <label className={styles.field}>{label}<input type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+function Field({ label, value, onChange, type = "text", readOnly = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; readOnly?: boolean }) {
+  return <label className={styles.field}>{label}<input type={type} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 function ScopeSelect({ type, value, data, onChange }: { type: Exclude<ScopeType, "GLOBAL">; value: string; data: Data; onChange: (value: string) => void }) {
   const options = type === "CENTER" ? data.centers.map((item) => [item.id, item.displayName] as const) : type === "PATH" ? data.paths.map((item) => [item.id, item.displayName] as const) : data.classes.map((item) => [item.id, item.name] as const);
