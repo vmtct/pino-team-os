@@ -11,6 +11,7 @@ const TAGS=["VIP","Renewal","Trial","Arts","Music","CAMP","Urgent","Recurring"];
 const STATUSES=["Đang học","Cần xử lý","Đã duyệt","Bản nháp","Tạm dừng"];
 const pilotKey=new URLSearchParams(location.search).get("module");
 const pilot=Object.hasOwn(window.PinoBOPilotAdapters||{},pilotKey)?window.PinoBOPilotAdapters[pilotKey]:null;
+const coreMode=pilot?.mode==="CORE";
 const FIELDS=pilot?.fields||[
  {key:"name",label:"Tên bản ghi",type:"text",icon:"Aa",w:235},
  {key:"id",label:"ID",type:"id",icon:"#",w:145,readonly:true},
@@ -92,6 +93,11 @@ function renderNav(){
   const shown=!!state.navQuery||!state.collapsed.has(group);
   return '<section class="nav-group"><button type="button" class="nav-group-toggle" data-group="'+group+'" aria-expanded="'+shown+'"><span>'+group+'</span><span class="nav-group-caret">'+(shown?"⌄":"›")+'</span></button>'+(shown?'<div class="nav-group-links">'+items.map(item=>'<a class="nav-link '+(item.current?"active":"")+'" href="'+item.href+'"><span class="nav-icon">'+item.icon+'</span><span class="nav-title">'+esc(item.label)+'</span></a>').join("")+'</div>':'')+'</section>';
  }).join("")||'<div class="nav-empty">Không tìm thấy module</div>';
+ if(coreMode)qa("a",$("lab-nav")).forEach(link=>{
+  const target=new URL(link.href,location.href);
+  if(["students","classes"].includes(target.searchParams.get("module"))){target.searchParams.set("data","core");link.href=target.href;}
+  else link.onclick=event=>event.preventDefault();
+ });
  qa("[data-group]",$("lab-nav")).forEach(button=>button.onclick=()=>{const key=button.dataset.group;if(state.collapsed.has(key))state.collapsed.delete(key);else state.collapsed.add(key);renderNav()});
  $("collapse-all").disabled=state.collapsed.size===groups.length;
  $("expand-all").disabled=!state.collapsed.size;
@@ -242,6 +248,16 @@ function renderChips(){
 function closeEditor(){state.popover=null;$("popover").classList.add("hidden");$("popover").innerHTML="";}
 function applyCell(rec,f,next){
  if(f.readonly)return;
+ if(coreMode){
+  const editorTicket=state.popover;
+  const button=$("edit-save");if(button?.disabled)return false;if(button)button.disabled=true;
+  void pilot.commit(rec,f.key,next).then(confirmed=>{
+   Object.assign(rec,confirmed);if(state.popover===editorTicket)closeEditor();renderTable();
+   if(state.drawer===rec.id)renderDrawer();if(state.detail===rec.id)renderDetail();
+   toast("Đã lưu và đọc lại từ Core");
+  }).catch(error=>{const box=state.popover===editorTicket?$("edit-error"):null;if(box)box.textContent=error.message;else toast(error.message);if(button?.isConnected)button.disabled=false;});
+  return false;
+ }
  if(["number","currency"].includes(f.type)){
   if(!Number.isFinite(Number(next))||Number(next)<0){toast("Số phải ≥ 0");return false}
   next=Number(next);
@@ -298,7 +314,7 @@ function openEditor(anchor,rec,f){
  function save(){
   const el=$("editor-value");
   const next=multi?[...selected]:single?([...selected][0]||""):f.type==="boolean"?$("editor-bool").checked:el?el.value:"";
-  if(["number","currency"].includes(f.type)&&next===""){rec[f.key]=null;renderTable();closeEditor();return}
+  if(!coreMode&&["number","currency"].includes(f.type)&&next===""){rec[f.key]=null;renderTable();closeEditor();return}
   if(applyCell(rec,f,next))closeEditor();
  }
  $("edit-save").onclick=save;$("edit-cancel").onclick=closeEditor;
@@ -313,6 +329,7 @@ function createDraft(){
  const name="";return {name,id:"",status:"Bản nháp",sessions:0,price:250000,start:"",student:"",approved:false,notes:"",appointment:"",classes:[],owner:"",tags:[],email:"",website:""};
 }
 function openDrawer(id=null){
+ if(coreMode&&!id)return;
  closeEditor();state.drawer=id;state.draft=id?null:createDraft();
  $("drawer").classList.add("open");$("drawer").setAttribute("aria-hidden","false");
  $("drawer-scrim").classList.add("visible");document.body.style.overflow="hidden";
@@ -420,6 +437,7 @@ function vSnapshot(){
  savedViews:vclone(v22.savedViews),activeView:v22.activeView,tagColors:{...TAG_COLOR}};
 }
 function recordUndo(label){
+ if(coreMode)return;
  if(v22.restoring)return;
  const current=vSnapshot(),last=v22.undo[v22.undo.length-1];
  if(last&&last.label===label&&JSON.stringify(last.snapshot)===JSON.stringify(current))return;
@@ -444,11 +462,13 @@ function restoreSnapshot(snapshot){
  }finally{v22.restoring=false;updateUndoButton();}
 }
 function undoAction(){
+ if(coreMode)return;
  if(!v22.undo.length){toast("Không còn thao tác để hoàn tác");return;}
  v22.redo.push({label:"redo",snapshot:vSnapshot()});
  const last=v22.undo.pop();restoreSnapshot(last.snapshot);toast("↶ Hoàn tác: "+last.label);
 }
 function redoAction(){
+ if(coreMode)return;
  if(!v22.redo.length){toast("Không còn thao tác để làm lại");return;}
  v22.undo.push({label:"redo",snapshot:vSnapshot()});
  const next=v22.redo.pop();restoreSnapshot(next.snapshot);toast("↷ Làm lại");
@@ -650,6 +670,8 @@ function renderGroupSettings(){
  });
 }
 function saveNamedView(name){
+ if(coreMode)return; // Do not claim local draft metadata is persisted Core truth.
+
  const clean=name.trim().slice(0,38);if(!clean){toast("Cần nhập tên Quick View");return;}
  recordUndo("Lưu Quick View");
  const id="view-"+Date.now()+"-"+(v22.savedViews.length+1);
@@ -857,6 +879,7 @@ vRenderSavedTabs=function(){
   let n=1;while(v22.savedViews.some(x=>x.name==="View "+n))n++;
   v23Sync();saveNamedView("View "+n);vSettingsToggle(false);v23Rename(v22.activeView);
  };
+ if(coreMode)add.disabled=true;
  parent.append(add);
 };
 const oldApplyView=applySavedView;
@@ -926,7 +949,20 @@ if(pilot){
 window.PinoBOSharedWorkspace=Object.freeze({
  moduleKey:pilot?.key||"registration",
  BODataTable:()=>renderTable(), BOQuickView:()=>renderDrawer(), BOFullDetail:()=>renderDetail(),
- dataMode:"UI_ONLY_SYNTHETIC"
+ dataMode:coreMode?"CORE":"UI_ONLY_SYNTHETIC"
 });
 renderNav();renderStrip();renderRules();renderTable();bind();
+if(coreMode){
+ $("add-record").disabled=true;
+ for(const tab of qa("[data-view]"))if(tab.dataset.view!=="all")tab.disabled=true;
+ q("#detail-screen .eyebrow").textContent=pilot.group+" / FULL DETAIL";
+ for(const link of qa("#lab-nav a")){
+  const url=new URL(link.href,location.href);
+  if(["students","classes"].includes(url.searchParams.get("module"))){url.searchParams.set("data","core");link.href=url.href;}
+  else link.onclick=event=>event.preventDefault();
+ }
+ $("add-view-tab").disabled=true; // Core public-view persistence is a separate governed adapter; never fabricate success.
+ const originalSettings=renderSettings;
+ renderSettings=function(){originalSettings();for(const b of qa('[data-settings="views"],#confirm-save-view'))b.disabled=true;};
+}
 })();
