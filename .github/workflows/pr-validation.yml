@@ -34,6 +34,7 @@ jobs:
           node --test scripts/verify-bo-module-contract.test.mjs
       - name: Check BO V2.3 pilot parity contract (PAP-889)
         run: |
+          node --test public/bo-ui-replica/bo-design-system.test.cjs public/bo-ui-replica/bo-pilot-adapters.test.cjs
           node --test scripts/verify-bo-v23-parity.test.mjs
           node scripts/verify-bo-v23-parity.mjs --mode=adopted
           node --test scripts/verify-bo-v23-foundation.test.mjs
