@@ -49,5 +49,13 @@
     const esc = escapeHtml, value = row.values?.[field] ?? '';
     const markup = /trạng thái|kết quả|đồng bộ|kết nối/i.test(field) && typeof badgeHtml === 'function' ? badgeHtml(value) : esc(value);
     return '<td class="value-cell"><button type="button" class="editable-cell" data-field="'+esc(field)+'" aria-label="Sửa '+esc(field)+' của '+esc(row.title)+'" title="Click để sửa">'+markup+'</button></td>';
-  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell });
+  }  function renderTableRows({ rows, columns, selected, escapeHtml, badgeHtml }) {
+    if (!Array.isArray(rows) || !Array.isArray(columns) || typeof escapeHtml !== 'function') throw new Error('invalid table rows');
+    const esc = escapeHtml;
+    return rows.map(row => '<tr data-id="'+esc(row.id)+'" class="'+(selected === row.id ? 'selected' : '')+'" tabindex="0" aria-label="Bản ghi '+esc(row.title)+'; click vùng trống để xem Quick View">'+
+      '<td class="name-cell"><button type="button" class="editable-cell identity-name" data-field="title" aria-label="Sửa tên '+esc(row.title)+'">'+esc(row.title)+'</button></td>'+
+      '<td class="id-cell"><button type="button" class="copy-id" title="Copy ID" aria-label="Copy ID '+esc(row.id)+'">'+esc(row.id)+'</button></td>'+
+      columns.map(field => renderValueCell({row,field,escapeHtml,badgeHtml})).join('')+
+      '<td class="action-cell"><button type="button" class="open-quick" aria-label="Quick View '+esc(row.title)+'" title="Quick View">↗</button></td></tr>').join('') || '<tr><td colspan="'+(columns.length+3)+'"><div class="empty-state"><strong>Không tìm thấy bản ghi</strong>Thử thay đổi bộ lọc hoặc tìm kiếm.</div></td></tr>';
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
 });
