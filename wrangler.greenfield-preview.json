@@ -16,6 +16,7 @@
     "enabled": true
   },
   "vars": {
+    "APP_ENV": "staging",
     "STAFF_PASSWORD_RESET_FROM_EMAIL": "no-reply@pinohouse.art"
   },
   "services": [
