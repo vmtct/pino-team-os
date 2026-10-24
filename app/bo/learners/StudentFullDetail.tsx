@@ -20,7 +20,6 @@ export function StudentFullDetail({ studentId }: { studentId: string }) {
   const [saveError, setSaveError] = useState("");
   useEffect(() => {
     let active = true;
-    setDetail({ state: "loading" });
     void boApi.learnerLifecycle(studentId).then(data => {
       if (active) setDetail({ state: "ready", data });
     }).catch((error: unknown) => {
