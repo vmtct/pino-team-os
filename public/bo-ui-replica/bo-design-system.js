@@ -20,5 +20,10 @@
     if (!ids.has('id')) throw new Error('module schema requires immutable id');
     return Object.freeze({ key, label, fields: Object.freeze(normalized), levels: LEVELS });
   }
-  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema });
+  function tableColumns({ noun, fields, compact = false }) {
+    if (!noun || !Array.isArray(fields)) throw new Error('table requires noun and fields');
+    const shown = compact ? fields.slice(0, 2) : fields;
+    return Object.freeze([{ key: 'title', label: noun }, { key: 'id', label: 'ID', readonly: true }, ...shown.map(key => ({ key, label: key }))].map(x => Object.freeze(x)));
+  }
+  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns });
 });
