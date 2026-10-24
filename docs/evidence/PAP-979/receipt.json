@@ -1,0 +1,187 @@
+{
+  "mode": "LOCAL_ONLY",
+  "receipts": [
+    {
+      "key": "students",
+      "width": 390,
+      "status": "MOCK_CONTRACT_PASS"
+    },
+    {
+      "key": "classes",
+      "width": 390,
+      "status": "MOCK_CONTRACT_PASS"
+    },
+    {
+      "key": "students",
+      "width": 768,
+      "status": "MOCK_CONTRACT_PASS"
+    },
+    {
+      "key": "classes",
+      "width": 768,
+      "status": "MOCK_CONTRACT_PASS"
+    },
+    {
+      "key": "students",
+      "width": 1440,
+      "status": "MOCK_CONTRACT_PASS"
+    },
+    {
+      "key": "classes",
+      "width": 1440,
+      "status": "MOCK_CONTRACT_PASS"
+    },
+    {
+      "key": "students",
+      "width": 390,
+      "actor": "MANAGER",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "students",
+      "width": 390,
+      "actor": "STAFF",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "classes",
+      "width": 390,
+      "actor": "MANAGER",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "classes",
+      "width": 390,
+      "actor": "STAFF",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "students",
+      "width": 768,
+      "actor": "MANAGER",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "students",
+      "width": 768,
+      "actor": "STAFF",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "classes",
+      "width": 768,
+      "actor": "MANAGER",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "classes",
+      "width": 768,
+      "actor": "STAFF",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "students",
+      "width": 1440,
+      "actor": "MANAGER",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "students",
+      "width": 1440,
+      "actor": "STAFF",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "classes",
+      "width": 1440,
+      "actor": "MANAGER",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    },
+    {
+      "key": "classes",
+      "width": 1440,
+      "actor": "STAFF",
+      "status": "CORE_CONTRACT_FIXTURE_PASS",
+      "realAPI": false
+    }
+  ],
+  "visual": [
+    {
+      "width": 390,
+      "tab": "Detail",
+      "equal": true,
+      "runtime": "932aa007e48a5ae0a9fae59974b60f7e8a41de3f9ae667220242400e9294846b",
+      "authority": "932aa007e48a5ae0a9fae59974b60f7e8a41de3f9ae667220242400e9294846b"
+    },
+    {
+      "width": 390,
+      "tab": "Chuyên Sâu",
+      "equal": true,
+      "runtime": "20d8d37da426792c7b1bdea85317e7cbf85fdd0e6caf3c269e453c603dc1e0e6",
+      "authority": "20d8d37da426792c7b1bdea85317e7cbf85fdd0e6caf3c269e453c603dc1e0e6"
+    },
+    {
+      "width": 390,
+      "tab": "Lịch Sử",
+      "equal": true,
+      "runtime": "dab170c922e73b348595446e4bf28610abafd7bcefef9f897cf5097b6f6dc620",
+      "authority": "dab170c922e73b348595446e4bf28610abafd7bcefef9f897cf5097b6f6dc620"
+    },
+    {
+      "width": 768,
+      "tab": "Detail",
+      "equal": true,
+      "runtime": "f9a371e3e951387990b99a4c489d7aee0e20d077ccdacd13d9abb529e52749af",
+      "authority": "f9a371e3e951387990b99a4c489d7aee0e20d077ccdacd13d9abb529e52749af"
+    },
+    {
+      "width": 768,
+      "tab": "Chuyên Sâu",
+      "equal": true,
+      "runtime": "5c27c5d0bf777325a3b631f82b2a6afa59e7dc4e97e877e35f9a8eb4f1fde21b",
+      "authority": "5c27c5d0bf777325a3b631f82b2a6afa59e7dc4e97e877e35f9a8eb4f1fde21b"
+    },
+    {
+      "width": 768,
+      "tab": "Lịch Sử",
+      "equal": true,
+      "runtime": "4bba03e7aae1b5f2a552e5236c752f05c519a0be59fd522aff54b4f6c2d86b19",
+      "authority": "4bba03e7aae1b5f2a552e5236c752f05c519a0be59fd522aff54b4f6c2d86b19"
+    },
+    {
+      "width": 1440,
+      "tab": "Detail",
+      "equal": true,
+      "runtime": "58155e905d8229341ed0cfb2310c15b9c870dcd396227fbce5d1b9a5c513c15d",
+      "authority": "58155e905d8229341ed0cfb2310c15b9c870dcd396227fbce5d1b9a5c513c15d"
+    },
+    {
+      "width": 1440,
+      "tab": "Chuyên Sâu",
+      "equal": true,
+      "runtime": "5300edf8e665225a3bc8e4ce2911abafeff27946d4e8d572f9bc9b20d7974ba7",
+      "authority": "5300edf8e665225a3bc8e4ce2911abafeff27946d4e8d572f9bc9b20d7974ba7"
+    },
+    {
+      "width": 1440,
+      "tab": "Lịch Sử",
+      "equal": true,
+      "runtime": "969149c113459f2bca27994691abc71d181fd1a48086e89a4b72502bda8639ff",
+      "authority": "969149c113459f2bca27994691abc71d181fd1a48086e89a4b72502bda8639ff"
+    }
+  ],
+  "errors": [],
+  "visualParity": "PASS",
+  "live": "LIVE_VERIFICATION_PENDING"
+}

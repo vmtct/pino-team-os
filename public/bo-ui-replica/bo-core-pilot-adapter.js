@@ -66,7 +66,7 @@
       await request('students/'+id,'PATCH',{displayName:value.trim(),status:current.status,expectedVersion:current.version});
       const readback=await request('students/'+id+'/lifecycle');
       if(readback.student?.displayName!==value.trim()||readback.student?.id!==id)throw new Error('Không xác nhận được kết quả lưu. Hãy tải lại; không gửi lại tự động.');
-      return studentRow(readback.student);
+      return {...row,name:readback.student.displayName,status:readback.student.status};
      }
      const source=originals.get(id);if(!source||!Number.isSafeInteger(source.version))throw new Error('Thiếu version của lớp. Hãy tải lại.');
      const {version,...body}=source;delete body.id;

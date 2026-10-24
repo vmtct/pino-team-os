@@ -43,3 +43,18 @@ test('shared-view contract uses canonical fields and never substitutes profile l
  assert.deepEqual(a.viewFromCore(canonical),{...cfg,view:'all',hiddenGroups:[]});
  assert.throws(()=>a.viewToCore({...cfg,order:['salary']}),/field/);
 });
+
+test('all undeclared mutations fail closed; lifecycle readback does not erase directory projections',async()=>{
+ let patches=0;
+ const projected={...student,birthYear:2018,activePaths:[{displayName:'Art'}],houseMember:true,activeSubscriptions:1};
+ const f=fixture((url,o)=>{
+  if(url.endsWith('context'))return {data:context};if(url.includes('learners?'))return {data:[projected]};
+  if(o.method==='PATCH'){patches++;return {data:{}};}
+  return {data:{student:{...student,displayName:patches?'Bình':'An',version:patches?4:3}}};
+ });
+ const a=await create('students',f.fetch);
+ for(const field of ['id','paths','birth','learning','member','attention','status','total','capacity','unknown'])await assert.rejects(a.commit(a.rows[0],field,'bad'),/chỉ đọc/);
+ assert.equal(patches,0);
+ const confirmed=await a.commit(a.rows[0],'name','Bình');
+ assert.equal(confirmed.paths,'Art');assert.equal(confirmed.birth,'2018');assert.equal(confirmed.learning,'active');assert.equal(confirmed.member,true);assert.equal(patches,1);
+});

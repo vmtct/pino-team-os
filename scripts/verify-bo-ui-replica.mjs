@@ -25,7 +25,7 @@ try{
   page.on('request',r=>{if(r.url().includes('/api/')||!r.url().startsWith(origin+'/'))requests.push(r.url());});
   await page.goto(`${origin}/index.html?module=${key}`);
   await page.waitForURL(`**/playground.html?module=${key}`);
-  assert.equal(await page.evaluate(()=>window.PinoBOSharedWorkspace.moduleKey),key);
+  await page.waitForFunction(()=>window.PinoBOSharedWorkspace);assert.equal(await page.evaluate(()=>window.PinoBOSharedWorkspace.moduleKey),key);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   assert.equal(await page.locator('#table-body [data-record]').count(),key==='students'?8:5);
   const record=page.locator('#table-body [data-record]').first();
@@ -45,8 +45,8 @@ try{
   await page.locator('#full-detail').click();
   assert.equal(await page.locator('#detail-screen').isVisible(),true);
   assert.equal(await page.locator('#detail-tabs [data-tab]').count(),3);
-  await page.locator('#detail-tabs [data-tab="Hoạt động"]').click();
-  assert.equal(await page.locator('#detail-tabs .selected').innerText(),'Hoạt động');
+  await page.locator('#detail-tabs [data-tab="Chuyên Sâu"]').click();
+  assert.equal(await page.locator('#detail-tabs .selected').innerText(),'Chuyên Sâu');
   await page.locator('#back-to-list').click();
   await page.locator('#settings-btn').click();
   await page.locator('[data-settings="filters"]').click();
