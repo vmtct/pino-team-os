@@ -295,7 +295,7 @@ function drawDrawer(){
   '<section class="drawer-section"><h3>Hoạt động</h3><div class="drawer-audit"><span class="drawer-audit-point">↗</span><div><strong>Mock interaction only</strong><small>'+esc(isCreate?"Chưa lưu vào danh sách":"Sửa từng giá trị sẽ cập nhật mock table")+'</small></div></div></section>';
  d("drawer-footer").innerHTML=isCreate?
   '<button type="button" class="secondary-btn left-action" id="drawer-cancel">Hủy</button><button type="button" class="primary-btn" id="drawer-create">＋ Tạo bản ghi</button>':
-  '<button type="button" class="secondary-btn left-action" id="close-quick">Đóng</button>'+(m.kind!=="optional"?'<button type="button" class="primary-btn" id="open-detail">↗ Full Detail</button>':'');
+  '<button type="button" class="secondary-btn left-action" id="close-quick">Đóng</button>'+((m.kind!=="optional" || ["students","classes"].includes(m.id))?'<button type="button" class="primary-btn" id="open-detail">↗ Full Detail</button>':'');
  d("drawer-content").querySelectorAll("[data-prop]").forEach(btn=>btn.onclick=()=>startPropertyEdit(btn,r,btn.dataset.prop,isCreate));
  if(d("drawer-cancel"))d("drawer-cancel").onclick=()=>closeDrawer();
  if(d("drawer-create"))d("drawer-create").onclick=createRecord;
@@ -335,7 +335,7 @@ function createRecord(){
  renderTable();drawDrawer();saveUrl(true);toast("Đã tạo trong mock · không ghi Core");
 }
 function openDetail(id){
- const m=getMod();if(m.kind==="optional"&&id!=="architecture")return;
+ const m=getMod();if(m.kind==="optional"&&!(["students","classes"].includes(m.id))&&id!=="architecture")return;
  state.detail=id;state.detailTab="Tổng quan";d("drawer").classList.remove("open");d("drawer-scrim").classList.remove("visible");d("drawer").setAttribute("aria-hidden","true");document.body.style.overflow="";state.selected=null;state.dirty=false;saveUrl(true);renderHeader();renderDetail();window.scrollTo(0,0);
 }
 function detailGraphic(m){
