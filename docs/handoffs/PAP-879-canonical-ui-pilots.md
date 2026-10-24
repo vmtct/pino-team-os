@@ -20,10 +20,10 @@ bo:
 shared:
   permission_context: Existing protected preview ingress; UI-only synthetic data, no ACL changes
   cross_domain_links: Existing prototype navigation only
-founder_layout_review: PENDING
+founder_layout_review: APPROVED
 ```
 
-The three-level reference frame is already approved; this candidate's Students/Classes presentation still requires separate Founder UI approval. This is prototype convergence, not adoption of the real BO runtime routes or authority to wire Core. Remaining module adapters, TOS, staff and Production are outside scope.
+Founder explicitly approved both Students/Classes UI in-session on 2026-10-24. The BO DS V1 baseline is frozen at source 087c7799bea39de44aa910a47645c400aef51fac; see docs/bo-ds-v1-freeze.json. Functional acceptance remains pending. This is prototype convergence, not adoption of the real BO runtime routes or authority to wire Core. Remaining module adapters, TOS, staff and Production are outside scope.
 
 ## Verification
 
