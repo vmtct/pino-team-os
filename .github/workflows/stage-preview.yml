@@ -1,3 +1,4 @@
+# PAP-512 governed preview router; child deployment readback is authoritative.
 name: Stage Preview — governed entrypoint
 on:
   workflow_dispatch:
