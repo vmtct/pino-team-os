@@ -159,6 +159,8 @@ jobs:
           npm ci
           npm run pino:verify
           npx opennextjs-cloudflare build
+          node scripts/pap659-package-provenance.mjs .next .open-next/assets
+          test -f .open-next/assets/pap659-build-provenance.json
           test -f .open-next/worker.js
           test -z "$(git status --porcelain)"
           ) || fail "Exact Team source failed locked trusted build."

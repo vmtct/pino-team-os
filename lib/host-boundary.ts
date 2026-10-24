@@ -77,6 +77,7 @@ function isApprovedBoLegacyFounderPinoriaPath(normalized: string): boolean {
 function isApprovedBoPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (isApprovedBoPinoriaOperationalPath(normalized) || isApprovedBoLegacyFounderPinoriaPath(normalized)) return true;
+  if (/^\/api\/bo\/views\/(?:students|classes)(?:\/(?:[0-9a-f-]{36}(?:\/rename)?|reorder))?$/.test(normalized)) return true;
   if ([
     "/bo",
     "/bo/profile",
@@ -107,7 +108,9 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/pinoria-effects",
     "/bo/pinoria-world",
     "/bo/pinoria-tv-policy",
+    "/bo/pinoria-tv-operator",
     "/bo/pinoria-wish",
+    "/bo/pinoria-activities",
     "/bo/pinoria-companions",
     "/bo/pinoria-ward",
     "/bo/pinoria-ward/sets",

@@ -16,7 +16,6 @@
     "enabled": true
   },
   "vars": {
-    "FOUNDER_EMAIL": "",
     "STAFF_PASSWORD_RESET_FROM_EMAIL": "no-reply@pinohouse.art"
   },
   "services": [
@@ -61,5 +60,5 @@
       "entrypoint": "PinoriaTvControlPlane"
     }
   ],
-  "keep_vars": false
+  "keep_vars": true
 }

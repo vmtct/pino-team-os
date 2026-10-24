@@ -39,7 +39,10 @@ async function operatorRequest<T>(path: string, init: RequestInit = {}): Promise
   return payload.data;
 }
 
+export type OperatorDeviceSession = {sessionId:string;deviceId:string;displayId:string;lastSeenAt:string;expiresAt:string;definitionVersion:number;runtimeType:string;heartbeatFresh:boolean;latestReplayCommandId:string|null;latestReplayResolution:"PENDING"|"ACKED"|"CANCELED"|null;latestReplayDispatchedAt:string|null;latestReplayResolvedAt:string|null};
+export type OperatorHealth = {deviceSessions:OperatorDeviceSession[];centerId:string;queueRevision:number;activePresentation:{id:string;kind:string;claimedAt:string}|null;queuedCount:number;hasMore:boolean;runtimeConnectivity:null;buildIdentity:null;appliedConfigVersion:null;assetHealth:null;rendererAcknowledged:boolean};
 export const operatorPresentationClient = {
+  operatorHealth: (centerId:string) => operatorRequest<OperatorHealth>(`operator-health?centerId=${encodeURIComponent(centerId)}`),
   queue: async (centerId: string) =>
     parseOperatorQueue(await operatorRequest<unknown>(`queue?centerId=${encodeURIComponent(centerId)}`)),
   // View-only inspection. Core authorizes pinoria.presentation.view and audits the read.
@@ -55,14 +58,14 @@ export const operatorPresentationClient = {
     )),
   // Physical replay is an explicit control command, not snapshot inspection.
   replayTarget: (centerId: string, displayId: string, presentationId: string) =>
-    operatorRequest<{ available: boolean; target: { displayId: string; deviceId: string } | null }>(
+    operatorRequest<{ available: boolean; target: { displayId: string; deviceId: string; sessionId: string } | null }>(
       `replay-target?centerId=${encodeURIComponent(centerId)}&displayId=${encodeURIComponent(displayId)}&presentationId=${encodeURIComponent(presentationId)}`,
     ),
-  replayDispatch: (centerId: string, displayId: string, presentationId: string, idempotencyKey: string) => {
-    if (!idempotencyKey.trim()) throw new Error("Replay dispatch requires idempotency key");
+  replayDispatch: (centerId: string, displayId: string, presentationId: string, idempotencyKey: string, expectedDeviceId: string, expectedSessionId: string) => {
+    if (!idempotencyKey.trim() || !expectedDeviceId.trim() || !expectedSessionId.trim()) throw new Error("Replay dispatch requires idempotency key and verified device");
     return operatorRequest<unknown>("replay-dispatch", {
       method: "POST", headers: { "idempotency-key": idempotencyKey },
-      body: JSON.stringify({ centerId, displayId, presentationId }),
+      body: JSON.stringify({ centerId, displayId, presentationId, expectedDeviceId, expectedSessionId }),
     });
   },  returnToAmbient: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("return-to-ambient", centerId, presentationId, expectedClaimedAt, idempotencyKey),
   close: (centerId: string, presentationId: string, expectedClaimedAt: string, idempotencyKey: string) => completeOperatorPresentation("close", centerId, presentationId, expectedClaimedAt, idempotencyKey),

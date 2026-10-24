@@ -43,5 +43,24 @@ jobs:
         run: bun run lint
       - name: Unit tests
         run: bun run test
+      - name: Release confidence smoke and recovery regression tests
+        run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
       - name: Build
         run: bun run build
+      - name: Verify PAP-659 build manifest provenance
+        run: |
+          node --test scripts/pap659-build-provenance.test.mjs scripts/pap659-package-provenance.test.mjs
+          node scripts/pap659-build-provenance.mjs .next
+      - name: Verify PAP-659 OpenNext asset packaging
+        run: |
+          npx opennextjs-cloudflare build
+          node scripts/pap659-package-provenance.mjs .next .open-next/assets
+          test -f .open-next/worker.js
+          test -f .open-next/assets/pap659-build-provenance.json
+      - name: Retain PAP-659 build provenance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap659-build-provenance
+          path: .next/pap659-build-provenance.json
+          if-no-files-found: error
+          retention-days: 7

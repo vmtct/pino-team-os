@@ -3,6 +3,8 @@ import type { AmbientHouseArea } from "../app/pinoria-tv/ambient-house-area";
 
 export type PublishedHouseSpatialConfig = {
   appliedVersion: string;
+  /** Database-issued revision of the active spatial configuration. */
+  appliedRevision?: number;
   scope: string;
   configuration: {
     schemaVersion: 1;
@@ -13,13 +15,19 @@ export type PublishedHouseSpatialConfig = {
   };
 };
 export type HouseSpatialRefresh = { active: PublishedHouseSpatialConfig | null; pending: PublishedHouseSpatialConfig | null };
+/** Renderer-side telemetry may report only the actually applied config, never a queued revision. */
+export function readAppliedSpatialRevision(state: HouseSpatialRefresh): number | null {
+  const revision = state.active?.appliedRevision;
+  return typeof revision === "number" && Number.isSafeInteger(revision) && revision > 0 ? revision : null;
+}
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 const finite = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
 const point = (x: unknown) => record(x) && finite(x.x) && finite(x.y) && x.x >= 0 && x.y >= 0 && x.x <= 1920 && x.y <= 1080;
 /** Defensive client decode: fail closed and retain the old last-known-good config. */
 export function parsePublishedHouseSpatialConfig(input: unknown): PublishedHouseSpatialConfig | null {
   if (!record(input) || typeof input.appliedVersion !== "string" || !input.appliedVersion
-      || typeof input.scope !== "string" || !record(input.configuration)) return null;
+      || typeof input.scope !== "string" || !record(input.configuration)
+      || (input.appliedRevision !== undefined && (!Number.isSafeInteger(input.appliedRevision) || (input.appliedRevision as number) < 1))) return null;
   const cfg = input.configuration;
   if (cfg.schemaVersion !== 1 || !record(cfg.canvas) || cfg.canvas.width !== 1920 || cfg.canvas.height !== 1080
       || !record(cfg.graph) || !Array.isArray(cfg.graph.horizontalLanes) || !Array.isArray(cfg.graph.rawConnectors)

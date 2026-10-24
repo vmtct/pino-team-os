@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoDataGrid, BoTypedCellEditor, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridState, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
+import { useAuthorizedBoPublicView } from "@/app/bo/components/data-grid/useAuthorizedBoPublicView";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "@/lib/bo-student-pilot-fields";
@@ -40,6 +41,7 @@ function StudentNameInlineCell({ student, onSaved }: { student: BoLearnerDirecto
   return <BoTypedCellEditor label={`Tên học viên ${student.displayName}`} value={draft} saving={saving} error={error} onChange={setDraft} onCommit={() => void submit()} onCancel={() => setEditing(false)} />;
 }
 export function BoLearnersView() {
+  const publicViewRuntime = useAuthorizedBoPublicView("students", "student.profile.view", BO_STUDENT_PILOT_DEFAULT_COLUMNS);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -154,6 +156,7 @@ export function BoLearnersView() {
       columns={columns}
       typedFilterSettings={pilotSettings}
       typedFilterFields={BO_STUDENT_PILOT_FIELDS}
+      publicViewRuntime={publicViewRuntime ?? undefined}
       onTypedFilterSettingsChange={setPilotSettings}
       rowKey={(student) => student.id}
       caption="School Students directory"
