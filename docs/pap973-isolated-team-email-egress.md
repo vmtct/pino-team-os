@@ -19,3 +19,8 @@ Run only on isolated Team OS checkout with dependencies installed:
     node --import tsx --test lib/staff-password-recovery-egress-boundary.test.ts
 
 This extends existing `lib/staff-password-recovery-handler.test.ts` behavior without replacing the canonical handler, changing Core RPC contract, disabling production email recovery, or altering PAP-512 release gates. Further runtime clearance requires protected isolated staging test Worker with denied egress, disposable synthetic fixture lifecycle (PAP-197), typed Core/Team API receipts (PAP-198), and mailbox/time controls (PAP-200). Production is always out of scope.
+
+## Latest execution evidence (2026-10-24 +07)
+
+- On i5 isolated Team OS worktree (D:), the exact test file `lib/staff-password-recovery-egress-boundary.test.ts` passed **5/5 Node tests, 0 failures**, covering real handler compensation, generic responses, resource refusal and bounded receipts.
+- Original Team PR CI failed early on missing `Project-Code`; PR metadata now contains `Project-Code: PRJ-PLT` matching the repo's exact verifier. Subsequent CI must rerun against this document update. No serving staging Worker mutation.
