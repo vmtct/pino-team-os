@@ -8,6 +8,11 @@
   const DETAIL_TABS = Object.freeze(['Tổng quan', 'Hoạt động', 'Tài liệu']);
   const LEVELS = Object.freeze(['table', 'drawer', 'detail']);
   function detailTabs() { return [...DETAIL_TABS]; }
+  function renderFullDetailContext({ properties, escapeHtml }) {
+    if (!Array.isArray(properties) || typeof escapeHtml !== 'function') throw new Error('invalid detail context');
+    const esc=escapeHtml;
+    return '<div class="detail-panel detail-explain"><h3>Context bảo toàn</h3><p>Người dùng biết mình đang ở module nào, bản ghi nào và quay về đúng bảng cũ. Không bị mất tìm kiếm hoặc bộ lọc.</p><dl class="drawer-fields">'+properties.map(x=>'<div class="drawer-field"><dt>'+esc(x[0])+'</dt><dd>'+esc(x[1])+'</dd></div>').join('')+'</dl><div class="detail-tile"><div><strong>01</strong><small>Table gốc</small></div><div><strong>02</strong><small>Quick View</small></div><div><strong>03</strong><small>Full Detail</small></div></div></div>';
+  }
   function renderFullDetailHeader({ group, title, label, subtitle, escapeHtml }) {
     if (typeof escapeHtml !== 'function') throw new Error('invalid detail header');
     const esc = escapeHtml;
@@ -66,5 +71,5 @@
       '<td class="id-cell"><button type="button" class="copy-id" title="Copy ID" aria-label="Copy ID '+esc(row.id)+'">'+esc(row.id)+'</button></td>'+
       columns.map(field => renderValueCell({row,field,escapeHtml,badgeHtml})).join('')+
       '<td class="action-cell"><button type="button" class="open-quick" aria-label="Quick View '+esc(row.title)+'" title="Quick View">↗</button></td></tr>').join('') || '<tr><td colspan="'+(columns.length+3)+'"><div class="empty-state"><strong>Không tìm thấy bản ghi</strong>Thử thay đổi bộ lọc hoặc tìm kiếm.</div></td></tr>';
-  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, renderFullDetailHeader, renderFullDetailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, renderFullDetailContext, renderFullDetailHeader, renderFullDetailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
 });
