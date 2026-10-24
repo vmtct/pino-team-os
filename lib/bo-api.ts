@@ -91,6 +91,7 @@ import type { BoDutyExceptionReview, BoDutyExceptionRecord } from "./bo-workforc
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
 import type { StaffQualification, TrainingAssignmentBrowsePage, TrainingAssignmentBrowseSort, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
+import { auditQueryString, type BoSubjectAuditQuery, type BoSubjectAuditPage } from "./bo-subject-history";
 import { recoverInvalidStaffPasswordSession } from "./staff-session-recovery";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
 import { syllabusWorksheetPreviewUrl, uploadSyllabusWorksheetMedia } from "./bo-syllabus-media-client";
@@ -314,6 +315,7 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  subjectHistory: (input: BoSubjectAuditQuery) => readOne<BoSubjectAuditPage>("audit/subject?" + auditQueryString(input)),
   sessionRoster: (sessionId: string) => readOne<import("./tos-learning-api").SessionRoster>(`sessions/${encodeURIComponent(sessionId)}/roster`),
   context: () => readOne<BoContext>("context"),
   calendarScope: async () => {

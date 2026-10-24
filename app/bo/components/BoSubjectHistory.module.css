@@ -1,0 +1,10 @@
+.root { width: 100%; min-width: 0; }
+.search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px; }
+.search label { font-size: 13px; }
+.search input { min-width: 0; flex: 1 1 170px; border: 1px solid #dedee3; border-radius: 6px; padding: 8px 10px; }
+.search button, .root > button { border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; background: #fff; cursor: pointer; }
+.rows { display: grid; gap: 7px; }
+.row { display: grid; grid-template-columns: minmax(125px, 170px) minmax(80px, 135px) minmax(160px, 1fr) minmax(85px, 115px); align-items: center; gap: 12px; min-height: 59px; border: 1px solid #e6e7eb; border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+.row > span { min-width: 0; overflow-wrap: anywhere; }
+.redaction { display: block; color: #71717a; }
+@media (max-width: 700px) { .row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 5px 12px; } }
