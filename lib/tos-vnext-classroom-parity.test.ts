@@ -36,3 +36,8 @@ test('PAP-945 opening evidence remains visibly Core-gated, never simulated',()=>
  assert.doesNotMatch(source,/Đã mở lớp thành công/);
  assert.doesNotMatch(source,/Ảnh setup đã lưu/);
 });
+test('PAP-945 camera opening proof cannot submit or claim success before Core confirmation',()=>{
+ assert.match(source,/<TosVNextButton disabled title="Chờ Core xác thực lượt mở lớp và lưu bằng chứng ảnh">Mở lớp · chụp ảnh setup<\/TosVNextButton>/);
+ assert.match(source,/<TosVNextButton variant="secondary" onClick=\{\(\)=>open\(row\)\}>Vào lớp<\/TosVNextButton>/);
+ assert.doesNotMatch(source,/input[^>]+type="file"/);
+});
