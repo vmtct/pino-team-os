@@ -10,6 +10,7 @@
   "observability": { "enabled": true },
   "send_email": [{ "name": "PINO_STAFF_PASSWORD_EMAIL" }],
   "vars": {
+    "APP_ENV": "staging",
     "FOUNDER_EMAIL": "minhtri.van42@gmail.com,chuthhang@gmail.com",
     "STAFF_PASSWORD_RESET_FROM_EMAIL": "no-reply@pinohouse.art",
     "PINORIA_TV_STAGING_BYPASS": "enabled",
