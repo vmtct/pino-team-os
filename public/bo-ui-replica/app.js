@@ -290,7 +290,7 @@ function drawDrawer(){
   '<button type="button" class="drawer-title-edit" data-prop="title" title="Click để sửa tên" aria-label="Sửa tên"><h2 id="drawer-title">'+esc(title)+'</h2><span class="property-pencil">✎</span></button>'+
   '<p>'+esc(isCreate?"Bản ghi mới · mock":r?.id||"")+'</p></div></div>'+
   '<section class="drawer-section compact-properties"><h3>Thuộc tính <small>Click giá trị để sửa</small></h3><dl class="drawer-fields">'+
-  window.PinoBODesignSystem.renderDrawerPropertyRows({properties:window.PinoBODesignSystem.drawerProperties({fields:m.cols,record:r,isCreate}).filter(p=>p.key!=="id"),escapeHtml:esc,badgeHtml:badge})
+  window.PinoBODesignSystem.renderDrawerPropertyRows({properties:window.PinoBODesignSystem.drawerProperties({fields:m.cols,record:r,isCreate}).filter(p=>p.key!=="id"),escapeHtml:esc,badgeHtml:badge})+
   '<div class="drawer-field"><dt>ID</dt><dd class="id-tag">'+esc(isCreate?"Tự tạo khi lưu":r?.id||"")+'</dd></div></dl></section>'+
   '<section class="drawer-section"><h3>Hoạt động</h3><div class="drawer-audit"><span class="drawer-audit-point">↗</span><div><strong>Mock interaction only</strong><small>'+esc(isCreate?"Chưa lưu vào danh sách":"Sửa từng giá trị sẽ cập nhật mock table")+'</small></div></div></section>';
  d("drawer-footer").innerHTML=isCreate?
