@@ -5,7 +5,7 @@ export type AiDataInboxSort = "purpose" | "status" | "operations" | "submittedAt
 export type AiDataPreview = {
   operationCount: number;
   destructiveOperationCount: number;
-  destinationTables: Array<{ table: string; creates: number }>;
+  destinationTables: Array<{ table: string; creates: number; updates?: number }>;
 };
 
 export type AiDataChangeSetSummary = {
