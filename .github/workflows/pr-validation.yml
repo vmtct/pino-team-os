@@ -55,6 +55,7 @@ jobs:
         with:
           name: pap979-full-detail-fixtures
           path: .pap979-evidence
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
       - name: Release confidence smoke and recovery regression tests
