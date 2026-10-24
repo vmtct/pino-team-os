@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BoDataGridState, BoDataGridStatus } from "@/app/bo/components/data-grid";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
+import { filterWorkforceStaff } from "@/lib/bo-workforce-staff-filter";
 import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
 import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, type WorkforceShiftCoverageMode } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
@@ -14,6 +17,8 @@ type Selection = { staffMemberId: string; workDate: string } | null;
 type CenterWeek = BoWorkforcePlanningBootstrap["termWeeks"][number] & { centerId: string; termDisplayName: string };
 
 export function WorkforcePlanningView() {
+  const params = useSearchParams();
+  const staffFilterId = params.get("staff") ?? "";
   const [bootstrap, setBootstrap] = useState<BoWorkforcePlanningBootstrap | null>(null);
   const [centerId, setCenterId] = useState("");
   const [termWeekId, setTermWeekId] = useState("");
@@ -38,6 +43,11 @@ export function WorkforcePlanningView() {
   const [weekControlUntil, setWeekControlUntil] = useState("");
   const [shiftTemplates, setShiftTemplates] = useState<BoWorkforceShiftTemplate[]>([]);
   const [templateDraft, setTemplateDraft] = useState({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
+
+  useEffect(() => {
+    if (!staffFilterId) return;
+    setSelection((current) => current && current.staffMemberId !== staffFilterId ? null : current);
+  }, [staffFilterId]);
 
   const weeks = useMemo<CenterWeek[]>(() => {
     if (!bootstrap) return [];
@@ -107,6 +117,7 @@ export function WorkforcePlanningView() {
 
   const data = planning.state === "ready" ? planning.data : null;
   const selectedStaff = data?.staff.find((staff) => staff.id === selection?.staffMemberId) ?? null;
+  const visibleStaff = filterWorkforceStaff(data?.staff ?? [], staffFilterId);
   const activeAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate && item.status === "ACTIVE") : [];
   const historyAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate) : [];
   const availableTemplateIds = data && selection ? new Set(data.availability.filter((item) => item.staffMemberId === selection.staffMemberId).flatMap((item) => item.items.filter((entry) => entry.workDate === selection.workDate).map((entry) => entry.shiftTemplateId))) : new Set<string>();
@@ -276,6 +287,11 @@ export function WorkforcePlanningView() {
       <p>Availability là input của Staff; assignment là quyết định final của Manager. Hai cửa sổ tuần được khóa độc lập.</p>
     </header>
 
+    {staffFilterId ? <section className={styles.panel} aria-label="Staff filter" data-testid="workforce-staff-filter">
+      <div className={styles.panelHeading}><div><h2>Lọc theo Staff ID</h2><p>Chỉ lọc ma trận của Center và TermWeek đã được Core cho phép đọc. Không suy diễn phân công ở Center khác.</p></div><Link className={styles.secondaryButton} href="/bo/workforce">Bỏ lọc</Link></div>
+      <p>Staff: <code>{staffFilterId}</code></p>
+    </section> : null}
+
     <section className={styles.plannerToolbar} aria-label="Weekly schedule view controls">
       <label className={styles.plannerToolbarField}><span>Center</span>
         <select value={centerId} onChange={(event) => changeCenter(event.target.value)}>
@@ -329,12 +345,13 @@ export function WorkforcePlanningView() {
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
           <div><h2>{data.startDate} → {data.endDate}</h2><p>Chọn một ô Staff/ngày để mở bounded operational detail; matrix vẫn là specialized scheduling surface.</p></div>
-          <span className={styles.readOnly}>{data.staff.length} staff</span>
+          <span className={styles.readOnly}>{visibleStaff.length} staff / {data.staff.length} in scope</span>
         </div>
+        {staffFilterId && visibleStaff.length === 0 ? <p role="status">Không tìm thấy Staff này trong phạm vi Center/TermWeek hiện tại. Hãy chọn Center hoặc tuần khác theo quyền hiện có.</p> : null}
         <div className={styles.plannerTableWrap}>
           <table aria-label="Weekly Workforce planning matrix">
             <thead><tr><th>Staff</th>{dateRange(data).map((date) => <th key={date}>{dateLabel(date)}</th>)}</tr></thead>
-            <tbody>{data.staff.map((staff) => <tr key={staff.id}>
+            <tbody>{visibleStaff.map((staff) => <tr key={staff.id}>
               <th>{staff.displayLabel}</th>
               {dateRange(data).map((date) => {
                 const assigned = data.assignments.filter((item) => item.staffMemberId === staff.id && item.workDate === date && item.status === "ACTIVE");
