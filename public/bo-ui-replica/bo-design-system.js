@@ -32,5 +32,14 @@
     props.push(Object.freeze({ key: 'id', label: 'ID', value: isCreate ? 'Tự tạo khi lưu' : (record?.id || ''), editable: false }));
     return Object.freeze(props);
   }
-  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties });
+  function renderDrawerPropertyRows({ properties, escapeHtml, badgeHtml }) {
+    if (!Array.isArray(properties) || typeof escapeHtml !== 'function') throw new Error('invalid drawer renderer inputs');
+    const esc = escapeHtml;
+    return properties.map(p => {
+      if (!p.editable) return '<div class="drawer-field"><dt>'+esc(p.label)+'</dt><dd class="id-tag">'+esc(p.value)+'</dd></div>';
+      const value = p.value;
+      const markup = value ? (/trạng thái|kết quả|đồng bộ|kết nối/i.test(p.key) && typeof badgeHtml === 'function' ? badgeHtml(value) : '<span>'+esc(value)+'</span>') : '<span class="property-placeholder">Chưa có</span>';
+      return '<div class="drawer-field"><dt>'+esc(p.label)+'</dt><dd><button type="button" class="property-edit" data-prop="'+esc(p.key)+'" title="Click để sửa '+esc(p.label)+'">'+markup+'<span class="property-pencil">✎</span></button></dd></div>';
+    }).join('');
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows });
 });
