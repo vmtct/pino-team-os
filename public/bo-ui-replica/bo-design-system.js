@@ -8,6 +8,10 @@
   const DETAIL_TABS = Object.freeze(['Tổng quan', 'Hoạt động', 'Tài liệu']);
   const LEVELS = Object.freeze(['table', 'drawer', 'detail']);
   function detailTabs() { return [...DETAIL_TABS]; }
+  function renderFullDetailTabs({ tabs, activeTab, escapeHtml }) {
+    if (!Array.isArray(tabs) || typeof escapeHtml !== 'function') throw new Error('invalid full detail tabs');
+    return '<div class="detail-tabs">'+tabs.map(label => '<button class="detail-tab '+(label===activeTab?'selected':'')+'" data-tab="'+escapeHtml(label)+'">'+escapeHtml(label)+'</button>').join('')+'</div>';
+  }
   function moduleSchema({ key, label, fields }) {
     if (!/^[a-z][a-z0-9-]*$/.test(key || '')) throw new Error('invalid module key');
     if (!label || !Array.isArray(fields) || !fields.length) throw new Error('invalid module schema');
@@ -57,5 +61,5 @@
       '<td class="id-cell"><button type="button" class="copy-id" title="Copy ID" aria-label="Copy ID '+esc(row.id)+'">'+esc(row.id)+'</button></td>'+
       columns.map(field => renderValueCell({row,field,escapeHtml,badgeHtml})).join('')+
       '<td class="action-cell"><button type="button" class="open-quick" aria-label="Quick View '+esc(row.title)+'" title="Quick View">↗</button></td></tr>').join('') || '<tr><td colspan="'+(columns.length+3)+'"><div class="empty-state"><strong>Không tìm thấy bản ghi</strong>Thử thay đổi bộ lọc hoặc tìm kiếm.</div></td></tr>';
-  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, renderFullDetailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
 });
