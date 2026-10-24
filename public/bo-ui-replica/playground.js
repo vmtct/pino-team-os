@@ -376,9 +376,9 @@ function openDetail(id){
 }
 const fullDetail=window.PinoBOFullDetail.create({
  $,qa,esc,norm,rows,state,FIELD_MAP,FIELDS,val,formatValue,openEditor,toast,currency,computed,datetime,coreMode,
- moduleKey:pilot?.key||"registration",subjectType:pilot?.key==="students"?"student":pilot?.key==="classes"?"running_class":"registration",
+ moduleKey:pilot?.key||"registration",subjectType:pilot?.key==="students"?(coreMode?"student_profile":"student"):pilot?.key==="classes"?"running_class":"registration",
  canEdit:f=>pilot?.canManage===true&&!f.readonly&&(f.key==="name"||(pilot.key==="classes"&&f.key==="capacity")),
- history:window.PinoBOHistory.create(),slots:window.PinoBOFullDetailSlots
+ history:window.PinoBOHistory.create(coreMode?pilot.historyReader:undefined),slots:window.PinoBOFullDetailSlots
 });
 function BOFullDetail(){fullDetail.render();}
 let renderDetail=BOFullDetail;

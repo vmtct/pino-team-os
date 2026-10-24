@@ -3,6 +3,25 @@ const {create}=require('./bo-core-pilot-adapter.js');
 const id='019a1234-5678-7000-8000-123456789abc';
 const student={id,displayName:'An',status:'ACTIVE',activePaths:[],version:3};
 const context={surface:'BO',entitled:true,permissionKeys:['student.profile.view','student.profile.manage','delivery.schedule.view','delivery.schedule.manage']};
+
+test('PAP-979 real History reader maps exact selected Student/Class, paginates/searches and never falls back',async()=>{
+ for(const key of ['students','classes']){
+  const type=key==='students'?'student_profile':'running_class';
+  const f=fixture(url=>url.endsWith('context')?{data:context}:url.includes('audit/subject?')?{data:{events:[],nextCursor:null}}:url.includes('learners?')?{data:[student]}:{data:{runningClasses:[{id,operationalName:'Class',optimalConcurrentCapacity:4}]}});
+  const adapter=await create(key,f.fetch);
+  assert.equal(f.calls.some(c=>c.url.includes('audit')),false);
+  const result=await adapter.historyReader({subject_type:type,subject_id:id,query:'Cập nhật',cursor:'opaque',limit:20});
+  assert.deepEqual(result,{events:[],nextCursor:null});
+  const last=f.calls.at(-1),url=new URL(last.url,'https://bo.pinohouse.art');
+  assert.equal(url.pathname,'/api/bo/audit/subject');assert.equal(url.searchParams.get('subject_type'),type);assert.equal(url.searchParams.get('subject_id'),id);assert.equal(url.searchParams.get('query'),'Cập nhật');assert.equal(url.searchParams.get('cursor'),'opaque');assert.equal(url.searchParams.get('limit'),'20');
+  await assert.rejects(adapter.historyReader({subject_type:'wrong',subject_id:id}),/phạm vi/);
+  assert.equal(last.options.credentials,'same-origin');assert.equal(last.options.cache,'no-store');
+  for(const status of [401,403,409,500]){
+   const denied=await create(key,async(url)=>url.includes('audit/subject?')?Response.json({error:{}},{status}):f.fetch(url,{method:'GET'}));
+   await assert.rejects(denied.historyReader({subject_type:type,subject_id:id,query:'',cursor:null,limit:50}),e=>e.status===status);
+  }
+ }
+});
 function fixture(routes){const calls=[];return {calls,fetch:async(url,options)=>{calls.push({url,options});const v=await routes(url,options);return Response.json(v.body??{data:v.data},{status:v.status??200});}};}
 test('Core 401/403, invalid context and repeated directory cursor never fall back to synthetic data',async()=>{
  for(const status of [401,403])await assert.rejects(create('students',async()=>Response.json({error:{}},{status})));

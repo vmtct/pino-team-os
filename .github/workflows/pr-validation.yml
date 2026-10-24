@@ -2,7 +2,7 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [main, feat/pap879-core-pilot-adapters-20261024]
+    branches: [main, feat/pap879-core-pilot-adapters-20261024, feat/pap979-full-detail-v25]
   push:
     branches: [main]
 

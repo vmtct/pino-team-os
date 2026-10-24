@@ -52,6 +52,13 @@
   if(root.document&&!viewRuntime)throw new Error('Shared Views client không khả dụng.');
   if(viewRuntime)await viewRuntime.load(new URLSearchParams(root.location?.search||'').get('publicView'));
   return {actorName:context.displayName||context.email||"Người dùng",viewRuntime,viewRole,viewToCore,viewFromCore,key,label:key==='students'?'Học viên':'Classes',group:'SCHOOL',fields,rows,mode:'CORE',canManage,
+   async historyReader(input){
+    const expectedType=key==='students'?'student_profile':'running_class';
+    if(input.subject_type!==expectedType)throw new Error('Không xác nhận được phạm vi lịch sử.');
+    const params=new URLSearchParams({subject_type:expectedType,subject_id:assertId(input.subject_id),query:input.query,limit:String(input.limit)});
+    if(input.cursor!==null)params.set('cursor',input.cursor);
+    return request('audit/subject?'+params.toString());
+   },
    async commit(row,key,value){
     const id=assertId(row.id);
     if(!canManage||!(key==='name'||(key==='capacity'&&this.key==='classes')))throw new Error('Trường này chỉ đọc.');
