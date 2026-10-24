@@ -12,6 +12,7 @@ export interface StaffPasswordEmailBinding {
 }
 
 export interface StaffPasswordRecoveryEnv extends StaffPasswordEnv {
+  APP_ENV?: string;
   PINO_STAFF_PASSWORD_EMAIL?: StaffPasswordEmailBinding;
   STAFF_PASSWORD_RESET_FROM_EMAIL?: string;
 }
@@ -27,6 +28,9 @@ export async function handleForgotPassword(
   const input = await readJson(request);
   const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
   if (!validEmail(email)) return json(400, { error: "INVALID_EMAIL", message: "Email không hợp lệ." });
+
+  // Fail before reset-token issuance or email-binding access in staging.
+  if (env.APP_ENV === "staging") return json(503, { error: "PASSWORD_RESET_UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
 
   const sender = env.STAFF_PASSWORD_RESET_FROM_EMAIL?.trim();
   const mailer = env.PINO_STAFF_PASSWORD_EMAIL;
