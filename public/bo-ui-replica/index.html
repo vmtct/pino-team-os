@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#f7f7fb"/><title>PINO BO · Level 1 Architecture V2</title>
+<link rel="icon" href="data:,"/><link rel="stylesheet" href="./styles.css"/>
+</head><body>
+<div id="app">
+  <aside class="sidebar" id="sidebar" aria-label="BO modules">
+    <div class="brand"><div class="brand-mark"><span>P</span></div><div class="brand-type"><strong>PINO House</strong><small>Back Office</small></div><button id="sidebar-close" class="icon-btn side-close" aria-label="Đóng menu">×</button></div>
+    <div class="nav-workspace"><span class="nav-workspace-glyph">▦</span><span><strong>PINO House</strong><small>Workspace · Cần Thơ</small></span><span class="workspace-angle">⌄</span></div>
+    <div class="sidebar-finder"><label class="nav-query"><span aria-hidden="true">⌕</span><input id="sidebar-module-search" aria-label="Tìm module BO" placeholder="Tìm module..." autocomplete="off" /></label><div class="nav-collapse-actions"><button type="button" id="nav-collapse-all" aria-label="Thu gọn tất cả nhóm" title="Collapse all">⊟</button><button type="button" id="nav-expand-all" aria-label="Mở rộng tất cả nhóm" title="Expand all">⊞</button></div></div>
+    <a href="./playground.html" class="lab-shortcut" title="Thử toàn bộ kiểu dữ liệu và filter">▤ &nbsp; Hồ sơ đăng ký <span>↗</span></a>
+    <div class="nav-scroll" id="nav-scroll"></div>
+    <div class="sidebar-footer"><div class="avatar">M</div><div><strong>BO Manager</strong><small>PINO House</small></div><span class="user-options">···</span></div>
+  </aside>
+  <button type="button" class="mobile-shade" id="mobile-shade" aria-label="Đóng menu"></button>
+  <div class="shell">
+    <header class="topbar">
+      <button id="mobile-menu" class="icon-btn mobile-menu" aria-label="Mở menu">☰</button>
+      <div class="topbar-breadcrumb"><span class="topbar-root">Workspace</span><span class="crumb-arrow">/</span><strong id="topbar-current">Học viên</strong></div>
+      <div class="topbar-actions"><span class="prototype-pill"><span></span> INTERACTIVE PROTOTYPE</span><button class="top-shortcut" id="cmd-btn" title="Chuyển module">⌕ <kbd>Ctrl K</kbd></button><button class="top-avatar" title="Mock Manager">M</button></div>
+    </header>
+    <main class="workspace" id="workspace">
+      <section id="table-screen" class="table-screen">
+        <div class="page-heading">
+          <div class="page-heading-left"><div class="eyebrow" id="page-eyebrow">SCHOOL / DIRECTORY</div><h1 id="page-title">Học viên</h1><p id="page-description"></p></div>
+          <div class="heading-actions"><span class="layout-contract" title="Table-first level 1">▤ Level 1 / Table</span><a href="./playground.html" class="toolbar-icon global-setting-link" title="Cài đặt Table — mở interactive UI playground" aria-label="Cài đặt Table">☷</a><button type="button" class="primary-btn" id="create-btn"><span>＋</span><span id="create-label">Tạo mới</span></button></div>
+        </div>
+        <div class="grid-card" id="grid-card">
+          <div class="view-tabs"><div class="tabs-left"><button class="view-tab active" data-view="all">≡ &nbsp; Tất cả</button><button class="view-tab" data-view="active">◉ &nbsp; Đang hoạt động</button><button class="view-tab" data-view="attention">◇ &nbsp; Cần xử lý</button></div><div class="tabs-right"><span class="table-meta" id="table-meta">Bản ghi</span><span class="table-index" id="table-index">TABLE VIEW <b>01</b></span></div></div>
+          <div class="toolbar">
+            <label class="search-field"><span>⌕</span><input id="table-search" type="search" placeholder="Tìm kiếm trong bảng…" autocomplete="off"/><kbd>/</kbd></label>
+            <button class="toolbar-button" id="filter-btn">☷ <span>Lọc</span><b id="filter-count" class="filter-count hidden">1</b></button>
+            <button class="toolbar-button" id="sort-btn">⇅ <span>Sắp xếp</span></button>
+            <div class="toolbar-spacer"></div><span class="toolbar-hint">Chọn một dòng để Quick View →</span><button class="toolbar-icon" id="refresh-btn" title="Đặt lại danh sách">↻</button><button class="toolbar-icon" id="columns-btn" title="Hiển thị cột">▥</button>
+          </div>
+          <div class="filter-chips" id="filter-chips"></div>
+          <div class="table-scroll" id="table-scroll"><table id="entity-table"><caption id="table-caption">Bảng dữ liệu mô phỏng</caption><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
+          <footer class="table-footer"><div><span class="result-label" id="result-label"></span><span class="footer-dot">·</span><span class="results-secondary">Một component cho mọi module</span></div><div class="pagination"><label>Hiển thị <select id="page-size"><option value="8">8 dòng</option><option value="12">12 dòng</option><option value="20">20 dòng</option></select></label><span class="page-counter" id="page-counter">1–8</span><button class="pager" id="prev-btn" aria-label="Trang trước">‹</button><button class="pager" id="next-btn" aria-label="Trang sau">›</button></div></footer>
+        </div>
+      </section>
+      <section class="detail-screen hidden" id="detail-screen">
+        <div class="detail-breadcrumb"><button class="ghost-link" id="back-to-table">← Quay lại bảng</button><span>/</span><span id="detail-crumb">Chi tiết</span></div>
+        <div id="detail-content"></div>
+      </section>
+    </main>
+  </div>
+  <div class="drawer-scrim" id="drawer-scrim"></div>
+  <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+    <header class="drawer-top"><div class="drawer-path" id="drawer-path">HỌC VIÊN / QUICK VIEW</div><button class="drawer-close" id="drawer-close" aria-label="Đóng Quick View">×</button></header>
+    <div class="drawer-content" id="drawer-content"></div>
+    <footer class="drawer-footer" id="drawer-footer"></footer>
+  </aside>
+  <div class="cmd-scrim" id="cmd-scrim"><div class="command-panel" role="dialog" aria-modal="true" aria-label="Tìm module"><div class="command-search"><span>⌕</span><input id="command-search-input" placeholder="Chuyển đến một module BO…" autocomplete="off"/><kbd>ESC</kbd></div><div id="command-results" class="command-results"></div><div class="command-footer"><span>↑ ↓ chọn &nbsp; ↵ mở</span><span>PINO BO · V2</span></div></div></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div><script src="./app.js"></script>
+</body></html>
