@@ -25,6 +25,13 @@ test("search race cannot display stale prior query",async()=>{
  const resolvers=[];const c=create(()=>new Promise(r=>resolvers.push(r)));c.select("student","A");const a=c.load("old"),b=c.load("new");
  resolvers[1]({events:[e("new")],nextCursor:null});await b;resolvers[0]({events:[e("old")],nextCursor:null});await a;assert.equal(c.snapshot().events[0].id,"new");
 });
+test("equal timestamps require stable descending ID order, including across pages",async()=>{
+ for(const paginated of [false,true]){
+  const c=create(async q=>q.cursor?{events:[e('3')],nextCursor:null}:{events:paginated?[e('2')]:[e('2'),e('3')],nextCursor:paginated?'next':null});
+  c.select('student','A');await c.load();if(paginated)await c.load('',true);
+  assert.equal(c.snapshot().phase,'error');assert.deepEqual(c.snapshot().events,[]);
+ }
+});
 test("403,409,network and malformed/order responses cannot keep old data or success",async()=>{
  for(const fail of [403,409,"network","order","cursor"]){
   let count=0;const c=create(async()=>{if(!count++)return {events:[e()],nextCursor:"c"};if(fail==="order")return {events:[e("2","student","A","2026-10-25T09:00:00Z")],nextCursor:null};if(fail==="cursor")return {events:[],nextCursor:"c"};throw Object.assign(Error("unsafe raw payload"),{status:fail});});

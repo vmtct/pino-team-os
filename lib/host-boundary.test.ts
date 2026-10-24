@@ -4,6 +4,12 @@ import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requir
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
+test("PAP-979 exact subject audit path stays BO-only with no global shortcut", () => {
+  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/audit/subject"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/api/bo/audit/subject"), { action: "not_found" });
+  for (const path of ["/api/bo/audit", "/api/bo/audit/subject/extra"]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" });
+});
+
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
   for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/api/workforce/context", "/api/workforce/training/self", "/api/workforce/training/assignments/0198d050-56c1-7ac5-b9ab-b0e45d912345/lessons/complete", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);

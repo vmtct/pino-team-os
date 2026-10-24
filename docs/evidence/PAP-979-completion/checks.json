@@ -1,0 +1,18 @@
+{
+  "issue": "PAP-979",
+  "mode": "LOCAL_ONLY",
+  "base": "13528ac4ff74d971e831ed19310256fbc83d57a1",
+  "replicaUnitContract": {"result": "PASS", "tests": 19},
+  "bffHostContract": {"result": "PASS", "tests": 36},
+  "typecheck": "PASS",
+  "changedTypeScriptLint": "PASS",
+  "build": "PASS",
+  "fullUnitSuite": {"result": "FAIL_LOCAL_WINDOWS_SHELL_FIXTURES", "passed": 844, "failed": 5, "failure": "Unchanged release rollback/redirect shell fixtures fail in this Windows environment; exact-head Linux CI required"},
+  "visualParity": "PASS_9_OF_9_APPROVED_REGISTRATION_COMPARISONS",
+  "coreHistoryBrowser": "LOCAL_CONTRACT_FIXTURES_ONLY_12_ROLE_VIEWPORT_CASES",
+  "realStagingApi": "NOT_RUN",
+  "independentReview": "INDIE_WAIVED_BY_FOUNDER",
+  "waiverAuthority": "PAP-507",
+  "productionMutation": false,
+  "outboundTests": false
+}

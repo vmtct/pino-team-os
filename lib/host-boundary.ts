@@ -134,6 +134,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/tv/devices",
     "/api/bo/pinoria/effects/catalog",
     "/api/bo/learners",
+    "/api/bo/audit/subject",
     "/api/bo/identity/parents",
     "/api/bo/student-intakes",
     "/api/bo/practice/authoring-context",

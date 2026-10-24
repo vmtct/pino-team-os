@@ -21,12 +21,13 @@ function create(reader){
    if(ticket!==generation)return;
    if(!page||!Array.isArray(page.events)||page.events.length>50||!(page.nextCursor===null||(typeof page.nextCursor==="string"&&page.nextCursor.length>0&&page.nextCursor.length<=2048)))throw Error("Phản hồi lịch sử không hợp lệ.");
    if(cursor&&page.nextCursor===cursor)throw Error("Con trỏ lịch sử không tiến.");
-   const seen=new Set(previous.map(e=>e.id));let time=previous.at(-1)?.occurred_at;
+   const seen=new Set(previous.map(e=>e.id));let time=previous.at(-1)?.occurred_at,lastId=previous.at(-1)?.id;
    for(const event of page.events){
     // Reject the whole response rather than silently filtering unauthorized rows.
     if(event.subject_type!==requested.subject_type||event.subject_id!==requested.subject_id||typeof event.id!=="string"||seen.has(event.id)||!Number.isFinite(Date.parse(event.occurred_at)))throw Error("Không xác nhận được phạm vi lịch sử.");
     if(time&&Date.parse(event.occurred_at)>Date.parse(time))throw Error("Thứ tự lịch sử không hợp lệ.");
-    seen.add(event.id);time=event.occurred_at;
+    if(time&&event.occurred_at===time&&event.id>=lastId)throw Error("Thứ tự lịch sử không hợp lệ.");
+    seen.add(event.id);time=event.occurred_at;lastId=event.id;
    }
    state={phase:"ready",events:[...previous,...page.events],nextCursor:page.nextCursor,error:null};
   }catch(error){

@@ -68,7 +68,8 @@ export function isStaffCompensationPath(path: string): boolean {
 }
 
 export function isOperationalReadPath(path: string): boolean {
-  return path === "subscriptions"
+  return path === "audit/subject"
+    || path === "subscriptions"
     || path === "billing/product-plans"
     || BILLING_BILL_READ.test(path)
     || path === "specialty/catalog"
@@ -209,6 +210,21 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "audit/subject") {
+    const allowed = ["subject_type", "subject_id", "query", "cursor", "limit"];
+    for (const key of url.searchParams.keys()) {
+      if (!allowed.includes(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid audit query");
+    }
+    const type = url.searchParams.get("subject_type"), id = url.searchParams.get("subject_id");
+    const query = url.searchParams.get("query") ?? "", cursor = url.searchParams.get("cursor");
+    const limitText = url.searchParams.get("limit") ?? "50", limit = Number(limitText);
+    if (!(type === "student_profile" || type === "running_class")
+      || !id || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
+      || query.length > 120 || [...query].some(c => c.charCodeAt(0) < 32)
+      || !/^[0-9]+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 50
+      || (cursor !== null && (cursor.length === 0 || cursor.length > 2048))) throw new RangeError("Invalid audit query");
+    return { subject_type: type, subject_id: id, query, cursor, limit };
+  }
   if (TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path) || TV_POLICY_READ.has(path)) {
     const supported = path.endsWith("/active") ? ["centerId"] : path.endsWith("/version") ? ["scope","centerId","versionId"] : ["scope","centerId"];
     for (const key of url.searchParams.keys()) if (!supported.includes(key)) throw new RangeError("Unknown spatial config query key");

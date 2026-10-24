@@ -30,7 +30,7 @@ async function context(width){
  await p.route('**/*',route=>route.request().url().startsWith(origin+'/')?route.continue():route.abort());
  return {c,p};
 }
-async function open(p){await p.waitForFunction(()=>document.querySelector('#table-body .row-open'));await p.locator('#table-body .row-open').first().click();await p.locator('#full-detail').click();}
+async function open(p){await p.waitForFunction(()=>document.querySelector('#table-body .row-open'));await p.locator('#table-body .row-open').first().click();await p.locator('#full-detail').click();await p.waitForFunction(()=>getComputedStyle(document.querySelector('#drawer-scrim')).opacity==='0');}
 try{
  for(const width of [390,768,1440]){
   const {c,p}=await context(width);await p.goto(origin+'/playground.html');await open(p);
@@ -82,11 +82,17 @@ try{
   const id='019a1234-5678-7000-8000-123456789abc';
   let student={id,displayName:'An',status:'ACTIVE',version:3,birthYear:2018,activePaths:[{displayName:'Art'}],activeSubscriptions:1,houseMember:true};
   let klass={id,centerId:id,pathProgramId:id,learningSpaceId:id,operationalName:'Art',weekdayIso:1,windowStartsLocal:'18:00',windowEndsLocal:'19:00',deliveryTopology:'FIXED_COHORT',defaultParticipationMinutes:60,optimalConcurrentCapacity:8,hardConcurrentCapacity:12,status:'ACTIVE',version:2};
-  let failure=null,patches=0;
+  let failure=null,patches=0,auditMode='denied';
   await p.route('**/api/bo/**',async route=>{
-   const req=route.request(),u=new URL(req.url());calls.push({path:u.pathname,method:req.method()});
+   const req=route.request(),u=new URL(req.url());calls.push({path:u.pathname,method:req.method(),query:u.search});
    let data;
-   if(req.method()==='PATCH'){
+   if(u.pathname.endsWith('/audit/subject')){
+    assert.equal(u.searchParams.get('subject_type'),key==='students'?'student_profile':'running_class');
+    assert.equal(u.searchParams.get('subject_id'),id);assert.equal(u.searchParams.get('limit'),'50');
+    if(auditMode==='denied'||auditMode===409||auditMode===500)return route.fulfill({status:auditMode==='denied'?403:auditMode,contentType:'application/json',body:JSON.stringify({error:{}})});
+    const next=u.searchParams.has('cursor');
+    data={events:auditMode==='empty'?[]:[{id:next?'019a1234-5678-7000-8000-123456789aaa':'019a1234-5678-7000-8000-123456789aab',subject_type:key==='students'?'student_profile':'running_class',subject_id:auditMode==='wrong'?'019a1234-5678-7000-8000-123456789def':id,occurred_at:next?'2026-10-23T09:00:00.000Z':'2026-10-24T09:00:00.000Z',actor_id:null,actor_label:'Nhân viên',action:key==='students'?'Cập nhật học viên':'Cập nhật lớp học',description:null,before:null,after:null,outcome:'succeeded',redacted:true}],nextCursor:auditMode==='success'&&!next?'opaque-cursor':null};
+   }else if(req.method()==='PATCH'){
     patches++;if(failure==='network')return route.abort();
     if(failure)return route.fulfill({status:failure,contentType:'application/json',body:JSON.stringify({error:{}})});
     const body=req.postDataJSON();
@@ -130,7 +136,24 @@ try{
   await p.locator('[data-tab="Lịch Sử"]').click();
   await p.waitForFunction(()=>document.querySelector('#v24-history-events [role="alert"]'));
   assert.equal(await p.locator('.v25-audit-row').count(),0);
-  assert.equal(calls.some(x=>x.path.includes('audit')),false);
+  assert.equal(calls.filter(x=>x.path.includes('audit')).length,1);
+  auditMode='success';await p.locator('#v24-history-search').fill('Cập nhật');
+  await p.waitForFunction(()=>document.querySelectorAll('.v25-audit-row').length===1);
+  assert.match(await p.locator('.v25-audit-who').innerText(),/Nhân viên/);
+  assert.equal(await p.locator('#detail-body .v24-demo-label').count(),0);
+  assert.equal(await p.locator('.v25-audit-row').getAttribute('data-audit-subject'),id);
+  assert.match(calls.at(-1).query,/query=/);
+  await p.locator('#fd-history-next').click();await p.waitForFunction(()=>document.querySelectorAll('.v25-audit-row').length===2);
+  assert.match(calls.at(-1).query,/cursor=opaque-cursor/);
+  await p.locator('#detail-screen').screenshot({path:output+'/core-history-'+key+'-'+(manager?'manager':'staff')+'-'+width+'.png'});
+  for(const mode of [409,500,'wrong']){
+   auditMode=mode;await p.locator('#v24-history-search').fill(String(mode));
+   await p.waitForFunction(()=>document.querySelector('#v24-history-events [role="alert"]'));
+   assert.equal(await p.locator('.v25-audit-row').count(),0);
+  }
+  auditMode='empty';await p.locator('#v24-history-search').fill('empty');
+  await p.waitForFunction(()=>document.querySelector('#v24-history-events')?.textContent.includes('Không có sự kiện'));
+  assert.equal(calls.some(x=>x.path.includes('audit')&&x.path!=='/api/bo/audit/subject'),false);
   await p.locator('#back-to-list').click();assert.match(p.url(),/context=keep/);assert.match(p.url(),/#record$/);
   if(!manager)assert.equal(patches,0);
   receipts.push({key,width,actor:manager?'MANAGER':'STAFF',status:'CORE_CONTRACT_FIXTURE_PASS',realAPI:false});await c.close();
