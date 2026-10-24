@@ -12,6 +12,7 @@ const STATUSES=["Đang học","Cần xử lý","Đã duyệt","Bản nháp","T�
 const pilotKey=new URLSearchParams(location.search).get("module");
 const pilot=Object.hasOwn(window.PinoBOPilotAdapters||{},pilotKey)?window.PinoBOPilotAdapters[pilotKey]:null;
 const coreMode=pilot?.mode==="CORE";
+let coreWritesPending=0;
 const FIELDS=pilot?.fields||[
  {key:"name",label:"Tên bản ghi",type:"text",icon:"Aa",w:235},
  {key:"id",label:"ID",type:"id",icon:"#",w:145,readonly:true},
@@ -95,7 +96,8 @@ function renderNav(){
  }).join("")||'<div class="nav-empty">Không tìm thấy module</div>';
  if(coreMode)qa("a",$("lab-nav")).forEach(link=>{
   const target=new URL(link.href,location.href);
-  if(["students","classes"].includes(target.searchParams.get("module"))){target.searchParams.set("data","core");link.href=target.href;}
+  if(["students","classes"].includes(target.searchParams.get("module"))){target.searchParams.set("data","core");link.href=target.href;
+   link.onclick=event=>{event.preventDefault();if(coreWritesPending){toast("Đang lưu bản ghi. Vui lòng chờ.");return;}void pilot.viewRuntime.flush().then(()=>{const issue=pilot.viewRuntime.getSnapshot().error;if(issue)throw new Error(issue.message);location.assign(target.href);}).catch(error=>toast(error.message));};}
   else link.onclick=event=>event.preventDefault();
  });
  qa("[data-group]",$("lab-nav")).forEach(button=>button.onclick=()=>{const key=button.dataset.group;if(state.collapsed.has(key))state.collapsed.delete(key);else state.collapsed.add(key);renderNav()});
@@ -251,11 +253,12 @@ function applyCell(rec,f,next){
  if(coreMode){
   const editorTicket=state.popover;
   const button=$("edit-save");if(button?.disabled)return false;if(button)button.disabled=true;
+  coreWritesPending++;
   void pilot.commit(rec,f.key,next).then(confirmed=>{
    Object.assign(rec,confirmed);if(state.popover===editorTicket)closeEditor();renderTable();
    if(state.drawer===rec.id)renderDrawer();if(state.detail===rec.id)renderDetail();
    toast("Đã lưu thay đổi");
-  }).catch(error=>{const box=state.popover===editorTicket?$("edit-error"):null;if(box)box.textContent=error.message;else toast(error.message);if(button?.isConnected)button.disabled=false;});
+  }).catch(error=>{const box=state.popover===editorTicket?$("edit-error"):null;if(box)box.textContent=error.message;else toast(error.message);if(button?.isConnected)button.disabled=false;}).finally(()=>{coreWritesPending--;});
   return false;
  }
  if(["number","currency"].includes(f.type)){
@@ -946,7 +949,7 @@ function setupV23(){
 }
 setupV23();
 
-let coreViewFingerprint=null,coreViewBusy=false;
+let coreViewFingerprint=null,coreViewBusy=false,coreViewPending=false,coreViewRevision=0,coreViewTimer;
 function coreViewUrl(id){const url=new URL(location.href);if(id)url.searchParams.set('publicView',id);else url.searchParams.delete('publicView');history.replaceState(null,'',url);}
 function coreViewSnapshot(){
  const snap=pilot.viewRuntime.getSnapshot();
@@ -967,6 +970,10 @@ function coreSyncView(){
  try{const config=pilot.viewToCore(vCurrentView()),fingerprint=JSON.stringify(config);
   if(fingerprint===coreViewFingerprint)return;
   pilot.viewRuntime.edit(config);coreViewFingerprint=fingerprint;
+  if(pilot.viewRole==='manager'&&v22.activeView){
+   coreViewPending=true;const revision=++coreViewRevision;clearTimeout(coreViewTimer);
+   coreViewTimer=setTimeout(()=>{void pilot.viewRuntime.flush().then(()=>{if(revision===coreViewRevision)coreViewPending=false;}).catch(error=>toast(error.message));},250);
+  }
  }catch(error){toast(error.message);}
 }
 async function coreViewCommand(command){
@@ -994,7 +1001,8 @@ if(coreMode){
   event.preventDefault();event.stopImmediatePropagation();
   void pilot.viewRuntime.flush().then(()=>{pilot.viewRuntime.select(null);coreRenderViews();renderRules();renderTable();}).catch(error=>toast(error.message));
  },true);
- window.addEventListener('pagehide',()=>pilot.viewRuntime.dispose(),{once:true});
+ window.addEventListener('beforeunload',event=>{if(coreWritesPending||coreViewPending||coreViewBusy){event.preventDefault();event.returnValue='';}});
+ window.addEventListener('pagehide',()=>{clearTimeout(coreViewTimer);pilot.viewRuntime.dispose();},{once:true});
 }
 
 if(pilot){
@@ -1012,11 +1020,6 @@ if(coreMode){
  $("add-record").disabled=true;
  for(const tab of qa("[data-view]"))if(tab.dataset.view!=="all")tab.disabled=true;
  q("#detail-screen .eyebrow").textContent=pilot.group+" / FULL DETAIL";
- for(const link of qa("#lab-nav a")){
-  const url=new URL(link.href,location.href);
-  if(["students","classes"].includes(url.searchParams.get("module"))){url.searchParams.set("data","core");link.href=url.href;}
-  else link.onclick=event=>event.preventDefault();
- }
  $("add-view-tab").disabled=pilot.viewRole!=="manager";
  const originalSettings=renderSettings;
  renderSettings=function(){originalSettings();
