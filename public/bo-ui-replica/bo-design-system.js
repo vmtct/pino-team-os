@@ -8,6 +8,11 @@
   const DETAIL_TABS = Object.freeze(['Tổng quan', 'Hoạt động', 'Tài liệu']);
   const LEVELS = Object.freeze(['table', 'drawer', 'detail']);
   function detailTabs() { return [...DETAIL_TABS]; }
+  function renderFullDetailHeader({ group, title, label, subtitle, escapeHtml }) {
+    if (typeof escapeHtml !== 'function') throw new Error('invalid detail header');
+    const esc = escapeHtml;
+    return '<div class="detail-cover"><div class="detail-hero"><div><div class="eyebrow">'+esc(group)+' / LEVEL 2</div><h1>'+esc(title)+'</h1><p>Đến từ bảng '+esc(label)+' → Quick View → Full Detail · '+esc(subtitle)+'</p></div><span class="full-badge">↗ FULL DETAIL PAGE</span></div>';
+  }
   function renderFullDetailTabs({ tabs, activeTab, escapeHtml }) {
     if (!Array.isArray(tabs) || typeof escapeHtml !== 'function') throw new Error('invalid full detail tabs');
     return '<div class="detail-tabs">'+tabs.map(label => '<button class="detail-tab '+(label===activeTab?'selected':'')+'" data-tab="'+escapeHtml(label)+'">'+escapeHtml(label)+'</button>').join('')+'</div>';
@@ -61,5 +66,5 @@
       '<td class="id-cell"><button type="button" class="copy-id" title="Copy ID" aria-label="Copy ID '+esc(row.id)+'">'+esc(row.id)+'</button></td>'+
       columns.map(field => renderValueCell({row,field,escapeHtml,badgeHtml})).join('')+
       '<td class="action-cell"><button type="button" class="open-quick" aria-label="Quick View '+esc(row.title)+'" title="Quick View">↗</button></td></tr>').join('') || '<tr><td colspan="'+(columns.length+3)+'"><div class="empty-state"><strong>Không tìm thấy bản ghi</strong>Thử thay đổi bộ lọc hoặc tìm kiếm.</div></td></tr>';
-  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, renderFullDetailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
+  }  return Object.freeze({ DETAIL_TABS, LEVELS, detailTabs, renderFullDetailHeader, renderFullDetailTabs, moduleSchema, tableColumns, drawerProperties, renderDrawerPropertyRows, renderTableHeader, renderValueCell, renderTableRows });
 });
