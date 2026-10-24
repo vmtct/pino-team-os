@@ -9,7 +9,9 @@ const CLASSES=["Artchitect","PianoHouse","Chroma Sea","Little Piner Art","CAMP P
 const PEOPLE=["Hằng Nguyễn","Vy Trần","Trang Lê","Bảo Phạm","Nhi Phan","Hương Đỗ"];
 const TAGS=["VIP","Renewal","Trial","Arts","Music","CAMP","Urgent","Recurring"];
 const STATUSES=["Đang học","Cần xử lý","Đã duyệt","Bản nháp","Tạm dừng"];
-const FIELDS=[
+const pilotKey=new URLSearchParams(location.search).get("module");
+const pilot=Object.hasOwn(window.PinoBOPilotAdapters||{},pilotKey)?window.PinoBOPilotAdapters[pilotKey]:null;
+const FIELDS=pilot?.fields||[
  {key:"name",label:"Tên bản ghi",type:"text",icon:"Aa",w:235},
  {key:"id",label:"ID",type:"id",icon:"#",w:145,readonly:true},
  {key:"status",label:"Trạng thái",type:"select",icon:"▣",options:STATUSES,w:135},
@@ -28,9 +30,9 @@ const FIELDS=[
  {key:"total",label:"Thành tiền",type:"formula",icon:"ƒ",w:164,readonly:true}
 ];
 const FIELD_MAP=Object.fromEntries(FIELDS.map(f=>[f.key,f]));
-const DEFAULT_COLUMNS=["name","id","status","sessions","price","start","student","approved"];
+const DEFAULT_COLUMNS=pilot?FIELDS.map(f=>f.key):["name","id","status","sessions","price","start","student","approved"];
 const NAMES=["Art Journey · Oct","Piano Standard · 6 tháng","Chroma Sea 2026","First Visit · Discovery","Piano Renewal","Artchitect · Stage 2","Workshop Gia đình","CAMP Pinoria · Mori","Little Piner Art","Music Studio · Level 1","Art Journey · Nov","Trial Combo","Studio Workshop","Chroma Sea Showcase","Piano Basic","Little Piner Music","Art Explorer","Renewal 2027"];
-const rows=NAMES.map((name,i)=>{
+const rows=pilot?structuredClone(pilot.rows):NAMES.map((name,i)=>{
  const start=new Date(Date.UTC(2026,9,1+i));const ds=start.toISOString().slice(0,10);
  return {name,id:"MOCK-"+String(i+1).padStart(4,"0"),status:STATUSES[i%STATUSES.length],sessions:2+(i*3)%29,price:250000+(i%6)*75000,
   start:ds,student:STUDENTS[i%STUDENTS.length],approved:i%3===0,notes:i%4===0?"Ưu tiên gia hạn và theo dõi tiến độ sau buổi 3.":"Gói mẫu để thử editor và bộ lọc.",
@@ -81,6 +83,10 @@ function renderNav(){
   ["WORKFORCE",[{label:"Staff",href:"./index.html?module=staff",icon:"♙"},{label:"Kỳ lương",href:"./index.html?module=payroll",icon:"▦"}]],
   ["PINORIA",[{label:"World",href:"./index.html?module=world",icon:"◉"},{label:"Wardrobe",href:"./index.html?module=wardrobe",icon:"✿"}]],
   ["SYSTEM",[{label:"Policies",href:"./index.html?module=policies",icon:"☷"},{label:"Audit",href:"./index.html?module=audit",icon:"≡"}]]];
+ if(pilot){
+  groups[1][1].splice(1,0,{label:"Classes",href:"./index.html?module=classes",icon:"▦"});
+  groups.forEach(([,items])=>items.forEach(item=>{item.current=new URL(item.href,location.href).searchParams.get("module")===pilot.key;}));
+ }
  let visible=groups.map(([group,items])=>({group,items:items.filter(item=>!state.navQuery||norm(item.label).includes(norm(state.navQuery)))})).filter(g=>g.items.length);
  $("lab-nav").innerHTML=visible.map(({group,items})=>{
   const shown=!!state.navQuery||!state.collapsed.has(group);
@@ -167,7 +173,7 @@ function filtered(){
  return data;
 }
 function visibleColumns(){return FIELDS.filter(f=>state.allCols||DEFAULT_COLUMNS.includes(f.key));}
-function renderTable(){
+function BODataTable(){
  const cols=visibleColumns(),data=filtered(),pages=Math.max(1,Math.ceil(data.length/state.pageSize));state.page=Math.min(state.page,pages);
  const offset=(state.page-1)*state.pageSize,visible=data.slice(offset,offset+state.pageSize);
  $("table-head").innerHTML='<tr>'+cols.map(f=>'<th data-column="'+f.key+'" style="width:'+f.w+'px;min-width:'+f.w+'px"><button type="button" data-sort="'+f.key+'" title="Sắp xếp theo '+esc(f.label)+'">'+esc(f.label)+' <span class="column-type">'+f.icon+'</span> <span class="sort-icon">'+(state.sort===f.key?(state.desc?"↓":"↑"):"↕")+'</span></button></th>').join("")+'<th style="width:56px;min-width:56px"></th></tr>';
@@ -191,7 +197,8 @@ function renderTable(){
  renderChips();
 }
 
-function newRule(field="sessions"){
+let renderTable=BODataTable;
+function newRule(field=FIELD_MAP.sessions?"sessions":"name"){
  const f=FIELD_MAP[field],op=OPS[f.type][0];
  return {field,op,value:"",second:""};
 }
@@ -316,10 +323,10 @@ function closeDrawer(){
  $("drawer-scrim").classList.remove("visible");document.body.style.overflow="";renderTable();
 }
 function drawerRow(){return state.draft||rows.find(r=>r.id===state.drawer)}
-function renderDrawer(){
+function BOQuickView(){
  const rec=drawerRow();if(!rec)return;
  const isNew=!!state.draft;
- $("drawer-path").textContent="HỒ SƠ / "+(isNew?"CREATE":"QUICK VIEW");
+ $("drawer-path").textContent=(pilot?pilot.label.toLocaleUpperCase("vi"):"HỒ SƠ")+" / "+(isNew?"CREATE":"QUICK VIEW");
  $("drawer-content").innerHTML='<div class="quick-top"><span class="quick-type">Aa &nbsp; TEXT TITLE · '+(isNew?"BẢN GHI MỚI":"EDITABLE QUICK VIEW")+'</span><button type="button" id="drawer-name" class="quick-name" title="Click để đổi tên">'+esc(rec.name||"Chưa đặt tên")+" ✎"+'</button><span class="quick-id">'+esc(rec.id||"ID tạo sau khi lưu")+'</span></div>'+
   '<section class="property-section"><h3>Properties · click giá trị để sửa</h3>'+FIELDS.filter(f=>!["name","id"].includes(f.key)).map(f=>{
    const value=val(rec,f.key);
@@ -338,6 +345,7 @@ function renderDrawer(){
   };
  }else $("full-detail").onclick=()=>openDetail(rec.id);
 }
+let renderDrawer=BOQuickView;
 function openDetail(id){
  closeEditor();const rec=rows.find(r=>r.id===id);if(!rec)return;
  state.detail=id;state.tab="Tổng quan";
@@ -346,7 +354,7 @@ function openDetail(id){
  $("list-screen").classList.add("hidden");$("detail-screen").classList.remove("hidden");
  renderDetail();window.scrollTo(0,0);
 }
-function renderDetail(){
+function BOFullDetail(){
  const rec=rows.find(r=>r.id===state.detail);if(!rec)return;
  $("detail-name").textContent=rec.name;$("detail-title").textContent=rec.name;
  const tabs=window.PinoBODesignSystem.detailTabs();
@@ -354,10 +362,11 @@ function renderDetail(){
  const intro={ "Tổng quan":"Full Detail nhận cùng schema typed properties, nhưng có không gian riêng cho bảng liên quan, editor chuyên sâu và lịch.",
  "Hoạt động":"Các thay đổi theo thời gian, audit log và command history sẽ là nội dung riêng của từng module.",
  "Tài liệu":"Tài liệu, media và workflow dài có thể dùng tab riêng; không làm Drawer trở nên quá tải."};
- $("detail-body").innerHTML='<div class="detail-panel lab-section-panel"><h3>'+esc(state.tab)+'</h3><p>'+intro[state.tab]+'</p><div class="drawer-fields">'+FIELDS.filter(f=>["status","sessions","price","start","student","owner"].includes(f.key)).map(f=>'<div class="drawer-field"><dt>'+esc(f.label)+'</dt><dd>'+formatValue(f,val(rec,f.key))+'</dd></div>').join("")+'</div></div>'+
- '<div class="detail-panel detail-explain"><h3>Shared Full Detail skeleton</h3><p>Header, breadcrumbs, tab bar và responsive là dùng chung. Nội dung trong tab được module cung cấp.</p><p><strong>Formula:</strong> '+esc(currency(computed(rec)))+'</p><div class="detail-tile"><div><strong>01</strong><small>Table</small></div><div><strong>02</strong><small>Drawer</small></div><div><strong>03</strong><small>Full page</small></div></div></div>';
+ $("detail-body").innerHTML='<div class="detail-panel lab-section-panel"><h3>'+esc(state.tab)+'</h3><p>'+intro[state.tab]+'</p><div class="drawer-fields">'+FIELDS.filter(f=>pilot?!["name","id"].includes(f.key):["status","sessions","price","start","student","owner"].includes(f.key)).map(f=>'<div class="drawer-field"><dt>'+esc(f.label)+'</dt><dd>'+formatValue(f,val(rec,f.key))+'</dd></div>').join("")+'</div></div>'+
+ '<div class="detail-panel detail-explain"><h3>Shared Full Detail skeleton</h3><p>Header, breadcrumbs, tab bar và responsive là dùng chung. Nội dung trong tab được module cung cấp.</p><p><strong>'+ (pilot?'ID:':'Formula:') +'</strong> '+esc(pilot?rec.id:currency(computed(rec)))+'</p><div class="detail-tile"><div><strong>01</strong><small>Table</small></div><div><strong>02</strong><small>Drawer</small></div><div><strong>03</strong><small>Full page</small></div></div></div>';
  qa("[data-tab]",$("detail-tabs")).forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;renderDetail()});
 }
+let renderDetail=BOFullDetail;
 function bind(){
  $("nav-search").oninput=e=>{state.navQuery=e.target.value;renderNav()};
  $("collapse-all").onclick=()=>{["HỒ SƠ","SCHOOL","WORKFORCE","PINORIA","SYSTEM"].forEach(x=>state.collapsed.add(x));renderNav()};
@@ -909,5 +918,15 @@ function setupV23(){
 }
 setupV23();
 
+if(pilot){
+ document.title=pilot.label+" · PINO BO";
+ $("list-screen").querySelector("h1").textContent=pilot.label;
+ q(".topbar-breadcrumb strong").textContent=pilot.label;
+}
+window.PinoBOSharedWorkspace=Object.freeze({
+ moduleKey:pilot?.key||"registration",
+ BODataTable:()=>renderTable(), BOQuickView:()=>renderDrawer(), BOFullDetail:()=>renderDetail(),
+ dataMode:"UI_ONLY_SYNTHETIC"
+});
 renderNav();renderStrip();renderRules();renderTable();bind();
 })();
