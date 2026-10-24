@@ -349,7 +349,7 @@ function openDetail(id){
 function renderDetail(){
  const rec=rows.find(r=>r.id===state.detail);if(!rec)return;
  $("detail-name").textContent=rec.name;$("detail-title").textContent=rec.name;
- const tabs=["Tổng quan","Hoạt động","Tài liệu"];
+ const tabs=window.PinoBODesignSystem.detailTabs();
  $("detail-tabs").innerHTML=tabs.map(tab=>'<button type="button" class="detail-tab '+(state.tab===tab?"selected":"")+'" data-tab="'+tab+'">'+tab+'</button>').join("");
  const intro={ "Tổng quan":"Full Detail nhận cùng schema typed properties, nhưng có không gian riêng cho bảng liên quan, editor chuyên sâu và lịch.",
  "Hoạt động":"Các thay đổi theo thời gian, audit log và command history sẽ là nội dung riêng của từng module.",
