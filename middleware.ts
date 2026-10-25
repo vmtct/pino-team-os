@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
 
 export function middleware(request: NextRequest) {
+  // Source assets are served only through the authenticated staging controller.
+  if (request.nextUrl.pathname.startsWith("/bo-authority-source/")) return new NextResponse("Not Found", { status: 404 });
   const host = request.headers.get("host") ?? request.nextUrl.hostname;
   const decision = decideHostBoundary(host, request.nextUrl.pathname);
 
