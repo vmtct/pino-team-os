@@ -72,7 +72,13 @@ export function verifyBoV23Foundation(root=ROOT){
  for(const key of byName.keys())if(!TOKENS.includes(key))issues.push("Unreviewed extra BO token: "+key);
  for(const [key,value] of Object.entries(APPROVED_TARGETS))
   if(byName.get(key)!==value)issues.push("Founder V2.3 density target drift: "+key);
- if(!/import\s+["']\.\/design-system\/foundation\.css["']/.test(layout))issues.push("BO layout must import foundation CSS");
+ // PAP-986 separates the authority CSS pipeline from legacy BO/TOS. An external
+ // legacy stylesheet is valid only with its exact source-to-output build mapping.
+ let packaging="";
+ try{packaging=source(root,"scripts/build-bo-public-views.mjs")}catch{/* imported legacy path remains supported */}
+ const imported=/import\s+["']\.\/design-system\/foundation\.css["']/.test(layout);
+ const packaged=/<link\s+rel="stylesheet"\s+href="\/bo-legacy-foundation\.css"/.test(layout)&&/copyFile\('app\/bo\/design-system\/foundation\.css','public\/bo-legacy-foundation\.css'\)/.test(packaging);
+ if(!imported&&!packaged)issues.push("BO layout must import foundation CSS or load its exact packaged legacy bytes");
  if(!/className=\{styles\.shell\}\s+data-bo-design-system="v23"/.test(shell))issues.push("BO shell missing v23 scope marker");
  if(/foundation\.css|data-bo-design-system/.test(globalLayout))issues.push("Root app layout must not apply BO V2.3 token scope");
  if(!/node scripts\/verify-bo-v23-foundation\.mjs/.test(ci)||!/node --test scripts\/verify-bo-v23-foundation\.test\.mjs/.test(ci))issues.push("Required CI foundation verification missing");

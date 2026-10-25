@@ -35,7 +35,7 @@
 .rule-add,.rule-clear,.save-view-btn{font-size:12px}
 .save-view-btn{border:0;margin-left:auto;background:#f0ecff;color:#6c59c6;border-radius:7px;padding:8px 11px;font-weight:770}
 .save-view-btn:hover{background:#e6dfff}
-.edit-popover h4,.property-row,.property-control,.property-label,.edit-input{font-size:12px}
+.property-row,.property-control,.property-label,.edit-input{font-size:12px}
 .property-row{min-height:35px;padding:4px 0;grid-template-columns:130px minmax(0,1fr)}
 .property-control{min-height:29px}
 .property-section{margin-top:17px}

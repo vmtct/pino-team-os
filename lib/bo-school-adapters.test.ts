@@ -11,7 +11,7 @@ test("exactly fifteen assigned read-only modules; Enrollment is a subscription-c
  assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="subscriptionId"));assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="runningClassId"));
 });
 test("canonical /bo rewrite and legacy redirect are confined to exact staging host",()=>{
- assert.equal(boSkeletonRoute(BO_SKELETON_HOST,"/bo"),"rewrite");assert.equal(boSkeletonRoute(BO_SKELETON_HOST,"/bo-skeleton/playground.html"),"redirect");
+ assert.equal(boSkeletonRoute(BO_SKELETON_HOST,"/bo"),"runtime");assert.equal(boSkeletonRoute(BO_SKELETON_HOST,"/bo-skeleton/playground.html"),"redirect");
  for(const host of ["bo.pinohouse.art","tos.pinohouse.art","localhost"])assert.equal(boSkeletonRoute(host,"/bo"),null);
 });
 test("Classes uses current bootstrap read and maps actual labels/status without legacy fallback",async()=>{

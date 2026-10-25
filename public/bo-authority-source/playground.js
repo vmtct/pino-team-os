@@ -32,15 +32,16 @@ const DEFAULT_COLUMNS=["name","id","status","sessions","price","start","student"
 const NAMES=["Art Journey · Oct","Piano Standard · 6 tháng","Chroma Sea 2026","First Visit · Discovery","Piano Renewal","Artchitect · Stage 2","Workshop Gia đình","CAMP Pinoria · Mori","Little Piner Art","Music Studio · Level 1","Art Journey · Nov","Trial Combo","Studio Workshop","Chroma Sea Showcase","Piano Basic","Little Piner Music","Art Explorer","Renewal 2027"];
 const rows=NAMES.map((name,i)=>{
  const start=new Date(Date.UTC(2026,9,1+i));const ds=start.toISOString().slice(0,10);
- return {name,id:"MOCK-"+String(i+1).padStart(4,"0"),status:STATUSES[i%STATUSES.length],sessions:2+(i*3)%29,price:250000+(i%6)*75000,
-  start:ds,student:STUDENTS[i%STUDENTS.length],approved:i%3===0,notes:i%4===0?"Ưu tiên gia hạn và theo dõi tiến độ sau buổi 3.":"Gói mẫu để thử editor và bộ lọc.",
+ return {name,id:"HS-"+String(i+1).padStart(4,"0"),status:STATUSES[i%STATUSES.length],sessions:2+(i*3)%29,price:250000+(i%6)*75000,
+  start:ds,student:STUDENTS[i%STUDENTS.length],approved:i%3===0,notes:i%4===0?"Ưu tiên gia hạn và theo dõi tiến độ sau buổi 3.":"Đã liên hệ xác nhận thông tin đăng ký.",
   appointment:ds+"T"+String(17+i%4).padStart(2,"0")+":30",
   classes:[CLASSES[i%CLASSES.length],...(i%3===0?[CLASSES[(i+2)%CLASSES.length]]:[])],owner:PEOPLE[i%PEOPLE.length],
-  tags:[TAGS[i%TAGS.length],...(i%4===0?["Urgent"]:[])],email:"parent"+(i+1)+"@example.com",
+  tags:[TAGS[i%TAGS.length],...(i%4===0?["Urgent"]:[])],email:"",
   website:i%3===0?"https://pinohouse.art":""};
 });
 const state={view:"all",search:"",rules:[],logic:"AND",allCols:false,sort:null,desc:false,page:1,pageSize:8,drawer:null,draft:null,detail:null,tab:"Tổng quan",popover:null,collapsed:new Set(),navQuery:""};
 let nextId=rows.length+1;
+let drawerFocusOrigin=null;
 const currency=v=>v==null||v===""?"—":Number(v).toLocaleString("vi-VN")+" ₫";
 const date=v=>v?new Intl.DateTimeFormat("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"}).format(new Date(v+"T12:00:00Z")):"—";
 const datetime=v=>v?date(v.slice(0,10))+" · "+v.slice(11,16):"—";
@@ -263,17 +264,21 @@ function editorHtml(f,value){
 }
 function openEditor(anchor,rec,f){
  if(f.readonly){toast(f.key==="id"?"ID là trường bất biến":"Formula là trường chỉ đọc");return}
- if(f.type==="boolean"){applyCell(rec,f,!rec[f.key]);return}
  closeEditor();
  const current=val(rec,f.key);
- $("popover").innerHTML='<h4>'+esc(f.icon)+" "+esc(f.label)+'</h4><p>'+esc(f.type)+' · Enter lưu / Esc hủy</p><div class="edit-group">'+editorHtml(f,current)+'</div><div id="edit-error" class="edit-error"></div><div class="editor-actions"><button type="button" id="edit-cancel">Hủy</button><button type="button" class="save" id="edit-save">Lưu</button></div>';
+ $("popover").innerHTML='<div class="edit-group">'+editorHtml(f,current)+'</div><div id="edit-error" class="edit-error"></div><div class="editor-actions"><button type="button" id="edit-cancel">Hủy</button><button type="button" class="save" id="edit-save">Lưu</button></div>';
  $("popover").classList.remove("hidden");
- const rect=anchor.getBoundingClientRect(),maxWidth=Math.min(330,innerWidth-24);
- if(innerWidth>760){
-  let left=Math.min(Math.max(12,rect.left),innerWidth-maxWidth-12);
-  let top=rect.bottom+8;if(top+310>innerHeight)top=Math.max(12,rect.top-325);
-  $("popover").style.left=left+"px";$("popover").style.top=top+"px";
- }else{$("popover").style.left="12px";$("popover").style.top="auto"}
+ $("popover").setAttribute("aria-label","Sửa "+f.label);
+ // Top-left cell overlay across every editable data type (table, drawer, detail).
+ // Clamp to the viewport only when a cell is near an edge; never detach into a bottom sheet.
+ const panel=$("popover"),rect=anchor.getBoundingClientRect();
+ const viewportWidth=document.documentElement.clientWidth,viewportHeight=innerHeight;
+ panel.style.bottom="auto";
+ panel.style.maxHeight=Math.max(130,viewportHeight-16)+"px";
+ const width=panel.getBoundingClientRect().width,height=panel.getBoundingClientRect().height;
+ const left=Math.max(8,Math.min(rect.left,viewportWidth-width-8));
+ const top=Math.max(8,Math.min(rect.top,viewportHeight-height-8));
+ panel.style.left=left+"px";panel.style.top=top+"px";
  const multi=["multiselect","multirelation"].includes(f.type);
  const single=["relation","person"].includes(f.type);
  const selected=new Set(Array.isArray(current)?current:[current].filter(Boolean));
@@ -293,7 +298,7 @@ function openEditor(anchor,rec,f){
   if(applyCell(rec,f,next))closeEditor();
  }
  $("edit-save").onclick=save;$("edit-cancel").onclick=closeEditor;
- const input=$("editor-value")||$("editor-search");if(input){input.focus();if(input.type==="text")input.select()}
+ const input=$("editor-value")||$("editor-search")||$("editor-bool");if(input){input.focus();if(input.type==="text")input.select()}
  $("popover").onkeydown=e=>{
   if(e.key==="Escape"){e.stopPropagation();closeEditor();}
   if(e.key==="Enter"&&!(e.target.tagName==="TEXTAREA")){e.preventDefault();e.stopPropagation();save();}
@@ -304,35 +309,40 @@ function createDraft(){
  const name="";return {name,id:"",status:"Bản nháp",sessions:0,price:250000,start:"",student:"",approved:false,notes:"",appointment:"",classes:[],owner:"",tags:[],email:"",website:""};
 }
 function openDrawer(id=null){
+ drawerFocusOrigin=document.activeElement instanceof HTMLElement?document.activeElement:null;
  closeEditor();state.drawer=id;state.draft=id?null:createDraft();
  $("drawer").classList.add("open");$("drawer").setAttribute("aria-hidden","false");
  $("drawer-scrim").classList.add("visible");document.body.style.overflow="hidden";
  renderDrawer();$("drawer-close").focus();renderTable();
 }
 function closeDrawer(){
+ const previousId=state.drawer,wasCreating=!!state.draft,origin=drawerFocusOrigin;
  closeEditor();state.drawer=null;state.draft=null;$("drawer").classList.remove("open");$("drawer").setAttribute("aria-hidden","true");
  $("drawer-scrim").classList.remove("visible");document.body.style.overflow="";renderTable();
+ const fallback=wasCreating?$("add-record"):q('[data-record="'+previousId+'"] [data-open]');
+ (origin?.isConnected?origin:fallback)?.focus();
+ drawerFocusOrigin=null;
 }
 function drawerRow(){return state.draft||rows.find(r=>r.id===state.drawer)}
 function renderDrawer(){
  const rec=drawerRow();if(!rec)return;
  const isNew=!!state.draft;
- $("drawer-path").textContent="HỒ SƠ / "+(isNew?"CREATE":"QUICK VIEW");
- $("drawer-content").innerHTML='<div class="quick-top"><span class="quick-type">Aa &nbsp; TEXT TITLE · '+(isNew?"BẢN GHI MỚI":"EDITABLE QUICK VIEW")+'</span><button type="button" id="drawer-name" class="quick-name" title="Click để đổi tên">'+esc(rec.name||"Chưa đặt tên")+" ✎"+'</button><span class="quick-id">'+esc(rec.id||"ID tạo sau khi lưu")+'</span></div>'+
-  '<section class="property-section"><h3>Properties · click giá trị để sửa</h3>'+FIELDS.filter(f=>!["name","id"].includes(f.key)).map(f=>{
-   const value=val(rec,f.key);
-   return '<div class="property-row"><div class="property-label"><small>'+f.icon+'</small>'+esc(f.label)+'</div><button type="button" class="property-control" data-prop="'+f.key+'" '+(f.readonly?'disabled aria-disabled="true"':'')+'>'+formatValue(f,value)+(f.readonly?"":'<span class="pencil">✎</span>')+'</button></div>';
-  }).join("")+'</section>';
- $("drawer-footer").innerHTML='<div class="lab-bottom"><button type="button" class="secondary-btn" id="quick-close">'+(isNew?"Hủy":"Đóng")+'</button>'+(isNew?'<button type="button" class="primary-btn" id="create-save">＋ Tạo bản ghi</button>':'<button type="button" class="primary-btn" id="full-detail">↗ Full Detail</button>')+'</div>';
- $("drawer-name").onclick=e=>openEditor(e.currentTarget,rec,FIELD_MAP.name);
+ $("drawer-path").textContent="Hồ sơ đăng ký";
+ $("drawer-title").textContent=isNew?"Tạo hồ sơ đăng ký":rec.name;
+ $("drawer-content").innerHTML='<section class="property-section"><h3>Thuộc tính</h3>'+FIELDS.map(f=>{
+  const value=val(rec,f.key);
+  const presentation=f.key==="id"&&!rec.id?'<span class="empty-val">Chưa tạo</span>':formatValue(f,value);
+  return '<div class="property-row"><div class="property-label"><small>'+esc(f.icon)+'</small>'+esc(f.label)+'</div><button type="button" class="property-control" data-prop="'+f.key+'" '+(f.readonly?'disabled aria-disabled="true"':'')+' aria-label="'+(f.readonly?"Chỉ đọc ":"Sửa ")+esc(f.label)+'">'+presentation+(f.readonly?"":'<span class="pencil" aria-hidden="true">✎</span>')+'</button></div>';
+ }).join("")+'</section>';
+ $("drawer-footer").innerHTML='<div class="lab-bottom">'+(isNew?'<button type="button" class="secondary-btn" id="quick-close">Hủy</button><button type="button" class="primary-btn" id="create-save">＋ Tạo hồ sơ đăng ký</button>':'<button type="button" class="primary-btn" id="full-detail">↗ Full Detail</button>')+'</div>';
  qa("[data-prop]",$("drawer-content")).forEach(btn=>btn.onclick=e=>openEditor(e.currentTarget,rec,FIELD_MAP[btn.dataset.prop]));
- $("quick-close").onclick=closeDrawer;
  if(isNew){
+  $("quick-close").onclick=closeDrawer;
   $("create-save").onclick=()=>{
-   if(!rec.name.trim()){toast("Hãy nhập tên bản ghi");$("drawer-name").focus();return}
-   rec.id="MOCK-"+String(nextId++).padStart(4,"0");
+   if(!rec.name.trim()){toast("Hãy nhập tên hồ sơ");q('[data-prop="name"]',$("drawer-content"))?.focus();return}
+   rec.id="HS-"+String(nextId++).padStart(4,"0");
    rows.unshift(rec);state.draft=null;state.drawer=rec.id;state.page=1;state.view="all";state.rules=[];state.search="";$("search").value="";
-   renderRules();renderDrawer();renderTable();toast("Đã tạo bản ghi mô phỏng");
+   renderRules();renderDrawer();renderTable();toast("Đã tạo hồ sơ trong dữ liệu mẫu");
   };
  }else $("full-detail").onclick=()=>openDetail(rec.id);
 }
@@ -346,7 +356,7 @@ function openDetail(id){
 }
 function renderDetail(){
  const rec=rows.find(r=>r.id===state.detail);if(!rec)return;
- $("detail-name").textContent=rec.name;$("detail-title").textContent=rec.name;
+ $("detail-title").textContent=rec.name;
  const tabs=["Tổng quan","Hoạt động","Tài liệu"];
  $("detail-tabs").innerHTML=tabs.map(tab=>'<button type="button" class="detail-tab '+(state.tab===tab?"selected":"")+'" data-tab="'+tab+'">'+tab+'</button>').join("");
  const intro={ "Tổng quan":"Full Detail nhận cùng schema typed properties, nhưng có không gian riêng cho bảng liên quan, editor chuyên sâu và lịch.",
@@ -360,8 +370,9 @@ function bind(){
  $("nav-search").oninput=e=>{state.navQuery=e.target.value;renderNav()};
  $("collapse-all").onclick=()=>{["HỒ SƠ"].forEach(x=>state.collapsed.add(x));renderNav()};
  $("expand-all").onclick=()=>{state.collapsed.clear();renderNav()};
- $("menu-btn").onclick=()=>{$("sidebar").classList.add("show");$("nav-scrim").classList.add("show")};
- $("nav-scrim").onclick=()=>{$("sidebar").classList.remove("show");$("nav-scrim").classList.remove("show")};
+ const toggleMobileNav=(open)=>{ $("sidebar").classList.toggle("show",open); $("nav-scrim").classList.toggle("show",open); ["menu-btn","detail-menu-btn"].forEach(id=>$(id)?.setAttribute("aria-expanded",String(open))); };
+ ["menu-btn","detail-menu-btn"].forEach(id=>$(id).onclick=()=>toggleMobileNav(true));
+ $("nav-scrim").onclick=()=>toggleMobileNav(false);
  $("search").oninput=e=>{state.search=e.target.value;state.page=1;renderTable()};
  qa("[data-view]").forEach(b=>b.onclick=()=>{state.view=b.dataset.view;state.page=1;renderTable()});
  $("filter-toggle").onclick=()=>{$("rules-panel").classList.toggle("hidden")};
@@ -376,9 +387,18 @@ function bind(){
  $("next-page").onclick=()=>{state.page++;renderTable()};
  $("add-record").onclick=()=>openDrawer();
  $("drawer-close").onclick=closeDrawer;$("drawer-scrim").onclick=closeDrawer;
+  $("drawer").addEventListener("keydown",event=>{
+   if(event.key!=="Tab"||state.popover)return;
+   const focusable=qa('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',$("drawer"))
+    .filter(el=>el.getClientRects().length&&getComputedStyle(el).visibility!=="hidden");
+   if(!focusable.length){event.preventDefault();$("drawer").focus();return}
+   const first=focusable[0],last=focusable[focusable.length-1];
+   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+   if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  });
  $("back-to-list").onclick=()=>{state.detail=null;$("detail-screen").classList.add("hidden");$("list-screen").classList.remove("hidden");renderTable();window.scrollTo(0,0)};
  document.addEventListener("pointerdown",e=>{
-  if(state.popover&&!e.target.closest("#popover")&&!e.target.closest("[data-edit],[data-prop],#drawer-name"))closeEditor();
+  if(state.popover&&!e.target.closest("#popover")&&!e.target.closest("[data-edit],[data-prop]"))closeEditor();
  });
  document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
@@ -709,7 +729,7 @@ function setupV22(){
     const draft=drawerRow();if(draft?.name?.trim())recordUndo("Tạo bản ghi");
     return original(event);
    };
-   create.textContent="＋ Tạo mới";
+   create.textContent="＋ Tạo hồ sơ đăng ký";
   }
  };
  const originalBind=bind;
@@ -920,14 +940,14 @@ rows.forEach((r,i)=>{
   id:"MOCK-AUD-"+String(i+1).padStart(4,"0"),subject_type:V24_ENTITY_TYPE,subject_id:r.id,
   occurred_at:"2026-10-"+String(21+i%4).padStart(2,"0")+"T09:20:00+07:00",
   actor_type:"STAFF",actor_id:"mock-manager",action:"registration.created",
-  outcome:"SUCCESS",field:null,before:null,after:r.name,description:"Hồ sơ được tạo trong dữ liệu mô phỏng."
+  outcome:"SUCCESS",field:null,before:null,after:r.name,description:"Đã tạo hồ sơ đăng ký."
  });
  if(i%2===0)V24_EVENTS.push({
   id:"MOCK-AUD-STATUS-"+String(i+1).padStart(4,"0"),subject_type:V24_ENTITY_TYPE,subject_id:r.id,
   occurred_at:"2026-10-"+String(22+i%3).padStart(2,"0")+"T16:12:00+07:00",
   actor_type:"STAFF",actor_id:"mock-reception",action:"registration.status_updated",
   outcome:"SUCCESS",field:"status",before:"Bản nháp",after:r.status,
-  description:"Trạng thái bản ghi được cập nhật (mock)."
+  description:"Đã thay đổi trạng thái hồ sơ."
  });
 });
 V24_EVENTS.push({
@@ -953,7 +973,7 @@ applyCell=function(rec,f,next){
    occurred_at:new Date().toISOString(),actor_type:"STAFF",actor_id:"mock-current-user",
    action:"registration.field_updated",outcome:"SUCCESS",
    field:f.key,before,after:v24Copy(rec[f.key]??null),
-   description:"Chỉnh sửa mock trong Playground (không ghi vào D1)."
+   description:"Đã cập nhật thông tin hồ sơ."
   });
  }
  return success;
@@ -975,21 +995,19 @@ function v24PropertyGrid(rec){
  return categories.map(([title,keys])=>'<section class="v24-prop-section"><div class="v24-section-heading"><h4>'+esc(title)+'</h4></div><div class="v24-prop-grid">'+keys.map(key=>{
   const f=FIELD_MAP[key];if(!f)return"";
   const writable=v24Writable(f),v=val(rec,key);
-  const control=writable?'<button type="button" class="v24-prop-value writable" data-detail-edit="'+esc(key)+'" aria-label="Sửa '+esc(f.label)+'">'+formatValue(f,v)+'<span class="v24-edit-glyph" aria-hidden="true">✎</span></button>':'<div class="v24-prop-value readonly" title="Read-only theo API capability mock">'+formatValue(f,v)+'<span class="v24-lock" aria-label="Chỉ đọc">⌁</span></div>';
+  const fullValue=f.type==="textarea"?'<span class="v25-full-note">'+esc(v||"—")+'</span>':["multiselect","multirelation"].includes(f.type)&&Array.isArray(v)?'<span class="v25-full-values">'+(v.length?v.map(item=>pill(item)).join(""):'<span class="empty-val">Trống</span>')+'</span>':formatValue(f,v);
+  const control=writable?'<button type="button" class="v24-prop-value writable" data-detail-edit="'+esc(key)+'" aria-label="Sửa '+esc(f.label)+'">'+fullValue+'<span class="v24-edit-glyph" aria-hidden="true">✎</span></button>':'<div class="v24-prop-value readonly" title="Chỉ đọc">'+fullValue+'<span class="v24-lock" aria-label="Chỉ đọc">⌁</span></div>';
   return '<div class="v24-prop-item"><div class="v24-prop-key"><span class="v24-field-glyph">'+esc(f.icon)+'</span>'+esc(f.label)+'</div>'+control+'</div>';
  }).join("")+'</div></section>').join("");
 }
 function v24DetailContent(rec){
- return '<section class="v24-intro"><div><span class="v24-eyebrow">ENTITY SNAPSHOT · '+esc(V24_ENTITY_TYPE)+' / '+esc(rec.id)+'</span><h3>Detail</h3><p>Toàn bộ properties của bản ghi, theo kiểu dữ liệu chung. Chỉ các field được API cho phép mới có thao tác chỉnh sửa.</p></div><span class="v24-demo-label">MOCK API CAPABILITIES</span></section>'+
- '<div class="v24-capability-note"><span>⌁</span> <strong>Chính sách demo:</strong> name, status, start, notes, owner, tags có thể sửa. ID, formula và các trường khác chỉ đọc. Khi tích hợp Core, quyền sửa phải lấy từ API/ACL thực và kiểm tra lại phía server — không suy ra từ prototype.</div>'+
- v24PropertyGrid(rec);
+ return v24PropertyGrid(rec);
 }
 function v24AdvancedContent(rec){
- return '<section class="v24-intro"><div><span class="v24-eyebrow">DOMAIN SLOT · REGISTRATION</span><h3>Chuyên Sâu</h3><p>Không gian độc lập do domain adapter cung cấp theo bản chất entity; không ép chung một nội dung cho 31 module.</p></div><span class="v24-demo-label">REGISTRATION DEMO</span></section>'+
- '<div class="v24-special-grid">'+
- '<article class="v24-special-card"><div class="v24-card-icon">◉</div><h4>Học viên & chương trình</h4><p>Liên kết hồ sơ đăng ký với người học, chương trình và lớp.</p><dl><div><dt>Học viên</dt><dd>'+esc(rec.student||"—")+'</dd></div><div><dt>Lớp liên quan</dt><dd>'+esc((rec.classes||[]).join(", ")||"—")+'</dd></div></dl><div class="v24-card-foot">Relation / enrollment projection · mock</div></article>'+
- '<article class="v24-special-card"><div class="v24-card-icon">▦</div><h4>Gói học & tiêu thụ</h4><p>Vùng để hiển thị lịch sử sử dụng, gia hạn, nghiệp vụ theo domain.</p><dl><div><dt>Số buổi</dt><dd>'+esc(rec.sessions)+'</dd></div><div><dt>Giá trị ước tính</dt><dd>'+esc(currency(computed(rec)))+'</dd></div></dl><div class="v24-card-foot">Subscription / usage adapter · mock</div></article>'+
- '<article class="v24-special-card v24-full"><div class="v24-card-icon">◷</div><h4>Timeline & tài liệu liên quan</h4><p>Ví dụ vùng mở rộng: lịch hẹn, phiếu đăng ký, chứng từ, media hoặc workflow có nhiều bước. Entity khác có thể thay bằng calendar, permission matrix, Pinoria editor hoặc payroll.</p><div class="v24-schedule-chip">'+esc(datetime(rec.appointment))+' · '+esc(rec.status)+'</div></article></div>';
+ return '<div class="v24-special-grid">'+
+ '<article class="v24-special-card"><div class="v24-card-icon" aria-hidden="true">◉</div><h4>Học viên & lớp học</h4><dl><div><dt>Học viên</dt><dd>'+esc(rec.student||"—")+'</dd></div><div><dt>Lớp liên quan</dt><dd>'+esc((rec.classes||[]).join(", ")||"—")+'</dd></div></dl></article>'+
+ '<article class="v24-special-card"><div class="v24-card-icon" aria-hidden="true">▦</div><h4>Gói đăng ký</h4><dl><div><dt>Số buổi</dt><dd>'+esc(rec.sessions)+'</dd></div><div><dt>Đơn giá</dt><dd>'+esc(currency(rec.price))+'</dd></div><div><dt>Tổng giá trị</dt><dd>'+esc(currency(computed(rec)))+'</dd></div></dl></article>'+
+ '<article class="v24-special-card v24-full"><div class="v24-card-icon" aria-hidden="true">◷</div><h4>Lịch hẹn</h4><dl><div><dt>Thời gian</dt><dd>'+esc(datetime(rec.appointment))+'</dd></div><div><dt>Trạng thái hồ sơ</dt><dd>'+esc(rec.status||"—")+'</dd></div></dl></article></div>';
 }
 function v24AuditScoped(rec){
  return V24_EVENTS.filter(e=>e.subject_type===V24_ENTITY_TYPE&&e.subject_id===rec.id)
@@ -1018,10 +1036,9 @@ renderDetail=function(){
  const rec=v24CurrentRec();if(!rec)return;
  const tabs=["Detail","Chuyên Sâu","Lịch Sử"];
  if(!tabs.includes(state.tab))state.tab="Detail";
- $("detail-name").textContent=rec.name;
  $("detail-title").textContent=rec.name;
  const desc=$("detail-title").parentElement.querySelector("p");
- if(desc)desc.textContent="Full Detail: Detail · Chuyên Sâu · Lịch Sử · ID "+rec.id;
+ if(desc)desc.textContent="Mã hồ sơ: "+rec.id;
  $("detail-tabs").innerHTML=tabs.map(tab=>'<button type="button" class="detail-tab '+(state.tab===tab?"selected":"")+'" data-tab="'+esc(tab)+'">'+esc(tab)+'</button>').join("");
  const primary=state.tab==="Detail"?v24DetailContent(rec):state.tab==="Chuyên Sâu"?v24AdvancedContent(rec):v24HistoryContent(rec);
  const panel='<div class="detail-panel v24-main-panel">'+primary+'</div>';
@@ -1030,7 +1047,7 @@ renderDetail=function(){
  qa("[data-tab]",$("detail-tabs")).forEach(btn=>btn.onclick=()=>{state.tab=btn.dataset.tab;renderDetail()});
  qa("[data-detail-edit]",$("detail-body")).forEach(btn=>btn.onclick=e=>{
    const key=btn.dataset.detailEdit,f=FIELD_MAP[key];
-   if(!f||!v24Writable(f))return toast("Field không được API capability demo cho phép sửa.");
+   if(!f||!v24Writable(f))return toast("Bạn không có quyền chỉnh sửa trường này.");
    openEditor(e.currentTarget,rec,f);
  });
  if(state.tab==="Lịch Sử"){
@@ -1040,27 +1057,28 @@ renderDetail=function(){
 };
 /* END PAP-879 V2.4 FULL DETAIL BASELINE */
 /* PAP-879 V2.5: lean Full Detail — no sidebar summary; compact scoped audit rows. */
+const v25ActionLabel=action=>({"registration.created":"Tạo hồ sơ","registration.status_updated":"Đổi trạng thái","registration.field_updated":"Cập nhật thông tin","registration.updated":"Cập nhật hồ sơ"})[action]||String(action).replace(/[._]/g," ");
+const v25ActorLabel=actor=>({"mock-manager":"Quản lý","mock-reception":"Tiếp tân","mock-current-user":"Nhân viên"})[actor]||actor;
 v24AuditList=function(rec){
- const filtered=v24AuditScoped(rec).filter(e=>!v24HistoryQuery||norm([e.action,e.actor_id,e.field,e.description].join(" ")).includes(norm(v24HistoryQuery)));
+ const filtered=v24AuditScoped(rec).filter(e=>!v24HistoryQuery||norm([v25ActionLabel(e.action),v25ActorLabel(e.actor_id),e.action,e.actor_id,e.field,e.description].join(" ")).includes(norm(v24HistoryQuery)));
  if(!filtered.length)return '<div class="v24-audit-empty">Không có sự kiện phù hợp.</div>';
  return filtered.map(e=>{
-  const fld=e.field?(FIELD_MAP[e.field]?.label||e.field):"Bản ghi";
+  const fld=e.field?(FIELD_MAP[e.field]?.label||e.field):"Hồ sơ";
   const display=v=>v==null?"—":Array.isArray(v)?v.join(", "):String(v);
   const dateObj=new Date(e.occurred_at);
   const dateStr=dateObj.toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});
   const timeStr=dateObj.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"});
   return '<article class="v25-audit-row" data-audit-subject="'+esc(e.subject_id)+'" role="listitem">'+
    '<div class="v25-audit-when"><strong>'+esc(dateStr)+'</strong><span>'+esc(timeStr)+'</span></div>'+
-   '<div class="v25-audit-who"><span class="v25-person-marker">♙</span><span>'+esc(e.actor_id)+'</span></div>'+
-   '<div class="v25-audit-action"><strong>'+esc(e.action)+'</strong><span>'+esc(e.description)+'</span></div>'+
+   '<div class="v25-audit-who"><span class="v25-person-marker">♙</span><span>'+esc(v25ActorLabel(e.actor_id))+'</span></div>'+
+   '<div class="v25-audit-action"><strong>'+esc(v25ActionLabel(e.action))+'</strong><span>'+esc(e.description)+'</span></div>'+
    '<div class="v25-audit-changes"><span class="v25-audit-field">'+esc(fld)+'</span><div class="v25-change-flow"><span title="'+esc(display(e.before))+'">'+esc(display(e.before))+'</span><em>→</em><strong title="'+esc(display(e.after))+'">'+esc(display(e.after))+'</strong></div></div>'+
-   '<span class="v25-audit-outcome">'+esc(e.outcome)+'</span>'+
+   '<span class="v25-audit-outcome">'+esc(e.outcome==="SUCCESS"?"Thành công":e.outcome)+'</span>'+
   '</article>';
  }).join("");
 };
 v24HistoryContent=function(rec){
- return '<div class="v25-history-top"><h3>Lịch Sử</h3><span class="v24-demo-label">MOCK DATA</span></div>'+
- '<label class="v24-history-filter v25-history-filter">⌕ <input id="v24-history-search" type="search" placeholder="Tìm hành động hoặc người thực hiện..." value="'+esc(v24HistoryQuery)+'" autocomplete="off"/></label>'+
+ return '<label class="v24-history-filter v25-history-filter">⌕ <input id="v24-history-search" type="search" aria-label="Tìm lịch sử hồ sơ" placeholder="Tìm hành động hoặc người thực hiện..." value="'+esc(v24HistoryQuery)+'" autocomplete="off"/></label>'+
  '<div class="v25-audit-list" id="v24-history-events" role="list">'+v24AuditList(rec)+'</div>';
 };
 /* END PAP-879 V2.5 */

@@ -6,11 +6,15 @@ export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
   if (request.nextUrl.pathname.startsWith("/bo-authority-source/")) return new NextResponse("Not Found", { status: 404 });
   const host = request.headers.get("host") ?? request.nextUrl.hostname;
+  // Never trust a caller-supplied internal route marker.
+  const forwarded = new Headers(request.headers);
+  forwarded.delete("x-pino-bo-runtime-path");
+  if (host === "pino-team-os-staging.minhtri-van42.workers.dev" && (request.nextUrl.pathname === "/bo" || request.nextUrl.pathname.startsWith("/bo/"))) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
   const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
-  if (schoolRoute) {
+  if (schoolRoute === "redirect") {
     const target = request.nextUrl.clone();
-    target.pathname = schoolRoute === "rewrite" ? "/bo-skeleton/playground.html" : "/bo";
-    return schoolRoute === "rewrite" ? NextResponse.rewrite(target) : NextResponse.redirect(target, 307);
+    target.pathname = "/bo";
+    return NextResponse.redirect(target, 307);
   }
   const decision = decideHostBoundary(host, request.nextUrl.pathname);
 
@@ -23,7 +27,7 @@ export function middleware(request: NextRequest) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);
     }
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: forwarded } });
   }
   if (decision.action === "not_found") {
     return new NextResponse("Not Found", { status: 404, headers: { "cache-control": "no-store" } });
