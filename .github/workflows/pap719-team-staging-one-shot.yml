@@ -1,0 +1,88 @@
+name: PAP-719 Team Staging One-Shot
+on:
+  workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: Founder-approved Team source SHA
+        required: true
+        type: string
+      expected_previous_version:
+        description: Current Cloudflare Team staging version UUID
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: pino-team-staging-worker-mutation
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify approved exact source and CI
+        env:
+          SHA: ${{ inputs.approved_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SHA"
+          test "$SHA" = '056dd50670de8e57f0bb53a47533183977b8ffbf'
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/40143529713 --jq '.head_sha')" = "$SHA"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/40143529713 --jq '.conclusion')" = success
+          grep -q '"name": "pino-team-os-staging"' wrangler.staging.jsonc
+          grep -q '"service": "pino-core-staging"' wrangler.staging.jsonc
+      - run: npm ci
+      - name: Build source
+        run: |
+          set -euo pipefail
+          npm run build
+          npx opennextjs-cloudflare build
+          test -f .open-next/worker.js
+      - name: Exact CAS deploy, smoke and guarded rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+          SHA: ${{ inputs.approved_sha }}
+          PREVIOUS: ${{ inputs.expected_previous_version }}
+        run: |
+          set -euo pipefail
+          worker=pino-team-os-staging
+          get() { curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${worker}/deployments?per_page=2"; }
+          active() { get | jq -er 'if .success then [.result.deployments[0].versions[]|select(.percentage==100)|.version_id]|if length==1 then .[0] else error("ambiguous active") end else error("Cloudflare error") end'; }
+          core_message="$(curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/pino-core-staging/deployments?per_page=1" | jq -er '.result.deployments[0].annotations["workers/message"]')"
+          case "$core_message" in
+            "pap719 staging sha=530bb95a68897fcf0098faa3bb9d710fe8dc44f2 run="*) ;;
+            *) echo "Core PAP-719 approved SHA not yet serving; Team HOLD" >&2; exit 1 ;;
+          esac
+          test "$(active)" = "$PREVIOUS" || { echo "CAS mismatch"; exit 1; }
+          message="pap719 staging sha=${SHA} run=${GITHUB_RUN_ID}"
+          npx wrangler deploy -c wrangler.staging.jsonc --tag "staging-${SHA:0:12}" --message "$message"
+          deployed="$(get | jq -er --arg m "$message" 'if .success and .result.deployments[0].annotations["workers/message"]==$m then [.result.deployments[0].versions[]|select(.percentage==100)|.version_id]|if length==1 then .[0] else error("ambiguous version") end else error("annotation mismatch") end')"
+          smoke=true
+          code="$(curl -sS --max-time 15 -o /tmp/context.json -w '%{http_code}' 'https://pino-team-os-staging.minhtri-van42.workers.dev/api/bo/context' || true)"
+          if [ "$code" != 401 ] || ! jq -e '.error.code == "IDENTITY_AUTHENTICATION_FAILED"' /tmp/context.json >/dev/null; then smoke=false; fi
+          if ! curl -fsS --max-time 15 'https://pino-team-os-staging.minhtri-van42.workers.dev/bo/workforce' >/tmp/workforce.html; then smoke=false; fi
+          if [ "$smoke" != true ]; then
+            if [ "$(active)" = "$deployed" ]; then
+              npx wrangler rollback "$PREVIOUS" -c wrangler.staging.jsonc --message "pap719 rollback run=${GITHUB_RUN_ID}"
+              test "$(active)" = "$PREVIOUS"
+            else
+              echo "Concurrent change: refuse rollback" >&2
+            fi
+            exit 1
+          fi
+          test "$(active)" = "$deployed"
+          jq -n --arg sourceSha "$SHA" --arg previousVersionId "$PREVIOUS" --arg activeVersionId "$deployed" --arg runId "$GITHUB_RUN_ID" '{kind:"PAP719_TEAM",sourceSha:$sourceSha,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,runId:$runId,result:"PASS",productionMutation:false}' > receipt.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pap719-team-staging-receipt
+          path: receipt.json
