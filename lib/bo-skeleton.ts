@@ -1,5 +1,5 @@
 import { authorizeBoShell, BoShellGateError, type BoShellGateEnv } from "./bo-shell-gate";
-import { BO_SKELETON_HOST } from "./bo-skeleton-routing";
+import { BO_SKELETON_HOST, isBoStagingHost } from "./bo-skeleton-routing";
 export { BO_SKELETON_HOST } from "./bo-skeleton-routing";
 export interface BoSkeletonEnv extends BoShellGateEnv {
   APP_ENV?: string;
@@ -10,7 +10,7 @@ export const BO_AUTHORITY_PREFIX = "/bo-authority-source/";
 export const BO_AUTHORITY_STYLES = ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"] as const;
 export const BO_AUTHORITY_ASSETS = new Set<string>(BO_AUTHORITY_STYLES);
 export function boSkeletonEnabled(env: Pick<BoSkeletonEnv, "APP_ENV" | "BO_UI_ONLY">, host: string) {
-  return env.APP_ENV === "staging" && env.BO_UI_ONLY === "enabled" && host.toLowerCase() === BO_SKELETON_HOST;
+  return env.APP_ENV === "staging" && env.BO_UI_ONLY === "enabled" && isBoStagingHost(host);
 }
 /** Historical controller path now serves ONLY the six authenticated DS stylesheets.
  * /bo is rendered by React; prototype HTML/JS and the monkey-patch bridge never execute. */

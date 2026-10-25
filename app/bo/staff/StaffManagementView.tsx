@@ -321,7 +321,9 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
       form.method = "POST";
       form.action = window.location.hostname === "bo.pinohouse.art"
         ? "https://tos.pinohouse.art/api/support-session/enter"
-        : "/api/support-session/enter";
+        : window.location.hostname === "bo.staging.pinohouse.art"
+          ? "https://tos.staging.pinohouse.art/api/support-session/enter"
+          : "/api/support-session/enter";
       form.style.display = "none";
       const token = document.createElement("input");
       token.type = "hidden"; token.name = "token"; token.value = session.token;

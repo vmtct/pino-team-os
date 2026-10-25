@@ -1,6 +1,6 @@
 export const BO_SKELETON_HOST = "pino-team-os-staging.minhtri-van42.workers.dev";
 export const BO_STAGING_CUSTOM_HOST = "bo.staging.pinohouse.art";
-function isBoStagingHost(host: string): boolean {
+export function isBoStagingHost(host: string): boolean {
   const normalized = host.trim().toLowerCase().replace(/\.$/, "").replace(/:\d+$/, "");
   return normalized === BO_SKELETON_HOST || normalized === BO_STAGING_CUSTOM_HOST;
 }
