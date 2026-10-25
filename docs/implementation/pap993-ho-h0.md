@@ -1,0 +1,17 @@
+# PAP-993 Lean Head Office H0
+
+Authority: latest PAP-993 end-to-end staging execution authorization and PAP-512 independent H0 lane; PAP-980 full-stack implementation supersedes old reviewer-only clauses. PLT-BO / bo-operational-read-plane remains the canonical read owner. PAP-1000/1001/1002 are excluded.
+
+Team Surface Decision: Founder-approved HO, desktop primary with 390/768/1440 responsive composition; Head Office navigation contains Centers only. Reuses the actual V2.5 BoRegistrationWorkspace, BoDataTable, BoQuickView and registration/BoFullDetail. Core owns the canonical principal, permission evaluation and Center data. No new Core auth/kernel, permissions or persistence. No cross-domain links or acting Center.
+
+The actual current staged BO runtime uses registration components; the older BoDataGrid, generic BoFullDetail and BoProperties were inspected but are not the current V2.5 runtime composition. H0 configures the existing workspace instead of copying that renderer. Its Full Detail is local selected-record state, so Back preserves Table search/selection/scroll and never assumes /bo. No detail adapter is necessary. Specialized/history tabs truthfully report unavailable rather than inventing events.
+
+Security: exact ho.staging.pinohouse.art plus APP_ENV staging; middleware denies all unrelated paths and business methods, including APIs. Only existing password login/logout/change-password are POST exceptions. Existing host-local Secure HttpOnly SameSite=Strict session is mandatory, resolved by Core. Server-admitted pilot canonical user IDs narrow the cohort without granting any permission. The Founder ID was read from staging access_bootstrap_state joined to active access_users on 2026-10-25; API Center reads still require current Core team.bo.access and bo.operations.view @ GLOBAL. No email or frontend claim authorizes H0. Unconfigured cohort and unavailable Core deny access.
+
+Data: boApi.centers() -> GET /api/bo/centers -> BoAccessControlPlane on pino-core-staging. Complete canonical list; no fixed count, filtering fixtures or fabricated records. Invalid/missing IDs/values, duplicate IDs or invalid time zones reject the response with retry. Canonical fetched records feed Drawer and Full Detail. No create/edit/save/delete UI or business writes.
+
+Theme: application-scoped semantic variables under data-surface=ho; original six byte-pinned authority CSS assets remain unchanged. Scoped aliases/overrides preserve BO colors, neutral surfaces and status semantics.
+
+Delivery: dedicated staging-only config preserves all eight pino-core-staging bindings, removes senders/bypasses and routes all assets through middleware for host enforcement. Existing BO config remains unchanged. Guarded PAP-993 workflow requires current merged main, exact push CI and previous Team/Core versions, serializes on the existing staging writer concurrency group and rolls back only its own deployment annotation. Fresh FC1/PAP-512 admission is still required before dispatch. Attach only ho.staging.pinohouse.art after successful serving proof. Rollback to the recorded immediately previous version; detach only the newly attached HO domain if required. No Production, D1 mutations, outbound or integrated E2E.
+
+Local visual evidence is a component diagnostic using a fresh read-only staging Center snapshot, not authenticated staging proof. STAGING_READY requires separate real-domain Founder session and API/visual/security readback. Founder visual approval remains pending after delivery.

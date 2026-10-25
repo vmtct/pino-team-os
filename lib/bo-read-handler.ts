@@ -1,8 +1,12 @@
+import { authorizeHoShell, type HoEnv } from "./ho-auth";
+import { BoShellGateError } from "./bo-shell-gate";
+import { HO_STAGING_HOSTNAME } from "./host-boundary";
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
 
 export interface BoReadEnv extends TeamAccessEnv {
+  APP_ENV?: string; HO_PILOT_FOUNDER_USER_IDS?: string;
   PINO_BO_CORE: BoAccessCoreBinding;
 }
 
@@ -31,6 +35,10 @@ export async function handleBoOperationalReadRequest(
   try {
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isOperationalReadPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (new URL(request.url).hostname === HO_STAGING_HOSTNAME) {
+      if (path !== "centers") return json({ error: { code: "PLATFORM_NOT_FOUND" } }, 404);
+      await authorizeHoShell(request.headers, env as HoEnv);
+    }
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
@@ -39,6 +47,7 @@ export async function handleBoOperationalReadRequest(
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
     return json(result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
+    if (error instanceof BoShellGateError) return json({ error: { code: "HO_ACCESS_DENIED", message: error.message } }, error.status);
     if (error instanceof RangeError) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Invalid directory filter" } }, 400);
     if (error instanceof TeamAuthError) {
       return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);

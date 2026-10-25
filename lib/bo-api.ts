@@ -182,8 +182,8 @@ export type BoAcquisitionIntent = {
   pancakeConversations?: BoPancakeConversation[];
 };
 
-async function read<T>(path: string): Promise<T[]> {
-  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
+async function read<T>(path: string, fetcher: typeof fetch = fetch): Promise<T[]> {
+  const response = await fetcher(`/api/bo/${path}`, { cache: "no-store" });
   const body = await parseBoJson<{ data?: T[]; error?: { message?: string; requestId?: string } }>(response, "Back Office returned an invalid response.");
   if (!response.ok || !body.data) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
@@ -330,7 +330,7 @@ export const boApi = {
       classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: state.centers.find((center) => center.id === item.centerId)?.timeZone ?? "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
-  centers: () => read<BoCenter>("centers"),
+  centers: (fetcher?: typeof fetch) => read<BoCenter>("centers", fetcher),
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
   calendarExclusions: (centerId: string, status?: "ACTIVE" | "ARCHIVED") => read<BoCalendarExclusion>(`delivery/calendar-exclusions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
