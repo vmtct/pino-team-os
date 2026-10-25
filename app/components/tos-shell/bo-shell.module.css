@@ -307,5 +307,7 @@
   .shell[data-bo-pilot] { grid-template-columns: 1fr; }
   .shell[data-bo-pilot] .main { padding: 18px 14px; }
   .shell[data-bo-pilot] .topbar { grid-template-columns: auto minmax(0,1fr) auto auto; }
-  .shell[data-bo-pilot] .commandButton { width: 38px; padding: 0 4px; }
+  .shell[data-bo-pilot] .commandButton { width: 44px; padding: 0 4px; }
+  .shell[data-bo-pilot] .commandButton kbd { white-space: nowrap; }
+  .shell[data-bo-pilot] .userButton { max-width: min(180px, 42vw); }
 }

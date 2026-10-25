@@ -30,7 +30,9 @@ The earlier static-replica pixel comparisons did not exercise React `/bo`.
   routes. Other module adoption remains outside this grant.
 - Run actual React component screenshots in CI, independently of replica tests.
 
-No Core change, migration, staging fixture, secret, sender or production change.
+No Core change, migration, staging fixture, secret extraction, outbound test or
+production change. The dedicated release config removes the email binding and
+legacy bypass/ingress variables while retaining the eight staging Core bindings.
 
 ## Verification and limitations
 
@@ -72,16 +74,21 @@ The existing acceptance class is ARCHIVED. No new fixture was created.
 Direct Playwright CDP initialization was traced to unresponsive unrelated
 Production BO/TOS renderers. Restricting the diagnostic client's target
 discovery to staging lets it connect without closing/reloading those tabs or
-reading cookies. Live `Page.captureScreenshot` still stalled separately; this
-does not invalidate local screenshots or establish deployed visual acceptance.
+reading cookies. Bringing the staging page to the foreground resolved a separate
+compositor screenshot stall: 30 authenticated before-recovery screenshots were
+captured. These show the old serving runtime, not the candidate.
 
 ## Release boundary
 
-PAP-512 still names FC1 as shared merge/staging owner. The Founder authorizes
-Codex downstream execution after required ownership transfer and writer leases;
-no lease is inferred from PLT-CARE, a green PR or the implementation role.
-The existing PAP-719 one-shot Team workflow is pinned to its old approved SHA
-and run; it must not be blindly dispatched for this candidate.
+The Founder's latest direct correction, “I mean transfer to codex”, transfers
+this recovery's merge/staging lane to Codex (PAP-175 comment 16154), superseding
+the earlier no-transfer answer. Exclusive writer verification remains required;
+no resource lease is inferred from PLT-CARE, a green PR or implementation role.
+The existing PAP-719 one-shot operator stays untouched. A dedicated PAP-979
+workflow admits only PR854's exact merged current-main SHA with successful push
+CI, Team/Core version CAS, shared Team staging concurrency, metadata/readback,
+anonymous API denials and guarded rollback. Local Wrangler is unauthenticated;
+the workflow uses the existing GitHub-held credential without exposing it.
 
 Record exact candidate/PR/merge/CI and eventual serving SHA/version/rollback on
 PAP-979. Founder review URL after release is

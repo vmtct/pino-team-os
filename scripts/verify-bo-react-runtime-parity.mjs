@@ -25,7 +25,7 @@ import {BoOperationalView} from './app/bo/BoOperationalView';
 import {BoShell} from './app/components/tos-shell/BoShell';
 import {boNavigation} from './app/bo/navigation';
 import './app/globals.css';import './app/bo/design-system/foundation.css';
-createRoot(document.getElementById('root')).render(<BoShell groups={boNavigation}><>{location.pathname.includes('learners')?<BoLearnersView/>:<BoOperationalView view="running-classes"/>}</></BoShell>);`, resolveDir: process.cwd(), loader: 'tsx' },
+createRoot(document.getElementById('root')).render(<BoShell groups={boNavigation} currentUser={{userId:'fixture-user',email:'long-account-name@example.invalid',displayName:null,staffMemberId:null,surface:'BO',entitled:true,permissionKeys:[]}}><>{location.pathname.includes('learners')?<BoLearnersView/>:<BoOperationalView view="running-classes"/>}</></BoShell>);`, resolveDir: process.cwd(), loader: 'tsx' },
   outfile: resolve(output, 'fixture.js'), bundle: true, format: 'esm', jsx: 'automatic',
   plugins: [{ name: 'local-fixture', setup(b) {
     b.onResolve({filter: /^next\/(link|navigation)$/}, () => ({path:'navigation',namespace:'fixture'}));
