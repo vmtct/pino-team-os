@@ -5,8 +5,8 @@ import {boSkeletonRoute,BO_SKELETON_HOST} from "./bo-skeleton-routing";
 const {modules,load}=createRequire(import.meta.url)("../public/bo-authority-source/school-adapters.js");
 const id=(n:number)=>"00000000-0000-4000-8000-"+String(n).padStart(12,"0");
 const ok=(data:unknown)=>new Response(JSON.stringify({data}),{headers:{"content-type":"application/json"}});
-test("only four read-only modules; Enrollment is a subscription-class link, no Path module",()=>{
- assert.deepEqual(Object.keys(modules),["students","classes","subscriptions","enrollments"]);
+test("exactly fifteen assigned read-only modules; Enrollment is a subscription-class link, no Path module",()=>{
+ assert.deepEqual(Object.keys(modules),["students","classes","subscriptions","enrollments","visits","staffs","termWeeks","timekeeping","salaryPeriods","worlds","catalog","sets","users","roles","audits"]);
  assert.ok(Object.values(modules).every((m:unknown)=>(m as {fields:{readonly:boolean}[]}).fields.every(f=>f.readonly)));
  assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="subscriptionId"));assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="runningClassId"));
 });

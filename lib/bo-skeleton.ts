@@ -35,6 +35,23 @@ export function injectStudentsBridge(source: string, bridge: string): string {
       { label: "Running Classes", href: "/bo?module=classes", icon: "▦" },
       { label: "Subscriptions", href: "/bo?module=subscriptions", icon: "▤" },
       { label: "Enrollments", href: "/bo?module=enrollments", icon: "↗" },
+      { label: "Student Visit", href: "/bo?module=visits", icon: "◷" },
+    ]],
+    ["WORKFORCE", [
+      { label: "Staffs", href: "/bo?module=staffs", icon: "◉" },
+      { label: "Term Week", href: "/bo?module=termWeeks", icon: "▦" },
+      { label: "Timekeeping", href: "/bo?module=timekeeping", icon: "◷" },
+      { label: "Salary Period", href: "/bo?module=salaryPeriods", icon: "▤" },
+    ]],
+    ["PINORIA", [
+      { label: "Pinoria World", href: "/bo?module=worlds", icon: "◈" },
+      { label: "Catalog", href: "/bo?module=catalog", icon: "▦" },
+      { label: "Set", href: "/bo?module=sets", icon: "▤" },
+    ]],
+    ["SYSTEM", [
+      { label: "Users", href: "/bo?module=users", icon: "◉" },
+      { label: "Roles", href: "/bo?module=roles", icon: "▣" },
+      { label: "Audits", href: "/bo?module=audits", icon: "≡" },
     ]],
   ];
   return source.replace(navigation, 'const groups=skeletonNavigation;\n let visible=')

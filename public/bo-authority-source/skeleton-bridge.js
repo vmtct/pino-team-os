@@ -4,7 +4,9 @@
 const requestedModule=new URLSearchParams(location.search).get('module');
 const skeletonModule=Object.hasOwn(window.PinoSchoolRead.modules,requestedModule)?requestedModule:'students';
 const school=window.PinoSchoolRead.modules[skeletonModule];
-history.replaceState(null,'',skeletonModule==='students'?'/bo':'/bo?module='+encodeURIComponent(skeletonModule));
+const schoolOptions=Object.fromEntries(['centerId','from','to'].map(key=>[key,new URLSearchParams(location.search).get(key)]).filter(([,value])=>value));
+const schoolQuery=new URLSearchParams({...skeletonModule==='students'?{}:{module:skeletonModule},...schoolOptions});
+history.replaceState(null,'','/bo'+(schoolQuery.size?'?'+schoolQuery:''));
 const registrationNav=renderNav;
 renderNav=function(){registrationNav();for(const a of qa('a[href]',$('lab-nav')))a.classList.toggle('active',(new URL(a.href).searchParams.get('module')||'students')===skeletonModule);};
 const registrationBind=bind;
@@ -28,4 +30,4 @@ v24AuditList=()=>'<div class="v24-audit-empty">Lịch sử chưa kết nối. Kh
 renderDetail=function(){registrationDetail();const snapshot=q('.v24-eyebrow');if(snapshot)snapshot.textContent=school.label+' · '+(v24CurrentRec()?.id||'');const capability=q('.v24-demo-label');if(state.tab==='Detail'&&capability)capability.textContent='READ ONLY';const note=q('.v24-capability-note');if(note)note.textContent='Chỉ đọc · chỉnh sửa chưa kết nối backend.';};
 q('table caption').textContent=school.label+' · dữ liệu thật, chỉ đọc';
 q('.detail-hero .eyebrow').textContent=school.label+' / FULL DETAIL';
-window.PinoSchoolRead.load(skeletonModule,window.fetch.bind(window)).then(result=>{rows.splice(0,rows.length,...result);loadState='ready';}).catch(error=>{rows.splice(0);loadState=error.message;}).finally(()=>renderTable());
+window.PinoSchoolRead.load(skeletonModule,window.fetch.bind(window),schoolOptions).then(result=>{rows.splice(0,rows.length,...result);loadState='ready';const scope=window.PinoSchoolRead.scopeLabel(skeletonModule,schoolOptions);if(scope)q('.topbar-breadcrumb strong').textContent=school.label+' · '+scope;}).catch(error=>{rows.splice(0);loadState=error.message;}).finally(()=>renderTable());
