@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
+    "test:ho-bo": "node --import tsx --test lib/ho-bo-ownership.test.ts",
     "test:e2e": "playwright test",
     "bo:contract:check": "node scripts/verify-bo-module-contract.mjs && node --test scripts/verify-bo-module-contract.test.mjs",
     "bo:module:new": "node scripts/create-bo-module.mjs",

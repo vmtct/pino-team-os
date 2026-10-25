@@ -1,0 +1,1104 @@
+{
+  "evidenceClass": "SOURCE_ONLY_NOT_SERVING_TRUTH",
+  "evidenceLimit": "Page and immediate implementation imports, lexical API hints only; not a transitive API/permission audit. Empty hints do not mean no API. Core table mapping and effective permissions UNVERIFIED; owner reconciliation required before runtime.",
+  "navigation": [
+    {
+      "href": "/bo",
+      "location": "Workspace / Hôm nay"
+    },
+    {
+      "href": "/bo/learners",
+      "location": "School / Students"
+    },
+    {
+      "href": "/bo/student-visits",
+      "location": "School / Student Visits"
+    },
+    {
+      "href": "/bo/subscriptions",
+      "location": "School / Subscriptions"
+    },
+    {
+      "href": "/bo/running-classes",
+      "location": "School / Classes"
+    },
+    {
+      "href": "/bo/running-classes",
+      "location": "School / Classes / Lớp đang chạy"
+    },
+    {
+      "href": "/bo/sessions",
+      "location": "School / Classes / Sessions"
+    },
+    {
+      "href": "/bo/registrations",
+      "location": "School / Classes / Registrations"
+    },
+    {
+      "href": "/bo/delivery-activation",
+      "location": "School / Classes / Activation"
+    },
+    {
+      "href": "/bo/calendar",
+      "location": "School / Schedule"
+    },
+    {
+      "href": "/bo/calendar",
+      "location": "School / Schedule / Holidays & closures"
+    },
+    {
+      "href": "/bo/sales/leads",
+      "location": "Operations / Leads"
+    },
+    {
+      "href": "/bo/open-studio",
+      "location": "Operations / Open Studio"
+    },
+    {
+      "href": "/bo/tvs",
+      "location": "Operations / TVs"
+    },
+    {
+      "href": "/bo/syllabus",
+      "location": "Learning / Programs & Syllabus"
+    },
+    {
+      "href": "/bo/missions",
+      "location": "Learning / Missions"
+    },
+    {
+      "href": "/bo/practice",
+      "location": "Learning / Practice"
+    },
+    {
+      "href": "/bo/staff",
+      "location": "Workforce / Staff"
+    },
+    {
+      "href": "/bo/workforce",
+      "location": "Workforce / Schedule & Time"
+    },
+    {
+      "href": "/bo/workforce/check-in-exceptions",
+      "location": "Workforce / Check-in Exceptions"
+    },
+    {
+      "href": "/bo/workforce/timekeeping",
+      "location": "Workforce / Timekeeping"
+    },
+    {
+      "href": "/bo/workforce/compensation",
+      "location": "Workforce / Lịch sử lương"
+    },
+    {
+      "href": "/bo/workforce/duty-exceptions",
+      "location": "Workforce / Duty Exceptions"
+    },
+    {
+      "href": "/bo/workforce/payroll",
+      "location": "Workforce / Kỳ lương"
+    },
+    {
+      "href": "/bo/workforce/payroll/extra-time",
+      "location": "Workforce / Duyệt thêm giờ"
+    },
+    {
+      "href": "/bo/training",
+      "location": "Workforce / Training"
+    },
+    {
+      "href": "/bo/pinoria-world",
+      "location": "Pinoria / World"
+    },
+    {
+      "href": "/bo/pinoria-wish",
+      "location": "Pinoria / Economy"
+    },
+    {
+      "href": "/bo/pinoria-wish",
+      "location": "Pinoria / Economy / Wish"
+    },
+    {
+      "href": "/bo/pinoria-activities",
+      "location": "Pinoria / Economy / Activity"
+    },
+    {
+      "href": "/bo/pinoria-companions",
+      "location": "Pinoria / Collection"
+    },
+    {
+      "href": "/bo/pinoria-companions",
+      "location": "Pinoria / Collection / Companions"
+    },
+    {
+      "href": "/bo/pinoria-ward",
+      "location": "Pinoria / Wardrobe"
+    },
+    {
+      "href": "/bo/pinoria-ward",
+      "location": "Pinoria / Wardrobe / Catalog"
+    },
+    {
+      "href": "/bo/pinoria-ward/sets",
+      "location": "Pinoria / Wardrobe / Sets"
+    },
+    {
+      "href": "/bo/pinoria-ward/learners",
+      "location": "Pinoria / Wardrobe / Loadouts"
+    },
+    {
+      "href": "/bo/pinoria-effects",
+      "location": "Pinoria / Effects"
+    },
+    {
+      "href": "/bo/pinoria-tv-policy",
+      "location": "Pinoria / TV Projection Policy"
+    },
+    {
+      "href": "/bo/pinoria-tv-operator",
+      "location": "Pinoria / TV Operations"
+    },
+    {
+      "href": "/bo/content",
+      "location": "Content / Website CMS"
+    },
+    {
+      "href": "/bo/system/users",
+      "location": "System / Access"
+    },
+    {
+      "href": "/bo/system/users",
+      "location": "System / Access / Users"
+    },
+    {
+      "href": "/bo/system/roles",
+      "location": "System / Access / Roles"
+    },
+    {
+      "href": "/bo/system/policies",
+      "location": "System / Policies"
+    },
+    {
+      "href": "/bo/system/ai-data",
+      "location": "System / AI Data Inbox"
+    },
+    {
+      "href": "/bo/system/pancake",
+      "location": "System / Pancake"
+    },
+    {
+      "href": "/bo/system/audit",
+      "location": "System / Audit"
+    }
+  ],
+  "pages": [
+    {
+      "route": "/bo/calendar",
+      "file": "app/bo/calendar/page.tsx",
+      "moduleKey": "calendar",
+      "navigationLocations": [
+        "School / Schedule",
+        "School / Schedule / Holidays & closures"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/calendar/BoCalendarClosuresView.tsx",
+        "app/bo/calendar/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-calendar-closure-preview",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/content",
+      "file": "app/bo/content/page.tsx",
+      "moduleKey": "cms",
+      "navigationLocations": [
+        "Content / Website CMS"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/content/WebsiteCmsView.tsx",
+        "app/bo/content/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api-error",
+        "@/lib/bo-web-cms-api",
+        "@/lib/bo-web-cms-model"
+      ]
+    },
+    {
+      "route": "/bo/delivery-activation",
+      "file": "app/bo/delivery-activation/page.tsx",
+      "moduleKey": "activation",
+      "navigationLocations": [
+        "School / Classes / Activation"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/delivery-activation/DeliveryActivationView.tsx",
+        "app/bo/delivery-activation/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/f3-delivery-api",
+        "@/lib/f3-reviewed-seed",
+        "@/lib/f4-enrollment-api"
+      ]
+    },
+    {
+      "route": "/bo/learners",
+      "file": "app/bo/learners/page.tsx",
+      "moduleKey": "students",
+      "navigationLocations": [
+        "School / Students"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/learners/BoLearnersView.tsx",
+        "app/bo/learners/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-filter-settings-state",
+        "@/lib/bo-model",
+        "@/lib/bo-school-students-state",
+        "@/lib/bo-student-pilot-fields"
+      ]
+    },
+    {
+      "route": "/bo/missions",
+      "file": "app/bo/missions/page.tsx",
+      "moduleKey": "missions",
+      "navigationLocations": [
+        "Learning / Missions"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/missions/MissionCatalogView.tsx",
+        "app/bo/missions/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-missions"
+      ]
+    },
+    {
+      "route": "/bo/open-studio",
+      "file": "app/bo/open-studio/page.tsx",
+      "moduleKey": "open-studio",
+      "navigationLocations": [
+        "Operations / Open Studio"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/open-studio/OpenStudioView.tsx",
+        "app/bo/open-studio/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo",
+      "file": "app/bo/page.tsx",
+      "moduleKey": "home",
+      "navigationLocations": [
+        "Workspace / Hôm nay"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/components/registration/BoRuntimeBoundary.tsx",
+        "app/bo/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-shell-gate"
+      ]
+    },
+    {
+      "route": "/bo/pinoria-activities",
+      "file": "app/bo/pinoria-activities/page.tsx",
+      "moduleKey": "pinoria-activity",
+      "navigationLocations": [
+        "Pinoria / Economy / Activity"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-activities/PinoriaActivitiesView.tsx",
+        "app/bo/pinoria-activities/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/founder/${path}"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-companions",
+      "file": "app/bo/pinoria-companions/page.tsx",
+      "moduleKey": "pinoria-companions",
+      "navigationLocations": [
+        "Pinoria / Collection",
+        "Pinoria / Collection / Companions"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-companions/PinoriaCompanionsView.tsx",
+        "app/bo/pinoria-companions/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/founder/${path}"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-companions/prototype",
+      "file": "app/bo/pinoria-companions/prototype/page.tsx",
+      "moduleKey": "companion-prototype",
+      "navigationLocations": [],
+      "sourceKind": "PROTOTYPE_PAGE",
+      "implementationFiles": [
+        "app/bo/pinoria-companions/prototype/CompanionV1Prototype.tsx",
+        "app/bo/pinoria-companions/prototype/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-effects",
+      "file": "app/bo/pinoria-effects/page.tsx",
+      "moduleKey": "effects",
+      "navigationLocations": [
+        "Pinoria / Effects"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-effects/EffectCatalogView.tsx",
+        "app/bo/pinoria-effects/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/pinoria/effects/catalog"
+      ],
+      "importedClients": [
+        "@/lib/bo-pinoria-effects-grid",
+        "@/lib/pinoria-effect-presentation"
+      ]
+    },
+    {
+      "route": "/bo/pinoria-tv-dialogue",
+      "file": "app/bo/pinoria-tv-dialogue/page.tsx",
+      "moduleKey": "tv-dialogue",
+      "navigationLocations": [],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-tv-dialogue/DialogueEditor.tsx",
+        "app/bo/pinoria-tv-dialogue/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/pap657-dialogue-config",
+        "@/lib/pap657-dialogue-config-client",
+        "@/lib/pap657-dialogue-proximity-engine"
+      ]
+    },
+    {
+      "route": "/bo/pinoria-tv-mesh",
+      "file": "app/bo/pinoria-tv-mesh/page.tsx",
+      "moduleKey": "tv-mesh",
+      "navigationLocations": [],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-tv-mesh/HouseMeshEditor.tsx",
+        "app/bo/pinoria-tv-mesh/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/pinoria-tv-mesh-geometry",
+        "@/lib/pinoria-tv-spatial-config-client"
+      ]
+    },
+    {
+      "route": "/bo/pinoria-tv-operator",
+      "file": "app/bo/pinoria-tv-operator/page.tsx",
+      "moduleKey": "tv-operator",
+      "navigationLocations": [
+        "Pinoria / TV Operations"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx",
+        "app/bo/pinoria-tv-operator/page.tsx",
+        "app/pinoria/tv-operator/TvOperatorQueue.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/tv/devices",
+        "/api/bo/tv/displays"
+      ],
+      "importedClients": [
+        "@/lib/pap659-tv-session-status"
+      ]
+    },
+    {
+      "route": "/bo/pinoria-tv-policy",
+      "file": "app/bo/pinoria-tv-policy/page.tsx",
+      "moduleKey": "tv-policy",
+      "navigationLocations": [
+        "Pinoria / TV Projection Policy"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-tv-policy/TvPolicyEditor.tsx",
+        "app/bo/pinoria-tv-policy/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/pinoria-tv-policy-client"
+      ]
+    },
+    {
+      "route": "/bo/pinoria-ward/learners",
+      "file": "app/bo/pinoria-ward/learners/page.tsx",
+      "moduleKey": "learner-loadouts",
+      "navigationLocations": [
+        "Pinoria / Wardrobe / Loadouts"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-ward/learners/WardLearnerManager.tsx",
+        "app/bo/pinoria-ward/learners/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/${path}"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-ward",
+      "file": "app/bo/pinoria-ward/page.tsx",
+      "moduleKey": "ward-catalog",
+      "navigationLocations": [
+        "Pinoria / Wardrobe",
+        "Pinoria / Wardrobe / Catalog"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-ward/WardCatalogManager.tsx",
+        "app/bo/pinoria-ward/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/${path}"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-ward/sets",
+      "file": "app/bo/pinoria-ward/sets/page.tsx",
+      "moduleKey": "ward-sets",
+      "navigationLocations": [
+        "Pinoria / Wardrobe / Sets"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-ward/sets/WardSetManager.tsx",
+        "app/bo/pinoria-ward/sets/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/${path}"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-wish",
+      "file": "app/bo/pinoria-wish/page.tsx",
+      "moduleKey": "pinoria-economy",
+      "navigationLocations": [
+        "Pinoria / Economy",
+        "Pinoria / Economy / Wish"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-wish/WishBoView.tsx",
+        "app/bo/pinoria-wish/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/founder/${path}"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/pinoria-world",
+      "file": "app/bo/pinoria-world/page.tsx",
+      "moduleKey": "pinoria-world",
+      "navigationLocations": [
+        "Pinoria / World"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/pinoria-world/PinoriaWorldManager.tsx",
+        "app/bo/pinoria-world/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/${path}",
+        "/api/bo/pinoria/worlds/media"
+      ],
+      "importedClients": [
+        "@/lib/pinoria-world-instance-load"
+      ]
+    },
+    {
+      "route": "/bo/practice",
+      "file": "app/bo/practice/page.tsx",
+      "moduleKey": "practice",
+      "navigationLocations": [
+        "Learning / Practice"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/practice/PracticeWorkspace.tsx",
+        "app/bo/practice/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/profile",
+      "file": "app/bo/profile/page.tsx",
+      "moduleKey": "profile",
+      "navigationLocations": [],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/profile/BoProfileView.tsx",
+        "app/bo/profile/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/context"
+      ],
+      "importedClients": [
+        "@/lib/bo-model",
+        "@/lib/display-name"
+      ]
+    },
+    {
+      "route": "/bo/registrations",
+      "file": "app/bo/registrations/page.tsx",
+      "moduleKey": "registrations",
+      "navigationLocations": [
+        "School / Classes / Registrations"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/BoOperationalView.tsx",
+        "app/bo/registrations/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-filter-settings-state",
+        "@/lib/bo-learning-owner-bulk",
+        "@/lib/bo-model",
+        "@/lib/bo-running-classes-grid",
+        "@/lib/bo-running-classes-typed-filter",
+        "@/lib/f3-delivery-api"
+      ]
+    },
+    {
+      "route": "/bo/running-classes",
+      "file": "app/bo/running-classes/page.tsx",
+      "moduleKey": "classes",
+      "navigationLocations": [
+        "School / Classes",
+        "School / Classes / Lớp đang chạy"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/BoOperationalView.tsx",
+        "app/bo/running-classes/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-filter-settings-state",
+        "@/lib/bo-learning-owner-bulk",
+        "@/lib/bo-model",
+        "@/lib/bo-running-classes-grid",
+        "@/lib/bo-running-classes-typed-filter",
+        "@/lib/f3-delivery-api"
+      ]
+    },
+    {
+      "route": "/bo/sales/leads",
+      "file": "app/bo/sales/leads/page.tsx",
+      "moduleKey": "leads",
+      "navigationLocations": [
+        "Operations / Leads"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/sales/leads/SalesLeadPipelineView.tsx",
+        "app/bo/sales/leads/page.tsx",
+        "lib/bo-shell-gate.ts"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-lead-action-binding",
+        "@/lib/bo-shell-gate"
+      ]
+    },
+    {
+      "route": "/bo/sessions",
+      "file": "app/bo/sessions/page.tsx",
+      "moduleKey": "sessions",
+      "navigationLocations": [
+        "School / Classes / Sessions"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/BoOperationalView.tsx",
+        "app/bo/sessions/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-filter-settings-state",
+        "@/lib/bo-learning-owner-bulk",
+        "@/lib/bo-model",
+        "@/lib/bo-running-classes-grid",
+        "@/lib/bo-running-classes-typed-filter",
+        "@/lib/f3-delivery-api"
+      ]
+    },
+    {
+      "route": "/bo/staff/[staffId]",
+      "file": "app/bo/staff/[staffId]/page.tsx",
+      "moduleKey": "staff",
+      "navigationLocations": [],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/staff/StaffManagementView.tsx",
+        "app/bo/staff/[staffId]/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/support-session/enter"
+      ],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-model",
+        "@/lib/bo-staff-detail-navigation",
+        "@/lib/bo-staff-detail-tabs",
+        "@/lib/bo-staff-offboarding",
+        "@/lib/bo-staff-quick-peek",
+        "@/lib/staff-private-reveal-fence"
+      ]
+    },
+    {
+      "route": "/bo/staff",
+      "file": "app/bo/staff/page.tsx",
+      "moduleKey": "staff",
+      "navigationLocations": [
+        "Workforce / Staff"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/staff/PresenceRosterAccessActivation.tsx",
+        "app/bo/staff/StaffManagementView.tsx",
+        "app/bo/staff/StaffOnboardingView.tsx",
+        "app/bo/staff/StaffRegistrationIntakeToggle.tsx",
+        "app/bo/staff/StaffRegistrationReviewQueue.tsx",
+        "app/bo/staff/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/support-session/enter"
+      ],
+      "importedClients": [
+        "@/lib/bo-access-model",
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-model",
+        "@/lib/bo-staff-detail-navigation",
+        "@/lib/bo-staff-detail-tabs",
+        "@/lib/bo-staff-offboarding",
+        "@/lib/bo-staff-quick-peek",
+        "@/lib/presence-roster-access",
+        "@/lib/staff-private-reveal-fence"
+      ]
+    },
+    {
+      "route": "/bo/student-visits",
+      "file": "app/bo/student-visits/page.tsx",
+      "moduleKey": "student-visits",
+      "navigationLocations": [
+        "School / Student Visits"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/student-visits/StudentVisitsView.tsx",
+        "app/bo/student-visits/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-student-visits",
+        "@/lib/bo-timekeeping-local-time"
+      ]
+    },
+    {
+      "route": "/bo/subscriptions",
+      "file": "app/bo/subscriptions/page.tsx",
+      "moduleKey": "subscriptions",
+      "navigationLocations": [
+        "School / Subscriptions"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/subscriptions/BoSubscriptionsView.tsx",
+        "app/bo/subscriptions/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model",
+        "@/lib/bo-school-students-state"
+      ]
+    },
+    {
+      "route": "/bo/syllabus",
+      "file": "app/bo/syllabus/page.tsx",
+      "moduleKey": "learning-masters",
+      "navigationLocations": [
+        "Learning / Programs & Syllabus"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/syllabus/LearningSyllabusDesk.tsx",
+        "app/bo/syllabus/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/system/ai-data",
+      "file": "app/bo/system/ai-data/page.tsx",
+      "moduleKey": "ai-inbox",
+      "navigationLocations": [
+        "System / AI Data Inbox"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/system/ai-data/AiDataInboxView.tsx",
+        "app/bo/system/ai-data/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/founder/ai/change-sets",
+        "/api/founder/ai/change-sets/${id}",
+        "/api/founder/ai/change-sets/${target.id}/${action}"
+      ],
+      "importedClients": [
+        "@/lib/bo-ai-data-grid",
+        "@/lib/bo-ai-data-inbox-lifecycle"
+      ]
+    },
+    {
+      "route": "/bo/system/audit",
+      "file": "app/bo/system/audit/page.tsx",
+      "moduleKey": "audit",
+      "navigationLocations": [
+        "System / Audit"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/system/audit/AccessAuditView.tsx",
+        "app/bo/system/audit/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-access-audit-page-controller",
+        "@/lib/bo-access-model",
+        "@/lib/bo-api"
+      ]
+    },
+    {
+      "route": "/bo/system/pancake",
+      "file": "app/bo/system/pancake/page.tsx",
+      "moduleKey": "pancake",
+      "navigationLocations": [
+        "System / Pancake"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/system/pancake/PancakeIntegrationView.tsx",
+        "app/bo/system/pancake/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-pancake-channel-grid"
+      ]
+    },
+    {
+      "route": "/bo/system/policies",
+      "file": "app/bo/system/policies/page.tsx",
+      "moduleKey": "policies",
+      "navigationLocations": [
+        "System / Policies"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/system/policies/WorkforcePoliciesView.tsx",
+        "app/bo/system/policies/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/system/roles",
+      "file": "app/bo/system/roles/page.tsx",
+      "moduleKey": "roles",
+      "navigationLocations": [
+        "System / Access / Roles"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/system/roles/AccessRolesView.tsx",
+        "app/bo/system/roles/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-access-model",
+        "@/lib/bo-api",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/system/users",
+      "file": "app/bo/system/users/page.tsx",
+      "moduleKey": "access",
+      "navigationLocations": [
+        "System / Access",
+        "System / Access / Users"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/system/users/AccessUsersView.tsx",
+        "app/bo/system/users/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/context"
+      ],
+      "importedClients": [
+        "@/lib/bo-access-founder-ui",
+        "@/lib/bo-access-model",
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/training/builder",
+      "file": "app/bo/training/builder/page.tsx",
+      "moduleKey": "training",
+      "navigationLocations": [],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/training/builder/page.tsx",
+        "app/components/training/TrainingRuntimeViews.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model",
+        "@/lib/training-model",
+        "@/lib/workforce-training-client"
+      ]
+    },
+    {
+      "route": "/bo/training",
+      "file": "app/bo/training/page.tsx",
+      "moduleKey": "training",
+      "navigationLocations": [
+        "Workforce / Training"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/training/TrainingAssignmentsView.tsx",
+        "app/bo/training/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-training-assignment-page-controller",
+        "@/lib/training-model"
+      ]
+    },
+    {
+      "route": "/bo/tvs",
+      "file": "app/bo/tvs/page.tsx",
+      "moduleKey": "tv-devices",
+      "navigationLocations": [
+        "Operations / TVs"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/tvs/TvManagementView.tsx",
+        "app/bo/tvs/page.tsx"
+      ],
+      "observedApiLiterals": [
+        "/api/bo/tv/devices",
+        "/api/bo/tv/displays"
+      ],
+      "importedClients": []
+    },
+    {
+      "route": "/bo/workforce/check-in-exceptions",
+      "file": "app/bo/workforce/check-in-exceptions/page.tsx",
+      "moduleKey": "check-in-exceptions",
+      "navigationLocations": [
+        "Workforce / Check-in Exceptions"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/CheckInExceptionsView.tsx",
+        "app/bo/workforce/check-in-exceptions/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/workforce/compensation",
+      "file": "app/bo/workforce/compensation/page.tsx",
+      "moduleKey": "compensation-history",
+      "navigationLocations": [
+        "Workforce / Lịch sử lương"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/compensation/StaffCompensationView.tsx",
+        "app/bo/workforce/compensation/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model"
+      ]
+    },
+    {
+      "route": "/bo/workforce/duty-exceptions",
+      "file": "app/bo/workforce/duty-exceptions/page.tsx",
+      "moduleKey": "duty-exceptions",
+      "navigationLocations": [
+        "Workforce / Duty Exceptions"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/duty-exceptions/DutyExceptionsView.tsx",
+        "app/bo/workforce/duty-exceptions/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-data-grid-state",
+        "@/lib/bo-model",
+        "@/lib/bo-workforce-duty-exception"
+      ]
+    },
+    {
+      "route": "/bo/workforce",
+      "file": "app/bo/workforce/page.tsx",
+      "moduleKey": "workforce-schedule",
+      "navigationLocations": [
+        "Workforce / Schedule & Time"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/WorkforcePlanningView.tsx",
+        "app/bo/workforce/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model",
+        "@/lib/workforce-planning-correction",
+        "@/lib/workforce-planning-role-summary",
+        "@/lib/workforce-planning-time-basis"
+      ]
+    },
+    {
+      "route": "/bo/workforce/payroll/extra-time",
+      "file": "app/bo/workforce/payroll/extra-time/page.tsx",
+      "moduleKey": "extra-time",
+      "navigationLocations": [
+        "Workforce / Duyệt thêm giờ"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/payroll/extra-time/PayrollExtraReviewView.tsx",
+        "app/bo/workforce/payroll/extra-time/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-payroll-extra-review-api"
+      ]
+    },
+    {
+      "route": "/bo/workforce/payroll",
+      "file": "app/bo/workforce/payroll/page.tsx",
+      "moduleKey": "payroll",
+      "navigationLocations": [
+        "Workforce / Kỳ lương"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/payroll/PayrollPeriodsView.tsx",
+        "app/bo/workforce/payroll/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-payroll-period-api"
+      ]
+    },
+    {
+      "route": "/bo/workforce/timekeeping",
+      "file": "app/bo/workforce/timekeeping/page.tsx",
+      "moduleKey": "timekeeping",
+      "navigationLocations": [
+        "Workforce / Timekeeping"
+      ],
+      "sourceKind": "FILE_ROUTE",
+      "implementationFiles": [
+        "app/bo/workforce/timekeeping/TimekeepingView.tsx",
+        "app/bo/workforce/timekeeping/page.tsx"
+      ],
+      "observedApiLiterals": [],
+      "importedClients": [
+        "@/lib/bo-api",
+        "@/lib/bo-model",
+        "@/lib/bo-timekeeping-local-time",
+        "@/lib/bo-timekeeping-page-controller"
+      ]
+    }
+  ]
+}
