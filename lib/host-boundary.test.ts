@@ -11,6 +11,8 @@ test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff s
   assert.deepEqual(decideHostBoundary(bo, "/bo"), { action: "next" });
   assert.deepEqual(decideHostBoundary(bo, "/staff-login"), { action: "next" });
   assert.deepEqual(decideHostBoundary(bo, "/api/bo/context"), { action: "next" });
+  for (const css of ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"]) assert.deepEqual(decideHostBoundary(bo, "/bo-skeleton/" + css), { action: "next" });
+  for (const unapproved of ["/bo-skeleton/playground.js", "/bo-skeleton/raw.css", "/bo-authority-source/playground.html", "/bo-skeleton/extra/styles.css"]) assert.deepEqual(decideHostBoundary(bo, unapproved), { action: "not_found" });
   assert.deepEqual(decideHostBoundary(bo, "/dashboard"), { action: "not_found" });
   assert.deepEqual(decideHostBoundary(bo, "/staff/register"), { action: "not_found" });
   assert.equal(requiresBoStaffPasswordSession(bo, "/bo/learners"), true);

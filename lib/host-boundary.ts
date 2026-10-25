@@ -29,7 +29,7 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
-    if (isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
+    if (isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };
   }
 
@@ -39,6 +39,10 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
   }
 
   return { action: "next" };
+}
+
+function isBoStagingStylesheet(pathname: string): boolean {
+  return /^\/bo-skeleton\/(?:styles|playground|playground-v22|playground-v23|full-detail-v24|full-detail-v25)\.css$/.test(pathname);
 }
 
 function isBoLocalAuthPath(pathname: string): boolean {
