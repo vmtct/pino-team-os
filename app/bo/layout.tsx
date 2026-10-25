@@ -25,7 +25,7 @@ export default async function BoLayout({ children }: { children: React.ReactNode
     console.error("BO shell authorization denied", error instanceof Error ? error.message : "unknown");
     forbidden();
   }
-  if (uiOnly) redirect("/bo-skeleton/playground.html");
+  if (uiOnly) redirect("/bo");
 
   return (
     <>

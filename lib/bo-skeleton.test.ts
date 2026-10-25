@@ -39,4 +39,9 @@ test("controller preserves authentication, ACL denial, private caching and asset
   assert.equal((await serveBoSkeleton(request("index.html"),env(),"index.html")).status,404);
   const css=await serveBoSkeleton(request("styles.css"),env(),"styles.css");
   assert.equal(css.headers.get("cache-control"),"private, no-store");assert.equal(await css.text(),readFileSync(base+"styles.css","utf8"));
+  const html=await serveBoSkeleton(request("playground.html"),env(),"playground.html");
+  const body=await html.text();assert.match(body,/<base href="\/bo-skeleton\/">/);
+  assert.match(body,/<script src="\.\/school-adapters.js"><\/script><script src="\.\/playground.js">/);
+  const adapter=await serveBoSkeleton(request("school-adapters.js"),env(),"school-adapters.js");
+  assert.match(adapter.headers.get("content-type")!,/javascript/);
 });

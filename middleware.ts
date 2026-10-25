@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
+import { boSkeletonRoute } from "@/lib/bo-skeleton-routing";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
   if (request.nextUrl.pathname.startsWith("/bo-authority-source/")) return new NextResponse("Not Found", { status: 404 });
   const host = request.headers.get("host") ?? request.nextUrl.hostname;
+  const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
+  if (schoolRoute) {
+    const target = request.nextUrl.clone();
+    target.pathname = schoolRoute === "rewrite" ? "/bo-skeleton/playground.html" : "/bo";
+    return schoolRoute === "rewrite" ? NextResponse.rewrite(target) : NextResponse.redirect(target, 307);
+  }
   const decision = decideHostBoundary(host, request.nextUrl.pathname);
 
   if (decision.action === "next") {
