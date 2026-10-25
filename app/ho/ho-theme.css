@@ -12,7 +12,7 @@
 [data-surface="ho"] :is(.view-add:hover,.view-context button:hover,.view-tab.saved-tab.drag-target) { background:var(--ds-primary-subtle); color:var(--ds-primary); border-color:var(--ds-primary-border); }
 [data-surface="ho"] .sidebar-footer button { background:transparent; border:1px solid var(--ds-primary-border); color:#fff; border-radius:6px; padding:5px; margin-left:auto; }
 
-[data-surface="ho"] .ho-surface-label { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:4px; }
+[data-surface="ho"] .page-heading h1 small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:4px; }
 [data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
 [data-surface="ho"] :is(.lab-menu,.detail-hero-back,.settings-trigger,.pager) { color:var(--ds-primary); border-color:var(--ds-primary-border); }
 [data-surface="ho"] .toolbar-button, [data-surface="ho"] .view-add { display:none!important; }
