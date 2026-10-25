@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import styles from "../../staff-login/staff-login.module.css";
 
-function homePath() { return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
+function homePath() { return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
 
 export default function StaffPasswordChange() {
   const [password, setPassword] = useState("");

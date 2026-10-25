@@ -1,6 +1,7 @@
 import type { JWTVerifyGetKey } from "jose";
 import type { StaffPasswordEnv } from "./staff-password-core";
 import { authenticateTeam } from "./team-auth";
+import { isBoHostname } from "./host-boundary";
 
 type LoginResult={token:string;expiresAt:string;userId:string;staffMemberId:string|null;email:string;passwordChangeRequired:boolean};
 
@@ -23,4 +24,4 @@ export async function loginStaffWithTransition(
   }
 }
 
-function surface(request:Request):"BO"|"TOS"{const host=(request.headers.get("host")??new URL(request.url).hostname).split(":")[0]!.trim().toLowerCase();return host==="bo.pinohouse.art"?"BO":"TOS";}
+function surface(request:Request):"BO"|"TOS"{const host=(request.headers.get("host")??new URL(request.url).hostname).split(":")[0]!.trim().toLowerCase();return isBoHostname(host)?"BO":"TOS";}

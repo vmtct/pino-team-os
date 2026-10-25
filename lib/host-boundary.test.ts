@@ -4,6 +4,26 @@ import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requir
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
+test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff session gates", () => {
+  const bo = "bo.staging.pinohouse.art";
+  const tos = "tos.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, "/"), { action: "redirect", pathname: "/bo" });
+  assert.deepEqual(decideHostBoundary(bo, "/bo"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(bo, "/staff-login"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(bo, "/api/bo/context"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(bo, "/dashboard"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(bo, "/staff/register"), { action: "not_found" });
+  assert.equal(requiresBoStaffPasswordSession(bo, "/bo/learners"), true);
+  assert.equal(requiresBoStaffPasswordSession(bo, "/staff-login"), false);
+  assert.deepEqual(decideHostBoundary(tos, "/bo"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(tos, "/api/bo/context"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(tos, "/dashboard"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(tos, "/staff/register"), { action: "not_found" });
+  assert.equal(requiresTosStaffSession(tos, "/dashboard"), true);
+  assert.equal(requiresTosStaffSession(tos, "/staff-login"), false);
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art.evil.example", "/bo"), { action: "next" });
+});
+
 test("PAP-979 exact subject audit path stays BO-only with no global shortcut", () => {
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/audit/subject"), { action: "next" });
   assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/api/bo/audit/subject"), { action: "not_found" });

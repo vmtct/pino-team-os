@@ -4,6 +4,16 @@ import { NextRequest } from "next/server";
 import { middleware } from "../middleware";
 import { BO_SKELETON_HOST, requiresBoStagingPageSession } from "./bo-skeleton-routing";
 
+test("PAP-989 BO staging custom host has the same protected page presence gate", () => {
+  const host = "bo.staging.pinohouse.art";
+  assert.equal(requiresBoStagingPageSession(host, "/bo/learners"), true);
+  assert.equal(requiresBoStagingPageSession(host, "/api/bo/context"), false);
+  assert.equal(requiresBoStagingPageSession(host + ".evil.example", "/bo"), false);
+  const response = middleware(new NextRequest("https://" + host + "/bo/learners", { headers: { host } }));
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get("location"), "https://" + host + "/staff-login");
+});
+
 test("staging anonymous BO pages redirect before any React streaming; no rendered body", () => {
   for (const path of ["/bo", "/bo/", "/bo?module=classes", "/bo/learners"]) {
     const request = new NextRequest("https://" + BO_SKELETON_HOST + path, { headers: { host: BO_SKELETON_HOST } });
