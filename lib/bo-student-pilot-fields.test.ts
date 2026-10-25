@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "./bo-student-pilot-fields";
 import { applyBoFilterSettings, validateBoFilterSettings } from "./bo-filter-settings-state";
-test("only canonical directory displayName and learning state are filterable", () => {
-  assert.deepEqual(BO_STUDENT_PILOT_FIELDS.filter((x) => x.filterable).map((x) => x.key), ["name", "learning"]);
-  assert.equal(BO_STUDENT_PILOT_DEFAULT_COLUMNS.length, 6);
+test("only canonical public directory identity and learning state are filterable", () => {
+  assert.deepEqual(BO_STUDENT_PILOT_FIELDS.filter((x) => x.filterable).map((x) => x.key), ["name", "id", "learning"]);
+  assert.equal(BO_STUDENT_PILOT_DEFAULT_COLUMNS.length, 7);
   assert.deepEqual(studentPilotFilterRow({ displayName: "Mori", activeSubscriptions: 1 }), { name: "Mori", learning: "active" });
 });
 test("private fields cannot enter pilot settings", () => {
