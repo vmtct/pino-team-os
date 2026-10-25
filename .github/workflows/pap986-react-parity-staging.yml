@@ -54,7 +54,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SHA"
           test "$GITHUB_SHA" = "$SHA"
           test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
-          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head feat/pap986-react-parity-20261025 --json mergeCommit > /tmp/skeleton-pr.json
+          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head fix/pap986-staging-auth-boundary-20261025 --json mergeCommit > /tmp/skeleton-pr.json
           jq -e --arg sha "$SHA" '[.[]|select(.mergeCommit.oid==$sha)]|length==1' /tmp/skeleton-pr.json
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
           jq -e --arg sha "$SHA" '.head_sha==$sha and .event=="push" and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
@@ -115,11 +115,14 @@ jobs:
           origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
           for endpoint in context audit/subject school/enrollments; do
             code="$(curl -sS --max-time 20 -o /tmp/denial.json -w '%{http_code}' "$origin/api/bo/$endpoint")"
+            echo "Anonymous /api/bo/$endpoint: HTTP $code (expected 401)"
             test "$code" = 401
           done
           code="$(curl -sS --max-time 20 -o /tmp/skeleton-denial -w '%{http_code}' "$origin/bo")"
+          echo "Anonymous /bo: HTTP $code (expected 307)"
           test "$code" = 307
           code="$(curl -sS --max-time 20 -o /tmp/source-denial -w '%{http_code}' "$origin/bo-authority-source/playground.html")"
+          echo "Raw authority source: HTTP $code (expected 404)"
           test "$code" = 404
           curl -fsS --max-time 20 "$origin/api/health" | jq -e '.ok==true and .service=="pino-team-os"'
           digest="$(node -p "require('./.next/pap659-build-provenance.json').digest")"
