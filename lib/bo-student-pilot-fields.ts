@@ -3,6 +3,7 @@ import type { BoFilterField } from "./bo-filter-settings-state";
 /** Public student directory schema only; never derive a field list from a private record. */
 export const BO_STUDENT_PILOT_FIELDS: readonly BoFilterField[] = [
   { key: "name", type: "text", filterable: true },
+  { key: "id", type: "text", filterable: true },
   { key: "birth", type: "text", filterable: false },
   { key: "paths", type: "text", filterable: false },
   { key: "learning", type: "text", filterable: true },

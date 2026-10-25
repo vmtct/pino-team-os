@@ -46,6 +46,7 @@ export function useBoDataGridUrlState(options: BoDataGridUrlStateOptions = {}) {
   return {
     state,
     pending,
+    applyView(patch: Partial<BoDataGridUrlState>) { commit((current) => withBoDataGridPatch(current, patch)); },
     setSearch(search: string) { commit((current) => withBoDataGridPatch(current, { search })); },
     setSort(sortKey: string | null, sortDirection: BoDataGridSortDirection = "asc") {
       commit((current) => withBoDataGridPatch(current, { sortKey, sortDirection }));
