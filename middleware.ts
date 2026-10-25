@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
-import { boSkeletonRoute } from "@/lib/bo-skeleton-routing";
+import { boSkeletonRoute, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
   // Never trust a caller-supplied internal route marker.
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");
-  if (host === "pino-team-os-staging.minhtri-van42.workers.dev" && (request.nextUrl.pathname === "/bo" || request.nextUrl.pathname.startsWith("/bo/"))) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
+  if (requiresBoStagingPageSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
   const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
   if (schoolRoute === "redirect") {
     const target = request.nextUrl.clone();
@@ -23,7 +23,8 @@ export function middleware(request: NextRequest) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);
     }
-    if (requiresBoStaffPasswordSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_staff_password_session")?.value) {
+    // Before React starts streaming: an async layout redirect can otherwise be HTTP 200.
+    if ((requiresBoStaffPasswordSession(host, request.nextUrl.pathname) || requiresBoStagingPageSession(host, request.nextUrl.pathname)) && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);
     }
