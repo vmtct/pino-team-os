@@ -54,7 +54,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SHA"
           test "$GITHUB_SHA" = "$SHA"
           test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
-          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head feat/pap993-ho-h0 --json mergeCommit > /tmp/skeleton-pr.json
+          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head fix/pap993-ho-static-delivery --json mergeCommit > /tmp/skeleton-pr.json
           jq -e --arg sha "$SHA" '[.[]|select(.mergeCommit.oid==$sha)]|length==1' /tmp/skeleton-pr.json
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
           jq -e --arg sha "$SHA" '.head_sha==$sha and .event=="push" and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
@@ -62,6 +62,7 @@ jobs:
           const assert=require('node:assert/strict');
           const c=require('./wrangler.ho-staging.json');
           assert.equal(c.name,'pino-team-os-staging');
+          assert.equal(c.main,'worker.ho-staging.mjs');
           assert.equal(c.keep_vars,false);
           assert.equal(c.vars.APP_ENV,'staging');
           assert.equal(c.vars.BO_UI_ONLY,'enabled');

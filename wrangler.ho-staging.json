@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pino-team-os-staging",
-  "main": ".open-next/worker.js",
+  "main": "worker.ho-staging.mjs",
   "compatibility_date": "2026-08-11",
   "compatibility_flags": [
     "nodejs_compat"
