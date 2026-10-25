@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
+import { HO_STAGING_HOSTNAME, normalizeHostname, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
 import { boSkeletonRoute, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
 
 export function middleware(request: NextRequest) {
@@ -16,9 +16,12 @@ export function middleware(request: NextRequest) {
     target.pathname = "/bo";
     return NextResponse.redirect(target, 307);
   }
-  const decision = decideHostBoundary(host, request.nextUrl.pathname);
+  const decision = decideHostBoundary(host, request.nextUrl.pathname, request.method);
 
   if (decision.action === "next") {
+    if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho") && !request.cookies.get("pino_staff_password_session")?.value) {
+      return NextResponse.redirect(new URL("/staff-login", request.url), 307);
+    }
     if (requiresTosStaffSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_support_session")?.value && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);

@@ -1,0 +1,146 @@
+name: PAP-993 Custom Domain Staging
+on:
+  workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: Exact PAP-993 merge SHA, current main with successful push CI
+        required: true
+        type: string
+      validation_run:
+        description: Successful PR Validation push run for approved_sha
+        required: true
+        type: string
+      expected_previous_version:
+        description: Exact current 100% Team staging version (CAS/rollback)
+        required: true
+        type: string
+      expected_core_version:
+        description: Read-only Core staging dependency version; never deploy Core
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: pino-team-staging-worker-mutation
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'vmtct/pino-team-os' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SHA: ${{ inputs.approved_sha }}
+      PREVIOUS: ${{ inputs.expected_previous_version }}
+      CORE_VERSION: ${{ inputs.expected_core_version }}
+      ACCOUNT: 952c3c8a236f8e4cbcf6ee10b86ad70c
+      WORKER: pino-team-os-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Admit only the merged PAP-993 host routing PR and exact current-main push CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATION_RUN: ${{ inputs.validation_run }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SHA"
+          test "$GITHUB_SHA" = "$SHA"
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head feat/pap993-ho-h0 --json mergeCommit > /tmp/skeleton-pr.json
+          jq -e --arg sha "$SHA" '[.[]|select(.mergeCommit.oid==$sha)]|length==1' /tmp/skeleton-pr.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
+          jq -e --arg sha "$SHA" '.head_sha==$sha and .event=="push" and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const c=require('./wrangler.ho-staging.json');
+          assert.equal(c.name,'pino-team-os-staging');
+          assert.equal(c.keep_vars,false);
+          assert.equal(c.vars.APP_ENV,'staging');
+          assert.equal(c.vars.BO_UI_ONLY,'enabled');
+          assert.deepEqual(c.assets.run_worker_first,['/*']);
+          assert.equal(c.vars.FOUNDER_EMAIL,'');
+          assert.equal(c.vars.HO_PILOT_FOUNDER_USER_IDS,'01a0b2aa-9e9e-7cb5-943f-110671d0da62');
+          assert.ok(!c.routes && !c.route && !c.send_email && !c.d1_databases && !c.r2_buckets);
+          assert.equal(c.services.length,8);
+          assert.ok(c.services.every(s=>s.service==='pino-core-staging'));
+          assert.ok(Object.keys(c.vars).every(k=>!/BYPASS|INGRESS/.test(k)));
+          NODE
+      - run: npm ci --no-audit --no-fund
+      - name: Build exact source and dry-run staging-only artifact
+        run: |
+          set -euo pipefail
+          npm run build
+          npx opennextjs-cloudflare build
+          test -s .open-next/worker.js
+          node scripts/pap659-package-provenance.mjs .next .open-next/assets
+          npx wrangler deploy --dry-run -c wrangler.ho-staging.json
+      - name: CAS release, serving readback, boundary smoke and guarded rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts"
+          get() { curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$1/deployments?per_page=1"; }
+          active() { get "$1" | jq -er 'if .success and (.result.deployments[0].versions|length==1) and .result.deployments[0].versions[0].percentage==100 then .result.deployments[0].versions[0].version_id else error("ambiguous deployment") end'; }
+          test "$(active "$WORKER")" = "$PREVIOUS"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          get "$WORKER" > before.json
+          message="pap993-ho-h0 staging sha=$SHA run=$GITHUB_RUN_ID"
+          rollback() {
+            current="$(get "$WORKER")" || return 1
+            if jq -e --arg message "$message" '.result.deployments[0].annotations["workers/message"]==$message' <<<"$current" >/dev/null; then
+              jq -n --arg previous "$PREVIOUS" --arg sha "$SHA" '{strategy:"percentage",versions:[{version_id:$previous,percentage:100}],annotations:{"workers/message":("pap993-ho-h0 guarded rollback from sha="+$sha)}}' > rollback.json
+              curl -fsS --max-time 30 -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data-binary @rollback.json "$api/$WORKER/deployments" | jq -e .success
+              test "$(active "$WORKER")" = "$PREVIOUS"
+            elif [ "$(active "$WORKER")" != "$PREVIOUS" ]; then
+              echo 'Concurrent writer: refusing rollback' >&2
+              return 1
+            fi
+          }
+          trap 'result=$?; if [ "$result" -ne 0 ]; then rollback || echo "ROLLBACK_HOLD" >&2; fi; exit "$result"' EXIT
+          npx wrangler deploy -c wrangler.ho-staging.json --tag "pap993-${SHA:0:12}" --message "$message"
+          get "$WORKER" > after.json
+          jq -e --arg message "$message" '.success and .result.deployments[0].annotations["workers/message"]==$message' after.json
+          deployed="$(active "$WORKER")"
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$deployed" > version.json
+          jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length==8 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
+          origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
+          code="$(curl -sS --max-time 20 -o /tmp/ho-host-denial -w '%{http_code}' "$origin/ho")"
+          test "$code" = 404
+          for endpoint in context audit/subject school/enrollments; do
+            code="$(curl -sS --max-time 20 -o /tmp/denial.json -w '%{http_code}' "$origin/api/bo/$endpoint")"
+            echo "Anonymous /api/bo/$endpoint: HTTP $code (expected 401)"
+            test "$code" = 401
+          done
+          code="$(curl -sS --max-time 20 -o /tmp/skeleton-denial -w '%{http_code}' "$origin/bo")"
+          echo "Anonymous /bo: HTTP $code (expected 307)"
+          test "$code" = 307
+          code="$(curl -sS --max-time 20 -o /tmp/source-denial -w '%{http_code}' "$origin/bo-authority-source/playground.html")"
+          echo "Raw authority source: HTTP $code (expected 404)"
+          test "$code" = 404
+          curl -fsS --max-time 20 "$origin/api/health" | jq -e '.ok==true and .service=="pino-team-os"'
+          digest="$(node -p "require('./.next/pap659-build-provenance.json').digest")"
+          curl -fsS --max-time 20 "$origin/pap659-build-provenance.json" | jq -e --arg digest "$digest" '.digest==$digest'
+          test "$(active "$WORKER")" = "$deployed"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          jq -n --arg sourceSha "$SHA" --arg previousVersionId "$PREVIOUS" --arg activeVersionId "$deployed" --arg coreVersion "$CORE_VERSION" --arg runId "$GITHUB_RUN_ID" '{kind:"PAP993_HO_STAGING",sourceSha:$sourceSha,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,coreVersion:$coreVersion,runId:$runId,result:"SERVING_AND_BOUNDARY_PASS",productionMutation:false,realApiAcceptance:"PENDING_AUTHENTICATED_BROWSER"}' > receipt.json
+          cat receipt.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pap993-ho-h0-team-staging-receipt
+          path: |
+            receipt.json
+            before.json
+            after.json
+            rollback.json
+          if-no-files-found: warn

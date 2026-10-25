@@ -1,3 +1,4 @@
+import { HO_STAGING_HOSTNAME } from "@/lib/host-boundary";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { isBoStagingHost } from "@/lib/bo-skeleton-routing";
@@ -27,6 +28,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     } catch { /* No implicit staging flag or styling fallback on other deployments. */ }
   }
   // Distinct stylesheet pipelines: global TOS rules cannot leak into the BO authority.
-  const css = bo ? BO_AUTHORITY_STYLES.map(file => "/bo-skeleton/" + file) : ["/team-legacy-global.css"];
-  return <html lang="vi"><head>{css.map(href => <link key={href} rel="stylesheet" href={href} />)}</head><body>{children}</body></html>;
+  const ho = incoming.get("host") === HO_STAGING_HOSTNAME;
+  const css = (bo || ho) ? BO_AUTHORITY_STYLES.map(file => "/bo-skeleton/" + file) : ["/team-legacy-global.css"];
+  return <html lang="vi" data-surface={ho ? "ho" : undefined}><head>{css.map(href => <link key={href} rel="stylesheet" href={href} />)}</head><body>{children}</body></html>;
 }

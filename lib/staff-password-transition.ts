@@ -24,4 +24,4 @@ export async function loginStaffWithTransition(
   }
 }
 
-function surface(request:Request):"BO"|"TOS"{const host=(request.headers.get("host")??new URL(request.url).hostname).split(":")[0]!.trim().toLowerCase();return isBoHostname(host)?"BO":"TOS";}
+function surface(request:Request):"BO"|"TOS"{const host=(request.headers.get("host")??new URL(request.url).hostname).split(":")[0]!.trim().toLowerCase();return (isBoHostname(host)||host==="ho.staging.pinohouse.art")?"BO":"TOS";}

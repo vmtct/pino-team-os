@@ -1,3 +1,4 @@
+export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
 export const TOS_STAGING_HOSTNAME = "tos.staging.pinohouse.art";
@@ -11,12 +12,24 @@ export const RETIRED_TEAM_HOSTNAME = "team.pinohouse.art";
 
 export type HostBoundaryDecision =
   | { action: "next" }
-  | { action: "redirect"; pathname: "/bo" }
+  | { action: "redirect"; pathname: "/bo" | "/ho" }
   | { action: "not_found" };
 
-export function decideHostBoundary(host: string, pathname: string): HostBoundaryDecision {
+export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
 
+  if (hostname === HO_STAGING_HOSTNAME) {
+    const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
+    if (method === "POST" && authPost) return { action: "next" };
+    if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
+    if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
+    if (p === "/") return { action: "redirect", pathname: "/ho" };
+    if (["/ho", "/ho/centers", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/favicon.ico"].includes(p) || isFrameworkAsset(p) || isBoStagingStylesheet(p)) return { action: "next" };
+    return { action: "not_found" };
+  }
+  // HO never leaks through BO/TOS, production, workers.dev, localhost or unknown hosts.
+  if (isPathWithin(pathname, "/ho")) return { action: "not_found" };
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
 
   if (hostname === STAFF_REGISTRATION_HOSTNAME) {
