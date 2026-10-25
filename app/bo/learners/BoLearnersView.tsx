@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BoDataGrid, BoTypedCellEditor, BoDataGridBadge, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridState, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
 import { useAuthorizedBoPublicView } from "@/app/bo/components/data-grid/useAuthorizedBoPublicView";
+import { useBoPilotSharedGridView } from "@/app/bo/components/data-grid/useBoPilotSharedGridView";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "@/lib/bo-student-pilot-fields";
@@ -51,6 +52,7 @@ export function BoLearnersView() {
   const fullDetailId = searchParams.get("detail");
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [pilotSettings, setPilotSettings] = useState<BoFilterSettings>({ group: { combinator: "and", filters: [] }, visibleKeys: BO_STUDENT_PILOT_DEFAULT_COLUMNS });
+  const sharedGrid = useBoPilotSharedGridView({ runtime: publicViewRuntime, fields: BO_STUDENT_PILOT_FIELDS, sortableKeys: ["name", "birth", "paths", "learning", "member", "attention"], typed: pilotSettings, setTyped: setPilotSettings, grid });
   const [detail, setDetail] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [showCreate, setShowCreate] = useState(false);
@@ -157,18 +159,20 @@ export function BoLearnersView() {
       columns={columns}
       typedFilterSettings={pilotSettings}
       typedFilterFields={BO_STUDENT_PILOT_FIELDS}
+      rowsAlreadyFiltered
+      columnOrder={sharedGrid.columnOrder}
       publicViewRuntime={publicViewRuntime ?? undefined}
-      onTypedFilterSettingsChange={setPilotSettings}
+      onTypedFilterSettingsChange={sharedGrid.onTypedFilterSettingsChange}
       rowKey={(student) => student.id}
       caption="School Students directory"
-      state={directory.state === "loading" ? "loading" : directory.state === "error" ? "error" : "ready"}
-      stateMessage={directory.state === "error" ? directory.message : undefined}
+      state={sharedGrid.viewError ? "error" : directory.state === "loading" ? "loading" : directory.state === "error" ? "error" : "ready"}
+      stateMessage={sharedGrid.viewError ?? (directory.state === "error" ? directory.message : undefined)}
       search={grid.state.search}
-      onSearchChange={grid.setSearch}
+      onSearchChange={sharedGrid.onSearchChange}
       searchPlaceholder="Tìm học viên, chương trình, Student ID…"
       sortKey={grid.state.sortKey ?? "name"}
       sortDirection={grid.state.sortDirection}
-      onSortChange={grid.setSort}
+      onSortChange={sharedGrid.onSortChange}
       resultLabel={`${pilotFiltered.length} / ${rows.length} học viên`}
       selectedRowKey={selectedId}
       onRowOpen={(student) => selectStudent(student.id, "push")}

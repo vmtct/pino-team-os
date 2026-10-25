@@ -71,6 +71,8 @@ export function BoDataGrid<Row>({
   onStageCellEdit,
   onRowOpen,
   quickViewOpener = false,
+  rowsAlreadyFiltered = false,
+  columnOrder,
   emptyTitle = "No records",
   emptyMessage = "There is no canonical data for this view yet.",
 }: {
@@ -105,6 +107,9 @@ export function BoDataGrid<Row>({
   onRowOpen?: (row: Row) => void;
   /** Opt-in V2.3 first-cell Quick View control; no behavior without onRowOpen. */
   quickViewOpener?: boolean;
+  /** Domain filtering runs before pagination; do not filter nested or paged rows twice. */
+  rowsAlreadyFiltered?: boolean;
+  columnOrder?: readonly string[];
   emptyTitle?: string;
   emptyMessage?: string;
 }) {
@@ -113,10 +118,10 @@ export function BoDataGrid<Row>({
   // V2.3: only the explicit opener opens the drawer; legacy rows retain click-to-open.
   const interactiveRows = Boolean(onRowOpen) && !quickViewOpener;
   const showQuickViewOpener = quickViewOpener && Boolean(onRowOpen);
-  const visibleColumns = typedFilterSettings && typedFilterFields && typedFilterSettings.visibleKeys.length
+  const visibleColumns = (typedFilterSettings && typedFilterFields && typedFilterSettings.visibleKeys.length
     ? columns.filter((column) => typedFilterSettings.visibleKeys.includes(column.key))
-    : columns;
-  const visibleRows = typedFilterSettings && typedFilterFields
+    : columns).slice().sort((a, b) => (columnOrder?.includes(a.key) ? columnOrder.indexOf(a.key) : 10000 + columns.indexOf(a)) - (columnOrder?.includes(b.key) ? columnOrder.indexOf(b.key) : 10000 + columns.indexOf(b)));
+  const visibleRows = !rowsAlreadyFiltered && typedFilterSettings && typedFilterFields
     ? applyBoFilterSettings(rows as readonly Record<string, unknown>[], typedFilterSettings, typedFilterFields) as readonly Row[]
     : rows;
 

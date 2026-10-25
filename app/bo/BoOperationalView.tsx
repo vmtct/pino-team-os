@@ -9,6 +9,7 @@ import { filterRunningClassGridRows, runningClassFilterFields } from "@/lib/bo-r
 import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import { BoGridFilterSettings } from "./components/data-grid/BoGridFilterSettings";
 import { useAuthorizedBoPublicView } from "./components/data-grid/useAuthorizedBoPublicView";
+import { useBoPilotSharedGridView } from "./components/data-grid/useBoPilotSharedGridView";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { attendanceReadinessCounts, attendanceReadinessState, buildUnassignedOwnerGroups, type BoAttendanceSession, type BoLearningOwnerBulkGroup } from "@/lib/bo-learning-owner-bulk";
 import type { BoRegistration, BoSessionLearningOwner, BoSessionSyllabusBindingProjection, BoStaffRecord } from "@/lib/bo-model";
@@ -115,7 +116,9 @@ function RunningClasses({ data }: { data: Data }) {
   const [selectedClass, setSelectedClass] = useState<RunningClassGridRow | null>(null);
   const [classOverrides, setClassOverrides] = useState<Record<string, F3RunningClass>>({});
   const [typedSettings, setTypedSettings] = useState<BoFilterSettings>({ group: { combinator: "and", filters: [] }, visibleKeys: runningClassFilterFields.map((field) => field.key) });
-  const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
+  const classGrid = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
+  const { state, setPage, setPageSize, setFilter } = classGrid;
+  const sharedGrid = useBoPilotSharedGridView({ runtime: publicViewRuntime, fields: runningClassFilterFields, sortableKeys: ["class", "program", "pattern", "capacity", "status"], typed: typedSettings, setTyped: setTypedSettings, grid: classGrid });
   const sortKey = isRunningClassGridSortKey(state.sortKey) ? state.sortKey : "class";
   const statusFilter = state.filters.status ?? "";
   const rows = useMemo(() => buildRunningClassGridRows(data.classes.map((item) => classOverrides[item.id] ?? item), data.paths, {
@@ -169,13 +172,15 @@ function RunningClasses({ data }: { data: Data }) {
         selectedRowKey={selectedClass?.item.id ?? null}
         caption="Running Classes"
         search={state.search}
-        onSearchChange={setSearch}
+        onSearchChange={sharedGrid.onSearchChange}
         searchPlaceholder="Search Running Classes…"
         sortKey={sortKey}
         sortDirection={state.sortDirection}
-        onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) setSort(key, direction); }}
+        onSortChange={(key, direction) => { if (isRunningClassGridSortKey(key)) sharedGrid.onSortChange(key, direction); }}
         filterChips={statusFilter ? [{ key: "status", label: "Status", value: statusFilter, onClear: () => setFilter("status", null) }] : []}
-        typedFilterSettings={typedSettings} typedFilterFields={runningClassFilterFields} onTypedFilterSettingsChange={setTypedSettings}
+        typedFilterSettings={typedSettings} typedFilterFields={runningClassFilterFields} onTypedFilterSettingsChange={sharedGrid.onTypedFilterSettingsChange}
+        rowsAlreadyFiltered columnOrder={sharedGrid.columnOrder}
+        state={sharedGrid.viewError ? "error" : "ready"} stateMessage={sharedGrid.viewError ?? undefined}
         resultLabel={`${filteredRows.length} of ${data.classes.length} classes`}
         pagination={{ page, pageSize: state.pageSize, total: filteredRows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
         emptyTitle={filtered ? "No matching Running Classes" : "No Running Classes"}
