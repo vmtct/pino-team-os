@@ -38,14 +38,14 @@ jobs:
         run: bun run lint
       - name: Unit tests
         run: bun run test
-      - name: PAP-979 local Full Detail and Table regression (no shared APIs)
+      - name: BO local React and legacy component parity regression (no shared APIs)
         run: |
           npx playwright install --with-deps chromium
           node scripts/verify-bo-ui-replica.mjs
           node scripts/verify-bo-full-detail-v25.mjs
           node scripts/verify-bo-react-runtime-parity.mjs
           node --import tsx scripts/verify-bo-skeleton.mjs
-      - name: Retain PAP-979 local fixture evidence
+      - name: Retain BO local fixture evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -53,6 +53,7 @@ jobs:
           path: |
             .pap979-evidence
             .next/pap979-react-evidence
+            .pap986-evidence/local
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7

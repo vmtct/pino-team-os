@@ -38,3 +38,34 @@
  .v25-audit-field{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
  .v25-audit-action span{display:none;}
 }
+
+/* PAP-985 — BO without redundant global topbar. Mobile menu in page heading/Full Detail hero. */
+.page-heading-left{display:flex;align-items:center;gap:10px;min-width:0}
+@media(max-width:760px){
+ .page-heading-left .mobile-menu,.detail-hero-primary .mobile-menu{display:grid!important;place-items:center;flex:0 0 34px;width:34px;height:34px;min-width:34px;padding:0;border:1px solid #e7e5ee;border-radius:8px;background:#fff;color:#6d658b;font-size:18px}
+ .page-heading-left h1{min-width:0}
+}
+@media(max-width:450px){.page-heading{flex-wrap:wrap}.page-heading .heading-actions{padding-top:0;margin-left:auto}}
+
+/* PAP-986 — no Full Detail breadcrumb/navigation tree. Compact action inside existing hero. */
+.detail-hero-primary{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.detail-hero-copy{min-width:0;flex:1}
+.detail-hero-back{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border:1px solid #e9e7ef;border-radius:8px;background:#fff;color:#77699a;font-size:20px;font-weight:500;line-height:1}
+.detail-hero-back:hover,.detail-hero-back:focus-visible{background:#f5f2ff;border-color:#d8d0f0;color:#5845a9}
+.detail-hero-primary .mobile-menu{flex-shrink:0}
+@media(max-width:760px){.detail-hero-primary{width:100%;gap:8px}.detail-hero-back{width:34px;height:34px;flex-basis:34px}}
+
+/* PAP-986 runtime-clean Full Detail. */
+.detail-hero h1{margin:0 0 6px}
+.detail-hero-copy{flex:1;min-width:0}
+.detail-hero{padding-top:22px;padding-bottom:22px}
+.detail-hero p{font-size:11px;color:#85839a}
+#detail-body .v24-main-panel>.v24-prop-section:first-child{margin-top:0}
+#detail-body .v24-special-card>h4{margin-bottom:12px}
+#detail-body .v24-special-card>dl div:first-child{border-top:0}
+#detail-body .v24-special-grid{align-items:start}
+/* Full Detail shows complete notes and all selected relation/tags, unlike compact Table cells. */
+#detail-body .v25-full-note{display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;text-align:left}
+#detail-body .v25-full-values{display:flex;flex-wrap:wrap;gap:5px;max-width:100%;min-width:0}
+#detail-body .v24-prop-value{white-space:normal;overflow:visible}
+@media(max-width:760px){.detail-hero{padding:18px}.detail-hero-primary{align-items:flex-start}.detail-hero-primary .detail-hero-back,.detail-hero-primary .mobile-menu{margin-top:2px}}

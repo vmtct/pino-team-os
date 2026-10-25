@@ -14,7 +14,8 @@ const PATHS=[
  "app/components/tos-shell/bo-shell.module.css",
  "app/bo/components/data-grid/bo-data-grid.module.css",
  "app/layout.tsx",
- ".github/workflows/pr-validation.yml"
+ ".github/workflows/pr-validation.yml",
+ "scripts/build-bo-public-views.mjs"
 ];
 function fixture(fn){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap874-bo-foundation-"));
@@ -55,10 +56,17 @@ test("global :root or second rule is rejected (TOS/Founder safety)",()=>{
  });
  assert.ok(errors.some(x=>x.includes("must be one scoped")));
 });
-test("BO layout missing CSS import FAILS",()=>{
+test("BO layout missing legacy CSS distribution FAILS",()=>{
  const errors=check(({read,write})=>{
   const p=PATHS[1];
-  write(p,read(p).replace('import "./design-system/foundation.css";',""));
+  write(p,read(p).replace('<link rel="stylesheet" href="/bo-legacy-foundation.css" />',""));
+ });
+ assert.ok(errors.some(x=>x.includes("BO layout must import")));
+});
+test("legacy stylesheet without exact canonical byte-copy mapping FAILS",()=>{
+ const errors=check(({read,write})=>{
+  const p="scripts/build-bo-public-views.mjs";
+  write(p,read(p).replace("copyFile('app/bo/design-system/foundation.css','public/bo-legacy-foundation.css')","copyFile('unapproved.css','public/bo-legacy-foundation.css')"));
  });
  assert.ok(errors.some(x=>x.includes("BO layout must import")));
 });

@@ -7,8 +7,8 @@
 .page-heading-left>p,.page-heading .eyebrow{display:none!important}
 .page-heading{margin-bottom:19px}
 .page-heading h1{font-size:30px}
-.topbar-breadcrumb .crumb-arrow{display:none}
-.topbar-breadcrumb{font-size:13px}
+
+
 .view-tabs{min-height:43px;max-height:45px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .view-tabs::-webkit-scrollbar{display:none}
 .tabs-left{align-items:stretch;gap:10px;flex:0 0 auto}
@@ -76,7 +76,7 @@
 #settings-content .rule-clear{padding:8px;flex:0 0 auto}
 #typed-table tr[data-record] td{font-size:12px}
 #typed-table tr[data-record] .typed-cell{font-size:12px}
-.topbar .top-avatar{display:none}
+
 @media(max-width:900px){
  #typed-table th:nth-child(2),#typed-table td:nth-child(2){min-width:187px!important;width:187px!important}
 }

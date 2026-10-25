@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/build-bo-public-views.mjs && next dev",
     "build": "node scripts/build-bo-public-views.mjs && next build && node scripts/pap659-build-provenance.mjs .next",
     "start": "next start",
     "lint": "eslint",
