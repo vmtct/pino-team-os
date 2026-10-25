@@ -11,14 +11,52 @@
   subscriptions:{label:'Subscriptions',fields:fields([['name','Học viên'],['id','Subscription ID','id'],['path','Path','relation'],['status','Trạng thái','select'],['weekly','Buổi / tuần','number'],['remaining','Buổi còn lại','number'],['start','Bắt đầu','date'],['end','Kết thúc','date'],['reference','Tham chiếu']])},
   enrollments:{label:'Enrollments',fields:fields([['name','Học viên'],['id','Enrollment ID','id'],['subscriptionId','Subscription ID','id'],['runningClass','Running Class','relation'],['runningClassId','Running Class ID','id'],['path','Path','relation'],['start','Hiệu lực từ','date'],['end','Kết thúc (loại trừ)','date'],['entry','Giờ vào dự kiến'],['duration','Phút dự kiến','number']])}
  };
- const unique=rows=>{const seen=new Set();for(const r of rows){id(r.id);if(seen.has(r.id))throw Error('Con trỏ không tiến hoặc ID trùng.');seen.add(r.id);}return rows;};
- async function load(key,fetcher){
+ const definitions={
+  visits:['Student Visit','SCHOOL',[['name','Học viên'],['id','Visit ID','id'],['center','Cơ sở','relation'],['status','Trạng thái','select'],['checkIn','Check-in (UTC)','datetime'],['checkOut','Check-out (UTC)','datetime'],['duration','Thời lượng (giây)','number']]],
+  staffs:['Staffs','WORKFORCE',[['name','Nhân sự'],['id','Staff ID','id'],['status','Trạng thái','select'],['department','Bộ phận'],['role','Vai trò']]],
+  termWeeks:['Term Week','WORKFORCE',[['name','Mã tuần'],['id','Term Week ID','id'],['term','Term','relation'],['center','Cơ sở','relation'],['ordinal','Thứ tự','number'],['start','Bắt đầu','date'],['end','Kết thúc','date'],['rhythm','Nhịp']]],
+  timekeeping:['Timekeeping','WORKFORCE',[['name','Nhân sự'],['id','Timekeeping ID','id'],['center','Cơ sở','relation'],['workDate','Ngày làm việc','date'],['status','Trạng thái','select'],['checkIn','Check-in gốc (UTC)','datetime'],['checkOut','Check-out gốc (UTC)','datetime'],['effectiveIn','Check-in hiệu lực (UTC)','datetime'],['effectiveOut','Check-out hiệu lực (UTC)','datetime'],['duration','Thời lượng hiệu lực (giây)','number']]],
+  salaryPeriods:['Salary Period','WORKFORCE',[['name','Salary Period'],['id','Period ID','id'],['center','Cơ sở','relation'],['start','Bắt đầu','date'],['end','Kết thúc','date'],['status','Trạng thái','select'],['locked','Đã khóa ngày','boolean'],['version','Phiên bản','number']]],
+  worlds:['Pinoria World','PINORIA',[['name','Pinoria World'],['id','World ID','id'],['key','Key'],['type','Loại','select'],['status','Trạng thái','select'],['scenes','Số Scene','number'],['description','Mô tả'],['version','Phiên bản','number']]],
+  catalog:['Catalog','PINORIA',[['name','Vật phẩm'],['id','Item ID','id'],['key','Key'],['type','Loại','select'],['slot','Vị trí','select'],['gender','Giới tính','select'],['rarity','Độ hiếm','number'],['variants','Số Variant','number'],['status','Trạng thái','select']]],
+  sets:['Set','PINORIA',[['name','Set'],['id','Set ID','id'],['key','Key'],['members','Thành viên','number'],['status','Trạng thái','select'],['version','Phiên bản','number']]],
+  users:['Users','SYSTEM',[['name','Email'],['id','User ID','id'],['staffId','Staff ID','id'],['status','Trạng thái','select'],['assignments','Phân quyền hiện tại','number']]],
+  roles:['Roles','SYSTEM',[['name','Role'],['id','Role ID','id'],['key','Key'],['type','Loại','select'],['status','Trạng thái','select'],['permissions','Số quyền','number'],['assignments','Số phân công','number']]],
+  audits:['Audits','SYSTEM',[['name','Hành động'],['id','Audit ID','id'],['at','Thời điểm (UTC)','datetime'],['actorType','Loại tác nhân','select'],['actorId','Actor ID','id'],['subjectType','Loại đối tượng'],['subjectId','Subject ID','id'],['outcome','Kết quả','select'],['requestId','Request ID']]]
+ };
+ for(const [key,[label,group,items]] of Object.entries(definitions))modules[key]={label,group,fields:fields(items)};
+ for(const key of ['students','classes','subscriptions','enrollments'])modules[key].group='SCHOOL';
+ const unique=rows=>{if(rows.length>10000)throw Error('Danh sách quá lớn. Hãy giới hạn phạm vi.');const seen=new Set();for(const r of rows){id(r.id);if(seen.has(r.id))throw Error('Con trỏ không tiến hoặc ID trùng.');seen.add(r.id);}return rows;};
+ function range(options={}){const to=options.to||new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const valid=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;if(!valid(to))throw Error('Ngày kết thúc không hợp lệ.');const d=new Date(to+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-30);const from=options.from||d.toISOString().slice(0,10);if(!valid(from)||from>to||Date.parse(to)-Date.parse(from)>30*86400000)throw Error('Khoảng ngày không hợp lệ (tối đa 31 ngày).');return{from,to};}
+ function scopeLabel(key,options={}){const center=options.centerId?'Cơ sở đã chọn':'Các cơ sở được cấp quyền';if(key==='timekeeping'){const r=range(options);return center+' · '+r.from+' → '+r.to;}return ['visits','salaryPeriods'].includes(key)?center:'';}
+ async function load(key,fetcher,options={}){
   if(!Object.hasOwn(modules,key))throw Error('Module chưa được kết nối.');
-  const read=async path=>{
+  const envelope=async path=>{
    const r=await fetcher('/api/bo/'+path,{method:'GET',credentials:'same-origin',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(20000)});
    if(!r.ok)throw Error(r.status===401?'Phiên đăng nhập đã hết hạn.':r.status===403?'Bạn không có quyền đọc dữ liệu này.':r.status===409?'Dữ liệu đã thay đổi. Hãy tải lại.':'Không thể tải dữ liệu. Hãy tải lại.');
-   const b=await r.json();if(b.data===undefined)throw Error('Phản hồi Core không hợp lệ.');return b.data;
+   const b=await r.json();if(b.data===undefined)throw Error('Phản hồi Core không hợp lệ.');return b;
   };
+  const read=async path=>(await envelope(path)).data;
+  const bound=(row,centerId)=>{if(row.centerId!==centerId)throw Error('Core trả về dữ liệu khác cơ sở.');return row;};
+  const array=value=>{if(!Array.isArray(value))throw Error('Danh sách Core không hợp lệ.');return value;};
+  const centers=async path=>{const list=array(await read(path));if(list.length>100)throw Error('Phạm vi cơ sở quá lớn.');if(options.centerId){id(options.centerId);const center=list.find(c=>c.id===options.centerId);if(!center)throw Error('Cơ sở không thuộc phạm vi đọc.');return[center];}return list;};
+  const offsets=async(path,extract)=>{const result=[];let offset=0;for(let n=0;n<100;n++){const b=await envelope(path+(path.includes('?')?'&':'?')+'limit=100&offset='+offset),p=extract(b,offset);array(p.items);result.push(...p.items);if(result.length>10000)throw Error('Danh sách quá lớn. Hãy giới hạn phạm vi.');if(p.next===null)return result;if(!Number.isSafeInteger(p.next)||p.next<=offset)throw Error('Con trỏ không tiến.');offset=p.next;}throw Error('Danh sách quá lớn.');};
+  if(key==='staffs')return unique(array(await read('workforce/staff-records')).map(s=>({id:id(s.id),name:text(s.displayLabel),status:text(s.status),department:s.department,role:s.roleLabel})));
+  if(key==='users')return unique(array(await read('access/users')).map(u=>({id:id(u.id),name:u.email||u.id,staffId:u.staffMemberId,status:text(u.status),assignments:array(u.assignments).length})));
+  if(key==='roles')return unique(array(await read('access/roles')).map(r=>({id:id(r.id),name:text(r.displayName),key:text(r.roleKey),type:text(r.roleType),status:text(r.status),permissions:r.permissionCount,assignments:r.assignmentCount})));
+  if(key==='audits'){const data=await offsets('access/audit',b=>{if(!b.page||!Number.isSafeInteger(b.page.offset)||typeof b.page.hasNext!=='boolean')throw Error('Phân trang audit không hợp lệ.');return{items:b.data,next:b.page.hasNext?b.page.offset+b.page.limit:null};});return unique(data.map(a=>({id:id(a.id),name:text(a.action),at:text(a.occurredAt),actorType:text(a.actorType),actorId:a.actorId,subjectType:text(a.subjectType),subjectId:a.subjectId,outcome:text(a.outcome),requestId:a.requestId})));}
+  if(key==='worlds'){const b=await read('pinoria/worlds');return unique(array(b.worlds).map(w=>({id:id(w.id),name:text(w.displayName),key:text(w.key),type:text(w.worldType),status:text(w.status),scenes:array(w.scenes).length,description:w.descriptionText,version:w.version})));}
+  if(key==='catalog'){const b=await read('pinoria/ward/catalog');return unique(array(b.items).map(i=>({id:id(i.id),name:text(i.displayName),key:text(i.key),type:text(i.itemType),slot:i.slot,gender:text(i.gender),rarity:i.rarityStars,variants:i.variantCount,status:text(i.status)})));}
+  if(key==='sets'){const b=await read('pinoria/ward/sets');return unique(array(b.sets).map(s=>({id:id(s.id),name:text(s.displayName),key:text(s.key),members:s.memberCount,status:text(s.status),version:s.version})));}
+  if(key==='termWeeks'){const b=await read('delivery/bootstrap-state'),terms=new Map(array(b.terms).map(t=>[id(t.id),t])),cs=new Map(array(b.centers).map(c=>[id(c.id),text(c.displayName)]));return unique(array(b.termWeeks).map(w=>{const t=terms.get(id(w.termId));if(!t)throw Error('Term Week không có Term hợp lệ.');return{id:id(w.id),name:text(w.code),term:text(t.displayName),center:cs.get(id(t.centerId))||t.centerId,ordinal:w.ordinal,start:w.startDate,end:w.endDate,rhythm:w.rhythmKey};}));}
+  if(['visits','salaryPeriods','timekeeping'].includes(key)){
+   const result=[],cs=await centers(key==='timekeeping'?'workforce/timekeeping/centers':'centers');
+   for(const c of cs){const centerName=text(c.displayName||c.displayLabel),centerId=id(c.id);
+    if(key==='visits'){const list=await offsets('student-visits?centerId='+centerId,(b,offset)=>({items:b.data.data,next:offset+b.data.data.length<b.data.total?offset+b.data.data.length:null}));result.push(...list.map(v=>({id:id(bound(v,centerId).id),name:text(v.student.displayName),center:text(v.center.displayName),status:text(v.status),checkIn:v.checkedInAt,checkOut:v.checkedOutAt,duration:v.durationSeconds})));}
+    if(key==='salaryPeriods'){const list=await offsets('workforce/payroll/periods?centerId='+centerId,b=>({items:b.data.data,next:b.data.nextOffset}));result.push(...list.map(p=>({id:id(bound(p,centerId).id),name:text(p.name),center:centerName,start:p.startDate,end:p.endDate,status:text(p.status),locked:p.dateLocked,version:p.version})));}
+    if(key==='timekeeping'){const r=range(options),seen=new Set();let cursor=null;for(let n=0;;n++){if(n>=100)throw Error('Danh sách quá lớn.');const b=await read('workforce/timekeeping?'+new URLSearchParams({centerId,startDate:r.from,endDate:r.to,limit:'100',...(cursor?{cursor}:{})}));result.push(...array(b.data).map(t=>({id:id(bound(t,centerId).id),name:text(t.staff.displayLabel),center:centerName,workDate:t.workDate,status:text(t.status),checkIn:t.recorded.checkInAt,checkOut:t.recorded.checkOutAt,effectiveIn:t.effective.checkInAt,effectiveOut:t.effective.checkOutAt,duration:t.effective.durationSeconds})));if(b.nextCursor===null)break;const next=text(b.nextCursor);if(seen.has(next))throw Error('Con trỏ không tiến.');seen.add(next);cursor=next;}}
+    unique(result);}return unique(result);
+  }
   const paged=async(path,map)=>{
    const result=[],cursors=new Set();let cursor=null;
    for(let page=0;;page++){
@@ -50,5 +88,5 @@
   if(key==='subscriptions')return paged('subscriptions',s=>({id:id(s.id),name:text(s.studentDisplayName),path:text(s.pathDisplayName),status:text(s.lifecycle),weekly:s.weeklyCommitment,remaining:s.effectiveAvailableUnits,start:s.serviceStartsOn,end:s.contractualEndsOn,reference:s.commercialReference}));
   return paged('school/enrollments',e=>({id:id(e.id),name:text(e.studentDisplayName),subscriptionId:id(e.subscriptionId),runningClass:text(e.runningClassName),runningClassId:id(e.runningClassId),path:text(e.pathDisplayName),start:e.effectiveFromLocalDate,end:e.effectiveUntilExclusiveLocalDate,entry:e.plannedEntryLocalTime,duration:e.plannedDurationMinutes}));
  }
- const api=Object.freeze({modules,load});root.PinoSchoolRead=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const api=Object.freeze({modules,load,scopeLabel});root.PinoSchoolRead=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof globalThis==='object'?globalThis:this);
