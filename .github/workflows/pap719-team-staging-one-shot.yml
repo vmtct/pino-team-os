@@ -12,6 +12,7 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: pino-team-staging-worker-mutation
   cancel-in-progress: false
