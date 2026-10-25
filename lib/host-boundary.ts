@@ -1,5 +1,11 @@
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
+export const TOS_STAGING_HOSTNAME = "tos.staging.pinohouse.art";
+export const BO_STAGING_HOSTNAME = "bo.staging.pinohouse.art";
+export function isBoHostname(host: string): boolean {
+  const normalized = normalizeHostname(host);
+  return normalized === BO_HOSTNAME || normalized === BO_STAGING_HOSTNAME;
+}
 export const STAFF_REGISTRATION_HOSTNAME = "join.pinohouse.art";
 export const RETIRED_TEAM_HOSTNAME = "team.pinohouse.art";
 
@@ -21,18 +27,22 @@ export function decideHostBoundary(host: string, pathname: string): HostBoundary
 
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
-  if (hostname === BO_HOSTNAME) {
+  if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
-    if (isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname)) return { action: "next" };
+    if (isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };
   }
 
-  if (hostname === TOS_HOSTNAME) {
+  if (hostname === TOS_HOSTNAME || hostname === TOS_STAGING_HOSTNAME) {
     if (isPathWithin(pathname, "/bo") || isPathWithin(pathname, "/api/bo")) return { action: "not_found" };
     return { action: "next" };
   }
 
   return { action: "next" };
+}
+
+function isBoStagingStylesheet(pathname: string): boolean {
+  return /^\/bo-skeleton\/(?:styles|playground|playground-v22|playground-v23|full-detail-v24|full-detail-v25)\.css$/.test(pathname);
 }
 
 function isBoLocalAuthPath(pathname: string): boolean {
@@ -41,7 +51,7 @@ function isBoLocalAuthPath(pathname: string): boolean {
 }
 
 export function requiresBoStaffPasswordSession(host: string, pathname: string): boolean {
-  if (normalizeHostname(host) !== BO_HOSTNAME) return false;
+  if (!isBoHostname(host)) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   return isPathWithin(normalized, "/bo");
 }
@@ -277,7 +287,7 @@ function isApprovedBoPath(pathname: string): boolean {
 }
 
 export function requiresTosStaffSession(host: string, pathname: string): boolean {
-  if (normalizeHostname(host) !== TOS_HOSTNAME) return false;
+  if (![TOS_HOSTNAME, TOS_STAGING_HOSTNAME].includes(normalizeHostname(host))) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;
   return ["/dashboard", "/schedule", "/availability", "/classroom", "/tasks", "/training", "/open-studio", "/pinoria", "/pinoria-tv", "/tv", "/timesheet", "/earnings", "/check-in", "/info"]

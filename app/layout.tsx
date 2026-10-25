@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { BO_SKELETON_HOST } from "@/lib/bo-skeleton-routing";
+import { isBoStagingHost } from "@/lib/bo-skeleton-routing";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { boSkeletonEnabled, BO_AUTHORITY_STYLES } from "@/lib/bo-skeleton";
 
@@ -20,7 +20,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const incoming = await headers();
   const path = incoming.get("x-pino-bo-runtime-path");
   let bo = false;
-  if (incoming.get("host") === BO_SKELETON_HOST && (path === "/bo" || path === "/bo/")) {
+  if (isBoStagingHost(incoming.get("host") || "") && (path === "/bo" || path === "/bo/")) {
     try {
       const { env } = await getCloudflareContext({ async: true }) as unknown as { env: { APP_ENV?: string; BO_UI_ONLY?: string } };
       bo = boSkeletonEnabled(env, incoming.get("host") || "");

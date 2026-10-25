@@ -16,6 +16,7 @@ test("Hồ sơ đăng ký is the sole immutable source; every shipped authority 
 });
 test("skeleton requires explicit staging flag AND exact shared staging hostname", () => {
   assert.equal(boSkeletonEnabled({APP_ENV:"staging",BO_UI_ONLY:"enabled"},BO_SKELETON_HOST),true);
+  assert.equal(boSkeletonEnabled({APP_ENV:"staging",BO_UI_ONLY:"enabled"},"bo.staging.pinohouse.art"),true);
   for(const host of ["bo.pinohouse.art","tos.pinohouse.art","pino-team-os.minhtri-van42.workers.dev"])assert.equal(boSkeletonEnabled({APP_ENV:"staging",BO_UI_ONLY:"enabled"},host),false);
   assert.equal(boSkeletonEnabled({APP_ENV:"production",BO_UI_ONLY:"enabled"},BO_SKELETON_HOST),false);
   assert.equal(boSkeletonEnabled({APP_ENV:"staging"},BO_SKELETON_HOST),false);

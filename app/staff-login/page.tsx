@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./staff-login.module.css";
 
-function homePath() { return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
+function homePath() { return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
 
 export default function StaffLogin() {
   const [email, setEmail] = useState("");
@@ -13,7 +13,7 @@ export default function StaffLogin() {
 
   useEffect(() => {
     const hostname = window.location.hostname;
-    setShowRecovery(hostname === "tos.pinohouse.art" || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".workers.dev"));
+    setShowRecovery(hostname === "tos.pinohouse.art" || hostname === "tos.staging.pinohouse.art" || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".workers.dev"));
     void fetch("/api/staff-auth/status", { cache: "no-store" })
       .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean; passwordChangeRequired?: boolean } }>)
       .then(body => { if (body.data?.authenticated) window.location.assign(body.data.passwordChangeRequired ? "/staff-password/change" : homePath()); })
