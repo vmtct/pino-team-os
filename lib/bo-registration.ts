@@ -43,6 +43,8 @@ export function tableRows(rows: readonly BoRecord[], fields: readonly BoField[],
 }
 /** Unknown actions stay localized, never expose machine event codes as UI copy. */
 export function auditActionLabel(action: string) {
+  // The admitted Core projection already supplies these safe Vietnamese labels.
+  if (["Tạo học viên", "Cập nhật học viên", "Tạo lớp học", "Cập nhật lớp học", "Cập nhật bản ghi"].includes(action)) return action;
   const verb = action.toLowerCase();
   if (/creat|intake|register/.test(verb)) return "Tạo hồ sơ";
   if (/archiv|retir|delet|neutraliz/.test(verb)) return "Lưu trữ hồ sơ";

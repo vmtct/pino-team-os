@@ -22,6 +22,8 @@ test('typed editor stays over anchor and clamps against each edge',()=>{
   assert.deepEqual(editorPosition({left:350,top:950},{width:288,height:180},{width:390,height:1000}),{left:94,top:812,maxHeight:984});
 });
 test('history action labels are Vietnamese and never reveal raw event codes',()=>{
+  assert.equal(auditActionLabel('Tạo lớp học'),'Tạo lớp học');
+  assert.equal(auditActionLabel('Cập nhật học viên'),'Cập nhật học viên');
   assert.equal(auditActionLabel('registration.status_updated'),'Đổi trạng thái');
   assert.equal(auditActionLabel('student.intake.created'),'Tạo hồ sơ');
   assert.equal(auditActionLabel('UNRECOGNIZED_INTERNAL_CODE'),'Thao tác hồ sơ');
