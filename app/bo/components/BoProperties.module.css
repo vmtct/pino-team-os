@@ -1,0 +1,10 @@
+/* Approved V2.5 property presentation shared by both pilot adapters. */
+.grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 18px; margin: 8px 0 0; min-width: 0; }
+.item { min-width: 0; display: grid; grid-template-columns: minmax(110px,40%) minmax(0,1fr); align-items: center; gap: 10px; min-height: 45px; border-bottom: 1px solid #f1f2f6; padding: 5px 0; }
+.item dt { min-width: 0; color: #697185; font-size: 11px; overflow-wrap: anywhere; }
+.item dd { margin: 0; min-width: 0; color: #303448; font-size: 12px; line-height: 1.4; padding: 6px 8px; overflow-wrap: anywhere; }
+.item dd > button { width: 100%; text-align: left; }
+.item dd:has(> button) { padding: 0; }
+.compact { grid-template-columns: 1fr; }
+@media(max-width:1120px) { .grid { grid-template-columns: 1fr; } }
+@media(max-width:720px) { .item { grid-template-columns: minmax(90px,37%) minmax(0,1fr); } }

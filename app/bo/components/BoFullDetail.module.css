@@ -1,0 +1,45 @@
+/* PAP-979: React port of approved styles.css detail-cover + V2.4 property grid.
+ * Imported by the renderer, never dependent on the standalone replica page. */
+.root { min-width: 0; color: #303448; font-size: 12px; }
+.breadcrumb { display: flex; align-items: center; gap: 12px; margin: 8px 0 26px; color: #9b98ab; font-size: 11px; }
+.breadcrumb a { color: #6958bb; font-weight: 790; padding: 6px 0; }
+.cover { border: 1px solid #e9e7ef; border-radius: 14px; background: #fff; overflow: hidden; }
+.hero { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 29px 30px; border-bottom: 1px solid #ebeaf1; }
+.hero h1 { font-size: 30px; letter-spacing: -.05em; margin: 8px 0; overflow-wrap: anywhere; }
+.hero p { color: #9290a2; font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+.tabs { display: flex; border-bottom: 1px solid #eae9ef; gap: 23px; padding: 0 30px; }
+.tabs a { border-bottom: 2px solid transparent; padding: 15px 0; color: #908da1; font-size: 11px; font-weight: 770; white-space: nowrap; }
+.tabs a[aria-selected="true"] { border-bottom-color: #735de1; color: #6952cd; }
+.body { padding: 27px 30px 35px; min-width: 0; }
+.panel { border: 1px solid #eceaf2; border-radius: 12px; padding: 22px; min-height: 180px; min-width: 0; }
+.panel h2, .panel h3 { font-size: 13px; margin: 0 0 8px; color: #312b4b; }
+.panel .panelTitle { font-size: 22px; line-height: 1.2; margin: 0 0 18px; color: #242238; }
+.panel p { color: #697186; font-size: 12px; line-height: 1.6; }
+.panel ul { padding-left: 20px; line-height: 1.7; overflow-wrap: anywhere; }
+.root button, .root input, .root select { font: inherit; }
+.root button { border: 1px solid #e1dfeb; border-radius: 7px; padding: 8px 11px; background: #fff; color: #6958bb; font-weight: 700; cursor: pointer; }
+.root button:hover { background: #f8f7ff; border-color: #cec5ef; }
+.root dd > button { display: flex; align-items: center; justify-content: space-between; border-color: transparent; background: transparent; font-weight: 400; color: #303448; padding: 6px 8px; }
+.root dd > button span { color: #7864cf; }
+.root dd > button:hover { border-color: #ded9ff; background: #f8f7ff; }
+.root button:disabled { opacity: .55; cursor: default; }
+.root :is(button, a, input, select):focus-visible { outline: 2px solid #8e7ddd; outline-offset: 3px; }
+.root input, .root select { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid #e1e2eb; border-radius: 7px; background: #fff; color: #303448; }
+.root form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0 20px; }
+.root form label { display: grid; gap: 6px; flex: 1 1 170px; font-size: 11px; color: #697185; }
+.root form button[type="submit"] { background: #735de1; border-color: #735de1; color: #fff; }
+.root [role="alert"] { color: #a63c3c; flex-basis: 100%; }
+.section { margin: 18px 0 26px; min-width: 0; }
+.section > h2 { border-bottom: 1px solid #edeef2; padding-bottom: 9px; margin-bottom: 8px; font-size: 12px; }
+@media (max-width: 760px) {
+  .hero { padding: 23px 20px; }
+  .hero h1 { font-size: 26px; }
+  .tabs { padding: 0 20px; }
+  .body { padding: 18px; }
+}
+@media (max-width: 450px) {
+  .hero { align-items: flex-start; flex-direction: column; }
+  .tabs { gap: 12px; }
+  .tabs a { font-size: 10px; }
+  .panel { padding: 16px; }
+}

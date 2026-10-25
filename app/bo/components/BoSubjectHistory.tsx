@@ -79,8 +79,9 @@ export function BoSubjectHistory({ subjectType, subjectId }: {
             <article className={styles.row} role="listitem" key={event.id}>
               <time dateTime={event.occurred_at}>{new Date(event.occurred_at).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
               <span>{event.actor_label}</span>
-              <span>{event.action} <span className={styles.redaction} aria-label="Giá trị thay đổi được bảo vệ">— → —</span></span>
-              <span>{event.outcome === "succeeded" ? "Thành công" : event.outcome === "denied" ? "Bị từ chối" : "Thất bại"}</span>
+              <span>{event.action}</span>
+              <span className={styles.redaction} aria-label="Giá trị thay đổi được bảo vệ">— → —</span>
+              <span className={styles.outcome} data-outcome={event.outcome}>{event.outcome === "succeeded" ? "Thành công" : event.outcome === "denied" ? "Bị từ chối" : "Thất bại"}</span>
             </article>
           ))}
         </div>

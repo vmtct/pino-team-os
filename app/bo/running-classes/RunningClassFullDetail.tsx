@@ -6,18 +6,22 @@ import { f3DeliveryApi } from "@/lib/f3-delivery-api";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { F3RunningClass, F3RunningClassBlock } from "@/lib/f3-delivery-api";
 import { BoFullDetail } from "../components/BoFullDetail";
+import { RunningClassProperties } from "./RunningClassProperties";
+import { useBoEditPermission } from "../components/useBoEditPermission";
+import styles from "../components/BoFullDetail.module.css";
 import { BoSubjectHistory } from "../components/BoSubjectHistory";
 import { RunningClassSessionRoster } from "./RunningClassSessionRoster";
 import { RunningClassWeeklyTeachers } from "./RunningClassWeeklyTeachers";
 
 export function RunningClassFullDetail({ record, sessions, blocks, centerName, pathName, spaceName, centerTimeZone }: { record: F3RunningClass | null; centerName: string | null; centerTimeZone: string | null; pathName: string | null; spaceName: string | null; blocks: readonly F3RunningClassBlock[]; sessions: readonly { id: string; runningClassId: string | null; localDate: string; startsAt: string; endsAt: string; startsLocal: string; endsLocal: string; timeZone: string }[] }) {
+  const canEdit = useBoEditPermission("delivery.schedule.manage");
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(record?.operationalName ?? "");
   const [capacity, setCapacity] = useState(String(record?.optimalConcurrentCapacity ?? ""));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   async function saveClass() {
-    if (!record || saving) return;
+    if (!record || saving || !canEdit) return;
     const nextCapacity = Number(capacity);
     if (!name.trim() || !Number.isSafeInteger(nextCapacity) || nextCapacity < 1 || (record.hardConcurrentCapacity !== null && nextCapacity > record.hardConcurrentCapacity)) {
       setError("Enter a class name and a valid optimal capacity within the hard capacity limit."); return;
@@ -42,9 +46,21 @@ export function RunningClassFullDetail({ record, sessions, blocks, centerName, p
   tableQuery.delete("detail");
   tableQuery.delete("tab");
   const tableReturn = `/bo/running-classes${tableQuery.size ? `?${tableQuery.toString()}` : ""}`;
-  return <BoFullDetail designVariant="v25" title={record.operationalName} description="Canonical Running Class · Core read-only projection" currentUrl={currentUrl} returnTo={tableReturn} activeTab={search.get("tab")} tabs={[
-    { id: "detail", label: "Detail", content: <><section aria-label="Edit Running Class"><button type="button" onClick={() => { setName(record.operationalName); setCapacity(String(record.optimalConcurrentCapacity)); setError(""); setEditOpen(!editOpen); }}>{editOpen ? "Cancel edit" : "Edit class"}</button>{editOpen ? <form onSubmit={(event) => { event.preventDefault(); void saveClass(); }}><label>Class name<input aria-label="Class name" required value={name} onChange={(event) => setName(event.target.value)} disabled={saving} /></label><label>Optimal capacity<input aria-label="Optimal capacity" type="number" min="1" max={record.hardConcurrentCapacity ?? undefined} required value={capacity} onChange={(event) => setCapacity(event.target.value)} disabled={saving} /></label><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>{error ? <p role="alert">{error}</p> : null}</form> : null}</section><dl><dt>Center</dt><dd>{centerName ?? record.centerId}</dd><dt>Program</dt><dd>{pathName ?? record.pathProgramId}</dd><dt>Learning space</dt><dd>{spaceName ?? record.learningSpaceId}</dd><dt>Status</dt><dd>{record.status}</dd><dt>Weekday (ISO)</dt><dd>{record.weekdayIso}</dd><dt>Topology</dt><dd>{record.deliveryTopology}</dd><dt>Default participation</dt><dd>{record.defaultParticipationMinutes == null ? "Not set" : `${record.defaultParticipationMinutes} min`}</dd><dt>Time</dt><dd>{record.windowStartsLocal}–{record.windowEndsLocal}{centerTimeZone ? ` (${centerTimeZone})` : ""}</dd><dt>Optimal capacity</dt><dd>{record.optimalConcurrentCapacity}</dd><dt>Hard capacity</dt><dd>{record.hardConcurrentCapacity ?? "Not set"}</dd></dl></> },
-    { id: "specialized", label: "Chuyên Sâu", content: <><RunningClassWeeklyTeachers centerId={record.centerId} runningClassId={record.id} /><div><p>Canonical running-class blocks from Core bootstrap.</p>{classBlocks.length ? <ul>{classBlocks.map((block) => <li key={block.id}>{block.blockKind} · {block.startsOffsetMinutes}–{block.endsOffsetMinutes} min ({block.endsOffsetMinutes - block.startsOffsetMinutes} min duration){block.label ? ` · ${block.label}` : ""}{block.sharedBlockKey ? ` · Shared block: ${block.sharedBlockKey}` : ""}</li>)}</ul> : <p>No blocks returned for this class.</p>}</div><div><p>Upcoming canonical sessions only. This is not a complete historical calendar.</p>{upcomingClassSessions.length ? <ul>{upcomingClassSessions.map((session) => <li key={session.id}>{session.localDate} · {session.startsLocal}–{session.endsLocal} ({session.timeZone})<RunningClassSessionRoster sessionId={session.id} /></li>)}</ul> : <p>No upcoming sessions returned for this class.</p>}</div><dl><dt>Canonical ID</dt><dd>{record.id}</dd><dt>Program ID</dt><dd>{record.pathProgramId}</dd><dt>Center ID</dt><dd>{record.centerId}</dd><dt>Space ID</dt><dd>{record.learningSpaceId}</dd><dt>Version</dt><dd>{record.version}</dd></dl></> },
+  return <BoFullDetail designVariant="v25" title={record.operationalName} description="Lớp đang chạy" currentUrl={currentUrl} returnTo={tableReturn} activeTab={search.get("tab")} tabs={[
+    { id: "detail", label: "Detail", content: <section className={styles.section} aria-label="Thuộc tính lớp học">
+      <h2>Thuộc tính lớp học</h2>
+      <RunningClassProperties record={record} centerName={centerName} pathName={pathName} spaceName={spaceName} centerTimeZone={centerTimeZone}
+        nameControl={canEdit ? <button type="button" aria-label="Chỉnh sửa tên lớp" disabled={saving} onClick={() => { setName(record.operationalName); setCapacity(String(record.optimalConcurrentCapacity)); setError(""); setEditOpen(true); }}>{record.operationalName} <span aria-hidden="true">✎</span></button> : undefined}
+        capacityControl={canEdit ? <button type="button" aria-label="Chỉnh sửa sĩ số tối ưu" disabled={saving} onClick={() => { setName(record.operationalName); setCapacity(String(record.optimalConcurrentCapacity)); setError(""); setEditOpen(true); }}>{record.optimalConcurrentCapacity} <span aria-hidden="true">✎</span></button> : undefined} />
+      {editOpen && canEdit ? <form aria-label="Chỉnh sửa lớp học" onSubmit={event => { event.preventDefault(); void saveClass(); }}>
+        <label>Tên lớp<input autoFocus aria-label="Tên lớp" required value={name} onChange={event => setName(event.target.value)} disabled={saving} /></label>
+        <label>Sĩ số tối ưu<input aria-label="Sĩ số tối ưu" type="number" min="1" max={record.hardConcurrentCapacity ?? undefined} required value={capacity} onChange={event => setCapacity(event.target.value)} disabled={saving} /></label>
+        <button type="submit" disabled={saving}>{saving ? "Đang lưu…" : "Lưu thay đổi"}</button>
+        <button type="button" disabled={saving} onClick={() => setEditOpen(false)}>Hủy chỉnh sửa</button>
+        {error ? <p role="alert">{error}</p> : null}
+      </form> : null}
+    </section> },
+    { id: "specialized", label: "Chuyên Sâu", content: <><section className={styles.section}><RunningClassWeeklyTeachers centerId={record.centerId} runningClassId={record.id} /></section><section className={styles.section}><h2>Cấu trúc buổi học</h2><p>Canonical running-class blocks from Core bootstrap.</p>{classBlocks.length ? <ul>{classBlocks.map((block) => <li key={block.id}>{block.blockKind} · {block.startsOffsetMinutes}–{block.endsOffsetMinutes} min ({block.endsOffsetMinutes - block.startsOffsetMinutes} min duration){block.label ? ` · ${block.label}` : ""}{block.sharedBlockKey ? ` · Shared block: ${block.sharedBlockKey}` : ""}</li>)}</ul> : <p>No blocks returned for this class.</p>}</section><section className={styles.section}><h2>Buổi học sắp tới</h2><p>Upcoming canonical sessions only. This is not a complete historical calendar.</p>{upcomingClassSessions.length ? <ul>{upcomingClassSessions.map((session) => <li key={session.id}>{session.localDate} · {session.startsLocal}–{session.endsLocal} ({session.timeZone})<RunningClassSessionRoster sessionId={session.id} /></li>)}</ul> : <p>No upcoming sessions returned for this class.</p>}</section></> },
     { id: "history", label: "Lịch Sử", content: <BoSubjectHistory key={record.id} subjectType="running_class" subjectId={record.id} /> },
   ]} />;
 }

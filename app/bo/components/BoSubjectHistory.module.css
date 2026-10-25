@@ -1,10 +1,22 @@
+/* Approved V2.5 horizontal audit rows; canonical redaction stays intact. */
 .root { width: 100%; min-width: 0; }
 .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px; }
 .search label { font-size: 13px; }
 .search input { min-width: 0; flex: 1 1 170px; border: 1px solid #dedee3; border-radius: 6px; padding: 8px 10px; }
 .search button, .root > button { border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; background: #fff; cursor: pointer; }
-.rows { display: grid; gap: 7px; }
-.row { display: grid; grid-template-columns: minmax(125px, 170px) minmax(80px, 135px) minmax(160px, 1fr) minmax(85px, 115px); align-items: center; gap: 12px; min-height: 59px; border: 1px solid #e6e7eb; border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+.rows { display: grid; gap: 0; border: 1px solid #e8e9f1; border-radius: 10px; overflow: hidden; background: #fff; }
+.row { display: grid; grid-template-columns: 118px 142px minmax(155px,1.1fr) minmax(100px,1.1fr) 74px; align-items: center; gap: 13px; min-height: 59px; border-bottom: 1px solid #eef0f5; padding: 10px 13px; font-size: 11px; }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: #fafafe; }
+.row time { font-variant-numeric: tabular-nums; font-size: 10px; line-height: 1.35; color: #484860; }
 .row > span { min-width: 0; overflow-wrap: anywhere; }
-.redaction { display: block; color: #71717a; }
-@media (max-width: 700px) { .row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 5px 12px; } }
+.redaction { color: #71717a; background: #f7f7fa; border-radius: 4px; padding: 3px 6px; }
+.outcome { justify-self: end; border-radius: 5px; padding: 4px 6px; background: #e4f7ed; color: #167149; font-size: 9px; font-weight: 800; }
+.outcome[data-outcome="failed"], .outcome[data-outcome="denied"] { color: #a63c3c; background: #ffebeb; }
+@media (max-width: 1200px) { .row { grid-template-columns: 90px minmax(70px,.7fr) minmax(100px,1fr) minmax(60px,.5fr) 65px; gap: 9px; padding: 9px 11px; } }
+@media (max-width: 650px) {
+  .row { grid-template-columns: 72px minmax(0,1fr); gap: 3px 9px; padding: 10px; }
+  .row time { grid-row: 1 / 4; }
+  .row > span { grid-column: 2; }
+  .outcome { justify-self: start; }
+}
