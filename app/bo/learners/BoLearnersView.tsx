@@ -14,6 +14,7 @@ import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoParentSearchResult, 
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import styles from "./bo-learners.module.css";
 import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
+import { StudentProperties } from "./StudentProperties";
 import { StudentFullDetail } from "./StudentFullDetail";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
@@ -141,7 +142,7 @@ export function BoLearnersView() {
   if (catalog.state === "loading") return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
   if (catalog.state === "error") return <BoDataGridState kind="error" message={catalog.message} />;
 
-  if (fullDetailId) return <StudentFullDetail studentId={fullDetailId} />;
+  if (fullDetailId) return <StudentFullDetail key={fullDetailId} studentId={fullDetailId} />;
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div>
@@ -176,8 +177,8 @@ export function BoLearnersView() {
       emptyMessage="Thử đổi search hoặc Learning filter; canonical Student directory không bị thay đổi."
       pagination={{ page: range.page, pageSize: grid.state.pageSize, total: pilotFiltered.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
     />
-    {selectedId ? <BoDataGridSidePeek title={selectedRow?.displayName ?? "Học viên"} eyebrow="School · Student detail" onClose={() => selectStudent(null)}>
-      <div className={styles.peekDetail}><Link href={`/bo/learners?detail=${encodeURIComponent(selectedId)}`}>Mở chi tiết đầy đủ →</Link><LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
+    {selectedId ? <BoDataGridSidePeek title={selectedRow?.displayName ?? "Học viên"} eyebrow="School · Student detail" onClose={() => selectStudent(null)} footer={<Link href={(() => { const query = new URLSearchParams(searchParams.toString()); query.delete("tab"); query.set("detail", selectedId); return `/bo/learners?${query}`; })()}>↗ Full Detail</Link>}>
+      <div className={styles.peekDetail}>{detail?.state === "ready" ? <StudentProperties compact record={detail.data} /> : null}<LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
     </BoDataGridSidePeek> : null}
     {showCreate ? <CreateStudentIntake onClose={() => setShowCreate(false)} onCreated={async (studentId) => { setShowCreate(false); await loadDirectory(); selectStudent(studentId); }} /> : null}
     {neutralizeTarget ? <NeutralizeStudentIntake lifecycle={neutralizeTarget} onClose={() => setNeutralizeTarget(null)} onNeutralized={async () => {

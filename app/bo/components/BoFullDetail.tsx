@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { detailTabHref, safeBoTableReturn } from "@/lib/bo-full-detail-navigation";
+import styles from "./BoFullDetail.module.css";
 
 export type BoFullDetailTab = { id: string; label: string; content: ReactNode };
 export type BoFullDetailProps = {
@@ -28,16 +29,19 @@ export function BoFullDetail({ title, description, currentUrl, returnTo, tabs, a
   const selected = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
   const tableHref = safeBoTableReturn(returnTo, "/bo");
   return (
-    <section aria-label={title} className="bo-full-detail" data-bo-detail-version={designVariant}>
-      <nav aria-label="Điều hướng chi tiết">
+    <section aria-label={title} className={`bo-full-detail ${designVariant === "v25" ? styles.root : ""}`} data-bo-detail-version={designVariant}>
+      <nav className={designVariant === "v25" ? styles.breadcrumb : undefined} aria-label="Điều hướng chi tiết">
         <Link href={tableHref}>← Về bảng</Link>
       </nav>
-      <header>
+      <div className={designVariant === "v25" ? styles.cover : undefined}>
+      <header className={designVariant === "v25" ? styles.hero : undefined}>
+        <div>
         <h1>{title}</h1>
         {description ? <p>{description}</p> : null}
+        </div>
         {actions}
       </header>
-      <div role="tablist" aria-label="Chi tiết">
+      <div className={designVariant === "v25" ? styles.tabs : undefined} role="tablist" aria-label="Chi tiết">
         {tabs.map(tab => (
           <Link key={tab.id} role="tab" aria-selected={selected.id === tab.id}
             aria-controls={`bo-detail-panel-${tab.id}`}
@@ -45,9 +49,13 @@ export function BoFullDetail({ title, description, currentUrl, returnTo, tabs, a
             href={detailTabHref(currentUrl, tab.id)}>{tab.label}</Link>
         ))}
       </div>
-      <div role="tabpanel" id={`bo-detail-panel-${selected.id}`}
+      <div className={designVariant === "v25" ? styles.body : undefined}>
+      <div className={designVariant === "v25" ? styles.panel : undefined} role="tabpanel" id={`bo-detail-panel-${selected.id}`}
         aria-labelledby={`bo-detail-tab-${selected.id}`} tabIndex={0}>
+        {designVariant === "v25" ? <h2 className={styles.panelTitle}>{selected.label}</h2> : null}
         {selected.content}
+      </div>
+      </div>
       </div>
     </section>
   );

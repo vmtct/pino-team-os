@@ -43,12 +43,15 @@ jobs:
           npx playwright install --with-deps chromium
           node scripts/verify-bo-ui-replica.mjs
           node scripts/verify-bo-full-detail-v25.mjs
+          node scripts/verify-bo-react-runtime-parity.mjs
       - name: Retain PAP-979 local fixture evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pap979-full-detail-fixtures
-          path: .pap979-evidence
+          path: |
+            .pap979-evidence
+            .next/pap979-react-evidence
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7

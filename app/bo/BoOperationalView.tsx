@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { RunningClassProperties } from "./running-classes/RunningClassProperties";
 import { RunningClassFullDetail } from "./running-classes/RunningClassFullDetail";
 import { filterRunningClassGridRows, runningClassFilterFields } from "@/lib/bo-running-classes-typed-filter";
 import type { BoFilterSettings } from "@/lib/bo-filter-settings-state";
@@ -146,6 +147,7 @@ function RunningClasses({ data }: { data: Data }) {
     const record = data.classes.find((item) => item.id === detailId) ?? null;
     const center = data.centers.find((item) => item.id === record?.centerId);
     return <RunningClassFullDetail
+      key={detailId}
       record={record}
       sessions={data.sessions}
       blocks={data.classBlocks}
@@ -180,7 +182,7 @@ function RunningClasses({ data }: { data: Data }) {
         emptyMessage={filtered ? "Adjust search or filters to see canonical Running Classes." : "Core has not returned any Running Classes for this view."}
       />
       {selectedClass ? <BoDataGridSidePeek title={selectedClass.item.operationalName} eyebrow="Running Class · Core" onClose={() => setSelectedClass(null)} footer={<Link href={`/bo/running-classes?${new URLSearchParams([...query.entries(), ["detail", selectedClass.item.id]]).toString()}`}>Full Detail →</Link>}>
-        <dl><dt>Program</dt><dd>{selectedClass.programName}</dd><dt>Schedule</dt><dd>{selectedClass.patternLabel}</dd><dt>Capacity</dt><dd>{selectedClass.capacityLabel}</dd><dt>Status</dt><dd>{selectedClass.item.status}</dd><dt>Canonical ID</dt><dd>{selectedClass.item.id}</dd></dl>
+        <RunningClassProperties compact record={classOverrides[selectedClass.item.id] ?? selectedClass.item} pathName={selectedClass.programName} centerName={data.centers.find(center => center.id === selectedClass.item.centerId)?.displayName} spaceName={data.learningSpaces.find(space => space.id === selectedClass.item.learningSpaceId)?.displayName} centerTimeZone={data.centers.find(center => center.id === selectedClass.item.centerId)?.timeZone} />
       </BoDataGridSidePeek> : null}
     </Page>
   );

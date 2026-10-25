@@ -59,6 +59,7 @@ export function BoShell({
   const [sidebarQuery, setSidebarQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   const normalizedSidebarQuery = normalizeSidebarSearch(sidebarQuery);
+  const pilot = pathname === "/bo/learners" || pathname === "/bo/running-classes";
 
   const destinations = useMemo(() => groups.flatMap((group) => group.items.flatMap((item) => {
     const own = item.href ? [{ group: group.label, label: item.label, href: item.href }] : [];
@@ -98,14 +99,14 @@ export function BoShell({
     setCommandOpen(false);
     setQuery("");
   }  return (
-    <div className={styles.shell} data-bo-design-system="v23">
+    <div className={styles.shell} data-bo-design-system="v23" data-bo-pilot={pilot || undefined}>
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.brand}>
           <span className={styles.brandMark}>P</span>
           <div><strong>{title}</strong><small>{subtitle}</small></div>
           <button className={styles.closeMenu} type="button" onClick={() => setMenuOpen(false)} aria-label="Đóng menu">×</button>
         </div>
-        <div className={styles.foundationBadge}>PLT-BO · CANONICAL</div>
+        <div className={styles.foundationBadge}>{pilot ? "PINO House · Workspace" : "PLT-BO · CANONICAL"}</div>
 
         <div className={styles.sidebarSearch}>
           <input aria-label="Tìm module BO" placeholder="Tìm module…" value={sidebarQuery} onChange={event => setSidebarQuery(event.target.value)} />
@@ -139,7 +140,7 @@ export function BoShell({
           ))}
         </nav>        <div className={styles.sidebarFooter}>
           <span className={styles.footerMark}>BO</span>
-          <div><strong>Canonical surface</strong><small>Authority stays in Core</small></div>
+          <div><strong>{pilot ? "Back Office" : "Canonical surface"}</strong><small>{pilot ? "PINO House" : "Authority stays in Core"}</small></div>
         </div>
       </aside>
 

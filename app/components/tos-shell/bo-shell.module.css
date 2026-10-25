@@ -285,3 +285,27 @@
 .sidebarSearch button { min-width:28px; cursor:pointer; color:#fff; border:1px solid #555562; border-radius:6px; background:#30303b; }
 .navGroup > button { width:100%; text-align:left; background:none; color:inherit; border:0; cursor:pointer; font:inherit; padding:8px 4px; }
 .navGroup > button:focus-visible, .sidebarSearch button:focus-visible, .sidebarSearch input:focus-visible { outline:2px solid #c8baff; outline-offset:2px; }
+
+/* PAP-979 pilot parity: approved V2.3 navigation retained around V2.5 detail. */
+.shell[data-bo-pilot] { --bo-v23-color-canvas: #f8f8fb; --bo-sidebar: #1a1b28; grid-template-columns: 246px minmax(0,1fr); }
+.shell[data-bo-pilot] .nav { gap: 24px; }
+.shell[data-bo-pilot] .navGroup > button { padding: 8px 6px; color: #858598; font-size: 9px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.shell[data-bo-pilot] .navGroup a { font-size: 11px; }
+.shell[data-bo-pilot] .sidebarSearch input { font-size: 11px; background: #1a1b28; border-color: #393947; }
+.shell[data-bo-pilot] .sidebarSearch button { background: #242431; border-color: #393947; color: #aaa8be; }
+.shell[data-bo-pilot] .foundationBadge { margin-bottom: 8px; padding: 14px 10px; background: #242431; color: #b8b6ca; font-size: 10px; letter-spacing: 0; text-transform: none; }
+.shell[data-bo-pilot] .main { padding: 30px 34px 44px; }
+.shell[data-bo-pilot] .main > main > header h1 { font-size: 30px; }
+.shell[data-bo-pilot] .main table td > button { border: 1px solid transparent; background: transparent; padding: 5px 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.shell[data-bo-pilot] .main table td > button:hover { color: #6958bb; }
+@media (min-width: 761px) and (max-width: 900px) {
+  .shell[data-bo-pilot] .sidebar { position: sticky; width: auto; transform: none; box-shadow: none; }
+  .shell[data-bo-pilot] .menuButton, .shell[data-bo-pilot] .closeMenu { display: none; }
+  .shell[data-bo-pilot] .topbar { grid-template-columns: minmax(90px,1fr) auto auto; }
+}
+@media (max-width: 760px) {
+  .shell[data-bo-pilot] { grid-template-columns: 1fr; }
+  .shell[data-bo-pilot] .main { padding: 18px 14px; }
+  .shell[data-bo-pilot] .topbar { grid-template-columns: auto minmax(0,1fr) auto auto; }
+  .shell[data-bo-pilot] .commandButton { width: 38px; padding: 0 4px; }
+}
