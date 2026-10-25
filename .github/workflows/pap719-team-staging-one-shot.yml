@@ -58,6 +58,11 @@ jobs:
           worker=pino-team-os-staging
           get() { curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${worker}/deployments?per_page=2"; }
           active() { get | jq -er 'if .success then [.result.deployments[0].versions[]|select(.percentage==100)|.version_id]|if length==1 then .[0] else error("ambiguous active") end else error("Cloudflare error") end'; }
+          core_message="$(curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/pino-core-staging/deployments?per_page=1" | jq -er '.result.deployments[0].annotations["workers/message"]')"
+          case "$core_message" in
+            "pap719 staging sha=530bb95a68897fcf0098faa3bb9d710fe8dc44f2 run="*) ;;
+            *) echo "Core PAP-719 approved SHA not yet serving; Team HOLD" >&2; exit 1 ;;
+          esac
           test "$(active)" = "$PREVIOUS" || { echo "CAS mismatch"; exit 1; }
           message="pap719 staging sha=${SHA} run=${GITHUB_RUN_ID}"
           npx wrangler deploy -c wrangler.staging.jsonc --tag "staging-${SHA:0:12}" --message "$message"
