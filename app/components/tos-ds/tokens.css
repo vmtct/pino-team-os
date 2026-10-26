@@ -1,0 +1,29 @@
+/* PAP-1014: TOS VNext Design System V2 semantic tokens — isolated from BO/Production.
+   Values match Founder-approved Master V8. Only apply inside a VNext frame. */
+[data-tos-vnext-frame]{
+ --tos-font-family:"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+ --tos-text-body:15px;--tos-text-label:14px;--tos-text-button:14px;
+ --tos-text-heading-xl:24px;--tos-text-heading-lg:20px;--tos-text-heading-md:18px;--tos-text-heading-sm:16px;
+ --tos-text-secondary:13px;--tos-text-caption:12px;
+ --tos-space-1:4px;--tos-space-2:8px;--tos-space-3:12px;--tos-space-4:16px;
+ --tos-space-5:20px;--tos-space-6:24px;--tos-space-8:32px;
+ --tos-hit-min:44px;--tos-control-height:48px;--tos-nav-height:76px;--tos-header-height:60px;
+ --tos-mobile-max:430px;--tos-radius-card:16px;--tos-radius-sheet:22px;--tos-radius-control:11px;
+ --tos-tone-default:#16816b;--tos-color-app-background:#f9fbfa;
+ --tos-color-surface:#fff;--tos-color-border:#e3e9e9;
+ --tos-color-ink:#293642;--tos-color-muted:#627483;
+ --tos-color-accent-tint-default:#e8f8f3;
+ --tos-color-home-button-bg:#f1f9fc;--tos-color-home-button-text:#237fa6;
+ --tos-color-shift:#357ea7;--tos-color-shift-tint:#e7f2fc;
+ --tos-color-reception:#188f77;--tos-color-reception-tint:#e5f7f2;
+ --tos-color-classroom:#a27a27;--tos-color-classroom-tint:#fff6db;
+ --tos-color-training:#7456b6;--tos-color-training-tint:#f1ebfc;
+ --tos-color-shift-lead:#ba6855;--tos-color-shift-lead-tint:#fff0eb;
+ --tos-color-station:#526aa1;--tos-color-station-tint:#edf2ff;
+ --tos-color-sheet-backdrop:#172b3377;--tos-color-card-shadow:#142b3510;
+ --tos-color-header-glass:#fffffff2;--tos-color-dark:#000;
+ --tos-color-danger-bg:#fdecec;--tos-color-danger-border:#a23e3e;--tos-color-danger-text:#a23e3e;
+ --tos-color-success-bg:#e9f5ee;--tos-color-success-text:#277454;
+ --tos-color-warning-bg:#fff3dc;--tos-color-warning-text:#926522;
+ --tos-color-info-bg:#e7f3fd;--tos-color-info-text:#216d90;
+}
