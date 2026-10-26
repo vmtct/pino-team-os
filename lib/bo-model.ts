@@ -557,6 +557,7 @@ export interface BoWorkforceWindowDecision {
   policyVersionId: string | null;
   controlVersion: number;
   availabilityRegistrationOpen: boolean;
+  shiftPlanExists?: boolean;
 }
 
 export interface BoWorkforceAvailability {
