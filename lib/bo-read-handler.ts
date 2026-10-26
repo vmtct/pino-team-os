@@ -1,6 +1,7 @@
 import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME } from "./host-boundary";
+import { hoAccessReadAllowed, validateHoAuditQuery, projectHoAuditResponse } from "./ho-access-guard";
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
@@ -36,8 +37,10 @@ export async function handleBoOperationalReadRequest(
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     if (!isOperationalReadPath(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
     if (new URL(request.url).hostname === HO_STAGING_HOSTNAME) {
-      if (path !== "centers") return json({ error: { code: "PLATFORM_NOT_FOUND" } }, 404);
+      if (!hoAccessReadAllowed(path)) return json({ error: { code: "PLATFORM_NOT_FOUND" } }, 404);
       await authorizeHoShell(request.headers, env as HoEnv);
+      const auditRead = path === "access/audit";
+      if (auditRead) validateHoAuditQuery(new URL(request.url).searchParams);
     }
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
@@ -45,7 +48,7 @@ export async function handleBoOperationalReadRequest(
     const readResource = readQueryResource(path, url);
     const corePath = readCorePath(path, url);
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
-    return json(result.body, result.status, { "x-request-id": result.requestId });
+    return json(url.hostname === HO_STAGING_HOSTNAME && path === "access/audit" && result.status === 200 ? projectHoAuditResponse(result.body) : result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof BoShellGateError) return json({ error: { code: "HO_ACCESS_DENIED", message: error.message } }, error.status);
     if (error instanceof RangeError) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Invalid directory filter" } }, 400);
@@ -109,6 +112,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "tv/displays"
     || path === "tv/devices"
     || path === "access/roles"
+    || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
     || path === "access/permissions"
     || path === "access/audit"
     || path === "access/users"

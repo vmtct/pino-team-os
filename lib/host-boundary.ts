@@ -25,7 +25,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
     if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
     if (p === "/") return { action: "redirect", pathname: "/ho" };
-    if (["/ho", "/ho/centers", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/favicon.ico"].includes(p) || isFrameworkAsset(p) || isBoStagingStylesheet(p)) return { action: "next" };
+    if (["/ho", "/ho/centers", "/ho/system/users", "/ho/system/roles", "/ho/system/audit", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || isBoStagingStylesheet(p)) return { action: "next" };
     return { action: "not_found" };
   }
   // HO never leaks through BO/TOS, production, workers.dev, localhost or unknown hosts.
