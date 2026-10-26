@@ -5,6 +5,7 @@ import { BoShell } from "@/app/components/tos-shell";
 import { authorizeBoShell, BoShellGateError, type BoShellContext, type BoShellGateEnv } from "@/lib/bo-shell-gate";
 import { BoSessionBoundary } from "./BoSessionBoundary";
 import { boNavigation } from "./navigation";
+import { isWorkforceBoStagingRoute } from "./architecture/workforce-staging-routes";
 import { boSkeletonEnabled } from "@/lib/bo-skeleton";
 import { BoRuntimeBoundary } from "./components/registration/BoRuntimeBoundary";
 
@@ -28,6 +29,9 @@ export default async function BoLayout({ children }: { children: React.ReactNode
     forbidden();
   }
   if (uiOnly) {
+    if (isWorkforceBoStagingRoute(routePath)) {
+      return <><BoSessionBoundary /><BoShell title="PINO House" subtitle="Back Office" groups={boNavigation} currentUser={currentUser}>{children}</BoShell></>;
+    }
     if (routePath !== "/bo" && routePath !== "/bo/") redirect("/bo");
     return <><BoSessionBoundary /><BoRuntimeBoundary currentUser={{ displayName: currentUser.displayName }}>{children}</BoRuntimeBoundary></>;
   }
