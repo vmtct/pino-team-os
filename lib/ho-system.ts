@@ -2,14 +2,17 @@ import type { BoModule, BoRecord } from "./bo-registration";
 import type { BoAccessRole, BoCenter } from "./bo-model";
 import type { BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import { hoCentersModule, mapHoCenters } from "./ho-centers";
+import {hoA1Modules,hoA1Routes,type HoA1Module} from "./ho-a1";
 
-export type HoModule = "centers" | "users" | "roles" | "audits";
+export type HoModule = "centers" | "users" | "roles" | "audits" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = {
   centers: "/ho/centers", users: "/ho/system/users",
   roles: "/ho/system/roles", audits: "/ho/system/audit",
+  ...hoA1Routes,
 };
 export const hoModules: Record<HoModule,BoModule> = {
  centers: {...hoCentersModule,group:"Network"},
+ ...hoA1Modules,
  users: {label:"Users",group:"System",fields:[
   {key:"name",label:"Account",type:"text",icon:"Aa",w:260,readonly:true},
   {key:"id",label:"User ID",type:"id",icon:"#",w:270,readonly:true},

@@ -70,7 +70,7 @@ test("HO requires actual Founder session AND Core's individual read grant, inclu
  assert.equal((await handleBoOperationalReadRequest(req("access/assignments"),env(),"access/assignments")).status,404);
 });
 test("HO module projections render canonical Users/Roles and route each nav item independently",()=>{
- assert.equal(new Set(Object.values(hoRoutes)).size,4);
+ assert.equal(new Set(Object.values(hoRoutes)).size,Object.keys(hoRoutes).length);
  assert.equal(hoRoutes.users,"/ho/system/users");
  assert.equal(hoRoutes.roles,"/ho/system/roles");
  assert.equal(hoRoutes.audits,"/ho/system/audit");
