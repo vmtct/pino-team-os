@@ -25,11 +25,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
     if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
     if (p === "/") return { action: "redirect", pathname: "/ho" };
-    if (["/ho", "/ho/centers", "/ho/system/users", "/ho/system/roles", "/ho/system/audit", "/ho/learning/syllabi", "/ho/learning/missions", "/ho/pinoria/worlds", "/ho/pinoria/wardrobe", "/ho/pinoria/wardrobe-sets", "/ho/pinoria/effects", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || isBoStagingStylesheet(p)) return { action: "next" };
+    if (["/ho", "/prototype", "/ho/centers", "/ho/system/users", "/ho/system/roles", "/ho/system/audit", "/ho/learning/syllabi", "/ho/learning/missions", "/ho/pinoria/worlds", "/ho/pinoria/wardrobe", "/ho/pinoria/wardrobe-sets", "/ho/pinoria/effects", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || isBoStagingStylesheet(p)) return { action: "next" };
     return { action: "not_found" };
   }
   // HO never leaks through BO/TOS, production, workers.dev, localhost or unknown hosts.
-  if (isPathWithin(pathname, "/ho")) return { action: "not_found" };
+  if (isPathWithin(pathname, "/ho") || isPathWithin(pathname, "/prototype")) return { action: "not_found" };
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
 
   if (hostname === STAFF_REGISTRATION_HOSTNAME) {
