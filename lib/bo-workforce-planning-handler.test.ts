@@ -170,3 +170,33 @@ test("WSRA operational assignment preserves Core validation/version rejection de
   assert.equal(response.headers.get("x-request-id"), "wsra-conflict");
   assert.deepEqual(await response.json(), errorBody);
 });
+
+test("PAP-901 global weeks read forwards only a Center-scoped GET, never forged authority", async () => {
+  let forwarded: WorkforcePlanningRequest | undefined;
+  const b = binding(async request => {
+    forwarded = request;
+    return { status: 200, body: { data: { terms: [], termWeeks: [] } }, requestId: "global-weeks" };
+  });
+  const request = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/global-weeks?centerId=center-a&userId=forged&scope=GLOBAL", { headers: headers() });
+  const response = await handleBoWorkforcePlanningRequest(request, env(b), "workforce/planning/global-weeks");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-request-id"), "global-weeks");
+  assert.deepEqual(forwarded, { method: "GET", path: "global-weeks", body: { centerId: "center-a" } });
+});
+
+test("PAP-901 global weeks read propagates Center permission denial and blocks anonymous callers", async () => {
+  let calls = 0;
+  const b = binding(async () => {
+    calls++;
+    return { status: 403, body: { error: { code: "ACCESS_PERMISSION_DENIED" } }, requestId: "global-denied" };
+  });
+  const path = "workforce/planning/global-weeks";
+  const url = "https://bo.pinohouse.art/api/bo/workforce/planning/global-weeks?centerId=center-b";
+  const anonymous = await handleBoWorkforcePlanningRequest(new Request(url), env(b), path);
+  assert.equal(anonymous.status, 401);
+  assert.equal(calls, 0);
+  const scoped = await handleBoWorkforcePlanningRequest(new Request(url, { headers: headers() }), env(b), path);
+  assert.equal(scoped.status, 403);
+  assert.equal(scoped.headers.get("x-request-id"), "global-denied");
+  assert.equal(calls, 1);
+});

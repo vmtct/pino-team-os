@@ -1,13 +1,85 @@
-import { defineBoModuleRegistry, type BoModuleContract } from "./contract";
+import { defineBoModule, defineBoModuleRegistry, type BoModuleContract } from "./contract";
 
 /**
  * MANAGED SOURCE REGISTRY — PAP-926.
- * Add new entities through `npm run bo:module:new -- <slug> <route>` then
- * implement the generated domain adapter. The verifier reads these literal
- * declarations WITHOUT executing code. Historic 2026-10-22 routes remain in
- * a separately frozen baseline until migrated by PAP-878.
+ * Add new entities through the canonical generator and implement the domain adapter.
+ * The verifier checks these literal declarations without running application code.
  */
 export const boModuleRegistry: readonly BoModuleContract[] = defineBoModuleRegistry([
+  defineBoModule({
+    key: "workforce-term-weeks",
+    href: "/bo/workforce-term-weeks",
+    label: "Term Weeks",
+    kind: "entity",
+    permissions: { read: "workforce.plan.view", write: "workforce.plan.edit" },
+    fields: [
+      { key: "id", label: "ID", type: "id", readOnly: true },
+      { key: "name", label: "Mã tuần", type: "text", readOnly: true },
+      { key: "term", label: "Term", type: "text", readOnly: true },
+      { key: "startDate", label: "Bắt đầu", type: "date", readOnly: true },
+      { key: "endDate", label: "Kết thúc", type: "date", readOnly: true },
+      { key: "ordinal", label: "Thứ tự", type: "number", readOnly: true },
+    ],
+    publicViews: "module-shared",
+    quickView: "canonical-properties",
+    fullDetail: "shared-tabs",
+  }),
+  defineBoModule({
+    key: "workforce-shift-plans",
+    href: "/bo/workforce-shift-plans",
+    label: "Center Shift Plans",
+    kind: "entity",
+    permissions: { read: "workforce.plan.view", write: "workforce.plan.edit" },
+    fields: [
+      { key: "id", label: "ID", type: "id", readOnly: true },
+      { key: "name", label: "Mã tuần", type: "text", readOnly: true },
+      { key: "centerId", label: "Center", type: "relation", readOnly: true },
+      { key: "termWeekId", label: "Term Week", type: "relation", readOnly: true },
+      { key: "availabilityState", label: "Đăng ký", type: "select", readOnly: true },
+      { key: "planningState", label: "Lập lịch", type: "select", readOnly: true },
+      { key: "registrationOpen", label: "Mở đăng ký", type: "boolean", readOnly: true },
+    ],
+    publicViews: "module-shared",
+    quickView: "canonical-properties",
+    fullDetail: "shared-tabs",
+  }),
+  defineBoModule({
+    key: "workforce-availability",
+    href: "/bo/workforce-availability",
+    label: "Staff Availability",
+    kind: "entity",
+    permissions: { read: "workforce.plan.view", write: "workforce.plan.edit" },
+    fields: [
+      { key: "id", label: "ID", type: "id", readOnly: true },
+      { key: "name", label: "Nhân sự", type: "text", readOnly: true },
+      { key: "centerId", label: "Center", type: "relation", readOnly: true },
+      { key: "termWeekId", label: "Term Week", type: "relation", readOnly: true },
+      { key: "status", label: "Trạng thái", type: "select", readOnly: true },
+      { key: "shiftCount", label: "Số ca", type: "number", readOnly: true },
+    ],
+    publicViews: "module-shared",
+    quickView: "canonical-properties",
+    fullDetail: "shared-tabs",
+  }),
+  defineBoModule({
+    key: "workforce-assignments",
+    href: "/bo/workforce-assignments",
+    label: "Shift Assignments",
+    kind: "entity",
+    permissions: { read: "workforce.plan.view", write: "workforce.plan.edit" },
+    fields: [
+      { key: "id", label: "ID", type: "id", readOnly: true },
+      { key: "name", label: "Nhân sự", type: "text", readOnly: true },
+      { key: "centerId", label: "Center", type: "relation", readOnly: true },
+      { key: "termWeekId", label: "Term Week", type: "relation", readOnly: true },
+      { key: "workDate", label: "Ngày", type: "date", readOnly: true },
+      { key: "shift", label: "Ca", type: "text", readOnly: true },
+      { key: "status", label: "Trạng thái", type: "select", readOnly: true },
+    ],
+    publicViews: "module-shared",
+    quickView: "canonical-properties",
+    fullDetail: "shared-tabs",
+  }),
   // BO_NEW_MODULE_REGISTRATIONS — GENERATOR APPENDS ABOVE THIS LINE.
 ]);
 

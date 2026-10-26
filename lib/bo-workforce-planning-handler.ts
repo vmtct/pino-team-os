@@ -25,6 +25,7 @@ export interface BoWorkforcePlanningEnv extends TeamAccessEnv {
 
 const PREFIX = "workforce/planning/";
 const GET_BOOTSTRAP = "workforce/planning/bootstrap";
+const GET_GLOBAL_WEEKS = "workforce/planning/global-weeks";
 const GET_WEEKLY = "workforce/planning/weekly";
 const GET_WEEK_CONTROL = "workforce/planning/week-control";
 const WEEK_CONTROL_POST = new Set([
@@ -53,7 +54,7 @@ export async function handleBoWorkforcePlanningRequest(
 ): Promise<Response> {  try {
     if (!path.startsWith(PREFIX)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO workforce planning operation not found" } }, 404);
     const method = request.method.toUpperCase();
-    const allowedGet = path === GET_BOOTSTRAP || path === GET_WEEKLY || path === GET_WEEK_CONTROL || path === SHIFT_TEMPLATES || path === GET_EXCEPTIONS || path === GET_EXCEPTION_CENTERS || EXCEPTION_DETAIL.test(path);
+    const allowedGet = path === GET_BOOTSTRAP || path === GET_GLOBAL_WEEKS || path === GET_WEEKLY || path === GET_WEEK_CONTROL || path === SHIFT_TEMPLATES || path === GET_EXCEPTIONS || path === GET_EXCEPTION_CENTERS || EXCEPTION_DETAIL.test(path);
     const allowedPost = path === SHIFT_TEMPLATES || SHIFT_TEMPLATE_STATUS.test(path) || AVAILABILITY_VOID.test(path) || WEEK_CONTROL_POST.has(path) || path === POST_OPERATIONAL_ASSIGNMENT || path === POST_ASSIGNMENT || path === POST_CANCEL || EXCEPTION_MUTATION.test(path);
     if (!((method === "GET" && allowedGet) || (method === "POST" && allowedPost))) {
       return json({ error: { code: method === "GET" || method === "POST" ? "PLATFORM_NOT_FOUND" : "PLATFORM_METHOD_NOT_ALLOWED", message: method === "GET" || method === "POST" ? "BO workforce planning operation not found" : "Method not allowed" } }, method === "GET" || method === "POST" ? 404 : 405);
@@ -63,7 +64,8 @@ export async function handleBoWorkforcePlanningRequest(
     let idempotencyKey: string | undefined;
     if (method === "GET") {
       const url = new URL(request.url);
-      if (path === GET_WEEKLY || path === GET_WEEK_CONTROL) body = { centerId: url.searchParams.get("centerId"), termWeekId: url.searchParams.get("termWeekId") };
+      if (path === GET_GLOBAL_WEEKS) body = { centerId: url.searchParams.get("centerId") };
+      else if (path === GET_WEEKLY || path === GET_WEEK_CONTROL) body = { centerId: url.searchParams.get("centerId"), termWeekId: url.searchParams.get("termWeekId") };
       else if (path === SHIFT_TEMPLATES) body = { centerId: url.searchParams.get("centerId") };
       else if (path === GET_EXCEPTIONS) body = { centerId: url.searchParams.get("centerId"), ...(url.searchParams.get("status") ? { status: url.searchParams.get("status") } : {}) };
       else body = {};
