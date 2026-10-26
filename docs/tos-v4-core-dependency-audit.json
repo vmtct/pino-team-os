@@ -1,0 +1,42 @@
+[
+  {
+    "pr": 1770,
+    "sha": "463b38e50578a164a3f23ac9dca9863a38a69490",
+    "base": "main",
+    "draft": false,
+    "state": "OPEN",
+    "ci": "SUCCESS",
+    "run": 39927227335,
+    "functional": "BLOCKED_CORE_UNMERGED_UNDEPLOYED_NOT_READ_BACK"
+  },
+  {
+    "pr": 1793,
+    "sha": "50ba27602024ce318ba1c8b34d56f21ff44be723",
+    "base": "main",
+    "draft": true,
+    "state": "OPEN",
+    "ci": "SUCCESS",
+    "run": 39926829648,
+    "functional": "BLOCKED_CORE_UNMERGED_UNDEPLOYED"
+  },
+  {
+    "pr": 1794,
+    "sha": "961d0599e49a8efb1b33f86f58a74b99293e2360",
+    "base": "dev/pap848-training-catalog-convo",
+    "draft": true,
+    "state": "OPEN",
+    "ci": "FAILURE",
+    "run": 39927139502,
+    "functional": "BLOCKED_CORE_CI_FAIL"
+  },
+  {
+    "pr": 1810,
+    "sha": "470e5dc53ec7ae41044fa0a87efca7af2545ea7f",
+    "base": "dev/pap849-training-register-convo",
+    "draft": true,
+    "state": "OPEN",
+    "ci": "SUCCESS",
+    "run": 39928240750,
+    "functional": "BLOCKED_CORE_STACK_UNMERGED"
+  }
+]

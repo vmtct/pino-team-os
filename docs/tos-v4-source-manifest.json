@@ -1,0 +1,292 @@
+[
+  {
+    "path": "BUILD_DEPENDENCIES_V4.json",
+    "bytes": 683,
+    "sha256": "52C75113650D8FE0272E9A2AD283E2D5FEBA23A1312B1DE448EC1374EE54EE1C"
+  },
+  {
+    "path": "next-env.d.ts",
+    "bytes": 295,
+    "sha256": "1B59D4C6B83807DB275D43F3CF2CC8E9323F465FAB764EEA091CC5BECD5BAD37"
+  },
+  {
+    "path": "next.config.mjs",
+    "bytes": 156,
+    "sha256": "D55B323B666A5E3894A28903AA17626C09F29B047D850407B81CA6438EA3778E"
+  },
+  {
+    "path": "package.json",
+    "bytes": 955,
+    "sha256": "56C78C6D0476CBE5A57A3CBD93EF730E0446B7A046083EEABD97F3AD5271FE57"
+  },
+  {
+    "path": "README.md",
+    "bytes": 4364,
+    "sha256": "E103AAC5EEAF2550568CF64766E139E5D4E59A0A58D5C60DD7A7F14639193E01"
+  },
+  {
+    "path": "tsconfig.json",
+    "bytes": 699,
+    "sha256": "54F592EC1598DCF250C69E42F9682F32F7E0A1278C37E95B9E0714F5E0B469B6"
+  },
+  {
+    "path": "UI_ADJUSTMENTS_20261026.md",
+    "bytes": 3810,
+    "sha256": "44312CF7521EEDEA06C8CFE4DEBD2D5BCA39EF86C41A4A1898956129295EBB2B"
+  },
+  {
+    "path": "app/globals.css",
+    "bytes": 253,
+    "sha256": "933C51877279D86534C6B701FA36FBCF8E03477D5A03D6DE6BFC5723F6B2D52A"
+  },
+  {
+    "path": "app/layout.tsx",
+    "bytes": 397,
+    "sha256": "19AC0566B8667B4EBAD0855BF5C91AE8D9E4D8E12BD839D0F8BF3B1165A12022"
+  },
+  {
+    "path": "app/page.tsx",
+    "bytes": 116,
+    "sha256": "8530D7EA0C87DE16F5B02A915BA1606B846CB6A085C98488EC9A03C837B7E93D"
+  },
+  {
+    "path": "app/prototype/tos-design-system/page.module.css",
+    "bytes": 2961,
+    "sha256": "63C42226212F43E2DD96F58F357493730616861306BACB88EF635A680A52BF2A"
+  },
+  {
+    "path": "app/prototype/tos-design-system/page.tsx",
+    "bytes": 7754,
+    "sha256": "D600CD9057012BC9EA24BE312349CA44BB34398F1AA6E5E7212656A05DD63193"
+  },
+  {
+    "path": "app/prototype/tos-home-v2/classBypassAuditDemo.ts",
+    "bytes": 901,
+    "sha256": "6A85B45DEB6F5277A59FA5C2A61A57BFEB9EF5A58DFE7AB91D85954770C65644"
+  },
+  {
+    "path": "app/prototype/tos-home-v2/ClassroomPrototype.tsx",
+    "bytes": 91349,
+    "sha256": "1309B04E6D6612C5E30CD9ADF83B8723E1F53389E5B2BD5178845FA519A6F6FD"
+  },
+  {
+    "path": "app/prototype/tos-home-v2/classroomV5.module.css",
+    "bytes": 65072,
+    "sha256": "D5775B6D65AB57D694B01F8FD0B13AE7DFB2FFE866F7FFBF9AA392027DBB0FCE"
+  },
+  {
+    "path": "app/prototype/tos-home-v2/fa-shim.tsx",
+    "bytes": 4884,
+    "sha256": "AAA5AB53302A6F83B2D6570F5DF6E953CE0EF839A01AE663681FD676402DE75D"
+  },
+  {
+    "path": "app/prototype/tos-home-v2/openingEvidenceDemo.ts",
+    "bytes": 4657,
+    "sha256": "5FF14D490D3A94234010E939C2568F9AC4589413A83A1FB8D831181F81C8E4EA"
+  },
+  {
+    "path": "app/prototype/tos-home-v2/page.module.css",
+    "bytes": 8075,
+    "sha256": "E41692DDE604401E1806598209643DC894A441C316C63D10A0B3F54025DD7A20"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/AppHeader.tsx",
+    "bytes": 145,
+    "sha256": "4CABA70CA30D96851906727ED538DF25B7412ECBBEBE9E675A4BF7D7A4155AC2"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/AppIdentity.ts",
+    "bytes": 570,
+    "sha256": "6258790527E5EF8F067F9667F38699C7887CFB1A63A1549DDE3566DEA0152403"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/master.module.css",
+    "bytes": 8738,
+    "sha256": "C0D9A030F7BC1D75C9805CBEA62CE5E75E81982369E542EA8E3C7D78E8586A91"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/page.tsx",
+    "bytes": 11631,
+    "sha256": "5BD60EBDA7F30F895DDB1584C71CBE4535C2D4BDFA448CC39D9598F5005E04BE"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/SharedUI.tsx",
+    "bytes": 90,
+    "sha256": "C1FA317755E07E5AD150F1D2EC4395600FF6D7DA8316A6845177B0E1AE592FD8"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/shiftMaster.module.css",
+    "bytes": 5388,
+    "sha256": "9E65EB6F9A45E42733CB2F0167FD8B06BC54C463C04A9B726B8B7E7F1C2055FB"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ShiftMaster.tsx",
+    "bytes": 10334,
+    "sha256": "AE00E6402E9EE3AD7C4D7FC230CD6F43D50B31248A23B26AD2390B2E5ECAB986"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/TOS_DESIGN_SYSTEM_V1.md",
+    "bytes": 9010,
+    "sha256": "51253ADFD2AA98BCF0BECCD0BF0AF0C37B1C276A8914AB608E8CC6E8155BD767"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/tos-design-system.css",
+    "bytes": 54,
+    "sha256": "A808B257E49DD0CD066CF7F798A73A4E8E47215770574C47C847D7763FC75C34"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/TrainingMobile.tsx",
+    "bytes": 8003,
+    "sha256": "71304D9EC78C222F1258528716C27C150F4AB99693A00D9E182BD86DDB9D1518"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/AppHeader.tsx",
+    "bytes": 1117,
+    "sha256": "B2C7A196E401C2E820DAA027464BF9D0D1B62F5252629FAE4C90156800D2F137"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/AppPhoneFrame.tsx",
+    "bytes": 579,
+    "sha256": "C36BE57939D842DBF254F5CA69E15752A7E617185CB77A4D9A82ABA555A7951C"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/contract.ts",
+    "bytes": 710,
+    "sha256": "A5E8A9D4883C3D63D7480DF167E5D8B418D38463BAD22DABE9977DF8289BDED3"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/header.module.css",
+    "bytes": 1921,
+    "sha256": "C89190D52947703135ACD01640753B429F017FDC0ADD5CF93BA2860926416A65"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/index.ts",
+    "bytes": 359,
+    "sha256": "8F314CDD6F7CEBC27B3DF917AE5B7726B6A348B3EA7602680F6C460A7FBE9D8F"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/mobile-layout.module.css",
+    "bytes": 86,
+    "sha256": "DF84A15CB796F7BA78E898615D0726D1FF2CEE3CC7360E8541E07F64079151B4"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/phone-frame.module.css",
+    "bytes": 10189,
+    "sha256": "B3521B207403535457A38C9990929F90293D60C3F2032EC8E0FE5C8D3AFAB2A6"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/primitives.module.css",
+    "bytes": 5970,
+    "sha256": "E22A1B595E1DCEAF6C19691682987EB39B90BE74BF84357714979130446859B3"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/Primitives.tsx",
+    "bytes": 6852,
+    "sha256": "0B59BEE2EC5140CF4BB09384EBA6266C699AF96B6C6A4FDE9AF7DD52DC56F08B"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/system.css",
+    "bytes": 1856,
+    "sha256": "5CC8D8FD5268E3B04B76AD7EACAB092CD1492FEFA1D1E8B45D97B46EE78E78A1"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ds/tokens.css",
+    "bytes": 3069,
+    "sha256": "A63CC329D80121E6EA69A361F86456A089BDB5C24EA4D08808916958788E3AF1"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/demo-id.ts",
+    "bytes": 548,
+    "sha256": "2AA658B8B821122288442793D3B17EA933EE5EBD925B130F6F76E39213EF02E9"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/ops-demo-store.ts",
+    "bytes": 6866,
+    "sha256": "D34901466D61AD6F994438CE5D2622EFEA8605309DF88E6635B18D4C3B43489C"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/ops.module.css",
+    "bytes": 19262,
+    "sha256": "ABC3612DDBB5E9C5D5585E77617DCB67F93DF7A33F8093E43B7B611EB2F343D0"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/OpsPrototypeShell.tsx",
+    "bytes": 1433,
+    "sha256": "67051D4A70070FD3B0EC80E9937B0F8AF6D242530B7F1BE7862903E0A85BA18A"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/reception-shift-demo.ts",
+    "bytes": 5179,
+    "sha256": "F2559C0318D3AD4739CC349D8BC162EC036C5CF7C14A3D8337B7DEBEDBB19C84"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/ReceptionOpenShift.tsx",
+    "bytes": 5565,
+    "sha256": "37C32B2BF90AAD4F3027B3D258DBE298B647D52AD53CEF596ADC08592483E99C"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/ReceptionPrototype.tsx",
+    "bytes": 14540,
+    "sha256": "39D0DA4EE5942833B862BEBBE436498B5388D028899697FA558F9FB57C53517D"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/station-desktop.module.css",
+    "bytes": 15640,
+    "sha256": "1BB210A550FE56681C25C30E05B8FC8FFA1D736CF666968E5F91C5186192DD67"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/StationDesktopFrame.tsx",
+    "bytes": 4530,
+    "sha256": "9F552821E21A3694AC468CBAB5447EDBDAF08FF26BAF0FC8D4251907D98DBE6B"
+  },
+  {
+    "path": "app/prototype/tos-master-v3/ops/StationPrototype.tsx",
+    "bytes": 13428,
+    "sha256": "B4537148CCE138ACAA047C73B8FB22B0A02793FEB629A342C3703F6E9C19CA63"
+  },
+  {
+    "path": "public/index-local.html",
+    "bytes": 6013,
+    "sha256": "89BE26C0ADCCA5E5AEDF5A2CB790826B3FF1140052D724D9A80C03981E12B413"
+  },
+  {
+    "path": "public/pap934-duty.svg",
+    "bytes": 361,
+    "sha256": "732DD3DB541F6118A7B53E16907C91B08ABF949B53EB382ADB443138CF41074C"
+  },
+  {
+    "path": "qa/verify-css-hygiene.cjs",
+    "bytes": 90,
+    "sha256": "37EB7E4063BE7F6F8271A43B8FC7FC2A25704137042FCE9F317E5175EFDB923C"
+  },
+  {
+    "path": "qa/verify-ds-v3.cjs",
+    "bytes": 96,
+    "sha256": "52DEA5DD02B39C51E1AE15A41E89DA06275CFD623A4D6FDD27C5687941331F69"
+  },
+  {
+    "path": "qa/verify-ds-v4.cjs",
+    "bytes": 2875,
+    "sha256": "082DC296A9A11AB96D45063FFA67AD0C7CBF99454B5F8C0E475FB7EB4D66A7C7"
+  },
+  {
+    "path": "qa/v4/diary.cjs",
+    "bytes": 4703,
+    "sha256": "38C2AB4CC457A3852BCB033DA6BA840AE7E545595FEC1362D42CDF61E9E29D85"
+  },
+  {
+    "path": "qa/v4/journeys.cjs",
+    "bytes": 6695,
+    "sha256": "E31FEDCA23FFA91B8A98C299687723BF95094F7E6AA23234E56AD52B7E1BDCD5"
+  },
+  {
+    "path": "qa/v4/requested-adjustments.cjs",
+    "bytes": 5759,
+    "sha256": "C618B3B206588741DE7423C10A18F3C4F63CE50A03515CC99629BB003E4E8A2F"
+  },
+  {
+    "path": "qa/v4/responsive.cjs",
+    "bytes": 3917,
+    "sha256": "ECE1F47AF399455E54E2D56B8C80BF1B4F6A2E8743B5A79D125E518CCC2336FB"
+  }
+]

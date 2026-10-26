@@ -14,7 +14,8 @@
     "bo:module:new": "node scripts/create-bo-module.mjs",
     "delivery:enter": "node scripts/delivery-entry.mjs",
     "pino:resume": "node scripts/delivery-entry.mjs",
-    "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build"
+    "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "tos:ds:check": "node scripts/verify-tos-ds-v4.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.3.1",

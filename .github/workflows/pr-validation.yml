@@ -34,6 +34,8 @@ jobs:
           node --test scripts/verify-bo-v23-foundation.test.mjs
           node scripts/verify-bo-v23-foundation.mjs
           node --test scripts/verify-bo-v23-quick-view.test.mjs
+      - name: Enforce TOS DS V4 runtime contract (PAP-1014)
+        run: bun run tos:ds:check
       - name: Lint
         run: bun run lint
       - name: Unit tests
