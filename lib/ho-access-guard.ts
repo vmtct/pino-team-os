@@ -1,8 +1,12 @@
 export const HO_ALLOWED_READ_PATHS = new Set([
   "centers", "access/users", "access/roles", "access/permissions", "access/audit",
+  "learning/syllabi", "learning/syllabi/owners", "learning/missions",
+  "pinoria/worlds", "pinoria/ward/catalog", "pinoria/ward/sets", "pinoria/effects/catalog",
 ]);
 export const hoAccessReadAllowed = (path: string) =>
-  HO_ALLOWED_READ_PATHS.has(path) || /^access\/roles\/[0-9a-f-]{36}$/.test(path);
+  HO_ALLOWED_READ_PATHS.has(path) || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
+  || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
+  || /^learning\/missions\/[0-9a-f-]{36}$/.test(path);
 
 export function validateHoAuditQuery(params: URLSearchParams): void {
   const allowed = new Set(["limit", "offset", "query", "outcome"]);

@@ -2,6 +2,7 @@ import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME } from "./host-boundary";
 import { hoAccessReadAllowed, validateHoAuditQuery, projectHoAuditResponse } from "./ho-access-guard";
+import {validateHoA1Query} from "./ho-a1-query";
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
@@ -41,6 +42,7 @@ export async function handleBoOperationalReadRequest(
       await authorizeHoShell(request.headers, env as HoEnv);
       const auditRead = path === "access/audit";
       if (auditRead) validateHoAuditQuery(new URL(request.url).searchParams);
+      validateHoA1Query(path,new URL(request.url).searchParams);
     }
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);

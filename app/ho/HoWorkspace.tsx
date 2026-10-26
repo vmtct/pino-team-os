@@ -2,6 +2,7 @@
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { boApi } from "@/lib/bo-api";
 import { hoRoutes, hoModules, mapHoCenters, mapHoUsers, mapHoRoles, type HoModule } from "@/lib/ho-system";
+import { HO_A1_KEYS,loadHoA1,type HoA1Module } from "@/lib/ho-a1";
 import type { ReactNode } from "react";
 const source: BoWorkspaceSource = {
  modules:hoModules, surface:"ho",readOnly:true,
@@ -9,6 +10,7 @@ const source: BoWorkspaceSource = {
  scopeLabel:()=>"",
  async load(key,fetcher) {
   const timed:typeof fetch=(url,init)=>fetcher(url,{...init,signal:init?.signal ? AbortSignal.any([init.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});
+  if(HO_A1_KEYS.includes(key as HoA1Module))return loadHoA1(key as HoA1Module,timed);
   if(key==="centers") return mapHoCenters(await boApi.centers(timed));
   if(key==="users") return mapHoUsers(await boApi.accessUsers(timed));
   if(key==="roles") {
