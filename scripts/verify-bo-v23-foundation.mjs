@@ -77,7 +77,10 @@ export function verifyBoV23Foundation(root=ROOT){
  let packaging="";
  try{packaging=source(root,"scripts/build-bo-public-views.mjs")}catch{/* imported legacy path remains supported */}
  const imported=/import\s+["']\.\/design-system\/foundation\.css["']/.test(layout);
- const packaged=/<link\s+rel="stylesheet"\s+href="\/bo-legacy-foundation\.css"/.test(layout)&&/copyFile\('app\/bo\/design-system\/foundation\.css','public\/bo-legacy-foundation\.css'\)/.test(packaging);
+ // UI-only admitted routes and the ordinary BO shell are separate render paths.
+ // Both must receive the same packaged foundation bytes.
+ const linkCount=(layout.match(/<link\s+rel="stylesheet"\s+href="\/bo-legacy-foundation\.css"/g)||[]).length;
+ const packaged=linkCount===2&&/copyFile\('app\/bo\/design-system\/foundation\.css','public\/bo-legacy-foundation\.css'\)/.test(packaging);
  if(!imported&&!packaged)issues.push("BO layout must import foundation CSS or load its exact packaged legacy bytes");
  if(!/className=\{styles\.shell\}\s+data-bo-design-system="v23"/.test(shell))issues.push("BO shell missing v23 scope marker");
  if(/foundation\.css|data-bo-design-system/.test(globalLayout))issues.push("Root app layout must not apply BO V2.3 token scope");
