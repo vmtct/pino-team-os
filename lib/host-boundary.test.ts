@@ -217,3 +217,17 @@ test("Shared Views transport operations pass both BO host and Core route guards"
     }
   }
 });
+
+
+test("PAP-1016 retired HO prototype is never served on any host or method", () => {
+  for (const host of ["ho.staging.pinohouse.art", "ho.pinohouse.art", "bo.staging.pinohouse.art", "tos.staging.pinohouse.art", "pino-team-os-staging.minhtri-van42.workers.dev"]) {
+    for (const method of ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]) {
+      for (const path of ["/prototype", "/prototype/", "/prototype/anything"]) {
+        assert.deepEqual(decideHostBoundary(host, path, method), { action: "not_found" }, `${host} ${method} ${path}`);
+      }
+    }
+  }
+  for (const path of ["/ho", "/ho/centers", "/ho/system/users", "/ho/learning/missions", "/ho/pinoria/worlds"]) {
+    assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", path, "GET"), { action: "next" }, path);
+  }
+});
