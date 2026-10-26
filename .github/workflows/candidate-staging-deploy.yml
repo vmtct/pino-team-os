@@ -1,5 +1,4 @@
-name: Team Staging CD
-
+name: Team Staging CD (Guarded)
 on:
   workflow_run:
     workflows: ["PR Validation"]
@@ -8,128 +7,136 @@ on:
 
 permissions:
   contents: read
-
-env:
-  CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
-  TEAM_STAGING_WORKER: pino-team-os-staging
-  TEAM_STAGING_URL: https://pino-team-os-staging.minhtri-van42.workers.dev
-  TEAM_SHA: ${{ github.event.workflow_run.head_sha }}
-
+  actions: read
+  pull-requests: read
+concurrency:
+  group: pino-team-staging-worker-mutation
+  cancel-in-progress: false
 jobs:
   deploy:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: github.repository == 'vmtct/pino-team-os' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    concurrency:
-      group: pino-team-staging-worker-mutation
-      cancel-in-progress: false
+    timeout-minutes: 35
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      ACCOUNT: 952c3c8a236f8e4cbcf6ee10b86ad70c
+      WORKER: pino-team-os-staging
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TEAM_SHA }}
+          ref: ${{ env.SHA }}
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
           cache: npm
-      - run: npm ci
-      - name: Validate exact staging target
+      - name: Admit exact current main, successful push CI and staging-only artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATION_RUN: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$TEAM_SHA"
-          grep -q '"name": "pino-team-os-staging"' wrangler.staging.jsonc
-          grep -q '"service": "pino-core-staging"' wrangler.staging.jsonc
-      - name: Build deployable staging artifact
+          test "$(git rev-parse HEAD)" = "$SHA"
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          git merge-base --is-ancestor 93fde0193685cd465f4888c8cc0bc009252c7edd "$SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
+          jq -e --arg sha "$SHA" '.head_sha==$sha and .event=="push" and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const c=require('./wrangler.ho-staging.json');
+          assert.equal(c.name,'pino-team-os-staging');
+          assert.equal(c.main,'worker.ho-staging.mjs');
+          assert.equal(c.keep_vars,false);
+          assert.equal(c.vars.APP_ENV,'staging');
+          assert.equal(c.vars.BO_UI_ONLY,'enabled');
+          assert.deepEqual(c.assets.run_worker_first,['/*']);
+          assert.ok(!c.routes && !c.route && !c.send_email && !c.d1_databases && !c.r2_buckets);
+          assert.ok(c.services.length>0 && c.services.every(s=>s.service==='pino-core-staging'));
+          assert.ok(Object.keys(c.vars).every(k=>!/BYPASS|INGRESS/.test(k)));
+          NODE
+      - run: npm ci --no-audit --no-fund
+      - name: Verify BO contract, typecheck, build and dry-run
         run: |
           set -euo pipefail
+          npm run bo:contract:check
+          npm run typecheck
           npm run build
           npx opennextjs-cloudflare build
-          test -f .open-next/worker.js
-      - name: Deploy, read back, smoke, and rollback safely on failure
+          test -s .open-next/worker.js
+          node scripts/pap659-package-provenance.mjs .next .open-next/assets
+          npx wrangler deploy --dry-run -c wrangler.ho-staging.json
+      - name: CAS release, boundary smoke and guarded rollback
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
         run: |
           set -euo pipefail
-
-          # Cloudflare API is the canonical deployment readback; Wrangler JSON shape differs.
-          fetch_deployments() {
-            curl --fail --silent --show-error --retry 3 --retry-delay 2 \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${TEAM_STAGING_WORKER}/deployments?per_page=10"
-          }
-
-          active_version() {
-            fetch_deployments | jq -er '
-              if .success != true then error("Cloudflare deployments API failed") else
-                [.result.deployments[0].versions[]? | select(.percentage == 100) | .version_id]
-                | if length == 1 then .[0] else error("Expected exactly one active 100-percent version") end
-              end'
-          }
-
-          previous_version="$(active_version)"
-          test -n "$previous_version"
-          message="staging sha=${TEAM_SHA} run=${GITHUB_RUN_ID}"
-          active_message="$(fetch_deployments | jq -er 'if .success == true then (.result.deployments[0].annotations["workers/message"] // "") else error("Cloudflare deployments API failed") end')"
-          deployed_this_run=false
-          deployment_run_id="$GITHUB_RUN_ID"
-
-          if [[ "$active_message" == "staging sha=${TEAM_SHA} run="* ]]; then
-            echo "Active Worker already matches exact source SHA; reusing version and running smoke only"
-            deployed_version="$previous_version"
-            deployment_run_id="${active_message##* run=}"
-          else
-            short_sha="${TEAM_SHA:0:12}"
-            npx wrangler deploy -c wrangler.staging.jsonc --tag "staging-${short_sha}" --message "$message"
-            deployed_this_run=true
-            fetch_deployments > deployment.json
-            deployed_version="$(jq -er --arg m "$message" '
-              if .success != true then error("Cloudflare deployments API failed") else
-                .result.deployments[0] as $d
-                | if $d.annotations["workers/message"] != $m then
-                    error("Latest deployment does not match this run and SHA")
-                  else
-                    [$d.versions[]? | select(.percentage == 100) | .version_id]
-                    | if length == 1 then .[0] else error("Expected exactly one deployed 100-percent version") end
-                  end
-              end' deployment.json)"
-          fi
-          test -n "$deployed_version"
-          test "$(active_version)" = "$deployed_version"
-
-          smoke_ok=true
-          code="$(curl -sS --max-time 15 -o /tmp/bo-context.json -w '%{http_code}' "${TEAM_STAGING_URL}/api/bo/context" || true)"
-          if [ "$code" != 401 ]; then
-            smoke_ok=false
-          elif ! jq -e '.error.code == "IDENTITY_AUTHENTICATION_FAILED"' /tmp/bo-context.json >/dev/null; then
-            smoke_ok=false
-          elif ! curl -fsS --max-time 15 "${TEAM_STAGING_URL}/bo/workforce" >/tmp/bo-workforce.html; then
-            smoke_ok=false
-          fi
-
-          if [ "$smoke_ok" != true ]; then
-            current_version="$(active_version)"
-            if [ "$deployed_this_run" = true ] && [ "$current_version" = "$deployed_version" ]; then
-              npx wrangler rollback "$previous_version" -c wrangler.staging.jsonc --message "staging rollback failed-sha=${TEAM_SHA} run=${GITHUB_RUN_ID}"
-              test "$(active_version)" = "$previous_version"
-            else
-              echo "Not owner of active staging version or source already deployed; refusing rollback" >&2
+          api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts"
+          get() { curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$1/deployments?per_page=1"; }
+          active() { get "$1" | jq -er 'if .success and (.result.deployments[0].versions|length==1) and .result.deployments[0].versions[0].percentage==100 then .result.deployments[0].versions[0].version_id else error("ambiguous deployment") end'; }
+          # Pin live CAS within the serialized staging lane; fail closed on unsafe prior bindings.
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          PREVIOUS="$(active "$WORKER")"
+          CORE_VERSION="$(active pino-core-staging)"
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$PREVIOUS" > previous-version.json
+          jq -e '.success and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging"))' previous-version.json
+          test "$(active "$WORKER")" = "$PREVIOUS"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          get "$WORKER" > before.json
+          message="team-cd-guarded staging sha=$SHA run=$GITHUB_RUN_ID"
+          rollback() {
+            current="$(get "$WORKER")" || return 1
+            if jq -e --arg message "$message" '.result.deployments[0].annotations["workers/message"]==$message' <<<"$current" >/dev/null; then
+              jq -n --arg previous "$PREVIOUS" --arg sha "$SHA" '{strategy:"percentage",versions:[{version_id:$previous,percentage:100}],annotations:{"workers/message":("team-cd guarded rollback from sha="+$sha)}}' > rollback.json
+              curl -fsS --max-time 30 -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data-binary @rollback.json "$api/$WORKER/deployments" | jq -e .success
+              test "$(active "$WORKER")" = "$PREVIOUS"
+            elif [ "$(active "$WORKER")" != "$PREVIOUS" ]; then
+              echo 'Concurrent writer: refusing rollback' >&2
+              return 1
             fi
-            exit 1
-          fi
-
-          jq -n \
-            --arg runtime team \
-            --arg sourceSha "$TEAM_SHA" \
-            --arg worker "$TEAM_STAGING_WORKER" \
-            --arg previousVersionId "$previous_version" \
-            --arg activeVersionId "$deployed_version" \
-            --arg runId "$GITHUB_RUN_ID" \
-            --arg deploymentRunId "$deployment_run_id" \
-            --arg reusedExistingDeployment "$([ "$deployed_this_run" = false ] && echo true || echo false)" \
-            '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:$runtime,sourceSha:$sourceSha,worker:$worker,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,runId:$runId,deploymentRunId:$deploymentRunId,reusedExistingDeployment:($reusedExistingDeployment=="true"),smokeResult:"PASS",result:"PASS",productionMutation:false}' \
-            | tee staging-receipt.json
+          }
+          trap 'result=$?; if [ "$result" -ne 0 ]; then rollback || echo "ROLLBACK_HOLD" >&2; fi; exit "$result"' EXIT
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          test "$(active "$WORKER")" = "$PREVIOUS"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          npx wrangler deploy -c wrangler.ho-staging.json --tag "team-cd-${SHA:0:12}" --message "$message"
+          get "$WORKER" > after.json
+          jq -e --arg message "$message" '.success and .result.deployments[0].annotations["workers/message"]==$message' after.json
+          deployed="$(active "$WORKER")"
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$deployed" > version.json
+          jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
+          origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
+          for route in workforce-term-weeks workforce-shift-plans workforce-availability workforce-assignments; do
+            code="$(curl -sS --max-time 20 -o /tmp/pap901-login -w '%{http_code}' "$origin/bo/$route")"
+            test "$code" = 307
+          done
+          for endpoint in bootstrap global-weeks weekly; do
+            code="$(curl -sS --max-time 20 -o /tmp/pap901-anon -w '%{http_code}' "$origin/api/bo/workforce/planning/$endpoint")"
+            test "$code" = 401
+          done
+          code="$(curl -sS --max-time 20 -o /tmp/pap901-ho-denied -w '%{http_code}' "$origin/ho")"
+          test "$code" = 404
+          for url in https://bo.staging.pinohouse.art/bo https://ho.staging.pinohouse.art/ho/centers; do
+            code="$(curl -sS --max-time 20 -o /tmp/staging-login -w '%{http_code}' "$url")"
+            test "$code" = 307
+          done
+          curl -fsS --max-time 20 "$origin/api/health" | jq -e '.ok==true and .service=="pino-team-os"'
+          digest="$(node -p "require('./.next/pap659-build-provenance.json').digest")"
+          curl -fsS --max-time 20 "$origin/pap659-build-provenance.json" | jq -e --arg digest "$digest" '.digest==$digest'
+          test "$(active "$WORKER")" = "$deployed"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          jq -n --arg sourceSha "$SHA" --arg previousVersionId "$PREVIOUS" --arg activeVersionId "$deployed" --arg coreVersion "$CORE_VERSION" --arg runId "$GITHUB_RUN_ID" '{kind:"TEAM_GUARDED_STAGING_CD",sourceSha:$sourceSha,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,coreVersion:$coreVersion,runId:$runId,result:"SERVING_BOUNDARY_PASS",productionMutation:false,authenticatedVisualAcceptance:"PENDING"}' > receipt.json
+          cat receipt.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: staging-team-receipt
-          path: staging-receipt.json
+          name: team-guarded-staging-cd-receipt
+          path: |
+            receipt.json
+            before.json
+            after.json
+            rollback.json
+            previous-version.json
+          if-no-files-found: warn
