@@ -29,10 +29,8 @@ export default async function BoLayout({ children }: { children: React.ReactNode
     forbidden();
   }
   if (uiOnly) {
-    if (isBoStagingRouteAdmitted(routePath)) {
-      return <><link rel="stylesheet" href="/bo-legacy-foundation.css" /><BoSessionBoundary /><BoShell title="PINO House" subtitle="Back Office" groups={boNavigation} currentUser={currentUser}>{children}</BoShell></>;
-    }
-    if (routePath !== "/bo" && routePath !== "/bo/") redirect("/bo");
+    if (!isBoStagingRouteAdmitted(routePath) && routePath !== "/bo" && routePath !== "/bo/") redirect("/bo");
+    // The BO authority React shell owns nav, styles and module content on all admitted staging paths.
     return <><BoSessionBoundary /><BoRuntimeBoundary currentUser={{ displayName: currentUser.displayName }}>{children}</BoRuntimeBoundary></>;
   }
 

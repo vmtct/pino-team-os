@@ -1,8 +1,8 @@
 "use client";
 
-import { BoModuleFactory } from "@/app/bo/architecture/BoModuleFactory";
+import { BoWorkforceRoute } from "@/app/bo/architecture/BoWorkforceRoute";
 import { moduleAdapter } from "./adapter";
 
 export default function WorkforceAvailabilityPage() {
-  return <BoModuleFactory moduleKey="workforce-availability" adapter={moduleAdapter} />;
+  return <BoWorkforceRoute moduleKey="workforce-availability" adapter={moduleAdapter} />;
 }

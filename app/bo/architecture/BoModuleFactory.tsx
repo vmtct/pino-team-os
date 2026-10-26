@@ -17,7 +17,7 @@ import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
  * declarations, never a client-side authorization substitute.
  */
 export type BoModuleReadAdapter = {
-  list(): Promise<readonly Record<string, unknown>[]>;
+  list(fetcher?: typeof fetch): Promise<readonly Record<string, unknown>[]>;
 };
 function displayValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
