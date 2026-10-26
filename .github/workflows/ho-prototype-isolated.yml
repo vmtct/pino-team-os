@@ -37,7 +37,7 @@ jobs:
           npx wrangler deploy --dry-run -c wrangler.ho-proto.jsonc
       - name: Deploy pino-ho-prototype only
         env:
-          CLOUDFLARE_API_TOKEN: \${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
         run: |
           npx wrangler deploy -c wrangler.ho-proto.jsonc --message "ho-proto synthetic $GITHUB_SHA"
