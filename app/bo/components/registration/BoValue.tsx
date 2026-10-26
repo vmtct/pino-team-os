@@ -19,7 +19,7 @@ export function BoValue({ field, value, full = false }: { field: BoField; value:
     case "relation": case "person": return <BoPill text={display(value)} color="blue" />;
     case "multiselect": case "multirelation": { const values = Array.isArray(value) ? value : [String(value)]; return <span className={full ? "v25-full-values" : "cell-multi"}>{(full ? values : values.slice(0, 2)).map((v, i) => <BoPill key={i} text={v} />)}{!full && values.length > 2 ? <small>+{values.length - 2}</small> : null}</span>; }
     case "textarea": return full ? <span className="v25-full-note">{display(value)}</span> : display(value).slice(0, 42) + (display(value).length > 42 ? "…" : "");
-    case "url": return "↗ " + display(value).replace(/^https?:\/\//, "");
+    case "url": return <span className="value-url">{"↗ " + display(value).replace(/^https?:\/\//, "")}</span>;
     default: return display(value);
   }
 }

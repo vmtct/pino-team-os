@@ -68,7 +68,7 @@ function formatValue(f,v){
  case "multiselect":case "multirelation":return '<span class="cell-multi">'+v.slice(0,2).map(x=>pill(x)).join("")+(v.length>2?'<small>+'+(v.length-2)+'</small>':'')+'</span>';
  case "id":return '<span class="id-code">'+esc(v)+'</span>';
  case "textarea":return esc(String(v).slice(0,42)+(String(v).length>42?"…":""));
- case "url":return '<span style="color:#6754c3">↗ '+esc(String(v).replace(/^https?:\/\//,""))+'</span>';
+ case "url":return '<span class="value-url">↗ '+esc(String(v).replace(/^https?:\/\//,""))+'</span>';
  default:return esc(v);
  }
 }
@@ -169,11 +169,11 @@ function visibleColumns(){return FIELDS.filter(f=>state.allCols||DEFAULT_COLUMNS
 function renderTable(){
  const cols=visibleColumns(),data=filtered(),pages=Math.max(1,Math.ceil(data.length/state.pageSize));state.page=Math.min(state.page,pages);
  const offset=(state.page-1)*state.pageSize,visible=data.slice(offset,offset+state.pageSize);
- $("table-head").innerHTML='<tr>'+cols.map(f=>'<th data-column="'+f.key+'" style="width:'+f.w+'px;min-width:'+f.w+'px"><button type="button" data-sort="'+f.key+'" title="Sắp xếp theo '+esc(f.label)+'">'+esc(f.label)+' <span class="column-type">'+f.icon+'</span> <span class="sort-icon">'+(state.sort===f.key?(state.desc?"↓":"↑"):"↕")+'</span></button></th>').join("")+'<th style="width:56px;min-width:56px"></th></tr>';
+ $("table-head").innerHTML='<tr>'+cols.map(f=>'<th data-column="'+f.key+'" class="schema-column" style="--bo-column-width:'+f.w+'px"><button type="button" data-sort="'+f.key+'" title="Sắp xếp theo '+esc(f.label)+'">'+esc(f.label)+' <span class="column-type">'+f.icon+'</span> <span class="sort-icon">'+(state.sort===f.key?(state.desc?"↓":"↑"):"↕")+'</span></button></th>').join("")+'<th class="quick-action-column"></th></tr>';
  $("table-body").innerHTML=visible.map(row=>'<tr data-record="'+esc(row.id)+'" class="'+(state.drawer===row.id?"selected":"")+'">'+cols.map(f=>{
   const readonly=f.readonly?" readonly":"",value=val(row,f.key);
-  return '<td style="min-width:'+f.w+'px;width:'+f.w+'px"><button type="button" class="typed-cell'+readonly+'" data-edit="'+f.key+'" title="'+(f.readonly?"Chỉ đọc":"Sửa "+f.label)+'" '+(f.readonly?'aria-disabled="true"':'')+'>'+formatValue(f,value)+'</button></td>';
- }).join("")+'<td style="min-width:56px;width:56px"><button type="button" class="row-open" data-open="'+esc(row.id)+'" aria-label="Quick View '+esc(row.name)+'">↗</button></td></tr>').join("")||'<tr><td colspan="'+(cols.length+1)+'"><div class="empty-table"><strong>Không có bản ghi phù hợp</strong>Thử chỉnh điều kiện hoặc xóa bộ lọc.</div></td></tr>';
+  return '<td class="schema-column" style="--bo-column-width:'+f.w+'px"><button type="button" class="typed-cell'+readonly+'" data-edit="'+f.key+'" title="'+(f.readonly?"Chỉ đọc":"Sửa "+f.label)+'" '+(f.readonly?'aria-disabled="true"':'')+'>'+formatValue(f,value)+'</button></td>';
+ }).join("")+'<td class="quick-action-column"><button type="button" class="row-open" data-open="'+esc(row.id)+'" aria-label="Quick View '+esc(row.name)+'">↗</button></td></tr>').join("")||'<tr><td colspan="'+(cols.length+1)+'"><div class="empty-table"><strong>Không có bản ghi phù hợp</strong>Thử chỉnh điều kiện hoặc xóa bộ lọc.</div></td></tr>';
  qa("[data-sort]",$("table-head")).forEach(b=>b.onclick=()=>{if(state.sort===b.dataset.sort)state.desc=!state.desc;else{state.sort=b.dataset.sort;state.desc=false;}state.page=1;renderTable()});
  qa("[data-record]",$("table-body")).forEach(tr=>{
   const rec=rows.find(r=>r.id===tr.dataset.record);
@@ -207,9 +207,9 @@ function renderRules(){
   const f=FIELD_MAP[rule.field],ops=OPS[f.type],showValue=!["empty","not_empty"].includes(rule.op);
   return '<div class="rule-row" data-rule="'+i+'"><select class="rule-field" aria-label="Trường dữ liệu điều kiện '+(i+1)+'">'+FIELDS.map(field=>'<option value="'+field.key+'" '+(field.key===f.key?"selected":"")+'>'+esc(field.icon+"  "+field.label)+'</option>').join("")+'</select>'+
    '<select class="rule-op" aria-label="Toán tử">'+ops.map(op=>'<option value="'+op+'" '+(rule.op===op?"selected":"")+'>'+esc(OP_LABEL[op]||op)+'</option>').join("")+'</select>'+
-   '<div class="rule-inputs">'+(showValue?ruleValueControl(f,rule)+(rule.op==="between"?ruleValueControl(f,rule,"second"):""):'<span style="color:#aaa3b5;font-size:11px;padding:10px">Không cần giá trị</span>')+'</div>'+
+   '<div class="rule-inputs">'+(showValue?ruleValueControl(f,rule)+(rule.op==="between"?ruleValueControl(f,rule,"second"):""):'<span class="rule-no-value">Không cần giá trị</span>')+'</div>'+
    '<button type="button" class="rule-remove" title="Xóa điều kiện" aria-label="Xóa điều kiện">×</button></div>';
- }).join("")||'<p style="font-size:11px;color:#a5a0b2">Chưa có điều kiện. Chọn “Thêm điều kiện” để bắt đầu.</p>';
+ }).join("")||'<p class="rules-empty">Chưa có điều kiện. Chọn “Thêm điều kiện” để bắt đầu.</p>';
  qa(".rule-row").forEach(row=>{
   const rule=state.rules[Number(row.dataset.rule)];
   q(".rule-field",row).onchange=e=>{const f=FIELD_MAP[e.target.value];rule.field=f.key;rule.op=OPS[f.type][0];rule.value="";rule.second="";state.page=1;renderRules();renderTable()};
@@ -550,7 +550,7 @@ function vSettingsTitle(){
 }
 function renderSettings(){
  const screen=v22.settingsScreen;$("settings-title").textContent=vSettingsTitle();
- $("settings-back").style.visibility=screen==="home"?"hidden":"visible";
+ $("settings-back").classList.toggle("is-invisible",screen==="home");$("settings-back").classList.toggle("is-visible",screen!=="home");
  if(screen==="home")return renderSettingsHome();
  if(screen==="properties")return renderPropertySettings();
  if(screen==="group")return renderGroupSettings();
@@ -909,7 +909,7 @@ const oldRenderSettings=renderSettings;
 renderSettings=function(){
  v23FilterHome();
  if(v22.settingsScreen!=="filters"){v23ReturnFilter();return oldRenderSettings();}
- $("settings-title").textContent="Bộ lọc";$("settings-back").style.visibility="visible";
+ $("settings-title").textContent="Bộ lọc";$("settings-back").classList.remove("is-invisible");$("settings-back").classList.add("is-visible");
  const content=$("settings-content"),panel=$("rules-panel");content.replaceChildren();
  content.append(panel);panel.classList.remove("hidden");
  $("close-rules").classList.add("hidden");$("save-view").classList.add("hidden");renderRules();
@@ -1082,5 +1082,43 @@ v24HistoryContent=function(rec){
  '<div class="v25-audit-list" id="v24-history-events" role="list">'+v24AuditList(rec)+'</div>';
 };
 /* END PAP-879 V2.5 */
-renderNav();renderStrip();renderRules();renderTable();bind();
+
+/* PAP-1021: local prototype center switcher. No auth, tenant or API mutation. */
+function setupCenterSwitcher(){
+ const centers=[{id:"demo-can-tho",name:"PINO Cần Thơ"},{id:"demo-center-02",name:"Trung tâm 02"},{id:"demo-center-03",name:"Trung tâm 03"}];
+ const trigger=$("workspace-switch"),menu=$("workspace-menu"),list=$("workspace-centers"),host=$("workspace-switcher");
+ let selected=centers[0].id;
+ const isOpen=()=>trigger.getAttribute("aria-expanded")==="true";
+ const close=(restore=false)=>{menu.classList.add("hidden");trigger.setAttribute("aria-expanded","false");if(restore)trigger.focus();};
+ const options=()=>qa("[data-center-option]",list);
+ const open=(edge="selected")=>{menu.classList.remove("hidden");trigger.setAttribute("aria-expanded","true");const items=options();const item=edge==="last"?items[items.length-1]:edge==="first"?items[0]:items.find(b=>b.dataset.centerOption===selected);item?.focus();};
+ const render=()=>{
+  const current=centers.find(c=>c.id===selected);
+  $("workspace-center-name").textContent=current.name;$("sidebar-center-context").textContent=current.name;
+  trigger.setAttribute("aria-label","Trung tâm hiện tại: "+current.name+". Chuyển trung tâm");
+  host.dataset.center=selected;
+  list.innerHTML=centers.map(c=>'<button type="button" role="option" class="workspace-center-option" data-center-option="'+c.id+'" aria-selected="'+(c.id===selected)+'" tabindex="-1"><span class="workspace-center-option-name">'+esc(c.name)+'</span><span class="workspace-center-check" aria-hidden="true">'+(c.id===selected?'✓':'')+'</span></button>').join("");
+  options().forEach(button=>{
+   button.onclick=()=>{selected=button.dataset.centerOption;render();close(true);};
+   button.onkeydown=event=>{
+    const items=options(),index=items.indexOf(button);let next=null;
+    if(event.key==="ArrowDown")next=items[(index+1)%items.length];
+    if(event.key==="ArrowUp")next=items[(index+items.length-1)%items.length];
+    if(event.key==="Home")next=items[0];if(event.key==="End")next=items[items.length-1];
+    if(next){event.preventDefault();event.stopPropagation();next.focus();}
+    if(event.key==="Escape"){event.preventDefault();event.stopPropagation();close(true);}
+    if(event.key==="Tab")close(true);
+   };
+  });
+ };
+ trigger.onclick=()=>isOpen()?close(true):open();
+ trigger.onkeydown=event=>{
+  if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault();event.stopPropagation();open(event.key==="ArrowUp"?"last":"selected");}
+  if(event.key==="Escape"&&isOpen()){event.preventDefault();event.stopPropagation();close(true);}
+ };
+ document.addEventListener("pointerdown",event=>{if(isOpen()&&!host.contains(event.target))close();});
+ render();
+}
+
+renderNav();renderStrip();renderRules();renderTable();bind();setupCenterSwitcher();
 })();

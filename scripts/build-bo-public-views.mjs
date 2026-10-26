@@ -1,3 +1,4 @@
+import './build-bo-authority.mjs';
 // Compile the existing BO Views state/client/queue for the standalone canonical workspace.
 // esbuild is already supplied by the locked tsx/OpenNext build toolchain.
 import {build} from 'esbuild';

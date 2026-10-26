@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { isBoStagingHost } from "@/lib/bo-skeleton-routing";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { boSkeletonEnabled, BO_AUTHORITY_STYLES } from "@/lib/bo-skeleton";
+import { boSkeletonEnabled, BO_AUTHORITY_STYLES, HO_AUTHORITY_STYLES } from "@/lib/bo-skeleton";
 
 const pinoSigilIcon = "https://assets.pinohouse.art/core/Pino%20Sigil.png";
 
@@ -29,6 +29,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   }
   // Distinct stylesheet pipelines: global TOS rules cannot leak into the BO authority.
   const ho = incoming.get("host") === HO_STAGING_HOSTNAME;
-  const css = (bo || ho) ? BO_AUTHORITY_STYLES.map(file => "/bo-skeleton/" + file) : ["/team-legacy-global.css"];
-  return <html lang="vi" data-surface={ho ? "ho" : undefined}><head>{css.map(href => <link key={href} rel="stylesheet" href={href} />)}</head><body>{children}</body></html>;
+  const css = (bo || ho) ? (ho ? HO_AUTHORITY_STYLES : BO_AUTHORITY_STYLES).map(file => "/bo-skeleton/" + file) : ["/team-legacy-global.css"];
+  return <html lang="vi" data-bo-ui-authority={bo ? "v25" : undefined} data-surface={ho ? "ho" : undefined}><head>{css.map(href => <link key={href} rel="stylesheet" href={href} />)}</head><body>{children}</body></html>;
 }

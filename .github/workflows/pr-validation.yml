@@ -38,25 +38,11 @@ jobs:
         run: bun run lint
       - name: Unit tests
         run: bun run test
-      - name: BO local React and legacy component parity regression (no shared APIs)
+      - name: BO authority and isolation contracts (PAP-1022)
         run: |
-          npx playwright install --with-deps chromium
-          node scripts/verify-bo-ui-replica.mjs
-          node scripts/verify-bo-full-detail-v25.mjs
-          node scripts/verify-bo-react-runtime-parity.mjs
-          node --import tsx scripts/verify-bo-skeleton.mjs
-      - name: Retain BO local fixture evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pap979-full-detail-fixtures
-          path: |
-            .pap979-evidence
-            .next/pap979-react-evidence
-            .pap986-evidence/local
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 7
+          node scripts/build-bo-authority.mjs --check
+          node --import tsx --test lib/bo-css-authority.test.ts lib/bo-registration-styles.test.ts lib/bo-skeleton.test.ts
+          echo "BROWSER_E2E=NOT_RUN_FOUNDER_POLICY"
       - name: Release confidence smoke and recovery regression tests
         run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
       - name: Build

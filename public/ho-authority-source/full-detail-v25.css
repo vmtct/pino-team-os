@@ -1,0 +1,71 @@
+
+/* PAP-879 Full Detail V2.5: full-width content and compact horizontal history rows. */
+#detail-body.v25-full-width{display:block !important;grid-template-columns:minmax(0,1fr) !important;max-width:none !important;}
+#detail-body.v25-full-width>.v24-main-panel{width:100%;max-width:none;min-width:0;}
+.v25-history-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;}
+.v25-history-top h3{font-size:18px;color:#292a40;margin:0;}
+.v25-history-filter{margin:0 0 12px;min-height:35px;padding:7px 10px;}
+.v25-audit-list{display:flex;flex-direction:column;gap:0;border:1px solid #e8e9f1;border-radius:10px;overflow:hidden;background:#fff;}
+.v25-audit-row{display:grid;grid-template-columns:118px 142px minmax(155px,1.1fr) minmax(160px,1.1fr) 74px;gap:13px;align-items:center;padding:10px 13px;min-height:51px;border-bottom:1px solid #eef0f5;color:#374151;}
+.v25-audit-row:last-child{border-bottom:0;}
+.v25-audit-row:hover{background:#fafafe;}
+.v25-audit-when{display:flex;gap:2px;flex-direction:column;font-variant-numeric:tabular-nums;font-size:10px;line-height:1.35;}
+.v25-audit-when strong{font-weight:700;color:#484860;font-size:11px;}
+.v25-audit-when span{color:#9995a7;}
+.v25-audit-who{display:flex;align-items:center;gap:6px;min-width:0;color:#656477;font-size:11px;}
+.v25-audit-who>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.v25-person-marker{background:#f1effa;color:#7770a4;width:21px;height:21px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font-size:11px;}
+.v25-audit-action{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:11px;line-height:1.3;}
+.v25-audit-action strong{font-weight:700;color:#39364c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.v25-audit-action span{font-size:10px;color:#9699a6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.v25-audit-changes{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.v25-audit-field{font-size:10px;color:#9995a5;}
+.v25-change-flow{display:flex;align-items:center;gap:5px;font-size:10px;min-width:0;}
+.v25-change-flow span,.v25-change-flow strong{min-width:0;max-width:44%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#f7f7fa;border-radius:4px;padding:3px 6px;font-weight:500;color:#707080;}
+.v25-change-flow strong{font-weight:650;color:#3e3a60;background:#f2f0ff;}
+.v25-change-flow em{font-style:normal;color:#b2b2bc;flex-shrink:0;}
+.v25-audit-outcome{justify-self:end;border-radius:5px;padding:4px 6px;background:#e4f7ed;color:#167149;font-size:9px;font-weight:800;}
+@media(max-width:950px){
+ .v25-audit-row{grid-template-columns:90px minmax(120px,.7fr) minmax(130px,1fr) minmax(120px,1fr);gap:9px;padding:9px 11px;}
+ .v25-audit-outcome{display:none;}
+}
+@media(max-width:650px){
+ .v25-audit-row{grid-template-columns:72px minmax(0,1fr);gap:3px 9px;padding:10px;}
+ .v25-audit-when{grid-row:1/3;}
+ .v25-audit-who{grid-column:2;}
+ .v25-audit-action{grid-column:2;}
+ .v25-audit-changes{grid-column:2;margin-top:4px;flex-direction:row;align-items:center;gap:7px;}
+ .v25-audit-field{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+ .v25-audit-action span{display:none;}
+}
+
+/* PAP-985 — BO without redundant global topbar. Mobile menu in page heading/Full Detail hero. */
+.page-heading-left{display:flex;align-items:center;gap:10px;min-width:0}
+@media(max-width:760px){
+ .page-heading-left .mobile-menu,.detail-hero-primary .mobile-menu{display:grid!important;place-items:center;flex:0 0 34px;width:34px;height:34px;min-width:34px;padding:0;border:1px solid #e7e5ee;border-radius:8px;background:#fff;color:#6d658b;font-size:18px}
+ .page-heading-left h1{min-width:0}
+}
+@media(max-width:450px){.page-heading{flex-wrap:wrap}.page-heading .heading-actions{padding-top:0;margin-left:auto}}
+
+/* PAP-986 — no Full Detail breadcrumb/navigation tree. Compact action inside existing hero. */
+.detail-hero-primary{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.detail-hero-copy{min-width:0;flex:1}
+.detail-hero-back{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border:1px solid #e9e7ef;border-radius:8px;background:#fff;color:#77699a;font-size:20px;font-weight:500;line-height:1}
+.detail-hero-back:hover,.detail-hero-back:focus-visible{background:#f5f2ff;border-color:#d8d0f0;color:#5845a9}
+.detail-hero-primary .mobile-menu{flex-shrink:0}
+@media(max-width:760px){.detail-hero-primary{width:100%;gap:8px}.detail-hero-back{width:34px;height:34px;flex-basis:34px}}
+
+/* PAP-986 runtime-clean Full Detail. */
+.detail-hero h1{margin:0 0 6px}
+.detail-hero-copy{flex:1;min-width:0}
+.detail-hero{padding-top:22px;padding-bottom:22px}
+.detail-hero p{font-size:11px;color:#85839a}
+#detail-body .v24-main-panel>.v24-prop-section:first-child{margin-top:0}
+#detail-body .v24-special-card>h4{margin-bottom:12px}
+#detail-body .v24-special-card>dl div:first-child{border-top:0}
+#detail-body .v24-special-grid{align-items:start}
+/* Full Detail shows complete notes and all selected relation/tags, unlike compact Table cells. */
+#detail-body .v25-full-note{display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;text-align:left}
+#detail-body .v25-full-values{display:flex;flex-wrap:wrap;gap:5px;max-width:100%;min-width:0}
+#detail-body .v24-prop-value{white-space:normal;overflow:visible}
+@media(max-width:760px){.detail-hero{padding:18px}.detail-hero-primary{align-items:flex-start}.detail-hero-primary .detail-hero-back,.detail-hero-primary .mobile-menu{margin-top:2px}}

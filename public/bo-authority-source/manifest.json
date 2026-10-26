@@ -1,14 +1,19 @@
 {
-  "authority": "PAP-879-BO-V2.5-FULLDETAIL-20261024/source",
+  "authority": "BO-V2.5-UI-20261026-PAP-1022",
   "soleStylingModule": "Hồ sơ đăng ký (playground.html)",
+  "activeStylesheets": [
+    "styles.css"
+  ],
   "files": {
-    "playground.html": "5da8f56e4a869bbb48b7646a58e410ff6c9ee5ea33ed3555e10a62c7805e6f52",
-    "playground.js": "7a2d1d3d394660eb1b0680a1d4bb8041bee1a132a8ff8c22d5179a63f3fdd9cc",
-    "styles.css": "5b7af5a0ec8a7d92e1778f3de8ad82248aa7539b220c7dc6dd90ef88a26a4425",
-    "playground.css": "c8954038bcf831fbdcb4c2a7d4e0f2b4a46bda9b50ad6eddd4d7ba8d3f67fa98",
-    "playground-v22.css": "5bd0d3df806bd3db260a2d5f808e2f0c10c08c28dd652988087772defa4a4ef1",
-    "playground-v23.css": "ec942f280ee2c4e8e55c8df4cffe5fcc98c0eea264ed4f943f9106ed817f3186",
-    "full-detail-v24.css": "99c1a813eaa42cbe09dbf06b3f70d92892351e389fa288e1f930841a2efe87da",
-    "full-detail-v25.css": "3f3dfc04636e0d2139546539055887068e038f52c364c77a6d6c7d38af169c4a"
+    "styles.css": "f09418c17d502e3f4c9b18fcc2e51031805ab647cdf58c0e905adb16a9f69fda",
+    "playground.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "playground-v22.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "playground-v23.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "full-detail-v24.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "full-detail-v25.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "playground.html": "104af8fd84df2a2b686ef3e95e8a038be92bcc1c0d3759959066ead895a4bd57",
+    "playground.js": "08f41d0ff5c4a6a294df92fd1938c14eb1d8dc07446af55a648f5067b9be30c0",
+    "README.md": "aa969d8d593895791ee093b35c5a64e8149d8c23374de93f9e7556f093b70131",
+    "CSS_AUTHORITY.json": "344e0df46a6f2a3b520f61551bc23739d610b1e1f0ddac91f9835ca6867aee20"
   }
 }
