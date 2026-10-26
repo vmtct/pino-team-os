@@ -253,8 +253,8 @@ async function readAllPages<T>(pathForCursor: (cursor: string | null) => string)
   }
 }
 
-async function readOne<T>(path: string): Promise<T> {
-  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
+async function readOne<T>(path: string, fetcher: typeof fetch = fetch): Promise<T> {
+  const response = await fetcher(`/api/bo/${path}`, { cache: "no-store" });
   const body = await parseBoJson<{ data?: T; error?: { message?: string; requestId?: string } }>(response, "Back Office returned an invalid response.");
   if (!response.ok || body.data === undefined) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
@@ -477,12 +477,12 @@ export const boApi = {
   admitOpenStudioOwner: (body: { passId: string; listingId: string; studentProfileId: string; effectiveAt: string }) => write<unknown>("open-studio/admission", { ...body, participantMode: "OWNER" }, crypto.randomUUID()),
   learningOwner: (sessionId: string) => readOne<BoSessionLearningOwnerProjection>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`),
   assignLearningOwner: (sessionId: string, command: BoSessionLearningOwnerCommand, idempotencyKey: string) => write<BoSessionLearningOwner>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`, command, idempotencyKey),
-  accessRoles: () => read<BoAccessRole>("access/roles"),
-  accessRole: (roleId: string) => readOne<BoAccessRoleDetail>(`access/roles/${encodeURIComponent(roleId)}`),
+  accessRoles: (fetcher?: typeof fetch) => read<BoAccessRole>("access/roles", fetcher),
+  accessRole: (roleId: string, fetcher?: typeof fetch) => readOne<BoAccessRoleDetail>(`access/roles/${encodeURIComponent(roleId)}`, fetcher),
   accessPermissions: () => read<BoAccessPermission>("access/permissions"),
   accessAudit: (limit = 100) => read<BoAccessAuditEvent>(`access/audit?limit=${encodeURIComponent(String(limit))}`),
   accessAuditPage: (input: { limit: number; offset: number; query?: string; outcome?: string }) => readAccessAuditPage(accessAuditPagePath(input)),
-  accessUsers: () => read<BoAccessSystemUser>("access/users"),
+  accessUsers: (fetcher?: typeof fetch) => read<BoAccessSystemUser>("access/users", fetcher),
   trainingCatalog: () => read<TrainingModule>("workforce/training/catalog"),
   trainingAssignmentsPage: (input: { limit: number; offset: number; query?: string; status?: string; staffMemberId?: string; sort?: TrainingAssignmentBrowseSort; direction?: "asc" | "desc" }) => readOne<TrainingAssignmentBrowsePage>(trainingAssignmentsPagePath(input)),
   trainingStaffAssignments: (staffMemberId: string) => read<TrainingAssignmentDetail>(`workforce/training/staff/${encodeURIComponent(staffMemberId)}`),

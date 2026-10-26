@@ -23,3 +23,12 @@
 [data-surface="ho"] .sidebar-footer .avatar { background:var(--ds-primary); color:var(--ds-on-primary); }
 [data-surface="ho"] .property-control:hover:not(:disabled), [data-surface="ho"] .detail-hero-back:hover { background:var(--ds-primary-subtle); border-color:var(--ds-primary-border); color:var(--ds-primary); }
 [data-surface="ho"] #detail-subtitle { color:var(--ds-primary); }
+
+[data-surface='ho'] .ho-audit { padding:24px; max-width:100%; }
+[data-surface='ho'] .ho-audit-description { margin:0 0 20px; color:#6b6470; font-size:13px; }
+[data-surface='ho'] .ho-audit-outcome { display:flex; gap:8px; align-items:center; font-size:12px; }
+[data-surface='ho'] .ho-audit-outcome select { border:1px solid var(--ds-primary-border); border-radius:8px; padding:6px; }
+[data-surface='ho'] .ho-audit-details { display:grid; grid-template-columns:110px minmax(0,1fr); gap:14px; overflow-wrap:anywhere; }
+[data-surface='ho'] .ho-audit-details dt { color:#777; }
+[data-surface='ho'] .ho-audit-details dd { margin:0; }
+[data-surface='ho'] .ho-audit-note { color:#777; font-size:12px; }
