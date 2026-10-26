@@ -8,6 +8,8 @@ import path from "node:path";
 import ts from "typescript";
 
 const CANONICAL = "@/app/bo/architecture/BoModuleFactory";
+const STAGING_GATEWAY = "@/app/bo/architecture/BoWorkforceRoute";
+const APPROVED_GATEWAY = new Set(["workforce-term-weeks","workforce-shift-plans","workforce-availability","workforce-assignments"]);
 const SUFFIXES = [".tsx",".ts",".jsx",".js",".mjs",".cjs","/index.tsx","/index.ts","/index.js"];
 const parse = (name,text)=>ts.createSourceFile(name,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 function visit(node,fn){fn(node);ts.forEachChild(node,n=>visit(n,fn));}
@@ -59,14 +61,15 @@ function checkedImportGraph(root,start,issues){
 }
 export function auditCanonicalBoRoute(root,file,expectedKey,issues){
   const sf=parse(file,fs.readFileSync(path.join(root,file),"utf8"));
-  let factory=false,adapter=false;
+  let factory=false,stagingGateway=false,adapter=false;
   for(const stmt of sf.statements){
     if(!ts.isImportDeclaration(stmt))continue;
     const spec=ts.isStringLiteral(stmt.moduleSpecifier)?stmt.moduleSpecifier.text:"";
     const named=namedImports(stmt);
     if(spec===CANONICAL&&named.length===1&&named[0]==="BoModuleFactory")factory=true;
+    else if(spec===STAGING_GATEWAY&&APPROVED_GATEWAY.has(expectedKey)&&named.length===1&&named[0]==="BoWorkforceRoute")stagingGateway=true;
     else if(spec==="./adapter"&&named.length===1&&named[0]==="moduleAdapter")adapter=true;
-    else issues.push(file+": Only canonical BoModuleFactory + local moduleAdapter imports are allowed");
+    else issues.push(file+": Only canonical BoModuleFactory, approved staging gateway + local moduleAdapter imports are allowed");
   }
   const defaultFunctions=sf.statements.filter(node=>ts.isFunctionDeclaration(node)&&
     node.modifiers?.some(mod=>mod.kind===ts.SyntaxKind.DefaultKeyword)&&
@@ -76,7 +79,7 @@ export function auditCanonicalBoRoute(root,file,expectedKey,issues){
   const ret=only?.length===1&&ts.isReturnStatement(only[0])?only[0]:null;
   const jsx=ret?.expression;
   let shape=false;
-  if(jsx&&ts.isJsxSelfClosingElement(jsx)&&jsx.tagName.getText(sf)==="BoModuleFactory"){
+  if(jsx&&ts.isJsxSelfClosingElement(jsx)&&((jsx.tagName.getText(sf)==="BoModuleFactory" && factory) || (jsx.tagName.getText(sf)==="BoWorkforceRoute" && stagingGateway))){
     const attrs=new Map();
     for(const attr of jsx.attributes.properties){
       if(!ts.isJsxAttribute(attr))continue;
@@ -87,7 +90,7 @@ export function auditCanonicalBoRoute(root,file,expectedKey,issues){
       a&&ts.isJsxExpression(a)&&a.expression&&ts.isIdentifier(a.expression)&&
       a.expression.text==="moduleAdapter";
   }
-  if(!factory||!adapter||!shape)
+  if(!((factory&&!stagingGateway)||(stagingGateway&&!factory))||!adapter||!shape)
     issues.push(file+": NEW BO route must return the single canonical <BoModuleFactory /> entry; no wrappers, dead decoys or alternate render functions");
   let rendered=0;
   visit(sf,node=>{
