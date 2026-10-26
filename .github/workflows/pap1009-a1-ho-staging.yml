@@ -54,8 +54,9 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SHA"
           test "$GITHUB_SHA" = "$SHA"
           test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
-          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head feat/pap1009-a1-ho-access-readonly --json mergeCommit > /tmp/skeleton-pr.json
-          jq -e --arg sha "$SHA" '[.[]|select(.mergeCommit.oid==$sha)]|length==1' /tmp/skeleton-pr.json
+          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --head feat/pap1009-ho-a1 --json mergeCommit > /tmp/skeleton-pr.json
+          jq -e --arg sha "1580ca000294fae4eeb03a5f21381c7126251674" '[.[]|select(.mergeCommit.oid==$sha)]|length==1' /tmp/skeleton-pr.json
+          git merge-base --is-ancestor 1580ca000294fae4eeb03a5f21381c7126251674 "$SHA"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
           jq -e --arg sha "$SHA" '.head_sha==$sha and .event=="push" and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
           node - <<'NODE'
