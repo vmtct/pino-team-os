@@ -1,21 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
-
-const station=readFileSync(new URL("../app/components/tos-vnext/TosVNextStation.tsx",import.meta.url),"utf8");
-
-test("PAP-943 sidebar announces active workspace and connects navigation to content",()=>{
- assert.match(station,/aria-label="Điều hướng Trạm TOS"/);
- assert.match(station,/aria-current=\{item\.id===tab\?"page":undefined\}/);
- assert.match(station,/aria-controls="tos-vnext-station-workspace"/);
- assert.match(station,/id="tos-vnext-station-workspace"/);
- assert.match(station,/onClick=\{\(\)=>setTab\(item\.id\)\}/);
+import {renderV4} from "./test-support/v4-render";
+test("PAP-943 navigation announces selected workspace and targets its content",async()=>{
+ const html=await renderV4("TosVNextStation",{desktop:true,onHome:()=>{},centerName:"Test",initialTab:"students"});
+ assert.match(html,/aria-label="Điều hướng Trạm TOS"/);assert.equal((html.match(/aria-current="page"/g)||[]).length,1);
+ assert.equal((html.match(/aria-controls="tos-vnext-station-workspace"/g)||[]).length,5);assert.match(html,/id="tos-vnext-station-workspace"/);
+ assert.match(html,/<table/);assert.match(html,/<th>Học viên<\/th>/);
 });
-
-test("PAP-943 workstation keeps meaningful sidebar icons without inventing Core truth",()=>{
- for(const icon of ["faDesktop","faStar","faUsers","faGear","faTv"]){
-  assert.match(station,new RegExp(`\\b${icon}\\b`));
- }
- assert.match(station,/icon=\{stationIcons\[item\.id\]\}/);
- assert.match(station,/Chưa có dữ liệu Core được xác minh/);
+test("PAP-943 mobile guidance retains desktop admission threshold",async()=>{
+ const html=await renderV4("TosVNextStation",{desktop:false,onHome:()=>{},centerName:"Test"});
+ assert.match(html,/Trạm TOS chỉ dùng trên máy tính/);assert.match(html,/1024px/);assert.match(html,/Về TOS Home/);
 });

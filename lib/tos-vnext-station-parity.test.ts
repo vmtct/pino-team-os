@@ -1,32 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {STATION_DESKTOP_TABS} from "./tos-vnext-station";
-const station=readFileSync(new URL("../app/components/tos-vnext/TosVNextStation.tsx",import.meta.url),"utf8");
-test("PAP-943 station uses full desktop shell with five canonical workspaces",()=>{
- assert.deepEqual(STATION_DESKTOP_TABS.map(x=>x.id),["overview","pinoria","students","devices","tv"]);
- assert.match(station,/if\(!desktop\)return/);
- assert.match(station,/data-tos-vnext-station="desktop"/);
- assert.match(station,/className=\{styles\.stationSidebar\}/);
- assert.match(station,/className=\{styles\.stationWorkspace\}/);
+import {renderV4,buttons} from "./test-support/v4-render";
+import {unavailableOpsReadModel} from "./tos-ops-v4-view-model";
+const props={onHome:()=>{},desktop:true,centerName:"Cơ sở được cấp quyền"};
+test("PAP-943 V4 five workspaces render unknown Core facts without synthetic inventory",async()=>{
+ for(const initialTab of ["overview","pinoria","students","devices","tv"]){
+  const html=await renderV4("TosVNextStation",{...props,initialTab});
+  assert.match(html,/data-tos-vnext-station="desktop"/);assert.match(html,/Cơ sở được cấp quyền/);assert.match(html,/Chưa xác minh node/);
+  assert.doesNotMatch(html,/NODE-DEMO|PINO-HOUSE-01|Chroma Sea|Region mẫu/);
+ }
+ const html=await renderV4("TosVNextStation",props);assert.equal((html.match(/<strong>—<\/strong>/g)||[]).length,4);
 });
-test("PAP-943 unverified device and TV actions stay disabled until Core truth",()=>{
- assert.match(station,/tab==="devices"\|\|tab==="tv"/);
- assert.match(station,/stationDisabledAction\} disabled/);
- assert.match(station,/Chưa có xác nhận dữ liệu\/command/);
-});
-
-test('PAP-943 V8 overview metrics remain unknown until verified Core',()=>{
- assert.match(station,/Chưa có dữ liệu Core được xác minh/);
- assert.match(station,/stationMetricUnknown/);
- assert.match(station,/Học viên tại PINO/);
- assert.match(station,/Wish đang chờ/);
- assert.match(station,/Thiết bị cần kiểm tra/);
- assert.match(station,/Trạng thái TV/);
-});
-
-test('PAP-943 mobile gate matches frozen V8 station guidance',()=>{
- assert.match(station,/Trạm TOS chỉ dùng trên máy tính/);
- assert.match(station,/Mở màn hình rộng từ 1024px để sử dụng giao diện workstation/);
- assert.match(station,/onClick=\{onHome\}/);
+test("PAP-943 supplied inventory cannot enable Wardrobe and device commands",async()=>{
+ const model={...unavailableOpsReadModel(),loaded:true,outfits:["Test outfit"],assetNames:["Test device"],equipment:{"Test device":"Cần kiểm tra"}};
+ const before=JSON.stringify(model);const html=await renderV4("TosVNextStation",{...props,model,initialTab:"pinoria"});
+ assert.match(buttons(html,"Test outfit")[0],/disabled/);assert.equal(JSON.stringify(model),before);
+ const source=readFileSync("app/components/tos-vnext/TosVNextStation.tsx","utf8");assert.doesNotMatch(source,/useOpsDemo|ops-demo-store|localStorage|fetch\(/);
 });

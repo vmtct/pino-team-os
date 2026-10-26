@@ -92,9 +92,30 @@ export function AppField({label,children,hint,error}:{
 /** DS layout-only primitive: preserves existing app visual geometry. */
 export function AppNavShell({label,className,children,...props}:HTMLAttributes<HTMLElement>&{label:string}){return <nav {...props} className={className} aria-label={label} data-tos-shared="nav-shell">{children}</nav>}
 /** Shared modal boundary; caller retains domain validation and discard guards. */
-export function AppModalRoot({children,className,onClose}:{
- children:ReactNode;className?:string;onClose:()=>void
-}){const ref=useRef<HTMLDivElement>(null);useModalIsolation(ref);return <div ref={ref} className={className} role="presentation" data-tos-shared="modal-root"
+export function AppModalRoot({children,className,onClose,...props}:HTMLAttributes<HTMLDivElement>&{
+ children:ReactNode;onClose:()=>void
+}){const ref=useRef<HTMLDivElement>(null);useModalIsolation(ref);
+ const close=useRef(onClose);
+ useEffect(()=>{close.current=onClose},[onClose]);
+ useEffect(()=>{
+  const root=ref.current;if(!root)return;
+  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  const target=()=>root.querySelector<HTMLElement>('[role="alertdialog"]')??root.querySelector<HTMLElement>('[role="dialog"]')??root;
+  const controls=()=>Array.from(target().querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length>0);
+  (controls()[0]??target()).focus();
+  const key=(event:KeyboardEvent)=>{
+   if(event.defaultPrevented)return;
+   if(event.key==="Escape"){event.preventDefault();close.current();return}
+   if(event.key!=="Tab")return;
+   const items=controls(),first=items[0],last=items.at(-1);
+   if(!first||!last){event.preventDefault();target().focus();return}
+   if(event.shiftKey&&(document.activeElement===first||!target().contains(document.activeElement))){event.preventDefault();last.focus()}
+   else if(!event.shiftKey&&(document.activeElement===last||!target().contains(document.activeElement))){event.preventDefault();first.focus()}
+  };
+  document.addEventListener("keydown",key);
+  return()=>{document.removeEventListener("keydown",key);if(previous?.isConnected)previous.focus()};
+ },[]);
+ return <div {...props} ref={ref} className={className} role="presentation" data-tos-shared="modal-root"
  onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>{children}</div>}
 /** Station desktop rail has a separate layout variant from mobile tabs. */
 export function AppNavRail({label,className,children,...props}:HTMLAttributes<HTMLElement>&{label:string}){return <nav {...props} className={className} aria-label={label} data-tos-shared="nav-rail">{children}</nav>}

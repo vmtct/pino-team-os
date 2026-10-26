@@ -13,3 +13,5 @@ export type {TosNavItem,TosStatusKind} from "./TosDesignSystem";
 
 export {default as AppPhoneFrame} from "./AppPhoneFrame";
 export {createSlotKeys} from "./Primitives";
+
+export {AppNavShell,AppModalRoot,AppNavRail} from "./Primitives";

@@ -130,12 +130,7 @@ export default function TosVNextIntegrationPreview(){
  if(app==="station")return <TosVNextFrame app="station" mode="desktop"><TosVNextStation desktop={desktop} centerName={center?.displayName||""} onHome={()=>void choose("home")}/></TosVNextFrame>;
  return <TosVNextFrame app={app} mode="mobile">
   {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
-  {app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerName={center?.displayName||""} profileLabel={profileLabel}/></div>:<TosVNextContent>
-   {app==="reception"&&<TosVNextReception centerId={centerId} workDate={today(zone)}
-    assignments={data.shift?.assignments??[]}/>}
-   {app==="classroom"&&<TosVNextClassroom centerId={centerId} localDate={today(zone)}
-    onDetailChange={setClassDetailOpen}/>}
-   {app==="training"&&<TosVNextTraining/>}
+  {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerName={center?.displayName||""} profileLabel={profileLabel}/></div>:<TosVNextContent>
    {app==="shift-lead"&&<TosVNextShiftLead centerId={centerId} workDate={today(zone)}/>}
    {loading&&<p role="status">Đang tải dữ liệu Core thực…</p>}
    {error&&<TosVNextCard><p role="alert">{error}</p></TosVNextCard>}

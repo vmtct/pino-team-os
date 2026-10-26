@@ -11,7 +11,7 @@ export {SIX_TOS_APPS,appIcon,appIdentity};
 export type {TosVNextAppId,TosVNextMode};
 export function TosVNextFrame({app,mode,children}:PropsWithChildren<{app:TosVNextAppId;mode?:TosVNextMode}>){
  if((mode??appIdentity(app).mode)==="desktop")return <div data-tos-system data-tos-vnext-frame={app} data-tone={app} className={styles.desktop}>{children}</div>;
- return <AppPhoneFrame viewport={app==="shift"} app={app==="shift-lead"||app==="station"?"shift":app}><div className={styles.mobile} data-tos-vnext-frame={app} data-tone={app}>{children}</div></AppPhoneFrame>;
+ return <AppPhoneFrame runtimeApp={app} navigation={app==="training"} viewport={app==="shift"||app==="classroom"} app={app==="shift-lead"||app==="station"?"shift":app}>{children}</AppPhoneFrame>;
 }
 export function TosVNextAppHeader({app,station,onHome}:{app:TosVNextAppId;station?:string;onHome:()=>void}){
  return <header className={header.unifiedHeader} data-tos-app-header={app} data-tos-vnext="app-header"><div className={header.unifiedBrand}>
