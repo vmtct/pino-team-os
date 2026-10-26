@@ -1,0 +1,32 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {STATION_DESKTOP_TABS} from "./tos-vnext-station";
+const station=readFileSync(new URL("../app/components/tos-vnext/TosVNextStation.tsx",import.meta.url),"utf8");
+test("PAP-943 station uses full desktop shell with five canonical workspaces",()=>{
+ assert.deepEqual(STATION_DESKTOP_TABS.map(x=>x.id),["overview","pinoria","students","devices","tv"]);
+ assert.match(station,/if\(!desktop\)return/);
+ assert.match(station,/data-tos-vnext-station="desktop"/);
+ assert.match(station,/className=\{styles\.stationSidebar\}/);
+ assert.match(station,/className=\{styles\.stationWorkspace\}/);
+});
+test("PAP-943 unverified device and TV actions stay disabled until Core truth",()=>{
+ assert.match(station,/tab==="devices"\|\|tab==="tv"/);
+ assert.match(station,/stationDisabledAction\} disabled/);
+ assert.match(station,/Chưa có xác nhận dữ liệu\/command/);
+});
+
+test('PAP-943 V8 overview metrics remain unknown until verified Core',()=>{
+ assert.match(station,/Chưa có dữ liệu Core được xác minh/);
+ assert.match(station,/stationMetricUnknown/);
+ assert.match(station,/Học viên tại PINO/);
+ assert.match(station,/Wish đang chờ/);
+ assert.match(station,/Thiết bị cần kiểm tra/);
+ assert.match(station,/Trạng thái TV/);
+});
+
+test('PAP-943 mobile gate matches frozen V8 station guidance',()=>{
+ assert.match(station,/Trạm TOS chỉ dùng trên máy tính/);
+ assert.match(station,/Mở màn hình rộng từ 1024px để sử dụng giao diện workstation/);
+ assert.match(station,/onClick=\{onHome\}/);
+});
