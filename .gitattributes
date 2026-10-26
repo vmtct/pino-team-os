@@ -1,2 +1,4 @@
 # Preserve approved registration source bytes across Windows/Linux checkouts.
 public/bo-authority-source/* -text
+
+public/ho-authority-source/* -text

@@ -1,11 +1,14 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f8f8fb"><title>Hồ sơ đăng ký · PINO BO</title><link rel="icon" href="data:,"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./playground.css"><link rel="stylesheet" href="./playground-v22.css"><link rel="stylesheet" href="./playground-v23.css"><link rel="stylesheet" href="./full-detail-v24.css"><link rel="stylesheet" href="./full-detail-v25.css"></head>
+<html lang="vi" data-bo-design-system="v25"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f8f8fb"><title>Hồ sơ đăng ký · PINO BO</title><link rel="icon" href="data:,"><link rel="stylesheet" href="./styles.css"></head>
 <body><div id="app">
-<aside class="sidebar" id="sidebar"><div class="brand"><div class="brand-mark"><span>P</span></div><div class="brand-type"><strong>PINO House</strong><small>Back Office</small></div></div>
-<div class="nav-workspace"><span class="nav-workspace-glyph">▦</span><span><strong>PINO House</strong><small>Workspace · Cần Thơ</small></span><span class="workspace-angle">⌄</span></div>
+<aside class="sidebar" id="sidebar"><div class="workspace-switcher" id="workspace-switcher">
+<button class="nav-workspace" id="workspace-switch" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="workspace-centers" aria-label="Trung tâm hiện tại: PINO Cần Thơ. Chuyển trung tâm">
+<span class="nav-workspace-logo"><img src="https://assets.pinohouse.art/core/Pino%20Logo%20White.png" width="32" height="32" alt="PINO" decoding="async"></span><span class="nav-workspace-copy"><strong id="workspace-center-name">PINO Cần Thơ</strong><small>Back Office</small></span><span class="workspace-angle" aria-hidden="true">⌄</span></button>
+<div class="workspace-menu hidden" id="workspace-menu"><div class="workspace-menu-heading" id="workspace-menu-heading">Chuyển trung tâm</div><div id="workspace-centers" role="listbox" aria-labelledby="workspace-menu-heading"></div></div>
+</div>
 <div class="sidebar-finder"><label class="nav-query"><span>⌕</span><input id="nav-search" aria-label="Tìm module" placeholder="Tìm module..." autocomplete="off"></label><div class="nav-collapse-actions"><button id="collapse-all" type="button" title="Collapse all">⊟</button><button id="expand-all" type="button" title="Expand all">⊞</button></div></div>
 <nav id="lab-nav" class="nav-scroll" aria-label="Module"></nav>
-<div class="sidebar-footer"><div class="avatar">M</div><div><strong>BO Manager</strong><small>PINO House</small></div><span class="user-options">···</span></div></aside>
+<div class="sidebar-footer"><div class="avatar">M</div><div><strong>BO Manager</strong><small id="sidebar-center-context">PINO Cần Thơ</small></div><span class="user-options">···</span></div></aside>
 <button type="button" class="mobile-shade" id="nav-scrim" aria-label="Đóng menu"></button>
 <div class="shell">
 <main class="workspace" id="workspace">
