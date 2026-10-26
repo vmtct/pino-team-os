@@ -1,6 +1,6 @@
 # PAP-938 DS V4 — CP2 source candidate, not staging acceptance
 
-This candidate continues `d6087ec6c7c671ac0b3fed7779e3df3244c795e3` on `codex/pap938-dsv4-20261026`, draft Team OS PR #878. Base main remains `99e67ffbd2321b283eb2fde6a9917c730b8262e8` as checked 2026-10-27 +07. Existing main CI/build/BO controls and the previous selective reconciliation of #810/#871 remain intact. Their branches/worktrees are untouched. No merge or deployment is authorized or performed.
+This candidate continues `d6087ec6c7c671ac0b3fed7779e3df3244c795e3` on `codex/pap938-dsv4-20261026`, draft Team OS PR #878. Current main advanced to `6484fe27cbc256d29747f9acdc12411e634a43ec` (#880/#881) during final freshness checking on 2026-10-27 +07. The candidate locally reconciles that main; incoming BO source and added staging-route CI gates are preserved. This is reconciliation within the candidate branch, not a PR merge into main. Existing main CI/build/BO controls and the previous selective reconciliation of #810/#871 remain intact. Their branches/worktrees are untouched. No merge or deployment is authorized or performed.
 
 ## Authority and scope
 
@@ -28,7 +28,7 @@ CP3 READ_CANDIDATE: existing context, schedule, current/history, own income, ope
 
 CP4 BLOCKED_CORE: rechecked 2026-10-27 +07, Core #1770 head `463b38e50578a164a3f23ac9dca9863a38a69490` is OPEN/green; #1793 `50ba27602024ce318ba1c8b34d56f21ff44be723` OPEN draft/green; #1794 `961d0599e49a8efb1b33f86f58a74b99293e2360` OPEN draft/red; #1810 `470e5dc53ec7ae41044fa0a87efca7af2545ea7f` OPEN draft/green stacked. These states do not prove deployment. #1770 transport exposes GET by Diary UUID, not GET list at `/learning/path-diaries`; the Classroom day DTO does not supply Diary IDs. The Team facade also needs query forwarding reconciled before adopting this unmerged GET contract. No guessed list endpoint, legacy Session fallback, D1 query, fabricated Diary or Core writer was added. Mission DTO/list, Reception opening/pickup/list, photo check-in and Station commands remain unverified. PAP-724 consumption remains WAIT_FOUNDER_DECISION.
 
-CP5 CI_CANDIDATE: local Next build/provenance PASS; DS source guard PASS (one frame, 122 tokens); TypeScript PASS; full unit/contract suite 991/991 PASS, including the new V4 renderer tests; BO/release/provenance scripts 79/79 PASS; lint 0 errors/198 warnings. A forbidden `module` variable name in a test fixture was corrected and full lint rerun passed. Exact candidate SHA is supplied by the PR/Jira receipt. User requests stopping once the next exact-head CI begins, not waiting for a PASS or merging/deploying. Previous candidate CI was green; that result does not certify this new head. OpenNext packaging is part of remote CI, not a local claim.
+CP5 CI_CANDIDATE: pre-reconciliation local Next build/provenance PASS; DS source guard PASS (one frame, 122 tokens); TypeScript PASS; full unit/contract suite 991/991 PASS, including the new V4 renderer tests; BO/release/provenance scripts 79/79 PASS; lint 0 errors/198 warnings. A forbidden `module` variable name in a test fixture was corrected and full lint rerun passed. Exact candidate SHA is supplied by the PR/Jira receipt. User requests stopping once the next exact-head CI begins, not waiting for a PASS or merging/deploying. Previous candidate CI was green; that result does not certify this new head. OpenNext packaging is part of remote CI, not a local claim.
 
 ## Staging admission
 
@@ -43,3 +43,5 @@ After the requested CI stop, inspect that exact-head run when resumed and fix fa
 ## Team Surface Decision
 
 surface: TOS; primary_device: MOBILE, Station DESKTOP ≥1024; six Home identities per PAP-934; max five footer items; neutral Home and app semantic themes. Core owns permissions, scope and business truth. BO layout unchanged. Founder visual acceptance: PENDING.
+
+Post-reconciliation local validation is reported against the exact final candidate in the PR/Jira receipt. The new BO staging-route gate must pass before pushing.
