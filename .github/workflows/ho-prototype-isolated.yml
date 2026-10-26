@@ -1,0 +1,60 @@
+name: HO prototype isolated deploy
+on:
+  push:
+    branches: [feat/ho-proto-full]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ho-proto-exclusive
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/feat/ho-proto-full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify synthetic worker isolation
+        run: |
+          node -e "const x=require('fs').readFileSync('wrangler.ho-proto.jsonc','utf8');if(/services|send_email|d1_databases|r2_buckets/.test(x))process.exit(1)"
+          test -f app/ho-prototype/ProtoWorkspace.tsx
+      - name: Install, typecheck and test fixtures
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          node --import tsx --test lib/ho-proto-fixtures.test.ts
+          npm run build
+      - name: Build isolated worker and dry run
+        run: |
+          npx @opennextjs/cloudflare build
+          npx wrangler deploy --dry-run -c wrangler.ho-proto.jsonc
+      - name: Deploy pino-ho-prototype only
+        env:
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          npx wrangler deploy -c wrangler.ho-proto.jsonc --message "ho-proto synthetic $GITHUB_SHA"
+      - name: Probe preview without touching other environments
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            code="$(curl -sSL --max-time 20 -o /tmp/ho-proto -w '%{http_code}' https://ho.proto.pinohouse.art/ho/centers || true)"
+            if [ "$code" = 200 ]; then break; fi
+            sleep 5
+          done
+          test "$code" = 200
+          for path in /ho/learning/missions /ho/pinoria/tv-policy /ho/content/website-cms /ho/pinoria/wish /ho/pinoria/activities; do
+            test "$(curl -sS --max-time 15 -o /tmp/ho-proto -w '%{http_code}' "https://ho.proto.pinohouse.art$path")" = 200
+          done
+          for path in /api/bo/centers /api/founder/pinoria/wish/catalog /bo /ho-prototype/centers; do
+            test "$(curl -sS --max-time 15 -o /tmp/ho-denied -w '%{http_code}' "https://ho.proto.pinohouse.art$path")" = 404
+          done
+          test "$(curl -sS -X POST --max-time 15 -o /tmp/ho-denied -w '%{http_code}' https://ho.proto.pinohouse.art/ho/centers)" = 404
+          echo "HO_PROTO_READY $GITHUB_SHA"

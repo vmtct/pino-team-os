@@ -1,0 +1,6 @@
+.ho-proto-float{position:fixed;right:16px;bottom:16px;z-index:9000;display:flex;align-items:center;gap:7px;flex-wrap:wrap;border:1px solid #ccb0b9;border-radius:12px;background:rgba(255,251,251,.98);padding:8px 10px;box-shadow:0 4px 16px rgba(31,12,27,.15);font:12px/1.35 system-ui,Arial,sans-serif;color:#5f2139;max-width:min(95vw,540px)}
+.ho-proto-marker{font-size:10px;font-weight:700;letter-spacing:.045em;white-space:nowrap}
+.ho-proto-float button{border:1px solid #c7adbb;border-radius:7px;background:#fff;color:#742b49;padding:5px 8px;cursor:pointer;font-size:12px}
+.ho-proto-float button[aria-pressed=true]{background:#7d3150;color:white;border-color:#7d3150}
+.ho-proto-baseline{font-size:10px;opacity:.72}
+@media(max-width:700px){.ho-proto-float{right:8px;bottom:8px;left:8px;max-width:none;justify-content:center}.ho-proto-baseline{display:none}}

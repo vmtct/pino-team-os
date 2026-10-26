@@ -13,7 +13,7 @@ type VisibleEvent = Omit<BoAccessAuditEvent, "payload">;
 function tone(value:string):"success"|"warning"|"danger"|"neutral" {
  return value==="succeeded"?"success":value==="denied"?"warning":value==="failed"?"danger":"neutral";
 }
-export function HoAccessAudit() {
+export function HoAccessAudit({loadPage}:{loadPage?: (params:{limit:number;offset:number;query?:string;outcome?:string})=>Promise<BoAccessAuditPage>} = {}) {
  const [result,setResult]=useState<BoAccessAuditPage>(blank);
  const [page,setPage]=useState(1);
  const [size,setSize]=useState(25);
@@ -26,7 +26,7 @@ export function HoAccessAudit() {
 
  useEffect(()=>{
   let alive=true;
-  void boApi.accessAuditPage({limit:size,offset:(page-1)*size,
+  void (loadPage ?? boApi.accessAuditPage)({limit:size,offset:(page-1)*size,
    ...(query.trim()?{query:query.trim().slice(0,120)}:{}),
    ...(outcome?{outcome}:{})})
    .then(data=>{if(!alive)return;const last=Math.max(1,data.page.pageCount);

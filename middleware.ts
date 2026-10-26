@@ -10,6 +10,26 @@ export function middleware(request: NextRequest) {
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");
   if (requiresBoStagingPageSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
+  // Isolated HO prototype: only synthetic read-only pages and public presentation assets.
+  // The prototype Worker has no Core, D1, email, or outbound service bindings.
+  if (normalizeHostname(host) === "ho.proto.pinohouse.art") {
+    const pathname = request.nextUrl.pathname;
+    if (request.method !== "GET" && request.method !== "HEAD") return new NextResponse("Not Found", {status:404});
+    if (pathname === "/" || pathname === "/ho") {
+      return NextResponse.redirect(new URL("/ho/centers", request.url), 307);
+    }
+    const allowed = /^\/ho\/(?:centers|system\/(?:users|roles|audit)|learning\/(?:syllabi|missions)|pinoria\/(?:worlds|wardrobe|wardrobe-sets|effects|tv-policy|wish|activities)|content\/website-cms)$/.test(pathname);
+    if (allowed) {
+      const dest=request.nextUrl.clone();
+      dest.pathname=pathname.replace(/^\/ho\//,"/ho-prototype/");
+      return NextResponse.rewrite(dest);
+    }
+    if (pathname.startsWith("/_next/") || /^\/bo-skeleton\/(?:styles|playground|playground-v22|playground-v23|full-detail-v24|full-detail-v25)\.css$/.test(pathname) ||
+       /^\/(?:favicon\.ico|[a-zA-Z0-9_-]+\.(?:svg|png|webp|woff2))$/.test(pathname)) {
+      return NextResponse.next();
+    }
+    return new NextResponse("Not Found", {status:404,headers:{"cache-control":"no-store"}});
+  }
   const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
   if (schoolRoute === "redirect") {
     const target = request.nextUrl.clone();
