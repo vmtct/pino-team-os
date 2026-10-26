@@ -39,7 +39,8 @@ export async function handleBoOperationalReadRequest(
     if (new URL(request.url).hostname === HO_STAGING_HOSTNAME) {
       if (!hoAccessReadAllowed(path)) return json({ error: { code: "PLATFORM_NOT_FOUND" } }, 404);
       await authorizeHoShell(request.headers, env as HoEnv);
-      if (path === "access/audit") validateHoAuditQuery(new URL(request.url).searchParams);
+      const auditRead = path === "access/audit";
+      if (auditRead) validateHoAuditQuery(new URL(request.url).searchParams);
     }
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
