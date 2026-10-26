@@ -3,7 +3,7 @@
 import {useEffect,useState} from "react";
 import {tosClassroomV18bApi,V18bCoreError,type V18bClassroomOccurrence}
  from "@/lib/tos-classroom-v18b-api";
-import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "../tos-ds";
 import styles from "./tos-vnext.module.css";
 export function TosVNextClassroom({centerId,localDate,onDetailChange}:{
  centerId:string;localDate:string;onDetailChange:(open:boolean)=>void

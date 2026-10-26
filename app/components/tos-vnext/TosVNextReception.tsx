@@ -5,7 +5,7 @@ import type {Assignment} from "@/lib/workforce-api";
 import type {StudentVisit} from "@/lib/tos-day-of-learning-api";
 import {receptionVisitReadModel} from "./core-adapters";
 import {ownReceptionAssignments,pickupRequiresCoreVerification} from "@/lib/tos-vnext-reception";
-import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextField,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextField,TosVNextHeading,TosVNextStatus} from "../tos-ds";
 import styles from "./tos-vnext.module.css";
 type Tab="today"|"visits"|"pinoria";
 export function TosVNextReception({centerId,workDate,assignments}:{

@@ -6,7 +6,7 @@ import {tosTrainingV5Api,TrainingV5ApiError,TRAINING_V5_WRITE_ADMITTED,
 import {workforceTraining} from "@/lib/workforce-training-client";
 import {safeTrainingGuideUrl} from "@/lib/tos-training-guide-url";
 import type {StaffQualification} from "@/lib/training-model";
-import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus,TosVNextSheet} from "./TosVNextUI";
+import {TosVNextBottomNav,TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus,TosVNextSheet} from "../tos-ds";
 import styles from "./tos-vnext.module.css";
 type Tab="progress"|"certificates";
 function errorText(e:unknown){

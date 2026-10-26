@@ -4,7 +4,7 @@ import {useEffect,useState} from "react";
 import type {StaffDutyBoard} from "@/lib/workforce-api";
 import {dutyContextReadModel} from "./core-adapters";
 import {ownShiftLeadDutySummary} from "@/lib/tos-vnext-shift-lead";
-import {TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import {TosVNextButton,TosVNextCard,TosVNextHeading,TosVNextStatus} from "../tos-ds";
 import styles from "./tos-vnext.module.css";
 export function TosVNextShiftLead({centerId,workDate}:{centerId:string;workDate:string}){
  const [board,setBoard]=useState<StaffDutyBoard|null>(null);

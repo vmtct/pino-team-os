@@ -7,7 +7,7 @@ import {useState} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faDesktop,faStar,faUsers,faGear,faTv,faChevronRight} from "@fortawesome/free-solid-svg-icons";
 import {STATION_DESKTOP_TABS,type StationDesktopTab} from "@/lib/tos-vnext-station";
-import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "./TosVNextUI";
+import {TosVNextCard,TosVNextHeading,TosVNextStatus} from "../tos-ds";
 import styles from "./tos-vnext.module.css";
 const stationIcons={overview:faDesktop,pinoria:faStar,students:faUsers,devices:faGear,tv:faTv} as const;
 const sectionDetail:Record<StationDesktopTab,string>={overview:"Bảng điều phối",pinoria:"House & Wardrobe",students:"Tra cứu & trạng thái",devices:"Quản lý node",tv:"Nội dung trình chiếu"};
