@@ -120,21 +120,24 @@ function registry(root,issues){
 function canonicalRoute(root,file,expectedKey,issues){
   const text=read(root,file);
   const sf=source(file,text);
-  let factoryImport=false,validFactory=false;
+  let factoryImport=false,gatewayImport=false,validFactory=false;
   visit(sf,node=>{
     if(ts.isImportDeclaration(node)&&literal(node.moduleSpecifier)==="@/app/bo/architecture/BoModuleFactory") {
       factoryImport=Boolean(node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
         node.importClause.namedBindings.elements.some(el=>el.name.text==="BoModuleFactory"));
     }
+    if(ts.isImportDeclaration(node)&&literal(node.moduleSpecifier)==="@/app/bo/architecture/BoWorkforceRoute" && ["workforce-term-weeks","workforce-shift-plans","workforce-availability","workforce-assignments"].includes(expectedKey)) {
+      gatewayImport=Boolean(node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) && node.importClause.namedBindings.elements.some(el=>el.name.text==="BoWorkforceRoute"));
+    }
     if(ts.isJsxSelfClosingElement(node)||ts.isJsxOpeningElement(node)){
-      if(node.tagName.getText(sf)!=="BoModuleFactory")return;
+      if(node.tagName.getText(sf)!=="BoModuleFactory" && node.tagName.getText(sf)!=="BoWorkforceRoute")return;
       const item=node.attributes.properties.find(attr=>ts.isJsxAttribute(attr)&&attr.name.text==="moduleKey");
       if(item&&ts.isJsxAttribute(item)&&item.initializer&&ts.isStringLiteral(item.initializer)) {
         validFactory=item.initializer.text===expectedKey;
       }
     }
   });
-  if(!factoryImport||!validFactory)issues.push(`${file}: NEW BO page MUST import BoModuleFactory and mount <BoModuleFactory moduleKey="${expectedKey}" ... />`);
+  if(!(factoryImport||gatewayImport)||!validFactory)issues.push(`${file}: NEW BO page MUST import BoModuleFactory and mount <BoModuleFactory moduleKey="${expectedKey}" ... />`);
   if(/TODO_BO_DOMAIN_ADAPTER/.test(text)||
     fs.existsSync(path.join(root,path.dirname(file),"adapter.ts")) &&
     /TODO_BO_DOMAIN_ADAPTER/.test(read(root,path.join(path.dirname(file),"adapter.ts")))) {
