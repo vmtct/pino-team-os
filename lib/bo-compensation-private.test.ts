@@ -9,11 +9,11 @@ const entry="0199a000-0000-7000-8000-000000000002";
 const privatePath="workforce/staff-records/"+staff+"/private/compensation";
 const view=readFileSync(new URL("../app/bo/workforce/compensation/StaffCompensationView.tsx",import.meta.url),"utf8");
 
-test("PAP-731 BO Core facade admits only explicit private compensation read and writes",()=>{
+test("PAP-996 BO Core facade admits private compensation reads but never rate writes",()=>{
   assert.equal(isStaffCompensationPath(privatePath),true);
   assert.equal(isOperationalReadPath(privatePath),true);
-  assert.equal(isAllowedPostPath(privatePath),true);
-  assert.equal(isAllowedPostPath(privatePath+"/"+entry),true);
+  assert.equal(isAllowedPostPath(privatePath),false);
+  assert.equal(isAllowedPostPath(privatePath+"/"+entry),false);
   assert.equal(isStaffCompensationPath("workforce/staff-records/"+staff+"/compensation"),false);
   assert.equal(isOperationalReadPath("workforce/staff-records/"+staff+"/private/compensation/"+entry),false);
   assert.equal(isStaffCompensationPath(privatePath+"/export"),false);
