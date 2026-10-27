@@ -23,7 +23,10 @@ export function BoFullDetail({ title, description, currentUrl, returnTo, tabs, a
   if (!tabs.length || unique.size !== tabs.length || tabs.some(tab => !/^[a-z][a-z0-9-]{0,63}$/.test(tab.id))) {
     throw new Error("Invalid BO detail tabs");
   }
-  if (designVariant === "v25" && (tabs.length !== 3 || tabs[0].id !== "detail" || tabs[1].id !== "specialized" || tabs[2].id !== "history" || tabs[0].label !== "Detail" || tabs[1].label !== "Chuyên Sâu" || tabs[2].label !== "Lịch Sử")) {
+  // V2.5 retains the three mandatory domain-neutral tabs, while allowing a module
+  // to insert a named relation tab (e.g. Student → Subscriptions) without forking the shell.
+  const canonical = tabs.filter(tab => ["detail", "specialized", "history"].includes(tab.id));
+  if (designVariant === "v25" && (canonical.length !== 3 || canonical[0].id !== "detail" || canonical[1].id !== "specialized" || canonical[2].id !== "history" || canonical[0].label !== "Detail" || canonical[1].label !== "Chuyên Sâu" || canonical[2].label !== "Lịch Sử")) {
     throw new Error("Invalid BO V2.5 Full Detail tab contract");
   }
   const selected = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
