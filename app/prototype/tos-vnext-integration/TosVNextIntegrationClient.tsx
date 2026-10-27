@@ -121,7 +121,7 @@ export default function TosVNextIntegrationPreview(){
  // read-only presentations; Staff self actions still fail closed at Core.
  if(ctx?.founderMode){
   const canBrowse=(id:TosVNextAppId)=>id!=="station"||desktop;
-  const browseHome=()=> <TosVNextHome profileLabel="Founder" centerName={center?.displayName}
+  const browseHome=()=> <TosVNextHome founderMode profileLabel="Founder" centerName={center?.displayName}
    authorizedCenters={ctx.centers} selectedCenterId={centerId}
    onCenterChange={id=>{
     try{assertOwnCenter(ctx,id)}catch{setHomeNotice("Cơ sở chưa được cấp quyền.");return}
