@@ -21,3 +21,16 @@ test("no prepopulated staff: only explicit paid time or finalized immutable sett
  ];
  assert.deepEqual(staffWithWorkEvidence(rows).map(x=>x.staffMemberId),["PTE-timed","PTE-finalized"]);
 });
+
+test("Core evidence controls actual attendance, including missing checkout and no shift",()=>{
+ const base={staffMemberId:"PTE",status:"PENDING",amountMinor:null,provisionalAmountMinor:null,warnings:[],settlementId:null,preview:null} satisfies PeriodStaff;
+ const preview={centerId:"center",periodId:"period",periodVersion:1,periodStartDate:"2026-10-01",periodEndDate:"2026-10-31",staffMemberId:"PTE",amountMinor:9000,adjustmentsMinor:0,extraTimeMinor:0,days:[{workDate:"2026-10-02",status:"READY",paidMinutes:30,amountMinor:9000}],adjustments:[],extraTimeDecisions:[],warnings:[],sourceFingerprint:"test"} satisfies NonNullable<PeriodStaff["preview"]>;
+ const records:PeriodStaff[]=[
+  {...base,staffMemberId:"assigned-only",hasTimekeepingEvidence:false,preview},
+  {...base,staffMemberId:"missing-checkout-OPEN",hasTimekeepingEvidence:true},
+  {...base,staffMemberId:"clock-no-assignment",hasTimekeepingEvidence:true},
+  {...base,staffMemberId:"adjustment-only",hasTimekeepingEvidence:false},
+  {...base,staffMemberId:"locked-snapshot",hasTimekeepingEvidence:false,status:"FINALIZED",amountMinor:20000},
+ ];
+ assert.deepEqual(staffWithWorkEvidence(records).map(x=>x.staffMemberId),["missing-checkout-OPEN","clock-no-assignment","locked-snapshot"]);
+});
