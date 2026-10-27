@@ -276,3 +276,23 @@ test("PAP-1028 canonical BO legacy stylesheets are exact GET/HEAD-only assets",(
     assert.deepEqual(decideHostBoundary(host,"/bo/workforce-term-weeks"),{action:"not_found"});
   }
 });
+
+
+test("PAP-1035 staging Worker-first Enrollment GET admission is exact, never Production or write",()=>{
+ const bo="bo.staging.pinohouse.art",u="019d9881-1025-7000-8000-000000001244";
+ const approved=[
+  `/api/bo/subscriptions/${u}`,`/api/bo/subscriptions/${u}/enrollments`,
+  `/api/bo/subscriptions/${u}/placement`,`/api/bo/enrollments/${u}`, "/api/bo/enrollments/capacity"
+ ];
+ for(const p of approved){
+  for(const method of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary(bo,p,method),{action:"next"},p+" "+method);
+  for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS"]) assert.deepEqual(decideHostBoundary(bo,p,method),{action:"not_found"},p+" "+method);
+  for(const host of [BO_HOSTNAME,TOS_HOSTNAME,"tos.staging.pinohouse.art","ho.staging.pinohouse.art","bo.staging.pinohouse.art.evil.test"])
+   assert.deepEqual(decideHostBoundary(host,p,"GET"), host==="bo.staging.pinohouse.art.evil.test"?{action:"next"}:{action:"not_found"},host+" "+p);
+ }
+ for(const p of [
+  "/api/bo/subscriptions/bad","/api/bo/subscriptions/"+u+"/children",
+  "/api/bo/subscriptions/"+u+"/placement/extra","/api/bo/enrollments/"+u+"/unknown-read",
+  "/api/bo/enrollments/capacity/extra","/api/bo/enrollments/no"
+ ]) assert.deepEqual(decideHostBoundary(bo,p),{action:"not_found"},p);
+});

@@ -45,3 +45,16 @@ test("PAP-1050 Worker-first Staging alias canonicalizes before host auth without
   assert.notEqual(r.location,"https://"+bo+"/bo?module=subscriptions",h);
  }
 });
+
+
+test("PAP-1035 Worker-first BO Enrollment GETs reach authenticated Next facade; writes and other hosts stay fenced",async()=>{
+ const uuid="019d9881-1025-7000-8000-000000001244";
+ const paths=[`/api/bo/subscriptions/${uuid}`,`/api/bo/subscriptions/${uuid}/enrollments`,
+  `/api/bo/subscriptions/${uuid}/placement?targetLocalDate=2026-10-27`,`/api/bo/enrollments/${uuid}`,
+  `/api/bo/enrollments/capacity?runningClassId=${uuid}&targetLocalDate=2026-10-27`];
+ for(const p of paths){
+  for(const method of ["GET","HEAD"]){const result=await route(bo,p,method);assert.equal(result.status,200,p);assert.deepEqual(result.calls,["application"],p);}
+  for(const method of ["POST","PATCH","DELETE"]){const result=await route(bo,p,method);assert.equal(result.status,404,p+" "+method);assert.deepEqual(result.calls,[]);}
+  for(const host of ["bo.pinohouse.art",tos,ho]){const result=await route(host,p);assert.equal(result.status,404,host+" "+p);}
+ }
+});
