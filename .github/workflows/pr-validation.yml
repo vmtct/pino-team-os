@@ -42,7 +42,7 @@ jobs:
       - name: Enforce TOS DS V4 runtime contract (PAP-1014)
         run: bun run tos:ds:check
       - name: Enforce guarded UI + application auto-merge policy
-        run: node --test scripts/guarded-ui-automerge.test.mjs scripts/guarded-app-automerge-policy.test.mjs
+        run: node --test scripts/guarded-ui-automerge.test.mjs scripts/guarded-app-automerge-policy.test.mjs scripts/bot-merge-main-ci-bridge.test.mjs
       - name: Lint
         run: bun run lint
       - name: Unit tests

@@ -42,3 +42,10 @@ test('bridge only dispatches current-main validation after exact bot merge from 
   assert.match(bridge, /workflows\/pr-validation\.yml\/dispatches/);
   assert.doesNotMatch(bridge, /actions\/checkout/);
 });
+
+test('PAP-1091 bridge waits bounded for post-CI native merge admission',()=>{
+ assert.match(bridge, /if \[ "\$attempt" -ge 7 \]/);
+ assert.match(bridge, /native auto-merge not enabled within bounded admission window/);
+ assert.doesNotMatch(bridge, /if \[ "\$attempt" -eq 1 \] && jq -e/);
+ assert.match(bridge, /merged_by\.login==\"github-actions\[bot\]\"/);
+});
