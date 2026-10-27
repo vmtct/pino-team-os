@@ -97,6 +97,9 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   }, [ho,loadState,rows]);
 
   useEffect(() => {
+    // Specialized screens own their Core reads: the generic school adapter must not
+    // fetch an unused second table or create unrelated generic drawers.
+    if (content) { document.title = definition.label + " · PINO BO"; return; }
     const cancel = new AbortController();
     setLoadState("loading"); setRows([]); setDrawer(null); setDetail(null);
     // Cancellation and the adapter timeout both apply. Unmounted/stale module reads never publish.
@@ -104,7 +107,7 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
     void source.load(moduleKey, fetcher, options).then(data => { if (!cancel.signal.aborted) { setRows(data); setLoadState("ready"); syncRecordFromUrl(data); } }).catch((error: unknown) => { if (!cancel.signal.aborted) { setRows([]); setLoadState(error instanceof Error ? error.message : "Không thể tải dữ liệu."); } });
     document.title = definition.label + (ho ? " · PINO Head Office" : " · PINO BO");
     return () => cancel.abort();
-  }, [moduleKey, definition.label, options, source, retry, ho]);
+  }, [moduleKey, definition.label, options, source, retry, ho, content]);
   function update(patch: Partial<BoTableState>) { history.current.push({ table: structuredClone(tableRef.current), views: structuredClone(viewsRef.current), activeView: activeViewRef.current }); history.current = history.current.slice(-60); future.current = []; setUndoAvailable(true); setTable(t => ({ ...t, ...patch })); setPage(1); setActiveView(null); }
   function undo(redo = false) { const source = redo ? future : history, target = redo ? history : future, previous = source.current.pop(); if (!previous) return; target.current.push({ table: structuredClone(tableRef.current), views: structuredClone(viewsRef.current), activeView: activeViewRef.current }); setUndoAvailable(Boolean(history.current.length)); setTable(previous.table); setViews(previous.views); setPage(1); setActiveView(previous.activeView); }
   const undoRef = useRef(undo); useEffect(() => { undoRef.current = undo; });

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "modules": {
+    "students": "generic",
+    "classes": "generic",
+    "subscriptions": "specialized",
+    "enrollments": "generic",
+    "parents": "generic",
+    "visits": "generic",
+    "staffs": "generic",
+    "timekeeping": "generic",
+    "salaryPeriods": "generic",
+    "audits": "generic",
+    "workforce-shift-plans": "factory",
+    "workforce-availability": "factory",
+    "workforce-assignments": "factory",
+    "payroll-periods": "factory"
+  },
+  "specialized": {
+    "subscriptions": {
+      "component": "app/bo/subscriptions/BoSubscriptionsView.tsx",
+      "marker": "subscriptions-core",
+      "canonicalUrl": "/bo?module=subscriptions",
+      "legacyAlias": "/bo/subscriptions",
+      "uiAnchor": "subscription-create-student-search"
+    }
+  }
+}

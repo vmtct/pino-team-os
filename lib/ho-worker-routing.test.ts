@@ -23,3 +23,25 @@ test("HO Worker keeps root redirects on the same hostname and BO/TOS behavior",a
  assert.deepEqual((await route(tos,"/dashboard")).calls,["application"]);
  assert.deepEqual((await route(fallback,"/api/health")).calls,["application"]);
 });
+
+test("PAP-1050 Worker-first Staging alias canonicalizes before host auth without relaxing production or API",async()=>{
+ const original=await route(bo,"/bo/subscriptions?studentId=STU-001&module=students");
+ assert.equal(original.status,307);
+ assert.deepEqual(original.calls,[]);
+ const target=new URL(original.location!);
+ assert.equal(target.origin,"https://"+bo);
+ assert.equal(target.pathname,"/bo");
+ assert.equal(target.searchParams.get("module"),"subscriptions");
+ assert.equal(target.searchParams.get("studentId"),"STU-001");
+ assert.equal((await route(bo,"/bo/subscriptions/")).location,"https://"+bo+"/bo?module=subscriptions");
+ const head=await route(bo,"/bo/subscriptions","HEAD");
+ assert.equal(head.status,307);
+ for(const method of ["POST","PATCH","DELETE"]){
+  const r=await route(bo,"/bo/subscriptions",method);
+  assert.notEqual(r.location,"https://"+bo+"/bo?module=subscriptions",method);
+ }
+ for(const h of ["bo.pinohouse.art",tos,ho,fallback,"bo.staging.pinohouse.art.evil.example"]){
+  const r=await route(h,"/bo/subscriptions");
+  assert.notEqual(r.location,"https://"+bo+"/bo?module=subscriptions",h);
+ }
+});
