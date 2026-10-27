@@ -18,7 +18,7 @@ type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
 const EMPTY_BILLING_REPLAY: BillingReplayState = { pending: null, busy: null, notice: null, error: null };
 
-export function BoSubscriptionsView() {
+export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}) {
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -177,7 +177,7 @@ export function BoSubscriptionsView() {
     await runCommand(`end:${enrollment.id}`, (idempotencyKey) => boApi.endEnrollment(enrollment.id, body, idempotencyKey), "Đã kết thúc Enrollment.");
   }
 
-  return <main className={historyDetail ? styles.detailOnly : styles.page}>
+  return <div data-bo-runtime-surface="subscriptions-core" data-bo-embedded={embedded || undefined} className={historyDetail ? styles.detailOnly : styles.page}>
     <header className={styles.readHeading}>
       <h1>Subscriptions</h1>
       <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}>＋ Tạo mới</button>
@@ -224,7 +224,7 @@ export function BoSubscriptionsView() {
       mobileMenu={null}
       onBack={() => setHistoryDetail(null)}
     /> : null}
-  </main>;
+  </div>;
 }
 
 function CommercialWorkspace(props: {
