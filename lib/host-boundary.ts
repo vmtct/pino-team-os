@@ -19,6 +19,14 @@ export type HostBoundaryDecision =
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
 
+  // PAP-1030: fail closed before session/rendering on EVERY hostname, including
+  // workers.dev and previews. Otherwise BO layout may redirect a retired deep
+  // link to login (307) instead of rejecting it (404).
+  // Exact match: /bo/pinoria-ward/learners and retained BO routes stay accessible.
+  if (/^\/bo\/(?:workforce-term-weeks|pinoria-world|pinoria-ward(?:\/sets)?|system\/(?:users|roles))\/?$/.test(pathname)) {
+    return { action: "not_found" };
+  }
+
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
