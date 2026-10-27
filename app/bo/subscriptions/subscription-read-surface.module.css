@@ -1,0 +1,7 @@
+.root{display:grid;gap:8px;width:100%;min-width:0}
+.heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.heading h2{margin:0;color:var(--bo-v23-color-text,#26242b);font-size:17px;letter-spacing:-.02em}
+.heading span,.serverHint{color:var(--bo-v23-color-muted,#807d88);font-size:11px}
+.serverHint{padding:0 3px}
+.error{margin:0;padding:8px 11px;border:1px solid var(--bo-v23-color-border,#e2e1e5);border-radius:var(--bo-v23-radius-control,8px);color:var(--bo-v23-color-danger,#a63c3c)}
+.pathCount{display:none}

@@ -178,3 +178,13 @@
 .quickViewOpenerButton { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: var(--bo-v23-radius-xs, 5px); background: transparent; color: var(--bo-v23-color-accent-table, #6655c7); cursor: pointer; }
 .quickViewOpenerButton:hover, .quickViewOpenerButton:focus-visible { background: var(--bo-v23-color-selected, #f5f2ff); outline: 2px solid var(--bo-v23-color-focus, #8e7ddd); outline-offset: 1px; }
 .visuallyHidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Shared V2.3 DS: first Quick View and sticky identity must not overlap. */
+.tableViewport table:has(.quickViewOpenerCell) .quickViewOpenerCell{
+  position:sticky;left:0;z-index:5;background:var(--bo-v23-color-surface,#fff)
+}
+.tableViewport table:has(.quickViewOpenerCell) thead .quickViewOpenerCell{z-index:8;background:#f8f8fa}
+.tableViewport table:has(.quickViewOpenerCell) th[data-sticky],
+.tableViewport table:has(.quickViewOpenerCell) td[data-sticky]{
+  left:var(--bo-v23-opener-column-width,37px)
+}

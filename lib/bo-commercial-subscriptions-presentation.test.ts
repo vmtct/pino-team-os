@@ -26,7 +26,7 @@ test("Subscriptions owner surface keeps Core policy and scope authoritative", as
   assert.match(view, /expectedVersion: subscription\.version/);
   assert.match(view, /expectedVersion: enrollment\.version/);
   assert.doesNotMatch(view, /boApi\.createSubscription/);
-  assert.match(view, /Core-owned commercial truth/);
+  assert.match(view, /SubscriptionHistoryGrid/);
   assert.match(view, /Contract ends/);
   assert.match(view, /Forecast ends/);
   assert.match(view, /contractualEndsOn/);
@@ -105,6 +105,12 @@ test("PAP-623 History Grid refreshes from Core after successful BO writes", asyn
   const [view, grid] = await Promise.all([read("app/bo/subscriptions/BoSubscriptionsView.tsx"), read("app/bo/subscriptions/SubscriptionHistoryGrid.tsx")]);
   assert.match(view, /setHistoryRevision/);
   assert.match(view, /refreshVersion=\{historyRevision\}/);
-  assert.match(grid, /activeFilters\.current/);
-  assert.match(grid, /\[load, refreshVersion\]/);
+  // PAP-1033 canonical DS grid replaces the old local-filter closure but
+  // still invalidates its Core cursor read when commercial commands finish.
+  assert.match(grid, /boApi\.subscriptionDirectory/);
+  assert.match(grid, /refreshVersion,reload/);
+  assert.match(grid, /serial!==epoch\.current/);
+  assert.match(grid, /<BoDataGrid/);
+  assert.match(grid, /publicViewRuntime=\{runtime/);
+  assert.match(grid, /quickViewOpener onRowOpen=\{setDrawer\}/);
 });
