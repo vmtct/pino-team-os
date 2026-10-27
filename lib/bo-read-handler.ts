@@ -157,6 +157,7 @@ export function isOperationalReadPath(path: string): boolean {
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
     || path === "identity/parents/directory"
+    || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
     || path === "practice/repertoire-access"

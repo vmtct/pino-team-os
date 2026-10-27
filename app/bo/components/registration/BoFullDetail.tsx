@@ -55,18 +55,18 @@ export function BoFullDetail({
     onBack={() => setSubscriptionDetail(null)}
   />;
 
-  // The Parent drawer keeps its own read-only tabs without changing the new
-  // canonical Student -> Subscription full-detail flow from main.
+  // Parent uses the SAME full-width Detail cover/hero/tab/body structure as Student.
+  // Domain-specific read-only tabs are children of the canonical shell, never a narrow detached panel.
   if (moduleKey === "parents") return <section id="detail-screen">
-    <div className="detail-cover"><div className="detail-hero"><div className="detail-hero-primary">
-      {mobileMenu}
-      <button type="button" id="back-to-list" className="detail-hero-back"
-        title="Quay lại bảng" aria-label="Quay lại bảng" onClick={onBack}>←</button>
-      <div className="detail-hero-copy"><h1 id="detail-title">{record.name}</h1><p id="detail-subtitle">{record.id}</p></div>
-    </div></div></div>
-    <div className="detail-main v25-full-width"><div className="detail-panel v24-main-panel">
-      <BoParentReadTabs module={module} record={record} />
-    </div></div>
+    <div className="detail-cover">
+      <div className="detail-hero"><div className="detail-hero-primary">
+        {mobileMenu}
+        <button type="button" id="back-to-list" className="detail-hero-back"
+          title="Quay lại bảng" aria-label="Quay lại bảng" onClick={onBack}>←</button>
+        <div className="detail-hero-copy"><h1 id="detail-title">{record.name}</h1><p id="detail-subtitle">{record.id}</p></div>
+      </div></div>
+      <BoParentReadTabs module={module} record={record} fullDetail />
+    </div>
   </section>;
 
   return <section id="detail-screen">
