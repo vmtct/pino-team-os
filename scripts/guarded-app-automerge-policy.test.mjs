@@ -64,3 +64,18 @@ test("PAP-1091 reject renamed/removed files and duplicate paths, including pinne
 test("PAP-1091 filenames cannot silently alter the scoped policy",()=>{
   assert.equal(classify(["lib/bo-url-contract.ts","lib/bo-url-contract.test.ts","scripts/guarded-app-automerge-policy.mjs"],{prNumber:1100}).ok,false);
 });
+
+test("PAP-1091 activation dates do not reclassify existing UI PRs as stale",async()=>{
+  const {policyEpochForLane,assessPR}=await import("./guarded-ui-automerge.mjs");
+  const newPolicy="2026-10-27T15:45:00Z";
+  const originalEpoch=policyEpochForLane("ui",newPolicy);
+  assert.equal(originalEpoch,"2026-10-27T00:21:29Z");
+  assert.equal(policyEpochForLane("scoped-application",newPolicy),newPolicy);
+  assert.equal(policyEpochForLane("pinned-pap1089",newPolicy),"1970-01-01T00:00:00Z");
+  const pr={state:"open",draft:false,created_at:"2026-10-27T15:06:31Z",
+    base:{ref:"main"},head:{repo:{full_name:"vmtct/pino-team-os"}},
+    user:{login:"vmtct"},labels:[],requested_reviewers:[],requested_teams:[],
+    mergeable_state:"clean"};
+  assert.equal(assessPR(pr,policyEpochForLane("pinned-pap1089",newPolicy)),null);
+  assert.match(assessPR(pr,policyEpochForLane("scoped-application",newPolicy)),/pre-existing/);
+});

@@ -31,6 +31,14 @@ export function assessFiles(files, context = {}) {
 }
 
 const DENY_LABELS = new Set(['manual-merge', 'no-auto-merge', 'merge-hold', 'release-hold', 'founder-review', 'security-review', 'migration', 'production']);
+// Keep original UI eligibility epoch stable across changes to the workflow file;
+// new application scopes become eligible only after the updated policy is merged.
+// The PINNED PAP-1089 lane uses an immutable PR/HEAD/files tuple instead of age.
+export function policyEpochForLane(lane, latestWorkflowCommitAt) {
+  if (lane === 'ui') return '2026-10-27T00:21:29Z';
+  if (lane === 'pinned-pap1089') return '1970-01-01T00:00:00Z';
+  return latestWorkflowCommitAt;
+}
 export function assessPR(pr, policyAt, repo = 'vmtct/pino-team-os') {
   if (!pr || pr.state !== 'open' || pr.draft || pr.base?.ref !== 'main' || pr.head?.repo?.full_name !== repo || pr.user?.login !== 'vmtct') return 'untrusted, closed or draft PR';
   if (!(new Date(pr.created_at).getTime() >= new Date(policyAt).getTime())) return 'pre-existing PR: manual disposition';
@@ -94,9 +102,10 @@ async function run() {
   const commit = await api('/repos/' + repo + '/commits?path=.github/workflows/guarded-ui-automerge.yml&per_page=1');
   if (!commit?.[0]?.commit?.committer?.date) throw new Error('No automation activation timestamp');
   const pr = await api('/repos/' + repo + '/pulls/' + number);
-  const hold = assessPR(pr, commit[0].commit.committer.date, repo);
   const files = pr.state === 'open' ? await changedFiles(repo, number) : [];
   const assessment = assessFiles(files, { prNumber: number, headSha: pr.head?.sha });
+  const policyEpoch = policyEpochForLane(assessment.lane, commit[0].commit.committer.date);
+  const hold = assessPR(pr, policyEpoch, repo);
   const requestedChanges = pr.state === 'open' ? await hasRequestedChanges(repo, number) : false;
   const reason = hold || (!assessment.ok ? assessment.reason : null) || (requestedChanges ? 'changes requested' : null);
   if (reason) {
