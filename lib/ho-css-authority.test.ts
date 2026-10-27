@@ -8,6 +8,17 @@ const legacy = ["styles.css", "playground.css", "playground-v22.css", "playgroun
 const inputs = [...legacy.map(name => readFileSync(directory + name, "utf8")), readFileSync("app/ho/ho-theme.css", "utf8")];
 const output = readFileSync(directory + "ho-scoped.css", "utf8");
 
+test("HO Staff login never fetches private CSS, while application pages still use it", () => {
+  const middleware = readFileSync("middleware.ts", "utf8");
+  const layout = readFileSync("app/layout.tsx", "utf8");
+  assert.match(middleware, /forwarded\.delete\("x-pino-ho-auth-page"\)/);
+  assert.match(middleware, /\["\/staff-login", "\/staff-password\/change"\]/);
+  assert.match(middleware, /forwarded\.set\("x-pino-ho-auth-page", "1"\)/);
+  assert.match(layout, /const hoAuthPage = ho && incoming\.get\("x-pino-ho-auth-page"\) === "1"/);
+  assert.match(layout, /: hoAuthPage \? \[\] : \["\/team-legacy-global\.css"\]/);
+  assert.match(layout, /ho \? HO_AUTHORITY_STYLES : BO_AUTHORITY_STYLES/);
+});
+
 test("HO staging has a single scoped stylesheet and no parallel injected HO theme", () => {
   const layout = readFileSync("app/layout.tsx", "utf8");
   const hoLayout = readFileSync("app/ho/layout.tsx", "utf8");

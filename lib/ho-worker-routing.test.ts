@@ -12,7 +12,8 @@ test("HO Worker serves only admitted static assets; authentication and APIs stay
  for(const host of [ho,bo,tos,fallback])for(const method of ["GET","HEAD"]){assert.deepEqual((await route(host,"/_next/static/chunks/chunk.js",method)).calls,["asset"]);}
  assert.deepEqual((await route(fallback,"/pap659-build-provenance.json")).calls,["asset"]);
  assert.deepEqual((await route(tos,"/team-legacy-global.css")).calls,["asset"]);
- for(const p of ["/ho/centers","/api/bo/centers","/api/bo/context","/bo-skeleton/styles.css","/staff-login"]){assert.deepEqual((await route(ho,p)).calls,["application"],p);}
+ for(const p of ["/ho/centers","/api/bo/centers","/api/bo/context","/bo-skeleton/ho-scoped.css","/staff-login"]){assert.deepEqual((await route(ho,p)).calls,["application"],p);}
+ for(const p of ["/bo-skeleton/styles.css","/bo-skeleton/playground.css"]){assert.deepEqual((await route(ho,p)).calls,[],p);}
  assert.deepEqual((await route(ho,"/api/staff-auth/login","POST")).calls,["application"]);
  assert.deepEqual((await route(ho,"/_next/static/chunks/%2f..%2fsource.js")).calls,[]);
 });

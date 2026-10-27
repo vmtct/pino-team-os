@@ -9,7 +9,14 @@ export function middleware(request: NextRequest) {
   // Never trust a caller-supplied internal route marker.
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");
+  forwarded.delete("x-pino-ho-auth-page");
   if (requiresBoStagingPageSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
+  // Public Staff auth pages must not load the restricted HO authority CSS.
+  // The marker is set by middleware, never trusted from caller headers.
+  if (normalizeHostname(host) === HO_STAGING_HOSTNAME &&
+      ["/staff-login", "/staff-password/change"].includes(request.nextUrl.pathname)) {
+    forwarded.set("x-pino-ho-auth-page", "1");
+  }
   const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
   if (schoolRoute === "redirect") {
     const target = request.nextUrl.clone();

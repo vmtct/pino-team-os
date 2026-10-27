@@ -30,6 +30,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   }
   // Distinct stylesheet pipelines: global TOS rules cannot leak into the BO authority.
   const ho = incoming.get("host") === HO_STAGING_HOSTNAME;
-  const css = (bo || ho) ? (ho ? HO_AUTHORITY_STYLES : BO_AUTHORITY_STYLES).map(file => "/bo-skeleton/" + file) : ["/team-legacy-global.css"];
-  return <html lang="vi" data-bo-ui-authority={bo ? "v25" : undefined} data-surface={ho ? "ho" : undefined}><head>{css.map(href => <link key={href} rel="stylesheet" href={href} />)}</head><body>{children}</body></html>;
+  const hoAuthPage = ho && incoming.get("x-pino-ho-auth-page") === "1";
+  // Login must render from its public CSS module, not fetch a guarded HO asset.
+  const css = (bo || (ho && !hoAuthPage)) ? (ho ? HO_AUTHORITY_STYLES : BO_AUTHORITY_STYLES).map(file => "/bo-skeleton/" + file) : hoAuthPage ? [] : ["/team-legacy-global.css"];
+  return <html lang="vi" data-bo-ui-authority={bo ? "v25" : undefined} data-surface={ho && !hoAuthPage ? "ho" : undefined}><head>{css.map(href => <link key={href} rel="stylesheet" href={href} />)}</head><body>{children}</body></html>;
 }
