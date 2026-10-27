@@ -17,6 +17,17 @@ test("Parent uses shared BO module without a bespoke layout", () => {
   assert.ok(modules.parents.fields.some(field => field.key === "maskedContact" && field.readonly));
   assert.equal(readFileSync("app/bo/components/registration/BoParentReadTabs.tsx", "utf8").includes('const tabs = ["Overview", "Students", "Contacts", "Audit"]'), true);
 });
+test("Parent V2.5 detail and read-only create gate survive Student Subscription and HO main updates", () => {
+  const detail = readFileSync("app/bo/components/registration/BoFullDetail.tsx", "utf8");
+  const workspace = readFileSync("app/bo/components/registration/BoRegistrationWorkspace.tsx", "utf8");
+  assert.match(detail, /moduleKey === "parents"/);
+  assert.match(detail, /<BoParentReadTabs module=\{module\} record=\{record\}/);
+  assert.match(detail, /BoStudentSubscriptionRelation/);
+  assert.match(workspace, /enableStudentSubscriptions=\{!ho && moduleKey === "students"\}/);
+  assert.match(workspace, /!readOnly && !parentReadOnly/);
+  assert.match(workspace, /<BoQuickView moduleKey=\{moduleKey\}/);
+  assert.match(workspace, /Pino%20Logo\.png/);
+});
 test("Parent directory always uses a distinct Core authorized endpoint and paginates", async () => {
   const calls = [];
   const rows = await load("parents", async url => {

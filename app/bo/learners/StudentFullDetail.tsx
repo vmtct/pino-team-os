@@ -6,7 +6,6 @@ import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { BoSubjectHistory } from "@/app/bo/components/BoSubjectHistory";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { StudentProperties } from "./StudentProperties";
-import { StudentSubscriptionsTab, StudentSubscriptionFullDetail } from "./StudentSubscriptions";
 import { useBoEditPermission } from "../components/useBoEditPermission";
 import styles from "../components/BoFullDetail.module.css";
 import type { BoLearnerLifecycle } from "@/lib/bo-model";
@@ -49,17 +48,13 @@ export function StudentFullDetail({ studentId }: { studentId: string }) {
       setSaveError(error instanceof BoApiError && error.status === 409 ? "Hồ sơ đã được thay đổi. Tải lại trang trước khi thử lại." : error instanceof BoApiError && error.status === 403 ? "Bạn không có quyền sửa hồ sơ học viên." : error instanceof Error ? error.message : "Không thể cập nhật hồ sơ.");
     } finally { setSaving(false); }
   }
-  const currentUrl = `${pathname}?${search}`;
-  const subscriptionId = search.get("subscription");
-  if (subscriptionId) return <StudentSubscriptionFullDetail record={record} studentId={studentId} subscriptionId={subscriptionId} currentUrl={currentUrl} />;
   const query = new URLSearchParams(search.toString());
   const activeTab = query.get("tab");
   query.delete("tab");
   query.delete("detail");
-  query.delete("subscription");
   query.set("student", studentId);
   const returnTo = `/bo/learners?${query}`;
-  return <BoFullDetail designVariant="v25" title={record.student.displayName} description={`Student ID: ${studentId}`} currentUrl={currentUrl} returnTo={returnTo} activeTab={activeTab} tabs={[
+  return <BoFullDetail designVariant="v25" title={record.student.displayName} description={`Student ID: ${studentId}`} currentUrl={`${pathname}?${search}`} returnTo={returnTo} activeTab={activeTab} tabs={[
     { id: "detail", label: "Detail", content: <section className={styles.section} aria-label="Thuộc tính học viên">
       <h2>Thuộc tính học viên</h2>
       <StudentProperties record={record} nameControl={canEdit ? <button type="button" aria-label="Chỉnh sửa tên học viên" disabled={saving} onClick={() => { setName(record.student.displayName); setStatus(record.student.status as "ACTIVE" | "INACTIVE" | "ARCHIVED"); setSaveError(""); setEditing(true); }}>{record.student.displayName} <span aria-hidden="true">✎</span></button> : undefined}
@@ -72,8 +67,7 @@ export function StudentFullDetail({ studentId }: { studentId: string }) {
         {saveError ? <p role="alert">{saveError}</p> : null}
       </form> : null}
     </section> },
-    { id: "subscriptions", label: "Subscription", content: <StudentSubscriptionsTab key={studentId} record={record} studentId={studentId} /> },
-    { id: "specialized", label: "Chuyên Sâu", content: <section className={styles.section}><h2>Người giám hộ</h2>{!record.guardians.length ? <p>Chưa có người giám hộ.</p> : null}<ul>{record.guardians.map(entry => <li key={entry.relationshipId}>{entry.parent.displayName ?? entry.parent.id} · {entry.relationshipType}</li>)}</ul></section> },
+    { id: "specialized", label: "Chuyên Sâu", content: <><section className={styles.section}><h2>Người giám hộ</h2>{!record.guardians.length ? <p>Chưa có người giám hộ.</p> : null}<ul>{record.guardians.map(entry => <li key={entry.relationshipId}>{entry.parent.displayName ?? entry.parent.id} · {entry.relationshipType}</li>)}</ul></section><section className={styles.section}><h2>Gói học</h2>{!record.subscriptions.length ? <p>Chưa có gói học.</p> : null}<ul>{record.subscriptions.map(entry => <li key={entry.subscription.id}>{entry.subscription.pathDisplayName} · {entry.subscription.lifecycle} · {entry.subscription.effectiveAvailableUnits} buổi khả dụng · {entry.enrollments.length} enrollments</li>)}</ul></section></> },
     { id: "history", label: "Lịch Sử", content: <BoSubjectHistory key={studentId} subjectType="student_profile" subjectId={studentId} /> },
   ]} />;
 }

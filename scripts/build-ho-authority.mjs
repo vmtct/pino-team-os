@@ -19,7 +19,12 @@ export function scopeHoCss(text) {
     for (let p = rule.parent; p; p = p.parent) {
       if (p.type === "atrule" && /keyframes$/i.test(p.name)) return;
     }
-    rule.selectors = rule.selectors.flatMap(selector => {
+    // Remove the retired HO workspace-switcher selectors from the generated
+    // CSS only. Frozen historical inputs remain immutable for audit and rollback.
+    const retiredNav = /(?:^|[\s>+~])\.(?:nav-workspace(?:-[\w-]+)?|workspace-angle)(?=$|[\s.:#>+~\[])/;
+    const selectors = rule.selectors.filter(selector => !retiredNav.test(selector));
+    if (!selectors.length) { rule.remove(); return; }
+    rule.selectors = selectors.flatMap(selector => {
       // Theme rules already match html[data-surface="ho"]; never gate twice.
       if (/^\[data-surface=(?:"ho"|'ho')\](?=[\s:.#>+~\[]|$)/.test(selector))
         return [selector.replace(/^\[data-surface='ho'\]/, '[data-surface="ho"]')];

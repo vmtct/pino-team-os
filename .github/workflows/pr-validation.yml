@@ -70,3 +70,24 @@ jobs:
           path: .next/pap659-build-provenance.json
           if-no-files-found: error
           retention-days: 7
+
+  dispatch_staging_after_main_validation:
+    needs: [validate]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.validate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch guarded staging CD for the exact main CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+          VALIDATION_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SOURCE_SHA"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/candidate-staging-deploy.yml/dispatches" \
+            -f ref=main -f "inputs[source_sha]=$SOURCE_SHA" -f "inputs[validation_run_id]=$VALIDATION_RUN"
+          echo "DISPATCH_TEAM_STAGING_CD source=$SOURCE_SHA validation=$VALIDATION_RUN"
