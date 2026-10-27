@@ -92,3 +92,10 @@ test("automatic CD must validate BO public hostname, not workers.dev",()=>fixtur
   write(cd,read(cd).replace("https://bo.staging.pinohouse.art/$css","https://wrong.example/$css"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Automatic staging CD must smoke test/);
 }));
+
+test("PAP-1030 retired BO deep-link smoke must run on canonical BO staging host", () => fixture(({root,read,write}) => {
+  const source = read(cd);
+  assert.match(source, /bo_host='https:\/\/bo\.staging\.pinohouse\.art'/);
+  write(cd, source.replace("bo_host='https://bo.staging.pinohouse.art'", "bo_host='https://pino-team-os-staging.minhtri-van42.workers.dev'"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /retired BO route smoke must target canonical BO staging host/);
+}));
