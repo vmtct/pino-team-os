@@ -1,7 +1,6 @@
 [data-surface="ho"] { --ds-primary:#74283E; --ds-primary-hover:#611D34; --ds-primary-subtle:#F9EDF1; --ds-primary-border:#DEC0CB; --ds-on-primary:#FFFFFF; --purple:var(--ds-primary); --purple-dark:var(--ds-primary-hover); --purple-soft:var(--ds-primary-subtle); --lavender:var(--ds-primary); }
-[data-surface="ho"] .brand-mark { background:var(--ds-primary); box-shadow:none; }
-[data-surface="ho"] .nav-link.active { background:var(--ds-primary); color:var(--ds-on-primary); }
-[data-surface="ho"] .nav-workspace-glyph { background:var(--ds-primary-hover); color:var(--ds-on-primary); }
+[data-surface="ho"] .ho-brand-logo { display:block; width:46px; height:46px; max-width:100%; flex:none; object-fit:contain; border-radius:10px; background:var(--ds-on-primary); }
+[data-surface="ho"] .nav-link.active { background:var(--ds-primary); color:var(--ds-on-primary); box-shadow:inset 3px 0 0 var(--ds-primary-border); }
 [data-surface="ho"] .primary-btn { background:var(--ds-primary); border-color:var(--ds-primary); color:var(--ds-on-primary); }
 [data-surface="ho"] .primary-btn:hover { background:var(--ds-primary-hover); }
 [data-surface="ho"] :is(button,a,input,select,textarea):focus-visible { outline-color:var(--ds-primary); }
@@ -10,7 +9,7 @@
 [data-surface="ho"] #typed-table tr:hover td.first-quick-cell, [data-surface="ho"] #typed-table tr:hover td:nth-child(2), [data-surface="ho"] #typed-table tr.selected td { background:var(--ds-primary-subtle)!important; }
 [data-surface="ho"] #typed-table .first-quick-cell .row-open:focus-visible { background:var(--ds-primary-subtle); color:var(--ds-primary); }
 [data-surface="ho"] :is(.view-add:hover,.view-context button:hover,.view-tab.saved-tab.drag-target) { background:var(--ds-primary-subtle); color:var(--ds-primary); border-color:var(--ds-primary-border); }
-[data-surface="ho"] .sidebar-footer button { background:transparent; border:1px solid var(--ds-primary-border); color:#fff; border-radius:6px; padding:5px; margin-left:auto; }
+[data-surface="ho"] .sidebar-footer button { background:transparent; border:1px solid var(--ds-primary-border); color:var(--ds-on-primary); border-radius:6px; padding:5px; margin-left:auto; }
 
 [data-surface="ho"] .page-heading h1 small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:4px; }
 [data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
@@ -18,7 +17,6 @@
 [data-surface="ho"] .toolbar-button, [data-surface="ho"] .view-add { display:none!important; }
 [data-surface="ho"] :is(.view-rename-input,input:focus,select:focus) { border-color:var(--ds-primary-border); }
 
-[data-surface="ho"] .nav-link.active { box-shadow:inset 3px 0 0 var(--ds-primary-border); }
 [data-surface="ho"] .nav-link.active .nav-icon { color:var(--ds-on-primary); }
 [data-surface="ho"] .sidebar-footer .avatar { background:var(--ds-primary); color:var(--ds-on-primary); }
 [data-surface="ho"] .property-control:hover:not(:disabled), [data-surface="ho"] .detail-hero-back:hover { background:var(--ds-primary-subtle); border-color:var(--ds-primary-border); color:var(--ds-primary); }

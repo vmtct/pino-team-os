@@ -13,7 +13,7 @@ test("React presentation uses only classes defined by Hồ sơ đăng ký; no pe
     const text = readFileSync(folder + file, "utf8"), tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const visit = (node: ts.Node) => {
       if (ts.isJsxAttribute(node) && node.name.getText(tree) === "className" && node.initializer && ts.isStringLiteral(node.initializer)) {
-        for (const name of node.initializer.text.split(/\s+/).filter(Boolean)) assert.ok(classes.has(name) || (file === "BoRegistrationWorkspace.tsx" && ["brand", "brand-mark", "brand-type", "nav-workspace-glyph"].includes(name)), file + " introduced class " + name);
+        for (const name of node.initializer.text.split(/\s+/).filter(Boolean)) assert.ok(classes.has(name) || (file === "BoRegistrationWorkspace.tsx" && ["brand", "brand-type", "ho-brand-logo"].includes(name)), file + " introduced class " + name);
       }
       ts.forEachChild(node, visit);
     };
