@@ -26,6 +26,7 @@ test('new author-owned PR allowed, old/draft/fork/holds/review requests blocked'
     user: { login: 'vmtct' }, labels: [], requested_reviewers: [], requested_teams: [], mergeable_state: 'clean'
   };
   assert.equal(assessPR(base, '2026-10-27T09:00:00Z'), null);
+  assert.equal(assessPR({ ...base, mergeable_state: 'blocked' }, '2026-10-27T09:00:00Z'), null); // required checks pending
   assert.match(assessPR(base, '2026-10-27T11:00:00Z'), /pre-existing/);
   assert.match(assessPR({ ...base, draft: true }, '2026-10-27T09:00:00Z'), /draft/);
   assert.match(assessPR({ ...base, labels: [{ name: 'merge-hold' }] }, '2026-10-27T09:00:00Z'), /hold/);
