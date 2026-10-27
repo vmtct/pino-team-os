@@ -24,13 +24,17 @@ export function BoFullDetail({
   const [voidOpen, setVoidOpen] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
+  // "Detail" remains the stable tab key for PayrollPeriodDetail and existing
+  // keyboard/selection contracts. Its displayed BO label is now "Thông tin".
+  // Advanced domain fields were all drawn from module.fields, which already
+  // render in Detail; removing their duplicate tab does not hide data.
   const tabs = moduleKey === "payroll-periods"
     ? ["Detail", "Quyết Toán", "Lịch Sử"]
     : moduleKey === "subscriptions"
-    ? ["Detail", "Enrollment", "Chuyên Sâu", "Lịch Sử"]
+    ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "students" && enableStudentSubscriptions
-    ? ["Detail", "Subscription", "Chuyên Sâu", "Lịch Sử"]
-    : ["Detail", "Chuyên Sâu", "Lịch Sử"];
+    ? ["Detail", "Subscription", "Lịch Sử"]
+    : ["Detail", "Lịch Sử"];
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
 
@@ -85,7 +89,7 @@ export function BoFullDetail({
             setTab(tabs[next]);
             document.getElementById("detail-tab-" + next)?.focus();
           }}
-        >{label}</button>)}
+        >{label === "Detail" ? "Thông tin" : label}</button>)}
       </div>
       <div id="detail-body" className="detail-main v25-full-width" role="tabpanel"
         aria-labelledby={"detail-tab-" + tabs.indexOf(activeTab)}>
@@ -114,9 +118,7 @@ export function BoFullDetail({
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
                 ? <div className="v24-audit-empty" role="status">Phân lớp được quản lý bởi Core. Chức năng xem và thao tác Enrollment thuộc PAP-1035 (S3), chưa triển khai trong S1.</div>
-              : activeTab === "Chuyên Sâu"
-                ? <BoAdvanced module={module} moduleKey={moduleKey} record={record} />
-                : subjectType
+              : subjectType
                   ? <BoRegistrationHistory key={record.id} subjectType={subjectType} subjectId={record.id} />
                   : <div className="v24-audit-empty" role="status">Lịch sử chưa khả dụng.</div>}
         </div>
@@ -125,10 +127,4 @@ export function BoFullDetail({
     {voidOpen ? <BoStudentIntakeVoid studentId={record.id}
       onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}
   </section>;
-}
-
-/** Group only fields already present in the authorized projection; no inferred relations. */
-function BoAdvanced({ module, moduleKey, record }: { module: BoModule; moduleKey: string; record: BoRecord }) {
-  const sections: [string, string[]][] = moduleKey === "students" ? [["Học viên", ["name", "birthYear", "status"]], ["Path", ["paths", "houseMember"]]] : moduleKey === "classes" ? [["Lớp học", ["name", "path", "center"]], ["Lịch học", ["weekday", "window", "capacity", "topology", "status"]]] : moduleKey === "enrollments" ? [["Học viên & lớp học", ["name", "runningClass", "path"]], ["Gói đăng ký", ["subscriptionId"]], ["Thời gian học", ["start", "end", "entry", "duration"]]] : [];
-  return sections.length ? <div className="v24-special-grid">{sections.map(([title, keys], i) => <article className={"v24-special-card" + (i === 2 ? " v24-full" : "")} key={title}><div className="v24-card-icon" aria-hidden="true">{["◉", "▦", "◷"][i]}</div><h4>{title}</h4><dl>{keys.map(key => { const field = module.fields.find(f => f.key === key); return field ? <div key={key}><dt>{field.label}</dt><dd><BoValue field={field} value={record[key]} full /></dd></div> : null; })}</dl></article>)}</div> : <div className="v24-audit-empty" role="status">Chưa có thông tin bổ sung.</div>;
 }

@@ -23,14 +23,15 @@ test("returnTo fails closed on foreign origin, auth pages, duplicate or malforme
  assert.equal(hoRecordId("glow"),"glow");
  assert.equal(hoRecordId("../etc"),null);
 });
-test("HO sidebar uses client routing with prefetch off, while BO keeps its anchor",()=>{
+test("HO and BO sidebars both use client routing with prefetch disabled",()=>{
  const ws=readFileSync("app/bo/components/registration/BoRegistrationWorkspace.tsx","utf8");
  assert.match(ws,/ho \? <Link/);
  assert.match(ws,/prefetch=\{false\}/);
  assert.match(ws,/onOpen=\{record =>/);
  assert.match(ws,/window\.addEventListener\("popstate", onBack\)/);
  assert.match(ws,/sessionStorage\.setItem\("pino:ho:sidebar:v1"/);
- assert.match(ws,/: <a className=/);
+ assert.match(ws,/: <Link prefetch=\{false\}/);
+ assert.doesNotMatch(ws,/: <a className=/);
 });
 test("middleware and auth pages preserve safe return-to only for HO",()=>{
  const middleware=readFileSync("middleware.ts","utf8");
