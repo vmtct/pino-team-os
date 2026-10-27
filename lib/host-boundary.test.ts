@@ -245,3 +245,36 @@ test("PAP-1028 canonical BO legacy stylesheets are exact GET/HEAD-only assets",(
     assert.deepEqual(decideHostBoundary(host,"/bo/workforce-term-weeks"),{action:"not_found"});
   }
 });
+
+test("PAP-1030 retired BO pages return 404 on every host before the auth redirect", () => {
+  const retired = [
+    "/bo/workforce-term-weeks",
+    "/bo/pinoria-world",
+    "/bo/pinoria-ward",
+    "/bo/pinoria-ward/sets",
+    "/bo/system/users",
+    "/bo/system/roles",
+  ];
+  const hosts = [
+    "bo.staging.pinohouse.art",
+    "bo.pinohouse.art",
+    "ho.staging.pinohouse.art",
+    "tos.staging.pinohouse.art",
+    "pino-team-os-staging.minhtri-van42.workers.dev",
+    "localhost",
+    "preview.example.net",
+  ];
+  for (const host of hosts) {
+    for (const route of retired) {
+      for (const pathname of [route, route + "/"]) {
+        for (const method of ["GET", "HEAD", "POST"]) {
+          assert.deepEqual(decideHostBoundary(host, pathname, method), { action: "not_found" }, host + ":" + pathname + ":" + method);
+        }
+      }
+    }
+  }
+  // Do not block Pinoria Loadouts or other retained routes by over-broad prefixes.
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art", "/bo/pinoria-ward/learners"), { action: "next" });
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art", "/bo/workforce-assignments"), { action: "next" });
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art", "/bo/workforce-shift-plans"), { action: "next" });
+});
