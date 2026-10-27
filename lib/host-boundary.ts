@@ -165,6 +165,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/learners",
     "/api/bo/audit/subject",
     "/api/bo/identity/parents",
+    "/api/bo/identity/parents/directory",
     "/api/bo/student-intakes",
     "/api/bo/practice/authoring-context",
     "/api/bo/practice/repertoire-access/context",
