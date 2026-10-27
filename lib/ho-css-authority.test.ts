@@ -24,14 +24,14 @@ test("HO staging has a single scoped stylesheet and no parallel injected HO them
 test("HO consolidated stylesheet preserves declarations, cascade sequence and at-rules exactly", () => {
   const compiled = postcss.parse(output);
   const original = inputs.map(css => postcss.parse(css));
-  const serializeDecls = tree => {
-    const result = [];
-    tree.walkDecls(decl => result.push(JSON.stringify([decl.prop, decl.value, decl.important])));
+  const serializeDecls = (tree: postcss.Root) => {
+    const result: string[] = [];
+    tree.walkDecls(decl => { result.push(JSON.stringify([decl.prop, decl.value, decl.important])); });
     return result;
   };
-  const serializeAtRules = tree => {
-    const result = [];
-    tree.walkAtRules(at => result.push(JSON.stringify([at.name, at.params])));
+  const serializeAtRules = (tree: postcss.Root) => {
+    const result: string[] = [];
+    tree.walkAtRules(at => { result.push(JSON.stringify([at.name, at.params])); });
     return result;
   };
   assert.deepEqual(serializeDecls(compiled), original.flatMap(serializeDecls));
@@ -44,8 +44,8 @@ test("HO CSS has a zero-specificity host gate on every selector outside keyframe
   let rules = 0;
   compiled.walkRules(rule => {
     let keyframes = false;
-    for(let parent = rule.parent; parent; parent=parent.parent){
-      if(parent.type==="atrule" && /keyframes$/i.test(parent.name)) {keyframes=true;break;}
+    for (let parent: { type: string; name?: string; parent?: unknown } | undefined = rule.parent; parent; parent = parent.parent as typeof parent) {
+      if(parent.type==="atrule" && /keyframes$/i.test(parent.name ?? "")) {keyframes=true;break;}
     }
     if(keyframes) return;
     rules++;
