@@ -33,3 +33,6 @@
 
 ## External wait boundary
 WAIT_EXTERNAL_FIXTURE_ADMISSION until staging writer lease + authorized HO actor/grants + immutable retention decision + Core attendance-evidence contract are resolved. No direct Cloudflare privileged SQL bypass.
+
+## UI-only staging architecture gate
+PR Validation run 40446973643 proved the BO architecture admission guard rejects legacy /bo/workforce/payroll added directly to boStagingAdmittedRoutes. That failed change was rolled back, not bypassed. On ui-only staging, payroll legacy route remains inaccessible. Before actual staging Founder read UI, adopt this module via canonical BO module registry + BoModuleFactory/shared Table/Drawer/Full Detail adapter, with verified domain read and permission mapping, not direct allowlist insertion.
