@@ -12,7 +12,8 @@ test("PAP BO URL optimizer: enrollment projection is GET-only, Staging-only and 
 });
 
 test("PAP BO URL optimizer: approved query modules are explicit and unique", () => {
-  assert.deepEqual(BO_SIDEBAR_MODULES, ["students", "classes", "subscriptions", "enrollments", "visits", "staffs", "timekeeping", "salaryPeriods", "audits"]);
+  assert.deepEqual(BO_SIDEBAR_MODULES, ["students", "classes", "subscriptions", "enrollments", "visits", "staffs", "timekeeping", "salaryPeriods", "audits", "parents"]);
+  assert.equal(BO_SIDEBAR_MODULES.includes("parents"), true, "PAP-1029 Parent must not redirect to Students");
   assert.equal(new Set(BO_SIDEBAR_MODULES).size, BO_SIDEBAR_MODULES.length);
   assert.equal(BO_SIDEBAR_MODULES.includes("invalid"), false);
 });
