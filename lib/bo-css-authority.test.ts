@@ -6,11 +6,12 @@ import postcss from "postcss";
 import { BO_AUTHORITY_STYLES, HO_AUTHORITY_STYLES, serveBoSkeleton, type BoSkeletonEnv } from "./bo-skeleton";
 const base = "public/bo-authority-source/", raw = readFileSync(base + "styles.css", "utf8"), scoped = readFileSync(base + "bo-scoped.css", "utf8");
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
-test("PAP-1022 exact canonical authority and one stylesheet are pinned", () => {
-  assert.equal(digest(raw), "be42f65123053fb9906801f1fcc49644dc05ee6f811d6ab82162c91827d9a1f2");
-  assert.equal(digest(readFileSync(base + "CSS_AUTHORITY.json")), "d58f11197ac9404cd8bdea7c9166bfa90f5b4cdf77d3ee096830359ed4717438");
+test("PAP-1064 Oct27 canonical BO authority + Payroll extension and one stylesheet are pinned", () => {
+  assert.equal(digest(raw), "be13bc6002c4f177434f8e795a2fee0554361d317103b1f48dd9f86be56eacfb");
+  assert.equal(digest(readFileSync(base + "CSS_AUTHORITY.json")), "9e946d52f6912deadb784f9b86a52b941afe1f164ed677812acf3ad4d381b3bf");
+  assert.equal(digest(raw.slice(0, raw.indexOf("/* PAP-1032 payroll period settlement primitives")).trimEnd()+"\n"), "48ef0ad356935816c6b280246a1362786787bf6693267af93ad49fdb686bb3b3");
   assert.deepEqual(BO_AUTHORITY_STYLES, ["styles.css"]);
-  assert.equal([...raw.matchAll(/!important/g)].length, 1);
+  assert.equal([...raw.matchAll(/!important/g)].length, 4); // exact approved Oct-27 BO CSS, Payroll extension adds none
   assert.match(raw, /\[hidden\]/);
 });
 test("BO scope preserves every rule declaration and at-rule in original order", () => {

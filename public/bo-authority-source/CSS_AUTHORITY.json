@@ -75,8 +75,8 @@
     },
     {
       "file": "styles.css",
-      "bytes": 111517,
-      "sha256": "48ef0ad356935816c6b280246a1362786787bf6693267af93ad49fdb686bb3b3"
+      "bytes": 112628,
+      "sha256": "be13bc6002c4f177434f8e795a2fee0554361d317103b1f48dd9f86be56eacfb"
     },
     {
       "sha256": "2ac023072e38b2c953e7e982892c5cae649327dcc82d856e12243d40e6d5bf72",
@@ -718,5 +718,12 @@
     "existingRegressionTests": 35,
     "status": "PROTOTYPE_E2E_PASS",
     "staging": "NOT_DEPLOYED"
+  },
+  "runtimeExtension": {
+    "baseAuthoritySha256": "48ef0ad356935816c6b280246a1362786787bf6693267af93ad49fdb686bb3b3",
+    "source": "PAP-1032 original main Payroll-only DS primitives",
+    "componentScope": "payroll-ro-*",
+    "styleRules": "BO V2.5 semantic tokens only",
+    "productionMutation": false
   }
 }
