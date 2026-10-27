@@ -46,9 +46,13 @@ test("BO middleware accepts password Staff session on BO pages", () => {
 });
 
 test("BO middleware redirects BO pages to local Staff login without password session", () => {
-  const response = middleware(request(undefined, "https://bo.pinohouse.art/bo/system/users"));
+  const response = middleware(request(undefined, "https://bo.pinohouse.art/bo/learners"));
   assert.equal(response.status, 307);
   assert.equal(response.headers.get("location"), "https://bo.pinohouse.art/staff-login");
+});
+
+test("BO retired Users route is unavailable before login", () => {
+  assert.equal(middleware(request(undefined, "https://bo.pinohouse.art/bo/system/users")).status, 404);
 });
 
 test("BO local Staff login remains public to the application", () => {
