@@ -37,6 +37,9 @@ test("PAP-1059 S2 Founder Center visits use Core read projection, not Staff chec
  assert.match(source,/workforceApi\.founderCenterVisits\(\{centerId,status:"ALL"\}\)/);
  assert.match(source,/Student Visits · Dữ liệu thực từ Core/);
  assert.match(source,/data\.visits\.summary\.openVisits/);
+ assert.match(source,/Promise\.allSettled/);
+ assert.match(source,/data\.founderError/);
+ assert.match(source,/data\.visitsError/);
  assert.match(api,/founderCenterVisits:/);
  assert.doesNotMatch(source.slice(source.indexOf("if(ctx?.founderMode){"),source.indexOf("if(!appRenderable)")),/workforceApi\.checkIn\(|workforceApi\.checkOut\(/);
 });

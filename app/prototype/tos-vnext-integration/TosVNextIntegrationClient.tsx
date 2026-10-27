@@ -33,7 +33,7 @@ type Section="home"|TosVNextAppId;
 type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
 type FounderAssignment=Assignment&{staffMemberId:string;staffLabel:string};
 type FounderVisits={centerId:string;data:Array<{id:string;student:{id:string;displayName:string};status:"OPEN"|"CLOSED";checkedInAt:string;checkedOutAt:string|null}>;total:number;summary:{totalVisits:number;openVisits:number;closedVisits:number}};
-type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean};visits?:FounderVisits};
+type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean};visits?:FounderVisits;founderError?:string;visitsError?:string};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -96,11 +96,16 @@ export default function TosVNextIntegrationPreview(){
   if(ctx.founderMode){
    let active=true;
    setError("");setData({});setLoading(true);
-   void Promise.all([
+   void Promise.allSettled([
     workforceApi.founderCenterSchedule({centerId,startDate:today(zone),endDate:today(zone,14)}),
     workforceApi.founderCenterVisits({centerId,status:"ALL"})
-   ]).then(([schedule,visits])=>{if(active)setData({founder:schedule.data,visits:visits.data})})
-    .catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải dữ liệu Center từ Core.")})
+   ]).then(([schedule,visits])=>{
+    if(!active)return;
+    setData({
+     ...(schedule.status==="fulfilled"?{founder:schedule.value.data}:{founderError:schedule.reason instanceof Error?schedule.reason.message:"Không thể tải phân công Center."}),
+     ...(visits.status==="fulfilled"?{visits:visits.value.data}:{visitsError:visits.reason instanceof Error?visits.reason.message:"Không thể tải Student Visits."})
+    });
+   })
     .finally(()=>{if(active)setLoading(false)});
    return()=>{active=false};
   }
@@ -157,8 +162,8 @@ export default function TosVNextIntegrationPreview(){
      <p role="status">Chế độ Founder · {center?.displayName||"Chưa chọn trung tâm"}</p>
      {app==="shift"||app==="shift-lead"?<section aria-label="Lịch phân công Center">
       <h3>Phân công thực từ Core · 15 ngày</h3>
-      {error&&<p role="alert">{error}</p>}
-      {!error&&!data.founder&&<p role="status">Dữ liệu chưa sẵn sàng.</p>}
+      {data.founderError&&<p role="alert">{data.founderError}</p>}
+      {!data.founderError&&!data.founder&&<p role="status">Dữ liệu chưa sẵn sàng.</p>}
       {data.founder&&(()=>{
        const rows=data.founder.assignments.filter(row=>app==="shift"||row.roleAssignments?.some(role=>role.roleType==="SHIFT_LEADER"));
        return <><p>{rows.length} phân công được trả về.</p>
@@ -175,7 +180,7 @@ export default function TosVNextIntegrationPreview(){
       <TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel="Founder" onDetailChange={setClassDetailOpen}/>:
       app==="reception"||app==="station"?<section aria-label="Student Visits Center">
        <h3>Student Visits · Dữ liệu thực từ Core</h3>
-       {error&&<p role="alert">{error}</p>}
+       {data.visitsError&&<p role="alert">{data.visitsError}</p>}
        {data.visits?<>
         <p>Đang có mặt: {data.visits.summary.openVisits} · Đã về: {data.visits.summary.closedVisits} · Tổng: {data.visits.summary.totalVisits}</p>
         {data.visits.data.length===0&&<p>Không có Student Visit tại Center.</p>}
