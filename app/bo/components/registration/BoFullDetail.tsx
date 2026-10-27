@@ -3,6 +3,7 @@
 import { lazy, Suspense, useState } from "react";
 import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
+import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
 import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
 import { BoParentReadTabs } from "./BoParentReadTabs";
@@ -32,11 +33,11 @@ export function BoFullDetail({
   const [voidOpen, setVoidOpen] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
-  // "Detail" remains the stable tab key for PayrollPeriodDetail and existing
-  // keyboard/selection contracts. Its displayed BO label is now "Thông tin".
-  // Advanced domain fields were all drawn from module.fields, which already
-  // render in Detail; removing their duplicate tab does not hide data.
-  const tabs = moduleKey === "payroll-periods"
+  // Existing BO/Student/Subscription/Payroll tabs are preserved from current main.
+  // Running Classes approved Enrollment is module-local.
+  const tabs = moduleKey === "classes"
+    ? ["Detail", "Enrollment", "Lịch Sử"]
+    : moduleKey === "payroll-periods"
     ? ["Detail", "Quyết Toán", "Lịch Sử"]
     : moduleKey === "staffs"
     ? ["Detail", "Thu nhập", "Lịch Sử"]
@@ -128,6 +129,8 @@ export function BoFullDetail({
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
+              : activeTab === "Enrollment" && moduleKey === "classes"
+                ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
                 ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Enrollment…</div>}><BoSubscriptionEnrollmentTab subscriptionId={record.id} onChanged={onEnrollmentChanged} /></Suspense>
               : subjectType
