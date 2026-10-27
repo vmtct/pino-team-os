@@ -14,3 +14,9 @@ test("PAP-938 Founder browse never impersonates a StaffMember or fabricates shif
  assert.match(source,/thao tác Staff cá nhân vẫn yêu cầu tài khoản Staff hợp lệ/);
  assert.doesNotMatch(source.slice(effectStart,shiftRead),/workforceApi\.schedule\(|checkIn\(|checkOut\(/);
 });
+
+test("PAP-938 staging Staff/Founder login routes to authoritative TOS V4",()=>{
+ const login=readFileSync("app/staff-login/page.tsx","utf8");
+ assert.match(login,/hostname === "tos.staging.pinohouse.art"\) return "\/tos-v4"/);
+ assert.match(login,/body\.data\?\.authenticated/);
+});
