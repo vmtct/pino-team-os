@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '22'
       - name: Verify fail-closed path policy
-        run: node --test scripts/guarded-ui-automerge.test.mjs
+        run: node --test scripts/guarded-ui-automerge.test.mjs scripts/guarded-app-automerge-policy.test.mjs
       - name: Admit only new, safe, same-repo UI PRs to GitHub-native auto merge
         env:
           GITHUB_TOKEN: ${{ github.token }}

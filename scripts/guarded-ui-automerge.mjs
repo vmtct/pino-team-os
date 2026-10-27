@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { assessApplicationFiles } from './guarded-app-automerge-policy.mjs';
 
 // Fail closed: a green CI run is necessary but not sufficient for automatic admission.
 export function safeUiPath(input) {
@@ -16,13 +17,17 @@ export function safeUiPath(input) {
   return false;
 }
 
-export function assessFiles(files) {
-  if (!Array.isArray(files) || files.length < 1 || files.length > 40) return { ok: false, reason: 'file count outside 1..40' };
-  const rejected = [];
-  for (const file of files) {
-    if (!safeUiPath(file.filename) || (file.previous_filename && !safeUiPath(file.previous_filename))) rejected.push(file.filename);
-  }
-  return rejected.length ? { ok: false, reason: 'requires manual merge: ' + rejected.slice(0, 6).join(', ') } : { ok: true };
+export function assessFiles(files, context = {}) {
+  if (!Array.isArray(files) || files.length < 1 || files.length > 40)
+    return { ok: false, reason: 'file count outside 1..40' };
+  // UI-only path remains unchanged; policy/architecture expansion is a distinct,
+  // test-backed, exact-scope lane. Never checkout executable PR code here.
+  if (files.every(file => safeUiPath(file.filename) &&
+      !file.previous_filename && !['removed', 'renamed'].includes(file.status)))
+    return { ok: true, lane: 'ui' };
+  const app = assessApplicationFiles(files, context, safeUiPath);
+  if (app.ok) return app;
+  return { ok: false, reason: 'requires manual merge: ' + app.reason };
 }
 
 const DENY_LABELS = new Set(['manual-merge', 'no-auto-merge', 'merge-hold', 'release-hold', 'founder-review', 'security-review', 'migration', 'production']);
@@ -81,8 +86,9 @@ async function run() {
   const branch = await api('/repos/' + repo + '/branches/main');
   const settings = await api('/repos/' + repo);
   console.log('Admission preflight: protected=' + String(branch.protected) + ', repositoryAutoMergeVisible=' + String(settings.allow_auto_merge));
-  if (!branch.protected) {
-    console.log('HOLD: protected main missing');
+  if (!branch.protected || settings.allow_auto_merge !== true ||
+      !branch.protection?.required_status_checks?.contexts?.includes('validate')) {
+    console.log('HOLD: protected main, required validate check or native auto-merge unavailable');
     return;
   }
   const commit = await api('/repos/' + repo + '/commits?path=.github/workflows/guarded-ui-automerge.yml&per_page=1');
@@ -90,7 +96,7 @@ async function run() {
   const pr = await api('/repos/' + repo + '/pulls/' + number);
   const hold = assessPR(pr, commit[0].commit.committer.date, repo);
   const files = pr.state === 'open' ? await changedFiles(repo, number) : [];
-  const assessment = assessFiles(files);
+  const assessment = assessFiles(files, { prNumber: number, headSha: pr.head?.sha });
   const requestedChanges = pr.state === 'open' ? await hasRequestedChanges(repo, number) : false;
   const reason = hold || (!assessment.ok ? assessment.reason : null) || (requestedChanges ? 'changes requested' : null);
   if (reason) {
@@ -123,7 +129,7 @@ async function run() {
   if (data.errors?.length || !data.data?.enablePullRequestAutoMerge?.pullRequest?.autoMergeRequest) {
     throw new Error('Native auto-merge not admitted: ' + JSON.stringify(data.errors || data));
   }
-  console.log('ENABLED_NATIVE_AUTO_MERGE PR #' + number + ' HEAD ' + pr.head.sha + ' files=' + files.length + ' (CI and branch rules still mandatory)');
+  console.log('ENABLED_NATIVE_AUTO_MERGE PR #' + number + ' HEAD ' + pr.head.sha + ' files=' + files.length + ' lane=' + assessment.lane + ' (CI and branch rules still mandatory)');
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
