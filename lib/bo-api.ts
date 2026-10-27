@@ -434,6 +434,18 @@ export const boApi = {
   fulfillSpecialtyPhysicalReward: (rewardGrantId:string) => write<BoSpecialtyPhysicalRewardGrant>(`specialty/physical-rewards/${encodeURIComponent(rewardGrantId)}/fulfill`,{},crypto.randomUUID()),
   createSubscription: (body: { studentProfileId: string; pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>("subscriptions", body, idempotencyKey),
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, idempotencyKey),
+  // PAP-1035 — canonical Core membership API. No client-side placement truth.
+  subscriptionById: (subscriptionId:string) => readOne<import("./bo-model").BoLearnerSubscription>(`subscriptions/${encodeURIComponent(subscriptionId)}`),
+  subscriptionEnrollments: (subscriptionId:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentRecord[]>(`subscriptions/${encodeURIComponent(subscriptionId)}/enrollments`),
+  subscriptionPlacement: (subscriptionId:string, targetLocalDate:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentPlacementState>(`subscriptions/${encodeURIComponent(subscriptionId)}/placement?targetLocalDate=${encodeURIComponent(targetLocalDate)}`),
+  enrollmentCapacity: (input:{runningClassId:string;targetLocalDate:string;subscriptionId?:string;plannedEntryLocalTime?:string|null;plannedDurationMinutes?:number|null}) => {
+    const qs=new URLSearchParams();
+    for(const [k,v] of Object.entries(input))if(v!==undefined&&v!==null)qs.set(k,String(v));
+    return readOne<import("./bo-enrollment-contract").BoEnrollmentCapacity>(`enrollments/capacity?${qs.toString()}`);
+  },
+  enrollmentById: (enrollmentId:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentRecord>(`enrollments/${encodeURIComponent(enrollmentId)}`),
+  transferEnrollment: (enrollmentId:string, body:{destinationRunningClassId:string;transferLocalDate:string;plannedEntryLocalTime?:string|null;plannedDurationMinutes?:number|null;commandEffectiveLocalDate:string;policyEffectiveAt:string;reason:string},idempotencyKey:string) =>
+    write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/transfer`,body,idempotencyKey),
   subscriptionDirectory: (filters: {query?:string;lifecycle?:string;pathProgramId?:string;centerId?:string;limit?:number;beforeCreatedAt?:string;beforeSubscriptionId?:string}={}) => { const query = new URLSearchParams(); for (const [key,value] of Object.entries(filters)) if(value!==undefined&&value!==null&&value!=="")query.set(key,String(value)); return readOne<BoSubscriptionDirectoryPage>("subscriptions?"+query.toString()); },
   subscriptionProjectedCompletion: (subscriptionId: string, effectiveAt: string) => readOne<BoSubscriptionProjectedCompletion>(`subscriptions/${encodeURIComponent(subscriptionId)}/projected-completion?effectiveAt=${encodeURIComponent(effectiveAt)}`),
   cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, idempotencyKey),

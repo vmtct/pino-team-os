@@ -7,10 +7,11 @@ import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
+import { BoSubscriptionEnrollmentTab } from "@/app/bo/subscriptions/BoSubscriptionEnrollmentTab";
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false,
+  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -19,6 +20,7 @@ export function BoFullDetail({
   onStudentNeutralized?: () => void;
   mobileMenu: React.ReactNode;
   enableStudentSubscriptions?: boolean;
+  onEnrollmentChanged?: () => void;
 }) {
   const [tab, setTab] = useState("Detail");
   const [voidOpen, setVoidOpen] = useState(false);
@@ -117,7 +119,7 @@ export function BoFullDetail({
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
-                ? <div className="v24-audit-empty" role="status">Phân lớp được quản lý bởi Core. Chức năng xem và thao tác Enrollment thuộc PAP-1035 (S3), chưa triển khai trong S1.</div>
+                ? <BoSubscriptionEnrollmentTab subscriptionId={record.id} onChanged={onEnrollmentChanged} />
               : subjectType
                   ? <BoRegistrationHistory key={record.id} subjectType={subjectType} subjectId={record.id} />
                   : <div className="v24-audit-empty" role="status">Lịch sử chưa khả dụng.</div>}

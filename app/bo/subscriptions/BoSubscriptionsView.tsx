@@ -220,6 +220,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       key={historyDetail.id}
       module={subscriptionModule}
       moduleKey="subscriptions"
+      onEnrollmentChanged={() => setHistoryRevision(v => v + 1)}
       record={historyDetail}
       mobileMenu={null}
       onBack={() => setHistoryDetail(null)}
