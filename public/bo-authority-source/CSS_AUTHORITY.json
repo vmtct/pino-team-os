@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "authority": "BO-V2.5-UI-20261026-PAP-1022",
+  "authority": "BO-V2.5-UI-20261027-PAP-875-SUBSCRIPTION-DS-PARITY-REVIEW",
   "task": "PAP-1022",
   "epic": "PAP-879",
   "contract": "PAP-986",
@@ -19,6 +19,11 @@
   ],
   "files": [
     {
+      "file": "README.md",
+      "bytes": 21099,
+      "sha256": "e6af45de15b13bb839a71112c5a49328897d0ad06294d32ee12ec8109b9ff36e"
+    },
+    {
       "file": "full-detail-v24.css",
       "bytes": 133,
       "sha256": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0"
@@ -32,6 +37,11 @@
       "file": "index.html",
       "bytes": 460,
       "sha256": "4baf37606708a655fc541832b350c288b40e41f431e0bc5ba2fa4a2510457823"
+    },
+    {
+      "file": "payroll-prototype.js",
+      "bytes": 30382,
+      "sha256": "03488715ba2f167fa5538a5ca044913c2f60f9e0d1f8a533596b5dea4c2a929c"
     },
     {
       "file": "playground-v22.css",
@@ -50,28 +60,28 @@
     },
     {
       "file": "playground.html",
-      "bytes": 7246,
-      "sha256": "104af8fd84df2a2b686ef3e95e8a038be92bcc1c0d3759959066ead895a4bd57"
+      "bytes": 10040,
+      "sha256": "a6e5cf5f8f0debdece6b66d222fcf105647aa6f1a6d5e869a5b427a4846cdcd8"
     },
     {
       "file": "playground.js",
-      "bytes": 78221,
-      "sha256": "08f41d0ff5c4a6a294df92fd1938c14eb1d8dc07446af55a648f5067b9be30c0"
-    },
-    {
-      "file": "README.md",
-      "bytes": 4624,
-      "sha256": "aa969d8d593895791ee093b35c5a64e8149d8c23374de93f9e7556f093b70131"
+      "bytes": 144020,
+      "sha256": "eaba6fde5fb72675b4cc9e17bd5a767843ab0b1664c65d34c72799210af08d02"
     },
     {
       "file": "server.cjs",
-      "bytes": 1366,
-      "sha256": "58f9411e59a2c284c2ebd4efc2a3a870a4f43be80e03e07a1c768b109e986511"
+      "bytes": 1420,
+      "sha256": "9a3e546387d08b1b69833b64f5da759c058dbcfe8498b02e92638fcc7109550a"
     },
     {
       "file": "styles.css",
-      "bytes": 89038,
-      "sha256": "be42f65123053fb9906801f1fcc49644dc05ee6f811d6ab82162c91827d9a1f2"
+      "bytes": 111517,
+      "sha256": "48ef0ad356935816c6b280246a1362786787bf6693267af93ad49fdb686bb3b3"
+    },
+    {
+      "sha256": "2ac023072e38b2c953e7e982892c5cae649327dcc82d856e12243d40e6d5bf72",
+      "file": "running-classes-prototype.js",
+      "bytes": 35133
     }
   ],
   "baseline": [
@@ -619,5 +629,94 @@
       "file": "styles.css",
       "sha256": "18620f9863d984d376ded7d5bb81a5e5db3082113e327ba21159d47a0772469d"
     }
-  ]
+  ],
+  "updatedAt": "2026-10-27T03:58:09.001Z",
+  "scopeAddition": "Subscription+Enrollment shared DS; Create form double-border fix: layout-only sub-field-wrap, shared .edit-input only on controls; date editable with Sunday prefill",
+  "payrollExtension": {
+    "task": "PAP-1031",
+    "scope": "BO Payroll 4 demo routes, HO rate read-only",
+    "renderedBy": "payroll-prototype.js",
+    "syntheticOnly": true,
+    "e2e": "Chrome CDP Payroll Period revision 24/24 PASS; original BO demo 17/17 PASS",
+    "createdOn": "2026-10-27"
+  },
+  "payrollPeriodUX": {
+    "review": "2026-10-27",
+    "creation": "start and end only, title generated from start month and center",
+    "metrics": [
+      "expected from available daily + finalized snapshots without double count",
+      "finalized from immutable snapshots"
+    ],
+    "detail": "date edit unlocked with overlap guard, compact calculated PTE",
+    "advanced": "timekeeping-present Staff only, empty state with no hours",
+    "paymentAction": "Paid removed from BO prototype",
+    "e2e": "24/24 PASS"
+  },
+  "settlementGrid": {
+    "task": "PAP-1031",
+    "date": "2026-10-27",
+    "tab": "Kỳ lương > Chuyên Sâu",
+    "layout": "one CSS grid row per PTE, four columns",
+    "money": "1.8 * canonical --bo-font-body (21.6px)",
+    "ds": "canonical BO V2.5 semantic tokens and standard DS controls",
+    "responsive": "table-local horizontal scroll on 390px",
+    "validation": "Chrome CDP grid 14/14 PASS plus period regression 24/24 PASS",
+    "deploy": "none; local OneDrive authoritative preview only"
+  },
+  "periodTabRefinement": {
+    "date": "2026-10-27",
+    "module": "BO Payroll Period Full Detail",
+    "tabs": [
+      "Detail",
+      "Quyết Toán",
+      "Lịch Sử"
+    ],
+    "settlementLayout": "PTE grid table above Totals Expected and Finalized highlights",
+    "detail": "6 property rows without duplicate totals, highlights below, no total-warning or date section, from/end dates editable inline",
+    "css": "BO V2.5 semantic DS; 8 unused legacy period/date selectors cleaned",
+    "checks": "26/26 tab-focused, 24/24 period regression, 14/14 grid regression PASS",
+    "scope": "OneDrive local authoritative mock only; no staging/prod API mutation"
+  },
+  "runningClassesCreate": {
+    "source": "running-classes-prototype.js",
+    "tests": 35,
+    "backend": "NO_API_WRITES",
+    "status": "PROTOTYPE_E2E_PASS",
+    "evidence": "../evidence/PAP-RUNNING-CLASS-CREATE-20261027/RESULTS.txt",
+    "route": "#classes",
+    "scope": "authoritative mock UI only",
+    "date": "2026-10-27",
+    "css": "styles.css reused with 71 shared table selector entries",
+    "staging": "NOT_DEPLOYED"
+  },
+  "runningClassesNavFix": {
+    "rootCause": "stale server process GET 404 for new module script",
+    "evidence": "../evidence/PAP-RUNNING-CLASS-CREATE-20261027/NAV-REGRESSION.txt",
+    "date": "2026-10-27",
+    "createDsTests": 35,
+    "staging": "NOT_DEPLOYED",
+    "navTests": 30,
+    "scriptGET": 200,
+    "kind": "canonical-renderer-item",
+    "route": "#classes"
+  },
+  "runningClassEnrollmentStudentDates": {
+    "evidence": "../evidence/PAP-RUNNING-CLASS-ENROLLMENT-20261027/RESULTS.txt",
+    "route": "#classes",
+    "newTabTests": 45,
+    "columns": [
+      "Student name+ID",
+      "Start date",
+      "End date inclusive for display",
+      "Status"
+    ],
+    "tab": "Enrollment",
+    "displayDateContract": "exclusive minus one day",
+    "sourceDateContract": "effectiveUntilExclusiveLocalDate",
+    "lookup": "Enrollment -> Subscription -> Student",
+    "date": "2026-10-27",
+    "existingRegressionTests": 35,
+    "status": "PROTOTYPE_E2E_PASS",
+    "staging": "NOT_DEPLOYED"
+  }
 }
