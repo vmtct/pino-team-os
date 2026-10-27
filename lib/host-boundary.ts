@@ -46,7 +46,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
-    if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && isBoStagingS3ReadPath(pathname)) return { action: "next" };
+    if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if ((hostname === BO_STAGING_HOSTNAME && method === "GET" && pathname.replace(/\/$/, "") === "/api/bo/school/enrollments") || ((method === "GET" || method === "HEAD") && ["/team-legacy-global.css", "/bo-legacy-foundation.css"].includes(pathname)) || isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };
@@ -62,6 +62,14 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
 
   return { action: "next" };
+}
+
+/** PAP-1037: admit only canonical class-scoped Enrollment reads on BO Staging.
+ * The BO facade independently authenticates and enforces Core Center/Path/Class ACL.
+ * Never admit writes or widen Production/HO host-boundary routes.
+ */
+export function isBoStagingRunningClassEnrollmentReadPath(pathname: string): boolean {
+  return /^\/api\/bo\/delivery\/running-classes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/enrollments$/.test(pathname);
 }
 
 export function isBoStagingS3ReadPath(pathname: string): boolean {
