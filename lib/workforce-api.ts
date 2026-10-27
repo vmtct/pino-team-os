@@ -22,6 +22,7 @@ const query=(value:Record<string,string|undefined>)=>new URLSearchParams(Object.
 export const workforceApi={
  context:()=>request<{data:WorkforceContext}>("/context"),profile:()=>request<{data:StaffProfile}>("/profile"),updateProfile:(body:{email?:string;mobile?:string;legalAddress?:string})=>request<{data:StaffProfile}>("/profile",{method:"PATCH",body:JSON.stringify(body)}),
  founderCenterSchedule:(body:{centerId:string;startDate:string;endDate:string})=>request<{data:{centerId:string;assignments:Array<Assignment&{staffMemberId:string;staffLabel:string}>;truncated:boolean}}>(`/founder/center-schedule?${query(body)}`),
+ founderCenterVisits:(body:{centerId:string;status?:"ALL"|"OPEN"|"CLOSED";offset?:string})=>request<{data:{centerId:string;data:Array<{id:string;student:{id:string;displayName:string};status:"OPEN"|"CLOSED";checkedInAt:string;checkedOutAt:string|null}>;total:number;summary:{totalVisits:number;openVisits:number;closedVisits:number}}}>(`/founder/center-visits?${query(body)}`),
  schedule:(body:{centerId:string;startDate:string;endDate:string;termWeekId?:string})=>request<{data:Assignment[]}>(`/schedule?${query(body)}`),
  availabilityWeeks:(centerId:string)=>request<{data:string[]}>(`/availability/weeks?${query({centerId})}`),
  availability:(termWeekId:string)=>request<{data:Availability|null}>(`/availability?${query({termWeekId})}`),

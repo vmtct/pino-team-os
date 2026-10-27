@@ -32,7 +32,8 @@ import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 type Section="home"|TosVNextAppId;
 type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
 type FounderAssignment=Assignment&{staffMemberId:string;staffLabel:string};
-type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean}};
+type FounderVisits={centerId:string;data:Array<{id:string;student:{id:string;displayName:string};status:"OPEN"|"CLOSED";checkedInAt:string;checkedOutAt:string|null}>;total:number;summary:{totalVisits:number;openVisits:number;closedVisits:number}};
+type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean};visits?:FounderVisits};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -95,9 +96,11 @@ export default function TosVNextIntegrationPreview(){
   if(ctx.founderMode){
    let active=true;
    setError("");setData({});setLoading(true);
-   void workforceApi.founderCenterSchedule({centerId,startDate:today(zone),endDate:today(zone,14)})
-    .then(result=>{if(active)setData({founder:result.data})})
-    .catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải lịch Center từ Core.")})
+   void Promise.all([
+    workforceApi.founderCenterSchedule({centerId,startDate:today(zone),endDate:today(zone,14)}),
+    workforceApi.founderCenterVisits({centerId,status:"ALL"})
+   ]).then(([schedule,visits])=>{if(active)setData({founder:schedule.data,visits:visits.data})})
+    .catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải dữ liệu Center từ Core.")})
     .finally(()=>{if(active)setLoading(false)});
    return()=>{active=false};
   }
@@ -170,6 +173,20 @@ export default function TosVNextIntegrationPreview(){
       })()}
      </section>:app==="classroom"?
       <TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel="Founder" onDetailChange={setClassDetailOpen}/>:
+      app==="reception"||app==="station"?<section aria-label="Student Visits Center">
+       <h3>Student Visits · Dữ liệu thực từ Core</h3>
+       {error&&<p role="alert">{error}</p>}
+       {data.visits?<>
+        <p>Đang có mặt: {data.visits.summary.openVisits} · Đã về: {data.visits.summary.closedVisits} · Tổng: {data.visits.summary.totalVisits}</p>
+        {data.visits.data.length===0&&<p>Không có Student Visit tại Center.</p>}
+        {data.visits.data.map(visit=><article key={visit.id}>
+          <strong>{visit.student.displayName}</strong>
+          <p>{visit.status==="OPEN"?"Đang có mặt":"Đã về"} · {visit.checkedInAt}</p>
+          {visit.checkedOutAt&&<p>Ra về: {visit.checkedOutAt}</p>}
+         </article>)}
+        {data.visits.total>data.visits.data.length&&<p role="status">Chỉ hiển thị 50 visit gần nhất; cần phân trang để xem toàn bộ lịch sử.</p>}
+       </>:<p role="status">Chưa tải được Student Visits từ Core.</p>}
+      </section>:
       <p>Core chưa có read-model Center-wide được xác minh cho module này; không dùng Staff-self hoặc dữ liệu giả.</p>}
      <p>Để xem và quản lý dữ liệu vận hành của trung tâm, sử dụng Back Office trong khi giao diện giám sát Founder cho ứng dụng này được hoàn thiện.</p>
      <a href="https://bo.staging.pinohouse.art/bo">Mở Back Office</a>
