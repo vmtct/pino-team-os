@@ -4,14 +4,16 @@ import {readFileSync} from "node:fs";
 
 test("PAP-938 Founder browse never impersonates a StaffMember or fabricates shift evidence",()=>{
  const source=readFileSync("app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx","utf8");
- const effectStart=source.indexOf("if(ctx.founderMode){setError");
+ const effectStart=source.indexOf("if(ctx.founderMode){");
  const shiftRead=source.indexOf("void shiftReadModel(",effectStart);
  assert.ok(effectStart>0&&shiftRead>effectStart,"Founder skips all self-scoped schedule reads");
  assert.match(source,/if\(ctx\?\.founderMode\)\{/);
  assert.match(source,/const canBrowse=\(id:TosVNextAppId\)=>id!=="station"\|\|desktop/);
  assert.match(source,/"shift-lead":"Trưởng Ca"/);
  assert.match(source,/Chế độ Founder/);
- assert.match(source,/thao tác Staff cá nhân vẫn yêu cầu tài khoản Staff hợp lệ/);
+ assert.match(source,/workforceApi\.founderCenterSchedule/);
+ assert.match(source,/Phân công thực từ Core/);
+ assert.match(source,/Core chưa có read-model Center-wide/);
  assert.doesNotMatch(source.slice(effectStart,shiftRead),/workforceApi\.schedule\(|checkIn\(|checkOut\(/);
 });
 
