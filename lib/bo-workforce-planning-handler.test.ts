@@ -200,3 +200,21 @@ test("PAP-901 global weeks read propagates Center permission denial and blocks a
   assert.equal(scoped.headers.get("x-request-id"), "global-denied");
   assert.equal(calls, 1);
 });
+
+test("PAP-1064 forwards a guarded Center Shift Plan create and preserves 409", async () => {
+  const requests: WorkforcePlanningRequest[] = [];
+  const core = binding(async req => {
+    requests.push(req);
+    return { status: requests.length === 1 ? 201 : 409, body: { data: { shiftPlanExists: true } }, requestId: "plan-write" };
+  });
+  const path = "workforce/planning/shift-plan", url = "https://bo.pinohouse.art/api/bo/" + path;
+  const input = {centerId:"center",termWeekId:"week",open:true,expectedVersion:0,reason:"PAP-1064 acceptance"};
+  const make = (key?:string) => new Request(url, {method:"POST",headers:headers({"content-type":"application/json",...(key?{"idempotency-key":key}:{})}),body:JSON.stringify(input)});
+  assert.equal((await handleBoWorkforcePlanningRequest(make(),env(core),path)).status,400);
+  assert.equal(requests.length,0);
+  const success = await handleBoWorkforcePlanningRequest(make("plan-1"),env(core),path);
+  assert.equal(success.status,201);
+  assert.equal(success.headers.get("x-request-id"),"plan-write");
+  assert.deepEqual(requests[0],{method:"POST",path:"shift-plan",body:input,idempotencyKey:"plan-1"});
+  assert.equal((await handleBoWorkforcePlanningRequest(make("plan-2"),env(core),path)).status,409);
+});
