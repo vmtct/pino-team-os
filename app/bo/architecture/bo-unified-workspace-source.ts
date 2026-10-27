@@ -39,7 +39,7 @@ export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   allowStudentCreate: true,
   modules: { ...school.modules, ...moduleDefinitions },
   isModuleReadOnly: isWorkforce,
-  routeForModule: (key) => paths[key] ?? (key === "students" ? "/bo" : "/bo?module=" + encodeURIComponent(key)),
+  routeForModule: (key) => key === "subscriptions" ? "/bo/subscriptions" : paths[key] ?? (key === "students" ? "/bo" : "/bo?module=" + encodeURIComponent(key)),
   async load(key, fetcher, options) {
     if (!isWorkforce(key)) return school.load(key, fetcher, options);
     const data = await adapters[key].list(fetcher);
