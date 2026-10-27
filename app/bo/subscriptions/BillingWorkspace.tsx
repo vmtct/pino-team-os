@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoBillSummary, BoLearnerLifecycle, BoPathProgram, BoPaymentMethod, BoPaymentTransactionKind, BoProductPlan, BoRunningClass, BoSaleResult } from "@/lib/bo-model";
+import { suggestedContractSunday, amountFromPercent, percentFromAmount, quoteAfterDiscounts, type DiscountInputMode } from "@/lib/bo-subscription-create-ux";
 import styles from "./bo-subscriptions.module.css";
 
 export type BillingReplayAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
@@ -14,6 +15,7 @@ type Props = {
   onChanged: () => Promise<void>;
   replayState: BillingReplayState;
   setReplayState: React.Dispatch<React.SetStateAction<BillingReplayState>>;
+  createOnly?: boolean;
 };
 const TERMS = [12, 24, 48] as const;
 const CADENCES = [1, 2, 3, 4, 5, 6] as const;
@@ -27,16 +29,21 @@ export function authoritativePlacementCenterId(placements: string[], eligibleCla
   return centerIds[0]!;
 }
 
-export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayState, setReplayState }: Props) {
+export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayState, setReplayState, createOnly = false }: Props) {
   const [plans, setPlans] = useState<BoProductPlan[]>([]);
   const [planId, setPlanId] = useState("");
   const [pathId, setPathId] = useState("");
   const [payerId, setPayerId] = useState("");
   const [startsOn, setStartsOn] = useState(today());
-  const [contractEndsOn, setContractEndsOn] = useState("");
+  const [contractEndsOn, setContractEndsOn] = useState(() => suggestedContractSunday(today(), 12));
   const [placementStartsOn, setPlacementStartsOn] = useState(today());
   const [itemDiscount, setItemDiscount] = useState("0");
   const [billDiscount, setBillDiscount] = useState("0");
+  const [itemRate, setItemRate] = useState("0");
+  const [billRate, setBillRate] = useState("0");
+  const [itemMode, setItemMode] = useState<DiscountInputMode>("amount");
+  const [billMode, setBillMode] = useState<DiscountInputMode>("amount");
+  const [endManual, setEndManual] = useState(false);
   const [dueOn, setDueOn] = useState("");
   const [campaign, setCampaign] = useState("");
   const [latestSale, setLatestSale] = useState<BoSaleResult | null>(null);
@@ -44,6 +51,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   const [placementEntryTimes, setPlacementEntryTimes] = useState<string[]>([]);
   const [placementDurations, setPlacementDurations] = useState<string[]>([]);
   const [registrationComplete, setRegistrationComplete] = useState(false);
+  const commandFence = useRef(false);
   const { pending, busy, notice, error } = replayState;
   const setPending = (pending: BillingReplayAttempt | null) => setReplayState((state) => ({ ...state, pending }));
   const setBusy = (busy: string | null) => setReplayState((state) => ({ ...state, busy }));
@@ -54,19 +62,68 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   async function loadPlans() {
     const next = await boApi.billingProductPlans();
     setPlans(next);
-    setPlanId((current) => next.some((plan) => plan.id === current && plan.enabled)
-      ? current
-      : next.find((plan) => plan.enabled && plan.badge === "HERO")?.id ?? next.find((plan) => plan.enabled)?.id ?? "");
+    setPlanId((current) => {
+      const available = next.filter((plan) => plan.enabled && (!createOnly || (plan.termWeeks === 12 && plan.cadence >= 1 && plan.cadence <= 3)));
+      return available.some((plan) => plan.id === current) ? current
+        : available.find((plan) => plan.badge === "HERO")?.id ?? available[0]?.id ?? "";
+    });
   }
 
   useEffect(() => { void loadPlans().catch((value) => setError(message(value))); }, []);
   useEffect(() => {
-    setPathId((current) => paths.some((path) => path.id === current && path.status === "ACTIVE")
-      ? current : paths.find((path) => path.status === "ACTIVE")?.id ?? "");
+    const availablePaths = paths.filter((path) => path.status === "ACTIVE" &&
+      (!createOnly || ["artchitect","pianohouse","little-piner-art","little-piner-piano"].includes(path.code)));
+    setPathId((current) => availablePaths.some((path) => path.id === current)
+      ? current : availablePaths[0]?.id ?? "");
     setPayerId(lifecycle.guardians.find((item) => item.parent.status === "ACTIVE")?.parent.id ?? "");
   }, [lifecycle.student.id, lifecycle.guardians, paths]);
 
   const selectedPlan = plans.find((plan) => plan.id === planId) ?? null;
+  const sellablePlans = plans.filter((plan) => plan.enabled && (!createOnly || (plan.termWeeks === 12 && plan.cadence >= 1 && plan.cadence <= 3)));
+  const sellablePaths = paths.filter((path) => path.status === "ACTIVE" &&
+    (!createOnly || ["artchitect","pianohouse","little-piner-art","little-piner-piano"].includes(path.code)));
+  const selectedGross = selectedPlan?.listPriceMinor ?? 0;
+  const billBase = Math.max(0, selectedGross - Number(itemDiscount || 0));
+  const quoted = quoteAfterDiscounts(selectedGross, Number(itemDiscount), Number(billDiscount));
+
+  function changeItemAmount(raw: string) {
+    setItemMode("amount"); setItemDiscount(raw);
+    setItemRate(String(percentFromAmount(selectedGross, Number(raw))));
+    if (billMode === "percent") setBillDiscount(String(amountFromPercent(Math.max(0, selectedGross - Number(raw)), Number(billRate))));
+    else setBillRate(String(percentFromAmount(Math.max(0, selectedGross - Number(raw)), Number(billDiscount))));
+  }
+  function changeItemRate(raw: string) {
+    setItemMode("percent"); setItemRate(raw);
+    const next = amountFromPercent(selectedGross, Number(raw));setItemDiscount(String(next));
+    if (billMode === "percent") setBillDiscount(String(amountFromPercent(Math.max(0, selectedGross - next), Number(billRate))));
+    else setBillRate(String(percentFromAmount(Math.max(0, selectedGross - next), Number(billDiscount))));
+  }
+  function changeBillAmount(raw: string) {
+    setBillMode("amount");setBillDiscount(raw);setBillRate(String(percentFromAmount(billBase, Number(raw))));
+  }
+  function changeBillRate(raw: string) {
+    setBillMode("percent");setBillRate(raw);setBillDiscount(String(amountFromPercent(billBase, Number(raw))));
+  }
+  function changeStart(value: string) {
+    setStartsOn(value);
+    if (!endManual) setContractEndsOn(suggestedContractSunday(value, selectedPlan?.termWeeks ?? 12));
+    if (!commercialLocked) setPlacementStartsOn(maxLocalDate(value, today()));
+  }
+
+  useEffect(() => {
+    if (!createOnly) return;
+    const gross = selectedPlan?.listPriceMinor ?? 0;
+    const item = itemMode === "percent" ? amountFromPercent(gross, Number(itemRate)) : Number(itemDiscount);
+    const boundedItem = Number.isFinite(item) ? item : 0;
+    if (itemMode === "percent") setItemDiscount(String(boundedItem));
+    else setItemRate(String(percentFromAmount(gross, boundedItem)));
+    const remaining = Math.max(0, gross - boundedItem);
+    if (billMode === "percent") setBillDiscount(String(amountFromPercent(remaining, Number(billRate))));
+    else setBillRate(String(percentFromAmount(remaining, Number(billDiscount))));
+    if (!endManual && selectedPlan) setContractEndsOn(suggestedContractSunday(startsOn, selectedPlan.termWeeks));
+    // Recalculate only when selecting another Product Plan; input handlers handle discount edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlan?.id, selectedPlan?.listPriceMinor]);
   useEffect(() => {
     setLatestSale(null);
     setRegistrationComplete(false);
@@ -128,9 +185,14 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   }
 
   async function runReplay(key: string, action: (idempotencyKey: string) => Promise<unknown>, success: string) {
-    if (pending) { if (pending.key === key) await execute(pending); return; }
-    const attempt = { key, idempotencyKey: crypto.randomUUID(), action, success };
-    setPending(attempt); await execute(attempt);
+    // Guard before React re-renders: simultaneous submits must share, not mint, a Sale key.
+    if (commandFence.current || busy) return;
+    commandFence.current = true;
+    try {
+      if (pending) { if (pending.key === key) await execute(pending); return; }
+      const attempt = { key, idempotencyKey: crypto.randomUUID(), action, success };
+      setPending(attempt); await execute(attempt);
+    } finally { commandFence.current = false; }
   }
 
   function bulkBody(sale: BoSaleResult) {
@@ -216,8 +278,19 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   async function submitRegistration(event: React.FormEvent) {
     event.preventDefault();
     if (!planId || !pathId || !payerId || !selectedPlan) { setError("Chọn Product Plan, Path và Parent thanh toán."); return; }
+    if (createOnly && !sellablePaths.some((path) => path.id === pathId)) {setError("Path không thuộc danh mục thương mại được duyệt.");return;}
+    if (createOnly && !sellablePlans.some((plan) => plan.id === selectedPlan.id)) {setError("Product Plan chưa được phép bán trong form này.");return;}
+    if (!contractEndsOn || contractEndsOn < startsOn) {setError("Ngày kết thúc phải có và không trước ngày bắt đầu.");return;}
+    if (!quoted.valid || !Number.isFinite(Number(itemRate)) || !Number.isFinite(Number(billRate)) ||
+        Number(itemRate) < 0 || Number(itemRate) > 100 || Number(billRate) < 0 || Number(billRate) > 100) {
+      setError("Giảm giá không hợp lệ hoặc vượt giá trị còn lại.");return;
+    }
+    if (!lifecycle.guardians.some((x) => x.parent.id === payerId && x.parent.status === "ACTIVE")) {
+      setError("Parent thanh toán phải đang hoạt động và liên kết với học viên.");return;
+    }
     if (pendingRegistrationEntries.length) { setError("Student đã có Subscription Product Plan chưa placement. Hãy resume placement hiện hữu trước khi tạo sale mới."); return; }
     if (!placementsReady) { setError(`Chọn đủ ${selectedPlan.cadence} Running Classes khác nhau trước khi đăng ký.`); return; }
+    if (registrationComplete) {setError("Registration đã hoàn tất. Đóng drawer và mở lại để tạo gói khác.");return;}
     if (latestSale && !registrationComplete) { setError("Subscription đã tạo; hãy hoàn tất placement, không tạo sale mới."); return; }
     let centerId: string;
     try { centerId = authoritativePlacementCenterId(placements, eligibleClasses); }
@@ -282,7 +355,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     {notice ? <div className={styles.notice}>{notice}</div> : null}
     {error ? <div className={styles.error}>{error}{pending ? <><br/><button type="button" onClick={() => void execute(pending)}>Retry exact command</button></> : null}</div> : null}
 
-    <section className={styles.createCard}>
+    {!createOnly ? <section className={styles.createCard}>
       <div className={styles.sectionHead}><div><span>Commercial config</span><h3>Product Plans · 6 × 3</h3></div><small>Cadence/term immutable · price/badge/availability configurable</small></div>
       <div className={styles.planMatrix}>
         <div className={styles.planCorner}>buổi/tuần</div>
@@ -299,7 +372,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
           }),
         ])}
       </div>
-    </section>
+    </section> : null}
 
     {!latestSale && pendingRegistrationEntries.length ? <section className={styles.registrationPending}>
       <strong>Pending Running Class placement</strong>
@@ -309,36 +382,45 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       </button>)}
     </section> : null}
 
-    <form className={styles.createCard} onSubmit={(event) => void submitRegistration(event)}>
+    <form className={createOnly ? styles.createFormShell : styles.createCard} onSubmit={(event) => void submitRegistration(event)}>
       <div className={styles.sectionHead}><div><span>New registration</span><h3>Tạo Subscription + Running Class placement</h3></div><small>Cadence từ Product Plan · chỉ complete sau bulk placement</small></div>
-      <div className={styles.formGrid}>
-        <label>Product Plan<select required disabled={Boolean(busy || pending || commercialLocked)} value={planId} onChange={(event) => setPlanId(event.target.value)}>
-          <option value="">Chọn plan</option>{plans.filter((plan) => plan.enabled).map((plan) => <option key={plan.id} value={plan.id}>{plan.cadence}×/tuần · {plan.termWeeks} tuần · {formatVnd(plan.listPriceMinor)} {plan.badge === "HERO" ? "· HERO" : plan.badge === "ENTRY" ? "· ENTRY" : ""}</option>)}
+      <div className={createOnly ? styles.createFormGrid : styles.formGrid}>
+        <label>Product Plan<select className={createOnly ? "edit-input" : undefined} required disabled={Boolean(busy || pending || commercialLocked)} value={planId} onChange={(event) => setPlanId(event.target.value)}>
+          <option value="">Chọn plan</option>{sellablePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.cadence}×/tuần · {plan.termWeeks} tuần · {formatVnd(plan.listPriceMinor)} {plan.badge === "HERO" ? "· HERO" : plan.badge === "ENTRY" ? "· ENTRY" : ""}</option>)}
         </select></label>
-        <label>Path<select required disabled={Boolean(busy || pending || commercialLocked)} value={pathId} onChange={(event) => setPathId(event.target.value)}>
-          <option value="">Chọn Path</option>{paths.filter((path) => path.status === "ACTIVE").map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
+        <label>Path<select className={createOnly ? "edit-input" : undefined} required disabled={Boolean(busy || pending || commercialLocked)} value={pathId} onChange={(event) => setPathId(event.target.value)}>
+          <option value="">Chọn Path</option>{sellablePaths.map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
         </select></label>
-        <label>Parent thanh toán<select required disabled={Boolean(busy || pending || commercialLocked)} value={payerId} onChange={(event) => setPayerId(event.target.value)}>
+        <label>Parent thanh toán<select className={createOnly ? "edit-input" : undefined} required disabled={Boolean(busy || pending || commercialLocked)} value={payerId} onChange={(event) => setPayerId(event.target.value)}>
           <option value="">Chọn Parent</option>{lifecycle.guardians.filter((item) => item.parent.status === "ACTIVE").map((item) => <option key={item.parent.id} value={item.parent.id}>{item.parent.displayName ?? item.parent.contacts[0]?.value ?? item.parent.id}</option>)}
         </select></label>
-        <label>Contract starts<input type="date" required disabled={Boolean(busy || pending || commercialLocked)} value={startsOn} onChange={(event) => { const value = event.target.value; setStartsOn(value); if (!commercialLocked) setPlacementStartsOn(maxLocalDate(value, today())); }} /></label>
-        <label>Contract ends (optional)<input type="date" disabled={Boolean(busy || pending || commercialLocked)} value={contractEndsOn} onChange={(event) => setContractEndsOn(event.target.value)} /></label>
-        <label>Item discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={itemDiscount} onChange={(event) => setItemDiscount(event.target.value)} /></label>
-        <label>Bill discount (VND)<input type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={billDiscount} onChange={(event) => setBillDiscount(event.target.value)} /></label>
-        <label>Due date<input type="date" disabled={Boolean(busy || pending || commercialLocked)} value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label>
-        <label>Campaign<input disabled={Boolean(busy || pending || commercialLocked)} value={campaign} onChange={(event) => setCampaign(event.target.value)} placeholder="Tuỳ chọn" /></label>
+        <label>Contract starts<input className={createOnly ? "edit-input" : undefined} type="date" required disabled={Boolean(busy || pending || commercialLocked)} value={startsOn} onChange={(event) => changeStart(event.target.value)} /></label>
+        <label>Ngày kết thúc hợp đồng<input className={createOnly ? "edit-input" : undefined} type="date" required min={startsOn} disabled={Boolean(busy || pending || commercialLocked)} value={contractEndsOn} onChange={(event) => {setEndManual(true);setContractEndsOn(event.target.value);}} />
+          {createOnly ? <button type="button" className={styles.suggestionReset} disabled={Boolean(busy || pending || commercialLocked)} onClick={() => {setEndManual(false);setContractEndsOn(suggestedContractSunday(startsOn, selectedPlan?.termWeeks ?? 12));}}>Đặt lại ngày gợi ý</button> : null}</label>
+        <label>Giảm giá sản phẩm{createOnly ? <span className={styles.discountPair}><span><small>VNĐ</small><input className={createOnly ? "edit-input" : undefined} aria-label="Giảm giá sản phẩm VNĐ" type="number" min="0" step="1" disabled={Boolean(busy || pending || commercialLocked)} value={itemDiscount} onChange={(event) => changeItemAmount(event.target.value)} /></span><span><small>%</small><input className={createOnly ? "edit-input" : undefined} aria-label="Giảm giá sản phẩm phần trăm" type="number" min="0" max="100" step="0.01" disabled={Boolean(busy || pending || commercialLocked)} value={itemRate} onChange={(event) => changeItemRate(event.target.value)} /></span></span> : <input className={createOnly ? "edit-input" : undefined} type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={itemDiscount} onChange={(event) => setItemDiscount(event.target.value)} />}</label>
+        <label>Giảm giá Bill{createOnly ? <span className={styles.discountPair}><span><small>VNĐ</small><input className={createOnly ? "edit-input" : undefined} aria-label="Giảm giá Bill VNĐ" type="number" min="0" step="1" disabled={Boolean(busy || pending || commercialLocked)} value={billDiscount} onChange={(event) => changeBillAmount(event.target.value)} /></span><span><small>%</small><input className={createOnly ? "edit-input" : undefined} aria-label="Giảm giá Bill phần trăm" type="number" min="0" max="100" step="0.01" disabled={Boolean(busy || pending || commercialLocked)} value={billRate} onChange={(event) => changeBillRate(event.target.value)} /></span></span> : <input className={createOnly ? "edit-input" : undefined} type="number" min="0" disabled={Boolean(busy || pending || commercialLocked)} value={billDiscount} onChange={(event) => setBillDiscount(event.target.value)} />}</label>
+        <label>Due date<input className={createOnly ? "edit-input" : undefined} type="date" disabled={Boolean(busy || pending || commercialLocked)} value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label>
+        <label>Campaign<input className={createOnly ? "edit-input" : undefined} disabled={Boolean(busy || pending || commercialLocked)} value={campaign} onChange={(event) => setCampaign(event.target.value)} placeholder="Tuỳ chọn" /></label>
       </div>
       {selectedPlan ? <>
-        <p className={styles.hint}>Core plan: {selectedPlan.cadence} buổi/tuần · {selectedPlan.termWeeks} tuần · {selectedPlan.purchasedUnits} units. Contract end được Core tính; UI không gửi units/price/end date.</p>
+        <p className={styles.hint}>Core plan: {selectedPlan.cadence} buổi/tuần · {selectedPlan.termWeeks} tuần · {selectedPlan.purchasedUnits} units. {createOnly ? "Ngày kết thúc được gợi ý theo Chủ nhật, có thể sửa tay; Core nhận ngày HĐ đã chọn." : "Core xác nhận giá, thời hạn và units."}</p>
+        {createOnly ? <div className={styles.createPreview} aria-live="polite">
+          <span>Giá niêm yết <strong>{formatVnd(quoted.gross)}</strong></span>
+          <span>Giảm giá SP <strong>−{formatVnd(Number(itemDiscount))}</strong></span>
+          <span>Tạm tính <strong>{formatVnd(quoted.afterItem)}</strong></span>
+          <span>Giảm giá Bill <strong>−{formatVnd(Number(billDiscount))}</strong></span>
+          <span className={styles.createPreviewTotal}>Dự kiến <strong>{quoted.valid ? formatVnd(quoted.net) : "Giảm giá không hợp lệ"}</strong></span>
+          <small>Giá trị preview chỉ để đối chiếu; Core Bill snapshot quyết định số tiền cuối.</small>
+        </div> : null}
         <div className={styles.placementWizard}>
           <div className={styles.sectionHead}><div><span>Recurring placement</span><h3>Chọn đúng {selectedPlan.cadence} Running Classes đã tạo sẵn</h3></div><small>{selectedPlacementCount}/{selectedPlan.cadence} assigned · capacity được Core preflight</small></div>
           <p className={styles.hint}>Mỗi Running Class = 1 weekly slot. Chỉ hiện lớp ACTIVE cùng Path; một lớp không thể chiếm hai slot của cùng Subscription.</p>
-          <label className={styles.placementDate}>Placement starts<input type="date" min={today()} disabled={Boolean(busy || pending || registrationComplete)} value={placementStartsOn} onChange={(event) => setPlacementStartsOn(event.target.value)} /></label>
+          <label className={styles.placementDate}>Placement starts<input className={createOnly ? "edit-input" : undefined} type="date" min={today()} disabled={Boolean(busy || pending || registrationComplete)} value={placementStartsOn} onChange={(event) => setPlacementStartsOn(event.target.value)} /></label>
           <div className={styles.placementSlots}>{placements.map((value, index) => {
             const selectedClass = eligibleClasses.find((item) => item.id === value) ?? null;
             return <label className={styles.placementSlot} key={index}>
               <span>Recurring seat {index + 1}</span>
-              <select disabled={Boolean(busy || pending || registrationComplete)} value={value} onChange={(event) => {
+              <select className={createOnly ? "edit-input" : undefined} disabled={Boolean(busy || pending || registrationComplete)} value={value} onChange={(event) => {
                 const classId = event.target.value;
                 const runningClass = eligibleClasses.find((item) => item.id === classId) ?? null;
                 setPlacements((current) => current.map((item, position) => position === index ? classId : item));
@@ -352,8 +434,8 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
                 })}
               </select>
               {selectedClass?.deliveryTopology === "FLEXIBLE_STUDIO" ? <span className={styles.flexiblePlacement}>
-                <span>Entry time<input type="time" disabled={Boolean(busy || pending || registrationComplete)} value={placementEntryTimes[index] ?? ""} onChange={(event) => setPlacementEntryTimes((current) => current.map((item, position) => position === index ? event.target.value : item))} /></span>
-                <span>Duration (min)<input type="number" min="1" disabled={Boolean(busy || pending || registrationComplete)} value={placementDurations[index] ?? ""} onChange={(event) => setPlacementDurations((current) => current.map((item, position) => position === index ? event.target.value : item))} /></span>
+                <span>Entry time<input className={createOnly ? "edit-input" : undefined} type="time" disabled={Boolean(busy || pending || registrationComplete)} value={placementEntryTimes[index] ?? ""} onChange={(event) => setPlacementEntryTimes((current) => current.map((item, position) => position === index ? event.target.value : item))} /></span>
+                <span>Duration (min)<input className={createOnly ? "edit-input" : undefined} type="number" min="1" disabled={Boolean(busy || pending || registrationComplete)} value={placementDurations[index] ?? ""} onChange={(event) => setPlacementDurations((current) => current.map((item, position) => position === index ? event.target.value : item))} /></span>
               </span> : null}
             </label>;
           })}</div>
@@ -363,12 +445,12 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       {latestSale && !registrationComplete ? <p className={styles.registrationPending}>Subscription {latestSale.subscriptionId.slice(0,8)}… đã tạo nhưng placement chưa hoàn tất. Có thể đổi Running Classes rồi retry placement; không tạo sale thứ hai.</p> : null}
       {registrationComplete && latestSale ? <p className={styles.registrationSuccess}>Registration complete · Enrollment {latestSale.productPlan.cadence}/{latestSale.productPlan.cadence} · Bill {latestSale.bill.bill.id.slice(0,8)}… · {latestSale.purchasedUnits} units.</p> : null}
       {latestSale && !registrationComplete
-        ? <button className={styles.primary} disabled={Boolean(busy || pending || !placementsReady)} type="button" onClick={() => void retryPlacement()}>{busy?.startsWith("placement:") ? "Đang preflight/placement…" : `Hoàn tất placement ${selectedPlacementCount}/${selectedPlan?.cadence ?? 0}`}</button>
-        : <button className={styles.primary} disabled={Boolean(busy || pending || !placementsReady || registrationComplete)} type="submit">{busy === "registration" ? "Đang tạo + preflight + placement…" : registrationComplete ? "Đăng ký hoàn tất" : `Confirm registration ${selectedPlacementCount}/${selectedPlan?.cadence ?? 0}`}</button>}
+        ? <button className={createOnly ? "primary-btn" : styles.primary} disabled={Boolean(busy || pending || !placementsReady)} type="button" onClick={() => void retryPlacement()}>{busy?.startsWith("placement:") ? "Đang preflight/placement…" : `Hoàn tất placement ${selectedPlacementCount}/${selectedPlan?.cadence ?? 0}`}</button>
+        : <button className={createOnly ? "primary-btn" : styles.primary} disabled={Boolean(busy || pending || !placementsReady || registrationComplete)} type="submit">{busy === "registration" ? "Đang tạo + preflight + placement…" : registrationComplete ? "Đăng ký hoàn tất" : `Confirm registration ${selectedPlacementCount}/${selectedPlan?.cadence ?? 0}`}</button>}
       {latestSale ? <p className={styles.saleResult}>Bill {latestSale.bill.bill.id.slice(0,8)}… · {latestSale.purchasedUnits} units · contract {latestSale.contractualStartsOn} → {latestSale.contractualEndsOn}</p> : null}
     </form>
 
-    {billIds.length ? <section className={styles.section}>
+    {!createOnly && billIds.length ? <section className={styles.section}>
       <div className={styles.sectionHead}><div><span>Financial ledger</span><h3>Bills</h3></div><small>Payment/Refund là transaction riêng; Subscription không phụ thuộc trạng thái PAID</small></div>
       <div className={styles.billGrid}>{billIds.map((billId) => <BillCard key={billId} billId={billId} revision={billRevision} disabled={Boolean(busy || pending)} onTransaction={transact} />)}</div>
     </section> : null}

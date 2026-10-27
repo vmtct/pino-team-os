@@ -16,3 +16,27 @@
 .operations > summary{padding:13px 16px;cursor:pointer;font-size:13px;color:var(--bo-v23-color-muted,#807d88)}
 .operations > .workspace{padding:12px;min-width:0}
 .readHint{margin:0;font-size:11px;color:var(--bo-v23-color-muted,#807d88)}
+
+/* PAP-1034 Create drawer DS form: wrappers are layout-only; actual controls use shared .edit-input. */
+.createFormShell{display:grid;gap:16px;min-width:0;background:transparent;padding:0;margin:0}
+.createFormShell .sectionHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.createFormShell .sectionHead h3{font-size:14px;margin:4px 0;color:var(--bo-v23-color-text,#24242a)}
+.createFormGrid{display:grid;gap:0;min-width:0}
+.createFormGrid>label{min-width:0;display:grid;grid-template-columns:minmax(108px,36%) minmax(0,1fr);align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bo-v23-color-border,#e6e5eb);font-size:12px;color:var(--bo-v23-color-muted,#777681)}
+.createFormGrid>label>input,.createFormGrid>label>select{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.createFormGrid>label>button.suggestionReset{grid-column:2;justify-self:start}
+.discountPair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;min-width:0}
+.discountPair>span{display:grid;gap:5px;min-width:0}
+.discountPair>span>small{font-size:10px;color:var(--bo-v23-color-muted,#777681)}
+.discountPair input{width:100%;min-width:0;box-sizing:border-box;font-variant-numeric:tabular-nums}
+.suggestionReset{background:none;border:0;padding:2px 0;color:var(--bo-v23-color-accent,#625bc5);font:inherit;font-size:11px;cursor:pointer;text-align:left}
+.suggestionReset:disabled{opacity:.5;cursor:default}
+.createPreview{display:grid;gap:8px;border:1px solid var(--bo-v23-color-border,#e6e5eb);background:var(--bo-v23-color-canvas,#fafafd);border-radius:9px;padding:12px}
+.createPreview>span{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--bo-v23-color-muted,#777681)}
+.createPreview>span>strong{font-weight:650;color:var(--bo-v23-color-text,#24242a)}
+.createPreview>.createPreviewTotal{border-top:1px solid var(--bo-v23-color-border,#e6e5eb);padding-top:11px;font-weight:700;color:var(--bo-v23-color-text,#24242a)}
+.createPreview small{font-size:10px;line-height:1.4;color:var(--bo-v23-color-muted,#777681)}
+.createFormShell .placementWizard{background:var(--bo-v23-color-surface,#fff);border:1px solid var(--bo-v23-color-border,#e6e5eb);border-radius:9px;min-width:0}
+.createFormShell .placementSlots{grid-template-columns:minmax(0,1fr)}
+.createFormShell .primary-btn{width:100%;min-height:38px}
+@media(max-width:440px){.createFormGrid>label{grid-template-columns:minmax(90px,35%) minmax(0,1fr);gap:6px;font-size:11px}.discountPair{gap:5px}}
