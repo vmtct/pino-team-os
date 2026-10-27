@@ -232,8 +232,11 @@ test("HO staging serves only the consolidated authenticated CSS authority route"
   for (const retired of ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"]) {
     assert.deepEqual(decideHostBoundary(ho, "/bo-skeleton/" + retired), { action: "not_found" });
   }
-  for (const host of [bo, "tos.staging.pinohouse.art", "ho.pinohouse.art"]) {
-    assert.deepEqual(decideHostBoundary(host, "/bo-skeleton/ho-scoped.css"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(bo, "/bo-skeleton/ho-scoped.css"), { action: "not_found" });
+  // TOS/general hosts are filtered again by the authenticated skeleton controller;
+  // their existing broad public route policy must not be narrowed by HO changes.
+  for (const host of ["tos.staging.pinohouse.art", "ho.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, "/bo-skeleton/ho-scoped.css"), { action: "next" });
   }
 });
 
