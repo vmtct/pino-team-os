@@ -109,9 +109,20 @@ jobs:
           jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
           origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
           # PAP-938 staging V4 stays protected; diagnostic route remains unavailable.
-          status="$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")"
-          echo "SMOKE_TOS_V4_ANON_HTTP=$status (expected=307)"
-          test "$status" = 307
+          # Newly promoted Workers can take a moment to serve from each edge location.
+          # Readiness retry is bounded; the exact protected-route 307 remains mandatory.
+          expect_protected_route_ready() {
+            local status attempt
+            for attempt in 1 2 3 4 5; do
+              status="$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")" || status=000
+              echo "SMOKE_TOS_V4_ANON_HTTP=$status (expected=307 attempt=$attempt/5)"
+              if [ "$status" = 307 ]; then return 0; fi
+              if [ "$attempt" -lt 5 ]; then sleep 2; fi
+            done
+            echo "SMOKE_TOS_V4_ANON_FAIL: expected 307, got $status after 5 attempts" >&2
+            return 1
+          }
+          expect_protected_route_ready
           status="$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")"
           echo "SMOKE_TOS_CONTEXT_ANON_HTTP=$status (expected=401)"
           test "$status" = 401
