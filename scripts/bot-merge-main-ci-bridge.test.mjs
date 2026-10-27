@@ -5,22 +5,34 @@ const ci = readFileSync(new URL('../.github/workflows/pr-validation.yml', import
 const cd = readFileSync(new URL('../.github/workflows/candidate-staging-deploy.yml', import.meta.url), 'utf8');
 const bridge = readFileSync(new URL('../.github/workflows/bot-merge-main-ci-bridge.yml', import.meta.url), 'utf8');
 
-test('main CI retains push, PR and adds authenticated workflow_dispatch', () => {
+test('PR Validation retains pull_request/push and permits guarded main workflow dispatch', () => {
   assert.match(ci, /workflow_dispatch:/);
   assert.match(ci, /pull_request:/);
   assert.match(ci, /push:/);
   assert.match(ci, /branches: \[main\]/);
+  assert.match(ci, /dispatch_staging_after_main_validation:/);
+  assert.match(ci, /needs: \[validate\]/);
+  assert.match(ci, /needs\.validate\.result == 'success'/);
+  assert.match(ci, /actions: write/);
+  assert.match(ci, /candidate-staging-deploy\.yml\/dispatches/);
 });
 
-test('staging CD accepts exact main successful push or dispatched main CI only', () => {
-  assert.match(cd, /workflow_run\.conclusion == 'success'/);
-  assert.match(cd, /workflow_run\.event == 'push' \|\| github\.event\.workflow_run\.event == 'workflow_dispatch'/);
+test('CD admits only exact main with completed green CI proof for both triggers', () => {
+  assert.match(cd, /workflow_dispatch:/);
+  assert.match(cd, /validation_run_id:/);
+  assert.match(cd, /source_sha:/);
+  assert.match(cd, /workflow_run\.event == 'push'/);
+  assert.match(cd, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(cd, /ci_admitted=0/);
+  assert.match(cd, /\.conclusion=="success"/);
   assert.match(cd, /\.head_sha==\$sha/);
+  assert.match(cd, /\.head_branch=="main"/);
   assert.match(cd, /commits\/main --jq \.sha/);
   assert.match(cd, /\.path==\"\.github\/workflows\/pr-validation\.yml\"/);
+  assert.match(cd, /ROLLBACK_HOLD/);
 });
 
-test('bridge is limited to passed PR CI and exact GitHub Actions bot merge', () => {
+test('bridge only dispatches current-main validation after exact bot merge from green PR CI', () => {
   assert.match(bridge, /workflow_run\.event == 'pull_request'/);
   assert.match(bridge, /workflow_run\.conclusion == 'success'/);
   assert.match(bridge, /commits\/\$RUN_SHA\/pulls/);
