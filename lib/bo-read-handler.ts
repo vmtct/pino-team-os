@@ -81,6 +81,8 @@ export function isStaffCompensationPath(path: string): boolean {
     && (p.length===5||/^[0-9a-f-]{36}$/.test(p[5]??""));
 }
 
+const RUNNING_CLASS_ENROLLMENT_READ = /^delivery\/running-classes\/[0-9a-f-]{36}\/enrollments$/;
+
 export function isOperationalReadPath(path: string): boolean {
   return path === "audit/subject"
     || path === "subscriptions"
@@ -93,6 +95,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^acquisition\/intents\/[0-9a-f-]{36}$/.test(path)
     || path === "acquisition/pancake/settings"
     || path === "acquisition/pancake/channels"
+    || RUNNING_CLASS_ENROLLMENT_READ.test(path)
     || path === "delivery/bootstrap-state"
     || path === "delivery/calendar-scope"
     || path === "delivery/calendar-exclusions"
@@ -225,6 +228,20 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (RUNNING_CLASS_ENROLLMENT_READ.test(path)) {
+    for (const key of url.searchParams.keys()) {
+      if (!["limit","beforeFrom","beforeId"].includes(key) || url.searchParams.getAll(key).length !== 1)
+        throw new RangeError("Invalid Running Class Enrollment query");
+    }
+    const n=url.searchParams.get("limit")??"50";
+    const limit=Number(n),beforeFrom=url.searchParams.get("beforeFrom"),beforeId=url.searchParams.get("beforeId");
+    if (!/^[0-9]+$/.test(n)||!Number.isSafeInteger(limit)||limit<1||limit>100||
+        (beforeFrom===null)!==(beforeId===null)||
+        (beforeFrom!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(beforeFrom))||
+        (beforeId!==null&&!/^[0-9a-f-]{36}$/.test(beforeId)))
+      throw new RangeError("Invalid Running Class Enrollment cursor or limit");
+    return {limit,...(beforeFrom===null?{}:{beforeFrom,beforeId})};
+  }
   if (path === "audit/subject") {
     const allowed = ["subject_type", "subject_id", "query", "cursor", "limit"];
     for (const key of url.searchParams.keys()) {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
+import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
 import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
@@ -22,9 +23,11 @@ export function BoFullDetail({
   const [voidOpen, setVoidOpen] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
-  const tabs = moduleKey === "students" && enableStudentSubscriptions
-    ? ["Detail", "Subscription", "Chuyên Sâu", "Lịch Sử"]
-    : ["Detail", "Chuyên Sâu", "Lịch Sử"];
+  const tabs = moduleKey === "classes"
+    ? ["Detail", "Enrollment", "Lịch Sử"]
+    : moduleKey === "students" && enableStudentSubscriptions
+      ? ["Detail", "Subscription", "Chuyên Sâu", "Lịch Sử"]
+      : ["Detail", "Chuyên Sâu", "Lịch Sử"];
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
 
@@ -90,6 +93,8 @@ export function BoFullDetail({
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
+              : activeTab === "Enrollment" && moduleKey === "classes"
+                ? <BoRunningClassEnrollment runningClassId={record.id} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Chuyên Sâu"
                 ? <BoAdvanced module={module} moduleKey={moduleKey} record={record} />
                 : subjectType
