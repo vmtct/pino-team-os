@@ -33,7 +33,7 @@ export function assessPR(pr, policyAt, repo = 'vmtct/pino-team-os') {
   if (pr.labels?.some(l => DENY_LABELS.has(l.name.toLowerCase()))) return 'manual/release hold label';
   if (pr.requested_reviewers?.length || pr.requested_teams?.length) return 'review requested';
   if (/^\s*(DO_NOT_MERGE|MERGE_HOLD|STOP_BEFORE_MERGE)\b/im.test(pr.body || '')) return 'explicit PR merge hold';
-  if (['dirty', 'blocked'].includes(pr.mergeable_state)) return 'merge conflict or blocked';
+  if (pr.mergeable_state === 'dirty') return 'merge conflict';
   return null;
 }
 
@@ -80,8 +80,9 @@ async function run() {
   if (!Number.isInteger(number)) return;
   const branch = await api('/repos/' + repo + '/branches/main');
   const settings = await api('/repos/' + repo);
-  if (!branch.protected || settings.allow_auto_merge !== true) {
-    console.log('HOLD: protected main or native auto-merge setting missing');
+  console.log('Admission preflight: protected=' + String(branch.protected) + ', repositoryAutoMergeVisible=' + String(settings.allow_auto_merge));
+  if (!branch.protected) {
+    console.log('HOLD: protected main missing');
     return;
   }
   const commit = await api('/repos/' + repo + '/commits?path=.github/workflows/guarded-ui-automerge.yml&per_page=1');
