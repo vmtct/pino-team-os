@@ -2,7 +2,7 @@
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import { BoValue } from "./BoValue";
 import type { BoDataGridColumn } from "../data-grid/BoDataGrid";
-const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid }));
+const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../data-grid/BoDataGrid").BoDataGrid;
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 const tabs = ["Overview", "Students", "Contacts", "Audit"] as const;
