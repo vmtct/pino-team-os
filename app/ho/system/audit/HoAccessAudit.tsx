@@ -18,23 +18,25 @@ export function HoAccessAudit() {
  const [page,setPage]=useState(1);
  const [size,setSize]=useState(25);
  const [query,setQuery]=useState("");
+ const [effectiveQuery,setEffectiveQuery]=useState("");
  const [outcome,setOutcome]=useState("");
  const [reload,setReload]=useState(0);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [selectedId,setSelectedId]=useState<string|null>(null);
 
+ useEffect(()=>{ const timer=setTimeout(()=>setEffectiveQuery(query.trim()),350); return()=>clearTimeout(timer); },[query]);
  useEffect(()=>{
   let alive=true;
   void boApi.accessAuditPage({limit:size,offset:(page-1)*size,
-   ...(query.trim()?{query:query.trim().slice(0,120)}:{}),
+   ...(effectiveQuery?{query:effectiveQuery.slice(0,120)}:{}),
    ...(outcome?{outcome}:{})})
-   .then(data=>{if(!alive)return;const last=Math.max(1,data.page.pageCount);
+   .then(data=>{if(!alive)return;setError("");const last=Math.max(1,data.page.pageCount);
     if(page>last){setPage(last);return;}setResult(data);})
    .catch(e=>{if(alive){setResult(blank);setError(e instanceof Error?e.message:"Không tải được Access Audit.");}})
    .finally(()=>{if(alive)setLoading(false);});
   return()=>{alive=false;};
- },[page,size,query,outcome,reload]);
+ },[page,size,effectiveQuery,outcome,reload]);
 
  const selected=result.events.find(e=>e.id===selectedId) ?? null;
  const cols=useMemo<BoDataGridColumn<VisibleEvent>[]>(()=>[

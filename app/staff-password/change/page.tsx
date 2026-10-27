@@ -1,8 +1,9 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "../../staff-login/staff-login.module.css";
+import { safeHoReturnTo, HO_HOME_PATH } from "@/lib/ho-routes";
 
-function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return "/ho/centers"; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
+function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
 
 export default function StaffPasswordChange() {
   const [password, setPassword] = useState("");

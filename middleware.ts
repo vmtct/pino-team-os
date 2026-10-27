@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { HO_STAGING_HOSTNAME, normalizeHostname, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
 import { boSkeletonRoute, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
+import { safeHoReturnTo } from "@/lib/ho-routes";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
@@ -10,6 +11,11 @@ export function middleware(request: NextRequest) {
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");
   forwarded.delete("x-pino-ho-auth-page");
+  forwarded.delete("x-pino-ho-return-to");
+  if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho")) {
+    const ret = safeHoReturnTo(request.nextUrl.pathname + request.nextUrl.search);
+    if (ret) forwarded.set("x-pino-ho-return-to",ret);
+  }
   if (requiresBoStagingPageSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
   // Public Staff auth pages must not load the restricted HO authority CSS.
   // The marker is set by middleware, never trusted from caller headers.
@@ -27,7 +33,10 @@ export function middleware(request: NextRequest) {
 
   if (decision.action === "next") {
     if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho") && !request.cookies.get("pino_staff_password_session")?.value) {
-      return NextResponse.redirect(new URL("/staff-login", request.url), 307);
+      const login = new URL("/staff-login", request.url);
+      const ret = safeHoReturnTo(request.nextUrl.pathname + request.nextUrl.search);
+      if (ret) login.searchParams.set("returnTo", ret);
+      return NextResponse.redirect(login, 307);
     }
     if (requiresTosStaffSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_support_session")?.value && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";

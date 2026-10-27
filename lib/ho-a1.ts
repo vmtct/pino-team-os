@@ -1,13 +1,10 @@
 import type { BoModule, BoRecord } from "./bo-registration";
+import { HO_PAGE_PATHS } from "./ho-routes";
 import type { BoLearningSyllabusSummary, BoLearningSyllabusDetail, BoLearningSyllabusOwnerCatalog } from "./bo-model";
 
 export const HO_A1_KEYS = ["syllabi","missions","worlds","wardrobe","wardrobeSets","effects"] as const;
 export type HoA1Module = typeof HO_A1_KEYS[number];
-export const hoA1Routes:Record<HoA1Module,string> = {
- syllabi:"/ho/learning/syllabi",missions:"/ho/learning/missions",
- worlds:"/ho/pinoria/worlds",wardrobe:"/ho/pinoria/wardrobe",
- wardrobeSets:"/ho/pinoria/wardrobe-sets",effects:"/ho/pinoria/effects",
-};
+export const hoA1Routes:Record<HoA1Module,string> = Object.fromEntries(HO_A1_KEYS.map(k=>[k,HO_PAGE_PATHS[k]])) as Record<HoA1Module,string>;
 type FieldSpec = readonly [string,string,"text"|"id"|"select"|"number"|"textarea"|"multiselect"|"date"];
 const fields=(specs:readonly FieldSpec[])=>specs.map(([key,label,type])=>({key,label,type,icon:type==="number"?"#":type==="id"?"⌘":"Aa",w:type==="textarea"||type==="multiselect"?275:170,readonly:true}));
 export const hoA1Modules:Record<HoA1Module,BoModule>={
@@ -74,7 +71,7 @@ export function mapHoWorlds(value:unknown):BoRecord[]{
   const layers=scenes.flatMap(s=>listOf(s.layers).map(l=>({scene:word(s.displayName),layer:l})));
   return {id:word(w.id),name:word(w.displayName),key:word(w.key),status:word(w.status),
    worldType:word(w.worldType),sceneCount:scenes.length,layerCount:layers.length,
-   scenes:scenes.map(s=>word(s.displayName)+" · "+word(s.status)+" · "+word(s.canvasWidth)+"×"+word(s.canvasHeight)),
+   scenes:scenes.map(s=>word(s.displayName)+" · "+word(s.status)+" · "+numeric(s.canvasWidth)+"×"+numeric(s.canvasHeight)),
    layers:layers.map(l=>l.scene+" / "+word(l.layer.displayName)+" · "+word(l.layer.kind)+" · "+word(l.layer.mediaType)),
    thumbnail:nullable(w.thumbnailAssetKey),description:nullable(w.descriptionText)};
  });
