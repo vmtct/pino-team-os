@@ -16,7 +16,7 @@ const parentId = '0198d050-56c1-7ac5-b9ab-b0e45d912346';
 const guardianId = '0198d050-56c1-7ac5-b9ab-b0e45d912347';
 const parent = { parent: { id: parentId, displayName: 'Nguyễn Phụ Huynh', status: 'ACTIVE', createdAt: '', updatedAt: '', version: 1 }, contacts: [{ id: guardianId, parentUserId: parentId, identifierType: 'PHONE', normalizedValue: '0901234567', isPrimary: true, verifiedAt: null, createdAt: '', retiredAt: null }] };
 let authorized = true, postStatus = 200, includeCreated = false;
-const posts = [], errors = [], checks = [];
+const posts = [], voids = [], errors = [], checks = [];
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
@@ -28,6 +28,17 @@ const server = createServer(async (request, response) => {
       if (url.pathname === '/api/bo/context') { assert.equal(request.method, 'GET'); json(200, { data: { userId: parentId, email: 'operator@example.invalid', staffMemberId: null, displayName: 'BO Manager', staffProfile: null, surface: 'BO', entitled: true, permissionKeys: authorized ? ['student.profile.manage'] : [] } }); return; }
       if (url.pathname === '/api/bo/learners') { assert.equal(request.method, 'GET'); json(200, { data: [...fixture.students.slice(0, 3), ...(includeCreated ? [{ id: studentId, displayName: 'Student mới', birthYear: 2020, status: 'ACTIVE', houseMember: false, activePaths: [] }] : [])] }); return; }
       if (url.pathname === '/api/bo/identity/parents') { assert.equal(request.method, 'GET'); json(200, { data: [parent] }); return; }
+      if (url.pathname === `/api/bo/students/${studentId}/lifecycle`) {
+        assert.equal(request.method, 'GET');
+        json(200, { data: { student: { id: studentId, displayName: 'Student mới', version: 1, status: 'ACTIVE' } } }); return;
+      }
+      if (url.pathname === `/api/bo/student-intakes/${studentId}/void`) {
+        assert.equal(request.method, 'POST');
+        const bytes = []; for await (const chunk of request) bytes.push(chunk);
+        voids.push({ key: request.headers['idempotency-key'], body: JSON.parse(Buffer.concat(bytes).toString('utf8')) });
+        includeCreated = false;
+        json(200, { data: { studentProfileId: studentId, studentStatus: 'ARCHIVED', guardianRelationshipId: guardianId, guardianStatus: 'ENDED', parentUserId: parentId, parentDisposition: 'REUSED_UNCHANGED', retiredContactCount: 0 } }); return;
+      }
       if (url.pathname === '/api/bo/student-intakes') {
         assert.equal(request.method, 'POST');
         const bytes = []; for await (const chunk of request) bytes.push(chunk);
@@ -46,7 +57,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true, channel: process.env.PAP1024_BROWSER || 'chrome' });
 try {
   for (const width of [390, 768, 1440]) {
-    authorized = width !== 1440; includeCreated = false; postStatus = 200; posts.length = 0;
+    authorized = width !== 1440; includeCreated = false; postStatus = 200; posts.length = 0; voids.length = 0;
     const context = await browser.newContext({ viewport: { width, height: 950 }, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
@@ -67,7 +78,17 @@ try {
       assert.equal(posts[0].body.displayName, 'Student mới');
       await page.locator('#table-body').getByText('Student mới').waitFor();
       assert.equal(await page.locator('#table-body').getByText('Student mới').count(), 1);
-      checks.push({ width, mode: 'existing', permission: true, canonicalRefresh: true });
+      await page.getByRole('button', { name: /Quick View Student mới/ }).click();
+      await page.getByRole('button', { name: /Full Detail/ }).click();
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await page.getByRole('button', { name: 'Lưu trữ intake' }).click();
+      await page.getByRole('textbox', { name: 'Lý do' }).fill('PAP-1027 local E2E cleanup');
+      await page.getByRole('button', { name: 'Xác nhận lưu trữ' }).click();
+      await page.getByRole('button', { name: 'Đóng & Clean Verify' }).click();
+      await page.locator('#table-body').getByText('Student mới').waitFor({ state: 'detached' });
+      assert.equal(voids.length, 1); assert.equal(voids[0].body.expectedStudentVersion, 1);
+      assert.equal(voids[0].body.reason, 'PAP-1027 local E2E cleanup');
+      checks.push({ width, mode: 'existing', permission: true, canonicalRefresh: true, voidIntake: true, cleanVerify: true });
     } else if (width === 768) {
       await page.getByRole('button', { name: 'Tạo phụ huynh mới' }).click();
       await page.getByRole('textbox', { name: 'Tên phụ huynh / người giám hộ' }).fill('Phụ huynh mới');
