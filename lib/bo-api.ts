@@ -520,6 +520,7 @@ export const boApi = {
   staffPrivateDocumentUrl: (staffMemberId: string, documentId: string, centerId?: string) => `/api/bo/workforce/staff-records/${encodeURIComponent(staffMemberId)}/private/documents/${encodeURIComponent(documentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`,
   staffPinoria: (staffMemberId: string) => readOne<BoStaffPinoriaProjection>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}/pinoria`),
   workforcePlanningBootstrap: () => readOne<BoWorkforcePlanningBootstrap>("workforce/planning/bootstrap"),
+  createWorkforceShiftPlan: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string; open: boolean }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/shift-plan", body, key),
   workforceShiftTemplates: (centerId: string) => read<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates?centerId=${encodeURIComponent(centerId)}`),
   createWorkforceShiftTemplate: (body: { centerId: string; code: string; displayLabel: string; startLocalTime: string; endLocalTime: string }, idempotencyKey: string) => write<BoWorkforceShiftTemplate>("workforce/planning/shift-templates", body, idempotencyKey),
   setWorkforceShiftTemplateStatus: (templateId: string, centerId: string, status: "ACTIVE" | "INACTIVE", idempotencyKey: string) => write<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates/${encodeURIComponent(templateId)}/status`, { centerId, status }, idempotencyKey),
