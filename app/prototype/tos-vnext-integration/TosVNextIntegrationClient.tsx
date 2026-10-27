@@ -70,7 +70,7 @@ export default function TosVNextIntegrationPreview(){
  // Do not leave privileged app content mounted after the shift window ends,
  // the center changes, or the station shrinks below desktop size.
  useEffect(()=>{
-  if(app==="home"||loading)return;
+  if(app==="home"||loading||ctx?.founderMode)return;
   if(!ctx||!centerId||!data.shift){setApp("home");setClassDetailOpen(false);return}
   const denied=!canOpenVNextApp(app,{authenticated:!!ctx,centerReady:!!centerId,
    scheduleReady:!!data.shift,desktop,access});
