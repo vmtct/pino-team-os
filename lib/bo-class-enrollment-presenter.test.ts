@@ -24,11 +24,13 @@ test("PAP-1041 status respects exclusive end and Center-local current date",()=>
 test("PAP-1041 BO proxy only admits bounded class-enrollment GET with paired cursor",()=>{
   assert.equal(isOperationalReadPath(endpoint),true);
   assert.equal(isOperationalReadPath("delivery/running-classes/abc/enrollments"),false);
-  assert.deepEqual(readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?limit=25&beforeFrom=2026-10-20&beforeId=01234567-89ab-7abc-8def-0123456789ab")),{
-    limit:25,beforeFrom:"2026-10-20",beforeId:"01234567-89ab-7abc-8def-0123456789ab"
+  assert.deepEqual(readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?limit=25&beforeFrom=2026-10-20&beforeId=01234567-89ab-7abc-8def-0123456789ab&beforeRank=0&asOfLocalDate=2026-10-20")),{
+    limit:25,beforeFrom:"2026-10-20",beforeId:"01234567-89ab-7abc-8def-0123456789ab",beforeRank:0,asOfLocalDate:"2026-10-20"
   });
   assert.throws(()=>readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?limit=101")),RangeError);
   assert.throws(()=>readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?beforeFrom=2026-10-20")),RangeError);
   assert.throws(()=>readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?limit=1&limit=2")),RangeError);
   assert.throws(()=>readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?studentProfileId=1")),RangeError);
+  assert.throws(()=>readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?limit=25&beforeFrom=2026-10-20&beforeId=01234567-89ab-7abc-8def-0123456789ab")),RangeError);
+  assert.throws(()=>readQueryBody(endpoint,new URL("https://bo.test/"+endpoint+"?limit=25&beforeRank=4")),RangeError);
 });

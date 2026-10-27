@@ -9,8 +9,8 @@ type Item={
   id:string;runningClassId:string;subscriptionId:string;studentProfileId:string;
   studentDisplayName:string;effectiveFromLocalDate:string;effectiveUntilExclusiveLocalDate:string|null;
 };
-type Cursor={effectiveFromLocalDate:string;id:string};
-type Page={items:Item[];limit:number;nextCursor:Cursor|null};
+type Cursor={statusRank:number;effectiveFromLocalDate:string;id:string;asOfLocalDate:string};
+type Page={items:Item[];limit:number;asOfLocalDate:string;nextCursor:Cursor|null};
 const studentColumns:BoModule={label:"Học viên trong lớp",group:"SCHOOL",fields:[
   {key:"name",label:"Học viên",type:"text",icon:"Aa",w:255,readonly:true},
   {key:"start",label:"Ngày bắt đầu",type:"text",icon:"▦",w:175,readonly:true},
@@ -22,23 +22,24 @@ function errorMessage(status:number){
 }
 async function getPage(classId:string,cursor:Cursor|null,signal:AbortSignal):Promise<Page>{
   const query=new URLSearchParams({limit:"50"});
-  if(cursor){query.set("beforeFrom",cursor.effectiveFromLocalDate);query.set("beforeId",cursor.id);}
+  if(cursor){query.set("beforeFrom",cursor.effectiveFromLocalDate);query.set("beforeId",cursor.id);query.set("beforeRank",String(cursor.statusRank));query.set("asOfLocalDate",cursor.asOfLocalDate);}
   const r=await fetch("/api/bo/delivery/running-classes/"+encodeURIComponent(classId)+"/enrollments?"+query.toString(),{cache:"no-store",credentials:"same-origin",signal});
   if(!r.ok)throw new Error(errorMessage(r.status));
   const parsed=await r.json() as {data?:Page};
   const data=parsed.data;
   if(!data||!Array.isArray(data.items)||!Number.isSafeInteger(data.limit)||data.limit<1||data.limit>100||
-    !Object.hasOwn(data,"nextCursor")||data.items.some(item=>item.runningClassId!==classId||
+    !Object.hasOwn(data,"nextCursor")||typeof data.asOfLocalDate!=="string"||data.items.some(item=>item.runningClassId!==classId||
       typeof item.id!=="string"||typeof item.studentProfileId!=="string"||typeof item.studentDisplayName!=="string"||
       typeof item.effectiveFromLocalDate!=="string"||
       !(item.effectiveUntilExclusiveLocalDate===null||typeof item.effectiveUntilExclusiveLocalDate==="string"))||
-    (data.nextCursor!==null&&(!data.nextCursor||typeof data.nextCursor.effectiveFromLocalDate!=="string"||typeof data.nextCursor.id!=="string")))
+    (data.nextCursor!==null&&(!data.nextCursor||typeof data.nextCursor.effectiveFromLocalDate!=="string"||typeof data.nextCursor.id!=="string"||!Number.isSafeInteger(data.nextCursor.statusRank)||data.nextCursor.statusRank<0||data.nextCursor.statusRank>2||data.nextCursor.asOfLocalDate!==data.asOfLocalDate)))
     throw new Error("Dữ liệu Enrollment từ Core không hợp lệ.");
   return data;
 }
-export function BoRunningClassEnrollment({runningClassId,centerTimeZone}:{runningClassId:string;centerTimeZone:string|null}){
+export function BoRunningClassEnrollment({runningClassId,className,pathName,centerTimeZone}:{runningClassId:string;className:string;pathName:string;centerTimeZone:string|null}){
   const [items,setItems]=useState<Item[]>([]);
   const [cursor,setCursor]=useState<Cursor|null>(null);
+  const [asOfLocalDate,setAsOfLocalDate]=useState<string|null>(null);
   const [phase,setPhase]=useState<"loading"|"ready"|"error">("loading");
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
@@ -47,14 +48,14 @@ export function BoRunningClassEnrollment({runningClassId,centerTimeZone}:{runnin
   const [table,setTable]=useState(()=>defaultTable(studentColumns.fields));
   const [page,setPage]=useState(1);
   const abort=useRef<AbortController|null>(null);
-  const timezoneDate=centerBusinessDate(centerTimeZone);
+  const timezoneDate=asOfLocalDate??centerBusinessDate(centerTimeZone);
   useEffect(()=>{
     const controller=new AbortController();
     abort.current?.abort();abort.current=controller;
-    setItems([]);setCursor(null);setPhase("loading");setError("");setPage(1);
+    setItems([]);setCursor(null);setAsOfLocalDate(null);setPhase("loading");setError("");setPage(1);
     void getPage(runningClassId,null,controller.signal).then(data=>{
       if(controller.signal.aborted)return;
-      setItems(data.items);setCursor(data.nextCursor);setPhase("ready");
+      setItems(data.items);setCursor(data.nextCursor);setAsOfLocalDate(data.asOfLocalDate);setPhase("ready");
     }).catch(caught=>{
       if(controller.signal.aborted)return;
       setError(caught instanceof Error?caught.message:"Không thể tải Enrollment.");setPhase("error");
@@ -87,16 +88,16 @@ export function BoRunningClassEnrollment({runningClassId,centerTimeZone}:{runnin
     {phase==="error"?<button type="button" className="secondary-btn" onClick={()=>setRetry(n=>n+1)}>Thử lại</button>:null}
     <BoDataTable module={studentColumns} rows={rows} loadState={phase==="error"?error:phase}
       value={table} update={patch=>{setTable(current=>({...current,...patch}));setPage(1);}}
-      page={page} setPage={setPage} onOpen={row=>setSelected(items.find(item=>item.id===row.id)??null)}
+      page={page} setPage={setPage} onOpen={row=>setSelected(items.find(item=>item.id===row.id)??null)} onPrimaryCellOpen={row=>setSelected(items.find(item=>item.id===row.id)??null)}
       onSettings={()=>{}} filterOpen={false} setFilterOpen={()=>{}} views={[]} changeViews={()=>{}}
       activeView={null} applyView={()=>{}} reset={()=>setTable(defaultTable(studentColumns.fields))}
       undo={()=>{}} canUndo={false} minimal showChrome={false} />
     {phase==="ready"&&cursor?<button className="secondary-btn" type="button" disabled={busy} onClick={()=>void loadMore()}>{busy?"Đang tải…":"Tải thêm học viên"}</button>:null}
     <p className="settings-hint">Ngày kết thúc là ngày cuối học viên thuộc lớp. “—” nghĩa là chưa có ngày kết thúc.</p>
-    {selected?<EnrollmentStudentQuickView item={selected} today={timezoneDate} onClose={()=>setSelected(null)}/>:null}
+    {selected?<EnrollmentStudentQuickView item={selected} className={className} pathName={pathName} today={timezoneDate} onClose={()=>setSelected(null)}/>:null}
   </section>;
 }
-function EnrollmentStudentQuickView({item,today,onClose}:{item:Item;today:string|null;onClose:()=>void}){
+function EnrollmentStudentQuickView({item,className,pathName,today,onClose}:{item:Item;className:string;pathName:string;today:string|null;onClose:()=>void}){
   const panel=useRef<HTMLElement>(null);
   useBoDialog(true,onClose,panel);
   const [guardians,setGuardians]=useState<string[]|null>(null);
@@ -120,6 +121,7 @@ function EnrollmentStudentQuickView({item,today,onClose}:{item:Item;today:string
         {prop("Họ và tên",item.studentDisplayName)}{prop("Mã học viên",item.studentProfileId)}
         {prop("Phụ huynh",guardians?guardians.join(", ")||"Chưa có thông tin":guardianError||"Đang tải…")}
       </section><section className="property-section"><h3>Thông tin trong lớp</h3>
+        {prop("Path",pathName)}{prop("Lớp học",className)}
         {prop("Ngày bắt đầu",displayLocalDate(item.effectiveFromLocalDate))}
         {prop("Ngày kết thúc",enrollmentDisplayEndDate(item.effectiveUntilExclusiveLocalDate))}
         {prop("Tình trạng",enrollmentPeriodState(item,today).label)}

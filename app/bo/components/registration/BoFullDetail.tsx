@@ -101,7 +101,7 @@ export function BoFullDetail({
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
               : activeTab === "Enrollment" && moduleKey === "classes"
-                ? <BoRunningClassEnrollment runningClassId={record.id} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
+                ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
                 ? <div className="v24-audit-empty" role="status">Phân lớp được quản lý bởi Core. Chức năng xem và thao tác Enrollment thuộc PAP-1035 (S3), chưa triển khai trong S1.</div>
               : activeTab === "Chuyên Sâu"

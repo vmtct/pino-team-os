@@ -230,17 +230,20 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
   if (RUNNING_CLASS_ENROLLMENT_READ.test(path)) {
     for (const key of url.searchParams.keys()) {
-      if (!["limit","beforeFrom","beforeId"].includes(key) || url.searchParams.getAll(key).length !== 1)
+      if (!["limit","beforeFrom","beforeId","beforeRank","asOfLocalDate"].includes(key) || url.searchParams.getAll(key).length !== 1)
         throw new RangeError("Invalid Running Class Enrollment query");
     }
     const n=url.searchParams.get("limit")??"50";
-    const limit=Number(n),beforeFrom=url.searchParams.get("beforeFrom"),beforeId=url.searchParams.get("beforeId");
+    const limit=Number(n),beforeFrom=url.searchParams.get("beforeFrom"),beforeId=url.searchParams.get("beforeId"),beforeRank=url.searchParams.get("beforeRank"),asOfLocalDate=url.searchParams.get("asOfLocalDate");
+    const completeCursor=[beforeFrom,beforeId,beforeRank,asOfLocalDate].every(value=>value===null)||[beforeFrom,beforeId,beforeRank,asOfLocalDate].every(value=>value!==null);
     if (!/^[0-9]+$/.test(n)||!Number.isSafeInteger(limit)||limit<1||limit>100||
-        (beforeFrom===null)!==(beforeId===null)||
+        !completeCursor||
+        (beforeRank!==null&&(!/^[012]$/.test(beforeRank)))||
+        (asOfLocalDate!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(asOfLocalDate))||
         (beforeFrom!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(beforeFrom))||
         (beforeId!==null&&!/^[0-9a-f-]{36}$/.test(beforeId)))
       throw new RangeError("Invalid Running Class Enrollment cursor or limit");
-    return {limit,...(beforeFrom===null?{}:{beforeFrom,beforeId})};
+    return {limit,...(beforeFrom===null?{}:{beforeFrom,beforeId,beforeRank:Number(beforeRank),asOfLocalDate})};
   }
   if (path === "audit/subject") {
     const allowed = ["subject_type", "subject_id", "query", "cursor", "limit"];
