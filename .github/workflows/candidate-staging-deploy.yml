@@ -178,6 +178,23 @@ jobs:
           echo "PAP1050_CANONICAL_ANON_HTTP=$canonical_status (expected=307 login)"
           test "$canonical_status" = 307
           echo 'PAP1050_BO_STAGING_ROUTE_PARITY_PASS'
+          # PAP-1035: edge and BO read facade must agree on each protected GET.
+          # Anonymous 401 JSON proves the request reaches BFF authentication;
+          # an edge 404 text/plain (the original incident) must roll back.
+          s3_id='019d9881-1025-7000-8000-000000001244'
+          s3_cls='019d9881-1025-7000-8000-000000001243'
+          for suffix in "subscriptions/$s3_id" "subscriptions/$s3_id/enrollments" "subscriptions/$s3_id/placement?targetLocalDate=2026-10-27" "enrollments/$s3_cls" "enrollments/capacity?runningClassId=$s3_cls&targetLocalDate=2026-10-27"; do
+            s3_ok=0
+            for attempt in 1 2 3 4 5 6; do
+              s3_status="$(curl -sS --max-time 20 -D /tmp/pap1035-s3-headers -o /tmp/pap1035-s3-body -w '%{http_code}' "https://bo.staging.pinohouse.art/api/bo/$suffix")" || s3_status=000
+              s3_type="$(grep -i '^content-type:' /tmp/pap1035-s3-headers | tail -1 | tr -d '\r' || true)"
+              echo "PAP1035_S3_READ attempt=$attempt status=$s3_status type=$s3_type path=${suffix%%\?*}"
+              if [ "$s3_status" = 401 ] && [[ "$s3_type" == *application/json* ]]; then s3_ok=1; break; fi
+              if [ "$attempt" -lt 6 ]; then sleep 3; fi
+            done
+            test "$s3_ok" = 1
+          done
+          echo 'PAP1035_S3_READ_FENCE_PASS'
           status="$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")"
           echo "SMOKE_TOS_CONTEXT_ANON_HTTP=$status (expected=401)"
           test "$status" = 401
