@@ -9,6 +9,7 @@ import { BoFullDetail } from "@/app/bo/components/registration/BoFullDetail";
 import { subscriptionModule } from "@/app/bo/components/registration/BoStudentSubscriptionRelation";
 import type { BoRecord } from "@/lib/bo-registration";
 import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
+import { SubscriptionCreateDrawer } from "./SubscriptionCreateDrawer";
 import { SpecialtyWorkspace } from "./SpecialtyWorkspace";
 import styles from "./bo-subscriptions.module.css";
 
@@ -30,6 +31,8 @@ export function BoSubscriptionsView() {
   const [billingReplay, setBillingReplay] = useState<BillingReplayState>(EMPTY_BILLING_REPLAY);
   const [historyRevision, setHistoryRevision] = useState(0);
   const [historyDetail, setHistoryDetail] = useState<BoRecord | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const requestedStudentIdRef = useRef<string | null>(null);
   const operationsRef = useRef<HTMLDetailsElement>(null);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
@@ -75,6 +78,7 @@ export function BoSubscriptionsView() {
   useEffect(() => {
     let active = true;
     const requested = new URLSearchParams(window.location.search).get("studentId");
+    requestedStudentIdRef.current = requested;
     void Promise.all([readDirectory(), boApi.scopeCatalog()]).then(([rows, scope]) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
@@ -176,7 +180,7 @@ export function BoSubscriptionsView() {
   return <main className={historyDetail ? styles.detailOnly : styles.page}>
     <header className={styles.readHeading}>
       <h1>Subscriptions</h1>
-      <button type="button" className="primary-btn" disabled title="Form Create Subscription thuộc PAP-1034 (S2)">＋ Tạo mới</button>
+      <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}>＋ Tạo mới</button>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
@@ -204,6 +208,14 @@ export function BoSubscriptionsView() {
       </section>
     </section>
     </details> : <p role="status" className={styles.readHint}>Dữ liệu danh sách Subscription vẫn hoạt động độc lập; workspace vận hành đang tải hoặc thiếu quyền truy cập.</p>}
+    {createOpen ? <SubscriptionCreateDrawer
+      initialStudentId={requestedStudentIdRef.current}
+      paths={catalog.state === "ready" ? catalog.data.paths : []}
+      classes={catalog.state === "ready" ? catalog.data.classes : []}
+      replayState={billingReplay} setReplayState={setBillingReplay}
+      onChanged={() => {setHistoryRevision(n => n+1);}}
+      onClose={() => setCreateOpen(false)}
+    /> : null}
     {historyDetail ? <BoFullDetail
       key={historyDetail.id}
       module={subscriptionModule}
