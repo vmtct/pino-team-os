@@ -57,3 +57,9 @@ test("PAP-1089 current nav URLs remain identical until explicit route admission"
   assert.equal(currentBoModuleHref("workforce-shift-plans",admitted),"/bo/workforce-shift-plans");
   assert.equal(currentBoModuleHref("payroll-periods",admitted),"/bo/payroll-periods");
 });
+
+test("PAP-1091 guarded application auto-merge smoke: unknown resources stay denied",()=>{
+  for(const slug of ["catalog","system/users","system/roles","legacy-termweek"])
+    assert.equal(parseBoTargetUrl("/bo/"+slug),null,slug);
+  assert.equal(targetForLegacyModule("catalog"),null);
+});
