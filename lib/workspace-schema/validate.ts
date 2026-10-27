@@ -78,7 +78,10 @@ export function validateQuery<F extends readonly FieldSchema[]>(module: ModuleSc
   };
   if (context) check(allows(module, context, "read"), "unauthorized module");
   check(typeof query.search === "string", "invalid search");
-  if (query.search) module.table.search.fields.forEach(k => field(k, "search"));
+  if (query.search) {
+    check(module.table.search.fields.length > 0, "search requires a configured searchable field");
+    module.table.search.fields.forEach(k => field(k, "search"));
+  }
   for (const keys of [query.order, query.visible]) { array(keys); unique(keys); keys.forEach(k => field(k, "display")); }
   const columns = module.table.columns.map(c => c.field);
   check(query.order.length === columns.length && columns.every(k => query.order.includes(k)), "order must contain registered columns only");

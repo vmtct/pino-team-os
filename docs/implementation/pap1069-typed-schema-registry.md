@@ -93,6 +93,12 @@ fake save is provided for a real module.
 queries before bridging legacy string rules; ambiguous or unregistered input
 is rejected. `LegacyBoundary` records the existing registration or Factory
 renderer without claiming TDD compliance. No current module is auto-converted.
+Nonempty searches require at least one configured searchable field. The legacy
+multi-value parser has no quoting/escaping syntax: `any`/`all` operands with
+commas, leading/trailing whitespace, empty elements or no elements are rejected
+on export rather than silently changed. Import keeps the legacy parser's token
+trimming but rejects empty tokens rather than dropping them. Representable
+values round-trip unchanged; `not_contains` retains its literal text operand.
 
 `GRANDFATHERED` registration requires explicit deployed evidence, owner, route
 and migration task (BO PAP-1086 / HO PAP-1087), checked by an externally supplied

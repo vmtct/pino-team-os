@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { operators, type BoTableState } from "./bo-registration";
+import { operators, rulePass, type BoTableState } from "./bo-registration";
 import {
   FIELD_TYPES, FIELD_METADATA, FILTER_OPERATORS, TddRegistry, allows, allowsField, authorizedTabs, composeTabs,
   defineTddModule, fromLegacyTableState, isFieldValue, loadHistory, toLegacyModule, toLegacyTableState,
@@ -215,6 +215,59 @@ function compileTimeNegatives() {
   return [rule, wrongOperator, wrongValue, missingBound, unknownField, unknownType, editableId, protectedPatch];
 }
 void compileTimeNegatives;
+
+for (const surface of ["BO", "HO"] as const) {
+  test(`${surface}: nonempty search requires configured searchable fields`, () => {
+    const schema = replace(fixture(surface), "table.search.fields", []);
+    const context = surface === "BO" ? bo : ho;
+    validateModule(schema);
+    validateQuery(schema, query(schema), context);
+    for (const search of ["VIP", " ", "Việt Nam"]) {
+      assert.throws(() => validateQuery(schema, replace(query(schema), "search", search), context), /searchable field/);
+      assert.throws(() => validateQuery(schema, replace(query(schema), "search", search)), /searchable field/);
+    }
+    const searchable = fixture(surface);
+    validateQuery(searchable, replace(query(searchable), "search", "Việt Nam"), context);
+  });
+  for (const field of ["multiselect", "multirelation"] as const) {
+    for (const op of ["any", "all"] as const) {
+      test(`${surface}: ${field} ${op} rejects unrepresentable legacy operands`, () => {
+        const schema = fixture(surface); const context = surface === "BO" ? bo : ho;
+        for (const value of [["VIP,Gold", "Other"], ["VIP", " Gold"], ["VIP", "Gold "], ["VIP", "\u00a0Gold"], [""], [" "], [], [",", "Other"], ["VIP\\,Gold"], ['"VIP,Gold"']]) {
+          const state = replace(query(schema), "filters.rules", [{ field, op, value }]);
+          validateQuery(schema, state, context);
+          assert.throws(() => toLegacyTableState(schema, state, context), /unrepresentable legacy multi-value/);
+        }
+        for (const value of ["", " ", ",", "VIP,", ",VIP", "VIP,,Other", "VIP, ,Other"]) {
+          const legacy: BoTableState = { ...toLegacyTableState(schema, query(schema), context), rules: [{ field, op, value, second: "" }] };
+          assert.throws(() => fromLegacyTableState(schema, legacy, context), /unrepresentable legacy multi-value/);
+        }
+      });
+      test(`${surface}: ${field} ${op} preserves representable values and legacy matching`, () => {
+        const schema = fixture(surface); const context = surface === "BO" ? bo : ho;
+        for (const value of [["VIP", "Other"], ["Tiếng Việt", "VIP Gold"], ['"VIP"', "path\\Gold"], ["VIP，Gold", "Other"], ["VIP", "VIP"]]) {
+          const state = replace(query(schema), "filters.rules", [{ field, op, value }]);
+          const legacy = toLegacyTableState(schema, state, context);
+          assert.deepEqual(fromLegacyTableState(schema, legacy, context), state);
+          for (const actual of [value, value.slice(0, 1), ["unrelated"], []]) {
+            const expected = op === "any" ? value.some(v => actual.includes(v)) : value.every(v => actual.includes(v));
+            assert.equal(rulePass({ id: "row", name: "Record", [field]: actual }, legacy.rules[0], toLegacyModule(schema).fields), expected);
+          }
+        }
+        // Spaces surrounding CSV tokens are stripped by the existing legacy matcher.
+        const legacy = toLegacyTableState(schema, query(schema), context);
+        legacy.rules = [{ field, op, value: " VIP , Other ", second: "" }];
+        const decoded = fromLegacyTableState(schema, legacy, context);
+        assert.deepEqual(decoded.filters.rules, [{ field, op, value: ["VIP", "Other"] }]);
+      });
+    }
+    test(`${surface}: ${field} not_contains keeps commas as literal text`, () => {
+      const schema = fixture(surface); const context = surface === "BO" ? bo : ho;
+      const state = replace(query(schema), "filters.rules", [{ field, op: "not_contains", value: "VIP,Gold" }]);
+      assert.deepEqual(fromLegacyTableState(schema, toLegacyTableState(schema, state, context), context), state);
+    });
+  }
+}
 
 test("field validation metadata is typed, bounded and independent of domain validation", () => {
   const field = { ...typedFields[1], required: true, validation: { min: 0, max: 10, integer: true } };

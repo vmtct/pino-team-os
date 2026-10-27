@@ -18,9 +18,16 @@ export type LegacyBoundary = {
   readonly module: BoModule;
   readonly renderer: "registration" | "factory";
 };
+/** Legacy any/all rules split on commas and trim each token; they have no escape syntax. */
+function legacyMultiOperand(values: readonly string[]): string {
+  if (!values.length || values.some(value => !value || value !== value.trim() || value.includes(","))) {
+    throw Error("TDD contract: unrepresentable legacy multi-value operand");
+  }
+  return values.join(",");
+}
 export function toLegacyTableState<F extends readonly FieldSchema[]>(module: ModuleSchema<F>, query: TableQuery<F>, context: AuthorizationContext): BoTableState {
   validateModule(module); validateQuery<F>(module, query, context);
-  const operand = (value: unknown) => Array.isArray(value) ? value.join(",") : value == null ? "" : String(value);
+  const operand = (value: unknown) => Array.isArray(value) ? legacyMultiOperand(value) : value == null ? "" : String(value);
   return {
     search: query.search, rules: query.filters.rules.map(r => ({ field: r.field, op: r.op, value: operand(r.value), second: operand(r.second) })), logic: query.filters.logic,
     sort: query.sort?.field ?? "", desc: query.sort?.direction === "desc", order: [...query.order], visible: [...query.visible],
@@ -35,7 +42,12 @@ export function fromLegacyTableState<F extends readonly FieldSchema[]>(module: M
     if (!field) throw Error("TDD contract: unregistered legacy field");
     if (["number", "currency", "formula"].includes(field.type)) return value.trim() ? Number(value) : NaN;
     if (field.type === "boolean") { if (!["true", "false"].includes(value)) throw Error("TDD contract: invalid legacy boolean"); return value === "true"; }
-    if (["multiselect", "multirelation"].includes(field.type)) return op === "not_contains" ? value : value.split(",").map(v => v.trim()).filter(Boolean);
+    if (["multiselect", "multirelation"].includes(field.type)) {
+      if (op === "not_contains") return value;
+      const values = value.split(",").map(v => v.trim());
+      legacyMultiOperand(values);
+      return values;
+    }
     return value;
   };
   const query: unknown = {
