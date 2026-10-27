@@ -32,7 +32,7 @@ test("Parent directory always uses a distinct Core authorized endpoint and pagin
 test("nullable canonical Core Parent fields remain display-safe without faking attention", async () => {
   const rows = await load("parents", async () => respond({ items: [{ ...parent(), displayName: null, attention: null }], total: 1 }));
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].name, "Ch\xc6\xb0a c\xc3\xb3 t\xc3\xaan");
+  assert.equal(rows[0].name, "Chưa có tên");
   assert.equal(rows[0].attention, null);
 });
 test("Parent rejects unsafe responses and never falls back to intake lookup", async () => {
