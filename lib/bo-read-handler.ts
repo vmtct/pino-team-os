@@ -23,6 +23,14 @@ const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinori
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
 const SESSION_SYLLABUS_BINDING_READ = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/projected-completion$/;
+// PAP-1035: Enrollment read routes explicitly admitted after FC E2E found
+// BFF 404 before Core. No wildcard write/read admission.
+const S3_SUBSCRIPTION_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:enrollments|placement))?$/;
+const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
+const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const S3_LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
 const SPECIALTY_STUDENT_READ = /^specialty\/students\/[0-9a-f-]{36}$/;
 const STUDENT_VISIT_DETAIL_READ = /^student-visits\/[0-9a-f-]{36}$/;
@@ -84,6 +92,9 @@ export function isStaffCompensationPath(path: string): boolean {
 export function isOperationalReadPath(path: string): boolean {
   return path === "audit/subject"
     || path === "subscriptions"
+    || S3_SUBSCRIPTION_READ.test(path)
+    || S3_ENROLLMENT_RECORD_READ.test(path)
+    || path === S3_ENROLLMENT_CAPACITY_READ
     || path === "billing/product-plans"
     || BILLING_BILL_READ.test(path)
     || path === "specialty/catalog"
@@ -259,6 +270,44 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
       const versionId = url.searchParams.get("versionId")?.trim();
       if (!versionId) throw new RangeError("versionId is required");
       body.versionId = versionId;
+    }
+    return body;
+  }
+  if (S3_SUBSCRIPTION_READ.test(path) || S3_ENROLLMENT_RECORD_READ.test(path) || path === S3_ENROLLMENT_CAPACITY_READ) {
+    const params = url.searchParams;
+    const placement = path.endsWith("/placement");
+    const capacity = path === S3_ENROLLMENT_CAPACITY_READ;
+    const allowed = capacity
+      ? new Set(["runningClassId","targetLocalDate","subscriptionId","plannedEntryLocalTime","plannedDurationMinutes"])
+      : placement ? new Set(["targetLocalDate"]) : new Set<string>();
+    for (const key of params.keys()) {
+      if (!allowed.has(key) || params.getAll(key).length !== 1) throw new RangeError("Invalid S3 Enrollment query key");
+    }
+    if (!placement && !capacity) return undefined;
+    const targetLocalDate = params.get("targetLocalDate");
+    if (!targetLocalDate || !S3_LOCAL_DATE.test(targetLocalDate) ||
+        Number.isNaN(Date.parse(targetLocalDate+"T00:00:00Z")) ||
+        new Date(targetLocalDate+"T00:00:00Z").toISOString().slice(0,10)!==targetLocalDate) {
+      throw new RangeError("Invalid targetLocalDate");
+    }
+    if (placement) return {targetLocalDate};
+    const runningClassId = params.get("runningClassId");
+    if (!runningClassId || !S3_UUID.test(runningClassId)) throw new RangeError("Invalid runningClassId");
+    const body:Record<string,unknown> = {runningClassId,targetLocalDate};
+    const subscriptionId = params.get("subscriptionId");
+    if (subscriptionId !== null) {
+      if (!S3_UUID.test(subscriptionId)) throw new RangeError("Invalid subscriptionId");
+      body.subscriptionId = subscriptionId;
+    }
+    const plannedEntryLocalTime = params.get("plannedEntryLocalTime");
+    if (plannedEntryLocalTime !== null) {
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(plannedEntryLocalTime)) throw new RangeError("Invalid plannedEntryLocalTime");
+      body.plannedEntryLocalTime = plannedEntryLocalTime;
+    }
+    const duration = params.get("plannedDurationMinutes");
+    if (duration !== null) {
+      if (!/^[1-9]\d*$/.test(duration) || !Number.isSafeInteger(Number(duration)) || Number(duration)>1440) throw new RangeError("Invalid plannedDurationMinutes");
+      body.plannedDurationMinutes = Number(duration);
     }
     return body;
   }
