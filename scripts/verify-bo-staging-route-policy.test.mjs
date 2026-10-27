@@ -87,3 +87,8 @@ test("staging nav cannot expose unadmitted future modules", () => fixture(({root
   write(source,read(source).replace("boModuleRegistry.filter(def => isBoStagingRouteAdmitted(def.href))","boModuleRegistry"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Unified BO navigation/);
 }));
+
+test("automatic CD must validate BO public hostname, not workers.dev",()=>fixture(({root,read,write})=>{
+  write(cd,read(cd).replace("https://bo.staging.pinohouse.art/$css","https://wrong.example/$css"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Automatic staging CD must smoke test/);
+}));
