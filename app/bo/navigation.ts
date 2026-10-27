@@ -49,6 +49,7 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/workforce/compensation", label: "Lịch sử lương" },
       { href: "/bo/workforce/duty-exceptions", label: "Duty Exceptions" },
       { href: "/bo/workforce/payroll", label: "Kỳ lương" },
+      { href: "/bo/payroll-periods", label: "Kỳ lương (Read-only)" },
       { href: "/bo/workforce/payroll/extra-time", label: "Duyệt thêm giờ" },
       { href: "/bo/training", label: "Training" },
     ],
