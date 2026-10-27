@@ -108,6 +108,10 @@ jobs:
           curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$deployed" > version.json
           jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
           origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
+          # PAP-938 staging V4 stays protected; diagnostic route remains unavailable.
+          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")" = 307
+          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")" = 401
+          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-prototype -w '%{http_code}' "$origin/prototype/tos-vnext-integration")" = 404
           for route in workforce-term-weeks workforce-shift-plans workforce-availability workforce-assignments; do
             code="$(curl -sS --max-time 20 -o /tmp/pap901-login -w '%{http_code}' "$origin/bo/$route")"
             test "$code" = 307
