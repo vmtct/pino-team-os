@@ -36,7 +36,7 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
     if (visible.size !== page.items.length) throw Error("Duplicate subscription identity");
     const students = [...new Set(page.items.map(s => s.studentProfileId))];
     const lifecycles = new Map<string, BoLearnerLifecycle>();let index = 0;
-    await Promise.all(Array.from({ length: Math.min(4, students.length) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(8, students.length) }, async () => {
       while (index < students.length) {
         const studentId = students[index++];
         // Each read additionally enforces canonical student ACL/center scope.

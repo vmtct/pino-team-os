@@ -70,3 +70,29 @@ test("PAP-893: BO session roster read is bounded, authenticated, and Core-author
   assert.equal((await handleBoOperationalReadRequest(req(path,false),env(binding),path)).status,401);
   assert.equal(forwarded.length,1);
 });
+
+test("PAP-1029: Parent Directory facade forwards only canonical bounded pagination and rejects privacy bypass", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = {
+    async executeWithStaffPassword(request) {
+      forwarded.push(request);
+      return { status: 200, body: { data: { items: [], total: 0 } }, requestId: "parents" };
+    },
+  };
+  const path = "identity/parents/directory";
+  const request = (query: string) => new Request("https://bo.pinohouse.art/api/bo/" + path + query, {
+    headers: { cookie: "pino_staff_password_session=" + token },
+  });
+  const success = await handleBoOperationalReadRequest(request("?limit=25&offset=0"), env(binding), path);
+  assert.equal(success.status, 200);
+  assert.deepEqual(forwarded, [{ method: "GET", path, body: { limit: 25, offset: 0 } }]);
+  for (const query of [
+    "?limit=25&limit=40", "?offset=1&offset=2", "?unmasked=true", "?centerId=forged",
+    "?limit=0", "?limit=101", "?offset=-1", "?offset=10001", "?limit=1.5",
+    "?limit=", "?limit=01", "?limit=999999999999999999999999999",
+  ]) {
+    const response = await handleBoOperationalReadRequest(request(query), env(binding), path);
+    assert.equal(response.status, 400, query);
+  }
+  assert.equal(forwarded.length, 1);
+});

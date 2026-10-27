@@ -14,3 +14,24 @@ test("PAP-934 V4 Station remains uncapped and excludes the phone frame",()=>{
  const source=read("TosDesignSystem.tsx");
  assert.ok(source.indexOf('==="desktop")return')<source.indexOf("<AppPhoneFrame"));
 });
+
+test("PAP-938 unlayered legacy h1/h2 styles do not override layered TOS DS headings",()=>{
+ const css=readFileSync("app/globals.css","utf8");
+ assert.match(css,/h1:not\(:where\(\[data-tos-system\] h1\)\)\s*\{/);
+ assert.match(css,/h2:not\(:where\(\[data-tos-system\] h2\)\)\s*\{/);
+ assert.doesNotMatch(css,/^h[12]\s*\{/m,"Unscoped unlayered headings override all TOS DS @layer declarations");
+ const home=readFileSync("app/components/tos-vnext/home.module.css","utf8");
+ assert.match(home,/\.header h1\s*\{[^}]*font-size:\s*var\(--tos-home-title-size\)/);
+ const tokens=read("tokens.css");
+ assert.match(tokens,/--tos-home-title-size:\s*clamp\(21px,\s*5vw,\s*27px\)/);
+});
+
+test("PAP-938 legacy control typography and focus stay outside TOS DS",()=>{
+ const css=readFileSync("app/globals.css","utf8");
+ assert.match(css,/:is\(button,\s*input,\s*select,\s*textarea\):not\(:where\(\[data-tos-system\] \*\)\)\s*\{\s*font:\s*inherit/);
+ assert.match(css,/:is\(button,a,input,select,textarea\):focus-visible:not\(:where\(\[data-tos-system\] \*\)\)/);
+ assert.doesNotMatch(css,/^button, input, select, textarea\s*\{/m);
+ const ds=read("system.css");
+ assert.match(ds,/font-size:var\(--tos-text-button\)/);
+ assert.match(ds,/outline:var\(--tos-focus-ring\)/);
+});

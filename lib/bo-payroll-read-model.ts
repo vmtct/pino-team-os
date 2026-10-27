@@ -15,10 +15,14 @@ export function periodSummaries(t:PeriodStaffPage["periodTotals"]):{expected:num
  return {expected,finalized};
 }
 
-/** Never prefill arbitrary Staff. This is a conservative subset where Core exposes work evidence.
- * Missing-checkout-only attendance requires a future dedicated Core attendance-evidence flag.
+/** Only a real time clock proves attendance. Preserve immutable financial snapshots
+ * even when a historical adjustment/finalization has no Timekeeping. During staggered Core
+ * release, fallback to existing preview only if the new evidence flag is absent.
  */
 export function staffWithWorkEvidence(rows:PeriodStaff[]):PeriodStaff[]{
- return rows.filter(row=>row.status==="FINALIZED"||row.status==="PAID"||
-  row.preview?.days?.some(d=>d.paidMinutes!==null&&d.paidMinutes>=0));
+ return rows.filter(row=>{
+  if(row.status==="FINALIZED"||row.status==="PAID")return true;
+  if(typeof row.hasTimekeepingEvidence==="boolean")return row.hasTimekeepingEvidence;
+  return !!row.preview?.days?.some(d=>d.paidMinutes!==null&&d.paidMinutes>=0);
+ });
 }

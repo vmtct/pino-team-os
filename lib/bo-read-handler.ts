@@ -148,6 +148,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "student-visits"
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
+    || path === "identity/parents/directory"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
     || path === "practice/repertoire-access"
@@ -363,6 +364,29 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
     if (query) body.query = query;
     if (outcome) body.outcome = outcome;
     return Object.keys(body).length ? body : undefined;
+  }
+  if (path === "identity/parents/directory") {
+    // Only normalized, unique numeric pagination reaches the authorized Core read.
+    // Never silently ignore unknown/duplicate filters on a private PII directory.
+    const allowed = new Set(["limit", "offset"]);
+    for (const key of url.searchParams.keys()) {
+      if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1) {
+        throw new RangeError("Invalid Parent Directory query");
+      }
+    }
+    const pageNumber = (key: "limit" | "offset", min: number, max: number) => {
+      const value = url.searchParams.get(key);
+      if (value === null) return undefined;
+      if (!/^(?:0|[1-9][0-9]*)$/.test(value)) throw new RangeError("Invalid Parent Directory page");
+      const number = Number(value);
+      if (!Number.isSafeInteger(number) || number < min || number > max) {
+        throw new RangeError("Invalid Parent Directory page");
+      }
+      return number;
+    };
+    const limit = pageNumber("limit", 1, 100);
+    const offset = pageNumber("offset", 0, 10000);
+    return { ...(limit === undefined ? {} : { limit }), ...(offset === undefined ? {} : { offset }) };
   }
   if (path === "identity/parents") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
