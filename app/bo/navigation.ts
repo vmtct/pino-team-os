@@ -3,7 +3,7 @@ import type { BoNavGroup } from "@/app/components/tos-shell";
 export const boNavigation: BoNavGroup[] = [
   {
     label: "Workspace",
-    items: [{ href: "/bo", label: "Hôm nay" }, { href: "/bo/workforce-term-weeks", label: "Term Weeks" }, { href: "/bo/workforce-shift-plans", label: "Center Shift Plans" }, { href: "/bo/workforce-availability", label: "Staff Availability" }, { href: "/bo/workforce-assignments", label: "Shift Assignments" }],
+    items: [{ href: "/bo", label: "Hôm nay" }, { href: "/bo/workforce-shift-plans", label: "Center Shift Plans" }, { href: "/bo/workforce-availability", label: "Staff Availability" }, { href: "/bo/workforce-assignments", label: "Shift Assignments" }],
   },
   {
     label: "School",
@@ -56,7 +56,6 @@ export const boNavigation: BoNavGroup[] = [
   {
     label: "Pinoria",
     items: [
-      { href: "/bo/pinoria-world", label: "World" },
       {
         href: "/bo/pinoria-wish",
         label: "Economy",
@@ -71,11 +70,9 @@ export const boNavigation: BoNavGroup[] = [
         children: [{ href: "/bo/pinoria-companions", label: "Companions" }],
       },
       {
-        href: "/bo/pinoria-ward",
+        href: "/bo/pinoria-ward/learners",
         label: "Wardrobe",
         children: [
-          { href: "/bo/pinoria-ward", label: "Catalog" },
-          { href: "/bo/pinoria-ward/sets", label: "Sets" },
           { href: "/bo/pinoria-ward/learners", label: "Loadouts" },
         ],
       },
@@ -90,15 +87,7 @@ export const boNavigation: BoNavGroup[] = [
   },
   {
     label: "System",
-    items: [      {
-        href: "/bo/system/users",
-        label: "Access",
-        children: [
-          { href: "/bo/system/users", label: "Users" },
-          { href: "/bo/system/roles", label: "Roles" },
-        ],
-      },
-      { href: "/bo/system/policies", label: "Policies" },
+    items: [      { href: "/bo/system/policies", label: "Policies" },
       { href: "/bo/system/ai-data", label: "AI Data Inbox" },
       { href: "/bo/system/pancake", label: "Pancake" },
       { href: "/bo/system/audit", label: "Audit" },

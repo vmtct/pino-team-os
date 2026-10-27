@@ -14,7 +14,7 @@ const rootLayout = "app/layout.tsx";
 const source = "app/bo/architecture/bo-unified-workspace-source.ts";
 const gateway = "app/bo/architecture/BoWorkforceRoute.tsx";
 const cd = ".github/workflows/candidate-staging-deploy.yml";
-const pages = ["workforce-term-weeks", "workforce-shift-plans", "workforce-availability", "workforce-assignments"];
+const pages = ["workforce-shift-plans", "workforce-availability", "workforce-assignments"];
 
 function fixture(run) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pap901-staging-routes-"));
@@ -31,7 +31,7 @@ function fixture(run) {
 }
 
 test("PAP-901 current canonical routes use one admitted BO workspace with required stylesheet", () => {
-  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 4, admitted: 4, deferred: 0 });
+  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 3, admitted: 3, deferred: 0 });
 });
 
 test("new canonical module without a staging decision fails closed", () => fixture(({ root, write }) => {
@@ -66,7 +66,7 @@ test("unified workspace route cannot silently revert to legacy standalone shell"
   write(layout, read(layout).replace('<BoRuntimeBoundary currentUser=', '<BoShell currentUser='));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /single React workspace/);
 }));
-test("all four registered Workforce routes must stay in canonical nav", () => fixture(({root,read,write}) => {
+test("all three registered Workforce routes must stay in canonical nav", () => fixture(({root,read,write}) => {
   write(source,read(source).replace("modules: { ...school.modules, ...moduleDefinitions }", "modules: school.modules"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /Unified BO navigation/);
 }));

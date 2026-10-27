@@ -2,7 +2,49 @@
   "version": 1,
   "strictLegacy": false,
   "adoptedRoutes": [],
-  "retiredRoutes": [],
+  "retiredRoutes": [
+    {
+      "path": "app/bo/pinoria-ward/page.tsx",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "app/bo/pinoria-ward/sets/page.tsx",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "app/bo/pinoria-world/page.tsx",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "app/bo/system/roles/page.tsx",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "app/bo/system/users/page.tsx",
+      "issue": "PAP-1030"
+    }
+  ],
   "adoptedNavigation": [],
-  "retiredNavigation": []
+  "retiredNavigation": [
+    {
+      "path": "/bo/pinoria-ward",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "/bo/pinoria-ward/sets",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "/bo/pinoria-world",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "/bo/system/roles",
+      "issue": "PAP-1030"
+    },
+    {
+      "path": "/bo/system/users",
+      "issue": "PAP-1030"
+    }
+  ]
 }

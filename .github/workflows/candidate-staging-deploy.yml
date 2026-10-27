@@ -118,10 +118,16 @@ jobs:
           status="$(curl -sS --max-time 20 -o /tmp/tos-v4-prototype -w '%{http_code}' "$origin/prototype/tos-vnext-integration")"
           echo "SMOKE_PROTOTYPE_DENIED_HTTP=$status (expected=404)"
           test "$status" = 404
-          for route in workforce-term-weeks workforce-shift-plans workforce-availability workforce-assignments; do
+          for route in workforce-shift-plans workforce-availability workforce-assignments; do
+
             code="$(curl -sS --max-time 20 -o /tmp/pap901-login -w '%{http_code}' "$origin/bo/$route")"
             echo "SMOKE_BO_ROUTE=$route HTTP=$code (expected=307)"
             test "$code" = 307
+          done
+          # PAP-1030: retired BO pages must not be served, even by deep links.
+          for route in workforce-term-weeks pinoria-world pinoria-ward pinoria-ward/sets system/users system/roles; do
+            code="$(curl -sS --max-time 20 -o /tmp/pap1030-retired -w '%{http_code}' "$origin/bo/$route")"
+            test "$code" = 404
           done
           for endpoint in bootstrap global-weeks weekly; do
             code="$(curl -sS --max-time 20 -o /tmp/pap901-anon -w '%{http_code}' "$origin/api/bo/workforce/planning/$endpoint")"
