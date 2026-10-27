@@ -62,6 +62,27 @@ export const boModuleRegistry: readonly BoModuleContract[] = defineBoModuleRegis
     quickView: "canonical-properties",
     fullDetail: "shared-tabs",
   }),
+  defineBoModule({
+    key: "payroll-periods",
+    href: "/bo/payroll-periods",
+    label: "Kỳ lương",
+    kind: "entity",
+    permissions: { read: "payroll.period.view", write: "payroll.period.create" },
+    fields: [
+      { key: "id", label: "ID", type: "id", readOnly: true },
+      { key: "name", label: "Kỳ lương", type: "text", readOnly: true },
+      { key: "startDate", label: "Bắt đầu", type: "date", readOnly: true },
+      { key: "endDate", label: "Kết thúc", type: "date", readOnly: true },
+      { key: "centerName", label: "Center", type: "text", readOnly: true },
+      { key: "staffCount", label: "PTE có công", type: "number", readOnly: true },
+      { key: "expected", label: "Tổng Dự Kiến", type: "currency", readOnly: true },
+      { key: "finalized", label: "Tổng Quyết Toán", type: "currency", readOnly: true },
+      { key: "status", label: "Trạng thái", type: "select", readOnly: true },
+    ],
+    publicViews: "module-shared",
+    quickView: "canonical-properties",
+    fullDetail: "shared-tabs",
+  }),
   // BO_NEW_MODULE_REGISTRATIONS — GENERATOR APPENDS ABOVE THIS LINE.
 ]);
 

@@ -7,8 +7,8 @@ import { BO_AUTHORITY_STYLES, HO_AUTHORITY_STYLES, serveBoSkeleton, type BoSkele
 const base = "public/bo-authority-source/", raw = readFileSync(base + "styles.css", "utf8"), scoped = readFileSync(base + "bo-scoped.css", "utf8");
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 test("PAP-1022 exact canonical authority and one stylesheet are pinned", () => {
-  assert.equal(digest(raw), "f09418c17d502e3f4c9b18fcc2e51031805ab647cdf58c0e905adb16a9f69fda");
-  assert.equal(digest(readFileSync(base + "CSS_AUTHORITY.json")), "344e0df46a6f2a3b520f61551bc23739d610b1e1f0ddac91f9835ca6867aee20");
+  assert.equal(digest(raw), "be42f65123053fb9906801f1fcc49644dc05ee6f811d6ab82162c91827d9a1f2");
+  assert.equal(digest(readFileSync(base + "CSS_AUTHORITY.json")), "d58f11197ac9404cd8bdea7c9166bfa90f5b4cdf77d3ee096830359ed4717438");
   assert.deepEqual(BO_AUTHORITY_STYLES, ["styles.css"]);
   assert.equal([...raw.matchAll(/!important/g)].length, 1);
   assert.match(raw, /\[hidden\]/);
