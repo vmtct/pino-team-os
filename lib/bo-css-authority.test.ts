@@ -38,7 +38,8 @@ test("canonical property labels use responsive tracks and one aligned icon gutte
 test("HO retains the frozen six stylesheet bytes and BO root scope is opt-in", () => {
   const manifest = JSON.parse(readFileSync("public/ho-authority-source/manifest.json", "utf8"));
   assert.equal(manifest.files["styles.css"], "5b7af5a0ec8a7d92e1778f3de8ad82248aa7539b220c7dc6dd90ef88a26a4425");
-  assert.deepEqual(Object.keys(manifest.files), [...HO_AUTHORITY_STYLES]);
+  assert.deepEqual(Object.keys(manifest.files), ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"]);
+  assert.deepEqual(HO_AUTHORITY_STYLES, ["ho-scoped.css"]);
   for (const [file, sha] of Object.entries(manifest.files)) assert.equal(digest(readFileSync("public/ho-authority-source/" + file)), sha);
   const layout = readFileSync("app/layout.tsx", "utf8");
   assert.match(layout, /data-bo-ui-authority=\{bo \? "v25" : undefined\}/);
@@ -48,12 +49,13 @@ test("HO retains the frozen six stylesheet bytes and BO root scope is opt-in", (
 test("HO authenticated CSS resolves its compatibility asset; BO rejects retired cascade", async () => {
   const paths: string[] = [];
   const env: BoSkeletonEnv = { APP_ENV: "staging", BO_UI_ONLY: "enabled", HO_PILOT_FOUNDER_USER_IDS: "u", PINO_BO_CORE: { async executeWithStaffPassword() { return { status: 200, requestId: "fixture", body: { data: { userId: "u", email: "fixture@example.test", surface: "BO", entitled: true } } }; } }, ASSETS: { async fetch(request) { paths.push(new URL(request.url).pathname); return new Response("fixture"); } } };
-  for (const file of HO_AUTHORITY_STYLES) {
-    const request = new Request("https://ho.staging.pinohouse.art/bo-skeleton/" + file, { headers: { host: "ho.staging.pinohouse.art", cookie: "pino_staff_password_session=fixture" } });
-    assert.equal((await serveBoSkeleton(request, env, file)).status, 200);
-    assert.equal(paths.at(-1), "/ho-authority-source/" + file);
+  const request = new Request("https://ho.staging.pinohouse.art/bo-skeleton/ho-scoped.css", { headers: { host: "ho.staging.pinohouse.art", cookie: "pino_staff_password_session=fixture" } });
+  assert.equal((await serveBoSkeleton(request, env, "ho-scoped.css")).status, 200);
+  assert.equal(paths.at(-1), "/ho-authority-source/ho-scoped.css");
+  for (const oldFile of Object.keys(JSON.parse(readFileSync("public/ho-authority-source/manifest.json", "utf8")).files)) {
+    assert.equal((await serveBoSkeleton(new Request("https://ho.staging.pinohouse.art/bo-skeleton/" + oldFile), env, oldFile)).status, 404);
   }
-  for (const file of HO_AUTHORITY_STYLES.slice(1)) assert.equal((await serveBoSkeleton(new Request("https://bo.staging.pinohouse.art/bo-skeleton/" + file), env, file)).status, 404);
+  assert.equal((await serveBoSkeleton(new Request("https://bo.staging.pinohouse.art/bo-skeleton/ho-scoped.css"), env, "ho-scoped.css")).status, 404);
 });
 test("center switcher is presentation-only with canonical logo and accessible dismissal", () => {
   const component = readFileSync("app/bo/components/registration/BoCenterSwitcher.tsx", "utf8");

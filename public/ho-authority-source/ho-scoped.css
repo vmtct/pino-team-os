@@ -1,0 +1,612 @@
+/* HO staging unified CSS. GENERATED; edit the historical sources/theme only. */
+/* Historical HO input: styles.css */
+:root:where([data-surface="ho"]){--ink:#242536;--muted:#84869a;--line:#ececf1;--line-strong:#dddde8;--bg:#f8f8fb;--white:#fff;--purple:#6b5bd6;--purple-dark:#5543bc;--purple-soft:#f2efff;--nav:#191a27;--shadow:0 10px 36px rgba(31,30,60,.035);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);font-size:13px}
+*:where(html[data-surface="ho"]),:where(html[data-surface="ho"]) *{box-sizing:border-box}html:where([data-surface="ho"]),:where(html[data-surface="ho"]) body{margin:0;min-height:100%;background:var(--bg)}:where(html[data-surface="ho"]) button,:where(html[data-surface="ho"]) input,:where(html[data-surface="ho"]) select,:where(html[data-surface="ho"]) textarea{font:inherit}:where(html[data-surface="ho"]) button{cursor:pointer}:where(html[data-surface="ho"]) button:disabled{cursor:not-allowed;opacity:.45}:where(html[data-surface="ho"]) button:focus-visible,:where(html[data-surface="ho"]) a:focus-visible,:where(html[data-surface="ho"]) input:focus-visible,:where(html[data-surface="ho"]) select:focus-visible,:where(html[data-surface="ho"]) textarea:focus-visible{outline:3px solid #beb2ff;outline-offset:2px}:where(html[data-surface="ho"]) a{color:inherit;text-decoration:none}:where(html[data-surface="ho"]) .hidden{display:none!important}:where(html[data-surface="ho"]) #app{min-height:100vh}
+:where(html[data-surface="ho"]) .sidebar{position:fixed;inset:0 auto 0 0;width:246px;background:var(--nav);color:#e7e7f4;display:flex;flex-direction:column;z-index:40;border-right:1px solid #272836}:where(html[data-surface="ho"]) .brand{display:flex;align-items:center;gap:11px;padding:22px 19px 21px}:where(html[data-surface="ho"]) .brand-mark{width:38px;height:38px;border-radius:13px;background:linear-gradient(142deg,#9b8dff,#5a49ba);display:grid;place-items:center;font-size:22px;font-weight:850;box-shadow:0 8px 21px #6d5ee650}:where(html[data-surface="ho"]) .brand-type{display:flex;flex-direction:column;gap:4px}:where(html[data-surface="ho"]) .brand-type strong{font-size:14px;letter-spacing:-.025em;color:#fff}:where(html[data-surface="ho"]) .brand-type small{color:#a7a5bc;font-size:10px}:where(html[data-surface="ho"]) .dot{display:inline-block;width:5px;height:5px;border-radius:100%;background:#8b79ff;vertical-align:middle;margin:0 3px}
+:where(html[data-surface="ho"]) .nav-workspace{margin:0 13px 13px;padding:11px 10px;border-radius:11px;border:1px solid #373847;background:#252636;display:flex;align-items:center;gap:10px}:where(html[data-surface="ho"]) .nav-workspace-glyph{display:grid;place-items:center;width:27px;height:27px;background:#37314d;color:#c2b7ff;border-radius:8px;font-size:17px}:where(html[data-surface="ho"]) .nav-workspace>span:nth-child(2){display:flex;flex-direction:column;gap:3px;flex:1}:where(html[data-surface="ho"]) .nav-workspace strong{font-size:11px}:where(html[data-surface="ho"]) .nav-workspace small{color:#a6a5bb;font-size:10px}:where(html[data-surface="ho"]) .workspace-angle{color:#a5a4b8}
+:where(html[data-surface="ho"]) .sidebar-search{margin:0 13px 14px;display:flex;align-items:center;height:33px;padding:0 10px;gap:8px;border:1px solid #393948;border-radius:8px;color:#a3a3ba}:where(html[data-surface="ho"]) .sidebar-search span{font-size:18px}:where(html[data-surface="ho"]) .sidebar-search button{border:0;background:transparent;color:#aaaabd;text-align:left;flex:1;font-size:11px;padding:0}:where(html[data-surface="ho"]) .sidebar-search kbd{font-size:9px;color:#86869e}
+:where(html[data-surface="ho"]) .nav-scroll{overflow-y:auto;overflow-x:hidden;padding:0 11px 16px;flex:1;scrollbar-width:thin;scrollbar-color:#3d3c54 transparent}:where(html[data-surface="ho"]) .nav-group{margin:17px 0 4px}:where(html[data-surface="ho"]) .nav-group-header{font-size:10px;letter-spacing:.15em;font-weight:850;color:#797a93;padding:0 11px 8px}:where(html[data-surface="ho"]) .nav-link{width:100%;border:0;color:#c1c0d1;background:transparent;display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;text-align:left;margin:1px 0;font-weight:580;font-size:11.5px}:where(html[data-surface="ho"]) .nav-link:hover{color:#fff;background:#303043}:where(html[data-surface="ho"]) .nav-link.active{background:#323047;color:#fff;box-shadow:inset 3px 0 0 #917cff}:where(html[data-surface="ho"]) .nav-link.active .nav-icon{color:#c6baff}:where(html[data-surface="ho"]) .nav-icon{width:18px;text-align:center;color:#8b8ba5;font-size:15px}:where(html[data-surface="ho"]) .nav-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}:where(html[data-surface="ho"]) .nav-mark{font-size:10px;background:#413763;border-radius:4px;padding:2px 5px;color:#cbbfff}:where(html[data-surface="ho"]) .sidebar-footer{display:flex;gap:10px;align-items:center;padding:15px 17px;border-top:1px solid #30313e}:where(html[data-surface="ho"]) .sidebar-footer .avatar{width:30px;height:30px;border-radius:100%;display:grid;place-items:center;color:#e8e2ff;background:#493b80;font-weight:850}:where(html[data-surface="ho"]) .sidebar-footer>div:nth-child(2){display:flex;flex-direction:column;gap:4px;flex:1}:where(html[data-surface="ho"]) .sidebar-footer strong{font-size:11px;color:white}:where(html[data-surface="ho"]) .sidebar-footer small{font-size:10px;color:#8c8ca9}:where(html[data-surface="ho"]) .user-options{font-size:18px;color:#a4a5ba}
+:where(html[data-surface="ho"]) .shell{margin-left:246px;min-height:100vh}:where(html[data-surface="ho"]) .prototype-pill{font-weight:850;font-size:9px;letter-spacing:.075em;color:#8a70ba;background:#f7f2ff;border:1px solid #ebe3ff;border-radius:100px;padding:8px 12px;white-space:nowrap}:where(html[data-surface="ho"]) .prototype-pill span{display:inline-block;background:#8a6dcd;width:6px;height:6px;border-radius:50%;margin-right:6px}:where(html[data-surface="ho"]) .top-shortcut{height:32px;display:flex;align-items:center;gap:24px;border:1px solid #e5e4ed;color:#7c7b90;border-radius:8px;background:#fff;padding:0 11px}:where(html[data-surface="ho"]) .top-shortcut kbd{font-size:10px;color:#b1b0be}
+:where(html[data-surface="ho"]) .workspace{padding:24px 34px 40px;max-width:1640px;margin:auto}:where(html[data-surface="ho"]) .architecture-ribbon{height:39px;border:1px solid #eae5fa;border-radius:9px;background:linear-gradient(90deg,#f4f0ff,#fdfcff);display:flex;align-items:center;gap:10px;padding:0 14px;color:#625d88;font-size:10px;margin-bottom:27px}:where(html[data-surface="ho"]) .architecture-ribbon strong{color:#6554b3;letter-spacing:.085em;font-size:9px}:where(html[data-surface="ho"]) .arch-dot{color:#9172e0;font-size:8px}:where(html[data-surface="ho"]) .arch-divider{color:#c7bedb}:where(html[data-surface="ho"]) .arch-flex{flex:1}:where(html[data-surface="ho"]) .mock-badge{white-space:nowrap;color:#8b7c9f;font-weight:620;font-size:10px}
+:where(html[data-surface="ho"]) .page-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:0 0 22px}:where(html[data-surface="ho"]) .eyebrow{font-size:10px;letter-spacing:.14em;font-weight:900;color:#7969d1;margin-bottom:10px;text-transform:uppercase}:where(html[data-surface="ho"]) .page-heading h1{margin:0;font-size:33px;letter-spacing:-.055em;font-weight:780;line-height:1.18}:where(html[data-surface="ho"]) .page-heading p{color:#838597;margin:10px 0 0;font-size:12px;max-width:740px;line-height:1.6}:where(html[data-surface="ho"]) .heading-actions{display:flex;align-items:center;gap:9px;padding-bottom:3px}:where(html[data-surface="ho"]) .layout-contract{color:#8986a2;border:1px solid #e4e2ec;border-radius:8px;background:#fff;padding:10px 12px;font-size:10px;font-weight:750;white-space:nowrap}:where(html[data-surface="ho"]) .primary-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--purple);background:var(--purple);color:white;font-weight:730;font-size:12px;min-height:37px;border-radius:9px;padding:0 16px;white-space:nowrap;box-shadow:0 4px 10px rgba(104,83,207,.14)}:where(html[data-surface="ho"]) .primary-btn:hover{background:var(--purple-dark)}:where(html[data-surface="ho"]) .primary-btn span:first-child{font-size:18px;font-weight:450}:where(html[data-surface="ho"]) .metric-rail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:17px}:where(html[data-surface="ho"]) .metric-card{height:91px;background:#fff;border:1px solid #eae9ef;border-radius:11px;padding:15px 16px;box-shadow:0 3px 16px rgba(26,24,42,.015)}:where(html[data-surface="ho"]) .metric-kicker{font-size:10px;letter-spacing:.045em;color:#9394a5;font-weight:780;display:flex;align-items:center;gap:8px}:where(html[data-surface="ho"]) .metric-number{font-size:25px;font-weight:780;letter-spacing:-.05em;margin:7px 0 0;color:#29273c}:where(html[data-surface="ho"]) .metric-number small{font-size:10px;font-weight:650;margin-left:5px;letter-spacing:0;color:#8b8ca0}:where(html[data-surface="ho"]) .metric-symbol{width:8px;height:8px;border-radius:3px;background:#8e80df;display:inline-block}:where(html[data-surface="ho"]) .metric-symbol.green{background:#59c79b}:where(html[data-surface="ho"]) .metric-symbol.orange{background:#ffbe77}:where(html[data-surface="ho"]) .metric-symbol.pink{background:#df84a5}
+:where(html[data-surface="ho"]) .grid-card{background:#fff;border:1px solid #e9e8ef;border-radius:13px;overflow:hidden;box-shadow:var(--shadow)}:where(html[data-surface="ho"]) .view-tabs{height:49px;display:flex;align-items:stretch;justify-content:space-between;border-bottom:1px solid #ebebf2;padding:0 17px;gap:10px}:where(html[data-surface="ho"]) .tabs-left,:where(html[data-surface="ho"]) .tabs-right{display:flex;gap:17px;align-items:stretch}:where(html[data-surface="ho"]) .view-tab{border:0;border-bottom:2px solid transparent;color:#9292a3;background:transparent;white-space:nowrap;font-weight:650;padding:0 4px;font-size:11px}:where(html[data-surface="ho"]) .view-tab.active{color:#6756c9;border-bottom-color:#7562df}:where(html[data-surface="ho"]) .tabs-right{align-items:center}:where(html[data-surface="ho"]) .table-meta{color:#9a9bac;font-size:10px}:where(html[data-surface="ho"]) .table-index{font-size:9px;letter-spacing:.04em;color:#b2b0bf;white-space:nowrap}:where(html[data-surface="ho"]) .table-index b{color:#7a6cd4}
+:where(html[data-surface="ho"]) .toolbar{display:flex;align-items:center;gap:9px;min-height:65px;padding:11px 16px;border-bottom:1px solid #ebebf2}:where(html[data-surface="ho"]) .search-field{height:37px;width:min(340px,40%);display:flex;align-items:center;gap:8px;border:1px solid #e3e1ea;border-radius:8px;padding:0 10px;color:#9995a8}:where(html[data-surface="ho"]) .search-field span{font-size:18px}:where(html[data-surface="ho"]) .search-field input{background:transparent;border:0;outline:0;min-width:0;flex:1;font-size:11px;color:#39344e}:where(html[data-surface="ho"]) .search-field input::placeholder{color:#a3a1ae}:where(html[data-surface="ho"]) .search-field kbd{font-size:10px;color:#aba6bd}:where(html[data-surface="ho"]) .toolbar-button{height:36px;border:1px solid #e6e4ee;background:white;color:#5d5c71;border-radius:8px;font-weight:690;font-size:11px;display:flex;align-items:center;gap:8px;padding:0 12px}:where(html[data-surface="ho"]) .toolbar-button:hover,:where(html[data-surface="ho"]) .toolbar-icon:hover{background:#f8f5ff;border-color:#dad5f4}:where(html[data-surface="ho"]) .filter-count{min-width:16px;border-radius:4px;background:#eee9ff;color:#6655ce;text-align:center;padding:1px 4px}:where(html[data-surface="ho"]) .toolbar-spacer{flex:1}:where(html[data-surface="ho"]) .toolbar-hint{font-size:10px;color:#adacb9;white-space:nowrap}:where(html[data-surface="ho"]) .toolbar-icon{height:35px;min-width:35px;border:1px solid #e9e8f0;background:#fff;color:#828197;border-radius:8px;font-size:17px}:where(html[data-surface="ho"]) .filter-chips{display:none;padding:9px 16px;border-bottom:1px solid #eeedf3;background:#fbfbfe;gap:8px}:where(html[data-surface="ho"]) .filter-chips.active{display:flex}:where(html[data-surface="ho"]) .chip{border:1px solid #dcd5f6;background:#f4f0ff;color:#6956c0;border-radius:20px;padding:5px 8px;font-size:10px;font-weight:700}:where(html[data-surface="ho"]) .chip span{margin-left:8px;cursor:pointer}
+:where(html[data-surface="ho"]) .table-scroll{overflow-x:auto;max-width:100%;scrollbar-color:#d7d4e4 transparent;scrollbar-width:thin}:where(html[data-surface="ho"]) table{border-collapse:separate;border-spacing:0;min-width:900px;width:100%;table-layout:fixed}:where(html[data-surface="ho"]) caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}:where(html[data-surface="ho"]) thead th{height:43px;background:#fafafe;color:#88889a;font-size:10px;font-weight:840;text-align:left;letter-spacing:.02em;padding:0 16px;border-bottom:1px solid #ededf3;white-space:nowrap;cursor:pointer;user-select:none}:where(html[data-surface="ho"]) thead th:first-child{position:sticky;left:0;background:#fafafe;z-index:2;width:260px}:where(html[data-surface="ho"]) thead th[data-sort=active]{color:#6c5ed4}:where(html[data-surface="ho"]) thead th .sort-icon{color:#bbb9cb;font-size:11px;margin-left:5px}:where(html[data-surface="ho"]) tbody td{height:63px;border-bottom:1px solid #f1f0f5;font-size:11px;color:#464456;padding:10px 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}:where(html[data-surface="ho"]) tbody tr:last-child td{border-bottom:0}:where(html[data-surface="ho"]) tbody tr{cursor:pointer}:where(html[data-surface="ho"]) tbody tr:hover td{background:#fbfaff}:where(html[data-surface="ho"]) tbody tr.selected td{background:#f7f4ff}:where(html[data-surface="ho"]) tbody td:first-child{position:sticky;left:0;z-index:1;background:white}:where(html[data-surface="ho"]) tbody tr:hover td:first-child{background:#fbfaff}:where(html[data-surface="ho"]) tbody tr.selected td:first-child{background:#f7f4ff}:where(html[data-surface="ho"]) .identity{display:flex;align-items:center;gap:11px;min-width:0}:where(html[data-surface="ho"]) .row-avatar{height:35px;width:35px;flex:0 0 35px;border-radius:10px;background:#eeebff;color:#7566c8;display:grid;place-items:center;font-weight:830;font-size:11px}:where(html[data-surface="ho"]) .row-avatar.amber{background:#fff3e3;color:#b58a4f}:where(html[data-surface="ho"]) .row-avatar.sky{background:#e7f4fa;color:#4a95ae}:where(html[data-surface="ho"]) .row-avatar.green{background:#e2f7ee;color:#3c9b75}:where(html[data-surface="ho"]) .row-name{display:flex;flex-direction:column;gap:5px;min-width:0}:where(html[data-surface="ho"]) .row-name strong{font-size:11px;color:#35324c;font-weight:740;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}:where(html[data-surface="ho"]) .row-name small{font-size:9px;color:#aaabb8;font-family:ui-monospace,Consolas,monospace}:where(html[data-surface="ho"]) .status{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:9px;font-weight:840;letter-spacing:.015em}:where(html[data-surface="ho"]) .status::before{content:"";width:5px;height:5px;background:currentColor;border-radius:50%}:where(html[data-surface="ho"]) .status.active{background:#e7f8f0;color:#348e65}:where(html[data-surface="ho"]) .status.attention{background:#fff2df;color:#ae7c35}:where(html[data-surface="ho"]) .status.draft{background:#efeff3;color:#7b7987}:where(html[data-surface="ho"]) .status.done{background:#e8efff;color:#527abd}:where(html[data-surface="ho"]) .id-tag{font:10px ui-monospace,Consolas,monospace;color:#a2a0b0}:where(html[data-surface="ho"]) .row-open{display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;border:1px solid #ebebf1;border-radius:7px;font-size:14px;color:#9992aa}:where(html[data-surface="ho"]) .table-footer{border-top:1px solid #ecebf3;padding:0 16px;min-height:55px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:#9896a8}:where(html[data-surface="ho"]) .result-label{color:#747485;font-weight:760}:where(html[data-surface="ho"]) .footer-dot{padding:0 8px;color:#c8c7d1}:where(html[data-surface="ho"]) .pagination{display:flex;align-items:center;gap:10px}:where(html[data-surface="ho"]) .pagination label{color:#9998a8}:where(html[data-surface="ho"]) .pagination select{border:0;color:#6154aa;background:transparent;font-size:10px;font-weight:760}:where(html[data-surface="ho"]) .page-counter{white-space:nowrap;font-size:10px;color:#88879a;min-width:58px;text-align:right}:where(html[data-surface="ho"]) .pager{border:1px solid #e7e5ec;background:#fff;color:#746c9e;border-radius:7px;width:29px;height:29px;font-size:18px}:where(html[data-surface="ho"]) .empty-state{padding:65px;text-align:center;color:#9694a5;font-size:12px}:where(html[data-surface="ho"]) .empty-state strong{display:block;font-size:14px;color:#464258;margin-bottom:9px}
+:where(html[data-surface="ho"]) .principle-bar{margin-top:18px;display:flex;align-items:center;gap:13px;border:1px dashed #dcd9eb;padding:14px 16px;border-radius:9px;background:#fcfcff;font-size:11px;color:#77788e;line-height:1.6}:where(html[data-surface="ho"]) .principle-icon{font-size:18px;color:#8c76dc}:where(html[data-surface="ho"]) .principle-bar strong{color:#5f568c}:where(html[data-surface="ho"]) .principle-bar>a{margin-left:auto;white-space:nowrap;color:#6d56c0;font-weight:780}
+:where(html[data-surface="ho"]) .drawer-scrim{position:fixed;inset:0;background:rgba(24,22,46,.24);z-index:45;opacity:0;pointer-events:none;transition:opacity .18s}:where(html[data-surface="ho"]) .drawer-scrim.visible{opacity:1;pointer-events:auto}:where(html[data-surface="ho"]) .drawer{position:fixed;right:0;top:0;bottom:0;width:min(490px,100vw);background:#fff;z-index:46;box-shadow:-18px 0 60px rgba(26,22,51,.16);transform:translateX(102%);transition:transform .24s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;max-width:100vw}:where(html[data-surface="ho"]) .drawer.open{transform:translateX(0)}:where(html[data-surface="ho"]) .drawer-top{display:flex;align-items:center;justify-content:space-between;padding:17px 23px;border-bottom:1px solid #edeaf2;min-height:61px}:where(html[data-surface="ho"]) .drawer-path{color:#8170c2;font-size:10px;font-weight:900;letter-spacing:.12em}:where(html[data-surface="ho"]) .drawer-close{width:32px;height:32px;background:#faf9fd;border:1px solid #ebe8f1;border-radius:8px;color:#686478;font-size:21px}:where(html[data-surface="ho"]) .drawer-content{flex:1;overflow-y:auto;padding:24px}:where(html[data-surface="ho"]) .drawer-heading{display:flex;align-items:center;gap:13px;margin-bottom:15px}:where(html[data-surface="ho"]) .drawer-icon{width:49px;height:49px;border-radius:14px;background:#f0edff;color:#7763c7;display:grid;place-items:center;font-size:19px;font-weight:850}:where(html[data-surface="ho"]) .drawer-heading-main{flex:1;min-width:0}:where(html[data-surface="ho"]) .drawer-heading h2{font-size:20px;letter-spacing:-.04em;line-height:1.3;margin:0 0 6px}:where(html[data-surface="ho"]) .drawer-heading p{font-size:11px;color:#9090a1;margin:0}:where(html[data-surface="ho"]) .drawer-section{margin:25px 0 0}:where(html[data-surface="ho"]) .drawer-section h3{font-size:11px;font-weight:830;color:#69637e;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid #ededf2;padding:0 0 12px;margin:0 0 6px}:where(html[data-surface="ho"]) .drawer-fields{display:grid;grid-template-columns:1fr;gap:0}:where(html[data-surface="ho"]) .drawer-field{display:grid;grid-template-columns:145px minmax(0,1fr);gap:15px;align-items:start;padding:11px 0;border-bottom:1px solid #f3f2f7}:where(html[data-surface="ho"]) .drawer-field dt{font-size:11px;color:#a3a1b1}:where(html[data-surface="ho"]) .drawer-field dd{margin:0;font-size:11px;font-weight:670;color:#444257;overflow-wrap:anywhere}:where(html[data-surface="ho"]) .drawer-notice{background:#f8f7ff;border:1px solid #eeeafd;padding:14px;border-radius:9px;margin-top:20px;font-size:11px;color:#77728d;line-height:1.6}:where(html[data-surface="ho"]) .drawer-notice strong{color:#5f50ad}:where(html[data-surface="ho"]) .drawer-audit{display:flex;gap:12px;align-items:flex-start;padding:12px 0}:where(html[data-surface="ho"]) .drawer-audit-point{border-radius:100%;background:#eeeaff;color:#7869bf;width:24px;height:24px;display:grid;place-items:center;font-weight:900}:where(html[data-surface="ho"]) .drawer-audit>div:nth-child(2){flex:1}:where(html[data-surface="ho"]) .drawer-audit strong{display:block;font-size:11px}:where(html[data-surface="ho"]) .drawer-audit small{display:block;margin-top:4px;color:#a2a0b1;font-size:10px}:where(html[data-surface="ho"]) .drawer-footer{border-top:1px solid #eeeaf2;display:flex;align-items:center;justify-content:space-between;gap:9px;padding:16px 22px;background:#fff}:where(html[data-surface="ho"]) .drawer-footer .left-action{margin-right:auto}:where(html[data-surface="ho"]) .secondary-btn{height:36px;border-radius:8px;border:1px solid #e4e0eb;background:#fff;color:#5c5871;padding:0 13px;font-weight:730;font-size:11px}:where(html[data-surface="ho"]) .secondary-btn:hover{background:#f8f7fc}:where(html[data-surface="ho"]) .drawer-footer .primary-btn{min-height:36px}:where(html[data-surface="ho"]) .edit-form{display:flex;flex-direction:column;gap:16px;margin-top:20px}:where(html[data-surface="ho"]) .form-row{display:flex;flex-direction:column;gap:6px}:where(html[data-surface="ho"]) .form-row label{font-size:11px;color:#818091;font-weight:670}:where(html[data-surface="ho"]) .form-row input,:where(html[data-surface="ho"]) .form-row select,:where(html[data-surface="ho"]) .form-row textarea{width:100%;border:1px solid #e0dfe8;padding:11px 12px;border-radius:8px;background:white;color:#38354a;font-size:12px}:where(html[data-surface="ho"]) .form-row textarea{resize:vertical;min-height:77px}:where(html[data-surface="ho"]) .drawer-help{margin-top:14px;color:#a29baa;font-size:10px;line-height:1.6}
+:where(html[data-surface="ho"]) .ghost-link{border:0;background:transparent;color:#6958bb;font-weight:790;padding:6px 0}:where(html[data-surface="ho"]) .detail-cover{border:1px solid #e9e7ef;border-radius:14px;background:#fff;overflow:hidden}:where(html[data-surface="ho"]) .detail-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:29px 30px;border-bottom:1px solid #ebeaf1}:where(html[data-surface="ho"]) .detail-hero h1{font-size:30px;letter-spacing:-.05em;margin:8px 0}:where(html[data-surface="ho"]) .detail-hero p{color:#9290a2;font-size:12px;margin:0}:where(html[data-surface="ho"]) .full-badge{background:#f2efff;color:#7060cc;border:1px solid #e7e0ff;border-radius:7px;font-size:10px;padding:9px 11px;font-weight:800;white-space:nowrap}:where(html[data-surface="ho"]) .detail-tabs{display:flex;border-bottom:1px solid #eae9ef;gap:23px;padding:0 30px}:where(html[data-surface="ho"]) .detail-tab{border:0;border-bottom:2px solid transparent;background:transparent;padding:15px 0;color:#908da1;font-size:11px;font-weight:770}:where(html[data-surface="ho"]) .detail-tab.selected{border-bottom-color:#735de1;color:#6952cd}:where(html[data-surface="ho"]) .detail-main{padding:27px 30px 35px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,.8fr);gap:22px}:where(html[data-surface="ho"]) .detail-panel{border:1px solid #eceaf2;border-radius:12px;padding:22px;background:#fff;min-height:180px}:where(html[data-surface="ho"]) .detail-panel h3{font-size:13px;margin:0 0 8px}:where(html[data-surface="ho"]) .detail-panel p{color:#9592a3;font-size:11px;line-height:1.7}:where(html[data-surface="ho"]) .detail-panel .drawer-fields{margin-top:13px}:where(html[data-surface="ho"]) .detail-explain{background:#f7f5fe;border-color:#eee8ff}:where(html[data-surface="ho"]) .detail-tile{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:21px}:where(html[data-surface="ho"]) .detail-tile>div{border:1px solid #eae8f1;border-radius:9px;padding:13px}:where(html[data-surface="ho"]) .detail-tile strong{font-size:17px;display:block}:where(html[data-surface="ho"]) .detail-tile small{font-size:10px;color:#9794a5}:where(html[data-surface="ho"]) .mock-canvas{height:330px;position:relative;border-radius:12px;overflow:hidden;background:radial-gradient(circle at 75% 30%,#b3e9de,#71bebc 27%,#5281aa 64%,#354d94);margin-top:18px}:where(html[data-surface="ho"]) .canvas-island{position:absolute;inset:28% 23% 12%;border-radius:48% 55% 42% 45%;background:linear-gradient(145deg,#b5e3a2,#71b691);transform:rotate(-12deg);box-shadow:0 17px 35px #233b8055}:where(html[data-surface="ho"]) .canvas-orbit{position:absolute;inset:12% 15%;border:2px dashed #ffffff55;border-radius:50%;transform:rotate(-25deg)}:where(html[data-surface="ho"]) .canvas-label{position:absolute;left:20px;bottom:20px;background:#18263a66;color:white;padding:11px 13px;border-radius:7px;font-size:11px}:where(html[data-surface="ho"]) .calendar-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-top:17px}:where(html[data-surface="ho"]) .calendar-day{min-height:112px;border:1px solid #ebe9f2;background:#fbfbfe;border-radius:8px;padding:10px}:where(html[data-surface="ho"]) .calendar-day strong{display:block;color:#6f688d;font-size:11px;margin-bottom:12px}:where(html[data-surface="ho"]) .calendar-day span{display:block;background:#eee9ff;border-left:3px solid #8b76e6;color:#6253a3;padding:7px;border-radius:5px;font-size:10px;line-height:1.4}:where(html[data-surface="ho"]) .calendar-day span+span{margin-top:7px}:where(html[data-surface="ho"]) .editor-mock{border:1px solid #eee9f7;border-radius:10px;margin-top:17px;overflow:hidden}:where(html[data-surface="ho"]) .editor-mock-bar{background:#f7f5fd;border-bottom:1px solid #ebe6f9;padding:12px;color:#6c5f9e;font-size:11px}:where(html[data-surface="ho"]) .editor-mock-body{padding:22px;min-height:185px;color:#747085;font-size:11px;line-height:1.8}
+:where(html[data-surface="ho"]) .cmd-scrim{position:fixed;inset:0;background:#15132680;z-index:80;display:none;align-items:flex-start;justify-content:center;padding:14vh 16px}:where(html[data-surface="ho"]) .cmd-scrim.show{display:flex}:where(html[data-surface="ho"]) .command-panel{width:min(570px,100%);background:white;border-radius:14px;box-shadow:0 28px 90px #20173355;overflow:hidden}:where(html[data-surface="ho"]) .command-search{height:60px;display:flex;align-items:center;gap:13px;padding:0 18px;border-bottom:1px solid #ebe9f2}:where(html[data-surface="ho"]) .command-search span{font-size:23px;color:#907bc8}:where(html[data-surface="ho"]) .command-search input{border:0;outline:0;font-size:13px;flex:1;min-width:0}:where(html[data-surface="ho"]) .command-search kbd{color:#9b96ae;font-size:10px}:where(html[data-surface="ho"]) .command-results{max-height:min(50vh,450px);overflow:auto;padding:8px}:where(html[data-surface="ho"]) .command-result{width:100%;display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:8px;border:0;background:white;text-align:left}:where(html[data-surface="ho"]) .command-result:hover,:where(html[data-surface="ho"]) .command-result.current{background:#f3efff}:where(html[data-surface="ho"]) .command-result-glyph{width:31px;height:31px;border-radius:8px;background:#f0edfa;color:#7863c1;display:grid;place-items:center}:where(html[data-surface="ho"]) .command-result b{font-size:11px}:where(html[data-surface="ho"]) .command-result small{font-size:10px;color:#9f9bab;margin-left:auto}:where(html[data-surface="ho"]) .command-footer{height:35px;border-top:1px solid #efedf2;padding:0 16px;display:flex;align-items:center;justify-content:space-between;color:#a2a0b2;font-size:10px}
+:where(html[data-surface="ho"]) #toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,40px);opacity:0;transition:all .22s;z-index:99;border-radius:10px;padding:12px 17px;box-shadow:0 10px 35px #15122625;background:#252436;color:white;font-size:12px;pointer-events:none}:where(html[data-surface="ho"]) #toast.show{opacity:1;transform:translate(-50%,0)}:where(html[data-surface="ho"]) .mobile-menu,:where(html[data-surface="ho"]) .mobile-shade,:where(html[data-surface="ho"]) .side-close{display:none}
+@media(max-width:1200px){:where(html[data-surface="ho"]) .toolbar-hint{display:none}:where(html[data-surface="ho"]) .workspace{padding:21px 24px 32px}:where(html[data-surface="ho"]) .layout-contract{display:none}:where(html[data-surface="ho"]) .metric-rail{gap:9px}:where(html[data-surface="ho"]) .metric-card{padding:13px}:where(html[data-surface="ho"]) .top-shortcut{gap:9px}}
+@media(max-width:980px){:where(html[data-surface="ho"]) .sidebar{width:216px}:where(html[data-surface="ho"]) .shell{margin-left:216px}:where(html[data-surface="ho"]) .brand{padding:20px 15px}:where(html[data-surface="ho"]) .sidebar-search{margin-left:10px;margin-right:10px}:where(html[data-surface="ho"]) .nav-scroll{padding:0 8px}:where(html[data-surface="ho"]) .workspace{padding:20px 18px}:where(html[data-surface="ho"]) .architecture-ribbon{font-size:9px}:where(html[data-surface="ho"]) .table-index{display:none}:where(html[data-surface="ho"]) .metric-card{height:88px}:where(html[data-surface="ho"]) .page-heading h1{font-size:30px}}
+@media(max-width:760px){:where(html[data-surface="ho"]) .sidebar{transform:translateX(-100%);width:min(290px,85vw);transition:transform .2s;z-index:65}:where(html[data-surface="ho"]) .sidebar.show{transform:translateX(0)}:where(html[data-surface="ho"]) .mobile-shade{display:none;position:fixed;inset:0;border:0;background:#10102066;z-index:60}:where(html[data-surface="ho"]) .mobile-shade.show{display:block}:where(html[data-surface="ho"]) .side-close{display:grid!important;margin-left:auto}:where(html[data-surface="ho"]) .shell{margin-left:0}:where(html[data-surface="ho"]) .mobile-menu{display:grid!important}:where(html[data-surface="ho"]) .prototype-pill{display:none}:where(html[data-surface="ho"]) .workspace{padding:18px 14px}:where(html[data-surface="ho"]) .architecture-ribbon{margin-bottom:18px;flex-wrap:wrap;min-height:42px;height:auto;padding:10px;gap:5px;font-size:10px}:where(html[data-surface="ho"]) .mock-badge{display:none}:where(html[data-surface="ho"]) .page-heading{align-items:center;gap:8px}:where(html[data-surface="ho"]) .page-heading h1{font-size:29px}:where(html[data-surface="ho"]) .page-heading p{max-width:600px}:where(html[data-surface="ho"]) .metric-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}:where(html[data-surface="ho"]) .metric-card{height:76px;padding:11px 12px}:where(html[data-surface="ho"]) .metric-number{font-size:21px}:where(html[data-surface="ho"]) .view-tabs{padding:0 11px}:where(html[data-surface="ho"]) .tabs-left{gap:9px}:where(html[data-surface="ho"]) .view-tab{font-size:10px}:where(html[data-surface="ho"]) .toolbar{flex-wrap:wrap;padding:10px;gap:7px}:where(html[data-surface="ho"]) .search-field{width:100%;flex-basis:100%}:where(html[data-surface="ho"]) .toolbar-spacer{flex:1}:where(html[data-surface="ho"]) .table-meta{display:none}:where(html[data-surface="ho"]) .principle-bar{align-items:flex-start}:where(html[data-surface="ho"]) .principle-bar>a{display:none}:where(html[data-surface="ho"]) .drawer{width:min(520px,100vw)}:where(html[data-surface="ho"]) .detail-main{grid-template-columns:1fr;padding:18px}:where(html[data-surface="ho"]) .detail-hero{padding:23px 20px}:where(html[data-surface="ho"]) .detail-tabs{padding:0 20px}:where(html[data-surface="ho"]) .detail-cover h1{font-size:26px}}
+@media(max-width:450px){:where(html[data-surface="ho"]) .workspace{padding:15px 11px 30px}:where(html[data-surface="ho"]) .top-shortcut{height:30px;font-size:15px}:where(html[data-surface="ho"]) .top-shortcut kbd{display:none}:where(html[data-surface="ho"]) .architecture-ribbon{font-size:9px}:where(html[data-surface="ho"]) .arch-divider{display:none}:where(html[data-surface="ho"]) .arch-dot{display:none}:where(html[data-surface="ho"]) .page-heading{margin-bottom:15px;align-items:flex-start}:where(html[data-surface="ho"]) .page-heading h1{font-size:27px}:where(html[data-surface="ho"]) .page-heading p{font-size:11px;margin-top:7px}:where(html[data-surface="ho"]) .eyebrow{font-size:9px}:where(html[data-surface="ho"]) .heading-actions{padding-top:20px}:where(html[data-surface="ho"]) .primary-btn{padding:0 11px;min-height:35px;font-size:10px}:where(html[data-surface="ho"]) .metric-card{height:71px}:where(html[data-surface="ho"]) .metric-number{font-size:20px}:where(html[data-surface="ho"]) .metric-kicker{font-size:9px}:where(html[data-surface="ho"]) .tabs-left{gap:4px}:where(html[data-surface="ho"]) .view-tab{font-size:9px;padding:0 1px}:where(html[data-surface="ho"]) .view-tab:nth-child(3){display:none}:where(html[data-surface="ho"]) .tabs-right{display:none}:where(html[data-surface="ho"]) .table-footer{align-items:flex-start;flex-direction:column;padding:13px;gap:12px}:where(html[data-surface="ho"]) .pagination{width:100%;justify-content:space-between}:where(html[data-surface="ho"]) .results-secondary{display:none}:where(html[data-surface="ho"]) .drawer{width:100vw}:where(html[data-surface="ho"]) .drawer-content{padding:18px 19px}:where(html[data-surface="ho"]) .drawer-top,:where(html[data-surface="ho"]) .drawer-footer{padding-left:17px;padding-right:17px}:where(html[data-surface="ho"]) .drawer-field{grid-template-columns:114px minmax(0,1fr)}:where(html[data-surface="ho"]) .drawer-footer .secondary-btn{padding:0 8px}:where(html[data-surface="ho"]) .calendar-grid{grid-template-columns:repeat(2,1fr)}:where(html[data-surface="ho"]) .detail-tile{grid-template-columns:1fr}:where(html[data-surface="ho"]) .detail-hero{align-items:flex-start;flex-direction:column}:where(html[data-surface="ho"]) .detail-tabs{gap:12px}:where(html[data-surface="ho"]) .detail-tab{font-size:10px}:where(html[data-surface="ho"]) .full-badge{font-size:9px}}
+
+/* PAP-881 polish: make long detail-type metric readable on narrow screens. */
+@media(max-width:450px){:where(html[data-surface="ho"]) .metric-card:nth-child(4) .metric-number{font-size:17px;margin-top:8px}:where(html[data-surface="ho"]) .metric-card:nth-child(4) .metric-number small{display:block;margin:2px 0 0;font-size:9px;line-height:1.25}}
+
+/* PAP-881 V2.1 — Founder-approved minimal table/inline edit and collapsed navigation */
+:where(html[data-surface="ho"]) .sidebar-finder{display:flex;align-items:center;gap:5px;margin:0 13px 11px;min-width:0}
+:where(html[data-surface="ho"]) .nav-query{min-width:0;flex:1;height:34px;display:flex;align-items:center;gap:6px;padding:0 8px;border:1px solid #393948;border-radius:7px;color:#b4b1c9}
+:where(html[data-surface="ho"]) .nav-query span{font-size:17px}
+:where(html[data-surface="ho"]) .nav-query input{width:100%;min-width:0;flex:1;border:0;outline:0;background:transparent;color:white;font-size:11px}
+:where(html[data-surface="ho"]) .nav-query input::placeholder{color:#a3a3b7}
+:where(html[data-surface="ho"]) .nav-query:focus-within{border-color:#756ab1;box-shadow:0 0 0 2px #8a7cdf33}
+:where(html[data-surface="ho"]) .nav-collapse-actions{display:flex;flex:0 0 auto;gap:2px}
+:where(html[data-surface="ho"]) .nav-collapse-actions button{width:25px;height:32px;padding:0;border:1px solid #3e3b50;border-radius:6px;background:#28293c;color:#bcbbd2;font-size:16px}
+:where(html[data-surface="ho"]) .nav-collapse-actions button:hover:not(:disabled){background:#37374b;color:white}
+:where(html[data-surface="ho"]) .nav-collapse-actions button:disabled{opacity:.28}
+:where(html[data-surface="ho"]) .nav-group-toggle{width:100%;padding:5px 10px 8px;display:flex;align-items:center;justify-content:space-between;gap:5px;border:0;background:transparent;color:#82829b;font-size:10px;letter-spacing:.12em;font-weight:850;text-align:left}
+:where(html[data-surface="ho"]) .nav-group-toggle:hover{color:#cfcaea}
+:where(html[data-surface="ho"]) .nav-group-caret{font-size:15px;color:#9f9bba;letter-spacing:normal}
+:where(html[data-surface="ho"]) .nav-group-links{padding-bottom:2px}
+:where(html[data-surface="ho"]) .nav-empty{padding:20px 12px;color:#9d9aaf;font-size:11px}
+:where(html[data-surface="ho"]) .page-heading{margin-bottom:21px}
+:where(html[data-surface="ho"]) .grid-card{box-shadow:0 3px 16px #26233906}
+:where(html[data-surface="ho"]) table{min-width:970px}
+:where(html[data-surface="ho"]) thead th:first-child{width:248px}
+:where(html[data-surface="ho"]) tbody td:first-child{width:248px}
+:where(html[data-surface="ho"]) thead th:nth-child(2),:where(html[data-surface="ho"]) tbody td:nth-child(2){width:139px}
+:where(html[data-surface="ho"]) .name-cell{font-weight:720}
+:where(html[data-surface="ho"]) .copy-id{border:0;background:transparent;padding:6px 3px;color:#9993ab;font:10px ui-monospace,Consolas,monospace;text-align:left;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+:where(html[data-surface="ho"]) .copy-id:hover{color:#6b55c5;background:#f4f0ff;border-radius:4px}
+:where(html[data-surface="ho"]) .editable-cell{position:relative;display:inline-flex;align-items:center;max-width:100%;min-height:28px;margin:-3px -6px;padding:4px 6px;border:1px solid transparent;border-radius:5px;background:transparent;text-align:left;color:inherit;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where(html[data-surface="ho"]) .editable-cell:hover,:where(html[data-surface="ho"]) .editable-cell:focus-visible{border-color:#ddd5f5;background:#f5f2ff}
+:where(html[data-surface="ho"]) .identity-name{font-weight:760;color:#363247}
+:where(html[data-surface="ho"]) .value-cell{overflow:visible}
+:where(html[data-surface="ho"]) .row-action-column{width:60px}
+:where(html[data-surface="ho"]) .open-quick{display:flex;align-items:center;justify-content:center;width:29px;height:29px;border:1px solid #eae8f0;border-radius:6px;background:white;color:#9486b2;font-size:15px}
+:where(html[data-surface="ho"]) .open-quick:hover{border-color:#cfc4f0;background:#f5f1ff;color:#6750bb}
+:where(html[data-surface="ho"]) .inline-editor{max-width:100%;min-width:105px;width:100%;min-height:30px;padding:4px 7px;border:1px solid #8874d4;background:white;color:#33314a;border-radius:6px;font-size:11px;box-shadow:0 0 0 3px #8470d420}
+:where(html[data-surface="ho"]) .name-cell .inline-editor{width:205px}
+:where(html[data-surface="ho"]) .value-cell .inline-editor{min-width:115px}
+:where(html[data-surface="ho"]) .plain-heading{margin-bottom:11px}
+:where(html[data-surface="ho"]) .drawer-heading-main{width:100%}
+:where(html[data-surface="ho"]) .drawer-small-caption{font-size:10px;color:#9c97ad;margin-bottom:9px}
+:where(html[data-surface="ho"]) .drawer-title-edit{width:100%;display:flex;align-items:center;gap:10px;min-width:0;border:0;background:transparent;padding:4px 0;margin:0;text-align:left}
+:where(html[data-surface="ho"]) .drawer-title-edit h2{margin:0;font-size:24px;line-height:1.35;letter-spacing:-.04em;overflow-wrap:anywhere}
+:where(html[data-surface="ho"]) .property-pencil{opacity:0;color:#ad9fce;font-size:12px;padding-left:8px}
+:where(html[data-surface="ho"]) .drawer-title-edit:hover .property-pencil,:where(html[data-surface="ho"]) .property-edit:hover .property-pencil,:where(html[data-surface="ho"]) .drawer-title-edit:focus-visible .property-pencil,:where(html[data-surface="ho"]) .property-edit:focus-visible .property-pencil{opacity:1}
+:where(html[data-surface="ho"]) .compact-properties{margin-top:23px}
+:where(html[data-surface="ho"]) .compact-properties h3{display:flex;align-items:center;justify-content:space-between}
+:where(html[data-surface="ho"]) .compact-properties h3 small{color:#aaa7b6;font-size:10px;font-weight:500;letter-spacing:normal;text-transform:none}
+:where(html[data-surface="ho"]) .drawer-field{grid-template-columns:118px minmax(0,1fr);padding:7px 0;min-height:41px;border-bottom:0;border-radius:6px;align-items:center}
+:where(html[data-surface="ho"]) .drawer-field:hover{background:#faf9fc}
+:where(html[data-surface="ho"]) .drawer-field dt{padding-left:5px;color:#938e9f;font-size:11px}
+:where(html[data-surface="ho"]) .property-edit{display:flex;align-items:center;gap:6px;min-height:32px;max-width:100%;width:100%;padding:3px 6px;text-align:left;border:1px solid transparent;border-radius:5px;background:transparent;color:#3e3a50;overflow-wrap:anywhere;font-size:11px}
+:where(html[data-surface="ho"]) .property-edit:hover{border-color:#e6e0f5;background:#f8f6ff}
+:where(html[data-surface="ho"]) .property-placeholder{color:#bbb7c8;font-style:italic}
+:where(html[data-surface="ho"]) .property-input{width:100%;max-width:100%;min-width:0}
+:where(html[data-surface="ho"]) .drawer-heading-main .property-input{font-size:19px;min-height:43px}
+:where(html[data-surface="ho"]) .drawer-footer{justify-content:flex-end}
+@media(max-width:980px){:where(html[data-surface="ho"]) .sidebar-finder{margin-left:10px;margin-right:10px}}
+@media(max-width:760px){:where(html[data-surface="ho"]) .sidebar-finder{margin-left:14px;margin-right:14px}}
+@media(max-width:450px){:where(html[data-surface="ho"]) table{min-width:920px}:where(html[data-surface="ho"]) .page-heading{margin-bottom:17px}:where(html[data-surface="ho"]) .drawer-title-edit h2{font-size:21px}:where(html[data-surface="ho"]) .nav-collapse-actions button{width:30px}}
+
+:where(html[data-surface="ho"]) .lab-shortcut{display:flex;align-items:center;gap:6px;margin:0 11px 4px;padding:9px 11px;border-radius:8px;color:#ddcffc;background:#342e51;border:1px solid #4a426e;font-size:10px;font-weight:760}:where(html[data-surface="ho"]) .lab-shortcut span{margin-left:auto}:where(html[data-surface="ho"]) .lab-shortcut:hover{background:#49406a;color:white}
+
+:where(html[data-surface="ho"]) .global-setting-link{display:flex;align-items:center;justify-content:center;width:36px;height:37px;font-size:18px;color:#70609c;text-decoration:none;flex-shrink:0}:where(html[data-surface="ho"]) .global-setting-link:hover{border-color:#c4b8eb;background:#f4efff}
+@media(max-width:450px){:where(html[data-surface="ho"]) .global-setting-link{width:34px;height:35px}}
+
+/* PAP-885 visual alignment of the 35 navigable BO sample modules */
+:where(html[data-surface="ho"]) .prototype-pill,:where(html[data-surface="ho"]) .layout-contract,:where(html[data-surface="ho"]) #table-index,:where(html[data-surface="ho"]) .table-index,:where(html[data-surface="ho"]) .footer-dot,:where(html[data-surface="ho"]) .results-secondary,:where(html[data-surface="ho"]) .toolbar-hint,:where(html[data-surface="ho"]) #page-eyebrow{display:none!important}
+:where(html[data-surface="ho"]) #filter-btn,:where(html[data-surface="ho"]) #sort-btn,:where(html[data-surface="ho"]) #refresh-btn,:where(html[data-surface="ho"]) #columns-btn{display:none!important}
+:where(html[data-surface="ho"]) .page-heading{margin-bottom:19px}
+:where(html[data-surface="ho"]) .page-heading h1{font-size:30px}
+:where(html[data-surface="ho"]) .page-heading-left p{display:none}
+:where(html[data-surface="ho"]) .toolbar{min-height:50px;padding:8px 12px}
+:where(html[data-surface="ho"]) .toolbar .search-field{width:min(360px,100%);height:34px}
+:where(html[data-surface="ho"]) #entity-table thead th{font-size:11px;height:36px;padding:0 10px}
+:where(html[data-surface="ho"]) #entity-table tbody td{font-size:12px;height:46px;padding:6px 10px}
+:where(html[data-surface="ho"]) #entity-table td.compact-open-cell,:where(html[data-surface="ho"]) #entity-table th.compact-open-th{
+ position:sticky!important;left:0!important;width:37px!important;min-width:37px!important;max-width:37px!important;
+ padding:0!important;text-align:center;background:#fff!important;z-index:4!important;
+}
+:where(html[data-surface="ho"]) #entity-table th.compact-open-th{background:#fafafe!important;z-index:5!important}
+:where(html[data-surface="ho"]) #entity-table th:nth-child(2),:where(html[data-surface="ho"]) #entity-table td:nth-child(2){
+ position:sticky!important;left:37px!important;background:#fff!important;
+ z-index:3!important;min-width:235px;width:235px;
+}
+:where(html[data-surface="ho"]) #entity-table th:nth-child(2){background:#fafafe!important;z-index:4!important}
+:where(html[data-surface="ho"]) #entity-table tr:hover td:nth-child(2),:where(html[data-surface="ho"]) #entity-table tr:hover td.compact-open-cell{background:#fbfaff!important}
+:where(html[data-surface="ho"]) #entity-table th:nth-child(3),:where(html[data-surface="ho"]) #entity-table td:nth-child(3){position:static!important;left:auto!important;box-shadow:none!important}
+:where(html[data-surface="ho"]) #entity-table .open-quick{height:23px;width:23px;border:0;border-radius:5px;font-size:12px;opacity:.62}
+:where(html[data-surface="ho"]) #entity-table .open-quick:hover{opacity:1;background:#efeaff}
+@media(max-width:760px){:where(html[data-surface="ho"]) #entity-table th:nth-child(2),:where(html[data-surface="ho"]) #entity-table td:nth-child(2){min-width:190px!important;width:190px!important}}
+@media(max-width:450px){:where(html[data-surface="ho"]) #entity-table th:nth-child(2),:where(html[data-surface="ho"]) #entity-table td:nth-child(2){min-width:158px!important;width:158px!important}}
+
+
+/* Historical HO input: playground.css */
+/* Data Types Playground · PAP-883 */
+:root:where([data-surface="ho"]){--lavender:#6b5bd6;--line:#ebeaf1}
+:where(html[data-surface="ho"]) .top-back-link{border:1px solid #ebe9f1;border-radius:8px;color:#68617c;padding:8px 10px;font-size:10px;font-weight:730}
+:where(html[data-surface="ho"]) .top-back-link:hover{border-color:#cec4f2;background:#f8f5ff}
+:where(html[data-surface="ho"]) .lab-menu{background:white;border:1px solid #e7e5ee;padding:7px;border-radius:8px;color:#6d658b;font-size:18px}
+:where(html[data-surface="ho"]) .lab-h1-tag{font-size:10px;vertical-align:middle;display:inline-block;padding:5px 8px;border-radius:6px;border:1px solid #dcd4fc;background:#f3efff;color:#7060bf;letter-spacing:.08em;font-weight:900;margin-left:5px}
+:where(html[data-surface="ho"]) .types-strip{display:flex;gap:7px;flex-wrap:wrap;margin:-5px 0 19px}
+:where(html[data-surface="ho"]) .type-pill{display:flex;align-items:center;gap:6px;border:1px solid #e7e5f0;background:white;color:#817e90;border-radius:7px;padding:6px 9px;font-size:10px;cursor:pointer}
+:where(html[data-surface="ho"]) .type-pill:hover{border-color:#c8baf0;background:#faf8ff}:where(html[data-surface="ho"]) .type-pill span{color:#7662c5;font-weight:950}
+:where(html[data-surface="ho"]) .grid-card{margin-top:2px}
+:where(html[data-surface="ho"]) #typed-table{table-layout:fixed;width:max-content;min-width:100%;border-collapse:separate}
+:where(html[data-surface="ho"]) #typed-table th{position:relative;min-width:110px;white-space:nowrap}
+:where(html[data-surface="ho"]) #typed-table th:first-child{position:sticky;left:0;z-index:5;min-width:225px;width:225px;background:#fafafe;box-shadow:1px 0 0 #ecebf1}
+:where(html[data-surface="ho"]) #typed-table th:nth-child(2){position:sticky;left:225px;z-index:4;min-width:142px;background:#fafafe;box-shadow:1px 0 0 #ecebf1}
+:where(html[data-surface="ho"]) #typed-table td:first-child{position:sticky;left:0;z-index:3;min-width:225px;width:225px;background:white;box-shadow:1px 0 0 #f0eff3}
+:where(html[data-surface="ho"]) #typed-table td:nth-child(2){position:sticky;left:225px;z-index:2;min-width:142px;background:white;box-shadow:1px 0 0 #f0eff3}
+:where(html[data-surface="ho"]) #typed-table tr:hover td:first-child,:where(html[data-surface="ho"]) #typed-table tr:hover td:nth-child(2){background:#fbfaff}
+:where(html[data-surface="ho"]) #typed-table tr.selected td:first-child,:where(html[data-surface="ho"]) #typed-table tr.selected td:nth-child(2){background:#f6f3ff}
+:where(html[data-surface="ho"]) #typed-table td{height:55px;overflow:visible}
+:where(html[data-surface="ho"]) #typed-table th .column-type{font-size:9px;color:#a49abf;font-weight:500;letter-spacing:0;margin-left:5px}
+:where(html[data-surface="ho"]) #typed-table th button{border:0;background:transparent;color:inherit;font-weight:inherit;font-size:inherit;text-align:left;cursor:pointer;max-width:100%;white-space:nowrap}
+:where(html[data-surface="ho"]) #typed-table th button:hover{color:#6453b8}
+:where(html[data-surface="ho"]) #typed-table .typed-cell{width:100%;min-height:29px;border-radius:5px;padding:5px 7px;margin:0 -7px;max-width:calc(100% + 14px);display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#48445f;background:transparent;border:1px solid transparent;text-align:left;cursor:pointer}
+:where(html[data-surface="ho"]) #typed-table .typed-cell:hover,:where(html[data-surface="ho"]) #typed-table .typed-cell:focus-visible{background:#f4f0ff;border-color:#dcd4f6}
+:where(html[data-surface="ho"]) #typed-table .typed-cell.readonly{cursor:default;color:#a09cad}
+:where(html[data-surface="ho"]) #typed-table .typed-cell.readonly:hover{background:transparent;border-color:transparent}
+:where(html[data-surface="ho"]) #typed-table .id-code{font:10px ui-monospace,Consolas,monospace;color:#9a95aa}
+:where(html[data-surface="ho"]) #typed-table .row-open{border:1px solid #eae8f1;border-radius:6px;background:#fff;color:#7768ab;width:29px;height:29px;cursor:pointer}
+:where(html[data-surface="ho"]) #typed-table .row-open:hover{background:#f4f1ff}
+:where(html[data-surface="ho"]) #typed-table .selected td{background:#faf8ff}
+:where(html[data-surface="ho"]) .datatag{display:inline-flex;align-items:center;border-radius:6px;background:#f1eefb;padding:4px 7px;color:#7159b5;font-size:10px;font-weight:720;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+:where(html[data-surface="ho"]) .datatag.green{background:#e8f8ef;color:#358d68}:where(html[data-surface="ho"]) .datatag.gold{background:#fff3e0;color:#ab7937}:where(html[data-surface="ho"]) .datatag.blue{background:#e7f3ff;color:#507dab}:where(html[data-surface="ho"]) .datatag.gray{background:#efeff2;color:#74717d}
+:where(html[data-surface="ho"]) .datatag+.datatag{margin-left:3px}:where(html[data-surface="ho"]) .empty-val{color:#c1bfca;font-style:italic;font-size:10px}
+:where(html[data-surface="ho"]) .cell-multi{display:flex;align-items:center;overflow:hidden;white-space:nowrap;gap:4px}
+:where(html[data-surface="ho"]) .check-indicator{width:16px;height:16px;display:grid;place-items:center;border:1px solid #cecadb;border-radius:4px;font-size:12px;color:white}
+:where(html[data-surface="ho"]) .check-indicator.on{background:#7664d9;border-color:#7664d9}
+:where(html[data-surface="ho"]) .formula{font-weight:800;color:#6250b4}
+:where(html[data-surface="ho"]) .rules-panel{padding:17px 18px 19px;border-bottom:1px solid #ebe9f2;background:#fbfaff}
+:where(html[data-surface="ho"]) .rules-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}
+:where(html[data-surface="ho"]) .rules-top strong{font-size:12px;color:#403951}:where(html[data-surface="ho"]) .rules-top small{display:block;color:#a39bab;font-size:10px;margin-top:5px}
+:where(html[data-surface="ho"]) .quiet-x{height:30px;width:30px;border:0;background:white;border-radius:7px;font-size:20px;color:#9a91ae}
+:where(html[data-surface="ho"]) .rules-combine{display:flex;align-items:center;gap:11px;color:#848094;margin-bottom:11px;font-size:11px}
+:where(html[data-surface="ho"]) .rules-combine select,:where(html[data-surface="ho"]) .rule-field,:where(html[data-surface="ho"]) .rule-op,:where(html[data-surface="ho"]) .rule-value-input{border:1px solid #e2dfed;background:#fff;border-radius:7px;padding:9px 10px;font-size:11px;color:#49415f;height:36px;min-width:0}
+:where(html[data-surface="ho"]) .rule-row{display:flex;align-items:center;gap:8px;margin:8px 0;max-width:100%}:where(html[data-surface="ho"]) .rule-row .rule-field{flex:1 1 200px}:where(html[data-surface="ho"]) .rule-row .rule-op{flex:1 1 155px}:where(html[data-surface="ho"]) .rule-inputs{flex:1.5 1 240px;display:flex;gap:6px;min-width:0}:where(html[data-surface="ho"]) .rule-inputs input,:where(html[data-surface="ho"]) .rule-inputs select{width:100%;min-width:0}
+:where(html[data-surface="ho"]) .rule-remove{border:1px solid #e9e4f0;background:white;width:32px;height:35px;border-radius:7px;color:#a299a7;font-size:17px;flex-shrink:0}
+:where(html[data-surface="ho"]) .rule-remove:hover{color:#c14a67}
+:where(html[data-surface="ho"]) .rules-actions{display:flex;align-items:center;gap:13px;margin-top:13px}
+:where(html[data-surface="ho"]) .rule-add{border:1px dashed #c9bbeb;background:#f6f2ff;color:#6554b7;padding:9px 12px;border-radius:7px;font-weight:760;font-size:11px}
+:where(html[data-surface="ho"]) .rule-clear{border:0;color:#aaa3b1;background:transparent;font-size:11px}
+:where(html[data-surface="ho"]) #active-chips.active{display:flex;flex-wrap:wrap;gap:6px}
+:where(html[data-surface="ho"]) #active-chips .chip{cursor:pointer}:where(html[data-surface="ho"]) .lab-note{font-size:10px;color:#a6a3b3;margin:17px 0 0;line-height:1.6}
+:where(html[data-surface="ho"]) .edit-popover{position:fixed;z-index:100;width:min(330px,calc(100vw - 24px));padding:14.25px;max-height:calc(100dvh - 16px);overflow-y:auto;background:white;border:1px solid #e0daed;box-shadow:0 18px 65px #2320422d;border-radius:12px}
+:where(html[data-surface="ho"]) .edit-popover.hidden{display:none}
+:where(html[data-surface="ho"]) .edit-input{width:100%;border:1px solid #dcd7e8;border-radius:8px;background:white;padding:9px 10px;outline:none;min-height:36px;color:#352c48;font-size:12px}
+:where(html[data-surface="ho"]) .edit-input:focus{border-color:#8c76d7;box-shadow:0 0 0 3px #8c76d724}
+:where(html[data-surface="ho"]) textarea.edit-input{min-height:95px;resize:vertical;line-height:1.5}
+:where(html[data-surface="ho"]) .edit-group{margin:0}
+:where(html[data-surface="ho"]) .edit-search{margin-bottom:8px}:where(html[data-surface="ho"]) .option-list{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto}
+:where(html[data-surface="ho"]) .option-item{border:1px solid #e9e5f1;background:#fff;border-radius:7px;padding:7px 10px;display:inline-flex;align-items:center;gap:8px;color:#605b6e;font-size:11px;cursor:pointer}
+:where(html[data-surface="ho"]) .option-item[aria-pressed=true]{border-color:#bcaef0;background:#f2efff;color:#594ba4;font-weight:700}
+:where(html[data-surface="ho"]) .option-item:hover{border-color:#c2b4ec}:where(html[data-surface="ho"]) .option-item .option-check{font-size:10px}
+:where(html[data-surface="ho"]) .editor-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:13px;margin-top:13px;border-top:1px solid #f0edf5}
+:where(html[data-surface="ho"]) .editor-actions button{padding:8px 12px;border-radius:8px;font-size:11px;font-weight:760;border:1px solid #e1dce8;background:white;color:#625a71}
+:where(html[data-surface="ho"]) .editor-actions .save{border-color:#6c5bd6;background:#6c5bd6;color:white}
+:where(html[data-surface="ho"]) .edit-error{color:#b23d56;font-size:10px;margin-top:5px}:where(html[data-surface="ho"]) .edit-error:empty{display:none}
+:where(html[data-surface="ho"]) .drawer-header-copy{min-width:0;flex:1}
+:where(html[data-surface="ho"]) .drawer-record-title{margin:5px 0 0;font-size:21px;line-height:1.25;letter-spacing:-.035em;font-weight:790;color:#29263b;overflow-wrap:anywhere}
+:where(html[data-surface="ho"]) .drawer-content>.property-section{margin:0}
+:where(html[data-surface="ho"]) .drawer-footer .lab-bottom{justify-content:flex-end}
+@media(max-width:450px){:where(html[data-surface="ho"]) .drawer-record-title{font-size:19px}}
+:where(html[data-surface="ho"]) .property-section{margin:24px 0}:where(html[data-surface="ho"]) .property-section h3{font-size:11px;color:#7a748b;font-weight:830;letter-spacing:.065em;text-transform:uppercase;border-bottom:1px solid #eeebf3;margin:0 0 8px;padding-bottom:11px}
+:where(html[data-surface="ho"]) .property-row{display:grid;grid-template-columns:130px minmax(0,1fr);align-items:start;padding:7px 0;gap:12px;border-radius:6px;min-height:40px}
+:where(html[data-surface="ho"]) .property-row:hover{background:#faf9fd}:where(html[data-surface="ho"]) .property-label{display:flex;align-items:center;gap:7px;color:#918b9f;font-size:11px;min-width:0;padding:8px 4px}
+:where(html[data-surface="ho"]) .property-label small{font-size:10px;color:#9686b6}
+:where(html[data-surface="ho"]) .property-control{border:1px solid transparent;border-radius:5px;background:transparent;display:flex;align-items:center;min-height:33px;text-align:left;gap:4px;font-size:11px;color:#444053;min-width:0;padding:4px 6px;cursor:pointer;flex-wrap:wrap}
+:where(html[data-surface="ho"]) .property-control:hover:not(:disabled){border-color:#e2dcf0;background:#f6f3ff}
+:where(html[data-surface="ho"]) .property-control:disabled{cursor:default;color:#aaa5b0}
+:where(html[data-surface="ho"]) .property-control .pencil{opacity:0;color:#9c8cb4;margin-left:6px}:where(html[data-surface="ho"]) .property-control:hover .pencil{opacity:1}
+:where(html[data-surface="ho"]) .lab-bottom{display:flex;justify-content:space-between;gap:10px;align-items:center;width:100%}
+:where(html[data-surface="ho"]) .empty-table{padding:75px 20px;text-align:center;color:#aaa4b5;font-size:12px}
+:where(html[data-surface="ho"]) .empty-table strong{display:block;margin-bottom:6px;color:#5d536c}
+:where(html[data-surface="ho"]) .lab-section-panel{min-width:0}:where(html[data-surface="ho"]) .lab-section-panel .detail-panel{min-height:300px}
+@media(max-width:1050px){:where(html[data-surface="ho"]) .rule-row{flex-wrap:wrap}:where(html[data-surface="ho"]) .rule-row .rule-field,:where(html[data-surface="ho"]) .rule-row .rule-op{flex:1 1 calc(50% - 20px)}:where(html[data-surface="ho"]) .rule-inputs{flex:1 1 100%}}
+@media(max-width:760px){:where(html[data-surface="ho"]) .lab-menu{display:block!important}:where(html[data-surface="ho"]) .top-back-link{display:none}:where(html[data-surface="ho"]) .edit-popover{width:min(330px,calc(100vw - 16px))}:where(html[data-surface="ho"]) .types-strip{gap:5px}:where(html[data-surface="ho"]) #typed-table th:first-child,:where(html[data-surface="ho"]) #typed-table td:first-child{min-width:180px;width:180px}:where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){left:180px;min-width:112px;width:112px}:where(html[data-surface="ho"]) .rule-row .rule-field,:where(html[data-surface="ho"]) .rule-row .rule-op{flex:1 1 calc(50% - 18px)}:where(html[data-surface="ho"]) .property-row{grid-template-columns:108px minmax(0,1fr)}}
+@media(max-width:450px){:where(html[data-surface="ho"]) .page-heading{flex-wrap:wrap}:where(html[data-surface="ho"]) .lab-h1-tag{font-size:8px}:where(html[data-surface="ho"]) .types-strip{margin-top:0}:where(html[data-surface="ho"]) .view-tab{font-size:10px!important}:where(html[data-surface="ho"]) .toolbar{flex-wrap:wrap}:where(html[data-surface="ho"]) .rule-row{gap:5px}:where(html[data-surface="ho"]) #typed-table th:first-child,:where(html[data-surface="ho"]) #typed-table td:first-child{min-width:150px;width:150px}:where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){left:150px;min-width:102px;width:102px}:where(html[data-surface="ho"]) .rule-row .rule-field,:where(html[data-surface="ho"]) .rule-row .rule-op{flex:1 1 calc(50% - 18px)}:where(html[data-surface="ho"]) .edit-popover{padding:13.3px}:where(html[data-surface="ho"]) .drawer-content{padding:18px}:where(html[data-surface="ho"]) .property-row{grid-template-columns:102px minmax(0,1fr)}}
+
+:where(html[data-surface="ho"]) .option-item[hidden]{display:none!important}
+
+
+/* Historical HO input: playground-v22.css */
+/* PAP-884 · BO V2.2, denser Notion-inspired typed table and settings */
+:where(html[data-surface="ho"]) #typed-table thead th{font-size:11px;height:35px;padding:0 9px}
+:where(html[data-surface="ho"]) #typed-table tbody td{font-size:12px;height:42px;padding:5px 9px}
+:where(html[data-surface="ho"]) #typed-table .typed-cell{font-size:12px;padding:3px 5px;margin:0 -4px;min-height:28px}
+:where(html[data-surface="ho"]) #typed-table .id-code{font-size:11px}
+:where(html[data-surface="ho"]) #typed-table .column-type{font-size:10px}
+:where(html[data-surface="ho"]) #typed-table .datatag{font-size:11px;padding:3px 6px}
+:where(html[data-surface="ho"]) #typed-table th:first-child{min-width:225px;width:225px}
+:where(html[data-surface="ho"]) #typed-table td:first-child{min-width:225px;width:225px}
+:where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){position:static;left:auto;box-shadow:none}
+:where(html[data-surface="ho"]) #typed-table tr.group-heading-row td,:where(html[data-surface="ho"]) #typed-table tr.group-heading-row td:first-child{
+ position:relative!important;left:auto!important;z-index:1;background:#faf9fd!important;height:34px;padding:4px 13px;box-shadow:none;overflow:visible
+}
+:where(html[data-surface="ho"]) .group-toggle{background:transparent;border:0;padding:3px 2px;display:flex;align-items:center;gap:8px;color:#514d64;font-size:12px;font-weight:760}
+:where(html[data-surface="ho"]) .group-toggle small{font-size:11px;color:#9994a8;font-weight:520}
+:where(html[data-surface="ho"]) .group-pill{padding:3px 7px;border-radius:5px;background:#eeeaf8;color:#6353a5;font-size:11px}
+:where(html[data-surface="ho"]) .group-caret{font-size:13px;width:14px;color:#8476a4}
+:where(html[data-surface="ho"]) .settings-trigger{width:36px;height:35px;border:1px solid #e2deeb;background:#fff;border-radius:8px;color:#706886;font-size:19px;display:grid;place-items:center;padding:0}
+:where(html[data-surface="ho"]) .settings-trigger:hover:not(:disabled){background:#f3efff;border-color:#c3b7e8;color:#6554ba}
+:where(html[data-surface="ho"]) .settings-trigger:disabled{opacity:.3}
+:where(html[data-surface="ho"]) .heading-actions{gap:7px}
+:where(html[data-surface="ho"]) .heading-actions .primary-btn{min-height:35px}
+:where(html[data-surface="ho"]) .types-strip{gap:5px}
+:where(html[data-surface="ho"]) .type-pill{padding:5px 8px;font-size:11px}
+:where(html[data-surface="ho"]) #search{font-size:12px}
+:where(html[data-surface="ho"]) .toolbar{min-height:51px;padding:7px 12px;gap:7px}
+:where(html[data-surface="ho"]) .toolbar-button{height:32px;font-size:12px;padding:0 9px}
+:where(html[data-surface="ho"]) .view-tabs{height:42px}
+:where(html[data-surface="ho"]) .view-tab{font-size:12px}
+:where(html[data-surface="ho"]) .table-footer{min-height:43px;padding:7px 13px;font-size:11px}
+:where(html[data-surface="ho"]) .table-footer .pager{height:25px;width:27px}
+:where(html[data-surface="ho"]) .rule-row .rule-field,:where(html[data-surface="ho"]) .rule-row .rule-op,:where(html[data-surface="ho"]) .rule-row .rule-value-input{font-size:12px;height:34px;padding:6px 8px}
+:where(html[data-surface="ho"]) .rule-row{gap:6px;margin:6px 0}
+:where(html[data-surface="ho"]) .rules-panel{padding:12px 13px}
+:where(html[data-surface="ho"]) .rule-add,:where(html[data-surface="ho"]) .rule-clear,:where(html[data-surface="ho"]) .save-view-btn{font-size:12px}
+:where(html[data-surface="ho"]) .save-view-btn{border:0;margin-left:auto;background:#f0ecff;color:#6c59c6;border-radius:7px;padding:8px 11px;font-weight:770}
+:where(html[data-surface="ho"]) .save-view-btn:hover{background:#e6dfff}
+:where(html[data-surface="ho"]) .property-row,:where(html[data-surface="ho"]) .property-control,:where(html[data-surface="ho"]) .property-label,:where(html[data-surface="ho"]) .edit-input{font-size:12px}
+:where(html[data-surface="ho"]) .property-row{min-height:35px;padding:4px 0;grid-template-columns:130px minmax(0,1fr)}
+:where(html[data-surface="ho"]) .property-control{min-height:29px}
+:where(html[data-surface="ho"]) .property-section{margin-top:17px}
+:where(html[data-surface="ho"]) .property-section h3{padding:0 0 8px}
+:where(html[data-surface="ho"]) .datatag{padding:3px 6px}
+:where(html[data-surface="ho"]) .datatag.tag-gray{background:#ededed;color:#60616b}
+:where(html[data-surface="ho"]) .datatag.tag-brown{background:#f1e4d7;color:#885f49}
+:where(html[data-surface="ho"]) .datatag.tag-orange{background:#ffeadb;color:#a75b2e}
+:where(html[data-surface="ho"]) .datatag.tag-yellow{background:#fff0c6;color:#967121}
+:where(html[data-surface="ho"]) .datatag.tag-green{background:#deefe4;color:#347b52}
+:where(html[data-surface="ho"]) .datatag.tag-blue{background:#e0ebf7;color:#386b9b}
+:where(html[data-surface="ho"]) .datatag.tag-purple{background:#eee4f5;color:#7c559f}
+:where(html[data-surface="ho"]) .datatag.tag-pink{background:#f8e3ed;color:#a65c81}
+:where(html[data-surface="ho"]) .datatag.tag-red{background:#fae2df;color:#ad4e4a}
+:where(html[data-surface="ho"]) .settings-scrim{position:fixed;inset:0;background:#17132737;z-index:72;opacity:0;pointer-events:none;transition:opacity .18s}
+:where(html[data-surface="ho"]) .settings-scrim.visible{opacity:1;pointer-events:auto}
+:where(html[data-surface="ho"]) .settings-panel{position:fixed;top:0;right:0;bottom:0;width:min(405px,100vw);z-index:73;background:#fff;box-shadow:-20px 0 58px #1b182e30;display:flex;flex-direction:column;transform:translateX(104%);transition:transform .2s}
+:where(html[data-surface="ho"]) .settings-panel.open{transform:translateX(0)}
+:where(html[data-surface="ho"]) .settings-top{min-height:66px;border-bottom:1px solid #f0edf5;display:flex;align-items:center;gap:9px;padding:0 18px}
+:where(html[data-surface="ho"]) .settings-top h2{font-size:15px;flex:1;margin:0;color:#393648;letter-spacing:-.02em}
+:where(html[data-surface="ho"]) .settings-top button{border:0;border-radius:8px;background:transparent;color:#7f768b;width:31px;height:31px;font-size:20px}
+:where(html[data-surface="ho"]) .settings-top button:hover{background:#f4f1f8}
+:where(html[data-surface="ho"]) .settings-content{padding:14px 17px;overflow-y:auto;flex:1;scrollbar-width:thin}
+:where(html[data-surface="ho"]) .settings-menu{display:flex;flex-direction:column;gap:2px}
+:where(html[data-surface="ho"]) .settings-menu>button{width:100%;display:flex;align-items:center;gap:12px;padding:12px 10px;border:0;border-radius:8px;background:#fff;color:#3d384e;text-align:left}
+:where(html[data-surface="ho"]) .settings-menu>button:hover{background:#f6f3fc}
+:where(html[data-surface="ho"]) .settings-menu-icon{width:32px;height:32px;border-radius:8px;background:#f2eefb;color:#7965bc;display:grid;place-items:center;font-size:18px}
+:where(html[data-surface="ho"]) .settings-menu b{display:block;font-size:13px}
+:where(html[data-surface="ho"]) .settings-menu small{display:block;font-size:11px;color:#958fa1;margin-top:4px}
+:where(html[data-surface="ho"]) .settings-menu i{margin-left:auto;font-size:19px;color:#aaa0b8;font-style:normal}
+:where(html[data-surface="ho"]) .settings-hint{font-size:11px;color:#aaa3b2;line-height:1.6;margin:15px 0}
+:where(html[data-surface="ho"]) .settings-search{border:1px solid #e5e1ec;border-radius:8px;padding:0 10px;height:38px;display:flex;align-items:center;gap:8px;color:#9d93ae}
+:where(html[data-surface="ho"]) .settings-search input{border:0;outline:none;flex:1;width:100%;font-size:12px}
+:where(html[data-surface="ho"]) .settings-section-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:21px 0 8px;color:#77717d;font-size:12px}
+:where(html[data-surface="ho"]) .settings-section-heading strong{font-weight:740}
+:where(html[data-surface="ho"]) .settings-section-heading button{background:transparent;border:0;color:#6b59c4;padding:5px;font-size:11px}
+:where(html[data-surface="ho"]) .settings-section-heading>div{display:flex;gap:4px}
+:where(html[data-surface="ho"]) .settings-empty{padding:15px 7px;color:#b0abb8;font-size:11px}
+:where(html[data-surface="ho"]) .property-list{display:flex;flex-direction:column}
+:where(html[data-surface="ho"]) .property-item{display:flex;align-items:center;gap:8px;min-height:35px;padding:1px 0;border-radius:6px;cursor:default}
+:where(html[data-surface="ho"]) .property-item:hover{background:#faf8fe}
+:where(html[data-surface="ho"]) .property-item.drag-hover{outline:2px dashed #a996e7;background:#f4f0ff}
+:where(html[data-surface="ho"]) .drag-grip{width:20px;text-align:center;color:#b4afbc;font-size:16px;cursor:grab}
+:where(html[data-surface="ho"]) .property-kind{width:21px;text-align:center;font-weight:800;font-size:13px;color:#8175a3}
+:where(html[data-surface="ho"]) .property-text{flex:1;min-width:0;font-size:12px;color:#514c5c}
+:where(html[data-surface="ho"]) .property-item button{border:0;background:transparent;color:#988dae;font-size:15px;padding:3px 4px;border-radius:5px;line-height:1}
+:where(html[data-surface="ho"]) .property-item button:hover:not(:disabled){background:#eee8ff;color:#6653be}
+:where(html[data-surface="ho"]) .property-item button:disabled{opacity:.25}
+:where(html[data-surface="ho"]) .property-item .col-move{opacity:.12}
+:where(html[data-surface="ho"]) .property-item:hover .col-move{opacity:1}
+:where(html[data-surface="ho"]) .property-item .eye-toggle{font-size:17px;width:28px}
+:where(html[data-surface="ho"]) .settings-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 3px;border-bottom:1px solid #f0edf5;color:#55515e;font-size:12px}
+:where(html[data-surface="ho"]) .settings-line select{min-width:160px;max-width:200px;border:0;background:transparent;color:#7564b0;padding:6px;text-align:right}
+:where(html[data-surface="ho"]) .settings-line input[type=checkbox]{width:18px;height:18px;accent-color:#6755c9}
+:where(html[data-surface="ho"]) .settings-small-actions{display:flex;gap:8px;margin:10px 0}
+:where(html[data-surface="ho"]) .settings-small-actions button{border:1px solid #eae6f1;border-radius:7px;background:white;padding:7px;font-size:11px;color:#71668d}
+:where(html[data-surface="ho"]) .group-settings-item{display:flex;align-items:center;min-height:37px;gap:7px;padding:2px;border-radius:5px;font-size:12px}
+:where(html[data-surface="ho"]) .group-settings-item:hover{background:#faf8fd}
+:where(html[data-surface="ho"]) .group-settings-item span{flex:1;color:#51495d}
+:where(html[data-surface="ho"]) .group-settings-item small{color:#aaa3b3}
+:where(html[data-surface="ho"]) .group-settings-item button{width:28px;height:27px;border:0;background:transparent;color:#8178a5;font-size:17px}
+:where(html[data-surface="ho"]) .settings-danger{background:transparent;border:0;color:#a36c6c;padding:13px 3px;font-size:12px;margin-top:10px}
+:where(html[data-surface="ho"]) .save-view-form{display:flex;gap:7px;margin:16px 0}
+:where(html[data-surface="ho"]) .save-view-form input,:where(html[data-surface="ho"]) .rename-input{min-width:0;flex:1;border:1px solid #ddd6ed;border-radius:8px;padding:9px;font-size:12px}
+:where(html[data-surface="ho"]) .save-view-form button{border:0;background:#6e5bd3;color:white;padding:9px;border-radius:8px;font-size:11px;font-weight:760}
+:where(html[data-surface="ho"]) .saved-view-row{display:flex;align-items:center;gap:5px;min-height:39px;border-bottom:1px solid #f2f0f7}
+:where(html[data-surface="ho"]) .saved-view-row button{border:0;background:transparent;font-size:12px;color:#72678a;border-radius:6px;padding:8px}
+:where(html[data-surface="ho"]) .saved-view-row button:first-child{flex:1;text-align:left;color:#574c8e}
+:where(html[data-surface="ho"]) .saved-view-row button:hover{background:#f4efff}
+:where(html[data-surface="ho"]) .saved-tab{position:relative;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:980px){:where(html[data-surface="ho"]) #typed-table tbody td{height:43px}:where(html[data-surface="ho"]) #typed-table th:first-child,:where(html[data-surface="ho"]) #typed-table td:first-child{min-width:185px;width:185px}}
+@media(max-width:760px){
+ :where(html[data-surface="ho"]) .settings-panel{width:100vw}:where(html[data-surface="ho"]) .settings-top{padding:0 12px}
+ :where(html[data-surface="ho"]) .settings-content{padding:12px 13px}
+ :where(html[data-surface="ho"]) .heading-actions{gap:5px}
+ :where(html[data-surface="ho"]) .settings-trigger{width:31px;height:34px}
+ :where(html[data-surface="ho"]) .page-heading{align-items:flex-start}
+ :where(html[data-surface="ho"]) .page-heading-left h1{font-size:25px}
+ :where(html[data-surface="ho"]) .save-view-btn{margin:7px 0}
+ :where(html[data-surface="ho"]) #typed-table th:first-child,:where(html[data-surface="ho"]) #typed-table td:first-child{min-width:158px;width:158px}
+ :where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){position:static;left:auto}
+ :where(html[data-surface="ho"]) .view-tabs{overflow-x:auto;overflow-y:hidden;white-space:nowrap}
+ :where(html[data-surface="ho"]) .tabs-left{flex-shrink:0}
+}
+@media(max-width:450px){
+ :where(html[data-surface="ho"]) .heading-actions .primary-btn{font-size:11px;padding:0 8px}
+ :where(html[data-surface="ho"]) .heading-actions .settings-trigger{width:30px}
+ :where(html[data-surface="ho"]) .type-pill{padding:4px 6px;font-size:10px}
+ :where(html[data-surface="ho"]) .property-item .col-move{opacity:.5}
+ :where(html[data-surface="ho"]) .save-view-form{flex-wrap:wrap}
+}
+
+:where(html[data-surface="ho"]) .tag-color-editor{border-top:1px solid #eeeaf3;margin-top:13px;padding-top:12px}
+:where(html[data-surface="ho"]) .tag-color-editor>strong{font-size:11px;color:#6a6278;display:block;margin-bottom:9px}
+:where(html[data-surface="ho"]) .tag-color-selector select{width:100%;padding:7px 8px;border:1px solid #e3dfed;border-radius:7px;background:#fff;font-size:11px;color:#484357}
+:where(html[data-surface="ho"]) .tag-colors{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+:where(html[data-surface="ho"]) .tag-colors>button{width:26px;height:26px;display:grid;place-items:center;border:1px solid transparent;border-radius:6px;background:transparent}
+:where(html[data-surface="ho"]) .tag-colors>button:hover,:where(html[data-surface="ho"]) .tag-colors>button[aria-pressed=true]{border-color:#a496cd;background:#f6f2fc}
+:where(html[data-surface="ho"]) .tag-color-dot{height:16px;width:16px;border-radius:5px;display:block;border:1px solid #00000008}
+:where(html[data-surface="ho"]) .tag-color-gray{background:#bbbcc4}:where(html[data-surface="ho"]) .tag-color-brown{background:#b88c6b}:where(html[data-surface="ho"]) .tag-color-orange{background:#dc995a}
+:where(html[data-surface="ho"]) .tag-color-yellow{background:#e4c467}:where(html[data-surface="ho"]) .tag-color-green{background:#75b290}:where(html[data-surface="ho"]) .tag-color-blue{background:#7ca9d3}
+:where(html[data-surface="ho"]) .tag-color-purple{background:#aa8aca}:where(html[data-surface="ho"]) .tag-color-pink{background:#e1a4bb}:where(html[data-surface="ho"]) .tag-color-red{background:#e08d84}
+
+
+/* Historical HO input: playground-v23.css */
+/* PAP-885 — UI V2.3 production-like density; interactive mock data only */
+:where(html[data-surface="ho"]) .types-strip,:where(html[data-surface="ho"]) .prototype-pill,:where(html[data-surface="ho"]) .lab-h1-tag,:where(html[data-surface="ho"]) .lab-note,:where(html[data-surface="ho"]) .top-back-link,:where(html[data-surface="ho"]) .topbar-root,:where(html[data-surface="ho"]) .table-index,:where(html[data-surface="ho"]) .results-secondary,:where(html[data-surface="ho"]) .toolbar-hint,:where(html[data-surface="ho"]) .lab-section-panel .settings-hint,:where(html[data-surface="ho"]) #undo-v22,:where(html[data-surface="ho"]) #redo-v22,:where(html[data-surface="ho"]) #filter-toggle,:where(html[data-surface="ho"]) #visible-columns,:where(html[data-surface="ho"]) #reset-all,:where(html[data-surface="ho"]) #group-shortcut,:where(html[data-surface="ho"]) #save-view{
+ display:none!important;
+}
+:where(html[data-surface="ho"]) .page-heading-left>p,:where(html[data-surface="ho"]) .page-heading .eyebrow{display:none!important}
+:where(html[data-surface="ho"]) .page-heading{margin-bottom:19px}
+:where(html[data-surface="ho"]) .page-heading h1{font-size:30px}
+
+
+:where(html[data-surface="ho"]) .view-tabs{min-height:43px;max-height:45px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+:where(html[data-surface="ho"]) .view-tabs::-webkit-scrollbar{display:none}
+:where(html[data-surface="ho"]) .tabs-left{align-items:stretch;gap:10px;flex:0 0 auto}
+:where(html[data-surface="ho"]) .view-tab{display:inline-flex;align-items:center;padding:0 9px;height:43px;gap:5px}
+:where(html[data-surface="ho"]) .view-tab:nth-child(3){display:inline-flex!important}
+:where(html[data-surface="ho"]) .view-tab.saved-tab{padding:0 8px;max-width:180px}
+:where(html[data-surface="ho"]) .view-tab.saved-tab.dragging{opacity:.42}
+:where(html[data-surface="ho"]) .view-tab.saved-tab.drag-target{border-left:3px solid #7460d7}
+:where(html[data-surface="ho"]) .view-add{align-self:center;width:29px;height:29px;flex:0 0 29px;border:0;border-radius:6px;background:transparent;color:#877e9a;font-size:20px;display:grid;place-items:center;line-height:1}
+:where(html[data-surface="ho"]) .view-add:hover{background:#f1edfb;color:#6c58c0}
+:where(html[data-surface="ho"]) .view-rename-input{align-self:center;height:30px;width:165px;border:1px solid #8e7bd9;border-radius:5px;padding:4px 8px;background:white;color:#463d5b;font-size:12px}
+:where(html[data-surface="ho"]) .view-context{position:fixed;z-index:1000;min-width:168px;background:white;border:1px solid #e7e1ef;box-shadow:0 12px 35px #27243b24;padding:5px;border-radius:9px}
+:where(html[data-surface="ho"]) .view-context button{width:100%;text-align:left;border:0;background:transparent;border-radius:5px;color:#554d62;font-size:12px;padding:10px 12px}
+:where(html[data-surface="ho"]) .view-context button:hover{background:#f3effa;color:#614eb9}
+:where(html[data-surface="ho"]) #typed-table{table-layout:fixed;border-collapse:separate}
+:where(html[data-surface="ho"]) #typed-table th.quick-open-th,:where(html[data-surface="ho"]) #typed-table td.first-quick-cell{
+ width:37px!important;min-width:37px!important;max-width:37px!important;
+ position:sticky!important;left:0!important;z-index:5!important;
+ padding:0!important;text-align:center!important;
+ background:#fafafe!important;
+ box-shadow:1px 0 0 #eeedf3!important;
+}
+:where(html[data-surface="ho"]) #typed-table td.first-quick-cell{background:#fff!important;z-index:4!important}
+:where(html[data-surface="ho"]) #typed-table tr:hover td.first-quick-cell{background:#f8f5ff!important}
+:where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){
+ position:sticky!important;left:37px!important;z-index:3!important;
+ background:#fafafe;box-shadow:1px 0 0 #eeedf3!important;
+ min-width:225px!important;width:225px!important;
+}
+:where(html[data-surface="ho"]) #typed-table td:nth-child(2){background:white;z-index:2!important}
+:where(html[data-surface="ho"]) #typed-table tr:hover td:nth-child(2){background:#fbfaff!important}
+:where(html[data-surface="ho"]) #typed-table th:nth-child(3),:where(html[data-surface="ho"]) #typed-table td:nth-child(3){
+ position:static!important;left:auto!important;box-shadow:none!important;
+}
+:where(html[data-surface="ho"]) #typed-table .first-quick-cell .row-open{
+ width:22px;height:22px;min-width:22px;border:0;border-radius:5px;
+ background:transparent;color:#9e94ad;line-height:1;font-size:13px;
+ opacity:.58;display:inline-grid;place-items:center;padding:0;
+}
+:where(html[data-surface="ho"]) #typed-table tr:hover .first-quick-cell .row-open,
+:where(html[data-surface="ho"]) #typed-table .first-quick-cell .row-open:focus-visible{opacity:1;background:#eae3fc;color:#6553b4}
+:where(html[data-surface="ho"]) #typed-table th.column-draggable{cursor:grab}
+:where(html[data-surface="ho"]) #typed-table th.column-draggable:active{cursor:grabbing}
+:where(html[data-surface="ho"]) #typed-table th.column-draggable.dragging{opacity:.48;background:#efe9fa}
+:where(html[data-surface="ho"]) #typed-table th.column-draggable.drag-target{box-shadow:inset 3px 0 #806ce0}
+:where(html[data-surface="ho"]) #typed-table .group-heading-row td,:where(html[data-surface="ho"]) #typed-table .group-heading-row td:first-child{
+ position:relative!important;left:auto!important;z-index:1!important;
+ background:#faf9fd!important;box-shadow:none!important;
+}
+:where(html[data-surface="ho"]) #typed-table tbody tr.group-heading-row .group-toggle{margin-left:27px}
+:where(html[data-surface="ho"]) .toolbar{justify-content:flex-start;min-height:49px}
+:where(html[data-surface="ho"]) .toolbar .search-field{max-width:350px;width:clamp(230px,33%,350px)}
+:where(html[data-surface="ho"]) .toolbar .toolbar-spacer{flex:1}
+:where(html[data-surface="ho"]) #settings-content .rules-panel{padding:0;border:0;background:#fff}
+:where(html[data-surface="ho"]) #settings-content .rules-top{display:none}
+:where(html[data-surface="ho"]) #settings-content .rules-combine{display:flex;margin:8px 0 18px}
+:where(html[data-surface="ho"]) #settings-content .rule-row{display:grid;grid-template-columns:1fr 1fr 32px;align-items:center;gap:7px;margin:11px 0 13px}
+:where(html[data-surface="ho"]) #settings-content .rule-row>.rule-field{grid-column:1;min-width:0;width:100%}
+:where(html[data-surface="ho"]) #settings-content .rule-row>.rule-op{grid-column:2;min-width:0;width:100%}
+:where(html[data-surface="ho"]) #settings-content .rule-inputs{grid-column:1 / 3;grid-row:2;width:100%;display:flex}
+:where(html[data-surface="ho"]) #settings-content .rule-inputs .rule-value-input{flex:1;min-width:0}
+:where(html[data-surface="ho"]) #settings-content .rule-row>.rule-remove{grid-column:3;grid-row:1}
+:where(html[data-surface="ho"]) #settings-content .rules-actions{gap:8px}
+:where(html[data-surface="ho"]) #settings-content .rule-add{width:100%;text-align:center}
+:where(html[data-surface="ho"]) #settings-content .rule-clear{padding:8px;flex:0 0 auto}
+:where(html[data-surface="ho"]) #typed-table tr[data-record] td{font-size:12px}
+:where(html[data-surface="ho"]) #typed-table tr[data-record] .typed-cell{font-size:12px}
+
+@media(max-width:900px){
+ :where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){min-width:187px!important;width:187px!important}
+}
+@media(max-width:760px){
+ :where(html[data-surface="ho"]) #typed-table th:nth-child(2),:where(html[data-surface="ho"]) #typed-table td:nth-child(2){min-width:158px!important;width:158px!important}
+ :where(html[data-surface="ho"]) .page-heading h1{font-size:25px}
+ :where(html[data-surface="ho"]) .view-tab{padding:0 6px}
+ :where(html[data-surface="ho"]) .tabs-left{gap:3px}
+ :where(html[data-surface="ho"]) .toolbar .search-field{width:100%;max-width:none}
+ :where(html[data-surface="ho"]) .view-add{width:32px;min-width:32px}
+}
+
+
+/* Historical HO input: full-detail-v24.css */
+
+/* PAP-879 V2.4 · Founder Full Detail baseline; preserved V2.3 shell */
+:where(html[data-surface="ho"]) .v24-main-panel{min-width:0}
+:where(html[data-surface="ho"]) .v24-intro{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin:0 0 18px}
+:where(html[data-surface="ho"]) .v24-eyebrow{display:block;font-size:10px;letter-spacing:.10em;font-weight:800;color:#6f64a1;margin-bottom:8px}
+:where(html[data-surface="ho"]) .v24-intro h3{font-size:22px;line-height:1.2;margin:0 0 8px;color:#242238}
+:where(html[data-surface="ho"]) .v24-intro p{margin:0;font-size:12px;color:#6c7281;line-height:1.6;max-width:630px}
+:where(html[data-surface="ho"]) .v24-demo-label{display:inline-flex;padding:6px 9px;background:#fef3c7;color:#9a5b0a;font-size:10px;font-weight:800;border-radius:6px;flex-shrink:0}
+:where(html[data-surface="ho"]) .v24-capability-note,:where(html[data-surface="ho"]) .v24-audit-contract{background:#f7f8fe;border:1px solid #e5e8f2;border-radius:9px;padding:10px 13px;font-size:11.5px;color:#586174;line-height:1.6;margin:0 0 19px}
+:where(html[data-surface="ho"]) .v24-capability-note strong{color:#363551}
+:where(html[data-surface="ho"]) .v24-prop-section{margin:18px 0 26px}
+:where(html[data-surface="ho"]) .v24-section-heading{display:flex;justify-content:space-between;border-bottom:1px solid #edeef2;padding-bottom:9px;margin-bottom:8px}
+:where(html[data-surface="ho"]) .v24-section-heading h4{font-size:12px;font-weight:750;margin:0;color:#30344a}
+:where(html[data-surface="ho"]) .v24-prop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+:where(html[data-surface="ho"]) .v24-prop-item{min-width:0;display:grid;grid-template-columns:minmax(110px,40%) minmax(0,1fr);align-items:center;gap:10px;min-height:45px;border-bottom:1px solid #f1f2f6;padding:5px 0}
+:where(html[data-surface="ho"]) .v24-prop-key{display:flex;align-items:center;gap:8px;min-width:0;color:#697185;font-size:11px}
+:where(html[data-surface="ho"]) .v24-field-glyph{font-size:13px;color:#8b86a5;width:17px;text-align:center;flex-shrink:0}
+:where(html[data-surface="ho"]) .v24-prop-value{display:flex;align-items:center;justify-content:space-between;gap:9px;text-align:left;min-width:0;font-size:12px;line-height:1.4;color:#303448;padding:6px 8px;border-radius:6px;border:1px solid transparent;overflow-wrap:anywhere}
+:where(html[data-surface="ho"]) button.v24-prop-value{width:100%;cursor:pointer;background:transparent;font:inherit;font-size:12px}
+:where(html[data-surface="ho"]) button.v24-prop-value:hover,:where(html[data-surface="ho"]) button.v24-prop-value:focus-visible{border-color:#ded9ff;background:#f8f7ff;outline:0}
+:where(html[data-surface="ho"]) .v24-edit-glyph{font-size:12px;color:#7864cf;flex-shrink:0}
+:where(html[data-surface="ho"]) .v24-lock{font-size:14px;color:#a9aeba;flex-shrink:0}
+:where(html[data-surface="ho"]) .v24-aside-id{font:11px ui-monospace,Consolas,monospace;color:#6f64a1;padding:7px 9px;background:#f6f5ff;border-radius:6px;overflow-wrap:anywhere}
+:where(html[data-surface="ho"]) .v24-aside-foot{font-size:11px;color:#777c8a;line-height:1.65;margin:18px 0 13px}
+:where(html[data-surface="ho"]) .v24-special-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+:where(html[data-surface="ho"]) .v24-special-card{border:1px solid #e5e5f1;border-radius:11px;padding:16px;background:#fbfbff;min-width:0}
+:where(html[data-surface="ho"]) .v24-special-card.v24-full{grid-column:1/-1}
+:where(html[data-surface="ho"]) .v24-card-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;background:#eeeaff;color:#6558bc;margin-bottom:10px}
+:where(html[data-surface="ho"]) .v24-special-card h4{font-size:13px;color:#312b4b;margin:0 0 6px}
+:where(html[data-surface="ho"]) .v24-special-card p{font-size:11.5px;color:#697186;line-height:1.55;margin:0 0 14px}
+:where(html[data-surface="ho"]) .v24-special-card dl{margin:0}
+:where(html[data-surface="ho"]) .v24-special-card dl div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid #e8e9f1;padding:8px 0;font-size:11px}
+:where(html[data-surface="ho"]) .v24-special-card dt{color:#717b8c}
+:where(html[data-surface="ho"]) .v24-special-card dd{color:#31354a;font-weight:650;margin:0;text-align:right}
+:where(html[data-surface="ho"]) .v24-card-foot{font-size:10px;color:#8b84ac;border-top:1px solid #e8e9f1;padding-top:9px}
+:where(html[data-surface="ho"]) .v24-schedule-chip{display:inline-flex;gap:7px;padding:7px 10px;border-radius:6px;background:#f3efff;font-size:11px;color:#6c55ba}
+:where(html[data-surface="ho"]) .v24-history-scope{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+:where(html[data-surface="ho"]) .v24-history-scope>div{display:flex;flex-direction:column;gap:5px;flex:1;min-width:165px;padding:11px 13px;border:1px solid #e8e7f1;border-radius:8px;background:#fbfbff}
+:where(html[data-surface="ho"]) .v24-history-scope span{font-size:10px;color:#788095}
+:where(html[data-surface="ho"]) .v24-history-scope strong{font-size:12px;color:#3c375b;overflow-wrap:anywhere}
+:where(html[data-surface="ho"]) .v24-history-filter{display:flex;align-items:center;gap:9px;border:1px solid #e1e2eb;border-radius:8px;padding:9px 11px;margin:13px 0;font-size:15px;color:#89839d}
+:where(html[data-surface="ho"]) .v24-history-filter input{border:0;background:transparent;flex:1;min-width:0;outline:0;font-size:12px}
+:where(html[data-surface="ho"]) .v24-audit-list{display:flex;flex-direction:column;gap:10px;margin-bottom:15px}
+:where(html[data-surface="ho"]) .v24-audit-event{display:flex;align-items:flex-start;gap:11px;border:1px solid #e6e8f0;padding:13px;border-radius:10px;background:#fff}
+:where(html[data-surface="ho"]) .v24-audit-icon{background:#eaefff;border-radius:50%;width:29px;height:29px;display:grid;place-items:center;color:#6273bb;flex-shrink:0}
+:where(html[data-surface="ho"]) .v24-audit-content{flex:1;min-width:0}
+:where(html[data-surface="ho"]) .v24-audit-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#343a4c}
+:where(html[data-surface="ho"]) .v24-outcome{font-size:9px;color:#0f7350;background:#ddf7eb;padding:4px 6px;border-radius:5px}
+:where(html[data-surface="ho"]) .v24-audit-content p{font-size:11px;line-height:1.5;margin:7px 0;color:#6a7180}
+:where(html[data-surface="ho"]) .v24-diff{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;margin:10px 0}
+:where(html[data-surface="ho"]) .v24-diff span{color:#7a8090}
+:where(html[data-surface="ho"]) .v24-diff code{font-size:10px;white-space:normal;overflow-wrap:anywhere;border:1px solid #eee;background:#f8f9fc;padding:3px 6px;border-radius:4px}
+:where(html[data-surface="ho"]) .v24-audit-content small{color:#8c93a3;font-size:10px}
+:where(html[data-surface="ho"]) .v24-audit-empty{font-size:12px;color:#8a8e9b;padding:20px;text-align:center;border:1px dashed #d8dbe6;border-radius:8px}
+:where(html[data-surface="ho"]) .v24-audit-contract{margin-top:15px}
+@media(max-width:1120px){:where(html[data-surface="ho"]) .v24-prop-grid{grid-template-columns:1fr}}
+@media(max-width:720px){:where(html[data-surface="ho"]) .v24-intro{flex-direction:column}:where(html[data-surface="ho"]) .v24-special-grid{grid-template-columns:1fr}:where(html[data-surface="ho"]) .v24-special-card.v24-full{grid-column:auto}:where(html[data-surface="ho"]) .v24-prop-item{grid-template-columns:minmax(90px,37%) minmax(0,1fr)}}
+
+
+/* Historical HO input: full-detail-v25.css */
+
+/* PAP-879 Full Detail V2.5: full-width content and compact horizontal history rows. */
+:where(html[data-surface="ho"]) #detail-body.v25-full-width{display:block !important;grid-template-columns:minmax(0,1fr) !important;max-width:none !important;}
+:where(html[data-surface="ho"]) #detail-body.v25-full-width>.v24-main-panel{width:100%;max-width:none;min-width:0;}
+:where(html[data-surface="ho"]) .v25-history-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;}
+:where(html[data-surface="ho"]) .v25-history-top h3{font-size:18px;color:#292a40;margin:0;}
+:where(html[data-surface="ho"]) .v25-history-filter{margin:0 0 12px;min-height:35px;padding:7px 10px;}
+:where(html[data-surface="ho"]) .v25-audit-list{display:flex;flex-direction:column;gap:0;border:1px solid #e8e9f1;border-radius:10px;overflow:hidden;background:#fff;}
+:where(html[data-surface="ho"]) .v25-audit-row{display:grid;grid-template-columns:118px 142px minmax(155px,1.1fr) minmax(160px,1.1fr) 74px;gap:13px;align-items:center;padding:10px 13px;min-height:51px;border-bottom:1px solid #eef0f5;color:#374151;}
+:where(html[data-surface="ho"]) .v25-audit-row:last-child{border-bottom:0;}
+:where(html[data-surface="ho"]) .v25-audit-row:hover{background:#fafafe;}
+:where(html[data-surface="ho"]) .v25-audit-when{display:flex;gap:2px;flex-direction:column;font-variant-numeric:tabular-nums;font-size:10px;line-height:1.35;}
+:where(html[data-surface="ho"]) .v25-audit-when strong{font-weight:700;color:#484860;font-size:11px;}
+:where(html[data-surface="ho"]) .v25-audit-when span{color:#9995a7;}
+:where(html[data-surface="ho"]) .v25-audit-who{display:flex;align-items:center;gap:6px;min-width:0;color:#656477;font-size:11px;}
+:where(html[data-surface="ho"]) .v25-audit-who>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:where(html[data-surface="ho"]) .v25-person-marker{background:#f1effa;color:#7770a4;width:21px;height:21px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font-size:11px;}
+:where(html[data-surface="ho"]) .v25-audit-action{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:11px;line-height:1.3;}
+:where(html[data-surface="ho"]) .v25-audit-action strong{font-weight:700;color:#39364c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:where(html[data-surface="ho"]) .v25-audit-action span{font-size:10px;color:#9699a6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:where(html[data-surface="ho"]) .v25-audit-changes{display:flex;flex-direction:column;gap:4px;min-width:0;}
+:where(html[data-surface="ho"]) .v25-audit-field{font-size:10px;color:#9995a5;}
+:where(html[data-surface="ho"]) .v25-change-flow{display:flex;align-items:center;gap:5px;font-size:10px;min-width:0;}
+:where(html[data-surface="ho"]) .v25-change-flow span,:where(html[data-surface="ho"]) .v25-change-flow strong{min-width:0;max-width:44%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#f7f7fa;border-radius:4px;padding:3px 6px;font-weight:500;color:#707080;}
+:where(html[data-surface="ho"]) .v25-change-flow strong{font-weight:650;color:#3e3a60;background:#f2f0ff;}
+:where(html[data-surface="ho"]) .v25-change-flow em{font-style:normal;color:#b2b2bc;flex-shrink:0;}
+:where(html[data-surface="ho"]) .v25-audit-outcome{justify-self:end;border-radius:5px;padding:4px 6px;background:#e4f7ed;color:#167149;font-size:9px;font-weight:800;}
+@media(max-width:950px){
+ :where(html[data-surface="ho"]) .v25-audit-row{grid-template-columns:90px minmax(120px,.7fr) minmax(130px,1fr) minmax(120px,1fr);gap:9px;padding:9px 11px;}
+ :where(html[data-surface="ho"]) .v25-audit-outcome{display:none;}
+}
+@media(max-width:650px){
+ :where(html[data-surface="ho"]) .v25-audit-row{grid-template-columns:72px minmax(0,1fr);gap:3px 9px;padding:10px;}
+ :where(html[data-surface="ho"]) .v25-audit-when{grid-row:1/3;}
+ :where(html[data-surface="ho"]) .v25-audit-who{grid-column:2;}
+ :where(html[data-surface="ho"]) .v25-audit-action{grid-column:2;}
+ :where(html[data-surface="ho"]) .v25-audit-changes{grid-column:2;margin-top:4px;flex-direction:row;align-items:center;gap:7px;}
+ :where(html[data-surface="ho"]) .v25-audit-field{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+ :where(html[data-surface="ho"]) .v25-audit-action span{display:none;}
+}
+
+/* PAP-985 — BO without redundant global topbar. Mobile menu in page heading/Full Detail hero. */
+:where(html[data-surface="ho"]) .page-heading-left{display:flex;align-items:center;gap:10px;min-width:0}
+@media(max-width:760px){
+ :where(html[data-surface="ho"]) .page-heading-left .mobile-menu,:where(html[data-surface="ho"]) .detail-hero-primary .mobile-menu{display:grid!important;place-items:center;flex:0 0 34px;width:34px;height:34px;min-width:34px;padding:0;border:1px solid #e7e5ee;border-radius:8px;background:#fff;color:#6d658b;font-size:18px}
+ :where(html[data-surface="ho"]) .page-heading-left h1{min-width:0}
+}
+@media(max-width:450px){:where(html[data-surface="ho"]) .page-heading{flex-wrap:wrap}:where(html[data-surface="ho"]) .page-heading .heading-actions{padding-top:0;margin-left:auto}}
+
+/* PAP-986 — no Full Detail breadcrumb/navigation tree. Compact action inside existing hero. */
+:where(html[data-surface="ho"]) .detail-hero-primary{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+:where(html[data-surface="ho"]) .detail-hero-copy{min-width:0;flex:1}
+:where(html[data-surface="ho"]) .detail-hero-back{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border:1px solid #e9e7ef;border-radius:8px;background:#fff;color:#77699a;font-size:20px;font-weight:500;line-height:1}
+:where(html[data-surface="ho"]) .detail-hero-back:hover,:where(html[data-surface="ho"]) .detail-hero-back:focus-visible{background:#f5f2ff;border-color:#d8d0f0;color:#5845a9}
+:where(html[data-surface="ho"]) .detail-hero-primary .mobile-menu{flex-shrink:0}
+@media(max-width:760px){:where(html[data-surface="ho"]) .detail-hero-primary{width:100%;gap:8px}:where(html[data-surface="ho"]) .detail-hero-back{width:34px;height:34px;flex-basis:34px}}
+
+/* PAP-986 runtime-clean Full Detail. */
+:where(html[data-surface="ho"]) .detail-hero h1{margin:0 0 6px}
+:where(html[data-surface="ho"]) .detail-hero-copy{flex:1;min-width:0}
+:where(html[data-surface="ho"]) .detail-hero{padding-top:22px;padding-bottom:22px}
+:where(html[data-surface="ho"]) .detail-hero p{font-size:11px;color:#85839a}
+:where(html[data-surface="ho"]) #detail-body .v24-main-panel>.v24-prop-section:first-child{margin-top:0}
+:where(html[data-surface="ho"]) #detail-body .v24-special-card>h4{margin-bottom:12px}
+:where(html[data-surface="ho"]) #detail-body .v24-special-card>dl div:first-child{border-top:0}
+:where(html[data-surface="ho"]) #detail-body .v24-special-grid{align-items:start}
+/* Full Detail shows complete notes and all selected relation/tags, unlike compact Table cells. */
+:where(html[data-surface="ho"]) #detail-body .v25-full-note{display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;text-align:left}
+:where(html[data-surface="ho"]) #detail-body .v25-full-values{display:flex;flex-wrap:wrap;gap:5px;max-width:100%;min-width:0}
+:where(html[data-surface="ho"]) #detail-body .v24-prop-value{white-space:normal;overflow:visible}
+@media(max-width:760px){:where(html[data-surface="ho"]) .detail-hero{padding:18px}:where(html[data-surface="ho"]) .detail-hero-primary{align-items:flex-start}:where(html[data-surface="ho"]) .detail-hero-primary .detail-hero-back,:where(html[data-surface="ho"]) .detail-hero-primary .mobile-menu{margin-top:2px}}
+
+
+/* HO theme tokens and scoped compatibility rules */
+[data-surface="ho"] { --ds-primary:#74283E; --ds-primary-hover:#611D34; --ds-primary-subtle:#F9EDF1; --ds-primary-border:#DEC0CB; --ds-on-primary:#FFFFFF; --purple:var(--ds-primary); --purple-dark:var(--ds-primary-hover); --purple-soft:var(--ds-primary-subtle); --lavender:var(--ds-primary); }
+[data-surface="ho"] .brand-mark { background:var(--ds-primary); box-shadow:none; }
+[data-surface="ho"] .nav-link.active { background:var(--ds-primary); color:var(--ds-on-primary); }
+[data-surface="ho"] .nav-workspace-glyph { background:var(--ds-primary-hover); color:var(--ds-on-primary); }
+[data-surface="ho"] .primary-btn { background:var(--ds-primary); border-color:var(--ds-primary); color:var(--ds-on-primary); }
+[data-surface="ho"] .primary-btn:hover { background:var(--ds-primary-hover); }
+[data-surface="ho"] :is(button,a,input,select,textarea):focus-visible { outline-color:var(--ds-primary); }
+[data-surface="ho"] :is(.view-tab.active,.view-tab.selected,.detail-tab.selected) { color:var(--ds-primary); border-color:var(--ds-primary); }
+[data-surface="ho"] :is(.typed-cell:hover,.typed-cell:focus-visible,.property-control:hover,.row-open:hover) { background:var(--ds-primary-subtle); color:var(--ds-primary); }
+[data-surface="ho"] #typed-table tr:hover td.first-quick-cell, [data-surface="ho"] #typed-table tr:hover td:nth-child(2), [data-surface="ho"] #typed-table tr.selected td { background:var(--ds-primary-subtle)!important; }
+[data-surface="ho"] #typed-table .first-quick-cell .row-open:focus-visible { background:var(--ds-primary-subtle); color:var(--ds-primary); }
+[data-surface="ho"] :is(.view-add:hover,.view-context button:hover,.view-tab.saved-tab.drag-target) { background:var(--ds-primary-subtle); color:var(--ds-primary); border-color:var(--ds-primary-border); }
+[data-surface="ho"] .sidebar-footer button { background:transparent; border:1px solid var(--ds-primary-border); color:#fff; border-radius:6px; padding:5px; margin-left:auto; }
+
+[data-surface="ho"] .page-heading h1 small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:4px; }
+[data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
+[data-surface="ho"] :is(.lab-menu,.detail-hero-back,.settings-trigger,.pager) { color:var(--ds-primary); border-color:var(--ds-primary-border); }
+[data-surface="ho"] .toolbar-button, [data-surface="ho"] .view-add { display:none!important; }
+[data-surface="ho"] :is(.view-rename-input,input:focus,select:focus) { border-color:var(--ds-primary-border); }
+
+[data-surface="ho"] .nav-link.active { box-shadow:inset 3px 0 0 var(--ds-primary-border); }
+[data-surface="ho"] .nav-link.active .nav-icon { color:var(--ds-on-primary); }
+[data-surface="ho"] .sidebar-footer .avatar { background:var(--ds-primary); color:var(--ds-on-primary); }
+[data-surface="ho"] .property-control:hover:not(:disabled), [data-surface="ho"] .detail-hero-back:hover { background:var(--ds-primary-subtle); border-color:var(--ds-primary-border); color:var(--ds-primary); }
+[data-surface="ho"] #detail-subtitle { color:var(--ds-primary); }
+
+[data-surface="ho"] .ho-audit { padding:24px; max-width:100%; }
+[data-surface="ho"] .ho-audit-description { margin:0 0 20px; color:#6b6470; font-size:13px; }
+[data-surface="ho"] .ho-audit-outcome { display:flex; gap:8px; align-items:center; font-size:12px; }
+[data-surface="ho"] .ho-audit-outcome select { border:1px solid var(--ds-primary-border); border-radius:8px; padding:6px; }
+[data-surface="ho"] .ho-audit-details { display:grid; grid-template-columns:110px minmax(0,1fr); gap:14px; overflow-wrap:anywhere; }
+[data-surface="ho"] .ho-audit-details dt { color:#777; }
+[data-surface="ho"] .ho-audit-details dd { margin:0; }
+[data-surface="ho"] .ho-audit-note { color:#777; font-size:12px; }
+

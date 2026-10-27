@@ -10,7 +10,7 @@ export interface BoSkeletonEnv extends BoShellGateEnv {
   ASSETS: { fetch(request: Request): Promise<Response> };
 }
 export const BO_AUTHORITY_PREFIX = "/bo-authority-source/";
-export const HO_AUTHORITY_STYLES = ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"] as const;
+export const HO_AUTHORITY_STYLES = ["ho-scoped.css"] as const;
 export const BO_AUTHORITY_STYLES = ["styles.css"] as const;
 export const HO_AUTHORITY_ASSETS = new Set<string>(HO_AUTHORITY_STYLES);
 export const BO_AUTHORITY_ASSETS = new Set<string>(BO_AUTHORITY_STYLES);
@@ -27,7 +27,7 @@ export async function serveBoSkeleton(request: Request, env: BoSkeletonEnv, asse
   catch (error) {
     return new Response(error instanceof BoShellGateError ? "BO access denied" : "BO authorization unavailable", { status: error instanceof BoShellGateError ? error.status : 503, headers });
   }
-  const response = await env.ASSETS.fetch(new Request(new URL((ho ? "/ho-authority-source/" + asset : BO_AUTHORITY_PREFIX + "bo-scoped.css"), url.origin)));
+  const response = await env.ASSETS.fetch(new Request(new URL((ho ? "/ho-authority-source/ho-scoped.css" : BO_AUTHORITY_PREFIX + "bo-scoped.css"), url.origin)));
   if (!response.ok) return new Response("Authority asset unavailable", { status: 503, headers });
   return new Response(response.body, { headers: { ...headers, "content-type": "text/css; charset=utf-8" } });
 }

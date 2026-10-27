@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { forbidden, notFound, redirect } from "next/navigation";
 import { authorizeHoShell, type HoEnv } from "@/lib/ho-auth";
 import { BoShellGateError } from "@/lib/bo-shell-gate";
-import "./ho-theme.css";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Head Office · PINO House" };
 export default async function HoLayout({ children }: { children: React.ReactNode }) {
