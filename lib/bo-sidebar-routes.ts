@@ -1,2 +1,3 @@
-/** BO school adapter query-module keys, including the PAP-1029 Parent read-only directory. */
-export const BO_SIDEBAR_MODULES: readonly string[] = ["students", "classes", "subscriptions", "enrollments", "visits", "staffs", "timekeeping", "salaryPeriods", "audits", "parents"];
+/** PAP-1089: one owner for legacy query keys; target path migration is separate. */
+import { BO_LEGACY_QUERY_MODULES } from "./bo-url-contract";
+export const BO_SIDEBAR_MODULES: readonly string[] = BO_LEGACY_QUERY_MODULES;

@@ -3,6 +3,7 @@ import type { BoWorkspaceSource } from "@/app/bo/components/registration/BoRegis
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { boModuleRegistry } from "./registry";
 import { isBoStagingRouteAdmitted } from "./bo-staging-route-policy";
+import { currentBoModuleHref } from "@/lib/bo-url-contract";
 import { shiftPlansAdapter, availabilityAdapter, assignmentsAdapter } from "./workforce-read-adapters";
 import { payrollPeriodsAdapter } from "@/lib/bo-payroll-read-adapter";
 
@@ -39,7 +40,7 @@ export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   allowStudentCreate: true,
   modules: { ...school.modules, ...moduleDefinitions },
   isModuleReadOnly: isWorkforce,
-  routeForModule: (key) => paths[key] ?? (key === "students" ? "/bo" : "/bo?module=" + encodeURIComponent(key)),
+  routeForModule: (key) => currentBoModuleHref(key, paths),
   async load(key, fetcher, options) {
     if (!isWorkforce(key)) return school.load(key, fetcher, options);
     const data = await adapters[key].list(fetcher);
