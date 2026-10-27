@@ -234,6 +234,11 @@ export default function TosVNextIntegrationPreview(){
         <strong>{row.displayName}</strong><p>{row.status} · Seen: {row.lastSeenAt??"Chưa có"}</p>
        </article>)}
        {data.station.truncated&&<p role="status">Chỉ hiển thị 50 thiết bị đầu tiên.</p>}
+       <h4>Pinoria TV · Trạng thái hàng đợi</h4>
+       <p>{data.station.tv.active?`Đang trình chiếu: ${data.station.tv.active.kind}`:"Không có sự kiện đang trình chiếu."} · Revision {data.station.tv.revision}</p>
+       <p>Đang chờ: {data.station.tv.queued.length}{data.station.tv.hasMore?" (còn sự kiện khác)":""}</p>
+       {data.station.tv.queued.map((item,index)=><p key={index}>{item.kind}</p>)}
+       <p>Chỉ hiển thị trạng thái; không xem nội dung riêng tư hoặc điều khiển TV.</p>
       </>:!data.stationError&&<p role="status">Thiết bị Center chưa sẵn sàng.</p>}
      </section>}
      {app==="training"&&<section aria-label="Training Center">
