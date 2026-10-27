@@ -3,6 +3,7 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/workforce-shift-plans",
   "/bo/workforce-availability",
   "/bo/workforce-assignments",
+  "/bo/workforce/payroll",
 ]);
 
 // New canonical modules must be admitted or deliberately deferred in this policy.
