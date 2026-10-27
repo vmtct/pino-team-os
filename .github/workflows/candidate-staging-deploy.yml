@@ -1,5 +1,15 @@
 name: Team Staging CD (Guarded)
 on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Verified current main commit SHA
+        required: true
+        type: string
+      validation_run_id:
+        description: Successful main CI run for source_sha
+        required: true
+        type: string
   workflow_run:
     workflows: ["PR Validation"]
     types: [completed]
@@ -14,11 +24,22 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.repository == 'vmtct/pino-team-os' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
+    if: >-
+      github.repository == 'vmtct/pino-team-os' &&
+      (
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
+        ) ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      SHA: ${{ github.event.workflow_run.head_sha }}
+      SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source_sha || github.event.workflow_run.head_sha }}
       ACCOUNT: 952c3c8a236f8e4cbcf6ee10b86ad70c
       WORKER: pino-team-os-staging
     steps:
@@ -34,14 +55,28 @@ jobs:
       - name: Admit exact current main, successful push CI and staging-only artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          VALIDATION_RUN: ${{ github.event.workflow_run.id }}
+          VALIDATION_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_run_id || github.event.workflow_run.id }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SHA"
           test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
           git merge-base --is-ancestor 93fde0193685cd465f4888c8cc0bc009252c7edd "$SHA"
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
-          jq -e --arg sha "$SHA" '.head_sha==$sha and (.event=="push" or .event=="workflow_dispatch") and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
+          # A dispatch can start while the main validation workflow's final dispatch job
+          # has not yet completed. Never admit a pending or failed CI run.
+          ci_admitted=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
+            if jq -e --arg sha "$SHA" '.head_sha==$sha and .head_branch=="main" and (.event=="push" or .event=="workflow_dispatch") and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json >/dev/null; then
+              ci_admitted=1
+              break
+            fi
+            if jq -e '.status=="completed"' /tmp/validation.json >/dev/null; then
+              echo "HOLD: main validation completed without success" >&2
+              exit 1
+            fi
+            if [ "$attempt" -lt 12 ]; then sleep 5; fi
+          done
+          test "$ci_admitted" = 1
           node - <<'NODE'
           const assert=require('node:assert/strict');
           const c=require('./wrangler.ho-staging.json');
