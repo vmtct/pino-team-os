@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { HO_STAGING_HOSTNAME, normalizeHostname, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
-import { boSkeletonRoute, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
+import { boSkeletonRoute, isBoStagingHost, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
 import { safeHoReturnTo } from "@/lib/ho-routes";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
   if (request.nextUrl.pathname.startsWith("/bo-authority-source/")) return new NextResponse("Not Found", { status: 404 });
   const host = request.headers.get("host") ?? request.nextUrl.hostname;
+  // Legacy dedicated Subscription URLs are aliases, NOT staging route admissions.
+  // One canonical /bo React shell owns the module; existing bookmarks are preserved.
+  if (isBoStagingHost(host) && (request.nextUrl.pathname === "/bo/subscriptions" || request.nextUrl.pathname === "/bo/subscriptions/")) {
+    const target = request.nextUrl.clone();
+    target.pathname = "/bo";
+    target.searchParams.set("module", "subscriptions");
+    return NextResponse.redirect(target, 307);
+  }
   // Never trust a caller-supplied internal route marker.
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");

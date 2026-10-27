@@ -158,6 +158,14 @@ jobs:
             return 1
           }
           expect_protected_route_ready
+          # PAP-1050: verify live protected deep-link resolves to canonical module.
+          # The authenticated UI-marker E2E remains a separate Founder acceptance gate.
+          alias_status="$(curl -sS --max-time 20 -D /tmp/bo-subscription-alias-headers -o /tmp/bo-subscription-alias-body -w '%{http_code}' 'https://bo.staging.pinohouse.art/bo/subscriptions')"
+          test "$alias_status" = 307
+          grep -Eiq '^location:[[:space:]]*https://bo\.staging\.pinohouse\.art/bo\?module=subscriptions([&#?[:space:]]|$)' /tmp/bo-subscription-alias-headers
+          canonical_status="$(curl -sS --max-time 20 -o /tmp/bo-subscription-anon -w '%{http_code}' 'https://bo.staging.pinohouse.art/bo?module=subscriptions')"
+          test "$canonical_status" = 307
+          echo 'PAP1050_BO_STAGING_ROUTE_PARITY_PASS'
           status="$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")"
           echo "SMOKE_TOS_CONTEXT_ANON_HTTP=$status (expected=401)"
           test "$status" = 401
