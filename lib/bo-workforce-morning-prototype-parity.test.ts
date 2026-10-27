@@ -29,6 +29,7 @@ test("PAP-1064 Center-scoped GLOBAL weeks and the canonical BO detail stay in sy
   assert.match(registry, /key: "centerName", label: "Center"/);
   assert.match(registry, /key: "termWeekLabel", label: "Tuần"/);
   assert.match(detail, /BoWorkforcePlannerTab embedded scope=/);
-  assert.match(css, /@container \(max-width: 1060px\)/);
+  assert.match(css, /@container \(max-width: 900px\)/);
+  assert.doesNotMatch(css, /@container \(max-width: 1060px\)/);
   assert.doesNotMatch(css, /@media \(max-width: 1440px\) \{ \.plannerLayout/);
 });
