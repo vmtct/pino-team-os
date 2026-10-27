@@ -231,3 +231,16 @@ test("PAP-1016 retired HO prototype is never served on any host or method", () =
     assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", path, "GET"), { action: "next" }, path);
   }
 });
+
+test("PAP-1028 canonical BO legacy stylesheets are exact GET/HEAD-only assets",()=>{
+  for (const host of ["bo.staging.pinohouse.art","bo.pinohouse.art"]) {
+    for (const css of ["/team-legacy-global.css","/bo-legacy-foundation.css"]) {
+      for (const method of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary(host,css,method),{action:"next"});
+      for (const method of ["POST","PUT","DELETE"]) assert.deepEqual(decideHostBoundary(host,css,method),{action:"not_found"});
+      for (const bad of [css+".js",css+"/extra",css+"%2Fextra"]) assert.deepEqual(decideHostBoundary(host,bad),{action:"not_found"});
+    }
+  }
+  for (const host of ["tos.staging.pinohouse.art","join.pinohouse.art","ho.staging.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host,"/bo/workforce-term-weeks"),{action:"not_found"});
+  }
+});

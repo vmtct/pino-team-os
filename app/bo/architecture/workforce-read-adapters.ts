@@ -7,11 +7,11 @@ type AuthorizedWeeks = {
   weeksByCenter: Array<{ centerId: string; result: GlobalWeekResult }>;
 };
 
-async function authorizedWeeks(): Promise<AuthorizedWeeks> {
-  const bootstrap = await workforceRead.bootstrap();
+async function authorizedWeeks(fetcher: typeof fetch = fetch): Promise<AuthorizedWeeks> {
+  const bootstrap = await workforceRead.bootstrap(fetcher);
   const weeksByCenter = await Promise.all(bootstrap.centers.map(async ({ id }) => ({
     centerId: id,
-    result: await workforceRead.globalWeeks(id),
+    result: await workforceRead.globalWeeks(id, fetcher),
   })));
   return { bootstrap, weeksByCenter };
 }
@@ -24,25 +24,25 @@ function visibleWeeks(weeks: GlobalWeekResult["termWeeks"]): GlobalWeekResult["t
   return ordered.slice(first, first + 12);
 }
 
-export async function authorizedWorkforceSnapshots(): Promise<{
+export async function authorizedWorkforceSnapshots(fetcher: typeof fetch = fetch): Promise<{
   weeks: AuthorizedWeeks;
   snapshots: BoWorkforceWeeklyPlanning[];
 }> {
-  const weeks = await authorizedWeeks();
+  const weeks = await authorizedWeeks(fetcher);
   const snapshots: BoWorkforceWeeklyPlanning[] = [];
   // Scope to each authorized Center, never a Cartesian product with legacy Center weeks.
   for (const { centerId, result } of weeks.weeksByCenter) {
     for (const week of visibleWeeks(result.termWeeks)) {
       // Fail closed on authorization or contract errors; never turn 403 into an empty row.
-      snapshots.push(await workforceRead.weekly(centerId, week.id));
+      snapshots.push(await workforceRead.weekly(centerId, week.id, fetcher));
     }
   }
   return { weeks, snapshots };
 }
 
 export const termWeeksAdapter: BoModuleReadAdapter = {
-  async list() {
-    const { weeksByCenter } = await authorizedWeeks();
+  async list(fetcher: typeof fetch = fetch) {
+    const { weeksByCenter } = await authorizedWeeks(fetcher);
     const byId = new Map<string, Record<string, unknown>>();
     for (const { result } of weeksByCenter) {
       for (const week of result.termWeeks) {
@@ -58,8 +58,8 @@ export const termWeeksAdapter: BoModuleReadAdapter = {
 };
 
 export const shiftPlansAdapter: BoModuleReadAdapter = {
-  async list() {
-    const { snapshots } = await authorizedWorkforceSnapshots();
+  async list(fetcher: typeof fetch = fetch) {
+    const { snapshots } = await authorizedWorkforceSnapshots(fetcher);
     return snapshots.filter((s) => s.windows?.availability.shiftPlanExists === true).map((s) => ({
       id: s.centerId + ":" + s.termWeekId, name: s.termWeekId,
       centerId: s.centerId, termWeekId: s.termWeekId,
@@ -71,8 +71,8 @@ export const shiftPlansAdapter: BoModuleReadAdapter = {
 };
 
 export const availabilityAdapter: BoModuleReadAdapter = {
-  async list() {
-    const { snapshots } = await authorizedWorkforceSnapshots();
+  async list(fetcher: typeof fetch = fetch) {
+    const { snapshots } = await authorizedWorkforceSnapshots(fetcher);
     return snapshots.flatMap((s) => s.availability.map((a) => ({
       id: a.id, name: s.staff.find((staff) => staff.id === a.staffMemberId)?.displayLabel ?? a.staffMemberId,
       centerId: a.centerId, termWeekId: a.termWeekId, status: a.status, shiftCount: a.items.length,
@@ -81,8 +81,8 @@ export const availabilityAdapter: BoModuleReadAdapter = {
 };
 
 export const assignmentsAdapter: BoModuleReadAdapter = {
-  async list() {
-    const { snapshots } = await authorizedWorkforceSnapshots();
+  async list(fetcher: typeof fetch = fetch) {
+    const { snapshots } = await authorizedWorkforceSnapshots(fetcher);
     return snapshots.flatMap((s) => s.assignments.map((a) => ({
       id: a.id, name: s.staff.find((staff) => staff.id === a.staffMemberId)?.displayLabel ?? a.staffMemberId,
       centerId: a.centerId, termWeekId: s.termWeekId, workDate: a.workDate,

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { isBoStagingHost } from "@/lib/bo-skeleton-routing";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { boSkeletonEnabled, BO_AUTHORITY_STYLES, HO_AUTHORITY_STYLES } from "@/lib/bo-skeleton";
+import { isBoStagingRouteAdmitted } from "./bo/architecture/bo-staging-route-policy";
 
 const pinoSigilIcon = "https://assets.pinohouse.art/core/Pino%20Sigil.png";
 
@@ -21,7 +22,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const incoming = await headers();
   const path = incoming.get("x-pino-bo-runtime-path");
   let bo = false;
-  if (isBoStagingHost(incoming.get("host") || "") && (path === "/bo" || path === "/bo/")) {
+  if (isBoStagingHost(incoming.get("host") || "") && (path === "/bo" || path === "/bo/" || isBoStagingRouteAdmitted(path ?? ""))) {
     try {
       const { env } = await getCloudflareContext({ async: true }) as unknown as { env: { APP_ENV?: string; BO_UI_ONLY?: string } };
       bo = boSkeletonEnabled(env, incoming.get("host") || "");

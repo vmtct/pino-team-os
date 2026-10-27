@@ -126,6 +126,12 @@ jobs:
             code="$(curl -sS --max-time 20 -o /tmp/staging-login -w '%{http_code}' "$url")"
             test "$code" = 307
           done
+          # PAP-1028: prevent silent BO CSS regressions (not just successful HTML route loads).
+          for css in team-legacy-global.css bo-legacy-foundation.css; do
+            curl -fsS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body "https://bo.staging.pinohouse.art/$css"
+            test -s /tmp/bo-style-body
+            grep -qi "^content-type: text/css" /tmp/bo-style-headers
+          done
           curl -fsS --max-time 20 "$origin/api/health" | jq -e '.ok==true and .service=="pino-team-os"'
           digest="$(node -p "require('./.next/pap659-build-provenance.json').digest")"
           curl -fsS --max-time 20 "$origin/pap659-build-provenance.json" | jq -e --arg digest "$digest" '.digest==$digest'
