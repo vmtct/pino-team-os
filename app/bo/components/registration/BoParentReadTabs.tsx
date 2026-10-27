@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import { BoValue } from "./BoValue";
-import { BoDataGrid, type BoDataGridColumn } from "../data-grid/BoDataGrid";
+import type { BoDataGridColumn } from "../data-grid/BoDataGrid";
+const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid }));
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 const tabs = ["Overview", "Students", "Contacts", "Audit"] as const;
@@ -69,6 +70,7 @@ export function BoParentReadTabs({ module, record }: { module: BoModule; record:
       tabIndex={item===tab?0:-1} className={"detail-tab"+(item===tab?" selected":"")}
       onClick={()=>setTab(item)} onKeyDown={event=>keydown(event,index)}>{item}</button>)}</div>
     <section id="parent-tab-panel" role="tabpanel" aria-labelledby={"parent-tab-"+tab.toLowerCase()} className="v24-prop-section">
+      <Suspense fallback={<div role="status">Đang tải bảng…</div>}>
       {tab==="Overview"?overview:status!=="ready"||!detail?
        <div className="v24-audit-empty" role="status">{status==="loading"?"Đang tải dữ liệu Core…":
          status==="permission"?"Không có quyền xem dữ liệu Parent này.":
@@ -80,6 +82,7 @@ export function BoParentReadTabs({ module, record }: { module: BoModule; record:
        detail.auditAuthorized?<BoDataGrid rows={detail.audit} columns={auditColumns} rowKey={r=>r.id} caption="Lịch sử Audit"
           emptyTitle="Chưa có Audit" emptyMessage="Chưa có sự kiện audit liên quan được phép xem."/>:
          <div role="status" className="v24-audit-empty">Không có quyền xem lịch sử Audit.</div>}
+      </Suspense>
     </section>
   </section>;
 }
