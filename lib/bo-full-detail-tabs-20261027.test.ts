@@ -40,7 +40,7 @@ test("Payroll period Full Detail preserves Quyết Toán", () => {
   assert.deepEqual(tabs("payroll-periods"), ["Thông tin", "Quyết Toán", "Lịch Sử"]);
 });
 
-test("Ordinary BO Full Detail has no Chuyên Sâu", () => {
-  assert.deepEqual(tabs("staffs"), ["Thông tin", "Lịch Sử"]);
+test("Staff Full Detail exposes private Thu nhập without legacy Chuyên Sâu", () => {
+  assert.deepEqual(tabs("staffs"), ["Thông tin", "Thu nhập", "Lịch Sử"]);
   assert.deepEqual(tabs("students"), ["Thông tin", "Lịch Sử"]);
 });
