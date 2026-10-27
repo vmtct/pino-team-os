@@ -44,6 +44,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
+    // PAP-1035: Worker-first admission must match the already-authenticated
+    // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
+    if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && isBoStagingS3ReadPath(pathname)) return { action: "next" };
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if ((hostname === BO_STAGING_HOSTNAME && method === "GET" && pathname.replace(/\/$/, "") === "/api/bo/school/enrollments") || ((method === "GET" || method === "HEAD") && ["/team-legacy-global.css", "/bo-legacy-foundation.css"].includes(pathname)) || isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };
@@ -61,6 +64,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   return { action: "next" };
 }
 
+export function isBoStagingS3ReadPath(pathname: string): boolean {
+  const uuid="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  return new RegExp(`^/api/bo/subscriptions/${uuid}(?:/(?:enrollments|placement))?$`).test(pathname)
+    || new RegExp(`^/api/bo/enrollments/${uuid}$`).test(pathname)
+    || pathname==="/api/bo/enrollments/capacity";
+}
 function isBoStagingStylesheet(pathname: string): boolean {
   return /^\/bo-skeleton\/(?:styles|playground|playground-v22|playground-v23|full-detail-v24|full-detail-v25)\.css$/.test(pathname);
 }
