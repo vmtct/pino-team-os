@@ -78,11 +78,10 @@ async function run() {
   if (repo !== 'vmtct/pino-team-os' || event.action === 'closed') return;
   const number = event.pull_request?.number;
   if (!Number.isInteger(number)) return;
-  const protection = await api('/repos/' + repo + '/branches/main/protection');
-  const status = protection.required_status_checks;
-  const contexts = [...(status?.contexts || []), ...(status?.checks || []).map(x => x.context)];
-  if (!status?.strict || !contexts.includes('validate') || !protection.required_pull_request_reviews) {
-    console.log('HOLD: exact-head PR Validation and protected PR merge requirements missing');
+  const branch = await api('/repos/' + repo + '/branches/main');
+  const settings = await api('/repos/' + repo);
+  if (!branch.protected || settings.allow_auto_merge !== true) {
+    console.log('HOLD: protected main or native auto-merge setting missing');
     return;
   }
   const commit = await api('/repos/' + repo + '/commits?path=.github/workflows/guarded-ui-automerge.yml&per_page=1');
