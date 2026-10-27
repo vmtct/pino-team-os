@@ -7,6 +7,8 @@ export interface PeriodStaff{
  staffMemberId:string;status:"DRAFT"|"PENDING"|"FINALIZED"|"PAID"|"ARCHIVED_UNAVAILABLE";
  amountMinor:number|null;provisionalAmountMinor:number|null;warnings:string[];
  preview:SettlementPreview|null;settlementId:string|null;
+ /** Authoritative Core flag; optional during cross-repo staggered staging release. */
+ hasTimekeepingEvidence?:boolean;
 }
 export interface SettlementPreview{
  centerId:string;periodId:string;periodVersion:number;periodStartDate:string;periodEndDate:string;
