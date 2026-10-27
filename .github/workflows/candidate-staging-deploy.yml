@@ -135,11 +135,18 @@ jobs:
             echo "SMOKE_BO_ROUTE=$route HTTP=$code (expected=307)"
             test "$code" = 307
           done
-          # PAP-1030: retired BO pages must not be served, even by deep links.
+          # PAP-1030: enforce retirement on the canonical BO host. workers.dev
+          # intentionally does not enforce the BO host allowlist before login;
+          # checking 404 against that generic host falsely fails and rolls back.
+          bo_host='https://bo.staging.pinohouse.art'
           for route in workforce-term-weeks pinoria-world pinoria-ward pinoria-ward/sets system/users system/roles; do
-            code="$(curl -sS --max-time 20 -o /tmp/pap1030-retired -w '%{http_code}' "$origin/bo/$route")"
+            code="$(curl -sS --max-time 20 -o /tmp/pap1030-retired -w '%{http_code}' "$bo_host/bo/$route")"
+            echo "SMOKE_BO_RETIRED=$route HTTP=$code (expected=404 on canonical BO host)"
             test "$code" = 404
           done
+          kept="$(curl -sS --max-time 20 -o /tmp/pap1030-kept -w '%{http_code}' "$bo_host/bo/pinoria-ward/learners")"
+          echo "SMOKE_BO_LOADOUTS HTTP=$kept (expected=307 authenticated page)"
+          test "$kept" = 307
           for endpoint in bootstrap global-weeks weekly; do
             code="$(curl -sS --max-time 20 -o /tmp/pap901-anon -w '%{http_code}' "$origin/api/bo/workforce/planning/$endpoint")"
             echo "SMOKE_BO_API=$endpoint HTTP=$code (expected=401)"

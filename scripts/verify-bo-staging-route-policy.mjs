@@ -92,6 +92,10 @@ export function verifyBoStagingRoutePolicy(root = ROOT) {
       !cd.includes('grep -qi "^content-type: text/css"') ||
       !cd.includes('"https://bo.staging.pinohouse.art/$css"'))
     issues.push("Automatic staging CD must smoke test both required CSS assets");
+  if (!cd.includes("bo_host='https://bo.staging.pinohouse.art'") ||
+      !cd.includes('"$bo_host/bo/$route"') ||
+      !cd.includes("for route in workforce-term-weeks pinoria-world pinoria-ward pinoria-ward/sets system/users system/roles"))
+    issues.push("PAP-1030 retired BO route smoke must target canonical BO staging host");
   const ci = read(root, CI);
   if (!ci.includes("node scripts/verify-bo-staging-route-policy.mjs") ||
       !ci.includes("node --test scripts/verify-bo-staging-route-policy.test.mjs"))
