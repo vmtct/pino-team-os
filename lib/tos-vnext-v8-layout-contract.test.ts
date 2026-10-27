@@ -25,3 +25,13 @@ test("PAP-938 unlayered legacy h1/h2 styles do not override layered TOS DS headi
  const tokens=read("tokens.css");
  assert.match(tokens,/--tos-home-title-size:\s*clamp\(21px,\s*5vw,\s*27px\)/);
 });
+
+test("PAP-938 legacy control typography and focus stay outside TOS DS",()=>{
+ const css=readFileSync("app/globals.css","utf8");
+ assert.match(css,/:is\(button,\s*input,\s*select,\s*textarea\):not\(:where\(\[data-tos-system\] \*\)\)\s*\{\s*font:\s*inherit/);
+ assert.match(css,/:is\(button,a,input,select,textarea\):focus-visible:not\(:where\(\[data-tos-system\] \*\)\)/);
+ assert.doesNotMatch(css,/^button, input, select, textarea\s*\{/m);
+ const ds=read("system.css");
+ assert.match(ds,/font-size:var\(--tos-text-button\)/);
+ assert.match(ds,/outline:var\(--tos-focus-ring\)/);
+});
