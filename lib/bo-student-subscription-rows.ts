@@ -1,5 +1,5 @@
 import type { BoLearnerLifecycle } from "./bo-model";
-import type { BoRecord } from "./bo-registration";
+import { defaultTable, type BoField, type BoRecord, type BoTableState } from "./bo-registration";
 
 /** Student-scoped lifecycle truth, not an unbounded global Subscription listing. */
 export function studentSubscriptionRows(data: BoLearnerLifecycle, studentId: string): BoRecord[] {
@@ -22,4 +22,17 @@ export function studentSubscriptionRows(data: BoLearnerLifecycle, studentId: str
         reference: subscription.commercialReference,
       };
     });
+}
+
+/** Compact Student relation: date-leading, no redundant learner name, newest start first. */
+export function studentSubscriptionTableState(fields: readonly BoField[]): BoTableState {
+  if (!fields.some(field => field.key === "start")) throw new Error("Subscription start field required.");
+  const state = defaultTable(fields);
+  return {
+    ...state,
+    order: ["start", ...state.order.filter(key => key !== "start")],
+    visible: state.visible.filter(key => key !== "name"),
+    sort: "start",
+    desc: true,
+  };
 }
