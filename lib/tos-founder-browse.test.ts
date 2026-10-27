@@ -13,7 +13,7 @@ test("PAP-938 Founder browse never impersonates a StaffMember or fabricates shif
  assert.match(source,/Chế độ Founder/);
  assert.match(source,/workforceApi\.founderCenterSchedule/);
  assert.match(source,/Phân công thực từ Core/);
- assert.match(source,/Core chưa có read-model Center-wide/);
+ assert.match(source,/Chưa có read-model Center-wide/);
  assert.doesNotMatch(source.slice(effectStart,shiftRead),/workforceApi\.schedule\(|checkIn\(|checkOut\(/);
 });
 
@@ -42,4 +42,16 @@ test("PAP-1059 S2 Founder Center visits use Core read projection, not Staff chec
  assert.match(source,/data\.visitsError/);
  assert.match(api,/founderCenterVisits:/);
  assert.doesNotMatch(source.slice(source.indexOf("if(ctx?.founderMode){"),source.indexOf("if(!appRenderable)")),/workforceApi\.checkIn\(|workforceApi\.checkOut\(/);
+});
+
+test("PAP-1059 S3 Founder operations panels read only Center data through Core",()=>{
+ const ui=readFileSync("app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx","utf8");
+ const api=readFileSync("lib/workforce-api.ts","utf8");
+ for(const name of ["Timekeeping","Duty","Training","Station"]){
+  assert.match(ui,new RegExp("workforceApi\\.founderCenter"+name+"\\("));
+  assert.match(api,new RegExp("founderCenter"+name+":"));
+ }
+ for(const state of ["timekeepingError","dutyError","trainingError","stationError"]){assert.match(ui,new RegExp("data\\."+state));}
+ assert.match(ui,/Promise\.allSettled/);
+ assert.doesNotMatch(ui.slice(ui.indexOf("if(ctx?.founderMode){"),ui.indexOf("if(!appRenderable)")),/workforceApi\.checkIn\(|workforceApi\.checkOut\(/);
 });

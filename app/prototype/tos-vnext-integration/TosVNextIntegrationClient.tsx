@@ -4,7 +4,7 @@
  * Actual /api/workforce and /api/tos-learning reads; no mutation/fake successful state.
  */
 import {useEffect,useMemo,useState} from "react";
-import {workforceApi,type WorkforceContext} from "@/lib/workforce-api";
+import {workforceApi,type WorkforceContext,type FounderCenterTimekeeping,type FounderCenterDuty,type FounderCenterTraining,type FounderCenterStation} from "@/lib/workforce-api";
 import {TosVNextShift} from "@/app/components/tos-vnext/TosVNextShift";
 import frameLayout from "@/app/components/tos-ds/phone-frame.module.css";
 import {TosVNextHome} from "@/app/components/tos-vnext/TosVNextHome";
@@ -33,7 +33,7 @@ type Section="home"|TosVNextAppId;
 type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
 type FounderAssignment=Assignment&{staffMemberId:string;staffLabel:string};
 type FounderVisits={centerId:string;data:Array<{id:string;student:{id:string;displayName:string};status:"OPEN"|"CLOSED";checkedInAt:string;checkedOutAt:string|null}>;total:number;summary:{totalVisits:number;openVisits:number;closedVisits:number}};
-type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean};visits?:FounderVisits;founderError?:string;visitsError?:string};
+type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean};visits?:FounderVisits;timekeeping?:FounderCenterTimekeeping;duty?:FounderCenterDuty;training?:FounderCenterTraining;station?:FounderCenterStation;founderError?:string;visitsError?:string;timekeepingError?:string;dutyError?:string;trainingError?:string;stationError?:string};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -98,12 +98,20 @@ export default function TosVNextIntegrationPreview(){
    setError("");setData({});setLoading(true);
    void Promise.allSettled([
     workforceApi.founderCenterSchedule({centerId,startDate:today(zone),endDate:today(zone,14)}),
-    workforceApi.founderCenterVisits({centerId,status:"ALL"})
-   ]).then(([schedule,visits])=>{
+    workforceApi.founderCenterVisits({centerId,status:"ALL"}),
+    workforceApi.founderCenterTimekeeping({centerId,workDate:fromDate}),
+    workforceApi.founderCenterDuty({centerId,workDate:fromDate}),
+    workforceApi.founderCenterTraining({centerId}),
+    workforceApi.founderCenterStation({centerId}),
+   ]).then(([schedule,visits,timekeeping,duty,training,station])=>{
     if(!active)return;
     setData({
      ...(schedule.status==="fulfilled"?{founder:schedule.value.data}:{founderError:schedule.reason instanceof Error?schedule.reason.message:"Không thể tải phân công Center."}),
-     ...(visits.status==="fulfilled"?{visits:visits.value.data}:{visitsError:visits.reason instanceof Error?visits.reason.message:"Không thể tải Student Visits."})
+     ...(visits.status==="fulfilled"?{visits:visits.value.data}:{visitsError:visits.reason instanceof Error?visits.reason.message:"Không thể tải Student Visits."}),
+     ...(timekeeping.status==="fulfilled"?{timekeeping:timekeeping.value.data}:{timekeepingError:timekeeping.reason instanceof Error?timekeeping.reason.message:"Không thể tải giờ công Center."}),
+     ...(duty.status==="fulfilled"?{duty:duty.value.data}:{dutyError:duty.reason instanceof Error?duty.reason.message:"Không thể tải Duty Center."}),
+     ...(training.status==="fulfilled"?{training:training.value.data}:{trainingError:training.reason instanceof Error?training.reason.message:"Không thể tải Training Center."}),
+     ...(station.status==="fulfilled"?{station:station.value.data}:{stationError:station.reason instanceof Error?station.reason.message:"Không thể tải thiết bị Center."}),
     });
    })
     .finally(()=>{if(active)setLoading(false)});
@@ -192,8 +200,60 @@ export default function TosVNextIntegrationPreview(){
         {data.visits.total>data.visits.data.length&&<p role="status">Chỉ hiển thị 50 visit gần nhất; cần phân trang để xem toàn bộ lịch sử.</p>}
        </>:<p role="status">Chưa tải được Student Visits từ Core.</p>}
       </section>:
-      <p>Core chưa có read-model Center-wide được xác minh cho module này; không dùng Staff-self hoặc dữ liệu giả.</p>}
-     <p>Để xem và quản lý dữ liệu vận hành của trung tâm, sử dụng Back Office trong khi giao diện giám sát Founder cho ứng dụng này được hoàn thiện.</p>
+      app==="training"?null:<p>Chưa có read-model Center-wide được xác minh cho module này; không dùng Staff-self hoặc dữ liệu giả.</p>}
+     {app==="shift"&&<section aria-label="Giờ công Center">
+      <h3>Giờ công hôm nay · Dữ liệu thực từ Core</h3>
+      {data.timekeepingError&&<p role="alert">{data.timekeepingError}</p>}
+      {data.timekeeping?<>
+       <p>Tổng {data.timekeeping.summary.totalSessions} phiên · Đang làm {data.timekeeping.summary.openSessions} · Đã kết thúc {data.timekeeping.summary.closedSessions}</p>
+       {!data.timekeeping.sessions.length&&<p>Chưa có phiên giờ công hôm nay.</p>}
+       {data.timekeeping.sessions.map(row=><article key={row.id}>
+        <strong>{row.staffLabel}</strong><p>{row.status} · {row.checkInAt} – {row.checkOutAt??"Đang làm"}</p>
+       </article>)}
+       {data.timekeeping.hasNext&&<p role="status">Giới hạn 50 phiên; có trang tiếp theo.</p>}
+      </>:!data.timekeepingError&&<p role="status">Dữ liệu giờ công chưa sẵn sàng.</p>}
+     </section>}
+     {app==="shift-lead"&&<section aria-label="Duty Center">
+      <h3>Duty instances hôm nay · Dữ liệu thực từ Core</h3>
+      {data.dutyError&&<p role="alert">{data.dutyError}</p>}
+      {data.duty?<>
+       {!data.duty.instances.length&&<p>Chưa có Duty instance trong Center.</p>}
+       {data.duty.instances.map(row=><article key={row.id}>
+        <strong>{row.staffLabel}</strong><p>{row.definitionRef} · {row.workDate}</p>
+       </article>)}
+       {data.duty.truncated&&<p role="status">Chỉ hiển thị 50 Duty instance mới nhất.</p>}
+      </>:!data.dutyError&&<p role="status">Duty Center chưa sẵn sàng.</p>}
+      <p>Danh sách instance không thể hiện trạng thái hoàn thành; chưa phải bảng closeout.</p>
+     </section>}
+     {app==="station"&&<section aria-label="Thiết bị Center">
+      <h3>Thiết bị Center · Dữ liệu thực từ Core</h3>
+      {data.stationError&&<p role="alert">{data.stationError}</p>}
+      {data.station?<>
+       {!data.station.devices.length&&<p>Chưa có thiết bị đã đăng ký.</p>}
+       {data.station.devices.map(row=><article key={row.id}>
+        <strong>{row.displayName}</strong><p>{row.status} · Seen: {row.lastSeenAt??"Chưa có"}</p>
+       </article>)}
+       {data.station.truncated&&<p role="status">Chỉ hiển thị 50 thiết bị đầu tiên.</p>}
+      </>:!data.stationError&&<p role="status">Thiết bị Center chưa sẵn sàng.</p>}
+     </section>}
+     {app==="training"&&<section aria-label="Training Center">
+      <h3>Thăng Tiến · Training thực từ Core</h3>
+      {data.trainingError&&<p role="alert">{data.trainingError}</p>}
+      {data.training?<>
+       <h4>Danh mục đào tạo</h4>
+       {!data.training.catalog.length&&<p>Chưa có khóa học đã phát hành.</p>}
+       {data.training.catalog.map(row=><article key={row.moduleKey}>
+        <strong>{row.title}</strong><p>{row.track??"Chưa phân nhóm"}</p>
+       </article>)}
+       {data.training.catalogTruncated&&<p role="status">Chỉ hiển thị 50 khóa học.</p>}
+       <h4>Phân công đào tạo tại Center</h4>
+       {!data.training.assignments.length&&<p>Chưa có phân công Training của nhân sự được cấp role Center.</p>}
+       {data.training.assignments.map(row=><article key={row.id}>
+        <strong>{row.staffLabel}</strong><p>{row.moduleTitle} · {row.status}</p>
+       </article>)}
+       {data.training.assignmentsTruncated&&<p role="status">Chỉ hiển thị 50 phân công.</p>}
+      </>:!data.trainingError&&<p role="status">Training Center chưa sẵn sàng.</p>}
+     </section>}     <p>Để xem và quản lý dữ liệu vận hành của trung tâm, sử dụng Back Office trong khi giao diện giám sát Founder cho ứng dụng này được hoàn thiện.</p>
      <a href="https://bo.staging.pinohouse.art/bo">Mở Back Office</a>
     </TosVNextCard>
    </TosVNextContent>
