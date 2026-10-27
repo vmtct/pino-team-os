@@ -124,7 +124,7 @@ jobs:
           done
           # PAP-1028: prevent silent BO CSS regressions (not just successful HTML route loads).
           for css in team-legacy-global.css bo-legacy-foundation.css; do
-            curl -fsS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body "$origin/$css"
+            curl -fsS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body "https://bo.staging.pinohouse.art/$css"
             test -s /tmp/bo-style-body
             grep -qi "^content-type: text/css" /tmp/bo-style-headers
           done
