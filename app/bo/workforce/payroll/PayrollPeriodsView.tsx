@@ -1,75 +1,169 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
+import {useEffect,useRef,useState,type FormEvent} from "react";
 import {boApi} from "@/lib/bo-api";
-import {periodApi,money,type PayPeriod,type PeriodStaff,type PeriodStaffPage,PayrollPeriodApiError} from "@/lib/bo-payroll-period-api";
-import {periodDisplayName,periodSummaries,staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
+import {periodApi,money,validPeriodInput,type PayPeriod,type PeriodStaff,type PeriodStaffPage,
+ type SettlementPreview} from "@/lib/bo-payroll-period-api";
 import styles from "./payroll-periods.module.css";
-
 type Center={id:string;displayName:string;status:string};
-type Stage="loading"|"ready"|"error";
-const showDate=(v:string)=>v.split("-").reverse().join("/");
-function status(s:PeriodStaff["status"]){return ({DRAFT:"Bản nháp",PENDING:"Cần xử lý",FINALIZED:"Đã chốt",PAID:"Đã chốt",ARCHIVED_UNAVAILABLE:"Không đủ dữ liệu"})[s];}
-function err(e:unknown){return e instanceof PayrollPeriodApiError?e.status===403?"Bạn không được cấp quyền xem lương tại cơ sở này.":e.status===401?"Phiên đăng nhập đã hết hạn.":e.message:e instanceof Error?e.message:"Không thể tải dữ liệu lương.";}
-function metrics(data:PeriodStaffPage|null){return data?periodSummaries(data.periodTotals):null;}
+type Form={name:string;startDate:string;endDate:string};
+const empty:Form={name:"",startDate:"",endDate:""};
+const makeKey=()=>typeof crypto!=="undefined"&&crypto.randomUUID?
+ "pay-period-"+crypto.randomUUID():"pay-period-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+function errorText(e:unknown){return e instanceof Error?e.message:"Không thể truy cập dữ liệu lương.";}
 export default function PayrollPeriodsView(){
  const [centers,setCenters]=useState<Center[]>([]),[centerId,setCenterId]=useState("");
- const [periods,setPeriods]=useState<PayPeriod[]>([]),[rollups,setRollups]=useState<Record<string,PeriodStaffPage>>({});
- const [periodOffset,setPeriodOffset]=useState<number|null>(null),[selected,setSelected]=useState<PayPeriod|null>(null);
- const [drawer,setDrawer]=useState<PayPeriod|null>(null),[tab,setTab]=useState<"Detail"|"Quyết Toán"|"Lịch Sử">("Detail");
- const [page,setPage]=useState<PeriodStaffPage|null>(null),[staffRows,setStaffRows]=useState<PeriodStaff[]>([]);
+ const [periods,setPeriods]=useState<PayPeriod[]>([]),[periodOffset,setPeriodOffset]=useState<number|null>(null);
+ const [selected,setSelected]=useState<PayPeriod|null>(null),[page,setPage]=useState<PeriodStaffPage|null>(null);
+ const [staffRows,setStaffRows]=useState<PeriodStaff[]>([]),[staffOffset,setStaffOffset]=useState<number|null>(null);
  const [staffNames,setStaffNames]=useState<Record<string,string>>({});
- const [staffOffset,setStaffOffset]=useState<number|null>(null),[loading,setLoading]=useState<Stage>("loading"),[detailLoad,setDetailLoad]=useState<Stage>("ready");
- const [error,setError]=useState(""),[detailError,setDetailError]=useState("");
- const [query,setQuery]=useState(""),[reload,setReload]=useState(0),generation=useRef(0);
- const center=centers.find(c=>c.id===centerId);
- useEffect(()=>{let live=true;void Promise.all([boApi.centers(),boApi.staffRecords().catch(()=>[])]).then(([all,staff])=>{
-  if(!live)return;const active=all.filter(x=>x.status==="active");setCenters(active);setCenterId(v=>v||active[0]?.id||"");
-  setStaffNames(Object.fromEntries(staff.map(x=>[x.id,x.displayLabel])));if(!active.length)setLoading("ready");
- }).catch(e=>{if(live){setLoading("error");setError(err(e));}});return()=>{live=false;};},[]);
- useEffect(()=>{const gen=++generation.current;setPeriods([]);setRollups({});setSelected(null);setDrawer(null);setPage(null);setStaffRows([]);setPeriodOffset(null);setError("");
-  if(!centerId)return;setLoading("loading");
-  void periodApi.list(centerId).then(async r=>{if(gen!==generation.current)return;
-   const list=r.data.data;setPeriods(list);setPeriodOffset(r.data.nextOffset);setLoading("ready");
-   // Read-only GETs, throttled to 3 requests at a time. Money remains Core-owned.
-   for(let i=0;i<list.length;i+=3){if(gen!==generation.current)return;const results=await Promise.allSettled(list.slice(i,i+3).map(p=>periodApi.staff(centerId,p.id)));
-    if(gen!==generation.current)return;const failure=results.find(x=>x.status==="rejected");if(failure&&failure.status==="rejected")setError(err(failure.reason));setRollups(old=>({...old,...Object.fromEntries(results.flatMap((out,j)=>out.status==="fulfilled"?[[list[i+j]!.id,out.value.data]]:[]))}));}
-  }).catch(e=>{if(gen===generation.current){setLoading("error");setError(err(e));}});
-  return()=>{generation.current++;};
- },[centerId,reload]);
- useEffect(()=>{if(!selected||!centerId)return;let live=true;setDetailLoad("loading");setDetailError("");setPage(null);setStaffRows([]);
-  void Promise.all([periodApi.get(centerId,selected.id),periodApi.staff(centerId,selected.id)])
-   .then(([period,rollup])=>{if(!live)return;setSelected(period.data);setPage(rollup.data);setStaffRows(rollup.data.rows);setStaffOffset(rollup.data.nextOffset);setRollups(v=>({...v,[selected.id]:rollup.data}));setDetailLoad("ready");})
-   .catch(e=>{if(live){setDetailError(err(e));setDetailLoad("error");}});
+ const [staffSearch,setStaffSearch]=useState(""),[activeStaff,setActiveStaff]=useState<PeriodStaff|null>(null);
+ const [detail,setDetail]=useState<SettlementPreview|null>(null);
+ const [form,setForm]=useState<Form>(empty),[editing,setEditing]=useState(false);
+ const [paymentDate,setPaymentDate]=useState(""),[paymentReference,setPaymentReference]=useState("");
+ const [ack,setAck]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0);
+ const pendingKey=useRef<{payload:string;key:string}|null>(null);
+ const fence=useRef(0);
+ useEffect(()=>{let live=true;
+  void boApi.centers().then(items=>{if(!live)return;const active=items.filter(x=>x.status==="active");
+   setCenters(active);setCenterId(active[0]?.id??"");}).catch(e=>{if(live)setError(errorText(e));});
+  void boApi.staffRecords().then(items=>{if(live)setStaffNames(Object.fromEntries(items.map(x=>[x.id,x.displayLabel])));})
+   .catch(()=>{/* Staff directory is optional, Core enforces payroll ACL. */});
   return()=>{live=false;};
- // Period id and center id are stable; don't fetch recursively when server returns a fresh Period object.
- // eslint-disable-next-line react-hooks/exhaustive-deps
- },[selected?.id,centerId,reload]);
- function go(period:PayPeriod){setSelected(period);setDrawer(null);setTab("Detail");}
- async function loadMoreStaff(){if(!selected||staffOffset===null)return;const offset=staffOffset;try{const p=await periodApi.staff(centerId,selected.id,offset);setStaffRows(s=>[...s,...p.data.rows]);setStaffOffset(p.data.nextOffset);}catch(e){setDetailError(err(e));}}
- async function loadMorePeriods(){if(periodOffset===null)return;try{const r=await periodApi.list(centerId,periodOffset);setPeriods(p=>[...p,...r.data.data]);setPeriodOffset(r.data.nextOffset);}catch(e){setError(err(e));}}
- const visible=periods.filter(p=>[periodDisplayName(p.startDate,center?.displayName||""),p.id,p.startDate,p.endDate].some(x=>x.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi"))));
- const summary=metrics(page);
- return <div id="app" data-bo-runtime="react" data-bo-module="payroll-periods"><main className={styles.page}>
-  {!selected?<><div className="page-heading"><div className="page-heading-left"><h1>Kỳ lương</h1></div><div className="heading-actions"><label className={styles.center}>Cơ sở <select aria-label="Cơ sở" value={centerId} onChange={e=>setCenterId(e.target.value)}>{centers.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label><button type="button" className="secondary-btn" onClick={()=>setReload(v=>v+1)}>Làm mới</button></div></div>
-   <div className="grid-card"><div className="view-tabs"><div className="tabs-left"><span className="view-tab active">Tất cả</span></div><div className="tabs-right"><span className="table-meta">{visible.length} bản ghi</span></div></div>
-    <div className="toolbar"><label className="search-field"><span>⌕</span><input aria-label="Tìm kỳ lương" placeholder="Tìm kỳ lương..." value={query} onChange={e=>setQuery(e.target.value)}/></label></div>
-    {error?<div role="alert" className={styles.error}>{error}</div>:null}
-    <div className="table-scroll"><table className={styles.table}><caption>Kỳ lương</caption><thead><tr><th>↗</th><th>Kỳ lương</th><th>ID</th><th>Khoảng ngày</th><th>PTE có công</th><th>Tổng Dự Kiến</th><th>Tổng Quyết Toán</th><th>Trạng thái</th></tr></thead><tbody>
-     {visible.map(p=>{const sum=metrics(rollups[p.id]);return <tr key={p.id}><td><button className="row-open" aria-label={"Quick View "+p.id} onClick={()=>setDrawer(p)}>↗</button></td><td><button type="button" className={styles.rowLink} onClick={()=>go(p)}>{periodDisplayName(p.startDate,center?.displayName||"")}</button></td><td>{p.id}</td><td>{showDate(p.startDate)} – {showDate(p.endDate)}</td><td>{rollups[p.id]?.nextOffset===null?staffWithWorkEvidence(rollups[p.id].rows).length:"—"}</td><td>{sum?money(sum.expected):"—"}</td><td>{sum?money(sum.finalized):"—"}</td><td>{p.status==="ARCHIVED"?"Lưu trữ":"Đang mở"}</td></tr>;})}
-     {loading==="loading"?<tr><td colSpan={8} role="status">Đang tải kỳ lương…</td></tr>:loading==="ready"&&!visible.length?<tr><td colSpan={8}>Chưa có kỳ lương trong phạm vi được cấp quyền.</td></tr>:null}
-    </tbody></table></div>{periodOffset!==null?<button className="secondary-btn" type="button" onClick={()=>void loadMorePeriods()}>Tải thêm</button>:null}
-   </div></>:<><div className="detail-cover"><div className="detail-hero"><div className="detail-hero-primary"><button className="detail-hero-back" type="button" aria-label="Quay về bảng" onClick={()=>{setSelected(null);setPage(null);}}>←</button><div className="detail-hero-copy"><h1>{periodDisplayName(selected.startDate,center?.displayName||"")}</h1><p>{showDate(selected.startDate)} – {showDate(selected.endDate)} · {center?.displayName||""}</p></div></div></div></div>
-    <div className="detail-tabs" role="tablist" aria-label="Kỳ lương">{(["Detail","Quyết Toán","Lịch Sử"] as const).map(t=><button key={t} className={"detail-tab "+(tab===t?"selected":"")} role="tab" aria-selected={tab===t} onClick={()=>setTab(t)}>{t}</button>)}</div>
-    <div className={styles.detailBody}><div className="detail-panel v24-main-panel">
-     {detailError?<div role="alert" className={styles.error}>{detailError}</div>:null}
-     {tab==="Detail"?<><section className="property-section"><h3>Chi tiết</h3>{([["Period ID",selected.id],["Tên kỳ",periodDisplayName(selected.startDate,center?.displayName||"")],["Từ ngày",showDate(selected.startDate)],["Đến ngày",showDate(selected.endDate)],["Trạng thái",selected.status==="ACTIVE"?"Đang mở":"Lưu trữ"],["Center",center?.displayName||"—"]] as const).map(([k,v])=><div className="property-row" key={k}><div className="property-label"><span>{k}</span></div><div className="property-control pay-property">{v}</div></div>)}</section>
-      <Kpis summary={summary}/><section className="property-section"><h3>PTE đã tính được lương</h3>{staffWithWorkEvidence(staffRows).filter(x=>x.amountMinor!==null).length?<div className={styles.compactList}>{staffWithWorkEvidence(staffRows).filter(x=>x.amountMinor!==null).map(s=><div key={s.staffMemberId} className={styles.compactRow}><span>{staffNames[s.staffMemberId]??s.staffMemberId}</span><strong>{money(s.amountMinor)}</strong></div>)}</div>:<div className={styles.empty}>Chưa có lương để hiển thị.</div>}</section>
-     </>:tab==="Quyết Toán"?<><Kpis summary={summary}/><section className="property-section"><h3>Quyết toán theo PTE</h3>{staffWithWorkEvidence(staffRows).length?<div className="table-scroll"><div className={styles.settlementTable} role="table" aria-label="Quyết toán theo PTE"><div role="row" className={styles.settlementHead}><span role="columnheader">PTE</span><span role="columnheader">Thành tiền</span><span role="columnheader">Trạng thái</span><span role="columnheader">Thao tác</span></div>{staffWithWorkEvidence(staffRows).map(s=><div role="row" key={s.staffMemberId} className={styles.settlementRow}><span role="cell">{staffNames[s.staffMemberId]??s.staffMemberId}<small>{s.staffMemberId}</small></span><strong role="cell" className={styles.amount}>{money(s.amountMinor)}</strong><span role="cell">{status(s.status)}</span><span role="cell">—</span></div>)}</div></div>:<div className={styles.empty}>Chưa có giờ công trong kỳ.</div>}</section>
-      {staffOffset!==null?<button type="button" className="secondary-btn" onClick={()=>void loadMoreStaff()}>Tải thêm PTE</button>:null}
-     </>:<div className={styles.empty}>Chưa có dữ liệu lịch sử được cấp quyền.</div>}
-     {detailLoad==="loading"?<p role="status">Đang tải dữ liệu quyết toán…</p>:null}
-    </div></div></>}
-   {drawer?<div className={styles.backdrop} onClick={()=>setDrawer(null)}><aside className={styles.drawer} role="dialog" aria-modal="true" aria-label="Quick View Kỳ lương" onClick={e=>e.stopPropagation()}><header><h2>{periodDisplayName(drawer.startDate,center?.displayName||"")}</h2><button aria-label="Đóng Quick View" className="secondary-btn" onClick={()=>setDrawer(null)}>×</button></header><div className="property-section">{([["ID",drawer.id],["Từ ngày",showDate(drawer.startDate)],["Đến ngày",showDate(drawer.endDate)],["Center",center?.displayName||"—"],["Tổng Dự Kiến",rollups[drawer.id]?money(metrics(rollups[drawer.id])!.expected):"—"],["Tổng Quyết Toán",rollups[drawer.id]?money(metrics(rollups[drawer.id])!.finalized):"—"]] as const).map(([key,v])=><div className="property-row" key={key}><span className="property-label">{key}</span><span className="property-control">{v}</span></div>)}</div><button className="primary-btn" onClick={()=>go(drawer)}>Full Detail</button></aside></div>:null}
-  </main></div>;
+ },[]);
+ useEffect(()=>{fence.current++;setPeriods([]);setPeriodOffset(null);setSelected(null);setPage(null);setStaffRows([]);setActiveStaff(null);
+  setDetail(null);setEditing(false);setError("");setNotice("");pendingKey.current=null;
+  if(!centerId)return;const id=fence.current;setLoading(true);
+  void periodApi.list(centerId).then(r=>{if(id!==fence.current)return;setPeriods(r.data.data);
+   setPeriodOffset(r.data.nextOffset);}).catch(e=>{if(id===fence.current)setError(errorText(e));})
+   .finally(()=>{if(id===fence.current)setLoading(false);});
+ },[centerId,revision]);
+ useEffect(()=>{if(!selected||!centerId)return;let live=true;setLoading(true);setError("");
+  void periodApi.staff(centerId,selected.id).then(r=>{if(!live)return;setPage(r.data);
+   setStaffRows(r.data.rows);setStaffOffset(r.data.nextOffset);}).catch(e=>{if(live)setError(errorText(e));})
+   .finally(()=>{if(live)setLoading(false);});
+  return()=>{live=false;};
+ },[selected,centerId,revision]);
+ useEffect(()=>{if(!activeStaff||!selected||!centerId)return;let live=true;setDetail(activeStaff.preview);
+  if(activeStaff.status==="DRAFT"||activeStaff.status==="PENDING"){
+   void periodApi.preview(centerId,selected.id,activeStaff.staffMemberId)
+    .then(r=>{if(live)setDetail(r.data);}).catch(e=>{if(live)setError(errorText(e));});
+  }
+  return()=>{live=false;};
+ },[activeStaff,selected,centerId]);
+ useEffect(()=>{const clear=()=>{fence.current++;setDetail(null);setActiveStaff(null);setPage(null);
+  setStaffRows([]);setPeriods([]);setSelected(null);setRevision(x=>x+1);};
+  const visibility=()=>{if(document.hidden)clear();};
+  window.addEventListener("pagehide",clear);document.addEventListener("visibilitychange",visibility);
+  return()=>{window.removeEventListener("pagehide",clear);document.removeEventListener("visibilitychange",visibility);};
+ },[]);
+ function choose(period:PayPeriod){fence.current++;setSelected(period);setActiveStaff(null);setDetail(null);setStaffSearch("");
+  setPaymentDate("");setPaymentReference("");setAck(false);setEditing(false);setNotice("");setError("");}
+ function edit(period:PayPeriod){fence.current++;setSelected(period);setForm({name:period.name,startDate:period.startDate,endDate:period.endDate});
+  setEditing(true);setError("");}
+ function fresh(){setRevision(x=>x+1);}
+ async function save(e:FormEvent){e.preventDefault();if(busy||!centerId||!validPeriodInput(form))return;
+  const payload=JSON.stringify({centerId,...form,periodId:editing?selected?.id:null,version:editing?selected?.version:null});
+  const key=pendingKey.current?.payload===payload?pendingKey.current.key:makeKey();
+  pendingKey.current={payload,key};setBusy(true);setError("");try{
+   if(editing&&!selected)throw Error("Chưa chọn kỳ lương.");
+   await (editing?periodApi.edit(centerId,selected!,form):periodApi.create(centerId,form,key));
+   pendingKey.current=null;setEditing(false);setNotice("Core đã lưu kỳ lương.");fresh();
+  }catch(e){setError(errorText(e));}finally{setBusy(false);}
+ }
+ async function morePeriods(){if(periodOffset===null||loading)return;const token=fence.current;setLoading(true);
+  try{const r=await periodApi.list(centerId,periodOffset);if(token!==fence.current)return;
+   setPeriods(x=>[...x,...r.data.data]);setPeriodOffset(r.data.nextOffset);}catch(e){setError(errorText(e));}finally{setLoading(false);}
+ }
+ async function moreStaff(){if(!selected||staffOffset===null||loading)return;
+  const token=fence.current,periodId=selected.id;setLoading(true);
+  try{const r=await periodApi.staff(centerId,periodId,staffOffset);
+   if(token!==fence.current)return;
+   setStaffRows(x=>[...x,...r.data.rows]);setStaffOffset(r.data.nextOffset);
+  }catch(e){setError(errorText(e));}finally{setLoading(false);}
+ }
+ async function finalize(){if(!selected||!activeStaff||!detail||busy||!ack)return;
+  if(!window.confirm("Chốt bất biến lương của nhân viên này? Không thể sửa trực tiếp sau khi chốt."))return;
+  setBusy(true);setError("");try{
+   await periodApi.finalize(centerId,selected.id,activeStaff.staffMemberId,detail,makeKey());
+   setNotice("Đã chốt lương nhân viên.");setActiveStaff(null);setDetail(null);fresh();
+  }catch(e){setError(errorText(e));}finally{setBusy(false);}
+ }
+ async function markPaid(){if(!activeStaff?.settlementId||!paymentDate||!paymentReference.trim()||busy)return;
+  if(!window.confirm("Xác nhận đã thanh toán ngoài hệ thống? Hành động này chỉ ghi nhận trạng thái Paid, không chuyển tiền."))return;
+  setBusy(true);setError("");try{
+   await periodApi.paid(centerId,activeStaff.settlementId,paymentDate,paymentReference.trim(),makeKey());
+   setNotice("Đã ghi nhận thanh toán.");setActiveStaff(null);setDetail(null);fresh();
+  }catch(e){setError(errorText(e));}finally{setBusy(false);}
+ }
+ const shown=staffRows.filter(x=>(staffNames[x.staffMemberId]??x.staffMemberId)
+  .toLocaleLowerCase("vi").includes(staffSearch.toLocaleLowerCase("vi")));
+ return <main className={styles.page}>
+  <header className={styles.heading}><small>Back Office · Workforce · Payroll</small><h1>Kỳ lương</h1>
+   <p>Kỳ là bảng tổng hợp. Chốt và thanh toán độc lập theo từng nhân viên, không chốt toàn kỳ.</p></header>
+  <div className={styles.toolbar}><label>Cơ sở <select value={centerId} onChange={e=>setCenterId(e.target.value)}>
+   {centers.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>
+   <button type="button" onClick={()=>{setEditing(false);setForm(empty);setSelected(null);setError("");}}>Tạo kỳ lương</button>
+   <button type="button" onClick={fresh} disabled={loading}>Làm mới</button></div>
+  {error?<p role="alert" className={styles.error}>{error}</p>:null}
+  {notice?<p role="status" className={styles.notice}>{notice}</p>:null}
+  {(!selected||editing)&&<section className={styles.card}>
+   <h2>{editing?"Chỉnh sửa kỳ lương":"Kỳ lương mới"}</h2>
+   <form className={styles.form} onSubmit={e=>void save(e)}>
+    <label>Tên kỳ<input required maxLength={120} value={form.name} onChange={e=>setForm(x=>({...x,name:e.target.value}))}/></label>
+    <label>Bắt đầu<input type="date" required disabled={editing&&selected?.dateLocked}
+     value={form.startDate} onChange={e=>setForm(x=>({...x,startDate:e.target.value}))}/></label>
+    <label>Kết thúc<input type="date" required disabled={editing&&selected?.dateLocked}
+     value={form.endDate} onChange={e=>setForm(x=>({...x,endDate:e.target.value}))}/></label>
+    <button disabled={busy||!centerId||!validPeriodInput(form)}>{busy?"Đang lưu…":"Lưu kỳ lương"}</button>
+    {editing?<button type="button" onClick={()=>setEditing(false)}>Hủy</button>:null}
+   </form>{editing&&selected?.dateLocked?<p>Ngày đã khóa vì có nhân viên chốt lương. Chỉ có thể đổi tên.</p>:null}
+  </section>}
+  <section className={styles.card}><h2>Danh sách kỳ lương ({periods.length})</h2>
+   <div className={styles.scroll}><table><thead><tr><th>Tên kỳ</th><th>Từ ngày</th><th>Đến ngày</th>
+    <th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
+    {periods.map(p=><tr key={p.id}><td><button className={styles.link} onClick={()=>choose(p)}>{p.name}</button></td>
+     <td>{p.startDate}</td><td>{p.endDate}</td><td>{p.status==="ARCHIVED"?"Lưu trữ":p.dateLocked?"Đã có lương chốt":"Đang mở"}</td>
+     <td><button type="button" onClick={()=>edit(p)} disabled={p.status==="ARCHIVED"}>Sửa</button></td></tr>)}
+   </tbody></table></div>
+   {!loading&&!periods.length?<p>Chưa có kỳ lương nào tại cơ sở này.</p>:null}
+   {periodOffset!==null?<button type="button" onClick={()=>void morePeriods()} disabled={loading}>Tải thêm kỳ</button>:null}
+  </section>
+  {selected&&!editing&&<section className={styles.card}><div className={styles.toolbar}>
+   <h2>{selected.name} · {selected.startDate} → {selected.endDate}</h2>
+   <button type="button" onClick={()=>edit(selected)} disabled={selected.status==="ARCHIVED"}>Sửa kỳ</button></div>
+   {page?<><div className={styles.metrics}>
+    <span>Đã chốt: {page.periodTotals.finalizedCount}</span><span>Đã trả: {page.periodTotals.paidCount}</span>
+    <span>Chờ xử lý: {page.periodTotals.pendingCount}</span><span>Tổng đã biết: {money(page.periodTotals.knownMinor)}</span>
+   </div><p className={styles.hint}>Tổng FULL_PERIOD; Draft là ước tính, Finalized/Paid là snapshot. Khoản Pending chưa tính vào tổng đã biết.
+    {page.periodTotals.hasUnavailable?" Có nhân viên đã lưu trữ không thể tái tính.":""}</p></>:null}
+   <label>Tìm nhân viên <input value={staffSearch} onChange={e=>setStaffSearch(e.target.value)} placeholder="Tên nhân viên"/></label>
+   <div className={styles.scroll}><table><thead><tr><th>Nhân viên</th><th>Trạng thái</th><th>Số tiền</th><th>Lưu ý</th></tr></thead>
+    <tbody>{shown.map(row=><tr key={row.staffMemberId}><td><button className={styles.link} onClick={()=>{
+     setActiveStaff(row);setAck(false);setPaymentDate("");setPaymentReference("");}}>
+     {staffNames[row.staffMemberId]??row.staffMemberId}</button></td><td>{row.status}</td>
+     <td>{money(row.amountMinor??row.provisionalAmountMinor)}</td><td>{row.warnings.length} cảnh báo</td></tr>)}</tbody></table></div>
+   {page&&!page.totalStaffCount?<p>Không có nhân viên phát sinh trong kỳ.</p>:null}
+   {staffOffset!==null?<button type="button" onClick={()=>void moreStaff()} disabled={loading}>Tải thêm nhân viên</button>:null}
+   {activeStaff&&<aside className={styles.detail}><h3>{staffNames[activeStaff.staffMemberId]??activeStaff.staffMemberId}</h3>
+    <p>Trạng thái: <strong>{activeStaff.status}</strong> · {money(detail?.amountMinor??activeStaff.amountMinor)}</p>
+    {detail?<><p>Lương theo ngày: {money(detail.days.reduce((s,x)=>s+(x.status==="READY"?x.amountMinor??0:0),0))}</p>
+     <p>Thêm giờ được duyệt: {money(detail.extraTimeMinor)} · Điều chỉnh: {money(detail.adjustmentsMinor)}</p>
+     <ul>{detail.days.map(x=><li key={x.workDate}>{x.workDate}: {x.status} · {money(x.amountMinor)}</li>)}</ul>
+     {detail.warnings.length?<p role="alert">Cảnh báo: {detail.warnings.join(", ")}</p>:null}
+    </>:null}
+    {activeStaff.status==="DRAFT"||activeStaff.status==="PENDING"?<div>
+     <label><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)}/>
+      Tôi đã kiểm tra số tiền và xác nhận các cảnh báo của nhân viên này.</label>
+     <button disabled={busy||!ack||!detail||selected.status!=="ACTIVE"} onClick={()=>void finalize()}>Chốt nhân viên</button>
+    </div>:null}
+    {activeStaff.status==="FINALIZED"&&<div className={styles.form}>
+     <label>Ngày đã trả<input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}/></label>
+     <label>Chứng từ thanh toán<input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)}/></label>
+     <button disabled={busy||!paymentDate||!paymentReference.trim()} onClick={()=>void markPaid()}>Ghi nhận Paid</button>
+    </div>}
+    <button type="button" onClick={()=>{setActiveStaff(null);setDetail(null);}}>Đóng</button>
+   </aside>}
+  </section>}
+ </main>;
 }
-function Kpis({summary}:{summary:{expected:number;finalized:number}|null}){return <div className={styles.kpis} aria-label="Tổng hợp kỳ lương"><div className={styles.kpi}><span>Tổng Dự Kiến</span><strong data-pay-total-expected>{summary?money(summary.expected):"—"}</strong></div><div className={styles.kpi}><span>Tổng Quyết Toán</span><strong data-pay-total-finalized>{summary?money(summary.finalized):"—"}</strong></div></div>;}

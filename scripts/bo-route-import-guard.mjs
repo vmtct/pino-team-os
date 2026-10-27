@@ -9,7 +9,7 @@ import ts from "typescript";
 
 const CANONICAL = "@/app/bo/architecture/BoModuleFactory";
 const STAGING_GATEWAY = "@/app/bo/architecture/BoWorkforceRoute";
-const APPROVED_GATEWAY = new Set(["workforce-term-weeks","workforce-shift-plans","workforce-availability","workforce-assignments"]);
+const APPROVED_GATEWAY = new Set(["workforce-term-weeks","workforce-shift-plans","workforce-availability","workforce-assignments","payroll-periods"]);
 const SUFFIXES = [".tsx",".ts",".jsx",".js",".mjs",".cjs","/index.tsx","/index.ts","/index.js"];
 const parse = (name,text)=>ts.createSourceFile(name,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 function visit(node,fn){fn(node);ts.forEachChild(node,n=>visit(n,fn));}

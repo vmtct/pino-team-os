@@ -4,11 +4,13 @@ import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { boModuleRegistry } from "./registry";
 import { isBoStagingRouteAdmitted } from "./bo-staging-route-policy";
 import { shiftPlansAdapter, availabilityAdapter, assignmentsAdapter } from "./workforce-read-adapters";
+import { payrollPeriodsAdapter } from "@/lib/bo-payroll-read-adapter";
 
 const adapters = {
   "workforce-shift-plans": shiftPlansAdapter,
   "workforce-availability": availabilityAdapter,
   "workforce-assignments": assignmentsAdapter,
+  "payroll-periods": payrollPeriodsAdapter,
 } as const;
 type WorkforceKey = keyof typeof adapters;
 const isWorkforce = (key: string): key is WorkforceKey => Object.hasOwn(adapters, key);
