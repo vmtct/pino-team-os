@@ -5,6 +5,9 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import { SubscriptionHistoryGrid } from "./SubscriptionHistoryGrid";
+import { BoFullDetail } from "@/app/bo/components/registration/BoFullDetail";
+import { subscriptionModule } from "@/app/bo/components/registration/BoStudentSubscriptionRelation";
+import type { BoRecord } from "@/lib/bo-registration";
 import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
 import { SpecialtyWorkspace } from "./SpecialtyWorkspace";
 import styles from "./bo-subscriptions.module.css";
@@ -26,6 +29,8 @@ export function BoSubscriptionsView() {
   const [pendingAttempt, setPendingAttempt] = useState<CommandAttempt | null>(null);
   const [billingReplay, setBillingReplay] = useState<BillingReplayState>(EMPTY_BILLING_REPLAY);
   const [historyRevision, setHistoryRevision] = useState(0);
+  const [historyDetail, setHistoryDetail] = useState<BoRecord | null>(null);
+  const operationsRef = useRef<HTMLDetailsElement>(null);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
 
@@ -77,6 +82,9 @@ export function BoSubscriptionsView() {
       const next = requested && rows.some((row) => row.id === requested) ? requested : rows[0]?.id ?? null;
       selectedRef.current = next;
       setSelectedId(next);
+      // Student Detail links must reveal the selected student's existing workflow;
+      // a global Core cursor page cannot be falsely filtered by client studentId.
+      if (requested && next === requested && operationsRef.current) operationsRef.current.open = true;
     }).catch((error: unknown) => {
       if (!active) return;
       const text = message(error);
@@ -165,18 +173,16 @@ export function BoSubscriptionsView() {
     await runCommand(`end:${enrollment.id}`, (idempotencyKey) => boApi.endEnrollment(enrollment.id, body, idempotencyKey), "Đã kết thúc Enrollment.");
   }
 
-  if (directory.state === "loading" || catalog.state === "loading") return <State text="Đang tải Subscription workspace…" />;
-  if (directory.state === "error") return <State text={directory.message} error />;
-  if (catalog.state === "error") return <State text={catalog.message} error />;
-
-  return <main className={styles.page}>
-    <header className={styles.heading}>
-      <div><span>School · Commercial operations</span><h1>Subscriptions</h1><p>Owner surface cho vòng đời gói học: tạo + kích hoạt, xếp lớp, theo dõi Service Units, renewal và kết thúc.</p></div>
-      <div className={styles.boundary}>Core-owned commercial truth</div>
+  return <main className={historyDetail ? styles.detailOnly : styles.page}>
+    <header className={styles.readHeading}>
+      <h1>Subscriptions</h1>
+      <button type="button" className="primary-btn" disabled title="Form Create Subscription thuộc PAP-1034 (S2)">＋ Tạo mới</button>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
-    <SubscriptionHistoryGrid paths={catalog.data.paths} refreshVersion={historyRevision} />
+    <SubscriptionHistoryGrid paths={catalog.state === "ready" ? catalog.data.paths : []} refreshVersion={historyRevision} onFullDetail={setHistoryDetail} />
+    {catalog.state === "ready" && directory.state === "ready" ? <details ref={operationsRef} className={styles.operations}>
+      <summary>Vận hành gói học hiện hữu · Billing / Placement / Recovery</summary>
     <section className={styles.workspace}>
       <aside className={styles.directory}>
         <div className={styles.search}><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm học viên…" /></div>
@@ -197,6 +203,15 @@ export function BoSubscriptionsView() {
           billingReplay={billingReplay} setBillingReplay={setBillingReplay} onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
     </section>
+    </details> : <p role="status" className={styles.readHint}>Dữ liệu danh sách Subscription vẫn hoạt động độc lập; workspace vận hành đang tải hoặc thiếu quyền truy cập.</p>}
+    {historyDetail ? <BoFullDetail
+      key={historyDetail.id}
+      module={subscriptionModule}
+      moduleKey="subscriptions"
+      record={historyDetail}
+      mobileMenu={null}
+      onBack={() => setHistoryDetail(null)}
+    /> : null}
   </main>;
 }
 

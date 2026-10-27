@@ -23,7 +23,7 @@ export function BoFullDetail({
   const [voidOpen, setVoidOpen] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
-  const tabs = moduleKey === "students" && enableStudentSubscriptions
+  const tabs = moduleKey === "subscriptions" ? ["Detail", "Enrollment", "Chuyên Sâu", "Lịch Sử"] : moduleKey === "students" && enableStudentSubscriptions
     ? ["Detail", "Subscription", "Chuyên Sâu", "Lịch Sử"]
     : ["Detail", "Chuyên Sâu", "Lịch Sử"];
   const selectedTabIndex = tabs.indexOf(tab);
@@ -105,6 +105,8 @@ export function BoFullDetail({
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
+              : activeTab === "Enrollment" && moduleKey === "subscriptions"
+                ? <div className="v24-audit-empty" role="status">Phân lớp được quản lý bởi Core. Chức năng xem và thao tác Enrollment thuộc PAP-1035 (S3), chưa triển khai trong S1.</div>
               : activeTab === "Chuyên Sâu"
                 ? <BoAdvanced module={module} moduleKey={moduleKey} record={record} />
                 : subjectType
