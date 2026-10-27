@@ -50,6 +50,7 @@ jobs:
           node scripts/build-bo-authority.mjs --check
           node scripts/build-ho-authority.mjs --check
           node --import tsx --test lib/bo-css-authority.test.ts lib/ho-css-authority.test.ts lib/bo-registration-styles.test.ts lib/bo-skeleton.test.ts
+          node --test scripts/pap1029-parent-full-detail-layout.test.mjs
           echo "BROWSER_E2E=NOT_RUN_FOUNDER_POLICY"
       - name: Release confidence smoke and recovery regression tests
         run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
