@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import styles from "./staff-login.module.css";
 import { safeHoReturnTo, HO_HOME_PATH } from "@/lib/ho-routes";
 
-function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
+function homePath() { if (window.location.hostname === "tos.staging.pinohouse.art") return "/tos-v4"; if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
 
 function passwordChangePath() { const ret = window.location.hostname === "ho.staging.pinohouse.art" ? safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) : null; return "/staff-password/change" + (ret ? "?returnTo=" + encodeURIComponent(ret) : ""); }
 
