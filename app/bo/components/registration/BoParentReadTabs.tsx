@@ -34,7 +34,7 @@ function valid(value: unknown, expectedId: string): value is Detail {
    contacts.every(x=>x&&idPattern.test(x.id)&&["PHONE","EMAIL"].includes(x.type)&&typeof x.maskedValue==="string"&&/[•*]/.test(x.maskedValue)&&typeof x.primary==="boolean"&&typeof x.verified==="boolean") &&
    audit.every(x=>x&&idPattern.test(x.id)&&typeof x.at==="string"&&typeof x.action==="string"&&typeof x.outcome==="string"&&typeof x.actorType==="string");
 }
-export function BoParentReadTabs({ module, record }: { module: BoModule; record: BoRecord }) {
+export function BoParentReadTabs({ module, record, fullDetail = false }: { module: BoModule; record: BoRecord; fullDetail?: boolean }) {
   const [tab,setTab]=useState<ParentTab>("Overview");
   const [detail,setDetail]=useState<Detail|null>(null);
   const [status,setStatus]=useState<"loading"|"ready"|"error"|"permission">("loading");
@@ -64,12 +64,11 @@ export function BoParentReadTabs({ module, record }: { module: BoModule; record:
     <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
     <div className="v24-prop-value readonly" aria-label={"Chỉ đọc "+field.label}><BoValue field={field} value={record[field.key]} full /></div>
   </div>)}</div>;
-  return <section aria-label="Parents & Guardians">
-    <div className="detail-tabs" role="tablist" aria-label="Parent">{tabs.map((item,index)=><button type="button" role="tab"
+  const navigation = <div className="detail-tabs" role="tablist" aria-label="Parent">{tabs.map((item,index)=><button type="button" role="tab"
       key={item} id={"parent-tab-"+item.toLowerCase()} aria-selected={item===tab} aria-controls="parent-tab-panel"
       tabIndex={item===tab?0:-1} className={"detail-tab"+(item===tab?" selected":"")}
-      onClick={()=>setTab(item)} onKeyDown={event=>keydown(event,index)}>{item}</button>)}</div>
-    <section id="parent-tab-panel" role="tabpanel" aria-labelledby={"parent-tab-"+tab.toLowerCase()} className="v24-prop-section">
+      onClick={()=>setTab(item)} onKeyDown={event=>keydown(event,index)}>{item}</button>)}</div>;
+  const panel = <section id="parent-tab-panel" role="tabpanel" aria-labelledby={"parent-tab-"+tab.toLowerCase()} className="v24-prop-section">
       <Suspense fallback={<div role="status">Đang tải bảng…</div>}>
       {tab==="Overview"?overview:status!=="ready"||!detail?
        <div className="v24-audit-empty" role="status">{status==="loading"?"Đang tải dữ liệu Core…":
@@ -83,6 +82,8 @@ export function BoParentReadTabs({ module, record }: { module: BoModule; record:
           emptyTitle="Chưa có Audit" emptyMessage="Chưa có sự kiện audit liên quan được phép xem."/>:
          <div role="status" className="v24-audit-empty">Không có quyền xem lịch sử Audit.</div>}
       </Suspense>
-    </section>
-  </section>;
+    </section>;
+  return fullDetail
+    ? <>{navigation}<div id="detail-body" className="detail-main v25-full-width"><div className="detail-panel v24-main-panel">{panel}</div></div></>
+    : <section aria-label="Parents & Guardians">{navigation}{panel}</section>;
 }
