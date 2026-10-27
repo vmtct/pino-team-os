@@ -6,6 +6,7 @@ import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
 import { BoParentReadTabs } from "./BoParentReadTabs";
+import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
@@ -23,7 +24,11 @@ export function BoFullDetail({
   const [voidOpen, setVoidOpen] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
-  const tabs = moduleKey === "subscriptions" ? ["Detail", "Enrollment", "Chuyên Sâu", "Lịch Sử"] : moduleKey === "students" && enableStudentSubscriptions
+  const tabs = moduleKey === "payroll-periods"
+    ? ["Detail", "Quyết Toán", "Lịch Sử"]
+    : moduleKey === "subscriptions"
+    ? ["Detail", "Enrollment", "Chuyên Sâu", "Lịch Sử"]
+    : moduleKey === "students" && enableStudentSubscriptions
     ? ["Detail", "Subscription", "Chuyên Sâu", "Lịch Sử"]
     : ["Detail", "Chuyên Sâu", "Lịch Sử"];
   const selectedTabIndex = tabs.indexOf(tab);
@@ -85,7 +90,9 @@ export function BoFullDetail({
       <div id="detail-body" className="detail-main v25-full-width" role="tabpanel"
         aria-labelledby={"detail-tab-" + tabs.indexOf(activeTab)}>
         <div className="detail-panel v24-main-panel">
-          {activeTab === "Detail"
+          {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
+            ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
+            : activeTab === "Detail"
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">
                   <h4>Thông tin chính</h4>

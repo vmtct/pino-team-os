@@ -27,7 +27,9 @@ function fixture() {
   if(registrationStart>=0 && registrationEnd>registrationStart)
     fs.writeFileSync(path.join(tmp,regFile),registry.slice(0,registrationStart)+"\n"+registry.slice(registrationEnd));
   const nav=fs.readFileSync(path.join(tmp,navFile),"utf8");
-  fs.writeFileSync(path.join(tmp,navFile),nav.replace(/items: \[\{ href: "\/bo", label: "Hôm nay" \}[^\r\n]*\],/,'items: [{ href: "/bo", label: "Hôm nay" }],'));
+  fs.writeFileSync(path.join(tmp,navFile),nav
+    .replace(/items: \[\{ href: "\/bo", label: "Hôm nay" \}[^\r\n]*\],/,'items: [{ href: "/bo", label: "Hôm nay" }],')
+    .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,""));
   // Recreate frozen baseline pages as inert fixtures so receipt tests can
   // assert a clean migration transition without carrying 47 real modules.
   const baseline=JSON.parse(fs.readFileSync(path.join(tmp,baselineFile),"utf8"));

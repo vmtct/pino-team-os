@@ -126,7 +126,7 @@ function canonicalRoute(root,file,expectedKey,issues){
       factoryImport=Boolean(node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
         node.importClause.namedBindings.elements.some(el=>el.name.text==="BoModuleFactory"));
     }
-    if(ts.isImportDeclaration(node)&&literal(node.moduleSpecifier)==="@/app/bo/architecture/BoWorkforceRoute" && ["workforce-term-weeks","workforce-shift-plans","workforce-availability","workforce-assignments"].includes(expectedKey)) {
+    if(ts.isImportDeclaration(node)&&literal(node.moduleSpecifier)==="@/app/bo/architecture/BoWorkforceRoute" && ["workforce-term-weeks","workforce-shift-plans","workforce-availability","workforce-assignments","payroll-periods"].includes(expectedKey)) {
       gatewayImport=Boolean(node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) && node.importClause.namedBindings.elements.some(el=>el.name.text==="BoWorkforceRoute"));
     }
     if(ts.isJsxSelfClosingElement(node)||ts.isJsxOpeningElement(node)){
