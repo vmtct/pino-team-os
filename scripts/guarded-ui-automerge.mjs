@@ -53,7 +53,8 @@ export function pendingGithubMergeStatus(result) {
 export function assessPR(pr, policyAt, repo = 'vmtct/pino-team-os') {
   if (!pr || pr.state !== 'open' || pr.draft || pr.base?.ref !== 'main' || pr.head?.repo?.full_name !== repo || pr.user?.login !== 'vmtct') return 'untrusted, closed or draft PR';
   if (!(new Date(pr.created_at).getTime() >= new Date(policyAt).getTime())) return 'pre-existing PR: manual disposition';
-  if (pr.auto_merge) return 'native auto-merge already enabled';
+  // Already-enabled native merge is valid state, not a HOLD reason. Revocation
+  // is reserved for a *separate* real policy violation (labels, paths, etc.).
   if (pr.labels?.some(l => DENY_LABELS.has(l.name.toLowerCase()))) return 'manual/release hold label';
   if (pr.requested_reviewers?.length || pr.requested_teams?.length) return 'review requested';
   if (/^\s*(DO_NOT_MERGE|MERGE_HOLD|STOP_BEFORE_MERGE)\b/im.test(pr.body || '')) return 'explicit PR merge hold';

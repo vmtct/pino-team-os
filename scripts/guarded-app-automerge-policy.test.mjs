@@ -95,3 +95,15 @@ test("PAP-1091 CI-completed admission only trusts same-repo exact PR Validation"
  assert.equal(pendingGithubMergeStatus({errors:[{type:"UNPROCESSABLE",message:"Branch protection failed"}]}),false);
  assert.equal(pendingGithubMergeStatus({data:{enablePullRequestAutoMerge:{pullRequest:{autoMergeRequest:{}}}}}),false);
 });
+
+test("PAP-1091 already enabled native auto-merge is idempotent, but real holds revoke",async()=>{
+ const {assessPR}=await import("./guarded-ui-automerge.mjs");
+ const pr={state:"open",draft:false,created_at:"2026-10-27T15:06:31Z",
+   base:{ref:"main"},head:{repo:{full_name:"vmtct/pino-team-os"}},
+   user:{login:"vmtct"},auto_merge:{enabled_by:{login:"github-actions[bot]"}},
+   labels:[],requested_reviewers:[],requested_teams:[],mergeable_state:"blocked"};
+ const epoch="2026-10-27T00:21:29Z";
+ assert.equal(assessPR(pr,epoch),null,"enabled auto merge must not be classified as HOLD");
+ assert.match(assessPR({...pr,labels:[{name:"merge-hold"}]},epoch),/hold/);
+ assert.match(assessPR({...pr,draft:true},epoch),/draft/);
+});
