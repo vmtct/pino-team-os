@@ -90,8 +90,8 @@
   if(key==='classes'){
    // Current admitted delivery read, no legacy /running-classes fallback.
    const b=await read('delivery/bootstrap-state');if(!Array.isArray(b.runningClasses)||!Array.isArray(b.paths)||!Array.isArray(b.centers))throw Error('Danh sách lớp không hợp lệ.');
-   const paths=new Map(b.paths.map(p=>[id(p.id),text(p.displayName)])),centers=new Map(b.centers.map(c=>[id(c.id),text(c.displayName)]));
-   return unique(b.runningClasses.map(c=>({id:id(c.id),name:text(c.operationalName),path:paths.get(id(c.pathProgramId))||c.pathProgramId,center:centers.get(id(c.centerId))||c.centerId,weekday:c.weekdayIso,window:text(c.windowStartsLocal)+' – '+text(c.windowEndsLocal),capacity:c.optimalConcurrentCapacity,topology:text(c.deliveryTopology),status:text(c.status)})));
+   const paths=new Map(b.paths.map(p=>[id(p.id),text(p.displayName)])),centers=new Map(b.centers.map(c=>[id(c.id),text(c.displayName)]));const timeZones=new Map(b.centers.map(c=>[id(c.id),typeof c.timeZone==="string"?c.timeZone:null]));
+   return unique(b.runningClasses.map(c=>({id:id(c.id),name:text(c.operationalName),path:paths.get(id(c.pathProgramId))||c.pathProgramId,center:centers.get(id(c.centerId))||c.centerId,weekday:c.weekdayIso,window:text(c.windowStartsLocal)+' – '+text(c.windowEndsLocal),capacity:c.optimalConcurrentCapacity,topology:text(c.deliveryTopology),status:text(c.status),centerTimeZone:timeZones.get(c.centerId)||null})));
   }
   if(key==='subscriptions')return paged('subscriptions',s=>({id:id(s.id),name:text(s.studentDisplayName),path:text(s.pathDisplayName),status:text(s.lifecycle),weekly:s.weeklyCommitment,remaining:s.effectiveAvailableUnits,start:s.serviceStartsOn,end:s.contractualEndsOn,reference:s.commercialReference}));
   return paged('school/enrollments',e=>({id:id(e.id),name:text(e.studentDisplayName),subscriptionId:id(e.subscriptionId),runningClass:text(e.runningClassName),runningClassId:id(e.runningClassId),path:text(e.pathDisplayName),start:e.effectiveFromLocalDate,end:e.effectiveUntilExclusiveLocalDate,entry:e.plannedEntryLocalTime,duration:e.plannedDurationMinutes}));

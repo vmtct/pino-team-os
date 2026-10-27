@@ -9,8 +9,6 @@ import styles from "../../bo.module.css";
 type PrivateState =
   | { status:"idle"|"loading"|"error" }
   | { status:"ready"; rows:BoStaffCompensationEntry[] };
-type Editor = { mode:"create"|"correct"; id:string|null; effectiveFrom:string;
-  amountMinor:string; note:string; expectedVersion:number; original:string };
 
 const currency=new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0});
 const columns:BoDataGridColumn<BoStaffCompensationEntry>[]=[
@@ -23,14 +21,14 @@ const columns:BoDataGridColumn<BoStaffCompensationEntry>[]=[
   {key:"updated",header:"Cập nhật",render:row=><span>{row.updatedAt.slice(0,10)}</span>},
 ];
 
+/** PAP-996: BO may reveal authorized compensation history, never author salary rates. */
 export function StaffCompensationView(){
   const [staff,setStaff]=useState<BoStaffRecord[]>([]);
   const [staffSearch,setStaffSearch]=useState("");
   const [staffId,setStaffId]=useState("");
   const [centerId,setCenterId]=useState("");
   const [privateState,setPrivateState]=useState<PrivateState>({status:"idle"});
-  const [editor,setEditor]=useState<Editor|null>(null);
-  const [busy,setBusy]=useState(false);
+  const [selectedRate,setSelectedRate]=useState<BoStaffCompensationEntry|null>(null);
   const [error,setError]=useState("");
   const [filter,setFilter]=useState<"ALL"|"CURRENT"|"HISTORICAL"|"SCHEDULED">("ALL");
   const [dateFilter,setDateFilter]=useState("");
@@ -39,7 +37,7 @@ export function StaffCompensationView(){
   function hide(){
     fence.current+=1;
     setPrivateState({status:"idle"});
-    setEditor(null);
+    setSelectedRate(null);
     setError("");
   }
   useEffect(()=>{
@@ -78,58 +76,12 @@ export function StaffCompensationView(){
         setError("Không có quyền xem lịch sử lương hoặc dữ liệu tạm thời không khả dụng.");}
     }
   }
-  function openCreate(){
-    if(privateState.status!=="ready")return;
-    const initial={mode:"create" as const,id:null,effectiveFrom:"",
-      amountMinor:"",note:"",expectedVersion:0};
-    setEditor({...initial,original:JSON.stringify(initial)});
-  }
-  function openCorrect(row:BoStaffCompensationEntry){
-    const initial={mode:"correct" as const,id:row.id,effectiveFrom:row.effectiveFrom,
-      amountMinor:String(row.amountMinor),note:row.note??"",expectedVersion:row.version};
-    setEditor({...initial,original:JSON.stringify(initial)});
-  }
-  function closeEditor(){
-    if(!editor)return;
-    const {original,...current}=editor;
-    if(JSON.stringify(current)!==original && !window.confirm("Bỏ thay đổi chưa lưu?"))return;
-    setEditor(null);
-  }
-  async function save(){
-    if(!editor||!staffId||privateState.status!=="ready"||busy)return;
-    const amountMinor=Number(editor.amountMinor);
-    if(!Number.isSafeInteger(amountMinor)||amountMinor<=0||amountMinor>1_000_000_000_000){
-      setError("Mức lương phải là số VND nguyên dương.");return;
-    }
-    if(editor.mode==="create"&&!/^\d{4}-\d{2}-\d{2}$/.test(editor.effectiveFrom)){
-      setError("Chọn ngày hiệu lực hợp lệ.");return;
-    }
-    setBusy(true);setError("");
-    const generation=fence.current;
-    try{
-      if(editor.mode==="create"){
-        await boApi.createStaffCompensation(staffId,{effectiveFrom:editor.effectiveFrom,
-          amountMinor,note:editor.note||null,...(centerId?{centerId}:{})});
-      }else if(editor.id){
-        await boApi.correctStaffCompensation(staffId,editor.id,{amountMinor,
-          expectedVersion:editor.expectedVersion,note:editor.note||null,...(centerId?{centerId}:{})});
-      }
-      if(generation!==fence.current)return;
-      const refreshed=await boApi.staffCompensation(staffId,centerId||undefined);
-      if(generation===fence.current){setPrivateState({status:"ready",rows:refreshed});setEditor(null);}
-    }catch{
-      if(generation===fence.current){
-        hide();
-        setError("Không thể lưu. Kiểm tra quyền, dữ liệu trùng hoặc phiên bản đã thay đổi rồi xác thực lại.");
-      }
-    }finally{setBusy(false);}
-  }
 
   return <main className={styles.panel} data-testid="staff-compensation-private">
     <div className={styles.panelHeading}>
       <div><h1>Lịch sử lương</h1>
-        <p>Workforce · Dữ liệu nhạy cảm. Chỉ tải sau khi bấm Hiện và được Core xác thực quyền.</p></div>
-      <span className={styles.readOnly}>private · VND</span>
+        <p>Workforce · Dữ liệu nhạy cảm. BO chỉ xem sau khi Core xác thực quyền; thay đổi mức lương thuộc HO.</p></div>
+      <span className={styles.readOnly}>private · read-only · VND</span>
     </div>
     <div className={styles.formGrid}>
       <label className={styles.field}>Tìm nhân viên
@@ -144,7 +96,7 @@ export function StaffCompensationView(){
       </label>
       <label className={styles.field}>Center ID (tùy chọn)
         <input value={centerId} onChange={event=>{hide();setCenterId(event.target.value);}}
-          placeholder="Chỉ dùng khi thao tác theo Center" autoComplete="off"/>
+          placeholder="Chỉ dùng khi xem theo Center" autoComplete="off"/>
       </label>
     </div>
     {staffId?<div className={styles.staffActions}>
@@ -169,34 +121,21 @@ export function StaffCompensationView(){
         </label>
       </div>
       <BoDataGrid rows={filtered} columns={columns} rowKey={row=>row.id}
-        caption="Lịch sử lương đã xác thực" onRowOpen={openCorrect}
-        emptyTitle="Chưa có mốc lương" emptyMessage="Có thể tạo mốc lương đầu tiên."
-        toolbarActions={<button className={styles.primaryButton} type="button"
-          onClick={openCreate}>Thêm mốc lương</button>}/>
+        caption="Lịch sử lương đã xác thực" onRowOpen={setSelectedRate}
+        emptyTitle="Chưa có mốc lương" emptyMessage="Chưa có dữ liệu lịch sử lương được phép xem."/>
     </>:null}
-    {editor&&privateState.status==="ready"?<BoDataGridSidePeek
-      title={editor.mode==="create"?"Thêm mốc lương":"Hiệu chỉnh mốc lương"}
-      eyebrow={selectedName+" · Private compensation"} onClose={closeEditor}>
-      <p className={styles.staffWarning}>Thay đổi thông tin lương nhạy cảm. Core sẽ ghi Audit và kiểm tra phiên bản.</p>
-      <div className={styles.formGrid}>
-        <label className={styles.field}>Ngày hiệu lực
-          <input type="date" value={editor.effectiveFrom} disabled={editor.mode==="correct"}
-            onChange={event=>setEditor({...editor,effectiveFrom:event.target.value})}/>
-        </label>
-        <label className={styles.field}>Mức lương (VND)
-          <input type="number" min="1" step="1" value={editor.amountMinor}
-            onChange={event=>setEditor({...editor,amountMinor:event.target.value})}/>
-        </label>
-        <label className={styles.field}>Ghi chú / lý do
-          <textarea value={editor.note} maxLength={500}
-            onChange={event=>setEditor({...editor,note:event.target.value})}/>
-        </label>
-      </div>
-      <div className={styles.staffActions}>
-        <button type="button" className={styles.primaryButton} disabled={busy}
-          onClick={()=>void save()}>{busy?"Đang lưu…":"Lưu thay đổi"}</button>
-        <button type="button" className={styles.secondaryButton} onClick={closeEditor}>Hủy</button>
-      </div>
+    {selectedRate&&privateState.status==="ready"?<BoDataGridSidePeek
+      title={"Mốc lương "+selectedRate.effectiveFrom}
+      eyebrow={selectedName+" · Private compensation"} onClose={()=>setSelectedRate(null)}>
+      <p className={styles.staffWarning}>Chỉ xem · Quản lý mức lương và ngày hiệu lực thuộc HO.</p>
+      <dl>
+        <dt>Hiệu lực từ</dt><dd>{selectedRate.effectiveFrom}</dd>
+        <dt>Đến trước</dt><dd>{selectedRate.periodUntilExclusive??"—"}</dd>
+        <dt>Trạng thái</dt><dd>{selectedRate.state}</dd>
+        <dt>Mức lương</dt><dd>{currency.format(selectedRate.amountMinor)} ₫</dd>
+        <dt>Ghi chú</dt><dd>{selectedRate.note??"—"}</dd>
+        <dt>Phiên bản</dt><dd>{selectedRate.version}</dd>
+      </dl>
     </BoDataGridSidePeek>:null}
   </main>;
 }
