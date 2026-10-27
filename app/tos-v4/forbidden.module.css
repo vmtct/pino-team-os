@@ -1,0 +1,8 @@
+.page{min-height:100svh;display:grid;place-items:center;padding:24px;background:#f8f4ee;color:#332820;font-family:Arial,Helvetica,sans-serif}
+.card{width:min(100%,480px);display:grid;gap:18px;padding:30px;border:1px solid #6e5a461e;border-radius:22px;background:#fffdf9;box-shadow:0 24px 64px #5b49341a}
+.eyebrow{font-size:11px;font-weight:900;letter-spacing:.13em;color:#745f4f}
+.card h1{font-size:clamp(22px,5vw,29px);font-weight:750;line-height:1.2;margin:0}
+.card p{margin:0;line-height:1.55;color:#756458}
+.switchButton{min-height:48px;padding:12px 16px;background:#496252;border:0;border-radius:12px;color:#fff;font:700 15px Arial,Helvetica,sans-serif;cursor:pointer}
+.switchButton:disabled{opacity:.65;cursor:wait}
+.note{font-size:13px}
