@@ -42,7 +42,13 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
   const ui=read(file);
   if(!ui.includes('data-bo-runtime-surface="'+c.marker+'"'))issues.push("Specialized UI marker missing "+key);
   if(!ui.includes("SubscriptionHistoryGrid")||!ui.includes("SubscriptionCreateDrawer"))issues.push("Specialized table/form absent "+key);
-  if(!entry.includes('moduleKey === "'+key+'"')||!entry.includes("<BoSubscriptionsView embedded />"))issues.push("Specialized UI orphaned from /bo shell "+key);
+  // PAP-1081: one menu-owner contract. The embedded owner must receive the
+  // canonical Workspace menu factory, not merely mount inside the shell.
+  const ownerSlot='renderContent={moduleKey === "'+key+'" ? mobileMenu => <BoSubscriptionsView embedded mobileMenu={mobileMenu} /> : undefined}';
+  const menuFromWorkspace=workspace.includes("renderContent ? renderContent(menu) : content ? content : detail ?");
+  const listMenu=ui.includes('mobileMenu?.("subscription-menu-btn")');
+  const detailMenu=ui.includes('mobileMenu={mobileMenu?.("subscription-detail-menu-btn") ?? null}');
+  if(!entry.includes(ownerSlot)||!menuFromWorkspace||!listMenu||!detailMenu)issues.push("Specialized UI orphaned from canonical /bo menu/owner shell "+key);
   if(!middleware.includes('isBoStagingHost(host) && (request.nextUrl.pathname === "/bo/subscriptions"')||!middleware.includes('target.searchParams.set("module", "subscriptions")'))issues.push("Legacy URL does not canonicalize on staging "+key);
   if(!read("app/bo/subscriptions/SubscriptionCreateDrawer.tsx").includes('id="'+c.uiAnchor+'"'))issues.push("Create anchor absent "+key);
  }

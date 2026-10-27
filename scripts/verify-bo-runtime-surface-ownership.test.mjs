@@ -24,8 +24,21 @@ test("future source module must declare ownership before CI",()=>{
 });
 test("orphaned specialized UI and missing DOM marker fail closed",()=>{
  const e=get(entry),u=get(ui);
- assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:e.replace("<BoSubscriptionsView embedded />","undefined")}).ok,false);
+ assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:e.replace("<BoSubscriptionsView embedded mobileMenu={mobileMenu} />","undefined")}).ok,false);
  assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[ui]:u.replace('data-bo-runtime-surface="subscriptions-core"','data-bo-runtime-surface="generic"')}).ok,false);
+});
+test("PAP-1081 specialized owner cannot lose the Workspace menu factory or either mobile entrypoint",()=>{
+ const workspacePath="app/bo/components/registration/BoRegistrationWorkspace.tsx";
+ const w=get(workspacePath),u=get(ui);
+ for(const edit of [
+  {[workspacePath]:w.replace("renderContent ? renderContent(menu) : content ? content : detail ?", "content ? content : detail ?")},
+  {[ui]:u.replace('mobileMenu?.("subscription-menu-btn")', "null")},
+  {[ui]:u.replace('mobileMenu={mobileMenu?.("subscription-detail-menu-btn") ?? null}', "mobileMenu={null}")}
+ ]) {
+  const out=verifyBoRuntimeSurfaceOwnership(undefined,edit);
+  assert.equal(out.ok,false,"menu/owner architecture violation must fail");
+  assert.match(out.issues.join("; "),/orphaned/);
+ }
 });
 test("staging legacy alias cannot point to another module or bypass canonical shell",()=>{
  const src=get(middleware);
