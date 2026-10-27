@@ -27,3 +27,27 @@ test("enrollment projection rejects unknown/duplicate queries and never activate
  for(const query of ["?limit=101","?limit=1&limit=2","?userId=forged","?permission=admin"]){const f=fixture();assert.equal((await handleBoSchoolEnrollments(request(query),f.env)).status,400);assert.equal(f.calls.length,0);}
  const f=fixture();assert.equal((await handleBoSchoolEnrollments(new Request("https://bo.pinohouse.art/api/bo/school/enrollments"),f.env)).status,404);assert.equal(f.calls.length,0);
 });
+
+test("enrollment projection bounds fan-out while reducing high-cardinality latency", async () => {
+ const count=32, subscriptions=Array.from({length:count},(_,i)=>({id:id(i+1),studentProfileId:id(i+101),studentDisplayName:"Fixture",pathDisplayName:"Art"}));
+ let inFlight=0,peak=0,lifecycleReads=0;
+ const env={APP_ENV:"staging",BO_UI_ONLY:"enabled",PINO_BO_CORE:{
+  async executeWithStaffPassword(request:BoAccessRequest){
+   if(request.path==="subscriptions") return {status:200,requestId:"p",body:{data:{items:subscriptions,limit:100,nextCursor:null}}};
+   const studentId=request.path.split("/")[1];
+   const sub=subscriptions.find(x=>x.studentProfileId===studentId);
+   if(!sub) return {status:403,requestId:"denied",body:{error:{code:"DENIED"}}};
+   lifecycleReads++;inFlight++;peak=Math.max(peak,inFlight);
+   await new Promise(resolve=>setTimeout(resolve,8));inFlight--;
+   return {status:200,requestId:"p",body:{data:{student:{id:studentId},subscriptions:[{
+    subscription:{id:sub.id},enrollments:[{id:id(500+subscriptions.indexOf(sub)),subscriptionId:sub.id,runningClassId:id(800),runningClassName:"Fixture Class"}]
+   }]}}};
+  }
+ }};
+ const response=await handleBoSchoolEnrollments(request(),env);
+ assert.equal(response.status,200);
+ const payload=await response.json();
+ assert.equal(payload.data.items.length,count);
+ assert.equal(lifecycleReads,count);
+ assert.ok(peak<=8 && peak>=6,"bounded parallelism should not serialize or exceed the cap: "+peak);
+});
