@@ -15,6 +15,10 @@ const BoSubscriptionEnrollmentTab = lazy(async () => {
   const { BoSubscriptionEnrollmentTab } = await import("@/app/bo/subscriptions/BoSubscriptionEnrollmentTab");
   return { default: BoSubscriptionEnrollmentTab };
 });
+const BoWorkforcePlannerTab = lazy(async () => {
+  const { WorkforcePlanningView } = await import("@/app/bo/workforce/WorkforcePlanningView");
+  return { default: WorkforcePlanningView };
+});
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
@@ -33,9 +37,9 @@ export function BoFullDetail({
   const [voidOpen, setVoidOpen] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
-  // Existing BO/Student/Subscription/Payroll tabs are preserved from current main.
-  // Running Classes approved Enrollment is module-local.
-  const tabs = moduleKey === "classes"
+  // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
+  const tabs = moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
+    : moduleKey === "classes"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "payroll-periods"
     ? ["Detail", "Quyết Toán", "Lịch Sử"]
@@ -107,8 +111,10 @@ export function BoFullDetail({
         <div className="detail-panel v24-main-panel">
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
             ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
+            : activeTab === "Lịch tuần" && moduleKey === "workforce-shift-plans"
+              ? <Suspense fallback={<p role="status">Đang tải lịch tuần…</p>}><BoWorkforcePlannerTab embedded scope={{ centerId: String(record.centerId ?? ""), termWeekId: String(record.termWeekId ?? "") }} /></Suspense>
             : moduleKey === "staffs" && activeTab === "Thu nhập"
-            ? <BoStaffIncomeReadTab staffMemberId={record.id} />
+              ? <BoStaffIncomeReadTab staffMemberId={record.id} />
             : activeTab === "Detail"
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">

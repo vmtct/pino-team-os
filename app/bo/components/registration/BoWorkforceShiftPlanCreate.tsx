@@ -45,7 +45,11 @@ export function BoWorkforceShiftPlanCreate({ onClose, onCreated }: { onClose: ()
     void workforceRead.globalWeeks(centerId).then((result) => {
       if (!active) return;
       const sorted = [...result.termWeeks].sort((a, b) => a.startDate.localeCompare(b.startDate));
-      setWeeks(sorted); setTermWeekId(sorted[0]?.id ?? ""); setLoading(false);
+      const today = new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Ho_Chi_Minh"}).format(new Date());
+      const recommended = sorted.find(week => week.startDate <= today && week.endDate >= today)
+        ?? sorted.find(week => week.startDate > today)
+        ?? sorted.at(-1);
+      setWeeks(sorted); setTermWeekId(recommended?.id ?? ""); setLoading(false);
     }).catch((cause: unknown) => {
       if (active) { setError(cause instanceof Error ? cause.message : "Không thể tải TermWeek."); setLoading(false); }
     });
@@ -92,18 +96,18 @@ export function BoWorkforceShiftPlanCreate({ onClose, onCreated }: { onClose: ()
       <div className="drawer-content"><section className="property-section">
         <p role="status">Kế hoạch được tạo cho một Center và một TermWeek. Đăng ký Staff khác với phân ca Manager.</p>
         <div className="property-row"><label className="property-label" htmlFor="plan-center">Center</label>
-          <select id="plan-center" className="property-control" value={centerId} disabled={loading || busy} onChange={event => { setCenterId(event.target.value); setRegistrationOpen(centers.find(center => center.id === event.target.value)?.canReopenAvailability ?? false); }}>
+          <select id="plan-center" className="edit-input" value={centerId} disabled={loading || busy} onChange={event => { setCenterId(event.target.value); setRegistrationOpen(centers.find(center => center.id === event.target.value)?.canReopenAvailability ?? false); }}>
             {centers.map(center => <option key={center.id} value={center.id}>{center.displayName}</option>)}
           </select></div>
         <div className="property-row"><label className="property-label" htmlFor="plan-week">TermWeek</label>
-          <select id="plan-week" className="property-control" value={termWeekId} disabled={loading || busy} onChange={event => setTermWeekId(event.target.value)}>
+          <select id="plan-week" className="edit-input" value={termWeekId} disabled={loading || busy} onChange={event => setTermWeekId(event.target.value)}>
             {weeks.map(week => <option key={week.id} value={week.id}>{week.code} · {week.startDate}–{week.endDate}</option>)}
           </select></div>
         <div className="property-row"><label className="property-label" htmlFor="plan-registration">Mở đăng ký Staff</label>
           <input id="plan-registration" type="checkbox" checked={registrationOpen} disabled={busy} onChange={event => setRegistrationOpen(event.target.checked)} />
         </div>
         <div className="property-row"><label className="property-label" htmlFor="plan-reason">Lý do tạo</label>
-          <textarea id="plan-reason" className="property-control" value={reason} maxLength={500} disabled={busy} onChange={event => setReason(event.target.value)} />
+          <textarea id="plan-reason" className="edit-input" value={reason} maxLength={500} disabled={busy} onChange={event => setReason(event.target.value)} />
         </div>
         {alreadyExists ? <p role="status">Center Shift Plan đã tồn tại cho tuần này.</p> : null}
         {!canCreate && !loading && centerId ? <p role="status">Bạn không có quyền mở hoặc đóng đăng ký Staff cho Center này.</p> : null}
