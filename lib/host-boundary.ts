@@ -14,7 +14,7 @@ export const RETIRED_TEAM_HOSTNAME = "team.pinohouse.art";
 
 export type HostBoundaryDecision =
   | { action: "next" }
-  | { action: "redirect"; pathname: "/bo" | "/ho" | typeof HO_HOME_PATH }
+  | { action: "redirect"; pathname: "/bo" | "/ho" | "/tos-v4" | typeof HO_HOME_PATH }
   | { action: "not_found" };
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
@@ -51,6 +51,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === TOS_HOSTNAME || hostname === TOS_STAGING_HOSTNAME) {
     if (isPathWithin(pathname, "/bo") || isPathWithin(pathname, "/api/bo")) return { action: "not_found" };
+    // Staging review uses the V4 renderer; Production TOS remains unchanged.
+    if (hostname === TOS_STAGING_HOSTNAME && pathname === "/" && (method === "GET" || method === "HEAD")) {
+      return { action: "redirect", pathname: "/tos-v4" };
+    }
     return { action: "next" };
   }
 

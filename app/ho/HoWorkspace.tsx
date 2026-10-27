@@ -1,8 +1,8 @@
 "use client";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { boApi } from "@/lib/bo-api";
-import { hoRoutes, hoModules, mapHoCenters, mapHoUsers, mapHoRoles, type HoModule } from "@/lib/ho-system";
-import { HO_A1_KEYS,loadHoA1,type HoA1Module } from "@/lib/ho-a1";
+import { hoRoutes, hoModules, mapHoCenters, mapHoUsers, mapHoRoleDirectory, type HoModule } from "@/lib/ho-system";
+import { HO_A1_KEYS,loadHoA1,loadHoA1Detail,type HoA1Module } from "@/lib/ho-a1";
 import type { ReactNode } from "react";
 const source: BoWorkspaceSource = {
  modules:hoModules, surface:"ho",readOnly:true,
@@ -13,14 +13,18 @@ const source: BoWorkspaceSource = {
   if(HO_A1_KEYS.includes(key as HoA1Module))return loadHoA1(key as HoA1Module,timed);
   if(key==="centers") return mapHoCenters(await boApi.centers(timed));
   if(key==="users") return mapHoUsers(await boApi.accessUsers(timed));
-  if(key==="roles") {
-    const roles=await boApi.accessRoles(timed);
-    const details=[];
-    // Avoid unbounded concurrent privileged requests if roles scale beyond the current staging data.
-    for (let i=0;i<roles.length;i+=4) details.push(...await Promise.all(roles.slice(i,i+4).map(role=>boApi.accessRole(role.id,timed))));
-    return mapHoRoles(roles,details);
-  }
+  if(key==="roles") return mapHoRoleDirectory(await boApi.accessRoles(timed));
   return []; // Audit table manages true server-side pagination in HoAccessAudit.
+ },
+ async loadRecordDetails(key,record,fetcher) {
+  const timed:typeof fetch=(url,init)=>fetcher(url,{...init,signal:init?.signal?AbortSignal.any([init.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});
+  if(key==="roles") {
+   const detail=await boApi.accessRole(record.id,timed);
+   if(detail.id!==record.id)throw new Error("Role detail identity mismatch");
+   return {...record,permissionKeys:detail.permissionKeys};
+  }
+  if(key==="syllabi")return loadHoA1Detail("syllabi",record,timed);
+  return record;
  },
 };
 export function HoWorkspace({module,content}:{module:HoModule;content?:ReactNode}) {
