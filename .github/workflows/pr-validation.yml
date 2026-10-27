@@ -1,6 +1,7 @@
 name: PR Validation
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main, feat/pap879-core-pilot-adapters-20261024, feat/pap979-full-detail-v25]
   push:

@@ -1,0 +1,86 @@
+name: Bot Merge Main CI Bridge
+on:
+  workflow_run:
+    workflows: ["PR Validation"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: bot-merge-main-ci-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'vmtct/pino-team-os' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify PR CI provenance, exact bot merge and dispatch main validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > /tmp/run.json
+          jq -e --arg sha "$RUN_SHA" --arg repo "$GITHUB_REPOSITORY" '
+            .event=="pull_request" and .conclusion=="success" and .head_sha==$sha and
+            .path==".github/workflows/pr-validation.yml" and
+            .head_repository.full_name==$repo
+          ' /tmp/run.json >/dev/null
+
+          # workflow_run.pull_requests can be empty even for valid PRs.
+          # Resolve from the CI-tested HEAD SHA, never from untrusted PR text.
+          gh api "repos/$GITHUB_REPOSITORY/commits/$RUN_SHA/pulls?per_page=100" > /tmp/associated-prs.json
+          mapfile -t numbers < <(jq -r --arg sha "$RUN_SHA" --arg repo "$GITHUB_REPOSITORY" '
+            .[] | select(.base.ref=="main" and .head.sha==$sha and .head.repo.full_name==$repo) | .number
+          ' /tmp/associated-prs.json)
+          if [ "${#numbers[@]}" -ne 1 ]; then
+            echo "HOLD: expected exactly one same-repo main PR for successful HEAD ($RUN_SHA)"
+            exit 0
+          fi
+          pr="${numbers[0]}"
+
+          # GitHub-native merge can complete after the required PR CI finishes.
+          # Wait only inside this workflow, then stop on superseded/closed PRs.
+          for attempt in $(seq 1 36); do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" > /tmp/pr.json
+            jq -e --arg sha "$RUN_SHA" --arg repo "$GITHUB_REPOSITORY" '
+              .head.sha==$sha and .base.ref=="main" and .head.repo.full_name==$repo and
+              .user.login=="vmtct"
+            ' /tmp/pr.json >/dev/null || { echo "HOLD: PR HEAD/owner/base changed"; exit 0; }
+            if [ "$attempt" -eq 1 ] && jq -e '.auto_merge == null and .merged_at == null' /tmp/pr.json >/dev/null; then
+              echo "HOLD: native auto-merge not enabled; no wait for manual PR"
+              exit 0
+            fi
+            if jq -e '.merged_at != null' /tmp/pr.json >/dev/null; then
+              jq -e '.merged_by.login=="github-actions[bot]" and .merged==true' /tmp/pr.json >/dev/null || {
+                echo "HOLD: not a native GitHub Actions auto-merge"
+                exit 0
+              }
+              merge_sha="$(jq -r .merge_commit_sha /tmp/pr.json)"
+              current_main="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+              if [ "$current_main" != "$merge_sha" ]; then
+                echo "HOLD: main advanced beyond bot merge; newer main CI must handle release"
+                exit 0
+              fi
+              echo "DISPATCH_MAIN_CI pr=$pr merge=$merge_sha tested_head=$RUN_SHA"
+              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/pr-validation.yml/dispatches" -f ref=main
+              exit 0
+            fi
+            if jq -e '.state=="closed"' /tmp/pr.json >/dev/null; then
+              echo "HOLD: PR closed without merge"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "HOLD: bot merge not observed within poll horizon"
+          exit 0

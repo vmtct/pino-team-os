@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.repository == 'vmtct/pino-team-os' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
+    if: github.repository == 'vmtct/pino-team-os' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -41,7 +41,7 @@ jobs:
           test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
           git merge-base --is-ancestor 93fde0193685cd465f4888c8cc0bc009252c7edd "$SHA"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
-          jq -e --arg sha "$SHA" '.head_sha==$sha and .event=="push" and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
+          jq -e --arg sha "$SHA" '.head_sha==$sha and (.event=="push" or .event=="workflow_dispatch") and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
           node - <<'NODE'
           const assert=require('node:assert/strict');
           const c=require('./wrangler.ho-staging.json');
