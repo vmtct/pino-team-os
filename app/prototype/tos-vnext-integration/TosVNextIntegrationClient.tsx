@@ -31,7 +31,8 @@ import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 
 type Section="home"|TosVNextAppId;
 type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
-type ReadData={shift?:ShiftData};
+type FounderAssignment=Assignment&{staffMemberId:string;staffLabel:string};
+type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean}};
 function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
@@ -91,7 +92,15 @@ export default function TosVNextIntegrationPreview(){
   if(!centerId||!ctx)return;
   // Founder has a Core-authenticated global browse context but no self Staff record.
   // Do not probe Staff-only schedule, payroll, profile or timekeeping endpoints.
-  if(ctx.founderMode){setError("");setData({});setLoading(false);return;}
+  if(ctx.founderMode){
+   let active=true;
+   setError("");setData({});setLoading(true);
+   void workforceApi.founderCenterSchedule({centerId,startDate:today(zone),endDate:today(zone,14)})
+    .then(result=>{if(active)setData({founder:result.data})})
+    .catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải lịch Center từ Core.")})
+    .finally(()=>{if(active)setLoading(false)});
+   return()=>{active=false};
+  }
   let active=true;
   setError("");setLoading(true);setData({});
   void shiftReadModel(centerId,today(zone).slice(0,8)+"01",today(zone,14)).then(v=>{
@@ -143,7 +152,25 @@ export default function TosVNextIntegrationPreview(){
     <TosVNextCard>
      <h2>{names[app]}</h2>
      <p role="status">Chế độ Founder · {center?.displayName||"Chưa chọn trung tâm"}</p>
-     <p>Founder đã được xác thực và có thể xem danh mục TOS tại tất cả trung tâm. Phần dữ liệu theo ca hoặc hồ sơ Staff không được giả lập; các thao tác Staff cá nhân vẫn yêu cầu tài khoản Staff hợp lệ.</p>
+     {app==="shift"||app==="shift-lead"?<section aria-label="Lịch phân công Center">
+      <h3>Phân công thực từ Core · 15 ngày</h3>
+      {error&&<p role="alert">{error}</p>}
+      {!error&&!data.founder&&<p role="status">Dữ liệu chưa sẵn sàng.</p>}
+      {data.founder&&(()=>{
+       const rows=data.founder.assignments.filter(row=>app==="shift"||row.roleAssignments?.some(role=>role.roleType==="SHIFT_LEADER"));
+       return <><p>{rows.length} phân công được trả về.</p>
+        {data.founder.truncated&&<p role="status">Chỉ hiển thị 100 dòng đầu; cần phân trang.</p>}
+        {!rows.length&&<p>Không có phân công trong khoảng ngày này.</p>}
+        {rows.map(row=><article key={row.id}>
+         <strong>{row.staffLabel}</strong>
+         <p>{row.workDate} · {row.shift?.displayLabel||"Theo giờ lớp"} · {row.status}</p>
+         <p>{row.effectiveStartLocal||row.shift?.startLocalTime||"—"} – {row.effectiveEndLocal||row.shift?.endLocalTime||"—"}</p>
+        </article>)}
+       </>;
+      })()}
+     </section>:app==="classroom"?
+      <TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel="Founder" onDetailChange={setClassDetailOpen}/>:
+      <p>Core chưa có read-model Center-wide được xác minh cho module này; không dùng Staff-self hoặc dữ liệu giả.</p>}
      <p>Để xem và quản lý dữ liệu vận hành của trung tâm, sử dụng Back Office trong khi giao diện giám sát Founder cho ứng dụng này được hoàn thiện.</p>
      <a href="https://bo.staging.pinohouse.art/bo">Mở Back Office</a>
     </TosVNextCard>
