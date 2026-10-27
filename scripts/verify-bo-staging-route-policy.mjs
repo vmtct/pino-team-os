@@ -89,7 +89,8 @@ export function verifyBoStagingRoutePolicy(root = ROOT) {
   }
   const cd = read(root, ".github/workflows/candidate-staging-deploy.yml");
   if (!cd.includes("for css in team-legacy-global.css bo-legacy-foundation.css") ||
-      !cd.includes('grep -qi "^content-type: text/css"'))
+      !cd.includes('grep -qi "^content-type: text/css"') ||
+      !cd.includes('"https://bo.staging.pinohouse.art/$css"'))
     issues.push("Automatic staging CD must smoke test both required CSS assets");
   const ci = read(root, CI);
   if (!ci.includes("node scripts/verify-bo-staging-route-policy.mjs") ||
