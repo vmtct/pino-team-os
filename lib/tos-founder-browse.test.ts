@@ -30,3 +30,16 @@ test("PAP-938 Founder Home exposes even Shift Leader as read-only browser panel"
  assert.match(home,/Founder · Giám sát TOS/);
  assert.match(integration,/<TosVNextHome founderMode profileLabel="Founder"/);
 });
+
+test("PAP-1059 S2 Founder Center visits use Core read projection, not Staff check-in",()=>{
+ const source=readFileSync("app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx","utf8");
+ const api=readFileSync("lib/workforce-api.ts","utf8");
+ assert.match(source,/workforceApi\.founderCenterVisits\(\{centerId,status:"ALL"\}\)/);
+ assert.match(source,/Student Visits · Dữ liệu thực từ Core/);
+ assert.match(source,/data\.visits\.summary\.openVisits/);
+ assert.match(source,/Promise\.allSettled/);
+ assert.match(source,/data\.founderError/);
+ assert.match(source,/data\.visitsError/);
+ assert.match(api,/founderCenterVisits:/);
+ assert.doesNotMatch(source.slice(source.indexOf("if(ctx?.founderMode){"),source.indexOf("if(!appRenderable)")),/workforceApi\.checkIn\(|workforceApi\.checkOut\(/);
+});
