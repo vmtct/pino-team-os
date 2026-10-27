@@ -109,11 +109,19 @@ jobs:
           jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
           origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
           # PAP-938 staging V4 stays protected; diagnostic route remains unavailable.
-          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")" = 307
-          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")" = 401
-          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-prototype -w '%{http_code}' "$origin/prototype/tos-vnext-integration")" = 404
+          status="$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")"
+          echo "SMOKE_TOS_V4_ANON_HTTP=$status (expected=307)"
+          test "$status" = 307
+          status="$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")"
+          echo "SMOKE_TOS_CONTEXT_ANON_HTTP=$status (expected=401)"
+          test "$status" = 401
+          status="$(curl -sS --max-time 20 -o /tmp/tos-v4-prototype -w '%{http_code}' "$origin/prototype/tos-vnext-integration")"
+          echo "SMOKE_PROTOTYPE_DENIED_HTTP=$status (expected=404)"
+          test "$status" = 404
           for route in workforce-shift-plans workforce-availability workforce-assignments; do
+
             code="$(curl -sS --max-time 20 -o /tmp/pap901-login -w '%{http_code}' "$origin/bo/$route")"
+            echo "SMOKE_BO_ROUTE=$route HTTP=$code (expected=307)"
             test "$code" = 307
           done
           # PAP-1030: retired BO pages must not be served, even by deep links.
@@ -123,17 +131,24 @@ jobs:
           done
           for endpoint in bootstrap global-weeks weekly; do
             code="$(curl -sS --max-time 20 -o /tmp/pap901-anon -w '%{http_code}' "$origin/api/bo/workforce/planning/$endpoint")"
+            echo "SMOKE_BO_API=$endpoint HTTP=$code (expected=401)"
             test "$code" = 401
           done
           code="$(curl -sS --max-time 20 -o /tmp/pap901-ho-denied -w '%{http_code}' "$origin/ho")"
+          echo "SMOKE_HO_DENIED_HTTP=$code (expected=404)"
           test "$code" = 404
           for url in https://bo.staging.pinohouse.art/bo https://ho.staging.pinohouse.art/ho/centers; do
             code="$(curl -sS --max-time 20 -o /tmp/staging-login -w '%{http_code}' "$url")"
+            echo "SMOKE_HOST_LOGIN=$url HTTP=$code (expected=307)"
             test "$code" = 307
           done
           # PAP-1028: prevent silent BO CSS regressions (not just successful HTML route loads).
           for css in team-legacy-global.css bo-legacy-foundation.css; do
-            curl -fsS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body "https://bo.staging.pinohouse.art/$css"
+            css_status="$(curl -sS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body -w '%{http_code}' "https://bo.staging.pinohouse.art/$css")"
+            css_type="$(grep -i "^content-type:" /tmp/bo-style-headers | tail -1 | tr -d '\r' || true)"
+            css_bytes="$(wc -c < /tmp/bo-style-body)"
+            echo "SMOKE_BO_CSS=$css HTTP=$css_status type=$css_type bytes=$css_bytes (expected=200,text/css,nonempty)"
+            test "$css_status" = 200
             test -s /tmp/bo-style-body
             grep -qi "^content-type: text/css" /tmp/bo-style-headers
           done
