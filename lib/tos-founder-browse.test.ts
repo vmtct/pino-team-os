@@ -20,3 +20,11 @@ test("PAP-938 staging Staff/Founder login routes to authoritative TOS V4",()=>{
  assert.match(login,/hostname === "tos.staging.pinohouse.art"\) return "\/tos-v4"/);
  assert.match(login,/body\.data\?\.authenticated/);
 });
+
+test("PAP-938 Founder Home exposes even Shift Leader as read-only browser panel",()=>{
+ const home=readFileSync("app/components/tos-vnext/TosVNextHome.tsx","utf8");
+ const integration=readFileSync("app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx","utf8");
+ assert.match(home,/founderMode\|\|app\.id!=="shift-lead"/);
+ assert.match(home,/Founder · Giám sát TOS/);
+ assert.match(integration,/<TosVNextHome founderMode profileLabel="Founder"/);
+});
