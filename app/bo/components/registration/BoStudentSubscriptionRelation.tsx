@@ -74,7 +74,7 @@ export function BoStudentSubscriptionRelation({
       changeViews={setViews}
       activeView={activeView}
       applyView={view => {
-        setTable(view?.state ?? defaultTable(subscriptionModule.fields));
+        setTable(view?.state ?? studentSubscriptionTableState(subscriptionModule.fields));
         setActiveView(view?.id ?? null);
         setPage(1);
       }}
