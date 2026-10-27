@@ -112,6 +112,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/workforce-shift-plans",
     "/bo/workforce-availability",
     "/bo/workforce-assignments",
+    "/bo/payroll-periods",
     "/bo/workforce/check-in-exceptions",
     "/bo/workforce/timekeeping",
     "/bo/workforce/duty-exceptions",

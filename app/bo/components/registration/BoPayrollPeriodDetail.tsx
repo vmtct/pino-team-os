@@ -4,7 +4,6 @@ import {periodApi,money,type PayPeriod,type PeriodStaff,type PeriodStaffPage} fr
 import {periodSummaries,staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
 import {BoPill} from "./BoValue";
 import type {BoRecord} from "@/lib/bo-registration";
-import "./payroll-period-detail.css";
 export function BoPayrollPeriodDetail({record,tab}:{record:BoRecord;tab:"Detail"|"Quyết Toán"}){
  const [period,setPeriod]=useState<PayPeriod|null>(null);
  const [page,setPage]=useState<PeriodStaffPage|null>(null);
