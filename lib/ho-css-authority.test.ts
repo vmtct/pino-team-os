@@ -66,6 +66,10 @@ test("HO sidebar uses approved logo, removes workspace nav, and leaves BO switch
   assert.match(jsx, /<BoCenterSwitcher \/>/);
   assert.doesNotMatch(jsx, /nav-workspace|workspace-angle/);
   assert.match(theme, /\.ho-brand-logo/);
+  const logoRule = postcss.parse(theme).nodes.find(node => node.type === "rule" && node.selector === '[data-surface="ho"] .ho-brand-logo');
+  assert.ok(logoRule && logoRule.type === "rule", "HO brand logo CSS rule must exist");
+  const logoBackground = logoRule.nodes.filter(node => node.type === "decl" && /^(?:background|background-color|background-image)$/.test(node.prop));
+  assert.equal(logoBackground.length, 0, "HO logo must not paint its own background");
   assert.doesNotMatch(theme, /\.brand-mark|\.nav-workspace/);
 });
 
