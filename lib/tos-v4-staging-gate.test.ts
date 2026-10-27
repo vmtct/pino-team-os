@@ -19,3 +19,16 @@ test("PAP-938 original prototype fence, BO and HO host separation remain intact"
  for(const h of [...TOS_V4_STAGING_HOSTS,"tos.pinohouse.art"]){assert.equal(decideHostBoundary(h,"/prototype/tos-vnext-integration").action,"not_found")}
  assert.equal(decideHostBoundary(host,"/bo").action,"not_found");assert.equal(decideHostBoundary(host,"/ho").action,"not_found");
 });
+
+test("PAP-938 only Core-verified Founder may enter TOS without linked Staff",async()=>{
+ const founder={userId:"founder",staffMemberId:null,founderMode:true,centers:[{id:"center",displayName:"PINO"}]};
+ assert.deepEqual(await authorizeTosV4Staging(new Headers({host,cookie}),env(200,founder)),founder);
+ for(const data of [
+  {...founder,founderMode:false},
+  {...founder,founderMode:undefined},
+  {...founder,staffMemberId:"",founderMode:true},
+  {...founder,centers:null},
+ ]){
+  await assert.rejects(authorizeTosV4Staging(new Headers({host,cookie}),env(200,data)),(e:unknown)=>e instanceof TosV4GateError&&e.status===403);
+ }
+});

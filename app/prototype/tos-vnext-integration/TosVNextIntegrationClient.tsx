@@ -70,7 +70,7 @@ export default function TosVNextIntegrationPreview(){
  // Do not leave privileged app content mounted after the shift window ends,
  // the center changes, or the station shrinks below desktop size.
  useEffect(()=>{
-  if(app==="home"||loading)return;
+  if(app==="home"||loading||ctx?.founderMode)return;
   if(!ctx||!centerId||!data.shift){setApp("home");setClassDetailOpen(false);return}
   const denied=!canOpenVNextApp(app,{authenticated:!!ctx,centerReady:!!centerId,
    scheduleReady:!!data.shift,desktop,access});
@@ -89,6 +89,9 @@ export default function TosVNextIntegrationPreview(){
  },[]);
  useEffect(()=>{
   if(!centerId||!ctx)return;
+  // Founder has a Core-authenticated global browse context but no self Staff record.
+  // Do not probe Staff-only schedule, payroll, profile or timekeeping endpoints.
+  if(ctx.founderMode){setError("");setData({});setLoading(false);return;}
   let active=true;
   setError("");setLoading(true);setData({});
   void shiftReadModel(centerId,today(zone).slice(0,8)+"01",today(zone,14)).then(v=>{
@@ -113,6 +116,40 @@ export default function TosVNextIntegrationPreview(){
  const appRenderable=app!=="home"&&!loading&&canOpenVNextApp(app,{
   authenticated:!!ctx,centerReady:!!centerId,scheduleReady:!!data.shift,desktop,access
  });
+ // Founder browsing is authorized by Core's protected GLOBAL role, never by
+ // a client-supplied email or StaffMember ID. All panels here are strictly
+ // read-only presentations; Staff self actions still fail closed at Core.
+ if(ctx?.founderMode){
+  const canBrowse=(id:TosVNextAppId)=>id!=="station"||desktop;
+  const browseHome=()=> <TosVNextHome founderMode profileLabel="Founder" centerName={center?.displayName}
+   authorizedCenters={ctx.centers} selectedCenterId={centerId}
+   onCenterChange={id=>{
+    try{assertOwnCenter(ctx,id)}catch{setHomeNotice("Cơ sở chưa được cấp quyền.");return}
+    setCenterId(id);setApp("home");setHomeNotice("");
+   }}
+   nextAssignment={null} busy={loading||!centerId}
+   allowed={canBrowse}
+   onOpen={id=>{if(canBrowse(id)&&centerId)setApp(id);else setHomeNotice("Trạm TOS cần màn hình desktop.")}}
+   onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
+   notice={homeNotice||error}/>;
+  if(app==="home"||loading||!centerId||(app==="station"&&!desktop))return browseHome();
+  const names:Record<TosVNextAppId,string>={
+   shift:"Ca Làm",reception:"Tiếp Tân",station:"Trạm TOS",
+   "shift-lead":"Trưởng Ca",classroom:"Lớp Học",training:"Thăng Tiến"
+  };
+  return <TosVNextFrame app={app} mode={app==="station"?"desktop":"mobile"}>
+   <TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>setApp("home")}/>
+   <TosVNextContent>
+    <TosVNextCard>
+     <h2>{names[app]}</h2>
+     <p role="status">Chế độ Founder · {center?.displayName||"Chưa chọn trung tâm"}</p>
+     <p>Founder đã được xác thực và có thể xem danh mục TOS tại tất cả trung tâm. Phần dữ liệu theo ca hoặc hồ sơ Staff không được giả lập; các thao tác Staff cá nhân vẫn yêu cầu tài khoản Staff hợp lệ.</p>
+     <p>Để xem và quản lý dữ liệu vận hành của trung tâm, sử dụng Back Office trong khi giao diện giám sát Founder cho ứng dụng này được hoàn thiện.</p>
+     <a href="https://bo.staging.pinohouse.art/bo">Mở Back Office</a>
+    </TosVNextCard>
+   </TosVNextContent>
+  </TosVNextFrame>;
+ }
  if(!appRenderable)return <TosVNextHome profileLabel={profileLabel} centerName={center?.displayName}
   authorizedCenters={ctx?.centers??[]} selectedCenterId={centerId}
   onCenterChange={id=>{
