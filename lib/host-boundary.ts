@@ -1,4 +1,5 @@
 import {tosV4StagingHost} from "./tos-v4-staging-host";
+import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
@@ -13,7 +14,7 @@ export const RETIRED_TEAM_HOSTNAME = "team.pinohouse.art";
 
 export type HostBoundaryDecision =
   | { action: "next" }
-  | { action: "redirect"; pathname: "/bo" | "/ho" }
+  | { action: "redirect"; pathname: "/bo" | "/ho" | "/tos-v4" | typeof HO_HOME_PATH }
   | { action: "not_found" };
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
@@ -25,8 +26,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (method === "POST" && authPost) return { action: "next" };
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
     if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
-    if (p === "/") return { action: "redirect", pathname: "/ho" };
-    if (["/ho", "/ho/centers", "/ho/system/users", "/ho/system/roles", "/ho/system/audit", "/ho/learning/syllabi", "/ho/learning/missions", "/ho/pinoria/worlds", "/ho/pinoria/wardrobe", "/ho/pinoria/wardrobe-sets", "/ho/pinoria/effects", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || p === "/bo-skeleton/ho-scoped.css") return { action: "next" };
+    if (p === "/") return { action: "redirect", pathname: HO_HOME_PATH };
+    if (["/ho", ...Object.values(HO_PAGE_PATHS), "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || p === "/bo-skeleton/ho-scoped.css") return { action: "next" };
     return { action: "not_found" };
   }
   if (isPathWithin(pathname, "/tos-v4") && !tosV4StagingHost(hostname)) return { action: "not_found" };
@@ -50,6 +51,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === TOS_HOSTNAME || hostname === TOS_STAGING_HOSTNAME) {
     if (isPathWithin(pathname, "/bo") || isPathWithin(pathname, "/api/bo")) return { action: "not_found" };
+    // Staging review uses the V4 renderer; Production TOS remains unchanged.
+    if (hostname === TOS_STAGING_HOSTNAME && pathname === "/" && (method === "GET" || method === "HEAD")) {
+      return { action: "redirect", pathname: "/tos-v4" };
+    }
     return { action: "next" };
   }
 

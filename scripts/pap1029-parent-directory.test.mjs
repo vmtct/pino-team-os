@@ -26,6 +26,9 @@ test("Parent V2.5 detail and read-only create gate survive Student Subscription 
   assert.match(workspace, /enableStudentSubscriptions=\{!ho && moduleKey === "students"\}/);
   assert.match(workspace, /!readOnly && !parentReadOnly/);
   assert.match(workspace, /<BoQuickView moduleKey=\{moduleKey\}/);
+  const quick = readFileSync("app/bo/components/registration/BoQuickView.tsx", "utf8");
+  assert.match(quick, /moduleKey === "parents"/);
+  assert.match(quick, /detailLoading \|\| Boolean\(detailError\)/);
   assert.match(workspace, /Pino%20Logo\.png/);
 });
 test("Parent directory always uses a distinct Core authorized endpoint and paginates", async () => {

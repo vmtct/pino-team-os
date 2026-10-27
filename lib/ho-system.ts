@@ -2,14 +2,11 @@ import type { BoModule, BoRecord } from "./bo-registration";
 import type { BoAccessRole, BoCenter } from "./bo-model";
 import type { BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import { hoCentersModule, mapHoCenters } from "./ho-centers";
-import {hoA1Modules,hoA1Routes,type HoA1Module} from "./ho-a1";
+import {hoA1Modules,type HoA1Module} from "./ho-a1";
+import { HO_PAGE_PATHS } from "./ho-routes";
 
 export type HoModule = "centers" | "users" | "roles" | "audits" | HoA1Module;
-export const hoRoutes: Record<HoModule, string> = {
-  centers: "/ho/centers", users: "/ho/system/users",
-  roles: "/ho/system/roles", audits: "/ho/system/audit",
-  ...hoA1Routes,
-};
+export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
  centers: {...hoCentersModule,group:"Network"},
  ...hoA1Modules,
@@ -36,6 +33,11 @@ export const hoModules: Record<HoModule,BoModule> = {
 export const mapHoUsers = (rows: BoAccessSystemUser[]): BoRecord[] => rows.map(u=>({
  id:u.id,name:u.email ?? u.id,status:u.status,staffMemberId:u.staffMemberId,
  roleAssignments:u.assignments.map(a=>[a.roleName,a.scopeType,a.scopeId].filter(Boolean).join(" · ")),
+}));
+export const mapHoRoleDirectory = (roles: BoAccessRole[]): BoRecord[] => roles.map(role=>({
+ id:role.id,name:role.displayName,roleKey:role.roleKey,roleType:role.roleType,
+ status:role.status,description:role.description,permissionCount:role.permissionCount,
+ assignmentCount:role.assignmentCount,permissionKeys:[],
 }));
 export const mapHoRoles = (roles: BoAccessRole[],details: BoAccessRoleDetail[]): BoRecord[] => {
  const byId=new Map(details.map(d=>[d.id,d]));

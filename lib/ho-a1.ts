@@ -1,13 +1,10 @@
 import type { BoModule, BoRecord } from "./bo-registration";
+import { HO_PAGE_PATHS } from "./ho-routes";
 import type { BoLearningSyllabusSummary, BoLearningSyllabusDetail, BoLearningSyllabusOwnerCatalog } from "./bo-model";
 
 export const HO_A1_KEYS = ["syllabi","missions","worlds","wardrobe","wardrobeSets","effects"] as const;
 export type HoA1Module = typeof HO_A1_KEYS[number];
-export const hoA1Routes:Record<HoA1Module,string> = {
- syllabi:"/ho/learning/syllabi",missions:"/ho/learning/missions",
- worlds:"/ho/pinoria/worlds",wardrobe:"/ho/pinoria/wardrobe",
- wardrobeSets:"/ho/pinoria/wardrobe-sets",effects:"/ho/pinoria/effects",
-};
+export const hoA1Routes:Record<HoA1Module,string> = Object.fromEntries(HO_A1_KEYS.map(k=>[k,HO_PAGE_PATHS[k]])) as Record<HoA1Module,string>;
 type FieldSpec = readonly [string,string,"text"|"id"|"select"|"number"|"textarea"|"multiselect"|"date"];
 const fields=(specs:readonly FieldSpec[])=>specs.map(([key,label,type])=>({key,label,type,icon:type==="number"?"#":type==="id"?"⌘":"Aa",w:type==="textarea"||type==="multiselect"?275:170,readonly:true}));
 export const hoA1Modules:Record<HoA1Module,BoModule>={
@@ -50,6 +47,19 @@ export function mapHoMissions(value:unknown):BoRecord[]{
   diagnostics:words(r.diagnostics),
  }));
 }
+export function mapHoSyllabiDirectory(values:BoLearningSyllabusSummary[],owners:BoLearningSyllabusOwnerCatalog):BoRecord[]{
+ const ownerName=(o:{type:string;id:string})=>
+  o.type==="HOUSE_PATH"?owners.housePaths.find(x=>x.id===o.id)?.displayName??o.id:
+  o.type==="HOUSE_CURRICULUM"?owners.houseCurricula.find(x=>x.id===o.id)?.code??o.id:
+  owners.toppiPrograms.find(x=>x.id===o.id)?.code??o.id;
+ return values.map(x=>{const s=x.syllabus;return {
+  id:s.id,name:x.latestPublishedTitle||s.code,code:s.code,owner:ownerName(s.owner),
+  ownerType:s.owner.type,lifecycle:s.lifecycle,
+  publishedVersion:x.latestPublishedVersionNumber?"v"+x.latestPublishedVersionNumber:null,
+  draftVersion:x.currentDraftVersionNumber?"v"+x.currentDraftVersionNumber:null,
+  versions:[],createdAt:s.createdAt?.slice(0,10)??null,
+ };});
+}
 export function mapHoSyllabi(values:BoLearningSyllabusSummary[],owners:BoLearningSyllabusOwnerCatalog,details:BoLearningSyllabusDetail[]):BoRecord[]{
  const byId=new Map(details.map(d=>[d.syllabus.id,d]));
  const ownerName=(o:{type:string;id:string})=>
@@ -74,7 +84,7 @@ export function mapHoWorlds(value:unknown):BoRecord[]{
   const layers=scenes.flatMap(s=>listOf(s.layers).map(l=>({scene:word(s.displayName),layer:l})));
   return {id:word(w.id),name:word(w.displayName),key:word(w.key),status:word(w.status),
    worldType:word(w.worldType),sceneCount:scenes.length,layerCount:layers.length,
-   scenes:scenes.map(s=>word(s.displayName)+" · "+word(s.status)+" · "+word(s.canvasWidth)+"×"+word(s.canvasHeight)),
+   scenes:scenes.map(s=>word(s.displayName)+" · "+word(s.status)+" · "+numeric(s.canvasWidth)+"×"+numeric(s.canvasHeight)),
    layers:layers.map(l=>l.scene+" / "+word(l.layer.displayName)+" · "+word(l.layer.kind)+" · "+word(l.layer.mediaType)),
    thumbnail:nullable(w.thumbnailAssetKey),description:nullable(w.descriptionText)};
  });
@@ -108,19 +118,24 @@ async function get(fetcher:typeof fetch,path:string):Promise<unknown>{
    throw new Error(response.ok?"Invalid canonical read response":"Catalog GET rejected ("+response.status+")");
  return json.data;
 }
+export async function loadHoA1Detail(key:HoA1Module,record:BoRecord,fetcher:typeof fetch):Promise<BoRecord>{
+ if(key!=="syllabi")return record;
+ const value=await get(fetcher,"learning/syllabi/"+encodeURIComponent(record.id));
+ if(!isObject(value)||!isObject(value.syllabus)||value.syllabus.id!==record.id||!Array.isArray(value.versions))
+  throw new Error("Invalid syllabus detail");
+ const detail=value as unknown as BoLearningSyllabusDetail;
+ return {...record,
+  name:record.name===record.code&&detail.currentDraft?.title?detail.currentDraft.title:record.name,
+  versions:detail.versions.map(v=>"v"+v.versionNumber+" · "+v.state+" · "+v.title),
+ };
+}
 export async function loadHoA1(key:HoA1Module,fetcher:typeof fetch):Promise<BoRecord[]>{
  if(key==="syllabi"){
   const [items,owners]=await Promise.all([get(fetcher,"learning/syllabi"),get(fetcher,"learning/syllabi/owners")]);
   if(!Array.isArray(items)||!isObject(owners))throw new Error("Invalid Syllabus catalog");
   const summaries=items as BoLearningSyllabusSummary[],catalog=owners as unknown as BoLearningSyllabusOwnerCatalog;
   if(summaries.length>256)throw new Error("Syllabus directory exceeds view-safe limit; server paging needed");
-  const details:BoLearningSyllabusDetail[]=[];
-  for(let i=0;i<summaries.length;i+=4){
-   const slice=summaries.slice(i,i+4);
-   const data=await Promise.all(slice.map(x=>get(fetcher,"learning/syllabi/"+encodeURIComponent(x.syllabus.id))));
-   details.push(...data as BoLearningSyllabusDetail[]);
-  }
-  return mapHoSyllabi(summaries,catalog,details);
+  return mapHoSyllabiDirectory(summaries,catalog);
  }
  if(key==="missions"){
   const all:BoRecord[]=[],size=50;

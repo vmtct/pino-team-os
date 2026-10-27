@@ -4,6 +4,17 @@ import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requir
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
+test("PAP-938 canonical staging root enters DS V4 without changing production", () => {
+  const staging = "tos.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(staging, "/"), { action: "redirect", pathname: "/tos-v4" });
+  assert.deepEqual(decideHostBoundary(staging, "/", "HEAD"), { action: "redirect", pathname: "/tos-v4" });
+  assert.deepEqual(decideHostBoundary(staging, "/", "POST"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(staging, "/tos-v4"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/tos-v4"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary("pino-team-os-staging.minhtri-van42.workers.dev", "/"), { action: "next" });
+});
+
 test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff session gates", () => {
   const bo = "bo.staging.pinohouse.art";
   const tos = "tos.staging.pinohouse.art";
