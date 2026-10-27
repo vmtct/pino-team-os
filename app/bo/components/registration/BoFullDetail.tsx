@@ -7,6 +7,7 @@ import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
+import { BoStaffIncomeReadTab } from "./BoStaffIncomeReadTab";
 const BoSubscriptionEnrollmentTab = lazy(async () => {
   // Node SSR of Detail must not eagerly import the DataGrid CSS module.
   // S3 Enrollment is loaded only when its tab is opened.
@@ -37,6 +38,8 @@ export function BoFullDetail({
   // render in Detail; removing their duplicate tab does not hide data.
   const tabs = moduleKey === "payroll-periods"
     ? ["Detail", "Quyết Toán", "Lịch Sử"]
+    : moduleKey === "staffs"
+    ? ["Detail", "Thu nhập", "Lịch Sử"]
     : moduleKey === "subscriptions"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "students" && enableStudentSubscriptions
@@ -103,6 +106,8 @@ export function BoFullDetail({
         <div className="detail-panel v24-main-panel">
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
             ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
+            : moduleKey === "staffs" && activeTab === "Thu nhập"
+            ? <BoStaffIncomeReadTab staffMemberId={record.id} />
             : activeTab === "Detail"
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">
