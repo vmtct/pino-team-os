@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from "node:url";
 
 const [location, expectedHost] = process.argv.slice(2);
 
@@ -38,7 +39,7 @@ function classifyRedirect(rawLocation, host) {
   return "INVALID";
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.stdout.write(classifyRedirect(location ?? "", expectedHost ?? "") + "\n");
 }
 

@@ -1,3 +1,4 @@
+import {tosV4StagingHost} from "./tos-v4-staging-host";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
@@ -28,6 +29,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (["/ho", "/ho/centers", "/ho/system/users", "/ho/system/roles", "/ho/system/audit", "/ho/learning/syllabi", "/ho/learning/missions", "/ho/pinoria/worlds", "/ho/pinoria/wardrobe", "/ho/pinoria/wardrobe-sets", "/ho/pinoria/effects", "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || isBoStagingStylesheet(p)) return { action: "next" };
     return { action: "not_found" };
   }
+  if (isPathWithin(pathname, "/tos-v4") && !tosV4StagingHost(hostname)) return { action: "not_found" };
   // HO never leaks through BO/TOS, production, workers.dev, localhost or unknown hosts.
   if (isPathWithin(pathname, "/ho") || isPathWithin(pathname, "/prototype")) return { action: "not_found" };
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
@@ -305,6 +307,7 @@ function isApprovedBoPath(pathname: string): boolean {
 }
 
 export function requiresTosStaffSession(host: string, pathname: string): boolean {
+  if (tosV4StagingHost(normalizeHostname(host)) && isPathWithin(pathname, "/tos-v4")) return true;
   if (![TOS_HOSTNAME, TOS_STAGING_HOSTNAME].includes(normalizeHostname(host))) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return true;

@@ -1,0 +1,40 @@
+@layer tos.apps{
+.bodyScroll{padding:var(--tos-space-4) var(--tos-space-4) var(--tos-space-6);display:flex;flex-direction:column;gap:var(--tos-space-3);min-height:calc(100svh - 170px)}
+.field{display:flex;flex-direction:column;gap:var(--tos-space-2);margin:var(--tos-space-1) 0}
+.field>label{font-size:var(--tos-text-caption);font-weight:var(--tos-weight-strong);color:var(--tos-color-muted)}
+.field input,.field select,.field textarea{border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);padding:var(--tos-space-3);width:100%;background:var(--tos-color-surface);font-size:var(--tos-text-secondary);color:var(--tos-color-ink)}
+.field textarea{min-height:92px;resize:vertical}
+.chips{display:flex;gap:var(--tos-space-2);overflow-x:auto;scrollbar-width:none;padding:var(--tos-space-1) 0 var(--tos-space-2)}
+.chips button{white-space:nowrap;border:1px solid var(--line);border-radius:var(--tos-radius-sheet);background:var(--tos-color-surface);color:var(--tos-color-soft);padding:var(--tos-space-2) var(--tos-space-3);font-size:var(--tos-text-caption);font-weight:var(--tos-weight-strong)}
+.chips button.chipActive{background:var(--tint);color:var(--tone);border-color:var(--tone)}
+.miniState{padding:var(--tos-space-1) var(--tos-space-2);border-radius:var(--tos-radius-sheet);background:var(--tint);color:var(--tone);font-weight:var(--tos-weight-strong);font-size:var(--tos-text-caption);white-space:nowrap}
+.primary,.secondary{border-radius:var(--tos-radius-control);width:100%;padding:var(--tos-space-3) var(--tos-space-4);font-size:var(--tos-text-caption);font-weight:var(--tos-weight-strong);cursor:pointer;margin-top:var(--tos-space-2)}
+.primary{border:1px solid var(--tone);background:var(--tone);color:var(--tos-color-surface)}
+.primary:disabled{opacity:.35;cursor:not-allowed}
+.secondary{border:0;background:transparent;color:var(--tone)}
+.courseRow{display:flex;align-items:center;gap:var(--tos-space-3);border:1px solid var(--line);background:var(--tos-color-surface);text-align:left;padding:var(--tos-space-3) var(--tos-space-3);border-radius:var(--tos-radius-card);min-height:89px;width:100%}
+.courseIcon{width:38px;height:38px;background:var(--tint);color:var(--tone);border-radius:var(--tos-radius-control);flex:none;display:grid;place-items:center;font-size:var(--tos-text-heading-md)}
+.courseText{display:flex;flex-direction:column;gap:var(--tos-space-1);flex:1;min-width:0}
+.courseText strong{font-size:var(--tos-text-caption);line-height:1.3;color:var(--txt)}
+.courseText small{font-size:var(--tos-text-caption);line-height:1.4;color:var(--muted)}
+.courseText i{font-size:var(--tos-text-caption);font-style:normal;font-weight:var(--tos-weight-strong);color:var(--tone)}
+.courseState{font-size:var(--tos-text-caption);border-radius:var(--tos-radius-sheet);padding:var(--tos-space-1) var(--tos-space-2);background:var(--tint);color:var(--tone);white-space:nowrap}
+.empty{text-align:center;color:var(--muted);font-size:var(--tos-text-caption);padding:var(--tos-space-6) var(--tos-space-3);line-height:1.6}
+.prereq{display:block;border:0;background:var(--tint);padding:var(--tos-space-3);border-radius:var(--tos-radius-control);text-align:left;color:var(--tone);font-size:var(--tos-text-caption);font-weight:var(--tos-weight-strong);width:100%;margin:var(--tos-space-1) 0}
+.positive{background:var(--tos-color-success-bg);color:var(--tos-color-success);border-radius:var(--tos-radius-control);padding:var(--tos-space-3);font-size:var(--tos-text-caption)}
+@media(max-width:360px){.bodyScroll{padding-left:var(--tos-space-3);padding-right:var(--tos-space-3)}.courseState{font-size:var(--tos-text-caption)}}
+.chips button{min-height:var(--tos-hit-min);display:inline-flex;align-items:center;justify-content:center}
+.courseRow{min-height:88px}
+.bodyScroll{padding-inline:var(--tos-space-4)}
+.bodyScroll{gap:var(--tos-space-3);padding-inline:var(--tos-inset-page)}
+.courseRow{min-height:90px;padding:var(--tos-space-3)}
+.courseText strong{font-size:var(--tos-text-label);line-height:1.4}
+.courseText small{font-size:var(--tos-text-secondary);line-height:1.5}
+.courseText i{font-size:var(--tos-text-caption)}
+.courseState{font-size:var(--tos-text-caption);line-height:1.35;white-space:normal;text-align:center}
+.field>label{font-size:var(--tos-text-label)}
+.field :is(input,select,textarea){font-size:var(--tos-text-body);line-height:1.5;padding:var(--tos-input-padding-y) var(--tos-input-padding-x)}
+.chips button{font-size:var(--tos-text-secondary);padding:var(--tos-button-padding-y) var(--tos-space-3)}
+.primary,.secondary{font-size:var(--tos-text-button);min-height:var(--tos-control-height);padding:var(--tos-button-padding-y) var(--tos-button-padding-x)}
+.miniState{font-size:var(--tos-text-caption)}
+.minimumHours{display:flex;flex-wrap:wrap;gap:var(--tos-space-1);font-size:var(--tos-text-body);color:var(--tos-color-ink)}}

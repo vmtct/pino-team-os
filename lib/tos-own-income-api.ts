@@ -8,13 +8,16 @@ export interface OwnIncomePeriod {
   estimateAvailable:boolean;
 }
 export interface OwnIncomePage {data:OwnIncomePeriod[];total:number;nextOffset:number|null}
+export class OwnIncomeApiError extends Error {
+ constructor(readonly status:number,message:string){super(message);this.name="OwnIncomeApiError";}
+}
 export async function ownIncome(centerId:string,limit=20,offset=0):Promise<OwnIncomePage>{
   const query=new URLSearchParams({centerId,limit:String(limit),offset:String(offset)});
   const response=await fetch("/api/tos-learning/workforce/payroll/income?"+query,{
     method:"GET",cache:"no-store",headers:{"cache-control":"no-store"},
   });
   const body=await response.json() as {data?:OwnIncomePage;error?:{message?:string}};
-  if(!response.ok||!body.data)throw new Error(response.status===403
+  if(!response.ok||!body.data)throw new OwnIncomeApiError(response.status,response.status===403
     ?"Bạn chưa có quyền xem thu nhập tại cơ sở này."
     :body.error?.message??"Không thể tải lịch sử thu nhập.");
   return body.data;
