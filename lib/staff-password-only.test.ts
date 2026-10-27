@@ -39,7 +39,8 @@ test("temporary-password login is routed only to forced password change before n
     read("lib/staff-password-core.ts"),
   ]);
   assert.match(loginApi, /passwordChangeRequired/);
-  assert.match(loginPage, /passwordChangeRequired \? "\/staff-password\/change"/);
+  assert.match(loginPage, /passwordChangeRequired \? passwordChangePath\(\) : homePath\(\)/);
+  assert.match(loginPage, /return "\/staff-password\/change" \+ \(ret \?/);
   assert.match(changeApi, /PINO_STAFF_PASSWORD_CORE\.changePassword/);
   assert.match(changeApi, /pino_staff_password_session=\$\{result\.token\}/);
   assert.match(changePage, /passwordChangeRequired/);

@@ -1,8 +1,11 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./staff-login.module.css";
+import { safeHoReturnTo, HO_HOME_PATH } from "@/lib/ho-routes";
 
-function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return "/ho/centers"; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
+function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
+
+function passwordChangePath() { const ret = window.location.hostname === "ho.staging.pinohouse.art" ? safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) : null; return "/staff-password/change" + (ret ? "?returnTo=" + encodeURIComponent(ret) : ""); }
 
 export default function StaffLogin() {
   const [email, setEmail] = useState("");
@@ -16,7 +19,7 @@ export default function StaffLogin() {
     setShowRecovery(hostname === "tos.pinohouse.art" || hostname === "tos.staging.pinohouse.art" || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".workers.dev"));
     void fetch("/api/staff-auth/status", { cache: "no-store" })
       .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean; passwordChangeRequired?: boolean } }>)
-      .then(body => { if (body.data?.authenticated) window.location.assign(body.data.passwordChangeRequired ? "/staff-password/change" : homePath()); })
+      .then(body => { if (body.data?.authenticated) window.location.assign(body.data.passwordChangeRequired ? passwordChangePath() : homePath()); })
       .catch(() => undefined);
   }, []);
 
@@ -30,7 +33,7 @@ export default function StaffLogin() {
       });
       const body = await response.json() as { data?: { passwordChangeRequired?: boolean }; error?: { message?: string } };
       if (!response.ok) throw new Error(body.error?.message ?? "Đăng nhập thất bại");
-      window.location.assign(body.data?.passwordChangeRequired ? "/staff-password/change" : homePath());
+      window.location.assign(body.data?.passwordChangeRequired ? passwordChangePath() : homePath());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Đăng nhập thất bại");
     } finally { setBusy(false); }

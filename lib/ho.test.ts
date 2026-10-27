@@ -8,7 +8,7 @@ const center = { id:"019d1000-0001-7000-8000-000000000001", key:"canonical", dis
 function env(userId="founder", status=200): HoEnv { return { APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:"founder",PINO_BO_CORE:{async executeWithStaffPassword(request, token) { if(token!=="valid")return {status:401,requestId:"test",body:{}}; return {status:request.path==="context"?200:status,requestId:"test",body:{data:request.path==="context"?{userId,email:"server-verified@example.invalid",surface:"BO",entitled:true}:[center]}}; }} }; }
 const headers = new Headers({host,cookie:"pino_staff_password_session=valid"});
 test("HO exact host and method allowlist denies neighboring surfaces and business mutations",()=>{
- assert.deepEqual(decideHostBoundary(host,"/"),{action:"redirect",pathname:"/ho"});
+ assert.deepEqual(decideHostBoundary(host,"/"),{action:"redirect",pathname:"/ho/centers"});
  for(const p of ["/ho","/ho/centers","/api/bo/context","/api/bo/centers","/staff-login","/api/staff-auth/status","/_next/static/chunk.js"]) assert.equal(decideHostBoundary(host,p).action,"next",p);
  for(const p of ["/bo","/dashboard","/api/bo/learners","/api/founder/users","/api/health","/api/bo/centers/x","/bo-authority-source/styles.css","/bo-skeleton/playground.html"])assert.equal(decideHostBoundary(host,p).action,"not_found",p);
  for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS","HEAD"])assert.equal(decideHostBoundary(host,"/api/bo/centers",method).action,"not_found",method);
