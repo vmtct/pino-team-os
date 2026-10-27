@@ -55,7 +55,7 @@ export function BoStudentLatestSubscription({ studentId }: { studentId: string }
         if (!field) return null;
         return <div className="property-row" key={key}>
           <div className="property-label"><small>{field.icon}</small>{label}</div>
-          <div className="property-control sub-readonly" aria-label={label}>
+          <div className="property-control" aria-label={label}>
             <BoValue field={field} value={load.subscription![key]} />
           </div>
         </div>;
