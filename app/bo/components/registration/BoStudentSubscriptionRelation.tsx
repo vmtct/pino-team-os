@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { boApi } from "@/lib/bo-api";
-import { defaultTable, type BoRecord, type BoTableState } from "@/lib/bo-registration";
-import { studentSubscriptionRows } from "@/lib/bo-student-subscription-rows";
+import { type BoRecord, type BoTableState } from "@/lib/bo-registration";
+import { studentSubscriptionRows, studentSubscriptionTableState } from "@/lib/bo-student-subscription-rows";
 import school from "@/public/bo-authority-source/school-adapters.js";
 import { BoDataTable } from "./BoDataTable";
 import { BoQuickView } from "./BoQuickView";
@@ -12,9 +12,13 @@ import { BoTableSettings, type BoSavedView } from "./BoTableSettings";
 type Load =
   | { state: "loading" }
   | { state: "error"; message: string }
-  | { state: "ready"; studentName: string; rows: BoRecord[] };
+  | { state: "ready"; rows: BoRecord[] };
 
-export const subscriptionModule = school.modules.subscriptions;
+export const subscriptionModule = {
+  ...school.modules.subscriptions,
+  fields: school.modules.subscriptions.fields.map(field =>
+    field.key === "start" ? { ...field, label: "Ngày bắt đầu" } : field),
+};
 
 /** Native V2.5 grid/drawer reused inside the active /bo Student Full Detail. Read-only. */
 export function BoStudentSubscriptionRelation({
@@ -25,7 +29,7 @@ export function BoStudentSubscriptionRelation({
 }) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [drawer, setDrawer] = useState<BoRecord | null>(null);
-  const [table, setTable] = useState<BoTableState>(() => defaultTable(subscriptionModule.fields));
+  const [table, setTable] = useState<BoTableState>(() => studentSubscriptionTableState(subscriptionModule.fields));
   const [page, setPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
   const [settings, setSettings] = useState<string | null>(null);
@@ -37,7 +41,7 @@ export function BoStudentSubscriptionRelation({
     setLoad({ state: "loading" });
     setDrawer(null);
     void boApi.learnerLifecycle(studentId).then(data => {
-      if (active) setLoad({ state: "ready", studentName: data.student.displayName, rows: studentSubscriptionRows(data, studentId) });
+      if (active) setLoad({ state: "ready", rows: studentSubscriptionRows(data, studentId) });
     }).catch((err: unknown) => {
       if (active) setLoad({ state: "error", message: err instanceof Error ? err.message : "Không thể tải Subscription." });
     });
@@ -51,11 +55,10 @@ export function BoStudentSubscriptionRelation({
   };
 
   return <>
-    <div className="filter-chips active" aria-label="Bộ lọc cố định theo học viên">
-      <span className="chip">Học viên = {load.state === "ready" ? load.studentName : studentId}</span>
-    </div>
+
     <BoDataTable
       module={subscriptionModule}
+      showChrome={false}
       rows={load.state === "ready" ? load.rows : []}
       loadState={load.state === "error" ? load.message : load.state}
       value={table}
@@ -71,11 +74,11 @@ export function BoStudentSubscriptionRelation({
       changeViews={setViews}
       activeView={activeView}
       applyView={view => {
-        setTable(view?.state ?? defaultTable(subscriptionModule.fields));
+        setTable(view?.state ?? studentSubscriptionTableState(subscriptionModule.fields));
         setActiveView(view?.id ?? null);
         setPage(1);
       }}
-      reset={() => update(defaultTable(subscriptionModule.fields))}
+      reset={() => update(studentSubscriptionTableState(subscriptionModule.fields))}
       undo={() => {}}
       canUndo={false}
     />
