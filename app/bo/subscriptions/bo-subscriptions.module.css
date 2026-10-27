@@ -3,3 +3,16 @@
 .placementWizard{display:grid;gap:10px;padding:12px;border:1px solid #ddd8ef;border-radius:12px;background:#faf9ff}.placementSlots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.placementSlot{display:grid;gap:5px;padding:9px;border:1px solid #e1dee8;border-radius:10px;background:#fff;color:#6b6571;font-size:8px;font-weight:800}.placementSlot span{font-size:8px;letter-spacing:.04em;text-transform:uppercase;color:#8579bd}.placementSlot select{width:100%;min-height:38px;padding:8px 9px;border:1px solid #ddd9df;border-radius:9px;background:#fff;color:#302c34;font:inherit;font-size:9px}.registrationPending,.registrationSuccess{margin:0;padding:10px 12px;border-radius:10px;font-size:9px;line-height:1.45}.registrationPending{border:1px solid #e7d4ad;background:#fffaf0;color:#8a6524}.registrationSuccess{border:1px solid #bfe0ca;background:#f5fff8;color:#2d6b42}@media(max-width:700px){.placementSlots{grid-template-columns:1fr}}
 
 .placementDate{display:grid;gap:5px;max-width:220px;color:#67616c;font-size:9px;font-weight:800}.placementDate input,.flexiblePlacement input{width:100%;min-height:34px;padding:7px 8px;border:1px solid #ddd9df;border-radius:8px;background:#fff;color:#302c34;font:inherit;font-size:9px}.flexiblePlacement{display:grid;grid-template-columns:1fr 1fr;gap:7px}.flexiblePlacement>span{display:grid;gap:4px;color:#7b7480;font-size:8px;font-weight:700}@media(max-width:700px){.flexiblePlacement{grid-template-columns:1fr}}
+
+/* PAP-1033: keep the Core cursor table mounted while the V2.5 full-detail
+   shell is visible; Back restores page/filter/scroll without a refetch. */
+.detailOnly{width:min(100%,1380px);min-width:0;display:block}
+.detailOnly > :not([id="detail-screen"]){display:none!important}
+
+.readHeading{display:flex;justify-content:space-between;gap:12px;align-items:center;min-width:0}
+.readHeading h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.025em;color:var(--bo-v23-color-text,#26242b)}
+.readHeading button:disabled{opacity:.48;cursor:not-allowed}
+.operations{border:1px solid var(--bo-v23-color-border,#e2e1e5);border-radius:var(--bo-v23-radius-surface,13px);background:var(--bo-v23-color-surface,#fff);min-width:0}
+.operations > summary{padding:13px 16px;cursor:pointer;font-size:13px;color:var(--bo-v23-color-muted,#807d88)}
+.operations > .workspace{padding:12px;min-width:0}
+.readHint{margin:0;font-size:11px;color:var(--bo-v23-color-muted,#807d88)}
