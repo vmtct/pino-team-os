@@ -7,6 +7,7 @@
  const fields=items=>items.map(([key,label,type='text'])=>({key,label,type,readonly:true,icon:({id:'#',number:'#',select:'▣',boolean:'☑',date:'▦',relation:'↗'})[type]||'Aa',w:({name:235,id:145})[key]||({number:113,select:135,boolean:120,date:145,relation:172})[type]||172}));
  const modules={
   students:{label:'Students',fields:fields([['name','Học viên'],['id','ID','id'],['paths','Path'],['birthYear','Năm sinh','number'],['status','Trạng thái hồ sơ','select'],['houseMember','House Member','boolean']])},
+  parents:{label:'Parents & Guardians',fields:fields([['name','Phụ huynh'],['id','Parent ID','id'],['maskedContact','Liên hệ (đã che)'],['studentCount','Số học viên','number'],['centers','Cơ sở'],['updatedAt','Cập nhật','datetime'],['attention','Lưu ý','select']])},
   classes:{label:'Running Classes',fields:fields([['name','Running Class'],['id','ID','id'],['path','Path','relation'],['center','Cơ sở','relation'],['weekday','Thứ','number'],['window','Giờ học'],['capacity','Sức chứa','number'],['topology','Mô hình','select'],['status','Trạng thái','select']])},
   subscriptions:{label:'Subscriptions',fields:fields([['name','Học viên'],['id','Subscription ID','id'],['path','Path','relation'],['status','Trạng thái','select'],['weekly','Buổi / tuần','number'],['remaining','Buổi còn lại','number'],['start','Bắt đầu','date'],['end','Kết thúc','date'],['reference','Tham chiếu']])},
   enrollments:{label:'Enrollments',fields:fields([['name','Học viên'],['id','Enrollment ID','id'],['subscriptionId','Subscription ID','id'],['runningClass','Running Class','relation'],['runningClassId','Running Class ID','id'],['path','Path','relation'],['start','Hiệu lực từ','date'],['end','Kết thúc (loại trừ)','date'],['entry','Giờ vào dự kiến'],['duration','Phút dự kiến','number']])}
@@ -19,7 +20,7 @@
   audits:['Audits','SYSTEM',[['name','Hành động'],['id','Audit ID','id'],['at','Thời điểm (UTC)','datetime'],['actorType','Loại tác nhân','select'],['actorId','Actor ID','id'],['subjectType','Loại đối tượng'],['subjectId','Subject ID','id'],['outcome','Kết quả','select'],['requestId','Request ID']]]
  };
  for(const [key,[label,group,items]] of Object.entries(definitions))modules[key]={label,group,fields:fields(items)};
- for(const key of ['students','classes','subscriptions','enrollments'])modules[key].group='SCHOOL';
+ for(const key of ['students','classes','subscriptions','enrollments','parents'])modules[key].group='SCHOOL';
  const unique=rows=>{if(rows.length>10000)throw Error('Danh sách quá lớn. Hãy giới hạn phạm vi.');const seen=new Set();for(const r of rows){id(r.id);if(seen.has(r.id))throw Error('Con trỏ không tiến hoặc ID trùng.');seen.add(r.id);}return rows;};
  function range(options={}){const to=options.to||new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const valid=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;if(!valid(to))throw Error('Ngày kết thúc không hợp lệ.');const d=new Date(to+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-30);const from=options.from||d.toISOString().slice(0,10);if(!valid(from)||from>to||Date.parse(to)-Date.parse(from)>30*86400000)throw Error('Khoảng ngày không hợp lệ (tối đa 31 ngày).');return{from,to};}
  function scopeLabel(key,options={}){const center=options.centerId?'Cơ sở đã chọn':'Các cơ sở được cấp quyền';if(key==='timekeeping'){const r=range(options);return center+' · '+r.from+' → '+r.to;}return ['visits','salaryPeriods'].includes(key)?center:'';}
@@ -35,6 +36,25 @@
   const array=value=>{if(!Array.isArray(value))throw Error('Danh sách Core không hợp lệ.');return value;};
   const centers=async path=>{const list=array(await read(path));if(list.length>100)throw Error('Phạm vi cơ sở quá lớn.');if(options.centerId){id(options.centerId);const center=list.find(c=>c.id===options.centerId);if(!center)throw Error('Cơ sở không thuộc phạm vi đọc.');return[center];}return list;};
   const offsets=async(path,extract)=>{const result=[];let offset=0;for(let n=0;n<100;n++){const b=await envelope(path+(path.includes('?')?'&':'?')+'limit=100&offset='+offset),p=extract(b,offset);array(p.items);result.push(...p.items);if(result.length>10000)throw Error('Danh sách quá lớn. Hãy giới hạn phạm vi.');if(p.next===null)return result;if(!Number.isSafeInteger(p.next)||p.next<=offset)throw Error('Con trỏ không tiến.');offset=p.next;}throw Error('Danh sách quá lớn.');};
+  // Parents are a separate, access-scoped Core directory; intake search is never used.
+  if(key==='parents'){
+    const rows=[],seen=new Set();let offset=0;
+    for(let page=0;page<100;page++){
+      const payload=await read('identity/parents/directory?limit=100&offset='+offset);
+      if(!payload||!Array.isArray(payload.items)||!Number.isSafeInteger(payload.total)||payload.total<0||payload.total>10000)throw Error('Core Parent Directory chưa sẵn sàng.');
+      if(!payload.items.length&&rows.length<payload.total)throw Error('Parent Directory không tiến.');
+      for(const entry of payload.items){
+        if(!entry||!Array.isArray(entry.centers)||!Number.isSafeInteger(entry.linkedStudentCount)||entry.linkedStudentCount<0||entry.maskedContact===undefined)throw Error('Parent Directory không hợp lệ.');
+        if(entry.maskedContact!==null&&(typeof entry.maskedContact!=='string'||!/[•*]/.test(entry.maskedContact)))throw Error('Liên hệ chưa được che từ Core.');
+        const row={id:id(entry.id),name:text(entry.displayName),maskedContact:entry.maskedContact,studentCount:entry.linkedStudentCount,centers:entry.centers.map(text).join(', '),updatedAt:text(entry.updatedAt),attention:text(entry.attention)};
+        if(seen.has(row.id))throw Error('Parent Directory có ID trùng.');seen.add(row.id);rows.push(row);
+      }
+      if(rows.length===payload.total)return rows;
+      if(rows.length>payload.total)throw Error('Phân trang Parent Directory không hợp lệ.');
+      offset=rows.length;
+    }
+    throw Error('Parent Directory vượt giới hạn an toàn.');
+  }
   if(key==='staffs')return unique(array(await read('workforce/staff-records')).map(s=>({id:id(s.id),name:text(s.displayLabel),status:text(s.status),department:s.department,role:s.roleLabel})));
   if(key==='audits'){const data=await offsets('access/audit',b=>{if(!b.page||!Number.isSafeInteger(b.page.offset)||typeof b.page.hasNext!=='boolean')throw Error('Phân trang audit không hợp lệ.');return{items:b.data,next:b.page.hasNext?b.page.offset+b.page.limit:null};});return unique(data.map(a=>({id:id(a.id),name:text(a.action),at:text(a.occurredAt),actorType:text(a.actorType),actorId:a.actorId,subjectType:text(a.subjectType),subjectId:a.subjectId,outcome:text(a.outcome),requestId:a.requestId})));}
   if(['visits','salaryPeriods','timekeeping'].includes(key)){

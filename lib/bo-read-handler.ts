@@ -145,6 +145,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "student-visits"
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
+    || path === "identity/parents/directory"
     || path === "practice/authoring-context"
     || path === "practice/repertoire-access/context"
     || path === "practice/repertoire-access"
@@ -344,6 +345,10 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
     if (outcome) body.outcome = outcome;
     return Object.keys(body).length ? body : undefined;
   }
+  if (path === "identity/parents/directory") return {
+    ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
+    ...(url.searchParams.get("offset") ? { offset: Number(url.searchParams.get("offset")) } : {}),
+  };
   if (path === "identity/parents") return {
     ...(url.searchParams.get("query") ? { query: url.searchParams.get("query")! } : {}),
     ...(url.searchParams.get("limit") ? { limit: Number(url.searchParams.get("limit")) } : {}),
