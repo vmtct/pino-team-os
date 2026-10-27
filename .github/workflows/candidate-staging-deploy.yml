@@ -108,27 +108,34 @@ jobs:
           curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$deployed" > version.json
           jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
           origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
-          # PAP-938 staging V4 stays protected; diagnostic route remains unavailable.
-          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")" = 307
-          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")" = 401
-          test "$(curl -sS --max-time 20 -o /tmp/tos-v4-prototype -w '%{http_code}' "$origin/prototype/tos-vnext-integration")" = 404
+          # Label every assertion; never hide the exact failing host/path/code.
+          require_status() {
+            local label="$1" expected="$2" url="$3" code
+            code="$(curl -sS --max-time 20 -o /tmp/staging-route-response -w '%{http_code}' "$url")"
+            echo "STAGING_BOUNDARY_CHECK label=$label expected=$expected actual=$code"
+            if [ "$code" != "$expected" ]; then
+              echo "STAGING_BOUNDARY_FAIL label=$label expected=$expected actual=$code" >&2
+              return 1
+            fi
+          }
+          require_status tos-v4-login 307 "$origin/tos-v4"
+          require_status tos-v4-anon 401 "$origin/api/workforce/context"
+          require_status tos-v4-prototype-deny 404 "$origin/prototype/tos-vnext-integration"
           for route in workforce-term-weeks workforce-shift-plans workforce-availability workforce-assignments; do
-            code="$(curl -sS --max-time 20 -o /tmp/pap901-login -w '%{http_code}' "$origin/bo/$route")"
-            test "$code" = 307
+            require_status "bo-$route-login" 307 "$origin/bo/$route"
           done
           for endpoint in bootstrap global-weeks weekly; do
-            code="$(curl -sS --max-time 20 -o /tmp/pap901-anon -w '%{http_code}' "$origin/api/bo/workforce/planning/$endpoint")"
-            test "$code" = 401
+            require_status "bo-workforce-$endpoint-deny" 401 "$origin/api/bo/workforce/planning/$endpoint"
           done
-          code="$(curl -sS --max-time 20 -o /tmp/pap901-ho-denied -w '%{http_code}' "$origin/ho")"
-          test "$code" = 404
-          for url in https://bo.staging.pinohouse.art/bo https://ho.staging.pinohouse.art/ho/centers; do
-            code="$(curl -sS --max-time 20 -o /tmp/staging-login -w '%{http_code}' "$url")"
-            test "$code" = 307
-          done
-          # PAP-1028: prevent silent BO CSS regressions (not just successful HTML route loads).
+          require_status ho-origin-deny 404 "$origin/ho"
+          require_status bo-custom-login 307 https://bo.staging.pinohouse.art/bo
+          require_status ho-custom-login 307 https://ho.staging.pinohouse.art/ho/centers
+          # Required asset presence + MIME; never accept bare 200 as CSS parity.
           for css in team-legacy-global.css bo-legacy-foundation.css; do
-            curl -fsS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body "https://bo.staging.pinohouse.art/$css"
+            code="$(curl -sS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body -w '%{http_code}' "https://bo.staging.pinohouse.art/$css")"
+            mime="$(grep -i '^content-type:' /tmp/bo-style-headers | tail -1 | tr -d '\r' || true)"
+            echo "STAGING_STYLE_CHECK asset=$css http=$code mime=$mime bytes=$(wc -c </tmp/bo-style-body)"
+            test "$code" = 200
             test -s /tmp/bo-style-body
             grep -qi "^content-type: text/css" /tmp/bo-style-headers
           done
