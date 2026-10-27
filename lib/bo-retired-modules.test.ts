@@ -47,3 +47,15 @@ test("Pinoria Loadouts and System policies remain reachable after removal", () =
   assert.equal(loadouts.includes('<a href="/bo/pinoria-ward">'), false);
   assert.equal(loadouts.includes('<a href="/bo/pinoria-ward/sets">'), false);
 });
+
+test("unified BO workspace cannot resurrect retired modules through module query or legacy adapters", () => {
+  const school = readFileSync(join(root, "public/bo-authority-source/school-adapters.js"), "utf8");
+  const workspace = readFileSync(join(root, "app/bo/architecture/bo-unified-workspace-source.ts"), "utf8");
+  for (const key of ["termWeeks", "worlds", "catalog", "sets", "users", "roles"]) {
+    assert.equal(school.includes("  " + key + ":['"), false, `Retired module still registered: ${key}`);
+    assert.equal(school.includes("if(key==='" + key + "')"), false, `Retired reader exposed: ${key}`);
+  }
+  assert.doesNotMatch(workspace, /"workforce-term-weeks":/);
+  assert.match(school, /audits:\['Audits'/);
+  assert.match(school, /students:\{label:'Students'/);
+});
