@@ -13,16 +13,16 @@ export interface StaffRegistrationSubmissionInput {
   displayLabel: string;
   email: string;
   password: string;
-  mobile: string;
-  dateOfBirth: string;
-  currentAddress: string;
-  governmentIdNumber: string;
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountHolder: string;
+  mobile: string | null;
+  dateOfBirth: string | null;
+  currentAddress: string | null;
+  governmentIdNumber: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolder: string | null;
   bankBranch: string | null;
-  governmentIdFront: StaffRegistrationDocumentInput;
-  governmentIdBack: StaffRegistrationDocumentInput;
+  governmentIdFront: StaffRegistrationDocumentInput | null;
+  governmentIdBack: StaffRegistrationDocumentInput | null;
 }
 
 export interface StaffRegistrationCoreBinding {
