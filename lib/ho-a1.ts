@@ -47,6 +47,19 @@ export function mapHoMissions(value:unknown):BoRecord[]{
   diagnostics:words(r.diagnostics),
  }));
 }
+export function mapHoSyllabiDirectory(values:BoLearningSyllabusSummary[],owners:BoLearningSyllabusOwnerCatalog):BoRecord[]{
+ const ownerName=(o:{type:string;id:string})=>
+  o.type==="HOUSE_PATH"?owners.housePaths.find(x=>x.id===o.id)?.displayName??o.id:
+  o.type==="HOUSE_CURRICULUM"?owners.houseCurricula.find(x=>x.id===o.id)?.code??o.id:
+  owners.toppiPrograms.find(x=>x.id===o.id)?.code??o.id;
+ return values.map(x=>{const s=x.syllabus;return {
+  id:s.id,name:x.latestPublishedTitle||s.code,code:s.code,owner:ownerName(s.owner),
+  ownerType:s.owner.type,lifecycle:s.lifecycle,
+  publishedVersion:x.latestPublishedVersionNumber?"v"+x.latestPublishedVersionNumber:null,
+  draftVersion:x.currentDraftVersionNumber?"v"+x.currentDraftVersionNumber:null,
+  versions:[],createdAt:s.createdAt?.slice(0,10)??null,
+ };});
+}
 export function mapHoSyllabi(values:BoLearningSyllabusSummary[],owners:BoLearningSyllabusOwnerCatalog,details:BoLearningSyllabusDetail[]):BoRecord[]{
  const byId=new Map(details.map(d=>[d.syllabus.id,d]));
  const ownerName=(o:{type:string;id:string})=>
@@ -105,19 +118,24 @@ async function get(fetcher:typeof fetch,path:string):Promise<unknown>{
    throw new Error(response.ok?"Invalid canonical read response":"Catalog GET rejected ("+response.status+")");
  return json.data;
 }
+export async function loadHoA1Detail(key:HoA1Module,record:BoRecord,fetcher:typeof fetch):Promise<BoRecord>{
+ if(key!=="syllabi")return record;
+ const value=await get(fetcher,"learning/syllabi/"+encodeURIComponent(record.id));
+ if(!isObject(value)||!isObject(value.syllabus)||value.syllabus.id!==record.id||!Array.isArray(value.versions))
+  throw new Error("Invalid syllabus detail");
+ const detail=value as unknown as BoLearningSyllabusDetail;
+ return {...record,
+  name:record.name===record.code&&detail.currentDraft?.title?detail.currentDraft.title:record.name,
+  versions:detail.versions.map(v=>"v"+v.versionNumber+" · "+v.state+" · "+v.title),
+ };
+}
 export async function loadHoA1(key:HoA1Module,fetcher:typeof fetch):Promise<BoRecord[]>{
  if(key==="syllabi"){
   const [items,owners]=await Promise.all([get(fetcher,"learning/syllabi"),get(fetcher,"learning/syllabi/owners")]);
   if(!Array.isArray(items)||!isObject(owners))throw new Error("Invalid Syllabus catalog");
   const summaries=items as BoLearningSyllabusSummary[],catalog=owners as unknown as BoLearningSyllabusOwnerCatalog;
   if(summaries.length>256)throw new Error("Syllabus directory exceeds view-safe limit; server paging needed");
-  const details:BoLearningSyllabusDetail[]=[];
-  for(let i=0;i<summaries.length;i+=4){
-   const slice=summaries.slice(i,i+4);
-   const data=await Promise.all(slice.map(x=>get(fetcher,"learning/syllabi/"+encodeURIComponent(x.syllabus.id))));
-   details.push(...data as BoLearningSyllabusDetail[]);
-  }
-  return mapHoSyllabi(summaries,catalog,details);
+  return mapHoSyllabiDirectory(summaries,catalog);
  }
  if(key==="missions"){
   const all:BoRecord[]=[],size=50;

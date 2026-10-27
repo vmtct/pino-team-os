@@ -34,6 +34,11 @@ export const mapHoUsers = (rows: BoAccessSystemUser[]): BoRecord[] => rows.map(u
  id:u.id,name:u.email ?? u.id,status:u.status,staffMemberId:u.staffMemberId,
  roleAssignments:u.assignments.map(a=>[a.roleName,a.scopeType,a.scopeId].filter(Boolean).join(" · ")),
 }));
+export const mapHoRoleDirectory = (roles: BoAccessRole[]): BoRecord[] => roles.map(role=>({
+ id:role.id,name:role.displayName,roleKey:role.roleKey,roleType:role.roleType,
+ status:role.status,description:role.description,permissionCount:role.permissionCount,
+ assignmentCount:role.assignmentCount,permissionKeys:[],
+}));
 export const mapHoRoles = (roles: BoAccessRole[],details: BoAccessRoleDetail[]): BoRecord[] => {
  const byId=new Map(details.map(d=>[d.id,d]));
  return roles.map(role=>{
