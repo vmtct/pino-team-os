@@ -3,10 +3,9 @@ import type { BoWorkspaceSource } from "@/app/bo/components/registration/BoRegis
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { boModuleRegistry } from "./registry";
 import { isBoStagingRouteAdmitted } from "./bo-staging-route-policy";
-import { termWeeksAdapter, shiftPlansAdapter, availabilityAdapter, assignmentsAdapter } from "./workforce-read-adapters";
+import { shiftPlansAdapter, availabilityAdapter, assignmentsAdapter } from "./workforce-read-adapters";
 
 const adapters = {
-  "workforce-term-weeks": termWeeksAdapter,
   "workforce-shift-plans": shiftPlansAdapter,
   "workforce-availability": availabilityAdapter,
   "workforce-assignments": assignmentsAdapter,
