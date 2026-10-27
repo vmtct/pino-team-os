@@ -575,7 +575,7 @@
 
 /* HO theme tokens and scoped compatibility rules */
 [data-surface="ho"] { --ds-primary:#74283E; --ds-primary-hover:#611D34; --ds-primary-subtle:#F9EDF1; --ds-primary-border:#DEC0CB; --ds-on-primary:#FFFFFF; --purple:var(--ds-primary); --purple-dark:var(--ds-primary-hover); --purple-soft:var(--ds-primary-subtle); --lavender:var(--ds-primary); }
-[data-surface="ho"] .ho-brand-logo { display:block; width:46px; height:46px; max-width:100%; flex:none; object-fit:contain; border-radius:10px; background:var(--ds-on-primary); }
+[data-surface="ho"] .ho-brand-logo { display:block; width:46px; height:46px; max-width:100%; flex:none; object-fit:contain; }
 [data-surface="ho"] .nav-link.active { background:var(--ds-primary); color:var(--ds-on-primary); box-shadow:inset 3px 0 0 var(--ds-primary-border); }
 [data-surface="ho"] .primary-btn { background:var(--ds-primary); border-color:var(--ds-primary); color:var(--ds-on-primary); }
 [data-surface="ho"] .primary-btn:hover { background:var(--ds-primary-hover); }
