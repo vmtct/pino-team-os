@@ -47,3 +47,13 @@ test("PAP-1035 mutations remain separately authenticated, replay same key and ve
  assert.match(tab,/placementState!=="PLACED"/);
  assert.doesNotMatch(tab,/createBillingSale/);
 });
+
+test("PAP-1035 Quick View labels Enrollment accurately and cannot disguise Transfer as Full Detail",()=>{
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ const quick=readFileSync("app/bo/components/registration/BoQuickView.tsx","utf8");
+ assert.match(tab,/label:"Enrollment ID"/);
+ assert.match(tab,/hideDetailAction/);
+ assert.doesNotMatch(tab,/onDetail=\{\(\)=>open\("transfer",active\)\}/);
+ assert.match(quick,/hideDetailAction/);
+ assert.match(quick,/record && hideDetailAction/);
+});

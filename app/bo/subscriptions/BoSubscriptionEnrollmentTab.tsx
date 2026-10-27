@@ -12,7 +12,7 @@ type Ready={state:"ready";subscription:BoLearnerSubscription;enrollments:BoEnrol
 type Load=Ready|{state:"loading"}|{state:"error"|"permission";message:string};
 type Action="attach"|"transfer"|"end"|"activate";
 type Pending={action:Action;rowId?:string;classId?:string;date:string;version?:number;reason:string;time?:string;minutes?:number;key:string;policyEffectiveAt:string};
-const enrollmentModule={...subscriptionModule,label:"Enrollment",fields:subscriptionModule.fields.filter(f=>f.key==="id")};
+const enrollmentModule={...subscriptionModule,label:"Enrollment",fields:subscriptionModule.fields.filter(f=>f.key==="id").map(f=>({...f,label:"Enrollment ID"}))};
 function problem(error:unknown){if(error instanceof BoApiError&&[401,403].includes(error.status))return "Không đủ quyền trên Path/Center (401/403).";if(error instanceof BoApiError&&error.status===409)return "Core trả 409: dữ liệu, capacity hoặc version đã thay đổi.";return error instanceof Error?error.message:"Không thể xử lý Enrollment.";}
 export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscriptionId:string;onChanged?:()=>void}){
  const [asOf,setAsOf]=useState(()=>todayInHouseTimeZone()),[tick,setTick]=useState(0);
@@ -131,7 +131,7 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
       {ready?.subscription.lifecycle==="DRAFT"?<button className="primary-btn" type="button" disabled={!!pending||busy||ready.placement.placementState!=="PLACED"||ready.placement.effectiveEnrollmentCount!==ready.placement.weeklySessionCommitment} onClick={()=>open("activate")}>Kích hoạt Draft</button>:null}
     </div>} emptyTitle="Chưa có Enrollment" emptyMessage="Chọn Gắn lớp để chọn Running Class hợp lệ."/>
   {active&&!action?<BoQuickView module={enrollmentModule} record={{id:active.id,name:clsById.get(active.runningClassId)?.name??active.runningClassId}}
-    onClose={()=>setActive(null)} onDetail={()=>open("transfer",active)}
+    onClose={()=>setActive(null)} hideDetailAction
     extraSection={<section className="property-section"><h3>Enrollment · Core</h3>
       {[
        ["Running Class",clsById.get(active.runningClassId)?.name??active.runningClassId],
