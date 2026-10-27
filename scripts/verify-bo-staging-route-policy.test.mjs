@@ -10,7 +10,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const policy = "app/bo/architecture/bo-staging-route-policy.ts";
 const layout = "app/bo/layout.tsx";
 const ci = ".github/workflows/pr-validation.yml";
-const pages = ["workforce-term-weeks", "workforce-shift-plans", "workforce-availability", "workforce-assignments"];
+const pages = ["workforce-shift-plans", "workforce-availability", "workforce-assignments"];
 
 function fixture(run) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pap901-staging-routes-"));
@@ -27,7 +27,7 @@ function fixture(run) {
 }
 
 test("PAP-901 current canonical routes have explicit staging decisions and styled shell", () => {
-  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 4, admitted: 4, deferred: 0 });
+  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 3, admitted: 3, deferred: 0 });
 });
 
 test("new canonical module without a staging decision fails closed", () => fixture(({ root, write }) => {

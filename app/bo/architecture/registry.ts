@@ -7,24 +7,6 @@ import { defineBoModule, defineBoModuleRegistry, type BoModuleContract } from ".
  */
 export const boModuleRegistry: readonly BoModuleContract[] = defineBoModuleRegistry([
   defineBoModule({
-    key: "workforce-term-weeks",
-    href: "/bo/workforce-term-weeks",
-    label: "Term Weeks",
-    kind: "entity",
-    permissions: { read: "workforce.plan.view", write: "workforce.plan.edit" },
-    fields: [
-      { key: "id", label: "ID", type: "id", readOnly: true },
-      { key: "name", label: "Mã tuần", type: "text", readOnly: true },
-      { key: "term", label: "Term", type: "text", readOnly: true },
-      { key: "startDate", label: "Bắt đầu", type: "date", readOnly: true },
-      { key: "endDate", label: "Kết thúc", type: "date", readOnly: true },
-      { key: "ordinal", label: "Thứ tự", type: "number", readOnly: true },
-    ],
-    publicViews: "module-shared",
-    quickView: "canonical-properties",
-    fullDetail: "shared-tabs",
-  }),
-  defineBoModule({
     key: "workforce-shift-plans",
     href: "/bo/workforce-shift-plans",
     label: "Center Shift Plans",

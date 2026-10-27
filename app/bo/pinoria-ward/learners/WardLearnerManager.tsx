@@ -52,7 +52,7 @@ export function WardLearnerManager(){
 
  return <main className={styles.shell}>
  <header className={styles.topbar}><div><p className={styles.eyebrow}>PNR-WARD · F2 LEARNER</p><h1>Learner Wardrobe</h1></div><span className={styles.slotBadge}>8 CHARACTER · 8 ACCESSORIES (API PENDING)</span></header>
- <nav className={styles.wardNav}><a href="/bo/pinoria-ward">Catalog</a><a href="/bo/pinoria-ward/sets">Sets</a><a href="/bo/pinoria-ward/learners">Loadouts</a></nav>
+ <nav className={styles.wardNav}><a href="/bo/pinoria-ward/learners">Loadouts</a></nav>
  {error?<div role="alert" className={styles.advancedBox}>{error}</div>:null}{message?<div role="status" className={styles.statusStrip}>{message}</div>:null}
  <div className={styles.wardWorkspace}>
  <section className={styles.wardPanel}><h2>Learners ({filtered.length})</h2><input aria-label="Search learner" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search learner…"/><div className={styles.wardScroll}>{filtered.map(row=><button key={row.studentProfileId} className={styles.wardLearner} aria-pressed={selectedId===row.studentProfileId} onClick={()=>void openLearner(row.studentProfileId)}><b>{row.displayName}</b><small>{row.ownedCount} owned · {row.equippedCount}/8 equipped</small></button>)}</div></section>
