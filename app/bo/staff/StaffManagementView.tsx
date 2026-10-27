@@ -597,7 +597,14 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
           </>}
         </section> : null}
         {(["profile", "pinoria", "access"] as const).includes(activeTab as "profile" | "pinoria" | "access") ? detailContents : null}
-        {(["assignments", "training", "income", "audit"] as const).includes(activeTab as "assignments" | "training" | "income" | "audit")
+        {activeTab === "assignments" ? <section className={styles.panel} data-testid="staff-assignments-source">
+          <h2>Phân công ca · {profile?.displayLabel ?? selected?.displayLabel ?? "Staff"}</h2>
+          <p>Phân công thuộc từng ca và Shift Role, không phải chức danh cố định của nhân viên. Bảng tổng hợp theo Staff chưa có read-model đã xác minh, nên không hiển thị ca hoặc lớp giả.</p>
+          <p><strong>Staff ID:</strong> <code>{selectedId}</code></p>
+          <p>Đối chiếu Staff ID này tại lịch phân ca Workforce. Chỉ nguồn Workforce được phép chỉnh sửa phân công.</p>
+          <Link className={styles.secondaryButton} href={`/bo/workforce?staff=${encodeURIComponent(selectedId)}`}>Mở Workforce · lọc Staff này <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" /></Link>
+        </section> : null}
+        {(["training", "income", "audit"] as const).includes(activeTab as "training" | "income" | "audit")
           ? <section className={styles.panel} data-testid="staff-v2-unavailable"><h2>{STAFF_DETAIL_TABS.find(tab => tab.key === activeTab)?.label}</h2><p>Chức năng đang được triển khai. Chưa có dữ liệu được xác minh để hiển thị.</p></section> : null}
       </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
         <div className={styles.staffQuickPeek} data-testid="staff-quick-peek">
