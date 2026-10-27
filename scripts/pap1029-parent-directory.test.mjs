@@ -29,6 +29,12 @@ test("Parent directory always uses a distinct Core authorized endpoint and pagin
   assert.equal(rows[0].maskedContact, "09••••••12");
   assert.deepEqual(rows.map(r => r.id), [first, second]);
 });
+test("nullable canonical Core Parent fields remain display-safe without faking attention", async () => {
+  const rows = await load("parents", async () => respond({ items: [{ ...parent(), displayName: null, attention: null }], total: 1 }));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].name, "Ch\xc6\xb0a c\xc3\xb3 t\xc3\xaan");
+  assert.equal(rows[0].attention, null);
+});
 test("Parent rejects unsafe responses and never falls back to intake lookup", async () => {
   await assert.rejects(load("parents", async () => respond({ items: [parent(first, "0901234567")], total: 1 })), /che/);
   await assert.rejects(load("parents", async () => respond({ items: [], total: 1 })), /không tiến/);

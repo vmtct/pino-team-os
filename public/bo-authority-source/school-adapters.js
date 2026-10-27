@@ -46,7 +46,7 @@
       for(const entry of payload.items){
         if(!entry||!Array.isArray(entry.centers)||!Number.isSafeInteger(entry.linkedStudentCount)||entry.linkedStudentCount<0||entry.maskedContact===undefined)throw Error('Parent Directory không hợp lệ.');
         if(entry.maskedContact!==null&&(typeof entry.maskedContact!=='string'||!/[•*]/.test(entry.maskedContact)))throw Error('Liên hệ chưa được che từ Core.');
-        const row={id:id(entry.id),name:text(entry.displayName),maskedContact:entry.maskedContact,studentCount:entry.linkedStudentCount,centers:entry.centers.map(text).join(', '),updatedAt:text(entry.updatedAt),attention:text(entry.attention)};
+        const row={id:id(entry.id),name:entry.displayName===null?'Ch\xc6\xb0a c\xc3\xb3 t\xc3\xaan':text(entry.displayName),maskedContact:entry.maskedContact,studentCount:entry.linkedStudentCount,centers:entry.centers.map(text).join(', '),updatedAt:text(entry.updatedAt),attention:entry.attention===null?null:text(entry.attention)};
         if(seen.has(row.id))throw Error('Parent Directory có ID trùng.');seen.add(row.id);rows.push(row);
       }
       if(rows.length===payload.total)return rows;
