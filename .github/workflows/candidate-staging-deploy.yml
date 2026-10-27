@@ -38,7 +38,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SHA"
-          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          # CI-passing candidate must remain in current main history (never diverged).
+          latest_main="$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)"
+          relation="$(gh api "repos/$GITHUB_REPOSITORY/compare/$SHA...$latest_main" --jq .status)"
+          case "$relation" in identical|ahead) ;; *) echo "STAGING_ADMISSION_NOT_MAIN_ANCESTOR: $relation" >&2; exit 1;; esac
           git merge-base --is-ancestor 93fde0193685cd465f4888c8cc0bc009252c7edd "$SHA"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
           jq -e --arg sha "$SHA" '.head_sha==$sha and (.event=="push" or .event=="workflow_dispatch") and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json
@@ -76,8 +79,14 @@ jobs:
           api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts"
           get() { curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$1/deployments?per_page=1"; }
           active() { get "$1" | jq -er 'if .success and (.result.deployments[0].versions|length==1) and .result.deployments[0].versions[0].percentage==100 then .result.deployments[0].versions[0].version_id else error("ambiguous deployment") end'; }
+          verify_candidate_in_current_main() {
+            local latest_main relation
+            latest_main="$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)"
+            relation="$(gh api "repos/$GITHUB_REPOSITORY/compare/$SHA...$latest_main" --jq .status)"
+            case "$relation" in identical|ahead) ;; *) echo "STAGING_CANDIDATE_DIVERGED: $relation" >&2; return 1;; esac
+          }
           # Pin live CAS within the serialized staging lane; fail closed on unsafe prior bindings.
-          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          verify_candidate_in_current_main
           PREVIOUS="$(active "$WORKER")"
           CORE_VERSION="$(active pino-core-staging)"
           curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$PREVIOUS" > previous-version.json
@@ -85,6 +94,10 @@ jobs:
           test "$(active "$WORKER")" = "$PREVIOUS"
           test "$(active pino-core-staging)" = "$CORE_VERSION"
           get "$WORKER" > before.json
+          # Prevent rollback to an older validated commit even when main is moving.
+          STAGED_SHA="$(jq -er '.result.deployments[0].annotations["workers/message"] | capture("staging sha=(?<sha>[0-9a-f]{40})").sha' before.json)"
+          staged_relation="$(gh api "repos/$GITHUB_REPOSITORY/compare/$STAGED_SHA...$SHA" --jq .status)"
+          case "$staged_relation" in ahead|identical) ;; *) echo "STAGING_NON_MONOTONIC: serving=$STAGED_SHA candidate=$SHA relation=$staged_relation" >&2; exit 1;; esac
           message="team-cd-guarded staging sha=$SHA run=$GITHUB_RUN_ID"
           rollback() {
             current="$(get "$WORKER")" || return 1
@@ -98,7 +111,7 @@ jobs:
             fi
           }
           trap 'result=$?; if [ "$result" -ne 0 ]; then rollback || echo "ROLLBACK_HOLD" >&2; fi; exit "$result"' EXIT
-          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          verify_candidate_in_current_main
           test "$(active "$WORKER")" = "$PREVIOUS"
           test "$(active pino-core-staging)" = "$CORE_VERSION"
           npx wrangler deploy -c wrangler.ho-staging.json --tag "team-cd-${SHA:0:12}" --message "$message"
