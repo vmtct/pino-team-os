@@ -12,6 +12,6 @@ export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; opti
   const currentUser = useContext(RuntimeContext);
   return currentUser
     ? <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options}
-        content={moduleKey === "subscriptions" ? <BoSubscriptionsView embedded /> : undefined} />
+        renderContent={moduleKey === "subscriptions" ? mobileMenu => <BoSubscriptionsView embedded mobileMenu={mobileMenu} /> : undefined} />
     : <BoOperationalView view="overview" />;
 }

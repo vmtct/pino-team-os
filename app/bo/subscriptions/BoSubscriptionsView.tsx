@@ -18,7 +18,7 @@ type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotencyKey: string) => Promise<unknown>; success: string };
 const EMPTY_BILLING_REPLAY: BillingReplayState = { pending: null, busy: null, notice: null, error: null };
 
-export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}) {
+export function BoSubscriptionsView({ embedded = false, mobileMenu }: { embedded?: boolean; mobileMenu?: (id: string) => React.ReactNode } = {}) {
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -178,9 +178,14 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
   }
 
   return <div data-bo-runtime-surface="subscriptions-core" data-bo-embedded={embedded || undefined} className={historyDetail ? styles.detailOnly : styles.page}>
-    <header className={styles.readHeading}>
-      <h1>Subscriptions</h1>
-      <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}>＋ Tạo mới</button>
+    <header className="page-heading">
+      <div className="page-heading-left">
+        {mobileMenu?.("subscription-menu-btn")}
+        <h1>Subscriptions</h1>
+      </div>
+      <div className="heading-actions">
+        <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}><span>＋</span> Tạo mới</button>
+      </div>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
@@ -222,7 +227,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       moduleKey="subscriptions"
       onEnrollmentChanged={() => setHistoryRevision(v => v + 1)}
       record={historyDetail}
-      mobileMenu={null}
+      mobileMenu={mobileMenu?.("subscription-detail-menu-btn") ?? null}
       onBack={() => setHistoryDetail(null)}
     /> : null}
   </div>;

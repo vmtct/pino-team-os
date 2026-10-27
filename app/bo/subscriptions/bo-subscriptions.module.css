@@ -9,9 +9,6 @@
 .detailOnly{width:min(100%,1380px);min-width:0;display:block}
 .detailOnly > :not([id="detail-screen"]){display:none!important}
 
-.readHeading{display:flex;justify-content:space-between;gap:12px;align-items:center;min-width:0}
-.readHeading h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.025em;color:var(--bo-v23-color-text,#26242b)}
-.readHeading button:disabled{opacity:.48;cursor:not-allowed}
 .operations{border:1px solid var(--bo-v23-color-border,#e2e1e5);border-radius:var(--bo-v23-radius-surface,13px);background:var(--bo-v23-color-surface,#fff);min-width:0}
 .operations > summary{padding:13px 16px;cursor:pointer;font-size:13px;color:var(--bo-v23-color-muted,#807d88)}
 .operations > .workspace{padding:12px;min-width:0}
