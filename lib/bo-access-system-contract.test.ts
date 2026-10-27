@@ -29,12 +29,12 @@ test("BO Staff surface renders the pending registration review queue", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "app/bo/staff/page.tsx"), "utf8");
   assert.match(source, /<StaffRegistrationReviewQueue \/>/);
 });
-test("BO shell places Access administration under canonical System responsibility", () => {
+test("BO shell retires standalone Users/Roles while retaining System policy and audit", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "app/bo/navigation.ts"), "utf8");
   assert.match(source, /label: "System"/);
-  assert.match(source, /label: "Access"/);
-  assert.match(source, /href: "\/bo\/system\/users", label: "Users"/);
-  assert.match(source, /href: "\/bo\/system\/roles", label: "Roles"/);
+  assert.doesNotMatch(source, /label: "Access"/);
+  assert.doesNotMatch(source, /href: "\/bo\/system\/users"/);
+  assert.doesNotMatch(source, /href: "\/bo\/system\/roles"/);
   assert.match(source, /label: "Policies"/);
   assert.match(source, /href: "\/bo\/system\/audit", label: "Audit"/);
 });

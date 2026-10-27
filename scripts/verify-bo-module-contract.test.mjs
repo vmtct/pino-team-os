@@ -31,7 +31,12 @@ function fixture() {
   // Recreate frozen baseline pages as inert fixtures so receipt tests can
   // assert a clean migration transition without carrying 47 real modules.
   const baseline=JSON.parse(fs.readFileSync(path.join(tmp,baselineFile),"utf8"));
+  // Keep fixture pages aligned with the real retirement ledger: restoring a
+  // retired page here would exercise resurrection failures in every unrelated test.
+  const ledger=JSON.parse(fs.readFileSync(path.join(tmp,migrationFile),"utf8"));
+  const retiredPages=new Set(ledger.retiredRoutes.map(row=>row.path));
   for(const page of baseline.legacyRoutes){
+    if(retiredPages.has(page)) continue;
     const dest=path.join(tmp,page);
     fs.mkdirSync(path.dirname(dest),{recursive:true});
     fs.writeFileSync(dest,"export default function Page(){return null;}\n");
@@ -259,7 +264,7 @@ export const moduleAdapter: BoModuleReadAdapter = { async list(){ return []; } }
   ledgerEdit(root,v=>{v.adoptedRoutes.push({path:LEGACY_PAGE,issue:"PAP-878"});
     v.adoptedNavigation.push({path:LEGACY_NAV,issue:"PAP-878"});});
 }
-test("PAP-929 pre-existing route/nav baseline with empty ledger still passes",()=>{
+test("PAP-929 existing legacy routes with approved retirements still pass",()=>{
   const root=fixture();
   try{assert.deepEqual(check(root),[]);}
   finally{fs.rmSync(root,{recursive:true,force:true});}
