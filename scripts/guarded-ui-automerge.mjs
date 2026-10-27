@@ -39,6 +39,17 @@ export function policyEpochForLane(lane, latestWorkflowCommitAt) {
   if (lane === 'pinned-pap1089') return '1970-01-01T00:00:00Z';
   return latestWorkflowCommitAt;
 }
+export function verifiedGreenPRRun(run, repo) {
+  return !!run && run.event === 'pull_request' &&
+    run.conclusion === 'success' &&
+    run.path === '.github/workflows/pr-validation.yml' &&
+    run.head_repository?.full_name === repo &&
+    typeof run.head_sha === 'string' && /^[0-9a-f]{40}$/.test(run.head_sha);
+}
+export function pendingGithubMergeStatus(result) {
+  return result?.errors?.some(e =>
+    e.type === 'UNPROCESSABLE' && /unstable status/i.test(e.message)) === true;
+}
 export function assessPR(pr, policyAt, repo = 'vmtct/pino-team-os') {
   if (!pr || pr.state !== 'open' || pr.draft || pr.base?.ref !== 'main' || pr.head?.repo?.full_name !== repo || pr.user?.login !== 'vmtct') return 'untrusted, closed or draft PR';
   if (!(new Date(pr.created_at).getTime() >= new Date(policyAt).getTime())) return 'pre-existing PR: manual disposition';
@@ -89,7 +100,21 @@ async function run() {
   const repo = process.env.GITHUB_REPOSITORY;
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
   if (repo !== 'vmtct/pino-team-os' || event.action === 'closed') return;
-  const number = event.pull_request?.number;
+  // Successful PR CI is a second admission trigger: a new PR can be temporarily
+  // unstable while checks settle. Resolve by CI-tested SHA, never PR body.
+  let number = event.pull_request?.number;
+  let validatedHead = null;
+  if (event.workflow_run) {
+    const run = event.workflow_run;
+    if (!verifiedGreenPRRun(run, repo)) return;
+    const associated = await api('/repos/' + repo + '/commits/' + run.head_sha + '/pulls?per_page=100');
+    const matches = associated.filter(pr =>
+      pr.base?.ref === 'main' && pr.head?.sha === run.head_sha &&
+      pr.head?.repo?.full_name === repo && pr.user?.login === 'vmtct');
+    if (matches.length !== 1) {console.log('HOLD: CI head does not map to one founder main PR'); return;}
+    number = matches[0].number;
+    validatedHead = run.head_sha;
+  }
   if (!Number.isInteger(number)) return;
   const branch = await api('/repos/' + repo + '/branches/main');
   const settings = await api('/repos/' + repo);
@@ -135,6 +160,12 @@ async function run() {
       variables: { id: pr.node_id }
     }
   });
+  if (pendingGithubMergeStatus(data)) {
+    // Never turn a temporary GitHub mergeability status into a failing "admit"
+    // check: that failure itself would keep the PR unstable (self-deadlock).
+    console.log('HOLD_STATUS_UNSTABLE PR #' + number + ': CI/status checks not yet mergeable');
+    return;
+  }
   if (data.errors?.length || !data.data?.enablePullRequestAutoMerge?.pullRequest?.autoMergeRequest) {
     throw new Error('Native auto-merge not admitted: ' + JSON.stringify(data.errors || data));
   }

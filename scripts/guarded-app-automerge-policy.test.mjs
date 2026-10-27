@@ -79,3 +79,19 @@ test("PAP-1091 activation dates do not reclassify existing UI PRs as stale",asyn
   assert.equal(assessPR(pr,policyEpochForLane("pinned-pap1089",newPolicy)),null);
   assert.match(assessPR(pr,policyEpochForLane("scoped-application",newPolicy)),/pre-existing/);
 });
+
+test("PAP-1091 CI-completed admission only trusts same-repo exact PR Validation",async()=>{
+ const {verifiedGreenPRRun,pendingGithubMergeStatus}=await import("./guarded-ui-automerge.mjs");
+ const run={event:"pull_request",conclusion:"success",path:".github/workflows/pr-validation.yml",
+   head_repository:{full_name:"vmtct/pino-team-os"},head_sha:"a".repeat(40)};
+ assert.equal(verifiedGreenPRRun(run,"vmtct/pino-team-os"),true);
+ for(const mutated of [
+  {...run,event:"push"},{...run,conclusion:"failure"},
+  {...run,path:".github/workflows/untrusted.yml"},
+  {...run,head_repository:{full_name:"evil/fork"}},{...run,head_sha:"broken"},
+ ]) assert.equal(verifiedGreenPRRun(mutated,"vmtct/pino-team-os"),false);
+ assert.equal(pendingGithubMergeStatus({errors:[{type:"UNPROCESSABLE",message:"Pull request is in unstable status"}]}),true);
+ assert.equal(pendingGithubMergeStatus({errors:[{type:"FORBIDDEN",message:"Permission denied"}]}),false);
+ assert.equal(pendingGithubMergeStatus({errors:[{type:"UNPROCESSABLE",message:"Branch protection failed"}]}),false);
+ assert.equal(pendingGithubMergeStatus({data:{enablePullRequestAutoMerge:{pullRequest:{autoMergeRequest:{}}}}}),false);
+});
