@@ -1,0 +1,13 @@
+{
+  "package": "@pino/design-system",
+  "version": "0.2.0",
+  "sourceRepo": "https://github.com/vmtct/pino-design-system",
+  "sourceTag": "v0.2.0",
+  "sourceMainSha": "e37dbdeeb447e814f0ba1274251e61053632ec84",
+  "release": "https://github.com/vmtct/pino-design-system/releases/tag/v0.2.0",
+  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.2.0.tgz",
+  "tarballSha256": "362ca92db7247eb15f27302117cf935799743d83318eff653f7685d3768b66bf",
+  "owner": "PAP-1117",
+  "status": "DEV_ONLY_CONSUMER_PROBE",
+  "notes": "No actual PINO BO/TOS migration, no production or staging route admission. Diff from source only via version-tagged tarball, never manual component copy."
+}
