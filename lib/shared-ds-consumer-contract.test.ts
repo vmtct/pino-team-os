@@ -19,8 +19,8 @@ test("PAP-1117 PINO package exact artifact",()=>{
 test("PAP-1117 shared TDD and TOS React SSR",()=>{
  const markup=renderToStaticMarkup(h("div",null,
   h(TableFrame,{caption:"Demo",columns:[{key:"name",label:"Name"}],rows:[{name:"Fixture"}]}),
-  h(DetailFrame,{title:"Fixture",tabs:[{id:"overview",label:"Tổng quan"}],selected:"overview"},"detail"),
-  h(DrawerFrame,{title:"Fixture",onClose:()=>{}},"drawer"),
+  h(DetailFrame,{title:"Fixture",tabs:[{id:"overview",label:"Tổng quan"}],selected:"overview",children:"detail"}),
+  h(DrawerFrame,{title:"Fixture",onClose:()=>{},children:"drawer"}),
   h(TosCard,null,h(TosButton,null,"Open")),
   h(TosBottomNav,{items:[{id:"today",label:"Hôm nay"}],active:"today",onChange:()=>{}})
  ));
