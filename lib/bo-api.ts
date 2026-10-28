@@ -323,7 +323,18 @@ export const boApi = {
     return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: state.centers.find((center) => center.id === item.centerId)?.timeZone ?? "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
   },
   scopeCatalog: async () => {
-    const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
+    let state: BoScopeBootstrap;
+    try {
+      state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
+    } catch (cause) {
+      // Founder continues using the canonical full bootstrap. A Center Manager
+      // may retry only within a single Center proven by Workforce Core.
+      if (!(cause instanceof BoApiError) || cause.status !== 403) throw cause;
+      const planning = await readOne<BoWorkforcePlanningBootstrap>("workforce/planning/bootstrap");
+      const centers = planning.centers.filter((center) => center.status === "active");
+      if (centers.length !== 1) throw cause; // Never guess which Center to expose.
+      state = await readOne<BoScopeBootstrap>(`delivery/bootstrap-state?centerId=${encodeURIComponent(centers[0]!.id)}`);
+    }
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
