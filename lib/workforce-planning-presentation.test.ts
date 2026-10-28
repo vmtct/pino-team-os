@@ -58,19 +58,23 @@ test("JCS04 BO exposes governed availability history and operator void only thro
   assert.doesNotMatch(source, /deleteWorkforceAvailability|reopenAvailability/);
 });
 
-test("WSRA BO plans FD/Teacher exact Session and derives primary owner authority", async () => {
+test("PAP-1113 BO plans independent RunningClass roles and retains only historical Learning Owner read guards", async () => {
   const [source, model] = await Promise.all([
     read("app/bo/workforce/WorkforcePlanningView.tsx"),
     read("lib/bo-model.ts"),
   ]);
   assert.match(source, /Front Desk/);
   assert.match(source, /> Teacher</);
-  assert.match(source, /Phụ trách chính/);
+  assert.match(source, /> Teaching Assistant</);
+  assert.match(source, /checked=\{shiftLeader\}/);
+  assert.match(source, /checked=\{teacherSelected\}/);
+  assert.match(source, /checked=\{assistantSelected\}/);
+  assert.match(source, /buildIndependentRoleCommands/);
   assert.match(source, /planOperationalWorkforceShift/);
-  assert.match(source, /sessionId/);
-  assert.match(source, /runningClassDisplayName/);
-  assert.match(source, /disabled=\{!session\.canAssignLearningOwner\}/);
-  assert.match(source, /Lý do bàn giao/);
+  assert.match(source, /eligibleShiftRunningClasses/);
+  assert.match(source, /canUseTeachingSessionTime/);
+  assert.doesNotMatch(source, /makeLearningOwner:/);
+  assert.doesNotMatch(source, /learningOwnerHandoffReason:/);
   assert.match(source, /hasOwnerRole/);
   assert.match(source, /School → Classes → Sessions/);
   assert.doesNotMatch(model, /isLearningOwner\s*:/);
