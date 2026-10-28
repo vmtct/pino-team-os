@@ -56,5 +56,8 @@ test("PAP-1059 S3 Founder operations panels read only Center data through Core",
  }
  for(const state of ["timekeepingError","dutyError","trainingError","stationError"]){assert.match(ui,new RegExp("data\\."+state));}
  assert.match(ui,/Promise\.allSettled/);
+ assert.match(ui,/Pinoria TV · Trạng thái hàng đợi/);
+ assert.match(api,/tv:\{active:/);
+ assert.doesNotMatch(ui,/data\.station\.tv\.active\.projection/);
  assert.doesNotMatch(ui.slice(ui.indexOf("if(ctx?.founderMode){"),ui.indexOf("if(!appRenderable)")),/workforceApi\.checkIn\(|workforceApi\.checkOut\(/);
 });
