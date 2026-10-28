@@ -12,6 +12,7 @@ import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
 import { SubscriptionCreateDrawer } from "./SubscriptionCreateDrawer";
 import { SpecialtyWorkspace } from "./SpecialtyWorkspace";
 import styles from "./bo-subscriptions.module.css";
+import {readSubscriptionDetailRoute,subscriptionDetailUrl,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
@@ -31,11 +32,58 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
   const [billingReplay, setBillingReplay] = useState<BillingReplayState>(EMPTY_BILLING_REPLAY);
   const [historyRevision, setHistoryRevision] = useState(0);
   const [historyDetail, setHistoryDetail] = useState<BoRecord | null>(null);
+  const [historyTab,setHistoryTab]=useState<SubscriptionDetailTab>("Detail");
+  const [detailRoute,setDetailRoute]=useState<{state:"loading"|"error";message?:string}|null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const requestedStudentIdRef = useRef<string | null>(null);
   const operationsRef = useRef<HTMLDetailsElement>(null);
   const detailFence = useRef(new LatestRequestFence());
   const selectedRef = useRef<string | null>(null);
+
+  // PAP-1102 legacy-query compatibility until /bo/subscriptions/:id is separately admitted.
+  // URL is identity only: Core independently authorizes each read.
+  useEffect(()=>{
+    let alive=true,epoch=0;
+    const syncRoute=()=>{
+      const token=++epoch;
+      const route=readSubscriptionDetailRoute(window.location.search);
+      setHistoryTab(route.tab);
+      if(route.invalid){setHistoryDetail(null);setDetailRoute({state:"error",message:"Subscription ID trên URL không hợp lệ."});return;}
+      if(!route.id){setHistoryDetail(null);setDetailRoute(null);return;}
+      setHistoryDetail(null);setDetailRoute({state:"loading"});
+      void (async()=>{
+        try{
+          const subscription=await boApi.subscriptionById(route.id!);
+          if(subscription.id!==route.id)throw new Error("Subscription ID Core trả về không khớp.");
+          let name="Subscription";
+          try{
+            const learner=await boApi.learnerLifecycle(subscription.studentProfileId);
+            if(learner.student?.id===subscription.studentProfileId && learner.student.displayName)name=learner.student.displayName;
+          }catch{ /* An unauthorized Student read must not reveal or invent a name. */ }
+          if(!alive||token!==epoch)return;
+          setHistoryDetail({id:subscription.id,name,path:subscription.pathDisplayName,status:subscription.lifecycle});
+          setDetailRoute(null);
+        }catch(error){
+          if(!alive||token!==epoch)return;
+          setHistoryDetail(null);setDetailRoute({state:"error",message:message(error)});
+        }
+      })();
+    };
+    window.addEventListener("popstate",syncRoute);
+    syncRoute();
+    return()=>{alive=false;epoch++;window.removeEventListener("popstate",syncRoute);};
+  },[]);
+
+  function openHistoryDetail(record:BoRecord){
+    const url=subscriptionDetailUrl(window.location.href,record.id);
+    window.history.pushState(null,"",url);
+    setHistoryDetail(record);setHistoryTab("Detail");setDetailRoute(null);
+  }
+  function closeHistoryDetail(){
+    const url=subscriptionDetailUrl(window.location.href,null);
+    window.history.replaceState(null,"",url);
+    setHistoryDetail(null);setDetailRoute(null);setHistoryTab("Detail");
+  }
 
   async function readDirectory() {
     return collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId));
@@ -202,14 +250,14 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
     await runCommand(`end:${enrollment.id}`, (idempotencyKey) => boApi.endEnrollment(enrollment.id, body, idempotencyKey), "Đã kết thúc Enrollment.");
   }
 
-  return <div data-bo-runtime-surface="subscriptions-core" data-bo-embedded={embedded || undefined} className={historyDetail ? styles.detailOnly : styles.page}>
+  return <div data-bo-runtime-surface="subscriptions-core" data-bo-embedded={embedded || undefined} className={historyDetail||detailRoute ? styles.detailOnly : styles.page}>
     <header className={styles.readHeading}>
       <h1>Subscriptions</h1>
       <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}>＋ Tạo mới</button>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
-    <SubscriptionHistoryGrid paths={catalog.state === "ready" ? catalog.data.paths : []} refreshVersion={historyRevision} onFullDetail={setHistoryDetail} />
+    <SubscriptionHistoryGrid paths={catalog.state === "ready" ? catalog.data.paths : []} refreshVersion={historyRevision} onFullDetail={openHistoryDetail} />
     {catalog.state === "ready" && directory.state === "ready" ? <details ref={operationsRef} className={styles.operations}>
       <summary>Vận hành gói học hiện hữu · Billing / Placement / Recovery</summary>
     <section className={styles.workspace}>
@@ -241,14 +289,24 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       onChanged={() => {setHistoryRevision(n => n+1);}}
       onClose={() => setCreateOpen(false)}
     /> : null}
+    {detailRoute ? <div className={styles.readHint} role={detailRoute.state==="error"?"alert":"status"}>
+      {detailRoute.state==="loading"?"Đang tải Subscription theo đường dẫn…":detailRoute.message}
+      {detailRoute.state==="error"?<><button type="button" onClick={()=>window.dispatchEvent(new PopStateEvent("popstate"))}>Thử lại</button><button type="button" onClick={closeHistoryDetail}>Về danh sách</button></>:null}
+    </div>:null}
     {historyDetail ? <BoFullDetail
       key={historyDetail.id}
       module={subscriptionModule}
       moduleKey="subscriptions"
       onEnrollmentChanged={() => setHistoryRevision(v => v + 1)}
+      initialTab={historyTab}
+      onTabChanged={(next)=>{if(next!=="Detail"&&next!=="Enrollment"&&next!=="Lịch Sử")return;
+        const tab=next as SubscriptionDetailTab;
+        const url=subscriptionDetailUrl(window.location.href,historyDetail.id,tab);
+        window.history.pushState(null,"",url);setHistoryTab(tab);
+      }}
       record={historyDetail}
       mobileMenu={null}
-      onBack={() => setHistoryDetail(null)}
+      onBack={closeHistoryDetail}
     /> : null}
   </div>;
 }
