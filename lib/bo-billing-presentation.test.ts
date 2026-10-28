@@ -142,7 +142,7 @@ test("Product Plan cadence drives exact distinct Running Class placements before
   assert.match(billing, /const resumeDate=maxLocalDate\(sub\.contractualStartsOn,today\(\)\)/);
   assert.match(billing, /setPlacementStartsOn\(resumeDate\)/);
   assert.match(billing, /const body = \{ \.\.\.bulkBody\(sale\), policyEffectiveAt \}/);
-  assert.match(billing, /boApi\.preflightBulkEnrollments\(body\)/);
+  assert.doesNotMatch(billing, /boApi\.preflightBulkEnrollments\(body\)/);
   assert.match(billing, /boApi\.placeBulkEnrollments/);
   assert.match(billing, /idempotencyKey\+":placement"/);
   assert.match(billing, /Subscription đã tạo; hãy hoàn tất placement, không tạo sale mới/);

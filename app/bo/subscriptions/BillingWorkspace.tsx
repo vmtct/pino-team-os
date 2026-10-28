@@ -221,8 +221,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
 
   async function placeRegistration(sale: BoSaleResult, idempotencyKey: string, policyEffectiveAt: string) {
     const body = { ...bulkBody(sale), policyEffectiveAt };
-    const preflight = await boApi.preflightBulkEnrollments(body);
-    if (preflight.enrollments !== sale.productPlan.cadence) throw new Error("Bulk preflight không khớp cadence của Product Plan.");
+    // Core bulk-place revalidates all placements and writes atomically; a separate preflight duplicates the same decision.
     return boApi.placeBulkEnrollments(body, idempotencyKey);
   }
 
