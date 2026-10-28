@@ -89,7 +89,17 @@
   }
   if(key==='classes'){
    // Current admitted delivery read, no legacy /running-classes fallback.
-   const b=await read('delivery/bootstrap-state');if(!Array.isArray(b.runningClasses)||!Array.isArray(b.paths)||!Array.isArray(b.centers))throw Error('Danh sách lớp không hợp lệ.');
+   let b;
+   try{b=await read('delivery/bootstrap-state');}
+   catch(error){
+    if(!(error instanceof Error)||!error.message.includes('quyền'))throw error;
+    // Inferred Center list comes from the same authenticated Core identity.
+    const planning=await read('workforce/planning/bootstrap');
+    const permitted=array(planning.centers).filter(c=>c.status==='active');
+    if(permitted.length!==1)throw error; // Never infer a multi-Center choice.
+    b=await read('delivery/bootstrap-state?centerId='+id(permitted[0].id));
+   }
+   if(!Array.isArray(b.runningClasses)||!Array.isArray(b.paths)||!Array.isArray(b.centers))throw Error('Danh sách lớp không hợp lệ.');
    const paths=new Map(b.paths.map(p=>[id(p.id),text(p.displayName)])),centers=new Map(b.centers.map(c=>[id(c.id),text(c.displayName)]));const timeZones=new Map(b.centers.map(c=>[id(c.id),typeof c.timeZone==="string"?c.timeZone:null]));
    return unique(b.runningClasses.map(c=>({id:id(c.id),name:text(c.operationalName),path:paths.get(id(c.pathProgramId))||c.pathProgramId,center:centers.get(id(c.centerId))||c.centerId,weekday:c.weekdayIso,window:text(c.windowStartsLocal)+' – '+text(c.windowEndsLocal),capacity:c.optimalConcurrentCapacity,topology:text(c.deliveryTopology),status:text(c.status),centerTimeZone:timeZones.get(c.centerId)||null})));
   }
