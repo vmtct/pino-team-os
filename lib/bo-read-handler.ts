@@ -229,6 +229,17 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // The Core delivery bootstrap accepts an explicit Center resource. Do not
+  // invent GLOBAL access for Manager or forward caller-supplied principal fields.
+  if (path === "delivery/bootstrap-state" || path === "delivery/calendar-scope") {
+    const centers = url.searchParams.getAll("centerId");
+    if (centers.length > 1) throw new RangeError("Ambiguous Center");
+    const centerId = centers[0]?.trim();
+    if (centerId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId)) {
+      throw new RangeError("Invalid Center");
+    }
+    return centerId ? { centerId } : undefined;
+  }
   if (isStaffCompensationPath(path)) {
     const centerId=url.searchParams.get("centerId")?.trim();
     return centerId?{centerId}:undefined;
