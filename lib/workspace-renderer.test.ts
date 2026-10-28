@@ -22,7 +22,7 @@ import { registeredTableRows } from "../app/components/workspace-renderer/tableR
 import { BoTableSettings } from "../app/bo/components/registration/BoTableSettings";
 import { BoFullDetail as RegistrationDetail } from "../app/bo/components/registration/BoFullDetail";
 import { BoQuickView } from "../app/bo/components/registration/BoQuickView";
-import { FIELD_TYPES, TddRegistry, toLegacyModule, toLegacyTableState, type AuthorizationContext, type FieldSchema, type ModuleSchema, type TableQuery } from "./workspace-schema";
+import { FIELD_TYPES, TddRegistry, toLegacyModule, toLegacyTableState, validateQuery, type AuthorizationContext, type FieldSchema, type ModuleSchema, type TableQuery } from "./workspace-schema";
 
 const caps = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 /** Test-only modules; no public fixture route, API call, persistence or fake live audit. */
@@ -390,4 +390,98 @@ test("Drawer stage preserves its same-scope Table background and rejects another
   const out = html(h(TddRenderer, { view: { kind: "drawer", props, table } }));
   assert.equal((out.match(/id="typed-table"/g) ?? []).length, 1); assert.equal((out.match(/data-tdd-shell="drawer"/g) ?? []).length, 1);
   assert.throws(() => html(h(TddRenderer, { view: { kind: "drawer", props, table: { ...table, context: { surface: "BO", centerId: "other", authorize: () => true } } } })), /scope mismatch/);
+});
+
+
+/** PAP-1072 G2: deterministic semantic controls, not a browser/visual G3 claim. */
+test("G2: legacy Details keep every tab aria-controls attached to the one mounted panel", () => {
+  const tabs = [
+    { id: "overview", label: "Tổng quan" },
+    { id: "relations", label: "Quan hệ" },
+    { id: "history", label: "Lịch sử" },
+  ];
+  for (const selected of tabs.map(t => t.id)) {
+    const out = html(h(DetailFrame, {
+      title: "Legacy Parent", tabs, selected, onSelect: noop, children: "Authorized content",
+      legacyProfile: { version: "v25", tabs: "bo-detail-tabs", body: "bo-detail-body", panel: "bo-detail-panel" },
+    }));
+    const panel = `bo-detail-panel-${selected}`;
+    const ids = new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
+    const controls = [...out.matchAll(/aria-controls="([^"]+)"/g)].map(m => m[1]);
+    assert.equal(controls.length, tabs.length, "each tab must control the mounted panel");
+    assert.deepEqual(controls, tabs.map(() => panel), "inactive tabs cannot point to unmounted panels");
+    assert.ok(ids.has(panel), "tabpanel target must exist in the same DOM tree");
+    assert.match(out, new RegExp(`role="tabpanel" aria-labelledby="bo-detail-tab-${selected}"`));
+    assert.equal((out.match(/aria-selected="true"/g) ?? []).length, 1, "one selected tab");
+    assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2, "one roving tab and focusable panel");
+  }
+});
+
+for (const surface of ["BO", "HO"] as const) {
+  test(`G2 ${surface}: three business variants retain one system shell, ordered tabs and valid ARIA references`, () => {
+    const f = fixture(surface, s => ({
+      ...s, key: surface === "BO" ? "parents-pilot" : "centers-pilot",
+      detail: { ...s.detail, businessTabs: [...s.detail.businessTabs,
+        { id: "enrollments", label: surface === "BO" ? "Đăng ký" : "Địa điểm", kind: "relation-grid" as const,
+          source: { adapter: "relations", permission: "fixture.relations" }, relatedModule: "related" }] },
+    }));
+    const expected = ["Tổng quan", "Quan hệ", "Bổ sung", surface === "BO" ? "Đăng ký" : "Địa điểm", "Lịch sử"];
+    for (const selected of ["overview", "relations", "enrollments", "history"]) {
+      const out = html(h(TddDetail, { ...f, activeTab: selected, onBack: noop, subject: { type: "fixture", id: f.record.id } }));
+      assert.equal((out.match(/data-tdd-shell="detail"/g) ?? []).length, 1);
+      const labels = [...out.matchAll(/role="tab"[^>]*>([^<]+)<\/button>/g)].map(m => m[1]);
+      assert.deepEqual(labels, expected);
+      assert.equal((out.match(/role="tablist"/g) ?? []).length, 1);
+      assert.equal((out.match(/role="tabpanel"/g) ?? []).length, 1);
+      assert.equal((out.match(/aria-selected="true"/g) ?? []).length, 1);
+      const mounted = new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
+      for (const [, controlled] of out.matchAll(/aria-controls="([^"]+)"/g)) assert.ok(mounted.has(controlled), `missing controlled target ${controlled}`);
+      const activeIndex = ["overview", "relations", "more", "enrollments", "history"].indexOf(selected);
+      assert.match(out, new RegExp(`role="tabpanel" aria-labelledby="detail-tab-${activeIndex}"`));
+      assert.match(out, new RegExp(`id="detail-tab-${activeIndex}" aria-selected="true"`));
+      assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2, "keyboard-selected tab and panel only");
+    }
+  });
+
+  test(`G2 ${surface}: denied state and readonly forms never expose foreign record or privileged action`, () => {
+    const f = fixture(surface);
+    const privateRecord = { ...f.record, name: "Sensitive-PINO-Record", internalOnly: "NONPUBLIC-CANARY" };
+    const deniedContext = { ...f.context, authorize: () => false };
+    const missing = surface === "BO" ? { ...f.context, centerId: "" } : { surface: "BO" as const, centerId: "other", authorize: () => true };
+    for (const context of [deniedContext, missing]) {
+      const detail = html(h(TddDetail, { ...f, context, record: privateRecord, onBack: noop, subject: { type: "fixture", id: f.record.id } }));
+      const table = html(h(TddTable, { ...f, context, rows: [privateRecord], status: "ready", onQueryChange: noop, onOpen: noop }));
+      for (const value of [detail, table]) {
+        assert.match(value, /Không có quyền/);
+        assert.doesNotMatch(value, /Sensitive-PINO-Record|NONPUBLIC-CANARY|Quan hệ|Thay đổi/);
+      }
+    }
+    const readOnly = { ...f.context, authorize: (p: string) => p === "fixture.read" };
+    const drawer = html(h(TddDrawer, { ...f, context: readOnly, record: privateRecord, onClose: noop, onDetail: noop }));
+    assert.doesNotMatch(drawer, /NONPUBLIC-CANARY|data-edit=|edit-popover/);
+    assert.match(drawer, /data-tdd-shell="drawer"/);
+  });
+
+  test(`G2 ${surface}: typed invalid Table interactions fail before reaching the registered adapter`, () => {
+    const f = fixture(surface);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, order: ["count", "name", "id"] }, f.context), /identity/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, visible: ["count", "id"] }, f.context), /identity/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, pageSize: 999 }, f.context), /pagination/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, filters: { logic: "AND", rules: [{ field: "count", op: "gte", value: "not-a-number" }] } }, f.context), /filter operand/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, group: { field: "not-registered", direction: "asc", collapsed: [], hidden: [], hideEmpty: false } }, f.context), /group/i);
+    assert.doesNotThrow(() => validateQuery(f.schema, { ...f.query, sort: { field: "count", direction: "desc" }, pageSize: 15 }, f.context));
+  });
+}
+
+test("G2: dialog policy closes on Escape, wraps Tab in both directions and never steals editor keystrokes", () => {
+  const calls: string[] = [], first = { focus: () => calls.push("first") }, last = { focus: () => calls.push("last") };
+  const event = (key: string, shiftKey = false) => ({ key, shiftKey, preventDefault: () => calls.push("prevent") });
+  const state = { editorOpen: false, first, last, active: last, containsActive: true, close: () => calls.push("close") };
+  handleDialogKey(event("Tab"), state); assert.deepEqual(calls.splice(0), ["prevent", "first"]);
+  handleDialogKey(event("Tab", true), { ...state, active: first }); assert.deepEqual(calls.splice(0), ["prevent", "last"]);
+  handleDialogKey(event("Tab"), { ...state, active: null, containsActive: false }); assert.deepEqual(calls.splice(0), ["prevent", "first"]);
+  handleDialogKey(event("Escape"), state); assert.deepEqual(calls.splice(0), ["prevent", "close"]);
+  handleDialogKey(event("Escape"), { ...state, editorOpen: true }); assert.deepEqual(calls, [], "editor owns Escape while open");
+  assert.deepEqual(["ArrowLeft", "ArrowRight", "Home", "End"].map(key => nextTabIndex(key, 0, 5)), [4, 1, 0, 4]);
+  assert.equal(nextTabIndex("ArrowRight", 0, 0), null, "zero tabs must not compute NaN");
 });
