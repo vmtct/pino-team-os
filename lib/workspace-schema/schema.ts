@@ -14,7 +14,7 @@ type SlotBase = { readonly id: string; readonly label: string; readonly source: 
 export type BusinessSlot<K extends string> = SlotBase & (
   | { readonly kind: "field-group"; readonly sections: Sections<K> }
   | { readonly kind: "relation-grid" | "data-grid"; readonly relatedModule: string }
-  | { readonly kind: "form"; readonly fields: readonly K[]; readonly submitPermission: string }
+  | { readonly kind: "form"; readonly fields: readonly string[]; readonly submitPermission: string }
   | { readonly kind: "timeline"; readonly dateField: K }
   | { readonly kind: "media"; readonly fields: readonly K[] }
   | { readonly kind: "metric-cards"; readonly fields: readonly K[] }

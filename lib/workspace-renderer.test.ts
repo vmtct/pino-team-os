@@ -10,7 +10,7 @@ import { projectSavedViews, mergeSavedViews, type SavedTddView } from "../app/co
 import { DetailFrame } from "../app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "../app/components/workspace-renderer/Properties";
 import { HistoryState } from "../app/components/workspace-renderer/History";
-import { checkedSlotContent } from "../app/components/workspace-renderer/Slots";
+import { checkedSlotContent, resolveBusinessFormProvider, validateBusinessFormData, validateBusinessFormSubmitResult, type BusinessFormBinding, type BusinessFormProvider } from "../app/components/workspace-renderer/Slots";
 import { recordProjection } from "../app/components/workspace-renderer/projection";
 import { latestRequest } from "../app/components/workspace-renderer/resource";
 import { nextTabIndex, returnToTable } from "../app/components/workspace-renderer/navigation";
@@ -186,6 +186,48 @@ test("Business slots cannot mount their own shell, styling or opaque components"
   assert.doesNotThrow(() => checkedSlotContent(h("section", { className: "v24-prop-section" }, "Approved content")));
   assert.throws(() => fixture("BO", s => ({ ...s, detail: { ...s.detail, businessTabs: [{ ...s.detail.businessTabs[0], kind: "unknown" } as never] } })), /slot/);
   assert.throws(() => fixture("BO", s => ({ ...s, detail: { ...s.detail, businessTabs: [{ ...s.detail.businessTabs[0], id: "overview" }] } })), /reserved/);
+});
+for (const surface of ["BO", "HO"] as const) test(`${surface}: business forms resolve only one exact registered provider and do not need generic edit`, () => {
+  const f = fixture(surface, schema => ({ ...schema, detail: { ...schema.detail, businessTabs: [{ id: "rate", label: "Rate", kind: "form", fields: ["count"], source: { adapter: "salary.rate", permission: "rate.read" }, submitPermission: "rate.submit" }] } }));
+  const slot = f.schema.detail.businessTabs[0];
+  assert.equal(f.schema.capabilities.edit, undefined);
+  const provider: BusinessFormProvider = { surface, moduleKey: f.schema.key, slotId: slot.id, sourceAdapter: slot.source.adapter, load: async () => ({ status: "denied" }), submit: async () => ({ status: "denied" }) };
+  const binding: BusinessFormBinding = { providers: [provider], principalId: "user-a", subject: { type: "staff", id: f.record.id } };
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, binding), provider);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [provider, provider] }), null, "ambiguous registration fails closed");
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [{ ...provider, sourceAdapter: "wrong" }] }), null);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [{ ...provider, moduleKey: "wrong" }] }), null);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [{ ...provider, surface: surface === "BO" ? "HO" : "BO" }] }), null);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, subject: { type: "staff", id: "" } }), null);
+  const missing = html(h(TddDetail, { ...f, activeTab: "rate", onBack: noop, subject: { type: "staff", id: f.record.id } }));
+  assert.match(missing, /Biểu mẫu chưa khả dụng/); assert.doesNotMatch(missing, /<form/);
+});
+test("business form payloads are typed, non-opaque and history rows require stable identities", () => {
+  const data = { status: "authorized", fields: [
+    { key: "amount", label: "Amount", type: "number", required: true }, { key: "effectiveDate", label: "Effective date", type: "date", required: true }, { key: "reason", label: "Reason", type: "textarea", required: true },
+  ], values: { amount: 120000, effectiveDate: "2026-10-28", reason: "Adjustment" }, records: { label: "History", columns: [
+    { key: "amount", label: "Amount", type: "number" }, { key: "effectiveDate", label: "Date", type: "date" }, { key: "reason", label: "Reason", type: "text" }, { key: "actor", label: "Actor", type: "text" },
+  ], rows: [{ id: "rate-1", values: { amount: 100000, effectiveDate: "2026-01-01", reason: "Initial", actor: "Authorized actor" } }] } } as const;
+  assert.equal(validateBusinessFormData(data), data);
+  assert.equal(validateBusinessFormData(data, ["amount", "effectiveDate", "reason"]), data);
+  assert.throws(() => validateBusinessFormData(data, ["amount", "effectiveDate"]), /allowlist/);
+  assert.throws(() => validateBusinessFormData({ ...data, values: { ...data.values, effectiveDate: "2026-02-30" } }), /field value/);
+  assert.throws(() => validateBusinessFormData({ ...data, fields: [...data.fields, { key: "unsafe", label: "Unsafe", type: "component" as never }] }), /field/);
+  assert.throws(() => validateBusinessFormData({ ...data, values: { ...data.values, secret: "leak" } }), /unregistered/);
+  assert.throws(() => validateBusinessFormData({ ...data, records: { ...data.records, rows: [{ id: "", values: data.records.rows[0].values }] } }), /record/);
+  assert.throws(() => validateBusinessFormData({ status: "denied", fields: data.fields } as never), /denied payload/);
+  assert.deepEqual(validateBusinessFormSubmitResult({ status: "saved" }, data.fields), { status: "saved" });
+  assert.throws(() => validateBusinessFormSubmitResult({ status: "invalid", fields: ["secret"] }, data.fields), /submit fields/);
+  assert.throws(() => validateBusinessFormSubmitResult({ status: "denied", fields: [] } as never, data.fields), /denied submit/);
+});
+test("business form load and submit requests are latest-only and abort independently", async () => {
+  const load = latestRequest<string>(), submit = latestRequest<string>(); const signals: AbortSignal[] = [], committed: string[] = [];
+  let oldLoad!: (value: string) => void, oldSubmit!: (value: string) => void;
+  const firstLoad = load.run(signal => { signals.push(signal); return new Promise(resolve => { oldLoad = resolve; }); }, value => committed.push(value), () => assert.fail());
+  const firstSubmit = submit.run(signal => { signals.push(signal); return new Promise(resolve => { oldSubmit = resolve; }); }, value => committed.push(value), () => assert.fail());
+  await load.run(async signal => { signals.push(signal); return "record-b"; }, value => committed.push(value), () => assert.fail());
+  submit.cancel(); oldLoad("record-a"); oldSubmit("saved-a"); await Promise.all([firstLoad, firstSubmit]);
+  assert.deepEqual(committed, ["record-b"]); assert.equal(signals[0].aborted, true); assert.equal(signals[1].aborted, true);
 });
 test("Canonical Table settings keep four categories and protected identity", () => {
   const f = fixture(); const fields = toLegacyModule(f.schema).fields, value = toLegacyTableState(f.schema, f.query, f.context);

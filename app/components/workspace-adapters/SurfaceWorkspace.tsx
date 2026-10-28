@@ -6,6 +6,7 @@ import type { AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRenderer } from "../workspace-renderer/Renderer";
 import { latestRequest } from "../workspace-renderer/resource";
 import type { TddTableProps } from "../workspace-renderer/Table";
+import type { BusinessFormProvider } from "../workspace-renderer/Slots";
 import { BoApiError } from "@/lib/bo-api-error";
 /** Host owns the existing sidebar trigger; domain slots cannot replace it. */
 export const TddHostMenu = createContext<(id: string) => ReactNode>(() => null);
@@ -18,7 +19,7 @@ function useAdapterResource<T>(load: (signal: AbortSignal) => Promise<T>) {
 }
 /** Shared controller only: every shell remains owned by the canonical renderer.
  * Keeping Table mounted also preserves active/saved views and local undo on Back. */
-export type SurfaceWorkspaceProps<F extends readonly FieldSchema[]> = { readonly adapter: AuthenticatedSurfaceAdapter<F>; readonly navigation: AdapterNavigation<F>; readonly initialQuery: TableQuery<F> };
+export type SurfaceWorkspaceProps<F extends readonly FieldSchema[]> = { readonly adapter: AuthenticatedSurfaceAdapter<F>; readonly navigation: AdapterNavigation<F>; readonly initialQuery: TableQuery<F>; readonly businessForms?: readonly BusinessFormProvider[] };
 export function SurfaceWorkspace<F extends readonly FieldSchema[]>(props: SurfaceWorkspaceProps<F>) {
   const { adapter } = props;
   return <MountedSurfaceWorkspace key={JSON.stringify([adapter.scope.surface, adapter.schema.key, adapter.userId, adapter.scope.surface === "BO" ? adapter.scope.centerId : ""])} {...props} />;
@@ -29,7 +30,7 @@ export function shouldRestoreTableAfterNavigation(previous: "table" | "drawer" |
   return previous !== "table" && next === "table";
 }
 
-function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, navigation, initialQuery }: SurfaceWorkspaceProps<F>) {
+function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, navigation, initialQuery, businessForms }: SurfaceWorkspaceProps<F>) {
   const menu = useContext(TddHostMenu);
   const [location, setLocation] = useState(() => navigation.read());
   const [query, setQuery] = useState(location.query ?? initialQuery);
@@ -65,6 +66,6 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
     {views.state?.error ? <p role="status">Quick Views chưa khả dụng. <button type="button" onClick={views.retry}>Thử lại</button></p> : null}
     {views.state?.value?.unavailable.map(view => <p role="status" key={view.id}>{view.name} — Quick View không tương thích; nhờ người quản lý sửa cấu hình gốc.</p>)}
     {location.kind === "drawer" ? <TddRenderer view={{ kind: "drawer", props: { ...common, record, status: recordStatus, writes, onRetry: detail.retry, onClose: () => move("table"), onDetail: () => move("detail", location.recordId) } }} /> : null}
-    {location.kind === "detail" ? <TddRenderer view={{ kind: "detail", props: { ...common, record, status: recordStatus, onRetry: detail.retry, activeTab: location.tab, onTabChange: tab => move("detail", location.recordId, tab, true), subject: adapter.subject(record.id), onBack: () => move("table"), mobileMenu: menu("detail-menu-btn") } }} /> : null}
+    {location.kind === "detail" ? <TddRenderer view={{ kind: "detail", props: { ...common, record, status: recordStatus, onRetry: detail.retry, activeTab: location.tab, onTabChange: tab => move("detail", location.recordId, tab, true), subject: adapter.subject(record.id), businessForms: businessForms ? { providers: businessForms, principalId: adapter.userId, subject: adapter.subject(record.id) } : undefined, onBack: () => move("table"), mobileMenu: menu("detail-menu-btn") } }} /> : null}
   </>;
 }

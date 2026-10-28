@@ -295,8 +295,15 @@ test("approved typed business slots preserve declaration order and reject shell 
     { ...base, id: "metrics", label: "Metrics", kind: "metric-cards", fields: ["number"] },
     { ...base, id: "audit", label: "Audit dataset", kind: "audit-events", subjectType: "separate-dataset" },
   ];
-  const schema = replace(replace(fixture(), "capabilities.edit", "fixture.edit"), "detail.businessTabs", slots);
+  const schema = replace(fixture(), "detail.businessTabs", slots);
   assert.deepEqual(composeTabs(schema).map(t => t.id), ["overview", ...slots.map(s => s.id), "history"]);
+  assert.equal(schema.capabilities.edit, undefined, "business form submit is independent from generic CRUD edit");
+  const salaryKeys = ["amount", "effectiveFrom", "reason"];
+  assert.doesNotThrow(() => defineTddModule(replace(schema, "detail.businessTabs.2.fields", salaryKeys)), "form fields belong to the business provider, not the public Staff directory");
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.fields", ["amount", "amount"])), /duplicate/);
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.fields", ["staff.*"])), /invalid business form field key/);
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.submitPermission", "fixture.read")), /distinct/);
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.submitPermission", "")), /nonempty/);
   assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.0.className", "shell")));
 });
 test("history diffs require registered, authorized, correctly typed field projections", async () => {
