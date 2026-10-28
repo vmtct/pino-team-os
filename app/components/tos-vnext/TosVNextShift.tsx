@@ -4,32 +4,44 @@ import {useEffect,useRef,useState} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCalendarDays,faClock,faWallet,faCircleCheck,faLocationDot} from "@fortawesome/free-solid-svg-icons";
 import {AppBottomNav,AppCard,AppSheet,AppButton,createSlotKeys} from "../tos-ds";
-import type {Assignment,TimekeepingSession} from "@/lib/workforce-api";
+import {workforceApi,type Assignment,type TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 import type {TosVNextShiftReadWarnings} from "./core-adapters";
-import {shiftWeek,assignmentHours,formatIncome,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
+import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
 import styles from "./shift.module.css";
 const slot=createSlotKeys(styles);
 export type ShiftReadData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
-export function TosVNextShift({data,localDate,centerName,profileLabel}:{data:ShiftReadData;localDate:string;centerName:string;profileLabel:string|null}){
- const [tab,setTab]=useState("today"),[selected,setSelected]=useState(localDate);
+export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:{data:ShiftReadData;localDate:string;centerId:string;centerName:string;profileLabel:string|null}){
+ const [tab,setTab]=useState("today"),[selected,setSelected]=useState(localDate),[weekAnchor,setWeekAnchor]=useState(localDate);
  const [sheet,setSheet]=useState<"camera"|"history"|"adjust"|null>(null);
  const [photo,setPhoto]=useState<string|null>(null),[cameraError,setCameraError]=useState("");
  const video=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null),cameraEpoch=useRef(0),track=useRef<HTMLDivElement>(null);
- const [edges,setEdges]=useState({before:false,after:false});
- const days=shiftWeek(localDate);
- const assignments=data.assignments.filter(x=>x.workDate===selected);
+ const [weekResult,setWeekResult]=useState<{centerId:string;start:string;assignments:Assignment[]}|null>(null);
+ const [weekError,setWeekError]=useState<{centerId:string;start:string;message:string}|null>(null);
+ const days=shiftWeek(weekAnchor),weekStart=days[0].date,weekEnd=days[6].date;
+ const weekReady=weekResult?.centerId===centerId&&weekResult.start===weekStart;
+ const weekFailed=weekError?.centerId===centerId&&weekError.start===weekStart;
+ const assignments=activeScheduleAssignments(weekReady?weekResult.assignments:[],selected);
  const currentAssignment=data.assignments.find(x=>x.id===data.current?.assignmentId)??data.assignments.find(x=>x.workDate===localDate&&x.status==="ACTIVE");
  const latest=data.income?.data[0];
  const paidMinutes=latest?.paidMinutes;
  function stopCamera(){cameraEpoch.current++;stream.current?.getTracks().forEach(x=>x.stop());stream.current=null}
  function closeSheet(){stopCamera();setPhoto(null);setCameraError("");setSheet(null)}
  useEffect(()=>()=>{cameraEpoch.current++;stream.current?.getTracks().forEach(x=>x.stop())},[]);
- useEffect(()=>{setSelected(localDate)},[localDate]);
- function updateEdges(){const el=track.current;if(el)setEdges({before:el.scrollLeft>1,after:el.scrollLeft+el.clientWidth<el.scrollWidth-1})}
- function move(direction:number){const el=track.current,day=el?.querySelector("button");if(el&&day)el.scrollBy({left:direction*(day.getBoundingClientRect().width+4),behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"})}
+ // Every navigated week is read from the Staff-authenticated Core schedule endpoint.
+ // A stale/failed request never reuses rows from a different Center or week.
+ useEffect(()=>{
+  let live=true;
+  void workforceApi.schedule({centerId,startDate:weekStart,endDate:weekEnd}).then(result=>{
+   if(live)setWeekResult({centerId,start:weekStart,assignments:result.data});
+  }).catch(reason=>{
+   if(live){setWeekResult(null);setWeekError({centerId,start:weekStart,message:reason instanceof Error?reason.message:"Không thể tải lịch ca từ Core."})}
+  });
+  return()=>{live=false};
+ },[centerId,weekStart,weekEnd]);
+ function moveWeek(direction:-1|1){const date=shiftWeekOffset(selected,direction);setWeekResult(null);setWeekError(null);setSelected(date);setWeekAnchor(date)}
  useEffect(()=>{if(tab!=="calendar")return;const el=track.current;if(!el)return;
-  const reveal=()=>{const day=el.querySelector<HTMLButtonElement>('[aria-pressed="true"]');if(day)el.scrollLeft=day.offsetLeft-(el.clientWidth-day.clientWidth)/2;updateEdges()};
+  const reveal=()=>{const day=el.querySelector<HTMLButtonElement>('[aria-pressed="true"]');if(day)el.scrollLeft=day.offsetLeft-(el.clientWidth-day.clientWidth)/2};
   reveal();const observer=new ResizeObserver(reveal);observer.observe(el);return()=>observer.disconnect();
  },[tab,selected]);
  async function startCamera(){
@@ -58,17 +70,19 @@ export function TosVNextShift({data,localDate,centerName,profileLabel}:{data:Shi
     <AppCard className={styles.card}><h3>Lưu ý trong ca</h3><p>Kiểm tra thông tin ca trước khi bắt đầu. Nếu có sai lệch, gửi yêu cầu điều chỉnh trong Giờ công.</p></AppCard>
    </>}
    {tab==="calendar"&&<>
-    <div className={styles.intro}><span>LỊCH LÀM VIỆC</span><h2>{new Intl.DateTimeFormat("vi-VN",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(localDate+"T12:00:00Z"))}</h2><p>Chọn ngày để xem hoặc đăng ký ca.</p></div>
+    <div className={styles.intro}><span>LỊCH LÀM VIỆC</span><h2>{new Intl.DateTimeFormat("vi-VN",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(selected+"T12:00:00Z"))}</h2><p>Chọn ngày để xem hoặc đăng ký ca.</p></div>
     <div className={styles.week} role="group" aria-label="Lịch tuần" aria-roledescription="carousel">
-     <button type="button" className={styles.weekArrow} aria-label="Các ngày trước" disabled={!edges.before} onClick={()=>move(-1)}><span aria-hidden="true">‹</span></button>
-     <div className={styles.weekTrack} ref={track} onScroll={updateEdges} onKeyDown={e=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(e.key))return;e.preventDefault();const index=days.findIndex(x=>x.date===selected);const next=e.key==="Home"?0:e.key==="End"?6:Math.max(0,Math.min(6,index+(e.key==="ArrowRight"?1:-1)));setSelected(days[next].date);track.current?.querySelectorAll("button")[next]?.focus()}}>
+     <button type="button" className={styles.weekArrow} aria-label="Tuần trước" onClick={()=>moveWeek(-1)}><span aria-hidden="true">‹</span></button>
+     <div className={styles.weekTrack} ref={track} onKeyDown={e=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(e.key))return;e.preventDefault();const index=days.findIndex(x=>x.date===selected);const next=e.key==="Home"?0:e.key==="End"?6:Math.max(0,Math.min(6,index+(e.key==="ArrowRight"?1:-1)));setSelected(days[next].date);track.current?.querySelectorAll("button")[next]?.focus()}}>
       {days.map(day=><button type="button" key={day.date} aria-label={day.label+", "+day.date} aria-pressed={day.date===selected} className={day.date===selected?styles.selected:""} onClick={()=>setSelected(day.date)}><small>{day.label}</small><strong>{Number(day.date.slice(-2))}</strong></button>)}
      </div>
-     <button type="button" className={styles.weekArrow} aria-label="Các ngày sau" disabled={!edges.after} onClick={()=>move(1)}><span aria-hidden="true">›</span></button>
+     <button type="button" className={styles.weekArrow} aria-label="Tuần sau" onClick={()=>moveWeek(1)}><span aria-hidden="true">›</span></button>
     </div>
     <AppCard className={styles.card}><div className={styles.row}><h3>Ngày {selected}</h3><span className={styles.pill}>{assignments.length?"Đã phân công":"Chưa có ca"}</span></div>
-     {assignments.map(row=><div key={row.id}><p><strong>{assignmentHours(row)}</strong> · {centerName}</p><p>{shiftRoleLabel(row)}</p><small>{row.status}</small></div>)}
-     {!assignments.length&&<p>Chưa có ca được phân công cho ngày này.</p>}
+     {weekFailed&&<p role="alert">{weekError.message}</p>}
+     {!weekReady&&!weekFailed&&<p role="status">Đang tải lịch ca từ Core…</p>}
+     {weekReady&&assignments.map(row=><div key={row.id}><p><strong>{assignmentHours(row)}</strong> · {centerName}</p><p>{shiftRoleLabel(row)}</p><small>{row.status}</small></div>)}
+     {weekReady&&!assignments.length&&<p>Chưa có ca được phân công cho ngày này.</p>}
      <button type="button" className={styles.primary} disabled title="Đăng ký ca cần API và chính sách được xác minh">Đăng ký ca</button>
     </AppCard><AppCard className={styles.card}><h3>Quy trình đăng ký</h3><p>Nhân viên đăng ký thời gian có thể làm. Vai trò trong ca do quản lý phân công sau.</p></AppCard>
    </>}

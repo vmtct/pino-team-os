@@ -6,6 +6,16 @@ export function shiftWeek(localDate:string){
  date.setUTCDate(date.getUTCDate()-(date.getUTCDay()+6)%7);
  return Array.from({length:7},(_,i)=>{const day=new Date(date);day.setUTCDate(day.getUTCDate()+i);return {date:day.toISOString().slice(0,10),label:["T2","T3","T4","T5","T6","T7","CN"][i]}});
 }
+export function shiftWeekOffset(localDate:string,weeks:number){
+ shiftWeek(localDate); // Validate the input before deriving an adjacent local calendar date.
+ if(!Number.isInteger(weeks)||Math.abs(weeks)>52)throw new Error("Invalid week offset");
+ const date=new Date(localDate+"T12:00:00Z");
+ date.setUTCDate(date.getUTCDate()+weeks*7);
+ return date.toISOString().slice(0,10);
+}
+export function activeScheduleAssignments(rows:Assignment[],selectedDate:string){
+ return rows.filter(row=>row.workDate===selectedDate&&row.status==="ACTIVE");
+}
 export function assignmentHours(row:Assignment){
  const clock=(value:string|null|undefined)=>{if(!value)return null;const match=value.match(/(?:T|^)(\d{2}:\d{2})(?::\d{2})?/);return match?.[1]??null};
  const start=clock(row.effectiveStartLocal??row.shift?.startLocalTime),end=clock(row.effectiveEndLocal??row.shift?.endLocalTime);
