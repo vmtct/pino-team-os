@@ -1,14 +1,21 @@
 import type { BoModule, BoRecord } from "./bo-registration";
-import type { BoAccessRole, BoCenter } from "./bo-model";
+import type { BoAccessRole, BoCenter, BoStaffRecord } from "./bo-model";
 import type { BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "centers" | "users" | "roles" | "audits" | HoA1Module;
+export type HoModule = "centers" | "staffs" | "users" | "roles" | "audits" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
  centers: {...hoCentersModule,group:"Network"},
+ staffs:{label:"Staff",group:"Nhân sự",fields:[
+  {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},
+  {key:"id",label:"Staff ID",type:"id",icon:"#",w:240,readonly:true},
+  {key:"status",label:"Trạng thái",type:"select",icon:"◉",w:120,readonly:true},
+  {key:"roleLabel",label:"Chức danh",type:"text",icon:"Aa",w:170,readonly:true},
+  {key:"department",label:"Bộ phận",type:"text",icon:"Aa",w:170,readonly:true},
+ ]},
  ...hoA1Modules,
  users: {label:"Users",group:"System",fields:[
   {key:"name",label:"Account",type:"text",icon:"Aa",w:260,readonly:true},
@@ -30,6 +37,7 @@ export const hoModules: Record<HoModule,BoModule> = {
  ]},
  audits: {label:"Access Audit",group:"System",fields:[{key:"name",label:"Event",type:"text",icon:"≡",w:250,readonly:true}]},
 };
+export const mapHoStaffs=(rows:BoStaffRecord[]):BoRecord[]=>rows.map(r=>({id:r.id,name:r.displayLabel,status:r.status,roleLabel:r.roleLabel,department:r.department}));
 export const mapHoUsers = (rows: BoAccessSystemUser[]): BoRecord[] => rows.map(u=>({
  id:u.id,name:u.email ?? u.id,status:u.status,staffMemberId:u.staffMemberId,
  roleAssignments:u.assignments.map(a=>[a.roleName,a.scopeType,a.scopeId].filter(Boolean).join(" · ")),

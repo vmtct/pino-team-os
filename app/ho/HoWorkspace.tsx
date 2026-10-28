@@ -1,7 +1,7 @@
 "use client";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { boApi } from "@/lib/bo-api";
-import { hoRoutes, hoModules, mapHoCenters, mapHoUsers, mapHoRoleDirectory, type HoModule } from "@/lib/ho-system";
+import { hoRoutes, hoModules, mapHoCenters, mapHoStaffs, mapHoUsers, mapHoRoleDirectory, type HoModule } from "@/lib/ho-system";
 import { HO_A1_KEYS,loadHoA1,loadHoA1Detail,type HoA1Module } from "@/lib/ho-a1";
 import type { ReactNode } from "react";
 import type { TddStage } from "@/app/components/workspace-renderer/Renderer";
@@ -15,6 +15,7 @@ const source: BoWorkspaceSource = {
   const timed:typeof fetch=(url,init)=>fetcher(url,{...init,signal:init?.signal ? AbortSignal.any([init.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});
   if(HO_A1_KEYS.includes(key as HoA1Module))return loadHoA1(key as HoA1Module,timed);
   if(key==="centers") return mapHoCenters(await boApi.centers(timed));
+  if(key==="staffs") return mapHoStaffs(await boApi.staffRecords(timed));
   if(key==="users") return mapHoUsers(await boApi.accessUsers(timed));
   if(key==="roles") return mapHoRoleDirectory(await boApi.accessRoles(timed));
   return []; // Audit table manages true server-side pagination in HoAccessAudit.

@@ -1,0 +1,24 @@
+.workspace{display:grid;gap:8px;min-width:0;width:100%;max-width:840px;align-content:start}
+.workspace section{min-width:0;margin:0;padding:12px 0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.workspace section+section{border-top:1px solid var(--ds-border,#e3e0e5)}
+.workspace :global(.v24-section-heading){display:flex;align-items:center;justify-content:flex-start!important;flex-wrap:wrap;gap:6px 14px}
+.workspace :global(.v24-section-heading h4){font-size:13px;line-height:1.35;margin:0}
+.staffId{display:inline-flex;align-items:center;max-width:100%;font-size:11px;font-weight:600;color:var(--ds-primary);background:var(--ds-primary-subtle,#f9eef3);border-radius:5px;padding:3px 7px;overflow-wrap:anywhere}
+.form{display:grid;grid-template-columns:minmax(0,190px) minmax(0,180px);justify-content:start;gap:9px 12px;padding-top:10px;max-width:520px}
+.form label{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;font-weight:600;color:var(--text-secondary,#555b68)}
+.form :is(input,textarea){display:block;width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--ds-border,#d9d9df);border-radius:7px;background:var(--ds-surface,#fff);color:inherit;min-height:38px;padding:7px 10px;font:inherit;font-weight:400;line-height:1.3}
+.form :is(input,textarea):focus-visible{outline:2px solid var(--ds-primary);outline-offset:1px}
+.form textarea{resize:vertical;min-height:58px}
+.rateWrap{display:block;position:relative;min-width:0}
+.rateWrap input{padding-right:62px}
+.rateWrap>span{pointer-events:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted,#697185);font-size:11px;font-weight:500}
+.reason,.actions{grid-column:1/-1;max-width:420px}
+.actions{display:flex;justify-content:flex-start}
+.actions button{width:max-content;min-height:36px;min-width:142px;padding:7px 13px}
+.feedback{max-width:420px;margin:9px 0 0;padding:7px 10px;border-radius:7px;font-size:12px;color:var(--ds-primary,#74283e)}
+.grid{width:100%;max-width:820px;min-width:0}
+.grid :global(table){width:100%;min-width:760px;table-layout:fixed}
+.grid :global(th),.grid :global(td){height:34px;padding:5px 9px;font-size:12px;line-height:1.35}
+.grid :global(th:nth-child(-n+3)),.grid :global(td:nth-child(-n+3)){white-space:nowrap}
+.grid :global(td:nth-child(4)){white-space:normal;overflow-wrap:anywhere}
+@media(max-width:600px){.workspace{max-width:100%}.workspace section{padding:10px 0}.form{grid-template-columns:minmax(0,1fr);max-width:440px;gap:8px}.form label:nth-child(1),.form label:nth-child(2){max-width:190px}.reason,.actions{max-width:100%}}

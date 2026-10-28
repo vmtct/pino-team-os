@@ -10,6 +10,7 @@ import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSu
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
 import { BoStaffIncomeReadTab } from "./BoStaffIncomeReadTab";
+const HoStaffRateTab = lazy(async()=>{ const {HoStaffRateTab} = await import("@/app/ho/staff/HoStaffRateTab"); return {default:HoStaffRateTab}; });
 const BoSubscriptionEnrollmentTab = lazy(async () => {
   // Node SSR of Detail must not eagerly import the DataGrid CSS module.
   // S3 Enrollment is loaded only when its tab is opened.
@@ -23,10 +24,11 @@ const BoWorkforcePlannerTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged,
+  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, surface = "bo", enableStudentSubscriptions = false, onEnrollmentChanged,
 }: {
   module: BoModule;
   moduleKey: string;
+  surface?: "bo"|"ho";
   record: BoRecord;
   onBack: () => void;
   onStudentNeutralized?: () => void;
@@ -39,7 +41,7 @@ export function BoFullDetail({
   const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
   // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
-  const tabs = moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
+  const tabs = surface==="ho" && moduleKey==="staffs" ? ["Detail","Rate lương","Lịch Sử"] : moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
     : moduleKey === "classes"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "payroll-periods"
@@ -70,13 +72,15 @@ export function BoFullDetail({
     legacyContent={<BoParentReadTabs module={module} record={record} fullDetail />}>{null}</DetailFrame>;
 
   return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
-    tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? "Thông tin" : label }))}
+    tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? (surface==="ho" && moduleKey==="staffs" ? "Tổng quan" : "Thông tin") : label }))}
     selected={activeTab} onSelect={setTab}
     after={voidOpen ? <BoStudentIntakeVoid studentId={record.id} onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}>
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
             ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
             : activeTab === "Lịch tuần" && moduleKey === "workforce-shift-plans"
               ? <Suspense fallback={<p role="status">Đang tải lịch tuần…</p>}><BoWorkforcePlannerTab embedded scope={{ centerId: String(record.centerId ?? ""), termWeekId: String(record.termWeekId ?? "") }} /></Suspense>
+            : surface==="ho" && moduleKey==="staffs" && activeTab==="Rate lương"
+              ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Rate lương…</div>}><HoStaffRateTab key={record.id} staffId={record.id}/></Suspense>
             : moduleKey === "staffs" && activeTab === "Thu nhập"
               ? <BoStaffIncomeReadTab staffMemberId={record.id} />
             : activeTab === "Detail"
