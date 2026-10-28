@@ -88,15 +88,16 @@ export function inspectCss(file, css, surface) {
   return [...new Set(errors)];
 }
 function exactFile(f) { return typeof f==='string' && /^[A-Za-z0-9_./-]+$/.test(f) && !f.startsWith('/') && !f.split('/').some(s=>s==='..'||s==='.') && !f.includes('//'); }
-function exactRoute(r,surface) {return typeof r==='string' && r.startsWith('/'+surface.toLowerCase()+'/') && /^\/[a-z0-9/-]+$/.test(r) && !r.includes('//') && !r.endsWith('/');}
+function exactRoute(r,surface) {return ['BO','HO'].includes(surface) && typeof r==='string' && r.startsWith('/'+surface.toLowerCase()+'/') && /^\/[a-z0-9/-]+$/.test(r) && !r.includes('//') && !r.endsWith('/');}
 export function validateSpecial(entry, approvals, changed, now) {
+  if(approvals.filter(a=>a.id===entry.approval).length!==1) return ['missing/ambiguous Founder approval'];
   const a=approvals.find(a=>a.id===entry.approval);
   const errors=[];
   if(!a||a.status!=='approved'||a.approvedBy!=='Founder'||!/^https:\/\/vmtct97\.atlassian\.net\/browse\/PAP-\d+\?focusedCommentId=\d+$/.test(a?.reference??'')) return ['unverified Founder approval'];
   if(!exactRoute(a.route,a.surface)||a.route!==entry.route||a.surface!==entry.surface||a.key!==entry.key) errors.push('approval route/surface/key mismatch');
-  if(!a.owner||!a.justification||!a.designAuthority||!a.fallback||!Array.isArray(a.permissions)||!a.permissions.length) errors.push('incomplete special profile');
+  if(![a.owner,a.justification,a.designAuthority,a.fallback].every(v=>typeof v==='string'&&v.trim())||!Array.isArray(a.permissions)||!a.permissions.length||!a.permissions.every(v=>typeof v==='string'&&v.trim())) errors.push('incomplete special profile');
   const from=Date.parse(a.approvedAt), to=Date.parse(a.expiresAt);
-  if(!Number.isFinite(from)||from>now||!Number.isFinite(to)||to<=now||to<=from) errors.push('expired/future approval');
+  if(typeof a.approvedAt!=='string'||typeof a.expiresAt!=='string'||!Number.isFinite(from)||from>now||!Number.isFinite(to)||to<=now||to<=from) errors.push('expired/future approval');
   if(!Array.isArray(a.files)||!a.files.length||!a.files.every(exactFile)||new Set(a.files).size!==a.files.length||JSON.stringify([...a.files].sort())!==JSON.stringify([...entry.files].sort())) errors.push('approval file fence mismatch');
   if(changed.some(f=>entry.files.includes(f)&&!a.files.includes(f))) errors.push('out-of-scope exception');
   for(const key of ['security','authorization','accessibility','responsive']) if(!Array.isArray(a.tests?.[key])||!a.tests[key].length||!a.tests[key].every(exactFile)) errors.push('missing '+key+' tests');
