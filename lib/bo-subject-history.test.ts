@@ -27,6 +27,16 @@ test("React /bo history uses only exact subject BFF query", () => {
   assert.equal(query.get("cursor"), "encrypted");
   assert.equal(query.get("centerId"), null);
 });
+test("PAP-1102 Subscription audit is exact subject-only, redacted, and preserves Core action labels", () => {
+  const query = new URLSearchParams(auditQueryString({subject_type:"subscription",subject_id:id,limit:20}));
+  assert.equal(query.get("subject_type"),"subscription");
+  assert.equal(query.get("centerId"),null);
+  const subscription = {subject_type:"subscription" as const,subject_id:id};
+  const valid = item({subject_type:"subscription",action:"Tạo Subscription"});
+  assert.deepEqual(validateSubjectAuditPage({events:[valid],nextCursor:null},subscription).events,[valid]);
+  assert.throws(()=>validateSubjectAuditPage({events:[item()],nextCursor:null},subscription));
+  assert.throws(()=>validateSubjectAuditPage({events:[item({subject_type:"subscription",before:"private"} as Partial<BoSubjectAuditEvent>)],nextCursor:null},subscription));
+});
 test("rejects cross-entity and cross-subject histories without filtering", () => {
   for (const change of [{ subject_id: "019a1234-5678-7000-8000-123456789abe" }, { subject_type: "running_class" as const }]) {
     assert.throws(() => validateSubjectAuditPage({ events: [item(), item(change)], nextCursor: null }, subject));
