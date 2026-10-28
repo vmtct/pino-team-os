@@ -40,6 +40,16 @@ export const staffRateProvider: BusinessFormProvider = {
       !Number.isSafeInteger(rate.amountMinor) || rate.amountMinor < 1 || rate.currency !== "VND" ||
       (rate.note !== null && typeof rate.note !== "string"))) throw Error("Invalid rate ledger");
     const sorted = [...rates].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
+    // Core returns one immutable rate per effective day. Reject contradictory private
+    // ledgers rather than presenting a misleading amount/date interval as authoritative.
+    if (new Set(sorted.map(rate => rate.id)).size !== sorted.length ||
+        sorted.some((rate, index) =>
+          index === 0
+            ? rate.periodUntilExclusive !== null
+            : rate.effectiveFrom >= sorted[index - 1]!.effectiveFrom ||
+              rate.periodUntilExclusive !== sorted[index - 1]!.effectiveFrom)) {
+      throw Error("Invalid rate ledger chronology");
+    }
     const rows = sorted.map(rate => ({
       id: rate.id,
       values: {
