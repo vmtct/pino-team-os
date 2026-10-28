@@ -1,0 +1,50 @@
+name: TDD G3 Measured Geometry
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/tdd-g3-geometry.yml"
+      - "e2e/tdd-g3-geometry.spec.ts"
+      - "scripts/render-tdd-g3-fixtures.tsx"
+      - "scripts/verify-tdd-g3-artifacts.mjs"
+      - "app/components/workspace-renderer/**"
+      - "lib/workspace-schema/**"
+      - "public/bo-authority-source/styles.css"
+      - "public/ho-authority-source/ho-scoped.css"
+
+permissions:
+  contents: read
+
+jobs:
+  measured-geometry:
+    name: BO/HO TDD 5 viewport geometry
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium (no production or staging credentials)
+        run: npx playwright install --with-deps chromium
+      - name: Render real canonical TDD Table/Drawer/Detail fixtures
+        run: npm run tdd:g3:fixtures
+      - name: Run measured geometry and negative controls
+        run: npm run tdd:g3:test
+        env:
+          CI: "true"
+      - name: Require complete screenshot and DOM geometry evidence
+        run: node scripts/verify-tdd-g3-artifacts.mjs
+      - name: Retain real PNG and DOM metrics, even when Playwright fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap1073-g3-geometry
+          path: artifacts/pap1073-g3/
+          retention-days: 14
+          if-no-files-found: error

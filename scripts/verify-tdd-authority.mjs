@@ -103,6 +103,53 @@ export function validateSpecial(entry, approvals, changed, now) {
   for(const key of ['security','authorization','accessibility','responsive']) if(!Array.isArray(a.tests?.[key])||!a.tests[key].length||!a.tests[key].every(exactFile)) errors.push('missing '+key+' tests');
   return errors;
 }
+/**
+ * PAP-1134: prove the adapter-backed HO journey that actually renders the shared
+ * TddRenderer through SurfaceWorkspace, without inserting a fake direct JSX call.
+ * This binding is explicit per route, never a generic G0 bypass.
+ */
+export function bindsHoSurfaceWorkspace(root, entry) {
+  if(entry.surface!=='HO'||entry.binding?.kind!=='SURFACE_WORKSPACE_ADAPTER') return false;
+  const file=entry.binding?.file;
+  if(!file||!entry.files.includes(file)||!fs.existsSync(path.join(root,file))) return false;
+  const ast=parse(file,read(root,file)), imported=new Map();
+  for(const statement of ast.statements) if(ts.isImportDeclaration(statement)&&ts.isStringLiteral(statement.moduleSpecifier)) {
+    const target=localFile(root,file,statement.moduleSpecifier.text);
+    for(const item of statement.importClause?.namedBindings?.elements??[]) imported.set(item.name.text,{target,original:item.propertyName?.text??item.name.text});
+  }
+  const workspaceNames=[...imported].filter(([,v])=>v.original==='SurfaceWorkspace'&&v.target==='app/components/workspace-adapters/SurfaceWorkspace.tsx').map(([k])=>k);
+  const adapterNames=[...imported].filter(([,v])=>v.original==='createHoTddAdapter'&&v.target==='lib/workspace-adapters/index.ts').map(([k])=>k);
+  const registryNames=[...imported].filter(([,v])=>v.original==='TddRegistry'&&v.target==='lib/workspace-schema/index.ts').map(([k])=>k);
+  if(!workspaceNames.length||!adapterNames.length||!registryNames.length) return false;
+  let rendered=false,adapted=false,registeredDefinition=false;
+  const schemaAst=parse(entry.schema.file,read(root,entry.schema.file));
+  const registeredNames=[];
+  function scanSchema(n){
+    if(ts.isVariableDeclaration(n)&&ts.isIdentifier(n.name)&&n.name.text===entry.schema.export&&n.initializer&&ts.isCallExpression(n.initializer)&&ts.isPropertyAccessExpression(n.initializer.expression)&&n.initializer.expression.name.text==='register') {
+      const arg=n.initializer.arguments[0];
+      if(arg&&ts.isObjectLiteralExpression(arg)) for(const prop of arg.properties) if(ts.isSpreadAssignment(prop)&&ts.isIdentifier(prop.expression)) registeredNames.push(prop.expression.text);
+    }
+    ts.forEachChild(n,scanSchema);
+  } scanSchema(schemaAst);
+  if(!registeredNames.length) return false;
+  function scan(n){
+    if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)) {
+      if(workspaceNames.includes(n.tagName.getText(ast))) {
+        const adapter=[...n.attributes.properties].find(a=>ts.isJsxAttribute(a)&&a.name.getText(ast)==='adapter');
+        if(adapter?.initializer&&ts.isJsxExpression(adapter.initializer)&&adapter.initializer.expression&&ts.isPropertyAccessExpression(adapter.initializer.expression)&&adapter.initializer.expression.name.text==='adapter') rendered=true;
+      }
+    }
+    if(ts.isCallExpression(n)&&ts.isIdentifier(n.expression)&&adapterNames.includes(n.expression.text)&&n.arguments.length===2&&ts.isObjectLiteralExpression(n.arguments[0])) {
+      const options=n.arguments[0];
+      const named=key=>options.properties.find(p=>ts.isPropertyAssignment(p)&&p.name?.getText(ast)===key);
+      const definition=named('definition'),provider=named('provider'),registry=named('registry');
+      if(definition&&ts.isIdentifier(definition.initializer)&&imported.get(definition.initializer.text)?.target===entry.schema.file&&registeredNames.includes(imported.get(definition.initializer.text)?.original)&&provider&&ts.isIdentifier(provider.initializer)&&imported.get(provider.initializer.text)?.target===entry.schema.file&&registry&&ts.isNewExpression(registry.initializer)&&ts.isIdentifier(registry.initializer.expression)&&registryNames.includes(registry.initializer.expression.text)) adapted=true;
+    }
+    ts.forEachChild(n,scan);
+  } scan(ast);
+  return rendered&&adapted;
+}
+
 export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.now(),loadSchema,approvals=[]}={}) {
   baseline??=JSON.parse(read(root,'config/tdd-inventory.json'));
   manifest??=JSON.parse(read(root,MANIFEST));
@@ -122,7 +169,21 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     const impacted=changed.includes(MANIFEST)||changed.some(f=>e.files.includes(f)||dependencies.includes(f)||canonical.test(f)||/^(?:public\/(?:bo|ho)-authority-source\/|scripts\/build-(?:bo|ho)-authority|app\/ho\/ho-theme\.css|app\/globals\.css)/.test(f));
     if(!impacted) continue;
     for(const f of e.files) if(!fs.existsSync(path.join(root,f))) errors.push(e.file+': missing owned file '+f);
-    for(const f of dependencies.filter(f=>!canonical.test(f))) if(!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
+    // Fence all locally-owned code. Pre-existing external graph dependencies belong to
+    // their own BO/HO owners, not to a route's 100+ transitive source-file fence.
+    // When those external files change with admission, require an exact owner reference,
+    // inspect for shell violations and reject missing/unowned imports. Never wildcard.
+    const ownerRoot=e.file.slice(0,e.file.lastIndexOf('/')+1);
+    const externalRefs=e.externalReferences??[];
+    for(const reference of externalRefs) if(!reference||!exactFile(reference.file)||!/^PAP-\d+$/.test(reference.owner??'')||reference.file.startsWith(ownerRoot)||canonical.test(reference.file)||e.files.includes(reference.file)||!dependencies.includes(reference.file)||reference.file.endsWith('.css')) errors.push(e.file+': invalid external owner reference');
+    for(const f of dependencies.filter(f=>!canonical.test(f))) {
+      const external=!(f===e.file||f.startsWith(ownerRoot));
+      if(!external&&!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
+      if(external&&changed.includes(f)&&!(baseline.sourceFiles??[]).includes(f)) {
+        if(!externalRefs.some(r=>r.file===f)) errors.push(e.file+': dependency outside admission fence '+f);
+        else if(sourceFile.test(f)) errors.push(...inspectModuleSource(f,read(root,f)));
+      }
+    }
     if(e.profile==='FOUNDER_APPROVED_SPECIAL') {
       errors.push(...validateSpecial(e,approvals,changed,now).map(s=>e.file+': '+s));
       const a=approvals.find(a=>a.id===e.approval);
@@ -159,7 +220,8 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
           } ts.forEachChild(n,bind);
         } bind(bindingAst);
       }
-      if(!connected) errors.push(e.file+': explicit imported schema at canonical renderer binding required');
+      if(!connected && e.binding?.kind==='SURFACE_WORKSPACE_ADAPTER') connected=bindsHoSurfaceWorkspace(root,e);
+      if(!connected) errors.push(e.file+': explicit connected schema at canonical renderer/SurfaceWorkspace binding required');
       try {
         const schema=loadSchema ? await loadSchema(e) : (await import(pathToFileURL(path.join(root,e.schema.file)).href))[e.schema.export];
         const {validateModule}=await import(pathToFileURL(path.join(ROOT,'lib/workspace-schema/validate.ts')).href);

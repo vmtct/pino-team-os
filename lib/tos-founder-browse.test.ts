@@ -26,7 +26,10 @@ test("PAP-938 staging Staff/Founder login routes to authoritative TOS V4",()=>{
 test("PAP-938 Founder Home exposes even Shift Leader as read-only browser panel",()=>{
  const home=readFileSync("app/components/tos-vnext/TosVNextHome.tsx","utf8");
  const integration=readFileSync("app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx","utf8");
- assert.match(home,/founderMode\|\|app\.id!=="shift-lead"/);
+ // PAP-1127: all six tiles are now available to authenticated/Center-scoped actors;
+ // Founder still only receives Core-authorized read-only projections in this surface.
+ assert.match(home,/const enabled=!busy&&allowed\(app\.id\)/);
+ assert.doesNotMatch(home,/founderMode\|\|app\.id!=="shift-lead"/);
  assert.match(home,/Founder · Giám sát TOS/);
  assert.match(integration,/<TosVNextHome founderMode profileLabel="Founder"/);
 });

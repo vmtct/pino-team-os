@@ -1,28 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
 import {canOpenVNextApp} from "./tos-vnext-active-access";
 import {SIX_TOS_APPS} from "../app/components/tos-vnext/identity";
-const ready={authenticated:true,centerReady:true,scheduleReady:true,desktop:true,
- access:{reception:true,classroom:true,"shift-lead":true}};
-test("PAP-940 fail closed on missing center, schedule, or session for all six apps",()=>{
- for(const app of SIX_TOS_APPS){
-  for(const k of ["authenticated","centerReady","scheduleReady"] as const){
-   assert.equal(canOpenVNextApp(app.id,{...ready,[k]:false}),false,`${app.id}: ${k}`);
-  }
- }
+const ready={authenticated:true,centerReady:true,desktop:true};
+test("PAP-1127 all six TOS apps open without ShiftAssignment, role or schedule",()=>{
+ for(const app of SIX_TOS_APPS) assert.equal(canOpenVNextApp(app.id,ready),true,app.id);
 });
-test("PAP-940 enter and mid-session revocation share the same decision",()=>{
- for(const app of ["reception","classroom"] as const){
-  assert.equal(canOpenVNextApp(app,ready),true);
-  assert.equal(canOpenVNextApp(app,{...ready,access:{...ready.access,[app]:false}}),false);
- }
+test("PAP-1127 authentication and Center context required for all apps",()=>{
+ for(const app of SIX_TOS_APPS) for(const k of ["authenticated","centerReady"] as const)
+  assert.equal(canOpenVNextApp(app.id,{...ready,[k]:false}),false,app.id+":"+k);
+});
+test("PAP-1127 only Trạm TOS requires desktop, other five are shift-independent",()=>{
  assert.equal(canOpenVNextApp("station",{...ready,desktop:false}),false);
- assert.equal(canOpenVNextApp("shift",{...ready,access:null}),true);
- assert.equal(canOpenVNextApp("training",{...ready,access:null}),true);
+ for(const app of SIX_TOS_APPS.filter(app=>app.id!=="station"))
+  assert.equal(canOpenVNextApp(app.id,{...ready,desktop:false}),true,app.id);
 });
-
-test('PAP-940 unknown app identity must fail closed at runtime',()=>{
- assert.equal(canOpenVNextApp('unknown' as never,ready),false);
+test("PAP-1127 unknown app identity is denied",()=>assert.equal(canOpenVNextApp("unknown" as never,ready),false));
+test("PAP-1127 VNext integration has no schedule launch gate or forced Shift Lead tile lock",()=>{
+ const client=readFileSync(resolve(process.cwd(),"app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx"),"utf8");
+ const home=readFileSync(resolve(process.cwd(),"app/components/tos-vnext/TosVNextHome.tsx"),"utf8");
+ assert.doesNotMatch(client,/scheduleReady:!!data\.shift|!ctx\|\|!centerId\|\|!data\.shift|resolveTosAppAccess/);
+ assert.doesNotMatch(home,/founderMode\|\|app\.id!=="shift-lead"/);
+ assert.match(client,/canOpenVNextApp/);
 });
-
-test("PAP-934 V4 keeps Shift Leader inaccessible even when Core grants contextual Duty read",()=>{assert.equal(canOpenVNextApp("shift-lead",ready),false)});

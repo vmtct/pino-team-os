@@ -92,8 +92,8 @@ test("PAP-705 unifies schedule and weekly availability without inventing assignm
   assert.match(source, /view !== "availability" && view !== "schedule"/);
   assert.match(source, /view === "schedule" \|\| view === "availability" \? <ShiftCalendarPanel/);
   assert.match(source, /Đăng ký chỉ thể hiện thời gian bạn có thể làm[\s\S]*đăng ký không phải assignment/);
-  assert.match(source, /replaceAvailability\(\{ submissionId: availability\.id, expectedVersion: availability\.version, items \}\)/);
-  assert.match(source, /submitAvailability\(\{ submissionId: availability\.id, expectedVersion: availability\.version \}\)/);
+  assert.match(source, /replaceAvailability\(\{ centerId: center\.id, termWeekId: availability\.termWeekId, submissionId: availability\.id, expectedVersion: availability\.version, items \}\)/);
+  assert.match(source, /submitAvailability\(\{ centerId: center\.id, termWeekId: availability\.termWeekId, submissionId: availability\.id, expectedVersion: availability\.version \}\)/);
   assert.match(source, /shiftResponsibilityLabels\(row\)/);
   assert.doesNotMatch(source, /Vai trò ca · Chưa sẵn sàng/);
   assert.match(source, /dayInZone\(center\.timeZone\)/);
@@ -112,9 +112,20 @@ test("PAP-706 keeps Giờ công truthful while effective totals and correction r
   assert.doesNotMatch(api, /requestTimekeepingCorrection|timekeeping\/correction-request/);
 });
 
-test("PAP-708 shows only active authoritative shift role facts", () => {
-  const row = { ...assignment("a", "2026-10-18"), roleAssignments: [{roleType:"SHIFT_LEADER" as const,targetType:"CENTER" as const,targetId:"center-1"},{roleType:"TEACHER" as const,targetType:"SESSION" as const,targetId:"lesson-1"},{roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"center-1"}] };
-  assert.deepEqual(shiftResponsibilityLabels(row), ["Lễ tân", "Giảng dạy", "Trưởng ca"]);
+test("PAP-1128 shows only active authoritative Center, Session and RunningClass shift role facts", () => {
+  const row = { ...assignment("a", "2026-10-18"), roleAssignments: [
+    {roleType:"SHIFT_LEADER" as const,targetType:"CENTER" as const,targetId:"center-1"},
+    {roleType:"TEACHER" as const,targetType:"SESSION" as const,targetId:"lesson-1"},
+    {roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"center-1"},
+    {roleType:"TEACHER" as const,targetType:"RUNNING_CLASS" as const,targetId:"class-a"},
+    {roleType:"TEACHING_ASSISTANT" as const,targetType:"RUNNING_CLASS" as const,targetId:"class-b"},
+  ] };
+  assert.deepEqual(shiftResponsibilityLabels(row), ["Lễ tân", "Giảng dạy", "Trợ giảng", "Trưởng ca"]);
   assert.deepEqual(shiftResponsibilityLabels({...row,status:"CANCELLED"}), []);
   assert.deepEqual(shiftResponsibilityLabels(assignment("old","2026-10-18")), []);
+  const invalid = {...assignment("b","2026-10-18"),roleAssignments:[
+    {roleType:"TEACHING_ASSISTANT" as const,targetType:"CENTER" as const,targetId:"center-1"},
+    {roleType:"FRONT_DESK" as const,targetType:"RUNNING_CLASS" as const,targetId:"class-a"},
+  ]};
+  assert.deepEqual(shiftResponsibilityLabels(invalid), []);
 });

@@ -17,7 +17,7 @@ Before changing material business behavior, protected data flow, or a Core-owned
 If the required Core governance/spec material is unavailable, stop before inventing material business behavior and report the missing dependency.
 ## Continuation facts and retired PLT-CARE
 
-The live Jira Job and applicable Directives (PAP-184, PAP-512 and PAP-596) govern DEV/review authority. Conversation history is non-authoritative delivery memory. Inspect exact worktree, branch, head, current main, merge-base, dirty state, changed paths, exact-head CI and real conflicting writers before material side effects.
+The current Jira scope and [PAP-184](https://vmtct97.atlassian.net/browse/PAP-184) SOP root, [PAP-1051](https://vmtct97.atlassian.net/browse/PAP-1051) engineering workflow and [PAP-980](https://vmtct97.atlassian.net/browse/PAP-980) Codex builder authority govern implementation. Historical PAP-512/PAP-596 directives are not universal work, review, handoff or merge gates. Conversation history is non-authoritative delivery memory. Inspect exact worktree, branch, head, current main, merge-base, dirty state, changed paths, exact-head CI and real conflicting writers before material side effects.
 
 The optional pino:resume and delivery:enter scripts are read-only compatibility fact inspectors, never mandatory continuation gates. Legacy allowedMode, implementationAuthority, needsReconcile, Project-Code, PLT-CARE materialEditGuard and stale checkpoint/lease fields cannot grant or block Jira-authorized DEV/review.
 
@@ -143,7 +143,7 @@ For a material cross-repository feature:
 6. compose the approved surface shell instead of inventing parallel navigation;
 7. add/update app-boundary tests;
 8. surface any spec/code/layout mismatch instead of silently choosing one side;
-9. hand off at `DEV_HANDOFF_READY`; Core `PLT-MERGE` owns current-main reconcile, exact candidate CI, authoritative independent PRE-MAIN review, freshness, and `MERGE_READY`.
+9. complete the authorized Jira-scoped implementation, tests and PR; keep exact-head CI, protected-main merge admission and Staging CD executable checks. Do not require legacy `DEV_HANDOFF_READY`, `MERGE_READY`, `PLT-MERGE`, or independent PRE-MAIN review solely from historical text.
 
 Before approving a material staff UI PR, independently verify:
 
@@ -155,8 +155,10 @@ Before approving a material staff UI PR, independently verify:
 - pedagogy/domain boundaries preserved;
 - surface entry and feature visibility derive from canonical Access Control, not UI-local assumptions.
 
-## Codex hard limit
+## Codex and GPT execution roles — PAP-980 / PAP-184 (2026-10-28)
 
-Codex is permitted only as the fresh independent PRE-MAIN reviewer launched by the canonical Core audit runner. GPT owns implementation, bug/audit-finding fixes, reconcile/restack/rebase, conflict resolution, evidence repair, merge orchestration, and release preparation. Do not invoke Codex for any of those non-audit activities.
+Codex **and** GPT may implement, remediate, refactor, test, reconcile, and prepare pull requests across authorized frontend, backend/Core and integration work within the exact Jira scope and granted repository/tool access. Codex is **not reviewer-only** in the normal development profile. Use a clean, scoped worktree or branch and check current source ownership, conflicts, API/ACL and safety before material changes.
 
-Production deployment remains an explicit release action. A green build or merged PR does not itself authorize production.
+An explicitly assigned independent-review persona (including the separate `.codex-indie-auditor` identity) is review-only **for that review assignment** and may not audit its own code. PAP-507/legacy INDIE/review runs are frozen and must not be required, dispatched, or treated as merge gates without a **new explicit Founder review request**. Keep normal CI, branch protection, security checks, guarded Staging and manual-only Production rules in force.
+
+For live authority and exceptions, consult PAP-184, PAP-1051, PAP-1053, PAP-1054 and PAP-980. Repository `AGENTS.md` is an agent entrypoint, not an independent override of newer canonical Jira SOP or executable GitHub protections.
