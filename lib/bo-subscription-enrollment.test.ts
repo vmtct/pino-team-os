@@ -30,7 +30,7 @@ test("PAP-1035 Full Detail Enrollment uses shared DS and Core reads, no table cl
  assert.match(tab,/data-bo-s3-enrollment="core"/);
  assert.match(tab,/<BoDataGrid/);
  assert.doesNotMatch(tab,/<table/);
- for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment","endEnrollment","activateSubscription"])
+ for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment","activateSubscription"])
   assert.match(tab,new RegExp("boApi\\."+method+"\\("));
  assert.match(api,/enrollments\/capacity/);
  assert.match(api,/enrollments\/bulk-preflight/);
@@ -46,4 +46,26 @@ test("PAP-1035 mutations remain separately authenticated, replay same key and ve
  assert.match(tab,/expectedVersion:attempt.version!/);
  assert.match(tab,/placementState!=="PLACED"/);
  assert.doesNotMatch(tab,/createBillingSale/);
+});
+
+test("PAP-1104 Founder Enrollment UI omits day-status controls and End action, while preserving Core end contract",()=>{
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ const quick=readFileSync("app/bo/components/registration/BoQuickView.tsx","utf8");
+ const api=readFileSync("lib/bo-api.ts","utf8");
+ assert.doesNotMatch(tab,/Trạng thái theo ngày|Xem tại ngày|setAsOf|open\("end"|boApi\.endEnrollment/);
+ assert.doesNotMatch(tab,/Kết thúc Enrollment|Kết thúc trước ngày \(exclusive\)|sub-enroll-end-date/);
+ assert.match(tab,/hideDetailAction/);
+ assert.match(quick,/hideDetailAction/);
+ assert.match(tab,/label:"Enrollment ID"/);
+ assert.match(tab,/header:"Thao tác"/);
+ assert.match(tab,/onClick=\{\(\)=>open\("transfer",r\)\}/);
+ assert.match(tab,/placement\.effectiveEnrollmentCount/);
+ assert.match(api,/endEnrollment/);
+});
+test("PAP-1104 Attach has no end-date input; Transfer retains derived exclusive-date contract",()=>{
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ assert.doesNotMatch(tab,/endDate|effectiveUntilExclusiveLocalDate:attempt.date/);
+ assert.match(tab,/transferLocalDate:attempt.date/);
+ assert.match(tab,/predecessorEnrollmentId/);
+ assert.match(tab,/crypto\.randomUUID/);
 });
