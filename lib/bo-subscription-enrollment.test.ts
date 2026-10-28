@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {enrollmentStatus,validExclusiveEnd,isEligibleClass,todayInHouseTimeZone} from "./bo-enrollment-contract";
+import {enrollmentStatus,validExclusiveEnd,isEligibleClass,isActiveCenter,todayInHouseTimeZone} from "./bo-enrollment-contract";
 const row={effectiveFromLocalDate:"2026-10-27",effectiveUntilExclusiveLocalDate:"2026-11-04"};
 test("PAP-1035 exclusive dates show historical/upcoming/current status",()=>{
  assert.equal(enrollmentStatus(row,"2026-10-26"),"UPCOMING");
@@ -69,4 +69,13 @@ test("PAP-1104 Attach has no end-date input; Transfer retains derived exclusive-
  assert.match(tab,/transferLocalDate:attempt.date/);
  assert.match(tab,/predecessorEnrollmentId/);
  assert.match(tab,/crypto\.randomUUID/);
+});
+
+test("PAP-1036 bootstrap Center status lowercase active is valid, inactive rejected",()=>{
+ assert.equal(isActiveCenter({status:"active"}),true);
+ assert.equal(isActiveCenter({status:"ACTIVE"}),true);
+ assert.equal(isActiveCenter({status:"inactive"}),false);
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ assert.match(tab,/ready\?\.centers\.filter\(isActiveCenter\)/);
+ assert.match(tab,/historicalCenters\.length===1&&authorizedCenters\.includes\(historicalCenters\[0\]\)/);
 });
