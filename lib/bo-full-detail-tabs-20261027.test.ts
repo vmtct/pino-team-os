@@ -32,8 +32,8 @@ test("Student Full Detail uses Thông tin and preserves Subscription/History", (
   assert.deepEqual(tabs("students", true), ["Thông tin", "Subscription", "Lịch Sử"]);
 });
 
-test("Subscription Full Detail preserves Enrollment", () => {
-  assert.deepEqual(tabs("subscriptions"), ["Thông tin", "Enrollment", "Lịch Sử"]);
+test("Subscription Full Detail uses canonical Thông Tin and preserves Enrollment", () => {
+  assert.deepEqual(tabs("subscriptions"), ["Thông Tin", "Enrollment", "Lịch Sử"]);
 });
 
 test("Payroll period Full Detail preserves Quyết Toán", () => {

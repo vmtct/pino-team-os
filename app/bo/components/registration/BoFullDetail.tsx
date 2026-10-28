@@ -7,6 +7,7 @@ import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
 import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
+import { BoSubscriptionInformationTab } from "@/app/bo/subscriptions/BoSubscriptionInformationTab";
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
 import { BoStaffIncomeReadTab } from "./BoStaffIncomeReadTab";
@@ -70,7 +71,7 @@ export function BoFullDetail({
     legacyContent={<BoParentReadTabs module={module} record={record} fullDetail />}>{null}</DetailFrame>;
 
   return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
-    tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? "Thông tin" : label }))}
+    tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? (moduleKey === "subscriptions" ? "Thông Tin" : "Thông tin") : label }))}
     selected={activeTab} onSelect={setTab}
     after={voidOpen ? <BoStudentIntakeVoid studentId={record.id} onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}>
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
@@ -79,6 +80,8 @@ export function BoFullDetail({
               ? <Suspense fallback={<p role="status">Đang tải lịch tuần…</p>}><BoWorkforcePlannerTab embedded scope={{ centerId: String(record.centerId ?? ""), termWeekId: String(record.termWeekId ?? "") }} /></Suspense>
             : moduleKey === "staffs" && activeTab === "Thu nhập"
               ? <BoStaffIncomeReadTab staffMemberId={record.id} />
+            : activeTab === "Detail" && moduleKey === "subscriptions"
+              ? <BoSubscriptionInformationTab subscriptionId={record.id} studentName={record.name} />
             : activeTab === "Detail"
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">
