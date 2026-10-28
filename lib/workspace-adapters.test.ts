@@ -14,7 +14,7 @@ import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handle
 import { handleBoPublicViewRequest } from "./bo-public-view-handler";
 import type { BoAccessRequest } from "./bo-core";
 import { decideHostBoundary } from "./host-boundary";
-import { SurfaceWorkspace } from "../app/components/workspace-adapters/SurfaceWorkspace";
+import { SurfaceWorkspace, shouldRestoreTableAfterNavigation } from "../app/components/workspace-adapters/SurfaceWorkspace";
 import { TddTable } from "../app/components/workspace-renderer/Table";
 import { BoRegistrationWorkspace } from "../app/bo/components/registration/BoRegistrationWorkspace";
 import { HoWorkspace } from "../app/ho/HoWorkspace";
@@ -346,6 +346,21 @@ test("Factory opt-in delegates to the same controller and compatibility inventor
   assert.equal(scoped.registerCompatibility({classification:"FOUNDER_APPROVED_SPECIAL",surface:"HO",key:"special",route:"/ho/system/audit",approval}).classification,"FOUNDER_APPROVED_SPECIAL");
   assert.equal(scoped.registerCompatibility({classification:"GRANDFATHERED",surface:"BO",key:"legacy",route:"/bo/legacy",owner:"fixture only",evidence:"fixture deployment manifest",migrationTask:"PAP-1075"}).classification,"GRANDFATHERED");
   assert.throws(()=>scoped.registerCompatibility({classification:"FOUNDER_APPROVED_SPECIAL",surface:"BO",key:"unapproved",route:"/bo/unapproved",approval}),/not verified/);
+});
+
+test("PAP-1070 Table-only query/view updates never restore stale focus/scroll; record return does", () => {
+  for (const previous of ["table", "drawer", "detail"] as const) {
+    for (const next of ["table", "drawer", "detail"] as const) {
+      assert.equal(
+        shouldRestoreTableAfterNavigation(previous, next),
+        next === "table" && previous !== "table",
+        previous + " -> " + next,
+      );
+    }
+  }
+  assert.equal(shouldRestoreTableAfterNavigation("table", "table"), false, "sort/filter/search/View changes retain current scroll");
+  assert.equal(shouldRestoreTableAfterNavigation("detail", "table"), true, "Back from Detail restores selected row");
+  assert.equal(shouldRestoreTableAfterNavigation("drawer", "table"), true, "Closing Drawer restores row focus");
 });
 
 for (const surface of ["BO", "HO"] as const) test(`${surface}: navigation retains selection/tab/query/history and restores focus/scroll`, () => {
