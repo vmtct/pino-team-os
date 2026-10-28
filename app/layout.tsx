@@ -7,16 +7,23 @@ import { boSkeletonEnabled, BO_AUTHORITY_STYLES, HO_AUTHORITY_STYLES } from "@/l
 import { isBoStagingRouteAdmitted } from "./bo/architecture/bo-staging-route-policy";
 
 const pinoSigilIcon = "https://assets.pinohouse.art/core/Pino%20Sigil.png";
+const pinoHoLogoIcon = "https://assets.pinohouse.art/core/Pino%20Logo.png";
 
-export const metadata: Metadata = {
-  title: "PINO Team OS",
-  description: "Personal workspace for PINO Team",
-  icons: {
-    icon: [{ url: pinoSigilIcon, type: "image/png" }],
-    shortcut: [{ url: pinoSigilIcon, type: "image/png" }],
-    apple: [{ url: pinoSigilIcon, type: "image/png" }],
-  },
-};
+// The shared Team runtime serves HO, BO and TOS on separate hosts.
+// Brand the entire HO staging host (including /staff-login), not other surfaces.
+export async function generateMetadata(): Promise<Metadata> {
+  const hostname = (await headers()).get("host")?.toLowerCase() ?? "";
+  const icon = hostname === HO_STAGING_HOSTNAME ? pinoHoLogoIcon : pinoSigilIcon;
+  return {
+    title: "PINO Team OS",
+    description: "Personal workspace for PINO Team",
+    icons: {
+      icon: [{ url: icon, type: "image/png" }],
+      shortcut: [{ url: icon, type: "image/png" }],
+      apple: [{ url: icon, type: "image/png" }],
+    },
+  };
+}
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const incoming = await headers();
