@@ -10,7 +10,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const BASELINE = '9b23fd417f0251bce0245882b5152b2cf2ca0920';
 export const MANIFEST = 'config/tdd-admission.json';
 const surfaceFile = /^app\/(bo|ho)\//;
-const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.tsx$/;
+const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
@@ -109,7 +109,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
   const entries=manifest.modules??[], known=new Map(baseline.routes.map(e=>[e.file,e]));
   const seen=new Set();
   for(const e of entries) {
-    if(!['BO','HO'].includes(e.surface)||!exactRoute(e.route,e.surface)||!routeFile.test(e.file)||('/'+e.file.slice(4).replace(/\/page\.tsx$/,''))!==e.route||seen.has(e.file)) {errors.push('invalid/duplicate admission route');continue;} seen.add(e.file);
+    if(!['BO','HO'].includes(e.surface)||!exactRoute(e.route,e.surface)||!routeFile.test(e.file)||('/'+e.file.slice(4).replace(/\/page\.(?:tsx?|jsx?)$/,''))!==e.route||seen.has(e.file)) {errors.push('invalid/duplicate admission route');continue;} seen.add(e.file);
     if(!['TDD_DEFAULT','FOUNDER_APPROVED_SPECIAL','EXISTING_GRANDFATHERED'].includes(e.profile)) {errors.push(e.file+': invalid profile');continue;}
     if(!Array.isArray(e.files)||!e.files.includes(e.file)||!e.files.every(exactFile)) {errors.push(e.file+': invalid file fence');continue;}
     if(e.profile==='EXISTING_GRANDFATHERED') {
@@ -126,6 +126,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
       errors.push(...validateSpecial(e,approvals,changed,now).map(s=>e.file+': '+s));
       const a=approvals.find(a=>a.id===e.approval);
       for(const f of Object.values(a?.tests??{}).flat()) tests.add(f);
+      for(const f of e.files.filter(f=>f.endsWith('.css'))) errors.push(...inspectCss(f,read(root,f),e.surface));
       continue;
     }
     if(!e.schema||!exactFile(e.schema.file)||!e.files.includes(e.schema.file)||!dependencies.includes(e.schema.file)||!e.schema.export) errors.push(e.file+': connected typed schema registration required');
