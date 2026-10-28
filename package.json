@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
+    "test:ho-bo": "node --import tsx --test lib/ho-bo-ownership.test.ts",
     "test:e2e": "playwright test",
     "tdd:g3:fixtures": "node --import tsx scripts/render-tdd-g3-fixtures.tsx",
     "tdd:g3:test": "playwright test e2e/tdd-g3-geometry.spec.ts --workers=2 --reporter=list",
