@@ -33,7 +33,11 @@ assert.ok(!tokens.includes(":root"),"TOS tokens cannot leak into BO");
 assert.ok(!/--tos-palette-|--tos-type-/.test(tokens));
 assert.ok(read("app/components/tos-vnext/TosVNextHome.tsx").includes('<AppPhoneFrame app="home">'));
 const access=read("lib/tos-vnext-active-access.ts");
-assert.match(access,/case "shift-lead":return false/);
+assert.match(access,/if\(!options\.authenticated\|\|!options\.centerReady\)return false/,"TOS app launch requires authenticated Center context");
+assert.match(access,/case "station":return options\.desktop/,"Trạm TOS stays desktop-only");
+assert.match(access,/case "shift-lead":case "classroom":case "training":return true/,"All nonstation apps, including Trưởng Ca, open independently of ShiftAssignment");
+assert.doesNotMatch(access,/scheduleReady|roleAssignments|assignmentActiveNow/,"Home navigation must not depend on Shift schedule or role");
+
 assert.match(read("app/components/tos-vnext/shift.module.css"),/max-width:374px/);
 assert.doesNotMatch(read("app/components/tos-vnext/TosVNextShift.tsx"),/workforceApi\.(checkIn|checkOut)|localStorage|sessionStorage|photoReceipt/);
 assert.doesNotMatch(read("app/components/tos-vnext/TosVNextTraining.tsx"),/Phát triển kỹ năng/);
