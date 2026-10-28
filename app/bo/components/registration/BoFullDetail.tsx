@@ -1,6 +1,7 @@
 "use client";
 
 import { lazy, Suspense, useState } from "react";
+import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
@@ -65,50 +66,13 @@ export function BoFullDetail({
 
   // Parent uses the SAME full-width Detail cover/hero/tab/body structure as Student.
   // Domain-specific read-only tabs are children of the canonical shell, never a narrow detached panel.
-  if (moduleKey === "parents") return <section id="detail-screen">
-    <div className="detail-cover">
-      <div className="detail-hero"><div className="detail-hero-primary">
-        {mobileMenu}
-        <button type="button" id="back-to-list" className="detail-hero-back"
-          title="Quay lại bảng" aria-label="Quay lại bảng" onClick={onBack}>←</button>
-        <div className="detail-hero-copy"><h1 id="detail-title">{record.name}</h1><p id="detail-subtitle">{record.id}</p></div>
-      </div></div>
-      <BoParentReadTabs module={module} record={record} fullDetail />
-    </div>
-  </section>;
+  if (moduleKey === "parents") return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
+    legacyContent={<BoParentReadTabs module={module} record={record} fullDetail />}>{null}</DetailFrame>;
 
-  return <section id="detail-screen">
-    <div className="detail-cover">
-      <div className="detail-hero">
-        <div className="detail-hero-primary">
-          {mobileMenu}
-          <button type="button" id="back-to-list" className="detail-hero-back" title="Quay lại bảng" aria-label="Quay lại bảng" onClick={onBack}>←</button>
-          <div className="detail-hero-copy">
-            <h1 id="detail-title">{record.name}</h1>
-            <p id="detail-subtitle">{record.id}</p>
-          </div>
-        </div>
-      </div>
-      <div id="detail-tabs" className="detail-tabs" role="tablist" aria-label="Chi tiết">
-        {tabs.map((label, i) => <button
-          type="button" role="tab" id={"detail-tab-" + i} key={label}
-          aria-selected={activeTab === label} aria-controls="detail-body"
-          tabIndex={activeTab === label ? 0 : -1}
-          data-tab={label} className={"detail-tab " + (activeTab === label ? "selected" : "")}
-          onClick={() => setTab(label)}
-          onKeyDown={event => {
-            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-            event.preventDefault();
-            const next = event.key === "Home" ? 0 : event.key === "End"
-              ? tabs.length - 1 : (i + (event.key === "ArrowLeft" ? tabs.length - 1 : 1)) % tabs.length;
-            setTab(tabs[next]);
-            document.getElementById("detail-tab-" + next)?.focus();
-          }}
-        >{label === "Detail" ? "Thông tin" : label}</button>)}
-      </div>
-      <div id="detail-body" className="detail-main v25-full-width" role="tabpanel"
-        aria-labelledby={"detail-tab-" + tabs.indexOf(activeTab)}>
-        <div className="detail-panel v24-main-panel">
+  return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
+    tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? "Thông tin" : label }))}
+    selected={activeTab} onSelect={setTab}
+    after={voidOpen ? <BoStudentIntakeVoid studentId={record.id} onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}>
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
             ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
             : activeTab === "Lịch tuần" && moduleKey === "workforce-shift-plans"
@@ -142,10 +106,5 @@ export function BoFullDetail({
               : subjectType
                   ? <BoRegistrationHistory key={record.id} subjectType={subjectType} subjectId={record.id} />
                   : <div className="v24-audit-empty" role="status">Lịch sử chưa khả dụng.</div>}
-        </div>
-      </div>
-    </div>
-    {voidOpen ? <BoStudentIntakeVoid studentId={record.id}
-      onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}
-  </section>;
+  </DetailFrame>;
 }

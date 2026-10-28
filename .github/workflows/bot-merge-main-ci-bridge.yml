@@ -57,8 +57,10 @@ jobs:
               .head.sha==$sha and .base.ref=="main" and .head.repo.full_name==$repo and
               .user.login=="vmtct"
             ' /tmp/pr.json >/dev/null || { echo "HOLD: PR HEAD/owner/base changed"; exit 0; }
-            if [ "$attempt" -eq 1 ] && jq -e '.auto_merge == null and .merged_at == null' /tmp/pr.json >/dev/null; then
-              echo "HOLD: native auto-merge not enabled; no wait for manual PR"
+            # CI admission and this bridge can start simultaneously. Give the
+            # trusted native auto-merge job a bounded 60s head-start before HOLD.
+            if [ "$attempt" -ge 7 ] && jq -e '.auto_merge == null and .merged_at == null' /tmp/pr.json >/dev/null; then
+              echo "HOLD: native auto-merge not enabled within bounded admission window"
               exit 0
             fi
             if jq -e '.merged_at != null' /tmp/pr.json >/dev/null; then

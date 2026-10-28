@@ -1,5 +1,8 @@
 name: Guarded UI Native Auto Merge
 on:
+  workflow_run:
+    workflows: ["PR Validation"]
+    types: [completed]
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited, review_requested, review_request_removed, labeled, unlabeled]
 permissions:
@@ -7,7 +10,16 @@ permissions:
   pull-requests: write
 jobs:
   admit:
-    if: github.repository == 'vmtct/pino-team-os' && github.event.pull_request.base.ref == 'main'
+    if: >-
+      github.repository == 'vmtct/pino-team-os' &&
+      (
+        (github.event_name == 'pull_request_target' &&
+         github.event.pull_request.base.ref == 'main') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.event == 'pull_request' &&
+         github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -21,7 +33,7 @@ jobs:
         with:
           node-version: '22'
       - name: Verify fail-closed path policy
-        run: node --test scripts/guarded-ui-automerge.test.mjs
+        run: node --test scripts/guarded-ui-automerge.test.mjs scripts/guarded-app-automerge-policy.test.mjs
       - name: Admit only new, safe, same-repo UI PRs to GitHub-native auto merge
         env:
           GITHUB_TOKEN: ${{ github.token }}

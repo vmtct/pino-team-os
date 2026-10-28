@@ -46,7 +46,15 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
   if(!middleware.includes('isBoStagingHost(host) && (request.nextUrl.pathname === "/bo/subscriptions"')||!middleware.includes('target.searchParams.set("module", "subscriptions")'))issues.push("Legacy URL does not canonicalize on staging "+key);
   if(!read("app/bo/subscriptions/SubscriptionCreateDrawer.tsx").includes('id="'+c.uiAnchor+'"'))issues.push("Create anchor absent "+key);
  }
- if(!read("lib/bo-sidebar-routes.ts").includes('"subscriptions"'))issues.push("Module excluded from BO sidebar URL whitelist");
+ const sidebar=read("lib/bo-sidebar-routes.ts");
+ const urlContract=read("lib/bo-url-contract.ts");
+ const legacyList=urlContract.match(/export const BO_LEGACY_QUERY_MODULES\s*=\s*\[([\s\S]*?)\]\s*as const/);
+ const legacyKeys=legacyList ? [...legacyList[1].matchAll(/"([a-zA-Z][a-zA-Z0-9]*)"/g)].map(m=>m[1]) : [];
+ if(!sidebar.includes('import { BO_LEGACY_QUERY_MODULES } from "./bo-url-contract"') ||
+    !sidebar.includes("BO_SIDEBAR_MODULES: readonly string[] = BO_LEGACY_QUERY_MODULES") ||
+    !legacyKeys.includes("subscriptions") ||
+    new Set(legacyKeys).size !== legacyKeys.length)
+   issues.push("Module excluded from BO sidebar URL whitelist");
  return {ok:issues.length===0,issues,owned:Object.keys(mods).length};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

@@ -42,3 +42,17 @@ test("new module cannot opt out of special routing by claiming generic fallback"
  const p="app/bo/subscriptions/SubscriptionCreateDrawer.tsx",src=get(p);
  assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[p]:src.replace('id="subscription-create-student-search"','id="student-search-removed"')}).ok,false);
 });
+
+
+test("PAP-1089 sidebar must import the canonical legacy URL key list, not an ad hoc second list",()=>{
+ const sidebar=get("lib/bo-sidebar-routes.ts");
+ const contract=get("lib/bo-url-contract.ts");
+ assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{
+  "lib/bo-sidebar-routes.ts":sidebar.replace("BO_LEGACY_QUERY_MODULES;","[\"students\",\"subscriptions\"];"),
+ }).ok,false);
+ const withoutSubscriptions=contract.replace('"students", "classes", "subscriptions", "enrollments"', '"students", "classes", "enrollments"');
+ assert.notEqual(withoutSubscriptions,contract,"Fixture must remove a real legacy key");
+ const result=verifyBoRuntimeSurfaceOwnership(undefined,{"lib/bo-url-contract.ts":withoutSubscriptions});
+ assert.equal(result.ok,false);
+ assert.match(result.issues.join(","),/sidebar URL whitelist/);
+});
