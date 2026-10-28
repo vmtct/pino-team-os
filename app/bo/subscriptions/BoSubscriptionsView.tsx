@@ -151,12 +151,37 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
   async function renew(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
     const unitsText = window.prompt("Số Service Units cho renewal", "24");
     if (unitsText === null) return;
-    const start = window.prompt("Ngày bắt đầu service (YYYY-MM-DD, để trống nếu Core tự resolve)", "") ?? "";
+    const start = window.prompt("Ngày bắt đầu gia hạn (YYYY-MM-DD)", today());
+    if(!start?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(start.trim())) return;
     const contractualEndsOn = window.prompt("Contractual end date (YYYY-MM-DD)", subscription.contractualEndsOn ?? "");
-    if (!contractualEndsOn?.trim()) return;
+    if (!contractualEndsOn?.trim() || contractualEndsOn.trim()<start.trim()) return;
     const ref = window.prompt("Commercial reference (tuỳ chọn)", subscription.commercialReference ?? "") ?? "";
     const body = { contractualEndsOn: contractualEndsOn.trim(), weeklyCommitment: subscription.weeklyCommitment, purchasedUnits: Number(unitsText), ...(start.trim() ? { serviceStartsOn: start.trim() } : {}), ...(ref.trim() ? { commercialReference: ref.trim() } : {}) };
     await runCommand(`renew:${subscription.id}`, (idempotencyKey) => boApi.renewSubscription(subscription.id, body, idempotencyKey), "Đã tạo renewal successor; predecessor không bị supersede sớm.");
+  }
+
+  async function finishRenewal(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
+    const serviceStartsOn=subscription.serviceStartsOn ?? subscription.contractualStartsOn;
+    if(!subscription.predecessorSubscriptionId || !serviceStartsOn){
+      setCommandState({busy:null,notice:null,error:"Gia hạn chưa có ngày bắt đầu hợp lệ."});
+      return;
+    }
+    try{
+      const placement=await boApi.subscriptionPlacement(subscription.id,serviceStartsOn);
+      if(placement.placementState!=="PLACED"||placement.effectiveEnrollmentCount!==placement.weeklySessionCommitment){
+        setCommandState({busy:null,notice:null,error:"Gắn đủ lớp cho gia hạn tại ngày bắt đầu trước khi hoàn tất."});
+        return;
+      }
+    }catch(error){setCommandState({busy:null,notice:null,error:message(error)});return;}
+    await runCommand("finish-renewal:"+subscription.id,async(idempotencyKey)=>{
+      const live=await boApi.subscriptionById(subscription.id);
+      if(live.lifecycle==="ACTIVE")return live;
+      if(live.lifecycle!=="DRAFT"||!live.predecessorSubscriptionId)throw new Error("Renewal is not a pending Draft.");
+      await boApi.activateSubscription(subscription.id,{serviceStartsOn,expectedVersion:live.version},idempotencyKey);
+      const verified=await boApi.subscriptionById(subscription.id);
+      if(verified.lifecycle!=="ACTIVE")throw new Error("Renewal activation is not confirmed by Core.");
+      return verified;
+    },"Core đã hoàn tất gia hạn.");
   }
 
   async function neutralize(subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) {
@@ -202,7 +227,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       <section className={styles.detail}>
         {selectedId ? <CommercialWorkspace load={lifecycle} catalog={catalog.data}
           placementClass={placementClass} setPlacementClass={setPlacementClass} placementDate={placementDate} setPlacementDate={setPlacementDate}
-          place={place} renew={renew} neutralize={neutralize} endEnrollment={endEnrollment} busy={commandState.busy}
+          place={place} renew={renew} finishRenewal={finishRenewal} neutralize={neutralize} endEnrollment={endEnrollment} busy={commandState.busy}
           blocked={Boolean(commandState.busy || pendingAttempt || billingReplay.busy || billingReplay.pending)}
           billingReplay={billingReplay} setBillingReplay={setBillingReplay} onChanged={refreshSelected} /> : <State text="Chọn Student để bắt đầu." />}
       </section>
@@ -233,6 +258,7 @@ function CommercialWorkspace(props: {
   placementClass: Record<string, string>; setPlacementClass: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   placementDate: Record<string, string>; setPlacementDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   place: (subscriptionId: string) => Promise<void>; renew: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
+  finishRenewal: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   neutralize: (subscription: BoLearnerLifecycle["subscriptions"][number]["subscription"]) => Promise<void>;
   endEnrollment: (enrollment: BoLearnerLifecycle["subscriptions"][number]["enrollments"][number]) => Promise<void>; busy: string | null; blocked: boolean;
   billingReplay: BillingReplayState; setBillingReplay: React.Dispatch<React.SetStateAction<BillingReplayState>>;
@@ -277,6 +303,7 @@ function CommercialWorkspace(props: {
             <button type="button" disabled={props.blocked} onClick={() => void props.place(sub.id)}>Xếp lớp</button>
           </div> : null}
           <div className={styles.actions}><button type="button" disabled={props.blocked} onClick={() => void props.renew(sub)}>Renew</button>
+            {sub.lifecycle==="DRAFT" && sub.predecessorSubscriptionId ? <button type="button" disabled={props.blocked} onClick={()=>void props.finishRenewal(sub)}>Hoàn tất gia hạn</button> : null}
             {sub.lifecycle === "ACTIVE" ? <button className={styles.danger} type="button" disabled={props.blocked} onClick={() => void props.neutralize(sub)}>Huỷ & giải phóng placement</button> : null}
           </div>
         </article>;

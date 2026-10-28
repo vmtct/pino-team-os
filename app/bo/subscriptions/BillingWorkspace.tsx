@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoBillSummary, BoLearnerLifecycle, BoPathProgram, BoPaymentMethod, BoPaymentTransactionKind, BoProductPlan, BoRunningClass, BoSaleResult } from "@/lib/bo-model";
 import { suggestedContractSunday, amountFromPercent, percentFromAmount, quoteAfterDiscounts, type DiscountInputMode } from "@/lib/bo-subscription-create-ux";
+import {validateRegistrationDates,existingRegistrationPlacements} from "@/lib/bo-subscription-finalization";
 import styles from "./bo-subscriptions.module.css";
 
 export type BillingReplayAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
@@ -140,6 +141,8 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     if (!latestSale) setRegistrationComplete(false);
   }, [selectedPlan?.id]);
   useEffect(() => {
+    // A recovered Core sale already owns its placement choices; changing Path during hydrate must not erase them.
+    if (latestSale) return;
     const count = selectedPlan?.cadence ?? 0;
     setPlacements(Array.from({ length: count }, () => ""));
     setPlacementEntryTimes(Array.from({ length: count }, () => ""));
@@ -244,8 +247,11 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       setPayerId(bill.bill.payerParentUserId);
       setStartsOn(sub.contractualStartsOn);
       setContractEndsOn(sub.contractualEndsOn ?? "");
-      setPlacementStartsOn(maxLocalDate(sub.contractualStartsOn, today()));
-      setPlacements(Array.from({ length: plan.cadence }, () => ""));
+      const resumeDate=maxLocalDate(sub.contractualStartsOn,today());
+      setPlacementStartsOn(resumeDate);
+      const eligible=new Set(classes.filter(c=>c.status==="ACTIVE"&&c.pathProgramId===sub.pathProgramId).map(c=>c.id));
+      const placed=existingRegistrationPlacements(entry.enrollments,resumeDate,eligible);
+      setPlacements(Array.from({length:plan.cadence},(_,index)=>placed[index]??""));
       setPlacementEntryTimes(Array.from({ length: plan.cadence }, () => ""));
       setPlacementDurations(Array.from({ length: plan.cadence }, () => ""));
       setLatestSale({
@@ -267,12 +273,23 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
   }
 
   async function ensureActivation(subscriptionId:string,serviceStartsOn:string){
-    const live=await boApi.learnerLifecycle(lifecycle.student.id);
-    const sub=live.subscriptions.find((entry)=>entry.subscription.id===subscriptionId)?.subscription;
-    if(!sub)throw new Error("Core chưa xác nhận Subscription vừa tạo.");
+    const sub=await boApi.subscriptionById(subscriptionId);
     if(sub.lifecycle==="ACTIVE")return;
-    if(sub.lifecycle!=="DRAFT")throw new Error("Không thể kích hoạt Subscription ở lifecycle hiện tại.");
+    if(sub.lifecycle!=="DRAFT")throw new Error("Subscription lifecycle is not eligible for activation.");
+    const placement=await boApi.subscriptionPlacement(subscriptionId,serviceStartsOn);
+    if(placement.placementState!=="PLACED"||placement.effectiveEnrollmentCount!==placement.weeklySessionCommitment)
+      throw new Error("Core has not verified complete placement at the service start date.");
     await boApi.activateSubscription(subscriptionId,{serviceStartsOn,expectedVersion:sub.version},crypto.randomUUID());
+  }
+
+  async function finalizeRegistration(sale:BoSaleResult,key:string,policyEffectiveAt:string,serviceStartsOn:string){
+    const placement=await boApi.subscriptionPlacement(sale.subscriptionId,serviceStartsOn);
+    if(placement.placementState!=="PLACED"||placement.effectiveEnrollmentCount!==sale.productPlan.cadence)
+      await placeRegistration(sale,key,policyEffectiveAt);
+    await ensureActivation(sale.subscriptionId,serviceStartsOn);
+    const [sub,confirmed]=await Promise.all([boApi.subscriptionById(sale.subscriptionId),boApi.subscriptionPlacement(sale.subscriptionId,serviceStartsOn)]);
+    if(sub.lifecycle!=="ACTIVE"||confirmed.placementState!=="PLACED"||confirmed.effectiveEnrollmentCount!==sale.productPlan.cadence)
+      throw new Error("Core readback is incomplete. Resume existing registration rather than creating a new sale.");
   }
 
   async function submitRegistration(event: React.FormEvent) {
@@ -280,7 +297,8 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     if (!planId || !pathId || !payerId || !selectedPlan) { setError("Chọn Product Plan, Path và Parent thanh toán."); return; }
     if (createOnly && !sellablePaths.some((path) => path.id === pathId)) {setError("Path không thuộc danh mục thương mại được duyệt.");return;}
     if (createOnly && !sellablePlans.some((plan) => plan.id === selectedPlan.id)) {setError("Product Plan chưa được phép bán trong form này.");return;}
-    if (!contractEndsOn || contractEndsOn < startsOn) {setError("Ngày kết thúc phải có và không trước ngày bắt đầu.");return;}
+    const dateError=validateRegistrationDates(startsOn,placementStartsOn,contractEndsOn);
+    if(dateError){setError(dateError);return;}
     if (!quoted.valid || !Number.isFinite(Number(itemRate)) || !Number.isFinite(Number(billRate)) ||
         Number(itemRate) < 0 || Number(itemRate) > 100 || Number(billRate) < 0 || Number(billRate) > 100) {
       setError("Giảm giá không hợp lệ hoặc vượt giá trị còn lại.");return;
@@ -304,8 +322,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
         ...(dueOn ? { dueOn } : {}), ...(campaign.trim() ? { campaignReference: campaign.trim() } : {}),
       }, idempotencyKey);
       setLatestSale(sale);
-      await placeRegistration(sale, `${idempotencyKey}:placement`, policyEffectiveAt);
-      await ensureActivation(sale.subscriptionId, sale.contractualStartsOn);
+      await finalizeRegistration(sale,idempotencyKey+":placement",policyEffectiveAt,placementStartsOn);
       setRegistrationComplete(true);
       return sale;
     }, `Đã tạo Subscription và xếp đủ ${selectedPlan.cadence}/${selectedPlan.cadence} Running Classes.`);
@@ -315,10 +332,9 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     if (!latestSale || !selectedPlan || !placementsReady) { setError("Chọn lại đủ Running Classes trước khi retry placement."); return; }
     const policyEffectiveAt = new Date().toISOString();
     await runReplay(`placement:${latestSale.subscriptionId}`, async (idempotencyKey) => {
-      const result = await placeRegistration(latestSale, idempotencyKey, policyEffectiveAt);
-      await ensureActivation(latestSale.subscriptionId, latestSale.contractualStartsOn);
+      await finalizeRegistration(latestSale,idempotencyKey,policyEffectiveAt,placementStartsOn);
       setRegistrationComplete(true);
-      return result;
+      return latestSale;
     }, `Đã hoàn tất placement ${selectedPlan.cadence}/${selectedPlan.cadence} cho Subscription hiện hữu.`);
   }
 
@@ -415,7 +431,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
         <div className={styles.placementWizard}>
           <div className={styles.sectionHead}><div><span>Recurring placement</span><h3>Chọn đúng {selectedPlan.cadence} Running Classes đã tạo sẵn</h3></div><small>{selectedPlacementCount}/{selectedPlan.cadence} assigned · capacity được Core preflight</small></div>
           <p className={styles.hint}>Mỗi Running Class = 1 weekly slot. Chỉ hiện lớp ACTIVE cùng Path; một lớp không thể chiếm hai slot của cùng Subscription.</p>
-          <label className={styles.placementDate}>Placement starts<input className={createOnly ? "edit-input" : undefined} type="date" min={today()} disabled={Boolean(busy || pending || registrationComplete)} value={placementStartsOn} onChange={(event) => setPlacementStartsOn(event.target.value)} /></label>
+          <label className={styles.placementDate}>Placement starts<input className={createOnly ? "edit-input" : undefined} type="date" min={maxLocalDate(startsOn,today())} disabled={Boolean(busy || pending || registrationComplete)} value={placementStartsOn} onChange={(event) => setPlacementStartsOn(event.target.value)} /></label>
           <div className={styles.placementSlots}>{placements.map((value, index) => {
             const selectedClass = eligibleClasses.find((item) => item.id === value) ?? null;
             return <label className={styles.placementSlot} key={index}>

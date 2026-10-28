@@ -1,24 +1,24 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 import {boApi,BoApiError} from "@/lib/bo-api";
-import type {BoLearnerSubscription,BoRunningClass} from "@/lib/bo-model";
+import type {BoLearnerSubscription,BoRunningClass,BoCenter} from "@/lib/bo-model";
 import {BoDataGrid,BoDataGridCanonicalId,BoDataGridStatus,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {useBoDialog} from "@/app/bo/components/registration/useBoDialog";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {subscriptionModule} from "@/app/bo/components/registration/BoStudentSubscriptionRelation";
 import {enrollmentStatus,todayInHouseTimeZone,isEligibleClass,type BoEnrollmentRecord,type BoEnrollmentPlacementState,type BoEnrollmentCapacity} from "@/lib/bo-enrollment-contract";
 import styles from "./subscription-enrollment.module.css";
-type Ready={state:"ready";subscription:BoLearnerSubscription;enrollments:BoEnrollmentRecord[];placement:BoEnrollmentPlacementState;classes:BoRunningClass[]};
+type Ready={state:"ready";subscription:BoLearnerSubscription;enrollments:BoEnrollmentRecord[];placement:BoEnrollmentPlacementState;classes:BoRunningClass[];centers:BoCenter[]};
 type Load=Ready|{state:"loading"}|{state:"error"|"permission";message:string};
-type Action="attach"|"transfer"|"activate";
-type Pending={action:Action;rowId?:string;classId?:string;date:string;version?:number;reason:string;time?:string;minutes?:number;key:string;policyEffectiveAt:string};
+type Action="attach"|"transfer";
+type Pending={action:Action;rowId?:string;classId?:string;date:string;reason:string;time?:string;minutes?:number;key:string;policyEffectiveAt:string};
 const enrollmentModule={...subscriptionModule,label:"Enrollment",fields:subscriptionModule.fields.filter(f=>f.key==="id").map(f=>({...f,label:"Enrollment ID"}))};
 function problem(error:unknown){if(error instanceof BoApiError&&[401,403].includes(error.status))return "Không đủ quyền trên Path/Center (401/403).";if(error instanceof BoApiError&&error.status===409)return "Core trả 409: dữ liệu, capacity hoặc version đã thay đổi.";return error instanceof Error?error.message:"Không thể xử lý Enrollment.";}
 export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscriptionId:string;onChanged?:()=>void}){
  const [asOf]=useState(()=>todayInHouseTimeZone()),[tick,setTick]=useState(0);
  const [load,setLoad]=useState<Load>({state:"loading"}),[active,setActive]=useState<BoEnrollmentRecord|null>(null);
  const [action,setAction]=useState<Action|null>(null),[classId,setClassId]=useState(""),[date,setDate]=useState(()=>todayInHouseTimeZone());
- const [time,setTime]=useState("18:00"),[minutes,setMinutes]=useState("90"),[reason,setReason]=useState("");
+ const [selectedCenterId,setSelectedCenterId]=useState(""),[time,setTime]=useState("18:00"),[minutes,setMinutes]=useState("90"),[reason,setReason]=useState("");
  const [capacity,setCapacity]=useState<{state:"loading"|"ready"|"error";value?:BoEnrollmentCapacity;message?:string}|null>(null);
  const [pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const fence=useRef(0),lock=useRef(false),panel=useRef<HTMLElement>(null);
@@ -28,13 +28,15 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
  useEffect(()=>{const id=++fence.current;void Promise.all([
    boApi.subscriptionById(subscriptionId),boApi.subscriptionEnrollments(subscriptionId),
    boApi.subscriptionPlacement(subscriptionId,asOf),boApi.scopeCatalog()
- ]).then(([subscription,enrollments,placement,scope])=>{if(id===fence.current)setLoad({state:"ready",subscription,enrollments,placement,classes:scope.classes});})
+ ]).then(([subscription,enrollments,placement,scope])=>{if(id===fence.current)setLoad({state:"ready",subscription,enrollments,placement,classes:scope.classes,centers:scope.centers});})
  .catch(e=>{if(id===fence.current)setLoad({state:e instanceof BoApiError&&[401,403].includes(e.status)?"permission":"error",message:problem(e)});});
  return()=>{fence.current++};},[subscriptionId,asOf,tick]);
  const ready=load.state==="ready"?load:null;
  const clsById=useMemo(()=>new Map(ready?.classes.map(c=>[c.id,c])??[]),[ready]);
- const center=ready?.enrollments.length?clsById.get(ready.enrollments[0].runningClassId)?.centerId:undefined;
- const available=ready?.classes.filter(c=>isEligibleClass(c,ready.subscription.pathProgramId,center))??[];
+ const authorizedCenters=ready?.centers.filter(c=>c.status==="ACTIVE").map(c=>c.id)??[];
+ const historicalCenters=[...new Set(ready?.enrollments.map(e=>clsById.get(e.runningClassId)?.centerId).filter((id):id is string=>Boolean(id))??[])];
+ const center=historicalCenters.length===1?historicalCenters[0]:authorizedCenters.length===1?authorizedCenters[0]:authorizedCenters.includes(selectedCenterId)?selectedCenterId:undefined;
+ const available=ready?.classes.filter(c=>Boolean(center)&&authorizedCenters.includes(c.centerId??"")&&isEligibleClass(c,ready.subscription.pathProgramId,center))??[];
  const chosen=clsById.get(classId),flex=chosen?.deliveryTopology==="FLEXIBLE_STUDIO";
  const columns:readonly BoDataGridColumn<BoEnrollmentRecord>[]=useMemo(()=>[
   {key:"runningClassId",header:"Running Class",sticky:true,width:225,render:r=>{
@@ -58,7 +60,7 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
   setClassId(first?.id??"");setDate(asOf);setReason("");setTime(first?.startLocalTime??"18:00");
   setMinutes(String(first?.defaultParticipationMinutes??90));setCapacity(null);
  }
- useEffect(()=>{if(!action||!["attach","transfer"].includes(action)||!classId||!date||!ready)return;
+ useEffect(()=>{if(!action||!classId||!date||!ready)return;
   let alive=true;setCapacity({state:"loading"});
   void boApi.enrollmentCapacity({runningClassId:classId,targetLocalDate:date,subscriptionId,
    ...(flex?{plannedEntryLocalTime:time,plannedDurationMinutes:Number(minutes)}:{})})
@@ -67,12 +69,6 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
  },[action,classId,date,subscriptionId,ready?.subscription.id,flex,time,minutes]);
  function createAttempt():Pending|null{
   if(!ready||!action)return null;
-  if(action==="activate"){
-   if(ready.subscription.lifecycle!=="DRAFT"||ready.placement.placementState!=="PLACED"||
-     ready.placement.effectiveEnrollmentCount!==ready.placement.weeklySessionCommitment||
-     !(ready.subscription.serviceStartsOn??ready.subscription.contractualStartsOn)){setError("Core chưa xác nhận Draft đủ placement.");return null;}
-   return{action,date:(ready.subscription.serviceStartsOn??ready.subscription.contractualStartsOn)!,reason:"",version:ready.subscription.version,key:crypto.randomUUID(),policyEffectiveAt:new Date().toISOString()};
-  }
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){setError("Ngày hiệu lực không hợp lệ.");return null;}
   if(!chosen||!isEligibleClass(chosen,ready.subscription.pathProgramId,center)||classId===active?.runningClassId||
     capacity?.state!=="ready"||capacity.value?.status==="HARD_BLOCKED"){setError("Chọn Running Class ACTIVE cùng Path/Center và chờ Core capacity hợp lệ.");return null;}
@@ -90,8 +86,7 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
    if(pending){
     const records=await boApi.subscriptionEnrollments(subscriptionId);
     const done=attempt.action==="transfer"?records.some(r=>r.predecessorEnrollmentId===attempt.rowId&&r.runningClassId===attempt.classId&&r.effectiveFromLocalDate===attempt.date)
-     :attempt.action==="attach"?records.some(r=>r.runningClassId===attempt.classId&&r.effectiveFromLocalDate===attempt.date)
-     :(await boApi.subscriptionById(subscriptionId)).lifecycle==="ACTIVE";
+     :records.some(r=>r.runningClassId===attempt.classId&&r.effectiveFromLocalDate===attempt.date);
     if(done){setPending(null);setAction(null);setNotice("Core xác nhận thao tác đã được thực hiện.");refresh();onChanged?.();return;}
    }
    const context={commandEffectiveLocalDate:attempt.date,policyEffectiveAt:attempt.policyEffectiveAt};
@@ -102,9 +97,6 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
    if(attempt.action==="transfer")await boApi.transferEnrollment(attempt.rowId!,{
     destinationRunningClassId:attempt.classId!,transferLocalDate:attempt.date,reason:attempt.reason,
     ...(attempt.time?{plannedEntryLocalTime:attempt.time,plannedDurationMinutes:attempt.minutes}:{}),...context
-   },attempt.key);
-   if(attempt.action==="activate")await boApi.activateSubscription(subscriptionId,{
-     serviceStartsOn:attempt.date,expectedVersion:attempt.version!
    },attempt.key);
    setPending(null);setAction(null);setActive(null);setNotice("Core đã xác nhận Enrollment.");refresh();onChanged?.();
   }catch(e){setPending(attempt);setError(problem(e)+" Không tạo key mới: đọc lại Core và thử lại cùng lệnh.");refresh();}
@@ -121,9 +113,8 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
     </div>:null}
    </div>
    <div className={styles.buttons}>
-    <button className="primary-btn" type="button" disabled={!ready||busy||!!pending||!["DRAFT","ACTIVE"].includes(ready.subscription.lifecycle)||ready.placement.effectiveEnrollmentCount>=ready.placement.weeklySessionCommitment} onClick={()=>open("attach")}>＋ Gắn lớp</button>
-    {ready?.subscription.lifecycle==="DRAFT"&&ready.placement.placementState==="PLACED"?<button className="primary-btn" type="button"
-     disabled={!!pending||busy||ready.placement.effectiveEnrollmentCount!==ready.placement.weeklySessionCommitment} onClick={()=>open("activate")}>Kích hoạt</button>:null}
+    {ready&&!center&&authorizedCenters.length>1?<label>Center <select className="edit-input" value={selectedCenterId} disabled={busy||!!pending} onChange={e=>setSelectedCenterId(e.target.value)}><option value="">Chọn Center</option>{ready.centers.filter(c=>c.status==="ACTIVE").map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>:null}
+    <button className="primary-btn" type="button" disabled={!ready||!center||busy||!!pending||!["DRAFT","ACTIVE"].includes(ready.subscription.lifecycle)||ready.placement.effectiveEnrollmentCount>=ready.placement.weeklySessionCommitment} onClick={()=>open("attach")}>＋ Gắn lớp</button>
    </div>
   </div>
   {notice?<p role="status">{notice}</p>:null}
@@ -151,29 +142,28 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
   {action?<><div className="drawer-scrim visible" aria-hidden="true" onClick={close}/>
     <aside className="drawer open" ref={panel} role="dialog" aria-modal="true" aria-labelledby="s3-title">
       <div className="drawer-top"><div className="drawer-header-copy"><span className="drawer-path">Subscription · Enrollment</span>
-       <h2 id="s3-title" className="drawer-record-title">{action==="attach"?"Gắn lớp":action==="transfer"?"Chuyển lớp":"Kích hoạt Draft"}</h2>
+       <h2 id="s3-title" className="drawer-record-title">{action==="attach"?"Gắn lớp":"Chuyển lớp"}</h2>
       </div><button type="button" className="drawer-close" aria-label="Đóng" disabled={busy||!!pending} onClick={close}>×</button></div>
       <form id="s3-form" className="drawer-content" onSubmit={submit}>
-       {action==="activate"?<p>Chỉ kích hoạt sau khi Core trả PLACED, đủ commitment và version mới nhất.</p>:null}
-       {action!=="activate"?<><div className="property-row"><label htmlFor="s3-class">Running Class</label>
+       {action?<><div className="property-row"><label htmlFor="s3-class">Running Class</label>
          <select id="s3-class" className="edit-input" value={classId} disabled={busy||!!pending} onChange={e=>setClassId(e.target.value)}>
            <option value="">Chọn Running Class</option>
            {available.filter(c=>c.id!==active?.runningClassId).map(c=><option key={c.id} value={c.id}>{c.name} · {c.startLocalTime}</option>)}
          </select></div>
          <div className="property-row"><label htmlFor="s3-date">{action==="transfer"?"Ngày chuyển lớp":"Hiệu lực từ"}</label>
           <input id="s3-date" className="edit-input" type="date" value={date} disabled={busy||!!pending} onChange={e=>setDate(e.target.value)}/></div></>:null}
-       {action!=="activate"&&flex?<><div className="property-row"><label htmlFor="s3-time">Giờ vào</label>
+       {flex?<><div className="property-row"><label htmlFor="s3-time">Giờ vào</label>
          <input id="s3-time" className="edit-input" type="time" value={time} onChange={e=>setTime(e.target.value)} disabled={busy||!!pending}/></div>
          <div className="property-row"><label htmlFor="s3-minutes">Thời lượng (phút)</label>
          <input id="s3-minutes" className="edit-input" type="number" step="1" min="1" value={minutes} onChange={e=>setMinutes(e.target.value)} disabled={busy||!!pending}/></div></>:null}
        {action==="transfer"?<div className="property-row"><label htmlFor="s3-reason">Lý do chuyển lớp</label>
          <textarea id="s3-reason" className="edit-input" value={reason} required disabled={busy||!!pending} onChange={e=>setReason(e.target.value)}/></div>:null}
-       {action!=="activate"?<p role="status">Core capacity: {capacity?.state==="ready"?capacity.value?.status:capacity?.state==="error"?capacity.message:capacity?.state==="loading"?"Đang kiểm tra…":"Chọn lớp/ngày"}</p>:null}
+       {action?<p role="status">Core capacity: {capacity?.state==="ready"?capacity.value?.status:capacity?.state==="error"?capacity.message:capacity?.state==="loading"?"Đang kiểm tra…":"Chọn lớp/ngày"}</p>:null}
        {error?<p role="alert" className={styles.alert}>{error}</p>:null}
       </form>
       <div className="drawer-footer"><div className="lab-bottom">
        <button className="secondary-btn" type="button" disabled={busy||!!pending} onClick={close}>Hủy</button>
-       <button className="primary-btn" type="submit" form="s3-form" disabled={busy||!!pending||(action!=="activate"&&(capacity?.state!=="ready"||capacity.value?.status==="HARD_BLOCKED"))}>Xác nhận qua Core</button>
+       <button className="primary-btn" type="submit" form="s3-form" disabled={busy||!!pending||(capacity?.state!=="ready"||capacity.value?.status==="HARD_BLOCKED")}>Xác nhận qua Core</button>
        {pending?<button className="secondary-btn" type="button" disabled={busy} onClick={()=>void execute(pending)}>Đọc lại Core / thử lại cùng key</button>:null}
       </div></div>
     </aside></>:null}

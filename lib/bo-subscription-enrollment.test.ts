@@ -30,7 +30,7 @@ test("PAP-1035 Full Detail Enrollment uses shared DS and Core reads, no table cl
  assert.match(tab,/data-bo-s3-enrollment="core"/);
  assert.match(tab,/<BoDataGrid/);
  assert.doesNotMatch(tab,/<table/);
- for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment","activateSubscription"])
+ for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment"])
   assert.match(tab,new RegExp("boApi\\."+method+"\\("));
  assert.match(api,/enrollments\/capacity/);
  assert.match(api,/enrollments\/bulk-preflight/);
@@ -43,8 +43,9 @@ test("PAP-1035 mutations remain separately authenticated, replay same key and ve
  assert.match(tab,/policyEffectiveAt:attempt.policyEffectiveAt/);
  assert.match(tab,/if\(pending\)/);
  assert.match(tab,/attempt.key/);
- assert.match(tab,/expectedVersion:attempt.version!/);
- assert.match(tab,/placementState!=="PLACED"/);
+ assert.doesNotMatch(tab,/activateSubscription|Kích hoạt|action==="activate"/);
+ assert.match(tab,/authorizedCenters/);
+ assert.match(tab,/selectedCenterId/);
  assert.doesNotMatch(tab,/createBillingSale/);
 });
 
