@@ -92,8 +92,8 @@ test("PAP-705 unifies schedule and weekly availability without inventing assignm
   assert.match(source, /view !== "availability" && view !== "schedule"/);
   assert.match(source, /view === "schedule" \|\| view === "availability" \? <ShiftCalendarPanel/);
   assert.match(source, /Đăng ký chỉ thể hiện thời gian bạn có thể làm[\s\S]*đăng ký không phải assignment/);
-  assert.match(source, /replaceAvailability\(\{ submissionId: availability\.id, expectedVersion: availability\.version, items \}\)/);
-  assert.match(source, /submitAvailability\(\{ submissionId: availability\.id, expectedVersion: availability\.version \}\)/);
+  assert.match(source, /replaceAvailability\(\{ centerId: center\.id, termWeekId: availability\.termWeekId, submissionId: availability\.id, expectedVersion: availability\.version, items \}\)/);
+  assert.match(source, /submitAvailability\(\{ centerId: center\.id, termWeekId: availability\.termWeekId, submissionId: availability\.id, expectedVersion: availability\.version \}\)/);
   assert.match(source, /shiftResponsibilityLabels\(row\)/);
   assert.doesNotMatch(source, /Vai trò ca · Chưa sẵn sàng/);
   assert.match(source, /dayInZone\(center\.timeZone\)/);
