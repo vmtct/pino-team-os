@@ -74,15 +74,16 @@ export const staffRateProvider: BusinessFormProvider = {
     const url = urlFor(request);
     if (Object.keys(values).some(key => !["amount", "effectiveDate", "reason"].includes(key))) return { status: "invalid", fields: ["amount", "effectiveDate", "reason"] };
     const amount = values.amount, effectiveDate = values.effectiveDate, reason = values.reason;
+    const trimmedReason = typeof reason === "string" ? reason.trim() : "";
     const invalid: string[] = [];
     if (typeof amount !== "number" || !Number.isSafeInteger(amount) || amount < 1 || amount > 1_000_000_000_000) invalid.push("amount");
     if (!validDate(effectiveDate)) invalid.push("effectiveDate");
-    if (typeof reason !== "string" || !reason.trim() || reason.trim().length > 500) invalid.push("reason");
+    if (!trimmedReason || trimmedReason.length > 500) invalid.push("reason");
     if (invalid.length) return { status: "invalid", fields: invalid };
     const response = await fetch(url, {
       method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error", signal,
       headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
-      body: JSON.stringify({ amountMinor: amount, effectiveFrom: effectiveDate, note: reason.trim() }),
+      body: JSON.stringify({ amountMinor: amount, effectiveFrom: effectiveDate, note: trimmedReason }),
     });
     signal.throwIfAborted();
     if ([401, 403, 404].includes(response.status)) return { status: "denied" };
