@@ -51,6 +51,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (pathname === "/api/bo/workforce/planning/shift-plan") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
+    // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
+    if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
