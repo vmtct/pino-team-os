@@ -1,5 +1,30 @@
 {
   "version": 1,
-  "modules": [],
+  "modules": [
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "staffs",
+      "route": "/ho/staff",
+      "file": "app/ho/staff/page.tsx",
+      "files": [
+        "app/ho/staff/page.tsx",
+        "app/ho/staff/StaffTdd.tsx",
+        "app/ho/staff/schema.ts",
+        "app/ho/staff/staff-rate-provider.ts"
+      ],
+      "externalReferences": [
+        { "file": "lib/ho-routes.ts", "owner": "PAP-990" },
+        { "file": "lib/ho-system.ts", "owner": "PAP-990" },
+        { "file": "lib/host-boundary.ts", "owner": "PAP-990" }
+      ],
+      "schema": { "file": "app/ho/staff/schema.ts", "export": "staffSchema" },
+      "binding": { "kind": "SURFACE_WORKSPACE_ADAPTER", "file": "app/ho/staff/StaffTdd.tsx" },
+      "tests": [
+        "lib/pap1108-ho-staff-rate.test.ts",
+        "lib/pap1108-staff-rate-provider.test.ts"
+      ]
+    }
+  ],
   "approvals": []
 }
