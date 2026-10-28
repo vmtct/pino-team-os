@@ -41,6 +41,19 @@ test('new shared owner cannot be claimed by module',async t=>{const x=setup(t);x
 test('new CSS and important cannot be hidden in helper',async t=>{const x=setup(t);const css='app/bo/new/override.css';x.put(css,'.detail-hero { width: 500px!important }');assert.match((await x.check([css])).errors.join(),/unauthorized surface stylesheet/);x.entry.files.push(css);assert.match((await x.check()).errors.join(),/module CSS/);});
 for(const [surface,css] of [['BO','.detail-hero{width:20px}'],['HO',':where(html[data-bo-ui-authority="v25"]) .detail-hero{width:20px}'],['BO',':where(html[data-surface="ho"]) .detail-hero{width:20px}'],['HO',':where(html[data-surface="ho"]) .x, .leak{color:red}']]) test(surface+' CSS leakage '+css,()=>assert.ok(inspectCss('surface.css',css,surface).length));
 test('surface CSS valid scope passes',()=>assert.deepEqual(inspectCss('bo.css',':where(html[data-bo-ui-authority="v25"]) .x {color:red}','BO'),[]));
+test('PAP-1105: source-scoped root token forms and HO theme remain contained',()=>{
+  for(const css of [':root:where([data-bo-ui-authority="v25"]) {--tdd-freeze:1}', 'html:where([data-bo-ui-authority="v25"]) .tdd-freeze {position:sticky}']) assert.deepEqual(inspectCss('bo-scoped.css',css,'BO'),[]);
+  for(const css of [':root:where([data-surface="ho"]) {--tdd-freeze:1}', 'html:where([data-surface="ho"]) .tdd-freeze {position:sticky}', '[data-surface="ho"] .tdd-freeze {position:sticky}']) assert.deepEqual(inspectCss('ho-scoped.css',css,'HO'),[]);
+  assert.ok(inspectCss('bo-scoped.css','[data-surface="ho"] .leak {color:red}','BO').length);
+  assert.ok(inspectCss('ho-scoped.css','[data-bo-ui-authority="v25"] .leak {color:red}','HO').length);
+  assert.ok(inspectCss('bo-scoped.css','.naked-freeze {position:sticky}','BO').length);
+});
+test('PAP-1105: only exact shared Freeze owner is admitted (no arbitrary shared source exemption)',async t=>{
+  const x=setup(t);x.manifest.modules=[];x.baseline.routes=[{file:x.file}];
+  x.put('app/components/workspace-renderer/tdd-freeze.css','[data-tdd-freeze] {position:sticky}');
+  assert.deepEqual((await x.check(['app/components/workspace-renderer/tdd-freeze.css'])).errors,[]);
+  assert.match((await x.check(['app/components/workspace-renderer/tdd-freeze-copy.css'])).errors.join(),/owner reconciliation/);
+});
 function special(x) {
  x.entry.profile='FOUNDER_APPROVED_SPECIAL';x.entry.approval='approved-new';x.entry.files=[x.file];x.put(x.file,'export default function Page(){return <main><h1>Special</h1></main>}');
  const a={id:'approved-new',status:'approved',approvedBy:'Founder',reference:'https://vmtct97.atlassian.net/browse/PAP-1085?focusedCommentId=12345',approvedAt:'2026-10-27T00:00:00Z',expiresAt:'2026-11-01T00:00:00Z',surface:'BO',key:'new',route:'/bo/new',owner:'Owner',justification:'Special workflow',designAuthority:'Approved alternative',fallback:'Return to TDD on expiry',permissions:['existing.permission'],files:[x.file],tests:{security:[x.testFile],authorization:[x.testFile],accessibility:[x.testFile],responsive:[x.testFile]}};

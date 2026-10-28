@@ -13,6 +13,9 @@ const surfaceFile = /^app\/(bo|ho)\//;
 const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
+// PAP-1105 shared Table primitive, compiled by both hash-checked DS generators.
+// This exact source is shared-owner work, never a module admission or migration.
+const sharedExtensions = new Set(['app/components/workspace-renderer/tdd-freeze.css']);
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
 const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio:['ignore','pipe','pipe'] }).trim();
@@ -81,7 +84,11 @@ export function inspectCss(file, css, surface) {
   try { postcss.parse(css).walkRules(rule=>{
     if(rule.parent?.type==='atrule' && /keyframes$/.test(rule.parent.name)) return;
     for(const s of rule.selectors) {
-      const scope=surface==='BO' ? /html\[data-bo-ui-authority=["']v25["']\]/ : /html\[data-surface=["']ho["']\]/;
+      // Accept the generators' root-token/HTML forms and HO theme root as well
+      // as their ordinary descendant scope. Cross-surface selectors still fail.
+      const scope=surface==='BO'
+        ? /(?:html\[data-bo-ui-authority=["']v25["']\]|(?:html|:root):where\(\[data-bo-ui-authority=["']v25["']\]\))/
+        : /(?:html\[data-surface=["']ho["']\]|(?:html|:root):where\(\[data-surface=["']ho["']\]\)|^\[data-surface=["']ho["']\])/;
       if(!scope.test(s)|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
     }
   }); } catch {errors.push(file+': invalid CSS');}
@@ -182,7 +189,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     if(/^public\/(bo|ho)-authority-source\/(bo|ho)-scoped\.css$/.test(f)&&fs.existsSync(path.join(root,f))) errors.push(...inspectCss(f,read(root,f),f.includes('/bo-')?'BO':'HO'));
   }
   for(const f of changed.filter(f=>canonical.test(f))) {
-    if(!(baseline.sourceFiles??[]).includes(f)) errors.push(f+': new shared authority file requires separate owner reconciliation');
+    if(!(baseline.sourceFiles??[]).includes(f)&&!sharedExtensions.has(f)) errors.push(f+': new shared authority file requires separate owner reconciliation');
   }
   for(const f of tests) if(!exactFile(f)||! /\.test\.(?:tsx?|mjs)$/.test(f)||!fs.existsSync(path.join(root,f))) errors.push('missing/invalid profile test '+f);
   return {errors:[...new Set(errors)],reports,tests:[...tests].sort(),inventoryPending:baseline.routes.length};

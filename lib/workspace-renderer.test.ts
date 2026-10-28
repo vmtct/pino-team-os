@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import postcss from "postcss";
 import { TddTable, TddDrawer, TddDetail, TddRenderer } from "../app/components/workspace-renderer";
-import { projectSavedViews, mergeSavedViews, type SavedTddView } from "../app/components/workspace-renderer/Table";
+import { projectSavedViews, mergeSavedViews, tableViewState, type SavedTddView } from "../app/components/workspace-renderer/Table";
 import { DetailFrame } from "../app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "../app/components/workspace-renderer/Properties";
 import { HistoryState } from "../app/components/workspace-renderer/History";
@@ -363,4 +363,26 @@ test("PAP-1105: typed freeze survives legacy Table and keeps protected identity"
   assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "unknown" }, f.context), /freeze boundary/);
   assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "name" }, f.context), /freeze boundary/);
   assert.throws(() => validateQuery(f.schema, { ...query, visible: ["name", "id"], frozenThrough: "count" }, f.context), /freeze boundary/);
+});
+
+for (const surface of ["BO", "HO"] as const) test(`PAP-1105 ${surface}: start/Saved/All/built-in snapshots keep independent freeze state`, () => {
+  const f = fixture(surface);
+  for (const frozenThrough of [undefined, null, "count"] as const) {
+    const query = { ...f.query, ...(frozenThrough !== undefined ? { frozenThrough } : {}) };
+    const converted = toLegacyTableState(f.schema, query, f.context);
+    assert.equal(Object.hasOwn(converted,"frozenThrough"),frozenThrough !== undefined);
+    assert.deepEqual(fromLegacyTableState(f.schema,converted,f.context),query);
+  }
+  const source = [{id:"frozen",name:"Frozen",version:"2",state:{...f.query,frozenThrough:"count"}}];
+  const projected = projectSavedViews(f.schema,f.context,source);
+  assert.equal(projected.available[0].state.frozenThrough,"count");
+  const cleared = projected.available.map(v=>({...v,state:{...v.state,frozenThrough:null}}));
+  assert.equal(mergeSavedViews(f.schema,f.context,source,projected.available,cleared)[0].state.frozenThrough,null);
+  const restored = fromLegacyTableState(f.schema,tableViewState(projected.available[0].state),f.context);
+  const all = fromLegacyTableState(f.schema,tableViewState({...projected.available[0].state,frozenThrough:null}),f.context);
+  const builtIn = fromLegacyTableState(f.schema,tableViewState(toLegacyTableState(f.schema,{...f.query,frozenThrough:"id"},f.context)),f.context);
+  const legacy = fromLegacyTableState(f.schema,tableViewState(toLegacyTableState(f.schema,f.query,f.context)),f.context);
+  assert.equal(Object.hasOwn(legacy,"frozenThrough"),false);
+  assert.equal(restored.frozenThrough,"count");assert.equal(all.frozenThrough,null);assert.equal(builtIn.frozenThrough,"id");
+  assert.equal(f.query.frozenThrough,undefined);assert.equal(source[0].state.frozenThrough,"count");
 });

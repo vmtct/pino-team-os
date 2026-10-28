@@ -32,7 +32,7 @@ export function toLegacyTableState<F extends readonly FieldSchema[]>(module: Mod
     search: query.search, rules: query.filters.rules.map(r => ({ field: r.field, op: r.op, value: operand(r.value), second: operand(r.second) })), logic: query.filters.logic,
     sort: query.sort?.field ?? "", desc: query.sort?.direction === "desc", order: [...query.order], visible: [...query.visible],
     group: query.group?.field ?? "", groupDesc: query.group?.direction === "desc", collapsed: [...(query.group?.collapsed ?? [])], hiddenGroups: [...(query.group?.hidden ?? [])], hideEmpty: query.group?.hideEmpty ?? true, pageSize: query.pageSize,
-    ...(query.frozenThrough ? { frozenThrough: query.frozenThrough } : {}),
+    ...(query.frozenThrough !== undefined ? { frozenThrough: query.frozenThrough } : {}),
   };
 }
 /** Parsing is explicit and fail-closed; legacy string operators cannot expand the contract. */
@@ -57,7 +57,7 @@ export function fromLegacyTableState<F extends readonly FieldSchema[]>(module: M
     })) },
     sort: state.sort ? { field: state.sort, direction: state.desc ? "desc" : "asc" } : null,
     group: state.group ? { field: state.group, direction: state.groupDesc ? "desc" : "asc", collapsed: state.collapsed, hidden: state.hiddenGroups, hideEmpty: state.hideEmpty } : null,
-    order: state.order, visible: state.visible, ...(state.frozenThrough ? { frozenThrough: state.frozenThrough } : {}), page, pageSize: state.pageSize,
+    order: state.order, visible: state.visible, ...(state.frozenThrough !== undefined ? { frozenThrough: state.frozenThrough } : {}), page, pageSize: state.pageSize,
   };
   validateQuery<F>(module, query, context); return query;
 }
