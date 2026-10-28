@@ -1,12 +1,13 @@
 "use client";
 
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
 import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
-import { BoStudentSubscriptionRelation, subscriptionModule } from "./BoStudentSubscriptionRelation";
+import { BoStudentSubscriptionRelation } from "./BoStudentSubscriptionRelation";
+import {subscriptionDetailUrl} from "@/lib/bo-subscription-detail-url";
 import { BoSubscriptionInformationTab } from "@/app/bo/subscriptions/BoSubscriptionInformationTab";
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
@@ -24,7 +25,7 @@ const BoWorkforcePlannerTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged,
+  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, initialTab, onTabChanged,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -34,10 +35,12 @@ export function BoFullDetail({
   mobileMenu: React.ReactNode;
   enableStudentSubscriptions?: boolean;
   onEnrollmentChanged?: () => void;
+  initialTab?: string;
+  onTabChanged?: (tab: string) => void;
 }) {
-  const [tab, setTab] = useState("Detail");
+  const [tab, setTab] = useState(initialTab ?? "Detail");
+  useEffect(() => { setTab(initialTab ?? "Detail"); }, [initialTab]);
   const [voidOpen, setVoidOpen] = useState(false);
-  const [subscriptionDetail, setSubscriptionDetail] = useState<BoRecord | null>(null);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
   // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
   const tabs = moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
@@ -55,15 +58,12 @@ export function BoFullDetail({
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
 
-  // Reuse the same active V2.5 shell for a Subscription, never the alternate /bo/learners detail.
-  if (subscriptionDetail) return <BoFullDetail
-    key={subscriptionDetail.id}
-    module={subscriptionModule}
-    moduleKey="subscriptions"
-    record={subscriptionDetail}
-    mobileMenu={mobileMenu}
-    onBack={() => setSubscriptionDetail(null)}
-  />;
+  // Student -> Subscription resolves the same addressable BO Subscription resource.
+  // Legacy query alias is used until the canonical /bo/subscriptions/:id route is admitted.
+  function openSubscriptionFromStudent(next:BoRecord){
+    const url=subscriptionDetailUrl(new URL("/bo?module=subscriptions",window.location.origin).href,next.id);
+    window.location.assign(url);
+  }
 
   // Parent uses the SAME full-width Detail cover/hero/tab/body structure as Student.
   // Domain-specific read-only tabs are children of the canonical shell, never a narrow detached panel.
@@ -72,7 +72,7 @@ export function BoFullDetail({
 
   return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
     tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? (moduleKey === "subscriptions" ? "Thông Tin" : "Thông tin") : label }))}
-    selected={activeTab} onSelect={setTab}
+    selected={activeTab} onSelect={(next) => { setTab(next); onTabChanged?.(next); }}
     after={voidOpen ? <BoStudentIntakeVoid studentId={record.id} onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}>
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
             ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
@@ -101,7 +101,7 @@ export function BoFullDetail({
                 </div>
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
-              ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={setSubscriptionDetail} />
+              ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={openSubscriptionFromStudent} />
               : activeTab === "Enrollment" && moduleKey === "classes"
                 ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
