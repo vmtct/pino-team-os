@@ -109,3 +109,16 @@ test("delivery scope catalog forwards only a validated explicit Center and never
   assert.equal((await handleBoOperationalReadRequest(bad,env(binding),"delivery/bootstrap-state")).status,400);
   assert.equal(forwarded.length,1);
 });
+
+
+test("School Enrollment directory forwards only the bounded cursor to Core and denies forged scope",async()=>{
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:{items:[],nextCursor:null}},requestId:"enrollments"};}};
+  const cursor="2026-10-26T12:22:33.000Z", enrollmentId="01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
+  const request=new Request("https://bo.staging.pinohouse.art/api/bo/school/enrollments?limit=50&beforeCreatedAt="+encodeURIComponent(cursor)+"&beforeSubscriptionId="+enrollmentId,{headers:{cookie:`pino_staff_password_session=${token}`}});
+  assert.equal((await handleBoOperationalReadRequest(request,env(binding),"school/enrollments")).status,200);
+  assert.deepEqual(forwarded,[{method:"GET",path:"school/enrollments",body:{limit:50,beforeCreatedAt:cursor,beforeSubscriptionId:enrollmentId}}]);
+  const forged=new Request("https://bo.staging.pinohouse.art/api/bo/school/enrollments?limit=50&userId=forged",{headers:{cookie:`pino_staff_password_session=${token}`}});
+  assert.equal((await handleBoOperationalReadRequest(forged,env(binding),"school/enrollments")).status,400);
+  assert.equal(forwarded.length,1);
+});

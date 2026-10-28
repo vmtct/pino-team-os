@@ -93,6 +93,7 @@ const RUNNING_CLASS_ENROLLMENT_READ = /^delivery\/running-classes\/[0-9a-f-]{36}
 
 export function isOperationalReadPath(path: string): boolean {
   return path === "audit/subject"
+    || path === "school/enrollments"
     || path === "subscriptions"
     || S3_SUBSCRIPTION_READ.test(path)
     || S3_ENROLLMENT_RECORD_READ.test(path)
@@ -341,6 +342,25 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
       body.plannedDurationMinutes = Number(duration);
     }
     return body;
+  }
+  if (path === "school/enrollments") {
+    const params=url.searchParams, allowed=new Set(["limit","beforeCreatedAt","beforeSubscriptionId"]);
+    for(const key of params.keys()) if(!allowed.has(key)||params.getAll(key).length!==1) throw new RangeError("Invalid School Enrollment filter");
+    const result:Record<string,unknown>={};
+    const limit=params.get("limit");
+    if(limit!==null){
+      if(!/^[1-9][0-9]*$/.test(limit)||!Number.isSafeInteger(Number(limit))||Number(limit)>100) throw new RangeError("Invalid School Enrollment limit");
+      result.limit=Number(limit);
+    }
+    const beforeCreatedAt=params.get("beforeCreatedAt"),beforeId=params.get("beforeSubscriptionId");
+    if((beforeCreatedAt===null)!==(beforeId===null)) throw new RangeError("Partial School Enrollment cursor");
+    if(beforeCreatedAt!==null){
+      if(!/^\d{4}-\d{2}-\d{2}T[0-9:.]+Z$/.test(beforeCreatedAt)||beforeCreatedAt.length>40||
+        !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(beforeId??"")) throw new RangeError("Invalid School Enrollment cursor");
+      result.beforeCreatedAt=beforeCreatedAt;
+      result.beforeSubscriptionId=beforeId;
+    }
+    return result;
   }
   if (path === "subscriptions") { const result:Record<string,unknown>={}; for(const key of ["query","lifecycle","pathProgramId","centerId","beforeCreatedAt","beforeSubscriptionId"]){ const value=url.searchParams.get(key); if(value!==null&&value!=="")result[key]=value; } const limit=url.searchParams.get("limit"); if(limit!==null&&/^\d+$/.test(limit))result.limit=Number(limit); return result; }
   if (path === "pinoria/worlds/instances") {
