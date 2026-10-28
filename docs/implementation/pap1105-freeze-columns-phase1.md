@@ -11,7 +11,7 @@
 - Backwards-compatible legacy state converter (missing freeze stays missing) and protected pinned Quick View/Identity.
 - Context menu on TDD Table header (right-click and accessible button / Shift+F10), Freeze through column / Unfreeze from column.
 - Measured contiguous sticky prefix with real DOM widths via ResizeObserver; narrower viewports suppress optional frozen columns to retain scrollable area with a visible notice.
-- TDD-only shared presentation CSS selectors in `app/globals.css`; existing BO/HO generated authority inputs untouched. Grandfathered legacy Tables do not gain new controls.
+- TDD-only shared CSS source `app/components/workspace-renderer/tdd-freeze.css` is compiled via the two authorized BO/HO scope pipelines into `bo-scoped.css` and `ho-scoped.css`. Frozen historical asset hashes and `app/globals.css` remain unchanged. Grandfathered legacy Tables do not gain new controls.
 - Local session Custom View state carries Freeze in the view snapshot; switching All or built-in view uses its own state; Undo/reset propagate query normally.
 - Server-backed Custom View writes containing Freeze are explicitly rejected in the TDD Table UI rather than pretending durable persistence; no silent filter/column rewrite.
 
@@ -31,6 +31,6 @@ There is **no persisted frozenThrough field** and current generic service may si
 - **STOP BEFORE MERGE; DRAFT PR**. Production not touched.
 
 ## Test receipts
-- Targeted `node --import tsx --test lib/tdd-column-freeze.test.ts lib/workspace-renderer.test.ts lib/workspace-schema.test.ts`: 114/114 PASS.
+- Initial three-file TDD suite: 114/114 PASS. Expanded 7-file Freeze/BO style/HO style/embedded Subscription/TDD suite: 129/129 PASS after fixing first CI run 40628438055 (2 DOM/style contract failures).
 - `node scripts/build-bo-authority.mjs --check`: PASS.
 - `node scripts/build-ho-authority.mjs --check`: PASS.

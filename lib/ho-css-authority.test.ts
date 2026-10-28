@@ -5,7 +5,7 @@ import postcss from "postcss";
 
 const directory = "public/ho-authority-source/";
 const legacy = ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"];
-const inputs = [...legacy.map(name => readFileSync(directory + name, "utf8")), readFileSync("app/ho/ho-theme.css", "utf8")];
+const inputs = [...legacy.map(name => readFileSync(directory + name, "utf8")), readFileSync("app/ho/ho-theme.css", "utf8"), readFileSync("app/components/workspace-renderer/tdd-freeze.css", "utf8")];
 const output = readFileSync(directory + "ho-scoped.css", "utf8");
 const retiredNav = /(?:^|[\s>+~])\.(?:nav-workspace(?:-[\w-]+)?|workspace-angle)(?=$|[\s.:#>+~\[])/;
 
