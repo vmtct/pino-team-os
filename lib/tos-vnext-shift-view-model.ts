@@ -12,4 +12,7 @@ export function assignmentHours(row:Assignment){
  return start&&end?`${start}–${end}`:"Chưa xác định giờ ca";
 }
 export function formatIncome(minor:number|null|undefined){return minor==null?"—":new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND"}).format(minor/100)}
-export function shiftRoleLabel(row:Assignment){return row.roleAssignments?.map(role=>({FRONT_DESK:"Tiếp tân",TEACHER:"Giáo viên",SHIFT_LEADER:"Trưởng ca"})[role.roleType]).join(" · ")||"Chưa có vai trò được phân công"}
+export function shiftRoleLabel(row:Assignment){
+ const labels={FRONT_DESK:"Tiếp tân",TEACHER:"Giáo viên",TEACHING_ASSISTANT:"Trợ giảng",SHIFT_LEADER:"Trưởng ca"} as const;
+ return [...new Set(row.roleAssignments?.map(role=>labels[role.roleType])??[])].join(" · ")||"Chưa có vai trò được phân công";
+}
