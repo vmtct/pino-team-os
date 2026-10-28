@@ -1,0 +1,1527 @@
+{
+  "version": 1,
+  "sourceSha": "9b23fd417f0251bce0245882b5152b2cf2ca0920",
+  "evidence": "PAP-1068 source reconciliation; authenticated staging and DOM NOT RUN",
+  "sourceFiles": [
+    "app/bo/bo.module.css",
+    "app/bo/components/BoFullDetail.module.css",
+    "app/bo/components/BoProperties.module.css",
+    "app/bo/components/BoSubjectHistory.module.css",
+    "app/bo/components/data-grid/bo-data-grid.module.css",
+    "app/bo/components/data-grid/bo-grid-filter-settings.module.css",
+    "app/bo/components/data-grid/bo-shared-view-tabs.module.css",
+    "app/bo/content/website-cms.module.css",
+    "app/bo/delivery-activation/delivery-feedback.module.css",
+    "app/bo/design-system/foundation.css",
+    "app/bo/learners/bo-learners.module.css",
+    "app/bo/pinoria-companions/prototype/companion-v1-prototype.module.css",
+    "app/bo/pinoria-effects/pinoria-effects.module.css",
+    "app/bo/pinoria-tv-mesh/mesh.module.css",
+    "app/bo/pinoria-tv-policy/policy.module.css",
+    "app/bo/pinoria-ward/pinoria-ward.module.css",
+    "app/bo/pinoria-ward/sets/ward-set.module.css",
+    "app/bo/pinoria-wish/pinoria-wish.module.css",
+    "app/bo/pinoria-world/pinoria-world.module.css",
+    "app/bo/practice/practice-access.module.css",
+    "app/bo/practice/practice.module.css",
+    "app/bo/sales/leads/sales-leads.module.css",
+    "app/bo/student-visits/student-visits.module.css",
+    "app/bo/subscriptions/bo-subscriptions.module.css",
+    "app/bo/subscriptions/subscription-create-drawer.module.css",
+    "app/bo/subscriptions/subscription-enrollment.module.css",
+    "app/bo/subscriptions/subscription-history-grid.module.css",
+    "app/bo/subscriptions/subscription-read-surface.module.css",
+    "app/bo/system/ai-data/ai-data-inbox.module.css",
+    "app/bo/system/pancake/pancake.module.css",
+    "app/bo/workforce/duty-exceptions/duty-exceptions.module.css",
+    "app/bo/workforce/payroll/extra-time/payroll-extra-review.module.css",
+    "app/bo/workforce/payroll/payroll-periods.module.css",
+    "app/bo/workforce/timekeeping/timekeeping.module.css",
+    "app/check-in/check-in.module.css",
+    "app/classroom/classroom.module.css",
+    "app/components/tos-ds/components.module.css",
+    "app/components/tos-ds/header.module.css",
+    "app/components/tos-ds/phone-frame.module.css",
+    "app/components/tos-ds/primitives.module.css",
+    "app/components/tos-ds/system.css",
+    "app/components/tos-ds/tokens.css",
+    "app/components/tos-shell/bo-shell.module.css",
+    "app/components/tos-shell/tos-shell.module.css",
+    "app/components/tos-vnext/classroom.module.css",
+    "app/components/tos-vnext/home.module.css",
+    "app/components/tos-vnext/ops.module.css",
+    "app/components/tos-vnext/shift.module.css",
+    "app/components/tos-vnext/station.module.css",
+    "app/components/tos-vnext/tos-vnext.module.css",
+    "app/components/tos-vnext/training.module.css",
+    "app/components/training/training.module.css",
+    "app/components/workforce-availability.module.css",
+    "app/components/workforce-context.module.css",
+    "app/components/workforce-shift-calendar.module.css",
+    "app/components/workforce-timesheet.module.css",
+    "app/components/workspace-adapters/SurfaceWorkspace.tsx",
+    "app/components/workspace-renderer/DetailFrame.tsx",
+    "app/components/workspace-renderer/DrawerFrame.tsx",
+    "app/components/workspace-renderer/Editor.tsx",
+    "app/components/workspace-renderer/History.tsx",
+    "app/components/workspace-renderer/Properties.tsx",
+    "app/components/workspace-renderer/Record.tsx",
+    "app/components/workspace-renderer/Renderer.tsx",
+    "app/components/workspace-renderer/Slots.tsx",
+    "app/components/workspace-renderer/Table.tsx",
+    "app/components/workspace-renderer/TablePolicy.ts",
+    "app/components/workspace-renderer/dialog.ts",
+    "app/components/workspace-renderer/editing.ts",
+    "app/components/workspace-renderer/index.ts",
+    "app/components/workspace-renderer/navigation.ts",
+    "app/components/workspace-renderer/projection.ts",
+    "app/components/workspace-renderer/resource.ts",
+    "app/components/workspace-renderer/tableRows.ts",
+    "app/components/workspace-renderer/useResource.ts",
+    "app/earnings/earnings.module.css",
+    "app/earnings/extra-time/extra-time.module.css",
+    "app/globals.css",
+    "app/ho/ho-theme.css",
+    "app/open-studio/open-studio.module.css",
+    "app/pinoria-tv/ambient-house.module.css",
+    "app/pinoria-tv/companion-ritual.module.css",
+    "app/pinoria-tv/egg-hatch.module.css",
+    "app/pinoria-tv/onboarding-ceremony-scene.module.css",
+    "app/pinoria-tv/reception-tv.module.css",
+    "app/pinoria-tv/wish-reveal.module.css",
+    "app/pinoria/attendance/attendance.module.css",
+    "app/pinoria/onboarding/onboarding.module.css",
+    "app/pinoria/pinoria.module.css",
+    "app/pinoria/wish-activity.module.css",
+    "app/prototype/tos-ds-parity/specimen.module.css",
+    "app/staff-login/staff-login.module.css",
+    "app/staff/register/staff-register.module.css",
+    "app/tasks/tasks.module.css",
+    "app/tos-home-v2.module.css",
+    "app/tos-home.module.css",
+    "app/tos-v4/forbidden.module.css",
+    "app/tv/[displayId]/runtime.module.css",
+    "app/tv/tv.module.css",
+    "docs/prototypes/approved-authority/2026-10-17/PAP-621-workforce-schedule-v2/operational-panel.css",
+    "docs/prototypes/approved-authority/2026-10-17/PAP-621-workforce-schedule-v2/workspace-polish.css",
+    "docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/page.module.css",
+    "docs/prototypes/approved-authority/2026-10-17/PAP-700-tos-home-v2/app/prototype/tos-home-v2/shift.module.css",
+    "docs/prototypes/approved-authority/2026-10-17/PAP-727-learning-mission-diary-v1/prototype.css",
+    "lib/workspace-schema/compatibility.ts",
+    "lib/workspace-schema/fields.ts",
+    "lib/workspace-schema/index.ts",
+    "lib/workspace-schema/registry.ts",
+    "lib/workspace-schema/schema.ts",
+    "lib/workspace-schema/validate.ts",
+    "public/bo-authority-source/bo-scoped.css",
+    "public/bo-authority-source/full-detail-v24.css",
+    "public/bo-authority-source/full-detail-v25.css",
+    "public/bo-authority-source/playground-v22.css",
+    "public/bo-authority-source/playground-v23.css",
+    "public/bo-authority-source/playground.css",
+    "public/bo-authority-source/styles.css",
+    "public/bo-ui-replica/full-detail-v24.css",
+    "public/bo-ui-replica/full-detail-v25.css",
+    "public/bo-ui-replica/playground-v22.css",
+    "public/bo-ui-replica/playground-v23.css",
+    "public/bo-ui-replica/playground.css",
+    "public/bo-ui-replica/styles.css",
+    "public/ho-authority-source/full-detail-v24.css",
+    "public/ho-authority-source/full-detail-v25.css",
+    "public/ho-authority-source/ho-scoped.css",
+    "public/ho-authority-source/playground-v22.css",
+    "public/ho-authority-source/playground-v23.css",
+    "public/ho-authority-source/playground.css",
+    "public/ho-authority-source/styles.css"
+  ],
+  "routes": [
+    {
+      "file": "app/bo/calendar/page.tsx",
+      "route": "/bo/calendar",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./BoCalendarClosuresView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/content/page.tsx",
+      "route": "/bo/content",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./WebsiteCmsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/delivery-activation/page.tsx",
+      "route": "/bo/delivery-activation",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./DeliveryActivationView",
+        "./delivery-feedback.module.css"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/learners/page.tsx",
+      "route": "/bo/learners",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./BoLearnersView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/missions/page.tsx",
+      "route": "/bo/missions",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./MissionCatalogView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/open-studio/page.tsx",
+      "route": "/bo/open-studio",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./OpenStudioView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/page.tsx",
+      "route": "/bo",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "OUT_OF_SCOPE",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "redirect",
+      "imports": [
+        "next/navigation",
+        "@/lib/bo-sidebar-routes",
+        "./components/registration/BoRuntimeBoundary"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout admits after server authorization; authenticated proof pending"
+    },
+    {
+      "file": "app/bo/payroll-periods/page.tsx",
+      "route": "/bo/payroll-periods",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "factory compatibility",
+      "imports": [
+        "@/app/bo/architecture/BoWorkforceRoute",
+        "./adapter"
+      ],
+      "hostAdmission": "static staging admission; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout admits after server authorization; authenticated proof pending"
+    },
+    {
+      "file": "app/bo/pinoria-activities/page.tsx",
+      "route": "/bo/pinoria-activities",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PinoriaActivitiesView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-companions/page.tsx",
+      "route": "/bo/pinoria-companions",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PinoriaCompanionsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-companions/prototype/page.tsx",
+      "route": "/bo/pinoria-companions/prototype",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./CompanionV1Prototype"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-effects/page.tsx",
+      "route": "/bo/pinoria-effects",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./EffectCatalogView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-tv-dialogue/page.tsx",
+      "route": "/bo/pinoria-tv-dialogue",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./DialogueEditor"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-tv-mesh/page.tsx",
+      "route": "/bo/pinoria-tv-mesh",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./HouseMeshEditor"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-tv-operator/page.tsx",
+      "route": "/bo/pinoria-tv-operator",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "next/link",
+        "./TvDeviceDiagnostics",
+        "@/app/pinoria/tv-operator/TvOperatorQueue"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-tv-policy/page.tsx",
+      "route": "/bo/pinoria-tv-policy",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./TvPolicyEditor"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-ward/learners/page.tsx",
+      "route": "/bo/pinoria-ward/learners",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./WardLearnerManager"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/pinoria-wish/page.tsx",
+      "route": "/bo/pinoria-wish",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./WishBoView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/practice/page.tsx",
+      "route": "/bo/practice",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PracticeWorkspace"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/profile/page.tsx",
+      "route": "/bo/profile",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./BoProfileView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/registrations/page.tsx",
+      "route": "/bo/registrations",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "../BoOperationalView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/running-classes/page.tsx",
+      "route": "/bo/running-classes",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "../BoOperationalView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/sales/leads/page.tsx",
+      "route": "/bo/sales/leads",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "@opennextjs/cloudflare",
+        "next/headers",
+        "next/navigation",
+        "@/lib/bo-shell-gate",
+        "./SalesLeadPipelineView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/sessions/page.tsx",
+      "route": "/bo/sessions",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "../BoOperationalView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/staff/[staffId]/page.tsx",
+      "route": "/bo/staff/[staffId]",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "../StaffManagementView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/staff/page.tsx",
+      "route": "/bo/staff",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PresenceRosterAccessActivation",
+        "./StaffOnboardingView",
+        "./StaffManagementView",
+        "./StaffRegistrationIntakeToggle",
+        "./StaffRegistrationReviewQueue"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/student-visits/page.tsx",
+      "route": "/bo/student-visits",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./StudentVisitsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/subscriptions/page.tsx",
+      "route": "/bo/subscriptions",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./BoSubscriptionsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/syllabus/page.tsx",
+      "route": "/bo/syllabus",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./LearningSyllabusDesk"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/system/ai-data/page.tsx",
+      "route": "/bo/system/ai-data",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./AiDataInboxView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/system/audit/page.tsx",
+      "route": "/bo/system/audit",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./AccessAuditView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/system/pancake/page.tsx",
+      "route": "/bo/system/pancake",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PancakeIntegrationView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/system/policies/page.tsx",
+      "route": "/bo/system/policies",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./WorkforcePoliciesView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/training/builder/page.tsx",
+      "route": "/bo/training/builder",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "@/app/components/training/TrainingRuntimeViews"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/training/page.tsx",
+      "route": "/bo/training",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./TrainingAssignmentsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/tvs/page.tsx",
+      "route": "/bo/tvs",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "next/link",
+        "./TvManagementView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce-assignments/page.tsx",
+      "route": "/bo/workforce-assignments",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "factory compatibility",
+      "imports": [
+        "@/app/bo/architecture/BoWorkforceRoute",
+        "./adapter"
+      ],
+      "hostAdmission": "static staging admission; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout admits after server authorization; authenticated proof pending"
+    },
+    {
+      "file": "app/bo/workforce-availability/page.tsx",
+      "route": "/bo/workforce-availability",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "factory compatibility",
+      "imports": [
+        "@/app/bo/architecture/BoWorkforceRoute",
+        "./adapter"
+      ],
+      "hostAdmission": "static staging admission; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout admits after server authorization; authenticated proof pending"
+    },
+    {
+      "file": "app/bo/workforce-shift-plans/page.tsx",
+      "route": "/bo/workforce-shift-plans",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "factory compatibility",
+      "imports": [
+        "@/app/bo/architecture/BoWorkforceRoute",
+        "./adapter"
+      ],
+      "hostAdmission": "static staging admission; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout admits after server authorization; authenticated proof pending"
+    },
+    {
+      "file": "app/bo/workforce/check-in-exceptions/page.tsx",
+      "route": "/bo/workforce/check-in-exceptions",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "../CheckInExceptionsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce/compensation/page.tsx",
+      "route": "/bo/workforce/compensation",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./StaffCompensationView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce/duty-exceptions/page.tsx",
+      "route": "/bo/workforce/duty-exceptions",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./DutyExceptionsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce/page.tsx",
+      "route": "/bo/workforce",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./WorkforcePlanningView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce/payroll/extra-time/page.tsx",
+      "route": "/bo/workforce/payroll/extra-time",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PayrollExtraReviewView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce/payroll/page.tsx",
+      "route": "/bo/workforce/payroll",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./PayrollPeriodsView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/bo/workforce/timekeeping/page.tsx",
+      "route": "/bo/workforce/timekeeping",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "./TimekeepingView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
+      "file": "app/ho/centers/page.tsx",
+      "route": "/ho/centers",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "./HoCenters"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/learning/missions/page.tsx",
+      "route": "/ho/learning/missions",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/learning/syllabi/page.tsx",
+      "route": "/ho/learning/syllabi",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/page.tsx",
+      "route": "/ho",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "OUT_OF_SCOPE",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "redirect",
+      "imports": [
+        "next/navigation",
+        "@/lib/ho-routes"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "redirect to /ho/centers after authorization"
+    },
+    {
+      "file": "app/ho/pinoria/effects/page.tsx",
+      "route": "/ho/pinoria/effects",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/pinoria/wardrobe-sets/page.tsx",
+      "route": "/ho/pinoria/wardrobe-sets",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/pinoria/wardrobe/page.tsx",
+      "route": "/ho/pinoria/wardrobe",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/pinoria/worlds/page.tsx",
+      "route": "/ho/pinoria/worlds",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/system/audit/page.tsx",
+      "route": "/ho/system/audit",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace",
+        "./HoAccessAudit"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/system/roles/page.tsx",
+      "route": "/ho/system/roles",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    },
+    {
+      "file": "app/ho/system/users/page.tsx",
+      "route": "/ho/system/users",
+      "surface": "HO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "HO compatibility workspace",
+      "imports": [
+        "@/app/ho/HoWorkspace"
+      ],
+      "hostAdmission": "static HO manifest; live pending",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1087",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "static HO route admission; authenticated proof pending"
+    }
+  ]
+}

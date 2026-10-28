@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {enrollmentStatus,validExclusiveEnd,isEligibleClass,todayInHouseTimeZone} from "./bo-enrollment-contract";
+import {enrollmentStatus,validExclusiveEnd,isEligibleClass,isActiveCenter,todayInHouseTimeZone} from "./bo-enrollment-contract";
 const row={effectiveFromLocalDate:"2026-10-27",effectiveUntilExclusiveLocalDate:"2026-11-04"};
 test("PAP-1035 exclusive dates show historical/upcoming/current status",()=>{
  assert.equal(enrollmentStatus(row,"2026-10-26"),"UPCOMING");
@@ -30,7 +30,7 @@ test("PAP-1035 Full Detail Enrollment uses shared DS and Core reads, no table cl
  assert.match(tab,/data-bo-s3-enrollment="core"/);
  assert.match(tab,/<BoDataGrid/);
  assert.doesNotMatch(tab,/<table/);
- for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment","endEnrollment","activateSubscription"])
+ for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment"])
   assert.match(tab,new RegExp("boApi\\."+method+"\\("));
  assert.match(api,/enrollments\/capacity/);
  assert.match(api,/enrollments\/bulk-preflight/);
@@ -43,7 +43,39 @@ test("PAP-1035 mutations remain separately authenticated, replay same key and ve
  assert.match(tab,/policyEffectiveAt:attempt.policyEffectiveAt/);
  assert.match(tab,/if\(pending\)/);
  assert.match(tab,/attempt.key/);
- assert.match(tab,/expectedVersion:attempt.version!/);
- assert.match(tab,/placementState!=="PLACED"/);
+ assert.doesNotMatch(tab,/activateSubscription|Kích hoạt|action==="activate"/);
+ assert.match(tab,/authorizedCenters/);
+ assert.match(tab,/selectedCenterId/);
  assert.doesNotMatch(tab,/createBillingSale/);
+});
+
+test("PAP-1104 Founder Enrollment UI omits day-status controls and End action, while preserving Core end contract",()=>{
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ const quick=readFileSync("app/bo/components/registration/BoQuickView.tsx","utf8");
+ const api=readFileSync("lib/bo-api.ts","utf8");
+ assert.doesNotMatch(tab,/Trạng thái theo ngày|Xem tại ngày|setAsOf|open\("end"|boApi\.endEnrollment/);
+ assert.doesNotMatch(tab,/Kết thúc Enrollment|Kết thúc trước ngày \(exclusive\)|sub-enroll-end-date/);
+ assert.match(tab,/hideDetailAction/);
+ assert.match(quick,/hideDetailAction/);
+ assert.match(tab,/label:"Enrollment ID"/);
+ assert.match(tab,/header:"Thao tác"/);
+ assert.match(tab,/onClick=\{\(\)=>open\("transfer",r\)\}/);
+ assert.match(tab,/placement\.effectiveEnrollmentCount/);
+ assert.match(api,/endEnrollment/);
+});
+test("PAP-1104 Attach has no end-date input; Transfer retains derived exclusive-date contract",()=>{
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ assert.doesNotMatch(tab,/endDate|effectiveUntilExclusiveLocalDate:attempt.date/);
+ assert.match(tab,/transferLocalDate:attempt.date/);
+ assert.match(tab,/predecessorEnrollmentId/);
+ assert.match(tab,/crypto\.randomUUID/);
+});
+
+test("PAP-1036 bootstrap Center status lowercase active is valid, inactive rejected",()=>{
+ assert.equal(isActiveCenter({status:"active"}),true);
+ assert.equal(isActiveCenter({status:"ACTIVE"}),true);
+ assert.equal(isActiveCenter({status:"inactive"}),false);
+ const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
+ assert.match(tab,/ready\?\.centers\.filter\(isActiveCenter\)/);
+ assert.match(tab,/historicalCenters\.length===1&&authorizedCenters\.includes\(historicalCenters\[0\]\)/);
 });

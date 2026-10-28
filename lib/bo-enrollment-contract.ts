@@ -45,6 +45,10 @@ export function todayInHouseTimeZone(date=new Date()):string{
 export function validExclusiveEnd(start:string,end:string):boolean{
   return /^\d{4}-\d{2}-\d{2}$/.test(start)&&/^\d{4}-\d{2}-\d{2}$/.test(end)&&end>start;
 }
+/** Core bootstrap Center statuses are lowercase `active`, unlike uppercase Class/Path status. */
+export function isActiveCenter(center:{status:string}):boolean{
+  return center.status.toLowerCase()==="active";
+}
 export function isEligibleClass<T extends {pathProgramId:string;centerId?:string;status:string}>(
   cls:T,pathProgramId:string,centerId:string|undefined
 ):boolean{

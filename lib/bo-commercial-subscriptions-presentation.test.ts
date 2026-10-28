@@ -96,8 +96,9 @@ test("New registration defers activation until Core confirms Path-compatible pla
   assert.doesNotMatch(view, /props\.createSubscription/);
   assert.match(billing, /deferActivation: true/);
   assert.match(billing, /contractualEndsOn: contractEndsOn \|\| null/);
-  assert.match(billing, /await ensureActivation\(sale\.subscriptionId/);
-  assert.match(billing, /await ensureActivation\(latestSale\.subscriptionId/);
+  assert.match(billing, /await finalizeRegistration\(sale/);
+  assert.match(billing, /await finalizeRegistration\(latestSale/);
+  assert.match(billing, /await ensureActivation\(sale\.subscriptionId,serviceStartsOn\)/);
   assert.match(billing, /item\.pathProgramId === pathId/);
 });
 

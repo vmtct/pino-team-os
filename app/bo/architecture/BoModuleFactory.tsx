@@ -6,6 +6,7 @@ import {
   type BoDataGridColumn,
 } from "@/app/bo/components/data-grid";
 import { TddRenderer, type TddStage } from "@/app/components/workspace-renderer/Renderer";
+import { SurfaceWorkspace, type SurfaceWorkspaceProps } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import type { FieldSchema } from "@/lib/workspace-schema";
 import { requireBoModule } from "./registry";
 import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
@@ -27,7 +28,12 @@ function displayValue(value: unknown): string {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
   return "—";
 }
-export function BoModuleFactory<F extends readonly FieldSchema[] = readonly FieldSchema[]>({ tdd, ...props }: { moduleKey: string; adapter: BoModuleReadAdapter; publicViewRuntime?: BoPublicViewRuntime; tdd?: TddStage<F> }) {
+export function BoModuleFactory<F extends readonly FieldSchema[] = readonly FieldSchema[]>({ tdd, tddAdapter, ...props }: { moduleKey: string; adapter: BoModuleReadAdapter; publicViewRuntime?: BoPublicViewRuntime; tdd?: TddStage<F>; tddAdapter?: SurfaceWorkspaceProps<F> }) {
+  if (tdd && tddAdapter) throw Error("Choose one TDD controller");
+  if (tddAdapter) {
+    if (tddAdapter.adapter.schema.key !== props.moduleKey || tddAdapter.adapter.schema.surface !== "BO") throw Error("TDD Factory adapter mismatch");
+    return <SurfaceWorkspace {...tddAdapter} />;
+  }
   if (tdd) {
     if (tdd.props.schema.key !== props.moduleKey || tdd.props.schema.surface !== "BO") throw Error("TDD Factory adapter mismatch");
     return <TddRenderer view={tdd} />;
