@@ -80,3 +80,28 @@ test("PAP-1108 rejects contradictory private rate history rather than displaying
     [{...good[0],staffMemberId:"00000000-0000-4000-8000-000000000002"}],
   ]) await assert.rejects(load(rows),/Invalid (private rate response|rate ledger)/);
 });
+
+
+test("PAP-1108 denied and invalid writes never report saved",async()=>{
+  for(const status of [401,403,404]) {
+    const denied=await mockFetch(async()=>new Response(null,{status}),
+      ()=>staffRateProvider.submit(request,{amount:32000,effectiveDate:"2026-11-01",reason:"Test"},new AbortController().signal));
+    assert.deepEqual(denied,{status:"denied"});
+  }
+  const invalid=await mockFetch(async()=>new Response(null,{status:409}),
+    ()=>staffRateProvider.submit(request,{amount:32000,effectiveDate:"2026-11-01",reason:"Test"},new AbortController().signal));
+  assert.deepEqual(invalid,{status:"invalid",fields:["effectiveDate"]});
+  await mockFetch(async()=>new Response(null,{status:503}),async()=>
+    assert.rejects(staffRateProvider.submit(request,{amount:32000,effectiveDate:"2026-11-01",reason:"Test"},new AbortController().signal),/Rate save unavailable/));
+});
+test("PAP-1108 abort after response prevents displaying private rate history",async()=>{
+  const controller=new AbortController();
+  await mockFetch(async()=>{controller.abort();return Response.json({data:[]});},async()=>
+    assert.rejects(staffRateProvider.load(request,controller.signal),err=>err instanceof Error&&err.name==="AbortError"));
+});
+test("PAP-1108 private read rejects malformed response without exposing values",async()=>{
+  await mockFetch(async()=>Response.json({data:{amountMinor:32000}}),async()=>
+    assert.rejects(staffRateProvider.load(request,new AbortController().signal),/Invalid private rate response/));
+  await mockFetch(async()=>new Response(null,{status:503}),async()=>
+    assert.rejects(staffRateProvider.load(request,new AbortController().signal),/Rate history unavailable/));
+});
