@@ -1,17 +1,13 @@
 import type {TosVNextAppId} from "../app/components/tos-vnext/identity";
-import type {TosAppId} from "./tos-app-access";
-/** One decision for enter + ongoing app access. Core server permissions still authoritative. */
+/** Home navigation only. Scheduling is context, not an app-access grant.
+ * The TOS session gate and Core per-action/resource ACL remain authoritative. */
 export function canOpenVNextApp(app:TosVNextAppId,options:{
- authenticated:boolean;centerReady:boolean;scheduleReady:boolean;desktop:boolean;
- access:Pick<Record<TosAppId,boolean>,"reception"|"classroom"|"shift-lead">|null;
+ authenticated:boolean;centerReady:boolean;desktop:boolean;
 }):boolean{
- if(!options.authenticated||!options.centerReady||!options.scheduleReady)return false;
+ if(!options.authenticated||!options.centerReady)return false;
  switch(app){
-  case "shift":case "training":return true;
+  case "shift":case "reception":case "shift-lead":case "classroom":case "training":return true;
   case "station":return options.desktop;
-  case "reception":return Boolean(options.access?.reception);
-  case "classroom":return Boolean(options.access?.classroom);
-  case "shift-lead":return false; // PAP-934 DS V4: tile intentionally inaccessible.
  }
  return false;
 }
