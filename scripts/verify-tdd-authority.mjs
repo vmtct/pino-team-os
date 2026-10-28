@@ -40,6 +40,22 @@ export function graph(root, entry) {
     } walk(ast);
   } visit(entry); return [...files].sort();
 }
+/** Direct imported files are the module's immediate external contract, not a transitive
+ * tree through shared hosts. A shared host can already import grandfathered BO V25. */
+export function directLocalImports(root, file) {
+  if(!fs.existsSync(path.join(root,file))) return [];
+  const ast=parse(file,read(root,file)), dependencies=new Set();
+  function walk(n) {
+    let spec;
+    if((ts.isImportDeclaration(n)||ts.isExportDeclaration(n))&&n.moduleSpecifier&&ts.isStringLiteral(n.moduleSpecifier)) spec=n.moduleSpecifier.text;
+    if(ts.isCallExpression(n)&&(n.expression.kind===ts.SyntaxKind.ImportKeyword||n.expression.getText(ast)==='require')&&ts.isStringLiteral(n.arguments[0])) spec=n.arguments[0].text;
+    if(spec){const target=localFile(root,file,spec);if(target)dependencies.add(target);}
+    ts.forEachChild(n,walk);
+  }
+  walk(ast);
+  return [...dependencies];
+}
+
 export function inspectModuleSource(file, source) {
   const errors=[]; const ast=parse(file,source);
   function walk(n) {
@@ -174,12 +190,17 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     // When those external files change with admission, require an exact owner reference,
     // inspect for shell violations and reject missing/unowned imports. Never wildcard.
     const ownerRoot=e.file.slice(0,e.file.lastIndexOf('/')+1);
+    // Revalidate direct module external imports and sensitive authorization transport on
+    // relevant changes. Do NOT make an unrelated changed legacy BO dependency of a
+    // transitive HO host retroactively subject to HO Staff shell ownership.
+    const directExternals=new Set(e.files.flatMap(f=>directLocalImports(root,f)).filter(f=>!e.files.includes(f)&&!canonical.test(f)));
+    const securityBoundary=/^lib\/(?:ho-auth|team-auth|founder-core|ho-staff-rate-facade|ho-access-guard|ho-routes|ho-system|host-boundary|bo-shell-gate|workspace-adapters\/session)\.(?:ts|tsx)$/;
     const externalRefs=e.externalReferences??[];
     for(const reference of externalRefs) if(!reference||!exactFile(reference.file)||!/^PAP-\d+$/.test(reference.owner??'')||reference.file.startsWith(ownerRoot)||canonical.test(reference.file)||e.files.includes(reference.file)||!dependencies.includes(reference.file)||reference.file.endsWith('.css')) errors.push(e.file+': invalid external owner reference');
     for(const f of dependencies.filter(f=>!canonical.test(f))) {
       const external=!(f===e.file||f.startsWith(ownerRoot));
       if(!external&&!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
-      if(external&&changed.includes(f)&&!(baseline.sourceFiles??[]).includes(f)) {
+      if(external&&changed.includes(f)&&!(baseline.sourceFiles??[]).includes(f)&&(directExternals.has(f)||securityBoundary.test(f))) {
         if(!externalRefs.some(r=>r.file===f)) errors.push(e.file+': dependency outside admission fence '+f);
         else if(sourceFile.test(f)) errors.push(...inspectModuleSource(f,read(root,f)));
       }
