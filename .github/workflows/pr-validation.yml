@@ -17,12 +17,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.15
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Enforce scoped TDD G0/G1 ownership (PAP-1071)
+        env:
+          TDD_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          bun run tdd:authority:test
+          bun run tdd:authority:check
       - name: Enforce BO Architecture Contract (PAP-926)
         run: |
           node scripts/verify-bo-module-contract.mjs
@@ -45,6 +54,8 @@ jobs:
         run: node --test scripts/guarded-ui-automerge.test.mjs scripts/guarded-app-automerge-policy.test.mjs scripts/bot-merge-main-ci-bridge.test.mjs
       - name: Lint
         run: bun run lint
+      - name: Typecheck
+        run: bun run typecheck
       - name: Unit tests
         run: bun run test
       - name: BO authority and isolation contracts (PAP-1022)

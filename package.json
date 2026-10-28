@@ -15,6 +15,8 @@
     "delivery:enter": "node scripts/delivery-entry.mjs",
     "pino:resume": "node scripts/delivery-entry.mjs",
     "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "tdd:authority:check": "node --import tsx scripts/verify-tdd-authority.mjs",
+    "tdd:authority:test": "node --import tsx --test scripts/verify-tdd-authority.test.mjs",
     "tos:ds:check": "node scripts/verify-tos-ds-v4.mjs"
   },
   "dependencies": {
