@@ -1,4 +1,5 @@
-import type { FieldSchema, TableQuery } from "@/lib/workspace-schema";
+import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-schema";
+import { selfDirectoryProvider } from "./provider";
 import type { SurfaceDefinition } from "@/lib/workspace-adapters";
 
 export const SELF_DIRECTORY_PERMISSION = "pinoria.avatar.directory.view";
@@ -50,3 +51,15 @@ export const selfDefinition = {
   drawer: { density: "one-column", sections, actions: [] },
   detail: { overview: { sections }, businessTabs: [], history: { kind: "unavailable", reason: "Core chưa cung cấp lịch sử riêng cho Self Directory." } },
 } as const satisfies SurfaceDefinition<SelfFields>;
+
+/** PAP-982: the declared TDD source is never a public/no-session data adapter. */
+export const selfProvider = selfDirectoryProvider();
+const registry = new TddRegistry();
+export const selfSchema = registry.register({
+  ...selfDefinition,
+  data: {
+    id: "pinoria-self-directory-session-required",
+    list: async () => { throw Error("BO session and scoped adapter required"); },
+    detail: async () => { throw Error("BO session and scoped adapter required"); },
+  },
+});

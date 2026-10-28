@@ -3,6 +3,26 @@
   "modules": [
     {
       "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "pinoria-avatars",
+      "route": "/bo/pinoria-avatars",
+      "file": "app/bo/pinoria-avatars/page.tsx",
+      "files": [
+        "app/bo/pinoria-avatars/page.tsx",
+        "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx",
+        "app/bo/pinoria-avatars/schema.ts",
+        "app/bo/pinoria-avatars/provider.ts"
+      ],
+      "externalReferences": [
+        { "file": "lib/host-boundary.ts", "owner": "PAP-982" },
+        { "file": "public/bo-authority-source/school-adapters.js", "owner": "PAP-982" }
+      ],
+      "schema": { "file": "app/bo/pinoria-avatars/schema.ts", "export": "selfSchema" },
+      "binding": { "kind": "SURFACE_WORKSPACE_ADAPTER", "file": "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx" },
+      "tests": ["app/bo/pinoria-avatars/provider.test.ts", "lib/host-boundary.test.ts"]
+    },
+    {
+      "profile": "TDD_DEFAULT",
       "surface": "HO",
       "key": "staffs",
       "route": "/ho/staff",

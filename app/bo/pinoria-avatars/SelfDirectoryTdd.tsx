@@ -6,8 +6,7 @@ import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWor
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry } from "@/lib/workspace-schema";
-import { selfDefinition, selfFields, selfQuery } from "./schema";
-import { selfDirectoryProvider } from "./provider";
+import { selfDefinition, selfFields, selfQuery, selfProvider } from "./schema";
 
 type F = typeof selfFields;
 type Bound = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
@@ -39,7 +38,7 @@ export function SelfDirectoryTdd(){
     setReady(null);setError("");
     if(!selected)return;
     const ctl=new AbortController();let instance:AuthenticatedSurfaceAdapter<F>|null=null;
-    void createBoTddAdapter({registry:new TddRegistry(),definition:selfDefinition,provider:selfDirectoryProvider(),centerId:selected},ctl.signal)
+    void createBoTddAdapter({registry:new TddRegistry(),definition:selfDefinition,provider:selfProvider,centerId:selected},ctl.signal)
       .then(adapter=>{
         instance=adapter;
         if(ctl.signal.aborted){adapter.dispose();return;}
