@@ -55,3 +55,28 @@ test("PAP-1108 validates salary inputs and POST payload with private BFF contrac
   },()=>staffRateProvider.submit(request,{amount:32000,effectiveDate:"2026-11-01",reason:" Test only "},new AbortController().signal));
   assert.deepEqual(result,{status:"saved",message:"Đã lưu mức lương."});
 });
+
+
+test("PAP-1108 rejects contradictory private rate history rather than displaying wrong periods",async()=>{
+  const id1="00000000-0000-4000-8000-000000000011";
+  const id2="00000000-0000-4000-8000-000000000012";
+  const base={staffMemberId:staff,amountMinor:32000,currency:"VND",note:"Fixture"};
+  const good=[
+    {...base,id:id1,effectiveFrom:"2026-10-01",periodUntilExclusive:null},
+    {...base,id:id2,effectiveFrom:"2026-08-01",periodUntilExclusive:"2026-10-01"},
+  ];
+  const load=(rows:unknown[])=>mockFetch(async()=>Response.json({data:rows}),()=>staffRateProvider.load(request,new AbortController().signal));
+  const ok=await load([...good].reverse());
+  assert.equal(ok.status,"authorized");
+  if(ok.status==="authorized") {
+    assert.equal(ok.records?.rows.length,2);
+    assert.equal(ok.records?.rows[0]?.values.effectiveUntil,"—");
+    assert.equal(ok.records?.rows[1]?.values.effectiveUntil,"30/09/2026");
+  }
+  for(const rows of [
+    [good[0],{...good[1],periodUntilExclusive:"2026-09-01"}],
+    [good[0],{...good[1],effectiveFrom:"2026-10-01"}],
+    [good[0],{...good[1],id:id1}],
+    [{...good[0],staffMemberId:"00000000-0000-4000-8000-000000000002"}],
+  ]) await assert.rejects(load(rows),/Invalid (private rate response|rate ledger)/);
+});
