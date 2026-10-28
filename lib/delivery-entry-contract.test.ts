@@ -13,7 +13,11 @@ test("Team retains optional facts-only Core entry inspection", () => {
   assert.match(wrapper, /PINO_CORE_PATH/);
   assert.match(wrapper, /--worktree/);
   assert.match(agents, /read-only compatibility fact inspectors/);
-  assert.match(agents, /Jira Job and applicable Directives/);
+  assert.match(agents, /PAP-184/);
+  assert.match(agents, /PAP-1051/);
+  assert.match(agents, /PAP-980/);
+  assert.match(agents, /Codex \*\*and\*\* GPT may implement/);
+  assert.doesNotMatch(agents, /Codex is permitted only as the fresh independent PRE-MAIN reviewer|Codex is reviewer-only and must not perform/);
   assert.doesNotMatch(agents, /Mandatory continuation entry gate|Unclaimed work requires a claim|Fresh foreign care blocks duplicate material edits/);
 });
 
