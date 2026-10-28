@@ -1,8 +1,8 @@
 "use client";
 import { useLayoutEffect, useRef, useState } from "react";
 import { editorPosition, norm, type BoField, type BoValue } from "@/lib/bo-registration";
-/** Only unsaved local drafts may call onSave. Live adapters mark every field readonly. */
-export function BoTypedEditor({ field, value, anchor, onClose, onSave }: { field: BoField; value: BoValue; anchor: HTMLElement; onClose: () => void; onSave: (value: BoValue) => void }) {
+/** Existing typed controls: legacy draft edits by default; the TDD adapter owns gated async commits. */
+export function BoTypedEditor({ field, value, anchor, onClose, onSave, closeOnSave = true }: { closeOnSave?: boolean; field: BoField; value: BoValue; anchor: HTMLElement; onClose: () => void; onSave: (value: BoValue) => void }) {
   const panel = useRef<HTMLDivElement>(null), control = useRef<HTMLInputElement & HTMLTextAreaElement & HTMLSelectElement>(null);
   const [draft, setDraft] = useState<BoValue>(value ?? ""), [query, setQuery] = useState(""), [error, setError] = useState("");
   const multi = ["multirelation", "multiselect"].includes(field.type), choice = multi || ["person", "relation"].includes(field.type);
@@ -19,7 +19,7 @@ export function BoTypedEditor({ field, value, anchor, onClose, onSave }: { field
     if (field.key === "name" && !String(draft).trim()) { setError("Hãy nhập tên hồ sơ."); return; }
     if (control.current && !control.current.checkValidity()) { setError(control.current.validationMessage); return; }
     if (["number", "currency"].includes(field.type) && draft !== "" && (!Number.isFinite(Number(draft)) || Number(draft) < 0)) { setError("Nhập số không âm hợp lệ."); return; }
-    onSave(["number", "currency"].includes(field.type) ? draft === "" ? null : Number(draft) : draft); onClose();
+    onSave(["number", "currency"].includes(field.type) ? draft === "" ? null : Number(draft) : draft); if (closeOnSave) onClose();
   }
   const selected = Array.isArray(draft) ? draft : [String(draft)];
   return <div ref={panel} id="popover" className="edit-popover" role="dialog" aria-label={"Sửa " + field.label} aria-modal="false" onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) { e.preventDefault(); e.stopPropagation(); save(); } }}>

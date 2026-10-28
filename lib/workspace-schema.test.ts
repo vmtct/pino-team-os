@@ -186,13 +186,17 @@ test("legacy classification owns no mandatory tabs; special screens and extensio
   assert.equal(new TddRegistry((a, scope) => a.jira === "PAP-1085" && scope.extensionId === "bounded" && scope.key === "fixture").register(extension).detail.businessTabs[0].id, "extension");
   assert.throws(() => registry.registerCompatibility(replace(special, "route", "/ho/*")));
 });
-test("contract stays renderer-free and existing runtime has no dependency on this opt-in library", () => {
+test("contract stays renderer-free and runtime adapters never auto-register legacy modules", () => {
   for (const file of readdirSync(join(process.cwd(), "lib/workspace-schema"))) {
     assert.ok(!file.endsWith("tsx"));
     const source = readFileSync(join(process.cwd(), "lib/workspace-schema", file), "utf8");
     assert.doesNotMatch(source, /from ["']react["']|\.css["']|dangerouslySetInnerHTML/);
   }
-  for (const file of ["app/ho/HoWorkspace.tsx", "app/bo/components/registration/BoRegistrationWorkspace.tsx"]) assert.doesNotMatch(readFileSync(join(process.cwd(), file), "utf8"), /workspace-schema/);
+  for (const file of ["app/ho/HoWorkspace.tsx", "app/bo/components/registration/BoRegistrationWorkspace.tsx"]) {
+    const source = readFileSync(join(process.cwd(), file), "utf8");
+    assert.match(source, /tdd\?:\s*TddStage/);
+    assert.doesNotMatch(source, /new TddRegistry|defineTddModule|registerCompatibility/);
+  }
 });
 
 /** Compiled by tsc; deliberately not executed by node:test. */
