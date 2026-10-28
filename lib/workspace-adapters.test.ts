@@ -15,6 +15,7 @@ import { handleBoPublicViewRequest } from "./bo-public-view-handler";
 import type { BoAccessRequest } from "./bo-core";
 import { decideHostBoundary } from "./host-boundary";
 import { SurfaceWorkspace } from "../app/components/workspace-adapters/SurfaceWorkspace";
+import { TddTable } from "../app/components/workspace-renderer/Table";
 import { BoRegistrationWorkspace } from "../app/bo/components/registration/BoRegistrationWorkspace";
 import { HoWorkspace } from "../app/ho/HoWorkspace";
 import type { AdapterNavigation } from "./workspace-adapters/navigation";
@@ -201,13 +202,15 @@ async function inBrowser<T>(origin: string, run: () => Promise<T>) {
 }
 function viewsDefinition(surface: "BO" | "HO"): SurfaceDefinition<F> {
   const base = definition(surface);
-  return { ...base, capabilities: { ...base.capabilities, manageSharedViews: "bo.shared_view.manage" }, table: { ...base.table, views: { ...base.table.views, saved: { kind: "authorized-service", source: { adapter: "shared-views", permission: "fixture.read" }, scopes: ["shared"], conflict: "version" } } } };
+  return { ...base, capabilities: { ...base.capabilities, manageSharedViews: "bo.shared_view.manage" }, table: { ...base.table, views: { ...base.table.views, builtIn:[{id:"active-default",label:"Active default",state:query}], saved: { kind: "authorized-service", source: { adapter: "shared-views", permission: "fixture.read" }, scopes: ["shared"], conflict: "version" } } } };
 }
 test("Real Shared Views transport preserves versions and supports authorized CRUD without personal ownership synthesis", async () => inBrowser("https://bo.staging.pinohouse.art", async () => {
   const { adapter, state } = await setup("BO", viewsDefinition("BO"));
   const config = toSharedConfig(adapter.schema, query);
   state.views = [{ id: recordId, name: "Original", moduleKey: "students", position: 0, version: 4, config }];
   const value = await adapter.views(signal()); assert.ok(value.transport); assert.equal(value.transport.views[0].version, "4");
+  const out=renderToStaticMarkup(h(TddTable<F>,{registry:adapter.registry,schema:adapter.schema,context:adapter.context,rows:(await adapter.list(query,signal())).rows,query,status:"ready",total:25,onQueryChange(){},onOpen(){},viewTransport:value.transport}));
+  assert.match(out,/Tất cả/);assert.match(out,/Active default/);assert.match(out,/Original/);assert.equal(adapter.schema.table.views.builtIn.length,1);
   let next = await value.transport.write(value.transport.views.map(v => ({ ...v, name: "Renamed" })), adapter.context, signal());
   assert.equal(next[0].name, "Renamed"); assert.equal(next[0].version, "5");
   const rename = state.calls.find(v => v.method === "PATCH" && v.path.endsWith("/rename"))!;
@@ -371,4 +374,15 @@ for (const surface of ["BO", "HO"] as const) test(`${surface}: navigation retain
     assert.throws(()=>browserTddNavigation(surface,"not-registered",query),/mismatch/);
     if(surface==="BO") {url=new URL("https://bo.staging.pinohouse.art/bo?module=parents");assert.throws(()=>browserTddNavigation("BO","students",query),/mismatch/);url=new URL("https://bo.staging.pinohouse.art/bo?module=not-registered");assert.throws(()=>browserTddNavigation("BO","not-registered",query),/mismatch/);}
   } finally {for(const key of keys){const descriptor=previous.get(key);if(descriptor)Object.defineProperty(globalThis,key,descriptor);else Reflect.deleteProperty(globalThis,key);}}
+});
+
+for(const surface of ["BO","HO"] as const)test(`${surface}: approved module defaults remain independent from Custom Views and fail closed`,async()=>{
+  const base=definition(surface), active={id:"active",label:"Active default",state:{...query,filters:{logic:"AND" as const,rules:[{field:"count" as const,op:"eq" as const,value:2}]}}};
+  const def={...base,table:{...base.table,filters:{...base.table.filters,fields:["count","secret"] as const},views:{...base.table.views,builtIn:[active,{id:"restricted",label:"Restricted default",state:{...query,filters:{logic:"AND" as const,rules:[{field:"secret" as const,op:"contains" as const,value:"private"}]}}}]}}};
+  const {adapter,state}=await setup(surface,def);assert.equal(adapter.schema.table.views.builtIn.length,2);assert.equal((await adapter.list(adapter.schema.table.views.builtIn[0].state,signal())).rows.length,1);
+  const before=state.calls.filter(v=>v.path.startsWith("student-visits")).length;
+  await assert.rejects(adapter.list(adapter.schema.table.views.builtIn[1].state,signal()),fails(403));assert.equal(state.calls.filter(v=>v.path.startsWith("student-visits")).length,before);
+  await assert.rejects(setup(surface,{...base,table:{...base.table,views:{...base.table.views,builtIn:[active,active]}}}),/duplicate/);
+  await assert.rejects(setup(surface,{...base,table:{...base.table,views:{...base.table.views,builtIn:[{...active,state:{...query,filters:{logic:"AND",rules:[{field:"count",op:"contains",value:"invalid"} as never]}}}]}}}),/operator/);
+  assert.equal((await setup(surface)).adapter.schema.table.views.builtIn.length,0);
 });

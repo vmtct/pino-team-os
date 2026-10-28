@@ -103,6 +103,14 @@ backend/host contracts exist. This is backend truth, not a new auth restriction.
 
 ## Shared Views and history
 
+The latest PAP-1070 Founder decision (2026-10-28 09:52 ICT) supersedes comment
+16940's earlier All-only instruction. Preserve the engine-owned All/Tất cả plus
+any module-declared `table.views.builtIn[]`, including an empty array. Additional
+defaults and separately created Custom/Saved Views coexist; no migration or gate
+banning defaults is added. Positive/negative BO/HO tests cover valid defaults,
+unique IDs, typed queries, apply authorization, empty defaults and dynamic service
+Views together. This requires tests/documentation, not view-policy code changes.
+
 Saved Views use the actual PAP-886/887 Core client, service ACL and numeric
 versions. Current service is organization/module-shared only; personal ownership
 is unsupported and rejected, never synthesized. HO has no Views endpoint in its
