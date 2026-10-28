@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { BoDataTable } from "../../bo/components/registration/BoDataTable";
 import { BoTableSettings, type BoSavedView } from "../../bo/components/registration/BoTableSettings";
 import type { BoField, BoRecord, BoTableState } from "@/lib/bo-registration";
-import { allows, allowsField, fromLegacyTableState, toLegacyModule, toLegacyTableState, type AuthorizationContext, type FieldSchema, type ModuleRow, type ModuleSchema, type MutationAdapter, type TableQuery, type TddRegistry } from "@/lib/workspace-schema";
+import { allows, allowsField, fromLegacyTableState, toLegacyModule, toLegacyTableState, validateQuery, type AuthorizationContext, type FieldSchema, type ModuleRow, type ModuleSchema, type MutationAdapter, type TableQuery, type TddRegistry } from "@/lib/workspace-schema";
 import { registeredSchema, RecordState } from "./Record";
 import { recordProjection, renderScope } from "./projection";
 import { latestRequest } from "./resource";
@@ -12,6 +12,28 @@ import { dispatchCellEdit } from "./editing";
 import { PropertyEditor } from "./Editor";
 
 export type SavedTddView<F extends readonly FieldSchema[]> = { readonly id: string; readonly name: string; readonly state: TableQuery<F>; readonly version?: string };
+/** A valid typed view may be inexpressible in the legacy UI. Isolate each failure. */
+export function projectSavedViews<F extends readonly FieldSchema[]>(schema: ModuleSchema<F>, context: AuthorizationContext, source: readonly SavedTddView<F>[]) {
+  const available: BoSavedView[] = [], unavailable: SavedTddView<F>[] = [];
+  for (const view of source) {
+    try { available.push({ id: view.id, name: view.name, state: toLegacyTableState(schema, view.state, context) }); }
+    catch { unavailable.push(view); }
+  }
+  return { available, unavailable };
+}
+/** Legacy controls cannot edit omitted views or rewrite their typed operands. */
+export function mergeSavedViews<F extends readonly FieldSchema[]>(schema: ModuleSchema<F>, context: AuthorizationContext, source: readonly SavedTddView<F>[], available: readonly BoSavedView[], next: readonly BoSavedView[]) {
+  const converted = next.map(view => {
+    const original = source.find(v => v.id === view.id);
+    if (original && available.some(v => v.id === view.id && v.state === view.state)) {
+      validateQuery(schema, original.state, context);
+      return { ...original, name: view.name };
+    }
+    return { id: view.id, name: view.name, state: fromLegacyTableState(schema, view.state, context), version: original?.version };
+  });
+  let index = 0;
+  return source.flatMap(view => !available.some(v => v.id === view.id) ? [view] : index < converted.length ? [converted[index++]] : []).concat(converted.slice(index));
+}
 export type ViewTransport<F extends readonly FieldSchema[]> = {
   readonly views: readonly SavedTddView<F>[];
   /** Existing service must apply owner/scope/version ACL and return authoritative versions. */
@@ -77,8 +99,20 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
   const saved = schema.table.views.saved;
   const canWriteViews = saved.kind === "local-ui" || Boolean(viewTransport && context.authorize(saved.source.permission) && (!saved.scopes.includes("shared") || allows(schema, context, "manageSharedViews")));
   const externalViews = viewTransport && saved.kind === "authorized-service" && context.authorize(saved.source.permission) ? authoritativeViews?.source === viewTransport ? authoritativeViews.views : viewTransport.views : [];
-  const views = saved.kind === "local-ui" ? localViews : externalViews.map(v => ({ id: v.id, name: v.name, state: toLegacyTableState(schema, v.state, context) }));
+  const remote = projectSavedViews(schema, context, externalViews);
+  const views = saved.kind === "local-ui" ? localViews : remote.available;
   const renderedPolicy = { ...policy, viewActions: canWriteViews ? policy.viewActions : policy.viewActions.filter(a => a === "apply") };
+  const persistViews = (converted: readonly SavedTddView<readonly FieldSchema[]>[]) => {
+    if (saved.kind !== "authorized-service" || !viewTransport || !context.authorize(saved.source.permission) || (saved.scopes.includes("shared") && !allows(schema, context, "manageSharedViews"))) return;
+    if (externalViews.some(v => !v.version)) { setMessage("Tải lại phiên bản Quick View trước khi thay đổi."); return; }
+    void request.current.run(async signal => {
+      const result = await viewTransport.write(converted, context, signal);
+      if (!context.authorize(saved.source.permission) || (saved.scopes.includes("shared") && !allows(schema, context, "manageSharedViews"))) throw Error("View permission changed");
+      if (!Array.isArray(result) || new Set(result.map(v => v.id)).size !== result.length) throw Error("Invalid saved view response");
+      for (const view of result) { if (!view.id?.trim() || !view.name?.trim() || !view.version?.trim()) throw Error("Invalid saved view version"); validateQuery(schema, view.state, context); }
+      return result;
+    }, result => { setAuthoritativeViews({ source: viewTransport, views: result }); setMessage(""); }, () => setMessage("Không thể lưu Quick View. Kiểm tra quyền hoặc phiên bản và thử lại."));
+  };
   const changeViews = (next: BoSavedView[]) => {
     if (!canWriteViews) return;
     try {
@@ -87,21 +121,12 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
       if (views.some(v => !next.some(p => p.id === v.id)) && !permits("delete")) return;
       if (next.some(v => views.some(p => p.id === v.id && p.name !== v.name)) && !permits("rename")) return;
       if (next.length === views.length && next.some((v, i) => v.id !== views[i].id) && !permits("reorder")) return;
-      const converted = next.map(v => ({ id: v.id, name: v.name, state: fromLegacyTableState(schema, v.state, context), version: externalViews.find(p => p.id === v.id)?.version }));
       if (saved.kind === "local-ui") {
+        next.forEach(view => fromLegacyTableState(schema, view.state, context));
         if (schema.table.interaction.undo === "local-ui-only") { setUndo(items => [...items.slice(-19), { table: state, views: localViews, active }]); setFuture([]); }
         setLocalViews(next);
       }
-      else {
-        if (externalViews.some(v => !v.version)) throw Error("Missing saved view version");
-        void request.current.run(async signal => {
-          const result = await viewTransport!.write(converted, context, signal);
-          if (!context.authorize(saved.source.permission) || (saved.scopes.includes("shared") && !allows(schema, context, "manageSharedViews"))) throw Error("View permission changed");
-          if (!Array.isArray(result) || new Set(result.map(v => v.id)).size !== result.length) throw Error("Invalid saved view response");
-          for (const view of result) { if (!view.id?.trim() || !view.name?.trim() || !view.version?.trim()) throw Error("Invalid saved view version"); toLegacyTableState(schema, view.state, context); }
-          return result;
-        }, result => { setAuthoritativeViews({ source: viewTransport, views: result }); setMessage(""); }, () => setMessage("Không thể lưu Quick View. Kiểm tra quyền hoặc phiên bản và thử lại."));
-      }
+      else persistViews(mergeSavedViews(schema, context, externalViews, views, next));
     } catch { setMessage("Không thể lưu Quick View không hợp lệ."); }
   };
   const initial: BoTableState = { ...state, search: "", rules: [], sort: "", desc: false, group: "", collapsed: [], hiddenGroups: [], hideEmpty: true, groupDesc: false, order: schema.table.columns.map(c => c.field), visible: schema.table.columns.filter(c => c.visible).map(c => c.field), pageSize: schema.table.pagination.defaultSize };
@@ -132,6 +157,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
       reset={() => update(initial)} undo={() => restore(false)} canUndo={undo.length > 0}
       builtInViews={schema.table.views.builtIn.map(view => <button type="button" className={"view-tab " + (active === view.id ? "active" : "")} key={view.id} onClick={() => { try { toLegacyTableState(schema, view.state, context); onQueryChange(view.state); setActive(view.id); } catch { setMessage("Không có quyền áp dụng Quick View."); } }}>{view.label}</button>)} />
     {status === "error" && onRetry ? <button type="button" onClick={onRetry}>Thử lại</button> : null}
+    {remote.unavailable.length ? <section aria-label="Quick View không khả dụng"><p role="status">Một số Quick View không thể áp dụng trong giao diện này. Nhờ người quản lý sửa cấu hình gốc hoặc xóa view; dữ liệu đã lưu được giữ nguyên.</p><ul>{remote.unavailable.map(view => <li key={view.id}><span>{view.name} — Không khả dụng</span>{canWriteViews && policy.viewActions.includes("delete") ? <button type="button" className="quiet-x" aria-label={"Xóa Quick View không khả dụng " + view.name} onClick={() => { if (schema.table.views.actions.includes("delete")) persistViews(externalViews.filter(v => v.id !== view.id)); }}>Xóa view</button> : null}</li>)}</ul></section> : null}
     {message ? <p role="alert">{message}</p> : null}
     {settings ? <BoTableSettings screen={settings} setScreen={setSettings} onClose={() => setSettings(null)} fields={legacyFields} rows={projected.map(p => p!.record)} value={state} update={update} views={views} setViews={changeViews} applyView={view => { if (schema.table.views.actions.includes("apply")) update(view.state); }} policy={renderedPolicy} /> : null}
     {edit && writes && rows.some(row => row.id === edit.record.id) ? <PropertyEditor key={JSON.stringify([edit.record.id, edit.field.key, edit.version])} schema={schema} context={context} record={edit.record} writes={{ adapter: writes.adapter, version: edit.version, onSaved: writes.onSaved }} selection={edit} onClose={() => setEdit(null)} /> : null}

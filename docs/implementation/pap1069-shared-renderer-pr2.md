@@ -122,6 +122,23 @@ was introduced. The actual service remains responsible for owner/scope/CAS ACL.
 
 ## Verification and remaining acceptance
 
+The GPT repair review of head `3311b228` identified two render-time failures.
+Saved Views now convert independently: a typed view that the legacy filter UI
+cannot express is listed as unavailable, while compatible views and rows remain
+usable. The original typed query/version is retained through unrelated view
+edits; no CSV splitting, operand rewriting or implicit deletion occurs.
+Unavailable views offer removal only with the configured delete action and the
+existing service/shared-view grants. Users can also ask the source's view manager
+to repair the original configuration. Service responses validate the typed query
+contract rather than requiring every query to fit legacy controls.
+
+Nullable registered names project to the legacy empty string (empty cells), while
+null/undefined identity headings use the neutral `—`. The adapter's row is never
+mutated. Other registered field values remain typed; identity/title data still
+requires its existing display authorization. BO/HO SSR regressions cover mixed
+remote views, preserved operands/versions, deletion grants, null/undefined names
+and all 16 typed identities, including absent values.
+
 Focused DOM/SSR and event-policy tests cover both surfaces, both Detail bridges,
 typed stage admission, business order/negative slots, Table behavior, readonly
 mutation denial, identity/version guards, dialog/tab keys, stale async results,

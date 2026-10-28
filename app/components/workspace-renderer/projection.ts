@@ -15,7 +15,9 @@ export function recordProjection(schema: ModuleSchema, context: AuthorizationCon
   const identity = record[schema.table.identity.field];
   const title = identity == null ? "—" : String(identity);
   if (!fields.some(f => f.key === "name")) record.name = title;
-  else if (typeof record.name !== "string") throw Error("Legacy name field requires a string projection");
+  // The legacy label needs an empty string for absent names. Keep the typed
+  // adapter row untouched; empty remains empty for cells/search/filter/group.
+  else if (record.name == null) record.name = "";
   const legacy = toLegacyModule(schema);
   return { record, title, fields: legacy.fields.filter(f => fields.some(p => p.key === f.key)), schemaFields: fields };
 }

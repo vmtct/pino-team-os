@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import postcss from "postcss";
 import { TddTable, TddDrawer, TddDetail, TddRenderer } from "../app/components/workspace-renderer";
+import { projectSavedViews, mergeSavedViews, type SavedTddView } from "../app/components/workspace-renderer/Table";
 import { DetailFrame } from "../app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "../app/components/workspace-renderer/Properties";
 import { HistoryState } from "../app/components/workspace-renderer/History";
@@ -56,6 +57,66 @@ function fixture(surface: "BO" | "HO" = "BO", change: (schema: ModuleSchema) => 
 }
 const html = (node: ReactNode) => renderToStaticMarkup(node);
 const noop = () => {};
+
+for (const surface of ["BO", "HO"] as const) {
+  test(`${surface}: incompatible authorized Saved Views do not crash or hide usable Table views and rows`, () => {
+    const f = fixture(surface, s => ({ ...s, fields: [...s.fields, { key: "tags", type: "multiselect", label: "Tags", icon: "#", width: 160, permission: "fixture.read", readOnly: true, capabilities: caps }], table: { ...s.table, filters: { ...s.table.filters, fields: ["count", "tags"] }, views: { ...s.table.views, saved: { kind: "authorized-service", source: { adapter: "views", permission: "fixture.views" }, scopes: ["personal"], conflict: "version" } } } }));
+    const bad: SavedTddView<ModuleSchema["fields"]> = { id: "incompatible", name: "Comma view", version: "bad-v1", state: { ...f.query, filters: { logic: "AND", rules: [{ field: "tags", op: "any", value: ["VIP,Gold", "Other"] }] } } };
+    const good: SavedTddView<ModuleSchema["fields"]> = { id: "valid", name: "Normal view", version: "good-v1", state: { ...f.query, filters: { logic: "AND", rules: [{ field: "count", op: "gte", value: 2 }] } } };
+    const source = [bad, good]; const before = JSON.stringify(source);
+    const transport = { views: source, write: async () => { assert.fail("render must never write views"); return source; } };
+    const table = (context = f.context) => html(h(TddTable, { ...f, context, rows: [f.record], status: "ready", viewTransport: transport, onQueryChange: noop, onOpen: noop }));
+    const out = table();
+    assert.match(out, /data-record="record-a"/); assert.match(out, /Bảo Trân/);
+    assert.match(out, /data-saved="valid"/); assert.doesNotMatch(out, /data-saved="incompatible"/);
+    assert.match(out, /Comma view — Không khả dụng/); assert.match(out, /Xóa Quick View không khả dụng Comma view/);
+    assert.match(out, /dữ liệu đã lưu được giữ nguyên/); assert.doesNotMatch(out, /VIP,Gold/);
+    const remote = projectSavedViews(f.schema, f.context, source);
+    assert.equal(remote.available.length, 1); assert.equal(remote.unavailable[0], bad);
+    const renamed = mergeSavedViews(f.schema, f.context, source, remote.available, remote.available.map(v => ({ ...v, name: "Renamed" })));
+    assert.equal(renamed[0], bad); assert.equal(renamed[1].state, good.state); assert.equal(renamed[1].version, "good-v1"); assert.equal(renamed[1].name, "Renamed");
+    assert.deepEqual(mergeSavedViews(f.schema, f.context, source, remote.available, []), [bad]);
+    assert.throws(() => mergeSavedViews(f.schema, { ...f.context, authorize: () => false }, source, remote.available, remote.available), /permission|unauthorized|denied/);
+    assert.equal(JSON.stringify(source), before); assert.throws(() => toLegacyTableState(f.schema, bad.state, f.context), /unrepresentable/);
+    assert.doesNotMatch(table({ ...f.context, authorize: p => p !== "fixture.views" }), /Comma view|Normal view|Xóa Quick View/);
+    // The same normal remote view also works without an incompatible neighbor.
+    assert.match(html(h(TddTable, { ...f, rows: [f.record], status: "ready", viewTransport: { ...transport, views: [good] }, onQueryChange: noop, onOpen: noop })), /data-saved="valid"/);
+  });
+  test(`${surface}: unavailable Saved View removal obeys configured action and shared-view grants`, () => {
+    for (const shared of [false, true]) {
+      const f = fixture(surface, s => ({ ...s, capabilities: { ...s.capabilities, manageSharedViews: "fixture.manage-views" }, table: { ...s.table, views: { ...s.table.views, actions: shared ? s.table.views.actions : ["apply"], saved: { kind: "authorized-service", source: { adapter: "views", permission: "fixture.views" }, scopes: shared ? ["shared"] : ["personal"], conflict: "version" } } } }));
+      const out = html(h(TddTable, { ...f, context: { ...f.context, authorize: p => p !== "fixture.manage-views" }, rows: [f.record], status: "ready", viewTransport: { views: [{ id: "unavailable", name: "Unavailable view", version: "1", state: { ...f.query, visible: [] } }], write: async () => assert.fail("no unauthorized write") }, onQueryChange: noop, onOpen: noop }));
+      assert.match(out, /Unavailable view — Không khả dụng/); assert.doesNotMatch(out, /aria-label="Xóa Quick View/);
+    }
+  });
+  test(`${surface}: nullable names render empty cells and neutral Drawer/Detail identities`, () => {
+    const f = fixture(surface);
+    for (const name of [null, undefined]) {
+      const record = { ...f.record, name };
+      const projected = recordProjection(f.schema, f.context, record)!;
+      assert.equal(projected.title, "—"); assert.equal(projected.record.name, ""); assert.equal(record.name, name);
+      const table = html(h(TddTable, { ...f, rows: [record], status: "ready", onQueryChange: noop, onOpen: noop }));
+      assert.match(table, /data-record="record-a"/); assert.match(table, /class="empty-val">Trống/);
+      const drawer = html(h(TddDrawer, { ...f, record, onClose: noop, onDetail: noop })); assert.match(drawer, /id="drawer-title"[^>]*>—/);
+      const detail = html(h(TddDetail, { ...f, record, onBack: noop, subject: { type: "fixture", id: record.id } })); assert.match(detail, /id="detail-title">—/);
+      for (const out of [table, drawer, detail]) assert.doesNotMatch(out, />null<|>undefined<|Bảo Trân/);
+    }
+  });
+  test(`${surface}: all typed identities and nullable identity values render with an absent name`, () => {
+    const values = { text: "Identity", id: "identity-a", select: "Active", number: 0, currency: 3000, date: "2026-10-28", relation: "Relation", boolean: false, textarea: "Long text", datetime: "2026-10-28T10:00:00+07:00", multirelation: ["A", "B"], person: "Person", multiselect: ["Tag"], email: "example@example.test", url: "https://example.test", formula: 5 };
+    for (const type of FIELD_TYPES) {
+      const f = fixture(surface, s => ({ ...s, fields: [...s.fields, { key: "identity", type, label: "Identity", icon: "#", width: 160, permission: "fixture.read", readOnly: true, capabilities: caps } as FieldSchema], table: { ...s.table, identity: { ...s.table.identity, field: "identity" }, columns: [{ field: "identity", visible: true }, ...s.table.columns] } }));
+      const query = { ...f.query, order: ["identity", ...f.query.order], visible: ["identity", ...f.query.visible] };
+      for (const identity of [values[type], null, undefined]) {
+        const record = { ...f.record, name: null, identity };
+        assert.equal(recordProjection(f.schema, f.context, record)!.title, identity == null ? "—" : String(identity));
+        for (const node of [h(TddTable, { ...f, query, rows: [record], status: "ready", onQueryChange: noop, onOpen: noop }), h(TddDrawer, { ...f, record, onClose: noop, onDetail: noop }), h(TddDetail, { ...f, record, onBack: noop, subject: { type: "fixture", id: record.id } })]) assert.doesNotThrow(() => html(node));
+      }
+      const denied = { ...f.context, authorize: () => false };
+      assert.equal(recordProjection(f.schema, denied, { ...f.record, identity: values[type] }), null);
+    }
+  });
+}
 
 for (const surface of ["BO", "HO"] as const) {
   test(`${surface}: registered Detail uses one shell with system/business/system order and ARIA`, () => {
