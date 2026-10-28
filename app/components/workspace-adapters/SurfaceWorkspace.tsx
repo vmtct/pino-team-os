@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { FieldSchema, ModuleRow, TableQuery } from "@/lib/workspace-schema";
 import type { AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import type { AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -23,11 +23,25 @@ export function SurfaceWorkspace<F extends readonly FieldSchema[]>(props: Surfac
   const { adapter } = props;
   return <MountedSurfaceWorkspace key={JSON.stringify([adapter.scope.surface, adapter.schema.key, adapter.userId, adapter.scope.surface === "BO" ? adapter.scope.centerId : ""])} {...props} />;
 }
+/** Restore saved row focus/scroll only when returning to Table from an opened record.
+ * Table-only query changes (search/filter/sort/View) must never jump to an old scroll position. */
+export function shouldRestoreTableAfterNavigation(previous: "table" | "drawer" | "detail", next: "table" | "drawer" | "detail"): boolean {
+  return previous !== "table" && next === "table";
+}
+
 function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, navigation, initialQuery }: SurfaceWorkspaceProps<F>) {
   const menu = useContext(TddHostMenu);
   const [location, setLocation] = useState(() => navigation.read());
   const [query, setQuery] = useState(location.query ?? initialQuery);
-  useEffect(() => navigation.subscribe(() => { const next = navigation.read(); setLocation(next); setQuery(next.query); if (next.kind === "table") navigation.restore(); }), [navigation]);
+  const previousStage = useRef(location.kind);
+  useEffect(() => navigation.subscribe(() => {
+    const next = navigation.read();
+    const shouldRestore = shouldRestoreTableAfterNavigation(previousStage.current, next.kind);
+    previousStage.current = next.kind;
+    setLocation(next);
+    setQuery(next.query);
+    if (shouldRestore) navigation.restore();
+  }), [navigation]);
   const listLoad = useCallback((signal: AbortSignal) => adapter.list(query, signal), [adapter, query]);
   const list = useAdapterResource(listLoad);
   const detailLoad = useCallback((signal: AbortSignal) => location.recordId ? adapter.detail(location.recordId, signal) : Promise.resolve(null), [adapter, location.recordId]);
