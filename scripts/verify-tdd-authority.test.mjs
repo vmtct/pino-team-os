@@ -62,3 +62,74 @@ test('JavaScript page cannot evade route admission',async t=>{const x=setup(t);x
 
 test('special malformed owner or permissions rejects',async t=>{const x=setup(t),a=special(x);a.permissions=[null];a.owner={name:'invented'};assert.match((await x.check()).errors.join(),/incomplete special profile/);});
 test('duplicate approval identity cannot hide revocation',async t=>{const x=setup(t),a=special(x);x.manifest.approvals.push({...a,status:'revoked'});assert.match((await x.check()).errors.join(),/ambiguous Founder approval/);});
+
+/** PAP-1134: real SurfaceWorkspace adapter admission cannot be satisfied by a fake direct renderer. */
+function hoWorkspace(t) {
+  const x=setup(t,'HO');
+  const moduleRoot='app/ho/new';
+  const bindingFile=moduleRoot+'/StaffTdd.tsx';
+  const helper=`import {SurfaceWorkspace} from '@/app/components/workspace-adapters/SurfaceWorkspace';
+import {createHoTddAdapter} from '@/lib/workspace-adapters';
+import {TddRegistry} from '@/lib/workspace-schema';
+import {staffDefinition,staffProvider} from './schema';
+export function StaffTdd(){const ready={adapter:{},navigation:{}};const connection=createHoTddAdapter({registry:new TddRegistry(),definition:staffDefinition,provider:staffProvider},new AbortController().signal);return <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation}/>}`;
+  x.put(x.file,"import {StaffTdd} from './StaffTdd';export default function Page(){return <StaffTdd/>}");
+  x.put(bindingFile,helper);
+  x.put(x.schemaFile,'import {TddRegistry} from "@/lib/workspace-schema";const registry=new TddRegistry();export const staffDefinition={};export const staffProvider={};export const schema=registry.register({...staffDefinition});');
+  x.put('lib/workspace-schema/index.ts','export class TddRegistry {}');
+  x.put('lib/workspace-adapters/index.ts','export const createHoTddAdapter=()=>null;');
+  x.put('app/components/workspace-adapters/SurfaceWorkspace.tsx','export function SurfaceWorkspace(){return null}');
+  x.entry.binding={kind:'SURFACE_WORKSPACE_ADAPTER',file:bindingFile};
+  x.entry.files=[x.file,x.schemaFile,bindingFile];
+  x.baseline.sourceFiles.push('lib/workspace-adapters/index.ts');
+  return {...x,bindingFile,helper};
+}
+test('PAP-1134 real HO adapter-backed SurfaceWorkspace passes registered canonical gate',async t=>{
+  const x=hoWorkspace(t);
+  const verdict=await x.check();
+  assert.deepEqual(verdict.errors,[]);
+  assert.ok(verdict.tests.includes(x.testFile));
+});
+test('PAP-1134 noncanonical stub SurfaceWorkspace fails',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper.replace("@/app/components/workspace-adapters/SurfaceWorkspace","./FakeWorkspace"));
+  x.put('app/ho/new/FakeWorkspace.tsx','export function SurfaceWorkspace(){return null}');
+  x.entry.files.push('app/ho/new/FakeWorkspace.tsx');
+  assert.match((await x.check()).errors.join(),/binding required/);
+});
+test('PAP-1134 unconnected adapter or schema definition fails',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper.replace('definition:staffDefinition','definition:unrelated'));
+  assert.match((await x.check()).errors.join(),/binding required/);
+});
+test('PAP-1134 fake renderer view without canonical adapter cannot pass',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper.replace('createHoTddAdapter({','fakeAdapter({'));
+  assert.match((await x.check()).errors.join(),/binding required/);
+});
+test('PAP-1134 module-local helper not in owner fence fails',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.file,"import {StaffTdd} from './StaffTdd';import './shell';export default function Page(){return <StaffTdd/>}");
+  x.put('app/ho/new/shell.tsx','export const Legacy=()=> <div className="detail-hero"/>');
+  assert.match((await x.check()).errors.join(),/outside admission fence/);
+  x.entry.files.push('app/ho/new/shell.tsx');
+  assert.match((await x.check()).errors.join(),/reserved shell/);
+});
+test('PAP-1134 new external dependency must be owned or fenced',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-rogue';");
+  x.put('lib/ho-rogue.ts','export const unknown=1');
+  assert.match((await x.check(['lib/ho-rogue.ts'])).errors.join(),/outside admission fence/);
+});
+
+test('PAP-1134 exact external owner reference allows independent HO infrastructure under inspection',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-owned';");
+  x.put('lib/ho-owned.ts','export const scope="HO"');
+  x.entry.externalReferences=[{file:'lib/ho-owned.ts',owner:'PAP-990'}];
+  assert.deepEqual((await x.check(['lib/ho-owned.ts'])).errors,[]);
+  x.put('lib/ho-owned.ts','export function bad(){document.body.innerHTML="<div/>"}');
+  assert.match((await x.check(['lib/ho-owned.ts'])).errors.join(),/opaque HTML assignment/);
+  x.entry.externalReferences=[{file:'lib/ho-owned.ts',owner:'No owner'}];
+  assert.match((await x.check(['lib/ho-owned.ts'])).errors.join(),/invalid external owner reference/);
+});
