@@ -45,7 +45,6 @@ export function BoDataGrid<Row>({
   columns,
   rowKey,
   caption,
-  showToolbar = true,
   state = "ready",
   stateMessage,
   search,
@@ -81,7 +80,6 @@ export function BoDataGrid<Row>({
   columns: readonly BoDataGridColumn<Row>[];
   rowKey: (row: Row) => string;
   caption: string;
-  showToolbar?: boolean;
   state?: BoDataGridLoadState;
   stateMessage?: string;
   search?: string;
@@ -135,7 +133,7 @@ export function BoDataGrid<Row>({
 
   return <section className={styles.surface} aria-busy={state === "loading" || undefined}>
     {publicViewRuntime ? <BoSharedViewTabs runtime={publicViewRuntime} /> : null}
-    {showToolbar ? <div className={styles.toolbar}>
+    <div className={styles.toolbar}>
       {onSearchChange ? <label className={styles.searchBox}>
         <span aria-hidden="true">⌕</span>
         <input value={search ?? ""} onChange={(event) => onSearchChange(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} />
@@ -149,7 +147,7 @@ export function BoDataGrid<Row>({
       {stale ? <span className={styles.staleBadge}>Stale</span> : null}
       {onRefresh ? <button className={styles.iconButton} type="button" onClick={onRefresh} aria-label="Refresh data">↻</button> : null}
       {toolbarActions}
-    </div> : null}
+    </div>
 
     {filterChips.length ? <div className={styles.filterBar} aria-label="Active filters">
       {filterChips.map((chip) => <span className={styles.filterChip} key={chip.key}>

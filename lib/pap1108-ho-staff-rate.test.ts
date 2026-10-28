@@ -29,12 +29,15 @@ test("Rate BFF never issues a salary write before real HO staff-password authent
  assert.equal(denied.status,401);
  assert.equal(denied.headers.get("cache-control"),"no-store");
 });
-test("HO Staff details use common TDD shell and BO remains read-only",()=>{
- const detail=readFileSync("app/bo/components/registration/BoFullDetail.tsx","utf8");
- const component=readFileSync("app/ho/staff/HoStaffRateTab.tsx","utf8");
- assert.match(detail,/surface==="ho" && moduleKey==="staffs"/);
- assert.match(detail,/activeTab==="Rate lương"/);
- assert.match(component,/showToolbar=\{false\}/);
- assert.doesNotMatch(component,/localStorage|sessionStorage/);
- assert.match(component,/Ngày hiệu lực/);assert.match(component,/Ngày kết thúc/);assert.match(component,/Mức lương/);assert.match(component,/Lý do/);
+test("HO Staff Rate only consumes typed TDD provider; legacy salary shell is retired",()=>{
+ const schema=readFileSync("app/ho/staff/schema.ts","utf8");
+ const workspace=readFileSync("app/ho/staff/StaffTdd.tsx","utf8");
+ const provider=readFileSync("app/ho/staff/staff-rate-provider.ts","utf8");
+ assert.match(schema,/TddRegistry/);
+ assert.match(schema,/kind: "form"/);
+ assert.match(schema,/submitPermission: "staff.compensation.manage"/);
+ assert.match(workspace,/SurfaceWorkspace/);
+ assert.match(workspace,/businessForms=\{\[staffRateProvider\]\}/);
+ assert.match(provider,/\/api\/ho\/staff\//);
+ assert.doesNotMatch(provider,/localStorage|sessionStorage/);
 });

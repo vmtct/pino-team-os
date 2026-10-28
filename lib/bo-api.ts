@@ -517,7 +517,7 @@ export const boApi = {
   assignTraining: (body: { staffMemberId: string; moduleVersionId: string; dueDate?: string | null; reason: string }) => write<TrainingAssignmentDetail>("workforce/training/assignments", body, crypto.randomUUID()),
   signOffTraining: (assignmentId: string, note?: string | null) => write<TrainingAssignmentDetail>(`workforce/training/assignments/${encodeURIComponent(assignmentId)}/signoff`, { note: note ?? null }, crypto.randomUUID()),
   revokeTrainingQualification: (qualificationId: string, reason: string) => write<StaffQualification>(`workforce/training/qualifications/${encodeURIComponent(qualificationId)}/revoke`, { reason }, crypto.randomUUID()),
-  staffRecords: (fetcher:typeof fetch=fetch) => read<BoStaffRecord>("workforce/staff-records",fetcher),
+  staffRecords: () => read<BoStaffRecord>("workforce/staff-records"),
   staffRegistrationIntake: () => readOne<{ enabled: boolean; updatedAt: string | null; updatedByUserId: string | null; version: number }>("workforce/staff-registration-settings"),
   setStaffRegistrationIntake: (enabled: boolean) => write<{ enabled: boolean; updatedAt: string | null; updatedByUserId: string | null; version: number }>("workforce/staff-registration-settings", { enabled }, crypto.randomUUID()),
   staffRegistrationRequests: () => read<BoStaffRegistrationRequest>("workforce/staff-registration-requests"),
