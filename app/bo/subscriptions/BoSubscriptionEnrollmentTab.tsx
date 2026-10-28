@@ -6,7 +6,7 @@ import {BoDataGrid,BoDataGridCanonicalId,BoDataGridStatus,type BoDataGridColumn}
 import {useBoDialog} from "@/app/bo/components/registration/useBoDialog";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {subscriptionModule} from "@/app/bo/components/registration/BoStudentSubscriptionRelation";
-import {enrollmentStatus,todayInHouseTimeZone,isEligibleClass,type BoEnrollmentRecord,type BoEnrollmentPlacementState,type BoEnrollmentCapacity} from "@/lib/bo-enrollment-contract";
+import {enrollmentStatus,todayInHouseTimeZone,isEligibleClass,isActiveCenter,type BoEnrollmentRecord,type BoEnrollmentPlacementState,type BoEnrollmentCapacity} from "@/lib/bo-enrollment-contract";
 import styles from "./subscription-enrollment.module.css";
 type Ready={state:"ready";subscription:BoLearnerSubscription;enrollments:BoEnrollmentRecord[];placement:BoEnrollmentPlacementState;classes:BoRunningClass[];centers:BoCenter[]};
 type Load=Ready|{state:"loading"}|{state:"error"|"permission";message:string};
@@ -33,9 +33,9 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
  return()=>{fence.current++};},[subscriptionId,asOf,tick]);
  const ready=load.state==="ready"?load:null;
  const clsById=useMemo(()=>new Map(ready?.classes.map(c=>[c.id,c])??[]),[ready]);
- const authorizedCenters=ready?.centers.filter(c=>c.status==="ACTIVE").map(c=>c.id)??[];
+ const authorizedCenters=ready?.centers.filter(isActiveCenter).map(c=>c.id)??[];
  const historicalCenters=[...new Set(ready?.enrollments.map(e=>clsById.get(e.runningClassId)?.centerId).filter((id):id is string=>Boolean(id))??[])];
- const center=historicalCenters.length===1?historicalCenters[0]:authorizedCenters.length===1?authorizedCenters[0]:authorizedCenters.includes(selectedCenterId)?selectedCenterId:undefined;
+ const center=historicalCenters.length===1&&authorizedCenters.includes(historicalCenters[0])?historicalCenters[0]:authorizedCenters.length===1?authorizedCenters[0]:authorizedCenters.includes(selectedCenterId)?selectedCenterId:undefined;
  const available=ready?.classes.filter(c=>Boolean(center)&&authorizedCenters.includes(c.centerId??"")&&isEligibleClass(c,ready.subscription.pathProgramId,center))??[];
  const chosen=clsById.get(classId),flex=chosen?.deliveryTopology==="FLEXIBLE_STUDIO";
  const columns:readonly BoDataGridColumn<BoEnrollmentRecord>[]=useMemo(()=>[
@@ -113,7 +113,7 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
     </div>:null}
    </div>
    <div className={styles.buttons}>
-    {ready&&!center&&authorizedCenters.length>1?<label>Center <select className="edit-input" value={selectedCenterId} disabled={busy||!!pending} onChange={e=>setSelectedCenterId(e.target.value)}><option value="">Chọn Center</option>{ready.centers.filter(c=>c.status==="ACTIVE").map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>:null}
+    {ready&&!center&&authorizedCenters.length>1?<label>Center <select className="edit-input" value={selectedCenterId} disabled={busy||!!pending} onChange={e=>setSelectedCenterId(e.target.value)}><option value="">Chọn Center</option>{ready.centers.filter(isActiveCenter).map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>:null}
     <button className="primary-btn" type="button" disabled={!ready||!center||busy||!!pending||!["DRAFT","ACTIVE"].includes(ready.subscription.lifecycle)||ready.placement.effectiveEnrollmentCount>=ready.placement.weeklySessionCommitment} onClick={()=>open("attach")}>＋ Gắn lớp</button>
    </div>
   </div>
