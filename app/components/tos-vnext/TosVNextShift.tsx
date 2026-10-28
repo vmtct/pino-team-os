@@ -1,5 +1,5 @@
 "use client";
-/** PAP-941: V4 rendering with authenticated read models. All business writes remain blocked. */
+/** PAP-941/PAP-1136: Core-backed shift reads; only verified Staff Availability writes are enabled. Other write gates remain. */
 import {useEffect,useRef,useState} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCalendarDays,faClock,faWallet,faCircleCheck,faLocationDot} from "@fortawesome/free-solid-svg-icons";
@@ -8,6 +8,7 @@ import {workforceApi,type Assignment,type TimekeepingSession} from "@/lib/workfo
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 import type {TosVNextShiftReadWarnings} from "./core-adapters";
 import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
+import {TosVNextAvailability} from "./TosVNextAvailability";
 import styles from "./shift.module.css";
 const slot=createSlotKeys(styles);
 export type ShiftReadData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
@@ -83,7 +84,7 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
      {!weekReady&&!weekFailed&&<p role="status">Đang tải lịch ca từ Core…</p>}
      {weekReady&&assignments.map(row=><div key={row.id}><p><strong>{assignmentHours(row)}</strong> · {centerName}</p><p>{shiftRoleLabel(row)}</p><small>{row.status}</small></div>)}
      {weekReady&&!assignments.length&&<p>Chưa có ca được phân công cho ngày này.</p>}
-     <button type="button" className={styles.primary} disabled title="Đăng ký ca cần API và chính sách được xác minh">Đăng ký ca</button>
+     <TosVNextAvailability key={centerId+":"+weekStart} centerId={centerId} weekStart={weekStart} weekEnd={weekEnd} selectedDate={selected}/>
     </AppCard><AppCard className={styles.card}><h3>Quy trình đăng ký</h3><p>Nhân viên đăng ký thời gian có thể làm. Vai trò trong ca do quản lý phân công sau.</p></AppCard>
    </>}
    {tab==="hours"&&<>
