@@ -10,6 +10,7 @@ import { latestRequest } from "./resource";
 import type { TablePolicy } from "./TablePolicy";
 import { dispatchCellEdit } from "./editing";
 import { PropertyEditor } from "./Editor";
+import { normalizeFreezeBoundary } from "@/lib/tdd-column-freeze";
 
 export type SavedTddView<F extends readonly FieldSchema[]> = { readonly id: string; readonly name: string; readonly state: TableQuery<F>; readonly version?: string };
 /** A valid typed view may be inexpressible in the legacy UI. Isolate each failure. */
@@ -85,7 +86,8 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
     viewActions: schema.table.views.actions,
   };
   const update = (patch: Partial<BoTableState>) => {
-    const next = { ...state, ...patch };
+    const requested = { ...state, ...patch };
+    const next = { ...requested, frozenThrough: normalizeFreezeBoundary(requested.frozenThrough, requested.order, requested.visible) };
     try {
       const typed = fromLegacyTableState(schema, next, context, 1);
       if (schema.table.interaction.undo === "local-ui-only") { setUndo(items => [...items.slice(-19), { table: state, views: localViews, active }]); setFuture([]); }
@@ -126,10 +128,13 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
         if (schema.table.interaction.undo === "local-ui-only") { setUndo(items => [...items.slice(-19), { table: state, views: localViews, active }]); setFuture([]); }
         setLocalViews(next);
       }
-      else persistViews(mergeSavedViews(schema, context, externalViews, views, next));
+      else {
+        if (next.some(view => view.state.frozenThrough)) { setMessage("Core Shared Views chưa hỗ trợ lưu cấu hình cố định cột. Bỏ cố định trước khi lưu."); return; }
+        persistViews(mergeSavedViews(schema, context, externalViews, views, next));
+      }
     } catch { setMessage("Không thể lưu Quick View không hợp lệ."); }
   };
-  const initial: BoTableState = { ...state, search: "", rules: [], sort: "", desc: false, group: "", collapsed: [], hiddenGroups: [], hideEmpty: true, groupDesc: false, order: schema.table.columns.map(c => c.field), visible: schema.table.columns.filter(c => c.visible).map(c => c.field), pageSize: schema.table.pagination.defaultSize };
+  const initial: BoTableState = { ...state, search: "", rules: [], sort: "", desc: false, group: "", collapsed: [], hiddenGroups: [], hideEmpty: true, groupDesc: false, order: schema.table.columns.map(c => c.field), visible: schema.table.columns.filter(c => c.visible).map(c => c.field), pageSize: schema.table.pagination.defaultSize, frozenThrough: null };
   const restore = (redo: boolean) => {
     const previous = (redo ? future : undo).at(-1); if (!previous) return;
     try {
@@ -152,7 +157,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
         if (!field || !version.trim()) { setMessage("Tải lại phiên bản bản ghi trước khi chỉnh sửa."); return; }
         setEdit({ record, field, anchor, version });
       }); } : undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
-      onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal
+      onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
       views={views} changeViews={changeViews} activeView={active} applyView={view => { if (view && !schema.table.views.actions.includes("apply")) return; update(view?.state ?? initial); setActive(view?.id ?? null); }}
       reset={() => update(initial)} undo={() => restore(false)} canUndo={undo.length > 0}
       builtInViews={schema.table.views.builtIn.map(view => <button type="button" className={"view-tab " + (active === view.id ? "active" : "")} key={view.id} onClick={() => { try { toLegacyTableState(schema, view.state, context); onQueryChange(view.state); setActive(view.id); } catch { setMessage("Không có quyền áp dụng Quick View."); } }}>{view.label}</button>)} />

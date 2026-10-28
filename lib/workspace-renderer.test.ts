@@ -22,7 +22,7 @@ import { registeredTableRows } from "../app/components/workspace-renderer/tableR
 import { BoTableSettings } from "../app/bo/components/registration/BoTableSettings";
 import { BoFullDetail as RegistrationDetail } from "../app/bo/components/registration/BoFullDetail";
 import { BoQuickView } from "../app/bo/components/registration/BoQuickView";
-import { FIELD_TYPES, TddRegistry, toLegacyModule, toLegacyTableState, type AuthorizationContext, type FieldSchema, type ModuleSchema, type TableQuery } from "./workspace-schema";
+import { FIELD_TYPES, TddRegistry, validateQuery, fromLegacyTableState, toLegacyModule, toLegacyTableState, type AuthorizationContext, type FieldSchema, type ModuleSchema, type TableQuery } from "./workspace-schema";
 
 const caps = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 /** Test-only modules; no public fixture route, API call, persistence or fake live audit. */
@@ -348,4 +348,19 @@ test("Drawer stage preserves its same-scope Table background and rejects another
   const out = html(h(TddRenderer, { view: { kind: "drawer", props, table } }));
   assert.equal((out.match(/id="typed-table"/g) ?? []).length, 1); assert.equal((out.match(/data-tdd-shell="drawer"/g) ?? []).length, 1);
   assert.throws(() => html(h(TddRenderer, { view: { kind: "drawer", props, table: { ...table, context: { surface: "BO", centerId: "other", authorize: () => true } } } })), /scope mismatch/);
+});
+
+
+test("PAP-1105: typed freeze survives legacy Table and keeps protected identity", () => {
+  const f = fixture("BO");
+  const query = { ...f.query, frozenThrough: "count" };
+  const converted = toLegacyTableState(f.schema, query, f.context);
+  assert.equal(converted.frozenThrough, "count");
+  assert.equal(fromLegacyTableState(f.schema, converted, f.context).frozenThrough, "count");
+  const out = html(h(TddTable, { ...f, query, rows: [f.record], status: "ready", onQueryChange: noop, onOpen: noop }));
+  assert.match(out, /Tùy chọn cố định cột Số lượng/);
+  assert.doesNotMatch(out, /Tùy chọn cố định cột Tên/);
+  assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "unknown" }, f.context), /freeze boundary/);
+  assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "name" }, f.context), /freeze boundary/);
+  assert.throws(() => validateQuery(f.schema, { ...query, visible: ["name", "id"], frozenThrough: "count" }, f.context), /freeze boundary/);
 });
