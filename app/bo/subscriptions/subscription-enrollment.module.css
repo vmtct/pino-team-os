@@ -10,3 +10,10 @@
 .buttons{display:flex;gap:8px;flex-wrap:wrap}
 .alert{font-size:12px;color:var(--bo-v23-color-danger,#a93d3d);padding:10px;border:1px solid var(--bo-v23-color-border,#e6e4e9);border-radius:8px}
 @media(max-width:600px){.heading{display:grid}.buttons{gap:5px}.buttons button{font-size:11px}}
+
+/* PAP-1104: domain consumer composition; shared BO DS remains authoritative. */
+.count{font-size:12px;font-weight:600;color:var(--bo-v23-color-muted,#73717b);margin-left:8px}
+.classIdentity{display:flex;flex-direction:column;gap:4px;min-width:0}
+.classIdentity strong{font-size:12px;overflow-wrap:anywhere}
+.classIdentity small{font-size:11px;color:var(--bo-v23-color-muted,#73717b);overflow-wrap:anywhere}
+@media(max-width:600px){.buttons{width:100%}.buttons button{flex:1}}
