@@ -171,7 +171,11 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
     switch (slot.kind) {
       case "field-group": object(slot, [...base, "sections"]); sections(slot.sections); break;
       case "relation-grid": case "data-grid": object(slot, [...base, "relatedModule"]); nonempty(slot.relatedModule); break;
-      case "form": object(slot, [...base, "fields", "submitPermission"]); refs(slot.fields); nonempty(slot.submitPermission); check(Boolean(m.capabilities.edit), "form requires edit binding"); break;
+      case "form":
+        object(slot, [...base, "fields", "submitPermission"]);
+        array(slot.fields); check(slot.fields.length > 0 && slot.fields.length <= 12, "bounded business form fields required"); unique(slot.fields);
+        slot.fields.forEach(k => check(typeof k === "string" && /^[A-Za-z][A-Za-z0-9_:-]{0,63}$/.test(k), "invalid business form field key"));
+        nonempty(slot.submitPermission); check(slot.submitPermission !== slot.source.permission, "form read and submit permissions must be distinct"); break;
       case "timeline": object(slot, [...base, "dateField"]); check(m.fields.some(f => f.key === slot.dateField && ["date", "datetime"].includes(f.type)), "timeline requires date field"); break;
       case "media": case "metric-cards": object(slot, [...base, "fields"]); refs(slot.fields); break;
       case "audit-events": object(slot, [...base, "subjectType"]); nonempty(slot.subjectType); break;

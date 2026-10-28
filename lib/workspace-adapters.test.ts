@@ -167,6 +167,16 @@ test("HO Founder admission remains a server requirement even with every schema p
   const writable = { ...provider("HO"), mutation: () => ({ update: async () => ({ status: "denied" as const }) }) };
   await assert.rejects(setup("HO", definition("HO", true), writable), fails(403));
 });
+for (const surface of ["BO", "HO"] as const) test(`${surface}: independent business form admission never enables generic record mutation`, async () => {
+  const base = definition(surface);
+  const form = { ...base, detail: { ...base.detail, businessTabs: [{ id: "rate", label: "Rate", kind: "form" as const, fields: ["count"] as const, source: { adapter: "salary.rate", permission: "rate.read" }, submitPermission: "rate.submit" }] } };
+  const { adapter } = await setup(surface, form);
+  assert.equal(adapter.schema.capabilities.edit, undefined);
+  assert.equal(adapter.schema.detail.businessTabs[0].kind, "form");
+  assert.equal(adapter.mutation, undefined);
+  const defectiveMutation = { ...provider(surface), mutation: () => ({ update: async () => ({ status: "denied" as const }) }) };
+  await assert.rejects(setup(surface, form, defectiveMutation), fails(403));
+});
 test("Malformed identity/scope/count responses fail closed without an alternate provider", async () => {
   const bad = await setup("BO", definition("BO"), { ...provider("BO"), detail: async () => ({ row: { ...row, id: other }, centerId: center }) });
   await assert.rejects(bad.adapter.detail(recordId, signal()), fails(502));

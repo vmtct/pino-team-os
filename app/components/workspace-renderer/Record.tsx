@@ -6,7 +6,7 @@ import { DetailFrame } from "./DetailFrame";
 import { DrawerFrame } from "./DrawerFrame";
 import { PropertySections } from "./Properties";
 import { TddHistory } from "./History";
-import { BusinessPanel, type SlotLoaders } from "./Slots";
+import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLoaders } from "./Slots";
 import { recordProjection, renderScope } from "./projection";
 import { PropertyEditor, type TddWrites } from "./Editor";
 import { latestRequest } from "./resource";
@@ -48,12 +48,12 @@ function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: inpu
     {actionState === "error" ? <p role="alert">Không thể thực hiện thao tác. Thử lại sau.</p> : actionState === "pending" ? <p role="status">Đang thực hiện…</p> : null}
   </DrawerFrame>{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }
-export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const schema = registeredSchema(props.registry, props.schema);
   if (!allows(schema, props.context, "read")) return <RecordState status="denied" />;
   return <DetailRecord key={renderScope(schema, props.context, props.record.id)} {...props} schema={schema} />;
 }
-function DetailRecord({ schema, context, record, status = "ready", onRetry, onBack, subject, mobileMenu, loaders, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<readonly FieldSchema[]>, "registry"> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+function DetailRecord({ schema, context, record, status = "ready", onRetry, onBack, subject, mobileMenu, loaders, businessForms, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<readonly FieldSchema[]>, "registry"> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const [selected, setSelected] = useState("overview");
   const projection = status === "ready" ? recordProjection(schema, context, record) : null;
   const tabs = authorizedTabs(schema, context);
@@ -64,6 +64,8 @@ function DetailRecord({ schema, context, record, status = "ready", onRetry, onBa
     {!projection ? <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />
       : active?.id === "overview" ? <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} />
       : active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} />
-      : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? <BusinessPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /> : null}
+      : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
+        ? <BusinessFormPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} binding={businessForms} />
+        : <BusinessPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /> : null}
   </DetailFrame>;
 }
