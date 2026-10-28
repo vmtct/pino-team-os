@@ -14,6 +14,7 @@ export const BO_TARGET_ROUTES = [
   { key: "workforce-availability", path: "/bo/workforce-availability", tabs: ["overview", "history"] },
   { key: "workforce-assignments", path: "/bo/workforce-assignments", tabs: ["overview", "history"] },
   { key: "payroll-periods", path: "/bo/payroll-periods", tabs: ["overview", "history"] },
+  { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";
