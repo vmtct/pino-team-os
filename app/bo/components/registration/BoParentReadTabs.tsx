@@ -1,6 +1,7 @@
 "use client";
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import { BoValue } from "./BoValue";
+import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import type { BoDataGridColumn } from "../data-grid/BoDataGrid";
 const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../data-grid/BoDataGrid").BoDataGrid;
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
@@ -60,7 +61,7 @@ export function BoParentReadTabs({ module, record, fullDetail = false }: { modul
     const next=event.key==="Home"?0:event.key==="End"?tabs.length-1:(index+(event.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;
     setTab(tabs[next]);event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
   }
-  const overview=<div className="v24-prop-grid">{module.fields.map(field=><div className="v24-prop-item" key={field.key}>
+  const overview=!fullDetail ? <PropertySections variant="drawer" fields={module.fields} record={record} sections={[{id:"overview",label:"Thông tin chính",fields:module.fields.map(field=>field.key)}]} /> : <div className="v24-prop-grid">{module.fields.map(field=><div className="v24-prop-item" key={field.key}>
     <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
     <div className="v24-prop-value readonly" aria-label={"Chỉ đọc "+field.label}><BoValue field={field} value={record[field.key]} full /></div>
   </div>)}</div>;

@@ -5,6 +5,8 @@ import {
   BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek,
   type BoDataGridColumn,
 } from "@/app/bo/components/data-grid";
+import { TddRenderer, type TddStage } from "@/app/components/workspace-renderer/Renderer";
+import type { FieldSchema } from "@/lib/workspace-schema";
 import { requireBoModule } from "./registry";
 import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
 
@@ -25,7 +27,14 @@ function displayValue(value: unknown): string {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
   return "—";
 }
-export function BoModuleFactory({ moduleKey, adapter, publicViewRuntime }: { moduleKey: string; adapter: BoModuleReadAdapter; publicViewRuntime?: BoPublicViewRuntime }) {
+export function BoModuleFactory<F extends readonly FieldSchema[] = readonly FieldSchema[]>({ tdd, ...props }: { moduleKey: string; adapter: BoModuleReadAdapter; publicViewRuntime?: BoPublicViewRuntime; tdd?: TddStage<F> }) {
+  if (tdd) {
+    if (tdd.props.schema.key !== props.moduleKey || tdd.props.schema.surface !== "BO") throw Error("TDD Factory adapter mismatch");
+    return <TddRenderer view={tdd} />;
+  }
+  return <LegacyBoModuleFactory {...props} />;
+}
+function LegacyBoModuleFactory({ moduleKey, adapter, publicViewRuntime }: { moduleKey: string; adapter: BoModuleReadAdapter; publicViewRuntime?: BoPublicViewRuntime }) {
   // Deny an unknown entrypoint BEFORE issuing a domain read.
   const definition=requireBoModule(moduleKey);
   const [rows,setRows]=useState<readonly Record<string,unknown>[]>([]);

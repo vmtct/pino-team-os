@@ -4,6 +4,8 @@ import { boApi } from "@/lib/bo-api";
 import { hoRoutes, hoModules, mapHoCenters, mapHoUsers, mapHoRoleDirectory, type HoModule } from "@/lib/ho-system";
 import { HO_A1_KEYS,loadHoA1,loadHoA1Detail,type HoA1Module } from "@/lib/ho-a1";
 import type { ReactNode } from "react";
+import type { TddStage } from "@/app/components/workspace-renderer/Renderer";
+import type { FieldSchema } from "@/lib/workspace-schema";
 const source: BoWorkspaceSource = {
  modules:hoModules, surface:"ho",readOnly:true,
  routeForModule:key=>hoRoutes[key as HoModule] ?? hoRoutes.centers,
@@ -27,6 +29,6 @@ const source: BoWorkspaceSource = {
   return record;
  },
 };
-export function HoWorkspace({module,content}:{module:HoModule;content?:ReactNode}) {
- return <BoRegistrationWorkspace source={source} moduleKey={module} currentUser={{displayName:null}} content={content}/>;
+export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSchema[]>({module,content,tdd}:{module:HoModule;content?:ReactNode;tdd?:TddStage<F>}) {
+ return <BoRegistrationWorkspace source={source} moduleKey={module} currentUser={{displayName:null}} content={content} tdd={tdd}/>;
 }

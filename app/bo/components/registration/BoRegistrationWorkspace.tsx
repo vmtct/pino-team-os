@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { hoRecordId } from "@/lib/ho-routes";
 import type { BoModule } from "@/lib/bo-registration";
+import { TddRenderer, type TddStage } from "@/app/components/workspace-renderer/Renderer";
+import type { FieldSchema } from "@/lib/workspace-schema";
 import readApi from "@/public/bo-authority-source/school-adapters.js";
 import { defaultTable, norm, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import { BoCenterSwitcher } from "./BoCenterSwitcher";
@@ -20,9 +22,11 @@ type WorkspaceSnapshot = { table: BoTableState; views: BoSavedView[]; activeView
 type Context = { displayName: string | null };
 const icons: Record<string, string> = { students: "◉", classes: "▦", subscriptions: "▤", enrollments: "↗", visits: "◷", staffs: "◉", termWeeks: "▦", timekeeping: "◷", salaryPeriods: "▤", worlds: "◈", catalog: "▦", sets: "▤", users: "◉", roles: "▣", audits: "≡" };
 /** One React owner for every live /bo table, drawer and detail. No prototype JS executes. */
-export function BoRegistrationWorkspace({ currentUser, moduleKey = "students", options = {}, source = readApi, content, headerContent }: { source?: BoWorkspaceSource; currentUser: Context; moduleKey?: string; options?: Record<string, string>; content?: React.ReactNode; headerContent?: React.ReactNode }) {
+export function BoRegistrationWorkspace<F extends readonly FieldSchema[] = readonly FieldSchema[]>({ currentUser, moduleKey = "students", options = {}, source = readApi, content, headerContent, tdd }: { tdd?: TddStage<F>; source?: BoWorkspaceSource; currentUser: Context; moduleKey?: string; options?: Record<string, string>; content?: React.ReactNode; headerContent?: React.ReactNode }) {
+  if (tdd && (tdd.props.schema.key !== moduleKey || !Object.hasOwn(source.modules, moduleKey) || tdd.props.schema.surface !== (source.surface === "ho" ? "HO" : "BO"))) throw Error("TDD workspace adapter mismatch");
+  if (tdd && (source.readOnly || source.isModuleReadOnly?.(moduleKey)) && (tdd.props.schema.capabilities.edit || tdd.props.schema.capabilities.create)) throw Error("Read-only workspace cannot admit write capabilities");
   const key = Object.hasOwn(source.modules, moduleKey) ? moduleKey : "students";
-  return <BoWorkspace source={source} key={key + JSON.stringify(options)} moduleKey={key} options={options} currentUser={currentUser} content={content} headerContent={headerContent} />;
+  return <BoWorkspace source={source} key={key + JSON.stringify(options)} moduleKey={key} options={options} currentUser={currentUser} content={tdd ? <TddRenderer view={tdd} /> : content} headerContent={headerContent} />;
 }
 function BoWorkspace({ moduleKey, options, currentUser, source, content, headerContent }: { source: BoWorkspaceSource; moduleKey: string; options: Record<string, string>; currentUser: Context; content?: React.ReactNode; headerContent?: React.ReactNode }) {
   const ho = source.surface === "ho";
