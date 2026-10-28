@@ -18,6 +18,26 @@ test("Classes uses current bootstrap read and maps actual labels/status without 
  const calls:string[]=[];const rows=await load("classes",async(url:string,init:RequestInit)=>{calls.push(url);assert.equal(init.method,"GET");return ok({paths:[{id:id(1),displayName:"Art"}],centers:[{id:id(2),displayName:"Test Center"}],runningClasses:[{id:id(3),pathProgramId:id(1),centerId:id(2),operationalName:"Class",weekdayIso:1,windowStartsLocal:"18:00",windowEndsLocal:"19:30",optimalConcurrentCapacity:3,deliveryTopology:"FIXED_COHORT",status:"ARCHIVED"}]});});
  assert.deepEqual(calls,["/api/bo/delivery/bootstrap-state"]);assert.equal(rows[0].status,"ARCHIVED");assert.equal(rows[0].path,"Art");
 });
+test("Running Classes retries only a single Core-authorized Center after global denial",async()=>{
+ const centerId=id(2),calls:string[]=[];
+ const rows=await load("classes",async(url:string)=>{
+  calls.push(url);
+  if(url==="/api/bo/delivery/bootstrap-state")return new Response(null,{status:403});
+  if(url==="/api/bo/workforce/planning/bootstrap")return ok({centers:[{id:centerId,status:"active"}]});
+  assert.equal(url,"/api/bo/delivery/bootstrap-state?centerId="+centerId);
+  return ok({paths:[{id:id(1),displayName:"Art"}],centers:[{id:centerId,displayName:"Cần Thơ"}],runningClasses:[{id:id(3),centerId,pathProgramId:id(1),operationalName:"Class A",weekdayIso:2,windowStartsLocal:"18:00",windowEndsLocal:"19:30",optimalConcurrentCapacity:4,deliveryTopology:"FLEXIBLE",status:"ACTIVE"}]});
+ });
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].center,"Cần Thơ");
+ assert.deepEqual(calls,["/api/bo/delivery/bootstrap-state","/api/bo/workforce/planning/bootstrap","/api/bo/delivery/bootstrap-state?centerId="+centerId]);
+ let scopedRead=false;
+ await assert.rejects(load("classes",async(url:string)=>{
+  if(url==="/api/bo/delivery/bootstrap-state")return new Response(null,{status:403});
+  if(url==="/api/bo/workforce/planning/bootstrap")return ok({centers:[{id:centerId,status:"active"},{id:id(4),status:"active"}]});
+  scopedRead=true;throw Error("Should not select a Center");
+ }),/quyền/);
+ assert.equal(scopedRead,false);
+});
 test("Subscription cursor pagination and Enrollment IDs remain canonical; no mutation calls",async()=>{
  let count=0;const rows=await load("subscriptions",async(url:string,init:RequestInit)=>{assert.equal(init.method,"GET");count++;if(count===2)assert.match(url,/beforeSubscriptionId=/);return ok({items:[{id:id(count),studentDisplayName:"Student",pathDisplayName:"Art",lifecycle:"ACTIVE"}],nextCursor:count===1?{createdAt:"2026-10-25T00:00:00Z",id:id(1)}:null});});assert.equal(rows.length,2);
  const e=await load("enrollments",async(url:string)=>{assert.match(url,/\/school\/enrollments/);return ok({items:[{id:id(3),subscriptionId:id(1),runningClassId:id(2),studentDisplayName:"Student",runningClassName:"Class",pathDisplayName:"Art"}],nextCursor:null});});assert.equal(e[0].subscriptionId,id(1));
