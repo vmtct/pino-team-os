@@ -8,6 +8,7 @@ on:
       - ".github/workflows/tdd-g3-geometry.yml"
       - "e2e/tdd-g3-geometry.spec.ts"
       - "scripts/render-tdd-g3-fixtures.tsx"
+      - "scripts/verify-tdd-g3-artifacts.mjs"
       - "app/components/workspace-renderer/**"
       - "lib/workspace-schema/**"
       - "public/bo-authority-source/styles.css"
@@ -37,13 +38,13 @@ jobs:
         run: npm run tdd:g3:test
         env:
           CI: "true"
-      - name: Retain PNG, DOM metrics, traces and HTML review report
+      - name: Require complete screenshot and DOM geometry evidence
+        run: node scripts/verify-tdd-g3-artifacts.mjs
+      - name: Retain real PNG and DOM metrics, even when Playwright fails
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pap1073-g3-geometry
-          path: |
-            test-results/
-            playwright-report/
+          path: artifacts/pap1073-g3/
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error

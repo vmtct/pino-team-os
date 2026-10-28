@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -75,17 +75,22 @@ for (const surface of ["BO", "HO"] as const) {
     test(`PAP-1073 ${surface} measured TDD geometry at ${width}px`, async ({ page }, info: TestInfo) => {
       await page.setViewportSize({ width, height: 900 });
       const measured: Record<Stage, Geometry> = {} as Record<Stage, Geometry>;
+      // Playwright clears successful test outputs: durable review evidence belongs outside test-results.
+      const evidenceDir = resolve("artifacts/pap1073-g3", surface.toLowerCase(), String(width));
+      mkdirSync(evidenceDir, { recursive: true });
       for (const stage of ["table", "drawer", "detail"] as const) {
         await page.setContent(fixture(surface, stage), { waitUntil: "load" });
         await expect(page.locator(`[data-tdd-shell="${stage}"]`)).toBeVisible();
         const value = await measure(page, stage);
         measured[stage] = value;
-        await info.attach(`pap1073-${surface.toLowerCase()}-${width}-${stage}.png`, { body: await page.screenshot(), contentType: "image/png" });
+        const screenshotPath = resolve(evidenceDir, `${stage}.png`);
+        await page.screenshot({ path: screenshotPath });
+        await info.attach(`pap1073-${surface.toLowerCase()}-${width}-${stage}.png`, { path: screenshotPath, contentType: "image/png" });
         expect(issues(value, stage), JSON.stringify({ surface, width, stage, value }, null, 2)).toEqual([]);
       }
-      await info.attach(`pap1073-${surface.toLowerCase()}-${width}-geometry.json`, {
-        body: Buffer.from(JSON.stringify({ surface, width, stages: measured }, null, 2)), contentType: "application/json",
-      });
+      const metricsPath = resolve(evidenceDir, "geometry.json");
+      writeFileSync(metricsPath, JSON.stringify({ surface, width, stages: measured }, null, 2) + "\n", "utf8");
+      await info.attach(`pap1073-${surface.toLowerCase()}-${width}-geometry.json`, { path: metricsPath, contentType: "application/json" });
     });
   }
 }
