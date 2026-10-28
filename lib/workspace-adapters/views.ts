@@ -14,7 +14,8 @@ export function toSharedConfig<F extends readonly FieldSchema[]>(schema: ModuleS
       const operator = toService[rule.op]; if (!operator) throw Error("Shared View cannot represent this filter operator");
       return { field: rule.field, operator, ...("value" in rule ? { value: rule.value } : {}), ...("second" in rule ? { end: rule.second } : {}) };
     }), groupBy: query.group?.field ?? null, hideEmptyGroups: query.group?.hideEmpty ?? true,
-    columns: { order: [...query.order], visible: [...query.visible] } }, schema.fields.map(f => f.key));
+    columns: { order: [...query.order], visible: [...query.visible],
+      ...(query.frozenThrough !== undefined ? { frozenThrough: query.frozenThrough } : {}) } }, schema.fields.map(f => f.key));
 }
 export function fromSharedConfig<F extends readonly FieldSchema[]>(schema: ModuleSchema<F>, config: BoViewConfig): TableQuery<F> {
   const valid = validateBoViewConfig(config, schema.fields.map(f => f.key));
@@ -23,7 +24,9 @@ export function fromSharedConfig<F extends readonly FieldSchema[]>(schema: Modul
       const op = fromService[rule.operator]; if (!op) throw Error("Shared View has an incompatible filter operator");
       return { field: rule.field, op, ...(rule.value !== undefined ? { value: rule.value } : {}), ...(rule.end !== undefined ? { second: rule.end } : {}) };
     }) }, group: valid.groupBy ? { field: valid.groupBy, direction: "asc", collapsed: [], hidden: [], hideEmpty: valid.hideEmptyGroups } : null,
-    order: valid.columns.order, visible: valid.columns.visible, page: 1, pageSize: schema.table.pagination.defaultSize };
+    order: valid.columns.order, visible: valid.columns.visible,
+    ...(valid.columns.frozenThrough !== undefined ? { frozenThrough: valid.columns.frozenThrough } : {}),
+    page: 1, pageSize: schema.table.pagination.defaultSize };
   validateQuery(schema, query); return query;
 }
 type Guard = <T>(action: (signal: AbortSignal) => Promise<T>, signal: AbortSignal, check?: () => void) => Promise<T>;
@@ -48,7 +51,7 @@ export async function sharedViews<F extends readonly FieldSchema[]>(schema: Modu
   };
   const initial = project(source);
   let busy = false;
-  return { unavailable: initial.unavailable, transport: { views: initial.views, write: async (next, context, signal) => {
+  return { unavailable: initial.unavailable, transport: { freezePersistence: "bo-shared", views: initial.views, write: async (next, context, signal) => {
     if (context !== session.context || busy) throw adapterError(409);
     const checkWrite = () => { check(); if (!allows(schema, context, "manageSharedViews")) throw adapterError(403); };
     checkWrite(); busy = true;

@@ -19,7 +19,9 @@ export function scopeAuthority(css) {
 const base = 'public/bo-authority-source/';
 const manifest = JSON.parse(readFileSync(base + 'manifest.json', 'utf8'));
 for (const [file, digest] of Object.entries(manifest.files)) assert.equal(createHash('sha256').update(readFileSync(base + file)).digest('hex'), digest, file);
-const css = scopeAuthority(readFileSync(base + 'styles.css', 'utf8'));
+// The historical BO authority is hash-pinned. Append separately-reviewed shared TDD CSS.
+const css = scopeAuthority(readFileSync(base + 'styles.css', 'utf8')) + '\n' +
+  scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-freeze.css', 'utf8'));
 if (process.argv.includes('--check')) assert.equal(readFileSync(base + 'bo-scoped.css', 'utf8'), css);
 else writeFileSync(base + 'bo-scoped.css', css);
 console.log('PAP-1022 authority bytes and deterministic BO scope verified');

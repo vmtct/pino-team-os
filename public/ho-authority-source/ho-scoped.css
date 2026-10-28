@@ -607,3 +607,62 @@
 [data-surface="ho"] .ho-audit-details dd { margin:0; }
 [data-surface="ho"] .ho-audit-note { color:#777; font-size:12px; }
 
+
+/* Shared TDD opt-in Freeze Column; single HO host-scope output */
+/* PAP-1105: shared opt-in TDD Table Freeze primitive; BO/HO host authority untouched. */
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table th[data-tdd-freeze-cell],
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table td[data-tdd-freeze-cell] {
+  position: sticky !important;
+  left: var(--tdd-freeze-left) !important;
+  box-shadow: 1px 0 0 var(--bo-palette-neutral-20, #e6e0e3);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table th[data-tdd-freeze-cell] {
+  z-index: var(--bo-z-table-identity, 6);
+  background: var(--bo-color-table-heading, #f8f8fa);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table td[data-tdd-freeze-cell] {
+  z-index: var(--bo-z-table-cell, 3);
+  background: var(--bo-color-surface, #fff);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table tr:hover td[data-tdd-freeze-cell] {
+  background: var(--bo-color-row-hover, #f5f3f5);
+}
+:where(html[data-surface="ho"]) [data-freeze-trigger] {
+  cursor: pointer;
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-menu] {
+  position: fixed;
+  z-index: 10000;
+  min-width: 205px;
+  padding: 5px;
+  border: 1px solid var(--bo-palette-neutral-20, #e6e0e3);
+  border-radius: 7px;
+  background: var(--bo-color-surface, #fff);
+  box-shadow: 0 8px 20px #0002;
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"] {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"]:hover,
+:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"]:focus-visible {
+  background: var(--bo-color-row-hover, #f5f3f5);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"]:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-notice] {
+  margin: 7px 10px;
+  font-size: 12px;
+  color: var(--bo-color-text-muted, #7d7079);
+}
+

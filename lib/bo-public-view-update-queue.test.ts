@@ -233,3 +233,14 @@ test("UI acknowledgment observer error never retries a Core-committed write", as
   assert.deepEqual(observed,["render observer crash"]);
   q.dispose();
 });
+
+for (const frozenThrough of [undefined, null, "status"] as const) test(`PAP-1105 queue preserves freeze ${String(frozenThrough)}`, async () => {
+  const sent: BoViewUpdateIntent[] = [];
+  const q = new BoPublicViewUpdateQueue({moduleKey:"subscriptions",allowedFields:fields,debounceMs:1000,send:async c=>{sent.push(c);return response(c);}});
+  const next = command("v1","Freeze");
+  if (frozenThrough !== undefined) next.config.columns.frozenThrough = frozenThrough;
+  q.enqueue(next); await q.flush();
+  assert.deepEqual(sent[0].config.columns,next.config.columns);
+  assert.equal(Object.hasOwn(sent[0].config.columns,"frozenThrough"),frozenThrough !== undefined);
+  q.dispose();
+});

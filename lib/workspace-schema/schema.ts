@@ -33,6 +33,8 @@ export type TableQuery<F extends readonly FieldSchema[]> = {
   readonly order: readonly FieldKey<F>[];
   readonly visible: readonly FieldKey<F>[];
   readonly page: number;
+  /** Optional frozen boundary; protected Identity and Quick View opener stay pinned. */
+  readonly frozenThrough?: FieldKey<F> | null;
   readonly pageSize: 8 | 15 | 30;
 };
 export type TableSchema<F extends readonly FieldSchema[]> = {
