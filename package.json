@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
     "test:e2e": "playwright test",
+    "tdd:g3:fixtures": "node --import tsx scripts/render-tdd-g3-fixtures.tsx",
+    "tdd:g3:test": "playwright test e2e/tdd-g3-geometry.spec.ts --workers=2 --reporter=list",
     "bo:contract:check": "node scripts/verify-bo-module-contract.mjs && node --test scripts/verify-bo-module-contract.test.mjs && node scripts/verify-bo-runtime-surface-ownership.mjs && node --test scripts/verify-bo-runtime-surface-ownership.test.mjs",
     "bo:module:new": "node scripts/create-bo-module.mjs",
     "delivery:enter": "node scripts/delivery-entry.mjs",
