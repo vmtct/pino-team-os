@@ -9,14 +9,14 @@ import type { HoEnv } from "./ho-auth";
 const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";
 const host=HO_STAGING_HOSTNAME;
 const paths=["/api/bo/access/users","/api/bo/access/roles",`/api/bo/access/roles/${id}`,"/api/bo/access/permissions","/api/bo/access/audit"];
-test("HO allows only three exact privileged read scopes, not any write or neighboring surface",()=>{
- for(const p of ["/ho/centers","/ho/system/users","/ho/system/roles","/ho/system/audit",...paths]){
+test("HO admits registered read-only Staff and system scopes while denying writes and neighboring routes",()=>{
+ for(const p of ["/ho/centers","/ho/staff","/ho/system/users","/ho/system/roles","/ho/system/audit",...paths,"/api/bo/workforce/staff-records"]){
   assert.equal(decideHostBoundary(host,p,"GET").action,"next",p);
   assert.equal(decideHostBoundary(host,p,"HEAD").action,p.startsWith("/api/")?"not_found":"next",p);
   for(const method of ["POST","PUT","PATCH","DELETE","OPTIONS"]) assert.equal(decideHostBoundary(host,p,method).action,"not_found",method+p);
  }
  for(const p of ["/api/bo/access/assignments","/api/bo/access/users/status",`/api/bo/access/roles/${id}/archive`,
-  `/api/bo/access/roles/${id}/update`,"/api/bo/access/support-sessions","/api/bo/workforce/staff-records",
+  `/api/bo/access/roles/${id}/update`,"/api/bo/access/support-sessions",
   "/ho/system/permissions","/ho/system/roles/unknown","/bo/system/users"])
   assert.equal(decideHostBoundary(host,p,"GET").action,"not_found",p);
  for(const h of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art","localhost:3000","unknown.example"])
