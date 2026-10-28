@@ -18,7 +18,6 @@ export function StaffTdd() {
   useEffect(() => {
     const controller = new AbortController();
     let adapter: AuthenticatedSurfaceAdapter<F> | null = null;
-    setReady(null);setError(false);
     void createHoTddAdapter({ registry: new TddRegistry(), definition: staffDefinition, provider: staffProvider }, controller.signal)
       .then(result => {
         adapter = result;
@@ -30,7 +29,7 @@ export function StaffTdd() {
     return () => { controller.abort();adapter?.dispose(); };
   }, [retry]);
   const content = error
-    ? <p role="alert">Không tải được danh sách Staff. <button type="button" onClick={() => setRetry(x => x + 1)}>Thử lại</button></p>
+    ? <p role="alert">Không tải được danh sách Staff. <button type="button" onClick={() => { setReady(null);setError(false);setRetry(x => x + 1); }}>Thử lại</button></p>
     : ready
       ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={staffQuery} businessForms={[staffRateProvider]} />
       : <p role="status">Đang tải Staff…</p>;
