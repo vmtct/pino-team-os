@@ -61,13 +61,28 @@ test("Founder Subscription record URL persists across reload at five viewports",
     await expect(page).not.toHaveURL(/\/staff-login/);
     await expect(page.locator('[data-bo-runtime-surface="subscriptions-core"]')).toBeVisible();
     await expect(page).toHaveURL(new RegExp("record=" + subscriptionId, "i"));
+    // This must be a REAL resolved detail, not an invalid-but-well-formed UUID
+    // whose URL was preserved while the application shows an error.
+    await expect(page.locator('[data-tdd-shell="detail"] #detail-subtitle')).toHaveText(subscriptionId);
+    await expect(page.getByRole("tab", { name: "Thông Tin" })).toHaveAttribute("aria-selected", "true");
     for (const width of [1440, 1024, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.locator('[data-bo-runtime-surface="subscriptions-core"]')).toBeVisible();
       await expect(page).toHaveURL(new RegExp("record=" + subscriptionId, "i"));
+      await expect(page.locator('[data-tdd-shell="detail"] #detail-subtitle')).toHaveText(subscriptionId);
       expect(await page.evaluate(() => document.documentElement.scrollWidth), "no horizontal page overflow").toBeLessThanOrEqual(width + 2);
     }
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.getByRole("tab", { name: "Enrollment" }).click();
+    await expect(page).toHaveURL(/tab=enrollment/);
+    await expect(page.getByRole("tab", { name: "Enrollment" })).toHaveAttribute("aria-selected", "true");
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(new RegExp("record=" + subscriptionId, "i"));
+    await expect(page.getByRole("tab", { name: "Thông Tin" })).toHaveAttribute("aria-selected", "true");
+    await page.goForward({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/tab=enrollment/);
+    await expect(page.getByRole("tab", { name: "Enrollment" })).toHaveAttribute("aria-selected", "true");
   } finally { await context.close(); }
 });
 

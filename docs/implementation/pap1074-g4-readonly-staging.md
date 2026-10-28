@@ -8,7 +8,7 @@ Shared TDD owner: [PAP-1067](https://vmtct97.atlassian.net/browse/PAP-1067). Thi
 - `/ho/staff` is the **only** admitted `TDD_DEFAULT` module as of the initial source SHA. `/bo?module=subscriptions` is **grandfathered**; its G4 here is a regression of PR #984, not BO TDD pilot compliance.
 - No fixture creation, mutation, POST/DELETE, auth spoofing, direct cookie extraction, screenshot containing PII or local CDP session scraping.
 - Positive Founder and negative Manager must come from **separate authentic, authorized Staging Playwright storageState files** prepared out of band. Never commit, upload, paste or print their contents.
-- Coverage: anonymous BO+HO login guard, Founder HO Staff route, Founder Subscription URL + reload + 5 widths, Manager 403 from live BO API and invalid-record negative. Back/Forward click and Student→Subscription journey, specific ARIA, full TDD tab iteration and Founder visual approval remain separate acceptance cases; this harness alone cannot close PAP-1074.
+- Coverage: anonymous BO+HO login guard, Founder HO Staff route, Founder Subscription URL + reload + 5 widths, Manager 403 from live BO API and invalid-record negative. Subscription Enrollment tab and Back/Forward URL history are included as read-only regression assertions. Student→Subscription navigation, deeper ARIA, full canonical TDD Table→Drawer→Detail, and Founder visual approval remain separate acceptance cases; this harness alone cannot close PAP-1074.
 
 ## Explicit execution
 
