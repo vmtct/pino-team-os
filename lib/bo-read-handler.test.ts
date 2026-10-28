@@ -96,3 +96,16 @@ test("PAP-1029: Parent Directory facade forwards only canonical bounded paginati
   }
   assert.equal(forwarded.length, 1);
 });
+
+
+test("delivery scope catalog forwards only a validated explicit Center and never invents GLOBAL authority",async()=>{
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:{centers:[]}},requestId:"center-scope"};}};
+  const centerId="01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
+  const request=new Request(`https://bo.staging.pinohouse.art/api/bo/delivery/bootstrap-state?centerId=${centerId}&userId=forged`,{headers:{cookie:`pino_staff_password_session=${token}`}});
+  assert.equal((await handleBoOperationalReadRequest(request,env(binding),"delivery/bootstrap-state")).status,200);
+  assert.deepEqual(forwarded,[{method:"GET",path:"delivery/bootstrap-state",resource:{centerId}}]);
+  const bad=new Request("https://bo.staging.pinohouse.art/api/bo/delivery/bootstrap-state?centerId=not-a-center",{headers:{cookie:`pino_staff_password_session=${token}`}});
+  assert.equal((await handleBoOperationalReadRequest(bad,env(binding),"delivery/bootstrap-state")).status,400);
+  assert.equal(forwarded.length,1);
+});
