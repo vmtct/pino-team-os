@@ -133,3 +133,45 @@ test('PAP-1134 exact external owner reference allows independent HO infrastructu
   x.entry.externalReferences=[{file:'lib/ho-owned.ts',owner:'No owner'}];
   assert.match((await x.check(['lib/ho-owned.ts'])).errors.join(),/invalid external owner reference/);
 });
+
+test('PAP-1138: independent grandfathered BO detail + new URL helper do not inherit HO Staff shell gate',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-host';");
+  x.put('lib/ho-host.ts',"import '@/app/bo/components/registration/BoFullDetail'; export const host='existing';");
+  const legacy='app/bo/components/registration/BoFullDetail.tsx';
+  const url='lib/bo-subscription-detail-url.ts';
+  x.put(legacy,"import '@/lib/bo-subscription-detail-url';export const Legacy=()=> <div className={classes['detail-hero']}/>;");
+  x.put(url,'export const parseUrl = (url) => new URL(url);');
+  // Preexisting HO host already imported this BO legacy tree; only BO owner changes.
+  assert.deepEqual((await x.check([legacy,url])).errors,[]);
+  // A changed protected shared renderer must still trigger G0 schema validation.
+  x.m.detail.businessTabs[0].id='overview';
+  assert.match((await x.check(['app/components/workspace-renderer/Table.tsx'])).errors.join(),/reserved|invalid|overview|business/i);
+});
+test('PAP-1138: direct unowned imported helper remains gated',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper+"\nimport '@/lib/bo-subscription-detail-url';");
+  x.put('lib/bo-subscription-detail-url.ts','export const unrelated=1');
+  assert.match((await x.check(['lib/bo-subscription-detail-url.ts'])).errors.join(),/outside admission fence/);
+});
+test('PAP-1138: indirect changed sensitive auth dependency still requires exact owner',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-host';");
+  x.put('lib/ho-host.ts',"import '@/lib/ho-auth';export const host='existing';");
+  x.put('lib/ho-auth.tsx','export const authorized=true');
+  assert.match((await x.check(['lib/ho-auth.tsx'])).errors.join(),/outside admission fence/);
+  x.entry.externalReferences=[{file:'lib/ho-auth.tsx',owner:'PAP-990'}];
+  assert.deepEqual((await x.check(['lib/ho-auth.tsx'])).errors,[]);
+  x.put('lib/ho-auth.tsx','export const Unsafe=()=> <div className="detail-hero"/>;');
+  assert.match((await x.check(['lib/ho-auth.tsx'])).errors.join(),/reserved shell/);
+});
+test('PAP-1138: external owner reference rejects fabricated and wildcard paths',async t=>{
+  const x=hoWorkspace(t);
+  x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-host';");
+  x.put('lib/ho-host.ts',"import '@/app/bo/components/registration/BoFullDetail'; export const host='existing';");
+  x.put('app/bo/components/registration/BoFullDetail.tsx','export const legacy=1');
+  x.entry.externalReferences=[{file:'app/bo/**',owner:'PAP-1102'}];
+  assert.match((await x.check(['app/bo/components/registration/BoFullDetail.tsx'])).errors.join(),/invalid external owner reference/);
+  x.entry.externalReferences=[{file:'lib/does-not-exist.ts',owner:'PAP-1102'}];
+  assert.match((await x.check(['app/bo/components/registration/BoFullDetail.tsx'])).errors.join(),/invalid external owner reference/);
+});
