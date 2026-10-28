@@ -107,6 +107,12 @@ test("History exposes truthful empty/denied/unavailable/authorized redacted stat
   const out = html(h(TddDetail, { ...f, activeTab: "history", onBack: noop, subject: { type: "fixture", id: f.record.id } })); assert.match(out, /Đang tải lịch sử/);
   const deny = html(h(TddDetail, { ...f, context: { ...f.context, authorize: p => p === "fixture.read" }, activeTab: "history", onBack: noop, subject: { type: "fixture", id: f.record.id } })); assert.match(deny, /Không có quyền xem lịch sử/);
 });
+test("Authorized history reuses approved audit rows, field labels and Vietnamese outcomes", () => {
+  const out = html(h(HistoryState, { fields: [{ key: "count", label: "Số lượng" }], value: { status: "authorized", nextCursor: "next", events: [{ id: "event", at: "2026-10-28T00:00:00Z", actor: "Tác nhân đã che", source: "Core", action: "record.updated", outcome: "succeeded", redacted: true, subject: { type: "fixture", id: "record" }, changes: [{ field: "count", before: 1, after: 2 }] }] }, onNext: noop }));
+  for (const name of ["v25-audit-list", "v25-audit-row", "v25-audit-when", "v25-audit-who", "v25-audit-action", "v25-audit-changes", "v25-change-flow", "v25-audit-outcome"]) assert.ok(out.includes(name));
+  assert.match(out, /Số lượng/); assert.match(out, /Thành công/); assert.match(out, /07:00/); assert.match(out, /Trang lịch sử tiếp/);
+  assert.doesNotMatch(out, /record.updated|<ol|style=/);
+});
 test("Loading/error/not-found states do not render stale record data", () => {
   const f = fixture();
   for (const status of ["loading", "error", "not-found"] as const) {
