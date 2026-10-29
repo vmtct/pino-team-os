@@ -10,7 +10,7 @@ import { recordProjection } from "./projection";
 import { useResource } from "./useResource";
 import { latestRequest } from "./resource";
 
-const BusinessDataGrid = lazy(async () => ({ default: (await import("../../bo/components/data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../../bo/components/data-grid/BoDataGrid").BoDataGrid;
+export const BusinessDataGrid = lazy(async () => ({ default: (await import("../../bo/components/data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../../bo/components/data-grid/BoDataGrid").BoDataGrid;
 
 export type BusinessFormValue = string | number | null;
 export type BusinessFormField = {
@@ -97,7 +97,7 @@ export type SlotLoaders = Readonly<Record<string, (slot: BusinessSlot<string>, r
 export function checkedSlotContent(content: ReactNode): ReactNode {
   Children.forEach(content, node => {
     if (!isValidElement(node)) return;
-    if (typeof node.type !== "string" && ![Fragment, BoDataTable, BoValue, PropertySections].includes(node.type as typeof Fragment)) throw Error("Unapproved business content component");
+    if (typeof node.type !== "string" && ![Fragment, BoDataTable, BusinessDataGrid, BoValue, PropertySections].includes(node.type as typeof Fragment)) throw Error("Unapproved business content component");
     const props = node.props as { className?: string; id?: string; role?: string; children?: ReactNode; style?: unknown; dangerouslySetInnerHTML?: unknown; "data-tdd-shell"?: unknown };
     if (["style", "script", "iframe", "object"].includes(String(node.type)) || props.style !== undefined || props.dangerouslySetInnerHTML !== undefined ||
       /(?:^|\s)(?:detail-(?:cover|hero[\w-]*|tabs?|main|panel)|drawer[\w-]*|bo-full-detail|v25-full-width)(?:\s|$)/.test(props.className ?? "") ||
