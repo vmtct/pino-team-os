@@ -72,11 +72,11 @@ test("center switcher is presentation-only with canonical logo and accessible di
 test("BO authenticated account belongs to shell and does not mutate shared renderer",()=>{
  const layout=readFileSync("app/bo/layout.tsx","utf8");
  const runtime=readFileSync("app/bo/components/registration/BoRuntimeBoundary.tsx","utf8");
- const account=readFileSync("app/bo/components/registration/BoAuthenticatedAccount.tsx","utf8");
+ const account=readFileSync("app/bo/shell/BoAuthenticatedAccount.tsx","utf8");
  assert.ok(layout.includes("email: currentUser.email"));
  assert.ok(runtime.includes("<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} />"));
  assert.ok(account.includes("createPortal"));
- assert.ok(account.includes("<LogoutButton />"));
+ assert.ok(account.includes("<LogoutButton className={styles.logout} />"));
  assert.ok(account.includes("resolveBoAccountLabel(displayName, email)"));
  assert.ok(account.includes('data-surface="ho"'));
 });

@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogoutButton } from "@/app/components/tos-shell/LogoutButton";
 import { resolveBoAccountLabel } from "@/lib/bo-account-label";
+import styles from "./bo-account.module.css";
 
-/** BO shell owns the authenticated account footer, not individual BO modules. */
+/** The BO runtime shell owns the authenticated account footer; feature modules do not. */
 export function BoAuthenticatedAccount({ displayName, email }: { displayName: string | null; email: string }) {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -16,7 +17,14 @@ export function BoAuthenticatedAccount({ displayName, email }: { displayName: st
   }, []);
   const { name, subtitle } = resolveBoAccountLabel(displayName, email);
   return <>
-    <style>{'#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer:has(>#bo-auth-account)>:not(#bo-auth-account){display:none}#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer>#bo-auth-account{display:contents}#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer>#bo-auth-account>div:nth-child(2){display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}'}</style>
-    {target ? createPortal(<div id="bo-auth-account"><div className="avatar">{name.charAt(0).toUpperCase()}</div><div><strong>{name}</strong><small>{subtitle}</small></div><LogoutButton /></div>, target) : null}
+    <style>{'#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer:has(>#bo-auth-account)>:not(#bo-auth-account){display:none}'}</style>
+    {target ? createPortal(
+      <div id="bo-auth-account" className={styles.account}>
+        <div className={"avatar " + styles.avatar} aria-hidden="true">{Array.from(name)[0] ?? "@"}</div>
+        <div className={styles.identity}><strong title={name}>{name}</strong><small>{subtitle}</small></div>
+        <LogoutButton className={styles.logout} />
+      </div>,
+      target
+    ) : null}
   </>;
 }
