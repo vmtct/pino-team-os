@@ -1,4 +1,4 @@
-import school from "@/public/bo-authority-source/school-adapters.js";
+import schoolSource from "@/public/bo-authority-source/school-adapters.js";
 import type { BoWorkspaceSource } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { boModuleRegistry } from "./registry";
@@ -7,6 +7,11 @@ import { currentBoModuleHref } from "@/lib/bo-url-contract";
 import { shiftPlansAdapter, availabilityAdapter, assignmentsAdapter } from "./workforce-read-adapters";
 import { payrollPeriodsAdapter } from "@/lib/bo-payroll-read-adapter";
 
+// PAP-1158: retain the historical adapter contract, but exclude its duplicate salary metadata view from live BO.
+const school = {
+  ...schoolSource,
+  modules: Object.fromEntries(Object.entries(schoolSource.modules).filter(([key]) => key !== "salaryPeriods")),
+};
 const adapters = {
   "workforce-shift-plans": shiftPlansAdapter,
   "workforce-availability": availabilityAdapter,
@@ -38,7 +43,7 @@ const paths: Record<string,string> = Object.fromEntries(admittedModules.map(def 
 export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   ...school,
   allowStudentCreate: true,
-  modules: { ...Object.fromEntries(Object.entries(school.modules).filter(([key]) => key !== "salaryPeriods")), ...moduleDefinitions },
+  modules: { ...school.modules, ...moduleDefinitions },
   isModuleReadOnly: isWorkforce,
   routeForModule: (key) => currentBoModuleHref(key, paths),
   async load(key, fetcher, options) {
