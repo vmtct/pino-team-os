@@ -19,7 +19,7 @@ const detail = {
   contacts: [{ id: contact, type: "PHONE", maskedValue: "09••••12", primary: true, verified: true }],
   audit: [], auditAuthorized: false,
 };
-function api(directoryCenter = center, detailCenter = center, record = item) {
+function api(directoryCenter = center, detailCenter = center, record: Record<string, unknown> = item) {
   const called: string[] = [];
   const fetcher: typeof fetch = async input => {
     const url = new URL(String(input), "https://bo.staging.pinohouse.art");
