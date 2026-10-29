@@ -4,7 +4,7 @@ import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { allows, allowsField, authorizedTabs, validateModule, type AuthorizationContext, type FieldSchema, type HistorySubject, type ModuleRow, type ModuleSchema, type TddRegistry } from "@/lib/workspace-schema";
 import { DetailFrame } from "./DetailFrame";
 import { DrawerFrame } from "./DrawerFrame";
-import { PropertySections } from "./Properties";
+import { PropertySections, type OverviewProperties } from "./Properties";
 import { TddHistory } from "./History";
 import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLoaders } from "./Slots";
 import { recordProjection, renderScope } from "./projection";
@@ -48,12 +48,12 @@ function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: inpu
     {actionState === "error" ? <p role="alert">Không thể thực hiện thao tác. Thử lại sau.</p> : actionState === "pending" ? <p role="status">Đang thực hiện…</p> : null}
   </DrawerFrame>{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }
-export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const schema = registeredSchema(props.registry, props.schema);
   if (!allows(schema, props.context, "read")) return <RecordState status="denied" />;
   return <DetailRecord key={renderScope(schema, props.context, props.record.id)} {...props} schema={schema} />;
 }
-function DetailRecord({ schema, context, record, status = "ready", onRetry, onBack, subject, mobileMenu, loaders, businessForms, overviewAfter, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<readonly FieldSchema[]>, "registry"> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+function DetailRecord({ schema, context, record, status = "ready", onRetry, onBack, subject, mobileMenu, loaders, businessForms, overviewAfter, renderOverviewProperties, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<readonly FieldSchema[]>, "registry"> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const [selected, setSelected] = useState("overview");
   const projection = status === "ready" ? recordProjection(schema, context, record) : null;
   const tabs = authorizedTabs(schema, context);
@@ -62,7 +62,7 @@ function DetailRecord({ schema, context, record, status = "ready", onRetry, onBa
   return <DetailFrame title={projection?.title ?? "Chi tiết"} subtitle={projection?.record.id} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus}
     tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
     {!projection ? <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />
-      : active?.id === "overview" ? <><PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} />{overviewAfter}</>
+      : active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} />}{overviewAfter}</>
       : active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} />
       : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
         ? <BusinessFormPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} binding={businessForms} />

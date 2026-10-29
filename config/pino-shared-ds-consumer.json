@@ -1,0 +1,12 @@
+{
+  "package": "@pino/design-system",
+  "version": "0.3.0-rc.1",
+  "sourceRepo": "https://github.com/vmtct/pino-design-system",
+  "sourceMainSha": "3fd9c166b72b82bdf872a29519cd92217d96dc77",
+  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.3.0-rc.1.tgz",
+  "tarballSha256": "ea5da205f3f53f7fdf85a8ca9b9747125f0cf32d5352482427bdcd119e2c4ed7",
+  "owner": "PAP-1117",
+  "status": "HO_STAFF_PROPERTIES_PILOT",
+  "notes": "PAP-1117 authorized HO Staff overview property pilot; existing ACL facade unchanged. Local prototype remains development-only. Candidate pinned by approved source commit and archive digest; no release tag claimed.",
+  "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/2"
+}

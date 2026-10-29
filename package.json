@@ -31,6 +31,7 @@
     "@fortawesome/react-fontawesome": "^3.5.0",
     "@notionhq/client": "^5.6.0",
     "@opennextjs/cloudflare": "1.20.12",
+    "@pino/design-system": "file:vendor/pino-design-system/pino-design-system-0.3.0-rc.1.tgz",
     "jose": "^6.2.12",
     "next": "16.4.2",
     "react": "^19.1.0",
@@ -42,11 +43,11 @@
     "@types/node": "^20.19.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "esbuild": "0.28.2",
     "eslint": "^9.33.0",
     "eslint-config-next": "16.4.2",
+    "postcss": "8.5.23",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.0",
-    "esbuild": "0.28.2",
-    "postcss": "8.5.23"
+    "typescript": "^5.9.0"
   }
 }

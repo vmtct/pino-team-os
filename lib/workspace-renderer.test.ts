@@ -485,3 +485,21 @@ test("G2: dialog policy closes on Escape, wraps Tab in both directions and never
   assert.deepEqual(["ArrowLeft", "ArrowRight", "Home", "End"].map(key => nextTabIndex(key, 0, 5)), [4, 1, 0, 4]);
   assert.equal(nextTabIndex("ArrowRight", 0, 0), null, "zero tabs must not compute NaN");
 });
+
+test("PAP-1117 property presentation receives only authorized projection and overview fields", () => {
+ const f = fixture("HO", s => ({ ...s, fields: s.fields.map(field => field.key === "count" ? { ...field, permission: "fixture.secret" } : field) }));
+ const context = { ...f.context, authorize: (permission: string) => permission !== "fixture.secret" };
+ let calls = 0;
+ const renderOverviewProperties: NonNullable<Parameters<typeof TddDetail>[0]["renderOverviewProperties"]> = properties => {
+  calls++; assert.deepEqual(properties.fields.map(field => field.key), ["name", "id"]);
+  assert.deepEqual(properties.sections[0].fields, ["name", "id"]);
+  assert.equal(Object.hasOwn(properties.record, "count"), false);
+  return h("p", null, properties.record.name);
+ };
+ const props = { ...f, context, renderOverviewProperties, onBack: noop, subject: { type: "fixture", id: f.record.id } };
+ assert.match(html(h(TddDetail, props)), /Bảo Trân/); assert.equal(calls, 1);
+ html(h(TddDetail, { ...props, activeTab: "history" }));
+ html(h(TddDetail, { ...props, status: "loading" }));
+ html(h(TddDetail, { ...props, context: { ...context, authorize: () => false } }));
+ assert.equal(calls, 1);
+});

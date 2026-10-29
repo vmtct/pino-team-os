@@ -30,7 +30,7 @@ export const staffDefinition = {
   },
   drawer: { density: "one-column", sections, actions: [] },
   detail: {
-    overview: { sections: [{ id: "staff-info", label: "Thông tin Staff", fields: ["name", "status"] }] },
+    overview: { sections },
     businessTabs: [{
       id: "staff-rate", label: "Rate lương", kind: "form",
       source: { adapter: "salary.staff-rate", permission: "team.bo.access" },
