@@ -5,6 +5,7 @@ import { handleBoOperationalReadRequest } from "./bo-read-handler";
 import { hoAccessReadAllowed, validateHoAuditQuery, projectHoAuditResponse } from "./ho-access-guard";
 import { hoRoutes, hoModules, mapHoUsers, mapHoRoles } from "./ho-system";
 import type { HoEnv } from "./ho-auth";
+import { defaultTable } from "./bo-registration";
 
 const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";
 const host=HO_STAGING_HOSTNAME;
@@ -81,4 +82,11 @@ test("HO module projections render canonical Users/Roles and route each nav item
  [{id,roleKey:"founder",displayName:"Founder",roleType:"system",status:"active",description:null,permissionCount:1,assignmentCount:1,createdAt:"today",updatedAt:"today",permissionKeys:["access.audit.view"]}]);
  assert.deepEqual(r[0]?.permissionKeys,["access.audit.view"]);
  assert.throws(()=>mapHoRoles([{id,roleKey:"x",displayName:"X",roleType:"custom",status:"active",description:null,permissionCount:0,assignmentCount:0}],[]));
+});
+test('HO Roles starts compact but retains technical fields for Properties and Detail',()=>{
+  const fields=hoModules.roles.fields;
+  const table=defaultTable(fields);
+  assert.deepEqual(table.visible,['name','roleType','status','permissionCount','assignmentCount']);
+  assert.deepEqual(table.order,fields.map(field=>field.key));
+  assert.deepEqual(fields.filter(field=>field.defaultVisible===false).map(field=>field.key),['id','roleKey','permissionKeys','description']);
 });
