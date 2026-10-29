@@ -30,6 +30,7 @@
       "files": [
         "app/ho/staff/page.tsx",
         "app/ho/staff/StaffTdd.tsx",
+        "app/ho/staff/StaffPasswordReset.tsx",
         "app/ho/staff/schema.ts",
         "app/ho/staff/staff-rate-provider.ts"
       ],
@@ -42,7 +43,8 @@
       "binding": { "kind": "SURFACE_WORKSPACE_ADAPTER", "file": "app/ho/staff/StaffTdd.tsx" },
       "tests": [
         "lib/pap1108-ho-staff-rate.test.ts",
-        "lib/pap1108-staff-rate-provider.test.ts"
+        "lib/pap1108-staff-rate-provider.test.ts",
+        "lib/pap1144-ho-staff-password-reset.test.ts"
       ]
     }
   ],
