@@ -31,4 +31,12 @@ Execute `node --import tsx scripts/run-tdd-g4-readonly.mjs`. Missing inputs, sta
 - Live Stage Worker receipt already independently seen: Team main SHA `7f618690d4fd91611ad0dea0ee0167da25874709`, CI #40710206523 success, guarded CD #40710652581 success, Cloudflare serving that SHA 100%. This is **deployment evidence only**, not authenticated G4 proof.
 - **Real external wait:** approved Founder + Manager authenticated browser storageState/secret-safe CI context; do not reproduce accounts or obtain Chrome session tokens through CDP. After authorization, run the suite, fix actual runtime failures, and expand to full PAP-1074 Table→Drawer→Detail, Back/Forward, Student link, 401/403/404, 5 widths and approved G3 goldens.
 
+## Local authenticated browser smoke without exporting credentials (phase 2)
+
+`npm run tdd:g4:local-cdp` uses two independent **already-authorized** i5 Chrome CDP profiles: Founder `127.0.0.1:9337`, Manager `127.0.0.1:9335`. This is opt-in **local only**, not a CI substitute; sessions never leave their browser profiles. The runner creates and closes only its test tabs, refuses mutating `/api/**` requests in those tabs and never reads/prints cookie, token, localStorage, storageState, student or subscription identity. It also fails closed on missing evidence, stale `origin/main` vs verified Worker serving SHA and missing distinct authenticated accounts. No browser automation against Production.
+
+The operator must **independently verify** actual successful protected main CI + guarded CD and Cloudflare 100% serving exact same main SHA; runner-supplied environment variables are not proof by themselves. Set `TDD_G4_LIVE_CDP=1`, `TDD_G4_LOCAL_APPROVED=1`, `TDD_G4_EXPECTED_MAIN_SHA`, `TDD_G4_SERVING_SHA`, `TDD_G4_MAIN_CI_RUN`, `TDD_G4_STAGING_CD_RUN`; then run `npm run tdd:g4:local-cdp` on i5. The script prints only PASS/FAIL per case and provenance identifiers. Existing live authorized Subscription UUIDv7 is found at runtime; no fixture seeding.
+
+After local-Cdp smoke PASS, outstanding final G4 conditions still include portable secret-safe CI auth (existing `tdd:g4:readonly` runner), complete native TDD Table→Drawer→Detail and route-specific exceptions, Student click navigation, broader a11y and Founder-approved G3 goldens. No false terminal on local-only PASS.
+
 No Production, D1, Core salary/Subscription monetary write, nor automated monitoring.
