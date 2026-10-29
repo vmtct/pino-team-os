@@ -39,7 +39,18 @@ export function assertBoTargetRegistry(): void {
 }
 assertBoTargetRegistry();
 /** Behavior preserving bridge for the currently served query/path hybrid. */
+/** PAP-1158: explicit legacy route retirement, not an implicit domain identity alias. */
+export function retiredSalaryPeriodRedirectUrl(query: Readonly<Record<string,string|string[]|undefined>>): string {
+  const params=new URLSearchParams();
+  const canonicalId=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  for(const key of ["record","centerId"] as const) {
+    const value=query[key];
+    if(typeof value==="string" && canonicalId.test(value)) params.set(key,value);
+  }
+  return "/bo/payroll-periods"+(params.size?"?"+params.toString():"");
+}
 export function currentBoModuleHref(key: string, admitted: Readonly<Record<string,string>>): string {
+  if (key==="salaryPeriods") return "/bo/payroll-periods";
   if (Object.prototype.hasOwnProperty.call(admitted,key)) return admitted[key];
   return key==="students"?"/bo":"/bo?module="+encodeURIComponent(key);
 }

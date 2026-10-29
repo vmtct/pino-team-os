@@ -38,7 +38,7 @@ const paths: Record<string,string> = Object.fromEntries(admittedModules.map(def 
 export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   ...school,
   allowStudentCreate: true,
-  modules: { ...school.modules, ...moduleDefinitions },
+  modules: { ...Object.fromEntries(Object.entries(school.modules).filter(([key]) => key !== "salaryPeriods")), ...moduleDefinitions },
   isModuleReadOnly: isWorkforce,
   routeForModule: (key) => currentBoModuleHref(key, paths),
   async load(key, fetcher, options) {

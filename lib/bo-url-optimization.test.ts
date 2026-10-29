@@ -16,4 +16,5 @@ test("PAP BO URL optimizer: approved query modules are explicit and unique", () 
   assert.equal(BO_SIDEBAR_MODULES.includes("parents"), true, "PAP-1029 Parent must not redirect to Students");
   assert.equal(new Set(BO_SIDEBAR_MODULES).size, BO_SIDEBAR_MODULES.length);
   assert.equal(BO_SIDEBAR_MODULES.includes("invalid"), false);
+  assert.equal(BO_SIDEBAR_MODULES.includes("salaryPeriods"), true, "Preserve retired legacy URL recognition; page redirects and unified workspace hides it");
 });

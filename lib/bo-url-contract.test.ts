@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES,assertBoTargetRegistry,
-  buildBoTargetUrl,currentBoModuleHref,parseBoTargetUrl,targetForLegacyModule} from "./bo-url-contract";
+  buildBoTargetUrl,currentBoModuleHref,parseBoTargetUrl,targetForLegacyModule,retiredSalaryPeriodRedirectUrl} from "./bo-url-contract";
 
 test("PAP-1089 target paths and aliases do not conflate domain identities",()=>{
   assert.doesNotThrow(assertBoTargetRegistry);
@@ -53,7 +53,7 @@ test("PAP-1089 current nav URLs remain identical until explicit route admission"
   assert.equal(currentBoModuleHref("parents",admitted),"/bo?module=parents");
   assert.equal(currentBoModuleHref("subscriptions",admitted),"/bo?module=subscriptions");
   assert.equal(currentBoModuleHref("classes",admitted),"/bo?module=classes");
-  assert.equal(currentBoModuleHref("salaryPeriods",admitted),"/bo?module=salaryPeriods");
+  assert.equal(currentBoModuleHref("salaryPeriods",admitted),"/bo/payroll-periods");
   assert.equal(currentBoModuleHref("workforce-shift-plans",admitted),"/bo/workforce-shift-plans");
   assert.equal(currentBoModuleHref("payroll-periods",admitted),"/bo/payroll-periods");
 });
@@ -62,4 +62,16 @@ test("PAP-1091 guarded application auto-merge smoke: unknown resources stay deni
   for(const slug of ["catalog","system/users","system/roles","legacy-termweek"])
     assert.equal(parseBoTargetUrl("/bo/"+slug),null,slug);
   assert.equal(targetForLegacyModule("catalog"),null);
+});
+
+
+test("PAP-1158 retired Salary Period URL goes to canonical Kỳ lương",()=>{
+  const id="01a171ed-eb78-7941-b1de-dd4c020457b7";
+  const center="0199f001-0000-7000-8000-000000000001";
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods"}),"/bo/payroll-periods");
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods",record:id}),"/bo/payroll-periods?record="+id);
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods",record:id,centerId:center}),"/bo/payroll-periods?record="+id+"&centerId="+center);
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods",record:["a","b"],centerId:"bad/path",password:"secret"}),"/bo/payroll-periods");
+  assert.equal(targetForLegacyModule("salaryPeriods"),null,"Do not conflate old and new domain identity");
+  assert.deepEqual(parseBoTargetUrl("/bo/payroll-periods","?record="+id),{moduleKey:"payroll-periods",surface:"drawer",recordId:id});
 });
