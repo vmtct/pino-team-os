@@ -21,7 +21,9 @@ test("PAP-1029 Full Detail nav/body retain approved DS selectors; narrow Drawer 
   assert.match(parent, /const panel = <section id="parent-tab-panel"/);
   assert.match(parent, /return fullDetail\s*\? <>\{navigation\}<div id="detail-body" className="detail-main v25-full-width"><div className="detail-panel v24-main-panel">\{panel\}/);
   assert.match(parent, /: <section aria-label="Parents & Guardians">\{navigation\}\{panel\}<\/section>/);
-  assert.match(parent, /const overview=!fullDetail \? <PropertySections variant="drawer"/);
+  assert.match(parent, /const overview = <PropertySections variant=\{fullDetail \? "detail" : "drawer"\}/);
+  assert.doesNotMatch(parent, /<div className="v24-prop-grid">/);
+  assert.match(parent, /aria-labelledby=\{"parent-tab-"\+tab\}/);
   for (const css of [coreStyles, scopedStyles]) assert.match(css, /#detail-body\.v25-full-width\s*\{\s*display:\s*block;/);
   for (const source of [parent, full, frame]) assert.doesNotMatch(source, /style=\{\{|<style|!important/);
 });
