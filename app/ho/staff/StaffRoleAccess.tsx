@@ -27,7 +27,14 @@ export function StaffRoleAccess({ staffId, active, principalId }: {
   }
   useEffect(() => {
     let current = true;
-    if (active) void load(() => current).catch(() => { if (current) setState({ kind: "error" }); });
+    if (active) void Promise.all([boApi.accessUsers(), boApi.accessRoles()])
+      .then(([users, roles]) => {
+        if (!current) return;
+        const link = resolveStaffRoleAccount(users, staffId);
+        setState({ kind: "ready", ...link, roles });
+        setSelected(link.user?.assignments.length === 1 ? link.user.assignments[0]!.roleId : "");
+      })
+      .catch(() => { if (current) setState({ kind: "error" }); });
     return () => { current = false; };
   }, [staffId, active]);
   const user = state.kind === "ready" ? state.user : null;
