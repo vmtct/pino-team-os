@@ -84,6 +84,41 @@ export function StaffTdd(){const ready={adapter:{},navigation:{}};const connecti
   x.baseline.sourceFiles.push('lib/workspace-adapters/index.ts');
   return {...x,bindingFile,helper};
 }
+/** PAP-982: BO receives the same strict proof, plus a concrete selected Center. */
+function boWorkspace(t) {
+  const x=setup(t,'BO');
+  const bindingFile='app/bo/new/SelfDirectoryTdd.tsx';
+  const helper=`import {SurfaceWorkspace} from '@/app/components/workspace-adapters/SurfaceWorkspace';
+import {createBoTddAdapter} from '@/lib/workspace-adapters';
+import {TddRegistry} from '@/lib/workspace-schema';
+import {directoryDefinition,directoryProvider} from './schema';
+export function SelfDirectoryTdd(){const ready={adapter:{},navigation:{}};const selected='center-from-authorized-bootstrap';
+const connection=createBoTddAdapter({registry:new TddRegistry(),definition:directoryDefinition,provider:directoryProvider,centerId:selected},new AbortController().signal);
+return <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation}/>}`;
+  x.put(x.file,"import {SelfDirectoryTdd} from './SelfDirectoryTdd';export default function Page(){return <SelfDirectoryTdd/>}");
+  x.put(bindingFile,helper);
+  x.put(x.schemaFile,'import {TddRegistry} from "@/lib/workspace-schema";const registry=new TddRegistry();export const directoryDefinition={};export const directoryProvider={};export const schema=registry.register({...directoryDefinition});');
+  x.put('lib/workspace-schema/index.ts','export class TddRegistry {}');
+  x.put('lib/workspace-adapters/index.ts','export const createBoTddAdapter=()=>null;');
+  x.put('app/components/workspace-adapters/SurfaceWorkspace.tsx','export function SurfaceWorkspace(){return null}');
+  x.entry.binding={kind:'SURFACE_WORKSPACE_ADAPTER',file:bindingFile};x.entry.files=[x.file,x.schemaFile,bindingFile];
+  x.baseline.sourceFiles.push('lib/workspace-adapters/index.ts');
+  return {...x,bindingFile,helper};
+}
+test('PAP-982 registered BO adapter-backed SurfaceWorkspace must have real Center-bound binding',async t=>{
+  const x=boWorkspace(t);assert.deepEqual((await x.check()).errors,[]);
+  x.put(x.bindingFile,x.helper.replace(',centerId:selected',''));
+  assert.match((await x.check()).errors.join(),/binding required/);
+});
+test('PAP-982 BO source rejects fake adapter, fake session schema and fake renderer',async t=>{
+  const x=boWorkspace(t);
+  for(const fake of [x.helper.replace('createBoTddAdapter({','fakeAdapter({'),
+    x.helper.replace('provider:directoryProvider','provider:fakeProvider'),
+    x.helper.replace('@/app/components/workspace-adapters/SurfaceWorkspace','./FakeWorkspace')]){
+    x.put(x.bindingFile,fake);
+    assert.match((await x.check()).errors.join(),/binding required/);
+  }
+});
 test('PAP-1134 real HO adapter-backed SurfaceWorkspace passes registered canonical gate',async t=>{
   const x=hoWorkspace(t);
   const verdict=await x.check();

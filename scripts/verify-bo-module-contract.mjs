@@ -117,6 +117,31 @@ function registry(root,issues){
   }
   return definitions;
 }
+/** PAP-982/PAP-1071: a TDD_DEFAULT route is a distinct, tightly bounded
+ * admission lane; the TDD authority verifier independently validates the
+ * registered schema, shared renderer, Center-bound adapter and owned tests.
+ * Never classify a route as legacy or create a fictional write permission. */
+function tddAdmittedBoRoutes(root,issues) {
+  const manifestFile=path.join(root,"config/tdd-admission.json");
+  if(!fs.existsSync(manifestFile)) return new Map();
+  let manifest;
+  try {manifest=JSON.parse(fs.readFileSync(manifestFile,"utf8"));}
+  catch {issues.push("Malformed TDD admission manifest");return new Map();}
+  if(!Array.isArray(manifest.modules)){issues.push("Missing TDD module admissions");return new Map();}
+  const entries=new Map();
+  for(const e of manifest.modules.filter(m=>m.surface==="BO"&&m.profile==="TDD_DEFAULT")) {
+    if(typeof e.file!=="string"||typeof e.route!=="string"||typeof e.key!=="string"
+      ||e.route!=="/bo/"+e.key||e.file!=="app/bo/"+e.key+"/page.tsx"
+      ||!KEY.test(e.key)||!Array.isArray(e.files)||e.files.length<3
+      ||!e.files.includes(e.file)||!e.files.includes(e.schema?.file)
+      ||!e.files.includes(e.binding?.file)||e.binding?.kind!=="SURFACE_WORKSPACE_ADAPTER"
+      ||!Array.isArray(e.tests)||!e.tests.length||e.tests.some(t=>!t.endsWith(".test.ts")&&!t.endsWith(".test.mjs"))
+      ||[...e.files,...e.tests].some(f=>typeof f!=="string"||f.includes("..")||f.startsWith("/")||!fs.existsSync(path.join(root,f)))
+      ||entries.has(e.file)) {issues.push("Invalid BO TDD admission "+String(e.file));continue;}
+    entries.set(e.file,e);
+  }
+  return entries;
+}
 function canonicalRoute(root,file,expectedKey,issues){
   const text=read(root,file);
   const sf=source(file,text);
@@ -162,18 +187,28 @@ export function verifyBoModuleContract(root=DEFAULT_ROOT) {
     if(byKey.has(def.key)||byHref.has(def.href))issues.push(`Duplicate registered BO key/path: ${def.key}`);
     byKey.set(def.key,def);byHref.set(def.href,def);
   }
+  const tdd=tddAdmittedBoRoutes(root,issues);
+  const tddHrefs=new Set([...tdd.values()].map(e=>e.route));
   const newRoutes=routes.filter(f=>!legacyRoutes.has(f));
   const newNav=nav.filter(h=>!legacyNav.has(h));
   for(const file of newRoutes){
     const href=routeFromFile(file);
     const def=href&&byHref.get(href);
+    if(tdd.has(file)){
+      if(def)issues.push(`Ambiguous BO TDD/factory admission: ${file}`);
+      if(!nav.includes(href))issues.push(`BO TDD route missing navigation: ${file}`);
+      // A read-only TDD route must never carry a raw Level-1 grid.
+      if(/<\s*(table|BoDataGrid|BoDataGridSidePeek)(?=[\s/>])/.test(read(root,file)))issues.push(`Bespoke BO TDD route shell: ${file}`);
+      continue;
+    }
     if(!def){issues.push(`Unregistered NEW BO page: ${file}`);continue;}
     canonicalRoute(root,file,def.key,issues);
     auditCanonicalBoRoute(root,file,def.key,issues);
   }
   for(const href of newNav){
-    if(!byHref.has(href))issues.push(`Unregistered NEW BO navigation path: ${href}`);
+    if(!byHref.has(href)&&!tddHrefs.has(href))issues.push(`Unregistered NEW BO navigation path: ${href}`);
   }
+  for(const entry of tdd.values())if(!routes.includes(entry.file))issues.push(`TDD admission lacks route: ${entry.file}`);
   for(const def of defs){
     const route=`app/bo/${def.href.slice(4)}/page.tsx`;
     if(!routes.includes(route))issues.push(`Registered BO module ${def.key} lacks canonical page ${route}`);

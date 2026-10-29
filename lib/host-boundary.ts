@@ -48,6 +48,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
     // PAP-1125: exact Shift Plan creation admission; Core still enforces BO identity, Center grant, idempotency and version.
     // Keep non-POST verbs denied at the host edge rather than expanding the generic BO route allowlist.
+    if (pathname === "/bo/pinoria-avatars") {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? { action: "next" } : { action: "not_found" };
+    }
     if (pathname === "/api/bo/workforce/planning/shift-plan") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
     }

@@ -124,8 +124,8 @@ export function validateSpecial(entry, approvals, changed, now) {
  * TddRenderer through SurfaceWorkspace, without inserting a fake direct JSX call.
  * This binding is explicit per route, never a generic G0 bypass.
  */
-export function bindsHoSurfaceWorkspace(root, entry) {
-  if(entry.surface!=='HO'||entry.binding?.kind!=='SURFACE_WORKSPACE_ADAPTER') return false;
+export function bindsSurfaceWorkspace(root, entry) {
+  if(!['BO','HO'].includes(entry.surface)||entry.binding?.kind!=='SURFACE_WORKSPACE_ADAPTER') return false;
   const file=entry.binding?.file;
   if(!file||!entry.files.includes(file)||!fs.existsSync(path.join(root,file))) return false;
   const ast=parse(file,read(root,file)), imported=new Map();
@@ -134,7 +134,7 @@ export function bindsHoSurfaceWorkspace(root, entry) {
     for(const item of statement.importClause?.namedBindings?.elements??[]) imported.set(item.name.text,{target,original:item.propertyName?.text??item.name.text});
   }
   const workspaceNames=[...imported].filter(([,v])=>v.original==='SurfaceWorkspace'&&v.target==='app/components/workspace-adapters/SurfaceWorkspace.tsx').map(([k])=>k);
-  const adapterNames=[...imported].filter(([,v])=>v.original==='createHoTddAdapter'&&v.target==='lib/workspace-adapters/index.ts').map(([k])=>k);
+  const adapterNames=[...imported].filter(([,v])=>v.original===(entry.surface==='BO'?'createBoTddAdapter':'createHoTddAdapter')&&v.target==='lib/workspace-adapters/index.ts').map(([k])=>k);
   const registryNames=[...imported].filter(([,v])=>v.original==='TddRegistry'&&v.target==='lib/workspace-schema/index.ts').map(([k])=>k);
   if(!workspaceNames.length||!adapterNames.length||!registryNames.length) return false;
   let rendered=false,adapted=false,registeredDefinition=false;
@@ -159,7 +159,7 @@ export function bindsHoSurfaceWorkspace(root, entry) {
       const options=n.arguments[0];
       const named=key=>options.properties.find(p=>ts.isPropertyAssignment(p)&&p.name?.getText(ast)===key);
       const definition=named('definition'),provider=named('provider'),registry=named('registry');
-      if(definition&&ts.isIdentifier(definition.initializer)&&imported.get(definition.initializer.text)?.target===entry.schema.file&&registeredNames.includes(imported.get(definition.initializer.text)?.original)&&provider&&ts.isIdentifier(provider.initializer)&&imported.get(provider.initializer.text)?.target===entry.schema.file&&registry&&ts.isNewExpression(registry.initializer)&&ts.isIdentifier(registry.initializer.expression)&&registryNames.includes(registry.initializer.expression.text)) adapted=true;
+      if(definition&&ts.isIdentifier(definition.initializer)&&imported.get(definition.initializer.text)?.target===entry.schema.file&&registeredNames.includes(imported.get(definition.initializer.text)?.original)&&provider&&ts.isIdentifier(provider.initializer)&&imported.get(provider.initializer.text)?.target===entry.schema.file&&registry&&ts.isNewExpression(registry.initializer)&&ts.isIdentifier(registry.initializer.expression)&&registryNames.includes(registry.initializer.expression.text)&&(entry.surface==='HO'||Boolean(named('centerId')))) adapted=true;
     }
     ts.forEachChild(n,scan);
   } scan(ast);
@@ -241,7 +241,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
           } ts.forEachChild(n,bind);
         } bind(bindingAst);
       }
-      if(!connected && e.binding?.kind==='SURFACE_WORKSPACE_ADAPTER') connected=bindsHoSurfaceWorkspace(root,e);
+      if(!connected && e.binding?.kind==='SURFACE_WORKSPACE_ADAPTER') connected=bindsSurfaceWorkspace(root,e);
       if(!connected) errors.push(e.file+': explicit connected schema at canonical renderer/SurfaceWorkspace binding required');
       try {
         const schema=loadSchema ? await loadSchema(e) : (await import(pathToFileURL(path.join(root,e.schema.file)).href))[e.schema.export];
