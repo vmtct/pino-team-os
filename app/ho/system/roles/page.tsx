@@ -1,2 +1,2 @@
-import { HoWorkspace } from "@/app/ho/HoWorkspace";
-export default function Page() { return <HoWorkspace module="roles" />; }
+import { HoRolesTdd } from "./HoRolesTdd";
+export default function Page() { return <HoRolesTdd />; }
