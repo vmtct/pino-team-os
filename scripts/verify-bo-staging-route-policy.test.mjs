@@ -24,16 +24,32 @@ function fixture(run) {
     fs.writeFileSync(target, value);
   };
   const read = file => fs.readFileSync(path.join(root, file), "utf8");
-  for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)])
-    write(file, fs.readFileSync(path.join(repo, file), "utf8"));
+  for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)]) {
+    const content=fs.readFileSync(path.join(repo,file),"utf8");
+    // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
+    write(file,file===policy?content.replace('  "/bo/pinoria-avatars",\n',""):content);
+  }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
 test("PAP-901 current canonical routes use one admitted BO workspace with required stylesheet", () => {
-  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 4, admitted: 4, deferred: 0 });
+  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 5, admitted: 5, deferred: 0 });
 });
 
+test("PAP-982 admitted TDD route requires exact schema, binding, tests and explicit policy",()=>fixture(({root,read,write})=>{
+  const entry=JSON.parse(fs.readFileSync(path.join(repo,"config/tdd-admission.json"),"utf8")).modules.find(e=>e.key==="pinoria-avatars");
+  for(const file of [...entry.files,...entry.tests])write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/pinoria-avatars.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/pinoria-avatars",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  write("config/tdd-admission.json",JSON.stringify({modules:[]}));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/pinoria-avatars.*canonical BoModuleFactory page/);
+  write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
+  fs.unlinkSync(path.join(root,entry.schema.file));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/Invalid exact BO TDD route admission|TDD entry/);
+}));
 test("new canonical module without a staging decision fails closed", () => fixture(({ root, write }) => {
   write("app/bo/new-module/page.tsx", "return <BoModuleFactory moduleKey=\"new-module\" />;");
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /new-module.*exactly one staging decision/);

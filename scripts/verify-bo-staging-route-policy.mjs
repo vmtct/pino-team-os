@@ -23,7 +23,31 @@ function policyRoutes(source, name, issues) {
   return new Set(routes);
 }
 
-function canonicalRoutes(root) {
+/** TDD_DEFAULT is a separate, exact, schema-registered BO entry lane.
+ * It is independently enforced by scripts/verify-tdd-authority.mjs (G0/G1).
+ * Neither an unregistered file nor a grandfathered route grants admission. */
+function tddRoutes(root, issues) {
+  const file=path.join(root,"config/tdd-admission.json");
+  if(!fs.existsSync(file))return new Set();
+  let manifest;
+  try {manifest=JSON.parse(fs.readFileSync(file,"utf8"));}
+  catch {issues.push("Malformed TDD route admission manifest");return new Set();}
+  if(!Array.isArray(manifest.modules)){issues.push("TDD route admission modules must be an array");return new Set();}
+  const routes=new Set();
+  for(const m of manifest.modules.filter(x=>x.surface==="BO"&&x.profile==="TDD_DEFAULT")){
+    const route=m.route,routeFile=m.file;
+    const files=[routeFile,m.schema?.file,m.binding?.file,...(m.tests||[])];
+    if(typeof m.key!=="string"||!/^[a-z][a-z0-9-]*$/.test(m.key)||route!=="/bo/"+m.key||
+      routeFile!=="app/bo/"+m.key+"/page.tsx"||m.binding?.kind!=="SURFACE_WORKSPACE_ADAPTER"||
+      !Array.isArray(m.files)||!m.files.includes(routeFile)||!m.files.includes(m.schema?.file)||
+      !m.files.includes(m.binding?.file)||!Array.isArray(m.tests)||m.tests.length===0||
+      files.some(f=>typeof f!=="string"||f.includes("..")||f.startsWith("/")||!fs.existsSync(path.join(root,f)))||
+      routes.has(route)) {issues.push("Invalid exact BO TDD route admission: "+String(route));continue;}
+    routes.add(route);
+  }
+  return routes;
+}
+function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
   function visit(dir) {
@@ -37,14 +61,16 @@ function canonicalRoutes(root) {
     }
   }
   visit(base);
-  return routes;
+  const tdd=tddRoutes(root,issues);
+  for(const route of tdd)routes.add(route);
+  return {routes,tdd};
 }
 
 export function verifyBoStagingRoutePolicy(root = ROOT) {
   const issues = [];
   const admitted = policyRoutes(read(root, POLICY), "boStagingAdmittedRoutes", issues);
   const deferred = policyRoutes(read(root, POLICY), "boStagingDeferredRoutes", issues);
-  const canonical = canonicalRoutes(root);
+  const {routes:canonical,tdd} = canonicalRoutes(root,issues);
   for (const route of canonical) {
     if (admitted.has(route) === deferred.has(route))
       issues.push(`${route}: canonical BO route needs exactly one staging decision (admitted or deferred)`);
@@ -81,6 +107,12 @@ export function verifyBoStagingRoutePolicy(root = ROOT) {
     issues.push("Workforce pages must retain production fallback and staging BO workspace");
   for (const route of admitted) {
     if (!canonical.has(route)) continue;
+    if(tdd.has(route)){
+      const file=read(root,"app/bo/"+route.slice("/bo/".length)+"/page.tsx");
+      if(!/<[A-Za-z]*Tdd\b/.test(file)||/<\s*(table|BoDataGrid|BoDataGridSidePeek)(?=[\s/>])/.test(file))
+        issues.push(route+": TDD entry must mount shared SurfaceWorkspace binding, not a custom table");
+      continue; // TDD G0/G1 is an independently mandatory PR gate.
+    }
     const key = route.slice("/bo/".length);
     const file = read(root, "app/bo/" + key + "/page.tsx");
     const pattern = new RegExp("<BoWorkforceRoute\\s+moduleKey=[\"']" + key + "[\"']");
