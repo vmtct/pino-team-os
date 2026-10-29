@@ -31,6 +31,18 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
     if (method === "POST" && authPost) return { action: "next" };
+    // PAP-1126: exact HO Item paths AND verbs, never a generic HO write aperture.
+    const itemBase = p === "/api/ho/pinoria/items";
+    const itemUpload = p === "/api/ho/pinoria/items/uploads";
+    const itemRecord = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}$/.test(p);
+    const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish)$/.test(p);
+    if (itemBase || itemUpload || itemRecord || itemPublish) {
+      const allowed = (itemBase && (method === "GET" || method === "POST"))
+        || (itemUpload && method === "POST")
+        || (itemRecord && (method === "GET" || method === "PATCH"))
+        || (itemPublish && method === "POST");
+      return allowed ? { action:"next" } : { action:"not_found" };
+    }
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
     if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
     if (p === "/") return { action: "redirect", pathname: HO_HOME_PATH };

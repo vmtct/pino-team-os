@@ -46,6 +46,11 @@
       "entrypoint": "BoAccessControlPlane"
     },
     {
+      "binding": "PINO_HO_ITEM_CORE",
+      "service": "pino-core-staging",
+      "entrypoint": "HoPinoriaItemControlPlane"
+    },
+    {
       "binding": "PINO_STAFF_REGISTRATION_CORE",
       "service": "pino-core-staging",
       "entrypoint": "StaffRegistrationControlPlane"
