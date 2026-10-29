@@ -30,14 +30,23 @@ export async function authorizedWorkforceSnapshots(fetcher: typeof fetch = fetch
   snapshots: BoWorkforceWeeklyPlanning[];
 }> {
   const weeks = await authorizedWeeks(fetcher);
-  const snapshots: BoWorkforceWeeklyPlanning[] = [];
-  // Scope to each authorized Center, never a Cartesian product with legacy Center weeks.
-  for (const { centerId, result } of weeks.weeksByCenter) {
-    for (const week of visibleWeeks(result.termWeeks)) {
-      // Fail closed on authorization or contract errors; never turn 403 into an empty row.
-      snapshots.push(await workforceRead.weekly(centerId, week.id, fetcher));
+  // The Founder can see many Centers. Serial reads of every visible week
+  // previously kept the shared BO list loading for 30+ seconds. Bound
+  // concurrency while retaining the original Center/week order and scope.
+  const requested = weeks.weeksByCenter.flatMap(({ centerId, result }) =>
+    visibleWeeks(result.termWeeks).map((week) => ({ centerId, termWeekId: week.id })),
+  );
+  const snapshots = new Array<BoWorkforceWeeklyPlanning>(requested.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(4, requested.length) }, async () => {
+    while (nextIndex < requested.length) {
+      const index = nextIndex++;
+      const { centerId, termWeekId } = requested[index];
+      // Fail closed on any 401/403 or contract error; never invent an empty week.
+      snapshots[index] = await workforceRead.weekly(centerId, termWeekId, fetcher);
     }
-  }
+  });
+  await Promise.all(workers);
   return { weeks, snapshots };
 }
 
