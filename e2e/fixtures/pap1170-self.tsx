@@ -1,0 +1,11 @@
+import React from "react";
+import {createRoot} from "react-dom/client";
+import {TddDetail} from "../../app/components/workspace-renderer/Record";
+import {SelfDirectoryProperties} from "../../app/bo/pinoria-avatars/SharedProperties";
+import {selfDefinition} from "../../app/bo/pinoria-avatars/schema";
+import {TddRegistry} from "../../lib/workspace-schema";
+const registry=new TddRegistry();
+const schema=registry.register({...selfDefinition,data:{id:"pap1170-mock",list:async()=>({rows:[],total:0}),detail:async()=>null}});
+const denied=new URL(location.href).searchParams.has("denied");
+const record={id:"self-a",name:"An Reception",roles:"Reception",avatarStatus:"READY",subjectStatus:"ACTIVE",rowKey:"row-a",personId:"person-a",pinoriaSelfId:"self-a",selfStatus:"ACTIVE",staffMemberId:"staff-a",studentProfileId:null,loadoutVersion:1,equippedCount:2,secret:"PRIVATE"};
+createRoot(document.getElementById("root")!).render(<TddDetail registry={registry} schema={schema} context={{surface:"BO",centerId:"center-a",authorize:()=>!denied}} record={record} subject={{type:"pinoria-avatars",id:record.id}} onBack={()=>{}} renderOverviewProperties={properties=><SelfDirectoryProperties {...properties}/>}/>);

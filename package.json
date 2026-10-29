@@ -31,7 +31,7 @@
     "@fortawesome/react-fontawesome": "^3.5.0",
     "@notionhq/client": "^5.6.0",
     "@opennextjs/cloudflare": "1.20.12",
-    "@pino/design-system": "file:vendor/pino-design-system/pino-design-system-0.3.0-rc.1.tgz",
+    "@pino/design-system": "file:vendor/pino-design-system/pino-design-system-0.3.0.tgz",
     "jose": "^6.2.12",
     "next": "16.4.2",
     "react": "^19.1.0",

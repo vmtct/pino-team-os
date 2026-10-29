@@ -1,12 +1,13 @@
 {
   "package": "@pino/design-system",
-  "version": "0.3.0-rc.1",
+  "version": "0.3.0",
   "sourceRepo": "https://github.com/vmtct/pino-design-system",
-  "sourceMainSha": "3fd9c166b72b82bdf872a29519cd92217d96dc77",
-  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.3.0-rc.1.tgz",
-  "tarballSha256": "ea5da205f3f53f7fdf85a8ca9b9747125f0cf32d5352482427bdcd119e2c4ed7",
-  "owner": "PAP-1117",
-  "status": "HO_STAFF_PROPERTIES_PILOT",
-  "notes": "PAP-1117 authorized HO Staff overview property pilot; existing ACL facade unchanged. Local prototype remains development-only. Candidate pinned by approved source commit and archive digest; no release tag claimed.",
-  "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/2"
+  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.3.0.tgz",
+  "tarballSha256": "01086f1432695feb67a7bab06f727adb39c0925ba18ad2535762e7370acab903",
+  "owner": "PAP-1170",
+  "status": "BO_HO_COMPONENT_PILOTS",
+  "notes": "PAP-1170 independently pins shared presentation 0.3.0 from merged source PR3. HO Staff API/ACL and BO Self Directory authorized projection remain application-owned. No release tag claimed.",
+  "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/3",
+  "sourceCommit": "40e40eca9383971f27682c233fd63e90a650bddf",
+  "sourceMainSha": "a3a0c61b83266b5f5ca2f02c61dd6d632ba33433"
 }
