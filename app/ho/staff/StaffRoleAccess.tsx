@@ -81,8 +81,8 @@ export function StaffRoleAccess({ staffId, active, principalId }: {
       {state.kind === "loading" ? <span>Đang tải…</span> :
         state.kind === "error" ? <span role="alert">Không tải được vai trò.</span> :
         !user ? <span>—</span> :
-        <><select id="ho-staff-role-select" data-testid="ho-staff-role-select"
-          value={selected} disabled={!canEdit || busy} onChange={event => setSelected(event.target.value)}>
+        <><select id="ho-staff-role-select" className="ho-staff-role-select" aria-label="Vai trò Access" data-testid="ho-staff-role-select"
+          value={selected} disabled={!canEdit || busy} title={assignment?.roleName || "Vai trò"} onChange={event => setSelected(event.target.value)}>
           {user.assignments.length !== 1 ? <option value="">Nhiều vai trò</option> : null}
           {assignment && !roles.some(r => r.id === assignment.roleId)
             ? <option value={assignment.roleId}>{assignment.roleName}</option> : null}
