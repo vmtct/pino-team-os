@@ -10,6 +10,7 @@ import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction"
 import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
 import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, type WorkforceShiftCoverageMode } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
+import { workforceAssignmentNote } from "@/app/bo/architecture/workforce-shift-note";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BoWorkforceWeeklyPlanning };
 type Selection = { staffMemberId: string; workDate: string } | null;
@@ -230,10 +231,11 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
     if (coverageMode === "CUSTOM_RANGE" && eligibleRunningClasses.filter((item) => teacherRunningClassIds.includes(item.id) || assistantRunningClassIds.includes(item.id)).some((item) => item.startLocalTime < customStartLocal || item.endLocalTime > customEndLocal)) { setNotice("Khung giờ tuỳ chỉnh phải bao phủ toàn bộ lớp Teacher và Teaching Assistant đã phân công."); return; }
     setBusy("assign"); setNotice("");
     try {
-      await boApi.planOperationalWorkforceShift({
+      const input = {
         staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
         shiftTemplateId: templateId, note: shiftNote.trim() || null, coverageMode, ...(coverageMode === "CUSTOM_RANGE" ? { customStartLocal, customEndLocal } : {}), termWeekId: data.termWeekId, roles,
-      }, crypto.randomUUID());
+      };
+      await boApi.planOperationalWorkforceShift(input, crypto.randomUUID());
       setNotice("Ca và phân công operational đã được chốt.");
       setFrontDesk(false); setShiftLeader(false); setTeacherSelected(false); setAssistantSelected(false); setTeacherRunningClassIds([]); setAssistantRunningClassIds([]); setCoverageMode("FULL_SHIFT"); setCustomStartLocal(""); setCustomEndLocal(""); setShiftNote("");
       await refresh();
@@ -372,7 +374,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                     onClick={() => {
                     setSelection({ staffMemberId: staff.id, workDate: date });
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
-                     setShiftNote(assigned[0]?.note ?? "");
+                     setShiftNote(workforceAssignmentNote(assigned[0]) ?? "");
                     setReason("");
                     setFrontDesk(false);
                     setShiftLeader(false);
@@ -499,7 +501,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                 <strong>{templateLabel(data, assignment.shiftTemplateId)}</strong>
                 <span>{assignment.status} · {assignment.id.slice(0, 8)}</span>
                 <span>{assignmentTimeSummary(assignment)}</span>
-                 {assignment.note ? <span>Note ca làm: {assignment.note}</span> : null}
+                 {workforceAssignmentNote(assignment) ? <span>Note ca làm: {workforceAssignmentNote(assignment)}</span> : null}
                 {[...roleSummary, ...runningClassRoleSummary].map((item, index) => <span key={`${item}:${index}`}>{item}</span>)}
                 {hasOwnerRole ? <span>Chuyển Phụ trách chính ở School → Classes → Sessions trước khi huỷ/đổi ca.</span> : null}
               </div>
@@ -510,7 +512,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
             </article>;
           })}
 
-          {historyAssignments.some((item) => item.status === "CANCELLED") ? <div className={styles.plannerHistory}><strong>History</strong>{historyAssignments.filter((item) => item.status === "CANCELLED").map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · CANCELLED{item.note ? ` · Note: ${item.note}` : ""}{item.cancellationReason ? ` · Lý do huỷ: ${item.cancellationReason}` : ""}</span>)}</div> : null}
+          {historyAssignments.some((item) => item.status === "CANCELLED") ? <div className={styles.plannerHistory}><strong>History</strong>{historyAssignments.filter((item) => item.status === "CANCELLED").map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · CANCELLED{workforceAssignmentNote(item) ? ` · Note: ${workforceAssignmentNote(item)}` : ""}{item.cancellationReason ? ` · Lý do huỷ: ${item.cancellationReason}` : ""}</span>)}</div> : null}
         </>}
       </aside>
     </div> : null}
