@@ -37,6 +37,14 @@ test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff s
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art.evil.example", "/bo"), { action: "next" });
 });
 
+test("PAP-1111 assignment Note edit is exact POST on BO Staging only", () => {
+  const route="/api/bo/workforce/planning/assignment/note", bo="bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo,route,"POST"),{action:"next"});
+  for(const method of ["GET","HEAD","PATCH","PUT","DELETE","OPTIONS"]) assert.deepEqual(decideHostBoundary(bo,route,method),{action:"not_found"},method);
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","join.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route,"POST"),{action:"not_found"},host);
+  for(const malformed of [route+"/extra",route+"/",route+"%2fextra",route.toUpperCase(),"/api/bo/workforce/planning/assignment/notes"]) assert.deepEqual(decideHostBoundary(bo,malformed,"POST"),{action:"not_found"},malformed);
+});
+
 test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
   const route="/api/bo/pinoria/avatars";
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
