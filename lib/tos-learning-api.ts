@@ -16,6 +16,8 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
 }
 const qs=(value:Record<string,string>)=>new URLSearchParams(value).toString();
 export const tosLearningApi={
+ walkinPassLookup:(centerId:string,code:string)=>request<{data:{pass:{id:string;code:string;path_code:"AC"|"LPP"|"LPA"|"PH";status:string;parent_user_id:string};parentName:string|null;students:Array<{id:string;name:string}>}}>("open-studio/walkin/lookup?"+qs({centerId,code})),
+ consumeWalkinPass:(data:{centerId:string;code:string;shiftId:string;confirmedHolder:true;studentId?:string|null;manualChildName?:string|null})=>request<{data:{id:string;status:"CONSUMED";child_name:string;student_id:string|null}}>("open-studio/walkin/consume",{method:"POST",headers:{"idempotency-key":crypto.randomUUID()},body:JSON.stringify(data)}),
  sessionsDay:(centerId:string,localDate:string)=>request<{data:{centerId:string;localDate:string;sessions:DaySession[]}}>(`sessions/day?${qs({centerId,localDate})}`),
  roster:(sessionId:string)=>request<{data:SessionRoster}>(`sessions/${encodeURIComponent(sessionId)}/roster`),
  learningOptions:(sessionId:string)=>request<{data:LearningOptions}>(`sessions/${encodeURIComponent(sessionId)}/learning-options`),

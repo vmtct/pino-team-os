@@ -171,6 +171,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "open-studio/listing-catalog"
     || path === "open-studio/learners"
     || path === "open-studio/passes"
+    || path === "open-studio/walkin/inventory"
     || DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path)
     || SPECIALTY_POLICY_READ.test(path)
     || OPEN_STUDIO_POLICY_READ.test(path)
@@ -187,6 +188,12 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readCorePath(path: string, url: URL): string {
+  if (path === "open-studio/walkin/inventory") {
+    const query = new URLSearchParams();
+    for (const key of url.searchParams.keys()) if (!["centerId","limit"].includes(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid Pass inventory query");
+    for (const key of ["centerId","limit"]) { const value=url.searchParams.get(key);if(value !== null) query.set(key,value); }
+    const encoded=query.toString();return encoded ? path+"?"+encoded : path;
+  }
   if (path === "web-cms/slots") {
     const params = new URLSearchParams();
     for (const key of ["site", "page", "includeRetired"] as const) { const value = url.searchParams.get(key); if (value !== null) params.set(key, value); }
