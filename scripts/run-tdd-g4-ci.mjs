@@ -12,13 +12,24 @@ async function check(name, fn) {
   try { await fn(); cases.push({name,status:"PASS"}); }
   catch { cases.push({name,status:"FAIL"}); }
 }
-async function login(context, origin, email, password) {
+async function login(context, origin, email, password, role) {
   const page = await context.newPage();
+  const label = role + (origin === BO ? "_bo" : "_ho");
   try {
+    phase = label + "_navigate";
     await page.goto(origin + "/staff-login", {waitUntil:"domcontentloaded"});
+    phase = label + "_fill";
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Mật khẩu").fill(password);
+    const reply = page.waitForResponse(r => new URL(r.url()).pathname === "/api/staff-auth/login" &&
+      r.request().method() === "POST", {timeout:15000}).catch(() => null);
+    phase = label + "_submit";
     await page.getByRole("button",{name:"Vào PINO Team"}).click();
+    phase = label + "_response";
+    const response = await reply;
+    if (!response) throw Object.assign(new Error("missing response"), {name:"AuthResponseMissing"});
+    if (response.status() !== 200) throw Object.assign(new Error("non-200 response"), {name:"AuthHTTP" + response.status()});
+    phase = label + "_redirect";
     await page.waitForURL(u => !u.pathname.startsWith("/staff-login") &&
       !u.pathname.startsWith("/staff-password"), {timeout:18000});
   } finally { await page.close(); }
@@ -50,11 +61,11 @@ try {
   manager = await browser.newContext({viewport:{width:1024,height:900}});
   anon = await browser.newContext({viewport:{width:1024,height:900},storageState:{cookies:[],origins:[]}});
   phase = "founder_bo_login";
-  await login(founder, BO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD);
+  await login(founder, BO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD, "founder");
   phase = "founder_ho_login";
-  await login(founder, HO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD);
+  await login(founder, HO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD, "founder");
   phase = "manager_bo_login";
-  await login(manager, BO, env.TDD_G4_MANAGER_EMAIL, env.TDD_G4_MANAGER_PASSWORD);
+  await login(manager, BO, env.TDD_G4_MANAGER_EMAIL, env.TDD_G4_MANAGER_PASSWORD, "manager");
   await guard(founder); await guard(manager); await guard(anon);
   fp = await founder.newPage(); mp = await manager.newPage();
   await fp.goto(BO + "/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
