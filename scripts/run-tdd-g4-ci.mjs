@@ -37,23 +37,29 @@ async function actor(page) {
 }
 const keys = ["TDD_G4_FOUNDER_EMAIL","TDD_G4_FOUNDER_PASSWORD","TDD_G4_MANAGER_EMAIL","TDD_G4_MANAGER_PASSWORD"];
 let browser, founder, manager, anon, fp, mp;
+let phase = "ci_preflight";
 try {
   assert(env.CI === "true" && env.TDD_G4_RUN === "1", "CI opt-in required");
   for (const key of keys) assert(env[key] && env[key].length >= 3, "missing identity");
   assert(env.TDD_G4_FOUNDER_EMAIL !== env.TDD_G4_MANAGER_EMAIL, "distinct identities required");
   const proof = await verifyStaging(env);
   console.log(JSON.stringify({name:"PAP-1074 GitHub + Cloudflare receipt",...proof,status:"PASS"}));
+  phase = "browser_launch";
   browser = await chromium.launch({headless:true});
   founder = await browser.newContext({viewport:{width:1024,height:900}});
   manager = await browser.newContext({viewport:{width:1024,height:900}});
   anon = await browser.newContext({viewport:{width:1024,height:900},storageState:{cookies:[],origins:[]}});
+  phase = "founder_bo_login";
   await login(founder, BO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD);
+  phase = "founder_ho_login";
   await login(founder, HO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD);
+  phase = "manager_bo_login";
   await login(manager, BO, env.TDD_G4_MANAGER_EMAIL, env.TDD_G4_MANAGER_PASSWORD);
   await guard(founder); await guard(manager); await guard(anon);
   fp = await founder.newPage(); mp = await manager.newPage();
   await fp.goto(BO + "/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
   await mp.goto(BO + "/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
+  phase = "distinct_actor_context";
   const fa = await actor(fp), ma = await actor(mp);
   assert(fa.status === 200 && fa.entitled && ma.status === 200 && ma.entitled &&
     fa.userId && ma.userId && fa.userId !== ma.userId, "distinct entitled identities required");
@@ -176,8 +182,8 @@ try {
     assert(await fp.locator('[data-tdd-shell="detail"]').count() === 0,"detail still mounted");
     assert(!new URL(fp.url()).searchParams.has("record"),"stale record URL");
   });
-} catch {
-  cases.push({name:"authenticated_ci_admission",status:"FAIL"});
+} catch (error) {
+  cases.push({name:"authenticated_ci_admission",status:"FAIL",phase,errorType:error instanceof Error ? error.name : "UnknownError"});
 } finally {
   await fp?.close().catch(()=>{});
   await mp?.close().catch(()=>{});
