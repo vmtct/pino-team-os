@@ -22,7 +22,7 @@
     "APP_ENV": "staging",
     "FOUNDER_EMAIL": "",
     "BO_UI_ONLY": "enabled",
-    "HO_PILOT_FOUNDER_USER_IDS": "01a0b2aa-9e9e-7cb5-943f-110671d0da62"
+    "HO_PILOT_FOUNDER_USER_IDS": "01a0b2aa-9e9e-7cb5-943f-110671d0da62,01a18784-3c28-7ed7-b114-c2c83502c30f"
   },
   "services": [
     {
