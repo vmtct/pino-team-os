@@ -143,7 +143,9 @@ function isApprovedBoLegacyFounderPinoriaPath(normalized: string): boolean {
 function isApprovedBoPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (isApprovedBoPinoriaOperationalPath(normalized) || isApprovedBoLegacyFounderPinoriaPath(normalized)) return true;
-  if (/^\/api\/bo\/views\/(?:students|classes)(?:\/(?:[0-9a-f-]{36}(?:\/rename)?|reorder))?$/.test(normalized)) return true;
+  // PAP-1033: admit Subscription Shared Views through the BO host fence. The authenticated BFF
+  // and Core enforce GLOBAL membership.subscription.view for reads and separate GLOBAL manage for writes.
+  if (/^\/api\/bo\/views\/(?:students|classes|subscriptions)(?:\/(?:[0-9a-f-]{36}(?:\/rename)?|reorder))?$/.test(normalized)) return true;
   if (/^\/api\/bo\/identity\/parents\/[0-9a-f-]{36}\/detail$/.test(normalized)) return true;
   if ([
     "/bo",
