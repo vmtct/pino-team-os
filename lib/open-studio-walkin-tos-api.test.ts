@@ -24,15 +24,15 @@ test("TOS walk-in lookup goes only to TOS facade",async()=>{
 });
 test("TOS consume carries explicit payload and idempotency key to TOS facade",async()=>{
  const original=globalThis.fetch;
- let captured:[string,RequestInit]|null=null;
+ const captured:Array<[string,RequestInit]>=[];
  globalThis.fetch=(async(url:string,init:RequestInit)=>{
-  captured=[url,init];
+  captured.push([url,init]);
   return Response.json({data:{id:"p1",status:"CONSUMED",child_name:"An Nhiên",student_id:"s1"}});
  }) as typeof fetch;
  try{
   await walkinPassTosApi.consume({centerId:"center-1",code:"PINO-OS-001",shiftId:"shift-1",confirmedHolder:true,studentId:"s1"});
-  assert.ok(captured);
-  const [url,opts]=captured!;
+  assert.equal(captured.length,1);
+  const [url,opts]=captured[0]!;
   assert.equal(url,"/api/tos-learning/open-studio/walkin/consume");
   assert.equal(opts.method,"POST");
   assert.equal((opts.headers as Record<string,string>)["content-type"],"application/json");
