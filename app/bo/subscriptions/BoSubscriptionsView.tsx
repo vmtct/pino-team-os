@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle, BoPathProgram, BoRunningClass, BoSubscriptionProjectedCompletion } from "@/lib/bo-model";
 import { LatestRequestFence, collectPagedDirectory } from "@/lib/bo-school-students-state";
 import { SubscriptionHistoryGrid } from "./SubscriptionHistoryGrid";
 import { BoFullDetail } from "@/app/bo/components/registration/BoFullDetail";
+import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { subscriptionModule } from "@/app/bo/components/registration/BoStudentSubscriptionRelation";
 import type { BoRecord } from "@/lib/bo-registration";
 import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
@@ -20,6 +21,8 @@ type CommandAttempt = { key: string; idempotencyKey: string; action: (idempotenc
 const EMPTY_BILLING_REPLAY: BillingReplayState = { pending: null, busy: null, notice: null, error: null };
 
 export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}) {
+  // Share the canonical BO/HO mobile menu owner; the default context is inert on standalone routes.
+  const hostMenu = useContext(TddHostMenu);
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -251,9 +254,14 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
   }
 
   return <div data-bo-runtime-surface="subscriptions-core" data-bo-embedded={embedded || undefined} className={historyDetail||detailRoute ? styles.detailOnly : styles.page}>
-    <header className={styles.readHeading}>
-      <h1>Subscriptions</h1>
-      <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}>＋ Tạo mới</button>
+    <header className="page-heading">
+      <div className="page-heading-left">
+        {hostMenu("subscription-menu-btn")}
+        <h1>Subscriptions</h1>
+      </div>
+      <div className="heading-actions">
+        <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}><span>＋</span> Tạo mới</button>
+      </div>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
     {commandState.error ? <div className={styles.error}>{commandState.error}{pendingAttempt ? <><br /><small>Kết quả chưa xác định. Không đổi dữ liệu; chỉ retry exact command.</small><br /><button type="button" disabled={Boolean(commandState.busy)} onClick={() => void retryPending()}>Thử lại cùng yêu cầu</button></> : null}</div> : null}
@@ -305,7 +313,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
         window.history.pushState(null,"",url);setHistoryTab(tab);
       }}
       record={historyDetail}
-      mobileMenu={null}
+      mobileMenu={hostMenu("subscription-detail-menu-btn")}
       onBack={closeHistoryDetail}
     /> : null}
   </div>;
