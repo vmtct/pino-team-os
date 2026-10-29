@@ -9,17 +9,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { TableFrame, DrawerFrame, DetailFrame, TosCard, TosButton, TosBottomNav } from "@pino/design-system/react";
 const require = createRequire(import.meta.url);
 const config=JSON.parse(readFileSync(resolve("config/pino-shared-ds-consumer.json"),"utf8"));
-test("PAP-1117 PINO package exact artifact",()=>{
+test("PAP-1170 PINO package exact artifact",()=>{
  const archive=readFileSync(resolve(config.vendoredTarball));
  assert.equal(createHash("sha256").update(archive).digest("hex"),config.tarballSha256);
  const manifest=JSON.parse(readFileSync(require.resolve("@pino/design-system/manifest.json"),"utf8"));
  assert.equal(manifest.version,config.version);
- assert.equal(config.version,"0.3.0-rc.1");
- assert.equal(config.sourceMainSha,"3fd9c166b72b82bdf872a29519cd92217d96dc77");
- assert.equal(config.tarballSha256,"ea5da205f3f53f7fdf85a8ca9b9747125f0cf32d5352482427bdcd119e2c4ed7");
+ assert.equal(config.version,"0.3.0");
+ assert.equal(config.sourceCommit,"40e40eca9383971f27682c233fd63e90a650bddf");
+ assert.equal(config.tarballSha256,"01086f1432695feb67a7bab06f727adb39c0925ba18ad2535762e7370acab903");
  assert.equal(manifest.sourceOwner,"PINO");
 });
-test("PAP-1117 shared TDD and TOS React SSR",()=>{
+test("PAP-1170 shared TDD and TOS React SSR",()=>{
  const markup=renderToStaticMarkup(h("div",null,
   h(TableFrame,{caption:"Demo",columns:[{key:"name",label:"Name"}],rows:[{name:"Fixture"}]}),
   h(DetailFrame,{title:"Fixture",tabs:[{id:"overview",label:"Tổng quan"}],selected:"overview",children:"detail"}),

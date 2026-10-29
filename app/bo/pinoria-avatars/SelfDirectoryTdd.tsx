@@ -1,4 +1,6 @@
 "use client";
+import "@pino/design-system/bo-tokens.css";
+import "@pino/design-system/components.css";
 import { useEffect, useState } from "react";
 import readApi from "@/public/bo-authority-source/school-adapters.js";
 import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegistrationWorkspace";
@@ -8,6 +10,8 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { selfDefinition, selfFields, selfQuery, selfProvider } from "./schema";
 import { loadAuthorizedDirectoryCenters, type DirectoryCenter, type DirectoryCenterSource } from "./centers";
+
+import { SelfDirectoryProperties } from "./SharedProperties";
 
 type F = typeof selfFields;
 type Bound = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
@@ -56,7 +60,7 @@ export function SelfDirectoryTdd(){
           <p>Chọn cơ sở đã được cấp quyền. Việc đọc Pinoria Self vẫn yêu cầu quyền riêng từ Core.</p>
         </div>
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
-          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery}/>
+          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}/>
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
