@@ -1,0 +1,47 @@
+name: PAP-1074 G4 Staging Authenticated E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pap1074-g4-staging
+  cancel-in-progress: false
+
+jobs:
+  g4:
+    name: Read-only G4 role acceptance
+    if: github.ref == 'refs/heads/main' && github.actor == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: g4-staging
+    env:
+      CI: 'true'
+      TDD_G4_RUN: '1'
+      TDD_G4_FOUNDER_EMAIL: ${{ secrets.TDD_G4_FOUNDER_EMAIL }}
+      TDD_G4_FOUNDER_PASSWORD: ${{ secrets.TDD_G4_FOUNDER_PASSWORD }}
+      TDD_G4_MANAGER_EMAIL: ${{ secrets.TDD_G4_MANAGER_EMAIL }}
+      TDD_G4_MANAGER_PASSWORD: ${{ secrets.TDD_G4_MANAGER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Require independent staging-only CI identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in TDD_G4_FOUNDER_EMAIL TDD_G4_FOUNDER_PASSWORD TDD_G4_MANAGER_EMAIL TDD_G4_MANAGER_PASSWORD; do
+            if [ -z "${!key:-}" ]; then echo "::error::Missing protected G4 Staging identity secret: $key"; exit 1; fi
+          done
+          if [ "$TDD_G4_FOUNDER_EMAIL" = "$TDD_G4_MANAGER_EMAIL" ]; then echo "::error::G4 identities must be distinct"; exit 1; fi
+          echo 'Protected Staging identity admission ready; no credentials printed.'
+      - name: HOLD until runtime receipt and ephemeral login bootstrap are implemented
+        run: |
+          echo 'G4 HOLD: do not claim PASS from secret presence. Exact CI/CD/Worker SHA and independent browser auth bootstrap must be verified.'
+          exit 1
