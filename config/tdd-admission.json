@@ -22,10 +22,6 @@
         {
           "file": "public/bo-authority-source/school-adapters.js",
           "owner": "PAP-982"
-        },
-        {
-          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
-          "owner": "PAP-1154"
         }
       ],
       "schema": {
