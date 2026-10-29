@@ -106,6 +106,7 @@ export const assignmentsAdapter: BoModuleReadAdapter = {
       centerName: display.centerName(a.centerId), termWeekLabel: display.weekName(a.centerId,s.termWeekId),
       centerId: a.centerId, termWeekId: s.termWeekId, workDate: a.workDate,
       shift: s.templates.find((t) => t.id === a.shiftTemplateId)?.displayLabel ?? a.shiftTemplateId, status: a.status,
+      note: a.note ?? null,
     })));
   },
 };

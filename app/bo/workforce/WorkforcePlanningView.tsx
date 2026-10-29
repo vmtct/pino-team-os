@@ -38,6 +38,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [reason, setReason] = useState("");
+  const [shiftNote, setShiftNote] = useState("");
   const [availabilityVoidReason, setAvailabilityVoidReason] = useState("");
   const [weekControlReason, setWeekControlReason] = useState("");
   const [weekControlUntil, setWeekControlUntil] = useState("");
@@ -231,10 +232,10 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
     try {
       await boApi.planOperationalWorkforceShift({
         staffMemberId: selection.staffMemberId, centerId: data.centerId, workDate: selection.workDate,
-        shiftTemplateId: templateId, coverageMode, ...(coverageMode === "CUSTOM_RANGE" ? { customStartLocal, customEndLocal } : {}), termWeekId: data.termWeekId, roles,
+        shiftTemplateId: templateId, note: shiftNote.trim() || null, coverageMode, ...(coverageMode === "CUSTOM_RANGE" ? { customStartLocal, customEndLocal } : {}), termWeekId: data.termWeekId, roles,
       }, crypto.randomUUID());
       setNotice("Ca và phân công operational đã được chốt.");
-      setFrontDesk(false); setShiftLeader(false); setTeacherSelected(false); setAssistantSelected(false); setTeacherRunningClassIds([]); setAssistantRunningClassIds([]); setCoverageMode("FULL_SHIFT"); setCustomStartLocal(""); setCustomEndLocal("");
+      setFrontDesk(false); setShiftLeader(false); setTeacherSelected(false); setAssistantSelected(false); setTeacherRunningClassIds([]); setAssistantRunningClassIds([]); setCoverageMode("FULL_SHIFT"); setCustomStartLocal(""); setCustomEndLocal(""); setShiftNote("");
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
@@ -371,6 +372,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                     onClick={() => {
                     setSelection({ staffMemberId: staff.id, workDate: date });
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
+                     setShiftNote(assigned[0]?.note ?? "");
                     setReason("");
                     setFrontDesk(false);
                     setShiftLeader(false);
@@ -463,7 +465,11 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                 return <button type="button" key={id} className={styles.secondaryButton} onClick={() => setChosen((current)=>current.filter((itemId)=>itemId!==id))} aria-label={"Bỏ lớp "+(item?.name??id)}>{item?.name??id} ×</button>;
               })}</div> : null}
             </details> : null)}
-            {classRoleIncomplete ? <small>Vai trò Giáo viên/Trợ giảng cần chọn ít nhất một Running Class để lưu.</small> : null}
+            <label className={styles.field}>Note ca làm (không bắt buộc)
+               <textarea rows={2} maxLength={500} value={shiftNote} onChange={(event) => setShiftNote(event.target.value)} placeholder="Ghi chú về ca, không thay thế lý do huỷ/điều chỉnh" />
+               <small>{shiftNote.length}/500 ký tự · lưu cùng assignment ở Core.</small>
+             </label>
+             {classRoleIncomplete ? <small>Vai trò Giáo viên/Trợ giảng cần chọn ít nhất một Running Class để lưu.</small> : null}
           </div> : null}
 
           {!activeAssignments.length ? <button className={styles.primaryButton} disabled={!templateId || (!frontDesk && !shiftLeader && !teacherSelected && !assistantSelected) || classRoleIncomplete || !customRangeReady || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void assign()}>{busy === "assign" ? "Đang xếp…" : "Xác nhận ca & phân công"}</button> : null}
@@ -493,6 +499,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                 <strong>{templateLabel(data, assignment.shiftTemplateId)}</strong>
                 <span>{assignment.status} · {assignment.id.slice(0, 8)}</span>
                 <span>{assignmentTimeSummary(assignment)}</span>
+                 {assignment.note ? <span>Note ca làm: {assignment.note}</span> : null}
                 {[...roleSummary, ...runningClassRoleSummary].map((item, index) => <span key={`${item}:${index}`}>{item}</span>)}
                 {hasOwnerRole ? <span>Chuyển Phụ trách chính ở School → Classes → Sessions trước khi huỷ/đổi ca.</span> : null}
               </div>
@@ -503,7 +510,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
             </article>;
           })}
 
-          {historyAssignments.some((item) => item.status === "CANCELLED") ? <div className={styles.plannerHistory}><strong>History</strong>{historyAssignments.filter((item) => item.status === "CANCELLED").map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · CANCELLED{item.cancellationReason ? ` · ${item.cancellationReason}` : ""}</span>)}</div> : null}
+          {historyAssignments.some((item) => item.status === "CANCELLED") ? <div className={styles.plannerHistory}><strong>History</strong>{historyAssignments.filter((item) => item.status === "CANCELLED").map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · CANCELLED{item.note ? ` · Note: ${item.note}` : ""}{item.cancellationReason ? ` · Lý do huỷ: ${item.cancellationReason}` : ""}</span>)}</div> : null}
         </>}
       </aside>
     </div> : null}

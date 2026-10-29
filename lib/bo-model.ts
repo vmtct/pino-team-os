@@ -598,6 +598,7 @@ export interface BoWorkforceAssignment {
   };
   termWeekId: string | null;
   status: "ACTIVE" | "CANCELLED";
+  note?: string | null;
   assignedByUserId: string;
   assignedAt: string;
   cancelledByUserId: string | null;

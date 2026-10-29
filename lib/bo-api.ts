@@ -559,6 +559,7 @@ export const boApi = {
     centerId: string;
     workDate: string;
     shiftTemplateId: string;
+    note?: string | null;
     timeBasis?: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
     coverageMode?: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
     customStartLocal?: string;
