@@ -3,6 +3,7 @@ import {useEffect,useState} from "react";
 import {periodApi,money,type PayPeriod,type PeriodStaff,type PeriodStaffPage} from "@/lib/bo-payroll-period-api";
 import {periodSummaries,staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
 import {BoPill} from "./BoValue";
+import {BoPayrollPeriodInformation,payrollPeriodInfoFields} from "./BoPayrollPeriodInformation";
 import type {BoRecord} from "@/lib/bo-registration";
 export function BoPayrollPeriodDetail({record,tab}:{record:BoRecord;tab:"Detail"|"Quyết Toán"}){
  const [period,setPeriod]=useState<PayPeriod|null>(null);
@@ -30,17 +31,11 @@ export function BoPayrollPeriodDetail({record,tab}:{record:BoRecord;tab:"Detail"
  if(load==="error")return <div role="alert">{error}</div>;
  const totals=page?periodSummaries(page.periodTotals):null;
  const staff=staffWithWorkEvidence(rows);
- const props:[string,string][]=[
-  ["Period ID",record.id],["Tên kỳ",String(record.name)],["Từ ngày",String(period?.startDate||record.startDate||"—")],
-  ["Đến ngày",String(period?.endDate||record.endDate||"—")],
-  ["Trạng thái",period?.status==="ARCHIVED"?"Lưu trữ":"Đang mở"],["Center",String(record.centerName||"—")]
- ];
  const kpis=<div className="payroll-ro-kpis" role="group" aria-label="Tổng lương kỳ">
   <div className="payroll-ro-kpi"><span>Tổng Dự Kiến</span><strong data-pay-total-expected>{totals?money(totals.expected):"—"}</strong></div>
   <div className="payroll-ro-kpi"><span>Tổng Quyết Toán</span><strong data-pay-total-finalized>{totals?money(totals.finalized):"—"}</strong></div>
  </div>;
- if(tab==="Detail")return <><section className="property-section"><h3>Chi tiết</h3>{props.map(([k,v])=><div key={k} className="property-row"><div className="property-label">{k}</div><div className="property-control">{v}</div></div>)}</section>{kpis}
-  <section className="property-section"><h3>PTE đã tính được lương</h3><div className="payroll-ro-compact">{staff.filter(x=>x.amountMinor!==null).map(x=><div className="payroll-ro-compact-row" key={x.staffMemberId}><span>{x.staffMemberId}</span><strong>{money(x.amountMinor)}</strong></div>)}{!staff.some(x=>x.amountMinor!==null)?<div className="payroll-ro-empty">Chưa có lương tính được.</div>:null}</div></section></>;
+ if(tab==="Detail")return <><BoPayrollPeriodInformation fields={payrollPeriodInfoFields(record,period)}/>{kpis}</>;
  return <>{kpis}<section className="property-section"><h3>Quyết toán theo PTE</h3>{staff.length?
   <div className="table-scroll"><div className="payroll-ro-table" role="table" aria-label="Bảng quyết toán theo PTE">
    <div className="payroll-ro-row payroll-ro-head" role="row"><span role="columnheader">PTE</span><span role="columnheader">Thành tiền</span><span role="columnheader">Trạng thái</span><span role="columnheader">Thao tác</span></div>
