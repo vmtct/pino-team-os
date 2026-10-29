@@ -137,6 +137,7 @@ test("WSRA operational assignment forwards exact role plan and replay key", asyn
     centerId: "center",
     workDate: "2026-10-06",
     shiftTemplateId: "shift",
+    note: "QA ca tối",
     coverageMode: "CUSTOM_RANGE",
     customStartLocal: "18:00",
     customEndLocal: "20:30",
