@@ -58,7 +58,8 @@ test("PAP-1148 HO account footer binds authenticated Core displayName and neutra
   const staffUi = readFileSync("app/ho/staff/StaffTdd.tsx","utf8");
   assert.match(ho,/fetch\("\/api\/bo\/context"/);
   assert.match(ho,/context\?\.displayName/);
-  assert.match(shell,/data-testid="ho-signed-in-user"/);
+  assert.match(shell,/const userLabel = currentUser\.displayName/);
+  assert.match(ho,/currentUser=\{\{displayName\}\}/);
   assert.match(staffUi,/StaffRoleAccess/);
   assert.doesNotMatch(ho,/localStorage|sessionStorage/);
 });

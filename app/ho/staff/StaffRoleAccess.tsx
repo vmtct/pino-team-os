@@ -84,7 +84,7 @@ export function StaffRoleAccess({ staffId, active, principalId }: {
         </div>
         {self ? <p role="status">Không thể tự thay đổi quyền của tài khoản đang đăng nhập.</p> :
           user.status !== "active" ? <p role="status">Tài khoản Access chưa hoạt động.</p> :
-          <div className="v24-prop-grid">
+          <div className="v24-prop-row">
             <label>Role<select data-testid="ho-staff-role-select" value={roleId} disabled={busy}
               onChange={e => setRoleId(e.target.value)}>
               <option value="">Chọn role…</option>{assignable.map(r => <option value={r.id} key={r.id}>{r.displayName}</option>)}
