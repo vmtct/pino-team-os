@@ -23,12 +23,15 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
+    const staffRateCorrection = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation\/[0-9a-f-]{36}$/.test(p);
     const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
     const staffRoleWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/role$/.test(p);
     const hoRoleDefinitionWrite = /^\/api\/ho\/system\/roles\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/update$/i.test(p);
     if (method === "POST" && (staffRoleWrite || hoRoleDefinitionWrite)) return { action: "next" };
     if (method === "POST" && staffPasswordReset) return { action: "next" };
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
+    // PAP-996: distinct Founder-only, HO Staging-only PATCH for a single immutable rate-row identity.
+    if (method === "PATCH" && staffRateCorrection) return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
     if (method === "POST" && authPost) return { action: "next" };
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
