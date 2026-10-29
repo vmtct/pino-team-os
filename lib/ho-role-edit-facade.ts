@@ -80,8 +80,9 @@ export async function handleHoRoleEdit(request: Request, env: HoRoleEditEnv, rol
       [401,403].includes(catalog.status) ? catalog.status : 503);
     const data = rows(catalog.body);
     if (!data) return json({ error: { code: "HO_PERMISSION_CATALOG_INVALID" } }, 502);
-    const approved = new Set(data.filter(x => x && typeof x === "object" && typeof x.key === "string")
-      .map(x => (x as { key: string }).key));
+    const approved = new Set(data.filter((x): x is { key: string } =>
+      Boolean(x && typeof x === "object" && "key" in x && typeof x.key === "string"))
+      .map(x => x.key));
     if (command.permissionKeys.some(key => !approved.has(key) || !actor.permissionKeys.includes(key)))
       return json({ error: { code: "HO_ROLE_PERMISSION_ESCALATION" } }, 403);
     const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, {
