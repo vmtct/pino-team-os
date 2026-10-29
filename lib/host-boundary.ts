@@ -32,6 +32,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
     // PAP-996: distinct Founder-only, HO Staging-only PATCH for a single immutable rate-row identity.
     if (method === "PATCH" && staffRateCorrection) return { action: "next" };
+    // PAP-1092: exact HO one-use Pass routes, Founder pilot + Core GLOBAL permission.
+    if (p === "/api/ho/open-studio/walkin/inventory" && method === "GET") return { action: "next" };
+    if (["/api/ho/open-studio/walkin/batches", "/api/ho/open-studio/walkin/revoke"].includes(p) && method === "POST") return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
     if (method === "POST" && authPost) return { action: "next" };
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
@@ -178,6 +181,10 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/subscriptions",
     "/bo/sales/leads",
     "/bo/open-studio",
+    "/api/bo/open-studio/walkin/inventory",
+    "/api/bo/open-studio/walkin/batches",
+    "/api/bo/open-studio/walkin/assign",
+    "/api/bo/open-studio/walkin/revoke",
     "/bo/tvs",
     "/bo/delivery-activation",
     "/bo/calendar",
