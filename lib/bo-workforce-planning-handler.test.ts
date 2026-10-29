@@ -63,6 +63,17 @@ test("assignment and cancellation forward exact idempotency keys", async () => {
   assert.deepEqual(forwarded, [{ method: "POST", path: "assignment", body: assignmentBody, idempotencyKey: "create-key" }, { method: "POST", path: "assignment/cancel", body: { assignmentId: "assignment", reason: "Correction" }, idempotencyKey: "cancel-key" }]);
 });
 
+test("PAP-1111 note-only edit forwards idempotency, expected concurrency token and Core ACL result", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async (request) => { forwarded.push(request); return {status:409,body:{error:{code:"CONFLICT",message:"Assignment changed"}},requestId:"note-conflict"}; });
+  const path = "workforce/planning/assignment/note";
+  const input = {assignmentId:"01999999-9999-7999-8999-999999999999",expectedUpdatedAt:"2026-10-29T04:00:00.000Z",note:"Cập nhật ca"};
+  const request = new Request("https://bo.pinohouse.art/api/bo/"+path,{method:"POST",headers:headers({"content-type":"application/json","idempotency-key":"note-edit-1"}),body:JSON.stringify(input)});
+  const response=await handleBoWorkforcePlanningRequest(request,env(b),path);
+  assert.equal(response.status,409); assert.equal(response.headers.get("x-request-id"),"note-conflict");
+  assert.deepEqual(forwarded,[{method:"POST",path:"assignment/note",body:input,idempotencyKey:"note-edit-1"}]);
+});
+
 test("missing mutation replay key and missing password session fail before Core", async () => {
   let called = false; const b = binding(async () => { called = true; throw new Error("unexpected"); });
   const noKey = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/assignment", { method: "POST", headers: headers({ "content-type": "application/json" }), body: "{}" });
