@@ -307,7 +307,7 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
     const type = url.searchParams.get("subject_type"), id = url.searchParams.get("subject_id");
     const query = url.searchParams.get("query") ?? "", cursor = url.searchParams.get("cursor");
     const limitText = url.searchParams.get("limit") ?? "50", limit = Number(limitText);
-    if (!(type === "student_profile" || type === "running_class")
+    if (!(type === "student_profile" || type === "running_class" || type === "subscription")
       || !id || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
       || query.length > 120 || [...query].some(c => c.charCodeAt(0) < 32)
       || !/^[0-9]+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 50

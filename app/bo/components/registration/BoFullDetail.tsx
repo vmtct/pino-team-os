@@ -41,7 +41,7 @@ export function BoFullDetail({
   const [tab, setTab] = useState(initialTab ?? "Detail");
   useEffect(() => { setTab(initialTab ?? "Detail"); }, [initialTab]);
   const [voidOpen, setVoidOpen] = useState(false);
-  const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : null;
+  const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : moduleKey === "subscriptions" ? "subscription" : null;
   // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
   const tabs = moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
     : moduleKey === "classes"

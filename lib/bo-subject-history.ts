@@ -1,5 +1,5 @@
 /** PAP-979: validated, redacted Core BO subject audit contract. Never use Access-admin audit. */
-export type BoAuditSubjectType = "student_profile" | "running_class";
+export type BoAuditSubjectType = "student_profile" | "running_class" | "subscription";
 export type BoSubjectAuditEvent = {
   id: string;
   subject_type: BoAuditSubjectType;
