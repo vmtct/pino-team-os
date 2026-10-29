@@ -88,6 +88,36 @@ test("PAP-893: BO session roster read is bounded, authenticated, and Core-author
   assert.equal(forwarded.length,1);
 });
 
+test("PAP-1177: Parent Directory forwards selected Center only as Core resource, rejects Center spoofing", async () => {
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = {
+    async executeWithStaffPassword(request) {
+      forwarded.push(request);
+      return { status: 200, body: { data: { items: [], total: 0, scopeCenterId: request.resource?.centerId } }, requestId: "parent-center" };
+    },
+  };
+  const path = "identity/parents/directory";
+  const centerId = "01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
+  const scoped = new Request("https://bo.staging.pinohouse.art/api/bo/" + path + "?centerId=" + centerId + "&limit=25&offset=0", {
+    headers: { cookie: "pino_staff_password_session=" + token },
+  });
+  assert.equal((await handleBoOperationalReadRequest(scoped, env(binding), path)).status, 200);
+  assert.deepEqual(forwarded, [{ method: "GET", path, body: { limit: 25, offset: 0 }, resource: { centerId } }]);
+  for (const query of [
+    "?centerId=" + centerId + "&centerId=" + centerId, "?centerId=forged",
+    "?centerId=", "?centerId=" + centerId + "&userId=spoofed",
+  ]) {
+    const req = new Request("https://bo.staging.pinohouse.art/api/bo/" + path + query, { headers: { cookie: "pino_staff_password_session=" + token } });
+    assert.equal((await handleBoOperationalReadRequest(req, env(binding), path)).status, 400);
+  }
+  const detailPath = "identity/parents/01a0b29a-3acd-7a18-a0f2-cf6016548ab5/detail";
+  const detail = new Request("https://bo.staging.pinohouse.art/api/bo/" + detailPath + "?centerId=" + centerId, {
+    headers: { cookie: "pino_staff_password_session=" + token },
+  });
+  assert.equal((await handleBoOperationalReadRequest(detail, env(binding), detailPath)).status, 200);
+  assert.deepEqual(forwarded.at(-1), { method: "GET", path: detailPath, resource: { centerId } });
+  assert.equal((await handleBoOperationalReadRequest(new Request("https://bo.staging.pinohouse.art/api/bo/" + detailPath + "?centerId=" + centerId + "&userId=spoofed", { headers: { cookie: "pino_staff_password_session=" + token } }), env(binding), detailPath)).status, 400);
+});
 test("PAP-1029: Parent Directory facade forwards only canonical bounded pagination and rejects privacy bypass", async () => {
   const forwarded: BoAccessRequest[] = [];
   const binding: BoAccessCoreBinding = {
