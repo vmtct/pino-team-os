@@ -16,8 +16,14 @@ export async function canLoadAuthorizedBoPublicView(
       method: "GET",
       cache: "no-store",
       credentials: "same-origin",
+      redirect: "error",
     });
-    return response.ok;
+    // Core collection reads return 200 JSON {data:[]}; a redirected login
+    // page, malformed payload or any non-200 must not create a global runtime.
+    if (response.status !== 200 || !response.headers.get("content-type")?.includes("application/json")) return false;
+    const body: unknown = await response.json();
+    return !!body && typeof body === "object" && !Array.isArray(body)
+      && Array.isArray((body as { data?: unknown }).data);
   } catch {
     // Network or authorization ambiguity cannot grant global metadata access.
     return false;
