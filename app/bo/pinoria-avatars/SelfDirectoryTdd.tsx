@@ -60,7 +60,7 @@ export function SelfDirectoryTdd(){
           <p>Chọn cơ sở đã được cấp quyền. Việc đọc Pinoria Self vẫn yêu cầu quyền riêng từ Core.</p>
         </div>
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
-          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties {...properties}/>}/>
+          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}/>
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
