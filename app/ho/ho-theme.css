@@ -30,3 +30,10 @@
 [data-surface='ho'] .ho-audit-details dt { color:#777; }
 [data-surface='ho'] .ho-audit-details dd { margin:0; }
 [data-surface='ho'] .ho-audit-note { color:#777; font-size:12px; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) { min-width:0; flex:1; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) strong, [data-surface="ho"] .sidebar-footer > div:nth-child(2) small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) small { opacity:.76; font-size:11px; }
+[data-surface="ho"] .ho-staff-role-select { width:min(100%,340px); min-width:0; height:34px; padding:5px 30px 5px 10px; border:1px solid var(--ds-primary-border); border-radius:7px; background-color:#fff; color:#25212a; font:inherit; text-overflow:ellipsis; }
+[data-surface="ho"] .ho-staff-role-select:disabled { background-color:#f7f6f8; color:#777; cursor:not-allowed; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) small { font-size:0; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) small::after { content:"Head Office"; font-size:11px; }
