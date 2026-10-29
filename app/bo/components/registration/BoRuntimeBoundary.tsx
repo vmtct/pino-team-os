@@ -5,7 +5,7 @@ import { BoRegistrationWorkspace } from "./BoRegistrationWorkspace";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
-import { BoAuthenticatedAccount } from "./BoAuthenticatedAccount";
+import { BoAuthenticatedAccount } from "@/app/bo/shell/BoAuthenticatedAccount";
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 export const useBoStagingUser = () => useContext(RuntimeContext);
 export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode }) { return <RuntimeContext.Provider value={currentUser}>{children}<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} /></RuntimeContext.Provider>; }
