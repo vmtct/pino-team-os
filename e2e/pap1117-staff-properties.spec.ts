@@ -43,6 +43,7 @@ for (const width of [1440, 1024, 768, 390, 320]) test("PAP-1117 shared HO proper
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   const boxes = await page.locator(".pds-property-value").evaluateAll(nodes => nodes.map(node => { const r = node.getBoundingClientRect(); return { x: r.x, right: r.right, width: r.width }; }));
   expect(boxes[2].x).toBeCloseTo(boxes[0].x, 0); expect(Math.min(...boxes.map(box => box.width))).toBeGreaterThan(80);
+  if ([1440, 390].includes(width)) await page.screenshot({ path: testInfo.outputPath("ho-staff-overview-" + width + ".png"), fullPage: true });
   const trigger = page.getByRole("button", { name: "Sửa Vai trò", exact: true }); await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Sửa vai trò", exact: true }); await expect(dialog).toBeVisible();
   if ([1440, 390].includes(width)) await page.screenshot({ path: testInfo.outputPath("ho-staff-editor-" + width + ".png"), fullPage: true });
@@ -59,6 +60,7 @@ for (const scenario of ["normal", "denied", "partial"]) test("PAP-1117 mock comm
   if (scenario === "normal") { await expect(dialog).toHaveCount(0); await expect(page.locator('[data-pds-field="role"]')).toContainText("Teacher"); await expect(page.getByRole("status")).toContainText("Đã lưu."); }
   else if (scenario === "partial") { await expect(page.getByText("Đã gán vai trò mới nhưng chưa gỡ được vai trò cũ. Cần kiểm tra ACL.")).toBeVisible(); await expect(page.locator('[data-pds-field="role"]')).toContainText("Nhiều vai trò"); }
   else { await expect(dialog).toBeVisible(); await expect(page.getByText("Không có quyền sửa vai trò.", { exact: true })).toBeVisible(); }
+  if (scenario !== "normal") await expect(page.getByText("Đã lưu.", { exact: true })).toHaveCount(0);
   expect(writes).toHaveLength(scenario === "denied" ? 1 : 2);
 });
 test("PAP-1117 changing staff dismisses old editor", async ({ page }) => {
