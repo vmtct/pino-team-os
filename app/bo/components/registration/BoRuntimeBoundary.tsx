@@ -5,9 +5,9 @@ import { BoRegistrationWorkspace } from "./BoRegistrationWorkspace";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
-const RuntimeContext = createContext<Pick<BoShellContext, "displayName"> | null>(null);
+const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 export const useBoStagingUser = () => useContext(RuntimeContext);
-export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName">; children: React.ReactNode }) { return <RuntimeContext.Provider value={currentUser}>{children}</RuntimeContext.Provider>; }
+export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode }) { return <RuntimeContext.Provider value={currentUser}>{children}</RuntimeContext.Provider>; }
 export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; options: Record<string, string> }) {
   const currentUser = useContext(RuntimeContext);
   return currentUser
