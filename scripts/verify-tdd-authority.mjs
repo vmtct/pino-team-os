@@ -97,8 +97,12 @@ export function inspectCss(file, css, surface) {
   try { postcss.parse(css).walkRules(rule=>{
     if(rule.parent?.type==='atrule' && /keyframes$/.test(rule.parent.name)) return;
     for(const s of rule.selectors) {
-      const scope=surface==='BO' ? /html\[data-bo-ui-authority=["']v25["']\]/ : /html\[data-surface=["']ho["']\]/;
-      if(!scope.test(s)|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
+      // Accept the exact host-anchored forms emitted by the canonical HO compiler.
+      // Each selector must begin at the HO host, never at an unrelated ancestor.
+      const boScope=/html\[data-bo-ui-authority=["']v25["']\]/;
+      const hoScope=/^(?::root:where\(\[data-surface=["']ho["']\]\)|html:where\(\[data-surface=["']ho["']\]\)|\*?:where\(html\[data-surface=["']ho["']\]\)|\[data-surface=["']ho["']\])(?=$|[\s:.#>+~\[])/;
+      const scoped=surface==='BO' ? boScope.test(s) : hoScope.test(s);
+      if(!scoped|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
     }
   }); } catch {errors.push(file+': invalid CSS');}
   return [...new Set(errors)];

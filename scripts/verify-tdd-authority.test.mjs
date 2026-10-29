@@ -41,6 +41,14 @@ test('new shared owner cannot be claimed by module',async t=>{const x=setup(t);x
 test('new CSS and important cannot be hidden in helper',async t=>{const x=setup(t);const css='app/bo/new/override.css';x.put(css,'.detail-hero { width: 500px!important }');assert.match((await x.check([css])).errors.join(),/unauthorized surface stylesheet/);x.entry.files.push(css);assert.match((await x.check()).errors.join(),/module CSS/);});
 for(const [surface,css] of [['BO','.detail-hero{width:20px}'],['HO',':where(html[data-bo-ui-authority="v25"]) .detail-hero{width:20px}'],['BO',':where(html[data-surface="ho"]) .detail-hero{width:20px}'],['HO',':where(html[data-surface="ho"]) .x, .leak{color:red}']]) test(surface+' CSS leakage '+css,()=>assert.ok(inspectCss('surface.css',css,surface).length));
 test('surface CSS valid scope passes',()=>assert.deepEqual(inspectCss('bo.css',':where(html[data-bo-ui-authority="v25"]) .x {color:red}','BO'),[]));
+test('PAP-1151 HO compiler host anchors pass without loosening cross-surface isolation',()=>{
+  for(const selector of [':root:where([data-surface="ho"])','html:where([data-surface="ho"])','*:where(html[data-surface="ho"])',':where(html[data-surface="ho"])','[data-surface="ho"]']) {
+    assert.deepEqual(inspectCss('ho-scoped.css',selector+' .card {color:red}','HO'),[],selector);
+  }
+  for(const css of ['.leak [data-surface="ho"] .card{color:red}','body .card{color:red}',':where(html[data-surface="ho"]) .card, .leak{color:red}','[data-surface="bo"] .card{color:red}','[data-surface="ho"] [data-bo-ui-authority="v25"] .card{color:red}']) {
+    assert.ok(inspectCss('ho-scoped.css',css,'HO').length,css);
+  }
+});
 function special(x) {
  x.entry.profile='FOUNDER_APPROVED_SPECIAL';x.entry.approval='approved-new';x.entry.files=[x.file];x.put(x.file,'export default function Page(){return <main><h1>Special</h1></main>}');
  const a={id:'approved-new',status:'approved',approvedBy:'Founder',reference:'https://vmtct97.atlassian.net/browse/PAP-1085?focusedCommentId=12345',approvedAt:'2026-10-27T00:00:00Z',expiresAt:'2026-11-01T00:00:00Z',surface:'BO',key:'new',route:'/bo/new',owner:'Owner',justification:'Special workflow',designAuthority:'Approved alternative',fallback:'Return to TDD on expiry',permissions:['existing.permission'],files:[x.file],tests:{security:[x.testFile],authorization:[x.testFile],accessibility:[x.testFile],responsive:[x.testFile]}};
