@@ -22,17 +22,23 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
+    const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
+    const staffRoleWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/role$/.test(p);
+    if (method === "POST" && staffRoleWrite) return { action: "next" };
+    if (method === "POST" && staffPasswordReset) return { action: "next" };
+    if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
     if (method === "POST" && authPost) return { action: "next" };
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
     if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
     if (p === "/") return { action: "redirect", pathname: HO_HOME_PATH };
-    if (["/ho", ...Object.values(HO_PAGE_PATHS), "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || p === "/bo-skeleton/ho-scoped.css") return { action: "next" };
+    if (["/api/bo/workforce/staff-records", "/ho", ...Object.values(HO_PAGE_PATHS), "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || p === "/bo-skeleton/ho-scoped.css") return { action: "next" };
     return { action: "not_found" };
   }
   if (isPathWithin(pathname, "/tos-v4") && !tosV4StagingHost(hostname)) return { action: "not_found" };
   // HO never leaks through BO/TOS, production, workers.dev, localhost or unknown hosts.
-  if (isPathWithin(pathname, "/ho") || isPathWithin(pathname, "/prototype")) return { action: "not_found" };
+  if (isPathWithin(pathname, "/ho") || isPathWithin(pathname, "/api/ho") || isPathWithin(pathname, "/prototype")) return { action: "not_found" };
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
 
   if (hostname === STAFF_REGISTRATION_HOSTNAME) {
@@ -44,6 +50,19 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
+    // PAP-1125: exact Shift Plan creation admission; Core still enforces BO identity, Center grant, idempotency and version.
+    // Keep non-POST verbs denied at the host edge rather than expanding the generic BO route allowlist.
+    if (pathname === "/bo/pinoria-avatars") {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? { action: "next" } : { action: "not_found" };
+    }
+    if (pathname === "/api/bo/workforce/planning/shift-plan") {
+      return method === "POST" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
+    // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
+    if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };

@@ -37,6 +37,19 @@ test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff s
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art.evil.example", "/bo"), { action: "next" });
 });
 
+test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
+  const route="/api/bo/pinoria/avatars";
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
+  for(const method of ["HEAD","POST","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route),{action:"not_found"},host);
+  for(const path of [route+"/extra",route+"/PERSON:abc",route+"%2f",route.slice(0,-1)]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"},path);
+});
+test("PAP-982 TDD Self Directory page is staging BO GET/HEAD only", () => {
+  for (const m of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/pinoria-avatars",m),{action:"next"});
+  for (const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,"/bo/pinoria-avatars"),{action:"not_found"});
+  for (const path of ["/bo/pinoria-avatars/extra","/bo/pinoria-avatars%2f"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"});
+  for (const m of ["POST","PUT","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/pinoria-avatars",m),{action:"not_found"});
+});
 test("PAP-979 exact subject audit path stays BO-only with no global shortcut", () => {
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/audit/subject"), { action: "next" });
   assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/api/bo/audit/subject"), { action: "not_found" });

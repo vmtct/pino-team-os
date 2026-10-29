@@ -6,6 +6,23 @@ const token="local-password-session";
 const req=(path:string,authenticated=true,method="GET")=>new Request(`https://bo.pinohouse.art/api/bo/${path}?email=forged&userId=forged`,{method,headers:authenticated?{cookie:`pino_staff_password_session=${token}`}:{}});
 const env=(binding:BoAccessCoreBinding):BoReadEnv=>({PINO_BO_CORE:binding});
 test("BO reads forward exact bounded requests with local password session",async()=>{const forwarded:Array<{request:BoAccessRequest;token:string}>=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(request,value){forwarded.push({request,token:value});return{status:200,body:{data:[]},requestId:"read"};}};const paths=["delivery/bootstrap-state","running-classes","practice/resources","workforce/staff-registration-settings","pinoria/effects/catalog"];for(const path of paths)assert.equal((await handleBoOperationalReadRequest(req(path),env(binding),path)).status,200);assert.deepEqual(forwarded.map(x=>x.request),paths.map(path=>({method:"GET",path})));assert.ok(forwarded.every(x=>x.token===token));});
+test("PAP-982 Self Directory BFF admits only authenticated bounded CENTER read", async () => {
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:{items:[],nextCursor:null}},requestId:"self-dir"};}};
+  const centerId="01912345-6789-7abc-8def-0123456789ab",path="pinoria/avatars";
+  const request=(query:string, authenticated=true)=>new Request("https://bo.staging.pinohouse.art/api/bo/"+path+query,{headers:authenticated?{cookie:"pino_staff_password_session="+token}:{}});
+  const ok=await handleBoOperationalReadRequest(request("?centerId="+centerId+"&limit=25&q=Mai&subjectType=STAFF&avatarStatus=SELF_MISSING"),env(binding),path);
+  assert.equal(ok.status,200);assert.equal(ok.headers.get("x-request-id"),"self-dir");
+  assert.deepEqual(forwarded,[{method:"GET",path,resource:{centerId},body:{limit:25,q:"Mai",subjectType:"STAFF",avatarStatus:"SELF_MISSING"}}]);
+  assert.equal((await handleBoOperationalReadRequest(request("?limit=100"),env(binding),path)).status,200);
+  assert.deepEqual(forwarded[1],{method:"GET",path,body:{limit:100}});
+  for (const query of ["?centerId=forged","?centerId="+centerId+"&centerId="+centerId,"?limit=0","?limit=101","?limit=01","?cursor=","?subjectType=GOD","?subjectStatus=invalid","?avatarStatus=CHARACTER_MISSING","?userId=forged","?q=%0A"]) {
+    assert.equal((await handleBoOperationalReadRequest(request(query),env(binding),path)).status,400,query);
+  }
+  assert.equal((await handleBoOperationalReadRequest(request("?centerId="+centerId,false),env(binding),path)).status,401);
+  assert.equal((await handleBoOperationalReadRequest(request(""),env(binding),"pinoria/avatars/extra")).status,404);
+  assert.equal(forwarded.length,2);
+});
 test("missing local password session fails before Core",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoOperationalReadRequest(req("sessions",false),env(binding),"sessions")).status,401);assert.equal(called,false);});
 test("unknown paths and non-GET methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoOperationalReadRequest(req("bookings"),env(binding),"bookings")).status,404);assert.equal((await handleBoOperationalReadRequest(req("sessions",true,"POST"),env(binding),"sessions")).status,405);assert.equal(called,false);});
 test("learner directory preserves only the explicit Center resource and bounded query fields",async()=>{const forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:[]},requestId:"learners"};}};const centerId="01912345-6789-7abc-8def-0123456789ab";const request=new Request(`https://bo.pinohouse.art/api/bo/learners?centerId=${centerId}&query=Mai&limit=20&offset=200&userId=forged&pathId=forged`,{headers:{cookie:`pino_staff_password_session=${token}`}});await handleBoOperationalReadRequest(request,env(binding),"learners");assert.deepEqual(forwarded,[{method:"GET",path:"learners",resource:{centerId},body:{query:"Mai",limit:20,offset:200}}]);});

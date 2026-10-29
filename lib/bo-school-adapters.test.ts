@@ -5,8 +5,8 @@ import {boSkeletonRoute,BO_SKELETON_HOST} from "./bo-skeleton-routing";
 const {modules,load}=createRequire(import.meta.url)("../public/bo-authority-source/school-adapters.js");
 const id=(n:number)=>"00000000-0000-4000-8000-"+String(n).padStart(12,"0");
 const ok=(data:unknown)=>new Response(JSON.stringify({data}),{headers:{"content-type":"application/json"}});
-test("exactly ten retained read-only modules including Parent; Enrollment is a subscription-class link, no Path module",()=>{
- assert.deepEqual(Object.keys(modules),["students","parents","classes","subscriptions","enrollments","visits","staffs","timekeeping","salaryPeriods","audits"]);
+test("ten retained school read-only modules plus separately scoped Pinoria Self; Enrollment is a subscription-class link",()=>{
+ assert.deepEqual(Object.keys(modules),["pinoria-avatars","students","parents","classes","subscriptions","enrollments","visits","staffs","timekeeping","salaryPeriods","audits"]);
  assert.ok(Object.values(modules).every((m:unknown)=>(m as {fields:{readonly:boolean}[]}).fields.every(f=>f.readonly)));
  assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="subscriptionId"));assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="runningClassId"));
 });

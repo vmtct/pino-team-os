@@ -57,6 +57,7 @@ export const boModuleRegistry: readonly BoModuleContract[] = defineBoModuleRegis
       { key: "workDate", label: "Ngày", type: "date", readOnly: true },
       { key: "shift", label: "Ca", type: "text", readOnly: true },
       { key: "status", label: "Trạng thái", type: "select", readOnly: true },
+      { key: "note", label: "Note ca làm", type: "text", readOnly: true },
     ],
     publicViews: "module-shared",
     quickView: "canonical-properties",

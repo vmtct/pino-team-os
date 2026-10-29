@@ -139,6 +139,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
     || TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path)
+    || path === "pinoria/avatars"
     || path === "pinoria/effects/catalog"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
@@ -229,6 +230,11 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-982: resource scope is a selected CENTER reauthorized by Core, not a client grant.
+  if (path === "pinoria/avatars") {
+    const centerId = url.searchParams.get("centerId");
+    return centerId ? { centerId } : undefined;
+  }
   // The Core delivery bootstrap accepts an explicit Center resource. Do not
   // invent GLOBAL access for Manager or forward caller-supplied principal fields.
   if (path === "delivery/bootstrap-state" || path === "delivery/calendar-scope") {
@@ -252,6 +258,30 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "pinoria/avatars") {
+    const allowed = new Set(["centerId","limit","cursor","q","subjectType","avatarStatus","subjectStatus"]);
+    for (const key of url.searchParams.keys()) {
+      if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid Self Directory query field");
+    }
+    const centerId = url.searchParams.get("centerId");
+    if (centerId !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId)) throw new RangeError("Invalid Self Directory Center");
+    const body: Record<string, unknown> = {};
+    const n = url.searchParams.get("limit");
+    if (n !== null) {
+      if (!/^[1-9][0-9]*$/.test(n) || !Number.isSafeInteger(Number(n)) || Number(n)>100) throw new RangeError("Invalid Self Directory limit");
+      body.limit=Number(n);
+    }
+    for (const key of ["cursor","q","subjectType","avatarStatus","subjectStatus"] as const) {
+      const v=url.searchParams.get(key);
+      if (v !== null) body[key]=v;
+    }
+    if (typeof body.cursor === "string" && (!body.cursor.length || body.cursor.length>4096)) throw new RangeError("Invalid Self Directory cursor");
+    if (typeof body.q === "string" && (body.q.length>120 || [...body.q].some(c => c.charCodeAt(0)<32 || c.charCodeAt(0)===127))) throw new RangeError("Invalid Self Directory search");
+    if (body.subjectType !== undefined && !["ALL","STAFF","LEARNER"].includes(String(body.subjectType))) throw new RangeError("Invalid Self Directory role");
+    if (body.avatarStatus !== undefined && !["ALL","IDENTITY_UNLINKED","SELF_MISSING","NEEDS_REPAIR","NOT_STARTED","IN_PROGRESS","READY"].includes(String(body.avatarStatus))) throw new RangeError("Invalid Self Directory avatar status");
+    if (body.subjectStatus !== undefined && !["ALL","ACTIVE","INACTIVE","ARCHIVED","MIXED"].includes(String(body.subjectStatus))) throw new RangeError("Invalid Self Directory subject status");
+    return Object.keys(body).length?body:undefined;
+  }
   if (RUNNING_CLASS_ENROLLMENT_READ.test(path)) {
     for (const key of url.searchParams.keys()) {
       if (!["limit","beforeFrom","beforeId","beforeRank","asOfLocalDate"].includes(key) || url.searchParams.getAll(key).length !== 1)
@@ -277,7 +307,7 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
     const type = url.searchParams.get("subject_type"), id = url.searchParams.get("subject_id");
     const query = url.searchParams.get("query") ?? "", cursor = url.searchParams.get("cursor");
     const limitText = url.searchParams.get("limit") ?? "50", limit = Number(limitText);
-    if (!(type === "student_profile" || type === "running_class")
+    if (!(type === "student_profile" || type === "running_class" || type === "subscription")
       || !id || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
       || query.length > 120 || [...query].some(c => c.charCodeAt(0) < 32)
       || !/^[0-9]+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 50

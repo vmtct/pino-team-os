@@ -139,18 +139,18 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   useEffect(() => {
     if (view !== "availability" && view !== "schedule") return;
     setAvailability(null); setTemplates([]); setAvailabilityWindow(null);
-    if (!availabilityWeek) return;
+    if (!availabilityWeek || !center) return;
     let active = true;
-    void Promise.all([workforceApi.availability(availabilityWeek.id), workforceApi.availabilityWindow(availabilityWeek.id)]).then(async ([submission, window]) => {
+    void Promise.all([workforceApi.availability(center.id,availabilityWeek.id), workforceApi.availabilityWindow(center.id,availabilityWeek.id)]).then(async ([submission, window]) => {
       if (!active) return;
       setAvailability(submission.data); setAvailabilityWindow(window.data);
       if (submission.data && window.data.state === "OPEN" && submission.data.status !== "VOIDED") {
-        const opened = await workforceApi.availabilityDraft(availabilityWeek.id);
+        const opened = await workforceApi.availabilityDraft(center.id,availabilityWeek.id);
         if (active) { setAvailability(opened.data.submission); setTemplates(opened.data.templates); setAvailabilityWindow(opened.data.window); }
       }
     }).catch((e: unknown) => { if (active) setError(message(e)); });
     return () => { active = false; };
-  }, [view, availabilityWeek]);
+  }, [view, availabilityWeek, center]);
 
   async function clock(action: "in" | "out") {
     if (!center) return;
@@ -209,29 +209,29 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     finally { setSaving(false); }
   }
   async function openAvailability() {
-    if (!availabilityWeek) return;
+    if (!availabilityWeek || !center) return;
     setSaving(true); setError("");
     try {
-      const result = await workforceApi.availabilityDraft(availabilityWeek.id);
+      const result = await workforceApi.availabilityDraft(center.id,availabilityWeek.id);
       setAvailability(result.data.submission); setTemplates(result.data.templates); setAvailabilityWindow(result.data.window);
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
   async function toggle(date: string, templateId: string) {
-    if (!availability || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
+    if (!center || !availability || availability.centerId !== center.id || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
     const exists = availability.items.some((i) => i.workDate === date && i.shiftTemplateId === templateId);
     const items = exists
       ? availability.items.filter((i) => !(i.workDate === date && i.shiftTemplateId === templateId))
       : [...availability.items, { workDate: date, shiftTemplateId: templateId }];
     setSaving(true);
-    try { const result = await workforceApi.replaceAvailability({ submissionId: availability.id, expectedVersion: availability.version, items }); setAvailability(result.data); }
+    try { const result = await workforceApi.replaceAvailability({ centerId: center.id, termWeekId: availability.termWeekId, submissionId: availability.id, expectedVersion: availability.version, items }); setAvailability(result.data); }
     catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
   async function submitAvailability() {
-    if (!availability || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
+    if (!center || !availability || availability.centerId !== center.id || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
     setSaving(true);
-    try { const result = await workforceApi.submitAvailability({ submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
+    try { const result = await workforceApi.submitAvailability({ centerId: center.id, termWeekId: availability.termWeekId, submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
     catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }

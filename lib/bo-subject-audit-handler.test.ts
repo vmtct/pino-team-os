@@ -13,6 +13,19 @@ test("PAP-979: bounded subject read uses canonical authenticated BO transport wi
   assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(calls, [{ request: { method: "GET", path: "audit/subject", body: { subject_type: "student_profile", subject_id: id, query: "Mai", cursor: "opaque", limit: 20 } }, token: "local-session" }]);
 });
+test("PAP-1102: BFF permits only authenticated exact Subscription subject, and propagates Core denial", async () => {
+  const calls: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = { async executeWithStaffPassword(request) {
+    calls.push(request);
+    return {status:403,body:{error:{code:"ACCESS_PERMISSION_DENIED"}},requestId:"deny"};
+  }};
+  const query = `subject_type=subscription&subject_id=${id}&limit=20`;
+  assert.equal((await handleBoOperationalReadRequest(request(query,false),{PINO_BO_CORE:binding},"audit/subject")).status,401);
+  const result=await handleBoOperationalReadRequest(request(query),{PINO_BO_CORE:binding},"audit/subject");
+  assert.equal(result.status,403);
+  assert.deepEqual(await result.json(),{error:{code:"ACCESS_PERMISSION_DENIED"}});
+  assert.deepEqual(calls,[{method:"GET",path:"audit/subject",body:{subject_type:"subscription",subject_id:id,query:"",cursor:null,limit:20}}]);
+});
 test("PAP-979: rejects unauthenticated, global, malformed, unbounded and spoofed scope requests before Core", async () => {
   let calls = 0;
   const binding: BoAccessCoreBinding = { async executeWithStaffPassword() { calls++; throw Error("unexpected"); } };

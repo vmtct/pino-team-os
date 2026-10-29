@@ -36,7 +36,7 @@ export function DetailFrame({ title, subtitle, mobileMenu, tabs = [], selected, 
           {tabs.map((tab, index) => {
             const props = {
               role: "tab", id: tabId(tab.id), "aria-selected": active?.id === tab.id,
-              "aria-controls": p ? `bo-detail-panel-${tab.id}` : panelId, tabIndex: active?.id === tab.id ? 0 : -1,
+              "aria-controls": panelId, tabIndex: active?.id === tab.id ? 0 : -1,
               onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
                 const next = nextTabIndex(event.key, index, tabs.length); if (next === null) return;
                 event.preventDefault();

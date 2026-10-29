@@ -58,6 +58,12 @@ export function staffInitials(displayLabel: string) {
 /** Presentation facts only; Core remains the authority for every action. */
 export function shiftResponsibilityLabels(row: Assignment): string[] {
   if (row.status !== "ACTIVE") return [];
-  const names = new Set((row.roleAssignments ?? []).filter((role) => role.targetType === "SESSION" && role.roleType === "TEACHER" || role.targetType === "CENTER" && (role.roleType === "FRONT_DESK" || role.roleType === "SHIFT_LEADER")).map((role) => role.roleType));
-  return ["FRONT_DESK", "TEACHER", "SHIFT_LEADER"].filter((role) => names.has(role as "FRONT_DESK" | "TEACHER" | "SHIFT_LEADER")).map((role) => role === "FRONT_DESK" ? "Lễ tân" : role === "TEACHER" ? "Giảng dạy" : "Trưởng ca");
+  const names = new Set((row.roleAssignments ?? []).filter((role) =>
+    (role.targetType === "SESSION" && role.roleType === "TEACHER") ||
+    (role.targetType === "RUNNING_CLASS" && (role.roleType === "TEACHER" || role.roleType === "TEACHING_ASSISTANT")) ||
+    (role.targetType === "CENTER" && (role.roleType === "FRONT_DESK" || role.roleType === "SHIFT_LEADER"))
+  ).map((role) => role.roleType));
+  return (["FRONT_DESK", "TEACHER", "TEACHING_ASSISTANT", "SHIFT_LEADER"] as const)
+    .filter((role) => names.has(role))
+    .map((role) => role === "FRONT_DESK" ? "Lễ tân" : role === "TEACHER" ? "Giảng dạy" : role === "TEACHING_ASSISTANT" ? "Trợ giảng" : "Trưởng ca");
 }

@@ -1,0 +1,44 @@
+name: PAP-1074 G4 Staging Authenticated E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pap1074-g4-staging
+  cancel-in-progress: false
+
+jobs:
+  g4:
+    name: Read-only G4 ephemeral-auth acceptance
+    if: github.ref == 'refs/heads/main' && github.actor == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: g4-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify Main CI, guarded CD, 100% Worker SHA, distinct Staging roles, and ten read-only journeys
+        run: node scripts/run-tdd-g4-ci.mjs
+        env:
+          CI: 'true'
+          TDD_G4_RUN: '1'
+          GITHUB_TOKEN: ${{ github.token }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          TDD_G4_FOUNDER_EMAIL: ${{ secrets.TDD_G4_FOUNDER_EMAIL }}
+          TDD_G4_FOUNDER_PASSWORD: ${{ secrets.TDD_G4_FOUNDER_PASSWORD }}
+          TDD_G4_MANAGER_EMAIL: ${{ secrets.TDD_G4_MANAGER_EMAIL }}
+          TDD_G4_MANAGER_PASSWORD: ${{ secrets.TDD_G4_MANAGER_PASSWORD }}

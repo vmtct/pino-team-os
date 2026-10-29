@@ -29,7 +29,8 @@ function fixture() {
   const nav=fs.readFileSync(path.join(tmp,navFile),"utf8");
   fs.writeFileSync(path.join(tmp,navFile),nav
     .replace(/items: \[\{ href: "\/bo", label: "Hôm nay" \}[^\r\n]*\],/,'items: [{ href: "/bo", label: "Hôm nay" }],')
-    .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,""));
+    .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,"")
+    .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Self Directory" \},/,""));
   // Recreate frozen baseline pages as inert fixtures so receipt tests can
   // assert a clean migration transition without carrying 47 real modules.
   const baseline=JSON.parse(fs.readFileSync(path.join(tmp,baselineFile),"utf8"));
@@ -64,6 +65,28 @@ test("existing BO passes frozen baseline and has no unregistered NEW routes",()=
   assert.deepEqual(result.issues,[]);
   assert.ok(result.baselineRoutes>35);
   assert.ok(result.baselineNav>30);
+});
+test("PAP-982 BO TDD route requires an exact separate manifest and navigation owner",()=>{
+  const root=fixture(),key="self-test",file="app/bo/self-test/page.tsx";
+  try{
+    route(root,key,'import {Self} from "./Self"; export default function Page(){return <Self/>}');
+    assert.ok(check(root).some(s=>s.includes("Unregistered NEW BO page")));
+    fs.mkdirSync(path.join(root,"config"),{recursive:true});
+    const entry={profile:"TDD_DEFAULT",surface:"BO",key,route:"/bo/"+key,file,
+      files:[file,"app/bo/self-test/Self.tsx","app/bo/self-test/schema.ts"],
+      schema:{file:"app/bo/self-test/schema.ts",export:"selfSchema"},
+      binding:{kind:"SURFACE_WORKSPACE_ADAPTER",file:"app/bo/self-test/Self.tsx"},
+      tests:["app/bo/self-test/provider.test.ts"]};
+    fs.writeFileSync(path.join(root,"config/tdd-admission.json"),JSON.stringify({modules:[entry]}));
+    assert.ok(check(root).some(s=>s.includes("Invalid BO TDD admission")));
+    for(const f of [...entry.files.slice(1),...entry.tests]){fs.mkdirSync(path.dirname(path.join(root,f)),{recursive:true});fs.writeFileSync(path.join(root,f),"export const stub=true;");}
+    assert.ok(check(root).some(s=>s.includes("TDD route missing navigation")));
+    edit(root,navFile,s=>s.replace('label: "Pinoria",\n    items: [','label: "Pinoria",\n    items: [\n      { href: "/bo/self-test", label: "Self Test" },'));
+    assert.deepEqual(check(root),[]);
+    entry.binding.file="app/bo/self-test/unknown.tsx";
+    fs.writeFileSync(path.join(root,"config/tdd-admission.json"),JSON.stringify({modules:[entry]}));
+    assert.ok(check(root).some(s=>s.includes("Invalid BO TDD admission")));
+  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
 test("new route without registry FAILS",()=>{
   const root=fixture();
