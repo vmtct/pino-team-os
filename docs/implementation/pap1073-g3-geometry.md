@@ -1,6 +1,6 @@
 # PAP-1073 — G3 measured geometry / screenshot evidence (first source slice)
 
-Jira: https://vmtct97.atlassian.net/browse/PAP-1073. Parent: PAP-1067. Status: In Progress; this PR is **NOT** G3 final visual acceptance.
+Jira: https://vmtct97.atlassian.net/browse/PAP-1073. Parent: PAP-1067. Status: In Progress; Founder approved 30 fixture screenshot goldens from CI #40811677302 on 2026-10-29, but G3 final live-route/prototype acceptance is **NOT** yet complete.
 
 ## What is actually tested
 
@@ -8,7 +8,7 @@ Jira: https://vmtct97.atlassian.net/browse/PAP-1073. Parent: PAP-1067. Status: I
 - Playwright Chromium (`e2e/tdd-g3-geometry.spec.ts`) measures computed DOM at **1440, 1024, 768, 390, 320px**, across BO/HO and all three TDD shells. It asserts containment, no horizontal body overflow, Table controls and bounded row height, Drawer usable property value width, Detail hero, tab visibility/tabpanel attachment. Each test attaches a screenshot for Table, Drawer and Detail plus JSON metrics to the test report (30 stage measurements, 30 PNG, 10 JSON).
 - Negative controls deliberately set Drawer property-control width to **92px** with correct outer Drawer width (PAP-1029) and detach a Full Detail tabpanel/overflow tablist. The shared metric policy rejects both.
 - New dedicated **path-scoped** `.github/workflows/tdd-g3-geometry.yml` runs the generator then Chromium and uploads screenshots/metrics as artifacts. It triggers only for shared renderer/schema/authority styles, this test or its workflow, not grandfathered unchanged legacy routes. It has read-only GitHub permissions, no Staging/Production credentials.
-- **2026-10-28 evidence retention repair:** The first green CI #40676624525 incorrectly had **zero downloadable artifacts**: Playwright cleaned successful test attachments from `test-results/`, and the upload step allowed missing files. The follow-up writes PNG/JSON to a durable `artifacts/pap1073-g3/<surface>/<viewport>/` folder, separately attaches the saved path to the test report, runs `scripts/verify-tdd-g3-artifacts.mjs` to require **30 valid PNGs + 10 complete geometry JSONs**, and fails CI if upload inputs are absent. Only the new exact-head CI receipt can prove this fix. These screenshots remain **unapproved review evidence**, not visual goldens.
+- **2026-10-28 evidence retention repair:** The first green CI #40676624525 incorrectly had **zero downloadable artifacts**: Playwright cleaned successful test attachments from `test-results/`, and the upload step allowed missing files. The follow-up writes PNG/JSON to a durable `artifacts/pap1073-g3/<surface>/<viewport>/` folder, separately attaches the saved path to the test report, runs `scripts/verify-tdd-g3-artifacts.mjs` to require **30 valid PNGs + 10 complete geometry JSONs**, and fails CI if upload inputs are absent. Only the new exact-head CI receipt can prove this fix. Founder approved the **30 PNG fixtures from CI #40811677302** as visual goldens on 2026-10-29; see `docs/visual-goldens/pap1073/` for the immutable baseline. Other screenshots are not approved by association.
 
 ## Runbook
 
@@ -23,7 +23,7 @@ Windows i3 browser cache may point to stale `D:\PINO\cache\playwright`. For loca
 
 ## Remaining for full G3 acceptance
 
-1. Review versioned screenshots and decide baseline ownership/golden promotion with Founder; currently captures are **review artifacts**, not approved screenshot-golden diffs. Numeric DOM assertions do gate failures.
+1. Founder approved and pinned the 30 fixture images as visual goldens (run #40811677302). Continue comparing actual authoritative prototype and live adopted routes against this baseline before final G3 acceptance. Numeric DOM assertions do gate failures.
 2. Migrate tests from in-memory SSR fixture documents to authenticated BO/HO Staging pages once S0 PAP-1068 confirms deployed route inventory and module eligibility. Maintain distinct contracts for exact Founder-special screens and grandfathered legacy; do not require TDD shell on approved special routes.
 3. Extend geometry tests to actual sticky/pinned Quick View + identity widths and PAP-1105 Freeze (when UI merged), cell-editor placement, toolbar settings, scroll restoration, real DOM font loading, and full native mobile interactions. The 5-viewport scaffold does **not** claim these pass.
 4. G4 PAP-1074 must establish actual authenticated BO/HO serving-SHA/role/Center truth, 401/403/404, and end-to-end navigation; no G4 claim from SSR fixture tests.
