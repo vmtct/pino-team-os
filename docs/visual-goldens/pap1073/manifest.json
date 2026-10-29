@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "source": "PAP-1073 G3 approved fixture screenshot artifact",
+  "sourceRun": 40811677302,
+  "sourceSha": "aa0d5fd88ad09de25c14cc154a68fbf95d2d8f49",
+  "artifactId": 12870189049,
+  "artifactName": "pap1073-g3-geometry",
+  "founderApprovalDate": "2026-10-29",
+  "approvalScope": "30 deterministic TDD fixture PNGs; geometry.json support metrics only; not live staging",
+  "images": 30,
+  "geometryReports": 10,
+  "files": [
+    {
+      "sha256": "00ce292521c0c95831cd7767159a4f4a3d6d38452ada99d530fa879af1e17658",
+      "bytes": 27640,
+      "path": "bo/1024/detail.png"
+    },
+    {
+      "sha256": "e8ee0d55d55eb955b90a1ea243d7e2b2c5f9e773e447ba111b532590b80e430e",
+      "bytes": 26238,
+      "path": "bo/1024/drawer.png"
+    },
+    {
+      "sha256": "015756a538f8f3fca3d6a275c504e707279ff23987fd88167f13129fb3d67716",
+      "bytes": 1261,
+      "path": "bo/1024/geometry.json"
+    },
+    {
+      "sha256": "7e44537b15d612ad97dd0921c53715b42e65d9b36a79ebb6ab3b389c33e392d0",
+      "bytes": 44455,
+      "path": "bo/1024/table.png"
+    },
+    {
+      "sha256": "dd926de8e4c8e753a9d5956b45ef172b58b79e6cdfa65fdf7b38d727c61b8769",
+      "bytes": 28769,
+      "path": "bo/1440/detail.png"
+    },
+    {
+      "sha256": "2af7143fd99d7b6c71a2c05ab4ce983d6d45ad4f3f806c65f24074b7a55d6bf6",
+      "bytes": 27589,
+      "path": "bo/1440/drawer.png"
+    },
+    {
+      "sha256": "d98f0d7fde6a82db9293ad96cf2796514d5a0c8518ea93c3beac4b7814afc6e8",
+      "bytes": 1261,
+      "path": "bo/1440/geometry.json"
+    },
+    {
+      "sha256": "d84588310f476315bcf095dff769fbc22ac27b7b085fb959f001ce352cf34e77",
+      "bytes": 46041,
+      "path": "bo/1440/table.png"
+    },
+    {
+      "sha256": "89fc2f2df15fce5fc5654da458c4c6f22ce328232251537353c2b5d3ccf6c474",
+      "bytes": 24531,
+      "path": "bo/320/detail.png"
+    },
+    {
+      "sha256": "2cbfe94f8ecbbb829bd599d3fbd3b635a7c337882eb0d3ce62f5582f7f598f6a",
+      "bytes": 19309,
+      "path": "bo/320/drawer.png"
+    },
+    {
+      "sha256": "6b206d054bafdbca6dd401b4d35d66651a4c73f42b781b37b93637e96b0a8634",
+      "bytes": 1251,
+      "path": "bo/320/geometry.json"
+    },
+    {
+      "sha256": "4c78431da0756f5a0f06c229904822d720978ecae4e191297b1a105ac002954e",
+      "bytes": 36223,
+      "path": "bo/320/table.png"
+    },
+    {
+      "sha256": "3a7cc37635e869707b5c6160b3290f1e198fce22b13199c734276624a49ed26f",
+      "bytes": 24994,
+      "path": "bo/390/detail.png"
+    },
+    {
+      "sha256": "8ac62977c050a58ad34af52b56e301a87234a6444380c033be00f5790b866ec6",
+      "bytes": 19718,
+      "path": "bo/390/drawer.png"
+    },
+    {
+      "sha256": "46b76f9574e70fd551490f8329ca4f31c638308487271fa7c32e7849611c8f5c",
+      "bytes": 1251,
+      "path": "bo/390/geometry.json"
+    },
+    {
+      "sha256": "c968609c7253aff9514af7e95c1fe2b396afefa73d8ac5a55220e6c3178ebf59",
+      "bytes": 36904,
+      "path": "bo/390/table.png"
+    },
+    {
+      "sha256": "4eb8b143ee625c65c623c405dfa8fb368874178d6e34d74039237cbca7440e85",
+      "bytes": 26602,
+      "path": "bo/768/detail.png"
+    },
+    {
+      "sha256": "5dc49ab48d25bf4b34d55fe0e0d032b598ce9192810b3a59b69969bb4e3bf0f4",
+      "bytes": 25006,
+      "path": "bo/768/drawer.png"
+    },
+    {
+      "sha256": "87eb83de70decfd39eed1a07d0a5887020c368e793bd0928099f4c3f02ad92c6",
+      "bytes": 1253,
+      "path": "bo/768/geometry.json"
+    },
+    {
+      "sha256": "7322558585f02673773247cb27a0943388d8b1c05601928862511c723f95a669",
+      "bytes": 43530,
+      "path": "bo/768/table.png"
+    },
+    {
+      "sha256": "67b2851996a0a7b9918ba7b3d139da932bb2e1b94821a257e7d9fcd4cc9f7c60",
+      "bytes": 27681,
+      "path": "ho/1024/detail.png"
+    },
+    {
+      "sha256": "8bea04de107e40252cfb0106c9d9b747f23840f002be9599fffad7c9569f02e2",
+      "bytes": 26156,
+      "path": "ho/1024/drawer.png"
+    },
+    {
+      "sha256": "d97c52bf8f40b1cb9eb77cec6dde875f57ffeb668eb1bda53534971a6ca3c8e3",
+      "bytes": 1261,
+      "path": "ho/1024/geometry.json"
+    },
+    {
+      "sha256": "4465996095d54ed49fdd69758559d6ccec50695f80ba3ae446888929da82d377",
+      "bytes": 43683,
+      "path": "ho/1024/table.png"
+    },
+    {
+      "sha256": "9e0272224f12658311bd1bd973dcac1368881e1afe2206631db52780180e3321",
+      "bytes": 28849,
+      "path": "ho/1440/detail.png"
+    },
+    {
+      "sha256": "1c4d5d02938a1ed9d08f0c0182649345a1811ed688746d9bdc8950d33e5ebf75",
+      "bytes": 27538,
+      "path": "ho/1440/drawer.png"
+    },
+    {
+      "sha256": "d60ac55d776590ad66a30a6b867ee2978a3861eb2488117e5d6c4cbae0de16a2",
+      "bytes": 1261,
+      "path": "ho/1440/geometry.json"
+    },
+    {
+      "sha256": "5877cb9db842b3bb59d29296e21510a58008c87a295e56f5e4b9307d1956eedc",
+      "bytes": 46328,
+      "path": "ho/1440/table.png"
+    },
+    {
+      "sha256": "195065613fde2284aa8a2974a1c5cef2b667ea35bdef09bb2056236407d1d074",
+      "bytes": 24636,
+      "path": "ho/320/detail.png"
+    },
+    {
+      "sha256": "f885e1f9693d9cb5e1671dcacdbf438346a7ee7bfe98459d18b3009e196f3159",
+      "bytes": 19356,
+      "path": "ho/320/drawer.png"
+    },
+    {
+      "sha256": "b51906833c6dbe54471821353618933cf58e535cc1b23a6dc9a730ea7a192916",
+      "bytes": 1251,
+      "path": "ho/320/geometry.json"
+    },
+    {
+      "sha256": "0c8a61ff02c97d1993758605d85a6903ef9e7513857d9e13dec264c66b1e99c0",
+      "bytes": 36163,
+      "path": "ho/320/table.png"
+    },
+    {
+      "sha256": "fc93257d6eaa708ec6d6978cf2a557a62b8b795d0762532fb1bb49d190294767",
+      "bytes": 25074,
+      "path": "ho/390/detail.png"
+    },
+    {
+      "sha256": "5c57effd71666c12f1f56a171cf6672a70f6ff64688063eed3e6767bbb8512bd",
+      "bytes": 19959,
+      "path": "ho/390/drawer.png"
+    },
+    {
+      "sha256": "478d8eaf4a8093c2697e4f4ea3fe1245f954aec5ae5e06875472f2cbe88a9ffe",
+      "bytes": 1251,
+      "path": "ho/390/geometry.json"
+    },
+    {
+      "sha256": "eb00f126004a8630b5b814b508802b4b72cccee3ac4154865e0c952fcafd1ab7",
+      "bytes": 38955,
+      "path": "ho/390/table.png"
+    },
+    {
+      "sha256": "c5aad1006d417f99d5e485a9cde3771ec016c34894191f13c4d3ed88502a5e5e",
+      "bytes": 26644,
+      "path": "ho/768/detail.png"
+    },
+    {
+      "sha256": "80321a53edd18d21d3123a7a0a141bbb8b995ca0087b7698dbd322bcb0e2688f",
+      "bytes": 24999,
+      "path": "ho/768/drawer.png"
+    },
+    {
+      "sha256": "9ec5b8537184ed423db3160f1996a9f9454fb5ea68ff1f646b0d35c07542e641",
+      "bytes": 1253,
+      "path": "ho/768/geometry.json"
+    },
+    {
+      "sha256": "e2527f81e06ed1a1a22a31ce7975438a250f7fd3f9fd26c82dcabc939c85b9b3",
+      "bytes": 42817,
+      "path": "ho/768/table.png"
+    }
+  ]
+}

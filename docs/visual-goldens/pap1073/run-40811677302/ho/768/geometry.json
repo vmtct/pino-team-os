@@ -1,0 +1,54 @@
+{
+  "surface": "HO",
+  "width": 768,
+  "stages": {
+    "table": {
+      "width": 768,
+      "documentOverflow": 0,
+      "shellWidth": 768,
+      "shellLeft": 0,
+      "rowHeight": 43,
+      "drawerWidth": null,
+      "propertyColumns": 0,
+      "minPropertyValueWidth": null,
+      "tablistWidth": null,
+      "tablistOverflow": null,
+      "heroWidth": null,
+      "visibleTabs": 0,
+      "hiddenToolbar": false,
+      "mountedPanel": false
+    },
+    "drawer": {
+      "width": 768,
+      "documentOverflow": 0,
+      "shellWidth": 490,
+      "shellLeft": 278,
+      "rowHeight": null,
+      "drawerWidth": 490,
+      "propertyColumns": 3,
+      "minPropertyValueWidth": 300,
+      "tablistWidth": null,
+      "tablistOverflow": null,
+      "heroWidth": null,
+      "visibleTabs": 0,
+      "hiddenToolbar": false,
+      "mountedPanel": false
+    },
+    "detail": {
+      "width": 768,
+      "documentOverflow": 0,
+      "shellWidth": 768,
+      "shellLeft": 0,
+      "rowHeight": null,
+      "drawerWidth": null,
+      "propertyColumns": 0,
+      "minPropertyValueWidth": null,
+      "tablistWidth": 766,
+      "tablistOverflow": 0,
+      "heroWidth": 766,
+      "visibleTabs": 3,
+      "hiddenToolbar": false,
+      "mountedPanel": true
+    }
+  }
+}
