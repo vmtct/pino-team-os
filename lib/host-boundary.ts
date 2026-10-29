@@ -23,6 +23,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
+    const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
+    if (method === "POST" && staffPasswordReset) return { action: "next" };
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
     if (method === "POST" && authPost) return { action: "next" };
