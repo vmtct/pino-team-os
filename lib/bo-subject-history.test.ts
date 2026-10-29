@@ -35,7 +35,7 @@ test("PAP-1102 Subscription audit is exact subject-only, redacted, and preserves
   const valid = item({subject_type:"subscription",action:"Tạo Subscription"});
   assert.deepEqual(validateSubjectAuditPage({events:[valid],nextCursor:null},subscription).events,[valid]);
   assert.throws(()=>validateSubjectAuditPage({events:[item()],nextCursor:null},subscription));
-  assert.throws(()=>validateSubjectAuditPage({events:[item({subject_type:"subscription",before:"private"} as Partial<BoSubjectAuditEvent>)],nextCursor:null},subscription));
+  assert.throws(()=>validateSubjectAuditPage({events:[item({subject_type:"subscription",before:"private"} as unknown as Partial<BoSubjectAuditEvent>)],nextCursor:null},subscription));
 });
 test("rejects cross-entity and cross-subject histories without filtering", () => {
   for (const change of [{ subject_id: "019a1234-5678-7000-8000-123456789abe" }, { subject_type: "running_class" as const }]) {
