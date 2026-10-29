@@ -40,6 +40,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   const [notice, setNotice] = useState("");
   const [reason, setReason] = useState("");
   const [shiftNote, setShiftNote] = useState("");
+  const [noteEdits, setNoteEdits] = useState<Record<string, string>>({});
   const [availabilityVoidReason, setAvailabilityVoidReason] = useState("");
   const [weekControlReason, setWeekControlReason] = useState("");
   const [weekControlUntil, setWeekControlUntil] = useState("");
@@ -238,6 +239,24 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
       await boApi.planOperationalWorkforceShift(input, crypto.randomUUID());
       setNotice("Ca và phân công operational đã được chốt.");
       setFrontDesk(false); setShiftLeader(false); setTeacherSelected(false); setAssistantSelected(false); setTeacherRunningClassIds([]); setAssistantRunningClassIds([]); setCoverageMode("FULL_SHIFT"); setCustomStartLocal(""); setCustomEndLocal(""); setShiftNote("");
+      await refresh();
+    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
+  }
+
+  async function saveAssignmentNote(assignment: BoWorkforceAssignment) {
+    const note = (noteEdits[assignment.id] ?? workforceAssignmentNote(assignment) ?? "").trim() || null;
+    if (note === workforceAssignmentNote(assignment) || !selectedCenter?.canEditPlanning || data?.windows?.planning.state === "LOCKED") return;
+    setBusy("note:" + assignment.id); setNotice("");
+    try {
+      const response = await fetch("/api/bo/workforce/planning/assignment/note", {
+        method: "POST", credentials: "same-origin",
+        headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+        body: JSON.stringify({ assignmentId: assignment.id, expectedUpdatedAt: assignment.updatedAt, note }),
+      });
+      const result = await response.json() as {error?: {message?: string}};
+      if (!response.ok) throw new Error(result.error?.message || "Không thể lưu Note ca làm (" + response.status + ")");
+      setNoteEdits((draft) => { const next = {...draft}; delete next[assignment.id]; return next; });
+      setNotice("Đã cập nhật Note ca làm và lưu audit trên Core.");
       await refresh();
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
@@ -505,7 +524,12 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                 {[...roleSummary, ...runningClassRoleSummary].map((item, index) => <span key={`${item}:${index}`}>{item}</span>)}
                 {hasOwnerRole ? <span>Chuyển Phụ trách chính ở School → Classes → Sessions trước khi huỷ/đổi ca.</span> : null}
               </div>
+              <label className={styles.field}>Sửa Note ca làm
+                <textarea rows={2} maxLength={500} value={noteEdits[assignment.id] ?? workforceAssignmentNote(assignment) ?? ""} onChange={(event) => setNoteEdits((draft) => ({...draft,[assignment.id]:event.target.value}))} disabled={!!busy || data.windows?.planning.state === "LOCKED" || !selectedCenter?.canEditPlanning} />
+                <small>Chỉ cập nhật ghi chú; không thay đổi giờ, vai trò hoặc lý do huỷ.</small>
+              </label>
               <div className={styles.subscriptionActions}>
+                <button className={styles.secondaryButton} disabled={!!busy || data.windows?.planning.state === "LOCKED" || !selectedCenter?.canEditPlanning || ((noteEdits[assignment.id] ?? workforceAssignmentNote(assignment) ?? "").trim() || null) === workforceAssignmentNote(assignment)} onClick={() => void saveAssignmentNote(assignment)}>{busy === "note:" + assignment.id ? "Đang lưu…" : "Lưu Note"}</button>
                 <button className={styles.secondaryButton} disabled={!reason.trim() || hasOwnerRole || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void cancel(assignment)}>{busy === `cancel:${assignment.id}` ? "…" : "Huỷ ca"}</button>
                 <button className={styles.primaryButton} disabled={!reason.trim() || (roles.length > 0 || (data.runningClassResponsibilities ?? []).some((role) => role.shiftAssignmentId === assignment.id && role.status === "ACTIVE")) || !templateId || templateId === assignment.shiftTemplateId || !!busy || data.windows?.planning.state === "LOCKED"} onClick={() => void correct(assignment)}>{busy === `correct:${assignment.id}` ? "…" : "Đổi sang ca đã chọn"}</button>
               </div>
