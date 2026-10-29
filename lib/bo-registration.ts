@@ -2,7 +2,7 @@
 export type BoValue = string | number | boolean | string[] | null | undefined;
 export type BoRecord = { id: string; name: string; [key: string]: BoValue };
 export type BoFieldType = "text" | "id" | "select" | "number" | "currency" | "date" | "relation" | "boolean" | "textarea" | "datetime" | "multirelation" | "person" | "multiselect" | "email" | "url" | "formula";
-export type BoField = { key: string; label: string; type: BoFieldType; icon: string; w: number; readonly?: boolean; options?: string[] };
+export type BoField = { key: string; label: string; type: BoFieldType; icon: string; w: number; readonly?: boolean; options?: string[]; defaultVisible?: boolean };
 export type BoModule = { label: string; group: string; fields: BoField[] };
 export type BoRule = { field: string; op: string; value: string; second: string };
 export type BoTableState = { search: string; rules: BoRule[]; logic: "AND" | "OR"; sort: string; desc: boolean; order: string[]; visible: string[]; group: string; collapsed: string[]; hiddenGroups: string[]; hideEmpty: boolean; pageSize: number; groupDesc: boolean };
@@ -34,7 +34,7 @@ export function rulePass(row: BoRecord, rule: BoRule, fields: readonly BoField[]
   return rule.op === "between" ? Number.isFinite(upper) && left >= right && left <= upper : ["gt", "after"].includes(rule.op) ? left > right : rule.op === "gte" ? left >= right : ["lt", "before"].includes(rule.op) ? left < right : rule.op === "lte" ? left <= right : false;
 }
 export function defaultTable(fields: readonly BoField[]): BoTableState {
-  return { search: "", rules: [], logic: "AND", sort: "", desc: false, order: fields.map(f => f.key), visible: fields.map(f => f.key), group: "", collapsed: [], hiddenGroups: [], hideEmpty: true, pageSize: 8, groupDesc: false };
+  return { search: "", rules: [], logic: "AND", sort: "", desc: false, order: fields.map(f => f.key), visible: fields.filter(f => f.defaultVisible !== false).map(f => f.key), group: "", collapsed: [], hiddenGroups: [], hideEmpty: true, pageSize: 8, groupDesc: false };
 }
 export function tableRows(rows: readonly BoRecord[], fields: readonly BoField[], state: BoTableState) {
   const found = rows.filter(row => (!state.search || fields.some(f => norm(display(row[f.key])).includes(norm(state.search)))) && (!state.rules.length || (state.logic === "AND" ? state.rules.every(r => rulePass(row, r, fields)) : state.rules.some(r => rulePass(row, r, fields)))));

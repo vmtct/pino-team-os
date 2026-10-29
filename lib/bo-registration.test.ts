@@ -28,3 +28,10 @@ test('history action labels are Vietnamese and never reveal raw event codes',()=
   assert.equal(auditActionLabel('student.intake.created'),'Tạo hồ sơ');
   assert.equal(auditActionLabel('UNRECOGNIZED_INTERNAL_CODE'),'Thao tác hồ sơ');
 });
+test('column default visibility does not remove searchable fields or change BO defaults',()=>{
+  const optional: BoField={key:'technical',label:'Internal key',type:'text',icon:'#',w:180,defaultVisible:false};
+  const hidden=defaultTable([...fields,optional]);
+  assert.deepEqual(hidden.visible,['name','capacity']);
+  assert.deepEqual(hidden.order,['name','capacity','technical']);
+  assert.deepEqual(defaultTable(fields).visible,['name','capacity']);
+});
