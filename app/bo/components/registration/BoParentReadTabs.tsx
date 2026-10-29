@@ -1,13 +1,17 @@
 "use client";
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
-import { BoValue } from "./BoValue";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import type { BoDataGridColumn } from "../data-grid/BoDataGrid";
 const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../data-grid/BoDataGrid").BoDataGrid;
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
-const tabs = ["Overview", "Students", "Contacts", "Audit"] as const;
-type ParentTab = (typeof tabs)[number];
+const tabs = [
+  { id: "overview", label: "Tổng quan" },
+  { id: "students", label: "Học viên" },
+  { id: "contacts", label: "Liên hệ" },
+  { id: "history", label: "Lịch sử" },
+] as const;
+type ParentTab = (typeof tabs)[number]["id"];
 type Student = { id: string; name: string; relationship: string; linkedAt: string };
 type Contact = { id: string; type: "PHONE" | "EMAIL"; maskedValue: string; primary: boolean; verified: boolean };
 type Audit = { id: string; at: string; action: string; outcome: string; actorType: string };
@@ -36,7 +40,7 @@ function valid(value: unknown, expectedId: string): value is Detail {
    audit.every(x=>x&&idPattern.test(x.id)&&typeof x.at==="string"&&typeof x.action==="string"&&typeof x.outcome==="string"&&typeof x.actorType==="string");
 }
 export function BoParentReadTabs({ module, record, fullDetail = false }: { module: BoModule; record: BoRecord; fullDetail?: boolean }) {
-  const [tab,setTab]=useState<ParentTab>("Overview");
+  const [tab,setTab]=useState<ParentTab>("overview");
   const [detail,setDetail]=useState<Detail|null>(null);
   const [status,setStatus]=useState<"loading"|"ready"|"error"|"permission">("loading");
   const [retry,setRetry]=useState(0);
@@ -59,25 +63,23 @@ export function BoParentReadTabs({ module, record, fullDetail = false }: { modul
     if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
     event.preventDefault();
     const next=event.key==="Home"?0:event.key==="End"?tabs.length-1:(index+(event.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;
-    setTab(tabs[next]);event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+    setTab(tabs[next].id);event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
   }
-  const overview=!fullDetail ? <PropertySections variant="drawer" fields={module.fields} record={record} sections={[{id:"overview",label:"Thông tin chính",fields:module.fields.map(field=>field.key)}]} /> : <div className="v24-prop-grid">{module.fields.map(field=><div className="v24-prop-item" key={field.key}>
-    <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
-    <div className="v24-prop-value readonly" aria-label={"Chỉ đọc "+field.label}><BoValue field={field} value={record[field.key]} full /></div>
-  </div>)}</div>;
+  const overview = <PropertySections variant={fullDetail ? "detail" : "drawer"} fields={module.fields} record={record}
+    sections={[{id:"overview",label:"Thông tin chính",fields:module.fields.map(field=>field.key)}]} />;
   const navigation = <div className="detail-tabs" role="tablist" aria-label="Parent">{tabs.map((item,index)=><button type="button" role="tab"
-      key={item} id={"parent-tab-"+item.toLowerCase()} aria-selected={item===tab} aria-controls="parent-tab-panel"
-      tabIndex={item===tab?0:-1} className={"detail-tab"+(item===tab?" selected":"")}
-      onClick={()=>setTab(item)} onKeyDown={event=>keydown(event,index)}>{item}</button>)}</div>;
-  const panel = <section id="parent-tab-panel" role="tabpanel" aria-labelledby={"parent-tab-"+tab.toLowerCase()} className="v24-prop-section">
+      key={item.id} id={"parent-tab-"+item.id} aria-selected={item.id===tab} aria-controls="parent-tab-panel"
+      tabIndex={item.id===tab?0:-1} className={"detail-tab"+(item.id===tab?" selected":"")}
+      onClick={()=>setTab(item.id)} onKeyDown={event=>keydown(event,index)}>{item.label}</button>)}</div>;
+  const panel = <section id="parent-tab-panel" role="tabpanel" aria-labelledby={"parent-tab-"+tab} className="v24-prop-section">
       <Suspense fallback={<div role="status">Đang tải bảng…</div>}>
-      {tab==="Overview"?overview:status!=="ready"||!detail?
+      {tab==="overview"?overview:status!=="ready"||!detail?
        <div className="v24-audit-empty" role="status">{status==="loading"?"Đang tải dữ liệu Core…":
          status==="permission"?"Không có quyền xem dữ liệu Parent này.":
          <>Không thể tải dữ liệu. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></>}</div>:
-       tab==="Students"?<BoDataGrid rows={detail.students} columns={studentColumns} rowKey={r=>r.id} caption="Học viên liên kết hiện tại"
+       tab==="students"?<BoDataGrid rows={detail.students} columns={studentColumns} rowKey={r=>r.id} caption="Học viên liên kết hiện tại"
           emptyTitle="Chưa có liên kết" emptyMessage="Không có học viên liên kết trong phạm vi cơ sở được cấp quyền."/>:
-       tab==="Contacts"?<BoDataGrid rows={detail.contacts} columns={contactColumns} rowKey={r=>r.id} caption="Liên hệ đã che"
+       tab==="contacts"?<BoDataGrid rows={detail.contacts} columns={contactColumns} rowKey={r=>r.id} caption="Liên hệ đã che"
           emptyTitle="Không có liên hệ" emptyMessage="Không có liên hệ đang hoạt động."/>:
        detail.auditAuthorized?<BoDataGrid rows={detail.audit} columns={auditColumns} rowKey={r=>r.id} caption="Lịch sử Audit"
           emptyTitle="Chưa có Audit" emptyMessage="Chưa có sự kiện audit liên quan được phép xem."/>:
