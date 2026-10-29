@@ -7,6 +7,7 @@ import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWor
 import { HoWorkspace } from "../HoWorkspace";
 import { staffRateProvider } from "./staff-rate-provider";
 import { StaffPasswordReset } from "./StaffPasswordReset";
+import { StaffRoleAccess } from "./StaffRoleAccess";
 import { staffDefinition, staffFields, staffProvider, staffQuery } from "./schema";
 
 type F = typeof staffFields;
@@ -32,7 +33,7 @@ export function StaffTdd() {
   const content = error
     ? <p role="alert">Không tải được danh sách Staff. <button type="button" onClick={() => { setReady(null);setError(false);setRetry(x => x + 1); }}>Thử lại</button></p>
     : ready
-      ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={staffQuery} businessForms={[staffRateProvider]} detailOverview={(record, context, principalId) => <StaffPasswordReset staffId={record.id} displayName={String(record.name)} active={record.status === "Đang làm"} authorized={context.authorize("access.staff_password.reset")} principalId={principalId} />} />
+      ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={staffQuery} businessForms={[staffRateProvider]} detailOverview={(record, context, principalId) => <><StaffRoleAccess key={record.id} staffId={record.id} active={record.status === "Đang làm"} principalId={principalId} /><StaffPasswordReset staffId={record.id} displayName={String(record.name)} active={record.status === "Đang làm"} authorized={context.authorize("access.staff_password.reset")} principalId={principalId} /></>} />
       : <p role="status">Đang tải Staff…</p>;
   return <HoWorkspace module="staffs" content={content} />;
 }
