@@ -24,6 +24,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
     const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
+    const staffRoleWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/role$/.test(p);
+    if (method === "POST" && staffRoleWrite) return { action: "next" };
     if (method === "POST" && staffPasswordReset) return { action: "next" };
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
