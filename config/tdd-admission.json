@@ -89,6 +89,53 @@
         "lib/pap1147-ho-staff-role.test.ts",
         "lib/pap1117-ho-staff-properties.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "roles",
+      "route": "/ho/system/roles",
+      "file": "app/ho/system/roles/page.tsx",
+      "files": [
+        "app/ho/system/roles/page.tsx",
+        "app/ho/system/roles/HoRolesTdd.tsx",
+        "app/ho/system/roles/HoRoleEditor.tsx",
+        "app/ho/system/roles/schema.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1153"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1169"
+        },
+        {
+          "file": "lib/ho-role-edit-facade.ts",
+          "owner": "PAP-1169"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/system/roles/schema.ts",
+        "export": "roleSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/system/roles/HoRolesTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1169-ho-role-edit.test.ts",
+        "lib/host-boundary.test.ts"
+      ]
     }
   ],
   "approvals": []
