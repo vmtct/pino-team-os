@@ -107,9 +107,64 @@ try {
     await fp.locator('[data-bo-runtime-surface="subscriptions-core"]').waitFor({ state: "visible" });
     assert(await fp.locator('[data-bo-full-detail]').count() === 0, "invalid ID opened detail");
   });
-  await test("founder_ho_staff_tdd_table", async () => {
+  await test("student_to_real_subscription_full_detail", async () => {
+    await fp.setViewportSize({ width: 1024, height: 900 });
+    await fp.goto(BO + "/bo", { waitUntil: "domcontentloaded" });
+    await fp.locator('tbody tr button[aria-label^="Quick View"]').first().waitFor({ state: "visible", timeout: 15000 });
+    const studentName = await fp.evaluate(async () => {
+      const response = await fetch("/api/bo/learners", { credentials: "include" });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      const rows = Array.isArray(payload.data) ? payload.data : [];
+      return rows.find(row => row.activeSubscriptions > 0)?.displayName ?? null;
+    });
+    assert(studentName, "No subscribed Student fixture for real click path");
+    await fp.locator('main input[type="search"]').fill(studentName);
+    await fp.locator('tbody tr button[aria-label^="Quick View"]').first().click();
+    await fp.locator('[data-tdd-shell="drawer"]').getByRole("button", { name: /Full Detail/ }).click();
+    await fp.getByRole("tab", { name: "Subscription" }).click();
+    const subscriptionRow = fp.locator('[data-tdd-shell="detail"] tbody tr button[aria-label^="Quick View"]').first();
+    await subscriptionRow.waitFor({ state: "visible", timeout: 15000 });
+    await subscriptionRow.click();
+    await fp.locator('[data-tdd-shell="drawer"]').getByRole("button", { name: /Full Detail/ }).click();
+    await fp.waitForURL(url => url.searchParams.get("module") === "subscriptions" &&
+      UUID_V7.test(url.searchParams.get("record") ?? ""), { timeout: 12000 });
+    const opened = new URL(fp.url()).searchParams.get("record");
+    const title = fp.locator('[data-tdd-shell="detail"] #detail-subtitle');
+    await title.waitFor({ state: "visible", timeout: 15000 });
+    assert((await title.innerText()).trim() === opened, "Student click opened wrong Subscription detail");
+  });
+  await test("founder_ho_staff_table_drawer_full_detail", async () => {
     await fp.goto(HO + "/ho/staff", { waitUntil: "domcontentloaded" });
     await fp.locator('[data-tdd-shell="table"]').waitFor({ state: "visible", timeout: 15000 });
+    const quickView = fp.locator('[data-tdd-shell="table"] tbody tr button[aria-label^="Quick View"]').first();
+    await quickView.waitFor({ state: "visible", timeout: 15000 });
+    await quickView.click();
+    await fp.locator('[data-tdd-shell="drawer"]').waitFor({ state: "visible" });
+    assert(new URL(fp.url()).searchParams.has("record"), "Drawer lost record in URL");
+    await fp.locator('[data-tdd-shell="drawer"]').getByRole("button", { name: /Full Detail/ }).click();
+    await fp.locator('[data-tdd-shell="detail"]').waitFor({ state: "visible" });
+    assert(new URL(fp.url()).searchParams.has("record"), "Full detail lost record in URL");
+    for (const name of ["Tổng quan", "Rate lương", "Lịch sử"]) {
+      const tab = fp.locator('[data-tdd-shell="detail"]').getByRole("tab", { name });
+      await tab.click();
+      assert(await tab.getAttribute("aria-selected") === "true", "ARIA selection missing for " + name);
+      const selected = await fp.locator('[data-tdd-shell="detail"] [role="tab"][aria-selected="true"]').count();
+      assert(selected === 1, "Expected exactly one selected tab");
+      const controls = await tab.getAttribute("aria-controls");
+      assert(controls && await fp.locator('[id="' + controls + '"][role="tabpanel"]').count() === 1,
+        "Tab lacks matching ARIA panel");
+    }
+    for (const width of [1440, 1024, 768, 390, 320]) {
+      await fp.setViewportSize({ width, height: 900 });
+      assert(await fp.locator('[data-tdd-shell="detail"]').isVisible(), "HO detail hidden at " + width);
+      assert(await fp.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2),
+        "HO detail page overflow at " + width);
+    }
+    await fp.locator('[data-tdd-shell="detail"]').getByRole("button", { name: "Quay lại bảng" }).click();
+    await fp.locator('[data-tdd-shell="table"]').waitFor({ state: "visible" });
+    assert(await fp.locator('[data-tdd-shell="detail"]').count() === 0, "HO back left detail mounted");
+    assert(!new URL(fp.url()).searchParams.has("record"), "HO back left stale record URL");
   });
 } catch (error) {
   items.push({ name: "authenticated_browser_setup", status: "FAIL", reason: String(error.message || error).slice(0, 180) });
