@@ -118,10 +118,6 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1169"
-        },
-        {
-          "file": "lib/ho-role-edit-facade.ts",
-          "owner": "PAP-1169"
         }
       ],
       "schema": {
