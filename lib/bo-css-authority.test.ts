@@ -76,7 +76,7 @@ test("BO authenticated account belongs to shell and does not mutate shared rende
  assert.ok(layout.includes("email: currentUser.email"));
  assert.ok(runtime.includes("<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} />"));
  assert.ok(account.includes("createPortal"));
- assert.ok(account.includes("<LogoutButton className={styles.logout} />"));
+ assert.ok(account.includes("<LogoutButton />"));
  assert.ok(account.includes("resolveBoAccountLabel(displayName, email)"));
  assert.ok(account.includes('data-surface="ho"'));
 });
