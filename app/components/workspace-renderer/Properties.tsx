@@ -2,6 +2,12 @@
 import { BoValue } from "../../bo/components/registration/BoValue";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 
+/** Presentation seam receives only the renderer's authorized record projection. */
+export type OverviewProperties = {
+  readonly fields: readonly BoField[]; readonly record: BoRecord;
+  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
+};
+
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
 export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false }: {
   readonly fields: readonly BoField[]; readonly record: BoRecord;

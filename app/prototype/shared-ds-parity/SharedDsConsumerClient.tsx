@@ -29,7 +29,7 @@ export default function SharedDsConsumerClient() {
   return <div data-pap1117-shared-ds-fixture style={{padding: 18, maxWidth: 1200, margin: "auto"}}>
     <p>Local-only PAP-1117 shared DS consumer probe — no real data or Core writes.</p>
     <section data-pino-ds="bo" aria-label="BO TDD">
-      <h2>BO Table / Drawer / Detail — package v0.2.0</h2>
+      <h2>BO Table / Drawer / Detail — package v0.3.0-rc.1</h2>
       <TableFrame caption="Nhân sự giả lập" columns={columns} rows={rows} rowKey={row => row.id}
         onRowSelect={() => setDrawerOpen(true)} />
       <button type="button" onClick={() => setDrawerOpen(true)}>Mở Drawer</button>

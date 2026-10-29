@@ -14,6 +14,9 @@ test("PAP-1117 PINO package exact artifact",()=>{
  assert.equal(createHash("sha256").update(archive).digest("hex"),config.tarballSha256);
  const manifest=JSON.parse(readFileSync(require.resolve("@pino/design-system/manifest.json"),"utf8"));
  assert.equal(manifest.version,config.version);
+ assert.equal(config.version,"0.3.0-rc.1");
+ assert.equal(config.sourceMainSha,"3fd9c166b72b82bdf872a29519cd92217d96dc77");
+ assert.equal(config.tarballSha256,"ea5da205f3f53f7fdf85a8ca9b9747125f0cf32d5352482427bdcd119e2c4ed7");
  assert.equal(manifest.sourceOwner,"PINO");
 });
 test("PAP-1117 shared TDD and TOS React SSR",()=>{
