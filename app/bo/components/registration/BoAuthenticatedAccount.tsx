@@ -16,7 +16,7 @@ export function BoAuthenticatedAccount({ displayName, email }: { displayName: st
   const name = displayName?.trim() || email;
   const subtitle = name === email ? "Back Office" : email;
   return <>
-    <style>{'#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer:has(>.bo-auth-account)>:not(.bo-auth-account){display:none}#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer>.bo-auth-account{display:contents}'}</style>
-    {target ? createPortal(<div className="bo-auth-account"><div className="avatar">{name.charAt(0).toUpperCase()}</div><div><strong>{name}</strong><small>{subtitle}</small></div><LogoutButton /></div>, target) : null}
+    <style>{'#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer:has(>#bo-auth-account)>:not(#bo-auth-account){display:none}#app[data-bo-runtime="react"]:not([data-surface="ho"]) .sidebar-footer>#bo-auth-account{display:contents}'}</style>
+    {target ? createPortal(<div id="bo-auth-account"><div className="avatar">{name.charAt(0).toUpperCase()}</div><div><strong>{name}</strong><small>{subtitle}</small></div><LogoutButton /></div>, target) : null}
   </>;
 }
