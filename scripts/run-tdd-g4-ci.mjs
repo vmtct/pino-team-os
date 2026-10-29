@@ -18,6 +18,9 @@ async function login(context, origin, email, password, role) {
   try {
     phase = label + "_navigate";
     await page.goto(origin + "/staff-login", {waitUntil:"domcontentloaded"});
+    // Controlled React form may be present before hydration; avoid an inert submit button.
+    phase = label + "_hydrate";
+    await page.waitForLoadState("networkidle", {timeout:14000});
     phase = label + "_fill";
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Mật khẩu").fill(password);
