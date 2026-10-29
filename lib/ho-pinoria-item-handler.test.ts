@@ -58,6 +58,15 @@ test("HO Item private binding receives bounded path, credential and idempotency 
   assert.equal(response.headers.get("x-request-id"),"ho-item");
   assert.deepEqual(forwarded,[{method:"PATCH",path:"pinoria/items/"+id,body,token:"valid",idempotencyKey:"pap1126-test"}]);
 });
+test("HO Item API returns HTTP 400 for malformed JSON and invalid media instead of leaking a 503",async()=>{
+  forwarded.length=0;
+  const jsonHeaders={host,cookie:"pino_staff_password_session=valid","content-type":"application/json"};
+  const malformed=new Request(base+path,{method:"POST",headers:jsonHeaders,body:"{"});
+  assert.equal((await handleHoPinoriaItemRequest(malformed,env())).status,400);
+  const invalidImage=req(base+path+"/uploads","POST","valid",{fileName:"bad.png",mimeType:"image/png",bytesBase64:"not base64"});
+  assert.equal((await handleHoPinoriaItemRequest(invalidImage,env())).status,400);
+  assert.equal(forwarded.length,0);
+});
 test("HO private Item handler rejects untrusted verbs and malformed host before Core",async()=>{
   forwarded.length=0;
   const urls=[base+path+"/../../access/users",base+path+"/"+id+"/unpublish/hijack"];

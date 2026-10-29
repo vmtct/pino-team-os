@@ -10,6 +10,7 @@ interface HoItemRequest {
   idempotencyKey?: string;
 }
 interface HoItemResult { status:number; body:unknown; requestId:string; }
+class InvalidHoItemPayload extends Error {}
 export interface HoItemBinding {
   executeWithStaffPassword(request:HoItemRequest,token:string):Promise<HoItemResult>;
 }
@@ -42,6 +43,7 @@ export async function handleHoPinoriaItemRequest(request:Request,env:HoItemEnv):
       credential.token);
     return json(result.status,result.body,result.requestId);
   }catch(error){
+    if(error instanceof InvalidHoItemPayload)return json(400,{error:{code:"INVALID_BODY",message:"Invalid Item payload"}});
     if(error instanceof BoShellGateError)return json(error.status,{error:{code:error.code??"HO_ACCESS_DENIED",message:error.message}});
     // Fail closed. Never expose Core binding/session details to external clients.
     return json(503,{error:{code:"HO_ITEM_UNAVAILABLE",message:"HO Item request unavailable"}});
@@ -49,15 +51,15 @@ export async function handleHoPinoriaItemRequest(request:Request,env:HoItemEnv):
 }
 async function parseBody(request:Request):Promise<unknown>{
   let body:unknown;
-  try{body=await request.json();}catch{throw new Error("INVALID_JSON");}
-  if(!body||typeof body!=="object"||Array.isArray(body))throw new Error("INVALID_BODY");
+  try{body=await request.json();}catch{throw new InvalidHoItemPayload("INVALID_JSON");}
+  if(!body||typeof body!=="object"||Array.isArray(body))throw new InvalidHoItemPayload("INVALID_BODY");
   const record=body as Record<string,unknown>;
   if(typeof record.bytesBase64==="string"){
     const s=record.bytesBase64;
-    if(s.length>14*1024*1024||!/^[A-Za-z0-9+/]+={0,2}$/.test(s))throw new Error("BAD_MEDIA");
+    if(s.length>14*1024*1024||!/^[A-Za-z0-9+/]+={0,2}$/.test(s))throw new InvalidHoItemPayload("BAD_MEDIA");
     let binary:string;
-    try{binary=atob(s);}catch{throw new Error("BAD_MEDIA");}
-    if(binary.length>10*1024*1024)throw new Error("BAD_MEDIA");
+    try{binary=atob(s);}catch{throw new InvalidHoItemPayload("BAD_MEDIA");}
+    if(binary.length>10*1024*1024)throw new InvalidHoItemPayload("BAD_MEDIA");
     const bytes=new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
     const {bytesBase64,...rest}=record;
