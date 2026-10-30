@@ -23,6 +23,10 @@
         {
           "file": "public/bo-authority-source/school-adapters.js",
           "owner": "PAP-982"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1198"
         }
       ],
       "schema": {
