@@ -83,11 +83,11 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   finally{setBusy(false);}
  }
  async function revoke(){
-  if(!selectedPassMatchesCenter(selected,centerId)||!selected||!["AVAILABLE","ASSIGNED"].includes(selected.status)||busy)return;
+  if(!selectedPassMatchesCenter(selected,centerId)||!selected||selected.status!=="ASSIGNED"||busy)return;
   if(!confirm("Thu hồi Pass này? Hành động sẽ được ghi lịch sử."))return;
   setBusy(true);setError("");
   try{
-   await walkinPassBoApi.revoke(selected.id);
+   await walkinPassBoApi.revoke(selected.id,centerId);
    setNotice("Pass đã được thu hồi.");setMode(null);setSelected(null);await refresh();
   }catch(e){setError(e instanceof Error?e.message:"Không thể thu hồi");}
   finally{setBusy(false);}
@@ -151,7 +151,7 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
      <div className={styles.walkinActions}>
       {canCopyAssignedPassCode(selected,centerId)?<button className={styles.walkinSecondary} type="button" onClick={()=>void copy()}>Sao chép mã Pass</button>:null}
       {mode==="quick"?<button className={styles.walkinSecondary} onClick={()=>setMode("detail")} type="button">Chi tiết</button>:null}
-      {selectedPassMatchesCenter(selected,centerId)&&["AVAILABLE","ASSIGNED"].includes(selected.status)?<button className={styles.walkinDanger} type="button" disabled={busy} onClick={()=>void revoke()}>Thu hồi</button>:null}
+      {selectedPassMatchesCenter(selected,centerId)&&selected.status==="ASSIGNED"?<button className={styles.walkinDanger} type="button" disabled={busy} onClick={()=>void revoke()}>Thu hồi</button>:null}
      </div>
      {mode==="detail"?<div className={styles.walkinInfo}>Lịch sử thao tác: cần nối Core audit read-only trước khi nghiệm thu Full Detail.</div>:null}
     </div>:null}
