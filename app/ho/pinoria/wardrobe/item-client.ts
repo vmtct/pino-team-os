@@ -6,6 +6,7 @@ export type HoItem = {
  status:"DRAFT"|"PUBLISHED"|"UNPUBLISHED"; asset:ItemAsset;
  positionX:number;positionY:number;scale:number;rotationDegrees:number|null;
  revision:number;createdAt:string;updatedAt:string;publishedAt:string|null;unpublishedAt:string|null;
+ pendingDraft?:ItemInput&{revision:number};
 };
 export type ItemInput = Pick<HoItem,"key"|"displayName"|"type"|"slot"|"asset"|"positionX"|"positionY"|"scale"|"rotationDegrees">;
 export const slots: readonly Slot[]=["HAIR","FACE","HEADWEAR","OUTFIT","BACK","AURA_BACK","AURA_GROUND","PATH_MARK"];
@@ -25,6 +26,14 @@ export function validateItem(value:unknown):HoItem {
   !Number.isSafeInteger(item.asset.byteSize)||!Number.isSafeInteger(item.revision)||
   ![item.positionX,item.positionY,item.scale].every(Number.isFinite)||
   (item.rotationDegrees!==null&&!Number.isFinite(item.rotationDegrees)))throw Error("Invalid Item projection");
+ if(item.pendingDraft){
+  const d=item.pendingDraft;
+  if(d.revision!==item.revision||!Number.isFinite(d.positionX)||!Number.isFinite(d.positionY)||
+     d.positionX < -1||d.positionX > 1||d.positionY < -1||d.positionY > 1||
+     !Number.isFinite(d.scale)||d.scale<=0||d.scale>10||
+     !d.asset||!assetUrl(d.asset)||typeof d.key!=="string"||!d.key.trim()||
+     (d.rotationDegrees!==null&&!Number.isFinite(d.rotationDegrees)))throw Error("Invalid pending Item revision");
+ }
  return item;
 }
 export function assetUrl(asset:ItemAsset):string|null {

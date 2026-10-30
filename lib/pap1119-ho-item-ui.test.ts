@@ -22,6 +22,12 @@ test("PAP-1119 validates the strict HO Core read projection",()=>{
   asset:{key:"pinoria/item/uploads/"+"0".repeat(64)+".png",mimeType:"image/png",byteSize:10,sha256:"0".repeat(64)},
   positionX:0,positionY:0,scale:1,rotationDegrees:null,revision:1,createdAt:"",updatedAt:"",publishedAt:null,unpublishedAt:null};
  assert.equal(validateItem(base).revision,1);
+ const pending={...base,key:"pending-key",positionX:.36,positionY:-.24,revision:3};
+ const published=validateItem({...base,status:"PUBLISHED",revision:3,pendingDraft:pending});
+ assert.equal(published.positionX,0);
+ assert.equal(published.pendingDraft?.positionX,.36);
+ assert.throws(()=>validateItem({...base,status:"PUBLISHED",revision:3,pendingDraft:{...pending,revision:2}}));
+ assert.throws(()=>validateItem({...base,status:"PUBLISHED",revision:3,pendingDraft:{...pending,asset:{...pending.asset,key:"https://evil.invalid/file.png"}}}));
  assert.throws(()=>validateItem({...base,revision:"1"}));
  assert.throws(()=>validateItem({...base,slot:"ZINDEX"}));
 });
