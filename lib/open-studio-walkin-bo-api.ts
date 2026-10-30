@@ -4,6 +4,10 @@ export type WalkinPass = {
  id:string;code:string;status:"AVAILABLE"|"ASSIGNED"|"CONSUMED"|"REVOKED";
  path_code:WalkinPath|null;parent_user_id:string|null;center_id:string|null;
 };
+export type WalkinPassEvent = {
+ id:string;action:"ASSIGNED"|"CONSUMED"|"REVOKED";actor_user_id:string;
+ center_id:string;path_code:WalkinPath|null;at:string;
+};
 async function read<T>(resource:string):Promise<T>{
  const response=await fetch("/api/bo/open-studio/walkin/"+resource,{cache:"no-store"});
  const data:unknown=await response.json();
@@ -23,6 +27,7 @@ async function write<T>(resource:"batches"|"assign"|"revoke",payload:object):Pro
 }
 export const walkinPassBoApi={
  inventory:(centerId?:string)=>read<WalkinPass[]>("inventory"+(centerId?"?centerId="+encodeURIComponent(centerId):"")),
+ history:(passId:string,centerId:string)=>read<WalkinPassEvent[]>("history?"+new URLSearchParams({passId,centerId})),
  createBatch:(name:string,quantity:number)=>write<{id:string;name:string;quantity:number}>("batches",{name,quantity}),
  assign:(parentId:string,centerId:string,path:WalkinPath)=>write<WalkinPass>("assign",{parentId,centerId,path}),
  revoke:(passId:string,centerId:string)=>write<WalkinPass>("revoke",{passId,centerId})
