@@ -13,9 +13,11 @@ test("PAP-1119 approved interactive Calibration registers only with scoped Found
 });
 test("PAP-1119 only renders Core-owned R2 upload keys, no synthetic asset URLs",()=>{
  const ok={key:"pinoria/item/uploads/"+"a".repeat(64)+".png",mimeType:"image/png" as const,byteSize:12,sha256:"c".repeat(64)};
- assert.equal(assetUrl(ok),"https://assets.pinohouse.art/"+ok.key);
- assert.equal(assetUrl({...ok,key:"https://evil.invalid/image.png"}),null);
- assert.equal(assetUrl({...ok,key:"demo/pinoria/fake-item.png"}),null);
+ const id="019b1126-0001-7000-8000-000000000001";
+ assert.equal(assetUrl(ok,id),"/api/ho/pinoria/items/"+id+"/media");
+ assert.equal(assetUrl(ok,id,true),"/api/ho/pinoria/items/"+id+"/draft-media");
+ assert.equal(assetUrl({...ok,key:"https://evil.invalid/image.png"},id),null);
+ assert.equal(assetUrl({...ok,key:"demo/pinoria/fake-item.png"},id),null);
 });
 test("PAP-1119 validates the strict HO Core read projection",()=>{
  const base={id:"019b1126-0001-7000-8000-000000000001",key:"real-item",displayName:"Test",type:"WEARABLE",slot:"HAIR",status:"DRAFT",

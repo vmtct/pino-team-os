@@ -37,7 +37,8 @@ export function HoItemCalibration({itemId,canManage,onChange}:{itemId:string;can
  try{const updated=await writeItem("/"+item.id+"/"+action,"POST",{expectedRevision:item.revision});setItem(updated);setValue(initial(updated));onChange?.()}
  catch(e){setError(e instanceof Error?e.message:"Không thể cập nhật trạng thái.")}finally{setBusy(false)}};
  if(!item)return <p role={error?"alert":"status"}>{error||"Đang tải Calibration…"}</p>;
- const src=localAsset||assetUrl(item.pendingDraft?.asset??item.asset);
+ const media=assetUrl(item.pendingDraft?.asset??item.asset,item.id,Boolean(item.pendingDraft));
+ const src=localAsset||(media?media+"?revision="+item.revision:null);
  const edit=draft&&!busy;
  const num=(label:string,key:keyof Position,min:number,max:number,step:number)=> {
   const v=Number(value[key]??0);

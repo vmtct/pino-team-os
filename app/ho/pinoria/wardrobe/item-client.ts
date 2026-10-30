@@ -31,15 +31,16 @@ export function validateItem(value:unknown):HoItem {
   if(d.revision!==item.revision||!Number.isFinite(d.positionX)||!Number.isFinite(d.positionY)||
      d.positionX < -1||d.positionX > 1||d.positionY < -1||d.positionY > 1||
      !Number.isFinite(d.scale)||d.scale<=0||d.scale>10||
-     !d.asset||!assetUrl(d.asset)||typeof d.key!=="string"||!d.key.trim()||
+     !d.asset||!assetUrl(d.asset,item.id,true)||typeof d.key!=="string"||!d.key.trim()||
      (d.rotationDegrees!==null&&!Number.isFinite(d.rotationDegrees)))throw Error("Invalid pending Item revision");
  }
  return item;
 }
-export function assetUrl(asset:ItemAsset):string|null {
- // Only the real, Core-verified Pinoria Item objectKey; never accept external arbitrary URLs.
- if(!/^pinoria\/item\/uploads\/[a-f0-9]{64}\.(?:png|webp)$/.test(asset.key))return null;
- return "https://assets.pinohouse.art/"+asset.key;
+export function assetUrl(asset:ItemAsset,itemId:string,draft=false):string|null {
+ // Staging Item objects are NOT publicly available at assets.pinohouse.art.
+ // Deliver by the HO host's authenticated GET boundary, never synthesize a public key URL.
+ if(!/^pinoria\/item\/uploads\/[a-f0-9]{64}\.(?:png|webp)$/.test(asset.key)||!uuid.test(itemId))return null;
+ return "/api/ho/pinoria/items/"+itemId+(draft?"/draft-media":"/media");
 }
 async function api<T>(path:string,init?:RequestInit):Promise<T>{
  const response=await fetch("/api/ho/pinoria/items"+path,{cache:"no-store",credentials:"same-origin",...init});
