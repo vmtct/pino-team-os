@@ -6,6 +6,7 @@ import type { BoParentSearchResult } from "@/lib/bo-model";
 import { walkinPassBoApi, type WalkinPass, type WalkinPath } from "@/lib/open-studio-walkin-bo-api";
 import styles from "../bo.module.css";
 import { assignmentReady, WALKIN_PATHS, acceptInventoryResponse, selectedPassMatchesCenter, canCopyAssignedPassCode } from "@/lib/open-studio-walkin-ui-contract";
+import { canExportWalkinEpass, exportWalkinEpassPng } from "@/lib/open-studio-walkin-epass";
 
 const STATUS: Record<WalkinPass["status"], string> = {
  AVAILABLE:"Chưa cấp", ASSIGNED:"Đã cấp", CONSUMED:"Đã sử dụng", REVOKED:"Đã thu hồi",
@@ -97,6 +98,15 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   try{await navigator.clipboard.writeText(selected.code);setNotice("Đã sao chép mã Pass");}
   catch{setError("Không thể sao chép. Hãy chọn mã Pass để sao chép thủ công.");}
  };
+ const exportImage=async()=>{
+  if(!canExportWalkinEpass(selected,centerId)||!selected||busy)return;
+  setBusy(true);setError("");
+  try{
+   const result=await exportWalkinEpassPng(selected,centerId);
+   setNotice(result==="clipboard"?"Đã sao chép ảnh e-pass để gửi thủ công.":"Đã tải ảnh e-pass PNG để gửi thủ công.");
+  }catch(e){setError(e instanceof Error?e.message:"Không thể tạo ảnh e-pass");}
+  finally{setBusy(false);}
+ };
  const view=(item:WalkinPass)=>{if(state!=="ready"||loadedCenterId!==centerId)return;setError("");setSelected(item);setMode("quick");};
  return <section className={styles.walkinSection} aria-labelledby="walkin-heading">
   <div className={styles.walkinHead}>
@@ -150,6 +160,7 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
      </dl>
      <div className={styles.walkinActions}>
       {canCopyAssignedPassCode(selected,centerId)?<button className={styles.walkinSecondary} type="button" onClick={()=>void copy()}>Sao chép mã Pass</button>:null}
+      {canExportWalkinEpass(selected,centerId)?<button className={styles.walkinSecondary} type="button" disabled={busy} onClick={()=>void exportImage()}>Sao chép / tải ảnh e-pass</button>:null}
       {mode==="quick"?<button className={styles.walkinSecondary} onClick={()=>setMode("detail")} type="button">Chi tiết</button>:null}
       {selectedPassMatchesCenter(selected,centerId)&&selected.status==="ASSIGNED"?<button className={styles.walkinDanger} type="button" disabled={busy} onClick={()=>void revoke()}>Thu hồi</button>:null}
      </div>
