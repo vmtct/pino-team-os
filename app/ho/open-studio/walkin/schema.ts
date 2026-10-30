@@ -6,7 +6,7 @@ export const passFields = [
  {key:"code",label:"Mã Pass",type:"text",icon:"#",width:260,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
  {key:"status",label:"Trạng thái",type:"text",icon:"◉",width:145,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
  {key:"path",label:"Path",type:"text",icon:"▣",width:115,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
- {key:"parent",label:"Parent ID",type:"text",icon:"@ ",width:260,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
+ {key:"parent",label:"Parent ID",type:"text",icon:"@",width:260,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
  {key:"center",label:"Center ID",type:"text",icon:"⌖",width:260,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
  {key:"batch",label:"Batch ID",type:"text",icon:"▦",width:260,permission:"open_studio.walkin_pass.manage",readOnly:true,capabilities:read},
 ] as const satisfies readonly FieldSchema[];
