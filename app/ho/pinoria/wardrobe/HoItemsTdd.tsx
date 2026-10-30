@@ -29,7 +29,7 @@ export function HoItemsTdd(){
   return ()=>{ctrl.abort();adapter?.dispose()};
  },[retry]);
  const content=error?<p role="alert">Không tải được Items. <button onClick={()=>{setError(false);setReady(null);setRetry(x=>x+1)}}>Thử lại</button></p>:
- ready?<section aria-label="Pinoria Items">
+ ready?<section className="ho-pinoria-items" aria-label="Pinoria Items">
   {ready.adapter.context.authorize("pinoria.item.manage")?<HoItemCreate onCreated={()=>setGeneration(g=>g+1)}/>:null}
   <SurfaceWorkspace key={generation} adapter={ready.adapter} navigation={ready.navigation} initialQuery={itemQuery} businessLoaders={loaders}/>
  </section>:<p role="status">Đang tải Items được cấp quyền…</p>;

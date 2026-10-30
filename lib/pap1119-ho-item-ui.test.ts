@@ -1,8 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {TddRegistry,type Approval} from "./workspace-schema";
 import {itemDefinition,extensionVerifier} from "../app/ho/pinoria/wardrobe/schema";
 import {assetUrl,validateItem} from "../app/ho/pinoria/wardrobe/item-client";
+test("PAP-1119 Item creation form stays within feature-scoped DS layout",()=>{
+ const page=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemsTdd.tsx",import.meta.url),"utf8");
+ const css=readFileSync(new URL("../app/components/pinoria-item/item-calibration.css",import.meta.url),"utf8");
+ assert.match(page,/<section className="ho-pinoria-items" aria-label="Pinoria Items">/);
+ assert.match(css,/\.ho-pinoria-items \.pino-item-create-form\{/);
+});
 test("PAP-1119 approved interactive Calibration registers only with scoped Founder authority",()=>{
  assert.throws(()=>new TddRegistry().register({...itemDefinition,data:{id:"local",list:async()=>({rows:[],total:0}),detail:async()=>null}}),/not verified/);
  const ok=new TddRegistry((a:Approval,s)=>extensionVerifier(a,s));
