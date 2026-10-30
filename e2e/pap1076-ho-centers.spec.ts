@@ -1,0 +1,32 @@
+import { expect, test } from "@playwright/test";
+import { buildSync } from "esbuild";
+import { readFileSync } from "node:fs";
+const bundle = buildSync({ outfile:"fixture.js",entryPoints:["e2e/fixtures/pap1076-ho-centers.tsx"],bundle:true,write:false,format:"iife",platform:"browser",jsx:"automatic",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},banner:{js:"var process = { env: { NODE_ENV: 'production' } };"},logLevel:"silent" }).outputFiles[0].text;
+const styles=readFileSync("public/ho-authority-source/ho-scoped.css","utf8");
+const center={id:"019d2000-0002-7000-8000-000000000001",key:"QA",displayName:"Synthetic Center",timeZone:"Asia/Ho_Chi_Minh",status:"ACTIVE"};
+test.use({ launchOptions: process.platform === "win32" ? { executablePath:"C:/Program Files/Google/Chrome/Application/chrome.exe" } : {} });
+for (const width of [1440,1024,768,390,320]) test(`PAP1076 actual Centers controller ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});
+ await page.route("**/*",async route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path==="/api/bo/context")return route.fulfill({json:{data:{surface:"BO",entitled:true,userId:"synthetic-founder",permissionKeys:["team.bo.access","bo.operations.view"]}}});
+  if(path==="/api/bo/centers")return route.fulfill({json:{data:[center]}});
+  if(path.startsWith("/api/"))return route.fulfill({status:404,json:{error:{code:"NOT_FOUND"}}});
+  if(route.request().isNavigationRequest())return route.fulfill({contentType:"text/html",body:`<!doctype html><html lang="vi" data-surface="ho" data-bo-ui-authority="v25"><head><style>*{box-sizing:border-box}body{margin:0}${styles}</style></head><body><div id="root"></div><script>${bundle}</script></body></html>`});
+  return route.fulfill({status:404,body:""});
+ });
+ await page.goto("https://ho.staging.pinohouse.art/ho/centers");
+ const opener=page.getByRole("button",{name:"Quick View Synthetic Center",exact:true});
+ await expect(opener).toBeVisible();await opener.click();
+ await expect(page.locator('[data-tdd-shell="drawer"]')).toBeVisible();
+ await page.getByRole("button",{name:/Full Detail/}).click();
+ await expect(page.getByRole("tab",{name:"Tổng quan"})).toBeVisible();
+ await expect(page.getByRole("tabpanel")).toContainText(center.timeZone);
+ await page.getByRole("tab",{name:"Tổng quan"}).focus();await page.keyboard.press("End");
+ await expect(page.getByRole("tab",{name:"Lịch sử"})).toBeFocused();
+ await expect(page.getByRole("tabpanel")).toContainText("Chưa có lịch sử khả dụng cho Center.");
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+ await page.reload();await expect(page.getByRole("tab",{name:"Lịch sử"})).toHaveAttribute("aria-selected","true");
+ await page.getByRole("button",{name:"Quay lại bảng"}).click();await expect(opener).toBeFocused();
+ expect(new URL(page.url()).searchParams.has("record")).toBe(false);
+});

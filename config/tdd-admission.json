@@ -228,6 +228,51 @@
         "lib/pap1224-bo-open-studio-tdd.test.ts",
         "lib/open-studio-walkin-ui-contract.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "centers",
+      "route": "/ho/centers",
+      "file": "app/ho/centers/page.tsx",
+      "files": [
+        "app/ho/centers/page.tsx",
+        "app/ho/centers/HoCenters.tsx",
+        "app/ho/centers/schema.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1070"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/centers/schema.ts",
+        "export": "centerSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/centers/HoCenters.tsx"
+      },
+      "tests": [
+        "lib/pap1076-ho-centers-tdd.test.ts"
+      ]
     }
   ],
   "approvals": []
