@@ -37,3 +37,9 @@ PAP-1114 owns DS component source; PAP-1067 owns typed orchestration and assembl
 - Automate per-module G2/G3/G4 binding on admitted module changes, including exact-head and post-CD receipts.
 - Detect new modules registered inside existing routes, not only new page files.
 - Publish complete live coverage/exception matrix with module owners, gate receipts and authoritative prototype visual parity.
+
+## Coverage denominator — 2026-10-30 source snapshot
+
+Run `node scripts/report-tdd-coverage.mjs` for concise source counts or add `--json` for explicit route ownership and classification. The PR Validation gate invokes this report and 4 negative unit tests on every pull request. A newly added page.ts/page.tsx/page.js/page.jsx under app/bo or app/ho that does not have an exact admission or pre-existing immutable inventory entry makes CI FAIL; Founder-special routes also require their external approved exception record. No production or staging API is called.
+
+At source main e77b2ee5 (before this report's PR), 59 BO/HO page routes were observed: BO has 1 TDD_ADMITTED_FOUNDATION and 46 grandfathered; HO has 2 TDD_ADMITTED_FOUNDATION and 10 grandfathered; no new unadmitted route found. Total: 3 foundation-admitted, 56 grandfathered; source-level eligibility and serving acceptance for the grandfathered are UNVERIFIED. This is a **route denominator**, not a full business-module denominator. A feature joined inside an already existing route requires a separate module registry/admission audit, still pending S9. No source classification is a live authenticated G4 approval. PAP-1086/1087 own migration selection.
