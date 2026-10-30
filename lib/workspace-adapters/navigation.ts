@@ -26,6 +26,9 @@ export function browserTddNavigation<F extends readonly FieldSchema[]>(surface: 
   return {
     read() {
       const selected = hoRecordId(new URLSearchParams(location.search).get("record"));
+      // Reload/deep links have no captured opener. Remember the selected row for
+      // Back's DOM fallback, and discard an opener from a different record.
+      if (selected && selected !== recordId) { recordId = selected; focused = null; }
       const owned = history.state?.[key] as AdapterLocation<F> | undefined;
       return { kind: selected ? owned?.recordId === selected && owned.kind === "detail" ? "detail" : "drawer" : "table", ...(selected ? { recordId: selected } : {}),
         tab: owned?.recordId === selected && typeof owned.tab === "string" ? owned.tab : "overview", query: owned?.query ?? initialQuery };

@@ -4,7 +4,7 @@ import { buildSync } from "esbuild";
 const bundle = buildSync({ outfile: "fixture.js", banner: { js: "var process = { env: { NODE_ENV: 'production' } };" }, entryPoints: ["e2e/fixtures/pap1184-navigation.tsx"], bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
 test.use({ launchOptions: process.platform === "win32" ? { executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe" } : {} });
 
-for (const path of ["Escape", "Full Detail Back"] as const) {
+for (const path of ["Escape", "Full Detail Back", "Reload then Back"] as const) {
   test(`PAP-1184 ${path} restores Parent row focus after asynchronous Table refresh`, async ({ page }) => {
     page.on("pageerror", error => console.log("fixture page error:", error.message));
     await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<div id="root"></div><script>${bundle}</script>` }));
@@ -17,6 +17,10 @@ for (const path of ["Escape", "Full Detail Back"] as const) {
     if (path === "Escape") await page.keyboard.press("Escape");
     else {
       await drawer.getByRole("button", { name: /Full Detail/ }).click();
+      if (path === "Reload then Back") {
+        await page.reload();
+        await expect(page.locator('[data-tdd-shell="detail"]')).toBeVisible();
+      }
       await page.getByRole("button", { name: "Quay lại bảng" }).click();
     }
     await expect(drawer).toHaveCount(0);
