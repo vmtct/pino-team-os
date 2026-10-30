@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
-import styles from "./HoRoleEditor.module.css";
 
 type Ready = { role: BoAccessRoleDetail; permissions: BoAccessPermission[] };
 type Draft = { displayName: string; description: string; keys: string[] };
@@ -121,26 +120,26 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     {key:"status",label:"Trạng thái",type:"text",readOnly:true},
     {key:"assignmentCount",label:"Số phân công",type:"number",readOnly:true},
   ];
-  return <div className={styles.editor} data-testid="ho-role-editor" data-role-tab={activeTab}>
-    <div className={styles.overview} hidden={activeTab!=="overview"}>
+  return <div className="ho-role-editor" data-testid="ho-role-editor" data-role-tab={activeTab}>
+    <div className="ho-role-overview" hidden={activeTab!=="overview"}>
 
-    <TosCard className={styles.card}>
+    <TosCard className="ho-role-card">
       <section aria-label="Chỉnh sửa thông tin Role">
         <h3>Thông tin Role</h3>
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel} htmlFor="role-display-name">Tên vai trò</label>
+        <div className="ho-role-field-row">
+          <label className="ho-role-field-label" htmlFor="role-display-name">Tên vai trò</label>
           <input id="role-display-name" value={draft.displayName} disabled={!editable||busy}
             maxLength={120} onChange={e=>{setDraft(v=>v?{...v,displayName:e.target.value}:v);setConfirming(false);setNotice("");}} />
         </div>
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel} htmlFor="role-description">Mô tả</label>
+        <div className="ho-role-field-row">
+          <label className="ho-role-field-label" htmlFor="role-description">Mô tả</label>
           <textarea id="role-description" value={draft.description} disabled={!editable||busy}
             maxLength={500} rows={3} onChange={e=>{setDraft(v=>v?{...v,description:e.target.value}:v);setConfirming(false);setNotice("");}} />
         </div>
-        {!editable?<p role="status" className={styles.readonly}>Role hệ thống, đã lưu trữ hoặc tài khoản không có quyền chỉnh sửa: chỉ xem.</p>:null}
+        {!editable?<p role="status" className="ho-role-readonly">Role hệ thống, đã lưu trữ hoặc tài khoản không có quyền chỉnh sửa: chỉ xem.</p>:null}
       </section>
     </TosCard>
-    <div className={styles.technical}>
+    <div className="ho-role-technical">
     <PropertySections recordKey={roleId} fields={identityFields} values={{
       roleKey:original!.roleKey,roleId:original!.id,roleType:original!.roleType,status:original!.status,
       assignmentCount:assignmentCount,
@@ -149,48 +148,48 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     </div>
     </div>
     <div hidden={activeTab!=="permissions"}>
-    <TosCard className={`${styles.card} ${styles.permissionCard}`}>
+    <TosCard className="ho-role-card ho-role-permission-card">
       <section aria-label="Danh sách quyền của Role">
-        <div className={styles.permissionHeader}>
+        <div className="ho-role-permission-header">
           <div><h3>Quyền truy cập</h3><p>Nhóm theo domain · chọn từng quyền</p></div>
-          <div className={styles.metrics} aria-live="polite"><strong>{draft.keys.length} / {data.permissions.length} quyền</strong>
-            <span className={styles.add}>+{additions.length} thêm</span><span className={styles.remove}>−{removals.length} bỏ</span></div>
+          <div className="ho-role-metrics" aria-live="polite"><strong>{draft.keys.length} / {data.permissions.length} quyền</strong>
+            <span className="ho-role-add">+{additions.length} thêm</span><span className="ho-role-remove">−{removals.length} bỏ</span></div>
         </div>
-        <div className={styles.controls}>
-          <label className={styles.search} htmlFor="role-permission-search">Tìm kiếm quyền
+        <div className="ho-role-controls">
+          <label className="ho-role-search" htmlFor="role-permission-search">Tìm kiếm quyền
             <input id="role-permission-search" type="search" value={search} onChange={e=>setSearch(e.target.value)}
               placeholder="Tên quyền hoặc permission key" />
           </label>
-          <div className={styles.filters} aria-label="Lọc quyền">
+          <div className="ho-role-filters" aria-label="Lọc quyền">
           {([["all","Tất cả"],["selected","Đã chọn"],["unselected","Chưa chọn"]] as const).map(([value,label])=>
             <button type="button" key={value} aria-pressed={filter===value}
               onClick={()=>setFilter(value)}>{label}</button>)}
           </div>
         </div>
-        <div className={styles.groups}>
-        {groups.length?groups.map(([domain,permissions])=><details className={styles.group} key={domain} open={Boolean(search)||undefined}>
+        <div className="ho-role-groups">
+        {groups.length?groups.map(([domain,permissions])=><details className="ho-role-group" key={domain} open={Boolean(search)||undefined}>
           <summary>{domain} · {permissions.filter(p=>draft.keys.includes(p.key)).length}/{permissions.length} quyền</summary>
           <fieldset disabled={!editable||busy}>
-            <legend className={styles.legend}>{domain}</legend>
-            {permissions.map(permission=><label className={styles.permissionRow} key={permission.key}>
+            <legend className="ho-role-legend">{domain}</legend>
+            {permissions.map(permission=><label className="ho-role-permission-row" key={permission.key}>
               <input type="checkbox" checked={draft.keys.includes(permission.key)}
                 onChange={()=>toggle(permission.key)} />
-              <span className={styles.permissionInfo}><strong>{permission.displayLabel}</strong>
+              <span className="ho-role-permission-info"><strong>{permission.displayLabel}</strong>
                 <small> {permission.key} · {permission.accessKind} · {permission.allowedScopes.join("/")}</small></span>
             </label>)}
           </fieldset>
-        </details>):<p className={styles.empty} role="status">Không có quyền khớp tìm kiếm.</p>}
+        </details>):<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}
         </div>
       </section>
     </TosCard>
     </div>
-    {dirty&&permissionDirty&&!confirming?<p role="status" className={styles.warning}>Thay đổi quyền chưa được lưu; sẽ ảnh hưởng tới {assignmentCount} phân công đang dùng Role này.</p>:null}
-    {confirming&&permissionDirty?<TosCard className={styles.card}><div className={styles.confirm} role="alertdialog" aria-label="Xác nhận thay đổi quyền">
+    {dirty&&permissionDirty&&!confirming?<p role="status" className="ho-role-warning">Thay đổi quyền chưa được lưu; sẽ ảnh hưởng tới {assignmentCount} phân công đang dùng Role này.</p>:null}
+    {confirming&&permissionDirty?<TosCard className="ho-role-card"><div className="ho-role-confirm" role="alertdialog" aria-label="Xác nhận thay đổi quyền">
       <p>Thay đổi +{additions.length} / −{removals.length} quyền trên Role đang được gán cho {assignmentCount} phân công. Xác nhận lưu?</p>
-      <div className={styles.confirmActions}><TosButton variant="secondary" type="button" onClick={()=>setConfirming(false)}>Quay lại</TosButton>
+      <div className="ho-role-confirm-actions"><TosButton variant="secondary" type="button" onClick={()=>setConfirming(false)}>Quay lại</TosButton>
       <TosButton variant="primary" type="button" disabled={busy} onClick={()=>void save()}>Xác nhận lưu</TosButton></div>
     </div></TosCard>:null}
-    <div className={styles.actions}>
+    <div className="ho-role-actions">
       <TosButton type="button" variant="secondary" disabled={!dirty||busy}
         onClick={()=>{setDraft(fromRole(data.role));setConfirming(false);setError("");}}>Hủy thay đổi</TosButton>
       {!confirming?<TosButton type="button" variant="primary"
@@ -198,7 +197,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
         {busy?"Đang lưu…":"Lưu Role"}
       </TosButton>:null}
     </div>
-    {notice?<p className={styles.notice} role="status">{notice}</p>:null}
-    {error?<p className={styles.error} role="alert">{error}</p>:null}
+    {notice?<p className="ho-role-notice" role="status">{notice}</p>:null}
+    {error?<p className="ho-role-error" role="alert">{error}</p>:null}
   </div>;
 }
