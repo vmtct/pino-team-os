@@ -7,7 +7,7 @@ import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapt
 import {TddRegistry} from "@/lib/workspace-schema";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {HoWorkspace} from "@/app/ho/HoWorkspace";
-import {roleDefinition,roleFields,roleProvider,roleQuery} from "./schema";
+import {roleDefinition,roleFields,roleProvider,roleQuery,verifyRolePermissionTabApproval} from "./schema";
 import {HoRoleEditor} from "./HoRoleEditor";
 
 type F=typeof roleFields;
@@ -20,7 +20,7 @@ export function HoRolesTdd(){
  useEffect(()=>{
   const controller=new AbortController();
   let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-  void createHoTddAdapter({registry:new TddRegistry(),definition:roleDefinition,provider:roleProvider},controller.signal)
+  void createHoTddAdapter({registry:new TddRegistry(verifyRolePermissionTabApproval),definition:roleDefinition,provider:roleProvider},controller.signal)
     .then(result=>{
       adapter=result;
       if(controller.signal.aborted){result.dispose();return;}
