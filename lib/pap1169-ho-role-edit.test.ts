@@ -52,11 +52,31 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  assert.match(page,/HoRolesTdd/);
  assert.match(ui,/@pino\/design-system\/components\.css/);
  assert.match(ui,/SurfaceWorkspace/);
- assert.match(ui,/detailProperties=/);
+ assert.match(ui,/detailApprovedExtension=/);
+ assert.doesNotMatch(ui,/detailProperties=/);
+ assert.equal(roleDefinition.detail.businessTabs.length,1);
+ assert.deepEqual(roleDefinition.detail.businessTabs.map(tab=>[tab.id,tab.label,tab.kind]),[["permissions","Quyền","approved-extension"]]);
+ assert.match(edit,/data-role-tab=\{activeTab\}/);
+ assert.match(edit,/hidden=\{activeTab!=="permissions"\}/);
+ assert.match(edit,/hidden=\{activeTab!=="overview"\}/);
+ assert.doesNotMatch(edit,/ho-role-titlebar/);
  assert.match(edit, /from "@pino\/design-system\/react"/);
  assert.match(edit, /<PropertySections/);
  assert.match(edit, /<TosCard/);
  assert.match(edit, /<TosButton/);
  assert.match(edit,/expectedUpdatedAt:current\.updatedAt/);
  assert.match(ui,/access\.role\.edit/);
+});
+
+test("PAP-1187 Founder approval is scoped to the one Role permission extension",async()=>{
+ const {TddRegistry}=await import("./workspace-schema");
+ const {verifyRolePermissionTabApproval}=await import("../app/ho/system/roles/schema");
+ const approved=roleDefinition.detail.businessTabs[0];
+ assert.equal(approved.kind,"approved-extension");
+ if(approved.kind!=="approved-extension")throw Error("invalid fixture");
+ assert.equal(verifyRolePermissionTabApproval(approved.approval,{surface:"HO",key:"roles",extensionId:approved.extensionId}),true);
+ assert.equal(verifyRolePermissionTabApproval(approved.approval,{surface:"BO",key:"roles",extensionId:approved.extensionId}),false);
+ assert.equal(verifyRolePermissionTabApproval(approved.approval,{surface:"HO",key:"staffs",extensionId:approved.extensionId}),false);
+ assert.equal(verifyRolePermissionTabApproval(approved.approval,{surface:"HO",key:"roles",extensionId:"unapproved-extension"}),false);
+ assert.throws(()=>new TddRegistry().register({...roleDefinition,data:roleSchema.data}),/extension approval not verified/);
 });
