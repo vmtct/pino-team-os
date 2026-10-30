@@ -18,10 +18,12 @@ test("Global TermWeeks parser preserves canonical row and sorted week",()=>{
     {data:{terms:fixture.data.terms,termWeeks:[{...fixture.data.termWeeks[0],startDate:"tomorrow"}]}}])
     assert.equal(parseGlobalTermWeeksResponse(body),null);
 });
-test("HO global TermWeeks exact route GET only; never BO/Production",()=>{
+test("HO global TermWeeks exact route GET/POST only; never BO/Production",()=>{
   assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/workforce/global-termweeks","GET"),{action:"next"});
-  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/workforce/global-termweeks","POST"),{action:"not_found"});
-  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/api/ho/workforce/global-termweeks","GET"),{action:"not_found"});
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/workforce/global-termweeks","POST"),{action:"next"});
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/workforce/global-termweeks","PATCH"),{action:"not_found"});
+  for(const host of ["bo.staging.pinohouse.art","ho.pinohouse.art","tos.staging.pinohouse.art"])
+    assert.deepEqual(decideHostBoundary(host,"/api/ho/workforce/global-termweeks","POST"),{action:"not_found"});
 });
 test("invalid host/method/environment fail before any Core call",async()=>{
   let called=0;

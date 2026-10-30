@@ -62,6 +62,16 @@ export async function handleHoGlobalTermWeeksRead(request:Request,env:HoGlobalTe
     if(response.status!==200)return json(response.body,response.status);
     const rows=parseGlobalTermWeeksResponse(response.body);
     if(!rows)return json({error:{code:"HO_GLOBAL_WEEK_DATA_INVALID"}},502);
+    if(url.searchParams.get("catalog")==="1") {
+      const value=(response.body as {data:{terms:unknown[]}}).data.terms;
+      if(!Array.isArray(value)||value.some(item=>!item||typeof item!=="object"||
+        (item as Record<string,unknown>).scopeType!=="GLOBAL"||
+        !uuid.test(String((item as Record<string,unknown>).id))||
+        typeof (item as Record<string,unknown>).displayName!=="string"))
+        return json({error:{code:"HO_GLOBAL_TERM_CATALOG_INVALID"}},502);
+      return json({data:{terms:value.map(item=>{const t=item as {id:string;displayName:string;startDate:string;endDate:string};
+        return {id:t.id,name:t.displayName,startDate:t.startDate,endDate:t.endDate};}),weeks:rows}},200);
+    }
     return json({data:rows},200);
   }catch(error){
     if(error instanceof BoShellGateError)return json({error:{code:"HO_ACCESS_DENIED"}},error.status);

@@ -9,12 +9,14 @@ import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWor
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { termWeekDefinition,termWeekFields,termWeekProvider,termWeekQuery,verifyGlobalWeekExtensionApproval } from "./schema";
 import { HoGlobalWeekLockEditor } from "./HoGlobalWeekLockEditor";
+import { HoGlobalWeekCreate } from "./HoGlobalWeekCreate";
 type F=typeof termWeekFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 export function HoTermWeeksTdd(){
   const [ready,setReady]=useState<Ready|null>(null);
   const [error,setError]=useState(false);
   const [retry,setRetry]=useState(0);
+  const [refresh,setRefresh]=useState(0);
   useEffect(()=>{
     const controller=new AbortController();
     let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
@@ -36,13 +38,17 @@ export function HoTermWeeksTdd(){
       setReady(null);setError(false);setRetry(v=>v+1);
     }}>Thử lại</button></p>
     :ready
-      ?<SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={termWeekQuery}
-        detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=>
-          activeTab==="registration-lock"
-            ? <HoGlobalWeekLockEditor key={row.id} termWeekId={row.id}
-              authorized={context.authorize("operating_cycle.global_week.lock")} onSaved={onSaved} />
-            : null}
-      />
+      ?<div data-testid="ho-global-termweeks-tdd">
+        <HoGlobalWeekCreate authorized={ready.adapter.context.authorize("operating_cycle.global_week.manage")}
+          onVerified={()=>setRefresh(n=>n+1)} />
+        <SurfaceWorkspace key={refresh} adapter={ready.adapter} navigation={ready.navigation} initialQuery={termWeekQuery}
+          detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=>
+            activeTab==="registration-lock"
+              ? <HoGlobalWeekLockEditor key={row.id} termWeekId={row.id}
+                authorized={context.authorize("operating_cycle.global_week.lock")} onSaved={onSaved} />
+              : null}
+        />
+      </div>
       :<p role="status">Đang tải Global TermWeek…</p>;
   return <HoWorkspace module="termWeeks" content={content}/>;
 }
