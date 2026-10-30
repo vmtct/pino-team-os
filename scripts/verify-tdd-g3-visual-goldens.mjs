@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
+import { approvedSuccessorImages } from "../lib/tdd-g3-golden-successor.mjs";
 import { comparePixelBuffers } from "../lib/tdd-g3-visual-pixels.mjs";
 
 const root=resolve("docs/visual-goldens/pap1073");
@@ -18,6 +19,16 @@ const sha256=x=>createHash("sha256").update(x).digest("hex");
 const errors=[];
 const results=[];
 const ratioLimit=0.01;
+const successorRoot=join(root,"successor-41071808375");
+let successors=new Map();
+try {
+  successors=approvedSuccessorImages(
+    JSON.parse(readFileSync(join(successorRoot,"manifest.json"),"utf8")),
+    path=>readFileSync(join(successorRoot,...path.split("/")))
+  );
+} catch(error) {
+  errors.push("G3 approved successor validation failed: "+(error instanceof Error?error.message:"unknown"));
+}
 const identityOk=manifest.schemaVersion===1 &&
   manifest.sourceRun===40811677302 &&
   manifest.sourceSha==="aa0d5fd88ad09de25c14cc154a68fbf95d2d8f49" &&
@@ -44,7 +55,7 @@ for(const path of expected){
   const image=join(actual,...parts);
   if(!existsSync(image)) {errors.push("Current G3 artifact missing "+path);continue;}
   if(!path.endsWith(".png")) continue;
-  const reference=join(golden,...parts);
+  const reference=successors.get(path)??join(golden,...parts);
   try{
     const base=await sharp(reference).ensureAlpha().raw().toBuffer({resolveWithObject:true});
     const newest=await sharp(image).ensureAlpha().raw().toBuffer({resolveWithObject:true});
@@ -61,6 +72,7 @@ for(const path of expected){
   }
 }
 const conclusion={name:"PAP-1073 Founder-approved G3 visual diff",approvedRun:40811677302,
+  approvedSuccessorRun:41071808375,successorImages:successors.size,
   compared:results.length,expected:30,limit:ratioLimit,maxRatio:results.length?Math.max(...results.map(r=>r.ratio)):null,
   failed:errors.length,errors:errors.slice(0,35),highestDrift:results.sort((a,b)=>b.ratio-a.ratio).slice(0,8)};
 if(errors.length){console.error(JSON.stringify(conclusion,null,2));process.exitCode=1}

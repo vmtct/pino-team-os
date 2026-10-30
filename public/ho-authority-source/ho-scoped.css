@@ -350,7 +350,7 @@
 
 /* Historical HO input: playground-v23.css */
 /* PAP-885 — UI V2.3 production-like density; interactive mock data only */
-:where(html[data-surface="ho"]) .types-strip,:where(html[data-surface="ho"]) .prototype-pill,:where(html[data-surface="ho"]) .lab-h1-tag,:where(html[data-surface="ho"]) .lab-note,:where(html[data-surface="ho"]) .top-back-link,:where(html[data-surface="ho"]) .topbar-root,:where(html[data-surface="ho"]) .table-index,:where(html[data-surface="ho"]) .results-secondary,:where(html[data-surface="ho"]) .toolbar-hint,:where(html[data-surface="ho"]) .lab-section-panel .settings-hint,:where(html[data-surface="ho"]) #undo-v22,:where(html[data-surface="ho"]) #redo-v22,:where(html[data-surface="ho"]) #filter-toggle,:where(html[data-surface="ho"]) #visible-columns,:where(html[data-surface="ho"]) #reset-all,:where(html[data-surface="ho"]) #group-shortcut,:where(html[data-surface="ho"]) #save-view{
+:where(html[data-surface="ho"]) .types-strip,:where(html[data-surface="ho"]) .prototype-pill,:where(html[data-surface="ho"]) .lab-h1-tag,:where(html[data-surface="ho"]) .lab-note,:where(html[data-surface="ho"]) .top-back-link,:where(html[data-surface="ho"]) .topbar-root,:where(html[data-surface="ho"]) .table-index,:where(html[data-surface="ho"]) .results-secondary,:where(html[data-surface="ho"]) .toolbar-hint,:where(html[data-surface="ho"]) .lab-section-panel .settings-hint,:where(html[data-surface="ho"]) #undo-v22:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #redo-v22:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #filter-toggle:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #visible-columns:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #reset-all:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #group-shortcut:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #save-view:where(:not([data-tdd-shell="table"] *)){
  display:none!important;
 }
 :where(html[data-surface="ho"]) .page-heading-left>p,:where(html[data-surface="ho"]) .page-heading .eyebrow{display:none!important}
@@ -590,7 +590,7 @@
 [data-surface="ho"] .page-heading h1 small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:4px; }
 [data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
 [data-surface="ho"] :is(.lab-menu,.detail-hero-back,.settings-trigger,.pager) { color:var(--ds-primary); border-color:var(--ds-primary-border); }
-[data-surface="ho"] .toolbar-button, [data-surface="ho"] .view-add { display:none!important; }
+[data-surface="ho"] .toolbar-button:where(:not([data-tdd-shell="table"] *)), [data-surface="ho"] .view-add:where(:not([data-tdd-shell="table"] *)) { display:none!important; }
 [data-surface="ho"] :is(.view-rename-input,input:focus,select:focus) { border-color:var(--ds-primary-border); }
 
 [data-surface="ho"] .nav-link.active .nav-icon { color:var(--ds-on-primary); }

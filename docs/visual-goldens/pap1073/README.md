@@ -13,3 +13,7 @@ The archive included 30 PNG and 10 geometry JSON files. Exact originals are stor
 - Follow-up technical scope: compare admitted actual BO/HO routes and authoritative prototypes with the pinned baseline, fix discrepancies, complete accessibility, then reconcile PAP-1073 and G4 separately.
 
 Jira: https://vmtct97.atlassian.net/browse/PAP-1073
+
+## Approved successor — 2026-10-31 (PAP-1229)
+
+Founder approved only HO Table 390/320 from [run 41071808375](https://github.com/vmtct/pino-team-os/actions/runs/41071808375), PR #1060 source `877d578ef00334617043e09d14f851717fa25329`, artifact `12984978572`. Approval receipt: [PAP-1073 comment 18831](https://vmtct97.atlassian.net/browse/PAP-1073?focusedCommentId=18831). Exact original CI PNG bytes are retained under `successor-41071808375/`, with provenance and SHA-256/byte pins in its manifest and the verifier's code-owned allowlist. The original 40-file archive and manifest remain immutable and are still validated; the other 28 image references remain the original run. The 1% pixel limit and geometry/negative checks remain unchanged. This approval does not accept live Staging, G4, Production or future images.
