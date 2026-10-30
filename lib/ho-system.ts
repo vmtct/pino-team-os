@@ -5,7 +5,7 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "centers" | "termWeeks" | "staffs" | "users" | "roles" | "audits" | HoA1Module;
+export type HoModule = "centers" | "walkinPasses" | "termWeeks" | "staffs" | "users" | "roles" | "audits" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
  centers: {...hoCentersModule,group:"Network"},
@@ -15,6 +15,13 @@ export const hoModules: Record<HoModule,BoModule> = {
   {key:"startDate",label:"Bắt đầu",type:"date",icon:"◷",w:145,readonly:true},
   {key:"endDate",label:"Kết thúc",type:"date",icon:"◷",w:145,readonly:true},
   {key:"rhythmKey",label:"Nhịp",type:"text",icon:"Aa",w:140,readonly:true},
+ ]},
+ walkinPasses:{label:"Pass Trạm Nghệ Thuật",group:"Open Studio",fields:[
+  {key:"code",label:"Mã Pass",type:"text",icon:"#",w:260,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:145,readonly:true},
+  {key:"path",label:"Path",type:"text",icon:"▣",w:115,readonly:true},
+  {key:"parent",label:"Parent ID",type:"text",icon:"@",w:260,readonly:true},
+  {key:"center",label:"Center ID",type:"text",icon:"⌖",w:260,readonly:true},
  ]},
  staffs:{label:"Staff",group:"Nhân sự",fields:[
   {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},

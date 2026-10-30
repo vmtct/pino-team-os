@@ -2,7 +2,7 @@
 // Auth is ephemeral: no storageState export, screenshot, trace, credential output or fixture writes.
 import { chromium } from "playwright";
 import { verifyStaging } from "./pap1074-g4-attestation.mjs";
-import { safeG4Failure } from "./pap1214-g4-failure.mjs";
+import { safeG4Failure, safeG4SurfaceProbe } from "./pap1214-g4-failure.mjs";
 const BO = "https://bo.staging.pinohouse.art";
 const HO = "https://ho.staging.pinohouse.art";
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -143,9 +143,28 @@ try {
     invalidDetailPhase = "navigate";
     await fp.goto(BO + "/bo?module=subscriptions&record=not-a-uuid",{waitUntil:"domcontentloaded"});
     invalidDetailPhase = "runtime_surface_visible";
-    await fp.locator('[data-bo-runtime-surface="subscriptions-core"]').waitFor({state:"visible"});
+    try {
+      await fp.locator('[data-bo-runtime-surface="subscriptions-core"]').waitFor({state:"visible",timeout:12000});
+    } catch (error) {
+      // When the expected runtime does not mount, inspect *only* boolean markers.
+      // An absent runtime remains FAIL, never a negative-case PASS.
+      const raw = await fp.evaluate(() => ({
+        subscriptionHost: Boolean(document.querySelector('[data-bo-runtime="react"][data-bo-module="subscriptions"]')),
+        subscriptionSurface: Boolean(document.querySelector('[data-bo-runtime-surface="subscriptions-core"]')),
+        invalidAlert: Boolean(document.querySelector('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]')),
+        anyDetail: Boolean(document.querySelector('[data-tdd-shell="detail"],[data-bo-full-detail]')),
+        redirectedLogin: location.pathname === "/staff-login",
+        nextError: Boolean(document.querySelector("nextjs-portal")),
+      })).catch(() => ({}));
+      console.log(JSON.stringify({name:"PAP-1214_INVALID_ID_SURFACE_PROBE", ...safeG4SurfaceProbe(raw)}));
+      throw error;
+    }
     invalidDetailPhase = "invalid_detail_absent";
-    assert(await fp.locator('[data-bo-full-detail]').count() === 0,"invalid detail mounted");
+    // This is the actual shared TDD detail marker; the former legacy-only
+    // data-bo-full-detail selector was absent in current React source.
+    assert(await fp.locator('[data-tdd-shell="detail"],[data-bo-full-detail]').count() === 0,"invalid detail mounted");
+    invalidDetailPhase = "invalid_error_visible";
+    await fp.locator('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]').waitFor({state:"visible",timeout:8000});
   }, () => invalidDetailPhase);
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});
