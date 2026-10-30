@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import type { BoParentSearchResult } from "@/lib/bo-model";
-import { walkinPassBoApi, type WalkinPass, type WalkinPath } from "@/lib/open-studio-walkin-bo-api";
+import { walkinPassBoApi, type WalkinPass, type WalkinPath, type WalkinPassEvent } from "@/lib/open-studio-walkin-bo-api";
 import styles from "../bo.module.css";
 import { assignmentReady, WALKIN_PATHS, acceptInventoryResponse, selectedPassMatchesCenter, canCopyAssignedPassCode } from "@/lib/open-studio-walkin-ui-contract";
 import { canExportWalkinEpass, exportWalkinEpassPng } from "@/lib/open-studio-walkin-epass";
@@ -30,6 +30,8 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
  const [parentId,setParentId]=useState("");
  const [path,setPath]=useState<WalkinPath| "">("");
  const [searching,setSearching]=useState(false);
+ const [events,setEvents]=useState<WalkinPassEvent[]>([]);
+ const [historyState,setHistoryState]=useState<"idle"|"loading"|"ready"|"error">("idle");
 
  const refresh=useCallback(async()=>{
   const requestEpoch=++inventoryEpoch.current;
@@ -53,6 +55,19 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   queueMicrotask(()=>{if(active)void refresh()});
   return()=>{active=false;inventoryEpoch.current++;searchEpoch.current++};
  },[refresh]);
+ useEffect(()=>{
+  let active=true;
+  if(mode!=="detail"||!selectedPassMatchesCenter(selected,centerId)||!selected){
+   queueMicrotask(()=>{if(active){setEvents([]);setHistoryState("idle");}});
+   return()=>{active=false};
+  }
+  const passId=selected.id, selectedCenter=centerId;
+  queueMicrotask(()=>{if(active){setHistoryState("loading");setEvents([]);}});
+  void walkinPassBoApi.history(passId,selectedCenter).then(next=>{
+   if(active){setEvents(next);setHistoryState("ready");}
+  }).catch(()=>{if(active){setEvents([]);setHistoryState("error");}});
+  return()=>{active=false};
+ },[mode,selected,centerId]);
  useEffect(()=>{
   if(!mode)return;
   const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape"&&!busy)setMode(null)};
@@ -164,7 +179,15 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
       {mode==="quick"?<button className={styles.walkinSecondary} onClick={()=>setMode("detail")} type="button">Chi tiết</button>:null}
       {selectedPassMatchesCenter(selected,centerId)&&selected.status==="ASSIGNED"?<button className={styles.walkinDanger} type="button" disabled={busy} onClick={()=>void revoke()}>Thu hồi</button>:null}
      </div>
-     {mode==="detail"?<div className={styles.walkinInfo}>Lịch sử thao tác: cần nối Core audit read-only trước khi nghiệm thu Full Detail.</div>:null}
+     {mode==="detail"?<section aria-label="Lịch sử Pass" className={styles.walkinInfo}>
+      <strong>Lịch sử từ Core</strong>
+      {historyState==="loading"?<p>Đang tải lịch sử…</p>:null}
+      {historyState==="error"?<p role="alert">Không thể tải lịch sử Pass. Không dùng dữ liệu dự đoán.</p>:null}
+      {historyState==="ready"&&events.length===0?<p>Chưa có sự kiện được ghi nhận cho Pass này.</p>:null}
+      {historyState==="ready"&&events.length>0?<ol>{events.map(event=><li key={event.id}>
+       <strong>{event.action==="ASSIGNED"?"Đã cấp":event.action==="CONSUMED"?"Đã sử dụng":"Đã thu hồi"}</strong> · <time dateTime={event.at}>{event.at}</time> · Actor: {event.actor_user_id}
+      </li>)}</ol>:null}
+     </section>:null}
     </div>:null}
     {error?<p className={styles.walkinError} role="alert">{error}</p>:null}
    </aside>
