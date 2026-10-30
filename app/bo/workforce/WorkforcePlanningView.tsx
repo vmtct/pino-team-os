@@ -326,23 +326,21 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
     }}>
         {!selection || !selectedStaff ? <BoDataGridState kind="empty" title="Chưa chọn ô lịch" message="Chọn một ô để xem lịch và phân công ca." /> : <>
-          <div className={styles.plannerLegend}><strong>{selectedStaff.displayLabel}</strong><span>{dateLabel(selection.workDate)}</span><span>{availableTemplateIds.size ? `${availableTemplateIds.size} ca đã đăng ký` : "Chưa ghi nhận đăng ký"}</span>{activeAssignments.length ? <span>{activeAssignments.length} ca đã phân công</span> : null}</div>
           {selectedAvailabilityHistory.length ? <div className={styles.plannerHistory}>
-            <strong>Availability history</strong>
             {selectedAvailabilityHistory.map((item) => <span key={item.id}>
               {item.status} · submitted {item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : "—"}
               {item.status === "VOIDED" ? ` · ${item.voidReason ?? "Voided"}` : ""}
               {item.status === "SUBMITTED" && selectedCenter?.canEditPlanning ? <>
-                <label className={styles.field}>Lý do void availability
+                <label className={styles.field}>Lý do hủy xếp ca
                   <input value={availabilityVoidReason} onChange={(event) => setAvailabilityVoidReason(event.target.value)} placeholder="Bắt buộc; lưu vào audit history" />
                 </label>
-                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Void availability"}</button>
+                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Hủy xếp ca"}</button>
               </> : null}
             </span>)}
           </div> : null}
 
-          <label className={styles.field}>Mẫu ca
-            <select value={templateId} onChange={(event) => {
+          <div className={styles.plannerShiftPicker}>
+            <select aria-label="Chọn ca để phân công" value={templateId} onChange={(event) => {
               setTemplateId(event.target.value);
               setTeacherSelected(false); setAssistantSelected(false);
               setCoverageMode("FULL_SHIFT");
@@ -354,16 +352,14 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
               <option value="">Chọn ca…</option>
               {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {template.startLocalTime}–{template.endLocalTime}</option>)}
             </select>
-            <small>✓ Ca nhân sự đã đăng ký. Bạn có thể chọn ca khác khi phân công.</small>
-          </label>
+          </div>
 
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
             <strong>Vai trò trong ca</strong>
             <label className={styles.field}>
               <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked);  }} /> Tiếp tân</span>
-              <small>Tiếp tân áp dụng cho toàn ca; có thể kết hợp các vai trò khác.</small>
             </label>
-            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Trưởng ca</span><small>Phụ trách ca tại trung tâm; không gắn lớp học.</small></label>
+            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Trưởng ca</span></label>
             <label className={styles.field}><span><input type="checkbox" checked={teacherSelected} onChange={(event) => { setTeacherSelected(event.target.checked); if (!event.target.checked) setTeacherRunningClassIds([]); }} /> Giáo viên</span></label>
             <label className={styles.field}><span><input type="checkbox" checked={assistantSelected} onChange={(event) => { setAssistantSelected(event.target.checked); if (!event.target.checked) setAssistantRunningClassIds([]); }} /> Trợ giảng</span></label>
             <div className={styles.plannerHistory}>
@@ -487,10 +483,6 @@ function dateRange(data: Pick<BoWorkforceWeeklyPlanning, "startDate" | "endDate"
   const rows: string[] = [], current = new Date(`${data.startDate}T00:00:00Z`), end = new Date(`${data.endDate}T00:00:00Z`);
   while (current <= end) { rows.push(current.toISOString().slice(0, 10)); current.setUTCDate(current.getUTCDate() + 1); }
   return rows;
-}
-function dateLabel(value: string) {
-  const date = new Date(`${value}T00:00:00Z`);
-  return new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" }).format(date);
 }
 function templateLabel(data: BoWorkforceWeeklyPlanning, id: string) {
   const item = data.templates.find((template) => template.id === id);
