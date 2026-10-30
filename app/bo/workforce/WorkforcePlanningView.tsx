@@ -331,10 +331,10 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
               {item.status} · submitted {item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : "—"}
               {item.status === "VOIDED" ? ` · ${item.voidReason ?? "Voided"}` : ""}
               {item.status === "SUBMITTED" && selectedCenter?.canEditPlanning ? <>
-                <label className={styles.field}>Lý do hủy xếp ca
+                <label className={styles.field}>Lý do hủy đăng ký ca
                   <input value={availabilityVoidReason} onChange={(event) => setAvailabilityVoidReason(event.target.value)} placeholder="Bắt buộc; lưu vào audit history" />
                 </label>
-                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Hủy xếp ca"}</button>
+                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Hủy đăng ký ca"}</button>
               </> : null}
             </span>)}
           </div> : null}

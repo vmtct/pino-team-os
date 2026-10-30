@@ -17,8 +17,8 @@ test("PAP-1201 removes unnecessary planner noise without deleting assignment sel
 });
 
 test("PAP-1201 shows localized availability cancellation but retains the audited void operation", () => {
-  assert.match(view, /: "Hủy xếp ca"\}\<\/button>/);
+  assert.match(view, /: "Hủy đăng ký ca"\}\<\/button>/);
   assert.match(view, /onClick=\{\(\) => void voidAvailability\(item\.id\)\}/);
-  assert.match(view, /Lý do hủy xếp ca/);
+  assert.match(view, /Lý do hủy đăng ký ca/);
   assert.doesNotMatch(view, /"Void availability"/);
 });
