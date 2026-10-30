@@ -201,14 +201,14 @@
     {
       "profile": "TDD_DEFAULT",
       "surface": "BO",
-      "key": "open-studio",
-      "route": "/bo/open-studio",
-      "file": "app/bo/open-studio/page.tsx",
+      "key": "open-studio-passes",
+      "route": "/bo/open-studio-passes",
+      "file": "app/bo/open-studio-passes/page.tsx",
       "files": [
-        "app/bo/open-studio/page.tsx",
-        "app/bo/open-studio/BoOpenStudioPassTdd.tsx",
-        "app/bo/open-studio/pass-schema.ts",
-        "app/bo/open-studio/WalkinPassPanel.tsx"
+        "app/bo/open-studio-passes/page.tsx",
+        "app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx",
+        "app/bo/open-studio-passes/schema.ts",
+        "app/bo/open-studio-passes/CenterPassActions.tsx"
       ],
       "externalReferences": [
         {
@@ -229,12 +229,12 @@
         }
       ],
       "schema": {
-        "file": "app/bo/open-studio/pass-schema.ts",
+        "file": "app/bo/open-studio-passes/schema.ts",
         "export": "passSchema"
       },
       "binding": {
         "kind": "SURFACE_WORKSPACE_ADAPTER",
-        "file": "app/bo/open-studio/BoOpenStudioPassTdd.tsx"
+        "file": "app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx"
       },
       "tests": [
         "lib/pap1224-bo-open-studio-tdd.test.ts",
