@@ -66,6 +66,12 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  assert.match(edit, /<TosButton/);
  assert.match(edit,/expectedUpdatedAt:current\.updatedAt/);
  assert.match(ui,/access\.role\.edit/);
+ const shell=readFileSync("app/components/workspace-adapters/SurfaceWorkspace.tsx","utf8");
+ assert.match(shell,/detail\.retry\(\); list\.retry\(\);/);
+ assert.match(ui,/onSaved=\{onSaved\}/);
+ assert.match(edit,/onSaved\(\)/);
+ assert.match(edit,/Đã lưu và xác minh Role trên Core/);
+ assert.doesNotMatch(edit,/Tải lại bảng để cập nhật số quyền/);
 });
 
 test("PAP-1187 Founder approval is scoped to the one Role permission extension",async()=>{
