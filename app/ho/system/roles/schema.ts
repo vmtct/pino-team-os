@@ -37,7 +37,14 @@ export const roleDefinition = {
   interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"},
  },
  drawer:{density:"one-column",sections,actions:[]},
- detail:{overview:{sections},businessTabs:[],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi Role khả dụng."}},
+ detail:{overview:{sections},businessTabs:[{
+   id:"permissions",label:"Quyền",kind:"approved-extension",
+   source:{adapter:"ho-role-edit",permission:"access.role.view"},
+   extensionId:"ho.roles.permission-editor",
+   approval:{jira:"PAP-1187",owner:"HO Runtime",designAuthority:"Founder",
+     files:["app/ho/system/roles/HoRoleEditor.tsx","app/ho/system/roles/HoRolesTdd.tsx"],
+     tests:["lib/pap1169-ho-role-edit.test.ts"],reviewBy:"2026-11-30T00:00:00+07:00"},
+  }],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi Role khả dụng."}},
 } as const satisfies SurfaceDefinition<F>;
 
 type Row=ModuleRow<F>;
