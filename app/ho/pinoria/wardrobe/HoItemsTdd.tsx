@@ -8,7 +8,7 @@ import {createHoTddAdapter,type AuthenticatedSurfaceAdapter} from "@/lib/workspa
 import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import {TddRegistry,type Approval} from "@/lib/workspace-schema";
 import type {SlotLoaders} from "@/app/components/workspace-renderer/Slots";
-import {HoItemCalibration} from "./HoItemCalibration";
+import {HoItemCalibration} from "@/app/components/pinoria-item/HoItemCalibration";
 import {HoItemCreate} from "./HoItemCreate";
 import {itemDefinition,itemFields,itemProvider,itemQuery,extensionVerifier} from "./schema";
 type F=typeof itemFields;

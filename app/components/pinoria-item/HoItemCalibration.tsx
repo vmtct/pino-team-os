@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useRef,useState,type PointerEvent} from "react";
-import {assetUrl,getItem,uploadItem,writeItem,slotNames,type HoItem,type ItemInput} from "./item-client";
+import {assetUrl,getItem,uploadItem,writeItem,slotNames,type HoItem,type ItemInput} from "@/app/ho/pinoria/wardrobe/item-client";
 import "./item-calibration.css";
 type Position={positionX:number;positionY:number;scale:number;rotationDegrees:number|null};
 const BASE_URL="https://assets.pinohouse.art/pinoria/char-base.png";
