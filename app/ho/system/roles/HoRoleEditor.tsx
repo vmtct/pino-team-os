@@ -31,8 +31,8 @@ function fromRole(role:BoAccessRoleDetail):Draft {
   return {displayName:role.displayName,description:role.description??"",keys:sorted(role.permissionKeys)};
 }
 /** HO-specific editing surface; TDD owns navigation, DS owns cards and property rows. */
-export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab }: {
-  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string;
+export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved }: {
+  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void;
 }) {
   const [data,setData]=useState<Ready|null>(null);
   const [draft,setDraft]=useState<Draft|null>(null);
@@ -105,7 +105,9 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab }:
         !same(next.role.permissionKeys,wanted.permissionKeys))
         throw Error("Core đã nhận yêu cầu nhưng chưa xác nhận được dữ liệu mới. Vui lòng tải lại Role.");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);
-      setNotice("Đã lưu và xác minh Role trên Core. Tải lại bảng để cập nhật số quyền.");
+      // Refresh the canonical TDD record/directory only after authoritative Core readback.
+      onSaved();
+      setNotice("Đã lưu và xác minh Role trên Core.");
     }catch(cause){setError(cause instanceof Error?cause.message:"Không lưu được Role.");}
     finally{setBusy(false);lock.current=false;}
   }
