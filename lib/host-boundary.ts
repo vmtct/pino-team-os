@@ -42,11 +42,13 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const itemUpload = p === "/api/ho/pinoria/items/uploads";
     const itemRecord = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}$/.test(p);
     const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish)$/.test(p);
-    if (itemBase || itemUpload || itemRecord || itemPublish) {
+    const itemMedia = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:media|draft-media)$/.test(p);
+    if (itemBase || itemUpload || itemRecord || itemPublish || itemMedia) {
       const allowed = (itemBase && (method === "GET" || method === "POST"))
         || (itemUpload && method === "POST")
         || (itemRecord && (method === "GET" || method === "PATCH"))
-        || (itemPublish && method === "POST");
+        || (itemPublish && method === "POST")
+        || (itemMedia && method === "GET");
       return allowed ? { action:"next" } : { action:"not_found" };
     }
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };

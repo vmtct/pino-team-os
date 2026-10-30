@@ -107,22 +107,27 @@ export function checkedSlotContent(content: ReactNode): ReactNode {
   });
   return content;
 }
-function SlotRequest({ load }: { readonly load: (signal: AbortSignal) => Promise<ReactNode> }) {
+function SlotRequest({ load, approvedExtension = false }: { readonly load: (signal: AbortSignal) => Promise<ReactNode>; readonly approvedExtension?: boolean }) {
   const { result, retry } = useResource(load);
   if (result.status === "loading") return <p role="status">Đang tải nội dung…</p>;
   if (result.status === "error") return <div role="alert">Không thể tải nội dung. <button type="button" onClick={retry}>Thử lại</button></div>;
-  return <>{checkedSlotContent(result.value)}</>;
+  return <>{approvedExtension ? result.value : checkedSlotContent(result.value)}</>;
 }
 export function BusinessPanel({ schema, context, record, slot, loaders }: { readonly schema: ModuleSchema; readonly context: AuthorizationContext; readonly record: BoRecord; readonly slot: BusinessSlot<string>; readonly loaders?: SlotLoaders }) {
   const provider = loaders?.[slot.source.adapter];
-  const load = useCallback(async (signal: AbortSignal) => checkedSlotContent(await provider!(slot, record, context, signal)), [provider, slot, record, context]);
+  const load = useCallback(async (signal: AbortSignal) => {
+    const content = await provider!(slot, record, context, signal);
+    // The TddRegistry verified this exact approved-extension contract at module admission.
+    // Other business slots still use the strict inert-content validator.
+    return slot.kind === "approved-extension" ? content : checkedSlotContent(content);
+  }, [provider, slot, record, context]);
   if (!allows(schema, context, "read") || !context.authorize(slot.source.permission)) return <p role="status">Không có quyền xem nội dung.</p>;
   const projection = recordProjection(schema, context, record);
   if (!projection) return <p role="status">Không có quyền xem nội dung.</p>;
   if (slot.kind === "field-group") return <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={slot.sections} />;
   if (slot.kind === "form") return <p className="v24-audit-empty" role="status">Biểu mẫu chưa được liên kết.</p>;
   if (!provider) return <p className="v24-audit-empty" role="status">Nội dung chưa khả dụng.</p>;
-  return <SlotRequest load={load} />;
+  return <SlotRequest load={load} approvedExtension={slot.kind === "approved-extension"} />;
 }
 
 function BusinessRecords({ records }: { readonly records: NonNullable<Extract<BusinessFormData, { status: "authorized" }>["records"]> }) {
