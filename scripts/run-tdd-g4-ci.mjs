@@ -12,13 +12,27 @@ async function check(name, fn) {
   try { await fn(); cases.push({name,status:"PASS"}); }
   catch { cases.push({name,status:"FAIL"}); }
 }
-async function login(context, origin, email, password) {
+async function login(context, origin, email, password, role) {
   const page = await context.newPage();
+  const label = role + (origin === BO ? "_bo" : "_ho");
   try {
+    phase = label + "_navigate";
     await page.goto(origin + "/staff-login", {waitUntil:"domcontentloaded"});
+    // Controlled React form may be present before hydration; avoid an inert submit button.
+    phase = label + "_hydrate";
+    await page.waitForLoadState("networkidle", {timeout:14000});
+    phase = label + "_fill";
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Mật khẩu").fill(password);
+    const reply = page.waitForResponse(r => new URL(r.url()).pathname === "/api/staff-auth/login" &&
+      r.request().method() === "POST", {timeout:15000}).catch(() => null);
+    phase = label + "_submit";
     await page.getByRole("button",{name:"Vào PINO Team"}).click();
+    phase = label + "_response";
+    const response = await reply;
+    if (!response) throw Object.assign(new Error("missing response"), {name:"AuthResponseMissing"});
+    if (response.status() !== 200) throw Object.assign(new Error("non-200 response"), {name:"AuthHTTP" + response.status()});
+    phase = label + "_redirect";
     await page.waitForURL(u => !u.pathname.startsWith("/staff-login") &&
       !u.pathname.startsWith("/staff-password"), {timeout:18000});
   } finally { await page.close(); }
@@ -37,23 +51,29 @@ async function actor(page) {
 }
 const keys = ["TDD_G4_FOUNDER_EMAIL","TDD_G4_FOUNDER_PASSWORD","TDD_G4_MANAGER_EMAIL","TDD_G4_MANAGER_PASSWORD"];
 let browser, founder, manager, anon, fp, mp;
+let phase = "ci_preflight";
 try {
   assert(env.CI === "true" && env.TDD_G4_RUN === "1", "CI opt-in required");
   for (const key of keys) assert(env[key] && env[key].length >= 3, "missing identity");
   assert(env.TDD_G4_FOUNDER_EMAIL !== env.TDD_G4_MANAGER_EMAIL, "distinct identities required");
   const proof = await verifyStaging(env);
   console.log(JSON.stringify({name:"PAP-1074 GitHub + Cloudflare receipt",...proof,status:"PASS"}));
+  phase = "browser_launch";
   browser = await chromium.launch({headless:true});
   founder = await browser.newContext({viewport:{width:1024,height:900}});
   manager = await browser.newContext({viewport:{width:1024,height:900}});
   anon = await browser.newContext({viewport:{width:1024,height:900},storageState:{cookies:[],origins:[]}});
-  await login(founder, BO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD);
-  await login(founder, HO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD);
-  await login(manager, BO, env.TDD_G4_MANAGER_EMAIL, env.TDD_G4_MANAGER_PASSWORD);
+  phase = "founder_bo_login";
+  await login(founder, BO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD, "founder");
+  phase = "founder_ho_login";
+  await login(founder, HO, env.TDD_G4_FOUNDER_EMAIL, env.TDD_G4_FOUNDER_PASSWORD, "founder");
+  phase = "manager_bo_login";
+  await login(manager, BO, env.TDD_G4_MANAGER_EMAIL, env.TDD_G4_MANAGER_PASSWORD, "manager");
   await guard(founder); await guard(manager); await guard(anon);
   fp = await founder.newPage(); mp = await manager.newPage();
   await fp.goto(BO + "/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
   await mp.goto(BO + "/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
+  phase = "distinct_actor_context";
   const fa = await actor(fp), ma = await actor(mp);
   assert(fa.status === 200 && fa.entitled && ma.status === 200 && ma.entitled &&
     fa.userId && ma.userId && fa.userId !== ma.userId, "distinct entitled identities required");
@@ -176,8 +196,8 @@ try {
     assert(await fp.locator('[data-tdd-shell="detail"]').count() === 0,"detail still mounted");
     assert(!new URL(fp.url()).searchParams.has("record"),"stale record URL");
   });
-} catch {
-  cases.push({name:"authenticated_ci_admission",status:"FAIL"});
+} catch (error) {
+  cases.push({name:"authenticated_ci_admission",status:"FAIL",phase,errorType:error instanceof Error ? error.name : "UnknownError"});
 } finally {
   await fp?.close().catch(()=>{});
   await mp?.close().catch(()=>{});

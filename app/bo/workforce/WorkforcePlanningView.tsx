@@ -7,7 +7,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoRunningClass, BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { eligibleShiftRunningClasses, buildIndependentRoleCommands } from "@/lib/workforce-planning-class-eligibility";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
-import { assignmentRoleSummary, hasOwnerTeacherLinkGap } from "@/lib/workforce-planning-role-summary";
+import { BoWorkforceWeekPlanner } from "@/app/bo/components/workforce/BoWorkforceWeekPlanner";
 import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, type WorkforceShiftCoverageMode } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
 import { workforceAssignmentNote } from "@/app/bo/architecture/workforce-shift-note";
@@ -21,8 +21,6 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   const [centerId, setCenterId] = useState("");
   const [termWeekId, setTermWeekId] = useState("");
   const [centerWeeks, setCenterWeeks] = useState<CenterWeek[]>([]);
-  const [staffSearch, setStaffSearch] = useState("");
-  const [staffFilter, setStaffFilter] = useState<"ALL"|"ASSIGNED"|"AVAILABLE"|"EMPTY">("ALL");
   const [planning, setPlanning] = useState<Load>({ state: "loading" });
   const [selection, setSelection] = useState<Selection>(null);
   const [templateId, setTemplateId] = useState("");
@@ -128,15 +126,6 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   }
 
   const data = planning.state === "ready" ? planning.data : null;
-  const activeAssignmentsAll = data?.assignments.filter(item=>item.status==="ACTIVE") ?? [];
-  const assignedStaff = new Set(activeAssignmentsAll.map(item=>item.staffMemberId));
-  const submittedStaff = new Set((data?.availability ?? []).filter(item=>item.status==="SUBMITTED"&&item.items.length>0).map(item=>item.staffMemberId));
-  const assignedDates = new Set(activeAssignmentsAll.map(item=>item.workDate));
-  const staffRows = (data?.staff ?? []).filter(staff => {
-    if(!staff.displayLabel.toLocaleLowerCase("vi").includes(staffSearch.trim().toLocaleLowerCase("vi")))return false;
-    const hasAssignment=assignedStaff.has(staff.id), hasSubmitted=submittedStaff.has(staff.id);
-    return staffFilter==="ALL" || (staffFilter==="ASSIGNED"&&hasAssignment) || (staffFilter==="AVAILABLE"&&hasSubmitted&&!hasAssignment) || (staffFilter==="EMPTY"&&!hasAssignment&&!hasSubmitted);
-  });
   const selectedStaff = data?.staff.find((staff) => staff.id === selection?.staffMemberId) ?? null;
   const activeAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate && item.status === "ACTIVE") : [];
   const historyAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate) : [];
@@ -313,85 +302,15 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
       <div className={styles.plannerToolbarSpacer} />
       <span className={styles.plannerToolbarResult}>{data ? `${data.staff.length} staff · ${data.startDate} → ${data.endDate}` : "Canonical weekly projection"}</span>
       <button type="button" className={styles.plannerToolbarRefresh} aria-label="Refresh workforce planning" disabled={!centerId || !termWeekId || planning.state === "loading"} onClick={() => void refresh()}>↻</button>
-    </section> : <div className={styles.plannerToolbar}>
-      <span className={styles.plannerToolbarResult}>Tuần {data ? data.startDate + " → " + data.endDate : "đang tải…"}</span>
-      <button type="button" className={styles.secondaryButton} aria-label="Làm mới lịch tuần" onClick={() => void refresh()}>↻ Làm mới lịch</button>
-    </div>}
-
-    <div className={styles.plannerSettings}><details><summary>Quản lý mẫu ca</summary>{selectedCenter?.canManageShiftTemplates ? <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Tạo loại ca theo Center. Template đã dùng không sửa giờ trực tiếp; hãy tạo template mới rồi ngưng template cũ.</p></div><span className={styles.writePill}>workforce.shift_template.manage</span></div>
-      <div className={styles.plannerFilters}>
-        <label className={styles.field}>Code<input value={templateDraft.code} onChange={(event) => setTemplateDraft((current) => ({ ...current, code: event.target.value }))} placeholder="EVENING" /></label>
-        <label className={styles.field}>Tên ca<input value={templateDraft.displayLabel} onChange={(event) => setTemplateDraft((current) => ({ ...current, displayLabel: event.target.value }))} placeholder="Ca tối" /></label>
-        <label className={styles.field}>Bắt đầu<input type="time" value={templateDraft.startLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, startLocalTime: event.target.value }))} /></label>
-        <label className={styles.field}>Kết thúc<input type="time" value={templateDraft.endLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, endLocalTime: event.target.value }))} /></label>
-      </div>
-      <div className={styles.subscriptionActions}><button className={styles.primaryButton} disabled={!!busy || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime} onClick={() => void createShiftTemplate()}>{busy === "template:create" ? "Đang tạo…" : "+ Tạo ca"}</button></div>
-      <div className={styles.plannerHistory}>{shiftTemplates.map((template) => <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.startLocalTime}–{template.endLocalTime} · {template.status} <button className={styles.secondaryButton} disabled={!!busy} onClick={() => void setShiftTemplateStatus(template, template.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{template.status === "ACTIVE" ? "Ngưng" : "Kích hoạt"}</button></span>)}</div>
-    </section> : selectedCenter ? <section className={styles.panel}><div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Bạn có thể xếp ca bằng các template đang active; quản lý template cần quyền workforce.shift_template.manage.</p></div><span className={styles.readOnly}>Read only</span></div></section> : null}</details></div>
+    </section> : null}
 
     {notice ? <div className={styles.successCard}><span>Workforce planner</span><strong>{notice}</strong></div> : null}
-    {planning.state === "loading" ? <section className={styles.plannerStateSurface}><BoDataGridState kind="loading" message="Đang tải weekly planning projection từ Core…" /></section> : null}
+    {planning.state === "loading" ? <section className={styles.plannerStateSurface}><BoDataGridState kind="loading" message="Đang tải lịch tuần…" /></section> : null}
     {planning.state === "error" ? <section className={styles.plannerStateSurface}><BoDataGridState kind="error" message={planning.message} /></section> : null}
 
-    {data?.windows ? <div className={styles.plannerSettings}><details><summary>Kiểm soát tuần</summary><section className={styles.panel}>
-      <div className={styles.panelHeading}><div><h2>Kiểm soát tuần</h2><p>Policy quyết định auto-lock; override thủ công chỉ áp dụng cho TermWeek này.</p></div><span className={styles.writePill}>Week Control</span></div>
-      <div className={styles.plannerFilters}>
-        <WindowState label="Đăng ký Staff" value={data.windows.availability} />
-        <WindowState label="Xếp ca Manager" value={data.windows.planning} />
-        <label className={styles.field}>Lý do<input value={weekControlReason} onChange={(event)=>setWeekControlReason(event.target.value)} placeholder="Bắt buộc khi khóa/mở lại" /></label>
-        <label className={styles.field}>Mở lại đến<input type="datetime-local" value={weekControlUntil} onChange={(event)=>setWeekControlUntil(event.target.value)} /></label>
-      </div>
-      <div className={styles.subscriptionActions}>
-        {data.windows.availability.availabilityRegistrationOpen && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(false)}>Đóng đăng ký Staff</button> : null}
-        {!data.windows.availability.availabilityRegistrationOpen && selectedCenter?.canReopenAvailability ? <button className={styles.primaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(true)}>Mở đăng ký Staff</button> : null}
-        {data.windows.availability.state === "OPEN" && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-lock")}>Khóa đăng ký</button> : null}
-        {data.windows.availability.reason === "REGISTRATION_CLOSED" ? <span className={styles.readOnly}>Registration của Center Shift Plan đang đóng; mở tại đây trước khi sử dụng temporary reopen.</span> : null}
-        {data.windows.availability.state === "LOCKED" && data.windows.availability.reason !== "REGISTRATION_CLOSED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
-        {data.windows.planning.state === "OPEN" && selectedCenter?.canPublishPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("planning-publish")}>Chốt xếp ca</button> : null}
-        {data.windows.planning.state === "LOCKED" && selectedCenter?.canReopenPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("planning-reopen")}>Mở khóa xếp ca</button> : null}
-      </div>
-    </section></details></div> : null}
-
-    {data ? <div className={styles.plannerSummary} aria-label="Thống kê lịch tuần">
-      <div><span>Nhân sự</span><strong>{data.staff.length}</strong></div>
-      <div><span>Đã phân công</span><strong>{activeAssignmentsAll.length}</strong></div>
-      <div><span>Đã đăng ký, chờ xếp</span><strong>{[...submittedStaff].filter(id=>!assignedStaff.has(id)).length}</strong></div>
-      <div><span>Ngày cần kiểm tra</span><strong>{dateRange(data).filter(day=>!assignedDates.has(day)).length}</strong></div>
-    </div> : null}
-    {data ? <div className={styles.plannerSearchBar}>
-      <label htmlFor="wf-staff-search">Nhân sự <input id="wf-staff-search" className="edit-input" type="search" placeholder="Tìm nhân sự…" value={staffSearch} onChange={event=>setStaffSearch(event.target.value)} /></label>
-      <label htmlFor="wf-staff-filter">Tình trạng <select id="wf-staff-filter" className="edit-input" value={staffFilter} onChange={event=>setStaffFilter(event.target.value as typeof staffFilter)}>
-        <option value="ALL">Tất cả nhân sự</option><option value="ASSIGNED">Đã phân công</option>
-        <option value="AVAILABLE">Đã đăng ký, chờ xếp</option><option value="EMPTY">Chưa có lịch</option>
-      </select></label>
-      <span role="status">{staffRows.length} / {data.staff.length} nhân sự</span>
-      <div className={styles.plannerStatusLegend}><span>● Đã phân công</span><span>● Đã đăng ký</span><span>● Đang chọn</span></div>
-    </div> : null}
-    {data ? <div className={styles.plannerLayout}>
-      <section className={styles.panel}>
-        <div className={styles.panelHeading}>
-          <div><h2>{data.startDate} → {data.endDate}</h2><p>Chọn một ô Staff/ngày để mở bounded operational detail; matrix vẫn là specialized scheduling surface.</p></div>
-          <span className={styles.readOnly}>{staffRows.length} nhân sự</span>
-        </div>
-        <div className={styles.plannerTableWrap}>
-          <table aria-label="Weekly Workforce planning matrix">
-            <thead><tr><th>Staff</th>{dateRange(data).map((date) => <th key={date}>{dateLabel(date)}</th>)}</tr></thead>
-            <tbody>{staffRows.map((staff) => <tr key={staff.id}>
-              <th>{staff.displayLabel}</th>
-              {dateRange(data).map((date) => {
-                const assigned = data.assignments.filter((item) => item.staffMemberId === staff.id && item.workDate === date && item.status === "ACTIVE");
-                const available = data.availability.some((item) => item.staffMemberId === staff.id && item.status === "SUBMITTED" && item.items.some((entry) => entry.workDate === date));
-                const ownerGap = hasOwnerTeacherLinkGap(data, staff.id, date);
-                const selected = selection?.staffMemberId === staff.id && selection.workDate === date;
-                return <td key={date}>
-                  <button
-                    className={`${styles.plannerCell} ${selected ? styles.plannerCellActive : ""}`}
-                    aria-pressed={selected}
-                    aria-controls="workforce-planner-detail"
-                    aria-label={`${staff.displayLabel} · ${dateLabel(date)} · ${assigned.length ? "Đã xếp" : ownerGap ? "Owner chưa link TE" : available ? "Có availability" : "Chưa xếp"}`}
-                    onClick={() => {
-                    setSelection({ staffMemberId: staff.id, workDate: date });
+    {data ? <BoWorkforceWeekPlanner key={centerId + ":" + termWeekId} data={data} centerName={selectedCenter?.displayName ?? ""} selection={selection} onRefresh={() => void refresh()} onSelect={(staffMemberId, date) => {
+                    const assigned = data.assignments.filter(item => item.staffMemberId === staffMemberId && item.workDate === date && item.status === "ACTIVE");
+                    setSelection({ staffMemberId: staffMemberId, workDate: date });
                     setTemplateId(assigned[0]?.shiftTemplateId ?? "");
                      setShiftNote(workforceAssignmentNote(assigned[0]) ?? "");
                     setReason("");
@@ -405,26 +324,9 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
                     setCustomStartLocal(assigned[0]?.effectiveStartLocal?.slice(11,16) ?? "");
                     setCustomEndLocal(assigned[0]?.effectiveEndLocal?.slice(11,16) ?? "");
 
-                  }}>
-                    {assigned.length ? <><strong className={styles.plannerAssignedChip}>Đã phân công</strong>{assigned.map((item) => {
-                      const summary = assignmentRoleSummary(data, item);
-                      return <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · {summary} · {assignmentTimeSummary(item)}</span>;
-                    })}{ownerGap ? <span>⚠ Owner chưa link TE</span> : null}</> : ownerGap ? <><strong>⚠ Owner</strong><span>Chưa có TE/ca tương ứng</span></> : available ? <><strong className={styles.plannerAvailableChip}>Đã đăng ký</strong><span>{availableCount(data, staff.id, date)} ca</span></> : <span>—</span>}
-                  </button>
-                </td>;
-              })}
-            </tr>)}</tbody>
-          </table>
-        </div>
-      </section>
-
-      <aside id="workforce-planner-detail" className={styles.plannerSide} aria-label="Workforce planning detail" aria-live="polite">
-        {!selection || !selectedStaff ? <BoDataGridState kind="empty" title="Chọn Staff/ngày" message="Chọn một ô trong matrix để mở thao tác assign, cancel hoặc correct." /> : <>
-          <div className={styles.panelHeading}><div><h2>{selectedStaff.displayLabel}</h2><p>{selection.workDate}</p></div><span className={styles.writePill}>Operational decision</span></div>
-          <div className={styles.plannerLegend}>
-            <span>Availability: {availableTemplateIds.size ? `${availableTemplateIds.size} ca` : "không đăng ký"}</span>
-            <span>Active assignment: {activeAssignments.length}</span>
-          </div>
+    }}>
+        {!selection || !selectedStaff ? <BoDataGridState kind="empty" title="Chưa chọn ô lịch" message="Chọn một ô để xem lịch và phân công ca." /> : <>
+          <div className={styles.plannerLegend}><strong>{selectedStaff.displayLabel}</strong><span>{dateLabel(selection.workDate)}</span><span>{availableTemplateIds.size ? `${availableTemplateIds.size} ca đã đăng ký` : "Chưa ghi nhận đăng ký"}</span>{activeAssignments.length ? <span>{activeAssignments.length} ca đã phân công</span> : null}</div>
           {selectedAvailabilityHistory.length ? <div className={styles.plannerHistory}>
             <strong>Availability history</strong>
             {selectedAvailabilityHistory.map((item) => <span key={item.id}>
@@ -439,7 +341,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
             </span>)}
           </div> : null}
 
-          <label className={styles.field}>Shift Template
+          <label className={styles.field}>Mẫu ca
             <select value={templateId} onChange={(event) => {
               setTemplateId(event.target.value);
               setTeacherSelected(false); setAssistantSelected(false);
@@ -452,25 +354,25 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
               <option value="">Chọn ca…</option>
               {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {template.startLocalTime}–{template.endLocalTime}</option>)}
             </select>
-            <small>✓ = Staff đã submit availability. Manager vẫn là authority xếp ca final.</small>
+            <small>✓ Ca nhân sự đã đăng ký. Bạn có thể chọn ca khác khi phân công.</small>
           </label>
 
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
-            <strong>Phân công operational</strong>
+            <strong>Vai trò trong ca</strong>
             <label className={styles.field}>
-              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked);  }} /> Front Desk</span>
-              <small>Front Desk áp dụng cho toàn ca; có thể kết hợp các vai trò khác.</small>
+              <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked);  }} /> Tiếp tân</span>
+              <small>Tiếp tân áp dụng cho toàn ca; có thể kết hợp các vai trò khác.</small>
             </label>
-            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Shift Leader</span><small>Phụ trách ca tại trung tâm; không gắn lớp học.</small></label>
-            <label className={styles.field}><span><input type="checkbox" checked={teacherSelected} onChange={(event) => { setTeacherSelected(event.target.checked); if (!event.target.checked) setTeacherRunningClassIds([]); }} /> Teacher</span></label>
-            <label className={styles.field}><span><input type="checkbox" checked={assistantSelected} onChange={(event) => { setAssistantSelected(event.target.checked); if (!event.target.checked) setAssistantRunningClassIds([]); }} /> Teaching Assistant</span></label>
+            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Trưởng ca</span><small>Phụ trách ca tại trung tâm; không gắn lớp học.</small></label>
+            <label className={styles.field}><span><input type="checkbox" checked={teacherSelected} onChange={(event) => { setTeacherSelected(event.target.checked); if (!event.target.checked) setTeacherRunningClassIds([]); }} /> Giáo viên</span></label>
+            <label className={styles.field}><span><input type="checkbox" checked={assistantSelected} onChange={(event) => { setAssistantSelected(event.target.checked); if (!event.target.checked) setAssistantRunningClassIds([]); }} /> Trợ giảng</span></label>
             <div className={styles.plannerHistory}>
               <strong>Giờ làm Manager chốt</strong>
               <label><input type="radio" name="coverage-mode" checked={coverageMode==="FULL_SHIFT"} onChange={() => setCoverageMode("FULL_SHIFT")} /> Toàn ca · {selectedTemplate?.startLocalTime}–{selectedTemplate?.endLocalTime}</label>
               <label><input type="radio" name="coverage-mode" checked={coverageMode==="CLASSROOM_TIME"} disabled={!canUseTeachingTime} onChange={() => setCoverageMode("CLASSROOM_TIME")} /> Theo giờ lớp</label>
               <label><input type="radio" name="coverage-mode" checked={coverageMode==="CUSTOM_RANGE"} onChange={() => { setCoverageMode("CUSTOM_RANGE"); if(!customStartLocal)setCustomStartLocal(selectedTemplate?.startLocalTime??""); if(!customEndLocal)setCustomEndLocal(selectedTemplate?.endLocalTime??""); }} /> Tuỳ chỉnh khung giờ</label>
               {coverageMode === "CUSTOM_RANGE" ? <div className={styles.subscriptionActions}><label className={styles.field}>Bắt đầu<input type="time" value={customStartLocal} min={selectedTemplate?.startLocalTime} max={selectedTemplate?.endLocalTime} onChange={(event)=>setCustomStartLocal(event.target.value)} /></label><label className={styles.field}>Kết thúc<input type="time" value={customEndLocal} min={selectedTemplate?.startLocalTime} max={selectedTemplate?.endLocalTime} onChange={(event)=>setCustomEndLocal(event.target.value)} /></label></div> : null}
-              <small>Staff vẫn đăng ký availability theo toàn ca. Chỉ Manager chốt coverage thực tế; custom phải bao phủ mọi lớp đã phân công.</small>
+              <small>Giờ làm phải bao phủ các lớp đã phân công.</small>
             </div>
             {([["TEACHER",teacherSelected,teacherRunningClassIds,setTeacherRunningClassIds],["TEACHING_ASSISTANT",assistantSelected,assistantRunningClassIds,setAssistantRunningClassIds]] as const).map(([role,selected,chosen,setChosen]) => selected ? <details key={role} className={styles.plannerHistory}>
               <summary>{role === "TEACHER" ? "Chọn lớp Giáo viên" : "Chọn lớp Trợ giảng"} · {chosen.length} lớp</summary>
@@ -488,7 +390,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
             </details> : null)}
             <label className={styles.field}>Note ca làm (không bắt buộc)
                <textarea rows={2} maxLength={500} value={shiftNote} onChange={(event) => setShiftNote(event.target.value)} placeholder="Ghi chú về ca, không thay thế lý do huỷ/điều chỉnh" />
-               <small>{shiftNote.length}/500 ký tự · lưu cùng assignment ở Core.</small>
+               <small>{shiftNote.length}/500 ký tự</small>
              </label>
              {classRoleIncomplete ? <small>Vai trò Giáo viên/Trợ giảng cần chọn ít nhất một Running Class để lưu.</small> : null}
           </div> : null}
@@ -497,7 +399,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
           {activeAssignments.length ? <label className={styles.field}>Lý do thay đổi
             <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Bắt buộc khi huỷ hoặc điều chỉnh" />
-            <small>Lý do được gửi vào canonical assignment audit; không dùng ghi chú cục bộ ở BO.</small>
+            <small>Lý do được lưu vào lịch sử thay đổi phân công.</small>
           </label> : null}
 
           {activeAssignments.map((assignment) => {
@@ -538,8 +440,38 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
           {historyAssignments.some((item) => item.status === "CANCELLED") ? <div className={styles.plannerHistory}><strong>History</strong>{historyAssignments.filter((item) => item.status === "CANCELLED").map((item) => <span key={item.id}>{templateLabel(data, item.shiftTemplateId)} · CANCELLED{workforceAssignmentNote(item) ? ` · Note: ${workforceAssignmentNote(item)}` : ""}{item.cancellationReason ? ` · Lý do huỷ: ${item.cancellationReason}` : ""}</span>)}</div> : null}
         </>}
-      </aside>
-    </div> : null}
+    </BoWorkforceWeekPlanner> : null}
+    {data?.windows ? <div className={styles.plannerSettings}><details><summary>Kiểm soát tuần</summary><section className={styles.panel}>
+      <div className={styles.panelHeading}><div><h2>Kiểm soát tuần</h2><p>Policy quyết định auto-lock; override thủ công chỉ áp dụng cho TermWeek này.</p></div><span className={styles.writePill}>Week Control</span></div>
+      <div className={styles.plannerFilters}>
+        <WindowState label="Đăng ký Staff" value={data.windows.availability} />
+        <WindowState label="Xếp ca Manager" value={data.windows.planning} />
+        <label className={styles.field}>Lý do<input value={weekControlReason} onChange={(event)=>setWeekControlReason(event.target.value)} placeholder="Bắt buộc khi khóa/mở lại" /></label>
+        <label className={styles.field}>Mở lại đến<input type="datetime-local" value={weekControlUntil} onChange={(event)=>setWeekControlUntil(event.target.value)} /></label>
+      </div>
+      <div className={styles.subscriptionActions}>
+        {data.windows.availability.availabilityRegistrationOpen && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(false)}>Đóng đăng ký Staff</button> : null}
+        {!data.windows.availability.availabilityRegistrationOpen && selectedCenter?.canReopenAvailability ? <button className={styles.primaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(true)}>Mở đăng ký Staff</button> : null}
+        {data.windows.availability.state === "OPEN" && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-lock")}>Khóa đăng ký</button> : null}
+        {data.windows.availability.reason === "REGISTRATION_CLOSED" ? <span className={styles.readOnly}>Registration của Center Shift Plan đang đóng; mở tại đây trước khi sử dụng temporary reopen.</span> : null}
+        {data.windows.availability.state === "LOCKED" && data.windows.availability.reason !== "REGISTRATION_CLOSED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
+        {data.windows.planning.state === "OPEN" && selectedCenter?.canPublishPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("planning-publish")}>Chốt xếp ca</button> : null}
+        {data.windows.planning.state === "LOCKED" && selectedCenter?.canReopenPlanning ? <button className={styles.primaryButton} disabled={!!busy||!weekControlReason.trim()||!weekControlUntil} onClick={()=>void mutateWeekControl("planning-reopen")}>Mở khóa xếp ca</button> : null}
+      </div>
+    </section></details></div> : null}
+
+    <div className={styles.plannerSettings}><details><summary>Quản lý mẫu ca</summary>{selectedCenter?.canManageShiftTemplates ? <section className={styles.panel}>
+      <div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Tạo loại ca theo Center. Template đã dùng không sửa giờ trực tiếp; hãy tạo template mới rồi ngưng template cũ.</p></div><span className={styles.writePill}>workforce.shift_template.manage</span></div>
+      <div className={styles.plannerFilters}>
+        <label className={styles.field}>Code<input value={templateDraft.code} onChange={(event) => setTemplateDraft((current) => ({ ...current, code: event.target.value }))} placeholder="EVENING" /></label>
+        <label className={styles.field}>Tên ca<input value={templateDraft.displayLabel} onChange={(event) => setTemplateDraft((current) => ({ ...current, displayLabel: event.target.value }))} placeholder="Ca tối" /></label>
+        <label className={styles.field}>Bắt đầu<input type="time" value={templateDraft.startLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, startLocalTime: event.target.value }))} /></label>
+        <label className={styles.field}>Kết thúc<input type="time" value={templateDraft.endLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, endLocalTime: event.target.value }))} /></label>
+      </div>
+      <div className={styles.subscriptionActions}><button className={styles.primaryButton} disabled={!!busy || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime} onClick={() => void createShiftTemplate()}>{busy === "template:create" ? "Đang tạo…" : "+ Tạo ca"}</button></div>
+      <div className={styles.plannerHistory}>{shiftTemplates.map((template) => <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.startLocalTime}–{template.endLocalTime} · {template.status} <button className={styles.secondaryButton} disabled={!!busy} onClick={() => void setShiftTemplateStatus(template, template.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{template.status === "ACTIVE" ? "Ngưng" : "Kích hoạt"}</button></span>)}</div>
+    </section> : selectedCenter ? <section className={styles.panel}><div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Bạn có thể xếp ca bằng các template đang active; quản lý template cần quyền workforce.shift_template.manage.</p></div><span className={styles.readOnly}>Read only</span></div></section> : null}</details></div>
+
   </div>;
 }
 
@@ -563,9 +495,6 @@ function dateLabel(value: string) {
 function templateLabel(data: BoWorkforceWeeklyPlanning, id: string) {
   const item = data.templates.find((template) => template.id === id);
   return item ? `${item.displayLabel} ${item.startLocalTime}–${item.endLocalTime}` : `Shift ${id.slice(0, 8)}`;
-}
-function availableCount(data: BoWorkforceWeeklyPlanning, staffId: string, date: string) {
-  return new Set(data.availability.filter((item) => item.staffMemberId === staffId).flatMap((item) => item.items.filter((entry) => entry.workDate === date).map((entry) => entry.shiftTemplateId))).size;
 }
 function WindowState({label,value}:{label:string;value:NonNullable<BoWorkforceWeeklyPlanning["windows"]>["availability"]}) {
   const detail=value.reason==="CONFIGURATION_UNAVAILABLE"?"Chưa có policy hiệu lực":value.reason==="MANUAL_LOCK"?"Khóa thủ công":value.reason==="MANUAL_REOPEN"?`Mở lại đến ${value.overrideUntil?new Date(value.overrideUntil).toLocaleString("vi-VN"):"—"}`:value.cutoffAt?`Policy · ${new Date(value.cutoffAt).toLocaleString("vi-VN")}`:"Policy · không auto-lock";

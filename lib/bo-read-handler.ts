@@ -237,6 +237,19 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-1177: explicit Parent Center is a read constraint, not an ACL grant.
+  // The Core Parent Directory and Detail independently verify three scoped
+  // permissions and bind SQL to the selected Center before returning a receipt.
+  if (path === "identity/parents/directory" || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)) {
+    const ids = url.searchParams.getAll("centerId");
+    if (ids.length > 1 || (path !== "identity/parents/directory" && [...url.searchParams.keys()].some(key => key !== "centerId")))
+      throw new RangeError("Invalid Parent Center query");
+    if (!ids.length) return undefined;
+    const centerId = ids[0]!;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId))
+      throw new RangeError("Invalid Parent Center");
+    return { centerId };
+  }
   // PAP-982: resource scope is a selected CENTER reauthorized by Core, not a client grant.
   if (path === "pinoria/avatars") {
     const centerId = url.searchParams.get("centerId");
@@ -466,7 +479,7 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
   if (path === "identity/parents/directory") {
     // Only normalized, unique numeric pagination reaches the authorized Core read.
     // Never silently ignore unknown/duplicate filters on a private PII directory.
-    const allowed = new Set(["limit", "offset"]);
+    const allowed = new Set(["limit", "offset", "centerId"]);
     for (const key of url.searchParams.keys()) {
       if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1) {
         throw new RangeError("Invalid Parent Directory query");

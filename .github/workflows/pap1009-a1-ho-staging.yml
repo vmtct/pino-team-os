@@ -70,7 +70,7 @@ jobs:
           assert.equal(c.vars.BO_UI_ONLY,'enabled');
           assert.deepEqual(c.assets.run_worker_first,['/*']);
           assert.equal(c.vars.FOUNDER_EMAIL,'');
-          assert.equal(c.vars.HO_PILOT_FOUNDER_USER_IDS,'01a0b2aa-9e9e-7cb5-943f-110671d0da62');
+          assert.equal(c.vars.HO_PILOT_FOUNDER_USER_IDS,'01a0b2aa-9e9e-7cb5-943f-110671d0da62,01a18784-3c28-7ed7-b114-c2c83502c30f');
           assert.ok(!c.routes && !c.route && !c.send_email && !c.d1_databases && !c.r2_buckets);
           assert.equal(c.services.length,8);
           assert.ok(c.services.every(s=>s.service==='pino-core-staging'));

@@ -15,7 +15,11 @@ const parent = (id = first, maskedContact = "09••••••12") => ({
 test("Parent uses shared BO module without a bespoke layout", () => {
   assert.equal(modules.parents.group, "SCHOOL");
   assert.ok(modules.parents.fields.some(field => field.key === "maskedContact" && field.readonly));
-  assert.equal(readFileSync("app/bo/components/registration/BoParentReadTabs.tsx", "utf8").includes('const tabs = ["Overview", "Students", "Contacts", "Audit"]'), true);
+  const source = readFileSync("app/bo/components/registration/BoParentReadTabs.tsx", "utf8");
+  for (const [id, label] of [["overview","Tổng quan"],["students","Học viên"],["contacts","Liên hệ"],["history","Lịch sử"]]) {
+    assert.ok(source.includes(`id: "${id}", label: "${label}"`), `missing canonical Parent tab ${id}`);
+  }
+  assert.doesNotMatch(source, /label: "Audit"/);
 });
 test("Parent V2.5 detail and read-only create gate survive Student Subscription and HO main updates", () => {
   const detail = readFileSync("app/bo/components/registration/BoFullDetail.tsx", "utf8");
