@@ -53,7 +53,7 @@ test("JCS04 BO exposes governed availability history and operator void only thro
   assert.match(source, /availabilityHistory/);
   assert.match(source, /canEditPlanning/);
   assert.match(source, /voidWorkforceAvailability/);
-  assert.match(source, /Void availability/);
+  assert.match(source, /Hủy xếp ca/);
   assert.match(source, /history được giữ nguyên và không còn dùng làm planning input/);
   assert.doesNotMatch(source, /deleteWorkforceAvailability|reopenAvailability/);
 });
