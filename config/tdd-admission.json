@@ -210,24 +210,7 @@
         "app/bo/open-studio-passes/schema.ts",
         "app/bo/open-studio-passes/CenterPassActions.tsx"
       ],
-      "externalReferences": [
-        {
-          "file": "lib/bo-url-contract.ts",
-          "owner": "PAP-1224"
-        },
-        {
-          "file": "app/bo/architecture/bo-staging-route-policy.ts",
-          "owner": "PAP-1224"
-        },
-        {
-          "file": "lib/host-boundary.ts",
-          "owner": "PAP-1166"
-        },
-        {
-          "file": "lib/open-studio-walkin-bo-api.ts",
-          "owner": "PAP-1166"
-        }
-      ],
+      "externalReferences": [],
       "schema": {
         "file": "app/bo/open-studio-passes/schema.ts",
         "export": "passSchema"
