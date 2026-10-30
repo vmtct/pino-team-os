@@ -720,72 +720,10 @@
   font: inherit;
   white-space: nowrap;
 }
-.weekPlannerDayNav {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  min-width: 0;
-  margin-bottom: 9px;
-}
-.weekPlannerDayNav button {
-  border: 1px solid var(--bo-color-border);
-  border-radius: 8px;
-  background: var(--bo-color-surface);
-  color: var(--bo-color-text);
-  font-family: inherit;
-  cursor: pointer;
-  min-height: 43px;
-  flex: 0 0 34px;
-}
-.weekPlannerDayNav > button {
-  font-size: 18px;
-}
-.weekPlannerDayNav button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.weekPlannerDayScroll {
-  display: flex;
-  gap: 5px;
-  flex: 1 1 auto;
-  overflow-x: auto;
-  min-width: 0;
-  scrollbar-width: thin;
-}
-.weekPlannerDayScroll button {
-  display: flex;
-  flex: 1 0 61px;
-  min-width: 61px;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 2px;
-  position: relative;
-}
-.weekPlannerDayScroll strong {
-  font-size: var(--bo-font-body);
-  line-height: 1.1;
-}
-.weekPlannerDayScroll small {
-  font-size: var(--bo-font-caption);
-  color: var(--bo-color-muted);
-}
-.weekPlannerDayScroll i {
-  position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--bo-color-accent);
-}
-.weekPlannerDayNav button[aria-pressed="true"],
-.weekPlannerDayNav button:hover:not(:disabled) {
-  border-color: var(--bo-color-accent);
-  background: var(--bo-color-accent-soft);
-  color: var(--bo-color-accent-strong);
-}
 .weekPlannerTableScroll {
+  --week-planner-staff-width: 165px;
+  --week-planner-day-width: 128px;
+  --week-planner-table-width: 1061px; /* 165 + 7 x 128 */
   max-width: 100%;
   max-height: 640px;
   overflow: auto;
@@ -794,17 +732,26 @@
   border-radius: 9px;
 }
 .weekPlannerTableScroll table {
-  width: max-content;
-  min-width: 100%;
+  width: var(--week-planner-table-width);
+  min-width: var(--week-planner-table-width);
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
 }
+.weekPlannerTableScroll .weekPlannerStaffColumn {
+  width: var(--week-planner-staff-width);
+}
+.weekPlannerTableScroll .weekPlannerDayColumn {
+  width: var(--week-planner-day-width);
+}
+.weekPlannerTableScroll th:not(:first-child),
+.weekPlannerTableScroll td {
+  width: var(--week-planner-day-width);
+  min-width: var(--week-planner-day-width);
+  max-width: var(--week-planner-day-width);
+}
 .weekPlannerTableScroll th,
 .weekPlannerTableScroll td {
-  width: 106px;
-  min-width: 106px;
-  max-width: 160px;
   padding: 4px;
   border-right: 1px solid var(--bo-color-border);
   border-bottom: 1px solid var(--bo-color-border);
@@ -823,9 +770,9 @@
 .weekPlannerTableScroll th:first-child {
   position: sticky;
   left: 0;
-  width: 165px;
-  min-width: 165px;
-  max-width: 165px;
+  width: var(--week-planner-staff-width);
+  min-width: var(--week-planner-staff-width);
+  max-width: var(--week-planner-staff-width);
   z-index: 3;
   background: var(--bo-color-surface);
   padding: 8px;
@@ -852,6 +799,7 @@
   background: var(--bo-color-table-heading);
 }
 .weekPlannerCell {
+  overflow-wrap: anywhere;
   display: grid;
   align-content: center;
   gap: 4px;
@@ -959,27 +907,14 @@
   .weekPlannerFilters > small {
     margin-left: 0;
   }
-  .weekPlannerDayScroll button {
-    flex: 0 0 57px;
-    min-width: 57px;
-  }
 }
 @media (max-width: 450px) {
-  .weekPlannerTableScroll th:first-child {
-    width: 122px;
-    min-width: 122px;
-    max-width: 122px;
-  }
-  .weekPlannerTableScroll td,
-  .weekPlannerTableScroll thead th:not(:first-child) {
-    width: 128px;
-    min-width: 128px;
+  .weekPlannerTableScroll {
+    --week-planner-staff-width: 122px;
+    --week-planner-table-width: 1018px; /* 122 + 7 x 128 */
   }
   .weekPlannerKpis strong {
     font-size: 18px;
-  }
-  .weekPlannerDayNav {
-    gap: 4px;
   }
 }
 /* The generic field input rule must not turn role checkboxes into full-width fields. */
