@@ -195,14 +195,18 @@ test("Read-only providers cannot be upgraded by schema capabilities", async () =
   await assert.rejects(setup("BO", definition("BO", true)), fails(403));
   const original = definition("BO"); await assert.rejects(setup("BO", { ...original, capabilities: { ...original.capabilities, create: "fixture.edit" } }), fails(403));
 });
-test("Concrete read providers reuse existing facades without registering live pilots", async () => {
+test("Concrete read providers preserve isolation and Centers adoption is explicitly registered", async () => {
   const api = server("HO"); const actual = hoCentersProvider((row): { id: string; name: string; count: number; secret: undefined } => ({ id: row.id, name: row.name, count: 0, secret: undefined }));
   const fetcher: typeof fetch = (input, init) => api.fetcher(input, { ...init, credentials: "same-origin", cache: "no-store", redirect: "error" });
   const records = await actual.list(query, { surface: "HO" }, fetcher, signal()); assert.equal(records.total, 1); assert.equal(records.records[0].row.name, "Center fixture");
   await assert.rejects(actual.detail(center, { surface: "BO", centerId: center }, api.fetcher, signal()), fails(403));
   const planning = boPlanningProvider<F>(other, snapshot => snapshot.assignments.map(item => ({ row: { ...row, id: item.id }, centerId: item.centerId })));
   await assert.rejects(planning.detail(recordId, { surface: "HO" }, api.fetcher, signal()), fails(403));
-  assert.equal(readFileSync("app/ho/centers/HoCenters.tsx", "utf8").includes("createHoTddAdapter"), false);
+  // PAP-1076 explicitly adopts this pilot; S2 no-adoption freeze is fulfilled.
+  const admission = JSON.parse(readFileSync("config/tdd-admission.json", "utf8")).modules.find((entry: { surface: string; key: string }) => entry.surface === "HO" && entry.key === "centers");
+  assert.equal(admission.profile, "TDD_DEFAULT");
+  assert.deepEqual(admission.binding, { kind: "SURFACE_WORKSPACE_ADAPTER", file: "app/ho/centers/HoCenters.tsx" });
+  assert.equal(readFileSync(admission.binding.file, "utf8").includes("createHoTddAdapter"), true);
 });
 
 async function inBrowser<T>(origin: string, run: () => Promise<T>) {

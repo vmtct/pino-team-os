@@ -7,7 +7,8 @@ export const hoCentersModule: BoModule = { label: "Centers", group: "Head Office
   { key: "status", label: "Status", type: "select", icon: "◉", w: 120, readonly: true },
 ] };
 /** Reject ambiguous/malformed records instead of displaying invented fallback identities. */
-export function mapHoCenters(input: unknown): BoRecord[] {
+export type HoCenterRow = BoRecord & { centerKey: string; timeZone: string; status: string };
+export function mapHoCenters(input: unknown): HoCenterRow[] {
   if (!Array.isArray(input)) throw new Error("Dữ liệu Center không hợp lệ.");
   const seen = new Set<string>();
   return input.map(value => {
