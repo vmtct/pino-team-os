@@ -172,6 +172,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "open-studio/learners"
     || path === "open-studio/passes"
     || path === "open-studio/walkin/inventory"
+    || path === "open-studio/walkin/history"
     || DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path)
     || SPECIALTY_POLICY_READ.test(path)
     || OPEN_STUDIO_POLICY_READ.test(path)
@@ -188,6 +189,16 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readCorePath(path: string, url: URL): string {
+  if (path === "open-studio/walkin/history") {
+    const params=new URLSearchParams();
+    for(const key of url.searchParams.keys()) if(!["passId","centerId"].includes(key)||url.searchParams.getAll(key).length!==1) throw new RangeError("Invalid Pass history query");
+    for(const key of ["passId","centerId"]) {
+      const v=url.searchParams.get(key);
+      if(!v||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) throw new RangeError("Invalid Pass history identifier");
+      params.set(key,v);
+    }
+    return path+"?"+params.toString();
+  }
   if (path === "open-studio/walkin/inventory") {
     const query = new URLSearchParams();
     for (const key of url.searchParams.keys()) if (!["centerId","limit"].includes(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid Pass inventory query");
