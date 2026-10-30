@@ -5,7 +5,7 @@ import {validateModule} from "./workspace-schema";
 import {decideHostBoundary} from "./host-boundary";
 import {BO_TARGET_ROUTES,buildBoTargetUrl} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
-import {passDefinition,passSchema,passProvider,passQuery,readCenterPasses} from "../app/bo/open-studio/pass-schema";
+import {passDefinition,passSchema,passProvider,passQuery,readCenterPasses} from "../app/bo/open-studio-passes/schema";
 
 const center="00000000-0000-4000-8000-000000000015",other="00000000-0000-4000-8000-000000000016";
 const id="00000000-0000-4000-8000-000000000017";
@@ -14,27 +14,27 @@ const reply=(body:unknown,status=200)=>async (_input:unknown)=>Response.json(bod
 
 test("PAP-1224: BO Pass uses registered exact TDD on Staging, no route bypass",()=>{
  validateModule(passSchema);
- assert.equal(passSchema.key,"open-studio");
+ assert.equal(passSchema.key,"open-studio-passes");
  assert.equal(passDefinition.surface,"BO");
  assert.equal(passDefinition.capabilities.read,"open_studio.walkin_pass.manage");
  assert.equal(passDefinition.detail.history.kind,"unavailable");
  assert.equal(passProvider.pagination,"local-ui");
- assert.equal(isBoStagingRouteAdmitted("/bo/open-studio"),true);
- assert.equal(buildBoTargetUrl({moduleKey:"open-studio",surface:"table"}),"/bo/open-studio");
- assert.ok(BO_TARGET_ROUTES.some(r=>r.key==="open-studio"&&r.path==="/bo/open-studio"));
- assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/open-studio","GET"),{action:"next"});
- assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/bo/open-studio","GET"),{action:"not_found"});
- const page=readFileSync("app/bo/open-studio/page.tsx","utf8");
- const tdd=readFileSync("app/bo/open-studio/BoOpenStudioPassTdd.tsx","utf8");
- assert.match(page,/BoOpenStudioPassTdd/);
- assert.match(page,/OpenStudioView/); // Production legacy preserved.
+ assert.equal(isBoStagingRouteAdmitted("/bo/open-studio-passes"),true);
+ assert.equal(buildBoTargetUrl({moduleKey:"open-studio-passes",surface:"table"}),"/bo/open-studio-passes");
+ assert.ok(BO_TARGET_ROUTES.some(r=>r.key==="open-studio"&&r.path==="/bo/open-studio-passes"));
+ assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/open-studio-passes","GET"),{action:"next"});
+ assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/bo/open-studio-passes","GET"),{action:"not_found"});
+ const page=readFileSync("app/bo/open-studio-passes/page.tsx","utf8");
+ const tdd=readFileSync("app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx","utf8");
+ assert.match(page,/BoOpenStudioPassesTdd/);
+ assert.doesNotMatch(page,/OpenStudioView/); // No legacy shell in TDD admission.
  assert.match(tdd,/createBoTddAdapter/);
  assert.match(tdd,/SurfaceWorkspace/);
  assert.match(tdd,/WalkinPassPanel centerId=\{centerId\} controlsOnly/);
  assert.match(tdd,/@pino\/design-system\/components\.css/);
  assert.doesNotMatch(tdd,/<table\b/);
- const panel=readFileSync("app/bo/open-studio/WalkinPassPanel.tsx","utf8");
- assert.match(panel,/!controlsOnly&&state==="ready"/);
+ const middleware=readFileSync("middleware.ts","utf8");
+ assert.match(middleware,/target.pathname="\\/bo\\/open-studio-passes"/);
 });
 
 test("PAP-1224: Center-bound API request and negative cross-Center projection",async()=>{
