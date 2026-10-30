@@ -12,6 +12,8 @@ on:
       - "scripts/render-tdd-g3-fixtures.tsx"
       - "scripts/verify-tdd-g3-artifacts.mjs"
       - "scripts/verify-tdd-g3-visual-goldens.mjs"
+      - "lib/tdd-g3-golden-successor.mjs"
+      - "lib/tdd-g3-golden-successor.test.mjs"
       - "lib/tdd-g3-visual-pixels.mjs"
       - "lib/tdd-g3-visual-pixels.test.mjs"
       - "docs/visual-goldens/pap1073/**"
@@ -49,7 +51,7 @@ jobs:
       - name: Verify G3 visual diff against Founder-approved immutable golden
         run: node scripts/verify-tdd-g3-visual-goldens.mjs
       - name: Verify G3 pixel diff negative controls
-        run: node --test lib/tdd-g3-visual-pixels.test.mjs
+        run: node --test lib/tdd-g3-visual-pixels.test.mjs lib/tdd-g3-golden-successor.test.mjs
       - name: Retain real PNG and DOM metrics, even when Playwright fails
         if: always()
         uses: actions/upload-artifact@v4
