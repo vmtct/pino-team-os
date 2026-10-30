@@ -119,7 +119,9 @@ for (const width of [1440, 1024, 768, 390, 320])
     await expect(
       side.getByRole("button", { name: "Xác nhận ca & phân công" }),
     ).toBeEnabled();
-    await side.getByRole("checkbox", { name: "Giáo viên", exact: true }).check();
+    await side
+      .getByRole("checkbox", { name: "Giáo viên", exact: true })
+      .check();
     await expect(
       side.getByRole("button", { name: "Xác nhận ca & phân công" }),
     ).toBeDisabled();
@@ -151,4 +153,38 @@ test("PAP-1185 search and submitted filters distinguish draft availability", asy
     .getByRole("searchbox", { name: "Tìm nhân sự trong lịch tuần" })
     .fill("không tồn tại");
   await expect(page.getByText("Không có nhân sự phù hợp.")).toBeVisible();
+});
+
+test("PAP-1185 refresh restores the selected day and its visible cell", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.setContent(html);
+  await page.getByRole("button", { name: "T6 20/11", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Trần Quốc Bình · T6 20/11/2026 · Chưa có ca",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Làm mới lịch tuần", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "T6 20/11", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  const cell = page.getByRole("button", {
+    name: "Trần Quốc Bình · T6 20/11/2026 · Chưa có ca",
+    exact: true,
+  });
+  await expect(cell).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(async () =>
+      cell.evaluate(
+        (e) =>
+          e.getBoundingClientRect().left -
+          e.closest("tr")!.querySelector("th")!.getBoundingClientRect().right,
+      ),
+    )
+    .toBeGreaterThanOrEqual(-1);
 });

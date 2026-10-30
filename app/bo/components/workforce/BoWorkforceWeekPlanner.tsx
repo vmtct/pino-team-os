@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import {
   assignmentRoleSummary,
@@ -30,7 +30,17 @@ export function BoWorkforceWeekPlanner({
 }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
-  const [dayIndex, setDayIndex] = useState(0);
+  const selectedDate = selection?.workDate;
+  const startDate = data.startDate;
+  const selectedDayIndex = selectedDate
+    ? Math.max(
+        0,
+        Math.round(
+          (Date.parse(selectedDate) - Date.parse(startDate)) / 86400000,
+        ),
+      )
+    : 0;
+  const [dayIndex, setDayIndex] = useState(selectedDayIndex);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const dates: string[] = [];
@@ -63,38 +73,25 @@ export function BoWorkforceWeekPlanner({
       (filter === "EMPTY" && !assignedStaff.has(staff.id))
     );
   });
+  useEffect(() => {
+    if (selectedDate)
+      alignDay(
+        scrollRef.current,
+        navRef.current,
+        selectedDate,
+        Math.max(
+          0,
+          Math.round(
+            (Date.parse(selectedDate) - Date.parse(startDate)) / 86400000,
+          ),
+        ),
+      );
+  }, [selectedDate, startDate]);
   function jump(index: number) {
     setDayIndex(index);
-    const nav = navRef.current,
-      button = nav?.children[index];
-    if (nav && button)
-      nav.scrollTo({
-        left: Math.max(
-          0,
-          nav.scrollLeft +
-            button.getBoundingClientRect().left -
-            nav.getBoundingClientRect().left,
-        ),
-        behavior: "smooth",
-      });
-    const scroller = scrollRef.current;
-    const header = scroller?.querySelector<HTMLElement>(
-        `[data-day="${dates[index]}"]`,
-      ),
-      staff = scroller?.querySelector<HTMLElement>("thead th:first-child");
-    if (scroller && header && staff) {
-      // Same-scrollport geometry: offsetLeft can be relative to an unrelated ancestor.
-      const left =
-        index === 0
-          ? 0
-          : scroller.scrollLeft +
-            header.getBoundingClientRect().left -
-            scroller.getBoundingClientRect().left -
-            staff.getBoundingClientRect().width -
-            scroller.clientLeft;
-      scroller.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-    }
+    alignDay(scrollRef.current, navRef.current, dates[index], index);
   }
+
   return (
     <section className={styles.weekPlannerRoot} aria-label="Lịch phân ca tuần">
       <div className={styles.weekPlannerHeading}>
@@ -152,7 +149,10 @@ export function BoWorkforceWeekPlanner({
           </span>
         </div>
       </div>
-      <div className={styles.weekPlannerLegend} aria-label="Chú giải trạng thái">
+      <div
+        className={styles.weekPlannerLegend}
+        aria-label="Chú giải trạng thái"
+      >
         <span>
           <i className={styles.weekPlannerAssignedDot} />
           Đã phân công
@@ -194,7 +194,10 @@ export function BoWorkforceWeekPlanner({
               {rows.length} / {data.staff.length} nhân sự
             </small>
           </div>
-          <nav className={styles.weekPlannerDayNav} aria-label="Chuyển ngày trong lịch">
+          <nav
+            className={styles.weekPlannerDayNav}
+            aria-label="Chuyển ngày trong lịch"
+          >
             <button
               type="button"
               aria-label="Ngày trước"
@@ -295,7 +298,10 @@ export function BoWorkforceWeekPlanner({
                                     template.id === item.shiftTemplateId,
                                 );
                                 return (
-                                  <span className={styles.weekPlannerShift} key={item.id}>
+                                  <span
+                                    className={styles.weekPlannerShift}
+                                    key={item.id}
+                                  >
                                     <strong>
                                       {template?.displayLabel ?? "Đã phân công"}
                                     </strong>
@@ -320,7 +326,10 @@ export function BoWorkforceWeekPlanner({
                               </>
                             ) : (
                               <>
-                                <span className={styles.weekPlannerAdd} aria-hidden="true">
+                                <span
+                                  className={styles.weekPlannerAdd}
+                                  aria-hidden="true"
+                                >
                                   ＋
                                 </span>
                                 <small>Chưa có ca</small>
@@ -367,4 +376,37 @@ export function BoWorkforceWeekPlanner({
       </div>
     </section>
   );
+}
+
+function alignDay(
+  scroller: HTMLDivElement | null,
+  nav: HTMLDivElement | null,
+  date: string,
+  index: number,
+) {
+  const button = nav?.children[index];
+  if (nav && button)
+    nav.scrollTo({
+      left: Math.max(
+        0,
+        nav.scrollLeft +
+          button.getBoundingClientRect().left -
+          nav.getBoundingClientRect().left,
+      ),
+      behavior: "smooth",
+    });
+  const header = scroller?.querySelector<HTMLElement>(`[data-day="${date}"]`),
+    staff = scroller?.querySelector<HTMLElement>("thead th:first-child");
+  if (scroller && header && staff) {
+    // Same-scrollport geometry: offsetLeft can be relative to an unrelated ancestor.
+    const left =
+      index === 0
+        ? 0
+        : scroller.scrollLeft +
+          header.getBoundingClientRect().left -
+          scroller.getBoundingClientRect().left -
+          staff.getBoundingClientRect().width -
+          scroller.clientLeft;
+    scroller.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+  }
 }
