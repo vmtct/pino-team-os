@@ -10,6 +10,7 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { loadAuthorizedDirectoryCenters, type DirectoryCenter, type DirectoryCenterSource } from "../pinoria-avatars/centers";
 import { parentDefinition, parentFields, parentProvider, parentQuery } from "./schema";
 import { readScopedParentDetail } from "./provider";
+import { parentCenterUrl, restoreParentCenter } from "./navigation";
 
 type Fields = typeof parentFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
@@ -58,7 +59,8 @@ export function ParentTdd() {
     const ctl = new AbortController();
     void loadAuthorizedDirectoryCenters(fetch, ctl.signal).then(({ centers: results, source: kind }) => {
       if (ctl.signal.aborted) return;
-      setCenters(results); setSource(kind); setSelected(results.length === 1 ? results[0].id : "");
+      setCenters(results); setSource(kind);
+      setSelected(restoreParentCenter(results, new URL(location.href)));
       if (!results.length) setCenterError("Không có cơ sở được cấp quyền.");
     }).catch(() => { if (!ctl.signal.aborted) setCenterError("Không thể tải cơ sở được cấp quyền."); });
     return () => ctl.abort();
@@ -76,10 +78,21 @@ export function ParentTdd() {
       }).catch(() => { if (!ctl.signal.aborted) setError("Không có quyền hoặc chưa thể tải Parent TDD trong cơ sở này."); });
     return () => { ctl.abort(); active?.dispose(); };
   }, [selected, source, retry]);
+  // Preserve the existing TDD record/tab history entry when remembering its Center.
+  // On Back/Forward, validate the URL context against the current authorized choices.
+  useEffect(() => {
+    const restore = () => setSelected(restoreParentCenter(centers, new URL(location.href)));
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [centers]);
+  const selectCenter = (centerId: string) => {
+    history.replaceState(history.state, "", parentCenterUrl(new URL(location.href), centerId));
+    setSelected(centerId);
+  };
   const loaders = useMemo(() => ready ? parentBusinessLoaders(ready.adapter) : undefined, [ready]);
   return <section aria-label="Parents & Guardians">
     <label htmlFor="tdd-parent-center">Cơ sở</label>{" "}
-    <select id="tdd-parent-center" value={selected} onChange={e => setSelected(e.target.value)}>
+    <select id="tdd-parent-center" value={selected} onChange={e => selectCenter(e.target.value)}>
       <option value="">Chọn cơ sở được cấp quyền</option>
       {centers.map(c => <option value={c.id} key={c.id}>{c.displayName}</option>)}
     </select>
