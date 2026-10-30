@@ -62,12 +62,12 @@ export const passProvider:SurfaceProvider<F>={
  pagination:"local-ui",
  async list(_query,scope,fetcher,signal){
   if(scope.surface!=="HO")throw Error("HO only");
-  // HO inventory has an exact /api/ho facade; the shared TDD session transport intentionally\n  // accepts only /api/bo reads. Use the real same-origin HO facade, reauthorized by Core.\n  const passes=await loadHoWalkinInventory(fetch,signal);
+  const passes=await loadHoWalkinInventory(fetcher,signal);
   return {records:passes.map(p=>({row:project(p)})),total:passes.length};
  },
  async detail(id,scope,fetcher,signal){
   if(scope.surface!=="HO")throw Error("HO only");
-  // HO inventory has an exact /api/ho facade; the shared TDD session transport intentionally\n  // accepts only /api/bo reads. Use the real same-origin HO facade, reauthorized by Core.\n  const passes=await loadHoWalkinInventory(fetch,signal);
+  const passes=await loadHoWalkinInventory(fetcher,signal);
   const pass=passes.find(p=>p.id===id);
   return pass?{row:project(pass)}:null;
  }
