@@ -34,7 +34,7 @@ test("PAP-1224: BO Pass uses registered exact TDD on Staging, no route bypass",(
  assert.match(tdd,/@pino\/design-system\/components\.css/);
  assert.doesNotMatch(tdd,/<table\b/);
  const middleware=readFileSync("middleware.ts","utf8");
- assert.match(middleware,/target.pathname="\\/bo\\/open-studio-passes"/);
+ assert.ok(middleware.includes('target.pathname="/bo/open-studio-passes"'));
 });
 
 test("PAP-1224: Center-bound API request and negative cross-Center projection",async()=>{
