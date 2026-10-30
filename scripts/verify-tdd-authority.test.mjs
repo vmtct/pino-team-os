@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {verify,inspectModuleSource,inspectCss,validateSpecial} from './verify-tdd-authority.mjs';
+import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial} from './verify-tdd-authority.mjs';
 const now=Date.parse('2026-10-28T06:00:00Z');
 function schema(surface='BO') {
  const fields=[{key:'name',label:'Name',type:'text',icon:'Aa',width:175,permission:'fixture.read',readOnly:true,capabilities:{display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false}}];
@@ -223,4 +223,48 @@ test("PAP-1077 denies an admitted scaffold with incomplete Core or Center marker
   const x = setup(t);
   x.put(x.file, fs.readFileSync(path.join(x.root, x.file), "utf8") + "\n// TODO_TDD_CORE_BACKED_LIST");
   assert.match((await x.check([x.file])).errors.join(","), /incomplete deny-first TDD scaffold/);
+});
+function legacyHost(t) {
+ const x=hoWorkspace(t),host='lib/ho-reference-host.tsx';
+ const before='export const Host = ({props,classes}) => <section className={classes.root}><SurfaceWorkspace {...props}/></section>;';
+ x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-reference-host';");
+ x.put(host,before+'\nexport const ephemeral = true;');
+ x.entry.externalReferences=[{file:host,owner:'PAP-1080'}];
+ const run=(base=before,changed=[host])=>verify(x.root,{baseline:x.baseline,manifest:x.manifest,changed,now,loadSchema:()=>x.m,approvals:[],readBaseSource:file=>file===host?base:null});
+ return {...x,host,before,run};
+}
+test('PAP-1228 owner-bound existing host allows nonvisual change without re-auditing old JSX',async t=>{
+ const x=legacyHost(t);assert.deepEqual((await x.run()).errors,[]);
+});
+for(const [label,source] of [
+ ['new raw table','export const Added=()=> <table/>;'],
+ ['new shell class','export const Added=()=> <div className="detail-hero"/>;'],
+ ['new inline CSS','export const Added=()=> <div style={{width:999}}/>;'],
+ ['new opaque node','export const Added=()=> <div {...other}/>;'],
+ ['duplicated old opaque node','export const Added=()=> <SurfaceWorkspace {...props}/>;'],
+])test('PAP-1228 blocks '+label+' in a legacy host',async t=>{
+ const x=legacyHost(t);x.put(x.host,x.before+'\n'+source);assert.ok((await x.run()).errors.length);
+});
+test('PAP-1228 missing base or missing owner never suppresses legacy host violations',async t=>{
+ const x=legacyHost(t);assert.ok((await x.run(null)).errors.length);
+ x.entry.externalReferences=[];assert.match((await x.run()).errors.join(),/outside admission fence/);
+});
+test('PAP-1228 local module cannot borrow legacy external baseline',async t=>{
+ const x=legacyHost(t);x.put(x.bindingFile,x.helper+'\nexport const Unsafe=()=> <div {...props}/>;');
+ assert.match((await x.run(x.before,[x.host,x.bindingFile])).errors.join(),/opaque JSX spread/);
+});
+
+test('PAP-1228 sensitive auth dependencies never inherit opaque JSX allowance',async t=>{
+ const x=legacyHost(t),auth='lib/ho-auth.tsx';
+ x.put(x.bindingFile,x.helper+"\nimport '@/lib/ho-auth';");
+ x.put(auth,x.before);x.entry.externalReferences=[{file:auth,owner:'PAP-990'}];
+ const result=await verify(x.root,{baseline:x.baseline,manifest:x.manifest,changed:[auth],now,loadSchema:()=>x.m,approvals:[],readBaseSource:()=>x.before});
+ assert.match(result.errors.join(),/opaque JSX spread/);
+});
+
+for(const source of ['export const Old=()=> <table/>;','export const Old=()=> <div className="detail-hero"/>;','export const Old=()=> <div style={{width:999}}/>;'])test('PAP-1228 unchanged forbidden shell/CSS never receives opaque-only inheritance: '+source,()=>{
+ assert.ok(inspectModuleDelta('legacy.tsx',source,source).length);
+});
+test('PAP-1228 changed opaque syntax is not inherited from another expression',()=>{
+ assert.ok(inspectModuleDelta('legacy.tsx','export const Old=()=> <div className={oldClasses}/>;','export const Old=()=> <div className={newClasses}/>;').length);
 });
