@@ -31,6 +31,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
         }
       ],
       "schema": {
@@ -272,6 +276,54 @@
       },
       "tests": [
         "lib/pap1076-ho-centers-tdd.test.ts"
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "tddReference",
+      "route": "/ho/system/tdd-reference",
+      "file": "app/ho/system/tdd-reference/page.tsx",
+      "files": [
+        "app/ho/system/tdd-reference/page.tsx",
+        "app/ho/system/tdd-reference/ReferenceAtlas.tsx",
+        "app/ho/system/tdd-reference/schema.ts",
+        "app/ho/system/tdd-reference/content.tsx"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1070"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/system/tdd-reference/schema.ts",
+        "export": "atlasSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/system/tdd-reference/ReferenceAtlas.tsx"
+      },
+      "tests": [
+        "lib/pap1080-tdd-reference.test.ts",
+        "lib/ho-routes.test.ts",
+        "lib/host-boundary.test.ts"
       ]
     }
   ],
