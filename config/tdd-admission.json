@@ -23,6 +23,14 @@
         {
           "file": "public/bo-authority-source/school-adapters.js",
           "owner": "PAP-982"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1166"
         }
       ],
       "schema": {
@@ -74,6 +82,10 @@
         {
           "file": "lib/ho-staff-role-editor.ts",
           "owner": "PAP-1117"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1166"
         }
       ],
       "schema": {
@@ -120,6 +132,10 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1169"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1166"
         }
       ],
       "schema": {
@@ -132,6 +148,53 @@
       },
       "tests": [
         "lib/pap1169-ho-role-edit.test.ts",
+        "lib/host-boundary.test.ts"
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "walkinPasses",
+      "route": "/ho/open-studio/walkin",
+      "file": "app/ho/open-studio/walkin/page.tsx",
+      "files": [
+        "app/ho/open-studio/walkin/page.tsx",
+        "app/ho/open-studio/walkin/HoWalkinPassTdd.tsx",
+        "app/ho/open-studio/walkin/HoWalkinBatchCreate.tsx",
+        "app/ho/open-studio/walkin/schema.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-990"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/open-studio/walkin/schema.ts",
+        "export": "passSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/open-studio/walkin/HoWalkinPassTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1166-ho-walkin-batch-tdd.test.ts",
         "lib/host-boundary.test.ts"
       ]
     }
