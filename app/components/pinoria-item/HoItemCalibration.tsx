@@ -22,7 +22,7 @@ export function HoItemCalibration({itemId,canManage,onChange}:{itemId:string;can
  useEffect(()=>{let alive=true;const ctrl=new AbortController();getItem(itemId,ctrl.signal).then(fresh=>{if(alive){setItem(fresh);setValue(initial(fresh));setError("");setImageFile(null);setFailedImage(false)}}).catch(()=>{if(alive)setError("Không thể tải dữ liệu Item được cấp quyền.")});return()=>{alive=false;ctrl.abort()}},[itemId]);
  useEffect(()=>{if(!imageFile){setLocalAsset(null);return;}const url=URL.createObjectURL(imageFile);setLocalAsset(url);setFailedImage(false);return()=>URL.revokeObjectURL(url)},[imageFile]);
  const update=(p:Partial<Position>)=>{if(draft){setValue(v=>({...v,...p}));setError("")}};
- const pointerDown=(e:PointerEvent<HTMLDivElement>)=>{if(!draft||!(localAsset||item&&assetUrl(item.asset)))return;stage.current?.setPointerCapture(e.pointerId);drag.current={x:e.clientX,y:e.clientY,positionX:value.positionX,positionY:value.positionY}};
+ const pointerDown=(e:PointerEvent<HTMLDivElement>)=>{if(!draft||!(localAsset||item&&assetUrl(item.pendingDraft?.asset??item.asset,item.id,Boolean(item.pendingDraft))))return;stage.current?.setPointerCapture(e.pointerId);drag.current={x:e.clientX,y:e.clientY,positionX:value.positionX,positionY:value.positionY}};
  const pointerMove=(e:PointerEvent<HTMLDivElement>)=>{if(!draft||!drag.current||!stage.current)return;const r=stage.current.getBoundingClientRect(),d=drag.current;
  update({positionX:Math.round(clamp(d.positionX+(e.clientX-d.x)/r.width,-1,1)*1000)/1000,
  positionY:Math.round(clamp(d.positionY+(e.clientY-d.y)/r.height,-1,1)*1000)/1000})};
