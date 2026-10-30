@@ -14,7 +14,7 @@ const STATUS: Record<WalkinPass["status"], string> = {
 type Mode = "assign" | "quick" | "detail" | null;
 
 /** Real BO staging adapter. No fixture, no membership/listing Pass writes. */
-export function WalkinPassPanel({centerId,controlsOnly=false,onChanged}:{centerId:string;controlsOnly?:boolean;onChanged?:()=>void}) {
+export function WalkinPassPanel({centerId}:{centerId:string}) {
  const [rows,setRows]=useState<WalkinPass[]>([]);
  const [loadedCenterId,setLoadedCenterId]=useState("");
  const inventoryEpoch=useRef(0);
@@ -93,7 +93,7 @@ export function WalkinPassPanel({centerId,controlsOnly=false,onChanged}:{centerI
   try{
    const pass=await walkinPassBoApi.assign(parentId,centerId,path as WalkinPath);
    setNotice(`Đã cấp Pass ${pass.code} · ${pass.path_code}`);
-   await refresh();onChanged?.();
+   await refresh();
    setSelected(pass);setMode("quick");
   }catch(e){setError(e instanceof Error?e.message:"Không thể cấp Pass");}
   finally{setBusy(false);}
@@ -104,7 +104,7 @@ export function WalkinPassPanel({centerId,controlsOnly=false,onChanged}:{centerI
   setBusy(true);setError("");
   try{
    await walkinPassBoApi.revoke(selected.id,centerId);
-   setNotice("Pass đã được thu hồi.");setMode(null);setSelected(null);await refresh();onChanged?.();
+   setNotice("Pass đã được thu hồi.");setMode(null);setSelected(null);await refresh();
   }catch(e){setError(e instanceof Error?e.message:"Không thể thu hồi");}
   finally{setBusy(false);}
  }
@@ -132,7 +132,7 @@ export function WalkinPassPanel({centerId,controlsOnly=false,onChanged}:{centerI
   {notice?<p className={styles.walkinNotice} role="status">{notice}</p>:null}
   {state==="loading"?<p className={styles.walkinInfo}>Đang tải kho Pass…</p>:null}
   {state==="error"?<p role="alert" className={styles.walkinError}>{error}</p>:null}
-  {!controlsOnly&&state==="ready"&&centerId&&loadedCenterId===centerId?<div className={styles.walkinTableWrap}>
+  {state==="ready"&&centerId&&loadedCenterId===centerId?<div className={styles.walkinTableWrap}>
    <table className={styles.walkinTable}><thead><tr><th>Mã Pass</th><th>Trạng thái</th><th>Path</th><th>Parent</th><th></th></tr></thead>
    <tbody>{rows.length===0?<tr><td colSpan={5}>Chưa có Pass tại Center này hoặc chưa được cấp quyền đọc.</td></tr>:rows.map(item=>
     <tr key={item.id}><th scope="row">{item.code}</th><td>{STATUS[item.status]}</td><td>{item.path_code??"—"}</td><td>{item.parent_user_id??"—"}</td>
