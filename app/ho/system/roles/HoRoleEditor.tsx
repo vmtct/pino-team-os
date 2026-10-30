@@ -31,8 +31,8 @@ function fromRole(role:BoAccessRoleDetail):Draft {
   return {displayName:role.displayName,description:role.description??"",keys:sorted(role.permissionKeys)};
 }
 /** HO-specific editing surface; TDD owns navigation, DS owns cards and property rows. */
-export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
-  roleId:string; assignmentCount:number; authorized:boolean;
+export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved }: {
+  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void;
 }) {
   const [data,setData]=useState<Ready|null>(null);
   const [draft,setDraft]=useState<Draft|null>(null);
@@ -42,6 +42,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const [search,setSearch]=useState("");
+  const [filter,setFilter]=useState<"all"|"selected"|"unselected">("all");
   const lock=useRef(false);
   useEffect(()=>{
     const controller=new AbortController();
@@ -68,10 +69,12 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
     const map=new Map<string,BoAccessPermission[]>();
     for(const p of data?.permissions??[]){
       if(q && !(p.key+" "+p.displayLabel+" "+p.domain).toLocaleLowerCase("vi").includes(q))continue;
+      const checked=draft?.keys.includes(p.key)??false;
+      if((filter==="selected"&&!checked)||(filter==="unselected"&&checked))continue;
       const list=map.get(p.domain)??[];list.push(p);map.set(p.domain,list);
     }
     return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],"vi"));
-  },[data,search]);
+  },[data,draft?.keys,search,filter]);
   function toggle(key:string){
     if(!editable||busy||!draft||!data?.permissions.some(p=>p.key===key))return;
     setDraft(v=>v?{...v,keys:v.keys.includes(key)?v.keys.filter(k=>k!==key):sorted([...v.keys,key])}:v);
@@ -102,7 +105,9 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
         !same(next.role.permissionKeys,wanted.permissionKeys))
         throw Error("Core đã nhận yêu cầu nhưng chưa xác nhận được dữ liệu mới. Vui lòng tải lại Role.");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);
-      setNotice("Đã lưu và xác minh Role trên Core. Tải lại bảng để cập nhật số quyền.");
+      // Refresh the canonical TDD record/directory only after authoritative Core readback.
+      onSaved();
+      setNotice("Đã lưu và xác minh Role trên Core.");
     }catch(cause){setError(cause instanceof Error?cause.message:"Không lưu được Role.");}
     finally{setBusy(false);lock.current=false;}
   }
@@ -110,13 +115,15 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
   if(!data||!draft)return <p role="alert">{error||"Không tải được Role."}</p>;
   const identityFields:PropertyField[]=[
     {key:"roleKey",label:"Role Key",type:"text",readOnly:true},
+    {key:"roleId",label:"Role ID",type:"text",readOnly:true},
     {key:"roleType",label:"Loại",type:"text",readOnly:true},
     {key:"status",label:"Trạng thái",type:"text",readOnly:true},
     {key:"assignmentCount",label:"Số phân công",type:"number",readOnly:true},
   ];
-  return <div data-testid="ho-role-editor">
+  return <div data-testid="ho-role-editor" data-role-tab={activeTab}>
+    <div hidden={activeTab!=="overview"}>
     <PropertySections recordKey={roleId} fields={identityFields} values={{
-      roleKey:original!.roleKey,roleType:original!.roleType,status:original!.status,
+      roleKey:original!.roleKey,roleId:original!.id,roleType:original!.roleType,status:original!.status,
       assignmentCount:assignmentCount,
     }} sections={[{id:"role-identity",label:"Thông tin kỹ thuật",fields:identityFields.map(f=>f.key)}]}
       variant="detail" surface="ho" />
@@ -136,13 +143,23 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
         {!editable?<p role="status">Role hệ thống, đã lưu trữ hoặc tài khoản không có quyền chỉnh sửa: chỉ xem.</p>:null}
       </section>
     </TosCard>
+    </div>
+    <div hidden={activeTab!=="permissions"}>
     <TosCard>
       <section aria-label="Danh sách quyền của Role">
-        <h3>Quyền</h3>
-        <p>{draft.keys.length} / {data.permissions.length} quyền đã chọn. +{additions.length} / −{removals.length} thay đổi.</p>
+        <div className="ho-role-permission-summary">
+          <div><h3>Quyền truy cập</h3><p>Nhóm theo domain · chọn từng quyền</p></div>
+          <div aria-live="polite"><strong>{draft.keys.length} / {data.permissions.length} quyền</strong>
+            <span>+{additions.length} thêm</span><span>−{removals.length} bỏ</span></div>
+        </div>
         <label htmlFor="role-permission-search">Tìm kiếm quyền</label>
         <input id="role-permission-search" type="search" value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="Tên quyền hoặc permission key" />
+        <div className="ho-role-permission-filters" aria-label="Lọc quyền">
+          {([["all","Tất cả"],["selected","Đã chọn"],["unselected","Chưa chọn"]] as const).map(([value,label])=>
+            <button type="button" key={value} aria-pressed={filter===value}
+              onClick={()=>setFilter(value)}>{label}</button>)}
+        </div>
         {groups.length?groups.map(([domain,permissions])=><details key={domain} open={Boolean(search)||undefined}>
           <summary>{domain} · {permissions.filter(p=>draft.keys.includes(p.key)).length}/{permissions.length} quyền</summary>
           <fieldset disabled={!editable||busy}>
@@ -157,6 +174,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized }: {
         </details>):<p role="status">Không có quyền khớp tìm kiếm.</p>}
       </section>
     </TosCard>
+    </div>
     {dirty&&permissionDirty&&!confirming?<p role="status">Thay đổi quyền chưa được lưu; sẽ ảnh hưởng tới {assignmentCount} phân công đang dùng Role này.</p>:null}
     {confirming&&permissionDirty?<TosCard><div role="alertdialog" aria-label="Xác nhận thay đổi quyền">
       <p>Thay đổi +{additions.length} / −{removals.length} quyền trên Role đang được gán cho {assignmentCount} phân công. Xác nhận lưu?</p>

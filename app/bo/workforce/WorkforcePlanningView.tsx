@@ -43,6 +43,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   const [weekControlReason, setWeekControlReason] = useState("");
 
   const selectedCenter = bootstrap?.centers.find((center) => center.id === centerId) ?? null;
+  const canManageRegistration = (selectedCenter as { canManageRegistration?: boolean } | null)?.canManageRegistration === true;
 
   useEffect(() => {
     let active = true;
@@ -111,7 +112,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   }
 
   const data = planning.state === "ready" ? planning.data : null;
-  const globalWeekLocked = data?.windows?.planning.reason === "GLOBAL_WEEK_LOCK" || data?.windows?.availability.reason === "GLOBAL_WEEK_LOCK";
+  const globalWeekLocked = String(data?.windows?.planning.reason) === "GLOBAL_WEEK_LOCK" || String(data?.windows?.availability.reason) === "GLOBAL_WEEK_LOCK";
   const selectedStaff = data?.staff.find((staff) => staff.id === selection?.staffMemberId) ?? null;
   const activeAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate && item.status === "ACTIVE") : [];
   const historyAssignments = data && selection ? data.assignments.filter((item) => item.staffMemberId === selection.staffMemberId && item.workDate === selection.workDate) : [];
@@ -141,7 +142,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
   async function toggleRegistration(open: boolean) {
     if (!data?.windows || !centerId || !termWeekId || !weekControlReason.trim() || !selectedCenter) return;
-    if (!selectedCenter.canManageRegistration) return;
+    if (!canManageRegistration) return;
     setBusy("registration"); setNotice("");
     try {
       await boApi.setWorkforceAvailabilityRegistration({
@@ -295,23 +296,21 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
     }}>
         {globalWeekLocked ? <BoDataGridState kind="empty" title="Chỉ đọc — HO đã khóa tuần" message="Không thể phân công hoặc chỉnh sửa ca khi HO khóa tuần này." /> : !selection || !selectedStaff ? <BoDataGridState kind="empty" title="Chưa chọn ô lịch" message="Chọn một ô để xem lịch và phân công ca." /> : <>
-          <div className={styles.plannerLegend}><strong>{selectedStaff.displayLabel}</strong><span>{dateLabel(selection.workDate)}</span><span>{availableTemplateIds.size ? `${availableTemplateIds.size} ca đã đăng ký` : "Chưa ghi nhận đăng ký"}</span>{activeAssignments.length ? <span>{activeAssignments.length} ca đã phân công</span> : null}</div>
           {selectedAvailabilityHistory.length ? <div className={styles.plannerHistory}>
-            <strong>Availability history</strong>
             {selectedAvailabilityHistory.map((item) => <span key={item.id}>
               {item.status} · submitted {item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : "—"}
               {item.status === "VOIDED" ? ` · ${item.voidReason ?? "Voided"}` : ""}
               {item.status === "SUBMITTED" && selectedCenter?.canEditPlanning ? <>
-                <label className={styles.field}>Lý do void availability
+                <label className={styles.field}>Lý do hủy đăng ký ca
                   <input value={availabilityVoidReason} onChange={(event) => setAvailabilityVoidReason(event.target.value)} placeholder="Bắt buộc; lưu vào audit history" />
                 </label>
-                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Void availability"}</button>
+                <button className={styles.secondaryButton} disabled={!availabilityVoidReason.trim() || !!busy} onClick={() => void voidAvailability(item.id)}>{busy === `availability:void:${item.id}` ? "…" : "Hủy đăng ký ca"}</button>
               </> : null}
             </span>)}
           </div> : null}
 
-          <label className={styles.field}>Mẫu ca
-            <select value={templateId} onChange={(event) => {
+          <div className={styles.plannerShiftPicker}>
+            <select aria-label="Chọn ca để phân công" value={templateId} onChange={(event) => {
               setTemplateId(event.target.value);
               setTeacherSelected(false); setAssistantSelected(false);
               setCoverageMode("FULL_SHIFT");
@@ -323,16 +322,14 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
               <option value="">Chọn ca…</option>
               {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {template.startLocalTime}–{template.endLocalTime}</option>)}
             </select>
-            <small>✓ Ca nhân sự đã đăng ký. Bạn có thể chọn ca khác khi phân công.</small>
-          </label>
+          </div>
 
           {!activeAssignments.length && templateId ? <div className={styles.plannerHistory}>
             <strong>Vai trò trong ca</strong>
             <label className={styles.field}>
               <span><input type="checkbox" checked={frontDesk} onChange={(event) => { const checked=event.target.checked; setFrontDesk(checked);  }} /> Tiếp tân</span>
-              <small>Tiếp tân áp dụng cho toàn ca; có thể kết hợp các vai trò khác.</small>
             </label>
-            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Trưởng ca</span><small>Phụ trách ca tại trung tâm; không gắn lớp học.</small></label>
+            <label className={styles.field}><span><input type="checkbox" checked={shiftLeader} onChange={(event) => setShiftLeader(event.target.checked)} /> Trưởng ca</span></label>
             <label className={styles.field}><span><input type="checkbox" checked={teacherSelected} onChange={(event) => { setTeacherSelected(event.target.checked); if (!event.target.checked) setTeacherRunningClassIds([]); }} /> Giáo viên</span></label>
             <label className={styles.field}><span><input type="checkbox" checked={assistantSelected} onChange={(event) => { setAssistantSelected(event.target.checked); if (!event.target.checked) setAssistantRunningClassIds([]); }} /> Trợ giảng</span></label>
             <div className={styles.plannerHistory}>
@@ -418,8 +415,8 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
         <label className={styles.field}>Lý do<input value={weekControlReason} onChange={(event)=>setWeekControlReason(event.target.value)} placeholder="Bắt buộc khi khóa/mở lại" /></label>
       </div>
       <div className={styles.subscriptionActions}>
-        {data.windows.availability.availabilityRegistrationOpen && selectedCenter?.canManageRegistration ? <button className={styles.secondaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(false)}>Đóng đăng ký Staff</button> : null}
-        {!data.windows.availability.availabilityRegistrationOpen && selectedCenter?.canManageRegistration ? <button className={styles.primaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(true)}>Mở đăng ký Staff</button> : null}
+        {data.windows.availability.availabilityRegistrationOpen && canManageRegistration ? <button className={styles.secondaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(false)}>Đóng đăng ký Staff</button> : null}
+        {!data.windows.availability.availabilityRegistrationOpen && canManageRegistration ? <button className={styles.primaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(true)}>Mở đăng ký Staff</button> : null}
         {!globalWeekLocked && data.windows.availability.state === "OPEN" && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-lock")}>Khóa đăng ký</button> : null}
         {data.windows.availability.reason === "REGISTRATION_CLOSED" ? <span className={styles.readOnly}>Center Shift Plan đang tắt nhận đăng ký; bạn có thể bật lại checkbox Mở đăng ký.</span> : null}
         {!globalWeekLocked && data.windows.availability.state === "LOCKED" && data.windows.availability.reason !== "REGISTRATION_CLOSED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
@@ -445,18 +442,14 @@ function dateRange(data: Pick<BoWorkforceWeeklyPlanning, "startDate" | "endDate"
   while (current <= end) { rows.push(current.toISOString().slice(0, 10)); current.setUTCDate(current.getUTCDate() + 1); }
   return rows;
 }
-function dateLabel(value: string) {
-  const date = new Date(`${value}T00:00:00Z`);
-  return new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" }).format(date);
-}
 function templateLabel(data: BoWorkforceWeeklyPlanning, id: string) {
   const item = data.templates.find((template) => template.id === id);
   return item ? `${item.displayLabel} ${item.startLocalTime}–${item.endLocalTime}` : `Shift ${id.slice(0, 8)}`;
 }
 function WindowState({label,value}:{label:string;value:NonNullable<BoWorkforceWeeklyPlanning["windows"]>["availability"]}) {
-  const detail = value.reason === "GLOBAL_WEEK_LOCK" ? "Khóa toàn bộ chi nhánh từ HO"
+  const detail = String(value.reason) === "GLOBAL_WEEK_LOCK" ? "Khóa toàn bộ chi nhánh từ HO"
     : value.reason === "MANUAL_LOCK" ? "BO đã khóa thủ công"
-    : value.reason === "MANUAL_REOPEN" || value.reason === "MANUAL_OPEN" ? "Đã mở thủ công"
+    : value.reason === "MANUAL_REOPEN" || String(value.reason) === "MANUAL_OPEN" ? "Đã mở thủ công"
     : value.reason === "REGISTRATION_CLOSED" ? "Center Shift Plan chưa mở đăng ký"
     : "Trạng thái nghiệp vụ của tuần";
   return <div className={styles.plannerWindowCard}><div><strong>{label}</strong><BoDataGridStatus value={value.state} tone={value.state==="OPEN"?"success":"warning"} /></div><span>{detail}</span></div>;

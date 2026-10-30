@@ -1,4 +1,5 @@
 import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
+import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
@@ -37,7 +38,14 @@ export const roleDefinition = {
   interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"},
  },
  drawer:{density:"one-column",sections,actions:[]},
- detail:{overview:{sections},businessTabs:[],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi Role khả dụng."}},
+ detail:{overview:{sections},businessTabs:[{
+   id:"permissions",label:"Quyền",kind:"approved-extension",
+   source:{adapter:"ho-role-edit",permission:"access.role.view"},
+   extensionId:"ho.roles.permission-editor",
+   approval:{jira:"PAP-1187",owner:"HO Runtime",designAuthority:"Founder",
+     files:["app/ho/system/roles/HoRoleEditor.tsx","app/ho/system/roles/HoRolesTdd.tsx"],
+     tests:["lib/pap1169-ho-role-edit.test.ts"],reviewBy:"2026-11-30T00:00:00+07:00"},
+  }],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi Role khả dụng."}},
 } as const satisfies SurfaceDefinition<F>;
 
 type Row=ModuleRow<F>;
@@ -70,7 +78,14 @@ export const roleProvider:SurfaceProvider<F>={
    return row?{row}:null;
  },
 };
-const registry=new TddRegistry();
+/** Founder UI approval: PAP-1187 comment #18549 (2026-10-30).
+ * Narrow TDD presentation extension, NOT an Access permission or runtime ACL grant. */
+export const verifyRolePermissionTabApproval: ApprovalVerifier = (approval,scope) =>
+  scope.surface==="HO" && scope.key==="roles" && scope.extensionId==="ho.roles.permission-editor" &&
+  approval.jira==="PAP-1187" && approval.owner==="HO Runtime" && approval.designAuthority==="Founder" &&
+  approval.files.includes("app/ho/system/roles/HoRoleEditor.tsx") &&
+  approval.tests.includes("lib/pap1169-ho-role-edit.test.ts");
+const registry=new TddRegistry(verifyRolePermissionTabApproval);
 export const roleSchema=registry.register({...roleDefinition,data:{
  id:"ho-role-directory-read",
  list:async(_query:TableQuery<F>,_context,signal)=>{const items=await roles(fetch,signal);return{rows:items,total:items.length};},

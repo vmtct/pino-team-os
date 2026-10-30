@@ -218,3 +218,9 @@ test('PAP-1138: external owner reference rejects fabricated and wildcard paths',
   x.entry.externalReferences=[{file:'lib/does-not-exist.ts',owner:'PAP-1102'}];
   assert.match((await x.check(['app/bo/components/registration/BoFullDetail.tsx'])).errors.join(),/invalid external owner reference/);
 });
+
+test("PAP-1077 denies an admitted scaffold with incomplete Core or Center markers", async t => {
+  const x = setup(t);
+  x.put(x.file, fs.readFileSync(path.join(x.root, x.file), "utf8") + "\n// TODO_TDD_CORE_BACKED_LIST");
+  assert.match((await x.check([x.file])).errors.join(","), /incomplete deny-first TDD scaffold/);
+});

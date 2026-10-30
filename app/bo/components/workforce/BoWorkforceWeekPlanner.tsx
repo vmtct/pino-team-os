@@ -312,10 +312,6 @@ export function BoWorkforceWeekPlanner({
           aria-label="Công cụ phân công ca"
           aria-live="polite"
         >
-          <div className={styles.weekPlannerSideHeading}>
-            <h3>Phân công ca</h3>
-            <small>Staff × ngày</small>
-          </div>
           {children}
         </aside>
       </div>

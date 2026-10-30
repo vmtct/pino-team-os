@@ -7,7 +7,7 @@ import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapt
 import {TddRegistry} from "@/lib/workspace-schema";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {HoWorkspace} from "@/app/ho/HoWorkspace";
-import {roleDefinition,roleFields,roleProvider,roleQuery} from "./schema";
+import {roleDefinition,roleFields,roleProvider,roleQuery,verifyRolePermissionTabApproval} from "./schema";
 import {HoRoleEditor} from "./HoRoleEditor";
 
 type F=typeof roleFields;
@@ -20,7 +20,7 @@ export function HoRolesTdd(){
  useEffect(()=>{
   const controller=new AbortController();
   let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-  void createHoTddAdapter({registry:new TddRegistry(),definition:roleDefinition,provider:roleProvider},controller.signal)
+  void createHoTddAdapter({registry:new TddRegistry(verifyRolePermissionTabApproval),definition:roleDefinition,provider:roleProvider},controller.signal)
     .then(result=>{
       adapter=result;
       if(controller.signal.aborted){result.dispose();return;}
@@ -33,8 +33,9 @@ export function HoRolesTdd(){
   ? <p role="alert">Không tải được Roles. <button type="button" onClick={()=>{setReady(null);setError(false);setRetry(n=>n+1);}}>Thử lại</button></p>
   : ready
     ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={roleQuery}
-      detailProperties={(properties,context)=> <HoRoleEditor key={properties.record.id} roleId={properties.record.id}
-        assignmentCount={Number(properties.record.assignmentCount)} authorized={context.authorize("access.role.edit")} />} />
+      detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=> <HoRoleEditor key={row.id} roleId={row.id}
+        assignmentCount={Number(row.assignmentCount)} activeTab={activeTab}
+        onSaved={onSaved} authorized={context.authorize("access.role.edit")} />} />
     : <p role="status">Đang tải Roles…</p>;
  return <HoWorkspace module="roles" content={content}/>;
 }
