@@ -25,5 +25,5 @@ export const walkinPassBoApi={
  inventory:(centerId?:string)=>read<WalkinPass[]>("inventory"+(centerId?"?centerId="+encodeURIComponent(centerId):"")),
  createBatch:(name:string,quantity:number)=>write<{id:string;name:string;quantity:number}>("batches",{name,quantity}),
  assign:(parentId:string,centerId:string,path:WalkinPath)=>write<WalkinPass>("assign",{parentId,centerId,path}),
- revoke:(passId:string)=>write<WalkinPass>("revoke",{passId})
+ revoke:(passId:string,centerId:string)=>write<WalkinPass>("revoke",{passId,centerId})
 };
