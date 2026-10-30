@@ -23,7 +23,7 @@ test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", asyn
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
   assert.match(source, /Xác nhận ca & phân công/);
   assert.match(source, /Lý do thay đổi/);
-  assert.match(source, /canonical assignment audit/);
+  assert.match(source, /lịch sử thay đổi phân công/);
   assert.match(
     source,
     /cancelWorkforceAssignment\(\s*assignment\.id,\s*cancellationReason/,
@@ -63,9 +63,9 @@ test("PAP-1113 BO plans independent RunningClass roles and retains only historic
     read("app/bo/workforce/WorkforcePlanningView.tsx"),
     read("lib/bo-model.ts"),
   ]);
-  assert.match(source, /Front Desk/);
-  assert.match(source, /> Teacher</);
-  assert.match(source, /> Teaching Assistant</);
+  assert.match(source, /Tiếp tân/);
+  assert.match(source, /> Giáo viên</);
+  assert.match(source, /> Trợ giảng</);
   assert.match(source, /checked=\{shiftLeader\}/);
   assert.match(source, /checked=\{teacherSelected\}/);
   assert.match(source, /checked=\{assistantSelected\}/);
@@ -99,8 +99,8 @@ test("WSRA weekly grid summarizes roles and exposes Learning Owner link drift", 
   data.sessions[0]!.learningOwner = { staffMemberId: "staff-2" } as never;
   assert.equal(hasOwnerTeacherLinkGap(data, "staff-2", "2026-10-06"), true);
 
-  const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
-  assert.match(source, /assignmentRoleSummary/);
-  assert.match(source, /Owner chưa link TE/);
-  assert.match(source, /Chưa có TE\/ca tương ứng/);
+  const calendar = await read("app/bo/components/workforce/BoWorkforceWeekPlanner.tsx");
+  assert.match(calendar, /assignmentRoleSummary/);
+  assert.match(calendar, /Owner chưa link TE/);
+  assert.match(calendar, /Chưa có TE\/ca tương ứng/);
 });

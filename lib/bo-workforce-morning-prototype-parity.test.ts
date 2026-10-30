@@ -23,8 +23,9 @@ test("PAP-1064 Center-scoped GLOBAL weeks and the canonical BO detail stay in sy
   ]);
   assert.match(planner, /workforceRead\.globalWeeks\(centerId\)/);
   assert.doesNotMatch(planner, /termById\.get\(week\.termId\)\?\.centerId/);
-  assert.match(planner, /submittedStaff/);
-  assert.match(planner, /plannerSearchBar/);
+  const calendar = await readFile("app/bo/components/workforce/BoWorkforceWeekPlanner.tsx", "utf8");
+  assert.match(calendar, /submittedStaff/);
+  assert.match(calendar, /Tìm nhân sự trong lịch tuần/);
   assert.match(adapter, /display\.weekName\(s\.centerId, s\.termWeekId\)/);
   assert.match(registry, /key: "centerName", label: "Center"/);
   assert.match(registry, /key: "termWeekLabel", label: "Tuần"/);
