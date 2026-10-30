@@ -1,6 +1,7 @@
 /** Single public-page manifest for the staging Head Office surface. No BO or production routes. */
 export const HO_PAGE_PATHS = {
   centers: "/ho/centers",
+  termWeeks: "/ho/workforce/term-weeks",
   staffs: "/ho/staff",
   syllabi: "/ho/learning/syllabi",
   missions: "/ho/learning/missions",
