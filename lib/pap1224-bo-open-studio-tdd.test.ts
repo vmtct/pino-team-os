@@ -21,7 +21,7 @@ test("PAP-1224: BO Pass uses registered exact TDD on Staging, no route bypass",(
  assert.equal(passProvider.pagination,"local-ui");
  assert.equal(isBoStagingRouteAdmitted("/bo/open-studio-passes"),true);
  assert.equal(buildBoTargetUrl({moduleKey:"open-studio-passes",surface:"table"}),"/bo/open-studio-passes");
- assert.ok(BO_TARGET_ROUTES.some(r=>r.key==="open-studio"&&r.path==="/bo/open-studio-passes"));
+ assert.ok(BO_TARGET_ROUTES.some(r=>r.key==="open-studio-passes"&&r.path==="/bo/open-studio-passes"));
  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/open-studio-passes","GET"),{action:"next"});
  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/bo/open-studio-passes","GET"),{action:"not_found"});
  const page=readFileSync("app/bo/open-studio-passes/page.tsx","utf8");
@@ -30,7 +30,7 @@ test("PAP-1224: BO Pass uses registered exact TDD on Staging, no route bypass",(
  assert.doesNotMatch(page,/OpenStudioView/); // No legacy shell in TDD admission.
  assert.match(tdd,/createBoTddAdapter/);
  assert.match(tdd,/SurfaceWorkspace/);
- assert.match(tdd,/WalkinPassPanel centerId=\{centerId\} controlsOnly/);
+ assert.match(tdd,/CenterPassActions centerId=\{centerId\}/);
  assert.match(tdd,/@pino\/design-system\/components\.css/);
  assert.doesNotMatch(tdd,/<table\b/);
  const middleware=readFileSync("middleware.ts","utf8");
