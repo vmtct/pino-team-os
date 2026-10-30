@@ -989,3 +989,20 @@
   .weekPlannerSide { padding: 12px; }
   .weekPlannerFilters input { flex-basis: 100%; width: 100%; }
 }
+
+/* PAP-1216 mobile: protect the primary assignment action from 3-line wrapping. */
+@media (max-width: 600px) {
+  .weekPlannerSide .plannerAssignmentCard .subscriptionActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .weekPlannerSide .plannerAssignmentCard .subscriptionActions > button {
+    min-width: 0;
+    width: 100%;
+    min-height: 36px;
+  }
+  .weekPlannerSide .plannerAssignmentCard .subscriptionActions > button:last-child:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
