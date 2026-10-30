@@ -38,7 +38,7 @@ export default async function BoLayout({ children }: { children: React.ReactNode
     <>
       <link rel="stylesheet" href="/bo-legacy-foundation.css" />
       <BoSessionBoundary />
-      <BoShell title="PINO House" subtitle="Back Office" groups={boNavigation} currentUser={currentUser}>
+      <BoShell title="PINO House" subtitle="Back Office" groups={boNavigation.map(group => ({ ...group, items:group.items.filter(item=>item.href!=="/bo/open-studio-passes") }))} currentUser={currentUser}>
         {children}
       </BoShell>
     </>
