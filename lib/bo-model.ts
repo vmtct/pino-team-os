@@ -542,7 +542,7 @@ export interface BoWorkforceShiftTemplate {
 }
 
 export interface BoWorkforcePlanningBootstrap {
-  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canEditPlanning: boolean; canLockAvailability:boolean; canReopenAvailability:boolean; canPublishPlanning:boolean; canReopenPlanning:boolean; canManageCenterPolicy:boolean }>;
+  centers: Array<{ id: string; key: string; displayName: string; timeZone: string; status: string; canManageShiftTemplates: boolean; canManageRegistration?: boolean; canEditPlanning: boolean; canLockAvailability:boolean; canReopenAvailability:boolean; canPublishPlanning:boolean; canReopenPlanning:boolean; canManageCenterPolicy:boolean }>;
   terms: Array<{ id: string; centerId: string; code: string; displayName: string; startDate: string; endDate: string; createdAt: string; updatedAt: string }>;
   termWeeks: Array<{ id: string; termId: string; code: string; ordinal: number; startDate: string; endDate: string; rhythmKey: string; createdAt: string; updatedAt: string }>;
   canManageGlobalPolicy: boolean;
@@ -551,13 +551,14 @@ export interface BoWorkforcePlanningBootstrap {
 export interface BoWorkforceWindowDecision {
   kind: "AVAILABILITY" | "PLANNING";
   state: "OPEN" | "LOCKED";
-  reason: "POLICY" | "MANUAL_LOCK" | "MANUAL_REOPEN" | "REGISTRATION_CLOSED" | "CONFIGURATION_UNAVAILABLE";
+  reason: "POLICY" | "MANUAL_LOCK" | "MANUAL_REOPEN" | "REGISTRATION_CLOSED" | "CONFIGURATION_UNAVAILABLE" | "GLOBAL_WEEK_LOCK" | "MANUAL_OPEN";
   cutoffAt: string | null;
   overrideUntil: string | null;
   policyVersionId: string | null;
   controlVersion: number;
   availabilityRegistrationOpen: boolean;
   shiftPlanExists?: boolean;
+  globalWeekRegistrationLocked?: boolean;
 }
 
 export interface BoWorkforceAvailability {
