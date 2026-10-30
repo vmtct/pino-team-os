@@ -67,7 +67,10 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  assert.match(edit,/expectedUpdatedAt:current\.updatedAt/);
  assert.match(ui,/access\.role\.edit/);
  const shell=readFileSync("app/components/workspace-adapters/SurfaceWorkspace.tsx","utf8");
- assert.match(shell,/detail\.retry\(\); list\.retry\(\);/);
+ assert.match(shell,/detail\.retry\(\); list\.retry\(\);/); // Default shared TDD mutation contract remains.
+ const extension = shell.split("renderApprovedExtension: detailApprovedExtension ?")[1]?.split(", businessForms:")[0] ?? "";
+ assert.match(extension,/list\.retry\(\)/);
+ assert.doesNotMatch(extension,/detail\.retry\(\)/); // Do not remount editor before save feedback.
  assert.match(ui,/onSaved=\{onSaved\}/);
  assert.match(edit,/onSaved\(\)/);
  assert.match(edit,/Đã lưu và xác minh Role trên Core/);
