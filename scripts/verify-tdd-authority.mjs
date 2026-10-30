@@ -189,6 +189,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     const impacted=changed.includes(MANIFEST)||changed.some(f=>e.files.includes(f)||dependencies.includes(f)||canonical.test(f)||/^(?:public\/(?:bo|ho)-authority-source\/|scripts\/build-(?:bo|ho)-authority|app\/ho\/ho-theme\.css|app\/globals\.css)/.test(f));
     if(!impacted) continue;
     for(const f of e.files) if(!fs.existsSync(path.join(root,f))) errors.push(e.file+': missing owned file '+f);
+    for(const f of e.files.filter(f=>sourceFile.test(f) && fs.existsSync(path.join(root,f)))) if(/TODO_TDD_/.test(read(root,f))) errors.push(e.file+': incomplete deny-first TDD scaffold '+f);
     // Fence all locally-owned code. Pre-existing external graph dependencies belong to
     // their own BO/HO owners, not to a route's 100+ transitive source-file fence.
     // When those external files change with admission, require an exact owner reference,
