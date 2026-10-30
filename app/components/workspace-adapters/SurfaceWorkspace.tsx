@@ -37,16 +37,26 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
   const [location, setLocation] = useState(() => navigation.read());
   const [query, setQuery] = useState(location.query ?? initialQuery);
   const previousStage = useRef(location.kind);
+  const pendingTableRestore = useRef(false);
   useEffect(() => navigation.subscribe(() => {
     const next = navigation.read();
     const shouldRestore = shouldRestoreTableAfterNavigation(previousStage.current, next.kind);
     previousStage.current = next.kind;
     setLocation(next);
     setQuery(next.query);
-    if (shouldRestore) navigation.restore();
+    if (shouldRestore) pendingTableRestore.current = true;
+    else if (next.kind !== "table") pendingTableRestore.current = false;
   }), [navigation]);
   const listLoad = useCallback((signal: AbortSignal) => adapter.list(query, signal), [adapter, query]);
   const list = useAdapterResource(listLoad);
+  useEffect(() => {
+    // history.state clones the query, which may refresh and replace Table rows.
+    // Restore the opener only after those rows have committed to the DOM.
+    if (pendingTableRestore.current && location.kind === "table" && list.state?.value) {
+      pendingTableRestore.current = false;
+      navigation.restore();
+    }
+  }, [location.kind, list.state, navigation]);
   const detailLoad = useCallback((signal: AbortSignal) => location.recordId ? adapter.detail(location.recordId, signal) : Promise.resolve(null), [adapter, location.recordId]);
   const detail = useAdapterResource(detailLoad);
   const viewsLoad = useCallback((signal: AbortSignal) => adapter.views(signal), [adapter]);
