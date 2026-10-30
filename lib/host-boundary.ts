@@ -71,6 +71,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
+    // PAP-1224: new Pass TDD is BO Staging-only; production retains legacy Open Studio.
+    if (pathname === "/bo/open-studio-passes") return (method==="GET"||method==="HEAD") ? {action:"next"} : {action:"not_found"};
     // PAP-1211: one exact synthetic salary adjustment E2E path, Founder BFF guarded.
     // Never allow this route on Production/HO/TOS or for other payment subjects.
     const salaryE2EAdjustment="/api/bo/workforce/payroll/periods/01a171ed-eb78-7941-b1de-dd4c020457b7/staff/01a18a28-6d8e-7db7-acbb-a18a942a5e72/adjustments";

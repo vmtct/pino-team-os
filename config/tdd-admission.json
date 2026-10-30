@@ -197,6 +197,37 @@
         "lib/pap1166-ho-walkin-batch-tdd.test.ts",
         "lib/host-boundary.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "open-studio-passes",
+      "route": "/bo/open-studio-passes",
+      "file": "app/bo/open-studio-passes/page.tsx",
+      "files": [
+        "app/bo/open-studio-passes/page.tsx",
+        "app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx",
+        "app/bo/open-studio-passes/schema.ts",
+        "app/bo/open-studio-passes/CenterPassActions.tsx"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1224"
+        }
+      ],
+      "schema": {
+        "file": "app/bo/open-studio-passes/schema.ts",
+        "export": "passSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1224-bo-open-studio-tdd.test.ts",
+        "lib/open-studio-walkin-ui-contract.test.ts"
+      ]
     }
   ],
   "approvals": []
