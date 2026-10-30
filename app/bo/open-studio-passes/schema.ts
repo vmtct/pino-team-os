@@ -1,5 +1,6 @@
 import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
+import type { BoCenter } from "@/lib/bo-model";
 
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
 const P="open_studio.walkin_pass.manage";
@@ -40,6 +41,10 @@ export type PassRecord={
  path_code:"AC"|"LPP"|"LPA"|"PH"|null;parent_user_id:string|null;center_id:string|null;
 };
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** BO /api/bo/centers uses the lowercase ACTIVE lifecycle value. */
+export function isActiveBoCenter(c:Pick<BoCenter,"id"|"status">):boolean {
+ return uuid.test(c.id) && c.status==="active";
+}
 export async function readCenterPasses(fetcher:typeof fetch,centerId:string,signal:AbortSignal):Promise<readonly PassRecord[]>{
  if(!uuid.test(centerId))throw Error("Center identity invalid");
  const url="/api/bo/open-studio/walkin/inventory?centerId="+encodeURIComponent(centerId);
