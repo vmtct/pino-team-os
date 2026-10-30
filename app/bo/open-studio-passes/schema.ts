@@ -73,7 +73,8 @@ export const passProvider:SurfaceProvider<F>={
   return row?{row:project(row),centerId:scope.centerId}:null;
  }
 };
-export const passSchema=new TddRegistry().register({...passDefinition,data:{
+const registry=new TddRegistry();
+export const passSchema=registry.register({...passDefinition,data:{
  id:"bo-open-studio-walkin-center-bound",
  list:async()=>{throw Error("Requires authenticated Center-scoped TDD adapter");},
  detail:async()=>{throw Error("Requires authenticated Center-scoped TDD adapter");}
