@@ -32,7 +32,7 @@ function req(url:string,method="GET",token="valid",body?:unknown) {
   return new Request(url,{method,headers:{host:new URL(url).hostname,cookie:"pino_staff_password_session="+token,"content-type":"application/json","idempotency-key":"pap1126-test"},body:body===undefined?undefined:JSON.stringify(body)});
 }
 test("PAP-1126 HO route admission is exact and never available on BO/TOS/prod",()=>{
-  const allowed=[["GET",path],["POST",path],["POST",path+"/uploads"],["GET",path+"/"+id],["PATCH",path+"/"+id],["POST",path+"/"+id+"/publish"],["POST",path+"/"+id+"/unpublish"]] as const;
+  const allowed=[["GET",path],["POST",path],["POST",path+"/uploads"],["GET",path+"/"+id],["PATCH",path+"/"+id],["POST",path+"/"+id+"/publish"],["POST",path+"/"+id+"/unpublish"],["GET",path+"/"+id+"/media"],["GET",path+"/"+id+"/draft-media"]] as const;
   for(const [verb,p] of allowed)assert.equal(decideHostBoundary(host,p,verb).action,"next",verb+" "+p);
   for(const [verb,p] of [["PUT",path],["DELETE",path],["POST",path+"/malformed"],["POST",path+"/"+id+"/asset"],["GET",path+"/uploads"],["PATCH",path+"/uploads"]] as const)assert.equal(decideHostBoundary(host,p,verb).action,"not_found",verb+" "+p);
   for(const other of [BO_STAGING_HOSTNAME,"bo.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art","pino-team-os.minhtri-van42.workers.dev"]){
@@ -66,6 +66,23 @@ test("HO Item API returns HTTP 400 for malformed JSON and invalid media instead 
   const invalidImage=req(base+path+"/uploads","POST","valid",{fileName:"bad.png",mimeType:"image/png",bytesBase64:"not base64"});
   assert.equal((await handleHoPinoriaItemRequest(invalidImage,env())).status,400);
   assert.equal(forwarded.length,0);
+});
+test("PAP-1119 protected Item media streams PNG bytes only to authorized HO readers",async()=>{
+  const e=env();
+  e.PINO_HO_ITEM_CORE={async executeWithStaffPassword(request,token){
+    assert.equal(token,"valid");assert.equal(request.method,"GET");assert.equal(request.path,"pinoria/items/"+id+"/media");
+    return {status:200,requestId:"item-media",body:{data:{mimeType:"image/png",byteSize:8,bytesBase64:"iVBORw0KGgo="}}};
+  }};
+  const url=base+path+"/"+id+"/media";
+  const response=await handleHoPinoriaItemRequest(req(url,"GET"),e);
+  assert.equal(response.status,200);assert.equal(response.headers.get("content-type"),"image/png");
+  assert.match(response.headers.get("cache-control")??"",/no-store/);
+  assert.equal((await response.arrayBuffer()).byteLength,8);
+  assert.equal((await handleHoPinoriaItemRequest(req(url,"GET"),env({grant:false}))).status,403);
+  assert.equal((await handleHoPinoriaItemRequest(req("https://"+BO_STAGING_HOSTNAME+path+"/"+id+"/media"),e)).status,404);
+  assert.equal((await handleHoPinoriaItemRequest(req(url,"POST","valid",{}),e)).status,405);
+  e.PINO_HO_ITEM_CORE={async executeWithStaffPassword(){return {status:200,requestId:"bad",body:{data:{mimeType:"text/html",byteSize:8,bytesBase64:"iVBORw0KGgo="}}}}};
+  assert.equal((await handleHoPinoriaItemRequest(req(url,"GET"),e)).status,502);
 });
 test("HO private Item handler rejects untrusted verbs and malformed host before Core",async()=>{
   forwarded.length=0;

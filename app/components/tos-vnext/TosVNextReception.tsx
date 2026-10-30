@@ -6,6 +6,7 @@ import {receptionVisitReadModel} from "./core-adapters";
 import {ownReceptionAssignments} from "@/lib/tos-vnext-reception";
 import {TosVNextButton,TosVNextCard,TosVNextField,TosVNextStatus} from "../tos-ds";
 import ReceptionV4Presentation from "./ReceptionV4Presentation";
+import { OpenStudioReceptionPanel } from "./OpenStudioReceptionPanel";
 import styles from "./tos-vnext.module.css";
 export function TosVNextReception({centerId,workDate,assignments,centerName="",profileLabel=""}:{centerId:string;workDate:string;assignments:readonly Assignment[];centerName?:string;profileLabel?:string}){
  const [studentId,setStudentId]=useState("");
@@ -28,6 +29,7 @@ export function TosVNextReception({centerId,workDate,assignments,centerName="",p
  const today=ownReceptionAssignments(assignments,centerId,workDate);
  const shiftTime=today.map(a=>(a.effectiveStartLocal||a.shift?.startLocalTime||"Chưa có giờ")+" — "+(a.effectiveEndLocal||a.shift?.endLocalTime||"Chưa có giờ")).join(" · ")||"Không có ca trong lịch hôm nay";
  return <ReceptionV4Presentation key={centerId+":"+workDate} centerName={centerName} profileLabel={profileLabel} workDate={workDate} shiftTime={shiftTime} visitLookup={<>
+   <OpenStudioReceptionPanel key={centerId+":"+workDate} centerId={centerId} workDate={workDate} assignments={assignments}/>
    <TosVNextCard>
     <TosVNextField label="Mã học viên Core">
      <input value={studentId} onChange={e=>{requestEpoch.current++;requestPending.current=false;setPending(false);setStudentId(e.target.value);setVisit(undefined);setError("")}}

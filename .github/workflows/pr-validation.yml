@@ -32,6 +32,11 @@ jobs:
         run: |
           bun run tdd:authority:test
           bun run tdd:authority:check
+      - name: Enforce BO/HO TDD route denominator (PAP-1077)
+        run: |
+          node --test scripts/report-tdd-coverage.test.mjs
+          node scripts/report-tdd-coverage.mjs
+
       - name: Enforce BO Architecture Contract (PAP-926)
         run: |
           node scripts/verify-bo-module-contract.mjs

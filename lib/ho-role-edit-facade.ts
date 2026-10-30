@@ -1,10 +1,10 @@
 import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
-import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
+import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
 
-export interface HoRoleEditEnv extends HoEnv { PINO_CORE: PinoCoreBinding }
+export interface HoRoleEditEnv extends HoEnv { PINO_BO_CORE: BoAccessCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const keyPattern = /^[a-zA-Z0-9:_-]{8,120}$/;
 const permissionPattern = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
@@ -64,7 +64,7 @@ export async function handleHoRoleEdit(request: Request, env: HoRoleEditEnv, rol
       return json({ error: { code: "HO_ROLE_EDIT_DENIED" } }, 403);
     const credential = await teamCredential(request, env, "BO");
     if (credential.kind !== "password") return json({ error: { code: "IDENTITY_UNAUTHORIZED" } }, 401);
-    const readRole = await callFounderCoreWithStaffPassword(env.PINO_CORE,
+    const readRole = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,
       { method: "GET", path: "access/roles/" + roleId }, credential.token);
     if (readRole.status !== 200) return json({ error: { code: "HO_ROLE_LOOKUP_DENIED" } },
       [401,403,404].includes(readRole.status) ? readRole.status : 503);
@@ -74,7 +74,7 @@ export async function handleHoRoleEdit(request: Request, env: HoRoleEditEnv, rol
       return json({ error: { code: "HO_ROLE_PROTECTED" } }, 403);
     if (current.updatedAt !== command.expectedUpdatedAt)
       return json({ error: { code: "HO_ROLE_VERSION_CONFLICT" } }, 409);
-    const catalog = await callFounderCoreWithStaffPassword(env.PINO_CORE,
+    const catalog = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,
       { method: "GET", path: "access/permissions" }, credential.token);
     if (catalog.status !== 200) return json({ error: { code: "HO_PERMISSION_CATALOG_DENIED" } },
       [401,403].includes(catalog.status) ? catalog.status : 503);
@@ -85,7 +85,7 @@ export async function handleHoRoleEdit(request: Request, env: HoRoleEditEnv, rol
       .map(x => x.key));
     if (command.permissionKeys.some(key => !approved.has(key) || !actor.permissionKeys.includes(key)))
       return json({ error: { code: "HO_ROLE_PERMISSION_ESCALATION" } }, 403);
-    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, {
+    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, {
       method: "POST", path: "access/roles/" + roleId + "/update", body: command, idempotencyKey,
     }, credential.token);
     return json(result.body, result.status);

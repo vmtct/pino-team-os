@@ -2,15 +2,16 @@
 // Auth is ephemeral: no storageState export, screenshot, trace, credential output or fixture writes.
 import { chromium } from "playwright";
 import { verifyStaging } from "./pap1074-g4-attestation.mjs";
+import { safeG4Failure, safeG4SurfaceProbe } from "./pap1214-g4-failure.mjs";
 const BO = "https://bo.staging.pinohouse.art";
 const HO = "https://ho.staging.pinohouse.art";
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const env = process.env;
 const cases = [];
 function assert(ok, reason) { if (!ok) throw Error(reason); }
-async function check(name, fn) {
+async function check(name, fn, phase = () => "unspecified") {
   try { await fn(); cases.push({name,status:"PASS"}); }
-  catch { cases.push({name,status:"FAIL"}); }
+  catch (error) { cases.push(safeG4Failure(name, error, phase())); }
 }
 async function login(context, origin, email, password, role) {
   const page = await context.newPage();
@@ -137,11 +138,34 @@ try {
     const status = await fp.evaluate(async key => (await fetch("/api/bo/subscriptions/" + key)).status,id);
     assert(status === 404,"unknown canonical record must be 404");
   });
+  let invalidDetailPhase = "navigate";
   await check("invalid_id_never_displays_detail",async () => {
+    invalidDetailPhase = "navigate";
     await fp.goto(BO + "/bo?module=subscriptions&record=not-a-uuid",{waitUntil:"domcontentloaded"});
-    await fp.locator('[data-bo-runtime-surface="subscriptions-core"]').waitFor({state:"visible"});
-    assert(await fp.locator('[data-bo-full-detail]').count() === 0,"invalid detail mounted");
-  });
+    invalidDetailPhase = "runtime_surface_visible";
+    try {
+      await fp.locator('[data-bo-runtime-surface="subscriptions-core"]').waitFor({state:"visible",timeout:12000});
+    } catch (error) {
+      // When the expected runtime does not mount, inspect *only* boolean markers.
+      // An absent runtime remains FAIL, never a negative-case PASS.
+      const raw = await fp.evaluate(() => ({
+        subscriptionHost: Boolean(document.querySelector('[data-bo-runtime="react"][data-bo-module="subscriptions"]')),
+        subscriptionSurface: Boolean(document.querySelector('[data-bo-runtime-surface="subscriptions-core"]')),
+        invalidAlert: Boolean(document.querySelector('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]')),
+        anyDetail: Boolean(document.querySelector('[data-tdd-shell="detail"],[data-bo-full-detail]')),
+        redirectedLogin: location.pathname === "/staff-login",
+        nextError: Boolean(document.querySelector("nextjs-portal")),
+      })).catch(() => ({}));
+      console.log(JSON.stringify({name:"PAP-1214_INVALID_ID_SURFACE_PROBE", ...safeG4SurfaceProbe(raw)}));
+      throw error;
+    }
+    invalidDetailPhase = "invalid_detail_absent";
+    // This is the actual shared TDD detail marker; the former legacy-only
+    // data-bo-full-detail selector was absent in current React source.
+    assert(await fp.locator('[data-tdd-shell="detail"],[data-bo-full-detail]').count() === 0,"invalid detail mounted");
+    invalidDetailPhase = "invalid_error_visible";
+    await fp.locator('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]').waitFor({state:"visible",timeout:8000});
+  }, () => invalidDetailPhase);
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});
     await fp.goto(BO + "/bo",{waitUntil:"domcontentloaded"});

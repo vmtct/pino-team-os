@@ -1,4 +1,5 @@
 import { workforceRead, type GlobalWeekResult } from "./workforce-read-client";
+import { workforceWeekDisplayLabel } from "@/lib/workforce-week-display";
 import { workforceAssignmentNote } from "./workforce-shift-note";
 import type { BoModuleReadAdapter } from "@/app/bo/architecture/BoModuleFactory";
 import type { BoWorkforcePlanningBootstrap, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
@@ -85,8 +86,8 @@ export const shiftPlansAdapter: BoModuleReadAdapter = {
     const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher);
     const display = displayLookups(weeks);
     return snapshots.filter((s) => s.windows?.availability.shiftPlanExists === true).map((s) => ({
-      id: s.centerId + ":" + s.termWeekId, name: display.weekName(s.centerId, s.termWeekId),
-      centerName: display.centerName(s.centerId), termWeekLabel: display.weekName(s.centerId, s.termWeekId),
+      id: s.centerId + ":" + s.termWeekId, name: workforceWeekDisplayLabel(display.weekName(s.centerId, s.termWeekId)),
+      centerName: display.centerName(s.centerId), termWeekLabel: workforceWeekDisplayLabel(display.weekName(s.centerId, s.termWeekId)),
       centerId: s.centerId, termWeekId: s.termWeekId,
       availabilityState: s.windows?.availability.state ?? "UNKNOWN",
       planningState: s.windows?.planning.state ?? "UNKNOWN",
