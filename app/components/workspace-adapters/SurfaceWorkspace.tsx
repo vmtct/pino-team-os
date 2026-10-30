@@ -36,16 +36,20 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
   const menu = useContext(TddHostMenu);
   const [location, setLocation] = useState(() => navigation.read());
   const [query, setQuery] = useState(location.query ?? initialQuery);
+  const tableRoot = useRef<HTMLDivElement>(null);
   const previousStage = useRef(location.kind);
-  const pendingTableRestore = useRef(false);
+  const previousRecord = useRef(location.recordId);
+  const pendingTableRestore = useRef<string | null>(null);
   useEffect(() => navigation.subscribe(() => {
     const next = navigation.read();
     const shouldRestore = shouldRestoreTableAfterNavigation(previousStage.current, next.kind);
+    const returnRecord = previousRecord.current;
     previousStage.current = next.kind;
+    previousRecord.current = next.recordId;
     setLocation(next);
     setQuery(next.query);
-    if (shouldRestore) pendingTableRestore.current = true;
-    else if (next.kind !== "table") pendingTableRestore.current = false;
+    if (shouldRestore) pendingTableRestore.current = returnRecord ?? null;
+    else if (next.kind !== "table") pendingTableRestore.current = null;
   }), [navigation]);
   const listLoad = useCallback((signal: AbortSignal) => adapter.list(query, signal), [adapter, query]);
   const list = useAdapterResource(listLoad);
@@ -53,8 +57,18 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
     // history.state clones the query, which may refresh and replace Table rows.
     // Restore the opener only after those rows have committed to the DOM.
     if (pendingTableRestore.current && location.kind === "table" && list.state?.value) {
-      pendingTableRestore.current = false;
+      const recordId = pendingTableRestore.current;
+      pendingTableRestore.current = null;
       navigation.restore();
+      // A reloaded Detail has no original DOM opener in its navigation instance.
+      // Preserve normal focus/scroll restoration, then recover only an idle body
+      // focus using the row actually rendered by this authorized Table.
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body) {
+          [...(tableRoot.current?.querySelectorAll<HTMLButtonElement>('button[data-open]') ?? [])]
+            .find(button => button.dataset.open === recordId)?.focus({ preventScroll: true });
+        }
+      });
     }
   }, [location.kind, list.state, navigation]);
   const detailLoad = useCallback((signal: AbortSignal) => location.recordId ? adapter.detail(location.recordId, signal) : Promise.resolve(null), [adapter, location.recordId]);
@@ -74,7 +88,7 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
   const recordStatus = !detail.state ? "loading" : detail.state.error ? status(detail.state.error) : selected ? "ready" : "not-found";
   const writes = adapter.mutation && selected?.version ? { adapter: adapter.mutation, version: selected.version, onSaved: () => { detail.retry(); list.retry(); } } : undefined;
   return <>
-    <div hidden={location.kind === "detail"}><TddRenderer view={{ kind: "table", props: table, mobileMenu: menu("menu-btn") }} /></div>
+    <div ref={tableRoot} hidden={location.kind === "detail"}><TddRenderer view={{ kind: "table", props: table, mobileMenu: menu("menu-btn") }} /></div>
     {views.state?.error ? <p role="status">Quick Views chưa khả dụng. <button type="button" onClick={views.retry}>Thử lại</button></p> : null}
     {views.state?.value?.unavailable.map(view => <p role="status" key={view.id}>{view.name} — Quick View không tương thích; nhờ người quản lý sửa cấu hình gốc.</p>)}
     {location.kind === "drawer" ? <TddRenderer view={{ kind: "drawer", props: { ...common, record, status: recordStatus, writes, onRetry: detail.retry, onClose: () => move("table"), onDetail: () => move("detail", location.recordId) } }} /> : null}
