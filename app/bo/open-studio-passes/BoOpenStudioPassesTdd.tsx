@@ -44,7 +44,7 @@ export function BoOpenStudioPassesTdd(){
  useEffect(()=>{
   if(!centerId)return;
   const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-  void createBoTddAdapter({registry:new TddRegistry(),definition:passDefinition,provider:passProvider,centerId,centerSource:"centers"},controller.signal)
+  void createBoTddAdapter({registry:new TddRegistry(),definition:passDefinition,provider:passProvider,centerId:centerId,centerSource:"centers"},controller.signal)
    .then(bound=>{
     adapter=bound;if(controller.signal.aborted){bound.dispose();return}
     setReady({adapter:bound,navigation:browserTddNavigation("BO","open-studio-passes",passQuery)});
