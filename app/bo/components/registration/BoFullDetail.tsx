@@ -70,7 +70,9 @@ export function BoFullDetail({
   if (moduleKey === "parents") return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
     legacyContent={<BoParentReadTabs module={module} record={record} fullDetail />}>{null}</DetailFrame>;
 
-  return <DetailFrame title={record.name} subtitle={record.id} mobileMenu={mobileMenu} onBack={onBack}
+  return <DetailFrame title={moduleKey === "workforce-shift-plans" ? "Kế hoạch ca · " + record.name : record.name}
+    subtitle={moduleKey === "workforce-shift-plans" ? String(record.centerName ?? record.id) : record.id}
+    mobileMenu={mobileMenu} onBack={onBack}
     tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? (moduleKey === "subscriptions" ? "Thông Tin" : "Thông tin") : label }))}
     selected={activeTab} onSelect={(next) => { setTab(next); onTabChanged?.(next); }}
     after={voidOpen ? <BoStudentIntakeVoid studentId={record.id} onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}>
