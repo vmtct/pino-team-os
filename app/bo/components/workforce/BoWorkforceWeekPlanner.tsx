@@ -6,7 +6,7 @@ import {
   hasOwnerTeacherLinkGap,
 } from "@/lib/workforce-planning-role-summary";
 import { assignmentTimeSummary } from "@/lib/workforce-planning-time-basis";
-import styles from "./week-planner.module.css";
+import styles from "@/app/bo/bo.module.css";
 type Props = {
   data: BoWorkforceWeeklyPlanning;
   centerName: string;
@@ -96,8 +96,8 @@ export function BoWorkforceWeekPlanner({
     }
   }
   return (
-    <section className={styles.root} aria-label="Lịch phân ca tuần">
-      <div className={styles.heading}>
+    <section className={styles.weekPlannerRoot} aria-label="Lịch phân ca tuần">
+      <div className={styles.weekPlannerHeading}>
         <div>
           <h3>Lịch phân ca tuần</h3>
           <p>
@@ -105,8 +105,8 @@ export function BoWorkforceWeekPlanner({
             {centerName}
           </p>
         </div>
-        <div className={styles.headingActions}>
-          <span className={styles.state}>
+        <div className={styles.weekPlannerHeadingActions}>
+          <span className={styles.weekPlannerState}>
             {data.windows?.planning.state === "LOCKED"
               ? "Đã khóa lịch"
               : data.windows
@@ -115,7 +115,7 @@ export function BoWorkforceWeekPlanner({
           </span>
           <button
             type="button"
-            className={styles.refresh}
+            className={styles.weekPlannerRefresh}
             onClick={onRefresh}
             aria-label="Làm mới lịch tuần"
           >
@@ -123,7 +123,7 @@ export function BoWorkforceWeekPlanner({
           </button>
         </div>
       </div>
-      <div className={styles.kpis} aria-label="Thống kê lịch tuần">
+      <div className={styles.weekPlannerKpis} aria-label="Thống kê lịch tuần">
         <div>
           <small>Nhân sự</small>
           <strong>{data.staff.length}</strong>
@@ -139,7 +139,7 @@ export function BoWorkforceWeekPlanner({
         <div>
           <small>Đăng ký ca</small>
           <span
-            className={styles.registration}
+            className={styles.weekPlannerRegistration}
             data-open={
               data.windows?.availability.availabilityRegistrationOpen ?? false
             }
@@ -152,13 +152,13 @@ export function BoWorkforceWeekPlanner({
           </span>
         </div>
       </div>
-      <div className={styles.legend} aria-label="Chú giải trạng thái">
+      <div className={styles.weekPlannerLegend} aria-label="Chú giải trạng thái">
         <span>
-          <i className={styles.assignedDot} />
+          <i className={styles.weekPlannerAssignedDot} />
           Đã phân công
         </span>
         <span>
-          <i className={styles.availableDot} />
+          <i className={styles.weekPlannerAvailableDot} />
           Đã đăng ký, chờ xếp
         </span>
         <span>
@@ -167,9 +167,9 @@ export function BoWorkforceWeekPlanner({
         </span>
         <small>{waiting} Staff đã đăng ký chưa có lịch</small>
       </div>
-      <div className={styles.layout}>
-        <div className={styles.calendar}>
-          <div className={styles.filters}>
+      <div className={styles.weekPlannerLayout}>
+        <div className={styles.weekPlannerCalendar}>
+          <div className={styles.weekPlannerFilters}>
             <input
               type="search"
               aria-label="Tìm nhân sự trong lịch tuần"
@@ -194,7 +194,7 @@ export function BoWorkforceWeekPlanner({
               {rows.length} / {data.staff.length} nhân sự
             </small>
           </div>
-          <nav className={styles.dayNav} aria-label="Chuyển ngày trong lịch">
+          <nav className={styles.weekPlannerDayNav} aria-label="Chuyển ngày trong lịch">
             <button
               type="button"
               aria-label="Ngày trước"
@@ -203,7 +203,7 @@ export function BoWorkforceWeekPlanner({
             >
               ‹
             </button>
-            <div ref={navRef} className={styles.dayScroll}>
+            <div ref={navRef} className={styles.weekPlannerDayScroll}>
               {dates.map((date, index) => (
                 <button
                   type="button"
@@ -228,7 +228,7 @@ export function BoWorkforceWeekPlanner({
           </nav>
           <div
             ref={scrollRef}
-            className={styles.tableScroll}
+            className={styles.weekPlannerTableScroll}
             role="region"
             aria-label="Lịch theo nhân sự, cuộn ngang để xem bảy ngày"
             tabIndex={0}
@@ -279,7 +279,7 @@ export function BoWorkforceWeekPlanner({
                         <td key={date}>
                           <button
                             type="button"
-                            className={styles.cell}
+                            className={styles.weekPlannerCell}
                             aria-pressed={selected}
                             aria-controls="workforce-planner-detail"
                             aria-label={`${staff.displayLabel} · ${weekday(date)} ${displayDate(date)} · ${assigned.length ? "Đã xếp" : gap ? "Owner chưa link TE" : registered.length ? "Đã đăng ký" : "Chưa có ca"}`}
@@ -295,7 +295,7 @@ export function BoWorkforceWeekPlanner({
                                     template.id === item.shiftTemplateId,
                                 );
                                 return (
-                                  <span className={styles.shift} key={item.id}>
+                                  <span className={styles.weekPlannerShift} key={item.id}>
                                     <strong>
                                       {template?.displayLabel ?? "Đã phân công"}
                                     </strong>
@@ -313,14 +313,14 @@ export function BoWorkforceWeekPlanner({
                               })
                             ) : registered.length ? (
                               <>
-                                <strong className={styles.available}>
+                                <strong className={styles.weekPlannerAvailable}>
                                   Đã đăng ký
                                 </strong>
                                 <small>{registered.length} ca đang chờ</small>
                               </>
                             ) : (
                               <>
-                                <span className={styles.add} aria-hidden="true">
+                                <span className={styles.weekPlannerAdd} aria-hidden="true">
                                   ＋
                                 </span>
                                 <small>Chưa có ca</small>
@@ -344,21 +344,21 @@ export function BoWorkforceWeekPlanner({
             </table>
           </div>
           {!rows.length ? (
-            <p className={styles.empty} role="status">
+            <p className={styles.weekPlannerEmpty} role="status">
               Không có nhân sự phù hợp.
             </p>
           ) : null}
-          <p className={styles.hint}>
+          <p className={styles.weekPlannerHint}>
             ← Chọn ngày phía trên hoặc cuộn ngang để xem đủ 7 ngày →
           </p>
         </div>
         <aside
           id="workforce-planner-detail"
-          className={styles.side}
+          className={styles.weekPlannerSide}
           aria-label="Công cụ phân công ca"
           aria-live="polite"
         >
-          <div className={styles.sideHeading}>
+          <div className={styles.weekPlannerSideHeading}>
             <h3>Phân công ca</h3>
             <small>Staff × ngày</small>
           </div>
