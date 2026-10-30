@@ -72,7 +72,8 @@ export const passProvider:SurfaceProvider<F>={
   return pass?{row:project(pass)}:null;
  }
 };
-export const passSchema=new TddRegistry().register({...passDefinition,data:{
+const registry=new TddRegistry();
+export const passSchema=registry.register({...passDefinition,data:{
  id:"ho-open-studio-walkin-inventory",
  list:async(_query:TableQuery<F>,_context,signal)=>{
   const passes=await loadHoWalkinInventory(fetch,signal);return{rows:passes.map(project),total:passes.length};
