@@ -25,5 +25,5 @@ test("PAP-1185 day columns use one exact width at all breakpoints", () => {
   assert.match(css, /--week-planner-table-width:\s*1018px/);
   assert.match(css, /\.weekPlannerTableScroll \.weekPlannerDayColumn\s*\{\s*width:\s*var\(--week-planner-day-width\)/);
   assert.match(css, /\.weekPlannerTableScroll th:not\(:first-child\),\s*\.weekPlannerTableScroll td\s*\{\s*width:\s*var\(--week-planner-day-width\);\s*min-width:\s*var\(--week-planner-day-width\);\s*max-width:\s*var\(--week-planner-day-width\)/);
-  assert.match(css, /\.weekPlannerTableScroll th:first-child\s*\{[^}]*position:\s*sticky;[^}]*left:\s*0;/s);
+  assert.match(css, /\.weekPlannerTableScroll th:first-child\s*\{[^}]*position:\s*sticky;[^}]*left:\s*0;/);
 });
