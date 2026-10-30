@@ -12,7 +12,7 @@ import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorks
 import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import {TddRegistry} from "@/lib/workspace-schema";
 import {CenterPassActions} from "./CenterPassActions";
-import {passDefinition,passFields,passProvider,passQuery} from "./schema";
+import {passDefinition,passFields,passProvider,passQuery,isActiveBoCenter} from "./schema";
 type F=typeof passFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 const source:BoWorkspaceSource={
@@ -35,7 +35,7 @@ export function BoOpenStudioPassesTdd(){
   let active=true;
   void boApi.centers().then(rows=>{
    if(!active)return;
-   const valid=rows.filter(c=>/^[0-9a-f-]{36}$/i.test(c.id)&&c.status==="ACTIVE");
+   const valid=rows.filter(isActiveBoCenter);
    setCenters(valid);setCenterId(valid.length===1?valid[0]!.id:"");
    setCenterError(valid.length?"":"Không có Center đang hoạt động được cấp quyền.");
   }).catch(()=>{if(active)setCenterError("Không tải được danh sách Center.")});

@@ -5,7 +5,7 @@ import {validateModule} from "./workspace-schema";
 import {decideHostBoundary} from "./host-boundary";
 import {BO_TARGET_ROUTES,buildBoTargetUrl} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
-import {passDefinition,passSchema,passProvider,passQuery,readCenterPasses} from "../app/bo/open-studio-passes/schema";
+import {passDefinition,passSchema,passProvider,passQuery,readCenterPasses,isActiveBoCenter} from "../app/bo/open-studio-passes/schema";
 
 const center="00000000-0000-4000-8000-000000000015",other="00000000-0000-4000-8000-000000000016";
 const id="00000000-0000-4000-8000-000000000017";
@@ -35,6 +35,14 @@ test("PAP-1224: BO Pass uses registered exact TDD on Staging, no route bypass",(
  assert.doesNotMatch(tdd,/<table\b/);
  const middleware=readFileSync("middleware.ts","utf8");
  assert.ok(middleware.includes('target.pathname="/bo/open-studio-passes"'));
+});
+
+test("PAP-1224: live BO centers use lowercase active status, strict UUID and deny inactive",()=>{
+ assert.equal(isActiveBoCenter({id:center,status:"active"}),true);
+ assert.equal(isActiveBoCenter({id:other,status:"active"}),true);
+ assert.equal(isActiveBoCenter({id:center,status:"ACTIVE"}),false);
+ assert.equal(isActiveBoCenter({id:center,status:"inactive"}),false);
+ assert.equal(isActiveBoCenter({id:"bad-id",status:"active"}),false);
 });
 
 test("PAP-1224: Center-bound API request and negative cross-Center projection",async()=>{
