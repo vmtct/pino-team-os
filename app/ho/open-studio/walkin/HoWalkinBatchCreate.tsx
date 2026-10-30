@@ -1,6 +1,7 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
+import {useRef,useState} from "react";
 import {TosButton,TosCard} from "@pino/design-system/react";
+import {AppSheet} from "@/app/components/tos-ds";
 import type {WalkinPass} from "./schema";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type BatchReceipt={id:string;name:string;quantity:number};
@@ -13,13 +14,7 @@ export function HoWalkinBatchCreate({authorized,onVerified}:{authorized:boolean;
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [needsReadback,setNeedsReadback]=useState(false);
- const dialog=useRef<HTMLDialogElement>(null);
  const locked=useRef(false);
- useEffect(()=>{
-  const el=dialog.current;if(!el)return;
-  if(open&&!el.open)el.showModal();
-  if(!open&&el.open)el.close();
- },[open]);
  const quantity=Number(qty);
  const valid=Boolean(name.trim()&&name.trim().length<=90&&Number.isInteger(quantity)&&quantity>=1&&quantity<=100);
  function dismiss(){if(busy)return;setOpen(false);setError("");}
@@ -69,8 +64,7 @@ export function HoWalkinBatchCreate({authorized,onVerified}:{authorized:boolean;
   </div></TosCard>
   {notice&&<p role="status">{notice}</p>}
   {needsReadback&&<p role="alert">{error} <button type="button" onClick={()=>location.reload()}>Tải lại kho trước khi thao tác khác</button></p>}
-  <dialog ref={dialog} className="ho-walkin-batch-dialog" aria-labelledby="ho-walkin-dialog-title"
-   onClose={()=>setOpen(false)} onCancel={event=>{if(busy){event.preventDefault();return;}setOpen(false);}}>
+  {open&&<AppSheet title="Tạo batch Pass mới" onClose={dismiss}>
    <TosCard><form method="dialog" onSubmit={e=>{e.preventDefault();void create();}}>
     <h2 id="ho-walkin-dialog-title">Tạo batch Pass mới</h2>
     <p>Mỗi mã chỉ sử dụng một lượt; tồn kho ban đầu là AVAILABLE, chưa gắn Parent hoặc Center.</p>
@@ -93,6 +87,6 @@ export function HoWalkinBatchCreate({authorized,onVerified}:{authorized:boolean;
      </TosButton>
     </div>
    </form></TosCard>
-  </dialog>
+  </AppSheet>}
  </div>;
 }
