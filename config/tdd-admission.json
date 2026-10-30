@@ -210,7 +210,12 @@
         "app/bo/open-studio-passes/schema.ts",
         "app/bo/open-studio-passes/CenterPassActions.tsx"
       ],
-      "externalReferences": [],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1224"
+        }
+      ],
       "schema": {
         "file": "app/bo/open-studio-passes/schema.ts",
         "export": "passSchema"
