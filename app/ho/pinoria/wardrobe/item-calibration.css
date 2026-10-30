@@ -1,0 +1,53 @@
+/* PAP-1119 approved calibration layout, scoped within the registered TDD business tab */
+/* PAP-1109 V2: scoped Item-owned asset calibration, compositing and TDD tabs */
+.ho-pinoria-items .ho-pi-calibration{max-width:1120px}
+.ho-pinoria-items .ho-pi-cal-heading{display:flex;flex-wrap:wrap;gap:10px;align-items:start;justify-content:space-between;margin-bottom:0}
+.ho-pinoria-items .ho-pi-cal-heading h3{margin:0 0 7px;font-size:15px}
+.ho-pinoria-items .ho-pi-cal-heading p{font-size:12px;line-height:1.5;color:var(--muted,#716c74);margin:0}
+.ho-pinoria-items .ho-pi-warning{margin:0;line-height:1.5;padding:11px 13px;background:#fff8ed;border:1px solid #efdbc5;color:#754b26;border-radius:9px;font-size:12px}
+.ho-pinoria-items .ho-pi-cal-layout{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(280px,1fr);gap:22px;align-items:start;margin-top:12px}
+.ho-pinoria-items .ho-pi-stage-column{min-width:0;display:grid;gap:12px;justify-items:start}
+.ho-pinoria-items .ho-pi-stage{position:relative;width:min(100%,440px);aspect-ratio:9/16;background:radial-gradient(circle at 50% 40%,#fafdff,#dbe8f1 78%);border:1px solid var(--ds-border,#dfe5ea);border-radius:12px;overflow:hidden;touch-action:none;cursor:grab}
+.ho-pinoria-items .ho-pi-stage:active{cursor:grabbing}
+.ho-pinoria-items .ho-pi-stage-base{position:absolute;inset:0;z-index:50;pointer-events:none}
+/* Founder-approved R2 character: full portrait 9:16, no square crop. */
+.ho-pinoria-items .ho-pi-char-base{display:block;width:100%;height:100%;object-fit:contain;object-position:center center;pointer-events:none;user-select:none}
+.ho-pinoria-items .ho-pi-layer{position:absolute;inset:0;pointer-events:none;transform-origin:50% 52%}
+.ho-pinoria-items .ho-pi-layer-active{outline:0}
+.ho-pinoria-items .ho-pi-layer-image{position:absolute;width:78%;height:78%;left:11%;top:11%;object-fit:contain}
+.ho-pinoria-items .ho-pi-stage-cursor{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);font-size:11px;color:#66798c;background:#ffffffc5;border-radius:12px;padding:4px 9px;z-index:110;white-space:nowrap;pointer-events:none}
+.ho-pinoria-items .ho-pi-base-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px}
+.ho-pinoria-items .ho-pi-base-controls label{display:flex;align-items:center;gap:8px}
+.ho-pinoria-items .ho-pi-base-controls label input{width:100px}
+.ho-pinoria-items .ho-pi-upload{display:grid;gap:7px;font-size:12px;max-width:440px;width:100%}
+.ho-pinoria-items .ho-pi-upload input{font-size:11px;max-width:100%}
+.ho-pinoria-items .ho-pi-cal-tools{display:grid;gap:12px;min-width:0;align-content:start}
+.ho-pinoria-items .ho-pi-cal-control{display:grid;gap:7px;font-size:12px;font-weight:620}
+.ho-pinoria-items .ho-pi-cal-control>div{display:grid;grid-template-columns:minmax(80px,1fr) 73px;gap:10px;align-items:center}
+.ho-pinoria-items .ho-pi-cal-control input[type=range]{width:100%}
+.ho-pinoria-items .ho-pi-cal-control input[type=number]{min-height:35px;border:1px solid var(--ds-border,#ddd);border-radius:7px;padding:6px 8px;width:100%}
+.ho-pinoria-items .ho-pi-advanced{border:0;background:transparent;text-align:left;cursor:pointer;color:var(--ds-primary,#80334f);padding:7px 0;font-weight:650;font-size:12px}
+.ho-pinoria-items .ho-pi-cal-actions{display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid #e4e4eb;padding-top:15px}
+.ho-pinoria-items .ho-pi-cal-tools small{font-size:11px;color:var(--muted,#776d79);line-height:1.5}
+.ho-pinoria-items .ho-pi-calibration .ho-pi-stage{cursor:grab}
+.ho-pinoria-items .detail-tabs{overflow-x:auto;white-space:nowrap}
+@media(max-width:850px){.ho-pinoria-items .ho-pi-cal-layout{grid-template-columns:1fr;gap:16px}.ho-pinoria-items .ho-pi-stage{max-width:390px}}
+
+/* V3 lean Calibration: no synthetic extra layers; missing assets are explicit. */
+.ho-pinoria-items .ho-pi-stage-missing{position:absolute;left:7%;right:7%;bottom:9%;z-index:120;padding:9px 10px;border-radius:8px;background:#fffef6e8;border:1px solid #e6d7c3;color:#594b3d;text-align:center;font-size:11px;line-height:1.45;pointer-events:none}
+.ho-pinoria-items .ho-pi-layer-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;user-select:none}
+
+/* PAP-1109 2026-10-30 component-container-safe calibration: business-tab structure is free;
+   preserve DS controls, but stack slider/number when the real tab panel is narrow. */
+.ho-pinoria-items .ho-pi-cal-tools{container-type:inline-size}
+@container (max-width: 230px){
+  .ho-pinoria-items .ho-pi-cal-control>div{grid-template-columns:minmax(0,1fr);gap:6px}
+  .ho-pinoria-items .ho-pi-cal-control input[type=range]{min-height:32px}
+  .ho-pinoria-items .ho-pi-cal-control input[type=number]{min-height:40px}
+}
+
+/* The selected Item renders in front of the faded R2 base. */
+.ho-pinoria-items .ho-pi-layer{z-index:60}
+.ho-pinoria-items .pino-item-create-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;margin:12px 0 18px;padding:14px;background:var(--ds-surface,#fff);border:1px solid var(--ds-border,#ddd);border-radius:10px}
+.ho-pinoria-items .pino-item-create-form label{display:grid;gap:5px;font-size:12px}
+.ho-pinoria-items .pino-item-create-form input,.ho-pinoria-items .pino-item-create-form select{min-width:0;width:100%;min-height:36px;border:1px solid var(--ds-border,#ddd);border-radius:7px;padding:6px}
