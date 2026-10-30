@@ -15,6 +15,6 @@ export function safeG4Failure(name, error, phase = "unspecified") {
 }
 /** Whitelist booleans only. Never copy raw page state, text, URLs or stack traces. */
 export function safeG4SurfaceProbe(flags) {
-  const allowed = ["subscriptionHost", "subscriptionSurface", "invalidAlert", "anyDetail", "redirectedLogin", "nextError"];
+  const allowed = ["subscriptionHost", "subscriptionSurface", "invalidAlert", "anyDetail", "redirectedLogin", "nextError", "invalidRecordParam", "subscriptionModuleParam", "anyAlert", "invalidCopyPresent"];
   return Object.fromEntries(allowed.map(key => [key, flags?.[key] === true]));
 }
