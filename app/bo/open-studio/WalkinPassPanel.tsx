@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { boApi } from "@/lib/bo-api";
 import type { BoParentSearchResult } from "@/lib/bo-model";
 import { walkinPassBoApi, type WalkinPass, type WalkinPath } from "@/lib/open-studio-walkin-bo-api";
 import styles from "./walkin-pass.module.css";
-import { assignmentReady, WALKIN_PATHS } from "@/lib/open-studio-walkin-ui-contract";
+import { assignmentReady, WALKIN_PATHS, acceptInventoryResponse, selectedPassMatchesCenter, canCopyAssignedPassCode } from "@/lib/open-studio-walkin-ui-contract";
 
 const STATUS: Record<WalkinPass["status"], string> = {
  AVAILABLE:"Chưa cấp", ASSIGNED:"Đã cấp", CONSUMED:"Đã sử dụng", REVOKED:"Đã thu hồi",
@@ -15,6 +15,9 @@ type Mode = "assign" | "quick" | "detail" | null;
 /** Real BO staging adapter. No fixture, no membership/listing Pass writes. */
 export function WalkinPassPanel({centerId}:{centerId:string}) {
  const [rows,setRows]=useState<WalkinPass[]>([]);
+ const [loadedCenterId,setLoadedCenterId]=useState("");
+ const inventoryEpoch=useRef(0);
+ const searchEpoch=useRef(0);
  const [state,setState]=useState<"loading"|"ready"|"error">("loading");
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
@@ -28,12 +31,27 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
  const [searching,setSearching]=useState(false);
 
  const refresh=useCallback(async()=>{
-  if(!centerId){setRows([]);setState("ready");return;}
+  const requestEpoch=++inventoryEpoch.current;
+  const requestedCenter=centerId;
+  if(!requestedCenter){setRows([]);setLoadedCenterId("");setState("ready");return;}
   setState("loading");setError("");
-  try{setRows(await walkinPassBoApi.inventory(centerId));setState("ready");}
-  catch(e){setState("error");setError(e instanceof Error?e.message:"Không thể tải Pass");}
+  try{
+   const next=await walkinPassBoApi.inventory(requestedCenter);
+   if(!acceptInventoryResponse(requestEpoch,inventoryEpoch.current,requestedCenter,centerId))return;
+   setRows(next);setLoadedCenterId(requestedCenter);setState("ready");
+  }catch(e){
+   if(requestEpoch!==inventoryEpoch.current)return;
+   setState("error");setError(e instanceof Error?e.message:"Không thể tải Pass");
+  }
  },[centerId]);
- useEffect(()=>{let active=true;queueMicrotask(()=>{if(active)void refresh()});return()=>{active=false}},[refresh]);
+ useEffect(()=>{
+  inventoryEpoch.current++;searchEpoch.current++;
+  setSelected(null);setMode(null);setNotice("");setRows([]);setLoadedCenterId("");
+  setParentId("");setParents([]);setParentQuery("");setSearching(false);
+  let active=true;
+  queueMicrotask(()=>{if(active)void refresh()});
+  return()=>{active=false;inventoryEpoch.current++;searchEpoch.current++};
+ },[refresh]);
  useEffect(()=>{
   if(!mode)return;
   const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape"&&!busy)setMode(null)};
@@ -45,10 +63,13 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   setSelected(null);setParentId("");setPath("");setParentQuery("");setParents([]);setError("");setMode("assign");
  };
  async function searchParent(){
+  const epoch=++searchEpoch.current;
   setSearching(true);setError("");
-  try{setParents((await boApi.parents(parentQuery.trim(),50)).filter(row=>row.parent.status==="ACTIVE"));}
-  catch(e){setError(e instanceof Error?e.message:"Không tìm thấy Parent");}
-  finally{setSearching(false);}
+  try{
+   const matches=(await boApi.parents(parentQuery.trim(),50)).filter(row=>row.parent.status==="ACTIVE");
+   if(epoch===searchEpoch.current)setParents(matches);
+  }catch(e){if(epoch===searchEpoch.current)setError(e instanceof Error?e.message:"Không tìm thấy Parent");}
+  finally{if(epoch===searchEpoch.current)setSearching(false);}
  }
  async function assign(){
   if(!assignmentReady(parentId,path,centerId,busy))return;
@@ -62,7 +83,7 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   finally{setBusy(false);}
  }
  async function revoke(){
-  if(!selected||!["AVAILABLE","ASSIGNED"].includes(selected.status)||busy)return;
+  if(!selectedPassMatchesCenter(selected,centerId)||!selected||!["AVAILABLE","ASSIGNED"].includes(selected.status)||busy)return;
   if(!confirm("Thu hồi Pass này? Hành động sẽ được ghi lịch sử."))return;
   setBusy(true);setError("");
   try{
@@ -72,11 +93,11 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   finally{setBusy(false);}
  }
  const copy=async()=>{
-  if(!selected)return;
-  try{await navigator.clipboard.writeText(selected.code);setNotice("Đã sao chép mã e-pass");}
+  if(!canCopyAssignedPassCode(selected,centerId)||!selected)return;
+  try{await navigator.clipboard.writeText(selected.code);setNotice("Đã sao chép mã Pass");}
   catch{setError("Không thể sao chép. Hãy chọn mã Pass để sao chép thủ công.");}
  };
- const view=(item:WalkinPass)=>{setError("");setSelected(item);setMode("quick");};
+ const view=(item:WalkinPass)=>{if(state!=="ready"||loadedCenterId!==centerId)return;setError("");setSelected(item);setMode("quick");};
  return <section className={styles.section} aria-labelledby="walkin-heading">
   <div className={styles.head}>
    <div><h2 id="walkin-heading">Trạm Nghệ Thuật · Pass một lượt</h2><p>Kho Pass và cấp Parent theo Path — tách biệt Listing/Booking.</p></div>
@@ -86,7 +107,7 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
   {notice?<p className={styles.notice} role="status">{notice}</p>:null}
   {state==="loading"?<p className={styles.info}>Đang tải kho Pass…</p>:null}
   {state==="error"?<p role="alert" className={styles.error}>{error}</p>:null}
-  {state==="ready"&&centerId?<div className={styles.tableWrap}>
+  {state==="ready"&&centerId&&loadedCenterId===centerId?<div className={styles.tableWrap}>
    <table className={styles.table}><thead><tr><th>Mã Pass</th><th>Trạng thái</th><th>Path</th><th>Parent</th><th></th></tr></thead>
    <tbody>{rows.length===0?<tr><td colSpan={5}>Chưa có Pass tại Center này hoặc chưa được cấp quyền đọc.</td></tr>:rows.map(item=>
     <tr key={item.id}><th scope="row">{item.code}</th><td>{STATUS[item.status]}</td><td>{item.path_code??"—"}</td><td>{item.parent_user_id??"—"}</td>
@@ -128,9 +149,9 @@ export function WalkinPassPanel({centerId}:{centerId:string}) {
       <div><dt>Center</dt><dd>{selected.center_id??"Kho chung"}</dd></div>
      </dl>
      <div className={styles.actions}>
-      <button className={styles.secondary} type="button" onClick={()=>void copy()}>Sao chép e-pass</button>
+      {canCopyAssignedPassCode(selected,centerId)?<button className={styles.secondary} type="button" onClick={()=>void copy()}>Sao chép mã Pass</button>:null}
       {mode==="quick"?<button className={styles.secondary} onClick={()=>setMode("detail")} type="button">Chi tiết</button>:null}
-      {["AVAILABLE","ASSIGNED"].includes(selected.status)?<button className={styles.danger} type="button" disabled={busy} onClick={()=>void revoke()}>Thu hồi</button>:null}
+      {selectedPassMatchesCenter(selected,centerId)&&["AVAILABLE","ASSIGNED"].includes(selected.status)?<button className={styles.danger} type="button" disabled={busy} onClick={()=>void revoke()}>Thu hồi</button>:null}
      </div>
      {mode==="detail"?<div className={styles.info}>Lịch sử thao tác: cần nối Core audit read-only trước khi nghiệm thu Full Detail.</div>:null}
     </div>:null}
