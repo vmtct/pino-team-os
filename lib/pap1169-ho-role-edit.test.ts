@@ -80,3 +80,17 @@ test("PAP-1187 Founder approval is scoped to the one Role permission extension",
  assert.equal(verifyRolePermissionTabApproval(approved.approval,{surface:"HO",key:"roles",extensionId:"unapproved-extension"}),false);
  assert.throws(()=>new TddRegistry().register({...roleDefinition,data:roleSchema.data}),/extension approval not verified/);
 });
+
+test("PAP-1169 HO Role writes use the dedicated BO Access Core binding, not FounderControlPlane",()=>{
+ const facade=readFileSync("lib/ho-role-edit-facade.ts","utf8");
+ const config=JSON.parse(readFileSync("wrangler.ho-staging.json","utf8"));
+ const access=config.services.find((service:{binding:string})=>service.binding==="PINO_BO_CORE");
+ const founder=config.services.find((service:{binding:string})=>service.binding==="PINO_CORE");
+ assert.equal(access?.entrypoint,"BoAccessControlPlane");
+ assert.equal(founder?.entrypoint,"FounderControlPlane");
+ assert.match(facade,/callBoAccessCoreWithStaffPassword\(env\.PINO_BO_CORE/);
+ assert.doesNotMatch(facade,/callFounderCoreWithStaffPassword|env\.PINO_CORE/);
+ assert.match(facade,/authorizeHoShell\(request\.headers, env\)/);
+ assert.match(facade,/actor\.permissionKeys\.includes\("access\.role\.edit"\)/);
+ assert.match(facade,/role\.manage|HO_ROLE_PERMISSION_ESCALATION|current\.roleType !== "custom"/);
+});
