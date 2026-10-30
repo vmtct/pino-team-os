@@ -31,18 +31,7 @@ export function BoWorkforceWeekPlanner({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
   const selectedDate = selection?.workDate;
-  const startDate = data.startDate;
-  const selectedDayIndex = selectedDate
-    ? Math.max(
-        0,
-        Math.round(
-          (Date.parse(selectedDate) - Date.parse(startDate)) / 86400000,
-        ),
-      )
-    : 0;
-  const [dayIndex, setDayIndex] = useState(selectedDayIndex);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLDivElement>(null);
   const dates: string[] = [];
   for (
     const date = new Date(data.startDate + "T00:00:00Z");
@@ -74,23 +63,8 @@ export function BoWorkforceWeekPlanner({
     );
   });
   useEffect(() => {
-    if (selectedDate)
-      alignDay(
-        scrollRef.current,
-        navRef.current,
-        selectedDate,
-        Math.max(
-          0,
-          Math.round(
-            (Date.parse(selectedDate) - Date.parse(startDate)) / 86400000,
-          ),
-        ),
-      );
-  }, [selectedDate, startDate]);
-  function jump(index: number) {
-    setDayIndex(index);
-    alignDay(scrollRef.current, navRef.current, dates[index], index);
-  }
+    if (selectedDate) alignDay(scrollRef.current, selectedDate);
+  }, [selectedDate]);
 
   return (
     <section className={styles.weekPlannerRoot} aria-label="Lịch phân ca tuần">
@@ -194,41 +168,6 @@ export function BoWorkforceWeekPlanner({
               {rows.length} / {data.staff.length} nhân sự
             </small>
           </div>
-          <nav
-            className={styles.weekPlannerDayNav}
-            aria-label="Chuyển ngày trong lịch"
-          >
-            <button
-              type="button"
-              aria-label="Ngày trước"
-              disabled={dayIndex === 0}
-              onClick={() => jump(dayIndex - 1)}
-            >
-              ‹
-            </button>
-            <div ref={navRef} className={styles.weekPlannerDayScroll}>
-              {dates.map((date, index) => (
-                <button
-                  type="button"
-                  key={date}
-                  aria-pressed={dayIndex === index}
-                  onClick={() => jump(index)}
-                >
-                  <strong>{weekday(date)}</strong>
-                  <small>{displayDate(date).slice(0, 5)}</small>
-                  {active.some((item) => item.workDate === date) ? <i /> : null}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              aria-label="Ngày sau"
-              disabled={dayIndex === dates.length - 1}
-              onClick={() => jump(dayIndex + 1)}
-            >
-              ›
-            </button>
-          </nav>
           <div
             ref={scrollRef}
             className={styles.weekPlannerTableScroll}
@@ -237,6 +176,12 @@ export function BoWorkforceWeekPlanner({
             tabIndex={0}
           >
             <table aria-label="Weekly Workforce planning matrix">
+              <colgroup>
+                <col className={styles.weekPlannerStaffColumn} />
+                {dates.map((date) => (
+                  <col key={date} className={styles.weekPlannerDayColumn} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
                   <th scope="col">Nhân sự</th>
@@ -261,7 +206,7 @@ export function BoWorkforceWeekPlanner({
                             : "Chưa có lịch"}
                       </small>
                     </th>
-                    {dates.map((date, index) => {
+                    {dates.map((date) => {
                       const assigned = active.filter(
                           (item) =>
                             item.staffMemberId === staff.id &&
@@ -288,7 +233,7 @@ export function BoWorkforceWeekPlanner({
                             aria-label={`${staff.displayLabel} · ${weekday(date)} ${displayDate(date)} · ${assigned.length ? "Đã xếp" : gap ? "Owner chưa link TE" : registered.length ? "Đã đăng ký" : "Chưa có ca"}`}
                             onClick={() => {
                               onSelect(staff.id, date);
-                              jump(index);
+                              alignDay(scrollRef.current, date);
                             }}
                           >
                             {assigned.length ? (
@@ -358,7 +303,7 @@ export function BoWorkforceWeekPlanner({
             </p>
           ) : null}
           <p className={styles.weekPlannerHint}>
-            ← Chọn ngày phía trên hoặc cuộn ngang để xem đủ 7 ngày →
+            ← Cuộn ngang trong bảng để xem đủ 7 ngày; chọn ô nhân sự × ngày để phân công →
           </p>
         </div>
         <aside
@@ -378,35 +323,15 @@ export function BoWorkforceWeekPlanner({
   );
 }
 
-function alignDay(
-  scroller: HTMLDivElement | null,
-  nav: HTMLDivElement | null,
-  date: string,
-  index: number,
-) {
-  const button = nav?.children[index];
-  if (nav && button)
-    nav.scrollTo({
-      left: Math.max(
-        0,
-        nav.scrollLeft +
-          button.getBoundingClientRect().left -
-          nav.getBoundingClientRect().left,
-      ),
-      behavior: "smooth",
-    });
-  const header = scroller?.querySelector<HTMLElement>(`[data-day="${date}"]`),
+function alignDay(scroller: HTMLDivElement | null, date: string) {
+  const header = scroller?.querySelector<HTMLElement>('[data-day="' + date + '"]'),
     staff = scroller?.querySelector<HTMLElement>("thead th:first-child");
   if (scroller && header && staff) {
-    // Same-scrollport geometry: offsetLeft can be relative to an unrelated ancestor.
-    const left =
-      index === 0
-        ? 0
-        : scroller.scrollLeft +
-          header.getBoundingClientRect().left -
-          scroller.getBoundingClientRect().left -
-          staff.getBoundingClientRect().width -
-          scroller.clientLeft;
+    const left = scroller.scrollLeft +
+      header.getBoundingClientRect().left -
+      scroller.getBoundingClientRect().left -
+      staff.getBoundingClientRect().width -
+      scroller.clientLeft;
     scroller.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
   }
 }
