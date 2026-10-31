@@ -58,9 +58,14 @@ function project(raw: BoRecord): ModuleRow<F> {
     throw new BoApiError(502, "Mission catalog không đúng contract.", null);
   }
   return {
-    id: String(raw.id), name: raw.name, code: raw.code, level: raw.level === 0 ? null : raw.level,
-    status: raw.status, plsValue: raw.plsValue, paperSize: raw.paperSize ?? null, path: raw.path ?? null,
-    prerequisite: raw.prerequisite ?? null, description: raw.description ?? null, guideline: raw.guideline ?? null,
+    id: String(raw.id), name: String(raw.name), code: String(raw.code),
+    level: typeof raw.level === "number" && raw.level > 0 ? raw.level : null,
+    status: String(raw.status), plsValue: typeof raw.plsValue === "number" ? raw.plsValue : 0,
+    paperSize: typeof raw.paperSize === "string" ? raw.paperSize : null,
+    path: typeof raw.path === "string" ? raw.path : null,
+    prerequisite: typeof raw.prerequisite === "string" ? raw.prerequisite : null,
+    description: typeof raw.description === "string" ? raw.description : null,
+    guideline: typeof raw.guideline === "string" ? raw.guideline : null,
   };
 }
 export function projectMission(raw: BoRecord): ModuleRow<F> { return project(raw); }
