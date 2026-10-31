@@ -59,7 +59,7 @@ export function BoOpenStudioPassesTdd(){
   </div>
   {!centerId?<p role="status">{centerError||"Chọn Center để đọc Pass."}</p>:
    error?<p role="alert">{error} <button type="button" onClick={()=>{setError("");setRetry(n=>n+1)}}>Thử lại</button></p>:
-   ready?<><CenterPassActions centerId={centerId} onChanged={()=>setRefresh(n=>n+1)}/>
+   ready?<><CenterPassActions key={centerId} centerId={centerId} onChanged={()=>setRefresh(n=>n+1)}/>
      <SurfaceWorkspace key={centerId+":"+refresh} adapter={ready.adapter} navigation={ready.navigation} initialQuery={passQuery}/>
      <p role="note">Danh sách tối đa 100 Pass của Center đã chọn từ Core. Không bao gồm kho chung chưa cấp.</p>
     </>:<p role="status">Đang xác thực Center và tải Pass…</p>}

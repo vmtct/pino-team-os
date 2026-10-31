@@ -1,73 +1,194 @@
 "use client";
-import {useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 import {TosButton,TosCard} from "@pino/design-system/react";
+import styles from "@/app/bo/bo.module.css";
 import {readScopedParentDirectory} from "@/app/bo/parents/provider";
-import {walkinPassBoApi,type WalkinPath} from "@/lib/open-studio-walkin-bo-api";
+import {walkinPassBoApi,type WalkinPath,type VerifiedParentContact} from "@/lib/open-studio-walkin-bo-api";
+
 type ScopedParent = Awaited<ReturnType<typeof readScopedParentDirectory>>[number];
-type Code="AC"|"LPP"|"LPA"|"PH";
-const paths:readonly Code[]=["AC","LPP","LPA","PH"];
-/** Bounded business command. TDD owns all Table/Drawer/Detail shells and navigation. */
+const PATHS:readonly WalkinPath[]=["AC","LPP","LPA","PH"];
+type Step="select"|"verify";
+
+/** PAP-1248: scoped Parent proof in the approved Open Studio Pass creation Drawer. */
 export function CenterPassActions({centerId,onChanged}:{centerId:string;onChanged:()=>void}){
- const [parentQuery,setParentQuery]=useState("");
+ const [open,setOpen]=useState(false);
+ const [step,setStep]=useState<Step>("select");
+ const [query,setQuery]=useState("");
  const [parents,setParents]=useState<ScopedParent[]>([]);
  const [parentId,setParentId]=useState("");
  const [path,setPath]=useState<WalkinPath|"">("");
+ const [contactValue,setContactValue]=useState("");
+ const [candidate,setCandidate]=useState<VerifiedParentContact|null>(null);
+ const [verifiedParent,setVerifiedParent]=useState<VerifiedParentContact|null>(null);
+ const [holderConfirmed,setHolderConfirmed]=useState(false);
  const [busy,setBusy]=useState(false);
+ const [searching,setSearching]=useState(false);
  const [notice,setNotice]=useState("");
  const [error,setError]=useState("");
  const [uncertain,setUncertain]=useState(false);
- const [searching,setSearching]=useState(false);
+ const closeRef=useRef<HTMLButtonElement>(null);
+
+ const reset=useCallback(()=>{
+  setStep("select");setQuery("");setParents([]);setParentId("");setPath("");
+  setContactValue("");setCandidate(null);setVerifiedParent(null);setHolderConfirmed(false);
+  setError("");setNotice("");setUncertain(false);
+ },[]);
+ function launch(){reset();setOpen(true)}
+ const close=useCallback(()=>{if(busy||searching||uncertain)return;reset();setOpen(false);document.getElementById("pass-issue-launch")?.focus()},[busy,searching,uncertain,reset])
+ useEffect(()=>{
+  if(!open)return;
+  const old=document.body.style.overflow;document.body.style.overflow="hidden";
+  closeRef.current?.focus();
+  const onKey=(e:KeyboardEvent)=>{
+   const dialog=document.getElementById("pass-issue-title")?.closest("aside");
+   if(e.key==="Tab"&&dialog){
+    const focusable=[...dialog.querySelectorAll<HTMLElement>("button:not([disabled]),input:not([disabled]),select:not([disabled])")].filter(el=>el.getClientRects().length>0);
+    if(focusable.length){
+     const first=focusable[0]!,last=focusable[focusable.length-1]!;
+     if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+    }
+   }
+   if(e.key==="Escape"&&!busy&&!searching&&!uncertain){e.preventDefault();close()}
+  };
+  window.addEventListener("keydown",onKey);
+  return()=>{document.body.style.overflow=old;window.removeEventListener("keydown",onKey)};
+  // close deliberately uses the latest state for each render.
+ },[open,busy,searching,uncertain,close]);
+ // Parent lookup/proof state is isolated by a key on CenterPassActions in its TDD parent.
+
  async function search(){
-  if(!parentQuery.trim()||searching)return;
-  setSearching(true);setError("");setNotice("");setParents([]);setParentId("");
+  if(!query.trim()||busy||searching||uncertain)return;
+  setSearching(true);setNotice("");setError("");setParents([]);setParentId("");
   try{
-    const q=parentQuery.trim().toLocaleLowerCase("vi-VN");
-    const scoped=await readScopedParentDirectory(centerId,fetch,new AbortController().signal);
-    const matches=scoped.filter(r=>(r.name??"").toLocaleLowerCase("vi-VN").includes(q)).slice(0,25);
-    setParents(matches);
-    if(!matches.length)setNotice("Chưa có Parent được Core xác thực trong Center này. Hoàn tất xác minh Parent–Center trước khi cấp Pass.");
+   const rows=await readScopedParentDirectory(centerId,fetch,new AbortController().signal);
+   const key=query.trim().toLocaleLowerCase("vi-VN");
+   const matches=rows.filter(r=>(r.name??"").toLocaleLowerCase("vi-VN").includes(key)).slice(0,25);
+   setParents(matches);
+   if(!matches.length)setNotice("Chưa tìm thấy Parent trong danh sách được Core cho phép. Có thể xác minh liên hệ tại quầy.");
   }catch{setError("Không thể tra cứu Parent trong phạm vi được cấp quyền.");}
-  finally{setSearching(false);}
+  finally{setSearching(false)}
  }
- async function assign(){
-  if(busy||uncertain||!parentId||!paths.includes(path as Code)||!centerId)return;
+ async function lookupContact(){
+  if(!contactValue.trim()||busy||searching||uncertain)return;
+  setSearching(true);setCandidate(null);setHolderConfirmed(false);setError("");setNotice("");
+  try{
+   const identifierType=contactValue.includes("@")?"EMAIL":"PHONE";
+   const receipt=await walkinPassBoApi.recognizeVerifiedContact(centerId,identifierType,contactValue.trim());
+   if(!receipt.candidate){
+    setError("Không thể xác minh liên hệ theo thông tin cung cấp. Kiểm tra lại tại quầy.");
+    return;
+   }
+   setCandidate(receipt.candidate);
+  }catch{setError("Không thể xác minh liên hệ trong phạm vi Center. Không cấp Pass khi chưa có kết quả.");}
+  finally{setSearching(false)}
+ }
+ async function verify(){
+  if(!candidate||!holderConfirmed||busy||uncertain)return;
   setBusy(true);setError("");setNotice("");
   try{
-   const result=await walkinPassBoApi.assign(parentId,centerId,path as WalkinPath);
-   if(result.status!=="ASSIGNED"||result.center_id!==centerId||result.parent_user_id!==parentId||result.path_code!==path)
-    throw Error("Không khớp Pass vừa cấp. Đối chiếu Core trước khi thử lại.");
-   setNotice("Đã cấp Pass thành công. Dùng bảng TDD để kiểm tra thông tin và mã Pass.");
-   setParentId("");setParents([]);setParentQuery("");setPath("");
-   onChanged();
-  }catch(e){setUncertain(true);setError(e instanceof Error?e.message:"Trạng thái cấp Pass chưa được xác minh.");}
-  finally{setBusy(false);}
+   const proof=await walkinPassBoApi.verifyParentCenter(candidate,centerId);
+   if(proof.parent_user_id!==candidate.parentId||proof.verified_contact_id!==candidate.contactIdentifierId||
+      proof.center_id!==centerId||proof.request_id!==candidate.lookupRequestId||proof.revoked_at!==null)
+    throw Error("Core trả về bằng chứng không khớp; cần đối chiếu.");
+   setVerifiedParent(candidate);setParentId(candidate.parentId);setParents([]);
+   setStep("select");setNotice("Đã xác minh Parent–Center qua Core. Chọn Path để cấp Pass.");
+  }catch{
+   // An uncertain successful write must NOT be retried with a new requestId.
+   setUncertain(true);
+   setError("Chưa xác nhận được kết quả chứng thực. Tải lại và đối chiếu Core trước khi thử lại.");
+  }finally{setBusy(false)}
  }
- return <TosCard><section aria-label="Cấp Pass Trạm Nghệ Thuật">
-  <h3>Cấp Pass cho Parent</h3>
-  <p>Pass một lượt, gắn Parent và Path tại Center đang chọn. Không tạo bill hoặc gửi e-pass tự động.</p>
-  <div className="property-row">
-   <label htmlFor="pass-parent-search">Tìm Parent</label>
-   <input id="pass-parent-search" type="search" value={parentQuery} disabled={busy||uncertain}
-    onChange={e=>setParentQuery(e.target.value)} placeholder="Tên Parent đã liên kết Center"/>
-   <TosButton type="button" variant="secondary" disabled={searching||!parentQuery.trim()||busy||uncertain} onClick={()=>void search()}>{searching?"Đang tìm…":"Tìm"}</TosButton>
-  </div>
-  <div className="property-row">
-   <label htmlFor="pass-parent-select">Parent</label>
-   <select id="pass-parent-select" value={parentId} disabled={busy||uncertain} onChange={e=>setParentId(e.target.value)}>
-    <option value="">Chọn Parent</option>
-    {parents.map(r=><option key={r.id} value={r.id}>{r.name??"Parent"}</option>)}
-   </select>
-  </div>
-  <div className="property-row">
-   <label htmlFor="pass-path">Path</label>
-   <select id="pass-path" value={path} disabled={busy||uncertain} onChange={e=>setPath(e.target.value as WalkinPath|"")}>
-    <option value="">Chọn Path</option>{paths.map(p=><option key={p} value={p}>{p}</option>)}
-   </select>
-  </div>
-  <TosButton type="button" variant="primary" disabled={busy||uncertain||!parentId||!paths.includes(path as Code)}
-   onClick={()=>void assign()}>{busy?"Đang cấp…":"Xác nhận cấp Pass"}</TosButton>
-  {notice?<p role="status">{notice}</p>:null}
-  {error?<p role="alert">{error} Không gửi lại yêu cầu khi chưa đối chiếu dữ liệu thực.</p>:null}
-  {uncertain?<TosButton type="button" variant="secondary" onClick={()=>location.reload()}>Tải lại kho Pass để đối chiếu</TosButton>:null}
- </section></TosCard>;
+ async function assign(){
+  if(busy||uncertain||!parentId||!PATHS.includes(path as WalkinPath)||!centerId)return;
+  setBusy(true);setError("");setNotice("");
+  try{
+   const pass=await walkinPassBoApi.assign(parentId,centerId,path as WalkinPath);
+   if(pass.status!=="ASSIGNED"||pass.center_id!==centerId||pass.parent_user_id!==parentId||pass.path_code!==path)
+    throw Error("Core Pass receipt không khớp");
+   reset();setOpen(false);onChanged();
+   setNotice("Đã cấp Pass. Xem mã và lịch sử trong Table/Detail.");
+  }catch{
+   setUncertain(true);
+   setError("Trạng thái cấp Pass chưa được xác nhận. Đối chiếu Core trước khi gửi lại.");
+  }finally{setBusy(false)}
+ }
+ return <>
+  <TosCard><section aria-label="Cấp Pass Trạm Nghệ Thuật">
+   <TosButton type="button" variant="primary" disabled={!centerId} onClick={launch} id="pass-issue-launch">＋ Cấp Pass</TosButton>
+   <p>Chọn Parent và Path tại Center. Không tạo Student hoặc bill tự động.</p>
+   {!open&&notice?<p role="status">{notice}</p>:null}
+  </section></TosCard>
+  {open?<div className={styles.walkinScrim} onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
+   <aside className={styles.walkinDrawer} role="dialog" aria-modal="true" aria-labelledby="pass-issue-title">
+    <header className={styles.walkinDrawerHeader}>
+     <h3 id="pass-issue-title">{step==="verify"?"Xác minh Parent tại quầy":"Cấp Pass cho phụ huynh"}</h3>
+     <button type="button" ref={closeRef} className={styles.walkinClose} disabled={busy||searching||uncertain} aria-label="Đóng Drawer" onClick={close}>×</button>
+    </header>
+    <div className={styles.walkinBody}>
+     {step==="select"?<>
+      <label className={styles.walkinField} htmlFor="pass-parent-search">Tìm Parent đã liên kết Center
+       <div className={styles.walkinSearchRow}>
+        <input id="pass-parent-search" type="search" value={query} disabled={busy||uncertain}
+         onChange={e=>setQuery(e.target.value)} placeholder="Tên Parent"/>
+        <TosButton type="button" variant="secondary" disabled={!query.trim()||busy||searching||uncertain} onClick={()=>void search()}>{searching?"Đang tìm…":"Tìm"}</TosButton>
+       </div>
+      </label>
+      <label className={styles.walkinField} htmlFor="pass-parent-select">Parent *
+       <select id="pass-parent-select" value={parentId} disabled={busy||uncertain} onChange={e=>setParentId(e.target.value)}>
+        <option value="">Chọn phụ huynh…</option>
+        {parents.map(p=><option key={p.id} value={p.id}>{p.name??"Parent"}</option>)}
+        {verifiedParent&&!parents.some(p=>p.id===verifiedParent.parentId)?
+         <option value={verifiedParent.parentId}>{verifiedParent.parentName??"Parent"} · đã xác minh tại quầy</option>:null}
+       </select>
+      </label>
+      <TosButton type="button" variant="secondary" disabled={busy||uncertain}
+       onClick={()=>{setStep("verify");setCandidate(null);setHolderConfirmed(false);setError("");setNotice("")}}>
+       Không thấy Parent? Xác minh liên hệ tại quầy
+      </TosButton>
+      <label className={styles.walkinField} htmlFor="pass-path">Path *
+       <select id="pass-path" value={path} disabled={busy||uncertain} onChange={e=>setPath(e.target.value as WalkinPath|"")}>
+        <option value="">Chọn Path…</option>{PATHS.map(p=><option key={p} value={p}>{p}</option>)}
+       </select>
+      </label>
+      <p>Mỗi Parent tối đa một Pass chưa sử dụng. Mã cấp từ kho HO.</p>
+      <div className={styles.walkinActions}>
+       <TosButton type="button" variant="secondary" disabled={busy||uncertain} onClick={close}>Hủy</TosButton>
+       <TosButton type="button" variant="primary" disabled={!parentId||!path||busy||uncertain} onClick={()=>void assign()}>{busy?"Đang cấp…":"Cấp Pass"}</TosButton>
+      </div>
+     </>:<>
+      <h4>1. Nhận diện liên hệ đã xác minh</h4>
+      <p>Parent cung cấp số điện thoại hoặc email tại quầy. Chỉ tra cứu chính xác trong Core, không duyệt danh bạ chung.</p>
+      <label className={styles.walkinField} htmlFor="pass-contact-exact">Số điện thoại hoặc email *
+       <div className={styles.walkinSearchRow}>
+        <input id="pass-contact-exact" type="text" autoComplete="off" value={contactValue} disabled={busy||uncertain}
+         onChange={e=>{setContactValue(e.target.value);setCandidate(null);setHolderConfirmed(false);setError("")}}
+         placeholder="Liên hệ Parent cung cấp"/>
+        <TosButton type="button" variant="secondary" disabled={!contactValue.trim()||busy||searching||uncertain}
+         onClick={()=>void lookupContact()}>{searching?"Đang kiểm tra…":"Tìm chính xác"}</TosButton>
+       </div>
+      </label>
+      {candidate?<section aria-label="Parent được nhận diện">
+       <h4>Liên hệ được Core xác minh</h4>
+       <strong>{candidate.parentName??"Parent"}</strong><p>{candidate.maskedContact}</p>
+       <h4>2. Đối chiếu người đến quầy</h4>
+       <label className={styles.walkinConfirm}>
+        <input type="checkbox" checked={holderConfirmed} disabled={busy||uncertain} onChange={e=>setHolderConfirmed(e.target.checked)}/>
+        <span>Tôi đã đối chiếu trực tiếp người đến quầy với tên và liên hệ đã xác minh.</span>
+       </label>
+       <p>Core sẽ ghi người xác minh, Center, phương thức xác minh tại quầy và bằng chứng. Không tự tạo Student.</p>
+       <TosButton type="button" variant="primary" disabled={!holderConfirmed||busy||uncertain}
+        onClick={()=>void verify()}>{busy?"Đang xác minh…":"Tiếp tục với Parent"}</TosButton>
+      </section>:null}
+      <div className={styles.walkinActions}>
+       <TosButton type="button" variant="secondary" disabled={busy||uncertain} onClick={()=>{setStep("select");setError("");setCandidate(null);setHolderConfirmed(false)}}>Quay lại cấp Pass</TosButton>
+      </div>
+     </>}
+     {notice?<p role="status">{notice}</p>:null}
+     {error?<p role="alert">{error}</p>:null}
+     {uncertain?<TosButton type="button" variant="secondary" onClick={()=>location.reload()}>Tải lại để đối chiếu Core</TosButton>:null}
+    </div>
+   </aside>
+  </div>:null}
+ </>;
 }
