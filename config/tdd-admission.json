@@ -457,6 +457,39 @@
         "lib/pap1210-bo-mission-options.test.ts",
         "lib/pap1210-bo-mission-form.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "tvs",
+      "route": "/bo/tvs",
+      "file": "app/bo/tvs/page.tsx",
+      "files": [
+        "app/bo/tvs/page.tsx",
+        "app/bo/tvs/TvsTdd.tsx",
+        "app/bo/tvs/schema.ts"
+      ],
+      "schema": {
+        "file": "app/bo/tvs/schema.ts",
+        "export": "tvSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/tvs/TvsTdd.tsx"
+      },
+      "tests": [
+        "app/bo/tvs/schema.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1263"
+        },
+        {
+          "file": "app/bo/pinoria-tv-mesh/HouseMeshEditor.tsx",
+          "owner": "PAP-1266"
+        }
+      ]
     }
   ],
   "approvals": []
