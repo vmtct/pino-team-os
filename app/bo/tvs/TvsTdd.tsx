@@ -49,8 +49,7 @@ export function TvsTdd(){
  useEffect(()=>{
    if(!centerId)return;
    const ctrl=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-   const registry=new TddRegistry((approval,scope)=>verifyTvExtension(approval,scope));
-   void createBoTddAdapter({registry,definition:tvDefinition,provider:tvProvider,centerId,centerSource:"centers"},ctrl.signal)
+   void createBoTddAdapter({registry:new TddRegistry((approval,scope)=>verifyTvExtension(approval,scope)),definition:tvDefinition,provider:tvProvider,centerId,centerSource:"centers"},ctrl.signal)
    .then(a=>{adapter=a;if(ctrl.signal.aborted){a.dispose();return}setReady({adapter:a,navigation:browserTddNavigation("BO","tvs",tvQuery)});})
    .catch(e=>{if(!ctrl.signal.aborted)setError(e instanceof Error?e.message:"Không đủ quyền tv.view tại Center.")});
    return()=>{ctrl.abort();adapter?.dispose()};
