@@ -1,6 +1,7 @@
 import { isFieldValue, type FieldSchema, type FieldKey } from "./fields";
 import type { Approval, AuthorizationContext, BusinessSlot, CompatibilityScreen, HistoryResult, HistorySubject, ModuleSchema } from "./schema";
 import { allows, allowsField, validateApproval, validateModule } from "./validate";
+import type { TddActionDescriptor } from "./schema";
 
 /** Snapshot at admission: later author mutations cannot change a registered contract. */
 function snapshot<T>(value: T): T {
@@ -110,4 +111,19 @@ export class TddRegistry {
     if ("route" in entry && [...this.entries.values()].some(e => "route" in e && e.surface === entry.surface && e.route === entry.route)) throw Error("TDD contract: duplicate compatibility route");
     this.entries.set(key, entry);
   }
+}
+export type TddActionHandler = Readonly<{
+  run: () => void | Promise<void>;
+  disabled?: boolean;
+}>;
+export type TddActionBindings = Readonly<Record<string, TddActionHandler | undefined>>;
+/** Server/client safe: check permission from an authenticated context and an actual handler. */
+export function authorizedHostActions(
+  schema: ModuleSchema, context: AuthorizationContext,
+  slot: TddActionDescriptor["slot"], bindings: TddActionBindings,
+): readonly TddActionDescriptor[] {
+  const eligible = (schema.actions ?? []).filter(action => action.slot === slot &&
+    allows(schema, context, action.capability) && Boolean(bindings[action.handler]));
+  return [...eligible.filter(action => action.variant !== "primary"),
+    ...eligible.filter(action => action.variant === "primary")];
 }
