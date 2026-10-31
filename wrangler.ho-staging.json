@@ -69,6 +69,11 @@
       "binding": "PINO_PINORIA_TV_CORE",
       "service": "pino-core-staging",
       "entrypoint": "PinoriaTvControlPlane"
+    },
+    {
+      "binding": "PINO_TV_RUNTIME_CORE",
+      "service": "pino-core-staging",
+      "entrypoint": "DisplayRuntimeControlPlane"
     }
   ],
   "keep_vars": false

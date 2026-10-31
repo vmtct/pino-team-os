@@ -129,6 +129,7 @@ export function isOperationalReadPath(path: string): boolean {
     || SESSION_SYLLABUS_BINDING_READ.test(path)
     || path === "tv/displays"
     || path === "tv/devices"
+    || path === "tv/operator-health"
     || path === "access/roles"
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
     || path === "access/permissions"
@@ -265,6 +266,16 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "tv/operator-health") {
+    const keys=[...url.searchParams.keys()];
+    const ids=url.searchParams.getAll("centerId");
+    if (keys.length!==1 || keys[0]!=="centerId" || ids.length!==1 ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!)) {
+      throw new RangeError("Invalid TV Health Center query");
+    }
+    return {centerId:ids[0]!};
+  }
+
   // PAP-1177: explicit Parent Center is a read constraint, not an ACL grant.
   // The Core Parent Directory and Detail independently verify three scoped
   // permissions and bind SQL to the selected Center before returning a receipt.

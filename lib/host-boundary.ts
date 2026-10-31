@@ -26,6 +26,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
+    if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
+    if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
+      return { action: (method === "PUT" || method === "GET") ? "next" : "not_found" };
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
     const staffRateCorrection = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation\/[0-9a-f-]{36}$/.test(p);
     const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
@@ -91,6 +95,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     }
     if (pathname === "/api/bo/workforce/planning/shift-plan") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1252: exact read-only BO TV Health; BFF and Core enforce Center-scoped tv.view.
+    // The host fence admits neither Production nor non-GET methods.
+    if (pathname === "/api/bo/tv/operator-health") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
     }
     // PAP-1111 G4: admit only staging BO note-only assignment edits.
     // Next and Core still enforce Staff identity, Center ACL, CAS and audit.

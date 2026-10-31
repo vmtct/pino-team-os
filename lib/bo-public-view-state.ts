@@ -29,7 +29,7 @@ export type BoViewConfig = {
   logic: "and" | "or";
   groupBy: string | null;
   hideEmptyGroups: boolean;
-  columns: { order: string[]; visible: string[] };
+  columns: { order: string[]; visible: string[]; frozenThrough?: string | null };
 };
 
 export type BoPublicView = {
@@ -88,7 +88,8 @@ function cloneConfig(config: BoViewConfig): BoViewConfig {
     logic: config.logic,
     groupBy: config.groupBy,
     hideEmptyGroups: config.hideEmptyGroups,
-    columns: { order: [...config.columns.order], visible: [...config.columns.visible] },
+    columns: { order: [...config.columns.order], visible: [...config.columns.visible],
+      ...(Object.hasOwn(config.columns, "frozenThrough") ? { frozenThrough: config.columns.frozenThrough } : {}) },
   };
 }
 function cloneView(view: BoPublicView): BoPublicView {
@@ -132,8 +133,17 @@ export function validateBoViewConfig(config: BoViewConfig, allowedFields: readon
     order.some(key => !validField(key)) || visible.some(key => !validField(key) || !order.includes(key))) {
     throw new Error("Invalid column visibility or order");
   }
+  // PAP-1105/PAP-1107: preserve Core's absent/null/string wire semantics. Core
+  // remains authority for each module's display Identity and write authorization.
+  const hasFreeze = Object.hasOwn(config.columns, "frozenThrough");
+  const frozenThrough = config.columns.frozenThrough;
+  if (hasFreeze && frozenThrough !== null && (typeof frozenThrough !== "string" ||
+      !validField(frozenThrough) || frozenThrough === "id" || !visible.includes(frozenThrough))) {
+    throw new Error("Invalid freeze boundary");
+  }
   return cloneConfig({ search: config.search, sort: config.sort, filters: values, logic: config.logic,
-    groupBy: config.groupBy, hideEmptyGroups: config.hideEmptyGroups, columns: { order, visible } });
+    groupBy: config.groupBy, hideEmptyGroups: config.hideEmptyGroups,
+    columns: { order, visible, ...(hasFreeze ? { frozenThrough } : {}) } });
 }
 
 export function defaultBoViewConfig(fields: readonly string[]): BoViewConfig {
