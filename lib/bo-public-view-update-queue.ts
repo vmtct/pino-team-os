@@ -70,7 +70,8 @@ function cloneConfig(config: BoViewConfig): BoViewConfig {
     logic: config.logic,
     groupBy: config.groupBy,
     hideEmptyGroups: config.hideEmptyGroups,
-    columns: { order: [...config.columns.order], visible: [...config.columns.visible] },
+    columns: { order: [...config.columns.order], visible: [...config.columns.visible],
+      ...(Object.hasOwn(config.columns, "frozenThrough") ? { frozenThrough: config.columns.frozenThrough } : {}) },
   };
 }
 
