@@ -26,9 +26,19 @@ export function composeTabs<F extends readonly FieldSchema[]>(module: ModuleSche
   ] as ComposedTab<FieldKey<F>>[]);
 }
 /** Permission filtering never removes the visible system History tab. */
-export function authorizedTabs<F extends readonly FieldSchema[]>(module: ModuleSchema<F>, context: AuthorizationContext) {
+export function authorizedTabs<F extends readonly FieldSchema[]>(module: ModuleSchema<F>, context: AuthorizationContext, record?: Readonly<Record<string, unknown>> | null) {
   if (!allows(module, context, "read")) return [];
-  return composeTabs(module).filter(tab => tab.owner === "system" || context.authorize(tab.slot.source.permission));
+  return composeTabs(module).filter(tab => {
+    if (tab.owner === "system") return true;
+    if (!context.authorize(tab.slot.source.permission)) return false;
+    const rule = tab.slot.visibility;
+    if (!rule) return true;
+    const field = module.fields.find(f => f.key === rule.field);
+    if (!record || !field || !allowsField(module, context, field.key, "display")) return false;
+    const value = record[rule.field];
+    if (typeof value !== "string") return false;
+    return rule.op === "eq" ? value === rule.value : value !== rule.value;
+  });
 }
 export async function loadHistory(module: ModuleSchema, subject: HistorySubject, context: AuthorizationContext, signal: AbortSignal, cursor: string | null = null): Promise<HistoryResult> {
   validateModule(module);
