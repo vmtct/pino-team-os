@@ -1,4 +1,5 @@
 "use client";
+import "@/app/bo/bo.module.css"; // Load business-form CSS inside canonical PINO DS DrawerFrame.
 import {useCallback,useState} from "react";
 import {DrawerFrame,TosButton,TosCard} from "@pino/design-system/react";
 import {readScopedParentDirectory} from "@/app/bo/parents/provider";
@@ -43,7 +44,7 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
    const key=query.trim().toLocaleLowerCase("vi-VN");
    const matches=rows.filter(r=>(r.name??"").toLocaleLowerCase("vi-VN").includes(key)).slice(0,25);
    setParents(matches);
-   if(!matches.length)setNotice("Chưa tìm thấy Parent trong danh sách được Core cho phép. Có thể xác minh liên hệ tại quầy.");
+   if(!matches.length)setNotice("Chưa tìm thấy Parent trong danh sách được Core cho phép. Hoàn tất xác minh Parent–Center tại quầy trước khi cấp Pass.");
   }catch{setError("Không thể tra cứu Parent trong phạm vi được cấp quyền.");}
   finally{setSearching(false)}
  }
@@ -134,7 +135,7 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
       <p>Parent cung cấp số điện thoại hoặc email tại quầy. Chỉ tra cứu chính xác trong Core, không duyệt danh bạ chung.</p>
       <label className="os-verify-field" htmlFor="pass-contact-exact">Số điện thoại hoặc email *
        <div className="os-verify-search">
-        <input id="pass-contact-exact" type="text" autoComplete="off" value={contactValue} disabled={busy||uncertain}
+        <input id="pass-contact-exact" type="text" autoComplete="off" value={contactValue} disabled={busy||searching||uncertain}
          onChange={e=>{setContactValue(e.target.value);setCandidate(null);setHolderConfirmed(false);setError("")}}
          placeholder="Liên hệ Parent cung cấp"/>
         <TosButton type="button" variant="secondary" disabled={!contactValue.trim()||busy||searching||uncertain}
