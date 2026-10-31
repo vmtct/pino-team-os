@@ -8,7 +8,7 @@ const center="01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
 const principal="pino_staff_password_session=test-only-placeholder";
 function envFor(calls:unknown[]):BoReadEnv {
  return { PINO_BO_CORE: {
-   async executeWithStaffPassword(request,token) {
+   async executeWithStaffPassword(request:{method:string;path:string;resource?:{centerId?:string}},token:string) {
      calls.push({request,token});
      return {status:200,requestId:"pap1252-qa",body:{data:{centerId:center,deviceSessions:[]}}};
    },
