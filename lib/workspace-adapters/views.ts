@@ -18,6 +18,9 @@ export function toSharedConfig<F extends readonly FieldSchema[]>(schema: ModuleS
 }
 export function fromSharedConfig<F extends readonly FieldSchema[]>(schema: ModuleSchema<F>, config: BoViewConfig): TableQuery<F> {
   const valid = validateBoViewConfig(config, schema.fields.map(f => f.key));
+  // PAP-1105: the current renderer has no Freeze UI. Do not silently apply a
+  // saved prefix as an unfrozen view or let its metadata be overwritten.
+  if (valid.columns.frozenThrough != null) throw Error("Shared View Freeze requires a supported TDD renderer");
   const query: unknown = { search: valid.search, sort: valid.sort,
     filters: { logic: valid.logic === "and" ? "AND" : "OR", rules: valid.filters.map(rule => {
       const op = fromService[rule.operator]; if (!op) throw Error("Shared View has an incompatible filter operator");
