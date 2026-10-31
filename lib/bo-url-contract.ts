@@ -17,6 +17,7 @@ export const BO_TARGET_ROUTES = [
   { key: "payroll-periods", path: "/bo/payroll-periods", tabs: ["overview", "history"] },
   { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
   { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
+  { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";
