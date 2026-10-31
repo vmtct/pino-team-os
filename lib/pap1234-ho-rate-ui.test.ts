@@ -27,7 +27,10 @@ test("PAP-1234 renderer keeps presentation optional and does not affect generic 
 });
 
 test("PAP-1234 CSS is scoped to HO Staff Rate business content and contains responsive DS controls", () => {
-  const css = readFileSync("app/ho/staff/staff-rate.css", "utf8");
+  const stylesheet = readFileSync("app/ho/ho-theme.css", "utf8");
+  const marker = "/* PAP-1234: HO Staff Rate business content";
+  assert.ok(stylesheet.includes(marker));
+  const css = stylesheet.slice(stylesheet.indexOf(marker));
   assert.ok(css.includes('[data-surface="ho"] [data-tdd-business-slot="staff-rate"]'));
   for (const selector of css.split("\n").filter(line => line.trim().startsWith("["))) {
     assert.ok(selector.trim().startsWith('[data-surface="ho"] [data-tdd-business-slot="staff-rate"]'), selector);

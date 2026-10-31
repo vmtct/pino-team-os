@@ -1,7 +1,6 @@
 "use client";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import "./staff-rate.css";
 import { useEffect, useState } from "react";
 import { createHoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
