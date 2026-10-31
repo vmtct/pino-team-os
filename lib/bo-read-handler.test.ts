@@ -156,3 +156,29 @@ test("delivery scope catalog forwards only a validated explicit Center and never
   assert.equal((await handleBoOperationalReadRequest(bad,env(binding),"delivery/bootstrap-state")).status,400);
   assert.equal(forwarded.length,1);
 });
+
+test("PAP-1220 Diary BO BFF: bounded Center/date reads and negative scope gate",async()=>{
+ const forwarded:BoAccessRequest[]=[];
+ const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return{status:200,body:{data:{diaries:[],hasMore:false}},requestId:"diary-test"};}};
+ const center="01912345-6789-7abc-8def-0123456789ab",id="01912345-6789-7abc-8def-0123456789ac";
+ const list="learning/path-diaries",detail=list+"/"+id;
+ const call=(p:string,q:string,method="GET",auth=true)=>handleBoOperationalReadRequest(new Request("https://bo.staging.pinohouse.art/api/bo/"+p+q,{method,headers:auth?{cookie:"pino_staff_password_session="+token}:{}}),env(binding),p);
+ const response=await call(list,"?centerId="+center+"&localDate=2026-10-31&limit=30&offset=0");
+ assert.equal(response.status,200);
+ assert.deepEqual(forwarded[0],{method:"GET",path:list+"?centerId="+center+"&localDate=2026-10-31&limit=30&offset=0"});
+ assert.equal((await call(detail,"?centerId="+center)).status,200);
+ assert.deepEqual(forwarded[1],{method:"GET",path:detail+"?centerId="+center});
+ for(const q of ["","?centerId=bogus&localDate=2026-10-31","?centerId="+center,
+ "?centerId="+center+"&localDate=2026-02-30",
+ "?centerId="+center+"&localDate=2026-10-31&limit=101",
+ "?centerId="+center+"&localDate=2026-10-31&offset=-1",
+ "?centerId="+center+"&localDate=2026-10-31&limit=01",
+ "?centerId="+center+"&localDate=2026-10-31&centerId="+center,
+ "?centerId="+center+"&localDate=2026-10-31&actorId=spoof",
+ ]) assert.equal((await call(list,q)).status,400,q);
+ for(const q of ["","?centerId=bogus","?centerId="+center+"&localDate=2026-10-31"])
+ assert.equal((await call(detail,q)).status,400,q);
+ assert.equal((await call(list,"?centerId="+center+"&localDate=2026-10-31","POST")).status,405);
+ assert.equal((await call(list,"?centerId="+center+"&localDate=2026-10-31","GET",false)).status,401);
+ assert.equal(forwarded.length,2,"invalid/unauthenticated requests did not reach Core");
+});
