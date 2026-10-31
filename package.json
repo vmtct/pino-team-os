@@ -19,7 +19,8 @@
     "delivery:claim": "node scripts/delivery-care.mjs claim",
     "delivery:heartbeat": "node scripts/delivery-care.mjs heartbeat",
     "delivery:release": "node scripts/delivery-care.mjs release",
-    "delivery:care:list": "node scripts/delivery-care.mjs list"
+    "delivery:care:list": "node scripts/delivery-care.mjs list",
+    "tos:ds:check": "node scripts/verify-tos-ds-v2.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.3.1",

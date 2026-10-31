@@ -18,7 +18,7 @@ import {
  appIdentity,TosVNextFrame,TosVNextAppHeader,TosVNextContent,
  TosVNextCard,TosVNextHeading,TosVNextBottomNav,TosVNextButton,TosVNextStatus,
  tosVNextStyle,type TosVNextAppId
-} from "@/app/components/tos-vnext/TosVNextUI";
+} from "@/app/components/tos-ds";
 import {
  TOS_BACKEND_MATRIX,staffContext,assertOwnCenter,shiftReadModel,type TosVNextShiftReadWarnings
 } from "@/app/components/tos-vnext/core-adapters";

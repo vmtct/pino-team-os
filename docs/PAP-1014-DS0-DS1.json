@@ -1,0 +1,21 @@
+{
+  "base": "20afab64537f4734bb4c21c6deb3aef4dab882e3",
+  "anchor": "https://tos.proto.pinohouse.art/",
+  "package": "app/components/tos-ds",
+  "migrated_imports": [
+    "app/components/tos-vnext/TosVNextClassroom.tsx",
+    "app/components/tos-vnext/TosVNextReception.tsx",
+    "app/components/tos-vnext/TosVNextShiftLead.tsx",
+    "app/components/tos-vnext/TosVNextStation.tsx",
+    "app/components/tos-vnext/TosVNextTraining.tsx",
+    "app/prototype/tos-vnext-integration/TosVNextIntegrationClient.tsx"
+  ],
+  "files": [
+    "tokens.css",
+    "components.module.css",
+    "TosDesignSystem.tsx",
+    "index.ts",
+    "types.ts"
+  ],
+  "guard": "not deployed; isolate until PAP-1014 gate"
+}
