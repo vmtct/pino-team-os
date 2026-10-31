@@ -85,6 +85,17 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
+    // PAP-1220: exact Classroom Diary Center read-only module and bounded Core facade,
+    // Staging BO only. BFF independently checks credentials/query; Core authorizes Center + Path.
+    // No HO GLOBAL, no writes, no Production exposure, no arbitrary Diary child/media route.
+    if (pathname === "/bo/classroom-diaries") {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD")
+        ? { action: "next" } : { action: "not_found" };
+    }
+    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(pathname)) {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET"
+        ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1224: new Pass TDD is BO Staging-only; production retains legacy Open Studio.
     if (pathname === "/bo/open-studio-passes") return (method==="GET"||method==="HEAD") ? {action:"next"} : {action:"not_found"};
     // PAP-1211: one exact synthetic salary adjustment E2E path, Founder BFF guarded.
