@@ -268,3 +268,19 @@ for(const source of ['export const Old=()=> <table/>;','export const Old=()=> <d
 test('PAP-1228 changed opaque syntax is not inherited from another expression',()=>{
  assert.ok(inspectModuleDelta('legacy.tsx','export const Old=()=> <div className={oldClasses}/>;','export const Old=()=> <div className={newClasses}/>;').length);
 });
+
+
+function permanentSpecial(x) {
+ const a=special(x);a.permanent=true;a.expiresAt=null;a.reviewTrigger='Owner, route, design or permission change requires review';return a;
+}
+test('PAP-1085 explicit permanent approval keeps exact alternate profile gates',async t=>{const x=setup(t);permanentSpecial(x);assert.deepEqual((await x.check()).errors,[]);});
+for(const [label,mutate] of [
+ ['implicit permanence',a=>delete a.permanent],['nonboolean permanence',a=>a.permanent='true'],
+ ['missing expiry marker',a=>delete a.expiresAt],['contradictory finite expiry',a=>a.expiresAt='2026-11-01T00:00:00Z'],
+ ['missing review trigger',a=>delete a.reviewTrigger],['blank review trigger',a=>a.reviewTrigger='  '],
+ ['future approval',a=>a.approvedAt='2026-10-29T00:00:00Z'],['missing Founder receipt',a=>a.reference='PAP-1085'],
+ ['revoked permanent approval',a=>a.status='revoked'],['permanent wildcard',a=>a.route='/bo/*'],
+ ['missing permanent alternate tests',a=>a.tests.accessibility=[]]
+]) test('PAP-1085 permanent rejects '+label,async t=>{const x=setup(t),a=permanentSpecial(x);mutate(a);assert.ok((await x.check()).errors.length);});
+test('PAP-1085 candidate permanent declaration cannot self-authorize',async t=>{const x=setup(t);permanentSpecial(x);const r=await verify(x.root,{baseline:x.baseline,manifest:x.manifest,changed:[x.file],now,loadSchema:()=>x.m});assert.match(r.errors.join(),/Founder approval/);});
+test('PAP-1085 explicit finite profile retains expiry enforcement',async t=>{const x=setup(t),a=special(x);a.permanent=false;assert.deepEqual((await x.check()).errors,[]);a.expiresAt='2026-10-28T00:00:00Z';assert.match((await x.check()).errors.join(),/expired/);});
