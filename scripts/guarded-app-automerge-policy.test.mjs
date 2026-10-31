@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assessApplicationFiles } from "./guarded-app-automerge-policy.mjs";
+import { assessApplicationFiles, safeBoundedLibraryPath, inspectSafeLibraryPatch } from "./guarded-app-automerge-policy.mjs";
 import { safeUiPath, assessFiles } from "./guarded-ui-automerge.mjs";
 
 const files = names => names.map(filename => ({ filename, status: "modified" }));
@@ -106,4 +106,52 @@ test("PAP-1091 already enabled native auto-merge is idempotent, but real holds r
  assert.equal(assessPR(pr,epoch),null,"enabled auto merge must not be classified as HOLD");
  assert.match(assessPR({...pr,labels:[{name:"merge-hold"}]},epoch),/hold/);
  assert.match(assessPR({...pr,draft:true},epoch),/draft/);
+});
+
+
+test("PAP-1258 bounded library lane: exact changed owned regression + safe inspectable diff", () => {
+  const safeCode = "lib/bo-classroom-diary.ts";
+  const companion = "lib/bo-classroom-diary.test.ts";
+  const patch = "@@ -1 +1 @@\\n-const label = 'Old diary';\\n+const label = 'Class diary';";
+  const changed = [
+    { filename: safeCode, status: "modified", patch },
+    { filename: companion, status: "modified", patch: "@@ -1 +1 @@\\n+test('diary', () => {})" },
+    { filename: "app/bo/components/DiaryRow.tsx", status: "modified" },
+  ];
+  assert.equal(safeBoundedLibraryPath(safeCode), true);
+  assert.equal(safeBoundedLibraryPath(companion), true);
+  assert.deepEqual(assessFiles(changed, {prNumber: 1258}), {ok: true, lane: "verified-library"});
+  assert.equal(assessFiles(changed.slice(0,1), {prNumber: 1258}).ok, false);
+  assert.equal(assessFiles(changed.map(f => f.filename===safeCode ? {...f, patch: undefined} : f), {prNumber: 1258}).ok, false);
+  assert.equal(assessFiles(changed.map(f => f.filename===safeCode ? {...f, patch: "+const token = 'security';"} : f), {prNumber: 1258}).ok, false);
+  assert.equal(assessFiles(changed.map(f => f.filename===safeCode ? {...f, patch: "+const records = await fetch('/api/students');"} : f), {prNumber: 1258}).ok, false);
+  assert.equal(assessFiles(changed.map(f => f.filename===safeCode ? {...f, status: "renamed", previous_filename:"lib/bo-auth.ts"} : f), {prNumber: 1258}).ok, false);
+  assert.equal(assessFiles(changed.map(f => f.filename===safeCode ? {...f, status: "removed"} : f), {prNumber: 1258}).ok, false);
+  assert.equal(inspectSafeLibraryPatch({...changed[0],patch:"x".repeat(25001)}).ok, false);
+});
+
+test("PAP-1258 protected paths and policy never auto-admitted by the library lane", () => {
+  const blocked = [
+    "lib/bo-auth.ts","lib/bo-role.ts","lib/bo-permission-policy.ts",
+    "lib/ho-salary-rate.ts","lib/tos-payment.ts","lib/bo-core.ts",
+    "lib/bo-worker.ts","lib/bo-config.ts","lib/bo-migration.ts",
+    "app/api/bo/route.ts","scripts/verify-auth.mjs",
+    ".github/workflows/guarded-ui-automerge.yml",
+    "wrangler.staging.toml",
+  ];
+  for(const filename of blocked) {
+    assert.equal(safeBoundedLibraryPath(filename),false, filename);
+    const files=[{filename,status:"modified",patch:"+const message = 'safe';"},
+      {filename:filename.replace(/\\.ts$/, ".test.ts"),status:"modified"}];
+    assert.equal(assessFiles(files,{prNumber:1258}).ok,false,filename);
+  }
+  assert.equal(assessFiles([
+    {filename:"lib/bo-classroom-diary.ts",status:"modified",patch:"+const diary = 1;"},
+    {filename:"lib/bo-other-module.test.ts",status:"modified"},
+  ],{prNumber:1258}).ok,false,"unrelated test does not admit source");
+  assert.equal(assessFiles([
+    {filename:"lib/bo-classroom-diary.ts",status:"modified",patch:"+const diary = 1;"},
+    {filename:"lib/bo-classroom-diary.test.ts",status:"modified"},
+    {filename:"scripts/guarded-app-automerge-policy.mjs",status:"modified"},
+  ],{prNumber:1258}).ok,false,"cannot self-authorize policy");
 });
