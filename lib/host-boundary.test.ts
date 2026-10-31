@@ -319,3 +319,18 @@ test("PAP-1035 staging Worker-first Enrollment GET admission is exact, never Pro
   "/api/bo/enrollments/capacity/extra","/api/bo/enrollments/no"
  ]) assert.deepEqual(decideHostBoundary(bo,p),{action:"not_found"},p);
 });
+
+test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
+  const route = "/api/bo/tv/operator-health";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, route, "GET"), { action: "next" });
+  for (const method of ["HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+    assert.deepEqual(decideHostBoundary(bo, route, method), { action: "not_found" }, method);
+  }
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art", "join.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, route, "GET"), { action: "not_found" }, host);
+  }
+  for (const path of [route + "/extra", route + "/", route + "%2fextra", route.toUpperCase(), "/api/bo/tv/operator-healthz"]) {
+    assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
+  }
+});
