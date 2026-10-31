@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { TddDrawer, TddDetail, registeredSchema, RecordState } from "./Record";
 import { TddTable, type TddTableProps } from "./Table";
 import { TosButton } from "@pino/design-system/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { authorizedHostActions, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
 
 export type TddStage<F extends readonly FieldSchema[] = readonly FieldSchema[]> =
@@ -19,9 +19,9 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
     case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1>{view.props.schema.label}</h1></div>{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
     case "drawer": {
       if (view.table && (view.table.schema !== view.props.schema || view.table.context !== view.props.context)) throw Error("TDD Drawer background scope mismatch");
-      return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} /></>;
+      return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="drawer.header" bindings={view.props.actionBindings} /> : null} /></>;
     }
-    case "detail": return <TddDetail {...view.props} />;
+    case "detail": return <TddDetail {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="detail.header" bindings={view.props.actionBindings} /> : null} />;
     default: throw Error("Unknown TDD renderer stage");
   }
 }
@@ -32,6 +32,7 @@ export function TddActionHost({ schema, context, slot, bindings }: {
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const pending = useRef(false);
   const actions = authorizedHostActions(schema, context, slot, bindings);
   if (!actions.length) return null;
   return <div className="tdd-action-host" data-tdd-action-slot={slot} role="group"
@@ -43,11 +44,12 @@ export function TddActionHost({ schema, context, slot, bindings }: {
       return <TosButton key={action.id} type="button"
         variant={action.variant === "primary" ? "primary" : "secondary"}
         disabled={disabled} onClick={() => {
-          if (disabled || !allows(schema, context, action.capability)) return;
+          if (disabled || pending.current || !allows(schema, context, action.capability)) return;
+          pending.current = true;
           setBusy(action.id); setError("");
           void Promise.resolve().then(() => binding.run())
             .catch(() => setError("Thao tác chưa được xác minh. Kiểm tra trạng thái trước khi thử lại."))
-            .finally(() => setBusy(null));
+            .finally(() => { pending.current = false; setBusy(null); });
         }}>{action.label}</TosButton>;
     })}
     {error ? <p role="alert">{error}</p> : null}
