@@ -7,9 +7,14 @@ on:
     paths:
       - ".github/workflows/tdd-g3-geometry.yml"
       - "e2e/tdd-g3-geometry.spec.ts"
+      - "e2e/pap1247-action-geometry.spec.ts"
+      - "e2e/ho-tdd-controls.spec.ts"
+      - "scripts/build-ho-authority.mjs"
       - "scripts/render-tdd-g3-fixtures.tsx"
       - "scripts/verify-tdd-g3-artifacts.mjs"
       - "scripts/verify-tdd-g3-visual-goldens.mjs"
+      - "lib/tdd-g3-golden-successor.mjs"
+      - "lib/tdd-g3-golden-successor.test.mjs"
       - "lib/tdd-g3-visual-pixels.mjs"
       - "lib/tdd-g3-visual-pixels.test.mjs"
       - "docs/visual-goldens/pap1073/**"
@@ -39,7 +44,7 @@ jobs:
       - name: Render real canonical TDD Table/Drawer/Detail fixtures
         run: npm run tdd:g3:fixtures
       - name: Run measured geometry and negative controls
-        run: npm run tdd:g3:test
+        run: npx playwright test e2e/tdd-g3-geometry.spec.ts e2e/pap1247-action-geometry.spec.ts e2e/ho-tdd-controls.spec.ts --workers=2 --reporter=list
         env:
           CI: "true"
       - name: Require complete screenshot and DOM geometry evidence
@@ -47,12 +52,14 @@ jobs:
       - name: Verify G3 visual diff against Founder-approved immutable golden
         run: node scripts/verify-tdd-g3-visual-goldens.mjs
       - name: Verify G3 pixel diff negative controls
-        run: node --test lib/tdd-g3-visual-pixels.test.mjs
+        run: node --test lib/tdd-g3-visual-pixels.test.mjs lib/tdd-g3-golden-successor.test.mjs
       - name: Retain real PNG and DOM metrics, even when Playwright fails
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pap1073-g3-geometry
-          path: artifacts/pap1073-g3/
+          path: |
+            artifacts/pap1073-g3/
+            artifacts/pap1247-actions/
           retention-days: 14
           if-no-files-found: error

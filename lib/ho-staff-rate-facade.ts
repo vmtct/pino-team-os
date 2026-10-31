@@ -5,7 +5,8 @@ import {callFounderCoreWithStaffPassword,type PinoCoreBinding} from "./founder-c
 import {teamCredential,TeamAuthError} from "./team-auth";
 
 export interface HoStaffRateEnv extends HoEnv {PINO_CORE:PinoCoreBinding}
-const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// PAP-1142: Core IDs are lowercase UUIDv7; reject syntactically broad UUIDs before forwarding.
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const json=(body:unknown,status:number)=>Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}});
 /** Pure correction validator. Auth checks still happen before parsing any submitted payload. */
 export function normalizeHoRateCorrectionPayload(b:Record<string,unknown>):{amountMinor:number;expectedVersion:number;note:string}|null{

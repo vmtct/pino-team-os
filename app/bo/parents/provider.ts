@@ -39,8 +39,9 @@ function row(value: unknown): Row {
     attention: item.attention as string | null,
   };
 }
-async function directory(scope: SurfaceScope, fetcher: typeof fetch, signal: AbortSignal): Promise<Row[]> {
-  const centerId = center(scope);
+/** Canonical read-only directory: Core attests and SQL-binds the selected BO Center. */
+export async function readScopedParentDirectory(centerId: string, fetcher: typeof fetch, signal: AbortSignal): Promise<Row[]> {
+  if (!UUID.test(centerId)) return invalid(403);
   const rows: Row[] = [], seen = new Set<string>();
   let total: number | null = null;
   for (let page = 0; page < 100; page++) {
@@ -114,13 +115,13 @@ export function parentDirectoryProvider(): SurfaceProvider<ParentFields> {
     pagination: "local-ui",
     list: async (_query, scope, fetcher, signal) => {
       const centerId = center(scope);
-      const rows = await directory(scope, fetcher, signal);
+      const rows = await readScopedParentDirectory(centerId, fetcher, signal);
       return { records: rows.map(row => ({ row, centerId })), total: rows.length };
     },
     detail: async (id, scope, fetcher, signal) => {
       const centerId = center(scope);
       if (!UUID.test(id)) return invalid(404);
-      const rows = await directory(scope, fetcher, signal);
+      const rows = await readScopedParentDirectory(centerId, fetcher, signal);
       const found = rows.find(x => x.id === id);
       if (!found) return null;
       await readScopedParentDetail(id, scope, fetcher, signal);

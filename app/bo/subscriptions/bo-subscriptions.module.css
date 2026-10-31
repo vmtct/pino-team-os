@@ -7,7 +7,7 @@
 /* PAP-1033: keep the Core cursor table mounted while the V2.5 full-detail
    shell is visible; Back restores page/filter/scroll without a refetch. */
 .detailOnly{width:min(100%,1380px);min-width:0;display:block}
-.detailOnly > :not([id="detail-screen"]){display:none!important}
+.detailOnly > :not([id="detail-screen"]):not([data-bo-subscription-route-state]){display:none!important}
 
 .operations{border:1px solid var(--bo-v23-color-border,#e2e1e5);border-radius:var(--bo-v23-radius-surface,13px);background:var(--bo-v23-color-surface,#fff);min-width:0}
 .operations > summary{padding:13px 16px;cursor:pointer;font-size:13px;color:var(--bo-v23-color-muted,#807d88)}

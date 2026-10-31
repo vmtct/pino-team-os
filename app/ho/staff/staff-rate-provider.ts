@@ -26,6 +26,7 @@ function validDate(value: unknown): value is string {
 /** Domain-only adapter. BFF/Core enforces the actual Founder permission and tenant boundary. */
 export const staffRateProvider: BusinessFormProvider = {
   surface: "HO", moduleKey: "staffs", slotId: "staff-rate", sourceAdapter: "salary.staff-rate",
+  presentation: { heading: "Mức lương mới", actionLabel: "Lưu mức lương", compact: true, hideRecordsToolbar: true },
   async load(request, signal): Promise<BusinessFormData> {
     const response = await fetch(urlFor(request), { method: "GET", cache: "no-store", credentials: "same-origin", redirect: "error", signal });
     signal.throwIfAborted();

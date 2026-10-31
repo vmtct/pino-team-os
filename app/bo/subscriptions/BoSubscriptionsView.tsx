@@ -297,7 +297,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       onChanged={() => {setHistoryRevision(n => n+1);}}
       onClose={() => setCreateOpen(false)}
     /> : null}
-    {detailRoute ? <div className={styles.readHint} role={detailRoute.state==="error"?"alert":"status"}>
+    {detailRoute ? <div data-bo-subscription-route-state="true" className={styles.readHint} role={detailRoute.state==="error"?"alert":"status"}>
       {detailRoute.state==="loading"?"Đang tải Subscription theo đường dẫn…":detailRoute.message}
       {detailRoute.state==="error"?<><button type="button" onClick={()=>window.dispatchEvent(new PopStateEvent("popstate"))}>Thử lại</button><button type="button" onClick={closeHistoryDetail}>Về danh sách</button></>:null}
     </div>:null}

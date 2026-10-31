@@ -37,7 +37,7 @@ test("PAP-659 health read uses only centers returned by authorized device lookup
  const diagnostics=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");
  assert.match(diagnostics,/allowedCenters\.includes\(centerId\.trim\(\)\)/);
  assert.match(diagnostics,/allowedCenters\.length===1\?allowedCenters\[0\]:null/);
- assert.match(diagnostics,/operatorHealth=await operatorPresentationClient\.operatorHealth\(selectedCenter\)/);
+ assert.match(diagnostics,/operatorHealth=await readBoTvHealth\(selectedCenter\)/);
  assert.match(diagnostics,/catch\(cause\).*setError/);
  assert.match(diagnostics,/<select aria-label="Center for operator health"/);
  assert.doesNotMatch(diagnostics,/<input aria-label="Center ID for operator health"/);
@@ -51,6 +51,6 @@ test("PAP-659 does not mistake device heartbeat for connectivity",()=>{const d=s
 test("PAP-659 BO shows Core-verified per-device sessions with heartbeat caveat",()=>{const d=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");const client=source("app/pinoria-tv/operator-presentation-client.ts");assert.match(client,/deviceSessions:OperatorDeviceSession\[\]/);assert.match(d,/health\?\.deviceSessions\?\.filter/);assert.match(d,/Heartbeat gần đây \(không phải ACK\)/);});
 
 test("PAP-659 replay confirmation identifies physical Core target and separates dispatch from render ACK",()=>{const ui=source("app/pinoria/tv-operator/TvOperatorQueue.tsx");assert.ok(ui.includes("Device: ${target.target.deviceId}"));assert.ok(ui.includes("Session: ${target.target.sessionId}"));assert.match(ui,/chưa xác nhận TV đã render/);assert.ok(ui.includes("replayTarget(center, displayId, active.id)"));});
-test("PAP-659 BO separates authenticated replay command receipt from physical renderer ACK",()=>{const ui=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");const client=source("app/pinoria-tv/operator-presentation-client.ts");assert.match(client,/latestReplayResolution/);assert.match(ui,/session\.latestReplayCommandId/);assert.match(ui,/không xác nhận hình ảnh TV/);});
+test("PAP-659 BO separates authenticated replay command receipt from physical renderer ACK",()=>{const ui=source("app/bo/pinoria-tv-operator/TvDeviceDiagnostics.tsx");const client=source("app/pinoria-tv/operator-presentation-client.ts");assert.match(client,/latestReplayResolution/);assert.doesNotMatch(ui,/session\.latestReplayCommandId/);assert.match(ui,/Không xác nhận hình ảnh TV/);});
 test("PAP-659 replay is selected from Core session evidence and must match all target fields",()=>{const ui=source("app/pinoria/tv-operator/TvOperatorQueue.tsx");assert.match(ui,/verifiedReplayCandidates/);assert.match(ui,/targetMatchesSelected\(selected, target.target\)/);assert.match(ui,/Chọn TV\/session để replay/);assert.doesNotMatch(ui,/Display ID để replay/);assert.match(ui,/setReplayCandidates\(\[\]\)/);assert.match(ui,/Không xác minh được phiên TV/);});
 test("PAP-659 global Close/Return releases Center queue without impersonating a physical TV command",()=>{const ui=source("app/pinoria/tv-operator/TvOperatorQueue.tsx");assert.match(ui,/release presentation TOÀN CENTER/);assert.match(ui,/không chọn TV\/session vật lý/);assert.match(ui,/Release về Ambient \(toàn Center\)/);assert.match(ui,/Đóng presentation \(toàn Center\)/);});

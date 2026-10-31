@@ -5,10 +5,18 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "centers" | "staffs" | "users" | "roles" | "audits" | HoA1Module;
+export type HoModule = "centers" | "walkinPasses" | "staffs" | "users" | "roles" | "audits" | "tddReference" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
+ tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
  centers: {...hoCentersModule,group:"Network"},
+ walkinPasses:{label:"Pass Trạm Nghệ Thuật",group:"Open Studio",fields:[
+  {key:"code",label:"Mã Pass",type:"text",icon:"#",w:260,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:145,readonly:true},
+  {key:"path",label:"Path",type:"text",icon:"▣",w:115,readonly:true},
+  {key:"parent",label:"Parent ID",type:"text",icon:"@",w:260,readonly:true},
+  {key:"center",label:"Center ID",type:"text",icon:"⌖",w:260,readonly:true},
+ ]},
  staffs:{label:"Staff",group:"Nhân sự",fields:[
   {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},
   {key:"id",label:"Staff ID",type:"id",icon:"#",w:240,readonly:true},
