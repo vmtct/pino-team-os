@@ -10,13 +10,16 @@ import {TddRegistry,type Approval} from "@/lib/workspace-schema";
 import type {SlotLoaders} from "@/app/components/workspace-renderer/Slots";
 import {HoItemCalibration} from "@/app/components/pinoria-item/HoItemCalibration";
 import {HoItemCreate} from "./HoItemCreate";
+import {HoItemVariants,HoItemMembers} from "./HoItemRelations";
 import {itemDefinition,itemFields,itemProvider,itemQuery,extensionVerifier} from "./schema";
 type F=typeof itemFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 const loaders:SlotLoaders={
- "pinoria.item.calibration":async (_slot,record,context)=><HoItemCalibration key={record.id} itemId={record.id} canManage={context.authorize("pinoria.item.manage")}/>
+ "pinoria.item.calibration":async (_slot,record,context)=><HoItemCalibration key={record.id} itemId={record.id} canManage={context.authorize("pinoria.item.manage")}/>,
+ "pinoria.item.variants":async (_slot,record,context)=><HoItemVariants key={record.id} itemId={record.id} canManage={context.authorize("pinoria.item.manage")}/>,
+ "pinoria.item.members":async (_slot,record,context)=><HoItemMembers key={record.id} itemId={record.id} canManage={context.authorize("pinoria.item.manage")}/>
 };
-/** S1 only: TDD owns Table/Drawer/Detail shell. The approved-extension is domain-owned content. */
+/** PAP-1253: TDD owns Table/Drawer/Detail. S2 business tabs own only the tab interior. */
 export function HoItemsTdd(){
  const [ready,setReady]=useState<Ready|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0),[generation,setGeneration]=useState(0);
  useEffect(()=>{
