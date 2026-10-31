@@ -26,7 +26,7 @@ const eligible: WalkinLookup = {
   students:[{id:"student-1",name:"An Nhiên"},{id:"student-2",name:"Bình An"}],
 };
 
-test("reception may consume only with OWN OPEN timekeeping and today's CENTER FRONT_DESK assignment",()=>{
+test("optional audit shift selection only returns OWN OPEN timekeeping with matching Center assignment",()=>{
   assert.equal(currentReceptionSession([assignment],session,CENTER,DATE)?.id,session.id);
   assert.equal(currentReceptionSession([assignment],{...session,status:"CLOSED"},CENTER,DATE),null);
   assert.equal(currentReceptionSession([assignment],{...session,checkOutAt:"2026-10-30T09:00:00Z"},CENTER,DATE),null);
