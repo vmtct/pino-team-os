@@ -385,7 +385,9 @@
         "app/bo/missions/BoMissionsTdd.tsx",
         "app/bo/missions/navigation.ts",
         "app/bo/missions/schema.ts",
-        "lib/bo-mission-assignments.ts"
+        "lib/bo-mission-assignments.ts",
+        "lib/bo-mission-assignment-write-facade.ts",
+        "lib/bo-mission-assignment-command.ts"
       ],
       "externalReferences": [
         {
@@ -414,7 +416,9 @@
         "file": "app/bo/missions/BoMissionsTdd.tsx"
       },
       "tests": [
-        "lib/pap1210-bo-missions-tdd.test.ts"
+        "lib/pap1210-bo-missions-tdd.test.ts",
+        "lib/pap1210-bo-mission-write-facade.test.ts",
+        "lib/pap1210-bo-mission-command.test.ts"
       ]
     }
   ],

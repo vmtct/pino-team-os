@@ -67,7 +67,11 @@ test("PAP-1210: query entry, dedicated route, real sidebar and host boundaries",
     assert.equal(decideHostBoundary("tos.staging.pinohouse.art", path).action, "not_found");
     assert.equal(decideHostBoundary("ho.staging.pinohouse.art", path).action, "not_found");
   }
-  for (const method of ["POST", "PUT", "DELETE"]) assert.equal(decideHostBoundary("bo.staging.pinohouse.art", "/api/bo/learning/mission-assignments/" + id, method).action, "not_found");
+  assert.equal(decideHostBoundary("bo.staging.pinohouse.art", "/api/bo/learning/mission-assignments", "POST").action, "next");
+  assert.equal(decideHostBoundary("bo.staging.pinohouse.art", "/api/bo/learning/mission-assignments/" + id, "PUT").action, "next");
+  assert.equal(decideHostBoundary("bo.staging.pinohouse.art", "/api/bo/learning/mission-assignments/" + id + "/cancel", "POST").action, "next");
+  for (const method of ["POST", "DELETE", "PATCH"]) assert.equal(decideHostBoundary("bo.staging.pinohouse.art", "/api/bo/learning/mission-assignments/" + id, method).action, "not_found");
+  for (const method of ["POST", "PUT"]) assert.equal(decideHostBoundary("bo.pinohouse.art", "/api/bo/learning/mission-assignments/" + id, method).action, "not_found");
 });
 
 test("PAP-1210: parser rejects wrong Center, identities, statuses, versions and malformed fields", () => {

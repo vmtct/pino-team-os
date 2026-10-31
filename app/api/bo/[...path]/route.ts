@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public-view-handler";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-handler";
+import { handleBoMissionAssignmentWrite, isBoMissionAssignmentWritePath, type BoMissionWriteEnv } from "@/lib/bo-mission-assignment-write-facade";
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "@/lib/bo-syllabus-media-handler";
@@ -17,7 +18,7 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
+type BoEnv = BoMissionWriteEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -40,6 +41,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { path } = await context.params;
   const joined = path.join("/");
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
+  if (isBoMissionAssignmentWritePath(joined) && request.method !== "GET") return handleBoMissionAssignmentWrite(request, env, joined);
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
   if (isBoWorkforceTrainingPath(joined)) return handleBoWorkforceTrainingRequest(request, env, joined);
   if (isBoPayrollReviewPath(joined)) return handleBoPayrollReviewRequest(request, env, joined);
@@ -67,6 +69,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   const { path } = await context.params;
   const joined = path.join("/");
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
+  if (isBoMissionAssignmentWritePath(joined)) return handleBoMissionAssignmentWrite(request, env, joined);
   return handleBoWriteRequest(request, env, joined);
 }
 

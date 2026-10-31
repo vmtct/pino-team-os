@@ -19,9 +19,15 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
-  // PAP-1210 first BO slice is read-only. No HO/TOS or mutation admission.
-  if (/^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname)) {
-    return isBoHostname(hostname) && method === "GET" ? { action: "next" } : { action: "not_found" };
+  // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
+  // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
+  const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
+  const assignmentChange = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
+  const assignmentCancel = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/cancel\/?$/i.test(pathname);
+  if (assignmentRead || assignmentChange || assignmentCancel) {
+    const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
+    const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
+    return readAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
   }
 
   if (hostname === HO_STAGING_HOSTNAME) {
