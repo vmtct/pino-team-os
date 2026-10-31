@@ -48,7 +48,12 @@ test("WWC Schedule & Time renders independent effective windows and ACL-gated co
   assert.match(source,/Mở khóa xếp ca/);
   assert.match(source,/canLockAvailability/);
   assert.match(source,/data\.windows\.availability\.reason !== "REGISTRATION_CLOSED"/);
-  assert.match(source,/Đăng ký của Center Shift Plan đang đóng|Registration của Center Shift Plan đang đóng/);
+  assert.match(source,/Center Shift Plan đang tắt nhận đăng ký/);
+  assert.match(source,/Tuần này đã bị khóa từ Head Office/);
+  // PAP-1199: global HO week lock disables both local registration toggles, not only assignments.
+  assert.match(source,/if \(!canManageRegistration \|\| globalWeekLocked\) return;/);
+  assert.match(source,/availabilityRegistrationOpen && canManageRegistration \? <button[^\n]*disabled=\{!!busy \|\| globalWeekLocked/);
+  assert.match(source,/!data\.windows\.availability\.availabilityRegistrationOpen && canManageRegistration \? <button[^\n]*disabled=\{!!busy \|\| globalWeekLocked/);
   assert.match(source,/canReopenPlanning/);
   assert.match(source,/data\.windows\?\.planning\.state === "LOCKED"/);
 });

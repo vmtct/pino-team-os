@@ -36,17 +36,15 @@ test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", asyn
 });
 
 
-test("WFM-PLAN BO uses Workforce bootstrap and governed ShiftTemplate administration", async () => {
+test("WFM-PLAN BO uses Workforce bootstrap and leaves template CRUD to HO", async () => {
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
   assert.match(source, /workforcePlanningBootstrap/);
-  assert.doesNotMatch(source, /f3DeliveryApi|delivery\/bootstrap-state/);
-  assert.match(source, /\+ Tạo ca/);
-  assert.match(source, /createWorkforceShiftTemplate/);
-  assert.match(source, /setWorkforceShiftTemplateStatus/);
-  assert.match(source, /workforce\.shift_template\.manage/);
-  assert.match(source, /Template đã dùng không sửa giờ trực tiếp/);
+  assert.match(source, /Tuần này đã bị khóa từ Head Office/);
+  assert.match(source, /globalWeekLocked/);
+  assert.match(source, /Chốt xếp ca/);
+  assert.match(source, /Mở khóa xếp ca/);
+  assert.doesNotMatch(source, /createWorkforceShiftTemplate|setWorkforceShiftTemplateStatus|\+ Tạo ca/);
 });
-
 
 test("JCS04 BO exposes governed availability history and operator void only through planning edit authority", async () => {
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");

@@ -12,6 +12,7 @@ import { BoSubscriptionInformationTab } from "@/app/bo/subscriptions/BoSubscript
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
 import { BoStaffIncomeReadTab } from "./BoStaffIncomeReadTab";
+import { BoWorkforceRegistrationEditor } from "./BoWorkforceRegistrationEditor";
 const BoSubscriptionEnrollmentTab = lazy(async () => {
   // Node SSR of Detail must not eagerly import the DataGrid CSS module.
   // S3 Enrollment is loaded only when its tab is opened.
@@ -25,7 +26,7 @@ const BoWorkforcePlannerTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, initialTab, onTabChanged,
+  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -35,6 +36,7 @@ export function BoFullDetail({
   mobileMenu: React.ReactNode;
   enableStudentSubscriptions?: boolean;
   onEnrollmentChanged?: () => void;
+  onWorkforcePlanChanged?: (open: boolean) => void;
   initialTab?: string;
   onTabChanged?: (tab: string) => void;
 }) {
@@ -93,7 +95,9 @@ export function BoFullDetail({
                     : null}
                 </div>
                 <div className="v24-prop-grid">
-                  {module.fields.map(field => <div className="v24-prop-item" key={field.key}>
+                  {module.fields.map(field => moduleKey === "workforce-shift-plans" && field.key === "registrationOpen"
+                    ? <BoWorkforceRegistrationEditor key={field.key} record={record} onSaved={open => onWorkforcePlanChanged?.(open)} />
+                    : <div className="v24-prop-item" key={field.key}>
                     <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
                     <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
                       <BoValue field={field} value={record[field.key]} full />
