@@ -395,7 +395,8 @@
         "app/ho/learning/missions/schema.ts",
         "app/ho/learning/missions/command.ts",
         "app/ho/learning/missions/read-edit.ts",
-        "app/ho/learning/missions/MissionCreateFields.tsx"
+        "app/ho/learning/missions/MissionCreateFields.tsx",
+        "lib/bo-registration.ts"
       ],
       "schema": {
         "file": "app/ho/learning/missions/schema.ts",
