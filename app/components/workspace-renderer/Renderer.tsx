@@ -25,7 +25,6 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
     default: throw Error("Unknown TDD renderer stage");
   }
 }
-System.Management.Automation.Internal.Host.InternalHost
 /** Shared engine action chrome: one deterministic order, authorization rechecked at invocation. */
 export function TddActionHost({ schema, context, slot, bindings }: {
   schema: ModuleSchema; context: AuthorizationContext; slot: TddActionDescriptor["slot"];
