@@ -44,11 +44,11 @@ export const itemDefinition={
  detail:{
   overview:{sections},
   businessTabs:[{id:"calibration",label:"Calibration",kind:"approved-extension",extensionId:"pap1119-ho-item-calibration-v1",
-   source:{adapter:"pinoria.item.calibration",permission:"pinoria.item.view"},approval:extensionApproval},
+   source:{adapter:"pinoria.item.calibration",permission:"pinoria.item.view"},visibility:{field:"type",op:"neq",value:"SET"},approval:extensionApproval},
    {id:"variants",label:"Biến thể",kind:"approved-extension",extensionId:"pap1253-ho-variant-v1",
    source:{adapter:"pinoria.item.variants",permission:"pinoria.item.view"},approval:s2Approval},
    {id:"members",label:"Thành viên",kind:"approved-extension",extensionId:"pap1253-ho-members-v1",
-   source:{adapter:"pinoria.item.members",permission:"pinoria.item.view"},approval:s2Approval}],
+   source:{adapter:"pinoria.item.members",permission:"pinoria.item.view"},visibility:{field:"type",op:"eq",value:"SET"},approval:s2Approval}],
   history:{kind:"unavailable",reason:"Lịch sử revision đã được Core ghi audit; API đọc lịch sử chưa được cấp cho HO S1."}
  }
 } as const satisfies SurfaceDefinition<F>;

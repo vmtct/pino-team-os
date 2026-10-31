@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {TddRegistry,composeTabs} from "./workspace-schema";
+import {TddRegistry,composeTabs,authorizedTabs,type AuthorizationContext} from "./workspace-schema";
 import {itemDefinition,extensionVerifier} from "../app/ho/pinoria/wardrobe/schema";
 import {validateItem,assetUrl,ItemApiError} from "../app/ho/pinoria/wardrobe/item-client";
 
@@ -29,6 +29,19 @@ test("PAP-1253 registers typed S2 business tabs through Founder-approved TDD sco
   assert.equal(extensionVerifier(slot.approval,{surface:"BO",key:"wardrobe",extensionId:slot.extensionId}),false);
   assert.equal(extensionVerifier(slot.approval,{surface:"HO",key:"roles",extensionId:slot.extensionId}),false);
  }
+});
+test("PAP-1253 S2 Engine row-kind admission respects SET, Wearable and ACL",()=>{
+ const registry=new TddRegistry(extensionVerifier);
+ const model=registry.register({...itemDefinition,data:{id:"test",list:async()=>({rows:[],total:0}),detail:async()=>null}});
+ const context:AuthorizationContext={surface:"HO",authorize:()=>true};
+ const tabs=(type:unknown,actor:AuthorizationContext=context)=>authorizedTabs(model,actor,{type}).map(t=>t.id);
+ assert.deepEqual(tabs("SET"),["overview","variants","members","history"]);
+ assert.deepEqual(tabs("WEARABLE"),["overview","calibration","variants","history"]);
+ assert.deepEqual(tabs("ACCESSORY"),["overview","calibration","variants","history"]);
+ assert.deepEqual(tabs(null),["overview","variants","history"]);
+ assert.deepEqual(tabs("SET",{surface:"HO",authorize:(permission)=>permission==="pinoria.item.view"}),["overview","variants","members","history"]);
+ assert.deepEqual(tabs("SET",{surface:"HO",authorize:()=>false}),[]);
+ assert.deepEqual(tabs("SET",{surface:"BO",centerId:"other",authorize:()=>true}),[]);
 });
 test("PAP-1253 preserves server-hosted HO authorization, CAS & private R2",()=>{
  const src=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemRelations.tsx",import.meta.url),"utf8");
