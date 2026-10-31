@@ -336,3 +336,17 @@ test("PAP-1220 Classroom Diary path and Core read facade: BO Staging-only, no HO
   for(const bad of [page+"/extra",page+"%2f",list+"/unknown",detail+"/evidence",list+"/"+diaryId+"/missions",list+"/wrong",list+"/"])
     assert.deepEqual(decideHostBoundary(staging,bad,"GET"),{action:"not_found"},bad);
 });
+test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
+  const route = "/api/bo/tv/operator-health";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, route, "GET"), { action: "next" });
+  for (const method of ["HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+    assert.deepEqual(decideHostBoundary(bo, route, method), { action: "not_found" }, method);
+  }
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art", "join.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, route, "GET"), { action: "not_found" }, host);
+  }
+  for (const path of [route + "/extra", route + "/", route + "%2fextra", route.toUpperCase(), "/api/bo/tv/operator-healthz"]) {
+    assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
+  }
+});
