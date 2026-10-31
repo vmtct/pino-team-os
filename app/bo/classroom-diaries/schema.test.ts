@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {diarySchema,diaryDefinition,diaryQuery,diaryFields,localDayToday,validDiaryDay,projectDiary,diaryProviderForDay,readCenterDay,readCenterDiary} from "./schema";
+import {diarySchema,diaryDefinition,diaryQuery,diaryFields,localDayToday,validDiaryDay,projectDiary,diaryProvider,diaryQueryForDay,readCenterDay,readCenterDiary} from "./schema";
 
 const center="01912345-6789-7abc-8def-0123456789ab",other="01912345-6789-7abc-8def-0123456789dd";
 const id="01912345-6789-7abc-8def-0123456789ac";
@@ -44,8 +44,8 @@ test("PAP-1220 accepts authorized Center page with correct Core provenance",asyn
  const rows=await readCenterDay(fn,center,"2026-10-31",new AbortController().signal);
  assert.equal(rows.length,1);assert.equal(rows[0]?.id,id);
  assert.match(calls[0]??"",/\/api\/bo\/learning\/path-diaries\?centerId=.*localDate=2026-10-31&limit=100&offset=0/);
- const provider=diaryProviderForDay("2026-10-31");
- const page=await provider.list(diaryQuery,{surface:"BO",centerId:center},fn,new AbortController().signal);
+ const provider=diaryProvider;
+ const page=await provider.list(diaryQueryForDay("2026-10-31"),{surface:"BO",centerId:center},fn,new AbortController().signal);
  assert.equal(page.total,1);assert.equal(page.records[0]?.centerId,center);
  assert.equal(page.records[0]?.row.id,id);
 });
@@ -79,4 +79,13 @@ test("PAP-1220 rejects false empty, wrong Center, bad provenance and truncation"
   const {fn}=fetcher(value);
   await assert.rejects(readCenterDay(fn,center,"2026-10-31",new AbortController().signal));
  }
+});
+
+test("PAP-1220 date filter is mandatory, exact and independent of other browser state",async()=>{
+ const {fn,calls}=fetcher({centerId:center,localDate:"2026-10-31",diaries:[row],limit:100,offset:0,hasMore:false});
+ await assert.rejects(diaryProvider.list(diaryQuery,{surface:"BO",centerId:center},fn,new AbortController().signal),/Choose one authorized Diary day/);
+ await assert.rejects(diaryProvider.list({...diaryQuery,filters:{logic:"OR",rules:[{field:"date",op:"eq",value:"2026-10-31"}]}},{surface:"BO",centerId:center},fn,new AbortController().signal),/Choose one authorized Diary day/);
+ assert.equal(calls.length,0,"missing/OR day must not call Core");
+ const data=await diaryProvider.list(diaryQueryForDay("2026-10-31"),{surface:"BO",centerId:center},fn,new AbortController().signal);
+ assert.equal(data.total,1);
 });

@@ -2,6 +2,35 @@
   "version": 1,
   "modules": [
     {
+        "profile":  "TDD_DEFAULT",
+        "surface":  "BO",
+        "key":  "classroom-diaries",
+        "route":  "/bo/classroom-diaries",
+        "file":  "app/bo/classroom-diaries/page.tsx",
+        "files":  [
+                      "app/bo/classroom-diaries/page.tsx",
+                      "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx",
+                      "app/bo/classroom-diaries/schema.ts"
+                  ],
+        "schema":  {
+                       "file":  "app/bo/classroom-diaries/schema.ts",
+                       "export":  "diarySchema"
+                   },
+        "binding":  {
+                        "kind":  "SURFACE_WORKSPACE_ADAPTER",
+                        "file":  "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx"
+                    },
+        "tests":  [
+                      "app/bo/classroom-diaries/schema.test.ts"
+                  ],
+        "externalReferences":  [
+                                   {
+                                       "file":  "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+                                       "owner":  "PAP-1080"
+                                   }
+                               ]
+    },
+    {
       "profile": "TDD_DEFAULT",
       "surface": "BO",
       "key": "pinoria-avatars",

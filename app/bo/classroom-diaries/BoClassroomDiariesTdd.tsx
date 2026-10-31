@@ -10,7 +10,7 @@ import {createBoTddAdapter,type AuthenticatedSurfaceAdapter} from "@/lib/workspa
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import {TddRegistry} from "@/lib/workspace-schema";
-import {diaryDefinition,diaryFields,diaryProviderForDay,diaryQuery,localDayToday,validDiaryDay} from "./schema";
+import {diaryDefinition,diaryFields,diaryProvider,diaryQueryForDay,localDayToday,validDiaryDay} from "./schema";
 
 type F=typeof diaryFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
@@ -37,7 +37,7 @@ export function BoClassroomDiariesTdd(){
  const [error,setError]=useState("");
  const [retry,setRetry]=useState(0);
  const [ready,setReady]=useState<Ready|null>(null);
- const provider=useMemo(()=>validDiaryDay(date)?diaryProviderForDay(date):null,[date]);
+ const query=useMemo(()=>validDiaryDay(date)?diaryQueryForDay(date):null,[date]);
  useEffect(()=>{
   let live=true;
   void boApi.centers().then(rows=>{
@@ -50,16 +50,16 @@ export function BoClassroomDiariesTdd(){
   return ()=>{live=false};
  },[]);
  useEffect(()=>{
-  if(!provider||!centerId)return
+  if(!query||!centerId)return
   const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-  void createBoTddAdapter({registry:new TddRegistry(),definition:diaryDefinition,provider,centerId,centerSource:"centers"},controller.signal)
+  void createBoTddAdapter({registry:new TddRegistry(),definition:diaryDefinition,provider:diaryProvider,centerId:centerId,centerSource:"centers"},controller.signal)
    .then(bound=>{
     adapter=bound;if(controller.signal.aborted){bound.dispose();return}
-    setReady({adapter:bound,navigation:browserTddNavigation("BO","classroom-diaries",diaryQuery)});
+    setReady({adapter:bound,navigation:browserTddNavigation("BO","classroom-diaries",query)});
    }).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:"Không đủ quyền đọc Diary tại Center.")});
   return ()=>{controller.abort();adapter?.dispose()};
- },[provider,centerId,retry]);
- const scopeValid=Boolean(centerId&&provider);
+ },[query,centerId,retry]);
+ const scopeValid=Boolean(centerId&&query);
  const content=<section data-testid="bo-classroom-diaries-tdd" aria-label="Nhật ký lớp học tại Center">
   <div className="property-row">
    <label htmlFor="diary-center">Center</label>
@@ -72,7 +72,7 @@ export function BoClassroomDiariesTdd(){
   </div>
   {!scopeValid?<p role="status">{centerError||"Chọn Center và ngày học hợp lệ để đọc Nhật ký."}</p>:
    error?<p role="alert">{error} <button type="button" onClick={()=>{setError("");setRetry(n=>n+1)}}>Thử lại</button></p>:
-   ready?<><SurfaceWorkspace key={centerId+":"+date} adapter={ready.adapter} navigation={ready.navigation} initialQuery={diaryQuery}/>
+   ready?<><SurfaceWorkspace key={centerId+":"+date} adapter={ready.adapter} navigation={ready.navigation} initialQuery={query!}/>
    <p role="note">Dữ liệu chỉ đọc từ Core tại Center và ngày đã chọn. Người Submit và Học viên hiện dùng ID xác thực; chưa có projection tên hiển thị.
     Liên kết Nhiệm vụ và xác nhận hoàn tất chỉ hiển thị khi API nguồn được triển khai; không suy diễn từ Diary.</p></>:
    <p role="status">Đang xác minh quyền Center và tải Nhật ký…</p>}

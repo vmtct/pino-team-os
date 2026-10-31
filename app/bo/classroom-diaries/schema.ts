@@ -128,21 +128,32 @@ export async function readCenterDiary(fetcher:typeof fetch,centerId:string,id:st
  if(!isDiary(v,centerId)||v.id!==id)throw Error("Wrong Center/invalid Diary detail");
  return v;
 }
-export function diaryProviderForDay(localDate:string):SurfaceProvider<F>{
- if(!validDiaryDay(localDate))throw Error("Valid Diary day required");
- return {pagination:"local-ui",
-  async list(_query,scope,fetcher,signal){
-   if(scope.surface!=="BO")throw Error("CENTER scope required");
-   const diary=await readCenterDay(fetcher,scope.centerId,localDate,signal);
-   return {records:diary.map(v=>({row:projectDiary(v),centerId:scope.centerId,version:String(v.version)})),total:diary.length};
-  },
-  async detail(id,scope,fetcher,signal){
-   if(scope.surface!=="BO")throw Error("CENTER scope required");
-   const row=await readCenterDiary(fetcher,scope.centerId,id,signal);
-   return row?{row:projectDiary(row),centerId:scope.centerId,version:String(row.version)}:null;
-  },
- };
+/** The Calendar day is an explicit typed TDD filter, not hidden mutable module-wide state. */
+export function diaryQueryForDay(localDate:string):TableQuery<F>{
+ if(!validDiaryDay(localDate))throw Error("Diary day required");
+ return {...diaryQuery,filters:{logic:"AND",rules:[{field:"date",op:"eq",value:localDate}]}};
 }
+function requestedDay(query:TableQuery<F>):string{
+ const dates=query.filters.rules.filter(r=>r.field==="date");
+ if(query.filters.logic!=="AND"||dates.length!==1||dates[0]?.op!=="eq"||typeof dates[0].value!=="string"||
+   !validDiaryDay(dates[0].value))throw Error("Choose one authorized Diary day via the date filter");
+ return dates[0].value;
+}
+export const diaryProvider:SurfaceProvider<F>={
+ pagination:"local-ui",
+ async list(query,scope,fetcher,signal){
+  if(scope.surface!=="BO")throw Error("CENTER scope required");
+  const day=requestedDay(query);
+  const rows=await readCenterDay(fetcher,scope.centerId,day,signal);
+  return {records:rows.map(v=>({row:projectDiary(v),centerId:scope.centerId,version:String(v.version)})),total:rows.length};
+ },
+ async detail(id,scope,fetcher,signal){
+  if(scope.surface!=="BO")throw Error("CENTER scope required");
+  const row=await readCenterDiary(fetcher,scope.centerId,id,signal);
+  return row?{row:projectDiary(row),centerId:scope.centerId,version:String(row.version)}:null;
+ },
+};
+
 const registry=new TddRegistry();
 export const diarySchema=registry.register({...diaryDefinition,data:{
  id:"bo-classroom-diary-center-bound",
