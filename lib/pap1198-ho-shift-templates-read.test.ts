@@ -18,9 +18,10 @@ test("PAP-1198 HO parser retains inactive historical ShiftTemplates and rejects 
     assert.equal(parseHoShiftTemplates(invalid, centerId), null);
   }
 });
-test("PAP-1198 HO template BFF host boundary is GET only on Staging HO", () => {
+test("PAP-1198 HO template BFF allows GET catalog and authorized POST creation only on Staging HO", () => {
   assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", "/api/ho/workforce/shift-templates", "GET"), { action: "next" });
-  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", "/api/ho/workforce/shift-templates", "POST"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", "/api/ho/workforce/shift-templates", "POST"), { action: "next" });
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", "/api/ho/workforce/shift-templates", "PATCH"), { action: "not_found" });
   for (const host of ["bo.staging.pinohouse.art", "ho.pinohouse.art", "tos.staging.pinohouse.art"])
     assert.deepEqual(decideHostBoundary(host, "/api/ho/workforce/shift-templates", "GET"), { action: "not_found" });
 });

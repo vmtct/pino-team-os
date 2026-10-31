@@ -29,7 +29,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const hoRoleDefinitionWrite = /^\/api\/ho\/system\/roles\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/update$/i.test(p);
     if (p === "/api/ho/workforce/global-week-registration") return method === "GET" || method === "POST" ? { action: "next" } : { action: "not_found" };
     if (p === "/api/ho/workforce/global-termweeks") return method === "GET" || method === "POST" ? { action: "next" } : { action: "not_found" };
-    if (p === "/api/ho/workforce/shift-templates") return method === "GET" ? { action: "next" } : { action: "not_found" };
+    if (p === "/api/ho/workforce/shift-templates") return method === "GET" || method === "POST" ? { action: "next" } : { action: "not_found" };
+    if (/^\/api\/ho\/workforce\/shift-templates\/[0-9a-f-]{36}\/(?:update|status)$/.test(p)) return method === "POST" ? { action: "next" } : { action: "not_found" };
     if (/^\/api\/ho\/workforce\/global-termweeks\/[0-9a-f-]{36}\/update$/.test(p)) return method === "POST" ? { action: "next" } : { action: "not_found" };
     if (method === "POST" && (staffRoleWrite || hoRoleDefinitionWrite)) return { action: "next" };
     if (method === "POST" && staffPasswordReset) return { action: "next" };
