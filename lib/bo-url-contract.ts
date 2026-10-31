@@ -1,11 +1,12 @@
 /** PAP-1089 / PAP-1088 E — approved target URLs. No route admission or redirects here. */
 export const BO_LEGACY_QUERY_MODULES = [
   "students", "classes", "subscriptions", "enrollments", "visits", "staffs",
-  "timekeeping", "salaryPeriods", "audits", "parents",
+  "timekeeping", "salaryPeriods", "audits", "parents", "missions",
 ] as const;
 type LegacyKey = (typeof BO_LEGACY_QUERY_MODULES)[number];
 type Target = Readonly<{ key: string; path: string; tabs: readonly string[]; legacyModule?: LegacyKey }>;
 export const BO_TARGET_ROUTES = [
+  { key: "missions", path: "/bo/missions", tabs: ["overview", "results", "diary", "history"], legacyModule: "missions" },
   { key: "students", path: "/bo/students", tabs: ["overview", "subscriptions", "history"], legacyModule: "students" },
   { key: "parents", path: "/bo/parents", tabs: ["overview", "students", "contacts", "history"], legacyModule: "parents" },
   { key: "subscriptions", path: "/bo/subscriptions", tabs: ["overview", "enrollment", "history"], legacyModule: "subscriptions" },

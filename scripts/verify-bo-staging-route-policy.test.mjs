@@ -28,14 +28,14 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n"):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/missions",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
 test("PAP-901 current canonical routes use one admitted BO workspace with required stylesheet", () => {
-  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 7, admitted: 7, deferred: 0 });
+  assert.deepEqual(verifyBoStagingRoutePolicy(repo), { issues: [], canonical: 8, admitted: 8, deferred: 0 });
 });
 
 test("PAP-982 admitted TDD route requires exact schema, binding, tests and explicit policy",()=>fixture(({root,read,write})=>{
