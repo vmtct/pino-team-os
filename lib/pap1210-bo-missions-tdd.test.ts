@@ -39,11 +39,18 @@ test("PAP-1210: reload restores only authorized Center; Center change clears ass
   assert.equal(missionCenterFromUrl([{ id: center }, { id: other }], url), "");
 });
 
-test("PAP-1210: one typed BO assignment schema, read-only capabilities and honest tabs", () => {
+test("PAP-1210: one typed BO TDD with authorized declarative actions and honest tabs", () => {
   validateModule(assignmentSchema);
   assert.equal(assignmentSchema.key, "missions");
   assert.deepEqual(composeTabs(assignmentSchema).map(t => [t.id, t.label]), [["overview", "Tổng quan"], ["results", "Kết quả"], ["diary", "Nhật Ký"], ["history", "Lịch sử"]]);
-  assert.deepEqual(assignmentDefinition.capabilities, { read: "student.mission_assignment.view" });
+  assert.deepEqual(assignmentDefinition.capabilities, { read: "student.mission_assignment.view",
+    create: "student.mission_assignment.manage", edit: "student.mission_assignment.manage" });
+  assert.deepEqual(assignmentDefinition.actions.map(a => [a.id, a.slot, a.capability]), [
+    ["assignment-open-create", "table.header", "create"], ["assignment-open-edit", "detail.header", "edit"],
+    ["assignment-open-cancel", "detail.header", "edit"], ["assignment-cancel-create", "drawer.footer", "create"],
+    ["assignment-save-create", "drawer.footer", "create"], ["assignment-cancel-edit", "drawer.footer", "edit"],
+    ["assignment-save-edit", "drawer.footer", "edit"], ["assignment-confirm-cancel", "drawer.footer", "edit"],
+  ]);
   assert.equal(assignmentDefinition.detail.history.kind, "unavailable");
   assert.equal(assignmentProvider.mutation, undefined);
   assert.equal(assignmentSchema.drawer.density, "one-column");
@@ -51,7 +58,11 @@ test("PAP-1210: one typed BO assignment schema, read-only capabilities and hones
   assert.match(ui, /SurfaceWorkspace/);
   assert.match(ui, /liên kết trực tiếp/);
   assert.match(ui, /nguồn kết quả học viên chưa được kết nối/);
-  assert.match(ui, /chưa xác minh đầy đủ nguồn chọn Student/);
+  assert.match(ui, /AssignmentFields/);
+  assert.match(ui, /readMissionAssignment/);
+  assert.match(ui, /submitBoMissionAssignment/);
+  assert.match(ui, /TddRenderer/);
+  assert.doesNotMatch(ui, /<button[^>]*Giao Nhiệm vụ|window\\.prompt|window\\.confirm/);
   assert.doesNotMatch(ui, /localStorage|mission-assignments-prototype|<table\b|MissionCatalogView/);
 });
 

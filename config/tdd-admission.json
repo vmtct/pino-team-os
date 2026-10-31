@@ -383,11 +383,13 @@
       "files": [
         "app/bo/missions/page.tsx",
         "app/bo/missions/BoMissionsTdd.tsx",
+        "app/bo/missions/AssignmentFields.tsx",
         "app/bo/missions/navigation.ts",
         "app/bo/missions/schema.ts",
         "lib/bo-mission-assignments.ts",
         "lib/bo-mission-assignment-write-facade.ts",
-        "lib/bo-mission-assignment-command.ts"
+        "lib/bo-mission-assignment-command.ts",
+        "lib/bo-mission-assignment-options.ts"
       ],
       "externalReferences": [
         {
@@ -418,7 +420,9 @@
       "tests": [
         "lib/pap1210-bo-missions-tdd.test.ts",
         "lib/pap1210-bo-mission-write-facade.test.ts",
-        "lib/pap1210-bo-mission-command.test.ts"
+        "lib/pap1210-bo-mission-command.test.ts",
+        "lib/pap1210-bo-mission-options.test.ts",
+        "lib/pap1210-bo-mission-form.test.ts"
       ]
     }
   ],
