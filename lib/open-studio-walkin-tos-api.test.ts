@@ -38,5 +38,22 @@ test("TOS consume carries explicit payload and idempotency key to TOS facade",as
   assert.equal((opts.headers as Record<string,string>)["content-type"],"application/json");
   assert.ok((opts.headers as Record<string,string>)["idempotency-key"]);
   assert.equal(JSON.parse(opts.body as string).studentId,"s1");
+  assert.equal(JSON.parse(opts.body as string).shiftId,"shift-1");
+ }finally{globalThis.fetch=original}
+});
+
+test("PAP-1250 consume without shift does not synthesize Workforce attendance",async()=>{
+ const original=globalThis.fetch;
+ let payload:Record<string,unknown>|null=null;
+ globalThis.fetch=(async(_url:string,init:RequestInit)=>{
+  payload=JSON.parse(String(init.body));
+  return Response.json({data:{id:"pass-1",status:"CONSUMED",child_name:"An",student_id:null}});
+ }) as typeof fetch;
+ try{
+  const result=await walkinPassTosApi.consume({centerId:"center-1",code:"PINO-OS-001",confirmedHolder:true,manualChildName:"An"});
+  assert.equal(result.status,"CONSUMED");
+  const submitted=payload as Record<string,unknown> | null;
+  assert.equal(submitted?.["shiftId"],undefined);
+  assert.equal(submitted?.["confirmedHolder"],true);
  }finally{globalThis.fetch=original}
 });

@@ -2,7 +2,7 @@ import type { Assignment, TimekeepingSession } from "./workforce-api";
 import type { WalkinLookup } from "./open-studio-walkin-tos-api";
 import { ownReceptionAssignments } from "./tos-vnext-reception";
 
-/** PAP-1166: selector only; Core independently verifies the timekeeping session and entitlement. */
+/** Optional matching Workforce shift for audit only; never a prerequisite to Pass lookup or consume. */
 export function currentReceptionSession(
   assignments: readonly Assignment[],
   session: TimekeepingSession | null,
@@ -14,6 +14,10 @@ export function currentReceptionSession(
   const authorized = ownReceptionAssignments(assignments, centerId, workDate);
   if (!session.assignmentId || !authorized.some(a => a.id === session.assignmentId)) return null;
   return session;
+}
+
+export function optionalWalkinAuditShiftId(assignments:readonly Assignment[],session:TimekeepingSession|null,centerId:string,workDate:string):string|undefined {
+ return currentReceptionSession(assignments,session,centerId,workDate)?.id;
 }
 
 export const WALKIN_PATHS = ["AC", "LPP", "LPA", "PH"] as const;
