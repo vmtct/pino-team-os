@@ -66,3 +66,43 @@ test("PAP-1247: engine owns ordering; auth and actual handler fail closed", () =
   assert.deepEqual(authorizedHostActions(registered, permitted, "table.header", { export: handlers.export }).map(x => x.id), ["export"]);
   assert.deepEqual(authorizedHostActions(registered, permitted, "drawer.footer", handlers), []);
 });
+
+test("PAP-1247: targeted Overview/Business actions require an admitted section/tab and one primary per target", () => {
+  const base = fixture();
+  const business = { ...base, detail: { ...base.detail,
+    overview: { sections: [...base.detail.overview.sections, { id: "other", label: "Other", fields: ["name" as const] }] },
+    businessTabs: [{ id: "reports", label: "Reports", kind: "relation-grid" as const,
+      relatedModule: "fixture", source: { adapter: "fixture.related", permission: "fixture.read" } }] } };
+  const overview = { ...primary, slot: "overview.section" as const, targetId: "a" };
+  const other = { ...primary, id: "createOther", targetId: "other", slot: "overview.section" as const };
+  const toolbar = { ...secondary, slot: "businessTab.toolbar" as const, targetId: "reports" };
+  const admitted = (actions: unknown[]) => defineTddModule({ ...business, actions } as ModuleSchema<typeof fields>);
+  assert.doesNotThrow(() => admitted([overview, other, toolbar]));
+  const invalid = [
+    [{ ...overview, targetId: undefined }],
+    [{ ...overview, targetId: "unknown" }],
+    [{ ...toolbar, targetId: "missing" }],
+    [{ ...primary, targetId: "a" }],
+    [overview, { ...overview, id: "double" }],
+    [overview, { ...overview, id: "sameId", targetId: "a" }],
+  ];
+  for (const actions of invalid) assert.throws(() => admitted(actions), /TDD contract:/);
+  const module = admitted([overview, other, toolbar]);
+  const handlers = { createMission: { run: () => undefined }, export: { run: () => undefined } };
+  assert.deepEqual(authorizedHostActions(module, permitted, "overview.section", handlers, "a").map(action => action.id), ["create"]);
+  assert.deepEqual(authorizedHostActions(module, permitted, "overview.section", handlers, "other").map(action => action.id), ["createOther"]);
+  assert.deepEqual(authorizedHostActions(module, permitted, "businessTab.toolbar", handlers, "reports").map(action => action.id), ["export"]);
+  assert.deepEqual(authorizedHostActions(module, permitted, "businessTab.toolbar", handlers, "unknown"), []);
+  assert.deepEqual(authorizedHostActions(module, permitted, "overview.section", handlers), []);
+});
+test("PAP-1247: section and tab hosts are engine-owned and never emit an empty toolbar shell", () => {
+  const record = readFileSync("app/components/workspace-renderer/Record.tsx", "utf8");
+  const renderer = readFileSync("app/components/workspace-renderer/Renderer.tsx", "utf8");
+  const properties = readFileSync("app/components/workspace-renderer/Properties.tsx", "utf8");
+  assert.match(record, /renderActionSlot\?\.\("overview\.section", id\)/);
+  assert.match(record, /renderActionSlot\?\.\("businessTab\.toolbar", active\.id\)/);
+  assert.match(renderer, /targetId=\{targetId\}/);
+  assert.match(properties, /sectionActions\?\.\(section\.id\)/);
+  assert.doesNotMatch(record, /data-tdd-action-region="businessTab\.toolbar"/);
+  assert.match(renderer, /if \(!actions\.length\) return null/);
+});

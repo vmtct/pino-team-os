@@ -128,15 +128,18 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
     array(m.actions); unique(m.actions.map(action => action.id));
     const primaryBySlot = new Set<string>();
     for (const action of m.actions) {
-      object(action, ["id", "label", "slot", "variant", "capability", "handler"]);
+      object(action, ["id", "label", "slot", "variant", "capability", "handler", "targetId"], ["id", "label", "slot", "variant", "capability", "handler"]);
       for (const key of ["id", "label", "handler"] as const) nonempty(action[key]);
       check(/^[a-zA-Z][\w.-]{1,63}$/.test(action.id), "invalid action identifier");
       check(["table.header", "drawer.header", "drawer.footer", "detail.header", "overview.section", "businessTab.toolbar"].includes(action.slot), "unknown action slot");
       check(["primary", "secondary", "tertiary", "danger"].includes(action.variant), "unsupported action variant");
       check(["read", "create", "edit"].includes(action.capability) && Boolean(m.capabilities[action.capability]), "action capability not registered");
+      const scoped = action.slot === "overview.section" || action.slot === "businessTab.toolbar";
+      check(scoped ? typeof action.targetId === "string" && /^[A-Za-z][\w.-]{0,63}$/.test(action.targetId) : action.targetId === undefined, "invalid action target");
+      const hostKey = action.slot + ":" + (action.targetId ?? "");
       if (action.variant === "primary") {
-        check(!primaryBySlot.has(action.slot), "more than one primary action per host");
-        primaryBySlot.add(action.slot);
+        check(!primaryBySlot.has(hostKey), "more than one primary action per host");
+        primaryBySlot.add(hostKey);
       }
     }
   }
@@ -199,6 +202,11 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
       case "approved-extension": object(slot, [...base, "extensionId", "approval"]); nonempty(slot.extensionId); validateApproval(slot.approval); break;
       default: check(false, "unapproved slot kind");
     }
+  }
+  // Targeted actions bind to admitted system Overview sections or authorized business tabs.
+  for (const action of m.actions ?? []) {
+    if (action.slot === "overview.section") check(m.detail.overview.sections.some(section => section.id === action.targetId), "unregistered overview action target");
+    if (action.slot === "businessTab.toolbar") check(m.detail.businessTabs.some(tab => tab.id === action.targetId), "unregistered business toolbar target");
   }
   const history = m.detail.history;
   if (history?.kind === "unavailable") { object(history, ["kind", "reason"]); nonempty(history.reason); }

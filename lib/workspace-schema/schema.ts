@@ -15,6 +15,8 @@ export type TddActionDescriptor = {
   readonly capability: "read" | "create" | "edit";
   /** Actual runtime handler is registered separately by the authorized adapter. */
   readonly handler: string;
+  /** Required only for overview.section and businessTab.toolbar; selects an admitted section/tab. */
+  readonly targetId?: string;
 };
 export type Sections<K extends string> = readonly { readonly id: string; readonly label: string; readonly fields: readonly K[] }[];
 

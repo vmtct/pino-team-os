@@ -21,19 +21,19 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
       if (view.table && (view.table.schema !== view.props.schema || view.table.context !== view.props.context)) throw Error("TDD Drawer background scope mismatch");
       return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="drawer.header" bindings={view.props.actionBindings} /> : null} /></>;
     }
-    case "detail": return <TddDetail {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="detail.header" bindings={view.props.actionBindings} /> : null} />;
+    case "detail": return <TddDetail {...view.props} renderActionSlot={view.props.actionBindings && view.props.status !== "denied" ? (slot, targetId) => <TddActionHost schema={schema} context={view.props.context} slot={slot} targetId={targetId} bindings={view.props.actionBindings!} /> : undefined} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="detail.header" bindings={view.props.actionBindings} /> : null} />;
     default: throw Error("Unknown TDD renderer stage");
   }
 }
 /** Shared engine action chrome: one deterministic order, authorization rechecked at invocation. */
-export function TddActionHost({ schema, context, slot, bindings }: {
+export function TddActionHost({ schema, context, slot, bindings, targetId }: {
   schema: ModuleSchema; context: AuthorizationContext; slot: TddActionDescriptor["slot"];
-  bindings: TddActionBindings;
+  bindings: TddActionBindings; targetId?: string;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const pending = useRef(false);
-  const actions = authorizedHostActions(schema, context, slot, bindings);
+  const actions = authorizedHostActions(schema, context, slot, bindings, targetId);
   if (!actions.length) return null;
   return <div className="tdd-action-host" data-tdd-action-slot={slot} role="group"
     aria-label="Thao tác" aria-busy={busy !== null}>
