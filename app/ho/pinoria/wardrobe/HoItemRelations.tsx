@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {assetUrl,getItem,listItems,slotNames,writeItem,type HoItem,type HoSetItem,type ItemRecord,type SetInput,type Slot} from "./item-client";
-import "./item-relations.css";
+import "@/app/components/pinoria-item/item-calibration.css";
 type RelationsProps={itemId:string;canManage:boolean};
 const stack:Record<Slot,number>={AURA_GROUND:6,AURA_BACK:12,BACK:30,OUTFIT:60,HAIR:70,FACE:80,HEADWEAR:90,PATH_MARK:100};
 const base="https://assets.pinohouse.art/pinoria/char-base.png";
