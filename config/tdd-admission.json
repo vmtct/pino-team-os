@@ -31,6 +31,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
         }
       ],
       "schema": {
@@ -214,6 +218,14 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1224"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-990"
         }
       ],
       "schema": {
@@ -277,6 +289,54 @@
     {
       "profile": "TDD_DEFAULT",
       "surface": "HO",
+      "key": "tddReference",
+      "route": "/ho/system/tdd-reference",
+      "file": "app/ho/system/tdd-reference/page.tsx",
+      "files": [
+        "app/ho/system/tdd-reference/page.tsx",
+        "app/ho/system/tdd-reference/ReferenceAtlas.tsx",
+        "app/ho/system/tdd-reference/schema.ts",
+        "app/ho/system/tdd-reference/content.tsx"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1070"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/system/tdd-reference/schema.ts",
+        "export": "atlasSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/system/tdd-reference/ReferenceAtlas.tsx"
+      },
+      "tests": [
+        "lib/pap1080-tdd-reference.test.ts",
+        "lib/ho-routes.test.ts",
+        "lib/host-boundary.test.ts"
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
       "key": "termWeeks",
       "route": "/ho/workforce/term-weeks",
       "file": "app/ho/workforce/term-weeks/page.tsx",
@@ -285,7 +345,8 @@
         "app/ho/workforce/term-weeks/HoTermWeeksTdd.tsx",
         "app/ho/workforce/term-weeks/HoGlobalWeekLockEditor.tsx",
         "app/ho/workforce/term-weeks/schema.ts",
-        "app/ho/workforce/term-weeks/HoGlobalWeekCreate.tsx"
+        "app/ho/workforce/term-weeks/HoGlobalWeekCreate.tsx",
+        "app/ho/workforce/term-weeks/HoGlobalWeekUpdateEditor.tsx"
       ],
       "externalReferences": [
         {
@@ -320,7 +381,8 @@
       "tests": [
         "lib/pap1198-ho-global-termweeks-read.test.ts",
         "lib/pap1198-ho-global-week-lock.test.ts",
-        "lib/pap1198-ho-global-termweeks-create.test.ts"
+        "lib/pap1198-ho-global-termweeks-create.test.ts",
+        "lib/pap1198-ho-global-termweeks-update.test.ts"
       ]
     }
   ],

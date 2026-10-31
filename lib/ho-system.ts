@@ -5,9 +5,10 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "centers" | "walkinPasses" | "termWeeks" | "staffs" | "users" | "roles" | "audits" | HoA1Module;
+export type HoModule = "centers" | "walkinPasses" | "termWeeks" | "staffs" | "users" | "roles" | "audits" | "tddReference" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
+ tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
  centers: {...hoCentersModule,group:"Network"},
  termWeeks:{label:"TermWeek",group:"Workforce",fields:[
   {key:"name",label:"Tuần",type:"text",icon:"Aa",w:235,readonly:true},
