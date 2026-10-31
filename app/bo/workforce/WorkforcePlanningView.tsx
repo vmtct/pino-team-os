@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BoDataGridState, BoDataGridStatus } from "@/app/bo/components/data-grid";
 import { workforceRead, type GlobalWeekResult } from "@/app/bo/architecture/workforce-read-client";
 import { boApi, BoApiError } from "@/lib/bo-api";
-import type { BoRunningClass, BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceShiftTemplate, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
+import type { BoRunningClass, BoWorkforceAssignment, BoWorkforcePlanningBootstrap, BoWorkforceWeeklyPlanning } from "@/lib/bo-model";
 import { eligibleShiftRunningClasses, buildIndependentRoleCommands } from "@/lib/workforce-planning-class-eligibility";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
 import { BoWorkforceWeekPlanner } from "@/app/bo/components/workforce/BoWorkforceWeekPlanner";
@@ -42,8 +42,6 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   const [availabilityVoidReason, setAvailabilityVoidReason] = useState("");
   const [weekControlReason, setWeekControlReason] = useState("");
   const [weekControlUntil, setWeekControlUntil] = useState("");
-  const [shiftTemplates, setShiftTemplates] = useState<BoWorkforceShiftTemplate[]>([]);
-  const [templateDraft, setTemplateDraft] = useState({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
 
   const selectedCenter = bootstrap?.centers.find((center) => center.id === centerId) ?? null;
 
@@ -87,12 +85,6 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   }, [centerId, termWeekId]);
 
   useEffect(() => {
-    if (!centerId || !selectedCenter?.canManageShiftTemplates) { setShiftTemplates([]); return; }
-    void loadShiftTemplates(centerId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centerId, selectedCenter?.canManageShiftTemplates]);
-
-  useEffect(() => {
     if (!centerId) return;
     let active = true;
     void boApi.calendarScope().then(({ classes }) => {
@@ -100,12 +92,6 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
     }).catch(() => { if (active) setRunningClassCatalog({state:"error",classes:[]}); });
     return () => { active = false; };
   }, [centerId]);
-
-  async function loadShiftTemplates(nextCenter = centerId) {
-    if (!nextCenter) return;
-    try { setShiftTemplates(await boApi.workforceShiftTemplates(nextCenter)); }
-    catch (error) { setNotice(message(error)); }
-  }
 
   async function refresh(nextCenter = centerId, nextWeek = termWeekId) {
     if (!nextCenter || !nextWeek) return;
@@ -183,26 +169,6 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
       setWeekControlReason(""); setWeekControlUntil("");
       setNotice(action.includes("reopen") ? "Cửa sổ tuần đã được mở lại có thời hạn." : "Cửa sổ tuần đã được khóa/chốt.");
       await refresh();
-    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
-  }
-
-  async function createShiftTemplate() {
-    if (!centerId || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime) return;
-    setBusy("template:create"); setNotice("");
-    try {
-      await boApi.createWorkforceShiftTemplate({ centerId, ...templateDraft }, crypto.randomUUID());
-      setTemplateDraft({ code: "", displayLabel: "", startLocalTime: "", endLocalTime: "" });
-      setNotice("Shift Template đã được tạo và có thể dùng để xếp ca.");
-      await Promise.all([loadShiftTemplates(centerId), termWeekId ? refresh(centerId, termWeekId) : Promise.resolve()]);
-    } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
-  }
-
-  async function setShiftTemplateStatus(template: BoWorkforceShiftTemplate, status: "ACTIVE" | "INACTIVE") {
-    setBusy(`template:${template.id}`); setNotice("");
-    try {
-      await boApi.setWorkforceShiftTemplateStatus(template.id, centerId, status, crypto.randomUUID());
-      setNotice(status === "ACTIVE" ? "Shift Template đã được kích hoạt." : "Shift Template đã ngưng dùng cho assignment mới.");
-      await Promise.all([loadShiftTemplates(centerId), termWeekId ? refresh(centerId, termWeekId) : Promise.resolve()]);
     } catch (error) { setNotice(message(error)); } finally { setBusy(""); }
   }
 
@@ -456,17 +422,12 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
       </div>
     </section></details></div> : null}
 
-    <div className={styles.plannerSettings}><details><summary>Quản lý mẫu ca</summary>{selectedCenter?.canManageShiftTemplates ? <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Tạo loại ca theo Center. Template đã dùng không sửa giờ trực tiếp; hãy tạo template mới rồi ngưng template cũ.</p></div><span className={styles.writePill}>workforce.shift_template.manage</span></div>
-      <div className={styles.plannerFilters}>
-        <label className={styles.field}>Code<input value={templateDraft.code} onChange={(event) => setTemplateDraft((current) => ({ ...current, code: event.target.value }))} placeholder="EVENING" /></label>
-        <label className={styles.field}>Tên ca<input value={templateDraft.displayLabel} onChange={(event) => setTemplateDraft((current) => ({ ...current, displayLabel: event.target.value }))} placeholder="Ca tối" /></label>
-        <label className={styles.field}>Bắt đầu<input type="time" value={templateDraft.startLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, startLocalTime: event.target.value }))} /></label>
-        <label className={styles.field}>Kết thúc<input type="time" value={templateDraft.endLocalTime} onChange={(event) => setTemplateDraft((current) => ({ ...current, endLocalTime: event.target.value }))} /></label>
-      </div>
-      <div className={styles.subscriptionActions}><button className={styles.primaryButton} disabled={!!busy || !templateDraft.code.trim() || !templateDraft.displayLabel.trim() || !templateDraft.startLocalTime || !templateDraft.endLocalTime} onClick={() => void createShiftTemplate()}>{busy === "template:create" ? "Đang tạo…" : "+ Tạo ca"}</button></div>
-      <div className={styles.plannerHistory}>{shiftTemplates.map((template) => <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.startLocalTime}–{template.endLocalTime} · {template.status} <button className={styles.secondaryButton} disabled={!!busy} onClick={() => void setShiftTemplateStatus(template, template.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{template.status === "ACTIVE" ? "Ngưng" : "Kích hoạt"}</button></span>)}</div>
-    </section> : selectedCenter ? <section className={styles.panel}><div className={styles.panelHeading}><div><h2>Shift Templates</h2><p>Bạn có thể xếp ca bằng các template đang active; quản lý template cần quyền workforce.shift_template.manage.</p></div><span className={styles.readOnly}>Read only</span></div></section> : null}</details></div>
+    <div className={styles.plannerSettings}><details><summary>Mẫu ca khả dụng</summary><section className={styles.panel}>
+      <div className={styles.panelHeading}><div><h2>Mẫu ca đang hoạt động</h2><p>BO chỉ xem và dùng mẫu ca ACTIVE; tạo và cập nhật tại HO.</p></div><span className={styles.readOnly}>Chỉ xem</span></div>
+      <div className={styles.plannerHistory}>{(data?.templates ?? []).filter((template) => template.status === "ACTIVE").map((template) =>
+        <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.startLocalTime}–{template.endLocalTime}</span>
+      )}</div>
+    </section></details></div>
 
   </div>;
 }
