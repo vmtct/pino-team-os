@@ -52,7 +52,8 @@ test("PAP-1250 consume without shift does not synthesize Workforce attendance",a
  try{
   const result=await walkinPassTosApi.consume({centerId:"center-1",code:"PINO-OS-001",confirmedHolder:true,manualChildName:"An"});
   assert.equal(result.status,"CONSUMED");
-  assert.equal(payload?.shiftId,undefined);
-  assert.equal(payload?.confirmedHolder,true);
+  const submitted=payload as Record<string,unknown> | null;
+  assert.equal(submitted?.["shiftId"],undefined);
+  assert.equal(submitted?.["confirmedHolder"],true);
  }finally{globalThis.fetch=original}
 });
