@@ -1,7 +1,7 @@
 import { allows, allowsField, isFieldValue, validateQuery, fieldValueErrors, type AuthorizationContext, type FieldKey, type FieldSchema, type HistorySubject, type ModuleRow, type ModuleSchema, type MutationAdapter } from "../workspace-schema";
 import { loadHistory } from "../workspace-schema";
 import { adapterError, type SurfaceSession } from "./session";
-import type { AuthenticatedSurfaceAdapter, ProviderRecord, SurfaceOptions } from "./contracts";
+import type { AuthenticatedSurfaceAdapter, ProviderRecord, SurfaceProvider, SurfaceOptions } from "./contracts";
 import { sharedViews } from "./views";
 import { BoApiError } from "../bo-api-error";
 

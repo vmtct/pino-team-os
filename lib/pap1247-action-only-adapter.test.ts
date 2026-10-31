@@ -37,7 +37,7 @@ test("PAP-1247: never widen generic BO/HO mutation or inline editor", () => {
   const mutation = { update: () => { throw Error("not for domain actions"); } };
   assert.equal(hasActionOnlyCapability(base, { mutation } as never, "create"), false);
   assert.equal(hasActionOnlyCapability(base, { mutation } as never, "edit"), false);
-  const withInline = { ...base, table: { inlineEdit: { enabled: true, fields: ["name"] } } } as typeof base;
+  const withInline = { ...base, table: { inlineEdit: { enabled: true, fields: ["name"] } } } as unknown as typeof base;
   assert.equal(hasActionOnlyCapability(withInline, readOnlyProvider, "create"), false);
   assert.equal(hasActionOnlyCapability(withInline, readOnlyProvider, "edit"), false);
   assert.equal(hasActionOnlyCapability({ ...base, fields: [{ ...fields[0], capabilities: { ...fields[0].capabilities, inlineEdit: true } }] } as never, readOnlyProvider, "create"), false);
