@@ -349,6 +349,7 @@
         "app/ho/learning/missions/HoMissionsTdd.tsx",
         "app/ho/learning/missions/schema.ts",
         "app/ho/learning/missions/command.ts",
+        "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx"
       ],
       "schema": {
@@ -363,7 +364,8 @@
         "lib/pap1207-ho-missions-tdd.test.ts",
         "lib/pap1207-ho-mission-write.test.ts",
         "lib/pap1207-ho-mission-command.test.ts",
-        "lib/pap1207-ho-mission-create-ui.test.ts"
+        "lib/pap1207-ho-mission-create-ui.test.ts",
+        "lib/pap1207-ho-mission-edit.test.ts"
       ],
       "externalReferences": [
         {

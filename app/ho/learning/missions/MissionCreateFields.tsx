@@ -19,8 +19,9 @@ export function validateMissionCreate(value: MissionInput): string | null {
   if (value.guideline && value.guideline.length > 8000) return "Hướng dẫn quá dài.";
   return null;
 }
-export function MissionCreateFields({ value, setValue, disabled }: {
-  readonly value: MissionInput; readonly setValue: (value: MissionInput) => void; readonly disabled: boolean;
+export function MissionCreateFields({ value, setValue, disabled, editing = false }: {
+  readonly value: MissionInput; readonly setValue: (value: MissionInput) => void;
+  readonly disabled: boolean; readonly editing?: boolean;
 }) {
   const set = <K extends keyof MissionInput>(key: K, entry: MissionInput[K]) => setValue({ ...value, [key]: entry });
   const input = (id: keyof MissionInput, label: string, placeholder = "") =>
@@ -28,7 +29,7 @@ export function MissionCreateFields({ value, setValue, disabled }: {
       <input type="text" value={String(value[id] ?? "")} placeholder={placeholder} disabled={disabled}
         onChange={e => set(id, (e.target.value.trim() || null) as never)} />
     </label>;
-  return <section aria-label="Thông tin Mission mới" className="v25-form-fields">
+  return <section aria-label={editing ? "Thông tin sửa Mission" : "Thông tin Mission mới"} className="v25-form-fields">
     <label className="v25-form-field"><span>Mã Mission *</span><input autoFocus required maxLength={64}
       value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
     <label className="v25-form-field"><span>Tên Mission *</span><input required maxLength={160}
@@ -38,7 +39,7 @@ export function MissionCreateFields({ value, setValue, disabled }: {
         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
       </select></label>
     <label className="v25-form-field"><span>Trạng thái</span>
-      <select value={value.status} disabled={disabled} onChange={e => set("status", e.target.value as MissionInput["status"])}>
+      <select value={value.status} disabled={disabled || editing} onChange={e => set("status", e.target.value as MissionInput["status"])}>
         <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
       </select></label>
     <label className="v25-form-field"><span>PLS</span><input type="number" min={0} step={1}
