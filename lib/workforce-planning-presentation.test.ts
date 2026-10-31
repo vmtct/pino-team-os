@@ -46,6 +46,10 @@ test("PAP-1199 BO uses Workforce bootstrap and only ACTIVE ShiftTemplates withou
   assert.match(source, /planOperationalWorkforceShift/);
   assert.doesNotMatch(source, /\+ Tạo ca|createWorkforceShiftTemplate|setWorkforceShiftTemplateStatus/);
   assert.doesNotMatch(source, /workforce\.shift_template\.manage/);
+  assert.match(source, /Tuần này đã bị khóa từ Head Office/);
+  assert.match(source, /globalWeekLocked/);
+  assert.match(source, /Chốt xếp ca/);
+  assert.match(source, /Mở khóa xếp ca/);
 });
 
 test("JCS04 BO exposes governed availability history and operator void only through planning edit authority", async () => {
