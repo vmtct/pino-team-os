@@ -18,6 +18,7 @@ const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|T
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
+const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
@@ -117,6 +118,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "syllabi"
     || path === "learning/syllabi"
     || MISSION_CATALOG_READ.test(path)
+    || MISSION_ASSIGNMENT_READ.test(path)
     || TV_POLICY_READ.has(path)
     || path === "learning/syllabi/owners"
     || path === "learning/syllabi/media"
@@ -189,6 +191,21 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readCorePath(path: string, url: URL): string {
+  if (MISSION_ASSIGNMENT_READ.test(path)) {
+    const params = url.searchParams;
+    const collection = path === "learning/mission-assignments";
+    const allowed = collection ? ["centerId", "studentId", "missionId", "status", "limit", "offset"] : ["centerId"];
+    for (const key of params.keys()) if (!allowed.includes(key) || params.getAll(key).length !== 1) throw new RangeError("Invalid assignment query");
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuid.test(params.get("centerId") ?? "")) throw new RangeError("Center required");
+    for (const key of ["studentId", "missionId"]) if (params.has(key) && !uuid.test(params.get(key)!)) throw new RangeError("Invalid assignment identity");
+    if (params.has("status") && !["ASSIGNED", "CANCELLED"].includes(params.get("status")!)) throw new RangeError("Invalid assignment status");
+    for (const key of ["limit", "offset"]) if (params.has(key)) {
+      const value = params.get(key)!;
+      if (!/^(0|[1-9]\d*)$/.test(value) || !Number.isSafeInteger(Number(value)) || (key === "limit" && (Number(value) < 1 || Number(value) > 100))) throw new RangeError("Invalid assignment pagination");
+    }
+    return path + "?" + params.toString();
+  }
   if (path === "open-studio/walkin/history") {
     const params=new URLSearchParams();
     for(const key of url.searchParams.keys()) if(!["passId","centerId"].includes(key)||url.searchParams.getAll(key).length!==1) throw new RangeError("Invalid Pass history query");
