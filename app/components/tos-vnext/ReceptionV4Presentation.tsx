@@ -61,6 +61,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
     {tab==="arrivals"&&<>
       <div className={css.intro}><span className={css.eyebrow}>ĐÓN / TRẢ · {centerName}</span><h2 className={css.title}>Danh sách hôm nay</h2><p className={css.lead}>Chọn học viên để ghi nhận đã đến hoặc xác nhận bàn giao.</p></div>
       {visitLookup}
+      {!visitLookup&&<>
       <div className={css.search}><FontAwesomeIcon icon={faMagnifyingGlass}/><input className={css.input} placeholder="Tìm tên, lớp hoặc phòng…" value={query} onChange={e=>setQuery(e.target.value)}/></div>
       <div className={css.filters}>{([["ALL","Tất cả"],["EXPECTED","Chưa đến"],["ARRIVED","Đang ở PINO"],["LEFT","Đã về"]] as const).map(([value,label])=><button type="button" key={value} className={css.filter} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label}</button>)}</div>
       <section className={css.panel}><div className={css.panelTitle}><h3>Học viên</h3><span>{model.loaded?results.length:"—"} kết quả</span></div>
@@ -69,6 +70,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
           <span className={css.badge} data-state={state.attendance[g.id]}>{labels[state.attendance[g.id]]}</span><FontAwesomeIcon className={css.chevron} icon={faChevronRight}/>
         </button>)}</div>:<div className={css.empty}>{model.loaded?"Không có học viên phù hợp với bộ lọc.":"Chưa tải được danh sách đón / trả."}</div>}
       </section>
+      </>}
     </>}
     {tab==="pinoria"&&<>
       <div className={css.intro}><span className={css.eyebrow}>PINORIA · TIẾP TÂN</span><h2 className={css.title}>Wish đang chờ</h2><p className={css.lead}>Hỗ trợ các yêu cầu tương tác Pinoria tại quầy.</p></div>
