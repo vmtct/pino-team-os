@@ -368,6 +368,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/ho-global-termweeks-read-facade.ts",
+          "owner": "PAP-1198"
         }
       ],
       "schema": {
