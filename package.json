@@ -19,11 +19,12 @@
     "bo:contract:check": "node scripts/verify-bo-module-contract.mjs && node --test scripts/verify-bo-module-contract.test.mjs && node scripts/verify-bo-runtime-surface-ownership.mjs && node --test scripts/verify-bo-runtime-surface-ownership.test.mjs",
     "bo:module:new": "node scripts/create-bo-module.mjs",
     "tdd:new-module": "node scripts/create-tdd-module.mjs",
+    "tdd:new-special-request": "node scripts/create-tdd-special-request.mjs",
     "delivery:enter": "node scripts/delivery-entry.mjs",
     "pino:resume": "node scripts/delivery-entry.mjs",
     "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "tdd:authority:check": "node --import tsx scripts/verify-tdd-authority.mjs",
-    "tdd:authority:test": "node --import tsx --test scripts/verify-tdd-authority.test.mjs scripts/create-tdd-module.test.mjs",
+    "tdd:authority:test": "node --import tsx --test scripts/verify-tdd-authority.test.mjs scripts/create-tdd-module.test.mjs scripts/create-tdd-special-request.test.mjs",
     "tos:ds:check": "node scripts/verify-tos-ds-v4.mjs"
   },
   "dependencies": {
