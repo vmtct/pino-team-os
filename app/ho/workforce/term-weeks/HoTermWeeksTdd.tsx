@@ -10,6 +10,7 @@ import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { termWeekDefinition,termWeekFields,termWeekProvider,termWeekQuery,verifyGlobalWeekExtensionApproval } from "./schema";
 import { HoGlobalWeekLockEditor } from "./HoGlobalWeekLockEditor";
 import { HoGlobalWeekCreate } from "./HoGlobalWeekCreate";
+import { HoGlobalWeekUpdateEditor } from "./HoGlobalWeekUpdateEditor";
 type F=typeof termWeekFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 export function HoTermWeeksTdd(){
@@ -46,7 +47,10 @@ export function HoTermWeeksTdd(){
             activeTab==="registration-lock"
               ? <HoGlobalWeekLockEditor key={row.id} termWeekId={row.id}
                 authorized={context.authorize("operating_cycle.global_week.lock")} onSaved={onSaved} />
-              : null}
+              : activeTab==="metadata-edit"
+                ? <HoGlobalWeekUpdateEditor key={row.id} termWeekId={row.id}
+                  authorized={context.authorize("operating_cycle.global_week.manage")} onSaved={onSaved} />
+                : null}
         />
       </div>
       :<p role="status">Đang tải Global TermWeek…</p>;

@@ -51,6 +51,15 @@ export const termWeekDefinition={
         files:["app/ho/workforce/term-weeks/HoGlobalWeekLockEditor.tsx","app/ho/workforce/term-weeks/HoTermWeeksTdd.tsx"],
         tests:["lib/pap1198-ho-global-week-lock.test.ts"],reviewBy:"2026-11-30T00:00:00+07:00",
       },
+    },{
+      id:"metadata-edit",label:"Chỉnh sửa",kind:"approved-extension",
+      source:{adapter:"ho-global-week-update",permission:"operating_cycle.global_week.manage"},
+      extensionId:"ho.workforce.global-week-update",
+      approval:{
+        jira:"PAP-1198",owner:"HO Runtime",designAuthority:"Founder",
+        files:["app/ho/workforce/term-weeks/HoGlobalWeekUpdateEditor.tsx","app/ho/workforce/term-weeks/HoTermWeeksTdd.tsx"],
+        tests:["lib/pap1198-ho-global-termweeks-update.test.ts"],reviewBy:"2026-11-30T00:00:00+07:00",
+      },
     }],
     history:{kind:"unavailable",reason:"Lịch sử TermWeek cần nguồn audit được phân quyền; không dùng dữ liệu giả."},
   },
@@ -91,10 +100,12 @@ export const termWeekProvider:SurfaceProvider<F>={
 };
 export const verifyGlobalWeekExtensionApproval:ApprovalVerifier=(approval,scope)=>
   scope.surface==="HO"&&scope.key==="termWeeks"&&
-  scope.extensionId==="ho.workforce.global-week-lock"&&
+  ["ho.workforce.global-week-lock","ho.workforce.global-week-update"].includes(scope.extensionId??"")&&
   approval.jira==="PAP-1198"&&approval.owner==="HO Runtime"&&
   approval.designAuthority==="Founder"&&
-  approval.files.includes("app/ho/workforce/term-weeks/HoGlobalWeekLockEditor.tsx");
+  approval.files.includes(scope.extensionId==="ho.workforce.global-week-update"
+    ?"app/ho/workforce/term-weeks/HoGlobalWeekUpdateEditor.tsx"
+    :"app/ho/workforce/term-weeks/HoGlobalWeekLockEditor.tsx");
 export const termWeekRegistry=new TddRegistry(verifyGlobalWeekExtensionApproval);
 
 export const termWeekSchema=termWeekRegistry.register({...termWeekDefinition,data:{
