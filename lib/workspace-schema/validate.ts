@@ -116,13 +116,30 @@ export function validateQuery<F extends readonly FieldSchema[]>(module: ModuleSc
 }
 
 export function validateModule(input: unknown): asserts input is ModuleSchema {
-  object(input, ["version", "classification", "key", "label", "group", "surface", "fields", "capabilities", "data", "table", "drawer", "detail"]);
+  object(input, ["version", "classification", "key", "label", "group", "surface", "fields", "capabilities", "data", "table", "drawer", "detail", "actions"], ["version", "classification", "key", "label", "group", "surface", "fields", "capabilities", "data", "table", "drawer", "detail"]);
   const m = input as unknown as ModuleSchema;
   check(m.version === 1 && m.classification === "TDD_DEFAULT", "unsupported schema version/classification");
   [m.key, m.label, m.group].forEach(nonempty); check(["BO", "HO"].includes(m.surface), "invalid surface");
   validateFields(m.fields);
   object(m.capabilities, ["read", "create", "edit", "history", "manageSharedViews"], ["read"]);
   Object.values(m.capabilities).forEach(nonempty);
+  // PAP-1247 declarative action registry: reject unknown chrome, orphaned handlers or ACL.
+  if (m.actions !== undefined) {
+    array(m.actions); unique(m.actions.map(action => action.id));
+    const primaryBySlot = new Set<string>();
+    for (const action of m.actions) {
+      object(action, ["id", "label", "slot", "variant", "capability", "handler"]);
+      for (const key of ["id", "label", "handler"] as const) nonempty(action[key]);
+      check(/^[a-zA-Z][\w.-]{1,63}$/.test(action.id), "invalid action identifier");
+      check(["table.header", "drawer.header", "drawer.footer", "detail.header", "overview.section", "businessTab.toolbar"].includes(action.slot), "unknown action slot");
+      check(["primary", "secondary", "tertiary", "danger"].includes(action.variant), "unsupported action variant");
+      check(["read", "create", "edit"].includes(action.capability) && Boolean(m.capabilities[action.capability]), "action capability not registered");
+      if (action.variant === "primary") {
+        check(!primaryBySlot.has(action.slot), "more than one primary action per host");
+        primaryBySlot.add(action.slot);
+      }
+    }
+  }
   object(m.data, ["id", "list", "detail"]); nonempty(m.data.id);
   check(typeof m.data.list === "function" && typeof m.data.detail === "function", "missing data adapters");
   const refs = (keys: readonly string[], op: typeof operations[number] = "display") => {

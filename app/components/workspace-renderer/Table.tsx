@@ -10,6 +10,7 @@ import { latestRequest } from "./resource";
 import type { TablePolicy } from "./TablePolicy";
 import { dispatchCellEdit } from "./editing";
 import { PropertyEditor } from "./Editor";
+import type { TddActionBindings } from "@/lib/workspace-schema";
 
 export type SavedTddView<F extends readonly FieldSchema[]> = { readonly id: string; readonly name: string; readonly state: TableQuery<F>; readonly version?: string };
 /** A valid typed view may be inexpressible in the legacy UI. Isolate each failure. */
@@ -48,7 +49,7 @@ export type TddTableProps<F extends readonly FieldSchema[]> = {
   readonly rows: readonly ModuleRow<F>[]; readonly query: TableQuery<F>; readonly onQueryChange: (query: TableQuery<F>) => void;
   readonly onOpen: (record: BoRecord) => void; readonly status: "ready" | "loading" | "error" | "denied";
   readonly onRetry?: () => void; readonly total?: number; readonly viewTransport?: ViewTransport<F>;
-  readonly writes?: TableWrites<F>;
+  readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings;
 };
 export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<F>) {
   const schema = registeredSchema(props.registry, props.schema);

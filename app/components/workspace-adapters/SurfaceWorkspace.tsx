@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import type { AuthorizationContext } from "@/lib/workspace-schema";
+import type { AuthorizationContext, TddActionBindings } from "@/lib/workspace-schema";
 import type { FieldSchema, ModuleRow, TableQuery } from "@/lib/workspace-schema";
 import type { AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import type { AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -21,7 +21,7 @@ function useAdapterResource<T>(load: (signal: AbortSignal) => Promise<T>) {
 }
 /** Shared controller only: every shell remains owned by the canonical renderer.
  * Keeping Table mounted also preserves active/saved views and local undo on Back. */
-export type SurfaceWorkspaceProps<F extends readonly FieldSchema[]> = { readonly adapter: AuthenticatedSurfaceAdapter<F>; readonly navigation: AdapterNavigation<F>; readonly initialQuery: TableQuery<F>; readonly businessForms?: readonly BusinessFormProvider[]; readonly businessLoaders?: SlotLoaders; readonly detailProperties?: (properties: OverviewProperties, context: AuthorizationContext, principalId: string) => ReactNode; readonly detailOverview?: (row: ModuleRow<F>, context: AuthorizationContext, principalId: string) => ReactNode; readonly detailApprovedExtension?: (row: ModuleRow<F>, context: AuthorizationContext, activeTab: string, principalId: string, onSaved: () => void) => ReactNode };
+export type SurfaceWorkspaceProps<F extends readonly FieldSchema[]> = { readonly actionBindings?: TddActionBindings; readonly adapter: AuthenticatedSurfaceAdapter<F>; readonly navigation: AdapterNavigation<F>; readonly initialQuery: TableQuery<F>; readonly businessForms?: readonly BusinessFormProvider[]; readonly businessLoaders?: SlotLoaders; readonly detailProperties?: (properties: OverviewProperties, context: AuthorizationContext, principalId: string) => ReactNode; readonly detailOverview?: (row: ModuleRow<F>, context: AuthorizationContext, principalId: string) => ReactNode; readonly detailApprovedExtension?: (row: ModuleRow<F>, context: AuthorizationContext, activeTab: string, principalId: string, onSaved: () => void) => ReactNode };
 export function SurfaceWorkspace<F extends readonly FieldSchema[]>(props: SurfaceWorkspaceProps<F>) {
   const { adapter } = props;
   return <MountedSurfaceWorkspace key={JSON.stringify([adapter.scope.surface, adapter.schema.key, adapter.userId, adapter.scope.surface === "BO" ? adapter.scope.centerId : ""])} {...props} />;
@@ -32,7 +32,7 @@ export function shouldRestoreTableAfterNavigation(previous: "table" | "drawer" |
   return previous !== "table" && next === "table";
 }
 
-function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, navigation, initialQuery, businessForms, businessLoaders, detailOverview, detailProperties, detailApprovedExtension }: SurfaceWorkspaceProps<F>) {
+function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, navigation, initialQuery, actionBindings, businessForms, businessLoaders, detailOverview, detailProperties, detailApprovedExtension }: SurfaceWorkspaceProps<F>) {
   const menu = useContext(TddHostMenu);
   const [location, setLocation] = useState(() => navigation.read());
   const [query, setQuery] = useState(location.query ?? initialQuery);
@@ -81,7 +81,7 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
   const common = { registry: adapter.registry, schema: adapter.schema, context: adapter.context };
   const table: TddTableProps<F> = { ...common, rows: list.state?.value?.rows ?? [], query, total: list.state?.value?.total ?? 0, onQueryChange: update,
     onOpen: row => { navigation.capture(row.id); move("drawer", row.id); }, status: list.state?.error ? status(list.state.error) === "denied" ? "denied" : "error" : list.state?.value ? "ready" : "loading", onRetry: list.retry,
-    viewTransport: views.state?.value?.transport,
+    viewTransport: views.state?.value?.transport, actionBindings,
     writes: adapter.mutation ? { adapter: adapter.mutation, versionForRow: id => list.state?.value?.versions[id] ?? "", onSaved: () => { list.retry(); detail.retry(); } } : undefined };
   const selected = detail.state?.value;
   const record = selected?.row ?? { id: location.recordId ?? "" } as ModuleRow<F>;
