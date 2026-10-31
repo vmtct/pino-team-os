@@ -55,14 +55,16 @@ export function BoMissionsTdd() {
   const commandKey = useRef<string | null>(null);
   const writing = useRef(false);
   const effectiveCenter = useRef(centerId);
-  effectiveCenter.current = centerId;
+  useEffect(() => { effectiveCenter.current = centerId; }, [centerId]);
   useEffect(() => {
     let active = true;
     void boApi.centers().then(rows => {
       if (!active) return;
       const allowed = rows.filter(c => assignmentUuid.test(c.id) && c.status === "active");
       setCenters(allowed);
-      setCenterId(missionCenterFromUrl(allowed, new URL(window.location.href)));
+      const selectedCenter = missionCenterFromUrl(allowed, new URL(window.location.href));
+      effectiveCenter.current = selectedCenter;
+      setCenterId(selectedCenter);
       setCenterError(allowed.length ? "" : "Không có Center đang hoạt động được cấp quyền.");
     }).catch(() => { if (active) setCenterError("Không tải được danh sách Center."); });
     return () => { active = false; };
