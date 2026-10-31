@@ -27,6 +27,10 @@
                                    {
                                        "file":  "app/bo/components/registration/BoRegistrationWorkspace.tsx",
                                        "owner":  "PAP-1080"
+                                   },
+                                   {
+                                       "file":  "lib/host-boundary.ts",
+                                       "owner":  "PAP-1220"
                                    }
                                ]
     },
