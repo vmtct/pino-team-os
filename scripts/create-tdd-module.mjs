@@ -32,7 +32,7 @@ export function scaffoldTddModule({ root = repoRoot, surface, key, label, permis
   if (fs.existsSync(path.join(root, base))) throw Error("Module path exists; refuse overwrite");
   const perms = json(permission), labelString = json(label.trim());
   const read = `{ display: true, search: true, filter: true, sort: true, group: false, inlineEdit: false }`;
-  const schemaBody = `import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-schema";
+  const schemaBody = `import { TddRegistry, type FieldSchema, type TableQuery, type TddActionDescriptor } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters";
 import type { ModuleRow } from "@/lib/workspace-schema";
 
@@ -61,6 +61,9 @@ export const ${definition} = {
     inlineEdit: { fields: [], enabled: false },
     interaction: { settings: ["properties", "grouping", "filters", "quick-views"], quickView: "separate-opener", keyboard: "canonical", undo: "local-ui-only" },
   },
+  // PAP-1247: optional typed intent declarations; engine owns ALL shared action chrome.
+  // Bind declared handler keys only to real authorized adapters; no fake action/save.
+  actions: [] as readonly TddActionDescriptor[],
   drawer: { density: "one-column", sections, actions: [] },
   detail: { overview: { sections }, businessTabs: [], history: { kind: "unavailable", reason: "Chưa có nguồn lịch sử được phê duyệt." } },
 } as const satisfies SurfaceDefinition<F>;
@@ -100,13 +103,15 @@ export const ${schema} = registry.register({
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useState } from "react";
-import { TddRegistry } from "@/lib/workspace-schema";
+import { TddRegistry, type TddActionBindings } from "@/lib/workspace-schema";
 import { ${upper === "BO" ? "createBoTddAdapter" : "createHoTddAdapter"}, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { ${definition}, ${fields}, ${query}, ${provider} } from "./schema";
 type F = typeof ${fields};
 type Bound = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
+// Empty by default: only register legitimate domain adapters for declared action keys.
+const actionBindings: TddActionBindings = {};
 export function ${component}() {
 ${boCenter}  const [bound, setBound] = useState<Bound | null>(null);
   const [error, setError] = useState(false);
@@ -125,7 +130,7 @@ ${boCenter}  const [bound, setBound] = useState<Bound | null>(null);
   return <section aria-label={${labelString}}>
     {${render}error
       ? <p role="alert">Không thể tải module được cấp quyền. <button type="button" onClick={() => {setError(false);setRetry(n => n + 1);}}>Thử lại</button></p>
-      : bound ? <SurfaceWorkspace adapter={bound.adapter} navigation={bound.navigation} initialQuery={${query}} />
+      : bound ? <SurfaceWorkspace adapter={bound.adapter} navigation={bound.navigation} initialQuery={${query}} actionBindings={actionBindings} />
       : <p role="status">Đang kiểm tra phiên và quyền…</p>}
   </section>;
 }
