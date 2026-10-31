@@ -34,7 +34,7 @@ test("PAP-1207: registered HO TDD module with truthful read-only lifecycle", () 
 test("PAP-1207: only valid source MissionDefinition projected, never arbitrary metadata", () => {
   assert.deepEqual(projectMission({ ...row, secret: "NEVER" }), row);
   for (const patch of [{ id: "bad" }, { status: "COMPLETED" }, { name: "" }, { code: "" },
-    { level: 6 }, { plsValue: -1 }, { paperSize: "A1" }]) {
+    { level: 6 }, { level: 0 }, { level: null }, { plsValue: -1 }, { paperSize: "A1" }]) {
     assert.throws(() => projectMission({ ...row, ...patch }), BoApiError);
   }
 });
@@ -57,6 +57,8 @@ test("PAP-1207: paginated real HO catalog and exact scoped GET detail with fail-
   assert.equal(await missionProvider.detail(id, { surface: "HO" }, async () => Response.json({ error: {} }, { status: 404 }), signal()), null);
   await assert.rejects(missionProvider.detail(id, { surface: "HO" }, async () => Response.json({ data: { ...row, id: "01900000-0000-7000-8000-000000000005" } }), signal()), BoApiError);
   await assert.rejects(missionProvider.list(missionQuery, { surface: "HO" }, async () => Response.json({ data: [{ ...row, id: "bad" }] }), signal()), BoApiError);
+  await assert.rejects(missionProvider.list(missionQuery, { surface: "HO" }, async () => Response.json({ data: [{ ...row, plsValue: undefined }] }), signal()), BoApiError);
+  await assert.rejects(missionProvider.detail(id, { surface: "HO" }, async () => Response.json({ data: { ...row, paperSize: undefined } }), signal()), BoApiError);
   await assert.rejects(missionProvider.list(missionQuery, { surface: "HO" }, async () => Response.json({ data: [row, row] }), signal()), BoApiError);
   await assert.rejects(missionProvider.list(missionQuery, { surface: "HO" }, async () => Response.json({ error: "denied" }, { status: 403 }), signal()));
 });

@@ -49,10 +49,23 @@ export const missionDefinition = {
 } as const satisfies SurfaceDefinition<F>;
 
 export const missionUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function assertCoreMission(value: unknown): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new BoApiError(502, "Mission source không hợp lệ.", null);
+  const m = value as Record<string, unknown>;
+  if (!missionUuid.test(String(m.id ?? "")) ||
+      typeof m.name !== "string" || !m.name.trim() ||
+      typeof m.code !== "string" || !m.code.trim() ||
+      !["ACTIVE", "INACTIVE"].includes(String(m.status)) ||
+      !Number.isSafeInteger(m.level) || Number(m.level) < 1 || Number(m.level) > 5 ||
+      !Number.isSafeInteger(m.plsValue) || Number(m.plsValue) < 0 ||
+      !(m.paperSize === null || ["B5", "A4", "A3"].includes(String(m.paperSize)))) {
+    throw new BoApiError(502, "Mission source thiếu hoặc sai field.", null);
+  }
+}
 function project(raw: BoRecord): ModuleRow<F> {
   if (!missionUuid.test(String(raw.id ?? "")) || typeof raw.name !== "string" || !raw.name.trim() ||
       typeof raw.code !== "string" || !raw.code.trim() || !["ACTIVE", "INACTIVE"].includes(String(raw.status)) ||
-      (raw.level !== 0 && (!Number.isInteger(raw.level) || Number(raw.level) < 1 || Number(raw.level) > 5)) ||
+      (!Number.isInteger(raw.level) || Number(raw.level) < 1 || Number(raw.level) > 5) ||
       !Number.isSafeInteger(raw.plsValue) || Number(raw.plsValue) < 0 ||
       (raw.paperSize !== null && raw.paperSize !== "" && !["B5", "A4", "A3"].includes(String(raw.paperSize)))) {
     throw new BoApiError(502, "Mission catalog không đúng contract.", null);
@@ -73,8 +86,18 @@ export const missionProvider: SurfaceProvider<F> = {
   pagination: "local-ui",
   async list(_query, scope, fetcher, signal) {
     if (scope.surface !== "HO") throw new BoApiError(403, "HO Global scope required.", null);
-    const records = await loadHoA1("missions", async (input, init) =>
-      fetcher(input, { ...init, signal, cache: "no-store" }));
+    const records = await loadHoA1("missions", async (input, init) => {
+      const response = await fetcher(input, { ...init, signal, cache: "no-store" });
+      signal.throwIfAborted();
+      if (response.ok) {
+        const body: unknown = await response.clone().json().catch(() => null);
+        if (!body || typeof body !== "object" || !("data" in body) || !Array.isArray(body.data)) {
+          throw new BoApiError(502, "Mission catalog không đúng envelope.", null);
+        }
+        for (const source of body.data) assertCoreMission(source);
+      }
+      return response;
+    });
     signal.throwIfAborted();
     const rows = records.map(project);
     if (new Set(rows.map(r => r.id)).size !== rows.length) throw new BoApiError(502, "Mission catalog có ID trùng.", null);
@@ -91,6 +114,7 @@ export const missionProvider: SurfaceProvider<F> = {
     signal.throwIfAborted();
     if (!json || typeof json !== "object" || !("data" in json) || !json.data ||
         typeof json.data !== "object" || Array.isArray(json.data)) throw new BoApiError(502, "Mission detail thiếu dữ liệu.", null);
+    assertCoreMission(json.data);
     const records = mapHoMissions([json.data]);
     const row = project(records[0]!);
     if (row.id.toLowerCase() !== id.toLowerCase()) throw new BoApiError(502, "Mission ID không khớp.", null);
