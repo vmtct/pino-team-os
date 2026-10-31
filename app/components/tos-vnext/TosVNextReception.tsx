@@ -1,5 +1,5 @@
 "use client";
-import type { Assignment } from "@/lib/workforce-api";
+import type { Assignment, TimekeepingSession } from "@/lib/workforce-api";
 import { ownReceptionAssignments } from "@/lib/tos-vnext-reception";
 import ReceptionV4Presentation from "./ReceptionV4Presentation";
 import { OpenStudioReceptionPanel } from "./OpenStudioReceptionPanel";
@@ -9,11 +9,12 @@ import { ReceptionHouseCheckIn } from "./ReceptionHouseCheckIn";
  * Never use the session Day-of-Learning check-in as an unprojected Presence writer.
  */
 export function TosVNextReception({
-  centerId, workDate, assignments, centerName = "", profileLabel = "",
+  centerId, workDate, assignments, currentSession=null, centerName = "", profileLabel = "",
 }: {
   centerId: string;
   workDate: string;
   assignments: readonly Assignment[];
+  currentSession?: TimekeepingSession|null;
   centerName?: string;
   profileLabel?: string;
 }) {
@@ -33,7 +34,7 @@ export function TosVNextReception({
       <ReceptionHouseCheckIn centerId={centerId} />
       <OpenStudioReceptionPanel
         key={centerId + ":" + workDate} centerId={centerId}
-        workDate={workDate} assignments={assignments}
+        workDate={workDate} assignments={assignments} session={currentSession}
       />
     </>}
   />;

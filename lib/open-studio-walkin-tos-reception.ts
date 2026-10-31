@@ -16,6 +16,10 @@ export function currentReceptionSession(
   return session;
 }
 
+export function optionalWalkinAuditShiftId(assignments:readonly Assignment[],session:TimekeepingSession|null,centerId:string,workDate:string):string|undefined {
+ return currentReceptionSession(assignments,session,centerId,workDate)?.id;
+}
+
 export const WALKIN_PATHS = ["AC", "LPP", "LPA", "PH"] as const;
 
 export function isConsumableWalkinLookup(lookup: WalkinLookup | null): boolean {

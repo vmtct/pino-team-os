@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Assignment, TimekeepingSession } from "./workforce-api";
 import type { WalkinLookup } from "./open-studio-walkin-tos-api";
 import {
-  currentReceptionSession, isConsumableWalkinLookup, defaultWalkinStudentSelection,
+  currentReceptionSession, optionalWalkinAuditShiftId, isConsumableWalkinLookup, defaultWalkinStudentSelection,
 } from "./open-studio-walkin-tos-reception";
 
 const CENTER = "019d1000-0001-7000-8000-000000000001";
@@ -54,4 +54,12 @@ test("only ASSIGNED Pass with Parent and valid Path enables TOS consume",()=>{
 test("default selected child is real authorized linked Student, not manual",()=>{
   assert.equal(defaultWalkinStudentSelection(eligible),"student-1");
   assert.equal(defaultWalkinStudentSelection({...eligible,students:[]}),"__manual__");
+});
+
+test("PAP-1250 optional shift audit never gates Pass and never uses foreign/closed session",()=>{
+ assert.equal(optionalWalkinAuditShiftId([assignment],null,CENTER,DATE),undefined);
+ assert.equal(optionalWalkinAuditShiftId([assignment],session,CENTER,DATE),session.id);
+ assert.equal(optionalWalkinAuditShiftId([assignment],{...session,status:"CLOSED"},CENTER,DATE),undefined);
+ assert.equal(optionalWalkinAuditShiftId([assignment],{...session,centerId:OTHER},CENTER,DATE),undefined);
+ assert.equal(optionalWalkinAuditShiftId([],session,CENTER,DATE),undefined);
 });

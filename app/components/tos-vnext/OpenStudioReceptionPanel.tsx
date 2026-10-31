@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Assignment } from "@/lib/workforce-api";
+import type { Assignment, TimekeepingSession } from "@/lib/workforce-api";
 import {
   walkinPassTosApi, type WalkinLookup,
 } from "@/lib/open-studio-walkin-tos-api";
 import {
-  defaultWalkinStudentSelection, isConsumableWalkinLookup,
+  defaultWalkinStudentSelection, isConsumableWalkinLookup, optionalWalkinAuditShiftId,
 } from "@/lib/open-studio-walkin-tos-reception";
 import { TosVNextButton, TosVNextCard, TosVNextField, TosVNextStatus } from "../tos-ds";
 import styles from "./tos-vnext.module.css";
@@ -19,11 +19,12 @@ type BusyAction = "lookup" | "consume" | null;
  * No synthetic pass or payment receipt; Consume uses Center permission, not Workforce shift.
  */
 export function OpenStudioReceptionPanel({
-  centerId,
+  centerId, workDate, assignments, session,
 }: {
   centerId: string;
   workDate: string;
   assignments: readonly Assignment[];
+  session: TimekeepingSession|null;
 }) {
   const [code, setCode] = useState("");
   const [lookup, setLookup] = useState<WalkinLookup | null>(null);
@@ -39,6 +40,7 @@ export function OpenStudioReceptionPanel({
   // Invalidate delayed responses on unmount/Center switch.
   useEffect(() => () => { epoch.current += 1; }, []);
   const normalizedCode = code.trim().toUpperCase();
+  const optionalShiftId=optionalWalkinAuditShiftId(assignments,session,centerId,workDate);
   const canConsume = Boolean(lookup && isConsumableWalkinLookup(lookup)
     && lookup.pass.code === normalizedCode
     && holderConfirmed && (childSelection === "__manual__" ? manualChild.trim().length > 0
@@ -94,6 +96,7 @@ export function OpenStudioReceptionPanel({
     try {
       const result = await walkinPassTosApi.consume({
         centerId, code: normalizedCode, confirmedHolder: true,
+        ...(optionalShiftId?{shiftId:optionalShiftId}:{}),
         ...(childSelection === "__manual__"
           ? { manualChildName: manualChild.trim() }
           : { studentId: childSelection }),
