@@ -33,6 +33,10 @@ test("PAP-1214 surface probe never echoes arbitrary page values", () => {
     anyDetail: true,
     redirectedLogin: false,
     nextError: false,
+    invalidRecordParam: true,
+    subscriptionModuleParam: true,
+    anyAlert: true,
+    invalidCopyPresent: true,
     cookie: "secret",
     url: "https://example.invalid/private",
     email: "PRIVATE_EMAIL",
@@ -45,6 +49,10 @@ test("PAP-1214 surface probe never echoes arbitrary page values", () => {
     anyDetail: true,
     redirectedLogin: false,
     nextError: false,
+    invalidRecordParam: true,
+    subscriptionModuleParam: true,
+    anyAlert: true,
+    invalidCopyPresent: true,
   });
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE_EMAIL|secret|private/);
   assert.equal(safeG4SurfaceProbe({subscriptionHost:"true",anyDetail:1}).subscriptionHost, false);

@@ -15,6 +15,13 @@ export function middleware(request: NextRequest) {
     target.searchParams.set("module", "subscriptions");
     return NextResponse.redirect(target, 307);
   }
+  // PAP-1224: BO Staging-only compatibility redirect; keep Production Open Studio unchanged.
+  if (isBoStagingHost(host) && ["/bo/open-studio","/bo/open-studio/"].includes(request.nextUrl.pathname)) {
+    const target=request.nextUrl.clone();
+    target.pathname="/bo/open-studio-passes";
+    target.search="";
+    return NextResponse.redirect(target,307);
+  }
   // Never trust a caller-supplied internal route marker.
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");

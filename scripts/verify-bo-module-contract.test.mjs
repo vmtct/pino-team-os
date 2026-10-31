@@ -30,7 +30,8 @@ function fixture() {
   fs.writeFileSync(path.join(tmp,navFile),nav
     .replace(/items: \[\{ href: "\/bo", label: "Hôm nay" \}[^\r\n]*\],/,'items: [{ href: "/bo", label: "Hôm nay" }],')
     .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,"")
-    .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Self Directory" \},/,""));
+    .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Self Directory" \},/,"")
+    .replace(/\s*\{ href: "\/bo\/open-studio-passes", label: "Pass Trạm Nghệ Thuật" \},/,""));
   // Recreate frozen baseline pages as inert fixtures so receipt tests can
   // assert a clean migration transition without carrying 47 real modules.
   const baseline=JSON.parse(fs.readFileSync(path.join(tmp,baselineFile),"utf8"));

@@ -164,7 +164,28 @@ try {
     // data-bo-full-detail selector was absent in current React source.
     assert(await fp.locator('[data-tdd-shell="detail"],[data-bo-full-detail]').count() === 0,"invalid detail mounted");
     invalidDetailPhase = "invalid_error_visible";
-    await fp.locator('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]').waitFor({state:"visible",timeout:8000});
+    try {
+      await fp.locator('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]').waitFor({state:"visible",timeout:8000});
+    } catch (error) {
+      // Only record allowlisted boolean outcomes; no page text, URL, secret, or DOM dump.
+      const flags = await fp.evaluate(() => {
+        const params = new URLSearchParams(location.search);
+        return {
+          subscriptionHost: Boolean(document.querySelector('[data-bo-runtime="react"][data-bo-module="subscriptions"]')),
+          subscriptionSurface: Boolean(document.querySelector('[data-bo-runtime-surface="subscriptions-core"]')),
+          invalidAlert: Boolean(document.querySelector('[data-bo-runtime-surface="subscriptions-core"] [role="alert"]')),
+          anyDetail: Boolean(document.querySelector('[data-tdd-shell="detail"],[data-bo-full-detail]')),
+          redirectedLogin: location.pathname === "/staff-login",
+          nextError: Boolean(document.querySelector("nextjs-portal")),
+          invalidRecordParam: params.get("record") === "not-a-uuid",
+          subscriptionModuleParam: params.get("module") === "subscriptions",
+          anyAlert: Boolean(document.querySelector('[role="alert"]')),
+          invalidCopyPresent: document.body?.textContent?.includes("Subscription ID trên URL không hợp lệ.") === true,
+        };
+      }).catch(() => ({}));
+      console.log(JSON.stringify({name:"PAP-1214_INVALID_ID_ALERT_PROBE",...safeG4SurfaceProbe(flags)}));
+      throw error;
+    }
   }, () => invalidDetailPhase);
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});

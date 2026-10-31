@@ -56,35 +56,58 @@ export function directLocalImports(root, file) {
   return [...dependencies];
 }
 
-export function inspectModuleSource(file, source) {
+function moduleViolations(file, source) {
   const errors=[]; const ast=parse(file,source);
+  const add=(rule,node)=>errors.push({rule,syntax:node.getText(ast)});
   function walk(n) {
     if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)) {
       const tag=n.tagName.getText(ast);
-      if(['table','dialog'].includes(tag)) errors.push('module-owned '+tag+' shell');
+      if(['table','dialog'].includes(tag)) add('module-owned '+tag+' shell',n);
       for(const p of n.attributes.properties) {
-        if(ts.isJsxSpreadAttribute(p)) errors.push('opaque JSX spread (use typed shared component props)');
+        if(ts.isJsxSpreadAttribute(p)) add('opaque JSX spread (use typed shared component props)',p);
         if(!ts.isJsxAttribute(p)) continue;
         const name=p.name.getText(ast);
-        if(name==='style') errors.push('module-owned inline CSS');
-        if(name==='dangerouslySetInnerHTML') errors.push('opaque HTML shell');
+        if(name==='style') add('module-owned inline CSS',p);
+        if(name==='dangerouslySetInnerHTML') add('opaque HTML shell',p);
         if(name==='className') {
           let v=p.initializer;
           if(v&&ts.isJsxExpression(v)) v=v.expression;
-          if(!v || !(ts.isStringLiteral(v)||ts.isNoSubstitutionTemplateLiteral(v))) errors.push('opaque className');
-          else if(shellClass.test(v.text)) errors.push('reserved shell class');
+          if(!v || !(ts.isStringLiteral(v)||ts.isNoSubstitutionTemplateLiteral(v))) add('opaque className',p);
+          else if(shellClass.test(v.text)) add('reserved shell class',p);
         }
-        if(name==='role' && p.initializer && ts.isStringLiteral(p.initializer) && ['dialog','tablist','tabpanel','grid'].includes(p.initializer.text)) errors.push('module-owned shell role');
+        if(name==='role' && p.initializer && ts.isStringLiteral(p.initializer) && ['dialog','tablist','tabpanel','grid'].includes(p.initializer.text)) add('module-owned shell role',p);
       }
     }
     if(ts.isCallExpression(n)) {
       const name=n.expression.getText(ast);
-      if(/(?:createElement|\.innerHTML|insertAdjacentHTML)$/.test(name)) errors.push('opaque programmatic shell');
-      if((n.expression.kind===ts.SyntaxKind.ImportKeyword||name==='require') && (!n.arguments[0]||!ts.isStringLiteral(n.arguments[0]))) errors.push('opaque import');
+      if(/(?:createElement|\.innerHTML|insertAdjacentHTML)$/.test(name)) add('opaque programmatic shell',n);
+      if((n.expression.kind===ts.SyntaxKind.ImportKeyword||name==='require') && (!n.arguments[0]||!ts.isStringLiteral(n.arguments[0]))) add('opaque import',n);
     }
-    if(ts.isBinaryExpression(n)&&/\.(?:innerHTML|outerHTML)$/.test(n.left.getText(ast))) errors.push('opaque HTML assignment');
+    if(ts.isBinaryExpression(n)&&/\.(?:innerHTML|outerHTML)$/.test(n.left.getText(ast))) add('opaque HTML assignment',n);
     ts.forEachChild(n,walk);
-  } walk(ast); return [...new Set(errors)].map(e=>file+': '+e);
+  } walk(ast); return errors;
+}
+export function inspectModuleSource(file, source) {
+  return [...new Set(moduleViolations(file,source).map(item=>file+': '+item.rule))];
+}
+/** PAP-1228: owner-bound external hosts may retain only unchanged opaque JSX.
+ * Compare exact AST syntax and multiplicity to the immutable PR-base source.
+ * All shell/HTML/CSS violations remain fully checked, even if present before. */
+export function inspectModuleDelta(file, before, after) {
+  if(typeof before!=='string') return inspectModuleSource(file,after);
+  const inherited=new Set(['opaque JSX spread (use typed shared component props)','opaque className']);
+  const fingerprint=item=>JSON.stringify([item.rule,item.syntax]);
+  const remaining=new Map();
+  for(const item of moduleViolations(file,before)) if(inherited.has(item.rule)) {
+    const key=fingerprint(item);remaining.set(key,(remaining.get(key)??0)+1);
+  }
+  const errors=[];
+  for(const item of moduleViolations(file,after)) {
+    const key=fingerprint(item),count=remaining.get(key)??0;
+    if(inherited.has(item.rule)&&count>0) remaining.set(key,count-1);
+    else errors.push(file+': '+item.rule);
+  }
+  return [...new Set(errors)];
 }
 export function inspectForeignCss(file,before,after) {
   const collect=css=>{const rules=[];postcss.parse(css).walkRules(r=>rules.push(r.toString()));return new Set(rules);};
@@ -170,7 +193,7 @@ export function bindsSurfaceWorkspace(root, entry) {
   return rendered&&adapted;
 }
 
-export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.now(),loadSchema,approvals=[]}={}) {
+export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.now(),loadSchema,approvals=[],readBaseSource=()=>null}={}) {
   baseline??=JSON.parse(read(root,'config/tdd-inventory.json'));
   manifest??=JSON.parse(read(root,MANIFEST));
   const errors=[],reports=[],tests=new Set();
@@ -207,7 +230,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
       if(!external&&!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
       if(external&&changed.includes(f)&&!(baseline.sourceFiles??[]).includes(f)&&(directExternals.has(f)||securityBoundary.test(f))) {
         if(!externalRefs.some(r=>r.file===f)) errors.push(e.file+': dependency outside admission fence '+f);
-        else if(sourceFile.test(f)) errors.push(...inspectModuleSource(f,read(root,f)));
+        else if(sourceFile.test(f)) errors.push(...(securityBoundary.test(f) ? inspectModuleSource(f,read(root,f)) : inspectModuleDelta(f,await readBaseSource(f),read(root,f))));
       }
     }
     if(e.profile==='FOUNDER_APPROVED_SPECIAL') {
@@ -290,7 +313,8 @@ export async function main() {
   if(git(ROOT,['ls-tree','--name-only',base,MANIFEST])) previous=JSON.parse(git(ROOT,['show',base+':'+MANIFEST])).modules;
   const current=JSON.parse(read(ROOT,MANIFEST));
   for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
-  const result=await verify(ROOT,{changed,baseline,approvals});
+  const readBaseSource=file=>{try{return git(ROOT,['show',base+':'+file]);}catch{return null;}};
+  const result=await verify(ROOT,{changed,baseline,approvals,readBaseSource});
   for(const f of changed.filter(f=>f.endsWith('.css')&&!/^(?:public\/(?:bo|ho)-authority-source\/|app\/ho\/ho-theme\.css)/.test(f))) {
     if(!fs.existsSync(path.join(ROOT,f))) continue;
     let before=''; try {before=git(ROOT,['show',base+':'+f]);} catch {}

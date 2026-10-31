@@ -7,6 +7,9 @@ on:
     paths:
       - ".github/workflows/tdd-g2-module.yml"
       - "e2e/tdd-g2-controller.spec.ts"
+      - "e2e/pap1076-ho-centers.spec.ts"
+      - "e2e/fixtures/pap1076-ho-centers.tsx"
+      - "app/ho/centers/**"
       - "e2e/fixtures/tdd-g2-controller.tsx"
       - "app/components/workspace-adapters/**"
       - "app/components/workspace-renderer/**"
@@ -32,7 +35,7 @@ jobs:
       - name: Install isolated headless Chromium
         run: npx playwright install --with-deps chromium
       - name: Test assembled BO/HO controllers and negative contracts
-        run: npx playwright test e2e/tdd-g2-controller.spec.ts --workers=2 --retries=0 --timeout=30000 --reporter=list
+        run: npx playwright test e2e/tdd-g2-controller.spec.ts e2e/pap1076-ho-centers.spec.ts --workers=2 --retries=0 --timeout=30000 --reporter=list
         env:
           CI: "true"
       - name: Retain failure artifacts
