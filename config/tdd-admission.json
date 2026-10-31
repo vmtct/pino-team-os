@@ -226,6 +226,10 @@
         {
           "file": "lib/ho-routes.ts",
           "owner": "PAP-990"
+        },
+        {
+          "file": "app/bo/parents/provider.ts",
+          "owner": "PAP-1075"
         }
       ],
       "schema": {
