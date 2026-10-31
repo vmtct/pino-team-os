@@ -121,6 +121,8 @@ export type TddActionHandler = Readonly<{
   run: () => void | TddActionResult | Promise<void | TddActionResult>;
   kind?: "navigation" | "mutation";
   disabled?: boolean;
+  /** Optional pure adapter predicate; invisible actions are not mounted or focusable. */
+  visible?: boolean;
 }>;
 export type TddActionFeedback = Readonly<{ kind: "none" | "success" | "error"; message: string }>;
 /** Mutation outcome is never inferred from a fulfilled promise or a transport 2xx. */
@@ -142,7 +144,7 @@ export function authorizedHostActions<F extends readonly FieldSchema[]>(
   slot: TddActionDescriptor["slot"], bindings: TddActionBindings, targetId?: string, formMode?: "create" | "edit",
 ): readonly TddActionDescriptor[] {
   const eligible = (schema.actions ?? []).filter(action => action.slot === slot && action.targetId === targetId && action.formMode === formMode &&
-    allows(schema, context, action.capability) && Boolean(bindings[action.handler]));
+    allows(schema, context, action.capability) && Boolean(bindings[action.handler]) && bindings[action.handler]?.visible !== false);
   return [...eligible.filter(action => action.variant !== "primary"),
     ...eligible.filter(action => action.variant === "primary")];
 }

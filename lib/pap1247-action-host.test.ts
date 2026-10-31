@@ -140,3 +140,11 @@ test("PAP-1247: declared form footer is mode-specific, and read-only Quick View 
   assert.match(source, /mode === "edit" && !recordId\?\.trim\(\)/);
   assert.match(source, /mode === "create" && recordId !== undefined/);
 });
+test("PAP-1247: handler visibility is pure adapter data, never a CSS-hidden action", () => {
+  const declared = defineTddModule(schema([primary, secondary]));
+  const handlers = {
+    createMission: { run: () => undefined, visible: false },
+    export: { run: () => undefined, disabled: true },
+  };
+  assert.deepEqual(authorizedHostActions(declared, permitted, "table.header", handlers).map(x => x.id), ["export"]);
+});
