@@ -226,6 +226,10 @@
         {
           "file": "lib/ho-routes.ts",
           "owner": "PAP-990"
+        },
+        {
+          "file": "app/bo/parents/provider.ts",
+          "owner": "PAP-1075"
         }
       ],
       "schema": {
@@ -332,6 +336,42 @@
         "lib/pap1080-tdd-reference.test.ts",
         "lib/ho-routes.test.ts",
         "lib/host-boundary.test.ts"
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "missions",
+      "route": "/ho/learning/missions",
+      "file": "app/ho/learning/missions/page.tsx",
+      "files": [
+        "app/ho/learning/missions/page.tsx",
+        "app/ho/learning/missions/HoMissionsTdd.tsx",
+        "app/ho/learning/missions/schema.ts",
+        "app/ho/learning/missions/command.ts",
+        "app/ho/learning/missions/read-edit.ts",
+        "app/ho/learning/missions/MissionCreateFields.tsx"
+      ],
+      "schema": {
+        "file": "app/ho/learning/missions/schema.ts",
+        "export": "missionSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/learning/missions/HoMissionsTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1207-ho-missions-tdd.test.ts",
+        "lib/pap1207-ho-mission-write.test.ts",
+        "lib/pap1207-ho-mission-command.test.ts",
+        "lib/pap1207-ho-mission-create-ui.test.ts",
+        "lib/pap1207-ho-mission-edit.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1207"
+        }
       ]
     }
   ],

@@ -1,10 +1,28 @@
 import { allows, allowsField, isFieldValue, validateQuery, fieldValueErrors, type AuthorizationContext, type FieldKey, type FieldSchema, type HistorySubject, type ModuleRow, type ModuleSchema, type MutationAdapter } from "../workspace-schema";
 import { loadHistory } from "../workspace-schema";
 import { adapterError, type SurfaceSession } from "./session";
-import type { AuthenticatedSurfaceAdapter, ProviderRecord, SurfaceOptions } from "./contracts";
+import type { AuthenticatedSurfaceAdapter, ProviderRecord, SurfaceProvider, SurfaceOptions } from "./contracts";
 import { sharedViews } from "./views";
 import { BoApiError } from "../bo-api-error";
 
+/** PAP-1247: an independently guarded domain command is not a generic TDD mutation adapter.
+ * Only explicitly declared action contracts can opt into Create/Edit controls on HO.
+ * The authenticated adapter remains read-only; Core/BFF MUST independently authorize each command.
+ */
+export function hasActionOnlyCapability<F extends readonly FieldSchema[]>(
+  definition: Pick<ModuleSchema<F>, "actions" | "capabilities" | "table" | "fields">,
+  provider: Pick<SurfaceProvider<F>, "mutation">,
+  capability: "create" | "edit",
+): boolean {
+  if (!definition.capabilities[capability] || provider.mutation ||
+      definition.table.inlineEdit.enabled || definition.table.inlineEdit.fields.length ||
+      definition.fields.some(field => field.capabilities.inlineEdit)) return false;
+  return Boolean(definition.actions?.some(action => action.capability === capability &&
+    typeof action.handler === "string" && action.handler.trim() &&
+    (capability === "create"
+      ? ["table.header", "drawer.footer"].includes(action.slot)
+      : ["detail.header", "drawer.header", "drawer.footer"].includes(action.slot))));
+}
 /** The same coordinator serves both adapters; scope/session creation stays separate. */
 export async function bindSurface<F extends readonly FieldSchema[]>(session: SurfaceSession, options: SurfaceOptions<F>, signal: AbortSignal): Promise<AuthenticatedSurfaceAdapter<F>> {
   const { definition, provider, registry } = options;
@@ -13,9 +31,10 @@ export async function bindSurface<F extends readonly FieldSchema[]>(session: Sur
     return session.transport(input, init);
   };
   if (definition.surface !== session.scope.surface || definition.table.pagination.mode !== provider.pagination) throw adapterError(403);
-  if ((definition.capabilities.edit && !provider.mutation) || definition.capabilities.create ||
+  if ((definition.capabilities.edit && !provider.mutation && !hasActionOnlyCapability(definition, provider, "edit")) ||
+      (definition.capabilities.create && !hasActionOnlyCapability(definition, provider, "create")) ||
       (provider.mutation && session.scope.surface === "BO" && !provider.mutationCenter) ||
-      (session.scope.surface === "HO" && (provider.mutation || definition.capabilities.edit))) throw adapterError(403);
+      (session.scope.surface === "HO" && provider.mutation)) throw adapterError(403);
   await session.refresh(signal);
   if (!allows(definition, session.context, "read")) throw adapterError(403);
   let schema: ModuleSchema<F>;
