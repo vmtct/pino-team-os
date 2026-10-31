@@ -14,6 +14,7 @@ const entry = request => ({ ...request, approval: request.id });
 for (const surface of ["bo", "ho"]) test(surface + " request needs an actual Founder record and alternative profile before admission", () => {
   const request = createSpecialRequest({ ...identity, surface, route: `/${surface}/special-demo` });
   assert.equal(request.status, "requested");
+  assert.equal(request.permanent, false);
   assert.equal(request.surface, surface.toUpperCase());
   assert.equal(request.approvedBy, null);
   assert.ok(validateSpecial(entry(request), [request], [], now).length);
@@ -48,6 +49,7 @@ test("real CLI emits only pending JSON and leaves working folder and approval re
   assert.equal(result.stderr, "");
   const request = JSON.parse(result.stdout);
   assert.equal(request.status, "requested");
+  assert.equal(request.permanent, false);
   assert.ok(validateSpecial(entry(request), [request], [], now).length);
   assert.deepEqual(fs.readdirSync(folder), []);
   assert.deepEqual(fs.readFileSync(registry), before);

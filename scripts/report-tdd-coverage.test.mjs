@@ -95,7 +95,7 @@ test("S9 reports exact validated exception owner, expiry, route and Founder rece
   assert.equal(r.coverage.classifications.FOUNDER_EXEMPT, 1);
   const row = r.rows.find(x => x.route === a.route);
   assert.equal(row.owner, a.owner);
-  assert.deepEqual(row.exceptionDetails, { id: a.id, valid: true, owner: a.owner, route: a.route, surface: a.surface, reference: a.reference, approvedAt: a.approvedAt, expiresAt: a.expiresAt });
+  assert.deepEqual(row.exceptionDetails, { id: a.id, valid: true, owner: a.owner, route: a.route, surface: a.surface, reference: a.reference, approvedAt: a.approvedAt, expiresAt: a.expiresAt, permanent: false, reviewTrigger: null });
 });
 for (const [label, mutate] of [
   ["expired", a => { a.expiresAt = "2026-10-30T00:00:00Z"; }],
@@ -130,4 +130,16 @@ test("S9 unknown admission profile cannot inherit grandfathering", t => {
   const r = reportTddCoverage(f.root);
   assert.equal(r.coverage.classifications.UNVERIFIED, 1);
   assert.ok(r.errors.some(error => error.includes(e.file)));
+});
+
+
+test("S9 reports permanent approval explicitly with owner, review trigger and no invented expiry", t => {
+ const f=fixture(t),a=approvedSpecial(f);Object.assign(a,{permanent:true,expiresAt:null,reviewTrigger:"Re-review on owner or design change"});
+ f.put("config/tdd-approved-special.json",JSON.stringify({approvals:[a]}));
+ const r=reportTddCoverage(f.root,{now:reportNow});
+ assert.deepEqual(r.errors,[]);assert.equal(r.coverage.classifications.FOUNDER_EXEMPT,1);
+ const details=r.rows.find(x=>x.route===a.route).exceptionDetails;
+ assert.equal(details.permanent,true);assert.equal(details.expiresAt,null);assert.equal(details.reviewTrigger,a.reviewTrigger);assert.equal(details.owner,a.owner);
+ delete a.reviewTrigger;f.put("config/tdd-approved-special.json",JSON.stringify({approvals:[a]}));
+ const invalid=reportTddCoverage(f.root,{now:reportNow});assert.ok(invalid.errors.length);assert.equal(invalid.coverage.classifications.FOUNDER_EXEMPT,0);
 });
