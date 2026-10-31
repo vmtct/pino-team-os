@@ -354,7 +354,14 @@
         "file": "app/ho/learning/missions/HoMissionsTdd.tsx"
       },
       "tests": [
-        "lib/pap1207-ho-missions-tdd.test.ts"
+        "lib/pap1207-ho-missions-tdd.test.ts",
+        "lib/pap1207-ho-mission-write.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1207"
+        }
       ]
     }
   ],
