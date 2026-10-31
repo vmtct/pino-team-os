@@ -88,6 +88,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (pathname === "/api/bo/workforce/planning/shift-plan") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-1252: exact read-only BO TV Health; BFF and Core enforce Center-scoped tv.view.
+    // The host fence admits neither Production nor non-GET methods.
+    if (pathname === "/api/bo/tv/operator-health") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1111 G4: admit only staging BO note-only assignment edits.
     // Next and Core still enforce Staff identity, Center ACL, CAS and audit.
     if (hostname === BO_STAGING_HOSTNAME && pathname === "/api/bo/workforce/planning/assignment/note") {
