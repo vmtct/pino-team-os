@@ -415,3 +415,22 @@ for(const surface of ["BO","HO"] as const)test(`${surface}: approved module defa
   await assert.rejects(setup(surface,{...base,table:{...base.table,views:{...base.table.views,builtIn:[{...active,state:{...query,filters:{logic:"AND",rules:[{field:"count",op:"contains",value:"invalid"} as never]}}}]}}}),/operator/);
   assert.equal((await setup(surface)).adapter.schema.table.views.builtIn.length,0);
 });
+
+
+test("PAP-1105 persisted Freeze stays unavailable and cannot be rewritten before renderer adoption", async () => inBrowser("https://bo.staging.pinohouse.art", async () => {
+  const { adapter, state } = await setup("BO", viewsDefinition("BO"));
+  const config = toSharedConfig(adapter.schema, query);
+  const frozen = { ...config, columns: { ...config.columns, frozenThrough: "count" } };
+  state.views = [{ id: other, name: "Frozen", moduleKey: "students", position: 0, version: 7, config: frozen }, { id: recordId, name: "Usable", moduleKey: "students", position: 1, version: 1, config }];
+  const value = await adapter.views(signal());
+  assert.deepEqual(value.unavailable, [{ id: other, name: "Frozen" }]);
+  assert.equal(value.transport!.views.length, 1);
+  const writesBefore = state.calls.filter(call => call.method !== "GET").length;
+  await assert.rejects(value.transport!.write([...value.transport!.views, { id: other, name: "Attempted overwrite", version: "7", state: query }], adapter.context, signal()), fails(400));
+  assert.equal(state.calls.filter(call => call.method !== "GET").length, writesBefore);
+  await value.transport!.write(value.transport!.views.map(view => ({ ...view, name: "Renamed usable" })), adapter.context, signal());
+  const retained = state.views.find(view => view.id === other)!;
+  assert.deepEqual(retained.config, frozen);
+  assert.equal(retained.version, 7);
+  assert.equal(state.calls.some(call => call.method === "DELETE"), false);
+}));

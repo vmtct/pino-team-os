@@ -2,6 +2,39 @@
   "version": 1,
   "modules": [
     {
+        "profile":  "TDD_DEFAULT",
+        "surface":  "BO",
+        "key":  "classroom-diaries",
+        "route":  "/bo/classroom-diaries",
+        "file":  "app/bo/classroom-diaries/page.tsx",
+        "files":  [
+                      "app/bo/classroom-diaries/page.tsx",
+                      "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx",
+                      "app/bo/classroom-diaries/schema.ts"
+                  ],
+        "schema":  {
+                       "file":  "app/bo/classroom-diaries/schema.ts",
+                       "export":  "diarySchema"
+                   },
+        "binding":  {
+                        "kind":  "SURFACE_WORKSPACE_ADAPTER",
+                        "file":  "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx"
+                    },
+        "tests":  [
+                      "app/bo/classroom-diaries/schema.test.ts"
+                  ],
+        "externalReferences":  [
+                                   {
+                                       "file":  "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+                                       "owner":  "PAP-1080"
+                                   },
+                                   {
+                                       "file":  "lib/host-boundary.ts",
+                                       "owner":  "PAP-1220"
+                                   }
+                               ]
+    },
+    {
       "profile": "TDD_DEFAULT",
       "surface": "BO",
       "key": "pinoria-avatars",
@@ -372,6 +405,57 @@
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1207"
         }
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "missions",
+      "route": "/bo/missions",
+      "file": "app/bo/missions/page.tsx",
+      "files": [
+        "app/bo/missions/page.tsx",
+        "app/bo/missions/BoMissionsTdd.tsx",
+        "app/bo/missions/AssignmentFields.tsx",
+        "app/bo/missions/navigation.ts",
+        "app/bo/missions/schema.ts",
+        "lib/bo-mission-assignments.ts",
+        "lib/bo-mission-assignment-write-facade.ts",
+        "lib/bo-mission-assignment-command.ts",
+        "lib/bo-mission-assignment-options.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "lib/bo-url-contract.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "app/bo/architecture/bo-unified-workspace-source.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "app/bo/components/registration/BoRuntimeBoundary.tsx",
+          "owner": "PAP-1210"
+        }
+      ],
+      "schema": {
+        "file": "app/bo/missions/schema.ts",
+        "export": "assignmentSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/missions/BoMissionsTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1210-bo-missions-tdd.test.ts",
+        "lib/pap1210-bo-mission-write-facade.test.ts",
+        "lib/pap1210-bo-mission-command.test.ts",
+        "lib/pap1210-bo-mission-options.test.ts",
+        "lib/pap1210-bo-mission-form.test.ts"
       ]
     }
   ],

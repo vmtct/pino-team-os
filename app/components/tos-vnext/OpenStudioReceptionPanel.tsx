@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Assignment, TimekeepingSession } from "@/lib/workforce-api";
-import { workforceApi } from "@/lib/workforce-api";
 import {
   walkinPassTosApi, type WalkinLookup,
 } from "@/lib/open-studio-walkin-tos-api";
 import {
-  currentReceptionSession, defaultWalkinStudentSelection, isConsumableWalkinLookup,
+  defaultWalkinStudentSelection, isConsumableWalkinLookup, optionalWalkinAuditShiftId,
 } from "@/lib/open-studio-walkin-tos-reception";
 import { TosVNextButton, TosVNextCard, TosVNextField, TosVNextStatus } from "../tos-ds";
 import styles from "./tos-vnext.module.css";
@@ -17,18 +16,18 @@ type BusyAction = "lookup" | "consume" | null;
 /**
  * PAP-1166 TOS Reception — real Core-backed lookup / atomic one-use consume.
  * Deliberately separate from Student Visit and the read-only Reception presentation.
- * No synthetic pass or payment receipt, no bypass of a live shift or Center.
+ * No synthetic pass or payment receipt; Consume uses Center permission, not Workforce shift.
  */
 export function OpenStudioReceptionPanel({
-  centerId, workDate, assignments,
+  centerId, workDate, assignments, session,
 }: {
   centerId: string;
   workDate: string;
   assignments: readonly Assignment[];
+  session: TimekeepingSession|null;
 }) {
   const [code, setCode] = useState("");
   const [lookup, setLookup] = useState<WalkinLookup | null>(null);
-  const [session, setSession] = useState<TimekeepingSession | null>(null);
   const [childSelection, setChildSelection] = useState("__manual__");
   const [manualChild, setManualChild] = useState("");
   const [holderConfirmed, setHolderConfirmed] = useState(false);
@@ -40,17 +39,16 @@ export function OpenStudioReceptionPanel({
 
   // Invalidate delayed responses on unmount/Center switch.
   useEffect(() => () => { epoch.current += 1; }, []);
-  const verifiedSession = currentReceptionSession(assignments, session, centerId, workDate);
   const normalizedCode = code.trim().toUpperCase();
+  const optionalShiftId=optionalWalkinAuditShiftId(assignments,session,centerId,workDate);
   const canConsume = Boolean(lookup && isConsumableWalkinLookup(lookup)
-    && lookup.pass.code === normalizedCode && verifiedSession
+    && lookup.pass.code === normalizedCode
     && holderConfirmed && (childSelection === "__manual__" ? manualChild.trim().length > 0
       : lookup.students.some(student => student.id === childSelection)));
 
   function clearResult() {
     epoch.current += 1;
     setLookup(null);
-    setSession(null);
     setChildSelection("__manual__");
     setManualChild("");
     setHolderConfirmed(false);
@@ -66,13 +64,9 @@ export function OpenStudioReceptionPanel({
     setError("");
     setReceipt("");
     setLookup(null);
-    setSession(null);
     setHolderConfirmed(false);
     try {
-      const [found, sessionResponse] = await Promise.all([
-        walkinPassTosApi.lookup(centerId, normalizedCode),
-        workforceApi.currentTimekeeping(centerId),
-      ]);
+      const found = await walkinPassTosApi.lookup(centerId, normalizedCode);
       if (epoch.current !== currentEpoch) return;
       if (found.pass.code !== normalizedCode || !found.pass.id) {
         throw new Error("Phản hồi Pass không khớp mã đã tra cứu.");
@@ -80,7 +74,6 @@ export function OpenStudioReceptionPanel({
       setLookup(found);
       setChildSelection(defaultWalkinStudentSelection(found));
       setManualChild("");
-      setSession(sessionResponse.data ?? null);
     } catch (e) {
       if (epoch.current === currentEpoch) setError(
         e instanceof Error ? e.message : "Không tra cứu được Pass ở trung tâm này.",
@@ -94,21 +87,16 @@ export function OpenStudioReceptionPanel({
   }
 
   async function consumePass() {
-    if (pending.current || !canConsume || !lookup || !verifiedSession) return;
+    if (pending.current || !canConsume || !lookup) return;
     pending.current = true;
     const currentEpoch = ++epoch.current;
     setBusy("consume");
     setError("");
     setReceipt("");
     try {
-      // Re-read the actual timekeeping session immediately before the mutation.
-      const live = await workforceApi.currentTimekeeping(centerId);
-      if (!currentReceptionSession(assignments, live.data ?? null, centerId, workDate)
-        || live.data?.id !== verifiedSession.id) {
-        throw new Error("Ca tiếp tân đã thay đổi. Hãy chấm công và tra cứu Pass lại.");
-      }
       const result = await walkinPassTosApi.consume({
-        centerId, code: normalizedCode, shiftId: verifiedSession.id, confirmedHolder: true,
+        centerId, code: normalizedCode, confirmedHolder: true,
+        ...(optionalShiftId?{shiftId:optionalShiftId}:{}),
         ...(childSelection === "__manual__"
           ? { manualChildName: manualChild.trim() }
           : { studentId: childSelection }),
@@ -158,9 +146,7 @@ export function OpenStudioReceptionPanel({
       {!isConsumableWalkinLookup(lookup)
         ? <p role="status" className={styles.secondary}>Pass không ở trạng thái ASSIGNED hợp lệ tại trung tâm này. Không thể sử dụng.</p>
         : <>
-          {verifiedSession
-            ? <p className={styles.secondary}>Ca đang OPEN tại đúng Center. Phiên: {verifiedSession.id}</p>
-            : <p role="status" className={styles.trainingError}>Không có ca tiếp tân đang chấm công hợp lệ. Cần check-in đúng ca trước khi consume.</p>}
+          <p className={styles.secondary}>Việc xác nhận Pass dựa trên quyền tiếp đón tại trung tâm, không yêu cầu chấm công ca.</p>
           <TosVNextField label="Học viên sử dụng Pass">
             <select aria-label="Học viên sử dụng Pass" value={childSelection} disabled={Boolean(busy)}
               onChange={e => { setChildSelection(e.target.value); setHolderConfirmed(false); }}>
@@ -176,7 +162,7 @@ export function OpenStudioReceptionPanel({
                 placeholder="Họ tên trẻ đã xác minh tại quầy"/>
             </TosVNextField>}
           <label>
-            <input type="checkbox" checked={holderConfirmed} disabled={Boolean(busy) || !verifiedSession}
+            <input type="checkbox" checked={holderConfirmed} disabled={Boolean(busy)}
               onChange={e => setHolderConfirmed(e.target.checked)}/>
             {" "}Tôi đã kiểm tra mã Pass, Path, phụ huynh và trẻ thực tế tại quầy.
           </label>

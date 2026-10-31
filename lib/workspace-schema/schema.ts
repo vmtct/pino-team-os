@@ -22,8 +22,10 @@ export type TddActionDescriptor = {
 };
 export type Sections<K extends string> = readonly { readonly id: string; readonly label: string; readonly fields: readonly K[] }[];
 
-type SlotBase = { readonly id: string; readonly label: string; readonly source: Source };
-export type BusinessSlot<K extends string> = SlotBase & (
+/** PAP-1256: only field-literal comparisons are permitted; no executable predicates. */
+export type TabVisibility<K extends string> = { readonly field: K; readonly op: "eq" | "neq"; readonly value: string };
+type SlotBase<K extends string> = { readonly id: string; readonly label: string; readonly source: Source; readonly visibility?: TabVisibility<K> };
+export type BusinessSlot<K extends string> = SlotBase<K> & (
   | { readonly kind: "field-group"; readonly sections: Sections<K> }
   | { readonly kind: "relation-grid" | "data-grid"; readonly relatedModule: string }
   | { readonly kind: "form"; readonly fields: readonly string[]; readonly submitPermission: string }

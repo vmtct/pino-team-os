@@ -10,6 +10,7 @@ export const boNavigation: BoNavGroup[] = [
     items: [
       { href: "/bo/learners", label: "Students" },
       { href: "/bo/student-visits", label: "Student Visits" },
+      { href: "/bo/classroom-diaries", label: "Nhật ký lớp học" },
       { href: "/bo/subscriptions", label: "Subscriptions" },
       {
         href: "/bo/running-classes",
@@ -37,7 +38,7 @@ export const boNavigation: BoNavGroup[] = [
     label: "Learning",
     items: [
       { href: "/bo/syllabus", label: "Programs & Syllabus" },
-      { href: "/bo/missions", label: "Missions" },
+      { href: "/bo/missions", label: "Nhiệm vụ" },
       { href: "/bo/practice", label: "Practice" },
     ],
   }  ,{
