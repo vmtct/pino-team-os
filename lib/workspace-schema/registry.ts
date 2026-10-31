@@ -112,10 +112,29 @@ export class TddRegistry {
     this.entries.set(key, entry);
   }
 }
+/** Domain adapter must read back persisted state before returning verified. */
+export type TddActionResult = Readonly<{
+  state: "verified" | "denied" | "conflict" | "invalid" | "unverified";
+  message?: string;
+}>;
 export type TddActionHandler = Readonly<{
-  run: () => void | Promise<void>;
+  run: () => void | TddActionResult | Promise<void | TddActionResult>;
+  kind?: "navigation" | "mutation";
   disabled?: boolean;
 }>;
+export type TddActionFeedback = Readonly<{ kind: "none" | "success" | "error"; message: string }>;
+/** Mutation outcome is never inferred from a fulfilled promise or a transport 2xx. */
+export function tddActionFeedback(handler: TddActionHandler, result: unknown): TddActionFeedback {
+  if (handler.kind !== "mutation") return { kind: "none", message: "" };
+  const state = result && typeof result === "object" && "state" in result ? (result as { state: unknown }).state : undefined;
+  switch (state) {
+    case "verified": return { kind: "success", message: "Thao tác đã được xác minh." };
+    case "denied": return { kind: "error", message: "Không có quyền thực hiện. Kiểm tra phiên đăng nhập." };
+    case "conflict": return { kind: "error", message: "Dữ liệu đã thay đổi. Tải lại trước khi lưu." };
+    case "invalid": return { kind: "error", message: "Dữ liệu chưa hợp lệ. Kiểm tra lại biểu mẫu." };
+    default: return { kind: "error", message: "Chưa xác minh được kết quả. Đọc lại dữ liệu trước khi thử lại." };
+  }
+}
 export type TddActionBindings = Readonly<Record<string, TddActionHandler | undefined>>;
 /** Server/client safe: check permission from an authenticated context and an actual handler. */
 export function authorizedHostActions<F extends readonly FieldSchema[]>(

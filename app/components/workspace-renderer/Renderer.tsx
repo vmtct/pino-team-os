@@ -6,7 +6,7 @@ import { DrawerFrame } from "./DrawerFrame";
 import { TddTable, type TddTableProps } from "./Table";
 import { TosButton } from "@pino/design-system/react";
 import { useRef, useState } from "react";
-import { authorizedHostActions, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
+import { authorizedHostActions, tddActionFeedback, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
 
 export type TddStage<F extends readonly FieldSchema[] = readonly FieldSchema[]> =
   | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode }
@@ -41,6 +41,7 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const pending = useRef(false);
   const actions = authorizedHostActions(schema, context, slot, bindings, targetId, formMode);
   if (!actions.length) return null;
@@ -55,12 +56,18 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
         disabled={disabled} onClick={() => {
           if (disabled || pending.current || !allows(schema, context, action.capability)) return;
           pending.current = true;
-          setBusy(action.id); setError("");
+          setBusy(action.id); setError(""); setNotice("");
           void Promise.resolve().then(() => binding.run())
-            .catch(() => setError("Thao tác chưa được xác minh. Kiểm tra trạng thái trước khi thử lại."))
+            .then(result => {
+              const feedback = tddActionFeedback(binding, result);
+              if (feedback.kind === "error") setError(feedback.message);
+              else if (feedback.kind === "success") setNotice(feedback.message);
+            })
+            .catch(() => setError("Chưa xác minh được kết quả. Đọc lại dữ liệu trước khi thử lại."))
             .finally(() => { pending.current = false; setBusy(null); });
         }}>{action.label}</TosButton>;
     })}
     {error ? <p role="alert">{error}</p> : null}
+    {notice ? <p role="status">{notice}</p> : null}
   </div>;
 }
