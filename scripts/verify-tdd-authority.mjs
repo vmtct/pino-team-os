@@ -186,7 +186,15 @@ export function bindsSurfaceWorkspace(root, entry) {
       const options=n.arguments[0];
       const named=key=>options.properties.find(p=>ts.isPropertyAssignment(p)&&p.name?.getText(ast)===key);
       const definition=named('definition'),provider=named('provider'),registry=named('registry');
-      if(definition&&ts.isIdentifier(definition.initializer)&&imported.get(definition.initializer.text)?.target===entry.schema.file&&registeredNames.includes(imported.get(definition.initializer.text)?.original)&&provider&&ts.isIdentifier(provider.initializer)&&imported.get(provider.initializer.text)?.target===entry.schema.file&&registry&&ts.isNewExpression(registry.initializer)&&ts.isIdentifier(registry.initializer.expression)&&registryNames.includes(registry.initializer.expression.text)&&(entry.surface==='HO'||Boolean(named('centerId')))) adapted=true;
+      const directProvider=provider&&ts.isIdentifier(provider.initializer)&&imported.get(provider.initializer.text)?.target===entry.schema.file;
+      // PAP-1255: HO can bind a provider factory to the explicit selected Center.
+      // Only same-schema imported factory(centerId) is admitted; BO keeps its existing Center gate.
+      const hoCenterFactory=entry.surface==='HO'&&provider&&ts.isCallExpression(provider.initializer)&&
+        ts.isIdentifier(provider.initializer.expression)&&
+        imported.get(provider.initializer.expression.text)?.target===entry.schema.file&&
+        provider.initializer.arguments.length===1&&ts.isIdentifier(provider.initializer.arguments[0])&&
+        provider.initializer.arguments[0].text==='centerId';
+      if(definition&&ts.isIdentifier(definition.initializer)&&imported.get(definition.initializer.text)?.target===entry.schema.file&&registeredNames.includes(imported.get(definition.initializer.text)?.original)&&(directProvider||hoCenterFactory)&&registry&&ts.isNewExpression(registry.initializer)&&ts.isIdentifier(registry.initializer.expression)&&registryNames.includes(registry.initializer.expression.text)&&(entry.surface==='HO'||Boolean(named('centerId')))) adapted=true;
     }
     ts.forEachChild(n,scan);
   } scan(ast);

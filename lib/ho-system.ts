@@ -5,11 +5,18 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "centers" | "walkinPasses" | "termWeeks" | "staffs" | "users" | "roles" | "audits" | "tddReference" | HoA1Module;
+export type HoModule = "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "users" | "roles" | "audits" | "tddReference" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
  tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
  centers: {...hoCentersModule,group:"Network"},
+ shiftTemplates:{label:"Mẫu ca",group:"Workforce",fields:[
+  {key:"displayLabel",label:"Mẫu ca",type:"text",icon:"Aa",w:240,readonly:true},
+  {key:"code",label:"Mã",type:"text",icon:"#",w:140,readonly:true},
+  {key:"startLocalTime",label:"Bắt đầu",type:"text",icon:"◷",w:120,readonly:true},
+  {key:"endLocalTime",label:"Kết thúc",type:"text",icon:"◷",w:120,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:130,readonly:true},
+ ]},
  termWeeks:{label:"TermWeek",group:"Workforce",fields:[
   {key:"name",label:"Tuần",type:"text",icon:"Aa",w:235,readonly:true},
   {key:"code",label:"Mã tuần",type:"text",icon:"#",w:130,readonly:true},

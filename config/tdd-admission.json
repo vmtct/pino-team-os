@@ -388,6 +388,59 @@
         "lib/pap1198-ho-global-termweeks-create.test.ts",
         "lib/pap1198-ho-global-termweeks-update.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "shiftTemplates",
+      "route": "/ho/workforce/shift-templates",
+      "file": "app/ho/workforce/shift-templates/page.tsx",
+      "files": [
+        "app/ho/workforce/shift-templates/page.tsx",
+        "app/ho/workforce/shift-templates/HoShiftTemplatesTdd.tsx",
+        "app/ho/workforce/shift-templates/HoShiftTemplateEditor.tsx",
+        "app/ho/workforce/shift-templates/schema.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/ho-shift-templates-read-facade.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1166"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/workforce/shift-templates/schema.ts",
+        "export": "shiftTemplateSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/workforce/shift-templates/HoShiftTemplatesTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1198-ho-shift-templates-read.test.ts",
+        "lib/pap1198-ho-shift-templates-mutation.test.ts",
+        "lib/ho-routes.test.ts",
+        "lib/pap1198-ho-shift-template-tdd.test.ts"
+      ]
     }
   ],
   "approvals": []
