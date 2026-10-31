@@ -3,9 +3,10 @@ import {useEffect,useMemo,useRef,useState,type PointerEvent as Pointer} from "re
 import seed from "../../pinoria-tv/ambient-house-motion-graph.saved.json";
 import prototypeAreas from "../../pinoria-tv/ambient-house-areas.prototype.json";
 import prototypeEmergence from "../../pinoria-tv/ambient-house-emergence.prototype.json";
-import {prototypeSpatialDraft,boundsOfPoints,translatePolygon} from "@/lib/pinoria-tv-mesh-geometry";
+import {prototypeSpatialDraft,boundsOfPoints} from "@/lib/pinoria-tv-mesh-geometry";
 import {draftFromSavedGraph,spatialTvConfigApi,configIssues,type Area,type Connector,type EmergencePin,type Lane,type Point,type SpatialConfig,type SpatialHead,type SpatialVersion,type TvConfigScope} from "@/lib/pinoria-tv-spatial-config-client";
 import {createAmbientAgents,stepAmbientAgents,ambientMinimumVisibleSeparation,type AmbientAgent,type AmbientMotionGraph} from "../../pinoria-tv/ambient-house-motion";
+import {applyMeshDrag} from "@/lib/pinoria-tv-mesh-drag";
 import styles from "./mesh.module.css";
 type Mode="select"|"pan"|"assign"|"lane"|"connector"|"area"|"pin";
 type Pick={kind:"lane"|"area"|"pin"|"connector";id:string}|null;
@@ -79,23 +80,18 @@ export function HouseMeshEditor(){
       mutate(v=>v.emergencePins.push(pin));setPick({kind:"pin",id:pin.id});
     }
  }
- function move(e:Pointer<SVGSVGElement>){if(panDrag.current){const r=svg.current?.getBoundingClientRect();if(r){const x=1920/zoom,y=1080/zoom;const dx=(e.clientX-panDrag.current.x)*x/r.width,dy=(e.clientY-panDrag.current.y)*y/r.height;setPanOrigin({x:between(panDrag.current.origin.x-dx,0,1920-x),y:between(panDrag.current.origin.y-dy,0,1080-y)});}return;}if(!drag.current?.pick)return;const p=coord(e),d=drag.current,currentPick=d.pick as NonNullable<Pick>,next=structuredClone(d.origin);if(currentPick.kind==="lane"){const lane=next.graph.horizontalLanes.find(l=>l.id===currentPick.id);if(lane){lane.y=between(lane.y+p.y-d.from.y,0,1080);for(const pin of next.emergencePins)if(pin.laneId===lane.id)pin.y=lane.y;}}
-   if(currentPick.kind==="pin"){const pin=next.emergencePins.find(v=>v.id===currentPick.id),lane=next.graph.horizontalLanes.find(l=>l.id===pin?.laneId);if(pin&&lane)pin.x=between(pin.x+p.x-d.from.x,lane.x1+36,lane.x2-36);}
-   if(currentPick.kind==="area"){
-      const area=next.areas.find(a=>a.id===currentPick.id);
-      if(area){
-        if(area.points&&typeof d.vertexIndex==="number"){
-          area.points[d.vertexIndex]={x:between(p.x,0,1920),y:between(p.y,0,1080)};
-          area.bounds=boundsOfPoints(area.points);
-        }else if(area.points){
-          area.points=translatePolygon(area.points,p.x-d.from.x,p.y-d.from.y);
-          area.bounds=boundsOfPoints(area.points);
-        }else{
-          area.bounds.x=between(area.bounds.x+p.x-d.from.x,0,1920-area.bounds.width);
-          area.bounds.y=between(area.bounds.y+p.y-d.from.y,0,1080-area.bounds.height);
-        }
-      }
-    }
+ function move(e:Pointer<SVGSVGElement>){
+   if(panDrag.current){
+     const r=svg.current?.getBoundingClientRect();
+     if(r){const x=1920/zoom,y=1080/zoom;const dx=(e.clientX-panDrag.current.x)*x/r.width,dy=(e.clientY-panDrag.current.y)*y/r.height;setPanOrigin({x:between(panDrag.current.origin.x-dx,0,1920-x),y:between(panDrag.current.origin.y-dy,0,1080-y)});}
+     return;
+   }
+   const d=drag.current;
+   if(!d?.pick||d.pick.kind==="connector")return;
+   const next=applyMeshDrag(d.origin,d.pick, d.from, coord(e), d.vertexIndex);
+   setConfig(next);
+   setDirty(true);
+   setError("");
  }
  function up(e:Pointer<SVGSVGElement>){panDrag.current=null;if(drag.current){history.current.push(drag.current.origin);drag.current=null;}if(svg.current?.hasPointerCapture(e.pointerId))svg.current.releasePointerCapture(e.pointerId);}
  function edit(field:string,value:unknown){if(!pick)return;mutate(v=>{const item=pick.kind==="lane"?v.graph.horizontalLanes.find(l=>l.id===pick.id):pick.kind==="area"?v.areas.find(a=>a.id===pick.id):pick.kind==="pin"?v.emergencePins.find(a=>a.id===pick.id):v.graph.rawConnectors.find(a=>a.id===pick.id);if(item)(item as unknown as Record<string,unknown>)[field]=value;});}
@@ -116,7 +112,7 @@ export function HouseMeshEditor(){
  <nav className={styles.row}><label>Scope <select value={scopeKind} onChange={e=>setScopeKind(e.target.value as "DEFAULT"|"CENTER")}><option>DEFAULT</option><option>CENTER</option></select></label>{scopeKind==="CENTER"&&<label>Center ID <input value={centerId} onChange={e=>setCenterId(e.target.value)} placeholder="Center UUID"/></label>}<button onClick={()=>void load()} disabled={busy}>Open</button><label>Zoom <input aria-label="Canvas zoom" type="range" min="1" max="2.5" step=".25" value={zoom} onChange={e=>{const next=Number(e.target.value);setZoom(next);setPanOrigin(p=>({x:between(p.x,0,1920-1920/next),y:between(p.y,0,1080-1080/next)}));}}/>{Math.round(zoom*100)}%</label><label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap 10px</label><span>Revision {head?.revision??0} · {dirty?"Unsaved":"Synced"}</span></nav>
  {error&&<p role="alert" className={styles.error}>{error}</p>}{info&&<p role="status">{info}</p>}
  <section className={styles.workbench}><aside className={styles.panel}><h3>Tools</h3>{(["select","pan","assign","lane","connector","area","pin"] as Mode[]).map(v=><button key={v} className={mode===v?styles.active:""} onClick={()=>{setMode(v);anchor.current=null;}}>{({select:"↖ Select / drag",pan:"✋ Pan",assign:"◇ Assign lanes",lane:"━ Lane",connector:"╱ Connector",area:"▧ Area bounds",pin:"● Emergence pin"})[v]}</button>)}<hr/><small>{config.graph.horizontalLanes.length} lanes · {config.graph.rawConnectors.length} connectors</small><small>{config.areas.length} areas · {config.emergencePins.length} pins</small><button disabled={issues.length>0} onClick={()=>setSimulating(value=>!value)}>{simulating?"Stop motion preview":"Preview 20 actors"}</button><label><input type="checkbox" checked={globalPin} onChange={e=>setGlobalPin(e.target.checked)}/>Global emergence</label></aside>
- <div className={styles.stage}><svg ref={svg} viewBox={`${panOrigin.x} ${panOrigin.y} ${1920/zoom} ${1080/zoom}`} preserveAspectRatio="xMidYMid meet" onPointerDown={down} onPointerMove={move} onPointerUp={up} aria-label="Pinoria House mesh editor" role="img"><defs><pattern id="pap656-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="#fff" strokeOpacity=".14"/></pattern></defs><rect width="1920" height="1080" fill="#17263d"/><image href="https://assets.pinohouse.art/draft/HouseBack.png" width="1920" height="1080" preserveAspectRatio="xMidYMid slice" opacity=".7"/><rect width="1920" height="1080" fill="url(#pap656-grid)" pointerEvents="none"/>
+ <div className={styles.stage}><svg ref={svg} viewBox={`${panOrigin.x} ${panOrigin.y} ${1920/zoom} ${1080/zoom}`} preserveAspectRatio="xMidYMid meet" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Pinoria House mesh editor" role="img"><defs><pattern id="pap656-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="#fff" strokeOpacity=".14"/></pattern></defs><rect width="1920" height="1080" fill="#17263d"/><image href="https://assets.pinohouse.art/draft/HouseBack.png" width="1920" height="1080" preserveAspectRatio="xMidYMid slice" opacity=".7"/><rect width="1920" height="1080" fill="url(#pap656-grid)" pointerEvents="none"/>
  {config.areas.map(a=><g key={a.id}>
    {a.points?.length
      ? <polygon data-kind="area" data-id={a.id} points={a.points.map(p=>`${p.x},${p.y}`).join(" ")}
