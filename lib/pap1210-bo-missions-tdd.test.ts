@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { assignmentDefinition, assignmentProvider, assignmentQuery, assignmentSchema } from "../app/bo/missions/schema";
+import { assignmentDefinition, assignmentFields, assignmentProvider, assignmentQuery, assignmentSchema } from "../app/bo/missions/schema";
 import { parseMissionAssignment, readMissionAssignment, readMissionAssignments } from "./bo-mission-assignments";
 import { BoApiError } from "./bo-api-error";
 import { composeTabs, TddRegistry, validateModule } from "./workspace-schema";
@@ -143,7 +143,7 @@ test("PAP-1210: shared Table renders honest empty, denied and error states", () 
   const registry = new TddRegistry();
   const schema = registry.register(assignmentSchema);
   for (const status of ["ready", "denied", "error"] as const) {
-    const html = renderToStaticMarkup(h(TddTable, { registry, schema, context: { surface: "BO", centerId: center, authorize: () => true }, rows: [], query: assignmentQuery, total: 0, status, onQueryChange: () => {}, onOpen: () => {} }));
+    const html = renderToStaticMarkup(h(TddTable<typeof assignmentFields>, { registry, schema, context: { surface: "BO", centerId: center, authorize: () => true }, rows: [], query: assignmentQuery, total: 0, status, onQueryChange: () => {}, onOpen: () => {} }));
     assert.match(html, status === "ready" ? /Không có/ : status === "denied" ? /quyền/ : /tải/);
     assert.doesNotMatch(html, /Source test assignment|COMPLETED/);
   }
