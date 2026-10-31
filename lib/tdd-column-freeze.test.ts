@@ -16,3 +16,10 @@ test("PAP-1105: disappearing or hidden freeze boundary is cleared", () => {
   assert.equal(normalizeFreezeBoundary("count",["name","count"],["name","count"]),"count");
   assert.equal(normalizeFreezeBoundary("private",["name","count"],["name","count"]),null);
 });
+
+test("PAP-1105 invalid measurements never publish nonfinite sticky offsets", () => {
+  for (const [opener, viewport, reserve] of [[NaN,390,112],[Infinity,390,112],[-1,390,112],[37,0,112],[37,390,NaN],[37,390,0]]) {
+    assert.deepEqual(frozenPrefix(["name","count"],"count",{name:180,count:130},opener,viewport,reserve),[]);
+  }
+  assert.deepEqual(frozenPrefix(["name","count","status"],"status",{name:180,count:NaN,status:130},37,1024),[{key:"name",left:37}]);
+});

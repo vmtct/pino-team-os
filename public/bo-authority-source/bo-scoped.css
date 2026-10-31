@@ -1336,13 +1336,13 @@ html:where([data-bo-ui-authority="v25"]),
   }
 }
 :where(html[data-bo-ui-authority="v25"]) .types-strip,
-:where(html[data-bo-ui-authority="v25"]) #undo-v22,
-:where(html[data-bo-ui-authority="v25"]) #redo-v22,
-:where(html[data-bo-ui-authority="v25"]) #filter-toggle,
-:where(html[data-bo-ui-authority="v25"]) #visible-columns,
-:where(html[data-bo-ui-authority="v25"]) #reset-all,
-:where(html[data-bo-ui-authority="v25"]) #group-shortcut,
-:where(html[data-bo-ui-authority="v25"]) #save-view {
+:where(html[data-bo-ui-authority="v25"]) #undo-v22:where(:not([data-tdd-freeze-controls] *)),
+:where(html[data-bo-ui-authority="v25"]) #redo-v22:where(:not([data-tdd-freeze-controls] *)),
+:where(html[data-bo-ui-authority="v25"]) #filter-toggle:where(:not([data-tdd-freeze-controls] *)),
+:where(html[data-bo-ui-authority="v25"]) #visible-columns:where(:not([data-tdd-freeze-controls] *)),
+:where(html[data-bo-ui-authority="v25"]) #reset-all:where(:not([data-tdd-freeze-controls] *)),
+:where(html[data-bo-ui-authority="v25"]) #group-shortcut:where(:not([data-tdd-freeze-controls] *)),
+:where(html[data-bo-ui-authority="v25"]) #save-view:where(:not([data-tdd-freeze-controls] *)) {
   display: none;
 }
 :where(html[data-bo-ui-authority="v25"]) .value-url {
@@ -4286,41 +4286,6 @@ html:where([data-bo-ui-authority="v25"]),
 :where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-viewport] #typed-table tr:hover td[data-tdd-freeze-cell] {
   background: var(--bo-color-row-hover, #f5f3f5);
 }
-:where(html[data-bo-ui-authority="v25"]) [data-freeze-trigger] {
-  cursor: pointer;
-  padding: 2px 5px;
-  border: 0;
-  background: transparent;
-}
-:where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-menu] {
-  position: fixed;
-  z-index: 10000;
-  min-width: 205px;
-  padding: 5px;
-  border: 1px solid var(--bo-palette-neutral-20, #e6e0e3);
-  border-radius: 7px;
-  background: var(--bo-color-surface, #fff);
-  box-shadow: 0 8px 20px #0002;
-}
-:where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-menu] [role="menuitem"] {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-:where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-menu] [role="menuitem"]:hover,
-:where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-menu] [role="menuitem"]:focus-visible {
-  background: var(--bo-color-row-hover, #f5f3f5);
-}
-:where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-menu] [role="menuitem"]:disabled {
-  cursor: not-allowed;
-  opacity: .5;
-}
 :where(html[data-bo-ui-authority="v25"]) [data-tdd-freeze-notice] {
   margin: 7px 10px;
-  font-size: 12px;
-  color: var(--bo-color-text-muted, #7d7079);
 }

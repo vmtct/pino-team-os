@@ -10,7 +10,7 @@ import { projectSavedViews, mergeSavedViews, tableViewState, type SavedTddView }
 import { DetailFrame } from "../app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "../app/components/workspace-renderer/Properties";
 import { HistoryState } from "../app/components/workspace-renderer/History";
-import { checkedSlotContent } from "../app/components/workspace-renderer/Slots";
+import { checkedSlotContent, resolveBusinessFormProvider, validateBusinessFormData, validateBusinessFormSubmitResult, type BusinessFormBinding, type BusinessFormProvider } from "../app/components/workspace-renderer/Slots";
 import { recordProjection } from "../app/components/workspace-renderer/projection";
 import { latestRequest } from "../app/components/workspace-renderer/resource";
 import { nextTabIndex, returnToTable } from "../app/components/workspace-renderer/navigation";
@@ -186,6 +186,48 @@ test("Business slots cannot mount their own shell, styling or opaque components"
   assert.doesNotThrow(() => checkedSlotContent(h("section", { className: "v24-prop-section" }, "Approved content")));
   assert.throws(() => fixture("BO", s => ({ ...s, detail: { ...s.detail, businessTabs: [{ ...s.detail.businessTabs[0], kind: "unknown" } as never] } })), /slot/);
   assert.throws(() => fixture("BO", s => ({ ...s, detail: { ...s.detail, businessTabs: [{ ...s.detail.businessTabs[0], id: "overview" }] } })), /reserved/);
+});
+for (const surface of ["BO", "HO"] as const) test(`${surface}: business forms resolve only one exact registered provider and do not need generic edit`, () => {
+  const f = fixture(surface, schema => ({ ...schema, detail: { ...schema.detail, businessTabs: [{ id: "rate", label: "Rate", kind: "form", fields: ["count"], source: { adapter: "salary.rate", permission: "rate.read" }, submitPermission: "rate.submit" }] } }));
+  const slot = f.schema.detail.businessTabs[0];
+  assert.equal(f.schema.capabilities.edit, undefined);
+  const provider: BusinessFormProvider = { surface, moduleKey: f.schema.key, slotId: slot.id, sourceAdapter: slot.source.adapter, load: async () => ({ status: "denied" }), submit: async () => ({ status: "denied" }) };
+  const binding: BusinessFormBinding = { providers: [provider], principalId: "user-a", subject: { type: "staff", id: f.record.id } };
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, binding), provider);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [provider, provider] }), null, "ambiguous registration fails closed");
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [{ ...provider, sourceAdapter: "wrong" }] }), null);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [{ ...provider, moduleKey: "wrong" }] }), null);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, providers: [{ ...provider, surface: surface === "BO" ? "HO" : "BO" }] }), null);
+  assert.equal(resolveBusinessFormProvider(f.schema, slot, { ...binding, subject: { type: "staff", id: "" } }), null);
+  const missing = html(h(TddDetail, { ...f, activeTab: "rate", onBack: noop, subject: { type: "staff", id: f.record.id } }));
+  assert.match(missing, /Biểu mẫu chưa khả dụng/); assert.doesNotMatch(missing, /<form/);
+});
+test("business form payloads are typed, non-opaque and history rows require stable identities", () => {
+  const data = { status: "authorized", fields: [
+    { key: "amount", label: "Amount", type: "number", required: true }, { key: "effectiveDate", label: "Effective date", type: "date", required: true }, { key: "reason", label: "Reason", type: "textarea", required: true },
+  ], values: { amount: 120000, effectiveDate: "2026-10-28", reason: "Adjustment" }, records: { label: "History", columns: [
+    { key: "amount", label: "Amount", type: "number" }, { key: "effectiveDate", label: "Date", type: "date" }, { key: "reason", label: "Reason", type: "text" }, { key: "actor", label: "Actor", type: "text" },
+  ], rows: [{ id: "rate-1", values: { amount: 100000, effectiveDate: "2026-01-01", reason: "Initial", actor: "Authorized actor" } }] } } as const;
+  assert.equal(validateBusinessFormData(data), data);
+  assert.equal(validateBusinessFormData(data, ["amount", "effectiveDate", "reason"]), data);
+  assert.throws(() => validateBusinessFormData(data, ["amount", "effectiveDate"]), /allowlist/);
+  assert.throws(() => validateBusinessFormData({ ...data, values: { ...data.values, effectiveDate: "2026-02-30" } }), /field value/);
+  assert.throws(() => validateBusinessFormData({ ...data, fields: [...data.fields, { key: "unsafe", label: "Unsafe", type: "component" as never }] }), /field/);
+  assert.throws(() => validateBusinessFormData({ ...data, values: { ...data.values, secret: "leak" } }), /unregistered/);
+  assert.throws(() => validateBusinessFormData({ ...data, records: { ...data.records, rows: [{ id: "", values: data.records.rows[0].values }] } }), /record/);
+  assert.throws(() => validateBusinessFormData({ status: "denied", fields: data.fields } as never), /denied payload/);
+  assert.deepEqual(validateBusinessFormSubmitResult({ status: "saved" }, data.fields), { status: "saved" });
+  assert.throws(() => validateBusinessFormSubmitResult({ status: "invalid", fields: ["secret"] }, data.fields), /submit fields/);
+  assert.throws(() => validateBusinessFormSubmitResult({ status: "denied", fields: [] } as never, data.fields), /denied submit/);
+});
+test("business form load and submit requests are latest-only and abort independently", async () => {
+  const load = latestRequest<string>(), submit = latestRequest<string>(); const signals: AbortSignal[] = [], committed: string[] = [];
+  let oldLoad!: (value: string) => void, oldSubmit!: (value: string) => void;
+  const firstLoad = load.run(signal => { signals.push(signal); return new Promise(resolve => { oldLoad = resolve; }); }, value => committed.push(value), () => assert.fail());
+  const firstSubmit = submit.run(signal => { signals.push(signal); return new Promise(resolve => { oldSubmit = resolve; }); }, value => committed.push(value), () => assert.fail());
+  await load.run(async signal => { signals.push(signal); return "record-b"; }, value => committed.push(value), () => assert.fail());
+  submit.cancel(); oldLoad("record-a"); oldSubmit("saved-a"); await Promise.all([firstLoad, firstSubmit]);
+  assert.deepEqual(committed, ["record-b"]); assert.equal(signals[0].aborted, true); assert.equal(signals[1].aborted, true);
 });
 test("Canonical Table settings keep four categories and protected identity", () => {
   const f = fixture(); const fields = toLegacyModule(f.schema).fields, value = toLegacyTableState(f.schema, f.query, f.context);
@@ -380,9 +422,120 @@ for (const surface of ["BO", "HO"] as const) test(`PAP-1105 ${surface}: start/Sa
   assert.equal(mergeSavedViews(f.schema,f.context,source,projected.available,cleared)[0].state.frozenThrough,null);
   const restored = fromLegacyTableState(f.schema,tableViewState(projected.available[0].state),f.context);
   const all = fromLegacyTableState(f.schema,tableViewState({...projected.available[0].state,frozenThrough:null}),f.context);
-  const builtIn = fromLegacyTableState(f.schema,tableViewState(toLegacyTableState(f.schema,{...f.query,frozenThrough:"id"},f.context)),f.context);
+  const builtIn = fromLegacyTableState(f.schema,tableViewState(toLegacyTableState(f.schema,{...f.query,frozenThrough:"count"},f.context)),f.context);
   const legacy = fromLegacyTableState(f.schema,tableViewState(toLegacyTableState(f.schema,f.query,f.context)),f.context);
   assert.equal(Object.hasOwn(legacy,"frozenThrough"),false);
-  assert.equal(restored.frozenThrough,"count");assert.equal(all.frozenThrough,null);assert.equal(builtIn.frozenThrough,"id");
+  assert.equal(restored.frozenThrough,"count");assert.equal(all.frozenThrough,null);assert.equal(builtIn.frozenThrough,"count");
   assert.equal(f.query.frozenThrough,undefined);assert.equal(source[0].state.frozenThrough,"count");
+});
+
+/** PAP-1072 G2: deterministic semantic controls, not a browser/visual G3 claim. */
+test("G2: legacy Details keep every tab aria-controls attached to the one mounted panel", () => {
+  const tabs = [
+    { id: "overview", label: "Tổng quan" },
+    { id: "relations", label: "Quan hệ" },
+    { id: "history", label: "Lịch sử" },
+  ];
+  for (const selected of tabs.map(t => t.id)) {
+    const out = html(h(DetailFrame, {
+      title: "Legacy Parent", tabs, selected, onSelect: noop, children: "Authorized content",
+      legacyProfile: { version: "v25", tabs: "bo-detail-tabs", body: "bo-detail-body", panel: "bo-detail-panel" },
+    }));
+    const panel = `bo-detail-panel-${selected}`;
+    const ids = new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
+    const controls = [...out.matchAll(/aria-controls="([^"]+)"/g)].map(m => m[1]);
+    assert.equal(controls.length, tabs.length, "each tab must control the mounted panel");
+    assert.deepEqual(controls, tabs.map(() => panel), "inactive tabs cannot point to unmounted panels");
+    assert.ok(ids.has(panel), "tabpanel target must exist in the same DOM tree");
+    assert.match(out, new RegExp(`role="tabpanel" aria-labelledby="bo-detail-tab-${selected}"`));
+    assert.equal((out.match(/aria-selected="true"/g) ?? []).length, 1, "one selected tab");
+    assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2, "one roving tab and focusable panel");
+  }
+});
+
+for (const surface of ["BO", "HO"] as const) {
+  test(`G2 ${surface}: three business variants retain one system shell, ordered tabs and valid ARIA references`, () => {
+    const f = fixture(surface, s => ({
+      ...s, key: surface === "BO" ? "parents-pilot" : "centers-pilot",
+      detail: { ...s.detail, businessTabs: [...s.detail.businessTabs,
+        { id: "enrollments", label: surface === "BO" ? "Đăng ký" : "Địa điểm", kind: "relation-grid" as const,
+          source: { adapter: "relations", permission: "fixture.relations" }, relatedModule: "related" }] },
+    }));
+    const expected = ["Tổng quan", "Quan hệ", "Bổ sung", surface === "BO" ? "Đăng ký" : "Địa điểm", "Lịch sử"];
+    for (const selected of ["overview", "relations", "enrollments", "history"]) {
+      const out = html(h(TddDetail, { ...f, activeTab: selected, onBack: noop, subject: { type: "fixture", id: f.record.id } }));
+      assert.equal((out.match(/data-tdd-shell="detail"/g) ?? []).length, 1);
+      const labels = [...out.matchAll(/role="tab"[^>]*>([^<]+)<\/button>/g)].map(m => m[1]);
+      assert.deepEqual(labels, expected);
+      assert.equal((out.match(/role="tablist"/g) ?? []).length, 1);
+      assert.equal((out.match(/role="tabpanel"/g) ?? []).length, 1);
+      assert.equal((out.match(/aria-selected="true"/g) ?? []).length, 1);
+      const mounted = new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
+      for (const [, controlled] of out.matchAll(/aria-controls="([^"]+)"/g)) assert.ok(mounted.has(controlled), `missing controlled target ${controlled}`);
+      const activeIndex = ["overview", "relations", "more", "enrollments", "history"].indexOf(selected);
+      assert.match(out, new RegExp(`role="tabpanel" aria-labelledby="detail-tab-${activeIndex}"`));
+      assert.match(out, new RegExp(`id="detail-tab-${activeIndex}" aria-selected="true"`));
+      assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2, "keyboard-selected tab and panel only");
+    }
+  });
+
+  test(`G2 ${surface}: denied state and readonly forms never expose foreign record or privileged action`, () => {
+    const f = fixture(surface);
+    const privateRecord = { ...f.record, name: "Sensitive-PINO-Record", internalOnly: "NONPUBLIC-CANARY" };
+    const deniedContext = { ...f.context, authorize: () => false };
+    const missing = surface === "BO" ? { ...f.context, centerId: "" } : { surface: "BO" as const, centerId: "other", authorize: () => true };
+    for (const context of [deniedContext, missing]) {
+      const detail = html(h(TddDetail, { ...f, context, record: privateRecord, onBack: noop, subject: { type: "fixture", id: f.record.id } }));
+      const table = html(h(TddTable, { ...f, context, rows: [privateRecord], status: "ready", onQueryChange: noop, onOpen: noop }));
+      for (const value of [detail, table]) {
+        assert.match(value, /Không có quyền/);
+        assert.doesNotMatch(value, /Sensitive-PINO-Record|NONPUBLIC-CANARY|Quan hệ|Thay đổi/);
+      }
+    }
+    const readOnly = { ...f.context, authorize: (p: string) => p === "fixture.read" };
+    const drawer = html(h(TddDrawer, { ...f, context: readOnly, record: privateRecord, onClose: noop, onDetail: noop }));
+    assert.doesNotMatch(drawer, /NONPUBLIC-CANARY|data-edit=|edit-popover/);
+    assert.match(drawer, /data-tdd-shell="drawer"/);
+  });
+
+  test(`G2 ${surface}: typed invalid Table interactions fail before reaching the registered adapter`, () => {
+    const f = fixture(surface);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, order: ["count", "name", "id"] }, f.context), /identity/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, visible: ["count", "id"] }, f.context), /identity/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, pageSize: 999 }, f.context), /pagination/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, filters: { logic: "AND", rules: [{ field: "count", op: "gte", value: "not-a-number" }] } }, f.context), /filter operand/i);
+    assert.throws(() => validateQuery(f.schema, { ...f.query, group: { field: "not-registered", direction: "asc", collapsed: [], hidden: [], hideEmpty: false } }, f.context), /group/i);
+    assert.doesNotThrow(() => validateQuery(f.schema, { ...f.query, sort: { field: "count", direction: "desc" }, pageSize: 15 }, f.context));
+  });
+}
+
+test("G2: dialog policy closes on Escape, wraps Tab in both directions and never steals editor keystrokes", () => {
+  const calls: string[] = [], first = { focus: () => calls.push("first") }, last = { focus: () => calls.push("last") };
+  const event = (key: string, shiftKey = false) => ({ key, shiftKey, preventDefault: () => calls.push("prevent") });
+  const state = { editorOpen: false, first, last, active: last, containsActive: true, close: () => calls.push("close") };
+  handleDialogKey(event("Tab"), state); assert.deepEqual(calls.splice(0), ["prevent", "first"]);
+  handleDialogKey(event("Tab", true), { ...state, active: first }); assert.deepEqual(calls.splice(0), ["prevent", "last"]);
+  handleDialogKey(event("Tab"), { ...state, active: null, containsActive: false }); assert.deepEqual(calls.splice(0), ["prevent", "first"]);
+  handleDialogKey(event("Escape"), state); assert.deepEqual(calls.splice(0), ["prevent", "close"]);
+  handleDialogKey(event("Escape"), { ...state, editorOpen: true }); assert.deepEqual(calls, [], "editor owns Escape while open");
+  assert.deepEqual(["ArrowLeft", "ArrowRight", "Home", "End"].map(key => nextTabIndex(key, 0, 5)), [4, 1, 0, 4]);
+  assert.equal(nextTabIndex("ArrowRight", 0, 0), null, "zero tabs must not compute NaN");
+});
+
+test("PAP-1117 property presentation receives only authorized projection and overview fields", () => {
+ const f = fixture("HO", s => ({ ...s, fields: s.fields.map(field => field.key === "count" ? { ...field, permission: "fixture.secret" } : field) }));
+ const context = { ...f.context, authorize: (permission: string) => permission !== "fixture.secret" };
+ let calls = 0;
+ const renderOverviewProperties: NonNullable<Parameters<typeof TddDetail>[0]["renderOverviewProperties"]> = properties => {
+  calls++; assert.deepEqual(properties.fields.map(field => field.key), ["name", "id"]);
+  assert.deepEqual(properties.sections[0].fields, ["name", "id"]);
+  assert.equal(Object.hasOwn(properties.record, "count"), false);
+  return h("p", null, properties.record.name);
+ };
+ const props = { ...f, context, renderOverviewProperties, onBack: noop, subject: { type: "fixture", id: f.record.id } };
+ assert.match(html(h(TddDetail, props)), /Bảo Trân/); assert.equal(calls, 1);
+ html(h(TddDetail, { ...props, activeTab: "history" }));
+ html(h(TddDetail, { ...props, status: "loading" }));
+ html(h(TddDetail, { ...props, context: { ...context, authorize: () => false } }));
+ assert.equal(calls, 1);
 });

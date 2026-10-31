@@ -8,7 +8,8 @@ export function frozenPrefix(
   visibleOrder: readonly string[], boundary: string | null | undefined,
   widths: Readonly<Record<string, number>>, openerWidth: number, viewportWidth: number, minScrollable = 112,
 ): readonly FrozenColumn[] {
-  if (!visibleOrder.length || !Number.isFinite(viewportWidth)) return [];
+  if (!visibleOrder.length || !Number.isFinite(viewportWidth) || viewportWidth <= 0 ||
+      !Number.isFinite(openerWidth) || openerWidth < 0 || !Number.isFinite(minScrollable) || minScrollable <= 0) return [];
   const prefix: FrozenColumn[] = []; let left = Math.max(0, openerWidth);
   const target = visibleOrder.indexOf(boundary ?? "");
   for (let index = 0; index < visibleOrder.length; index++) {

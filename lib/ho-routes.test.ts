@@ -5,10 +5,11 @@ import { HO_PAGE_PATHS, HO_HOME_PATH, safeHoReturnTo, hoRecordId } from "./ho-ro
 import { hoRoutes } from "./ho-system";
 import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
-test("HO route manifest keeps exactly the ten approved distinct pages",()=>{
- assert.equal(Object.keys(HO_PAGE_PATHS).length,10);
- assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,10);
+test("HO route manifest keeps the approved distinct pages",()=>{
+ assert.equal(Object.keys(HO_PAGE_PATHS).length,14);
+ assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,14);
  assert.deepEqual(hoRoutes, HO_PAGE_PATHS);
+ assert.equal(HO_PAGE_PATHS.walkinPasses,"/ho/open-studio/walkin");
  assert.equal(HO_HOME_PATH,"/ho/centers");
  assert.deepEqual(decideHostBoundary(ho,"/"), {action:"redirect",pathname:HO_HOME_PATH});
  for(const path of Object.values(HO_PAGE_PATHS))assert.equal(decideHostBoundary(ho,path).action,"next",path);

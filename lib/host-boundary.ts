@@ -19,20 +19,65 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
+  // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
+  const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
+  const assignmentChange = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
+  const assignmentCancel = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/cancel\/?$/i.test(pathname);
+  if (assignmentRead || assignmentChange || assignmentCancel) {
+    const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
+    const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
+    return readAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
+  }
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
+    // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
+    if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(p))
+      return { action: method === "GET" ? "next" : "not_found" };
+    // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
+    if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
+    if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
+      return { action: (method === "PUT" || method === "GET") ? "next" : "not_found" };
+    const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
+    const staffRateCorrection = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation\/[0-9a-f-]{36}$/.test(p);
+    const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
+    const staffRoleWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/role$/.test(p);
+    const hoRoleDefinitionWrite = /^\/api\/ho\/system\/roles\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/update$/i.test(p);
+    if (method === "POST" && (staffRoleWrite || hoRoleDefinitionWrite)) return { action: "next" };
+    if (method === "POST" && staffPasswordReset) return { action: "next" };
+    if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
+    // PAP-996: distinct Founder-only, HO Staging-only PATCH for a single immutable rate-row identity.
+    if (method === "PATCH" && staffRateCorrection) return { action: "next" };
+    // PAP-1092: exact HO one-use Pass routes, Founder pilot + Core GLOBAL permission.
+    if (p === "/api/ho/open-studio/walkin/inventory" && method === "GET") return { action: "next" };
+    if (["/api/ho/open-studio/walkin/batches", "/api/ho/open-studio/walkin/revoke"].includes(p) && method === "POST") return { action: "next" };
     const authPost = ["/api/staff-auth/login", "/api/staff-auth/logout", "/api/staff-auth/change-password"].includes(p);
     if (method === "POST" && authPost) return { action: "next" };
+    // PAP-1126: exact HO Item paths AND verbs, never a generic HO write aperture.
+    const itemBase = p === "/api/ho/pinoria/items";
+    const itemUpload = p === "/api/ho/pinoria/items/uploads";
+    const itemRecord = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}$/.test(p);
+    const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish)$/.test(p);
+    const itemMedia = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:media|draft-media)$/.test(p);
+    if (itemBase || itemUpload || itemRecord || itemPublish || itemMedia) {
+      const allowed = (itemBase && (method === "GET" || method === "POST"))
+        || (itemUpload && method === "POST")
+        || (itemRecord && (method === "GET" || method === "PATCH"))
+        || (itemPublish && method === "POST")
+        || (itemMedia && method === "GET");
+      return allowed ? { action:"next" } : { action:"not_found" };
+    }
     if (method !== "GET" && method !== "HEAD") return { action: "not_found" };
     if (p.startsWith("/api/") && method !== "GET") return { action: "not_found" };
     if (p === "/") return { action: "redirect", pathname: HO_HOME_PATH };
-    if (["/ho", ...Object.values(HO_PAGE_PATHS), "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || p === "/bo-skeleton/ho-scoped.css") return { action: "next" };
+    if (["/api/bo/workforce/staff-records", "/ho", ...Object.values(HO_PAGE_PATHS), "/staff-login", "/staff-password/change", "/api/staff-auth/status", "/api/bo/context", "/api/bo/centers", "/api/bo/access/users", "/api/bo/access/roles", "/api/bo/access/permissions", "/api/bo/access/audit", "/api/bo/learning/syllabi", "/api/bo/learning/syllabi/owners", "/api/bo/learning/missions", "/api/bo/pinoria/worlds", "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/sets", "/api/bo/pinoria/effects/catalog", "/favicon.ico"].includes(p) || /^\/api\/bo\/access\/roles\/[0-9a-f-]{36}$/.test(p) || /^\/api\/bo\/(?:learning\/syllabi|learning\/missions)\/[0-9a-f-]{36}$/.test(p) || isFrameworkAsset(p) || p === "/bo-skeleton/ho-scoped.css") return { action: "next" };
     return { action: "not_found" };
   }
   if (isPathWithin(pathname, "/tos-v4") && !tosV4StagingHost(hostname)) return { action: "not_found" };
   // HO never leaks through BO/TOS, production, workers.dev, localhost or unknown hosts.
-  if (isPathWithin(pathname, "/ho") || isPathWithin(pathname, "/prototype")) return { action: "not_found" };
+  if (isPathWithin(pathname, "/ho") || isPathWithin(pathname, "/api/ho") || isPathWithin(pathname, "/prototype")) return { action: "not_found" };
   if (hostname === RETIRED_TEAM_HOSTNAME) return { action: "not_found" };
 
   if (hostname === STAFF_REGISTRATION_HOSTNAME) {
@@ -44,6 +89,54 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
+    // PAP-1220: exact Classroom Diary Center read-only module and bounded Core facade,
+    // Staging BO only. BFF independently checks credentials/query; Core authorizes Center + Path.
+    // No HO GLOBAL, no writes, no Production exposure, no arbitrary Diary child/media route.
+    if (pathname === "/bo/classroom-diaries") {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD")
+        ? { action: "next" } : { action: "not_found" };
+    }
+    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(pathname)) {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET"
+        ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1224: new Pass TDD is BO Staging-only; production retains legacy Open Studio.
+    if (pathname === "/bo/open-studio-passes") return (method==="GET"||method==="HEAD") ? {action:"next"} : {action:"not_found"};
+    // PAP-1211: one exact synthetic salary adjustment E2E path, Founder BFF guarded.
+    // Never allow this route on Production/HO/TOS or for other payment subjects.
+    const salaryE2EAdjustment="/api/bo/workforce/payroll/periods/01a171ed-eb78-7941-b1de-dd4c020457b7/staff/01a18a28-6d8e-7db7-acbb-a18a942a5e72/adjustments";
+    if (pathname === salaryE2EAdjustment) {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "POST")
+        ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1125: exact Shift Plan creation admission; Core still enforces BO identity, Center grant, idempotency and version.
+    // Keep non-POST verbs denied at the host edge rather than expanding the generic BO route allowlist.
+    if (pathname === "/bo/pinoria-avatars") {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? { action: "next" } : { action: "not_found" };
+    }
+    if (pathname === "/api/bo/workforce/planning/shift-plan") {
+      return method === "POST" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1252: exact read-only BO TV Health; BFF and Core enforce Center-scoped tv.view.
+    // The host fence admits neither Production nor non-GET methods.
+    const spatialPath=/^\/api\/bo\/pinoria\/tv-config\/spatial\/(head|versions|version|active|drafts|publish|revert)$/.exec(pathname);
+    if (spatialPath) {
+      const read=["head","versions","version","active"].includes(spatialPath[1]);
+      return hostname===BO_STAGING_HOSTNAME && (read?method==="GET":method==="POST") ? {action:"next"} : {action:"not_found"};
+    }
+    if (pathname === "/api/bo/tv/operator-health") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1111 G4: admit only staging BO note-only assignment edits.
+    // Next and Core still enforce Staff identity, Center ACL, CAS and audit.
+    if (hostname === BO_STAGING_HOSTNAME && pathname === "/api/bo/workforce/planning/assignment/note") {
+      return method === "POST" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
+    // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
+    if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
@@ -124,7 +217,9 @@ function isApprovedBoLegacyFounderPinoriaPath(normalized: string): boolean {
 function isApprovedBoPath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (isApprovedBoPinoriaOperationalPath(normalized) || isApprovedBoLegacyFounderPinoriaPath(normalized)) return true;
-  if (/^\/api\/bo\/views\/(?:students|classes)(?:\/(?:[0-9a-f-]{36}(?:\/rename)?|reorder))?$/.test(normalized)) return true;
+  // PAP-1033: admit Subscription Shared Views through the BO host fence. The authenticated BFF
+  // and Core enforce GLOBAL membership.subscription.view for reads and separate GLOBAL manage for writes.
+  if (/^\/api\/bo\/views\/(?:students|classes|subscriptions)(?:\/(?:[0-9a-f-]{36}(?:\/rename)?|reorder))?$/.test(normalized)) return true;
   if (/^\/api\/bo\/identity\/parents\/[0-9a-f-]{36}\/detail$/.test(normalized)) return true;
   if ([
     "/bo",
@@ -148,7 +243,12 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/subscriptions",
     "/bo/sales/leads",
     "/bo/open-studio",
+    "/api/bo/open-studio/walkin/inventory",
+    "/api/bo/open-studio/walkin/batches",
+    "/api/bo/open-studio/walkin/assign",
+    "/api/bo/open-studio/walkin/revoke",
     "/bo/tvs",
+    // PAP-1266 is the only live TV TDD page; legacy mesh/TV operator remain unadmitted.
     "/bo/delivery-activation",
     "/bo/calendar",
     "/bo/running-classes",

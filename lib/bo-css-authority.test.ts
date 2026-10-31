@@ -22,7 +22,10 @@ test("BO scope preserves every rule declaration and at-rule in original order", 
   const rules: string[] = []; original.walkRules(rule => { rules.push(rule.selector); });
   let index = 0;
   isolated.walkRules(rule => {
-    const selectors = postcss.list.comma(rules[index++]);
+    const originals = postcss.list.comma(rules[index++]);
+    const hides = rule.nodes.some(node => node.type === "decl" && node.prop === "display" && node.value.trim() === "none");
+    const controls = new Set(["#undo-v22","#redo-v22","#filter-toggle","#visible-columns","#reset-all","#group-shortcut","#save-view"]);
+    const selectors = originals.map(selector => hides && controls.has(selector) ? selector + ':where(:not([data-tdd-freeze-controls] *))' : selector);
     const expected = selectors.flatMap(selector => selector === "*" ? ['*:where(html[data-bo-ui-authority="v25"])', ':where(html[data-bo-ui-authority="v25"]) *'] : selector.startsWith(":root") ? [selector.replace(":root", ':root:where([data-bo-ui-authority="v25"])')] : selector === "html" ? ['html:where([data-bo-ui-authority="v25"])'] : [':where(html[data-bo-ui-authority="v25"]) ' + selector]);
     assert.deepEqual(rule.selectors, expected);
     for (const selector of rule.selectors) assert.match(selector, /data-bo-ui-authority="v25"/);
@@ -69,4 +72,25 @@ test("center switcher is presentation-only with canonical logo and accessible di
   const table = readFileSync("app/bo/components/registration/BoDataTable.tsx", "utf8");
   assert.match(table, /"--bo-column-width": f.w \+ "px"/);
   assert.match(table, /legacyStyles \? \{ width: f.w, minWidth: f.w \}/);
+});
+test("BO authenticated account belongs to shell and does not mutate shared renderer",()=>{
+ const layout=readFileSync("app/bo/layout.tsx","utf8");
+ const runtime=readFileSync("app/bo/components/registration/BoRuntimeBoundary.tsx","utf8");
+ const account=readFileSync("app/bo/shell/BoAuthenticatedAccount.tsx","utf8");
+ assert.ok(layout.includes("email: currentUser.email"));
+ assert.ok(runtime.includes("<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} />"));
+ assert.ok(account.includes("createPortal"));
+ assert.ok(account.includes("<LogoutButton />"));
+ assert.ok(account.includes("resolveBoAccountLabel(displayName, email)"));
+ assert.ok(account.includes('data-surface="ho"'));
+});
+test("PAP-1105 BO compiler preserves legacy hiding outside opted-in Freeze controls", () => {
+  const source = readFileSync("public/bo-authority-source/styles.css", "utf8");
+  const compiled = readFileSync("public/bo-authority-source/bo-scoped.css", "utf8");
+  assert.match(source, /#undo-v22,/);
+  for (const id of ["undo-v22","filter-toggle","visible-columns","reset-all","group-shortcut","save-view"]) {
+    assert.ok(compiled.includes("#"+id+':where(:not([data-tdd-freeze-controls] *))'),id);
+  }
+  assert.ok(readFileSync("app/components/workspace-renderer/Table.tsx","utf8").includes('data-tdd-freeze-controls=""'));
+  assert.ok(!readFileSync("app/bo/components/registration/BoDataTable.tsx","utf8").includes('data-tdd-freeze-controls=""'));
 });

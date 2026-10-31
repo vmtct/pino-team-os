@@ -350,7 +350,7 @@
 
 /* Historical HO input: playground-v23.css */
 /* PAP-885 — UI V2.3 production-like density; interactive mock data only */
-:where(html[data-surface="ho"]) .types-strip,:where(html[data-surface="ho"]) .prototype-pill,:where(html[data-surface="ho"]) .lab-h1-tag,:where(html[data-surface="ho"]) .lab-note,:where(html[data-surface="ho"]) .top-back-link,:where(html[data-surface="ho"]) .topbar-root,:where(html[data-surface="ho"]) .table-index,:where(html[data-surface="ho"]) .results-secondary,:where(html[data-surface="ho"]) .toolbar-hint,:where(html[data-surface="ho"]) .lab-section-panel .settings-hint,:where(html[data-surface="ho"]) #undo-v22,:where(html[data-surface="ho"]) #redo-v22,:where(html[data-surface="ho"]) #filter-toggle,:where(html[data-surface="ho"]) #visible-columns,:where(html[data-surface="ho"]) #reset-all,:where(html[data-surface="ho"]) #group-shortcut,:where(html[data-surface="ho"]) #save-view{
+:where(html[data-surface="ho"]) .types-strip,:where(html[data-surface="ho"]) .prototype-pill,:where(html[data-surface="ho"]) .lab-h1-tag,:where(html[data-surface="ho"]) .lab-note,:where(html[data-surface="ho"]) .top-back-link,:where(html[data-surface="ho"]) .topbar-root,:where(html[data-surface="ho"]) .table-index,:where(html[data-surface="ho"]) .results-secondary,:where(html[data-surface="ho"]) .toolbar-hint,:where(html[data-surface="ho"]) .lab-section-panel .settings-hint,:where(html[data-surface="ho"]) #undo-v22:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #redo-v22:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #filter-toggle:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #visible-columns:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #reset-all:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #group-shortcut:where(:not([data-tdd-shell="table"] *)),:where(html[data-surface="ho"]) #save-view:where(:not([data-tdd-shell="table"] *)){
  display:none!important;
 }
 :where(html[data-surface="ho"]) .page-heading-left>p,:where(html[data-surface="ho"]) .page-heading .eyebrow{display:none!important}
@@ -590,7 +590,7 @@
 [data-surface="ho"] .page-heading h1 small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:4px; }
 [data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
 [data-surface="ho"] :is(.lab-menu,.detail-hero-back,.settings-trigger,.pager) { color:var(--ds-primary); border-color:var(--ds-primary-border); }
-[data-surface="ho"] .toolbar-button, [data-surface="ho"] .view-add { display:none!important; }
+[data-surface="ho"] .toolbar-button:where(:not([data-tdd-shell="table"] *)), [data-surface="ho"] .view-add:where(:not([data-tdd-shell="table"] *)) { display:none!important; }
 [data-surface="ho"] :is(.view-rename-input,input:focus,select:focus) { border-color:var(--ds-primary-border); }
 
 [data-surface="ho"] .nav-link.active .nav-icon { color:var(--ds-on-primary); }
@@ -606,6 +606,385 @@
 [data-surface="ho"] .ho-audit-details dt { color:#777; }
 [data-surface="ho"] .ho-audit-details dd { margin:0; }
 [data-surface="ho"] .ho-audit-note { color:#777; font-size:12px; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) { min-width:0; flex:1; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) strong, [data-surface="ho"] .sidebar-footer > div:nth-child(2) small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) small { opacity:.76; font-size:11px; }
+[data-surface="ho"] .ho-staff-role-select { width:min(100%,340px); min-width:0; height:34px; padding:5px 30px 5px 10px; border:1px solid var(--ds-primary-border); border-radius:7px; background-color:#fff; color:#25212a; font:inherit; text-overflow:ellipsis; }
+[data-surface="ho"] .ho-staff-role-select:disabled { background-color:#f7f6f8; color:#777; cursor:not-allowed; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) small { font-size:0; }
+[data-surface="ho"] .sidebar-footer > div:nth-child(2) small::after { content:"Head Office"; font-size:11px; }
+
+
+/* PAP-1215 | HO-only Role Editor business-tab styling in the approved HO theme. 
+ * Semantic PINO DS tokens; no TDD shell/BO/TOS selector changes. */
+[data-surface="ho"] .ho-role-editor {
+  --role-ink: var(--bo-color-text, #303039);
+  --role-muted: var(--bo-color-muted, #75737d);
+  --role-line: var(--bo-color-border, #e9e4e9);
+  --role-paper: var(--bo-color-surface, #fff);
+  --role-tint: var(--bo-color-table-heading, #faf8fa);
+  --role-accent: var(--ds-primary, #74283e);
+  --role-accent-soft: var(--ds-primary-subtle, #f9edf1);
+  --role-accent-border: var(--ds-primary-border, #dec0cb);
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(100%, 1050px);
+  min-width: 0;
+  color: var(--role-ink);
+  font: 13px/1.5 var(--bo-font-family, Arial, sans-serif);
+}
+[data-surface="ho"] .ho-role-editor, [data-surface="ho"] .ho-role-editor * { box-sizing: border-box; }
+[data-surface="ho"] .ho-role-editor [hidden] { display: none !important; }
+:where(html[data-surface="ho"]) .ho-role-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, .8fr);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+:where(html[data-surface="ho"]) .ho-role-overview > *, [data-surface="ho"] .ho-role-editor > * { min-width: 0; }
+[data-surface="ho"] .ho-role-editor .ho-role-card, :where(html[data-surface="ho"]) .ho-role-technical {
+  min-width: 0;
+  padding: 17px 18px;
+  border: 1px solid var(--role-line);
+  border-radius: 11px;
+  background: var(--role-paper);
+  color: var(--role-ink);
+  box-shadow: 0 2px 10px #29172407;
+  font: inherit;
+}
+[data-surface="ho"] .ho-role-editor .ho-role-card h3 {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: -.01em;
+  font-weight: 750;
+  color: var(--role-ink);
+}
+[data-surface="ho"] .ho-role-editor .ho-role-card p { line-height: 1.5; }
+[data-surface="ho"] .ho-role-editor .ho-role-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  padding: 0;
+  margin: 0 0 15px;
+  border: 0;
+}
+[data-surface="ho"] .ho-role-editor .ho-role-field-row:last-child { margin-bottom: 0; }
+[data-surface="ho"] .ho-role-editor .ho-role-field-label {
+  color: var(--role-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+[data-surface="ho"] .ho-role-editor .ho-role-field-row :is(input, textarea) {
+  width: 100%;
+  min-width: 0;
+  min-height: 39px;
+  padding: 9px 11px;
+  border: 1px solid var(--role-line);
+  border-radius: 8px;
+  background: var(--role-paper);
+  color: var(--role-ink);
+  font: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+[data-surface="ho"] .ho-role-editor .ho-role-field-row textarea { min-height: 82px; line-height: 1.5; resize: vertical; }
+[data-surface="ho"] .ho-role-editor .ho-role-field-row :is(input, textarea):focus-visible {
+  border-color: var(--role-accent);
+  outline: 2px solid var(--role-accent-border);
+  outline-offset: 1px;
+}
+[data-surface="ho"] .ho-role-editor .ho-role-field-row :is(input, textarea):disabled {
+  cursor: not-allowed;
+  background: var(--role-tint);
+  color: var(--role-muted);
+  opacity: 1;
+}
+:where(html[data-surface="ho"]) .ho-role-technical { padding-top: 15px; }
+:where(html[data-surface="ho"]) .ho-role-technical .pds-property-section { margin: 0; }
+:where(html[data-surface="ho"]) .ho-role-technical .pds-property-heading {
+  margin-bottom: 9px;
+  padding-bottom: 11px;
+  font-size: 13px;
+  border-bottom-color: var(--role-line);
+}
+:where(html[data-surface="ho"]) .ho-role-technical .pds-property-row { min-height: 41px; }
+:where(html[data-surface="ho"]) .ho-role-technical .pds-property-label { font-size: 11px; color: var(--role-muted); }
+:where(html[data-surface="ho"]) .ho-role-technical .pds-property-value { color: var(--role-ink); overflow-wrap: anywhere; }
+:where(html[data-surface="ho"]) .ho-role-permission-card { padding: 0 !important; overflow: hidden; }
+:where(html[data-surface="ho"]) .ho-role-permission-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 17px 18px 13px;
+  border-bottom: 1px solid var(--role-line);
+}
+:where(html[data-surface="ho"]) .ho-role-permission-header h3 { margin: 0 0 3px !important; }
+:where(html[data-surface="ho"]) .ho-role-permission-header p { margin: 0; color: var(--role-muted); font-size: 12px; }
+:where(html[data-surface="ho"]) .ho-role-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+:where(html[data-surface="ho"]) .ho-role-metrics > :is(strong,span) {
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: var(--role-tint);
+  color: var(--role-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+:where(html[data-surface="ho"]) .ho-role-metrics strong { font-size: 12px; color: var(--role-ink); }
+:where(html[data-surface="ho"]) .ho-role-metrics .ho-role-add { color: var(--ds-success, #167346); background: var(--ds-success-subtle, #eff9f2); }
+:where(html[data-surface="ho"]) .ho-role-metrics .ho-role-remove { color: var(--ds-danger, #a83a52); background: var(--ds-danger-subtle, #fff1f4); }
+:where(html[data-surface="ho"]) .ho-role-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--role-line);
+}
+:where(html[data-surface="ho"]) .ho-role-search {
+  flex: 1 1 270px;
+  max-width: 430px;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--role-muted);
+  font-weight: 650;
+}
+:where(html[data-surface="ho"]) .ho-role-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--role-line);
+  border-radius: 8px;
+  background: var(--role-paper);
+  color: var(--role-ink);
+  padding: 8px 11px;
+  font: 12px/1.4 var(--bo-font-family, Arial, sans-serif);
+}
+:where(html[data-surface="ho"]) .ho-role-search input:focus-visible {
+  outline: 2px solid var(--role-accent-border);
+  outline-offset: 1px;
+  border-color: var(--role-accent);
+}
+:where(html[data-surface="ho"]) .ho-role-filters {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border: 1px solid var(--role-line);
+  border-radius: 8px;
+  background: var(--role-tint);
+}
+:where(html[data-surface="ho"]) .ho-role-filters button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--role-muted);
+  padding: 6px 11px;
+  cursor: pointer;
+  font: 650 12px/1.25 var(--bo-font-family, Arial, sans-serif);
+  white-space: nowrap;
+}
+:where(html[data-surface="ho"]) .ho-role-filters button[aria-pressed="true"] {
+  color: var(--role-accent);
+  background: var(--role-paper);
+  box-shadow: 0 1px 4px #24121f14;
+}
+:where(html[data-surface="ho"]) .ho-role-filters button:focus-visible, :where(html[data-surface="ho"]) .ho-role-group summary:focus-visible {
+  outline: 2px solid var(--role-accent);
+  outline-offset: 2px;
+}
+:where(html[data-surface="ho"]) .ho-role-groups {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  max-height: min(62vh, 660px);
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 13px 18px 18px;
+}
+:where(html[data-surface="ho"]) .ho-role-group {
+  min-width: 0;
+  border: 1px solid var(--role-line);
+  border-radius: 9px;
+  background: var(--role-paper);
+  overflow: clip;
+}
+:where(html[data-surface="ho"]) .ho-role-group summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 41px;
+  padding: 10px 13px;
+  background: var(--role-tint);
+  color: var(--role-ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  list-style: none;
+}
+:where(html[data-surface="ho"]) .ho-role-group summary::-webkit-details-marker { display: none; }
+:where(html[data-surface="ho"]) .ho-role-group summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border: solid var(--role-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(-45deg);
+  transition: transform .15s ease;
+}
+:where(html[data-surface="ho"]) .ho-role-group[open] summary::before { transform: rotate(45deg); }
+:where(html[data-surface="ho"]) .ho-role-group summary:hover { background: var(--role-accent-soft); }
+:where(html[data-surface="ho"]) .ho-role-group fieldset {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+:where(html[data-surface="ho"]) .ho-role-legend { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+:where(html[data-surface="ho"]) .ho-role-permission-row {
+  display: grid !important;
+  grid-template-columns: 19px minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 10px !important;
+  padding: 11px 13px !important;
+  margin: 0 !important;
+  min-height: 52px;
+  border: 0 !important;
+  border-top: 1px solid var(--role-line) !important;
+  cursor: pointer;
+}
+:where(html[data-surface="ho"]) .ho-role-permission-row:hover { background: var(--role-tint); }
+:where(html[data-surface="ho"]) .ho-role-permission-row:focus-within { background: var(--role-accent-soft); }
+:where(html[data-surface="ho"]) .ho-role-permission-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--role-accent);
+  cursor: pointer;
+}
+:where(html[data-surface="ho"]) .ho-role-permission-row input:focus-visible { outline: 2px solid var(--role-accent); outline-offset: 3px; }
+:where(html[data-surface="ho"]) .ho-role-permission-row input:disabled { cursor: not-allowed; }
+:where(html[data-surface="ho"]) .ho-role-permission-info { display: grid; gap: 3px; min-width: 0; line-height: 1.35; }
+:where(html[data-surface="ho"]) .ho-role-permission-info strong { font-size: 12px; font-weight: 650; color: var(--role-ink); overflow-wrap: anywhere; }
+:where(html[data-surface="ho"]) .ho-role-permission-info small { font-size: 11px; font-weight: 450; color: var(--role-muted); overflow-wrap: anywhere; }
+:where(html[data-surface="ho"]) .ho-role-empty { padding: 18px; text-align: center; color: var(--role-muted); font-size: 12px; margin: 0; }
+:where(html[data-surface="ho"]) .ho-role-warning, :where(html[data-surface="ho"]) .ho-role-notice, :where(html[data-surface="ho"]) .ho-role-error, :where(html[data-surface="ho"]) .ho-role-readonly {
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+:where(html[data-surface="ho"]) .ho-role-warning { background: var(--role-accent-soft); border: 1px solid var(--role-accent-border); color: var(--role-accent); }
+:where(html[data-surface="ho"]) .ho-role-notice { background: var(--ds-success-subtle, #eff9f2); color: var(--ds-success, #25633e); }
+:where(html[data-surface="ho"]) .ho-role-error { background: var(--ds-danger-subtle, #fff1f4); color: var(--ds-danger, #a83a52); }
+:where(html[data-surface="ho"]) .ho-role-readonly { background: var(--role-tint); color: var(--role-muted); margin-top: 12px; }
+:where(html[data-surface="ho"]) .ho-role-confirm { display: grid; gap: 12px; }
+:where(html[data-surface="ho"]) .ho-role-confirm p { margin: 0; line-height: 1.5; }
+:where(html[data-surface="ho"]) .ho-role-confirm-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+:where(html[data-surface="ho"]) .ho-role-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border: 1px solid var(--role-line);
+  border-radius: 10px;
+  background: var(--role-paper);
+  box-shadow: 0 5px 18px #28122613;
+}
+[data-surface="ho"] .ho-role-editor .pds-tos-button {
+  min-height: 38px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font: 650 12px/1.35 var(--bo-font-family, Arial, sans-serif);
+}
+[data-surface="ho"] .ho-role-editor .pds-tos-button-primary {
+  border-color: var(--role-accent);
+  background: var(--role-accent);
+  color: var(--ds-on-primary, #fff);
+}
+[data-surface="ho"] .ho-role-editor .pds-tos-button-primary:hover:not(:disabled) { background: var(--ds-primary-hover, #611d34); }
+[data-surface="ho"] .ho-role-editor .pds-tos-button-secondary {
+  border-color: var(--role-accent-border);
+  background: var(--role-paper);
+  color: var(--role-accent);
+}
+[data-surface="ho"] .ho-role-editor .pds-tos-button-secondary:hover:not(:disabled) { background: var(--role-accent-soft); }
+[data-surface="ho"] .ho-role-editor .pds-tos-button:focus-visible {
+  outline: 2px solid var(--role-accent);
+  outline-offset: 2px;
+}
+[data-surface="ho"] .ho-role-editor .pds-tos-button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 820px) {
+  :where(html[data-surface="ho"]) .ho-role-overview { grid-template-columns: minmax(0, 1fr); }
+  :where(html[data-surface="ho"]) .ho-role-groups { max-height: none; }
+}
+@media (max-width: 520px) {
+  [data-surface="ho"] .ho-role-editor { gap: 11px; }
+  [data-surface="ho"] .ho-role-editor .ho-role-card, :where(html[data-surface="ho"]) .ho-role-technical { padding: 14px; }
+  :where(html[data-surface="ho"]) .ho-role-permission-card { padding: 0 !important; }
+  :where(html[data-surface="ho"]) .ho-role-permission-header { padding: 13px 12px; }
+  :where(html[data-surface="ho"]) .ho-role-controls { padding: 11px 12px; align-items: stretch; }
+  :where(html[data-surface="ho"]) .ho-role-search { max-width: none; flex-basis: 100%; }
+  :where(html[data-surface="ho"]) .ho-role-filters { width: 100%; justify-content: space-between; }
+  :where(html[data-surface="ho"]) .ho-role-filters button { flex: 1 1 0; padding: 6px 7px; }
+  :where(html[data-surface="ho"]) .ho-role-groups { padding: 11px 10px 13px; }
+  :where(html[data-surface="ho"]) .ho-role-permission-row { padding: 10px !important; }
+  :where(html[data-surface="ho"]) .ho-role-actions { padding: 9px; flex-wrap: wrap; }
+  :where(html[data-surface="ho"]) .ho-role-actions .pds-tos-button { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-surface="ho"] .ho-role-editor * { transition: none !important; }
+}
+
+/* PAP-1234: HO Staff Rate business content, using PINO DS tokens. */
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"].pds-business-compact-workspace{display:grid;gap:10px;align-content:start;max-width:840px;width:100%;min-width:0}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > :is(form,section).v24-prop-section{margin:0;padding:12px 0;border:0;border-radius:0;box-shadow:none;background:transparent;width:100%;min-width:0}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > :is(form,section) > h3{margin:0 0 10px;font-size:13px;line-height:1.4;font-weight:700;color:var(--text-primary,#29242b)}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form.pds-business-compact-form{display:grid;grid-template-columns:minmax(0,190px) minmax(0,180px);gap:9px 12px;justify-content:start;max-width:520px}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form > :is(h3,.primary-btn,[role="status"],[role="alert"]){grid-column:1/-1}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form .property-row{display:flex;flex-direction:column;gap:5px;align-items:stretch;min-width:0;min-height:0;margin:0;padding:0;border:0;background:transparent}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form .property-row > span{font-size:12px;line-height:1.4;font-weight:600;color:var(--text-secondary,#555b68)}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form .property-row:nth-of-type(3){grid-column:1/-1;max-width:420px}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form :is(input,textarea){display:block;box-sizing:border-box;width:100%;min-width:0;min-height:38px;margin:0;padding:7px 10px;border:1px solid var(--ds-border,#d9d9df);border-radius:7px;background:var(--ds-surface,#fff);color:inherit;font:inherit;font-weight:400;line-height:1.3}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form textarea{min-height:58px;resize:vertical}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form :is(input,textarea):focus-visible{border-color:var(--ds-primary-border);outline:2px solid var(--ds-primary);outline-offset:1px}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form > .primary-btn{width:max-content;min-width:142px;min-height:36px;padding:7px 13px;border-radius:7px;border-color:var(--ds-primary);background:var(--ds-primary);color:var(--ds-on-primary,#fff);font-weight:650}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form > .primary-btn:disabled{opacity:.55;cursor:wait}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > section.v24-prop-section{max-width:820px;border-top:1px solid var(--ds-border,#e3e0e5)}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > section .surface{max-width:820px;min-width:0;overflow-x:auto}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > section .surface table{width:100%;min-width:760px}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > section .surface :is(th,td){height:34px;padding:5px 9px;font-size:12px;line-height:1.35}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > section .surface :is(th,td):last-child{white-space:normal;overflow-wrap:anywhere}
+@media(max-width:600px){
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form.pds-business-compact-form{grid-template-columns:minmax(0,1fr);gap:8px;max-width:440px}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form .property-row:nth-of-type(-n+2){max-width:190px}
+[data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form > :is(h3,.property-row:nth-of-type(3),.primary-btn){grid-column:1}
+}
 
 
 /* Shared TDD opt-in Freeze Column; single HO host-scope output */
@@ -627,42 +1006,7 @@
 :where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table tr:hover td[data-tdd-freeze-cell] {
   background: var(--bo-color-row-hover, #f5f3f5);
 }
-:where(html[data-surface="ho"]) [data-freeze-trigger] {
-  cursor: pointer;
-  padding: 2px 5px;
-  border: 0;
-  background: transparent;
-}
-:where(html[data-surface="ho"]) [data-tdd-freeze-menu] {
-  position: fixed;
-  z-index: 10000;
-  min-width: 205px;
-  padding: 5px;
-  border: 1px solid var(--bo-palette-neutral-20, #e6e0e3);
-  border-radius: 7px;
-  background: var(--bo-color-surface, #fff);
-  box-shadow: 0 8px 20px #0002;
-}
-:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"] {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"]:hover,
-:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"]:focus-visible {
-  background: var(--bo-color-row-hover, #f5f3f5);
-}
-:where(html[data-surface="ho"]) [data-tdd-freeze-menu] [role="menuitem"]:disabled {
-  cursor: not-allowed;
-  opacity: .5;
-}
 :where(html[data-surface="ho"]) [data-tdd-freeze-notice] {
   margin: 7px 10px;
-  font-size: 12px;
-  color: var(--bo-color-text-muted, #7d7079);
 }
 

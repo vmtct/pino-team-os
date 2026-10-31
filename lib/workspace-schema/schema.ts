@@ -8,13 +8,27 @@ export type AuthorizationContext =
 export type Capability = "read" | "create" | "edit" | "history" | "manageSharedViews";
 export type CapabilityBindings = Readonly<{ read: string } & Partial<Record<Exclude<Capability, "read">, string>>>;
 export type Source = { readonly adapter: string; readonly permission: string };
+export type TddActionSlot = "table.header" | "drawer.header" | "drawer.footer" | "detail.header" | "overview.section" | "businessTab.toolbar";
+export type TddActionDescriptor = {
+  readonly id: string; readonly label: string; readonly slot: TddActionSlot;
+  readonly variant: "primary" | "secondary" | "tertiary" | "danger";
+  readonly capability: "read" | "create" | "edit";
+  /** Actual runtime handler is registered separately by the authorized adapter. */
+  readonly handler: string;
+  /** Required only for overview.section and businessTab.toolbar; selects an admitted section/tab. */
+  readonly targetId?: string;
+  /** Form footer actions are bound to either Create or Edit, never read-only Quick View. */
+  readonly formMode?: "create" | "edit";
+};
 export type Sections<K extends string> = readonly { readonly id: string; readonly label: string; readonly fields: readonly K[] }[];
 
-type SlotBase = { readonly id: string; readonly label: string; readonly source: Source };
-export type BusinessSlot<K extends string> = SlotBase & (
+/** PAP-1256: only field-literal comparisons are permitted; no executable predicates. */
+export type TabVisibility<K extends string> = { readonly field: K; readonly op: "eq" | "neq"; readonly value: string };
+type SlotBase<K extends string> = { readonly id: string; readonly label: string; readonly source: Source; readonly visibility?: TabVisibility<K> };
+export type BusinessSlot<K extends string> = SlotBase<K> & (
   | { readonly kind: "field-group"; readonly sections: Sections<K> }
   | { readonly kind: "relation-grid" | "data-grid"; readonly relatedModule: string }
-  | { readonly kind: "form"; readonly fields: readonly K[]; readonly submitPermission: string }
+  | { readonly kind: "form"; readonly fields: readonly string[]; readonly submitPermission: string }
   | { readonly kind: "timeline"; readonly dateField: K }
   | { readonly kind: "media"; readonly fields: readonly K[] }
   | { readonly kind: "metric-cards"; readonly fields: readonly K[] }
@@ -94,7 +108,7 @@ export type MutationAdapter<F extends readonly FieldSchema[]> = {
 export type ModuleSchema<F extends readonly FieldSchema[] = readonly FieldSchema[]> = {
   readonly version: 1; readonly classification: "TDD_DEFAULT";
   readonly key: string; readonly label: string; readonly group: string; readonly surface: Surface;
-  readonly fields: F; readonly capabilities: CapabilityBindings; readonly data: DataAdapter<F>;
+  readonly fields: F; readonly capabilities: CapabilityBindings; readonly data: DataAdapter<F>; readonly actions?: readonly TddActionDescriptor[];
   readonly table: TableSchema<F>;
   readonly drawer: { readonly density: "one-column"; readonly sections: Sections<FieldKey<F>>; readonly actions: readonly { readonly id: string; readonly label: string; readonly capability: "create" | "edit" }[] };
   readonly detail: { readonly overview: { readonly sections: Sections<FieldKey<F>> }; readonly businessTabs: readonly BusinessSlot<FieldKey<F>>[]; readonly history: HistoryBinding };

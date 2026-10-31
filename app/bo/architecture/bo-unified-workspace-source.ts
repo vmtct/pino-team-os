@@ -1,4 +1,4 @@
-import school from "@/public/bo-authority-source/school-adapters.js";
+import schoolSource from "@/public/bo-authority-source/school-adapters.js";
 import type { BoWorkspaceSource } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { boModuleRegistry } from "./registry";
@@ -6,7 +6,15 @@ import { isBoStagingRouteAdmitted } from "./bo-staging-route-policy";
 import { currentBoModuleHref } from "@/lib/bo-url-contract";
 import { shiftPlansAdapter, availabilityAdapter, assignmentsAdapter } from "./workforce-read-adapters";
 import { payrollPeriodsAdapter } from "@/lib/bo-payroll-read-adapter";
+import { assignmentFields } from "@/app/bo/missions/schema";
 
+// PAP-1158: retain the historical adapter contract, but exclude its duplicate salary metadata view from live BO.
+const school = {
+  ...schoolSource,
+  modules: Object.fromEntries(Object.entries(schoolSource.modules).filter(([key]) => key !== "salaryPeriods")),
+};
+// PAP-1210: metadata registers the actual sidebar slot. Data is owned by the typed provider.
+school.modules.missions = { label: "Nhiệm vụ", group: "SCHOOL", fields: assignmentFields.map(f => ({ key: f.key, label: f.label, type: f.type, icon: f.icon, w: f.width, readonly: true })) };
 const adapters = {
   "workforce-shift-plans": shiftPlansAdapter,
   "workforce-availability": availabilityAdapter,

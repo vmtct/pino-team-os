@@ -15,6 +15,7 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
   const identity = policy?.identity ?? "name";
   const scrollRef = useRef<HTMLDivElement>(null);
   const [freezeMenu, setFreezeMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+  const freezeTrigger = useRef<HTMLElement | null>(null);
   const [freezeNotice, setFreezeNotice] = useState("");
   const frozenThrough = freezeEnabled ? normalizeFreezeBoundary(value.frozenThrough, value.order, value.visible) : null;
   useEffect(() => {
@@ -45,27 +46,27 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
     for (const header of table.querySelectorAll("thead th")) resize?.observe(header);
     window.addEventListener("resize", measure);
     return () => { resize?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [freezeEnabled, frozenThrough, fields]);
+  }, [freezeEnabled, frozenThrough, fields, rows, loadState, value]);
   useEffect(() => {
     if (!freezeMenu) return;
     const dismiss = (event: PointerEvent) => {
       if (!(event.target instanceof Element) || !event.target.closest("#tdd-freeze-menu,[data-freeze-trigger]")) setFreezeMenu(null);
     };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setFreezeMenu(null); } };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setFreezeMenu(null); freezeTrigger.current?.focus({ preventScroll: true }); } };
     document.addEventListener("pointerdown", dismiss);
     document.addEventListener("keydown", escape);
     document.querySelector<HTMLButtonElement>("#tdd-freeze-menu [role=menuitem]")?.focus();
     return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
   }, [freezeMenu]);
   const openFreeze = (key: string, anchor: HTMLElement) => {
+    freezeTrigger.current = anchor.matches("[data-freeze-trigger]") ? anchor : anchor.querySelector<HTMLElement>("[data-freeze-trigger]");
     const box = anchor.getBoundingClientRect();
     setFreezeMenu({ key, x: Math.min(box.left, window.innerWidth - 215), y: Math.min(box.bottom, window.innerHeight - 95) });
   };
   const commitFreeze = (boundary: string | null) => {
-    const key = freezeMenu?.key;
     setFreezeMenu(null);
     update({ frozenThrough: boundary });
-    if (key) document.querySelector<HTMLButtonElement>('[data-freeze-trigger="' + CSS.escape(key) + '"]')?.focus();
+    freezeTrigger.current?.focus({ preventScroll: true });
   };
 
   const candidates = [...new Set([...found.map(r => display(r[value.group])), ...(module.fields.find(f => f.key === value.group)?.options ?? [])])].sort((a, b) => a.localeCompare(b, "vi"));
@@ -78,15 +79,23 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
     {filterOpen ? <><BoFilters fields={policy ? module.fields.filter(f => policy.filter.includes(f.key)) : module.fields} value={value} update={update} /><div className="rules-actions"><button type="button" id="save-view" className="save-view-btn" onClick={() => onSettings("views")}>＋ Lưu thành Quick View</button></div></> : null}
     <div id="active-chips" className={"filter-chips " + (value.rules.length ? "active" : "")}>{value.rules.map((rule, i) => <button type="button" className="chip" key={i} onClick={() => update({ rules: value.rules.filter((_, n) => n !== i) })}>{module.fields.find(f => f.key === rule.field)?.label} {opLabels[rule.op]} {rule.value} ×</button>)}</div>
     </> : null}
-    <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr><th className="quick-open-th" aria-label="Quick View" />{fields.map(f => <th key={f.key} data-column={f.key} onContextMenu={freezeEnabled && f.key !== identity ? event => { event.preventDefault(); openFreeze(f.key, event.currentTarget); } : undefined} className={(legacyStyles ? "" : "schema-column ") + (f.key === identity ? "" : "column-draggable")} draggable={f.key !== identity} onDragStart={e => e.dataTransfer.setData("text/plain", f.key)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const key = e.dataTransfer.getData("text/plain"); if (key === identity || f.key === identity || !value.order.includes(key) || key === f.key) return; const order = value.order.filter(k => k !== key); order.splice(order.indexOf(f.key), 0, key); update({ order }); }} style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}><button type="button" data-sort={f.key} disabled={policy && !policy.sort.includes(f.key)} title={"Sắp xếp theo " + f.label} onClick={() => update({ sort: f.key, desc: value.sort === f.key ? !value.desc : false })}>{f.label} <span className="column-type">{f.icon}</span> <span className="sort-icon">{value.sort === f.key ? value.desc ? "↓" : "↑" : "↕"}</span></button>{freezeEnabled && f.key !== identity ? <button type="button" data-freeze-trigger={f.key} aria-label={"Tùy chọn cố định cột " + f.label} aria-haspopup="menu" aria-expanded={freezeMenu?.key === f.key} onClick={event => openFreeze(f.key, event.currentTarget)} onKeyDown={event => { if (event.key === "F10" && event.shiftKey) { event.preventDefault(); openFreeze(f.key, event.currentTarget); } }}>⋯</button> : null}</th>)}</tr></thead><tbody id="table-body">{loadState !== "ready" ? <tr><td colSpan={fields.length + 1}><div className="empty-table" role={loadState === "loading" ? "status" : "alert"}>{loadState === "loading" ? "Đang tải dữ liệu…" : loadState}</div></td></tr> : !found.length ? <tr><td colSpan={fields.length + 1}><div className="empty-table"><strong>Không có bản ghi phù hợp</strong>Thử chỉnh điều kiện hoặc xóa bộ lọc.</div></td></tr> : value.group ? candidates.filter(group => !value.hiddenGroups.includes(group) && (!value.hideEmpty || visible.some(r => display(r[value.group]) === group))).map(group => <Fragment key={group}><tr className="group-heading-row"><td colSpan={fields.length + 1}><button type="button" className="group-toggle" aria-expanded={!value.collapsed.includes(group)} onClick={() => update({ collapsed: value.collapsed.includes(group) ? value.collapsed.filter(g => g !== group) : [...value.collapsed, group] })}><span className="group-caret">{value.collapsed.includes(group) ? "▸" : "▾"}</span><span className="group-pill">{group}</span><small>{found.filter(r => display(r[value.group]) === group).length} bản ghi</small></button></td></tr>{!value.collapsed.includes(group) ? visible.filter(r => display(r[value.group]) === group).map(row) : null}</Fragment>) : visible.map(row)}</tbody></table></div>
-    {freezeNotice ? <p role="status" data-tdd-freeze-notice="">{freezeNotice}</p> : null}
+    <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr><th className="quick-open-th" aria-label="Quick View" />{fields.map(f => <th key={f.key} data-column={f.key} onContextMenu={freezeEnabled && f.key !== identity && f.key !== "id" ? event => { event.preventDefault(); openFreeze(f.key, event.currentTarget); } : undefined} className={(legacyStyles ? "" : "schema-column ") + (f.key === identity ? "" : "column-draggable")} draggable={f.key !== identity} onDragStart={e => e.dataTransfer.setData("text/plain", f.key)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const key = e.dataTransfer.getData("text/plain"); if (key === identity || f.key === identity || !value.order.includes(key) || key === f.key) return; const order = value.order.filter(k => k !== key); order.splice(order.indexOf(f.key), 0, key); update({ order }); }} style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}><button type="button" data-sort={f.key} disabled={policy && !policy.sort.includes(f.key)} title={"Sắp xếp theo " + f.label} onClick={() => update({ sort: f.key, desc: value.sort === f.key ? !value.desc : false })}>{f.label} <span className="column-type">{f.icon}</span> <span className="sort-icon">{value.sort === f.key ? value.desc ? "↓" : "↑" : "↕"}</span></button>{freezeEnabled && f.key !== identity && f.key !== "id" ? <button type="button" className="row-open" data-freeze-trigger={f.key} aria-label={"Tùy chọn cố định cột " + f.label} aria-haspopup="menu" aria-expanded={freezeMenu?.key === f.key} onClick={event => openFreeze(f.key, event.currentTarget)} onKeyDown={event => { if ((event.key === "F10" && event.shiftKey) || event.key === "ArrowDown") { event.preventDefault(); openFreeze(f.key, event.currentTarget); } }}>⋯</button> : null}</th>)}</tr></thead><tbody id="table-body">{loadState !== "ready" ? <tr><td colSpan={fields.length + 1}><div className="empty-table" role={loadState === "loading" ? "status" : "alert"}>{loadState === "loading" ? "Đang tải dữ liệu…" : loadState}</div></td></tr> : !found.length ? <tr><td colSpan={fields.length + 1}><div className="empty-table"><strong>Không có bản ghi phù hợp</strong>Thử chỉnh điều kiện hoặc xóa bộ lọc.</div></td></tr> : value.group ? candidates.filter(group => !value.hiddenGroups.includes(group) && (!value.hideEmpty || visible.some(r => display(r[value.group]) === group))).map(group => <Fragment key={group}><tr className="group-heading-row"><td colSpan={fields.length + 1}><button type="button" className="group-toggle" aria-expanded={!value.collapsed.includes(group)} onClick={() => update({ collapsed: value.collapsed.includes(group) ? value.collapsed.filter(g => g !== group) : [...value.collapsed, group] })}><span className="group-caret">{value.collapsed.includes(group) ? "▸" : "▾"}</span><span className="group-pill">{group}</span><small>{found.filter(r => display(r[value.group]) === group).length} bản ghi</small></button></td></tr>{!value.collapsed.includes(group) ? visible.filter(r => display(r[value.group]) === group).map(row) : null}</Fragment>) : visible.map(row)}</tbody></table></div>
+    {freezeNotice ? <p role="status" data-tdd-freeze-notice="" className="table-meta">{freezeNotice}</p> : null}
     <footer className="table-footer"><div><span id="result-count" className="result-label">{total} / {serverTotal ?? rows.length} bản ghi</span><span className="footer-dot">·</span></div><div className="pagination"><label>Hiển thị <select id="page-size" value={value.pageSize} onChange={e => update({ pageSize: Number(e.target.value) })}>{[8, 15, 30].map(n => <option key={n} value={n}>{n} dòng</option>)}</select></label><span id="page-range" className="page-counter">{found.length ? offset + 1 + "–" + Math.min(total, offset + value.pageSize) + " / " + total : "0 / 0"}</span><button type="button" id="prev-page" className="pager" aria-label="Trang trước" disabled={current <= 1} onClick={() => setPage(current - 1)}>‹</button><button type="button" id="next-page" className="pager" aria-label="Trang sau" disabled={current >= pages} onClick={() => setPage(current + 1)}>›</button></div></footer>
-    {freezeMenu && freezeEnabled ? createPortal(<div id="tdd-freeze-menu" role="menu" aria-label={"Cố định cột " + (module.fields.find(f => f.key === freezeMenu.key)?.label ?? "")} data-tdd-freeze-menu="" style={{ left: Math.max(8, freezeMenu.x), top: Math.max(8, freezeMenu.y) }}>
+    {freezeMenu && freezeEnabled ? createPortal(<div id="tdd-freeze-menu" className="view-context" role="menu" aria-label={"Cố định cột " + (module.fields.find(f => f.key === freezeMenu.key)?.label ?? "")} data-tdd-freeze-menu="" onKeyDown={event => {
+      const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')];
+      if (!items.length || !["ArrowDown", "ArrowUp", "Home", "End", "Tab"].includes(event.key)) return;
+      event.preventDefault(); event.stopPropagation();
+      const index = items.indexOf(document.activeElement as HTMLButtonElement);
+      const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1
+        : (index + (event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey) ? -1 : 1) + items.length) % items.length;
+      items[next].focus();
+    }} style={{ left: Math.max(8, freezeMenu.x), top: Math.max(8, freezeMenu.y) }}>
       <button role="menuitem" type="button" onClick={() => commitFreeze(freezeMenu.key)}>Cố định đến cột này</button>
       <button role="menuitem" type="button" disabled={fields.findIndex(f => f.key === freezeMenu.key) > fields.findIndex(f => f.key === frozenThrough)} onClick={() => {
         const visible = fields.map(f => f.key);
         const index = visible.indexOf(freezeMenu.key);
-        commitFreeze(index > 1 ? visible[index - 1] : null);
+        commitFreeze(visible.slice(1, index).filter(key => key !== "id").at(-1) ?? null);
       }}>Bỏ cố định từ cột này</button>
     </div>, document.body) : null}
   </div>;

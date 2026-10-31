@@ -295,8 +295,15 @@ test("approved typed business slots preserve declaration order and reject shell 
     { ...base, id: "metrics", label: "Metrics", kind: "metric-cards", fields: ["number"] },
     { ...base, id: "audit", label: "Audit dataset", kind: "audit-events", subjectType: "separate-dataset" },
   ];
-  const schema = replace(replace(fixture(), "capabilities.edit", "fixture.edit"), "detail.businessTabs", slots);
+  const schema = replace(fixture(), "detail.businessTabs", slots);
   assert.deepEqual(composeTabs(schema).map(t => t.id), ["overview", ...slots.map(s => s.id), "history"]);
+  assert.equal(schema.capabilities.edit, undefined, "business form submit is independent from generic CRUD edit");
+  const salaryKeys = ["amount", "effectiveFrom", "reason"];
+  assert.doesNotThrow(() => defineTddModule(replace(schema, "detail.businessTabs.2.fields", salaryKeys)), "form fields belong to the business provider, not the public Staff directory");
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.fields", ["amount", "amount"])), /duplicate/);
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.fields", ["staff.*"])), /invalid business form field key/);
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.submitPermission", "fixture.read")), /distinct/);
+  assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.2.submitPermission", "")), /nonempty/);
   assert.throws(() => defineTddModule(replace(schema, "detail.businessTabs.0.className", "shell")));
 });
 test("history diffs require registered, authorized, correctly typed field projections", async () => {
@@ -335,4 +342,39 @@ test("literal field schemas retain typed BO/HO data adapters and query reference
     validateQuery(registered, state, surface === "BO" ? bo : ho);
     assert.deepEqual(composeTabs(registered).map(t => t.id), ["overview", "history"]);
   }
+});
+
+test("PAP-1256: tab visibility is row-kind declarative and applies after permission filtering", () => {
+  const model = fixture("HO");
+  const source = model.detail.businessTabs[0]!;
+  const spec = defineTddModule({
+    ...model, detail: {...model.detail, businessTabs: [
+      {...source, id:"calibration", label:"Calibration", visibility:{field:"select",op:"neq",value:"SET"} },
+      {...source, id:"members", label:"Thành viên", visibility:{field:"select",op:"eq",value:"SET"} },
+      {...source, id:"variants", label:"Biến thể" },
+    ]}
+  });
+  const ids=(row?:Record<string,unknown>|null,auth:AuthorizationContext=ho)=>authorizedTabs(spec,auth,row).map(t=>t.id);
+  assert.deepEqual(ids({select:"SET"}),["overview","members","variants","history"]);
+  assert.deepEqual(ids({select:"WEARABLE"}),["overview","calibration","variants","history"]);
+  assert.deepEqual(ids({select:"ACCESSORY"}),["overview","calibration","variants","history"]);
+  assert.deepEqual(ids(null),["overview","variants","history"],"unknown row cannot leak business conditional tabs");
+  assert.deepEqual(ids({select:123}),["overview","variants","history"],"wrong type fails closed");
+  assert.deepEqual(ids({select:"SET"},{surface:"HO",authorize:p=>p==="fixture.read"}),["overview","history"],"no ACL bypass");
+  assert.deepEqual(ids({select:"SET"},{surface:"HO",authorize:p=>p!=="fixture.read"}),[],"module read denial hides all");
+  assert.deepEqual(ids({select:"SET"},{surface:"BO",centerId:"x",authorize:()=>true}),[],"surface isolation");
+});
+test("PAP-1256: reject malformed or unsafe row visibility declarations at G0",()=>{
+ const model=fixture("HO"), slot=model.detail.businessTabs[0];
+ const variant=(v:unknown)=>replace(model,"detail.businessTabs.0",{...slot,visibility:v});
+ for(const unsafe of [
+  {field:"missing",op:"eq",value:"SET"},
+  {field:"boolean",op:"eq",value:"SET"},
+  {field:"select",op:"script",value:"SET"},
+  {field:"select",op:"eq",value:""},
+  {field:"select",op:"eq",value:"SET",fn:"alert(1)"},
+  {field:"select",op:"neq",value:2},
+ ]) assert.throws(()=>defineTddModule(variant(unsafe)),/visibility|invalid|unknown property/);
+ const hidden=replace(model,"fields",model.fields.map(f=>f.key==="select"?{...f,capabilities:{...f.capabilities,display:false}}:f));
+ assert.throws(()=>defineTddModule(replace(hidden,"detail.businessTabs.0",{...slot,visibility:{field:"select",op:"eq",value:"SET"}})),/visibility|display field/);
 });

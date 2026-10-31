@@ -1,19 +1,27 @@
 "use client";
 import { BoValue } from "../../bo/components/registration/BoValue";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
+import type { ReactNode } from "react";
+
+/** Presentation seam receives only the renderer's authorized record projection. */
+export type OverviewProperties = {
+  readonly fields: readonly BoField[]; readonly record: BoRecord;
+  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
+};
 
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
-export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false }: {
+export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false, sectionActions }: {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
   readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
   readonly variant: "drawer" | "detail"; readonly legacyStyles?: boolean;
+  readonly sectionActions?: (sectionId: string) => ReactNode;
   readonly canEdit?: (field: BoField) => boolean;
   readonly onEdit?: (field: BoField, anchor: HTMLButtonElement) => void;
 }) {
   const visibleSections = sections.filter(section => section.fields.some(key => fields.some(f => f.key === key)));
   if (!visibleSections.length) return <p role="status">Không có thuộc tính được phép xem.</p>;
   return <>{visibleSections.map(section => <section key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-properties={variant}>
-    {variant === "drawer" ? <h3>{section.label}</h3> : <div className="v24-section-heading"><h4>{section.label}</h4><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
+    {variant === "drawer" ? <h3>{section.label}</h3> : <div className="v24-section-heading"><h4>{section.label}</h4>{sectionActions?.(section.id)}<span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
     <div className={variant === "detail" ? "v24-prop-grid" : undefined}>{section.fields.map(key => {
       const field = fields.find(f => f.key === key); if (!field) return null;
       const editable = Boolean(onEdit && canEdit?.(field));

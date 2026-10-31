@@ -10,13 +10,21 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
     "test:e2e": "playwright test",
+    "tdd:g3:fixtures": "node --import tsx scripts/render-tdd-g3-fixtures.tsx",
+    "tdd:g3:test": "playwright test e2e/tdd-g3-geometry.spec.ts --workers=2 --reporter=list",
+    "tdd:g3:artifacts:verify": "node scripts/verify-tdd-g3-artifacts.mjs",
+    "tdd:g4:contract:test": "node --import tsx --test lib/tdd-g4-staging-config.test.ts",
+    "tdd:g4:readonly": "node --import tsx scripts/run-tdd-g4-readonly.mjs",
+    "tdd:g4:local-cdp": "node scripts/run-tdd-g4-live-cdp.mjs",
     "bo:contract:check": "node scripts/verify-bo-module-contract.mjs && node --test scripts/verify-bo-module-contract.test.mjs && node scripts/verify-bo-runtime-surface-ownership.mjs && node --test scripts/verify-bo-runtime-surface-ownership.test.mjs",
     "bo:module:new": "node scripts/create-bo-module.mjs",
+    "tdd:new-module": "node scripts/create-tdd-module.mjs",
+    "tdd:new-special-request": "node scripts/create-tdd-special-request.mjs",
     "delivery:enter": "node scripts/delivery-entry.mjs",
     "pino:resume": "node scripts/delivery-entry.mjs",
     "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "tdd:authority:check": "node --import tsx scripts/verify-tdd-authority.mjs",
-    "tdd:authority:test": "node --import tsx --test scripts/verify-tdd-authority.test.mjs",
+    "tdd:authority:test": "node --import tsx --test scripts/verify-tdd-authority.test.mjs scripts/create-tdd-module.test.mjs scripts/create-tdd-special-request.test.mjs",
     "tos:ds:check": "node scripts/verify-tos-ds-v4.mjs"
   },
   "dependencies": {
@@ -25,6 +33,7 @@
     "@fortawesome/react-fontawesome": "^3.5.0",
     "@notionhq/client": "^5.6.0",
     "@opennextjs/cloudflare": "1.20.12",
+    "@pino/design-system": "file:vendor/pino-design-system/pino-design-system-0.3.0.tgz",
     "jose": "^6.2.12",
     "next": "16.4.2",
     "react": "^19.1.0",
@@ -36,11 +45,11 @@
     "@types/node": "^20.19.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "esbuild": "0.28.2",
     "eslint": "^9.33.0",
     "eslint-config-next": "16.4.2",
+    "postcss": "8.5.23",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.0",
-    "esbuild": "0.28.2",
-    "postcss": "8.5.23"
+    "typescript": "^5.9.0"
   }
 }

@@ -23,6 +23,7 @@ type HomeProps={
  nextAssignment?:Assignment|null;
  founderMode?:boolean;
  busy:boolean;
+ scheduleLoading?:boolean;
  allowed:(app:TosVNextAppId)=>boolean;
  onOpen:(app:TosVNextAppId)=>void;
  onNotify:()=>void;
@@ -36,7 +37,7 @@ function shiftHours(assignment:Assignment|null|undefined){
  const end=time(assignment.effectiveEndLocal)||time(assignment.shift?.endLocalTime);
  return start&&end?`${start}–${end}`:"";
 }
-export function TosVNextHome({profileLabel,centerName,authorizedCenters,selectedCenterId,onCenterChange,nextAssignment,founderMode=false,busy,allowed,onOpen,onNotify,notice}:HomeProps){
+export function TosVNextHome({profileLabel,centerName,authorizedCenters,selectedCenterId,onCenterChange,nextAssignment,founderMode=false,busy,scheduleLoading=false,allowed,onOpen,onNotify,notice}:HomeProps){
  const settingsButton=useRef<HTMLButtonElement>(null),settingsMenu=useRef<HTMLElement>(null);
  const [backgroundReady,setBackgroundReady]=useState(false);
  const [settingsOpen,setSettingsOpen]=useState(false);
@@ -85,10 +86,10 @@ export function TosVNextHome({profileLabel,centerName,authorizedCenters,selected
     <LogoutButton className={shell.homeLogout}/>
    </section>}
    <button type="button" className={home.shiftCard} disabled={busy||!allowed("shift")}
-    aria-label={busy||!allowed("shift")?"Chưa xác minh lịch ca":"Mở Ca Làm"}
+    aria-label={busy||!allowed("shift")?"Chưa xác minh tài khoản hoặc cơ sở":"Mở Ca Làm"}
     onClick={()=>onOpen("shift")}>
     <span className={home.shiftTopline}><span className={home.statusDot}/>
-     <strong>{founderMode?"Founder · Giám sát TOS":busy?"Đang tải ca":nextAssignment?"Ca được phân công":"Chưa có ca sắp tới"}</strong>
+     <strong>{founderMode?"Founder · Giám sát TOS":scheduleLoading?"Đang tải ca":nextAssignment?"Ca được phân công":"Chưa có ca sắp tới"}</strong>
      <b className={home.shiftTime}>{shiftText}</b><span className={home.shiftChevron}>›</span>
     </span>
     <span className={home.shiftPlace}>⌖ &nbsp; {centerName||"Chưa xác định trung tâm"}
@@ -99,7 +100,7 @@ export function TosVNextHome({profileLabel,centerName,authorizedCenters,selected
     <div className={home.sectionHeading}><h2>Ứng dụng</h2><span>{SIX_TOS_APPS.length} apps</span></div>
     <div className={home.appGrid}>
      {SIX_TOS_APPS.map(app=>{
-      const enabled=(founderMode||app.id!=="shift-lead")&&!busy&&allowed(app.id);
+      const enabled=!busy&&allowed(app.id);
       return <button key={app.id} type="button" className={`${home.appTile} ${!enabled?home.disabled:""}`}
        disabled={!enabled} aria-label={enabled?`Mở ${app.title}`:`${app.title} chưa có quyền`}
        onClick={()=>onOpen(app.id)}>

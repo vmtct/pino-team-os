@@ -47,6 +47,13 @@ test("PAP-1050 Worker-first Staging alias canonicalizes before host auth without
 });
 
 
+test("PAP-1111 Worker-first note POST reaches Next, not the generic 404",async()=>{
+ const path="/api/bo/workforce/planning/assignment/note";
+ const ok=await route(bo,path,"POST");assert.equal(ok.status,200);assert.deepEqual(ok.calls,["application"]);
+ for(const method of ["GET","HEAD","PUT","PATCH","DELETE"]) {const r=await route(bo,path,method);assert.equal(r.status,404);assert.deepEqual(r.calls,[]);}
+ for(const host of ["bo.pinohouse.art",ho,tos]) {const r=await route(host,path,"POST");assert.equal(r.status,404);assert.deepEqual(r.calls,[]);}
+});
+
 test("PAP-1035 Worker-first BO Enrollment GETs reach authenticated Next facade; writes and other hosts stay fenced",async()=>{
  const uuid="019d9881-1025-7000-8000-000000001244";
  const paths=[`/api/bo/subscriptions/${uuid}`,`/api/bo/subscriptions/${uuid}/enrollments`,

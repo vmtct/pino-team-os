@@ -1,5 +1,5 @@
 export const HO_ALLOWED_READ_PATHS = new Set([
-  "centers", "access/users", "access/roles", "access/permissions", "access/audit",
+  "workforce/staff-records", "centers", "access/users", "access/roles", "access/permissions", "access/audit",
   "learning/syllabi", "learning/syllabi/owners", "learning/missions",
   "pinoria/worlds", "pinoria/ward/catalog", "pinoria/ward/sets", "pinoria/effects/catalog",
 ]);

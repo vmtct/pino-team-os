@@ -11,6 +11,7 @@ import type { TablePolicy } from "./TablePolicy";
 import { dispatchCellEdit } from "./editing";
 import { PropertyEditor } from "./Editor";
 import { normalizeFreezeBoundary } from "@/lib/tdd-column-freeze";
+import type { TddActionBindings } from "@/lib/workspace-schema";
 
 export type SavedTddView<F extends readonly FieldSchema[]> = { readonly id: string; readonly name: string; readonly state: TableQuery<F>; readonly version?: string };
 /** View switches replace a snapshot; omitted legacy freeze cannot inherit another view's boundary. */
@@ -57,7 +58,7 @@ export type TddTableProps<F extends readonly FieldSchema[]> = {
   readonly rows: readonly ModuleRow<F>[]; readonly query: TableQuery<F>; readonly onQueryChange: (query: TableQuery<F>) => void;
   readonly onOpen: (record: BoRecord) => void; readonly status: "ready" | "loading" | "error" | "denied";
   readonly onRetry?: () => void; readonly total?: number; readonly viewTransport?: ViewTransport<F>;
-  readonly writes?: TableWrites<F>;
+  readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings;
 };
 export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<F>) {
   const schema = registeredSchema(props.registry, props.schema);
@@ -154,7 +155,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
       if (redo) { setUndo([...undo, current]); setFuture(future.slice(0, -1)); } else { setFuture([...future, current]); setUndo(undo.slice(0, -1)); }
     } catch { setMessage("Không thể khôi phục cấu hình không hợp lệ."); }
   };
-  return <div data-tdd-shell="table" data-tdd-surface={schema.surface} onKeyDown={event => {
+  return <div data-tdd-shell="table" data-tdd-freeze-controls="" data-tdd-surface={schema.surface} onKeyDown={event => {
     if (event.target instanceof Element && event.target.closest("input,textarea,select")) return;
     if (event.key === "/" && policy.search.length) { event.preventDefault(); event.currentTarget.querySelector<HTMLInputElement>("#search")?.focus(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && schema.table.interaction.undo === "local-ui-only") { event.preventDefault(); event.stopPropagation(); restore(event.shiftKey); }

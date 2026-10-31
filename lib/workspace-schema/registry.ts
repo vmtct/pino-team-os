@@ -1,6 +1,7 @@
 import { isFieldValue, type FieldSchema, type FieldKey } from "./fields";
 import type { Approval, AuthorizationContext, BusinessSlot, CompatibilityScreen, HistoryResult, HistorySubject, ModuleSchema } from "./schema";
 import { allows, allowsField, validateApproval, validateModule } from "./validate";
+import type { TddActionDescriptor } from "./schema";
 
 /** Snapshot at admission: later author mutations cannot change a registered contract. */
 function snapshot<T>(value: T): T {
@@ -25,9 +26,19 @@ export function composeTabs<F extends readonly FieldSchema[]>(module: ModuleSche
   ] as ComposedTab<FieldKey<F>>[]);
 }
 /** Permission filtering never removes the visible system History tab. */
-export function authorizedTabs<F extends readonly FieldSchema[]>(module: ModuleSchema<F>, context: AuthorizationContext) {
+export function authorizedTabs<F extends readonly FieldSchema[]>(module: ModuleSchema<F>, context: AuthorizationContext, record?: Readonly<Record<string, unknown>> | null) {
   if (!allows(module, context, "read")) return [];
-  return composeTabs(module).filter(tab => tab.owner === "system" || context.authorize(tab.slot.source.permission));
+  return composeTabs(module).filter(tab => {
+    if (tab.owner === "system") return true;
+    if (!context.authorize(tab.slot.source.permission)) return false;
+    const rule = tab.slot.visibility;
+    if (!rule) return true;
+    const field = module.fields.find(f => f.key === rule.field);
+    if (!record || !field || !allowsField(module, context, field.key, "display")) return false;
+    const value = record[rule.field];
+    if (typeof value !== "string") return false;
+    return rule.op === "eq" ? value === rule.value : value !== rule.value;
+  });
 }
 export async function loadHistory(module: ModuleSchema, subject: HistorySubject, context: AuthorizationContext, signal: AbortSignal, cursor: string | null = null): Promise<HistoryResult> {
   validateModule(module);
@@ -110,4 +121,40 @@ export class TddRegistry {
     if ("route" in entry && [...this.entries.values()].some(e => "route" in e && e.surface === entry.surface && e.route === entry.route)) throw Error("TDD contract: duplicate compatibility route");
     this.entries.set(key, entry);
   }
+}
+/** Domain adapter must read back persisted state before returning verified. */
+export type TddActionResult = Readonly<{
+  state: "verified" | "denied" | "conflict" | "invalid" | "unverified";
+  message?: string;
+}>;
+export type TddActionHandler = Readonly<{
+  run: () => void | TddActionResult | Promise<void | TddActionResult>;
+  kind?: "navigation" | "mutation";
+  disabled?: boolean;
+  /** Optional pure adapter predicate; invisible actions are not mounted or focusable. */
+  visible?: boolean;
+}>;
+export type TddActionFeedback = Readonly<{ kind: "none" | "success" | "error"; message: string }>;
+/** Mutation outcome is never inferred from a fulfilled promise or a transport 2xx. */
+export function tddActionFeedback(handler: TddActionHandler, result: unknown): TddActionFeedback {
+  if (handler.kind !== "mutation") return { kind: "none", message: "" };
+  const state = result && typeof result === "object" && "state" in result ? (result as { state: unknown }).state : undefined;
+  switch (state) {
+    case "verified": return { kind: "success", message: "Thao tác đã được xác minh." };
+    case "denied": return { kind: "error", message: "Không có quyền thực hiện. Kiểm tra phiên đăng nhập." };
+    case "conflict": return { kind: "error", message: "Dữ liệu đã thay đổi. Tải lại trước khi lưu." };
+    case "invalid": return { kind: "error", message: "Dữ liệu chưa hợp lệ. Kiểm tra lại biểu mẫu." };
+    default: return { kind: "error", message: "Chưa xác minh được kết quả. Đọc lại dữ liệu trước khi thử lại." };
+  }
+}
+export type TddActionBindings = Readonly<Record<string, TddActionHandler | undefined>>;
+/** Server/client safe: check permission from an authenticated context and an actual handler. */
+export function authorizedHostActions<F extends readonly FieldSchema[]>(
+  schema: ModuleSchema<F>, context: AuthorizationContext,
+  slot: TddActionDescriptor["slot"], bindings: TddActionBindings, targetId?: string, formMode?: "create" | "edit",
+): readonly TddActionDescriptor[] {
+  const eligible = (schema.actions ?? []).filter(action => action.slot === slot && action.targetId === targetId && action.formMode === formMode &&
+    allows(schema, context, action.capability) && Boolean(bindings[action.handler]) && bindings[action.handler]?.visible !== false);
+  return [...eligible.filter(action => action.variant !== "primary"),
+    ...eligible.filter(action => action.variant === "primary")];
 }

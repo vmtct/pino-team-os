@@ -24,7 +24,13 @@ export function scopeHoCss(text) {
     const retiredNav = /(?:^|[\s>+~])\.(?:nav-workspace(?:-[\w-]+)?|workspace-angle)(?=$|[\s.:#>+~\[])/;
     const selectors = rule.selectors.filter(selector => !retiredNav.test(selector));
     if (!selectors.length) { rule.remove(); return; }
-    rule.selectors = selectors.flatMap(selector => {
+    const hides = rule.nodes.some(node => node.type === "decl" && node.prop === "display" && node.value.trim() === "none");
+    const tableControl = /(?:^|[\s>+~])(?:#(?:undo-v22|redo-v22|filter-toggle|visible-columns|reset-all|group-shortcut|save-view)|\.(?:toolbar-button|view-add))(?=$|[\s.:#>+~\[])/;
+    rule.selectors = selectors.flatMap(original => {
+      // PAP-1229: readonly legacy composition cannot hide typed TDD view controls.
+      // Preserve source bytes and all presentation values; scope only the hide rule.
+      const selector = hides && tableControl.test(original)
+        ? original + ':where(:not([data-tdd-shell="table"] *))' : original;
       // Theme rules already match html[data-surface="ho"]; never gate twice.
       if (/^\[data-surface=(?:"ho"|'ho')\](?=[\s:.#>+~\[]|$)/.test(selector))
         return [selector.replace(/^\[data-surface='ho'\]/, '[data-surface="ho"]')];

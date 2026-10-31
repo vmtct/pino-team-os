@@ -89,7 +89,7 @@ function cloneConfig(config: BoViewConfig): BoViewConfig {
     groupBy: config.groupBy,
     hideEmptyGroups: config.hideEmptyGroups,
     columns: { order: [...config.columns.order], visible: [...config.columns.visible],
-      ...(config.columns.frozenThrough !== undefined ? { frozenThrough: config.columns.frozenThrough } : {}) },
+      ...(Object.hasOwn(config.columns, "frozenThrough") ? { frozenThrough: config.columns.frozenThrough } : {}) },
   };
 }
 function cloneView(view: BoPublicView): BoPublicView {
@@ -127,19 +127,23 @@ export function validateBoViewConfig(config: BoViewConfig, allowedFields: readon
     ...(f.value !== undefined ? { value: safeValue(f.value) } : {}),
     ...(f.end !== undefined ? { end: safeValue(f.end) } : {}),
   }));
-  const { order, visible, frozenThrough } = config.columns;
+  const { order, visible } = config.columns;
   if (!Array.isArray(order) || !Array.isArray(visible) || order.length > FIELD_LIMIT || visible.length > FIELD_LIMIT ||
     new Set(order).size !== order.length || new Set(visible).size !== visible.length ||
     order.some(key => !validField(key)) || visible.some(key => !validField(key) || !order.includes(key))) {
     throw new Error("Invalid column visibility or order");
   }
-  if (frozenThrough !== undefined && frozenThrough !== null &&
-      (!validField(frozenThrough) || !order.includes(frozenThrough) || !visible.includes(frozenThrough))) {
-    throw new Error("Invalid column freeze boundary");
+  // PAP-1105/PAP-1107: preserve Core's absent/null/string wire semantics. Core
+  // remains authority for each module's display Identity and write authorization.
+  const hasFreeze = Object.hasOwn(config.columns, "frozenThrough");
+  const frozenThrough = config.columns.frozenThrough;
+  if (hasFreeze && frozenThrough !== null && (typeof frozenThrough !== "string" ||
+      !validField(frozenThrough) || frozenThrough === "id" || !visible.includes(frozenThrough))) {
+    throw new Error("Invalid freeze boundary");
   }
   return cloneConfig({ search: config.search, sort: config.sort, filters: values, logic: config.logic,
     groupBy: config.groupBy, hideEmptyGroups: config.hideEmptyGroups,
-    columns: { order, visible, ...(frozenThrough !== undefined ? { frozenThrough } : {}) } });
+    columns: { order, visible, ...(hasFreeze ? { frozenThrough } : {}) } });
 }
 
 export function defaultBoViewConfig(fields: readonly string[]): BoViewConfig {

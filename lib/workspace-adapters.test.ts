@@ -65,10 +65,7 @@ function server(surface: "BO" | "HO") {
       if (!selected) return receipt(null, 404);
       if (selected.version !== body.expectedVersion) return receipt(null, 409);
       if (request.method === "DELETE") { state.views = state.views.filter(v => v.id !== selected.id); return receipt({ id: selected.id, deleted: true }); }
-      const patchedConfig = body.config ? { ...body.config, columns: { ...body.config.columns,
-        ...(!Object.hasOwn(body.config.columns, "frozenThrough") && selected.config.columns.frozenThrough !== undefined
-          ? { frozenThrough: selected.config.columns.frozenThrough } : {}) } } : undefined;
-      const updated = { ...selected, version: selected.version + 1, ...(body.name ? {name:body.name} : {}), ...(patchedConfig ? {config:patchedConfig} : {}) };
+      const updated = { ...selected, version: selected.version + 1, ...(body.name ? {name:body.name} : {}), ...(body.config ? {config:{...body.config,columns:{...body.config.columns,...(!Object.hasOwn(body.config.columns,"frozenThrough") && Object.hasOwn(selected.config.columns,"frozenThrough") ? {frozenThrough:selected.config.columns.frozenThrough} : {})}}} : {}) };
       state.views = state.views.map(v => v.id === selected.id ? updated : v); return receipt(updated);
     }
     if (request.path === "audit/subject") return { status: 200, body: { data: { events: [], nextCursor: null } }, requestId: "history" };
@@ -170,6 +167,16 @@ test("HO Founder admission remains a server requirement even with every schema p
   const writable = { ...provider("HO"), mutation: () => ({ update: async () => ({ status: "denied" as const }) }) };
   await assert.rejects(setup("HO", definition("HO", true), writable), fails(403));
 });
+for (const surface of ["BO", "HO"] as const) test(`${surface}: independent business form admission never enables generic record mutation`, async () => {
+  const base = definition(surface);
+  const form = { ...base, detail: { ...base.detail, businessTabs: [{ id: "rate", label: "Rate", kind: "form" as const, fields: ["count"] as const, source: { adapter: "salary.rate", permission: "rate.read" }, submitPermission: "rate.submit" }] } };
+  const { adapter } = await setup(surface, form);
+  assert.equal(adapter.schema.capabilities.edit, undefined);
+  assert.equal(adapter.schema.detail.businessTabs[0].kind, "form");
+  assert.equal(adapter.mutation, undefined);
+  const defectiveMutation = { ...provider(surface), mutation: () => ({ update: async () => ({ status: "denied" as const }) }) };
+  await assert.rejects(setup(surface, form, defectiveMutation), fails(403));
+});
 test("Malformed identity/scope/count responses fail closed without an alternate provider", async () => {
   const bad = await setup("BO", definition("BO"), { ...provider("BO"), detail: async () => ({ row: { ...row, id: other }, centerId: center }) });
   await assert.rejects(bad.adapter.detail(recordId, signal()), fails(502));
@@ -188,14 +195,18 @@ test("Read-only providers cannot be upgraded by schema capabilities", async () =
   await assert.rejects(setup("BO", definition("BO", true)), fails(403));
   const original = definition("BO"); await assert.rejects(setup("BO", { ...original, capabilities: { ...original.capabilities, create: "fixture.edit" } }), fails(403));
 });
-test("Concrete read providers reuse existing facades without registering live pilots", async () => {
+test("Concrete read providers preserve isolation and Centers adoption is explicitly registered", async () => {
   const api = server("HO"); const actual = hoCentersProvider((row): { id: string; name: string; count: number; secret: undefined } => ({ id: row.id, name: row.name, count: 0, secret: undefined }));
   const fetcher: typeof fetch = (input, init) => api.fetcher(input, { ...init, credentials: "same-origin", cache: "no-store", redirect: "error" });
   const records = await actual.list(query, { surface: "HO" }, fetcher, signal()); assert.equal(records.total, 1); assert.equal(records.records[0].row.name, "Center fixture");
   await assert.rejects(actual.detail(center, { surface: "BO", centerId: center }, api.fetcher, signal()), fails(403));
   const planning = boPlanningProvider<F>(other, snapshot => snapshot.assignments.map(item => ({ row: { ...row, id: item.id }, centerId: item.centerId })));
   await assert.rejects(planning.detail(recordId, { surface: "HO" }, api.fetcher, signal()), fails(403));
-  assert.equal(readFileSync("app/ho/centers/HoCenters.tsx", "utf8").includes("createHoTddAdapter"), false);
+  // PAP-1076 explicitly adopts this pilot; S2 no-adoption freeze is fulfilled.
+  const admission = JSON.parse(readFileSync("config/tdd-admission.json", "utf8")).modules.find((entry: { surface: string; key: string }) => entry.surface === "HO" && entry.key === "centers");
+  assert.equal(admission.profile, "TDD_DEFAULT");
+  assert.deepEqual(admission.binding, { kind: "SURFACE_WORKSPACE_ADAPTER", file: "app/ho/centers/HoCenters.tsx" });
+  assert.equal(readFileSync(admission.binding.file, "utf8").includes("createHoTddAdapter"), true);
 });
 
 async function inBrowser<T>(origin: string, run: () => Promise<T>) {
@@ -405,6 +416,7 @@ for(const surface of ["BO","HO"] as const)test(`${surface}: approved module defa
   assert.equal((await setup(surface)).adapter.schema.table.views.builtIn.length,0);
 });
 
+
 for (const frozenThrough of [undefined, null, "count"] as const) test(`PAP-1105 adapter: freeze ${String(frozenThrough)} roundtrips without coercion`, async () => {
   const { adapter } = await setup("BO");
   const state = { ...query, ...(frozenThrough !== undefined ? { frozenThrough } : {}) };
@@ -416,7 +428,7 @@ for (const frozenThrough of [undefined, null, "count"] as const) test(`PAP-1105 
 test("PAP-1105 adapter: invalid, hidden, Identity and unauthorized targets fail closed", async () => inBrowser("https://bo.staging.pinohouse.art", async () => {
   const { adapter, state } = await setup("BO", viewsDefinition("BO"));
   const base = toSharedConfig(adapter.schema, query);
-  for (const frozenThrough of ["name", "unknown", 3, false]) {
+  for (const frozenThrough of ["name", "id", "unknown", 3, false]) {
     assert.throws(() => fromSharedConfig(adapter.schema, { ...base, columns: { ...base.columns, frozenThrough } } as never));
     assert.throws(() => toSharedConfig(adapter.schema, { ...query, frozenThrough } as never));
   }
@@ -444,13 +456,13 @@ test("PAP-1105 BO: persisted freeze create/list/update/reload; null clears; lega
   next = await transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:null}})),adapter.context,signal());
   assert.equal(next[0].state.frozenThrough,null);
   assert.equal((await adapter.views(signal())).transport!.views[0].state.frozenThrough,null);
-  next = await transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:"id"}})),adapter.context,signal());
-  assert.equal((await adapter.views(signal())).transport!.views[0].state.frozenThrough,"id");
+  next = await transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:"count"}})),adapter.context,signal());
+  assert.equal((await adapter.views(signal())).transport!.views[0].state.frozenThrough,"count");
   state.viewStatus=409;
   const before=state.calls.filter(v=>v.method==="PATCH").length;
   await assert.rejects(transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:null}})),adapter.context,signal()),e=>(e as {status?:number}).status===409);
   assert.equal(state.calls.filter(v=>v.method==="PATCH").length,before+1);
-  assert.equal(state.views[0].config.columns.frozenThrough,"id");
+  assert.equal(state.views[0].config.columns.frozenThrough,"count");
   state.viewStatus=200;state.permissions=state.permissions.filter(p=>p!=="bo.shared_view.manage");
   await assert.rejects(transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:null}})),adapter.context,signal()),fails(403));
   assert.equal(state.calls.filter(v=>v.method==="PATCH").length,before+1);

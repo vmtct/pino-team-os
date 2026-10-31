@@ -37,6 +37,27 @@ test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff s
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art.evil.example", "/bo"), { action: "next" });
 });
 
+test("PAP-1111 assignment Note edit is exact POST on BO Staging only", () => {
+  const route="/api/bo/workforce/planning/assignment/note", bo="bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo,route,"POST"),{action:"next"});
+  for(const method of ["GET","HEAD","PATCH","PUT","DELETE","OPTIONS"]) assert.deepEqual(decideHostBoundary(bo,route,method),{action:"not_found"},method);
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","join.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route,"POST"),{action:"not_found"},host);
+  for(const malformed of [route+"/extra",route+"/",route+"%2fextra",route.toUpperCase(),"/api/bo/workforce/planning/assignment/notes"]) assert.deepEqual(decideHostBoundary(bo,malformed,"POST"),{action:"not_found"},malformed);
+});
+
+test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
+  const route="/api/bo/pinoria/avatars";
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
+  for(const method of ["HEAD","POST","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route),{action:"not_found"},host);
+  for(const path of [route+"/extra",route+"/PERSON:abc",route+"%2f",route.slice(0,-1)]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"},path);
+});
+test("PAP-982 TDD Self Directory page is staging BO GET/HEAD only", () => {
+  for (const m of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/pinoria-avatars",m),{action:"next"});
+  for (const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,"/bo/pinoria-avatars"),{action:"not_found"});
+  for (const path of ["/bo/pinoria-avatars/extra","/bo/pinoria-avatars%2f"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"});
+  for (const m of ["POST","PUT","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/pinoria-avatars",m),{action:"not_found"});
+});
 test("PAP-979 exact subject audit path stays BO-only with no global shortcut", () => {
   assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/audit/subject"), { action: "next" });
   assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/api/bo/audit/subject"), { action: "not_found" });
@@ -207,11 +228,11 @@ test("PAP-863: BO P0 allowlist cannot widen to arbitrary private API or unapprov
 });
 
 test("Shared Views BO paths are host-isolated and module-scoped", () => {
-  for (const path of ["/api/bo/views/students", "/api/bo/views/classes", "/api/bo/views/classes/reorder", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345"]) {
+  for (const path of ["/api/bo/views/students", "/api/bo/views/classes", "/api/bo/views/subscriptions", "/api/bo/views/subscriptions/reorder", "/api/bo/views/subscriptions/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/classes/reorder", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345"]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
   }
-  for (const path of ["/api/bo/views/other", "/api/bo/views/students/garbage", "/api/bo/views/classes/abc/more"]) {
+  for (const path of ["/api/bo/views/other", "/api/bo/views/students/garbage", "/api/bo/views/classes/abc/more", "/api/bo/views/subscriptions/garbage", "/api/bo/views/subscriptions/123/rename", "/api/bo/views/subscriptions/0198d050-56c1-7ac5-b9ab-b0e45d912345/private", "/api/bo/views/subscriptions-extra"]) {
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
   }
 });
@@ -220,11 +241,13 @@ import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
 
 test("Shared Views transport operations pass both BO host and Core route guards", () => {
   const id = "12345678-1234-4123-8123-123456789abc";
-  for (const moduleKey of ["students", "classes"]) {
+  for (const moduleKey of ["students", "classes", "subscriptions"]) {
     for (const [suffix, method] of [["", "GET"], ["", "POST"], ["/reorder", "PUT"], ["/" + id, "PATCH"], ["/" + id, "DELETE"], ["/" + id + "/rename", "PATCH"]] as const) {
       const path = "/api/bo/views/" + moduleKey + suffix;
       assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+      assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art", path), { action: "next" }, path);
       assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
+      assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", path), { action: "not_found" }, path);
       assert.equal(boPublicViewCoreRoute(path.slice("/api/bo/".length), method), path.slice("/api/bo/".length));
     }
   }
@@ -295,4 +318,35 @@ test("PAP-1035 staging Worker-first Enrollment GET admission is exact, never Pro
   "/api/bo/subscriptions/"+u+"/placement/extra","/api/bo/enrollments/"+u+"/unknown-read",
   "/api/bo/enrollments/capacity/extra","/api/bo/enrollments/no"
  ]) assert.deepEqual(decideHostBoundary(bo,p),{action:"not_found"},p);
+});
+
+test("PAP-1220 Classroom Diary path and Core read facade: BO Staging-only, no HO/Production/write",()=>{
+  const staging="bo.staging.pinohouse.art",other=["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"];
+  const page="/bo/classroom-diaries",list="/api/bo/learning/path-diaries";
+  const diaryId="01912345-6789-7abc-8def-0123456789ab",detail=list+"/"+diaryId;
+  assert.deepEqual(decideHostBoundary(staging,page,"GET"),{action:"next"});
+  assert.deepEqual(decideHostBoundary(staging,page,"HEAD"),{action:"next"});
+  for(const p of [list,detail]) assert.deepEqual(decideHostBoundary(staging,p,"GET"),{action:"next"},p);
+  assert.equal(requiresBoStaffPasswordSession(staging,page),true);
+  for(const host of other)for(const p of [page,list,detail])
+    assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"},host+" "+p);
+  for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS"])for(const p of [page,list,detail])
+    assert.deepEqual(decideHostBoundary(staging,p,method),{action:"not_found"},method+" "+p);
+  assert.deepEqual(decideHostBoundary(staging,list,"HEAD"),{action:"not_found"});
+  for(const bad of [page+"/extra",page+"%2f",list+"/unknown",detail+"/evidence",list+"/"+diaryId+"/missions",list+"/wrong",list+"/"])
+    assert.deepEqual(decideHostBoundary(staging,bad,"GET"),{action:"not_found"},bad);
+});
+test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
+  const route = "/api/bo/tv/operator-health";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, route, "GET"), { action: "next" });
+  for (const method of ["HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+    assert.deepEqual(decideHostBoundary(bo, route, method), { action: "not_found" }, method);
+  }
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art", "join.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, route, "GET"), { action: "not_found" }, host);
+  }
+  for (const path of [route + "/extra", route + "/", route + "%2fextra", route.toUpperCase(), "/api/bo/tv/operator-healthz"]) {
+    assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
+  }
 });

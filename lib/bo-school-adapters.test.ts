@@ -5,8 +5,8 @@ import {boSkeletonRoute,BO_SKELETON_HOST} from "./bo-skeleton-routing";
 const {modules,load}=createRequire(import.meta.url)("../public/bo-authority-source/school-adapters.js");
 const id=(n:number)=>"00000000-0000-4000-8000-"+String(n).padStart(12,"0");
 const ok=(data:unknown)=>new Response(JSON.stringify({data}),{headers:{"content-type":"application/json"}});
-test("exactly ten retained read-only modules including Parent; Enrollment is a subscription-class link, no Path module",()=>{
- assert.deepEqual(Object.keys(modules),["students","parents","classes","subscriptions","enrollments","visits","staffs","timekeeping","salaryPeriods","audits"]);
+test("ten retained school read-only modules plus separately scoped Pinoria Self; Enrollment is a subscription-class link",()=>{
+ assert.deepEqual(Object.keys(modules),["pinoria-avatars","students","parents","classes","subscriptions","enrollments","visits","staffs","timekeeping","salaryPeriods","audits"]);
  assert.ok(Object.values(modules).every((m:unknown)=>(m as {fields:{readonly:boolean}[]}).fields.every(f=>f.readonly)));
  assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="subscriptionId"));assert.ok(modules.enrollments.fields.some((f:{key:string})=>f.key==="runningClassId"));
 });
@@ -17,6 +17,26 @@ test("canonical /bo rewrite and legacy redirect are confined to exact staging ho
 test("Classes uses current bootstrap read and maps actual labels/status without legacy fallback",async()=>{
  const calls:string[]=[];const rows=await load("classes",async(url:string,init:RequestInit)=>{calls.push(url);assert.equal(init.method,"GET");return ok({paths:[{id:id(1),displayName:"Art"}],centers:[{id:id(2),displayName:"Test Center"}],runningClasses:[{id:id(3),pathProgramId:id(1),centerId:id(2),operationalName:"Class",weekdayIso:1,windowStartsLocal:"18:00",windowEndsLocal:"19:30",optimalConcurrentCapacity:3,deliveryTopology:"FIXED_COHORT",status:"ARCHIVED"}]});});
  assert.deepEqual(calls,["/api/bo/delivery/bootstrap-state"]);assert.equal(rows[0].status,"ARCHIVED");assert.equal(rows[0].path,"Art");
+});
+test("Running Classes retries only a single Core-authorized Center after global denial",async()=>{
+ const centerId=id(2),calls:string[]=[];
+ const rows=await load("classes",async(url:string)=>{
+  calls.push(url);
+  if(url==="/api/bo/delivery/bootstrap-state")return new Response(null,{status:403});
+  if(url==="/api/bo/workforce/planning/bootstrap")return ok({centers:[{id:centerId,status:"active"}]});
+  assert.equal(url,"/api/bo/delivery/bootstrap-state?centerId="+centerId);
+  return ok({paths:[{id:id(1),displayName:"Art"}],centers:[{id:centerId,displayName:"Cần Thơ"}],runningClasses:[{id:id(3),centerId,pathProgramId:id(1),operationalName:"Class A",weekdayIso:2,windowStartsLocal:"18:00",windowEndsLocal:"19:30",optimalConcurrentCapacity:4,deliveryTopology:"FLEXIBLE",status:"ACTIVE"}]});
+ });
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].center,"Cần Thơ");
+ assert.deepEqual(calls,["/api/bo/delivery/bootstrap-state","/api/bo/workforce/planning/bootstrap","/api/bo/delivery/bootstrap-state?centerId="+centerId]);
+ let scopedRead=false;
+ await assert.rejects(load("classes",async(url:string)=>{
+  if(url==="/api/bo/delivery/bootstrap-state")return new Response(null,{status:403});
+  if(url==="/api/bo/workforce/planning/bootstrap")return ok({centers:[{id:centerId,status:"active"},{id:id(4),status:"active"}]});
+  scopedRead=true;throw Error("Should not select a Center");
+ }),/quyền/);
+ assert.equal(scopedRead,false);
 });
 test("Subscription cursor pagination and Enrollment IDs remain canonical; no mutation calls",async()=>{
  let count=0;const rows=await load("subscriptions",async(url:string,init:RequestInit)=>{assert.equal(init.method,"GET");count++;if(count===2)assert.match(url,/beforeSubscriptionId=/);return ok({items:[{id:id(count),studentDisplayName:"Student",pathDisplayName:"Art",lifecycle:"ACTIVE"}],nextCursor:count===1?{createdAt:"2026-10-25T00:00:00Z",id:id(1)}:null});});assert.equal(rows.length,2);

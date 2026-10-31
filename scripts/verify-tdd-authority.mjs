@@ -13,8 +13,6 @@ const surfaceFile = /^app\/(bo|ho)\//;
 const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
-// PAP-1105 shared Table primitive, compiled by both hash-checked DS generators.
-// This exact source is shared-owner work, never a module admission or migration.
 const sharedExtensions = new Set(['app/components/workspace-renderer/tdd-freeze.css']);
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
 const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -43,35 +41,74 @@ export function graph(root, entry) {
     } walk(ast);
   } visit(entry); return [...files].sort();
 }
-export function inspectModuleSource(file, source) {
+/** Direct imported files are the module's immediate external contract, not a transitive
+ * tree through shared hosts. A shared host can already import grandfathered BO V25. */
+export function directLocalImports(root, file) {
+  if(!fs.existsSync(path.join(root,file))) return [];
+  const ast=parse(file,read(root,file)), dependencies=new Set();
+  function walk(n) {
+    let spec;
+    if((ts.isImportDeclaration(n)||ts.isExportDeclaration(n))&&n.moduleSpecifier&&ts.isStringLiteral(n.moduleSpecifier)) spec=n.moduleSpecifier.text;
+    if(ts.isCallExpression(n)&&(n.expression.kind===ts.SyntaxKind.ImportKeyword||n.expression.getText(ast)==='require')&&ts.isStringLiteral(n.arguments[0])) spec=n.arguments[0].text;
+    if(spec){const target=localFile(root,file,spec);if(target)dependencies.add(target);}
+    ts.forEachChild(n,walk);
+  }
+  walk(ast);
+  return [...dependencies];
+}
+
+function moduleViolations(file, source) {
   const errors=[]; const ast=parse(file,source);
+  const add=(rule,node)=>errors.push({rule,syntax:node.getText(ast)});
   function walk(n) {
     if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)) {
       const tag=n.tagName.getText(ast);
-      if(['table','dialog'].includes(tag)) errors.push('module-owned '+tag+' shell');
+      if(['table','dialog'].includes(tag)) add('module-owned '+tag+' shell',n);
       for(const p of n.attributes.properties) {
-        if(ts.isJsxSpreadAttribute(p)) errors.push('opaque JSX spread (use typed shared component props)');
+        if(ts.isJsxSpreadAttribute(p)) add('opaque JSX spread (use typed shared component props)',p);
         if(!ts.isJsxAttribute(p)) continue;
         const name=p.name.getText(ast);
-        if(name==='style') errors.push('module-owned inline CSS');
-        if(name==='dangerouslySetInnerHTML') errors.push('opaque HTML shell');
+        if(name==='style') add('module-owned inline CSS',p);
+        if(name==='dangerouslySetInnerHTML') add('opaque HTML shell',p);
         if(name==='className') {
           let v=p.initializer;
           if(v&&ts.isJsxExpression(v)) v=v.expression;
-          if(!v || !(ts.isStringLiteral(v)||ts.isNoSubstitutionTemplateLiteral(v))) errors.push('opaque className');
-          else if(shellClass.test(v.text)) errors.push('reserved shell class');
+          if(!v || !(ts.isStringLiteral(v)||ts.isNoSubstitutionTemplateLiteral(v))) add('opaque className',p);
+          else if(shellClass.test(v.text)) add('reserved shell class',p);
         }
-        if(name==='role' && p.initializer && ts.isStringLiteral(p.initializer) && ['dialog','tablist','tabpanel','grid'].includes(p.initializer.text)) errors.push('module-owned shell role');
+        if(name==='role' && p.initializer && ts.isStringLiteral(p.initializer) && ['dialog','tablist','tabpanel','grid'].includes(p.initializer.text)) add('module-owned shell role',p);
       }
     }
     if(ts.isCallExpression(n)) {
       const name=n.expression.getText(ast);
-      if(/(?:createElement|\.innerHTML|insertAdjacentHTML)$/.test(name)) errors.push('opaque programmatic shell');
-      if((n.expression.kind===ts.SyntaxKind.ImportKeyword||name==='require') && (!n.arguments[0]||!ts.isStringLiteral(n.arguments[0]))) errors.push('opaque import');
+      if(/(?:createElement|\.innerHTML|insertAdjacentHTML)$/.test(name)) add('opaque programmatic shell',n);
+      if((n.expression.kind===ts.SyntaxKind.ImportKeyword||name==='require') && (!n.arguments[0]||!ts.isStringLiteral(n.arguments[0]))) add('opaque import',n);
     }
-    if(ts.isBinaryExpression(n)&&/\.(?:innerHTML|outerHTML)$/.test(n.left.getText(ast))) errors.push('opaque HTML assignment');
+    if(ts.isBinaryExpression(n)&&/\.(?:innerHTML|outerHTML)$/.test(n.left.getText(ast))) add('opaque HTML assignment',n);
     ts.forEachChild(n,walk);
-  } walk(ast); return [...new Set(errors)].map(e=>file+': '+e);
+  } walk(ast); return errors;
+}
+export function inspectModuleSource(file, source) {
+  return [...new Set(moduleViolations(file,source).map(item=>file+': '+item.rule))];
+}
+/** PAP-1228: owner-bound external hosts may retain only unchanged opaque JSX.
+ * Compare exact AST syntax and multiplicity to the immutable PR-base source.
+ * All shell/HTML/CSS violations remain fully checked, even if present before. */
+export function inspectModuleDelta(file, before, after) {
+  if(typeof before!=='string') return inspectModuleSource(file,after);
+  const inherited=new Set(['opaque JSX spread (use typed shared component props)','opaque className']);
+  const fingerprint=item=>JSON.stringify([item.rule,item.syntax]);
+  const remaining=new Map();
+  for(const item of moduleViolations(file,before)) if(inherited.has(item.rule)) {
+    const key=fingerprint(item);remaining.set(key,(remaining.get(key)??0)+1);
+  }
+  const errors=[];
+  for(const item of moduleViolations(file,after)) {
+    const key=fingerprint(item),count=remaining.get(key)??0;
+    if(inherited.has(item.rule)&&count>0) remaining.set(key,count-1);
+    else errors.push(file+': '+item.rule);
+  }
+  return [...new Set(errors)];
 }
 export function inspectForeignCss(file,before,after) {
   const collect=css=>{const rules=[];postcss.parse(css).walkRules(r=>rules.push(r.toString()));return new Set(rules);};
@@ -84,12 +121,12 @@ export function inspectCss(file, css, surface) {
   try { postcss.parse(css).walkRules(rule=>{
     if(rule.parent?.type==='atrule' && /keyframes$/.test(rule.parent.name)) return;
     for(const s of rule.selectors) {
-      // Accept the generators' root-token/HTML forms and HO theme root as well
-      // as their ordinary descendant scope. Cross-surface selectors still fail.
-      const scope=surface==='BO'
-        ? /(?:html\[data-bo-ui-authority=["']v25["']\]|(?:html|:root):where\(\[data-bo-ui-authority=["']v25["']\]\))/
-        : /(?:html\[data-surface=["']ho["']\]|(?:html|:root):where\(\[data-surface=["']ho["']\]\)|^\[data-surface=["']ho["']\])/;
-      if(!scope.test(s)|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
+      // Accept the exact host-anchored forms emitted by the canonical HO compiler.
+      // Each selector must begin at the HO host, never at an unrelated ancestor.
+      const boScope=/^(?::root:where\(\[data-bo-ui-authority=["']v25["']\]\)|html:where\(\[data-bo-ui-authority=["']v25["']\]\)|\*?:where\(html\[data-bo-ui-authority=["']v25["']\]\)|html\[data-bo-ui-authority=["']v25["']\])(?=$|[\s:.#>+~\[])/;
+      const hoScope=/^(?::root:where\(\[data-surface=["']ho["']\]\)|html:where\(\[data-surface=["']ho["']\]\)|\*?:where\(html\[data-surface=["']ho["']\]\)|\[data-surface=["']ho["']\])(?=$|[\s:.#>+~\[])/;
+      const scoped=surface==='BO' ? boScope.test(s) : hoScope.test(s);
+      if(!scoped|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
     }
   }); } catch {errors.push(file+': invalid CSS');}
   return [...new Set(errors)];
@@ -104,13 +141,66 @@ export function validateSpecial(entry, approvals, changed, now) {
   if(!exactRoute(a.route,a.surface)||a.route!==entry.route||a.surface!==entry.surface||a.key!==entry.key) errors.push('approval route/surface/key mismatch');
   if(![a.owner,a.justification,a.designAuthority,a.fallback].every(v=>typeof v==='string'&&v.trim())||!Array.isArray(a.permissions)||!a.permissions.length||!a.permissions.every(v=>typeof v==='string'&&v.trim())) errors.push('incomplete special profile');
   const from=Date.parse(a.approvedAt), to=Date.parse(a.expiresAt);
-  if(typeof a.approvedAt!=='string'||typeof a.expiresAt!=='string'||!Number.isFinite(from)||from>now||!Number.isFinite(to)||to<=now||to<=from) errors.push('expired/future approval');
+  if(typeof a.approvedAt!=='string'||!Number.isFinite(from)||from>now) errors.push('expired/future approval');
+  // PAP-1085 explicitly permits permanent Founder decisions, never inferred
+  // from a missing expiry. Revocation, exact scope and base authority still apply.
+  if(a.permanent!==undefined&&typeof a.permanent!=='boolean') errors.push('invalid permanence declaration');
+  if(a.permanent===true) {
+    if(a.expiresAt!==null||typeof a.reviewTrigger!=='string'||!a.reviewTrigger.trim()) errors.push('permanent approval requires null expiry and review trigger');
+  } else if(typeof a.expiresAt!=='string'||!Number.isFinite(to)||to<=now||to<=from) errors.push('expired/future approval');
   if(!Array.isArray(a.files)||!a.files.length||!a.files.every(exactFile)||new Set(a.files).size!==a.files.length||JSON.stringify([...a.files].sort())!==JSON.stringify([...entry.files].sort())) errors.push('approval file fence mismatch');
   if(changed.some(f=>entry.files.includes(f)&&!a.files.includes(f))) errors.push('out-of-scope exception');
   for(const key of ['security','authorization','accessibility','responsive']) if(!Array.isArray(a.tests?.[key])||!a.tests[key].length||!a.tests[key].every(exactFile)) errors.push('missing '+key+' tests');
   return errors;
 }
-export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.now(),loadSchema,approvals=[]}={}) {
+/**
+ * PAP-1134: prove the adapter-backed HO journey that actually renders the shared
+ * TddRenderer through SurfaceWorkspace, without inserting a fake direct JSX call.
+ * This binding is explicit per route, never a generic G0 bypass.
+ */
+export function bindsSurfaceWorkspace(root, entry) {
+  if(!['BO','HO'].includes(entry.surface)||entry.binding?.kind!=='SURFACE_WORKSPACE_ADAPTER') return false;
+  const file=entry.binding?.file;
+  if(!file||!entry.files.includes(file)||!fs.existsSync(path.join(root,file))) return false;
+  const ast=parse(file,read(root,file)), imported=new Map();
+  for(const statement of ast.statements) if(ts.isImportDeclaration(statement)&&ts.isStringLiteral(statement.moduleSpecifier)) {
+    const target=localFile(root,file,statement.moduleSpecifier.text);
+    for(const item of statement.importClause?.namedBindings?.elements??[]) imported.set(item.name.text,{target,original:item.propertyName?.text??item.name.text});
+  }
+  const workspaceNames=[...imported].filter(([,v])=>v.original==='SurfaceWorkspace'&&v.target==='app/components/workspace-adapters/SurfaceWorkspace.tsx').map(([k])=>k);
+  const adapterNames=[...imported].filter(([,v])=>v.original===(entry.surface==='BO'?'createBoTddAdapter':'createHoTddAdapter')&&v.target==='lib/workspace-adapters/index.ts').map(([k])=>k);
+  const registryNames=[...imported].filter(([,v])=>v.original==='TddRegistry'&&v.target==='lib/workspace-schema/index.ts').map(([k])=>k);
+  if(!workspaceNames.length||!adapterNames.length||!registryNames.length) return false;
+  let rendered=false,adapted=false,registeredDefinition=false;
+  const schemaAst=parse(entry.schema.file,read(root,entry.schema.file));
+  const registeredNames=[];
+  function scanSchema(n){
+    if(ts.isVariableDeclaration(n)&&ts.isIdentifier(n.name)&&n.name.text===entry.schema.export&&n.initializer&&ts.isCallExpression(n.initializer)&&ts.isPropertyAccessExpression(n.initializer.expression)&&n.initializer.expression.name.text==='register') {
+      const arg=n.initializer.arguments[0];
+      if(arg&&ts.isObjectLiteralExpression(arg)) for(const prop of arg.properties) if(ts.isSpreadAssignment(prop)&&ts.isIdentifier(prop.expression)) registeredNames.push(prop.expression.text);
+    }
+    ts.forEachChild(n,scanSchema);
+  } scanSchema(schemaAst);
+  if(!registeredNames.length) return false;
+  function scan(n){
+    if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)) {
+      if(workspaceNames.includes(n.tagName.getText(ast))) {
+        const adapter=[...n.attributes.properties].find(a=>ts.isJsxAttribute(a)&&a.name.getText(ast)==='adapter');
+        if(adapter?.initializer&&ts.isJsxExpression(adapter.initializer)&&adapter.initializer.expression&&ts.isPropertyAccessExpression(adapter.initializer.expression)&&adapter.initializer.expression.name.text==='adapter') rendered=true;
+      }
+    }
+    if(ts.isCallExpression(n)&&ts.isIdentifier(n.expression)&&adapterNames.includes(n.expression.text)&&n.arguments.length===2&&ts.isObjectLiteralExpression(n.arguments[0])) {
+      const options=n.arguments[0];
+      const named=key=>options.properties.find(p=>ts.isPropertyAssignment(p)&&p.name?.getText(ast)===key);
+      const definition=named('definition'),provider=named('provider'),registry=named('registry');
+      if(definition&&ts.isIdentifier(definition.initializer)&&imported.get(definition.initializer.text)?.target===entry.schema.file&&registeredNames.includes(imported.get(definition.initializer.text)?.original)&&provider&&ts.isIdentifier(provider.initializer)&&imported.get(provider.initializer.text)?.target===entry.schema.file&&registry&&ts.isNewExpression(registry.initializer)&&ts.isIdentifier(registry.initializer.expression)&&registryNames.includes(registry.initializer.expression.text)&&(entry.surface==='HO'||Boolean(named('centerId')))) adapted=true;
+    }
+    ts.forEachChild(n,scan);
+  } scan(ast);
+  return rendered&&adapted;
+}
+
+export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.now(),loadSchema,approvals=[],readBaseSource=()=>null}={}) {
   baseline??=JSON.parse(read(root,'config/tdd-inventory.json'));
   manifest??=JSON.parse(read(root,MANIFEST));
   const errors=[],reports=[],tests=new Set();
@@ -129,7 +219,27 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     const impacted=changed.includes(MANIFEST)||changed.some(f=>e.files.includes(f)||dependencies.includes(f)||canonical.test(f)||/^(?:public\/(?:bo|ho)-authority-source\/|scripts\/build-(?:bo|ho)-authority|app\/ho\/ho-theme\.css|app\/globals\.css)/.test(f));
     if(!impacted) continue;
     for(const f of e.files) if(!fs.existsSync(path.join(root,f))) errors.push(e.file+': missing owned file '+f);
-    for(const f of dependencies.filter(f=>!canonical.test(f))) if(!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
+    for(const f of e.files.filter(f=>sourceFile.test(f) && fs.existsSync(path.join(root,f)))) if(/TODO_TDD_/.test(read(root,f))) errors.push(e.file+': incomplete deny-first TDD scaffold '+f);
+    // Fence all locally-owned code. Pre-existing external graph dependencies belong to
+    // their own BO/HO owners, not to a route's 100+ transitive source-file fence.
+    // When those external files change with admission, require an exact owner reference,
+    // inspect for shell violations and reject missing/unowned imports. Never wildcard.
+    const ownerRoot=e.file.slice(0,e.file.lastIndexOf('/')+1);
+    // Revalidate direct module external imports and sensitive authorization transport on
+    // relevant changes. Do NOT make an unrelated changed legacy BO dependency of a
+    // transitive HO host retroactively subject to HO Staff shell ownership.
+    const directExternals=new Set(e.files.flatMap(f=>directLocalImports(root,f)).filter(f=>!e.files.includes(f)&&!canonical.test(f)));
+    const securityBoundary=/^lib\/(?:ho-auth|team-auth|founder-core|ho-staff-rate-facade|ho-access-guard|ho-routes|ho-system|host-boundary|bo-shell-gate|workspace-adapters\/session)\.(?:ts|tsx)$/;
+    const externalRefs=e.externalReferences??[];
+    for(const reference of externalRefs) if(!reference||!exactFile(reference.file)||!/^PAP-\d+$/.test(reference.owner??'')||reference.file.startsWith(ownerRoot)||canonical.test(reference.file)||e.files.includes(reference.file)||!dependencies.includes(reference.file)||reference.file.endsWith('.css')) errors.push(e.file+': invalid external owner reference');
+    for(const f of dependencies.filter(f=>!canonical.test(f))) {
+      const external=!(f===e.file||f.startsWith(ownerRoot));
+      if(!external&&!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
+      if(external&&changed.includes(f)&&!(baseline.sourceFiles??[]).includes(f)&&(directExternals.has(f)||securityBoundary.test(f))) {
+        if(!externalRefs.some(r=>r.file===f)) errors.push(e.file+': dependency outside admission fence '+f);
+        else if(sourceFile.test(f)) errors.push(...(securityBoundary.test(f) ? inspectModuleSource(f,read(root,f)) : inspectModuleDelta(f,await readBaseSource(f),read(root,f))));
+      }
+    }
     if(e.profile==='FOUNDER_APPROVED_SPECIAL') {
       errors.push(...validateSpecial(e,approvals,changed,now).map(s=>e.file+': '+s));
       const a=approvals.find(a=>a.id===e.approval);
@@ -166,7 +276,8 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
           } ts.forEachChild(n,bind);
         } bind(bindingAst);
       }
-      if(!connected) errors.push(e.file+': explicit imported schema at canonical renderer binding required');
+      if(!connected && e.binding?.kind==='SURFACE_WORKSPACE_ADAPTER') connected=bindsSurfaceWorkspace(root,e);
+      if(!connected) errors.push(e.file+': explicit connected schema at canonical renderer/SurfaceWorkspace binding required');
       try {
         const schema=loadSchema ? await loadSchema(e) : (await import(pathToFileURL(path.join(root,e.schema.file)).href))[e.schema.export];
         const {validateModule}=await import(pathToFileURL(path.join(ROOT,'lib/workspace-schema/validate.ts')).href);
@@ -209,7 +320,8 @@ export async function main() {
   if(git(ROOT,['ls-tree','--name-only',base,MANIFEST])) previous=JSON.parse(git(ROOT,['show',base+':'+MANIFEST])).modules;
   const current=JSON.parse(read(ROOT,MANIFEST));
   for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
-  const result=await verify(ROOT,{changed,baseline,approvals});
+  const readBaseSource=file=>{try{return git(ROOT,['show',base+':'+file]);}catch{return null;}};
+  const result=await verify(ROOT,{changed,baseline,approvals,readBaseSource});
   for(const f of changed.filter(f=>f.endsWith('.css')&&!/^(?:public\/(?:bo|ho)-authority-source\/|app\/ho\/ho-theme\.css)/.test(f))) {
     if(!fs.existsSync(path.join(ROOT,f))) continue;
     let before=''; try {before=git(ROOT,['show',base+':'+f]);} catch {}

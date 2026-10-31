@@ -1,11 +1,12 @@
 /** PAP-1089 / PAP-1088 E — approved target URLs. No route admission or redirects here. */
 export const BO_LEGACY_QUERY_MODULES = [
   "students", "classes", "subscriptions", "enrollments", "visits", "staffs",
-  "timekeeping", "salaryPeriods", "audits", "parents",
+  "timekeeping", "salaryPeriods", "audits", "parents", "missions",
 ] as const;
 type LegacyKey = (typeof BO_LEGACY_QUERY_MODULES)[number];
 type Target = Readonly<{ key: string; path: string; tabs: readonly string[]; legacyModule?: LegacyKey }>;
 export const BO_TARGET_ROUTES = [
+  { key: "missions", path: "/bo/missions", tabs: ["overview", "results", "diary", "history"], legacyModule: "missions" },
   { key: "students", path: "/bo/students", tabs: ["overview", "subscriptions", "history"], legacyModule: "students" },
   { key: "parents", path: "/bo/parents", tabs: ["overview", "students", "contacts", "history"], legacyModule: "parents" },
   { key: "subscriptions", path: "/bo/subscriptions", tabs: ["overview", "enrollment", "history"], legacyModule: "subscriptions" },
@@ -14,6 +15,9 @@ export const BO_TARGET_ROUTES = [
   { key: "workforce-availability", path: "/bo/workforce-availability", tabs: ["overview", "history"] },
   { key: "workforce-assignments", path: "/bo/workforce-assignments", tabs: ["overview", "history"] },
   { key: "payroll-periods", path: "/bo/payroll-periods", tabs: ["overview", "history"] },
+  { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
+  { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
+  { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";
@@ -38,7 +42,18 @@ export function assertBoTargetRegistry(): void {
 }
 assertBoTargetRegistry();
 /** Behavior preserving bridge for the currently served query/path hybrid. */
+/** PAP-1158: explicit legacy route retirement, not an implicit domain identity alias. */
+export function retiredSalaryPeriodRedirectUrl(query: Readonly<Record<string,string|string[]|undefined>>): string {
+  const params=new URLSearchParams();
+  const canonicalId=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  for(const key of ["record","centerId"] as const) {
+    const value=query[key];
+    if(typeof value==="string" && canonicalId.test(value)) params.set(key,value);
+  }
+  return "/bo/payroll-periods"+(params.size?"?"+params.toString():"");
+}
 export function currentBoModuleHref(key: string, admitted: Readonly<Record<string,string>>): string {
+  if (key==="salaryPeriods") return "/bo/payroll-periods";
   if (Object.prototype.hasOwnProperty.call(admitted,key)) return admitted[key];
   return key==="students"?"/bo":"/bo?module="+encodeURIComponent(key);
 }

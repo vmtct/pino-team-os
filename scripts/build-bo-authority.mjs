@@ -7,7 +7,13 @@ export function scopeAuthority(css) {
   const root = postcss.parse(css);
   root.walkRules(rule => {
     if (rule.parent.type === 'atrule' && /keyframes$/i.test(rule.parent.name)) return;
-    rule.selectors = rule.selectors.flatMap(selector => {
+    const hides = rule.nodes.some(node => node.type === 'decl' && node.prop === 'display' && node.value.trim() === 'none');
+    const freezeControl = /^#(?:undo-v22|redo-v22|filter-toggle|visible-columns|reset-all|group-shortcut|save-view)$/;
+    rule.selectors = rule.selectors.flatMap(original => {
+      // PAP-1105: preserve historical legacy hides, but do not disable Freeze's
+      // existing settings/reset/undo controls in the opted-in shared renderer.
+      const selector = hides && freezeControl.test(original)
+        ? original + ':where(:not([data-tdd-freeze-controls] *))' : original;
       if (selector === '*') return ['*:where(' + scope + ')', ':where(' + scope + ') *'];
       if (/^:root(?=[\s:.#>+~\[]|$)/.test(selector)) return [selector.replace(':root', ':root:where([data-bo-ui-authority="v25"])')];
       if (/^html(?=[\s:.#>+~\[]|$)/.test(selector)) return [selector.replace(/^html/, scope.replace('[', ':where([') + ')')];

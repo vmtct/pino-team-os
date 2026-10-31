@@ -3,7 +3,7 @@
  * PAP-938 integration workstation. Isolated worktree ONLY: not a production route.
  * Actual /api/workforce and /api/tos-learning reads; no mutation/fake successful state.
  */
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useState} from "react";
 import {workforceApi,type WorkforceContext,type FounderCenterTimekeeping,type FounderCenterDuty,type FounderCenterTraining,type FounderCenterStation} from "@/lib/workforce-api";
 import {TosVNextShift} from "@/app/components/tos-vnext/TosVNextShift";
 import frameLayout from "@/app/components/tos-ds/phone-frame.module.css";
@@ -13,7 +13,6 @@ import {TosVNextClassroom} from "@/app/components/tos-vnext/TosVNextClassroom";
 import {TosVNextReception} from "@/app/components/tos-vnext/TosVNextReception";
 import {TosVNextStation} from "@/app/components/tos-vnext/TosVNextStation";
 import {TosVNextShiftLead} from "@/app/components/tos-vnext/TosVNextShiftLead";
-import {resolveTosAppAccess} from "@/lib/tos-app-access";
 import {canOpenVNextApp} from "@/lib/tos-vnext-active-access";
 import {nextConfirmedAssignment} from "@/lib/tos-vnext-next-assignment";
 import {
@@ -46,7 +45,8 @@ export default function TosVNextIntegrationPreview(){
  const [app,setApp]=useState<Section>("home");
  const [classDetailOpen,setClassDetailOpen]=useState(false);
  const [data,setData]=useState<ReadData>({});
- const [loading,setLoading]=useState(true);
+ const [loading,setLoading]=useState(true); // Identity and Center readiness only
+ const [shiftLoading,setShiftLoading]=useState(false);
  const [error,setError]=useState("");
  const [desktop,setDesktop]=useState(false);
  const [clockNow,setClockNow]=useState(()=>new Date());
@@ -62,22 +62,15 @@ export default function TosVNextIntegrationPreview(){
  const center=ctx?.centers.find(c=>c.id===centerId);
  const zone=center?.timeZone||"Asia/Ho_Chi_Minh";
  const fromDate=today(zone);
- const access=useMemo(()=>{
-  if(!ctx||!centerId)return null;
-  // Existing resolver enforces local role presentation. API endpoints MUST independently enforce server authority.
-  return resolveTosAppAccess({assignments:data.shift?.assignments??[],centerId,
-   nowLocal:fromDate+"T"+new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow),
-   desktop,scheduleReady:!!data.shift});
- },[ctx,centerId,data.shift,desktop,zone,fromDate,clockNow]);
- // Do not leave privileged app content mounted after the shift window ends,
- // the center changes, or the station shrinks below desktop size.
+ // Enforce identity, Center and desktop requirements. Shift clock and API health
+ // never eject a user; Core still checks authorization on each action.
  useEffect(()=>{
   if(app==="home"||loading||ctx?.founderMode)return;
-  if(!ctx||!centerId||!data.shift){setApp("home");setClassDetailOpen(false);return}
-  const denied=!canOpenVNextApp(app,{authenticated:!!ctx,centerReady:!!centerId,
-   scheduleReady:!!data.shift,desktop,access});
-  if(denied){setApp("home");setClassDetailOpen(false);setHomeNotice("Ca này bạn chưa có quyền.");}
- },[app,loading,ctx,centerId,data.shift,access,desktop]);
+  if(!ctx||!centerId||!canOpenVNextApp(app,{authenticated:!!ctx,centerReady:!!centerId,desktop})){
+   setApp("home");setClassDetailOpen(false);
+   setHomeNotice(app==="station"?"Trạm TOS cần màn hình desktop.":"Tài khoản hoặc cơ sở chưa sẵn sàng.");
+  }
+ },[app,loading,ctx,centerId,desktop]);
  useEffect(()=>{
   const media=window.matchMedia("(min-width:1024px)");
   const fn=()=>setDesktop(media.matches);fn();media.addEventListener("change",fn);
@@ -95,7 +88,7 @@ export default function TosVNextIntegrationPreview(){
   // Do not probe Staff-only schedule, payroll, profile or timekeeping endpoints.
   if(ctx.founderMode){
    let active=true;
-   setError("");setData({});setLoading(true);
+   setError("");setData({});setShiftLoading(true);
    void Promise.allSettled([
     workforceApi.founderCenterSchedule({centerId,startDate:today(zone),endDate:today(zone,14)}),
     workforceApi.founderCenterVisits({centerId,status:"ALL"}),
@@ -114,32 +107,32 @@ export default function TosVNextIntegrationPreview(){
      ...(station.status==="fulfilled"?{station:station.value.data}:{stationError:station.reason instanceof Error?station.reason.message:"Không thể tải thiết bị Center."}),
     });
    })
-    .finally(()=>{if(active)setLoading(false)});
+    .finally(()=>{if(active)setShiftLoading(false)});
    return()=>{active=false};
   }
   let active=true;
-  setError("");setLoading(true);setData({});
+  setError("");setShiftLoading(true);setData({});
   void shiftReadModel(centerId,today(zone).slice(0,8)+"01",today(zone,14)).then(v=>{
    if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income,warnings:v.warnings}}));
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
-   .finally(()=>{if(active)setLoading(false)});
+   .finally(()=>{if(active)setShiftLoading(false)});
   return()=>{active=false};
  },[centerId,ctx,zone,fromDate,scheduleRefresh]);
  async function choose(next:Section){
   if(next==="home"){setApp("home");return}
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
   if(!canOpenVNextApp(next,{authenticated:!!ctx,centerReady:!!centerId,
-   scheduleReady:!!data.shift,desktop,access})){
-   setHomeNotice("Ca này bạn chưa có quyền.");return;
+   desktop})){
+   setHomeNotice(next==="station"?"Trạm TOS cần màn hình desktop.":"Tài khoản hoặc cơ sở chưa sẵn sàng.");return;
   }
   setApp(next);setError("");
  }
  const nowLocalTime=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow);
  const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate,nowLocalTime);
- // Render-guard, not only useEffect cleanup: never paint stale privileged app content
- // during a Core schedule revalidation or immediately after role revocation.
+ // Render-guard only for session/Center and desktop. Core independently checks
+ // every sensitive read/write; scheduling data remains advisory.
  const appRenderable=app!=="home"&&!loading&&canOpenVNextApp(app,{
-  authenticated:!!ctx,centerReady:!!centerId,scheduleReady:!!data.shift,desktop,access
+  authenticated:!!ctx,centerReady:!!centerId,desktop
  });
  // Founder browsing is authorized by Core's protected GLOBAL role, never by
  // a client-supplied email or StaffMember ID. All panels here are strictly
@@ -152,7 +145,7 @@ export default function TosVNextIntegrationPreview(){
     try{assertOwnCenter(ctx,id)}catch{setHomeNotice("Cơ sở chưa được cấp quyền.");return}
     setCenterId(id);setApp("home");setHomeNotice("");
    }}
-   nextAssignment={null} busy={loading||!centerId}
+   nextAssignment={null} busy={loading||!centerId} scheduleLoading={shiftLoading}
    allowed={canBrowse}
    onOpen={id=>{if(canBrowse(id)&&centerId)setApp(id);else setHomeNotice("Trạm TOS cần màn hình desktop.")}}
    onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
@@ -266,19 +259,20 @@ export default function TosVNextIntegrationPreview(){
    try{assertOwnCenter(ctx,id)}
    catch{setHomeNotice("Cơ sở chưa được cấp quyền.");return}
    if(id===centerId)return;
-   setLoading(true);setData({});setCenterId(id);setHomeNotice("");
+   setShiftLoading(true);setData({});setCenterId(id);setHomeNotice("");
   }}
-  nextAssignment={nextAssignment} busy={loading||!ctx}
+  nextAssignment={nextAssignment} busy={loading||!ctx} scheduleLoading={shiftLoading}
   allowed={id=>canOpenVNextApp(id,{authenticated:!!ctx,centerReady:!!centerId,
-   scheduleReady:!!data.shift,desktop,access})}
+   desktop})}
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
   notice={homeNotice||error}/>;
  if(app==="station")return <TosVNextFrame app="station" mode="desktop"><TosVNextStation desktop={desktop} centerName={center?.displayName||""} onHome={()=>void choose("home")}/></TosVNextFrame>;
  return <TosVNextFrame app={app} mode="mobile">
   {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
-  {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerName={center?.displayName||""} profileLabel={profileLabel}/></div>:<TosVNextContent>
+  {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]} currentSession={data.shift?.current??null}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel} key={centerId+":"+fromDate}/></div>:<TosVNextContent>
    {app==="shift-lead"&&<TosVNextShiftLead centerId={centerId} workDate={today(zone)}/>}
-   {loading&&<p role="status">Đang tải dữ liệu Core thực…</p>}
+   {shiftLoading&&<p role="status">Đang tải dữ liệu ca từ Core…</p>}
+   {app==="shift"&&!shiftLoading&&!data.shift&&<TosVNextCard><p role="status">Lịch ca và giờ công chưa khả dụng. Trạng thái chấm công chưa được xác minh.</p></TosVNextCard>}
    {error&&<TosVNextCard><p role="alert">{error}</p></TosVNextCard>}
   </TosVNextContent>}
  </TosVNextFrame>;

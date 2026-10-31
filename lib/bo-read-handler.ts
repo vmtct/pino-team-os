@@ -18,6 +18,9 @@ const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|T
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
+const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
+/** PAP-1220: strictly Center/day-scoped BO Diary read facade; no HO GLOBAL. */
+const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
@@ -117,6 +120,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "syllabi"
     || path === "learning/syllabi"
     || MISSION_CATALOG_READ.test(path)
+    || MISSION_ASSIGNMENT_READ.test(path)
+    || BO_DIARY_READ.test(path)
     || TV_POLICY_READ.has(path)
     || path === "learning/syllabi/owners"
     || path === "learning/syllabi/media"
@@ -127,6 +132,7 @@ export function isOperationalReadPath(path: string): boolean {
     || SESSION_SYLLABUS_BINDING_READ.test(path)
     || path === "tv/displays"
     || path === "tv/devices"
+    || path === "tv/operator-health"
     || path === "access/roles"
     || /^access\/roles\/[0-9a-f-]{36}$/.test(path)
     || path === "access/permissions"
@@ -139,6 +145,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
     || TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path)
+    || path === "pinoria/avatars"
     || path === "pinoria/effects/catalog"
     || path === "pinoria/ward/catalog"
     || path === "pinoria/ward/sets"
@@ -170,6 +177,8 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "open-studio/listing-catalog"
     || path === "open-studio/learners"
     || path === "open-studio/passes"
+    || path === "open-studio/walkin/inventory"
+    || path === "open-studio/walkin/history"
     || DELIVERY_FUTURE_RESERVATION_POLICY_READ.test(path)
     || SPECIALTY_POLICY_READ.test(path)
     || OPEN_STUDIO_POLICY_READ.test(path)
@@ -186,6 +195,60 @@ export function isOperationalReadPath(path: string): boolean {
 }
 
 function readCorePath(path: string, url: URL): string {
+  if (MISSION_ASSIGNMENT_READ.test(path)) {
+    const params = url.searchParams;
+    const collection = path === "learning/mission-assignments";
+    const allowed = collection ? ["centerId", "studentId", "missionId", "status", "limit", "offset"] : ["centerId"];
+    for (const key of params.keys()) if (!allowed.includes(key) || params.getAll(key).length !== 1) throw new RangeError("Invalid assignment query");
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuid.test(params.get("centerId") ?? "")) throw new RangeError("Center required");
+    for (const key of ["studentId", "missionId"]) if (params.has(key) && !uuid.test(params.get(key)!)) throw new RangeError("Invalid assignment identity");
+    if (params.has("status") && !["ASSIGNED", "CANCELLED"].includes(params.get("status")!)) throw new RangeError("Invalid assignment status");
+    for (const key of ["limit", "offset"]) if (params.has(key)) {
+      const value = params.get(key)!;
+      if (!/^(0|[1-9]\d*)$/.test(value) || !Number.isSafeInteger(Number(value)) || (key === "limit" && (Number(value) < 1 || Number(value) > 100))) throw new RangeError("Invalid assignment pagination");
+    }
+    return path + "?" + params.toString();
+  }
+  if (BO_DIARY_READ.test(path)) {
+    const detail = path !== "learning/path-diaries";
+    const allowed = detail ? ["centerId"] : ["centerId", "localDate", "limit", "offset"];
+    for (const key of url.searchParams.keys())
+      if (!allowed.includes(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid Diary query");
+    const centerId = url.searchParams.get("centerId");
+    if (!centerId || !S3_UUID.test(centerId)) throw new RangeError("Diary Center required");
+    const query = new URLSearchParams({ centerId });
+    if (!detail) {
+      const date = url.searchParams.get("localDate");
+      if (!date || !S3_LOCAL_DATE.test(date) || !Number.isFinite(Date.parse(date + "T00:00:00Z")) ||
+          new Date(date + "T00:00:00Z").toISOString().slice(0, 10) !== date) throw new RangeError("Valid Diary localDate required");
+      query.set("localDate", date);
+      for (const [name,max,min] of [["limit",100,1],["offset",10000,0]] as const) {
+        const value = url.searchParams.get(name);
+        if (value === null) continue;
+        if (!/^(0|[1-9][0-9]*)$/.test(value) || !Number.isSafeInteger(Number(value)) ||
+          Number(value) < min || Number(value) > max) throw new RangeError("Invalid Diary pagination");
+        query.set(name,value);
+      }
+    }
+    return path + "?" + query.toString();
+  }
+  if (path === "open-studio/walkin/history") {
+    const params=new URLSearchParams();
+    for(const key of url.searchParams.keys()) if(!["passId","centerId"].includes(key)||url.searchParams.getAll(key).length!==1) throw new RangeError("Invalid Pass history query");
+    for(const key of ["passId","centerId"]) {
+      const v=url.searchParams.get(key);
+      if(!v||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) throw new RangeError("Invalid Pass history identifier");
+      params.set(key,v);
+    }
+    return path+"?"+params.toString();
+  }
+  if (path === "open-studio/walkin/inventory") {
+    const query = new URLSearchParams();
+    for (const key of url.searchParams.keys()) if (!["centerId","limit"].includes(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid Pass inventory query");
+    for (const key of ["centerId","limit"]) { const value=url.searchParams.get(key);if(value !== null) query.set(key,value); }
+    const encoded=query.toString();return encoded ? path+"?"+encoded : path;
+  }
   if (path === "web-cms/slots") {
     const params = new URLSearchParams();
     for (const key of ["site", "page", "includeRetired"] as const) { const value = url.searchParams.get(key); if (value !== null) params.set(key, value); }
@@ -229,6 +292,45 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "tv/operator-health") {
+    const keys=[...url.searchParams.keys()];
+    const ids=url.searchParams.getAll("centerId");
+    if (keys.length!==1 || keys[0]!=="centerId" || ids.length!==1 ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!)) {
+      throw new RangeError("Invalid TV Health Center query");
+    }
+    return {centerId:ids[0]!};
+  }
+
+  // PAP-1177: explicit Parent Center is a read constraint, not an ACL grant.
+  // The Core Parent Directory and Detail independently verify three scoped
+  // permissions and bind SQL to the selected Center before returning a receipt.
+  if (path === "identity/parents/directory" || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)) {
+    const ids = url.searchParams.getAll("centerId");
+    if (ids.length > 1 || (path !== "identity/parents/directory" && [...url.searchParams.keys()].some(key => key !== "centerId")))
+      throw new RangeError("Invalid Parent Center query");
+    if (!ids.length) return undefined;
+    const centerId = ids[0]!;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId))
+      throw new RangeError("Invalid Parent Center");
+    return { centerId };
+  }
+  // PAP-982: resource scope is a selected CENTER reauthorized by Core, not a client grant.
+  if (path === "pinoria/avatars") {
+    const centerId = url.searchParams.get("centerId");
+    return centerId ? { centerId } : undefined;
+  }
+  // The Core delivery bootstrap accepts an explicit Center resource. Do not
+  // invent GLOBAL access for Manager or forward caller-supplied principal fields.
+  if (path === "delivery/bootstrap-state" || path === "delivery/calendar-scope") {
+    const centers = url.searchParams.getAll("centerId");
+    if (centers.length > 1) throw new RangeError("Ambiguous Center");
+    const centerId = centers[0]?.trim();
+    if (centerId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId)) {
+      throw new RangeError("Invalid Center");
+    }
+    return centerId ? { centerId } : undefined;
+  }
   if (isStaffCompensationPath(path)) {
     const centerId=url.searchParams.get("centerId")?.trim();
     return centerId?{centerId}:undefined;
@@ -241,6 +343,30 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "pinoria/avatars") {
+    const allowed = new Set(["centerId","limit","cursor","q","subjectType","avatarStatus","subjectStatus"]);
+    for (const key of url.searchParams.keys()) {
+      if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1) throw new RangeError("Invalid Self Directory query field");
+    }
+    const centerId = url.searchParams.get("centerId");
+    if (centerId !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId)) throw new RangeError("Invalid Self Directory Center");
+    const body: Record<string, unknown> = {};
+    const n = url.searchParams.get("limit");
+    if (n !== null) {
+      if (!/^[1-9][0-9]*$/.test(n) || !Number.isSafeInteger(Number(n)) || Number(n)>100) throw new RangeError("Invalid Self Directory limit");
+      body.limit=Number(n);
+    }
+    for (const key of ["cursor","q","subjectType","avatarStatus","subjectStatus"] as const) {
+      const v=url.searchParams.get(key);
+      if (v !== null) body[key]=v;
+    }
+    if (typeof body.cursor === "string" && (!body.cursor.length || body.cursor.length>4096)) throw new RangeError("Invalid Self Directory cursor");
+    if (typeof body.q === "string" && (body.q.length>120 || [...body.q].some(c => c.charCodeAt(0)<32 || c.charCodeAt(0)===127))) throw new RangeError("Invalid Self Directory search");
+    if (body.subjectType !== undefined && !["ALL","STAFF","LEARNER"].includes(String(body.subjectType))) throw new RangeError("Invalid Self Directory role");
+    if (body.avatarStatus !== undefined && !["ALL","IDENTITY_UNLINKED","SELF_MISSING","NEEDS_REPAIR","NOT_STARTED","IN_PROGRESS","READY"].includes(String(body.avatarStatus))) throw new RangeError("Invalid Self Directory avatar status");
+    if (body.subjectStatus !== undefined && !["ALL","ACTIVE","INACTIVE","ARCHIVED","MIXED"].includes(String(body.subjectStatus))) throw new RangeError("Invalid Self Directory subject status");
+    return Object.keys(body).length?body:undefined;
+  }
   if (RUNNING_CLASS_ENROLLMENT_READ.test(path)) {
     for (const key of url.searchParams.keys()) {
       if (!["limit","beforeFrom","beforeId","beforeRank","asOfLocalDate"].includes(key) || url.searchParams.getAll(key).length !== 1)
@@ -266,7 +392,7 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
     const type = url.searchParams.get("subject_type"), id = url.searchParams.get("subject_id");
     const query = url.searchParams.get("query") ?? "", cursor = url.searchParams.get("cursor");
     const limitText = url.searchParams.get("limit") ?? "50", limit = Number(limitText);
-    if (!(type === "student_profile" || type === "running_class")
+    if (!(type === "student_profile" || type === "running_class" || type === "subscription")
       || !id || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
       || query.length > 120 || [...query].some(c => c.charCodeAt(0) < 32)
       || !/^[0-9]+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 50
@@ -418,7 +544,7 @@ export function readQueryBody(path: string, url: URL): Record<string, unknown> |
   if (path === "identity/parents/directory") {
     // Only normalized, unique numeric pagination reaches the authorized Core read.
     // Never silently ignore unknown/duplicate filters on a private PII directory.
-    const allowed = new Set(["limit", "offset"]);
+    const allowed = new Set(["limit", "offset", "centerId"]);
     for (const key of url.searchParams.keys()) {
       if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1) {
         throw new RangeError("Invalid Parent Directory query");

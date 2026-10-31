@@ -6,6 +6,7 @@
  const text=v=>{if(typeof v!=='string')throw Error('Phản hồi Core không hợp lệ.');return v;};
  const fields=items=>items.map(([key,label,type='text'])=>({key,label,type,readonly:true,icon:({id:'#',number:'#',select:'▣',boolean:'☑',date:'▦',relation:'↗'})[type]||'Aa',w:({name:235,id:145})[key]||({number:113,select:135,boolean:120,date:145,relation:172})[type]||172}));
  const modules={
+  'pinoria-avatars':{label:'Pinoria Self',group:'PINORIA',fields:fields([['name','Person']])},
   students:{label:'Students',fields:fields([['name','Học viên'],['id','ID','id'],['paths','Path'],['birthYear','Năm sinh','number'],['status','Trạng thái hồ sơ','select'],['houseMember','House Member','boolean']])},
   parents:{label:'Parents & Guardians',fields:fields([['name','Phụ huynh'],['id','Parent ID','id'],['maskedContact','Liên hệ (đã che)'],['studentCount','Số học viên','number'],['centers','Cơ sở'],['updatedAt','Cập nhật','datetime'],['attention','Lưu ý','select']])},
   classes:{label:'Running Classes',fields:fields([['name','Running Class'],['id','ID','id'],['path','Path','relation'],['center','Cơ sở','relation'],['weekday','Thứ','number'],['window','Giờ học'],['capacity','Sức chứa','number'],['topology','Mô hình','select'],['status','Trạng thái','select']])},
@@ -89,12 +90,23 @@
   }
   if(key==='classes'){
    // Current admitted delivery read, no legacy /running-classes fallback.
-   const b=await read('delivery/bootstrap-state');if(!Array.isArray(b.runningClasses)||!Array.isArray(b.paths)||!Array.isArray(b.centers))throw Error('Danh sách lớp không hợp lệ.');
+   let b;
+   try{b=await read('delivery/bootstrap-state');}
+   catch(error){
+    if(!(error instanceof Error)||!error.message.includes('quyền'))throw error;
+    // Inferred Center list comes from the same authenticated Core identity.
+    const planning=await read('workforce/planning/bootstrap');
+    const permitted=array(planning.centers).filter(c=>c.status==='active');
+    if(permitted.length!==1)throw error; // Never infer a multi-Center choice.
+    b=await read('delivery/bootstrap-state?centerId='+id(permitted[0].id));
+   }
+   if(!Array.isArray(b.runningClasses)||!Array.isArray(b.paths)||!Array.isArray(b.centers))throw Error('Danh sách lớp không hợp lệ.');
    const paths=new Map(b.paths.map(p=>[id(p.id),text(p.displayName)])),centers=new Map(b.centers.map(c=>[id(c.id),text(c.displayName)]));const timeZones=new Map(b.centers.map(c=>[id(c.id),typeof c.timeZone==="string"?c.timeZone:null]));
    return unique(b.runningClasses.map(c=>({id:id(c.id),name:text(c.operationalName),path:paths.get(id(c.pathProgramId))||c.pathProgramId,center:centers.get(id(c.centerId))||c.centerId,weekday:c.weekdayIso,window:text(c.windowStartsLocal)+' – '+text(c.windowEndsLocal),capacity:c.optimalConcurrentCapacity,topology:text(c.deliveryTopology),status:text(c.status),centerTimeZone:timeZones.get(c.centerId)||null})));
   }
   if(key==='subscriptions')return paged('subscriptions',s=>({id:id(s.id),name:text(s.studentDisplayName),path:text(s.pathDisplayName),status:text(s.lifecycle),weekly:s.weeklyCommitment,remaining:s.effectiveAvailableUnits,start:s.serviceStartsOn,end:s.contractualEndsOn,reference:s.commercialReference}));
   return paged('school/enrollments',e=>({id:id(e.id),name:text(e.studentDisplayName),subscriptionId:id(e.subscriptionId),runningClass:text(e.runningClassName),runningClassId:id(e.runningClassId),path:text(e.pathDisplayName),start:e.effectiveFromLocalDate,end:e.effectiveUntilExclusiveLocalDate,entry:e.plannedEntryLocalTime,duration:e.plannedDurationMinutes}));
  }
- const api=Object.freeze({modules,load,scopeLabel});root.PinoSchoolRead=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const routeForModule=key=>key==='pinoria-avatars'?'/bo/pinoria-avatars':null;
+ const api=Object.freeze({modules,load,scopeLabel,routeForModule});root.PinoSchoolRead=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof globalThis==='object'?globalThis:this);

@@ -87,7 +87,7 @@ export function validateQuery<F extends readonly FieldSchema[]>(module: ModuleSc
   check(query.order.length === columns.length && columns.every(k => query.order.includes(k)), "order must contain registered columns only");
   check(query.visible.every(k => columns.includes(k)), "unregistered visible column");
   check(query.order[0] === module.table.identity.field && query.visible.includes(module.table.identity.field), "protected identity cannot hide/reorder");
-  check(query.frozenThrough === undefined || query.frozenThrough === null || (typeof query.frozenThrough === "string" && query.frozenThrough !== module.table.identity.field && query.visible.includes(query.frozenThrough)), "freeze boundary must be a visible, non-identity field");
+  check(query.frozenThrough === undefined || query.frozenThrough === null || (typeof query.frozenThrough === "string" && query.frozenThrough !== "id" && query.frozenThrough !== module.table.identity.field && query.visible.includes(query.frozenThrough)), "freeze boundary must be a visible, non-identity field");
   if (query.frozenThrough != null) field(query.frozenThrough, "display");
   check(Number.isInteger(query.page) && query.page >= 1 && [8, 15, 30].includes(query.pageSize), "invalid pagination");
   object(query.filters, ["logic", "rules"]);
@@ -118,13 +118,34 @@ export function validateQuery<F extends readonly FieldSchema[]>(module: ModuleSc
 }
 
 export function validateModule(input: unknown): asserts input is ModuleSchema {
-  object(input, ["version", "classification", "key", "label", "group", "surface", "fields", "capabilities", "data", "table", "drawer", "detail"]);
+  object(input, ["version", "classification", "key", "label", "group", "surface", "fields", "capabilities", "data", "table", "drawer", "detail", "actions"], ["version", "classification", "key", "label", "group", "surface", "fields", "capabilities", "data", "table", "drawer", "detail"]);
   const m = input as unknown as ModuleSchema;
   check(m.version === 1 && m.classification === "TDD_DEFAULT", "unsupported schema version/classification");
   [m.key, m.label, m.group].forEach(nonempty); check(["BO", "HO"].includes(m.surface), "invalid surface");
   validateFields(m.fields);
   object(m.capabilities, ["read", "create", "edit", "history", "manageSharedViews"], ["read"]);
   Object.values(m.capabilities).forEach(nonempty);
+  // PAP-1247 declarative action registry: reject unknown chrome, orphaned handlers or ACL.
+  if (m.actions !== undefined) {
+    array(m.actions); unique(m.actions.map(action => action.id));
+    const primaryBySlot = new Set<string>();
+    for (const action of m.actions) {
+      object(action, ["id", "label", "slot", "variant", "capability", "handler", "targetId", "formMode"], ["id", "label", "slot", "variant", "capability", "handler"]);
+      for (const key of ["id", "label", "handler"] as const) nonempty(action[key]);
+      check(/^[a-zA-Z][\w.-]{1,63}$/.test(action.id), "invalid action identifier");
+      check(["table.header", "drawer.header", "drawer.footer", "detail.header", "overview.section", "businessTab.toolbar"].includes(action.slot), "unknown action slot");
+      check(["primary", "secondary", "tertiary", "danger"].includes(action.variant), "unsupported action variant");
+      check(["read", "create", "edit"].includes(action.capability) && Boolean(m.capabilities[action.capability]), "action capability not registered");
+      const scoped = action.slot === "overview.section" || action.slot === "businessTab.toolbar";
+      check(scoped ? typeof action.targetId === "string" && /^[A-Za-z][\w.-]{0,63}$/.test(action.targetId) : action.targetId === undefined, "invalid action target");
+      check(action.slot === "drawer.footer" ? ["create", "edit"].includes(String(action.formMode)) : action.formMode === undefined, "invalid form-only action mode");
+      const hostKey = action.slot + ":" + (action.targetId ?? "") + ":" + (action.formMode ?? "");
+      if (action.variant === "primary") {
+        check(!primaryBySlot.has(hostKey), "more than one primary action per host");
+        primaryBySlot.add(hostKey);
+      }
+    }
+  }
   object(m.data, ["id", "list", "detail"]); nonempty(m.data.id);
   check(typeof m.data.list === "function" && typeof m.data.detail === "function", "missing data adapters");
   const refs = (keys: readonly string[], op: typeof operations[number] = "display") => {
@@ -170,16 +191,32 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
   for (const slot of m.detail.businessTabs) {
     check(!["overview", "history"].includes(slot.id), "reserved tab ID"); nonempty(slot.id); nonempty(slot.label); source(slot.source);
     const base = ["id", "label", "kind", "source"];
+    const slotObject = (value: unknown, keys: readonly string[]) => object(value, [...keys, "visibility"], keys);
+    if (slot.visibility !== undefined) {
+      object(slot.visibility, ["field", "op", "value"]);
+      const target = m.fields.find(f => f.key === slot.visibility?.field);
+      check(target && target.capabilities.display && ["text", "select"].includes(target.type), "visibility requires a displayed text/select field");
+      check(["eq", "neq"].includes(slot.visibility.op) && typeof slot.visibility.value === "string" && slot.visibility.value.trim().length > 0 && slot.visibility.value.length <= 100, "invalid tab visibility predicate");
+    }
     switch (slot.kind) {
-      case "field-group": object(slot, [...base, "sections"]); sections(slot.sections); break;
-      case "relation-grid": case "data-grid": object(slot, [...base, "relatedModule"]); nonempty(slot.relatedModule); break;
-      case "form": object(slot, [...base, "fields", "submitPermission"]); refs(slot.fields); nonempty(slot.submitPermission); check(Boolean(m.capabilities.edit), "form requires edit binding"); break;
-      case "timeline": object(slot, [...base, "dateField"]); check(m.fields.some(f => f.key === slot.dateField && ["date", "datetime"].includes(f.type)), "timeline requires date field"); break;
-      case "media": case "metric-cards": object(slot, [...base, "fields"]); refs(slot.fields); break;
-      case "audit-events": object(slot, [...base, "subjectType"]); nonempty(slot.subjectType); break;
-      case "approved-extension": object(slot, [...base, "extensionId", "approval"]); nonempty(slot.extensionId); validateApproval(slot.approval); break;
+      case "field-group": slotObject(slot, [...base, "sections"]); sections(slot.sections); break;
+      case "relation-grid": case "data-grid": slotObject(slot, [...base, "relatedModule"]); nonempty(slot.relatedModule); break;
+      case "form":
+        slotObject(slot, [...base, "fields", "submitPermission"]);
+        array(slot.fields); check(slot.fields.length > 0 && slot.fields.length <= 12, "bounded business form fields required"); unique(slot.fields);
+        slot.fields.forEach(k => check(typeof k === "string" && /^[A-Za-z][A-Za-z0-9_:-]{0,63}$/.test(k), "invalid business form field key"));
+        nonempty(slot.submitPermission); check(slot.submitPermission !== slot.source.permission, "form read and submit permissions must be distinct"); break;
+      case "timeline": slotObject(slot, [...base, "dateField"]); check(m.fields.some(f => f.key === slot.dateField && ["date", "datetime"].includes(f.type)), "timeline requires date field"); break;
+      case "media": case "metric-cards": slotObject(slot, [...base, "fields"]); refs(slot.fields); break;
+      case "audit-events": slotObject(slot, [...base, "subjectType"]); nonempty(slot.subjectType); break;
+      case "approved-extension": slotObject(slot, [...base, "extensionId", "approval"]); nonempty(slot.extensionId); validateApproval(slot.approval); break;
       default: check(false, "unapproved slot kind");
     }
+  }
+  // Targeted actions bind to admitted system Overview sections or authorized business tabs.
+  for (const action of m.actions ?? []) {
+    if (action.slot === "overview.section") check(m.detail.overview.sections.some(section => section.id === action.targetId), "unregistered overview action target");
+    if (action.slot === "businessTab.toolbar") check(m.detail.businessTabs.some(tab => tab.id === action.targetId), "unregistered business toolbar target");
   }
   const history = m.detail.history;
   if (history?.kind === "unavailable") { object(history, ["kind", "reason"]); nonempty(history.reason); }

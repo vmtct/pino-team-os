@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES,assertBoTargetRegistry,
-  buildBoTargetUrl,currentBoModuleHref,parseBoTargetUrl,targetForLegacyModule} from "./bo-url-contract";
+  buildBoTargetUrl,currentBoModuleHref,parseBoTargetUrl,targetForLegacyModule,retiredSalaryPeriodRedirectUrl} from "./bo-url-contract";
 
 test("PAP-1089 target paths and aliases do not conflate domain identities",()=>{
   assert.doesNotThrow(assertBoTargetRegistry);
@@ -53,7 +53,7 @@ test("PAP-1089 current nav URLs remain identical until explicit route admission"
   assert.equal(currentBoModuleHref("parents",admitted),"/bo?module=parents");
   assert.equal(currentBoModuleHref("subscriptions",admitted),"/bo?module=subscriptions");
   assert.equal(currentBoModuleHref("classes",admitted),"/bo?module=classes");
-  assert.equal(currentBoModuleHref("salaryPeriods",admitted),"/bo?module=salaryPeriods");
+  assert.equal(currentBoModuleHref("salaryPeriods",admitted),"/bo/payroll-periods");
   assert.equal(currentBoModuleHref("workforce-shift-plans",admitted),"/bo/workforce-shift-plans");
   assert.equal(currentBoModuleHref("payroll-periods",admitted),"/bo/payroll-periods");
 });
@@ -62,4 +62,45 @@ test("PAP-1091 guarded application auto-merge smoke: unknown resources stay deni
   for(const slug of ["catalog","system/users","system/roles","legacy-termweek"])
     assert.equal(parseBoTargetUrl("/bo/"+slug),null,slug);
   assert.equal(targetForLegacyModule("catalog"),null);
+});
+
+
+test("PAP-1158 retired Salary Period URL goes to canonical Kỳ lương",()=>{
+  const id="01a171ed-eb78-7941-b1de-dd4c020457b7";
+  const center="0199f001-0000-7000-8000-000000000001";
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods"}),"/bo/payroll-periods");
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods",record:id}),"/bo/payroll-periods?record="+id);
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods",record:id,centerId:center}),"/bo/payroll-periods?record="+id+"&centerId="+center);
+  assert.equal(retiredSalaryPeriodRedirectUrl({module:"salaryPeriods",record:["a","b"],centerId:"bad/path",password:"secret"}),"/bo/payroll-periods");
+  assert.equal(targetForLegacyModule("salaryPeriods"),null,"Do not conflate old and new domain identity");
+  assert.deepEqual(parseBoTargetUrl("/bo/payroll-periods","?record="+id),{moduleKey:"payroll-periods",surface:"drawer",recordId:id});
+});
+
+test("PAP-1220 Classroom Diary staging TDD uses the canonical BO target registry, no alias leakage",()=>{
+  const route=BO_TARGET_ROUTES.find(r=>r.key==="classroom-diaries");
+  assert.deepEqual(route,{key:"classroom-diaries",path:"/bo/classroom-diaries",tabs:["overview","history"]});
+  assert.equal(buildBoTargetUrl({moduleKey:"classroom-diaries",surface:"table"}),"/bo/classroom-diaries");
+  assert.deepEqual(parseBoTargetUrl("/bo/classroom-diaries"),{moduleKey:"classroom-diaries",surface:"table"});
+  assert.equal(targetForLegacyModule("classroom-diaries"),null,"new route cannot appear as old BO query module");
+  assert.equal(parseBoTargetUrl("/bo/classroom-diaries/../staff"),null);
+  assert.equal(parseBoTargetUrl("/ho/classroom-diaries"),null);
+});
+
+test("PAP-1220 shared TDD navigation admits the real BO Staging Diary pathname, never Production",async()=>{
+  const {browserTddNavigation}=await import("./workspace-adapters/navigation");
+  const {diaryQuery}=await import("../app/bo/classroom-diaries/schema");
+  const previous=Object.getOwnPropertyDescriptor(globalThis,"location");
+  try{
+    Object.defineProperty(globalThis,"location",{configurable:true,value:{
+      hostname:"bo.staging.pinohouse.art",host:"bo.staging.pinohouse.art",origin:"https://bo.staging.pinohouse.art",
+      pathname:"/bo/classroom-diaries",search:"",href:"https://bo.staging.pinohouse.art/bo/classroom-diaries"}});
+    assert.doesNotThrow(()=>browserTddNavigation("BO","classroom-diaries",diaryQuery));
+    Object.defineProperty(globalThis,"location",{configurable:true,value:{
+      hostname:"bo.pinohouse.art",host:"bo.pinohouse.art",origin:"https://bo.pinohouse.art",
+      pathname:"/bo/classroom-diaries",search:"",href:"https://bo.pinohouse.art/bo/classroom-diaries"}});
+    assert.throws(()=>browserTddNavigation("BO","classroom-diaries",diaryQuery),/route mismatch/);
+  }finally{
+    if(previous)Object.defineProperty(globalThis,"location",previous);
+    else Reflect.deleteProperty(globalThis,"location");
+  }
 });

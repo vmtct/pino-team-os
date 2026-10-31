@@ -1,8 +1,11 @@
 /** Single public-page manifest for the staging Head Office surface. No BO or production routes. */
 export const HO_PAGE_PATHS = {
   centers: "/ho/centers",
+  walkinPasses: "/ho/open-studio/walkin",
+  staffs: "/ho/staff",
   syllabi: "/ho/learning/syllabi",
   missions: "/ho/learning/missions",
+  classroomDiaries: "/ho/learning/diaries",
   worlds: "/ho/pinoria/worlds",
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
@@ -10,6 +13,7 @@ export const HO_PAGE_PATHS = {
   users: "/ho/system/users",
   roles: "/ho/system/roles",
   audits: "/ho/system/audit",
+  tddReference: "/ho/system/tdd-reference",
 } as const;
 export const HO_HOME_PATH = HO_PAGE_PATHS.centers;
 const approved = new Set<string>(["/ho",...Object.values(HO_PAGE_PATHS)]);

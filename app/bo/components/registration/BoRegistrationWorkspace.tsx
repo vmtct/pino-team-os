@@ -18,7 +18,7 @@ import { BoStudentCreate } from "./BoStudentCreate";
 import { BoWorkforceShiftPlanCreate } from "./BoWorkforceShiftPlanCreate";
 import { BoFullDetail } from "./BoFullDetail";
 import { BoTableSettings, type BoSavedView } from "./BoTableSettings";
-export type BoWorkspaceSource = { modules: Record<string, BoModule>; load: (key: string, fetcher: typeof fetch, options: Record<string, string>) => Promise<BoRecord[]>; scopeLabel: (key: string, options: Record<string, string>) => string; surface?: "ho"; readOnly?: boolean; allowStudentCreate?: boolean; isModuleReadOnly?: (key: string) => boolean; routeForModule?: (key: string) => string; loadRecordDetails?: (key: string, record: BoRecord, fetcher: typeof fetch) => Promise<BoRecord> };
+export type BoWorkspaceSource = { modules: Record<string, BoModule>; load: (key: string, fetcher: typeof fetch, options: Record<string, string>) => Promise<BoRecord[]>; scopeLabel: (key: string, options: Record<string, string>) => string; surface?: "ho"; readOnly?: boolean; ephemeral?: boolean; allowStudentCreate?: boolean; isModuleReadOnly?: (key: string) => boolean; routeForModule?: (key: string) => string; loadRecordDetails?: (key: string, record: BoRecord, fetcher: typeof fetch) => Promise<BoRecord> };
 type WorkspaceSnapshot = { table: BoTableState; views: BoSavedView[]; activeView: string | null };
 type Context = { displayName: string | null };
 const icons: Record<string, string> = { students: "◉", classes: "▦", subscriptions: "▤", enrollments: "↗", visits: "◷", staffs: "◉", termWeeks: "▦", timekeeping: "◷", salaryPeriods: "▤", worlds: "◈", catalog: "▦", sets: "▤", users: "◉", roles: "▣", audits: "≡" };
@@ -54,7 +54,7 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   useEffect(() => { tableRef.current = table; viewsRef.current = views; activeViewRef.current = activeView; }, [table, views, activeView]);
   // HO sidebar state survives client route transitions but is never shared with BO.
   useEffect(() => {
-    if (!ho) return;
+    if (!ho || source.ephemeral) return;
     try {
       const state = JSON.parse(sessionStorage.getItem("pino:ho:sidebar:v1") || "{}") as {collapsed?:unknown;search?:unknown};
       if (Array.isArray(state.collapsed)) setCollapsed(state.collapsed.filter((x):x is string => typeof x === "string" && Object.values(source.modules).some(m => m.group === x)).slice(0,10));
@@ -63,9 +63,9 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
     setHoNavReady(true);
   }, [ho, source]);
   useEffect(() => {
-    if (!ho || !hoNavReady) return;
+    if (!ho || !hoNavReady || source.ephemeral) return;
     try { sessionStorage.setItem("pino:ho:sidebar:v1", JSON.stringify({collapsed,search:navSearch})); } catch { /* keep navigation working when storage is unavailable */ }
-  }, [ho,hoNavReady,collapsed,navSearch]);
+  }, [ho,hoNavReady,collapsed,navSearch,source.ephemeral]);
   function syncRecordFromUrl(data: BoRecord[]) {
     const target = hoRecordId(new URL(window.location.href).searchParams.get("record"));
     const row = target ? data.find(r => r.id === target) : undefined;
