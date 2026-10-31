@@ -94,3 +94,32 @@ export async function handleHoMissionWrite(request: Request, env: HoMissionWrite
     return respond(503, { error: { code: "HO_MISSION_CORE_UNAVAILABLE" } });
   }
 }
+
+/** PAP-1207: independent GLOBAL Founder readback for HO Mission writes.
+ * A successful BO catalog read is not a substitute for verifying the Founder writer.
+ */
+export async function handleHoMissionRead(request: Request, env: HoMissionWriteEnv, missionId: string): Promise<Response> {
+  try {
+    const url = new URL(request.url);
+    if (env.APP_ENV !== "staging" || url.protocol !== "https:" || url.search || url.hash ||
+        url.username || url.password || url.hostname !== HO_STAGING_HOSTNAME ||
+        normalizeHostname(request.headers.get("host") || "") !== HO_STAGING_HOSTNAME ||
+        !uuid.test(missionId)) return respond(404, { error: { code: "PLATFORM_NOT_FOUND" } });
+    if (request.method !== "GET") return respond(405, { error: { code: "PLATFORM_METHOD_NOT_ALLOWED" } });
+    const actor = await authorizeHoShell(request.headers, env);
+    if (!actor.userId || !actor.permissionKeys.includes("learning.mission.manage"))
+      return respond(403, { error: { code: "HO_MISSION_PERMISSION_DENIED" } });
+    const credential = await teamCredential(request, env, "BO");
+    if (credential.kind !== "password") return respond(401, { error: { code: "IDENTITY_UNAUTHORIZED" } });
+    if (!env.PINO_CORE || typeof env.PINO_CORE.executeWithStaffPassword !== "function")
+      return respond(503, { error: { code: "HO_MISSION_CORE_UNAVAILABLE" } });
+    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, {
+      method: "GET", path: "learning/missions/" + missionId,
+    }, credential.token);
+    return respond(result.status, result.body);
+  } catch (error) {
+    if (error instanceof BoShellGateError) return respond(error.status, { error: { code: "HO_ACCESS_DENIED" } });
+    if (error instanceof TeamAuthError) return respond(error.status, { error: { code: "IDENTITY_UNAUTHORIZED" } });
+    return respond(503, { error: { code: "HO_MISSION_CORE_UNAVAILABLE" } });
+  }
+}

@@ -22,7 +22,7 @@ test("PAP-1207: Create confirms exact Core POST receipt and authorized GET readb
   const fetcher: typeof fetch = async (url, init) => {
     requests.push({ url: String(url), method: String(init?.method), headers: new Headers(init?.headers),
       body: typeof init?.body === "string" ? init.body : undefined });
-    return String(url).startsWith("/api/ho/")
+    return init?.method === "POST"
       ? response({ ...valid, id, version: 1 }, 201) : response({ ...valid, id, version: 1 });
   };
   const outcome = await submitHoMission(command, fetcher);
@@ -33,7 +33,7 @@ test("PAP-1207: Create confirms exact Core POST receipt and authorized GET readb
   assert.equal(requests[0]?.headers.get("idempotency-key"), key);
   assert.equal(requests[0]?.headers.get("content-type"), "application/json");
   assert.deepEqual(JSON.parse(requests[0]!.body!), valid);
-  assert.equal(requests[1]?.url, "/api/bo/learning/missions/" + id);
+  assert.equal(requests[1]?.url, "/api/ho/learning/missions/" + id);
   assert.equal(requests[1]?.method, "GET");
 });
 test("PAP-1207: Update/Archive include strict version, Archive only via INACTIVE", async () => {
@@ -51,7 +51,7 @@ test("PAP-1207: Update/Archive include strict version, Archive only via INACTIVE
     const result = await submitHoMission({ kind, id, expectedVersion: 3, data: valid, idempotencyKey: key }, f);
     assert.equal(result.state, "verified");
     assert.deepEqual(calls, ["/api/ho/learning/missions/" + id + " PUT",
-      "/api/bo/learning/missions/" + id + " GET"]);
+      "/api/ho/learning/missions/" + id + " GET"]);
   }
 });
 test("PAP-1207: denial, duplicate/CAS conflict, invalid, offline and unverified never auto-retry", async () => {
@@ -66,9 +66,9 @@ test("PAP-1207: denial, duplicate/CAS conflict, invalid, offline and unverified 
   const network: typeof fetch = async () => { throw Error("network disconnect"); };
   assert.equal((await submitHoMission(command, network)).state, "unverified");
   let calls = 0;
-  const f: typeof fetch = async (url) => {
+  const f: typeof fetch = async (url, init) => {
     calls++;
-    return String(url).startsWith("/api/ho/")
+    return init?.method === "POST"
       ? response({ ...valid, id, version: 1 }, 201)
       : response({ ...valid, id, version: 1, status: "INACTIVE" });
   };

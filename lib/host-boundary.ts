@@ -25,7 +25,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
     if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
     if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
-      return { action: method === "PUT" ? "next" : "not_found" };
+      return { action: (method === "PUT" || method === "GET") ? "next" : "not_found" };
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
     const staffRateCorrection = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation\/[0-9a-f-]{36}$/.test(p);
     const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);

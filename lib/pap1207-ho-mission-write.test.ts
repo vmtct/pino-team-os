@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { decideHostBoundary, HO_STAGING_HOSTNAME } from "./host-boundary";
-import { handleHoMissionWrite, parseHoMissionCommand, type HoMissionWriteEnv } from "./ho-mission-write-facade";
+import { handleHoMissionWrite, handleHoMissionRead, parseHoMissionCommand, type HoMissionWriteEnv } from "./ho-mission-write-facade";
 const validId = "01900000-0000-7000-8000-000000000002";
 const path = "/api/ho/learning/missions";
 const valid = { code: "mori-1", name: "Mori", status: "ACTIVE", level: 1, plsValue: 25,
@@ -21,12 +21,14 @@ test("PAP-1207: narrow HO staging-only POST/PUT path; BO/TOS/Production denied",
   assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME, path + "/" + validId, "PUT").action, "next");
   for (const method of ["GET", "PATCH", "PUT", "DELETE", "HEAD"])
     assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME, path, method).action, "not_found", method);
-  for (const method of ["GET", "PATCH", "POST", "DELETE", "HEAD"])
+  assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME, path + "/" + validId, "GET").action, "next");
+  for (const method of ["PATCH", "POST", "DELETE", "HEAD"])
     assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME, path + "/" + validId, method).action, "not_found", method);
   for (const host of ["ho.pinohouse.art", "bo.staging.pinohouse.art", "tos.staging.pinohouse.art", "localhost",
     "pino-team-os-staging.minhtri-van42.workers.dev"]) {
     assert.equal(decideHostBoundary(host, path, "POST").action, "not_found", host);
     assert.equal(decideHostBoundary(host, path + "/" + validId, "PUT").action, "not_found", host);
+    assert.equal(decideHostBoundary(host, path + "/" + validId, "GET").action, "not_found", host);
   }
   assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME, path + "/not-uuid", "PUT").action, "not_found");
   assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME, path + "/" + validId + "/delete", "PUT").action, "not_found");
@@ -62,4 +64,25 @@ test("PAP-1207: bad host, origin, payload, idempotency and absent Founder auth n
   assert.equal((await handleHoMissionWrite(request("POST", valid,"?unexpected=1"), wrapped)).status,404);
   assert.equal((await handleHoMissionWrite(request("PUT", {...valid,expectedVersion:1}),wrapped,"invalid")).status,404);
   assert.equal(calls,0);
+});
+
+test("PAP-1207: HO exact GET readback is Staging-only, GLOBAL-Founder and Core gated", async () => {
+  let calls = 0;
+  const protectedEnv = { ...env, PINO_CORE: { async executeWithStaffPassword() {
+    calls++; return { status: 200, body: { data: { ...valid, id: validId, version: 1 } }, requestId: "r-read" };
+  } } } as HoMissionWriteEnv;
+  const read = (host = HO_STAGING_HOSTNAME, suffix = "") =>
+    new Request("https://" + host + path + "/" + validId + suffix, {
+      method: "GET", headers: { host },
+    });
+  assert.equal((await handleHoMissionRead(read(), { ...protectedEnv, APP_ENV: "production" }, validId)).status, 404);
+  assert.equal((await handleHoMissionRead(read(), protectedEnv, "not-an-id")).status, 404);
+  assert.equal((await handleHoMissionRead(read("bo.staging.pinohouse.art"), protectedEnv, validId)).status, 404);
+  assert.equal((await handleHoMissionRead(read(HO_STAGING_HOSTNAME, "?filter=evil"), protectedEnv, validId)).status, 404);
+  const unauthorized = await handleHoMissionRead(read(), protectedEnv, validId);
+  assert.ok([401, 403].includes(unauthorized.status));
+  assert.equal(calls, 0);
+  const source = readFileSync("app/api/ho/learning/missions/[missionId]/route.ts", "utf8");
+  assert.match(source, /export async function GET/);
+  assert.match(source, /handleHoMissionRead/);
 });

@@ -100,7 +100,7 @@ export async function submitHoMission(
     return fail("unverified", "Version ghi Mission chưa được xác minh.", result.status, id);
   let read: Response;
   try {
-    read = await fetcher("/api/bo/learning/missions/" + id, {
+    read = await fetcher("/api/ho/learning/missions/" + id, {
       method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error", signal,
     });
   } catch {
