@@ -3,6 +3,7 @@
  * No ACL grants, Core endpoints, staging accounts or production mutations.
  */
 import fs from "node:fs";
+import { tddAcceptanceFiles } from "./tdd-module-acceptance.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -149,13 +150,14 @@ test("PAP-1077 required acceptance contracts not yet met", () => {
     writeData(`${base}/${component}.tsx`, entryBody),
     writeData(`${base}/schema.ts`, schemaBody),
     writeData(`${base}/module.test.ts`, specBody),
+    ...tddAcceptanceFiles({base, surface: upper, route}),
   ];
   const manifestEntry = {
     profile: "TDD_DEFAULT", surface: upper, key, route, file: `${base}/page.tsx`,
-    files: files.filter(f => !f.filename.endsWith(".test.ts")).map(f => f.filename),
+    files: [`${base}/page.tsx`, `${base}/${component}.tsx`, `${base}/schema.ts`],
     schema: { file: `${base}/schema.ts`, export: schema },
     binding: { kind: "SURFACE_WORKSPACE_ADAPTER", file: `${base}/${component}.tsx` },
-    tests: [`${base}/module.test.ts`],
+    tests: [`${base}/module.test.ts`, `${base}/acceptance.gates.test.mjs`],
   };
   const nextManifest = JSON.stringify({ ...manifest, modules: [...manifest.modules, manifestEntry] }, null, 2) + "\n";
   files.push(writeData("config/tdd-admission.json", nextManifest));

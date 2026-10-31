@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { scaffoldTddModule } from "./create-tdd-module.mjs";
 
 const setup = t => {
@@ -75,4 +76,29 @@ test("PAP-1077 multiple modules remain separately registered with immutable file
   const entries = JSON.parse(read(root, "config/tdd-admission.json")).modules;
   assert.deepEqual(entries.map(e => e.route), ["/ho/mission-samples", "/bo/shift-samples"]);
   assert.equal(entries.every(e => e.files.every(f => fs.existsSync(path.join(root, f)))), true);
+});
+
+for (const surface of ["bo", "ho"]) test(`PAP-1077 ${surface} generated G2/G3/G4 skeletons fail without evidence`, t => {
+  const root = setup(t);
+  const result = scaffoldTddModule(params(root, surface));
+  const base = `app/${surface}/mission-samples`;
+  const fixture = JSON.parse(read(root, `${base}/acceptance.fixture.json`));
+  assert.equal(fixture.synthetic, true);
+  assert.equal(fixture.surface, surface.toUpperCase());
+  assert.deepEqual(fixture.rows.map(row => row.id), ["019d2000-0001-7000-8000-000000000001", "019d2000-0001-7000-8000-000000000002"]);
+  assert.ok(fixture.rows.every(row => row.name.startsWith("SYNTHETIC DEMO")));
+  assert.equal(fixture.authorizedPrincipal, undefined);
+  const plan = JSON.parse(read(root, `${base}/acceptance.plan.json`));
+  assert.deepEqual(plan.gates.map(gate => gate.id), ["G0", "G1", "G2", "G3", "G4"]);
+  assert.ok(plan.gates.every(gate => gate.status === "PENDING"));
+  assert.deepEqual(plan.viewports, [1440, 1024, 768, 390, 320]);
+  assert.equal(plan.route, result.route);
+  assert.equal(plan.dsPackage, "@pino/design-system");
+  const entry = JSON.parse(read(root, "config/tdd-admission.json")).modules[0];
+  assert.ok(entry.tests.includes(`${base}/acceptance.gates.test.mjs`));
+  assert.ok(entry.files.every(file => !/acceptance\./.test(file)));
+  const run = spawnSync(process.execPath, ["--test", `${base}/acceptance.gates.test.mjs`], { cwd: root, encoding: "utf8", env: { ...process.env, NODE_TEST_CONTEXT: undefined } });
+  assert.notEqual(run.status, 0);
+  for (const gate of ["G2", "G3", "G4"]) assert.match(run.stdout + run.stderr, new RegExp(`TODO_TDD_${gate}_ACCEPTANCE`));
+  assert.doesNotMatch(run.stdout + run.stderr, /tests? skipped|# skipped [1-9]/);
 });
