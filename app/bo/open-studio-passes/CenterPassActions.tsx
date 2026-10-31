@@ -1,7 +1,6 @@
 "use client";
-import {useCallback,useEffect,useRef,useState} from "react";
-import {TosButton,TosCard} from "@pino/design-system/react";
-import styles from "@/app/bo/bo.module.css";
+import {useCallback,useState} from "react";
+import {DrawerFrame,TosButton,TosCard} from "@pino/design-system/react";
 import {readScopedParentDirectory} from "@/app/bo/parents/provider";
 import {walkinPassBoApi,type WalkinPath,type VerifiedParentContact} from "@/lib/open-studio-walkin-bo-api";
 
@@ -26,7 +25,6 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
  const [notice,setNotice]=useState("");
  const [error,setError]=useState("");
  const [uncertain,setUncertain]=useState(false);
- const closeRef=useRef<HTMLButtonElement>(null);
 
  const reset=useCallback(()=>{
   setStep("select");setQuery("");setParents([]);setParentId("");setPath("");
@@ -35,26 +33,6 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
  },[]);
  function launch(){reset();setOpen(true)}
  const close=useCallback(()=>{if(busy||searching||uncertain)return;reset();setOpen(false);document.getElementById("pass-issue-launch")?.focus()},[busy,searching,uncertain,reset])
- useEffect(()=>{
-  if(!open)return;
-  const old=document.body.style.overflow;document.body.style.overflow="hidden";
-  closeRef.current?.focus();
-  const onKey=(e:KeyboardEvent)=>{
-   const dialog=document.getElementById("pass-issue-title")?.closest("aside");
-   if(e.key==="Tab"&&dialog){
-    const focusable=[...dialog.querySelectorAll<HTMLElement>("button:not([disabled]),input:not([disabled]),select:not([disabled])")].filter(el=>el.getClientRects().length>0);
-    if(focusable.length){
-     const first=focusable[0]!,last=focusable[focusable.length-1]!;
-     if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
-     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
-    }
-   }
-   if(e.key==="Escape"&&!busy&&!searching&&!uncertain){e.preventDefault();close()}
-  };
-  window.addEventListener("keydown",onKey);
-  return()=>{document.body.style.overflow=old;window.removeEventListener("keydown",onKey)};
-  // close deliberately uses the latest state for each render.
- },[open,busy,searching,uncertain,close]);
  // Parent lookup/proof state is isolated by a key on CenterPassActions in its TDD parent.
 
  async function search(){
@@ -119,22 +97,17 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
    <p>Chọn Parent và Path tại Center. Không tạo Student hoặc bill tự động.</p>
    {!open&&notice?<p role="status">{notice}</p>:null}
   </section></TosCard>
-  {open?<div className={styles.walkinScrim} onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
-   <aside className={styles.walkinDrawer} role="dialog" aria-modal="true" aria-labelledby="pass-issue-title">
-    <header className={styles.walkinDrawerHeader}>
-     <h3 id="pass-issue-title">{step==="verify"?"Xác minh Parent tại quầy":"Cấp Pass cho phụ huynh"}</h3>
-     <button type="button" ref={closeRef} className={styles.walkinClose} disabled={busy||searching||uncertain} aria-label="Đóng Drawer" onClick={close}>×</button>
-    </header>
-    <div className={styles.walkinBody}>
+  {open?<DrawerFrame title={step==="verify"?"Xác minh Parent tại quầy":"Cấp Pass cho phụ huynh"} path="Trạm Nghệ Thuật" open onClose={close}>
+    <div className="os-verify-body">
      {step==="select"?<>
-      <label className={styles.walkinField} htmlFor="pass-parent-search">Tìm Parent đã liên kết Center
-       <div className={styles.walkinSearchRow}>
+      <label className="os-verify-field" htmlFor="pass-parent-search">Tìm Parent đã liên kết Center
+       <div className="os-verify-search">
         <input id="pass-parent-search" type="search" value={query} disabled={busy||uncertain}
          onChange={e=>setQuery(e.target.value)} placeholder="Tên Parent"/>
         <TosButton type="button" variant="secondary" disabled={!query.trim()||busy||searching||uncertain} onClick={()=>void search()}>{searching?"Đang tìm…":"Tìm"}</TosButton>
        </div>
       </label>
-      <label className={styles.walkinField} htmlFor="pass-parent-select">Parent *
+      <label className="os-verify-field" htmlFor="pass-parent-select">Parent *
        <select id="pass-parent-select" value={parentId} disabled={busy||uncertain} onChange={e=>setParentId(e.target.value)}>
         <option value="">Chọn phụ huynh…</option>
         {parents.map(p=><option key={p.id} value={p.id}>{p.name??"Parent"}</option>)}
@@ -146,21 +119,21 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
        onClick={()=>{setStep("verify");setCandidate(null);setHolderConfirmed(false);setError("");setNotice("")}}>
        Không thấy Parent? Xác minh liên hệ tại quầy
       </TosButton>
-      <label className={styles.walkinField} htmlFor="pass-path">Path *
+      <label className="os-verify-field" htmlFor="pass-path">Path *
        <select id="pass-path" value={path} disabled={busy||uncertain} onChange={e=>setPath(e.target.value as WalkinPath|"")}>
         <option value="">Chọn Path…</option>{PATHS.map(p=><option key={p} value={p}>{p}</option>)}
        </select>
       </label>
       <p>Mỗi Parent tối đa một Pass chưa sử dụng. Mã cấp từ kho HO.</p>
-      <div className={styles.walkinActions}>
+      <div className="os-verify-actions">
        <TosButton type="button" variant="secondary" disabled={busy||uncertain} onClick={close}>Hủy</TosButton>
        <TosButton type="button" variant="primary" disabled={!parentId||!path||busy||uncertain} onClick={()=>void assign()}>{busy?"Đang cấp…":"Cấp Pass"}</TosButton>
       </div>
      </>:<>
       <h4>1. Nhận diện liên hệ đã xác minh</h4>
       <p>Parent cung cấp số điện thoại hoặc email tại quầy. Chỉ tra cứu chính xác trong Core, không duyệt danh bạ chung.</p>
-      <label className={styles.walkinField} htmlFor="pass-contact-exact">Số điện thoại hoặc email *
-       <div className={styles.walkinSearchRow}>
+      <label className="os-verify-field" htmlFor="pass-contact-exact">Số điện thoại hoặc email *
+       <div className="os-verify-search">
         <input id="pass-contact-exact" type="text" autoComplete="off" value={contactValue} disabled={busy||uncertain}
          onChange={e=>{setContactValue(e.target.value);setCandidate(null);setHolderConfirmed(false);setError("")}}
          placeholder="Liên hệ Parent cung cấp"/>
@@ -172,7 +145,7 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
        <h4>Liên hệ được Core xác minh</h4>
        <strong>{candidate.parentName??"Parent"}</strong><p>{candidate.maskedContact}</p>
        <h4>2. Đối chiếu người đến quầy</h4>
-       <label className={styles.walkinConfirm}>
+       <label className="os-verify-confirm">
         <input type="checkbox" checked={holderConfirmed} disabled={busy||uncertain} onChange={e=>setHolderConfirmed(e.target.checked)}/>
         <span>Tôi đã đối chiếu trực tiếp người đến quầy với tên và liên hệ đã xác minh.</span>
        </label>
@@ -180,7 +153,7 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
        <TosButton type="button" variant="primary" disabled={!holderConfirmed||busy||uncertain}
         onClick={()=>void verify()}>{busy?"Đang xác minh…":"Tiếp tục với Parent"}</TosButton>
       </section>:null}
-      <div className={styles.walkinActions}>
+      <div className="os-verify-actions">
        <TosButton type="button" variant="secondary" disabled={busy||uncertain} onClick={()=>{setStep("select");setError("");setCandidate(null);setHolderConfirmed(false)}}>Quay lại cấp Pass</TosButton>
       </div>
      </>}
@@ -188,7 +161,6 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
      {error?<p role="alert">{error}</p>:null}
      {uncertain?<TosButton type="button" variant="secondary" onClick={()=>location.reload()}>Tải lại để đối chiếu Core</TosButton>:null}
     </div>
-   </aside>
-  </div>:null}
+  </DrawerFrame>:null}
  </>;
 }

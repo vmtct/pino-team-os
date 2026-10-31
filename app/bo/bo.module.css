@@ -1020,3 +1020,15 @@
     grid-column: 1 / -1;
   }
 }
+
+/* PAP-1248 BO: domain form inside shared PINO DS DrawerFrame; no custom drawer shell. */
+:global(.os-verify-body){display:grid;gap:16px;min-width:0}
+:global(.os-verify-field){display:grid;gap:7px;font-size:12px;font-weight:650;color:var(--bo-color-text,#262434)}
+:global(.os-verify-field input),:global(.os-verify-field select){min-width:0;width:100%;padding:10px 11px;border:1px solid var(--bo-color-border,#d6d4df);border-radius:8px;background:var(--bo-color-surface,#fff);color:var(--bo-color-text,#262434);font:inherit;font-weight:400}
+:global(.os-verify-field input:focus-visible),:global(.os-verify-field select:focus-visible){outline:2px solid var(--bo-color-accent,#74283e);outline-offset:2px}
+:global(.os-verify-search){display:flex;align-items:center;gap:8px;min-width:0}
+:global(.os-verify-search input){flex:1;min-width:0}
+:global(.os-verify-actions){display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+:global(.os-verify-confirm){display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.5;color:var(--bo-color-text,#262434)}
+:global(.os-verify-confirm input){width:18px;height:18px;flex:0 0 18px;accent-color:var(--bo-color-accent,#74283e)}
+@media(max-width:480px){:global(.os-verify-search){flex-direction:column;align-items:stretch}:global(.os-verify-actions){flex-direction:column;align-items:stretch}}
