@@ -56,7 +56,9 @@ export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProp
 function DetailRecord({ schema, context, record, status = "ready", onRetry, onBack, subject, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<readonly FieldSchema[]>, "registry"> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const [selected, setSelected] = useState("overview");
   const projection = status === "ready" ? recordProjection(schema, context, record) : null;
-  const tabs = authorizedTabs(schema, context);
+  const tabs = authorizedTabs(schema, context, projection?.record);
+  const invalidSelected = Boolean(projection && activeTab && !tabs.some(tab => tab.id === activeTab));
+  useEffect(() => { if (invalidSelected) onTabChange?.("overview"); }, [invalidSelected, activeTab, onTabChange]);
   const active = tabs.find(t => t.id === (activeTab ?? selected)) ?? tabs[0];
   if (subject.id !== record.id) throw Error("History subject does not match selected record");
   // Explicit, Founder-approved business extension: TDD still owns registration, tabs,

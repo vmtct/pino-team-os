@@ -1,6 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { operatorPresentationClient, type OperatorHealth } from "@/app/pinoria-tv/operator-presentation-client";
+type BoTvHealth = { centerId:string; deviceSessions:Array<{sessionId:string;deviceId:string;displayId:string;lastSeenAt:string;expiresAt:string;definitionVersion:number;runtimeType:string;heartbeatFresh:boolean;rendererAcknowledged:false}> };
+async function readBoTvHealth(centerId:string):Promise<BoTvHealth>{
+  const response=await fetch(`/api/bo/tv/operator-health?centerId=${encodeURIComponent(centerId)}`,{cache:"no-store"});
+  const payload=await response.json() as {data?:BoTvHealth;error?:{message?:string}};
+  if(!response.ok||!payload.data||payload.data.centerId!==centerId)throw new Error(payload.error?.message??"Không thể đọc TV health từ BO");
+  return payload.data;
+}
 import { describeDeviceSession } from "@/lib/pap659-tv-session-status";
 
 type Device = {id:string;displayName:string;centerId:string|null;status:string;lastSeenAt:string|null;defaultDisplayId:string|null;viewportWidth:number|null;viewportHeight:number|null};
@@ -13,7 +19,7 @@ export function TvDeviceDiagnostics(){
   const [busy,setBusy]=useState(false);
   const refreshInFlight=useRef(false);
   const [centerId,setCenterId]=useState("");
-  const [health,setHealth]=useState<OperatorHealth|null>(null);
+  const [health,setHealth]=useState<BoTvHealth|null>(null);
   const requestGeneration=useRef(0);
   useEffect(()=>()=>{requestGeneration.current+=1;},[]);
   async function refresh(){
@@ -29,8 +35,8 @@ export function TvDeviceDiagnostics(){
       if(!displayResponse.ok || !Array.isArray(displayPayload.data))throw new Error(displayPayload.error?.message??"Không thể đọc TV definitions");
       const allowedCenters=[...new Set(payload.data.map(device=>device.centerId).filter((id):id is string=>Boolean(id)))];
       const selectedCenter=allowedCenters.includes(centerId.trim())?centerId.trim():allowedCenters.length===1?allowedCenters[0]:null;
-      let operatorHealth:OperatorHealth|null=null;
-      if(selectedCenter){try{operatorHealth=await operatorPresentationClient.operatorHealth(selectedCenter);}catch(cause){if(generation===requestGeneration.current)setError(cause instanceof Error?cause.message:"Core health không khả dụng");}}
+      let operatorHealth:BoTvHealth|null=null;
+      if(selectedCenter){try{operatorHealth=await readBoTvHealth(selectedCenter);}catch(cause){if(generation===requestGeneration.current)setError(cause instanceof Error?cause.message:"Core health không khả dụng");}}
       if(generation===requestGeneration.current){setDevices(payload.data);setDisplays(displayPayload.data);setCenterId(selectedCenter??"");setHealth(operatorHealth);}
     }catch(e){if(generation===requestGeneration.current)setError(e instanceof Error?e.message:"Không thể đọc device status");}
     finally{refreshInFlight.current=false;setBusy(false);}
@@ -41,9 +47,9 @@ export function TvDeviceDiagnostics(){
     <label>Center được phép xem <select aria-label="Center for operator health" value={centerId} onChange={e=>{requestGeneration.current+=1;setCenterId(e.target.value);setHealth(null);}}><option value="">Tự chọn khi chỉ có một center</option>{[...new Set((devices??[]).map(device=>device.centerId).filter((id):id is string=>Boolean(id)))].map(id=><option key={id} value={id}>{id}</option>)}</select></label>
     <button type="button" disabled={busy} onClick={()=>void refresh()}>{busy?"Đang tải…":"Làm mới thiết bị"}</button>
     {error?<p role="alert">{error}</p>:null}
-    {devices && !centerId && [...new Set(devices.map(device=>device.centerId).filter(Boolean))].length>1?<p role="status">Chọn center trong danh sách rồi làm mới để đọc queue health.</p>:null}
-    {health?<p role="status">Core queue revision {health.queueRevision} · Pending {health.queuedCount} · Active {health.activePresentation?.kind??"None"} · Renderer ACK chưa xác thực</p>:null}
-    {health?.deviceSessions?.filter(session=>!centerId||devices?.some(device=>device.id===session.deviceId && device.centerId===centerId)).map(session=><p key={session.sessionId}>TV session: {session.sessionId} · Device: {session.deviceId} · Display: {session.displayId} · {session.heartbeatFresh?"Heartbeat gần đây (không phải ACK)":"Heartbeat cũ/offline chưa xác thực"} · Definition v{session.definitionVersion} · Replay: {session.latestReplayCommandId?('Lệnh '+session.latestReplayCommandId+' · '+session.latestReplayResolution+' · '+(session.latestReplayResolvedAt??'Chưa phản hồi')):'Chưa ghi nhận lệnh'} (receipt của Core, không xác nhận hình ảnh TV)</p>)}
+    {devices && !centerId && [...new Set(devices.map(device=>device.centerId).filter(Boolean))].length>1?<p role="status">Chọn center trong danh sách rồi làm mới để đọc TV health.</p>:null}
+    {health?<p role="status">BO Core TV health · {health.deviceSessions.length} phiên được phép xem · Heartbeat không phải renderer ACK</p>:null}
+    {health?.deviceSessions?.filter(session=>!centerId||devices?.some(device=>device.id===session.deviceId && device.centerId===centerId)).map(session=><p key={session.sessionId}>TV session: {session.sessionId} · Device: {session.deviceId} · Display: {session.displayId} · {session.heartbeatFresh?"Heartbeat gần đây (không phải ACK)":"Heartbeat cũ/offline chưa xác thực"} · Definition v{session.definitionVersion} · Không xác nhận hình ảnh TV</p>)}
     {devices?.length===0?<p>Không có thiết bị được cấp quyền xem.</p>:null}
     {devices && centerId && !devices.some(device=>device.centerId===centerId)?<p role="status">Center đã chọn không còn thiết bị được cấp quyền xem.</p>:null}
     <p><small>Phiên TV và độ mới heartbeat chỉ lấy từ Core (snapshot tối đa 20 phiên), không phải xác nhận kết nối vật lý hay renderer ACK. Build manifest, phiên bản cấu hình đã áp dụng và asset health chưa có projection xác thực. Không dùng token TV.</small></p>

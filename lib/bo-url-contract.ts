@@ -1,11 +1,12 @@
 /** PAP-1089 / PAP-1088 E — approved target URLs. No route admission or redirects here. */
 export const BO_LEGACY_QUERY_MODULES = [
   "students", "classes", "subscriptions", "enrollments", "visits", "staffs",
-  "timekeeping", "salaryPeriods", "audits", "parents",
+  "timekeeping", "salaryPeriods", "audits", "parents", "missions",
 ] as const;
 type LegacyKey = (typeof BO_LEGACY_QUERY_MODULES)[number];
 type Target = Readonly<{ key: string; path: string; tabs: readonly string[]; legacyModule?: LegacyKey }>;
 export const BO_TARGET_ROUTES = [
+  { key: "missions", path: "/bo/missions", tabs: ["overview", "results", "diary", "history"], legacyModule: "missions" },
   { key: "students", path: "/bo/students", tabs: ["overview", "subscriptions", "history"], legacyModule: "students" },
   { key: "parents", path: "/bo/parents", tabs: ["overview", "students", "contacts", "history"], legacyModule: "parents" },
   { key: "subscriptions", path: "/bo/subscriptions", tabs: ["overview", "enrollment", "history"], legacyModule: "subscriptions" },
@@ -16,6 +17,7 @@ export const BO_TARGET_ROUTES = [
   { key: "payroll-periods", path: "/bo/payroll-periods", tabs: ["overview", "history"] },
   { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
   { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
+  { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";

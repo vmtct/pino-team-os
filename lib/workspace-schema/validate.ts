@@ -189,18 +189,25 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
   for (const slot of m.detail.businessTabs) {
     check(!["overview", "history"].includes(slot.id), "reserved tab ID"); nonempty(slot.id); nonempty(slot.label); source(slot.source);
     const base = ["id", "label", "kind", "source"];
+    const slotObject = (value: unknown, keys: readonly string[]) => object(value, [...keys, "visibility"], keys);
+    if (slot.visibility !== undefined) {
+      object(slot.visibility, ["field", "op", "value"]);
+      const target = m.fields.find(f => f.key === slot.visibility?.field);
+      check(target && target.capabilities.display && ["text", "select"].includes(target.type), "visibility requires a displayed text/select field");
+      check(["eq", "neq"].includes(slot.visibility.op) && typeof slot.visibility.value === "string" && slot.visibility.value.trim().length > 0 && slot.visibility.value.length <= 100, "invalid tab visibility predicate");
+    }
     switch (slot.kind) {
-      case "field-group": object(slot, [...base, "sections"]); sections(slot.sections); break;
-      case "relation-grid": case "data-grid": object(slot, [...base, "relatedModule"]); nonempty(slot.relatedModule); break;
+      case "field-group": slotObject(slot, [...base, "sections"]); sections(slot.sections); break;
+      case "relation-grid": case "data-grid": slotObject(slot, [...base, "relatedModule"]); nonempty(slot.relatedModule); break;
       case "form":
-        object(slot, [...base, "fields", "submitPermission"]);
+        slotObject(slot, [...base, "fields", "submitPermission"]);
         array(slot.fields); check(slot.fields.length > 0 && slot.fields.length <= 12, "bounded business form fields required"); unique(slot.fields);
         slot.fields.forEach(k => check(typeof k === "string" && /^[A-Za-z][A-Za-z0-9_:-]{0,63}$/.test(k), "invalid business form field key"));
         nonempty(slot.submitPermission); check(slot.submitPermission !== slot.source.permission, "form read and submit permissions must be distinct"); break;
-      case "timeline": object(slot, [...base, "dateField"]); check(m.fields.some(f => f.key === slot.dateField && ["date", "datetime"].includes(f.type)), "timeline requires date field"); break;
-      case "media": case "metric-cards": object(slot, [...base, "fields"]); refs(slot.fields); break;
-      case "audit-events": object(slot, [...base, "subjectType"]); nonempty(slot.subjectType); break;
-      case "approved-extension": object(slot, [...base, "extensionId", "approval"]); nonempty(slot.extensionId); validateApproval(slot.approval); break;
+      case "timeline": slotObject(slot, [...base, "dateField"]); check(m.fields.some(f => f.key === slot.dateField && ["date", "datetime"].includes(f.type)), "timeline requires date field"); break;
+      case "media": case "metric-cards": slotObject(slot, [...base, "fields"]); refs(slot.fields); break;
+      case "audit-events": slotObject(slot, [...base, "subjectType"]); nonempty(slot.subjectType); break;
+      case "approved-extension": slotObject(slot, [...base, "extensionId", "approval"]); nonempty(slot.extensionId); validateApproval(slot.approval); break;
       default: check(false, "unapproved slot kind");
     }
   }

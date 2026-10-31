@@ -8,11 +8,13 @@ import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
 import dynamic from "next/dynamic";
 import { BoAuthenticatedAccount } from "@/app/bo/shell/BoAuthenticatedAccount";
 const ParentTdd = dynamic(() => import("../../parents/ParentTdd").then(module => module.ParentTdd), { ssr: false });
+const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 export const useBoStagingUser = () => useContext(RuntimeContext);
 export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode }) { return <RuntimeContext.Provider value={currentUser}>{children}<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} /></RuntimeContext.Provider>; }
 export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: { moduleKey: string; options: Record<string, string>; parentTddPilot?: boolean }) {
   const currentUser = useContext(RuntimeContext);
+  if (moduleKey === "missions") return <MissionsTdd />;
   return currentUser
     ? <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options}
         content={moduleKey === "subscriptions" ? <BoSubscriptionsView embedded /> :

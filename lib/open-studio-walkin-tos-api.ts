@@ -20,7 +20,7 @@ export const walkinPassTosApi={
   "lookup?"+new URLSearchParams({centerId,code})
  ),
  consume:(data:{
-  centerId:string;code:string;shiftId:string;confirmedHolder:true;
+  centerId:string;code:string;shiftId?:string|null;confirmedHolder:true;
   studentId?:string|null;manualChildName?:string|null;
  })=>request<{id:string;status:"CONSUMED";child_name:string;student_id:string|null}>(
   "consume",{method:"POST",headers:{"idempotency-key":crypto.randomUUID()},body:JSON.stringify(data)}

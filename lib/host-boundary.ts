@@ -19,9 +19,23 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
+  // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
+  const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
+  const assignmentChange = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
+  const assignmentCancel = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/cancel\/?$/i.test(pathname);
+  if (assignmentRead || assignmentChange || assignmentCancel) {
+    const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
+    const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
+    return readAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
+  }
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
+    if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
+    if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
+      return { action: (method === "PUT" || method === "GET") ? "next" : "not_found" };
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
     const staffRateCorrection = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation\/[0-9a-f-]{36}$/.test(p);
     const staffPasswordReset = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/password-reset$/.test(p);
@@ -71,6 +85,17 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isStaffRegistrationPath(pathname) && !isLocalOrPreviewHostname(hostname)) return { action: "not_found" };
 
   if (hostname === BO_HOSTNAME || hostname === BO_STAGING_HOSTNAME) {
+    // PAP-1220: exact Classroom Diary Center read-only module and bounded Core facade,
+    // Staging BO only. BFF independently checks credentials/query; Core authorizes Center + Path.
+    // No HO GLOBAL, no writes, no Production exposure, no arbitrary Diary child/media route.
+    if (pathname === "/bo/classroom-diaries") {
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD")
+        ? { action: "next" } : { action: "not_found" };
+    }
+    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(pathname)) {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET"
+        ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1224: new Pass TDD is BO Staging-only; production retains legacy Open Studio.
     if (pathname === "/bo/open-studio-passes") return (method==="GET"||method==="HEAD") ? {action:"next"} : {action:"not_found"};
     // PAP-1211: one exact synthetic salary adjustment E2E path, Founder BFF guarded.
@@ -87,6 +112,16 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     }
     if (pathname === "/api/bo/workforce/planning/shift-plan") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1252: exact read-only BO TV Health; BFF and Core enforce Center-scoped tv.view.
+    // The host fence admits neither Production nor non-GET methods.
+    const spatialPath=/^\/api\/bo\/pinoria\/tv-config\/spatial\/(head|versions|version|active|drafts|publish|revert)$/.exec(pathname);
+    if (spatialPath) {
+      const read=["head","versions","version","active"].includes(spatialPath[1]);
+      return hostname===BO_STAGING_HOSTNAME && (read?method==="GET":method==="POST") ? {action:"next"} : {action:"not_found"};
+    }
+    if (pathname === "/api/bo/tv/operator-health") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
     }
     // PAP-1111 G4: admit only staging BO note-only assignment edits.
     // Next and Core still enforce Staff identity, Center ACL, CAS and audit.
@@ -209,6 +244,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/open-studio/walkin/assign",
     "/api/bo/open-studio/walkin/revoke",
     "/bo/tvs",
+    // PAP-1266 is the only live TV TDD page; legacy mesh/TV operator remain unadmitted.
     "/bo/delivery-activation",
     "/bo/calendar",
     "/bo/running-classes",

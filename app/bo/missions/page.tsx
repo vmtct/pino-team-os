@@ -1,2 +1,2 @@
-import {MissionCatalogView} from './MissionCatalogView';
-export default function MissionsPage(){return <MissionCatalogView/>;}
+import { BoMissionsTdd } from "./BoMissionsTdd";
+export default function MissionsPage() { return <BoMissionsTdd />; }

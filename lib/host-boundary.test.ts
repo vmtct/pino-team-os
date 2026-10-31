@@ -319,3 +319,34 @@ test("PAP-1035 staging Worker-first Enrollment GET admission is exact, never Pro
   "/api/bo/enrollments/capacity/extra","/api/bo/enrollments/no"
  ]) assert.deepEqual(decideHostBoundary(bo,p),{action:"not_found"},p);
 });
+
+test("PAP-1220 Classroom Diary path and Core read facade: BO Staging-only, no HO/Production/write",()=>{
+  const staging="bo.staging.pinohouse.art",other=["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"];
+  const page="/bo/classroom-diaries",list="/api/bo/learning/path-diaries";
+  const diaryId="01912345-6789-7abc-8def-0123456789ab",detail=list+"/"+diaryId;
+  assert.deepEqual(decideHostBoundary(staging,page,"GET"),{action:"next"});
+  assert.deepEqual(decideHostBoundary(staging,page,"HEAD"),{action:"next"});
+  for(const p of [list,detail]) assert.deepEqual(decideHostBoundary(staging,p,"GET"),{action:"next"},p);
+  assert.equal(requiresBoStaffPasswordSession(staging,page),true);
+  for(const host of other)for(const p of [page,list,detail])
+    assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"},host+" "+p);
+  for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS"])for(const p of [page,list,detail])
+    assert.deepEqual(decideHostBoundary(staging,p,method),{action:"not_found"},method+" "+p);
+  assert.deepEqual(decideHostBoundary(staging,list,"HEAD"),{action:"not_found"});
+  for(const bad of [page+"/extra",page+"%2f",list+"/unknown",detail+"/evidence",list+"/"+diaryId+"/missions",list+"/wrong",list+"/"])
+    assert.deepEqual(decideHostBoundary(staging,bad,"GET"),{action:"not_found"},bad);
+});
+test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
+  const route = "/api/bo/tv/operator-health";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, route, "GET"), { action: "next" });
+  for (const method of ["HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+    assert.deepEqual(decideHostBoundary(bo, route, method), { action: "not_found" }, method);
+  }
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art", "join.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, route, "GET"), { action: "not_found" }, host);
+  }
+  for (const path of [route + "/extra", route + "/", route + "%2fextra", route.toUpperCase(), "/api/bo/tv/operator-healthz"]) {
+    assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
+  }
+});
