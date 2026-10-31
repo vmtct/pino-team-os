@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parentDefinition, parentQuery, parentSchema, parentProvider } from "@/app/bo/parents/schema";
-import { readScopedParentDetail } from "@/app/bo/parents/provider";
+import { readScopedParentDetail, readScopedParentDirectory } from "@/app/bo/parents/provider";
+import { readFileSync } from "node:fs";
 
 const center = "01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
 const other = "01a0b29a-3acd-7a18-a0f2-cf6016548ab6";
@@ -66,4 +67,20 @@ test("PAP-1075 provider refuses missing or cross-Center Core receipts and raw PI
   await assert.rejects(() => readScopedParentDetail(parent, scope, injected, signal));
   await assert.rejects(() => parentProvider.list(parentQuery, { surface: "HO" }, api().fetcher, signal));
   await assert.rejects(() => readScopedParentDetail("invalid", scope, api().fetcher, signal));
+});
+
+test("PAP-1248 picker uses the same Core-attested redacted Center directory as Parents TDD", async () => {
+  const { fetcher, called } = api();
+  const matches = await readScopedParentDirectory(center, fetcher, new AbortController().signal);
+  assert.equal(matches.length, 1);
+  assert.equal(matches[0].id, parent);
+  assert.equal(matches[0].name, "Parent A");
+  assert.equal(matches[0].maskedContact, "09••••12");
+  assert.ok(called.every(route => route.includes("centerId=" + center) && route.includes("/identity/parents/directory")));
+  await assert.rejects(() => readScopedParentDirectory(center, api(other).fetcher, new AbortController().signal));
+  await assert.rejects(() => readScopedParentDirectory(center, api(center, center, { ...item, rawPhone: "0901234567" }).fetcher, new AbortController().signal));
+  const source = readFileSync("app/bo/open-studio-passes/CenterPassActions.tsx", "utf8");
+  assert.match(source, /readScopedParentDirectory\(centerId,fetch/);
+  assert.doesNotMatch(source, /boApi\.parents\(/);
+  assert.match(source, /Hoàn tất xác minh Parent–Center/);
 });
