@@ -343,3 +343,38 @@ test("literal field schemas retain typed BO/HO data adapters and query reference
     assert.deepEqual(composeTabs(registered).map(t => t.id), ["overview", "history"]);
   }
 });
+
+test("PAP-1256: tab visibility is row-kind declarative and applies after permission filtering", () => {
+  const model = fixture("HO");
+  const source = model.detail.businessTabs[0]!;
+  const spec = defineTddModule({
+    ...model, detail: {...model.detail, businessTabs: [
+      {...source, id:"calibration", label:"Calibration", visibility:{field:"select",op:"neq",value:"SET"} },
+      {...source, id:"members", label:"Thành viên", visibility:{field:"select",op:"eq",value:"SET"} },
+      {...source, id:"variants", label:"Biến thể" },
+    ]}
+  });
+  const ids=(row?:Record<string,unknown>|null,auth:AuthorizationContext=ho)=>authorizedTabs(spec,auth,row).map(t=>t.id);
+  assert.deepEqual(ids({select:"SET"}),["overview","members","variants","history"]);
+  assert.deepEqual(ids({select:"WEARABLE"}),["overview","calibration","variants","history"]);
+  assert.deepEqual(ids({select:"ACCESSORY"}),["overview","calibration","variants","history"]);
+  assert.deepEqual(ids(null),["overview","variants","history"],"unknown row cannot leak business conditional tabs");
+  assert.deepEqual(ids({select:123}),["overview","variants","history"],"wrong type fails closed");
+  assert.deepEqual(ids({select:"SET"},{surface:"HO",authorize:p=>p==="fixture.read"}),["overview","history"],"no ACL bypass");
+  assert.deepEqual(ids({select:"SET"},{surface:"HO",authorize:p=>p!=="fixture.read"}),[],"module read denial hides all");
+  assert.deepEqual(ids({select:"SET"},{surface:"BO",centerId:"x",authorize:()=>true}),[],"surface isolation");
+});
+test("PAP-1256: reject malformed or unsafe row visibility declarations at G0",()=>{
+ const model=fixture("HO"), slot=model.detail.businessTabs[0];
+ const variant=(v:unknown)=>replace(model,"detail.businessTabs.0",{...slot,visibility:v});
+ for(const unsafe of [
+  {field:"missing",op:"eq",value:"SET"},
+  {field:"boolean",op:"eq",value:"SET"},
+  {field:"select",op:"script",value:"SET"},
+  {field:"select",op:"eq",value:""},
+  {field:"select",op:"eq",value:"SET",fn:"alert(1)"},
+  {field:"select",op:"neq",value:2},
+ ]) assert.throws(()=>defineTddModule(variant(unsafe)),/visibility|invalid|unknown property/);
+ const hidden=replace(model,"fields",model.fields.map(f=>f.key==="select"?{...f,capabilities:{...f.capabilities,display:false}}:f));
+ assert.throws(()=>defineTddModule(replace(hidden,"detail.businessTabs.0",{...slot,visibility:{field:"select",op:"eq",value:"SET"}})),/visibility|display field/);
+});
