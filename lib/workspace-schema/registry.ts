@@ -118,8 +118,8 @@ export type TddActionHandler = Readonly<{
 }>;
 export type TddActionBindings = Readonly<Record<string, TddActionHandler | undefined>>;
 /** Server/client safe: check permission from an authenticated context and an actual handler. */
-export function authorizedHostActions(
-  schema: ModuleSchema, context: AuthorizationContext,
+export function authorizedHostActions<F extends readonly FieldSchema[]>(
+  schema: ModuleSchema<F>, context: AuthorizationContext,
   slot: TddActionDescriptor["slot"], bindings: TddActionBindings,
 ): readonly TddActionDescriptor[] {
   const eligible = (schema.actions ?? []).filter(action => action.slot === slot &&
