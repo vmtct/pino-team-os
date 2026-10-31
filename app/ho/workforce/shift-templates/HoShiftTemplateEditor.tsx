@@ -6,7 +6,7 @@ import {parseHoShiftTemplates,type HoShiftTemplateRow} from "@/lib/ho-shift-temp
 
 type Mode="create"|"edit"|"status";
 type Form={code:string;displayLabel:string;startLocalTime:string;endLocalTime:string};
-type Props={mode:Mode;centerId:string;templateId?:string;authorized:boolean;onSaved:()=>void};
+type Props={mode:Mode;centerId:string;templateId?:string;authorized:boolean;onSaved:()=>void;createOpen?:boolean;onCreateClose?:()=>void};
 type View={kind:"loading"}|{kind:"error";message:string}|{kind:"ready";template:HoShiftTemplateRow};
 const empty:Form={code:"",displayLabel:"",startLocalTime:"",endLocalTime:""};
 const from=(row:HoShiftTemplateRow):Form=>({
@@ -19,8 +19,10 @@ const parsedRows=(value:unknown,centerId:string)=>{
   if(!rows)throw Error("Core trả dữ liệu Mẫu ca không hợp lệ.");
   return rows;
 };
-export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSaved}:Props){
-  const [open,setOpen]=useState(false);
+export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSaved,createOpen,onCreateClose}:Props){
+  const [localOpen,setLocalOpen]=useState(false);
+  const open=createOpen??localOpen;
+  const setOpen=(value:boolean)=>{if(createOpen!==undefined){if(!value)onCreateClose?.();}else setLocalOpen(value);};
   const [view,setView]=useState<View>({kind:"loading"});
   const [form,setForm]=useState<Form>(empty);
   const [targetStatus,setTargetStatus]=useState<"ACTIVE"|"INACTIVE">("ACTIVE");
@@ -110,7 +112,7 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
   }}>Tải lại từ Core</TosButton>;
   if(!authorized)return <p role="alert">Không có quyền quản lý Mẫu ca.</p>;
   if(mode==="create")return <section aria-label="Tạo mẫu ca" data-ho-shift-template-create>
-    <TosButton type="button" variant="primary" disabled={busy} onClick={()=>{setOpen(true);setError("");setUncertain(false);}}>Tạo mẫu ca</TosButton>
+    {createOpen===undefined?<TosButton type="button" variant="primary" disabled={busy} onClick={()=>{setOpen(true);setError("");setUncertain(false);}}>Tạo mẫu ca</TosButton>:null}
     {notice?<p role="status">{notice}</p>:null}
     {open?<AppSheet title="Tạo mẫu ca" onClose={()=>{if(!busy)setOpen(false);}}>
       <TosCard><form onSubmit={event=>{event.preventDefault();void submit();}}>

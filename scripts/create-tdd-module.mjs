@@ -155,6 +155,10 @@ test("PAP-1077 required acceptance contracts not yet met", () => {
   const manifestEntry = {
     profile: "TDD_DEFAULT", surface: upper, key, route, file: `${base}/page.tsx`,
     files: [`${base}/page.tsx`, `${base}/${component}.tsx`, `${base}/schema.ts`],
+    externalReferences: upper === "BO" ? [
+      {file: "lib/bo-url-contract.ts", owner: "PAP-1089"},
+      {file: "lib/host-boundary.ts", owner: "PAP-990"},
+    ] : [{file: "lib/ho-routes.ts", owner: "PAP-990"}],
     schema: { file: `${base}/schema.ts`, export: schema },
     binding: { kind: "SURFACE_WORKSPACE_ADAPTER", file: `${base}/${component}.tsx` },
     tests: [`${base}/module.test.ts`, `${base}/acceptance.gates.test.mjs`],
@@ -166,12 +170,19 @@ test("PAP-1077 required acceptance contracts not yet met", () => {
     const anchor = 'items: [{ href: "/bo", label: "Hôm nay" }';
     if (!nav.includes(anchor) || nav.includes(`href: "${route}"`)) throw Error("BO nav anchor missing or route exists");
     files.push(writeData(navFile, nav.replace(anchor, anchor + `, { href: "${route}", label: ${labelString} }`)));
+    const urlFile = "lib/bo-url-contract.ts", urls = fs.readFileSync(path.join(root, urlFile), "utf8");
+    const urlAnchor = "export const BO_TARGET_ROUTES = [";
+    if (!urls.includes(urlAnchor) || urls.includes(`key: ${json(key)}`) || urls.includes(`path: ${json(route)}`)) throw Error("BO URL registry anchor missing or module exists");
+    files.push(writeData(urlFile, urls.replace(urlAnchor, urlAnchor + `\n  { key: ${json(key)}, path: ${json(route)}, tabs: ["overview", "history"] },`)));
+    const hostFile = "lib/host-boundary.ts", hosts = fs.readFileSync(path.join(root, hostFile), "utf8");
+    const hostAnchor = '    if (pathname === "/bo/pinoria-avatars") {';
+    if (!hosts.includes(hostAnchor) || hosts.includes(`pathname === ${json(route)}`)) throw Error("BO host admission anchor missing or route exists");
+    files.push(writeData(hostFile, hosts.replace(hostAnchor, `    if (pathname === ${json(route)}) {\n      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? { action: "next" } : { action: "not_found" };\n    }\n` + hostAnchor)));
   } else {
     const hoFile = "lib/ho-routes.ts", source = fs.readFileSync(path.join(root, hoFile), "utf8");
     const anchor = "export const HO_PAGE_PATHS = {";
     if (!source.includes(anchor) || source.includes(`"${route}"`)) throw Error("HO route anchor missing or route exists");
-    const mapKey = key.replace(/-([a-z])/g, (_,c) => c.toUpperCase());
-    files.push(writeData(hoFile, source.replace(anchor, anchor + `\n  ${mapKey}: "${route}",`)));
+    files.push(writeData(hoFile, source.replace(anchor, anchor + `\n  ${json(key)}: "${route}",`)));
   }
   // Preflight all paths before touching the file system. Never modify existing generated source.
   for (const { filename } of files) {

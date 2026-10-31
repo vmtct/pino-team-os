@@ -7,6 +7,16 @@ on:
     paths:
       - ".github/workflows/tdd-g2-module.yml"
       - "e2e/tdd-g2-controller.spec.ts"
+      - "e2e/pap1247-action-interactions.spec.ts"
+      - "e2e/fixtures/pap1247-action-interactions.tsx"
+      - "e2e/pap1077-generated-samples.spec.ts"
+      - "e2e/fixtures/pap1077-generated-sample.tsx"
+      - "scripts/create-tdd-module.mjs"
+      - "scripts/create-tdd-module.test.mjs"
+      - "lib/bo-url-contract.ts"
+      - "lib/ho-routes.ts"
+      - "lib/host-boundary.ts"
+      - "scripts/tdd-module-acceptance.mjs"
       - "e2e/pap1076-ho-centers.spec.ts"
       - "e2e/fixtures/pap1076-ho-centers.tsx"
       - "app/ho/centers/**"
@@ -35,7 +45,7 @@ jobs:
       - name: Install isolated headless Chromium
         run: npx playwright install --with-deps chromium
       - name: Test assembled BO/HO controllers and negative contracts
-        run: npx playwright test e2e/tdd-g2-controller.spec.ts e2e/pap1076-ho-centers.spec.ts --workers=2 --retries=0 --timeout=30000 --reporter=list
+        run: npx playwright test e2e/tdd-g2-controller.spec.ts e2e/pap1247-action-interactions.spec.ts e2e/pap1076-ho-centers.spec.ts e2e/pap1077-generated-samples.spec.ts --workers=2 --retries=0 --timeout=30000 --reporter=list
         env:
           CI: "true"
       - name: Retain failure artifacts

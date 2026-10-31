@@ -1,15 +1,15 @@
 "use client";
 import {useState} from "react";
 import {TosButton,TosCard} from "@pino/design-system/react";
-import {boApi} from "@/lib/bo-api";
-import type {BoParentSearchResult} from "@/lib/bo-model";
+import {readScopedParentDirectory} from "@/app/bo/parents/provider";
 import {walkinPassBoApi,type WalkinPath} from "@/lib/open-studio-walkin-bo-api";
+type ScopedParent = Awaited<ReturnType<typeof readScopedParentDirectory>>[number];
 type Code="AC"|"LPP"|"LPA"|"PH";
 const paths:readonly Code[]=["AC","LPP","LPA","PH"];
 /** Bounded business command. TDD owns all Table/Drawer/Detail shells and navigation. */
 export function CenterPassActions({centerId,onChanged}:{centerId:string;onChanged:()=>void}){
  const [parentQuery,setParentQuery]=useState("");
- const [parents,setParents]=useState<BoParentSearchResult[]>([]);
+ const [parents,setParents]=useState<ScopedParent[]>([]);
  const [parentId,setParentId]=useState("");
  const [path,setPath]=useState<WalkinPath|"">("");
  const [busy,setBusy]=useState(false);
@@ -19,9 +19,13 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
  const [searching,setSearching]=useState(false);
  async function search(){
   if(!parentQuery.trim()||searching)return;
-  setSearching(true);setError("");setParents([]);setParentId("");
-  try{const all=await boApi.parents(parentQuery.trim(),50);
-   setParents(all.filter(r=>r.parent.status==="ACTIVE"));
+  setSearching(true);setError("");setNotice("");setParents([]);setParentId("");
+  try{
+    const q=parentQuery.trim().toLocaleLowerCase("vi-VN");
+    const scoped=await readScopedParentDirectory(centerId,fetch,new AbortController().signal);
+    const matches=scoped.filter(r=>(r.name??"").toLocaleLowerCase("vi-VN").includes(q)).slice(0,25);
+    setParents(matches);
+    if(!matches.length)setNotice("Chưa có Parent được Core xác thực trong Center này. Hoàn tất xác minh Parent–Center trước khi cấp Pass.");
   }catch{setError("Không thể tra cứu Parent trong phạm vi được cấp quyền.");}
   finally{setSearching(false);}
  }
@@ -44,14 +48,14 @@ export function CenterPassActions({centerId,onChanged}:{centerId:string;onChange
   <div className="property-row">
    <label htmlFor="pass-parent-search">Tìm Parent</label>
    <input id="pass-parent-search" type="search" value={parentQuery} disabled={busy||uncertain}
-    onChange={e=>setParentQuery(e.target.value)} placeholder="Tên / số điện thoại / email"/>
+    onChange={e=>setParentQuery(e.target.value)} placeholder="Tên Parent đã liên kết Center"/>
    <TosButton type="button" variant="secondary" disabled={searching||!parentQuery.trim()||busy||uncertain} onClick={()=>void search()}>{searching?"Đang tìm…":"Tìm"}</TosButton>
   </div>
   <div className="property-row">
    <label htmlFor="pass-parent-select">Parent</label>
    <select id="pass-parent-select" value={parentId} disabled={busy||uncertain} onChange={e=>setParentId(e.target.value)}>
     <option value="">Chọn Parent</option>
-    {parents.map(r=><option key={r.parent.id} value={r.parent.id}>{r.parent.displayName??"Parent"}</option>)}
+    {parents.map(r=><option key={r.id} value={r.id}>{r.name??"Parent"}</option>)}
    </select>
   </div>
   <div className="property-row">

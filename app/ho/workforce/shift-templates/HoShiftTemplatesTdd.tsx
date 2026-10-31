@@ -21,6 +21,7 @@ export function HoShiftTemplatesTdd(){
   const [error,setError]=useState("");
   const [retry,setRetry]=useState(0);
   const [refresh,setRefresh]=useState(0);
+  const [createOpen,setCreateOpen]=useState(false);
   useEffect(()=>{
     const ctrl=new AbortController();
     void boApi.centers((input,init)=>fetch(input,{...init,signal:ctrl.signal})).then(result=>{
@@ -48,7 +49,7 @@ export function HoShiftTemplatesTdd(){
     <div className="property-row">
       <label htmlFor="ho-template-center">Center</label>
       <select id="ho-template-center" value={centerId} required disabled={!centers?.length}
-        onChange={event=>{setReady(null);setError("");setCenterId(event.target.value);setRefresh(0);}}>
+        onChange={event=>{setReady(null);setError("");setCreateOpen(false);setCenterId(event.target.value);setRefresh(0);}}>
         <option value="">Chọn Center</option>
         {centers?.map(center=><option key={center.id} value={center.id}>{center.name}</option>)}
       </select>
@@ -59,10 +60,12 @@ export function HoShiftTemplatesTdd(){
     {error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(v=>v+1);}}>Thử lại</button></p>:null}
     {!valid&&centers?.length?<p role="status">Chọn Center để xem Mẫu ca.</p>:null}
     {valid&&ready?<div data-testid="ho-shift-templates-workspace">
-      <HoShiftTemplateEditor mode="create" centerId={centerId}
+      <HoShiftTemplateEditor mode="create" centerId={centerId} createOpen={createOpen}
+        onCreateClose={()=>setCreateOpen(false)}
         authorized={ready.adapter.context.authorize("workforce.shift_template.ho_manage")}
         onSaved={()=>setRefresh(v=>v+1)}/>
       <SurfaceWorkspace key={centerId+":"+refresh} adapter={ready.adapter} navigation={ready.navigation}
+        actionBindings={{openCreate:{kind:"navigation",run:()=>setCreateOpen(true)}}}
         initialQuery={shiftTemplateQuery}
         detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=>
           activeTab==="edit"||activeTab==="status"

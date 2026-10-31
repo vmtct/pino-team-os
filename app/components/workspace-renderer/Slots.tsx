@@ -31,6 +31,7 @@ export type BusinessFormRequest = {
   readonly context: AuthorizationContext;
 };
 export type BusinessFormProvider = {
+  readonly presentation?: { readonly heading?: string; readonly actionLabel?: string; readonly compact?: boolean; readonly hideRecordsToolbar?: boolean };
   readonly surface: "BO" | "HO"; readonly moduleKey: string; readonly slotId: string; readonly sourceAdapter: string;
   readonly load: (request: BusinessFormRequest, signal: AbortSignal) => Promise<BusinessFormData>;
   readonly submit: (request: BusinessFormRequest, values: Readonly<Record<string, BusinessFormValue>>, signal: AbortSignal) => Promise<BusinessFormSubmitResult>;
@@ -130,12 +131,13 @@ export function BusinessPanel({ schema, context, record, slot, loaders }: { read
   return <SlotRequest load={load} approvedExtension={slot.kind === "approved-extension"} />;
 }
 
-function BusinessRecords({ records }: { readonly records: NonNullable<Extract<BusinessFormData, { status: "authorized" }>["records"]> }) {
+function BusinessRecords({ records, hideToolbar = false }: { readonly records: NonNullable<Extract<BusinessFormData, { status: "authorized" }>["records"]>; readonly hideToolbar?: boolean }) {
   const columns = records.columns.map(column => ({ key: column.key, header: column.label, render: (row: (typeof records.rows)[number]) => row.values[column.key] === null || row.values[column.key] === "" ? "—" : String(row.values[column.key]) }));
-  return <section className="v24-prop-section"><h3>{records.label}</h3><Suspense fallback={<p role="status">Đang tải lịch sử…</p>}><BusinessDataGrid rows={records.rows} columns={columns} rowKey={row => row.id} caption={records.label} emptyTitle="Chưa có bản ghi" emptyMessage="Chưa có lịch sử được cấp quyền cho bản ghi này." /></Suspense></section>;
+  return <section className="v24-prop-section"><h3>{records.label}</h3><Suspense fallback={<p role="status">Đang tải lịch sử…</p>}><BusinessDataGrid rows={records.rows} columns={columns} rowKey={row => row.id} caption={records.label} showToolbar={!hideToolbar} emptyTitle="Chưa có bản ghi" emptyMessage="Chưa có lịch sử được cấp quyền cho bản ghi này." /></Suspense></section>;
 }
 export function BusinessFormPanel({ schema, context, record, slot, binding }: { readonly schema: ModuleSchema; readonly context: AuthorizationContext; readonly record: BoRecord; readonly slot: Extract<BusinessSlot<string>, { kind: "form" }>; readonly binding?: BusinessFormBinding }) {
   const provider = resolveBusinessFormProvider(schema, slot, binding);
+  const presentation = provider?.presentation;
   const canRead = allows(schema, context, "read") && context.authorize(slot.source.permission);
   const canSubmit = canRead && context.authorize(slot.submitPermission);
   const request = useMemo<BusinessFormRequest | null>(() => provider && binding && identifier(record.id) && binding.subject.id === record.id ? { surface: schema.surface, moduleKey: schema.key, slotId: slot.id, sourceAdapter: slot.source.adapter, recordId: record.id, subject: binding.subject, principalId: binding.principalId, context } : null, [provider, binding, record.id, schema.surface, schema.key, slot.id, slot.source.adapter, context]);
@@ -186,7 +188,8 @@ export function BusinessFormPanel({ schema, context, record, slot, binding }: { 
       }
     }, () => setSubmitted({ request, generation, status: "error" }));
   };
-  return <><form className="v24-prop-section" onSubmit={submit}><h3>{slot.label}</h3>{data.fields.map(field => <label className="property-row" key={field.key}><span>{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea required={field.required} value={String(values[field.key] ?? "")} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} /> : <input type={field.type} required={field.required} value={values[field.key] ?? ""} onChange={event => setValues(current => ({ ...current, [field.key]: field.type === "number" ? event.target.value === "" ? null : Number(event.target.value) : event.target.value }))} />}{field.hint ? <small>{field.hint}</small> : null}</label>)}
-    {canSubmit ? <button className="primary-btn" type="submit" disabled={submitState === "pending"}>{submitState === "pending" ? "Đang lưu…" : "Lưu"}</button> : <p role="status">Bạn chỉ có quyền xem biểu mẫu.</p>}
-    {submitState === "error" ? <p role="alert">Không thể lưu. Thử lại sau.</p> : submitState === "saved" ? <p role="status">Đã lưu thành công.</p> : submitState === "denied" ? <p role="status">Không có quyền lưu.</p> : submitState === "invalid" ? <p role="alert">Dữ liệu chưa hợp lệ.</p> : null}</form>{data.records ? <BusinessRecords records={data.records} /> : null}</>;
+  const content = <><form className={presentation?.compact ? "v24-prop-section pds-business-compact-form" : "v24-prop-section"} aria-label={presentation?.heading ?? slot.label} onSubmit={submit}><h3>{presentation?.heading ?? slot.label}</h3>{data.fields.map(field => <label className="property-row" key={field.key}><span>{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea required={field.required} value={String(values[field.key] ?? "")} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} /> : <input type={field.type} required={field.required} value={values[field.key] ?? ""} onChange={event => setValues(current => ({ ...current, [field.key]: field.type === "number" ? event.target.value === "" ? null : Number(event.target.value) : event.target.value }))} />}{field.hint ? <small>{field.hint}</small> : null}</label>)}
+    {canSubmit ? <button className="primary-btn" type="submit" disabled={submitState === "pending"}>{submitState === "pending" ? "Đang lưu…" : (presentation?.actionLabel ?? "Lưu")}</button> : <p role="status">Bạn chỉ có quyền xem biểu mẫu.</p>}
+    {submitState === "error" ? <p role="alert">Không thể lưu. Thử lại sau.</p> : submitState === "saved" ? <p role="status">Đã lưu thành công.</p> : submitState === "denied" ? <p role="status">Không có quyền lưu.</p> : submitState === "invalid" ? <p role="alert">Dữ liệu chưa hợp lệ.</p> : null}</form>{data.records ? <BusinessRecords records={data.records} hideToolbar={presentation?.hideRecordsToolbar} /> : null}</>;
+  return presentation?.compact ? <div className="pds-business-compact-workspace" data-tdd-business-slot={slot.id}>{content}</div> : content;
 }

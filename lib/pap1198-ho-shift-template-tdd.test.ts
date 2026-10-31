@@ -11,6 +11,8 @@ test("PAP-1198 TDD uses canonical Table/Drawer/Detail and registered HO edit/sta
  assert.equal(shiftTemplateSchema.surface,"HO");
  assert.equal(shiftTemplateSchema.key,"shiftTemplates");
  assert.equal(shiftTemplateDefinition.classification,"TDD_DEFAULT");
+ assert.deepEqual(shiftTemplateDefinition.actions?.map(a=>[a.id,a.slot,a.variant,a.capability,a.handler]),
+   [["create-shift-template","table.header","primary","create","openCreate"]]);
  assert.deepEqual(shiftTemplateSchema.detail.businessTabs.map(t=>t.id),["edit","status"]);
  assert.equal(shiftTemplateSchema.detail.history.kind,"unavailable");
 });
