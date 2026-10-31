@@ -1,7 +1,8 @@
 /**
- * PAP-945 / Core PAP-724: Session-free Classroom Today and V18b Path Diary.
- * Source-owned Core PR #1770 is still unmerged at this checkpoint.
- * All V18b writes must stay disabled until verified live Core + private R2.
+ * PAP-945 / PAP-727: Session-free Classroom Today and observation-only Diary.
+ * Core PR #1930 is merged/deployed; this branch still needs a verified authenticated
+ * Classroom writer and private R2 E2E before any client mutation may be admitted.
+ * Mission Result/Progression are independent Core writers (PAP-1188).
  */
 export interface V18bClassroomRosterMember{
  studentProfileId:string;studentDisplayName:string;status:"CANDIDATE"|"CONFLICT";
@@ -26,29 +27,43 @@ export interface V18bPathDiary{
  status:"REGISTERED"|"CLOSED";version:number;
  missions:Array<{id:string;missionId:string|null;code:string;name:string;completed:boolean|null;outcomeSavedVersion:number|null}>;
  interest:number|null;notes:string|null;difficulty:string|null;draftSavedVersion:number|null;
+ centerId?:string;runningClassId?:string|null;registeredAt?:string;registeredByUserId?:string;
+ draftSavedAt?:string|null;draftSavedByUserId?:string|null;
+ closedAt?:string|null;closedByUserId?:string|null;updatedAt?:string;
 }
 export class V18bCoreError extends Error{
  constructor(readonly status:number,readonly code:string,message:string){
   super(message);this.name="V18bCoreError";
  }
 }
+// Do not toggle from Core CI alone. Requires authenticated TOS Classroom writer + R2 proof.
 export const V18B_WRITE_ADMITTED=false;
 const base="/api/tos-learning";
-async function read<T>(path:string):Promise<T>{
- const response=await fetch(base+path,{method:"GET",cache:"no-store"});
- const body=await response.json().catch(()=>null) as {data?:T;error?:{code?:string;message?:string}}|null;
+type CoreEnvelope<T>={data?:T;error?:{code?:string;message?:string}};
+async function parseResponse<T>(response:Response):Promise<T>{
+ const body=await response.json().catch(()=>null) as CoreEnvelope<T>|null;
  if(!response.ok||body?.data===undefined)
   throw new V18bCoreError(response.status,body?.error?.code??"V18B_CORE_UNAVAILABLE",
    body?.error?.message??"Classroom V18b Core chưa sẵn sàng.");
  return body.data;
 }
+async function read<T>(path:string):Promise<T>{
+ return parseResponse<T>(await fetch(base+path,{method:"GET",cache:"no-store"}));
+}
 const requireValue=(value:string,name:string)=>{
- if(!value.trim())throw new V18bCoreError(400,"MISSING_"+name,"Thiếu "+name);
+ if(typeof value!=="string"||!value.trim())throw new V18bCoreError(400,"MISSING_"+name,"Thiếu "+name);
  return encodeURIComponent(value.trim());
 };
-async function rejectWrite():Promise<never>{
- throw new V18bCoreError(503,"CORE_V18B_WRITE_NOT_ADMITTED",
-  "Chưa thể ghi Path Diary khi Core PAP-724 và private evidence chưa được xác minh.");
+async function post<T>(path:string,input:object,idempotencyKey:string):Promise<T>{
+ if(!V18B_WRITE_ADMITTED)
+  throw new V18bCoreError(503,"CORE_V18B_WRITE_NOT_ADMITTED",
+   "TOS Diary writer và private R2 chưa được nghiệm thu trên Staging.");
+ const key=requireValue(idempotencyKey,"IDEMPOTENCY_KEY");
+ return parseResponse<T>(await fetch(base+path,{
+  method:"POST",cache:"no-store",
+  headers:{"Content-Type":"application/json","Idempotency-Key":decodeURIComponent(key)},
+  body:JSON.stringify(input),
+ }));
 }
 export const tosClassroomV18bApi={
  today:(centerId:string,localDate:string)=>{
@@ -58,12 +73,24 @@ export const tosClassroomV18bApi={
  },
  diary:(diaryId:string,centerId:string)=>read<V18bPathDiary>(
   "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"?centerId="+requireValue(centerId,"CENTER")),
- // Source-confirmed payloads; writes remain locally rejected before any network call.
- register:(_input:{centerId:string;runningClassId:string;studentId:string;pathKey:string;teachingContextKey:string;
-  mission:{missionId:string;code:string;name:string}},_idempotencyKey:string)=>rejectWrite(),
- saveDraft:(_diaryId:string,_input:{centerId:string;expectedVersion:number;outcomes:Record<string,boolean|null>;
-  interest?:number|null;notes?:string|null;difficulty?:string|null},_idempotencyKey:string)=>rejectWrite(),
- appendMission:(_diaryId:string,_input:{centerId:string;expectedVersion:number;mission:{missionId:string;code:string;name:string}},_idempotencyKey:string)=>rejectWrite(),
- uploadEvidence:(_diaryId:string,_input:{centerId:string;mimeType:"image/jpeg"|"image/png"|"image/webp";base64:string},_idempotencyKey:string)=>rejectWrite(),
- close:(_diaryId:string,_input:{centerId:string;expectedVersion:number;interest:number;notes:string;difficulty?:string|null},_idempotencyKey:string)=>rejectWrite()
+ evidence:(diaryId:string,centerId:string)=>read<unknown>(
+  "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"/evidence?centerId="+requireValue(centerId,"CENTER")),
+ // Observation-only register. NEVER send old mission child payload to the Diary Core writer.
+ register:(input:{centerId:string;runningClassId:string;studentId:string;pathKey:string;teachingContextKey:string},
+  idempotencyKey:string)=>post<V18bPathDiary>("/learning/path-diaries",input,idempotencyKey),
+ // Core v4 accepts notes/interest independent of Mission outcomes.
+ saveDraft:(diaryId:string,input:{centerId:string;expectedVersion:number;
+  interest?:number|null;notes?:string|null;difficulty?:string|null},idempotencyKey:string)=>
+  post<V18bPathDiary>("/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"/draft",input,idempotencyKey),
+ // Preserve an explicit 409 instead of silently writing old Mission-child outcomes.
+ appendMission:async (_diaryId:string,_input:unknown,_idempotencyKey:string):Promise<never>=>{
+  throw new V18bCoreError(409,"DIARY_MISSION_RESULT_WRITER_MOVED_TO_INDEPENDENT_CORE",
+   "Mission Result phải được ghi qua Core Mission độc lập.");
+ },
+ uploadEvidence:(diaryId:string,input:{centerId:string;mimeType:"image/jpeg"|"image/png"|"image/webp";base64:string},
+  idempotencyKey:string)=>post<unknown>(
+  "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"/evidence",input,idempotencyKey),
+ close:(diaryId:string,input:{centerId:string;expectedVersion:number;interest:number;notes:string;difficulty?:string|null},
+  idempotencyKey:string)=>post<V18bPathDiary>(
+  "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"/close",input,idempotencyKey),
 };

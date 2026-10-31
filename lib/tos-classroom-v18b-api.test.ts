@@ -34,26 +34,46 @@ test("PAP-945 malformed scope denied before any sensitive fetch",async()=>{
   assert.equal(called,false);
  }finally{globalThis.fetch=old}
 });
-test("PAP-945 every Path Diary mutation fails closed until PAP-724 private R2 is verified",async()=>{
+test("PAP-945 observation-only Diary commands stay fail-closed until authenticated staging admission",async()=>{
  assert.equal(V18B_WRITE_ADMITTED,false);
  const old=globalThis.fetch;let called=false;
  globalThis.fetch=(async()=>{called=true;throw new Error("Unexpected mutation")}) as typeof fetch;
- const fail=(e:unknown)=>e instanceof V18bCoreError&&e.code==="CORE_V18B_WRITE_NOT_ADMITTED";
+ const fail=(e:unknown)=>e instanceof V18bCoreError&&e.status===503&&e.code==="CORE_V18B_WRITE_NOT_ADMITTED";
  try{
+  // Core v4 POST register must NOT carry legacy mission or outcome writes.
   await assert.rejects(tosClassroomV18bApi.register({centerId:"c",runningClassId:"r",studentId:"s",
-   pathKey:"p",teachingContextKey:"k",mission:{missionId:"m",code:"X",name:"Mission"}},"key"),fail);
-  await assert.rejects(tosClassroomV18bApi.saveDraft("d",{centerId:"c",expectedVersion:1,outcomes:{}}, "key"),fail);
-  await assert.rejects(tosClassroomV18bApi.appendMission("d",{centerId:"c",expectedVersion:1,
-   mission:{missionId:"m",code:"X",name:"Mission"}},"key"),fail);
+   pathKey:"p",teachingContextKey:"k"},"key"),fail);
+  await assert.rejects(tosClassroomV18bApi.saveDraft("d",{centerId:"c",expectedVersion:1,
+   interest:2,notes:"Independent teacher observation"},"key"),fail);
   await assert.rejects(tosClassroomV18bApi.uploadEvidence("d",{centerId:"c",mimeType:"image/jpeg",base64:"abc"},"key"),fail);
   await assert.rejects(tosClassroomV18bApi.close("d",{centerId:"c",expectedVersion:1,interest:1,notes:"note",
    difficulty:"hard"},"key"),fail);
   assert.equal(called,false);
  }finally{globalThis.fetch=old}
 });
-
-test('PAP-945 trims Classroom scope identifiers before Core request',async()=>{
- const old=globalThis.fetch;let url='';
+test("PAP-945 Diary-owned Mission append fails with typed 409 instead of false success",async()=>{
+ const old=globalThis.fetch;let called=false;
+ globalThis.fetch=(async()=>{called=true;throw new Error("Unexpected Mission mutation")}) as typeof fetch;
+ try{
+  await assert.rejects(tosClassroomV18bApi.appendMission("d",{centerId:"c",expectedVersion:1,
+   mission:{missionId:"m",code:"X",name:"Mission"}},"key"),
+   (e:unknown)=>e instanceof V18bCoreError&&e.status===409&&e.code==="DIARY_MISSION_RESULT_WRITER_MOVED_TO_INDEPENDENT_CORE");
+  assert.equal(called,false);
+ }finally{globalThis.fetch=old}
+});
+test("PAP-945 private Diary evidence uses server authorized reader, never a public CDN",async()=>{
+ const old=globalThis.fetch;let url="";
+ globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+  url=String(input);assert.equal(init?.method,"GET");
+  return new Response(JSON.stringify({data:[]}),{status:200});
+ }) as typeof fetch;
+ try{
+  assert.deepEqual(await tosClassroomV18bApi.evidence("diary-1","center-1"),[]);
+  assert.equal(url,"/api/tos-learning/learning/path-diaries/diary-1/evidence?centerId=center-1");
+ }finally{globalThis.fetch=old}
+});
+test("PAP-945 trims Classroom scope identifiers before Core request",async()=>{
+ const old=globalThis.fetch;let url="";
  globalThis.fetch=(async(input:RequestInfo|URL)=>{url=String(input);return new Response(JSON.stringify({data:{occurrences:[]}}),{status:200})}) as typeof fetch;
- try{await tosClassroomV18bApi.today(' center-1 ','2026-10-23');assert.ok(url.includes('centerId=center-1&'));}finally{globalThis.fetch=old}
+ try{await tosClassroomV18bApi.today(" center-1 ","2026-10-23");assert.ok(url.includes("centerId=center-1&"));}finally{globalThis.fetch=old}
 });
