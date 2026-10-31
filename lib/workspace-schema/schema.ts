@@ -17,6 +17,8 @@ export type TddActionDescriptor = {
   readonly handler: string;
   /** Required only for overview.section and businessTab.toolbar; selects an admitted section/tab. */
   readonly targetId?: string;
+  /** Form footer actions are bound to either Create or Edit, never read-only Quick View. */
+  readonly formMode?: "create" | "edit";
 };
 export type Sections<K extends string> = readonly { readonly id: string; readonly label: string; readonly fields: readonly K[] }[];
 

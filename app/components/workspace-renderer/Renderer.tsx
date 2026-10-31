@@ -1,7 +1,8 @@
 "use client";
-import { allows, type FieldSchema } from "@/lib/workspace-schema";
+import { allows, type FieldSchema, type TddRegistry } from "@/lib/workspace-schema";
 import type { ReactNode } from "react";
 import { TddDrawer, TddDetail, registeredSchema, RecordState } from "./Record";
+import { DrawerFrame } from "./DrawerFrame";
 import { TddTable, type TddTableProps } from "./Table";
 import { TosButton } from "@pino/design-system/react";
 import { useRef, useState } from "react";
@@ -10,7 +11,8 @@ import { authorizedHostActions, type AuthorizationContext, type ModuleSchema, ty
 export type TddStage<F extends readonly FieldSchema[] = readonly FieldSchema[]> =
   | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode }
   | { readonly kind: "drawer"; readonly props: Parameters<typeof TddDrawer<F>>[0]; readonly table?: TddTableProps<F> }
-  | { readonly kind: "detail"; readonly props: Parameters<typeof TddDetail<F>>[0] };
+  | { readonly kind: "detail"; readonly props: Parameters<typeof TddDetail<F>>[0] }
+  | { readonly kind: "form"; readonly props: { readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext; readonly mode: "create" | "edit"; readonly recordId?: string; readonly title: string; readonly content: ReactNode; readonly onClose: () => void; readonly actionBindings: TddActionBindings } };
 /** Controlled stage seam: hosting adapters retain URL, selection, scroll and server paging. */
 export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readonly view: TddStage<F> }) {
   const schema = registeredSchema(view.props.registry, view.props.schema);
@@ -21,19 +23,26 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
       if (view.table && (view.table.schema !== view.props.schema || view.table.context !== view.props.context)) throw Error("TDD Drawer background scope mismatch");
       return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="drawer.header" bindings={view.props.actionBindings} /> : null} /></>;
     }
+    case "form": {
+      const { mode, recordId, actionBindings, onClose, title, content } = view.props;
+      if (!allows(schema, view.props.context, mode) || (mode === "edit" && !recordId?.trim()) || (mode === "create" && recordId !== undefined)) return <RecordState status="denied" />;
+      const footer = authorizedHostActions(schema, view.props.context, "drawer.footer", actionBindings, undefined, mode);
+      if (!footer.some(action => action.variant === "primary")) return <RecordState status="denied" />;
+      return <DrawerFrame title={title} path={schema.label} onClose={onClose} footer={<TddActionHost schema={schema} context={view.props.context} slot="drawer.footer" formMode={mode} bindings={actionBindings} />}>{content}</DrawerFrame>;
+    }
     case "detail": return <TddDetail {...view.props} renderActionSlot={view.props.actionBindings && view.props.status !== "denied" ? (slot, targetId) => <TddActionHost schema={schema} context={view.props.context} slot={slot} targetId={targetId} bindings={view.props.actionBindings!} /> : undefined} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="detail.header" bindings={view.props.actionBindings} /> : null} />;
     default: throw Error("Unknown TDD renderer stage");
   }
 }
 /** Shared engine action chrome: one deterministic order, authorization rechecked at invocation. */
-export function TddActionHost({ schema, context, slot, bindings, targetId }: {
+export function TddActionHost({ schema, context, slot, bindings, targetId, formMode }: {
   schema: ModuleSchema; context: AuthorizationContext; slot: TddActionDescriptor["slot"];
-  bindings: TddActionBindings; targetId?: string;
+  bindings: TddActionBindings; targetId?: string; formMode?: "create" | "edit";
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const pending = useRef(false);
-  const actions = authorizedHostActions(schema, context, slot, bindings, targetId);
+  const actions = authorizedHostActions(schema, context, slot, bindings, targetId, formMode);
   if (!actions.length) return null;
   return <div className="tdd-action-host" data-tdd-action-slot={slot} role="group"
     aria-label="Thao tác" aria-busy={busy !== null}>

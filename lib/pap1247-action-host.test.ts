@@ -87,13 +87,13 @@ test("PAP-1247: targeted Overview/Business actions require an admitted section/t
     [overview, { ...overview, id: "sameId", targetId: "a" }],
   ];
   for (const actions of invalid) assert.throws(() => admitted(actions), /TDD contract:/);
-  const module = admitted([overview, other, toolbar]);
+  const admittedSchema = admitted([overview, other, toolbar]);
   const handlers = { createMission: { run: () => undefined }, export: { run: () => undefined } };
-  assert.deepEqual(authorizedHostActions(module, permitted, "overview.section", handlers, "a").map(action => action.id), ["create"]);
-  assert.deepEqual(authorizedHostActions(module, permitted, "overview.section", handlers, "other").map(action => action.id), ["createOther"]);
-  assert.deepEqual(authorizedHostActions(module, permitted, "businessTab.toolbar", handlers, "reports").map(action => action.id), ["export"]);
-  assert.deepEqual(authorizedHostActions(module, permitted, "businessTab.toolbar", handlers, "unknown"), []);
-  assert.deepEqual(authorizedHostActions(module, permitted, "overview.section", handlers), []);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "overview.section", handlers, "a").map(action => action.id), ["create"]);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "overview.section", handlers, "other").map(action => action.id), ["createOther"]);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "businessTab.toolbar", handlers, "reports").map(action => action.id), ["export"]);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "businessTab.toolbar", handlers, "unknown"), []);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "overview.section", handlers), []);
 });
 test("PAP-1247: section and tab hosts are engine-owned and never emit an empty toolbar shell", () => {
   const record = readFileSync("app/components/workspace-renderer/Record.tsx", "utf8");
@@ -105,4 +105,38 @@ test("PAP-1247: section and tab hosts are engine-owned and never emit an empty t
   assert.match(properties, /sectionActions\?\.\(section\.id\)/);
   assert.doesNotMatch(record, /data-tdd-action-region="businessTab\.toolbar"/);
   assert.match(renderer, /if \(!actions\.length\) return null/);
+});
+test("PAP-1247: declared form footer is mode-specific, and read-only Quick View has none", () => {
+  const base = fixture();
+  const create = { id: "saveCreate", label: "Tạo", slot: "drawer.footer" as const,
+    variant: "primary" as const, capability: "create" as const, handler: "saveCreate", formMode: "create" as const };
+  const edit = { id: "saveEdit", label: "Lưu", slot: "drawer.footer" as const,
+    variant: "primary" as const, capability: "edit" as const, handler: "saveEdit", formMode: "edit" as const };
+  const cancel = { id: "cancel", label: "Hủy", slot: "drawer.footer" as const,
+    variant: "secondary" as const, capability: "create" as const, handler: "cancelCreate", formMode: "create" as const };
+  const withActions = (actions: unknown[]) => defineTddModule({ ...base,
+    capabilities: { ...base.capabilities, edit: "fixture.edit" }, actions } as ModuleSchema<typeof fields>);
+  assert.doesNotThrow(() => withActions([create, edit, cancel]));
+  for (const actions of [
+    [{ ...create, formMode: undefined }],
+    [{ ...primary, formMode: "create" }],
+    [create, { ...create, id: "duplicateCreate" }],
+    [{ ...create, formMode: "unknown" }],
+  ]) assert.throws(() => withActions(actions), /TDD contract:/);
+  const admittedSchema = withActions([create, edit, cancel]);
+  const handlers = { saveCreate: { run: () => undefined }, saveEdit: { run: () => undefined },
+    cancelCreate: { run: () => undefined } };
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "drawer.footer", handlers), []);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "drawer.footer", handlers, undefined, "create").map(x => x.id),
+    ["cancel", "saveCreate"]);
+  assert.deepEqual(authorizedHostActions(admittedSchema, permitted, "drawer.footer", handlers, undefined, "edit").map(x => x.id),
+    ["saveEdit"]);
+  const denied: AuthorizationContext = { surface: "HO", authorize: value => value !== "fixture.create" };
+  assert.deepEqual(authorizedHostActions(admittedSchema, denied, "drawer.footer", handlers, undefined, "create"), []);
+  const source = readFileSync("app/components/workspace-renderer/Renderer.tsx", "utf8");
+  assert.match(source, /case "form":/);
+  assert.match(source, /if \(!footer\.some\(action => action\.variant === "primary"\)\)/);
+  assert.match(source, /slot="drawer.footer" formMode=\{mode\}/);
+  assert.match(source, /mode === "edit" && !recordId\?\.trim\(\)/);
+  assert.match(source, /mode === "create" && recordId !== undefined/);
 });

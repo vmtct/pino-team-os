@@ -128,7 +128,7 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
     array(m.actions); unique(m.actions.map(action => action.id));
     const primaryBySlot = new Set<string>();
     for (const action of m.actions) {
-      object(action, ["id", "label", "slot", "variant", "capability", "handler", "targetId"], ["id", "label", "slot", "variant", "capability", "handler"]);
+      object(action, ["id", "label", "slot", "variant", "capability", "handler", "targetId", "formMode"], ["id", "label", "slot", "variant", "capability", "handler"]);
       for (const key of ["id", "label", "handler"] as const) nonempty(action[key]);
       check(/^[a-zA-Z][\w.-]{1,63}$/.test(action.id), "invalid action identifier");
       check(["table.header", "drawer.header", "drawer.footer", "detail.header", "overview.section", "businessTab.toolbar"].includes(action.slot), "unknown action slot");
@@ -136,7 +136,8 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
       check(["read", "create", "edit"].includes(action.capability) && Boolean(m.capabilities[action.capability]), "action capability not registered");
       const scoped = action.slot === "overview.section" || action.slot === "businessTab.toolbar";
       check(scoped ? typeof action.targetId === "string" && /^[A-Za-z][\w.-]{0,63}$/.test(action.targetId) : action.targetId === undefined, "invalid action target");
-      const hostKey = action.slot + ":" + (action.targetId ?? "");
+      check(action.slot === "drawer.footer" ? ["create", "edit"].includes(String(action.formMode)) : action.formMode === undefined, "invalid form-only action mode");
+      const hostKey = action.slot + ":" + (action.targetId ?? "") + ":" + (action.formMode ?? "");
       if (action.variant === "primary") {
         check(!primaryBySlot.has(hostKey), "more than one primary action per host");
         primaryBySlot.add(hostKey);
