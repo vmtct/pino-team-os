@@ -142,7 +142,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
   async function toggleRegistration(open: boolean) {
     if (!data?.windows || !centerId || !termWeekId || !weekControlReason.trim() || !selectedCenter) return;
-    if (!canManageRegistration) return;
+    if (!canManageRegistration || globalWeekLocked) return;
     setBusy("registration"); setNotice("");
     try {
       await boApi.setWorkforceAvailabilityRegistration({
@@ -415,8 +415,8 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
         <label className={styles.field}>Lý do<input value={weekControlReason} onChange={(event)=>setWeekControlReason(event.target.value)} placeholder="Bắt buộc khi khóa/mở lại" /></label>
       </div>
       <div className={styles.subscriptionActions}>
-        {data.windows.availability.availabilityRegistrationOpen && canManageRegistration ? <button className={styles.secondaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(false)}>Đóng đăng ký Staff</button> : null}
-        {!data.windows.availability.availabilityRegistrationOpen && canManageRegistration ? <button className={styles.primaryButton} disabled={!!busy || !weekControlReason.trim()} onClick={() => void toggleRegistration(true)}>Mở đăng ký Staff</button> : null}
+        {data.windows.availability.availabilityRegistrationOpen && canManageRegistration ? <button className={styles.secondaryButton} disabled={!!busy || globalWeekLocked || !weekControlReason.trim()} onClick={() => void toggleRegistration(false)}>Đóng đăng ký Staff</button> : null}
+        {!data.windows.availability.availabilityRegistrationOpen && canManageRegistration ? <button className={styles.primaryButton} disabled={!!busy || globalWeekLocked || !weekControlReason.trim()} onClick={() => void toggleRegistration(true)}>Mở đăng ký Staff</button> : null}
         {!globalWeekLocked && data.windows.availability.state === "OPEN" && selectedCenter?.canLockAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-lock")}>Khóa đăng ký</button> : null}
         {data.windows.availability.reason === "REGISTRATION_CLOSED" ? <span className={styles.readOnly}>Center Shift Plan đang tắt nhận đăng ký; bạn có thể bật lại checkbox Mở đăng ký.</span> : null}
         {!globalWeekLocked && data.windows.availability.state === "LOCKED" && data.windows.availability.reason !== "REGISTRATION_CLOSED" && selectedCenter?.canReopenAvailability ? <button className={styles.secondaryButton} disabled={!!busy||!weekControlReason.trim()} onClick={()=>void mutateWeekControl("availability-reopen")}>Mở lại đăng ký</button> : null}
