@@ -88,6 +88,7 @@ export function reportTddCoverage(root = ROOT, { now = Date.now() } = {}) {
         owner: approval?.owner ?? null, route: approval?.route ?? null,
         surface: approval?.surface ?? null, reference: approval?.reference ?? null,
         approvedAt: approval?.approvedAt ?? null, expiresAt: approval?.expiresAt ?? null,
+        permanent: approval?.permanent === true, reviewTrigger: approval?.reviewTrigger ?? null,
       } : null,
     };
   });
