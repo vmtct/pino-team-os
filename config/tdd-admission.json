@@ -373,6 +373,49 @@
           "owner": "PAP-1207"
         }
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "missions",
+      "route": "/bo/missions",
+      "file": "app/bo/missions/page.tsx",
+      "files": [
+        "app/bo/missions/page.tsx",
+        "app/bo/missions/BoMissionsTdd.tsx",
+        "app/bo/missions/navigation.ts",
+        "app/bo/missions/schema.ts",
+        "lib/bo-mission-assignments.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "lib/bo-url-contract.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "app/bo/architecture/bo-unified-workspace-source.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "app/bo/components/registration/BoRuntimeBoundary.tsx",
+          "owner": "PAP-1210"
+        }
+      ],
+      "schema": {
+        "file": "app/bo/missions/schema.ts",
+        "export": "assignmentSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/missions/BoMissionsTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1210-bo-missions-tdd.test.ts"
+      ]
     }
   ],
   "approvals": []
