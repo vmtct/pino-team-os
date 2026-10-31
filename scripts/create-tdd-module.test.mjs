@@ -15,6 +15,8 @@ const setup = t => {
     'export const boNavigation = [{items: [{ href: "/bo", label: "Hôm nay" }]}];');
   fs.writeFileSync(path.join(root, "lib/ho-routes.ts"),
     'export const HO_PAGE_PATHS = {\n  staff: "/ho/staff",\n} as const;');
+  fs.writeFileSync(path.join(root, "lib/bo-url-contract.ts"), "export const BO_TARGET_ROUTES = [\n];");
+  fs.writeFileSync(path.join(root, "lib/host-boundary.ts"), '    if (pathname === "/bo/pinoria-avatars") {');
   return root;
 };
 const read = (root, file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -49,7 +51,7 @@ test("PAP-1077 HO starter uses canonical adapter + exact HO route, no BO session
   assert.equal(out.route, "/ho/mission-samples");
   assert.match(read(root, entry.binding.file), /createHoTddAdapter/);
   assert.doesNotMatch(read(root, entry.binding.file), /createBoTddAdapter/);
-  assert.match(read(root, "lib/ho-routes.ts"), /missionSamples: "\/ho\/mission-samples"/);
+  assert.match(read(root, "lib/ho-routes.ts"), /"mission-samples": "\/ho\/mission-samples"/);
   assert.match(read(root, entry.schema.file), /surface: "HO"/);
   assert.match(read(root, entry.schema.file), /TddRegistry\.register|registry\.register/);
 });
@@ -101,4 +103,20 @@ for (const surface of ["bo", "ho"]) test(`PAP-1077 ${surface} generated G2/G3/G4
   assert.notEqual(run.status, 0);
   for (const gate of ["G2", "G3", "G4"]) assert.match(run.stdout + run.stderr, new RegExp(`TODO_TDD_${gate}_ACCEPTANCE`));
   assert.doesNotMatch(run.stdout + run.stderr, /tests? skipped|# skipped [1-9]/);
+});
+
+test("PAP-1077 generated BO route has exact URL key and Staging-only GET/HEAD admission", t => {
+  const root = setup(t); scaffoldTddModule(params(root, "bo"));
+  assert.match(read(root, "lib/bo-url-contract.ts"), /key: "mission-samples", path: "\/bo\/mission-samples", tabs: \["overview", "history"\]/);
+  assert.match(read(root, "lib/host-boundary.ts"), /pathname === "\/bo\/mission-samples"/);
+  assert.match(read(root, "lib/host-boundary.ts"), /hostname === BO_STAGING_HOSTNAME && \(method === "GET" \|\| method === "HEAD"\)/);
+  assert.doesNotMatch(read(root, "lib/host-boundary.ts"), /sample.*startsWith|method === "POST"/);
+});
+
+test("PAP-1077 unknown BO route authority fails before any generated files or admission writes", t => {
+  const root = setup(t), before = read(root, "config/tdd-admission.json");
+  fs.writeFileSync(path.join(root, "lib/bo-url-contract.ts"), "export default [];");
+  assert.throws(() => scaffoldTddModule(params(root, "bo")), /URL registry anchor/);
+  assert.equal(read(root, "config/tdd-admission.json"), before);
+  assert.equal(fs.existsSync(path.join(root, "app/bo/mission-samples")), false);
 });
