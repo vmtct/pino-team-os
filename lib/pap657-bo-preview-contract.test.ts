@@ -5,8 +5,15 @@ const root=new URL('../app/bo/pinoria-tv-dialogue/',import.meta.url);
 const page=readFileSync(new URL('page.tsx',root),'utf8');
 const editor=readFileSync(new URL('DialogueEditor.tsx',root),'utf8');
 const management=readFileSync(new URL('../tvs/page.tsx',root),'utf8');
-test('BO TV management links to draft-only social dialogue simulator',()=>{
- assert.match(management,/href="\/bo\/pinoria-tv-dialogue"/);
+const managementTdd=readFileSync(new URL('../tvs/TvsTdd.tsx',root),'utf8');
+const tvSchema=readFileSync(new URL('../tvs/schema.ts',root),'utf8');
+test('PAP-1266 BO TV management uses canonical TDD; legacy dialogue simulator remains unadmitted until PAP-911',()=>{
+ assert.match(management,/TvsTdd/);
+ assert.match(managementTdd,/SurfaceWorkspace/);
+ assert.match(tvSchema,/label:"Không gian"/);
+ // PAP-657 simulator source is retained, but do not display an unusable navigation target:
+ // staging BO route admission does not currently permit /bo/pinoria-tv-dialogue.
+ assert.doesNotMatch(management,/href="\/bo\/pinoria-tv-dialogue"/);
  assert.match(page,/DialogueEditor/);
  assert.match(editor,/advanceSpatialDialogue/);
 });
