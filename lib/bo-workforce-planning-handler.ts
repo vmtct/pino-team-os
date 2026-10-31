@@ -56,8 +56,12 @@ export async function handleBoWorkforcePlanningRequest(
 ): Promise<Response> {  try {
     if (!path.startsWith(PREFIX)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO workforce planning operation not found" } }, 404);
     const method = request.method.toUpperCase();
+    // PAP-1199: BO cannot change ShiftTemplate state, including Founder/legacy clients.
+    if (method === "POST" && (path === SHIFT_TEMPLATES || SHIFT_TEMPLATE_STATUS.test(path))) {
+      return json({ error: { code: "ACCESS_PERMISSION_DENIED", message: "Shift Templates are managed in HO" } }, 403);
+    }
     const allowedGet = path === GET_BOOTSTRAP || path === GET_GLOBAL_WEEKS || path === GET_WEEKLY || path === GET_WEEK_CONTROL || path === SHIFT_TEMPLATES || path === GET_EXCEPTIONS || path === GET_EXCEPTION_CENTERS || EXCEPTION_DETAIL.test(path);
-    const allowedPost = path === SHIFT_TEMPLATES || SHIFT_TEMPLATE_STATUS.test(path) || AVAILABILITY_VOID.test(path) || WEEK_CONTROL_POST.has(path) || path === POST_SHIFT_PLAN || path === POST_OPERATIONAL_ASSIGNMENT || path === POST_ASSIGNMENT || path === POST_CANCEL || path === POST_UPDATE_NOTE || EXCEPTION_MUTATION.test(path);
+    const allowedPost = AVAILABILITY_VOID.test(path) || WEEK_CONTROL_POST.has(path) || path === POST_SHIFT_PLAN || path === POST_OPERATIONAL_ASSIGNMENT || path === POST_ASSIGNMENT || path === POST_CANCEL || path === POST_UPDATE_NOTE || EXCEPTION_MUTATION.test(path);
     if (!((method === "GET" && allowedGet) || (method === "POST" && allowedPost))) {
       return json({ error: { code: method === "GET" || method === "POST" ? "PLATFORM_NOT_FOUND" : "PLATFORM_METHOD_NOT_ALLOWED", message: method === "GET" || method === "POST" ? "BO workforce planning operation not found" : "Method not allowed" } }, method === "GET" || method === "POST" ? 404 : 405);
     }
