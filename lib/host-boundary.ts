@@ -32,6 +32,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
+    // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
+    if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(p))
+      return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
     if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
     if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
@@ -115,6 +119,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     }
     // PAP-1252: exact read-only BO TV Health; BFF and Core enforce Center-scoped tv.view.
     // The host fence admits neither Production nor non-GET methods.
+    const spatialPath=/^\/api\/bo\/pinoria\/tv-config\/spatial\/(head|versions|version|active|drafts|publish|revert)$/.exec(pathname);
+    if (spatialPath) {
+      const read=["head","versions","version","active"].includes(spatialPath[1]);
+      return hostname===BO_STAGING_HOSTNAME && (read?method==="GET":method==="POST") ? {action:"next"} : {action:"not_found"};
+    }
     if (pathname === "/api/bo/tv/operator-health") {
       return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
     }
@@ -239,6 +248,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/open-studio/walkin/assign",
     "/api/bo/open-studio/walkin/revoke",
     "/bo/tvs",
+    // PAP-1266 is the only live TV TDD page; legacy mesh/TV operator remain unadmitted.
     "/bo/delivery-activation",
     "/bo/calendar",
     "/bo/running-classes",
