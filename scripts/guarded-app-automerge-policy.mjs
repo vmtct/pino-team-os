@@ -25,7 +25,7 @@ const TEST_FILE = /(?:\.test\.ts|\.test\.tsx|\.test\.mjs)$/;
 // V2: ordinary scoped BO/HO/TOS library logic can self-admit only with a
 // changed, exact companion regression test and a fully inspectable safe patch.
 // Do not interpret this filename check as a privilege/ACL attestation.
-const LIBRARY_PATH = /^lib\/(bo|ho|tos)-[a-z0-9-]+\.(?:ts|tsx)$/;
+const LIBRARY_PATH = /^lib\/(bo|ho|tos)-[a-z0-9-]+(?:\.test)?\.(?:ts|tsx)$/;
 const SENSITIVE_NAME = /(?:^|[-/.])(api|auth|authentication|authorization|acl|access|permission|permissions|security|secret|secrets|token|tokens|session|sessions|login|logout|role|roles|user|users|payment|payments|financial|finance|salary|payroll|migration|migrations|production|deploy|release|worker|wrangler|core|config|configuration|policy|policies|guard|guards|identity|audit)(?:[-/.]|$)/;
 const SENSITIVE_DIFF = /\b(?:auth|authentication|authorization|acl|accesscontrol|permission|permissions|role|roles|secret|token|jwt|cookie|session|password|migration|migrations|wrangler|cloudflare|d1database|createclient|transaction|sql)\b|process\.env|\b(?:fetch|execute|prepare|insert|delete)\s*\(|(?:next\/headers|next\/server|server-only)|\/api\//i;
 const safeFile = file =>
