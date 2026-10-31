@@ -65,7 +65,7 @@ export function BoMissionsTdd() {
     if (!centerId) return;
     const controller = new AbortController();
     let adapter: AuthenticatedSurfaceAdapter<F> | null = null;
-    void createBoTddAdapter({ registry: new TddRegistry(), definition: assignmentDefinition, provider: assignmentProvider, centerId, centerSource: "centers" }, controller.signal)
+    void createBoTddAdapter({ registry: new TddRegistry(), definition: assignmentDefinition, provider: assignmentProvider, centerId: centerId, centerSource: "centers" }, controller.signal)
       .then(bound => {
         adapter = bound;
         if (controller.signal.aborted) { bound.dispose(); return; }

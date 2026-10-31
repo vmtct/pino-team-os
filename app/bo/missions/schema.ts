@@ -69,7 +69,8 @@ export const assignmentProvider: SurfaceProvider<F> = {
     return p ? { row: project(p), centerId: p.centerId, version: String(p.version) } : null;
   },
 };
-export const assignmentSchema = new TddRegistry().register({ ...assignmentDefinition, data: {
+const missionRegistry = new TddRegistry();
+export const assignmentSchema = missionRegistry.register({ ...assignmentDefinition, data: {
   id: "bo-mission-assignment-center-bound",
   list: async () => { throw Error("Requires authenticated Center-scoped TDD adapter"); },
   detail: async () => { throw Error("Requires authenticated Center-scoped TDD adapter"); },

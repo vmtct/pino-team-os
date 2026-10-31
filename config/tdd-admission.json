@@ -349,10 +349,6 @@
       ],
       "externalReferences": [
         {
-          "file": "lib/bo-read-handler.ts",
-          "owner": "PAP-1210"
-        },
-        {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1210"
         },
