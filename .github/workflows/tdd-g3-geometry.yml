@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/tdd-g3-geometry.yml"
       - "e2e/tdd-g3-geometry.spec.ts"
+      - "e2e/pap1247-action-geometry.spec.ts"
       - "e2e/ho-tdd-controls.spec.ts"
       - "scripts/build-ho-authority.mjs"
       - "scripts/render-tdd-g3-fixtures.tsx"
@@ -43,7 +44,7 @@ jobs:
       - name: Render real canonical TDD Table/Drawer/Detail fixtures
         run: npm run tdd:g3:fixtures
       - name: Run measured geometry and negative controls
-        run: npx playwright test e2e/tdd-g3-geometry.spec.ts e2e/ho-tdd-controls.spec.ts --workers=2 --reporter=list
+        run: npx playwright test e2e/tdd-g3-geometry.spec.ts e2e/pap1247-action-geometry.spec.ts e2e/ho-tdd-controls.spec.ts --workers=2 --reporter=list
         env:
           CI: "true"
       - name: Require complete screenshot and DOM geometry evidence
@@ -57,6 +58,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pap1073-g3-geometry
-          path: artifacts/pap1073-g3/
+          path: |
+            artifacts/pap1073-g3/
+            artifacts/pap1247-actions/
           retention-days: 14
           if-no-files-found: error
