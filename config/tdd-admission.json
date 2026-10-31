@@ -343,7 +343,8 @@
       "files": [
         "app/ho/learning/missions/page.tsx",
         "app/ho/learning/missions/HoMissionsTdd.tsx",
-        "app/ho/learning/missions/schema.ts"
+        "app/ho/learning/missions/schema.ts",
+        "app/ho/learning/missions/command.ts"
       ],
       "schema": {
         "file": "app/ho/learning/missions/schema.ts",
@@ -355,7 +356,8 @@
       },
       "tests": [
         "lib/pap1207-ho-missions-tdd.test.ts",
-        "lib/pap1207-ho-mission-write.test.ts"
+        "lib/pap1207-ho-mission-write.test.ts",
+        "lib/pap1207-ho-mission-command.test.ts"
       ],
       "externalReferences": [
         {
