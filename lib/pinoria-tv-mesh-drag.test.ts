@@ -39,6 +39,12 @@ test("PAP-1262 pin drag clamps to lane bounds and does not mutate source",()=>{
   assert.equal(before.emergencePins[0]!.x,170);
 });
 
+test("PAP-1262 connector pointer move is a no-op until explicit endpoint editing",()=>{
+ const before=seed();
+ const next=applyMeshDrag(before,{kind:"connector",id:"connector-01"},{x:604,y:785},{x:630,y:800});
+ assert.deepEqual(next,before);
+});
+
 test("PAP-1262 React pointermove applies derived next state and pointercancel clears capture",()=>{
   const component=readFileSync(new URL("../app/bo/pinoria-tv-mesh/HouseMeshEditor.tsx",import.meta.url),"utf8");
   const move=component.slice(component.indexOf(" function move("),component.indexOf(" function up("));

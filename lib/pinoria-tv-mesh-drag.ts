@@ -1,7 +1,7 @@
 import type { Point, SpatialConfig } from "./pinoria-tv-spatial-config-client";
 import { boundsOfPoints, translatePolygon } from "./pinoria-tv-mesh-geometry";
 
-export type MeshDragPick = { kind: "lane" | "pin" | "area"; id: string };
+export type MeshDragPick = { kind: "lane" | "pin" | "area" | "connector"; id: string };
 
 /** PAP-1262: same immutable geometry transaction for every pointermove.
  * No Core writes happen until the user explicitly saves a draft. */
@@ -25,7 +25,7 @@ export function applyMeshDrag(
     const pin = next.emergencePins.find(item => item.id === pick.id);
     const lane = next.graph.horizontalLanes.find(item => item.id === pin?.laneId);
     if (pin && lane) pin.x = Math.max(lane.x1 + 36, Math.min(lane.x2 - 36, pin.x + dx));
-  } else {
+  } else if (pick.kind === "area") {
     const area = next.areas.find(item => item.id === pick.id);
     if (area) {
       if (area.points && vertexIndex !== undefined) {
