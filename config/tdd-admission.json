@@ -333,6 +333,29 @@
         "lib/ho-routes.test.ts",
         "lib/host-boundary.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "missions",
+      "route": "/ho/learning/missions",
+      "file": "app/ho/learning/missions/page.tsx",
+      "files": [
+        "app/ho/learning/missions/page.tsx",
+        "app/ho/learning/missions/HoMissionsTdd.tsx",
+        "app/ho/learning/missions/schema.ts"
+      ],
+      "schema": {
+        "file": "app/ho/learning/missions/schema.ts",
+        "export": "missionSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/learning/missions/HoMissionsTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1207-ho-missions-tdd.test.ts"
+      ]
     }
   ],
   "approvals": []
