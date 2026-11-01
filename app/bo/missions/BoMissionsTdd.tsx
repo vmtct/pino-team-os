@@ -18,6 +18,8 @@ import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-works
 import { assignmentDefinition, assignmentFields, assignmentProvider, assignmentQuery } from "./schema";
 import { AssignmentFields, assignmentFormError, emptyAssignmentDraft, type AssignmentDraft } from "./AssignmentFields";
 import { missionCenterFromUrl, missionCenterUrl } from "./navigation";
+import { readMissionLinkedDiaries } from "@/lib/bo-mission-linked-diaries";
+import { missionLinkedDiaryContent } from "./LinkedDiariesView";
 
 type F = typeof assignmentFields;
 type Ready = { centerId: string; adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
@@ -29,7 +31,13 @@ export const assignmentUnavailable = {
 } as const;
 const businessLoaders: SlotLoaders = {
   results: async () => <p role="status">{assignmentUnavailable.results}</p>,
-  diary: async () => <p role="status">{assignmentUnavailable.diary}</p>,
+  "assignment-linked-diaries": async (_slot, record, context, signal) => {
+    const centerId = context.surface === "BO" ? context.centerId : null;
+    if (context.surface !== "BO" || !centerId || record.center !== centerId ||
+        !context.authorize("student.mission_assignment.view"))
+      return <p role="status">Không có quyền xem Nhật Ký liên kết.</p>;
+    return missionLinkedDiaryContent(await readMissionLinkedDiaries(fetch, centerId, record.id, signal));
+  },
 };
 /** PAP-1210 / Epic PAP-1188: BO typed TDD and declared shared Action Host only.
  * Source-backed Student/Mission selectors; receipt/readback, no optimistic fake status.
