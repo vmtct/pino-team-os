@@ -57,3 +57,11 @@ test("PAP-1253 preserves server-hosted HO authorization, CAS & private R2",()=>{
  assert.equal(assetUrl(bad,uuid),null);
  assert.match(new ItemApiError(409,"CONFLICT").message,/Tải lại/);
 });
+test("PAP-1253 separates draft member saves from Publish and hides mutation for view-only",()=>{
+ const source=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemRelations.tsx",import.meta.url),"utf8");
+ assert.match(source,/const allowed=canManage&&/,"view-only must never render Publish");
+ assert.match(source,/canPublish=\{valid&&!changed\}/,"unsaved or invalid SET must not publish");
+ assert.match(source,/const saveValid=members\.length<=8/,"Core permits saving an empty draft");
+ assert.match(source,/disabled=\{!edit\|\|!saveValid\|\|!changed\}/,"draft save separate from Publish");
+ assert.match(source,/cần chọn thành viên trước khi Publish/);
+});

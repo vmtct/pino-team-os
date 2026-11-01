@@ -74,9 +74,9 @@ function useRelations(itemId:string){
   {notice?<p role="status" className="pino-rel-notice">{notice}</p>:null}</>;
  return {item,items,loading,busy,error,setError,notice,setNotice,refresh,mutate,publish,feedback};
 }
-function PublishControl({item,busy,publish}:{item:ItemRecord;busy:boolean;publish:()=>Promise<void>}){
- const allowed=item.status==="DRAFT"||(item.status==="PUBLISHED"&&Boolean(item.pendingDraft));
- return allowed?<button className="secondary-btn" type="button" disabled={busy} onClick={()=>void publish()}>{item.status==="PUBLISHED"?"Publish revision":"Publish"}</button>:null;
+function PublishControl({item,busy,canManage,canPublish=true,publish}:{item:ItemRecord;busy:boolean;canManage:boolean;canPublish?:boolean;publish:()=>Promise<void>}){
+ const allowed=canManage&&(item.status==="DRAFT"||(item.status==="PUBLISHED"&&Boolean(item.pendingDraft)));
+ return allowed?<button className="secondary-btn" type="button" disabled={busy||!canPublish} onClick={()=>void publish()}>{item.status==="PUBLISHED"?"Publish revision":"Publish"}</button>:null;
 }
 export function HoItemVariants({itemId,canManage}:RelationsProps){
  const state=useRelations(itemId);
@@ -99,7 +99,7 @@ export function HoItemVariants({itemId,canManage}:RelationsProps){
   <div className="ho-rel-actions">
    <button className="primary-btn" type="button" disabled={!canManage||busy||item.status==="UNPUBLISHED"||choice===variant(item)}
      onClick={()=>void mutate("/"+item.id,variantShape(item,choice),"Biến thể")}>{busy?"Đang lưu…":"Lưu liên kết"}</button>
-   <PublishControl item={item} busy={busy} publish={publish}/>
+   <PublishControl item={item} busy={busy} canManage={canManage} publish={publish}/>
    <button type="button" className="secondary-btn" disabled={busy} onClick={()=>void refresh().catch(e=>setError(message(e)))}>Tải lại</button>
   </div>
   {item.status==="PUBLISHED"&&item.pendingDraft?<p className="ho-rel-warning">Liên kết đang ở bản nháp; chỉ Publish revision mới thay đổi bản công bố.</p>:null}
@@ -121,6 +121,7 @@ export function HoItemMembers({itemId,canManage}:RelationsProps){
  const available=items.filter(isWearable).filter(i=>i.status==="PUBLISHED"&&!members.includes(i.id));
  const valid=members.length>0&&members.length<=8&&members.every(id=>{const x=itemMap.get(id);return x&&x.type!=="SET"&&x.status==="PUBLISHED"&&x.slot})
   &&taken.size===members.length&&(!starter||(["HAIR","FACE","OUTFIT"] as Slot[]).every(s=>taken.has(s)));
+ const saveValid=members.length<=8&&members.every(id=>{const x=itemMap.get(id);return x&&x.type!=="SET"&&x.status==="PUBLISHED"&&x.slot})&&taken.size===members.length;
  const changed=starter!==current.starterEligible||JSON.stringify(members)!==JSON.stringify(current.memberItemIds);
  const edit=canManage&&!busy&&item.status!=="UNPUBLISHED";
  const move=(idx:number,offset:number)=>{const target=idx+offset;if(target<0||target>=members.length)return;const next=[...members];[next[idx],next[target]]=[next[target],next[idx]];setMembers(next);setNotice("")};
@@ -146,14 +147,14 @@ export function HoItemMembers({itemId,canManage}:RelationsProps){
      <button className="secondary-btn" type="button" disabled={!edit} onClick={()=>remove(id)}>Bỏ</button>
     </div>
    </div>})}
-   {!members.length?<p>Chưa có thành viên.</p>:null}
+   {!members.length?<p>Chưa có thành viên. Có thể lưu bản nháp rỗng; cần chọn thành viên trước khi Publish.</p>:null}
   </div>
   {!valid&&members.length>0?<p role="alert">SET chưa hợp lệ: kiểm tra Slot, trạng thái Published và Starter Hair/Face/Outfit.</p>:null}
   <div className="ho-rel-actions">
-   <button className="primary-btn" type="button" disabled={!edit||!valid||!changed} onClick={()=>void mutate("/"+item.id,{
+   <button className="primary-btn" type="button" disabled={!edit||!saveValid||!changed} onClick={()=>void mutate("/"+item.id,{
     ...current,memberItemIds:members,starterEligible:starter,expectedRevision:item.revision
    },"Thành viên")}>{busy?"Đang lưu…":"Lưu thành viên"}</button>
-   <PublishControl item={item} busy={busy} publish={publish}/>
+   <PublishControl item={item} busy={busy} canManage={canManage} canPublish={valid&&!changed} publish={publish}/>
    <button type="button" className="secondary-btn" disabled={busy} onClick={()=>void refresh().catch(e=>setError(message(e)))}>Tải lại</button>
   </div>
   {item.status==="PUBLISHED"&&item.pendingDraft?<p className="ho-rel-warning">Bản Published vẫn dùng thành viên cũ. Publish revision để áp dụng danh sách mới.</p>:null}
