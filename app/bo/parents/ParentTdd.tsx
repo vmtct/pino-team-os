@@ -7,13 +7,12 @@ import { BusinessDataGrid, type SlotLoaders } from "@/app/components/workspace-r
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry } from "@/lib/workspace-schema";
-import { loadAuthorizedDirectoryCenters, type DirectoryCenter, type DirectoryCenterSource } from "../pinoria-avatars/centers";
+import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { parentDefinition, parentFields, parentProvider, parentQuery } from "./schema";
 import { readScopedParentDetail } from "./provider";
-import { parentCenterUrl, restoreParentCenter } from "./navigation";
 
 type Fields = typeof parentFields;
-type Ready = { adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
+type Ready = { centerId: string; adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
 
 export function parentBusinessLoaders(adapter: AuthenticatedSurfaceAdapter<Fields>): SlotLoaders {
   return {
@@ -45,28 +44,16 @@ export function parentBusinessLoaders(adapter: AuthenticatedSurfaceAdapter<Field
   };
 }
 
-/** Staging-only source seam; intentionally NOT mounted by BO RuntimeEntry until
- * exact Core+Team CD, five-viewport parity, and Founder visual acceptance. */
+/** PAP-1301: the BO shell alone owns Center selection; no inline dropdown.
+ * The TDD Parent adapter independently checks actor, scope and Core permissions. */
 export function ParentTdd() {
-  const [centers, setCenters] = useState<readonly DirectoryCenter[]>([]);
-  const [source, setSource] = useState<DirectoryCenterSource>("centers");
-  const [selected, setSelected] = useState("");
-  const [centerError, setCenterError] = useState("");
+  const center = useBoCenterSelection();
+  const selected = center?.selected ?? "";
+  const source = center?.source ?? "centers";
   const [ready, setReady] = useState<Ready | null>(null);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ centerId: string; retry: number; message: string } | null>(null);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    const ctl = new AbortController();
-    void loadAuthorizedDirectoryCenters(fetch, ctl.signal).then(({ centers: results, source: kind }) => {
-      if (ctl.signal.aborted) return;
-      setCenters(results); setSource(kind);
-      setSelected(restoreParentCenter(results, new URL(location.href)));
-      if (!results.length) setCenterError("Không có cơ sở được cấp quyền.");
-    }).catch(() => { if (!ctl.signal.aborted) setCenterError("Không thể tải cơ sở được cấp quyền."); });
-    return () => ctl.abort();
-  }, []);
-  useEffect(() => {
-    setReady(null); setError("");
     if (!selected) return;
     const ctl = new AbortController();
     let active: AuthenticatedSurfaceAdapter<Fields> | null = null;
@@ -74,31 +61,20 @@ export function ParentTdd() {
       .then(adapter => {
         active = adapter;
         if (ctl.signal.aborted) { adapter.dispose(); return; }
-        setReady({ adapter, navigation: browserTddNavigation("BO", "parents", parentQuery) });
-      }).catch(() => { if (!ctl.signal.aborted) setError("Không có quyền hoặc chưa thể tải Parent TDD trong cơ sở này."); });
+        setReady({ centerId: selected, adapter, navigation: browserTddNavigation("BO", "parents", parentQuery) });
+      }).catch(() => { if (!ctl.signal.aborted) setFailure({ centerId: selected, retry, message: "Không có quyền hoặc chưa thể tải Parent TDD trong cơ sở này." }); });
     return () => { ctl.abort(); active?.dispose(); };
   }, [selected, source, retry]);
-  // Preserve the existing TDD record/tab history entry when remembering its Center.
-  // On Back/Forward, validate the URL context against the current authorized choices.
-  useEffect(() => {
-    const restore = () => setSelected(restoreParentCenter(centers, new URL(location.href)));
-    window.addEventListener("popstate", restore);
-    return () => window.removeEventListener("popstate", restore);
-  }, [centers]);
-  const selectCenter = (centerId: string) => {
-    history.replaceState(history.state, "", parentCenterUrl(new URL(location.href), centerId));
-    setSelected(centerId);
-  };
-  const loaders = useMemo(() => ready ? parentBusinessLoaders(ready.adapter) : undefined, [ready]);
+  const current = ready?.centerId === selected ? ready : null;
+  const loaders = useMemo(() => current ? parentBusinessLoaders(current.adapter) : undefined, [current]);
+  const error = failure?.centerId === selected && failure.retry === retry ? failure.message : "";
   return <section aria-label="Parents & Guardians">
-    <label htmlFor="tdd-parent-center">Cơ sở</label>{" "}
-    <select id="tdd-parent-center" value={selected} onChange={e => selectCenter(e.target.value)}>
-      <option value="">Chọn cơ sở được cấp quyền</option>
-      {centers.map(c => <option value={c.id} key={c.id}>{c.displayName}</option>)}
-    </select>
-    {centerError ? <p role="alert">{centerError}</p> : null}
+    {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
+      center.loading ? <p role="status">Đang tải cơ sở được cấp quyền…</p> :
+      center.error ? <p role="alert">{center.error}</p> : null}
     {selected ? error ? <p role="alert">{error} <button type="button" onClick={() => setRetry(n => n + 1)}>Thử lại</button></p> :
-      ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={parentQuery} businessLoaders={loaders} /> :
-      <p role="status">Đang xác thực quyền Parents theo cơ sở…</p> : null}
+      current ? <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders} /> :
+      <p role="status">Đang xác thực quyền Parents theo cơ sở…</p> :
+      !center?.loading && !center?.error ? <p role="status">Chọn trung tâm tại góc trên trái để xem Parents.</p> : null}
   </section>;
 }
