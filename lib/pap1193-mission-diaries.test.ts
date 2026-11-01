@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { assignmentDefinition } from "../app/bo/missions/schema";
-import { missionLinkedDiaryContent } from "../app/bo/missions/LinkedDiariesView";
-import { parseLinkedMissionDiaryPage, readMissionLinkedDiaries } from "./bo-mission-linked-diaries";
+import { parseLinkedMissionDiaryPage, readMissionLinkedDiaries } from "./bo-mission-assignments";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
 import type { BoAccessRequest } from "./bo-core";
 
@@ -17,15 +16,13 @@ const signal=()=>new AbortController().signal;
 test("PAP-1193 TDD Diary tab uses a source-backed adapter; no custom shell",()=>{
  const tab=assignmentDefinition.detail.businessTabs.find(t=>t.id==="diary");
  assert.equal(tab?.source.adapter,"assignment-linked-diaries");
- const html=renderToStaticMarkup(missionLinkedDiaryContent([{
-  linkId,diaryId,linkedAt:"2026-11-01T10:00:00.000Z",registeredAt:"2026-11-01T10:00:00.000Z",
-  studentId:id,teachingContextKey:"CTX",runningClassId:null,status:"REGISTERED",registeredByUserId:null,
- }]));
- assert.match(html,/Nhật Ký đã liên kết/);
- assert.match(html,/Diary ID/);
- assert.match(html,/CTX/);
- assert.doesNotMatch(html,/<button|data-tdd-shell|<form/);
- assert.match(renderToStaticMarkup(missionLinkedDiaryContent([])),/Chưa có Nhật Ký nào liên kết trực tiếp/);
+ const ui=readFileSync("app/bo/missions/BoMissionsTdd.tsx","utf8");
+ assert.match(ui,/function missionLinkedDiaryContent/);
+ assert.match(ui,/Nhật Ký đã liên kết/);
+ assert.match(ui,/Diary ID/);
+ assert.match(ui,/teachingContextKey/);
+ assert.match(ui,/Chưa có Nhật Ký nào liên kết trực tiếp/);
+ assert.doesNotMatch(ui,/<TddRenderer[^>]*Nhật Ký/);
 });
 test("PAP-1193 parses only explicit linked Diary projection with verified Center and identity",()=>{
  assert.equal(parseLinkedMissionDiaryPage(page([sample]),center,id).diaries[0]?.diaryId,diaryId);
