@@ -273,6 +273,10 @@
           "owner": "PAP-1075"
         },
         {
+          "file": "lib/open-studio-walkin-bo-api.ts",
+          "owner": "PAP-1248"
+        },
+        {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
         }
