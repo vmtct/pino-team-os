@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { TddRenderer } from "../app/components/workspace-renderer/Renderer";
 import { TddRegistry } from "./workspace-schema";
 import { defineTddModule, authorizedHostActions, type ModuleSchema,
-  type FieldSchema, type AuthorizationContext } from "./workspace-schema";
+  type FieldSchema, type AuthorizationContext, type TddActionBindings } from "./workspace-schema";
 const c = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const fields = [{ key: "name", label: "Name", type: "text" as const, icon: "Aa", width: 200,
   permission: "fixture.read", readOnly: true, capabilities: c }] as const satisfies readonly FieldSchema[];
@@ -167,7 +167,7 @@ test("PAP-1310: danger-only edit confirmation renders only with a visible, autho
   const enabled = { close: { kind: "navigation" as const, run: () => undefined },
     confirm: { kind: "mutation" as const, run: () => ({ state: "verified" as const }) },
     save: { kind: "mutation" as const, visible: false, run: () => ({ state: "verified" as const }) } };
-  function html(bindings: typeof enabled | Record<string, typeof enabled.confirm | typeof enabled.close | undefined>,
+  function html(bindings: TddActionBindings,
     mode: "create" | "edit" = "edit", authorized = context, recordId: string | undefined = "record-id") {
     return renderToStaticMarkup(createElement(TddRenderer<typeof fields>, { view: { kind: "form",
       props: { registry, schema: admitted, context: authorized, mode, recordId,
