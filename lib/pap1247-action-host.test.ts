@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TddRenderer } from "../app/components/workspace-renderer/Renderer";
+import { TddRegistry } from "./workspace-schema";
 import { defineTddModule, authorizedHostActions, type ModuleSchema,
   type FieldSchema, type AuthorizationContext } from "./workspace-schema";
 const c = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
@@ -135,7 +139,8 @@ test("PAP-1247: declared form footer is mode-specific, and read-only Quick View 
   assert.deepEqual(authorizedHostActions(admittedSchema, denied, "drawer.footer", handlers, undefined, "create"), []);
   const source = readFileSync("app/components/workspace-renderer/Renderer.tsx", "utf8");
   assert.match(source, /case "form":/);
-  assert.match(source, /if \(!footer\.some\(action => action\.variant === "primary"\)\)/);
+  assert.match(source, /const primarySubmit = footer\.some\(action => action\.variant === "primary"\)/);
+  assert.match(source, /if \(!primarySubmit && !editDangerSubmit\)/);
   assert.match(source, /slot="drawer.footer" formMode=\{mode\}/);
   assert.match(source, /mode === "edit" && !recordId\?\.trim\(\)/);
   assert.match(source, /mode === "create" && recordId !== undefined/);
@@ -147,4 +152,42 @@ test("PAP-1247: handler visibility is pure adapter data, never a CSS-hidden acti
     export: { run: () => undefined, disabled: true },
   };
   assert.deepEqual(authorizedHostActions(declared, permitted, "table.header", handlers).map(x => x.id), ["export"]);
+});
+test("PAP-1310: danger-only edit confirmation renders only with a visible, authorized mutation binding", () => {
+  const base = fixture();
+  const actions = [
+    { id: "dismiss", label: "Đóng", slot: "drawer.footer", variant: "secondary", capability: "edit", handler: "close", formMode: "edit" },
+    { id: "confirm", label: "Xác nhận hủy", slot: "drawer.footer", variant: "danger", capability: "edit", handler: "confirm", formMode: "edit" },
+    { id: "ordinaryEdit", label: "Lưu", slot: "drawer.footer", variant: "primary", capability: "edit", handler: "save", formMode: "edit" },
+  ] as const;
+  const registry = new TddRegistry();
+  const admitted = registry.register({ ...base, capabilities: { ...base.capabilities, edit: "fixture.edit" },
+    actions } as ModuleSchema<typeof fields>);
+  const context: AuthorizationContext = { surface: "HO", authorize: () => true };
+  const enabled = { close: { kind: "navigation" as const, run: () => undefined },
+    confirm: { kind: "mutation" as const, run: () => ({ state: "verified" as const }) },
+    save: { kind: "mutation" as const, visible: false, run: () => ({ state: "verified" as const }) } };
+  function html(bindings: typeof enabled | Record<string, typeof enabled.confirm | typeof enabled.close | undefined>,
+    mode: "create" | "edit" = "edit", authorized = context, recordId: string | undefined = "record-id") {
+    return renderToStaticMarkup(createElement(TddRenderer<typeof fields>, { view: { kind: "form",
+      props: { registry, schema: admitted, context: authorized, mode, recordId,
+        title: "Confirm action", content: createElement("p", null, "Form fields"),
+        onClose: () => undefined, actionBindings: bindings } } }));
+  }
+  const accepted = html(enabled);
+  assert.match(accepted, /data-tdd-shell="drawer"/);
+  assert.match(accepted, /Xác nhận hủy/);
+  assert.match(accepted, /Form fields/);
+  assert.doesNotMatch(accepted, /Không có quyền xem bản ghi/);
+  assert.doesNotMatch(accepted, />Lưu</);
+  const denied = /Không có quyền xem bản ghi/;
+  assert.match(html({ ...enabled, confirm: { kind: "navigation", run: () => undefined } }), denied);
+  assert.match(html({ ...enabled, confirm: { kind: "mutation", visible: false, run: () => undefined } }), denied);
+  assert.match(html({ close: enabled.close, save: enabled.save }), denied);
+  assert.match(html(enabled, "edit", { surface: "HO", authorize: key => key !== "fixture.edit" }), denied);
+  assert.match(html(enabled, "edit", context, ""), denied);
+  assert.match(html(enabled, "create", context, undefined), denied);
+  // Ordinary edit forms continue to accept the established primary mutation.
+  assert.match(html({ ...enabled, confirm: { kind: "mutation", visible: false, run: () => undefined },
+    save: { kind: "mutation", run: () => ({ state: "verified" as const }) } }), /data-tdd-shell="drawer"/);
 });
