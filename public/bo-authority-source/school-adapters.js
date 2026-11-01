@@ -91,9 +91,12 @@
   if(key==='classes'){
    // Current admitted delivery read, no legacy /running-classes fallback.
    let b;
-   try{b=await read('delivery/bootstrap-state');}
+   // PAP-1328: explicit Center is a Core-authorized read constraint, never a UI filter.
+   // Fallback to a single inferred Center is reserved for the legacy centerless route.
+   const selectedCenter=options.centerId?id(options.centerId):null;
+   try{b=await read('delivery/bootstrap-state'+(selectedCenter?'?centerId='+selectedCenter:''));}
    catch(error){
-    if(!(error instanceof Error)||!error.message.includes('quyền'))throw error;
+    if(selectedCenter||!(error instanceof Error)||!error.message.includes('quyền'))throw error;
     // Inferred Center list comes from the same authenticated Core identity.
     const planning=await read('workforce/planning/bootstrap');
     const permitted=array(planning.centers).filter(c=>c.status==='active');
@@ -101,6 +104,8 @@
     b=await read('delivery/bootstrap-state?centerId='+id(permitted[0].id));
    }
    if(!Array.isArray(b.runningClasses)||!Array.isArray(b.paths)||!Array.isArray(b.centers))throw Error('Danh sách lớp không hợp lệ.');
+   // Reject any unexpected cross-Center payload even after the Core authorizes the scope.
+   if(selectedCenter&&(b.runningClasses.some(c=>c.centerId!==selectedCenter)||b.centers.some(c=>c.id!==selectedCenter)))throw Error('Core trả về dữ liệu khác cơ sở.');
    const paths=new Map(b.paths.map(p=>[id(p.id),text(p.displayName)])),centers=new Map(b.centers.map(c=>[id(c.id),text(c.displayName)]));const timeZones=new Map(b.centers.map(c=>[id(c.id),typeof c.timeZone==="string"?c.timeZone:null]));
    return unique(b.runningClasses.map(c=>({id:id(c.id),name:text(c.operationalName),path:paths.get(id(c.pathProgramId))||c.pathProgramId,center:centers.get(id(c.centerId))||c.centerId,weekday:c.weekdayIso,window:text(c.windowStartsLocal)+' – '+text(c.windowEndsLocal),capacity:c.optimalConcurrentCapacity,topology:text(c.deliveryTopology),status:text(c.status),centerTimeZone:timeZones.get(c.centerId)||null})));
   }
