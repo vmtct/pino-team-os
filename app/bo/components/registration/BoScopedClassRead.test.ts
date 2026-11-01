@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { boCenterWave1Href, isBoCenterReadWave1 } from "../app/bo/components/registration/BoCenterWave1";
-import { scopedClassesFetcher } from "../app/bo/components/registration/BoScopedClassRead";
+import { boCenterWave1Href, isBoCenterReadWave1 } from "./BoCenterWave1";
+import { scopedClassesFetcher } from "./BoScopedClassRead";
 
-const { load } = createRequire(import.meta.url)("../public/bo-authority-source/school-adapters.js");
+const { load } = createRequire(import.meta.url)("../../../../public/bo-authority-source/school-adapters.js");
 const A = "0199f001-0000-7000-8000-000000000001";
 const B = "0199f001-0000-7000-8000-000000000002";
 const ID = "0199f001-0000-7000-8000-000000000003";
