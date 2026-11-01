@@ -10,6 +10,7 @@ const error=(status:number,code:string)=>new Response(JSON.stringify({error:{cod
 const fixture=()=>{
  const stored=new Map<string,string>();const calls:Array<{method:string,url:string,key:string|null;body:Record<string,unknown>|null}>=[];
  let failOneLink=false, failPostRead=false, registerFailure=false, wrongReadDiary=false, wrongReceipt=false;
+ let wrongAssignmentRead=false,wrongAssignmentReceipt=false;
  const fetcher=(async(input:RequestInfo|URL,init:RequestInit={})=>{
   const url=String(input),method=init.method??"GET";
   const key=new Headers(init.headers).get("idempotency-key");
@@ -21,19 +22,20 @@ const fixture=()=>{
   }
   if(url.includes("/mission-links")&&method==="GET"){
    if(failPostRead&&stored.size>0)return error(503,"READBACK_UNAVAILABLE");
-   return data([...stored].map(([missionId,assignmentId])=>({id:"link-"+missionId,diaryId:wrongReadDiary?"diary-foreign":"diary-1",missionId,assignmentId:assignmentId||null})));
+   return data([...stored].map(([missionId,assignmentId])=>({id:"link-"+missionId,diaryId:wrongReadDiary?"diary-foreign":"diary-1",missionId,assignmentId:wrongAssignmentRead?"assignment-foreign":assignmentId||null})));
   }
   if(url.includes("/mission-links")&&method==="POST"){
    const missionId=String(body?.missionId),assignmentId=String(body?.assignmentId??"");
    stored.set(missionId,assignmentId);
    if(failOneLink){failOneLink=false;return error(503,"LINK_ACK_LOST")}
-   return data({id:"link-"+missionId,diaryId:wrongReceipt?"diary-foreign":"diary-1",missionId,assignmentId:assignmentId||null},201);
+   return data({id:"link-"+missionId,diaryId:wrongReceipt?"diary-foreign":"diary-1",missionId,assignmentId:wrongAssignmentReceipt?"assignment-foreign":assignmentId||null},201);
   }
   throw new Error("Unexpected path "+url);
  }) as typeof fetch;
  return {client:createV18bApiTransport(true,fetcher),calls,stored,
   failLinkOnce:()=>{failOneLink=true},failReadback:()=>{failPostRead=true},
-  failRegister:()=>{registerFailure=true},foreignRead:()=>{wrongReadDiary=true},foreignReceipt:()=>{wrongReceipt=true}};
+  failRegister:()=>{registerFailure=true},foreignRead:()=>{wrongReadDiary=true},foreignReceipt:()=>{wrongReceipt=true},
+  foreignAssignmentRead:()=>{wrongAssignmentRead=true},foreignAssignmentReceipt:()=>{wrongAssignmentReceipt=true}};
 };
 test("PAP-945 complete link readback of two selected Missions uses one Diary and separate idempotent commands",async()=>{
  const f=fixture();
@@ -104,4 +106,23 @@ test("PAP-945 normal V18b UI transport remains fail-closed (no newly enabled liv
   assert.equal(r.state,"REGISTER_UNCERTAIN");assert.equal(r.errorCode,"CORE_V18B_WRITE_NOT_ADMITTED");
   assert.equal(called,false);
  }finally{globalThis.fetch=old}
+});
+
+test("PAP-945 selected Assignment must match Core readback, never falsely verifies a Mission",async()=>{
+ const f=fixture();f.stored.set("mission-2","assignment-2");f.foreignAssignmentRead();
+ const replay=await resumeDiaryMissionLinks(f.client,{diaryId:"diary-1",centerId:"center-1",submissionKey:"submission-assignment-read",
+  selected:[selection[1]]});
+ assert.equal(replay.state,"LINK_PENDING");
+ assert.equal(replay.errorCode,"DIARY_LINK_ASSIGNMENT_MISMATCH");
+ assert.equal(replay.plan.diaryId,"diary-1");
+ assert.equal(f.calls.filter(x=>x.method==="POST").length,0);
+});
+test("PAP-945 assignment-mismatched POST receipt leaves known Diary LINK_PENDING",async()=>{
+ const f=fixture();f.foreignAssignmentReceipt();
+ const first=await createDiaryWithMissionLinks(f.client,{registration,submissionKey:"submission-assignment-receipt",
+  selected:[selection[1]],eligibleMissionIds:["mission-2"]});
+ assert.equal(first.state,"LINK_PENDING");
+ assert.equal(first.errorCode,"DIARY_LINK_RECEIPT_MISMATCH");
+ assert.equal(first.plan.diaryId,"diary-1");
+ assert.equal(f.calls.filter(x=>x.method==="POST"&&x.url.endsWith("/path-diaries")).length,1);
 });

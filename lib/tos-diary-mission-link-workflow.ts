@@ -63,6 +63,12 @@ function pending(plan:MissionLinkPlan,confirmed:string[],error:unknown):LinkOutc
 function checkedLinks(records:V18bDiaryMissionLink[],plan:MissionLinkPlan){
  if(!Array.isArray(records)||records.some(r=>r.diaryId!==plan.diaryId))
   throw new V18bCoreError(502,"DIARY_LINK_READBACK_MISMATCH","Liên kết từ Core không khớp Diary.");
+ const byMission=new Map(records.map(row=>[row.missionId,row]));
+ for(const choice of plan.selected){
+  const row=byMission.get(choice.missionId);
+  if(row&&choice.assignmentId!=null&&row.assignmentId!==choice.assignmentId)
+   throw new V18bCoreError(409,"DIARY_LINK_ASSIGNMENT_MISMATCH","Liên kết Mission không khớp Assignment đã chọn.");
+ }
  return new Set(records.map(x=>x.missionId));
 }
 /** Resumes ONLY Mission-link writes to the original Diary ID.
@@ -89,7 +95,8 @@ export async function resumeDiaryMissionLinks(client:Client,plan:MissionLinkPlan
    const receipt=await client.linkMission(diaryId,
     {centerId,missionId:choice.missionId,assignmentId:choice.assignmentId},
     "pap945:"+submissionKey+":link:"+choice.missionId);
-   if(receipt.diaryId!==diaryId||receipt.missionId!==choice.missionId)
+   if(receipt.diaryId!==diaryId||receipt.missionId!==choice.missionId||
+     (choice.assignmentId!=null&&receipt.assignmentId!==choice.assignmentId))
     throw new V18bCoreError(502,"DIARY_LINK_RECEIPT_MISMATCH","Core không xác nhận đúng liên kết.");
   }
   // All successful POST responses are insufficient: require durable readback.
