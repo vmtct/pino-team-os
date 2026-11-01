@@ -66,4 +66,10 @@
 
 .minimumHours{display:flex;align-items:baseline;gap:var(--tos-space-1)}
 
+/* PAP-1313 · evidence is mandatory for Open Studio consume. */
+.ePassEvidence{display:flex;flex-direction:column;gap:var(--tos-space-2);margin:var(--tos-space-4) 0;padding:var(--tos-space-3);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-card);background:var(--tos-color-subtle-surface)}
+.ePassPhotoInput{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.ePassPhotoPreview{margin:0;display:flex;flex-direction:column;gap:var(--tos-space-2)}
+.ePassPhotoPreview img{width:100%;max-height:240px;object-fit:contain;background:var(--tos-color-surface);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control)}
+.ePassPhotoPreview figcaption{font-size:var(--tos-text-caption);color:var(--tos-color-soft)}
 }
