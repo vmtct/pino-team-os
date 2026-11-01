@@ -1,5 +1,6 @@
 import {tosV4StagingHost} from "./tos-v4-staging-host";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
+import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
@@ -19,6 +20,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  if (pathname === GLOBAL_TERMS_API || pathname.startsWith(GLOBAL_TERMS_API + "/"))
+    return { action: hostname === HO_STAGING_HOSTNAME && isGlobalTermsRequest(pathname, method) ? "next" : "not_found" };
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
   if (pathname === "/api/bo/open-studio/walkin/parent-contact-lookup" || pathname === "/api/bo/open-studio/walkin/parent-center-proofs")
     return hostname === BO_STAGING_HOSTNAME && method === "POST" ? {action:"next"} : {action:"not_found"};

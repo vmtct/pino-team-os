@@ -3,6 +3,7 @@ export const HO_PAGE_PATHS = {
   centers: "/ho/centers",
   walkinPasses: "/ho/open-studio/walkin",
   termWeeks: "/ho/workforce/term-weeks",
+  globalTerms: "/ho/operating-cycle/global-terms",
   shiftTemplates: "/ho/workforce/shift-templates",
   staffs: "/ho/staff",
   syllabi: "/ho/learning/syllabi",
