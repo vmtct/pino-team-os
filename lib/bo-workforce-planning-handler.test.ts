@@ -17,7 +17,7 @@ test("BO weekly planner forwards bounded query through local password session", 
   assert.equal(response.status, 200); assert.equal(response.headers.get("x-request-id"), "core-weekly");
   assert.deepEqual(forwarded, { method: "GET", path: "weekly", body: { centerId: "center-1", termWeekId: "week-1" } }); assert.equal(token, session);
 });
-test("planning bootstrap and ShiftTemplate admin stay inside bounded Workforce facade", async () => {
+test("PAP-1199 BO ShiftTemplate catalog is read-only and writes never forward to Core", async () => {
   const forwarded: WorkforcePlanningRequest[] = [];
   const b = binding(async request => { forwarded.push(request); return { status: request.method === "POST" ? 201 : 200, body: { data: [] }, requestId: "core-shifts" }; });
   const bootstrap = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/bootstrap?forged=1", { headers: headers() });
@@ -28,13 +28,11 @@ test("planning bootstrap and ShiftTemplate admin stay inside bounded Workforce f
   const status = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/shift-templates/${id}/status`, { method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "status-template" }), body: JSON.stringify({ centerId: "center-1", status: "INACTIVE" }) });
   assert.equal((await handleBoWorkforcePlanningRequest(bootstrap, env(b), "workforce/planning/bootstrap")).status, 200);
   assert.equal((await handleBoWorkforcePlanningRequest(list, env(b), "workforce/planning/shift-templates")).status, 200);
-  assert.equal((await handleBoWorkforcePlanningRequest(create, env(b), "workforce/planning/shift-templates")).status, 201);
-  assert.equal((await handleBoWorkforcePlanningRequest(status, env(b), `workforce/planning/shift-templates/${id}/status`)).status, 201);
+  assert.equal((await handleBoWorkforcePlanningRequest(create, env(b), "workforce/planning/shift-templates")).status, 403);
+  assert.equal((await handleBoWorkforcePlanningRequest(status, env(b), `workforce/planning/shift-templates/${id}/status`)).status, 403);
   assert.deepEqual(forwarded, [
     { method: "GET", path: "bootstrap", body: {} },
     { method: "GET", path: "shift-templates", body: { centerId: "center-1" } },
-    { method: "POST", path: "shift-templates", body: createBody, idempotencyKey: "create-template" },
-    { method: "POST", path: `shift-templates/${id}/status`, body: { centerId: "center-1", status: "INACTIVE" }, idempotencyKey: "status-template" },
   ]);
 });
 
