@@ -269,6 +269,23 @@ test('PAP-1228 changed opaque syntax is not inherited from another expression',(
  assert.ok(inspectModuleDelta('legacy.tsx','export const Old=()=> <div className={oldClasses}/>;','export const Old=()=> <div className={newClasses}/>;').length);
 });
 
+test("PAP-1255 HO TDD admits explicit selected-Center same-schema provider factory only",async t=>{
+ const x=hoWorkspace(t);
+ const chosen=x.helper.replace("staffDefinition,staffProvider","staffDefinition,createShiftTemplateProvider")
+  .replace("const connection=","const centerId='explicit-center';const connection=")
+  .replace("provider:staffProvider","provider:createShiftTemplateProvider(centerId)");
+ x.put(x.bindingFile,chosen);
+ x.put(x.schemaFile,'import {TddRegistry} from "@/lib/workspace-schema";const registry=new TddRegistry();export const staffDefinition={};export const createShiftTemplateProvider=(centerId)=>({centerId});export const schema=registry.register({...staffDefinition});');
+ assert.deepEqual((await x.check()).errors,[]);
+ for(const bad of [
+   chosen.replace("createShiftTemplateProvider(centerId)","createShiftTemplateProvider()"),
+   chosen.replace("createShiftTemplateProvider(centerId)","createShiftTemplateProvider('other')"),
+   chosen.replace("provider:createShiftTemplateProvider(centerId)","provider:foreignFactory(centerId)"),
+ ]){
+   x.put(x.bindingFile,bad);
+   assert.match((await x.check()).errors.join(),/binding required/);
+ }
+});
 
 function permanentSpecial(x) {
  const a=special(x);a.permanent=true;a.expiresAt=null;a.reviewTrigger='Owner, route, design or permission change requires review';return a;
