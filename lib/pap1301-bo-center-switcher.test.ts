@@ -33,6 +33,8 @@ test("PAP-1301: only Staging Parents TDD pilot activates the canonical BO shell 
   assert.match(shell, /disabled/);
   assert.doesNotMatch(pilot, /tdd-parent-center|<select|<option/);
   assert.match(pilot, /useBoCenterSelection\(\)/);
+  assert.match(pilot, /useContext\(TddHostMenu\)/);
+  assert.match(pilot, /!current \? mobileMenu\("parent-pilot-menu-btn"\) : null/);
   assert.match(pilot, /ready\?\.centerId === selected/);
   assert.match(pilot, /active\?\.dispose\(\)/);
 });
