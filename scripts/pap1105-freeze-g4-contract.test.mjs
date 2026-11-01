@@ -72,3 +72,19 @@ test("inventory is emitted before mutations can fail and never includes configur
   await assert.rejects(()=>verifyFreezePersistence(s.api,{onFixture:r=>inventory.push(r)}));
   assert.deepEqual(inventory,[{fixtureId:id,created:true,retained:true}]);
 });
+
+test("failed dependent case remains FAIL while independent acceptance cases still execute", async () => {
+  const { recordFreezeCase } = await import("./pap1105-freeze-g4-contract.mjs");
+  const cases=[];let independentRan=false;
+  assert.equal(await recordFreezeCase(cases,"parent_probe",async()=>{throw new Error("secret body/PII");}),false);
+  assert.equal(await recordFreezeCase(cases,"independent_persistence",async()=>{independentRan=true;}),true);
+  assert(independentRan);assert.equal(cases.filter(c=>c.status==="FAIL").length,1);
+  assert.equal(JSON.stringify(cases).includes("secret"),false);
+});
+test("Parent probe emits only bounded status/counts and explicit booleans", async () => {
+  const { safeParentProbe } = await import("./pap1105-freeze-g4-contract.mjs");
+  const result=safeParentProbe({status:403,total:"private",items:99999,index:1,selected:true,readGrant:true,
+    table:1,rows:false,alert:true,loading:false,scopeMatches:false,recordId:"private",url:"token",body:{pii:true}});
+  assert.deepEqual(result,{status:403,total:null,items:null,index:1,selected:true,readGrant:true,
+    table:false,rows:false,alert:true,loading:false,scopeMatches:false});
+});

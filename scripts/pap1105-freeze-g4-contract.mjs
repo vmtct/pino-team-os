@@ -84,3 +84,19 @@ export async function verifyFreezePersistence(api, {onFixture = () => {}} = {}) 
   }
   return { fixtureId: id, created, retained: true, restored: true, version: current.version };
 }
+
+/** A failed case is retained; callers must still gate unsafe/dependent actions explicitly. */
+export async function recordFreezeCase(cases, name, fn) {
+  try { await fn(); cases.push({name,status:"PASS"}); return true; }
+  catch(error) {
+    cases.push({name,status:"FAIL",errorType:error?.name==="TimeoutError" ? "TimeoutError" : "AssertionError"});
+    return false;
+  }
+}
+/** No row values, actor/Center IDs, text, URL, body, error message or token may escape. */
+export function safeParentProbe(raw) {
+  const number=(value,min,max)=>Number.isSafeInteger(value)&&value>=min&&value<=max?value:null;
+  const booleans=Object.fromEntries(["selected","readGrant","table","rows","alert","loading","scopeMatches"].map(key=>[key,raw?.[key]===true]));
+  return {status:number(raw?.status,100,599),total:number(raw?.total,0,10000),
+    items:number(raw?.items,0,100),index:number(raw?.index,0,19),...booleans};
+}
