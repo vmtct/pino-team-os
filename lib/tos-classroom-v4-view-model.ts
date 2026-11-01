@@ -44,7 +44,7 @@ export function classroomV4ReadModel(day:V18bClassroomToday,staffLabel:string):C
 }
 export function validateClassroomDraft(input:{missionIds:string[];results:Record<string,boolean|null>;interest:number|null;notes:string;difficulty:string;hasImage:boolean;uploading:boolean}):string[]{
  const errors:string[]=[];
- if(input.missionIds.some(id=>typeof input.results[id]!=="boolean"))errors.push("Chưa chọn kết quả cho tất cả Mission");
+ if(!input.missionIds.length||input.missionIds.some(id=>typeof id!=="string"||!id.trim()))errors.push("Cần chọn ít nhất một Nhiệm vụ hợp lệ");
  if(input.interest===null||!Number.isInteger(input.interest)||input.interest<1||input.interest>4)errors.push("Chưa chọn mức hứng thú 1–4");
  if(input.interest===1&&!input.difficulty.trim())errors.push("Cần miêu tả khó khăn khi hướng dẫn học viên");
  if(!input.notes.trim())errors.push("Chưa ghi nhận trải nghiệm và lưu ý");
