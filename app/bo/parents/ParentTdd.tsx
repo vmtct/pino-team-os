@@ -1,8 +1,8 @@
 "use client";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import { useEffect, useMemo, useState } from "react";
-import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { SurfaceWorkspace, TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { BusinessDataGrid, type SlotLoaders } from "@/app/components/workspace-renderer/Slots";
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -47,6 +47,7 @@ export function parentBusinessLoaders(adapter: AuthenticatedSurfaceAdapter<Field
 /** PAP-1301: the BO shell alone owns Center selection; no inline dropdown.
  * The TDD Parent adapter independently checks actor, scope and Core permissions. */
 export function ParentTdd() {
+  const mobileMenu = useContext(TddHostMenu);
   const center = useBoCenterSelection();
   const selected = center?.selected ?? "";
   const source = center?.source ?? "centers";
@@ -69,6 +70,8 @@ export function ParentTdd() {
   const loaders = useMemo(() => current ? parentBusinessLoaders(current.adapter) : undefined, [current]);
   const error = failure?.centerId === selected && failure.retry === retry ? failure.message : "";
   return <section aria-label="Parents & Guardians">
+    {/* Before Center authorization resolves there is no SurfaceWorkspace to host the mobile menu. */}
+    {!current ? mobileMenu("parent-pilot-menu-btn") : null}
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
       center.loading ? <p role="status">Đang tải cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> : null}
