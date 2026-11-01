@@ -143,3 +143,48 @@ test("S9 reports permanent approval explicitly with owner, review trigger and no
  delete a.reviewTrigger;f.put("config/tdd-approved-special.json",JSON.stringify({approvals:[a]}));
  const invalid=reportTddCoverage(f.root,{now:reportNow});assert.ok(invalid.errors.length);assert.equal(invalid.coverage.classifications.FOUNDER_EXEMPT,0);
 });
+
+test("S9 inventories declared BO query aliases separately without inflating module coverage", t => {
+  const f=fixture(t);
+  f.put("app/bo/page.tsx","export default function Page() {}");
+  f.put("lib/bo-url-contract.ts",'export const BO_LEGACY_QUERY_MODULES = ["students", "parents", "salaryPeriods"] as const; throw Error("source must not execute");');
+  const r=reportTddCoverage(f.root);
+  assert.equal(r.queryHostedBo.state,"SOURCE_DECLARATIONS_ONLY");
+  assert.equal(r.queryHostedBo.count,3);
+  assert.deepEqual(r.queryHostedBo.rows.map(x=>x.route),["/bo?module=students","/bo?module=parents","/bo?module=salaryPeriods"]);
+  assert(r.queryHostedBo.rows.every(x=>x.classification==="UNVERIFIED"&&x.servingSha===null&&x.g4==="NOT_ATTESTED_BY_STATIC_INVENTORY"));
+  assert.equal(r.rows.filter(x=>x.route.includes("?")).length,0);
+  assert.equal(r.coverage.classifications.TDD_PARTIAL,1);
+  assert.match(r.queryHostedBo.basis,/not.*module denominator/i);
+});
+test("S9 does not infer query alias adoption from an admitted matching path",t=>{
+  const f=fixture(t);
+  f.put("app/bo/page.tsx","export default function Page() {}");
+  f.put("app/bo/parents/page.tsx","export default function Page() {}");
+  f.manifest.modules.push({surface:"BO",route:"/bo/parents",key:"parents",file:"app/bo/parents/page.tsx",profile:"TDD_DEFAULT"});
+  f.put("config/tdd-admission.json",JSON.stringify(f.manifest));
+  f.put("lib/bo-url-contract.ts",'export const BO_LEGACY_QUERY_MODULES = ["parents"] as const;');
+  const r=reportTddCoverage(f.root);
+  assert.equal(r.rows.find(x=>x.route==="/bo/parents").classification,"TDD_PARTIAL");
+  assert.equal(r.queryHostedBo.rows[0].classification,"UNVERIFIED");
+});
+test("S9 rejects ambiguous, dynamic or unsafe query declarations without executing source",t=>{
+  const f=fixture(t);f.put("app/bo/page.tsx","export default function Page() {}");
+  for(const source of [
+    'export const BO_LEGACY_QUERY_MODULES = ["parents","parents"] as const;',
+    'export const BO_LEGACY_QUERY_MODULES = [...other] as const;',
+    'export const BO_LEGACY_QUERY_MODULES = compute();',
+    'export const BO_LEGACY_QUERY_MODULES = ["../private"] as const;',
+    'const BO_LEGACY_QUERY_MODULES = ["parents"] as const;',
+    'export const BO_LEGACY_QUERY_MODULES = ["parents"] as const; export const BO_LEGACY_QUERY_MODULES = ["students"] as const;',
+  ]) {
+    f.put("lib/bo-url-contract.ts",source);
+    assert.throws(()=>reportTddCoverage(f.root),/query.*declaration/i);
+  }
+});
+test("S9 distinguishes unavailable query registry from verified absence and requires host",t=>{
+  const f=fixture(t);
+  assert.equal(reportTddCoverage(f.root).queryHostedBo.state,"SOURCE_UNAVAILABLE");
+  f.put("lib/bo-url-contract.ts",'export const BO_LEGACY_QUERY_MODULES = ["parents"] as const;');
+  assert.throws(()=>reportTddCoverage(f.root),/query.*host/i);
+});

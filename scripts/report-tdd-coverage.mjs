@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { validateSpecial } from "./verify-tdd-authority.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,6 +29,35 @@ export function listPages(root) {
     walk(start);
   }
   return out.sort();
+}
+/** Parse declarations only. Never import/evaluate app code or equate an alias with its target page. */
+function queryHostedBo(root, pages) {
+  const contract="lib/bo-url-contract.ts";
+  const source=path.join(root,contract);
+  const basis="Source-declared BO compatibility query aliases, not a module denominator; do not add to filesystem page/module counts or infer reachability/adoption. PAP-1068 must verify actual deployed routes.";
+  if(!fs.existsSync(source)) return {state:"SOURCE_UNAVAILABLE",source:contract,count:0,rows:[],basis};
+  const ast=ts.createSourceFile(contract,fs.readFileSync(source,"utf8"),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+  if(ast.parseDiagnostics.length) throw Error("Invalid BO query declaration syntax");
+  const declarations=ast.statements.filter(node=>ts.isVariableStatement(node)&&
+    node.modifiers?.some(modifier=>modifier.kind===ts.SyntaxKind.ExportKeyword))
+    .flatMap(node=>[...node.declarationList.declarations])
+    .filter(node=>ts.isIdentifier(node.name)&&node.name.text==="BO_LEGACY_QUERY_MODULES");
+  if(declarations.length!==1) throw Error("Missing or ambiguous BO query declaration");
+  let value=declarations[0].initializer;
+  while(value&&(ts.isAsExpression(value)||ts.isSatisfiesExpression(value)||ts.isParenthesizedExpression(value))) value=value.expression;
+  if(!value||!ts.isArrayLiteralExpression(value)||!value.elements.every(item=>ts.isStringLiteral(item)))
+    throw Error("BO query declaration must be a literal string array");
+  const keys=value.elements.map(item=>item.text);
+  if(new Set(keys).size!==keys.length||keys.some(key=>!/^[a-zA-Z][a-zA-Z0-9_-]{0,95}$/.test(key)))
+    throw Error("Invalid or duplicate BO query declaration key");
+  const host=pages.find(file=>["app/bo/page.tsx","app/bo/page.ts","app/bo/page.jsx","app/bo/page.js"].includes(file));
+  if(!host) throw Error("BO query host page missing");
+  const rows=keys.map(moduleKey=>({
+    surface:"BO",route:"/bo?module="+encodeURIComponent(moduleKey),file:host,moduleKey,
+    category:"SOURCE_DECLARED_QUERY_ALIAS",classification:"UNVERIFIED",eligibility:"UNVERIFIED",
+    owner:null,migrationOwner:"PAP-1086",g4:"NOT_ATTESTED_BY_STATIC_INVENTORY",servingSha:null,
+  }));
+  return {state:"SOURCE_DECLARATIONS_ONLY",source:contract,count:rows.length,rows,basis};
 }
 function count(rows) {
   const result = {};
@@ -104,8 +134,9 @@ export function reportTddCoverage(root = ROOT, { now = Date.now() } = {}) {
     evidence: "SOURCE_ONLY_NOT_AUTHENTICATED_STAGING",
     sourceBaseline: baseline.sourceSha, totals: count(rows),
     bySurface, rows, errors,
+    queryHostedBo: queryHostedBo(root,pages),
     coverage: {
-      denominator: "BO/HO filesystem page entrypoints only; root hosts are not separate data modules. Query-hosted BO modules and live reachability require the PAP-1068 inventory.",
+      denominator: "BO/HO filesystem page entrypoints only; root hosts are not separate data modules. Query aliases are separately enumerated as unverified source declarations; actual modules and live reachability require the PAP-1068 inventory.",
       basis: "Source declarations only, not verified live compliance. TDD_PARTIAL means admitted with acceptance not attested here; zero TDD_COMPLIANT does not assert live module failure. Special records pass the shared structural validator; G0 separately requires already-merged Founder authority.",
       ...coverage(rows),
       bySurface: Object.fromEntries(["BO", "HO"].map(surface => [surface, coverage(rows.filter(row => row.surface === surface))])),
@@ -115,7 +146,7 @@ export function reportTddCoverage(root = ROOT, { now = Date.now() } = {}) {
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = reportTddCoverage();
-  const format = process.argv.includes("--json") ? result : { evidence: result.evidence, sourceBaseline: result.sourceBaseline, totals: result.totals, bySurface: result.bySurface, coverage: result.coverage, errors: result.errors };
+  const format = process.argv.includes("--json") ? result : { evidence: result.evidence, sourceBaseline: result.sourceBaseline, totals: result.totals, bySurface: result.bySurface, coverage: result.coverage, queryHostedBo: result.queryHostedBo, errors: result.errors };
   console.log(JSON.stringify(format, null, 2));
   if (result.errors.length) process.exitCode=1;
 }
