@@ -2,13 +2,12 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { verifyStaging } from "./pap1074-g4-attestation.mjs";
-import { BO, HO, COLLECTION, allowedRequest, verifyFreezePersistence } from "./pap1105-freeze-g4-contract.mjs";
+import { BO, HO, COLLECTION, allowedRequest, verifyFreezePersistence, recordFreezeCase, safeParentProbe } from "./pap1105-freeze-g4-contract.mjs";
 const env = process.env, cases = [];
 let browser, phase = "preflight", permit = null;
 async function check(name, fn) {
   phase = name;
-  try { await fn(); cases.push({name,status:"PASS"}); }
-  catch(error) { cases.push({name,status:"FAIL",errorType:error?.name === "TimeoutError" ? "TimeoutError" : "AssertionError"}); throw error; }
+  return recordFreezeCase(cases,name,fn);
 }
 async function login(context, origin, role) {
   const page = await context.newPage();
@@ -119,37 +118,64 @@ try {
   await fp.goto(BO+"/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
   await mp.goto(BO+"/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
   await ap.goto(BO+"/staff-login",{waitUntil:"domcontentloaded"});
-  await check("distinct_authorized_actors",async()=>{
+  assert(await check("distinct_authorized_actors",async()=>{
     const actor=page=>page.evaluate(async()=>{const r=await fetch("/api/bo/context");return {status:r.status,data:(await r.json()).data};});
     const f=await actor(fp),m=await actor(mp);
     assert(f.status===200&&m.status===200&&f.data?.entitled&&m.data?.entitled&&f.data.userId&&m.data.userId&&f.data.userId!==m.data.userId);
-  });
-  await check("shared_view_role_isolation",async()=>{
+  }));
+  const roleIsolated=await check("shared_view_role_isolation",async()=>{
     assert.equal((await call(mp,"GET",COLLECTION)).status,403);
     assert.equal((await call(ap,"GET",COLLECTION)).status,401);
   });
-  await check("bo_parent_fixture_read",async()=>{
+  const parentReady=await check("bo_parent_fixture_read",async()=>{
     await fp.goto(BO+"/bo?module=parents&pilot=tdd",{waitUntil:"domcontentloaded"});
     const center=fp.locator("#tdd-parent-center");
     await fp.waitForFunction(()=>document.querySelectorAll("#tdd-parent-center option").length>1);
     const values=await center.locator("option").evaluateAll(nodes=>nodes.map(n=>n.value).filter(Boolean));
     let found=false;
-    for(const value of values.slice(0,20)){
+    for(const [index,value] of values.slice(0,20).entries()){
       await center.selectOption(value);
-      try{await fp.locator("tbody tr[data-record]").first().waitFor({state:"visible",timeout:12000});found=true;break;}catch{}
+      const raw=await fp.evaluate(async centerId=>{
+        const query=new URLSearchParams({centerId,limit:"100",offset:"0"});
+        const response=await fetch("/api/bo/identity/parents/directory?"+query,{cache:"no-store"});
+        const body=await response.json().catch(()=>null);
+        const context=await fetch("/api/bo/context",{cache:"no-store"});
+        const actor=await context.json().catch(()=>null);
+        return {status:response.status,total:body?.data?.total,items:body?.data?.items?.length,
+          scopeMatches:body?.data?.scopeCenterId===centerId,
+          readGrant:actor?.data?.permissionKeys?.includes("identity.parent_directory.view")===true};
+      },value);
+      const dom=()=>fp.evaluate(()=>({
+        selected:!!document.querySelector("#tdd-parent-center")?.value,
+        table:!!document.querySelector("#typed-table"),
+        rows:!!document.querySelector("tbody tr[data-record]"),
+        alert:!!document.querySelector('[role="alert"]'),
+        loading:!!document.querySelector('[role="status"]'),
+      }));
+      console.log(JSON.stringify({name:"parent_directory_probe",...safeParentProbe({...raw,...await dom(),index})}));
+      if(raw.status!==200||raw.total===0)continue;
+      assert(raw.scopeMatches && Number.isSafeInteger(raw.total) && raw.total>0 && raw.items>0);
+      try {
+        await fp.locator("tbody tr[data-record]").first().waitFor({state:"visible",timeout:16000});
+        found=true;break;
+      } catch(error) {
+        console.log(JSON.stringify({name:"parent_projection_probe",...safeParentProbe({...raw,...await dom(),index})}));
+        throw error;
+      }
     }
     assert(found);
   });
-  for(const width of [1440,1024,768,390,320])await check("bo_freeze_"+width,()=>geometry(fp,width));
+  for(const width of [1440,1024,768,390,320])await check("bo_freeze_"+width,async()=>{assert(parentReady);await geometry(fp,width);});
   const hp=await founder.newPage();
-  await hp.goto(HO+"/ho/centers",{waitUntil:"domcontentloaded"});
-  await check("ho_shared_views_unavailable",async()=>{
+  const hoReady=await check("ho_shared_views_unavailable",async()=>{
+    await hp.goto(HO+"/ho/centers",{waitUntil:"domcontentloaded"});
     const status=await hp.evaluate(async()=> (await fetch("/api/bo/views/subscriptions")).status);
     assert.equal(status,404);
   });
-  for(const width of [1440,1024,768,390,320])await check("ho_freeze_"+width,()=>geometry(hp,width));
-  await fp.goto(BO+"/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
+  for(const width of [1440,1024,768,390,320])await check("ho_freeze_"+width,async()=>{assert(hoReady);await geometry(hp,width);});
   await check("persisted_freeze_cas_restore",async()=>{
+    assert(roleIsolated && hoReady);
+    await fp.goto(BO+"/bo?module=subscriptions",{waitUntil:"domcontentloaded"});
     const receipt=await verifyFreezePersistence((method,path,body,id)=>call(fp,method,path,body,id),
       {onFixture: fixture => console.log(JSON.stringify({name:"retained_synthetic_view_inventory",...fixture}))});
     console.log(JSON.stringify({name:"retained_synthetic_view_receipt",...receipt}));
