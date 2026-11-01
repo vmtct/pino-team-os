@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {assetUrl,getItem,listItems,slotNames,writeItem,type HoItem,type HoSetItem,type ItemRecord,type SetInput,type Slot} from "./item-client";
 import "@/app/components/pinoria-item/item-calibration.css";
+import {HoSetMemberControls} from "./HoSetMemberControls";
 type RelationsProps={itemId:string;canManage:boolean};
 const stack:Record<Slot,number>={AURA_GROUND:6,AURA_BACK:12,BACK:30,OUTFIT:60,HAIR:70,FACE:80,HEADWEAR:90,PATH_MARK:100};
 const base="https://assets.pinohouse.art/pinoria/char-base.png";
@@ -141,11 +142,9 @@ export function HoItemMembers({itemId,canManage}:RelationsProps){
   <div className="ho-rel-members">
    {members.map((id,index)=>{const x=itemMap.get(id);return <div className="ho-rel-member" key={id}>
     <strong>{index+1}</strong><span>{x?.displayName??"Item không tồn tại"}</span><small>{x&&x.type!=="SET"?slotNames[x.slot]:"Không hợp lệ"}</small>
-    <div className="ho-rel-member-actions">
-     <button className="secondary-btn" type="button" aria-label={"Đưa Item "+(index+1)+" lên"} disabled={!edit||index===0} onClick={()=>move(index,-1)}>↑</button>
-     <button className="secondary-btn" type="button" aria-label={"Đưa Item "+(index+1)+" xuống"} disabled={!edit||index===members.length-1} onClick={()=>move(index,1)}>↓</button>
-     <button className="secondary-btn" type="button" disabled={!edit} onClick={()=>remove(id)}>Bỏ</button>
-    </div>
+    <HoSetMemberControls index={index} total={members.length}
+     displayName={x?.displayName??"Item không tồn tại"} editable={edit}
+     onMoveUp={()=>move(index,-1)} onMoveDown={()=>move(index,1)} onRemove={()=>remove(id)}/>
    </div>})}
    {!members.length?<p>Chưa có thành viên. Có thể lưu bản nháp rỗng; cần chọn thành viên trước khi Publish.</p>:null}
   </div>
