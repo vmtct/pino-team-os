@@ -41,19 +41,27 @@ export function BoCenterSwitcher() {
       aria-haspopup={enabled ? "listbox" : undefined}
       aria-label={enabled ? `Trung tâm hiện tại: ${choice?.displayName ?? "Chưa chọn"}. Chuyển trung tâm` : "PINO House Back Office"}
       aria-expanded={open} aria-controls={id}
-      onClick={() => setOpen(value => !value)}
+      onClick={() => {
+        if (open) { close(true); return; }
+        setOpen(true);
+        requestAnimationFrame(() => {
+          const items = options();
+          (items.find(c => c.getAttribute("aria-selected") === "true") ?? items[0])?.focus();
+        });
+      }}
       onKeyDown={event => {
         if (enabled && ["ArrowDown", "ArrowUp"].includes(event.key)) {
           event.preventDefault();
           setOpen(true);
           requestAnimationFrame(() => {
             const items = options();
-            (items.find(c => c.getAttribute("aria-selected") === "true") ?? items[0])?.focus();
+            (event.key === "ArrowUp" ? items.at(-1) :
+              items.find(c => c.getAttribute("aria-selected") === "true") ?? items[0])?.focus();
           });
         }
       }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="nav-workspace-logo" src="https://assets.pinohouse.art/core/Pino%20Logo%20White.png" alt="PINO" />
+      <span className="nav-workspace-logo"><img src="https://assets.pinohouse.art/core/Pino%20Logo%20White.png" width={32} height={32} alt="PINO" decoding="async" /></span>
       <span className="nav-workspace-copy"><strong id="workspace-center-name">{choice?.displayName ?? "PINO House"}</strong><small>Back Office</small></span>
       <span className="workspace-angle" aria-hidden="true">⌄</span>
     </button>
@@ -61,7 +69,7 @@ export function BoCenterSwitcher() {
       <div className="workspace-menu-heading" id={id + "-heading"}>Chuyển trung tâm</div>
       {enabled && selection ? <div id="workspace-centers" role="listbox" aria-labelledby={id + "-heading"}>
         {selection.centers.map((c, index) => <button type="button" role="option"
-          key={c.id} className="workspace-center-option" aria-selected={c.id === selection.selected}
+          key={c.id} className="workspace-center-option" aria-selected={c.id === selection.selected} tabIndex={-1}
           onClick={() => { selection.selectCenter(c.id); close(true); }}
           onKeyDown={event => {
             moveFocus(event, index);

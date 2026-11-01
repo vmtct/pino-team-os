@@ -38,15 +38,18 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
       const requested = new URL(location.href).searchParams.get("centerId");
       setError(requested && !current ? "Cơ sở trong liên kết không được cấp quyền." :
         !result.centers.length ? "Không có cơ sở được cấp quyền." : "");
-    }).catch(() => {
+    }).catch((cause: unknown) => {
       if (ctl.signal.aborted) return;
       setLoading(false);
-      setError("Không thể tải cơ sở được cấp quyền.");
+      // Preserve explicit Core 401/403 capability failures from authorized discovery.
+      setError(cause instanceof Error ? cause.message : "Không thể tải cơ sở được cấp quyền.");
     });
     return () => ctl.abort();
   }, []);
   useEffect(() => {
     const restore = () => {
+      // Back/Forward must not erase a loading, 401/403, or empty-authority error.
+      if (loading || !centers.length) return;
       const center = restoreParentCenter(centers, new URL(location.href));
       setSelected(center);
       setError(new URL(location.href).searchParams.has("centerId") && !center ?
@@ -54,7 +57,7 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
-  }, [centers]);
+  }, [centers, loading]);
   const selectCenter = (centerId: string) => {
     // A stale or arbitrary Center ID must never be published as a new scope.
     if (!centers.some(c => c.id === centerId)) return;

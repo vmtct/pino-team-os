@@ -18,6 +18,13 @@ test("PAP-1301: only Staging Parents TDD pilot activates the canonical BO shell 
   assert.match(shell, /role="listbox"/);
   assert.match(shell, /role="option"/);
   assert.match(shell, /aria-selected=\{c.id === selection.selected\}/);
+  assert.match(shell, /tabIndex=\{-1\}/);
+  assert.match(shell, /event.key === "ArrowUp" \? items.at\(-1\)/);
+  assert.match(shell, /if \(open\) \{ close\(true\); return; \}/);
+  assert.match(shell, /className="nav-workspace-logo"><img/);
+  const context = read("app/bo/components/registration/BoCenterSelection.tsx");
+  assert.match(context, /setError\(cause instanceof Error \? cause.message/);
+  assert.match(context, /if \(loading \|\| !centers.length\) return/);
   assert.match(shell, /aria-expanded=\{open\}/);
   assert.match(shell, /Escape/);
   assert.match(shell, /ArrowDown/);
@@ -53,4 +60,25 @@ test("PAP-1301: legacy BO and Production routes cannot opt in implicitly", () =>
   assert.match(page, /query.module === "parents" && query.pilot === "tdd"/);
   assert.match(runtime, /moduleKey === "parents" && parentTddPilot \? <ParentTdd \/>/);
   assert.match(runtime, /return isParentPilot \? <BoCenterSelectionProvider>/);
+});
+
+
+test("PAP-1301: Core 401 and 403 Center discovery remain distinguishable", async () => {
+  const { loadAuthorizedDirectoryCenters } = await import("../app/bo/pinoria-avatars/centers");
+  const controller = new AbortController();
+  const unauthenticated = (async () => new Response(null, { status: 401 })) as typeof fetch;
+  await assert.rejects(
+    loadAuthorizedDirectoryCenters(unauthenticated, controller.signal),
+    /Vui lòng đăng nhập lại/,
+  );
+  const calls: string[] = [];
+  const forbidden = (async (url: RequestInfo | URL) => {
+    calls.push(String(url));
+    return new Response(null, { status: 403 });
+  }) as typeof fetch;
+  await assert.rejects(
+    loadAuthorizedDirectoryCenters(forbidden, controller.signal),
+    /Không có nguồn cơ sở được cấp quyền/,
+  );
+  assert.deepEqual(calls, ["/api/bo/centers", "/api/bo/workforce/planning/bootstrap"]);
 });
