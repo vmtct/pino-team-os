@@ -129,3 +129,30 @@ test("PAP-1077 unknown BO route authority fails before any generated files or ad
   assert.equal(read(root, "config/tdd-admission.json"), before);
   assert.equal(fs.existsSync(path.join(root, "app/bo/mission-samples")), false);
 });
+
+test("PAP-1077: BO/HO TDD scaffold never generates a workspace Center Switcher", t => {
+  for (const surface of ["bo", "ho"]) {
+    const root = setup(t);
+    scaffoldTddModule(params(root, surface));
+    const base = `app/${surface}/mission-samples`;
+    // A Center Switcher is an independent PAP-1316 BO-shell feature, never TDD chrome.
+    for (const file of ["page.tsx", "MissionSamplesTdd.tsx", "schema.ts"]) {
+      assert.doesNotMatch(read(root, `${base}/${file}`),
+        /BoCenterSwitcher|CenterSwitcher|center-switcher|tdd-parent-center|nav-workspace/i);
+    }
+    const plan = JSON.parse(read(root, `${base}/acceptance.plan.json`));
+    assert.ok(plan.gates.every(g => !JSON.stringify(g).match(/CenterSwitcher|center-switcher|PAP-1301|PAP-1316/i)));
+    assert.equal(Object.hasOwn(plan, "centerSwitcher"), false);
+    assert.deepEqual(plan.gates.map(g => g.id), ["G0", "G1", "G2", "G3", "G4"]);
+    const generatedComponent = read(root, `${base}/MissionSamplesTdd.tsx`);
+    if (surface === "bo") {
+      // Mandatory verified Center scope remains; no selector does NOT mean unscoped access.
+      assert.match(generatedComponent, /TODO_TDD_AUTHORIZED_CENTER/);
+      assert.match(generatedComponent, /if \(!centerId\) return/);
+      assert.match(generatedComponent, /createBoTddAdapter/);
+    } else {
+      assert.match(generatedComponent, /createHoTddAdapter/);
+      assert.doesNotMatch(generatedComponent, /TODO_TDD_AUTHORIZED_CENTER/);
+    }
+  }
+});
