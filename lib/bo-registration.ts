@@ -5,7 +5,7 @@ export type BoFieldType = "text" | "id" | "select" | "number" | "currency" | "da
 export type BoField = { key: string; label: string; type: BoFieldType; icon: string; w: number; readonly?: boolean; options?: string[]; defaultVisible?: boolean };
 export type BoModule = { label: string; group: string; fields: BoField[] };
 export type BoRule = { field: string; op: string; value: string; second: string };
-export type BoTableState = { search: string; rules: BoRule[]; logic: "AND" | "OR"; sort: string; desc: boolean; order: string[]; visible: string[]; group: string; collapsed: string[]; hiddenGroups: string[]; hideEmpty: boolean; pageSize: number; groupDesc: boolean };
+export type BoTableState = { search: string; rules: BoRule[]; logic: "AND" | "OR"; sort: string; desc: boolean; order: string[]; visible: string[]; group: string; collapsed: string[]; hiddenGroups: string[]; hideEmpty: boolean; pageSize: number; groupDesc: boolean; frozenThrough?: string | null };
 export const norm = (value: unknown) => String(value ?? "").toLocaleLowerCase("vi").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 export const empty = (value: BoValue) => value == null || value === "" || (Array.isArray(value) && value.length === 0);
 export const display = (value: BoValue): string => value == null ? "—" : Array.isArray(value) ? value.join(", ") : String(value);

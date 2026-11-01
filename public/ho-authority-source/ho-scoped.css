@@ -986,3 +986,27 @@
 [data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form > :is(h3,.property-row:nth-of-type(3),.primary-btn){grid-column:1}
 }
 
+
+/* Shared TDD opt-in Freeze Column; single HO host-scope output */
+/* PAP-1105: shared opt-in TDD Table Freeze primitive; BO/HO host authority untouched. */
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table th[data-tdd-freeze-cell],
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table td[data-tdd-freeze-cell] {
+  position: sticky !important;
+  left: var(--tdd-freeze-left) !important;
+  box-shadow: 1px 0 0 var(--bo-palette-neutral-20, #e6e0e3);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table th[data-tdd-freeze-cell] {
+  z-index: var(--bo-z-table-identity, 6);
+  background: var(--bo-color-table-heading, #f8f8fa);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table td[data-tdd-freeze-cell] {
+  z-index: var(--bo-z-table-cell, 3);
+  background: var(--bo-color-surface, #fff);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-viewport] #typed-table tr:hover td[data-tdd-freeze-cell] {
+  background: var(--bo-color-row-hover, #f5f3f5);
+}
+:where(html[data-surface="ho"]) [data-tdd-freeze-notice] {
+  margin: 7px 10px;
+}
+

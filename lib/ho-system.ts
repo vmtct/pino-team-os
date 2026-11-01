@@ -5,9 +5,19 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "centers" | "walkinPasses" | "staffs" | "users" | "roles" | "audits" | "tddReference" | HoA1Module;
+export type HoModule = "centers" | "walkinPasses" | "staffs" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
+ classroomDiaries: {label:"Nhật ký lớp học",group:"School",fields:[
+  {key:"student",label:"Học viên",type:"text",icon:"Aa",w:225,readonly:true},
+  {key:"mission",label:"Nhiệm vụ",type:"text",icon:"▣",w:240,readonly:true},
+  {key:"center",label:"Center",type:"text",icon:"⌖",w:270,readonly:true},
+  {key:"className",label:"Lớp / bối cảnh",type:"text",icon:"▣",w:240,readonly:true},
+  {key:"date",label:"Ngày học",type:"text",icon:"⌁",w:140,readonly:true},
+  {key:"submitter",label:"Người Submit",type:"text",icon:"Aa",w:235,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:140,readonly:true},
+  {key:"diaryCode",label:"Diary ID",type:"text",icon:"#",w:300,readonly:true},
+ ]},
  tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
  centers: {...hoCentersModule,group:"Network"},
  walkinPasses:{label:"Pass Trạm Nghệ Thuật",group:"Open Studio",fields:[

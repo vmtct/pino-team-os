@@ -156,3 +156,11 @@ test("cookie BO transport uses same-origin BFF without bearer and holds 409",asy
     if(before)Object.defineProperty(globalThis,"window",before);else Reflect.deleteProperty(globalThis,"window");
   }
 });
+for (const frozenThrough of [undefined, null, "status"] as const) test(`PAP-1105 client: wire freeze ${String(frozenThrough)} roundtrips`, async () => {
+  const value = { ...config, columns: { ...config.columns, ...(frozenThrough !== undefined ? { frozenThrough } : {}) } };
+  const o = setup(() => ok({ ...row(id1, 2), config: value }));
+  const result = await o.client.update({kind:"update",moduleKey:"staff",id:id1,expectedVersion:1,config:value});
+  assert.deepEqual((o.seen[0].body as {config:unknown}).config, value);
+  assert.deepEqual(result.config, value);
+  assert.equal(Object.hasOwn(result.config.columns,"frozenThrough"),frozenThrough !== undefined);
+});

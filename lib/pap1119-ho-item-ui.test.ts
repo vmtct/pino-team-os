@@ -34,7 +34,7 @@ test("PAP-1119 validates the strict HO Core read projection",()=>{
  const pending={...base,key:"pending-key",positionX:.36,positionY:-.24,revision:3};
  const published=validateItem({...base,status:"PUBLISHED",revision:3,pendingDraft:pending});
  assert.equal(published.positionX,0);
- assert.equal(published.pendingDraft?.positionX,.36);
+ assert.equal(published.type === "SET" ? null : published.pendingDraft?.positionX,.36);
  assert.throws(()=>validateItem({...base,status:"PUBLISHED",revision:3,pendingDraft:{...pending,revision:2}}));
  assert.throws(()=>validateItem({...base,status:"PUBLISHED",revision:3,pendingDraft:{...pending,asset:{...pending.asset,key:"https://evil.invalid/file.png"}}}));
  assert.throws(()=>validateItem({...base,revision:"1"}));

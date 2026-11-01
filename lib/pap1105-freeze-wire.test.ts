@@ -56,12 +56,15 @@ test("PAP-1105 a stale queue write preserves boundary and does not retry or adva
     assert.equal(queue.snapshot(id)?.expectedVersion, 3);
   } finally { queue.dispose(); }
 });
-test("PAP-1105 typed adapter quarantines non-null Freeze until renderer adoption, but legacy and null still apply", () => {
+test("PAP-1105 typed adapter adopts valid Freeze with lossless absence/null and rejects unsafe targets", () => {
   const legacy = toSharedConfig(centerSchema, centerQuery);
   assert.deepEqual(fromSharedConfig(centerSchema, legacy), centerQuery);
   const cleared = { ...legacy, columns: { ...legacy.columns, frozenThrough: null } };
-  assert.deepEqual(fromSharedConfig(centerSchema, cleared), centerQuery);
+  assert.deepEqual(fromSharedConfig(centerSchema, cleared), { ...centerQuery, frozenThrough: null });
   const frozen = { ...legacy, columns: { ...legacy.columns, frozenThrough: "status" } };
-  assert.throws(() => fromSharedConfig(centerSchema, frozen), /Freeze.*renderer/i);
+  assert.deepEqual(fromSharedConfig(centerSchema, frozen), { ...centerQuery, frozenThrough: "status" });
+  for (const boundary of ["id", centerSchema.table.identity.field, "unknown", 3, false]) {
+    assert.throws(() => fromSharedConfig(centerSchema, { ...legacy, columns: { ...legacy.columns, frozenThrough: boundary } } as never));
+  }
   assert.equal(frozen.columns.frozenThrough, "status");
 });

@@ -19,15 +19,21 @@ const sha256=x=>createHash("sha256").update(x).digest("hex");
 const errors=[];
 const results=[];
 const ratioLimit=0.01;
-const successorRoot=join(root,"successor-41071808375");
-let successors=new Map();
-try {
-  successors=approvedSuccessorImages(
-    JSON.parse(readFileSync(join(successorRoot,"manifest.json"),"utf8")),
-    path=>readFileSync(join(successorRoot,...path.split("/")))
-  );
-} catch(error) {
-  errors.push("G3 approved successor validation failed: "+(error instanceof Error?error.message:"unknown"));
+const approvedSuccessorRuns=[41071808375,41253524859];
+const successors=new Map();
+for(const run of approvedSuccessorRuns) {
+  const successorRoot=join(root,"successor-"+run);
+  try {
+    const images=approvedSuccessorImages(
+      JSON.parse(readFileSync(join(successorRoot,"manifest.json"),"utf8")),
+      path=>readFileSync(join(successorRoot,...path.split("/"))));
+    for(const [path,data] of images) {
+      if(successors.has(path)) throw new Error("Duplicate approved G3 successor image");
+      successors.set(path,data);
+    }
+  } catch(error) {
+    errors.push("G3 approved successor validation failed: "+(error instanceof Error?error.message:"unknown"));
+  }
 }
 const identityOk=manifest.schemaVersion===1 &&
   manifest.sourceRun===40811677302 &&
@@ -72,7 +78,7 @@ for(const path of expected){
   }
 }
 const conclusion={name:"PAP-1073 Founder-approved G3 visual diff",approvedRun:40811677302,
-  approvedSuccessorRun:41071808375,successorImages:successors.size,
+  approvedSuccessorRun:41071808375,approvedSuccessorRuns,successorImages:successors.size,
   compared:results.length,expected:30,limit:ratioLimit,maxRatio:results.length?Math.max(...results.map(r=>r.ratio)):null,
   failed:errors.length,errors:errors.slice(0,35),highestDrift:results.sort((a,b)=>b.ratio-a.ratio).slice(0,8)};
 if(errors.length){console.error(JSON.stringify(conclusion,null,2));process.exitCode=1}

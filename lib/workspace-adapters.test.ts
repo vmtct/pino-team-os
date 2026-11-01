@@ -65,7 +65,7 @@ function server(surface: "BO" | "HO") {
       if (!selected) return receipt(null, 404);
       if (selected.version !== body.expectedVersion) return receipt(null, 409);
       if (request.method === "DELETE") { state.views = state.views.filter(v => v.id !== selected.id); return receipt({ id: selected.id, deleted: true }); }
-      const updated = { ...selected, version: selected.version + 1, ...(body.name ? {name:body.name} : {}), ...(body.config ? {config:body.config} : {}) };
+      const updated = { ...selected, version: selected.version + 1, ...(body.name ? {name:body.name} : {}), ...(body.config ? {config:{...body.config,columns:{...body.config.columns,...(!Object.hasOwn(body.config.columns,"frozenThrough") && Object.hasOwn(selected.config.columns,"frozenThrough") ? {frozenThrough:selected.config.columns.frozenThrough} : {})}}} : {}) };
       state.views = state.views.map(v => v.id === selected.id ? updated : v); return receipt(updated);
     }
     if (request.path === "audit/subject") return { status: 200, body: { data: { events: [], nextCursor: null } }, requestId: "history" };
@@ -417,20 +417,53 @@ for(const surface of ["BO","HO"] as const)test(`${surface}: approved module defa
 });
 
 
-test("PAP-1105 persisted Freeze stays unavailable and cannot be rewritten before renderer adoption", async () => inBrowser("https://bo.staging.pinohouse.art", async () => {
+for (const frozenThrough of [undefined, null, "count"] as const) test(`PAP-1105 adapter: freeze ${String(frozenThrough)} roundtrips without coercion`, async () => {
+  const { adapter } = await setup("BO");
+  const state = { ...query, ...(frozenThrough !== undefined ? { frozenThrough } : {}) };
+  const config = toSharedConfig(adapter.schema, state);
+  assert.equal(Object.hasOwn(config.columns, "frozenThrough"), frozenThrough !== undefined);
+  assert.deepEqual(fromSharedConfig(adapter.schema, config), state);
+});
+
+test("PAP-1105 adapter: invalid, hidden, Identity and unauthorized targets fail closed", async () => inBrowser("https://bo.staging.pinohouse.art", async () => {
   const { adapter, state } = await setup("BO", viewsDefinition("BO"));
-  const config = toSharedConfig(adapter.schema, query);
-  const frozen = { ...config, columns: { ...config.columns, frozenThrough: "count" } };
-  state.views = [{ id: other, name: "Frozen", moduleKey: "students", position: 0, version: 7, config: frozen }, { id: recordId, name: "Usable", moduleKey: "students", position: 1, version: 1, config }];
-  const value = await adapter.views(signal());
-  assert.deepEqual(value.unavailable, [{ id: other, name: "Frozen" }]);
-  assert.equal(value.transport!.views.length, 1);
-  const writesBefore = state.calls.filter(call => call.method !== "GET").length;
-  await assert.rejects(value.transport!.write([...value.transport!.views, { id: other, name: "Attempted overwrite", version: "7", state: query }], adapter.context, signal()), fails(400));
-  assert.equal(state.calls.filter(call => call.method !== "GET").length, writesBefore);
-  await value.transport!.write(value.transport!.views.map(view => ({ ...view, name: "Renamed usable" })), adapter.context, signal());
-  const retained = state.views.find(view => view.id === other)!;
-  assert.deepEqual(retained.config, frozen);
-  assert.equal(retained.version, 7);
-  assert.equal(state.calls.some(call => call.method === "DELETE"), false);
+  const base = toSharedConfig(adapter.schema, query);
+  for (const frozenThrough of ["name", "id", "unknown", 3, false]) {
+    assert.throws(() => fromSharedConfig(adapter.schema, { ...base, columns: { ...base.columns, frozenThrough } } as never));
+    assert.throws(() => toSharedConfig(adapter.schema, { ...query, frozenThrough } as never));
+  }
+  assert.throws(() => toSharedConfig(adapter.schema, { ...query, visible: ["name", "id"], frozenThrough: "count" }));
+  state.views = [{id:recordId,moduleKey:"students",name:"Identity freeze",position:0,version:1,config:{...base,columns:{...base.columns,frozenThrough:"name"}}}];
+  const loaded = await adapter.views(signal());
+  assert.equal(loaded.transport!.views.length, 0); assert.equal(loaded.unavailable.length, 1);
+  const before = state.calls.length;
+  await assert.rejects(loaded.transport!.write([{id:"new",name:"Private",state:{...query,frozenThrough:"secret"}}],adapter.context,signal()));
+  assert.equal(state.calls.length, before);
+}));
+
+test("PAP-1105 BO: persisted freeze create/list/update/reload; null clears; legacy omission retains", async () => inBrowser("https://bo.staging.pinohouse.art", async () => {
+  const { adapter, state } = await setup("BO", viewsDefinition("BO"));
+  const transport = (await adapter.views(signal())).transport!;
+  assert.equal(transport.freezePersistence,"bo-shared");
+  let next = await transport.write([{id:"draft",name:"Frozen",state:{...query,frozenThrough:"count"}}],adapter.context,signal());
+  assert.equal(state.views[0].config.columns.frozenThrough,"count");
+  assert.equal((await adapter.views(signal())).transport!.views[0].state.frozenThrough,"count");
+  // Models the merged Core PATCH contract: omission retains the stored boundary.
+  next = await transport.write(next.map(v=>({...v,state:{...query,search:"Legacy edit"}})),adapter.context,signal());
+  assert.equal(next[0].state.frozenThrough,"count");
+  const legacy = state.calls.filter(v=>v.method==="PATCH").at(-1)!.body as {config:{columns:object}};
+  assert.equal(Object.hasOwn(legacy.config.columns,"frozenThrough"),false);
+  next = await transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:null}})),adapter.context,signal());
+  assert.equal(next[0].state.frozenThrough,null);
+  assert.equal((await adapter.views(signal())).transport!.views[0].state.frozenThrough,null);
+  next = await transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:"count"}})),adapter.context,signal());
+  assert.equal((await adapter.views(signal())).transport!.views[0].state.frozenThrough,"count");
+  state.viewStatus=409;
+  const before=state.calls.filter(v=>v.method==="PATCH").length;
+  await assert.rejects(transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:null}})),adapter.context,signal()),e=>(e as {status?:number}).status===409);
+  assert.equal(state.calls.filter(v=>v.method==="PATCH").length,before+1);
+  assert.equal(state.views[0].config.columns.frozenThrough,"count");
+  state.viewStatus=200;state.permissions=state.permissions.filter(p=>p!=="bo.shared_view.manage");
+  await assert.rejects(transport.write(next.map(v=>({...v,state:{...v.state,frozenThrough:null}})),adapter.context,signal()),fails(403));
+  assert.equal(state.calls.filter(v=>v.method==="PATCH").length,before+1);
 }));

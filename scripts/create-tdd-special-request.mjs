@@ -12,7 +12,7 @@ export function createSpecialRequest({ surface, key, route, owner }) {
     justification: "", designAuthority: "", fallback: "", permissions: [],
     files: ["app" + route + "/page.tsx"],
     tests: { security: [], authorization: [], accessibility: [], responsive: [], visual: [], e2e: [] },
-    reviewTrigger: "", expiresAt: null,
+    reviewTrigger: "", expiresAt: null, permanent: false,
     approvedBy: null, reference: null, approvedAt: null,
   };
 }

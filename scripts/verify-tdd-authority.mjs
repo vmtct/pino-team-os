@@ -13,6 +13,7 @@ const surfaceFile = /^app\/(bo|ho)\//;
 const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
+const sharedExtensions = new Set(['app/components/workspace-renderer/tdd-freeze.css']);
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
 const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio:['ignore','pipe','pipe'] }).trim();
@@ -122,7 +123,7 @@ export function inspectCss(file, css, surface) {
     for(const s of rule.selectors) {
       // Accept the exact host-anchored forms emitted by the canonical HO compiler.
       // Each selector must begin at the HO host, never at an unrelated ancestor.
-      const boScope=/html\[data-bo-ui-authority=["']v25["']\]/;
+      const boScope=/^(?::root:where\(\[data-bo-ui-authority=["']v25["']\]\)|html:where\(\[data-bo-ui-authority=["']v25["']\]\)|\*?:where\(html\[data-bo-ui-authority=["']v25["']\]\)|html\[data-bo-ui-authority=["']v25["']\])(?=$|[\s:.#>+~\[])/;
       const hoScope=/^(?::root:where\(\[data-surface=["']ho["']\]\)|html:where\(\[data-surface=["']ho["']\]\)|\*?:where\(html\[data-surface=["']ho["']\]\)|\[data-surface=["']ho["']\])(?=$|[\s:.#>+~\[])/;
       const scoped=surface==='BO' ? boScope.test(s) : hoScope.test(s);
       if(!scoped|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
@@ -140,7 +141,13 @@ export function validateSpecial(entry, approvals, changed, now) {
   if(!exactRoute(a.route,a.surface)||a.route!==entry.route||a.surface!==entry.surface||a.key!==entry.key) errors.push('approval route/surface/key mismatch');
   if(![a.owner,a.justification,a.designAuthority,a.fallback].every(v=>typeof v==='string'&&v.trim())||!Array.isArray(a.permissions)||!a.permissions.length||!a.permissions.every(v=>typeof v==='string'&&v.trim())) errors.push('incomplete special profile');
   const from=Date.parse(a.approvedAt), to=Date.parse(a.expiresAt);
-  if(typeof a.approvedAt!=='string'||typeof a.expiresAt!=='string'||!Number.isFinite(from)||from>now||!Number.isFinite(to)||to<=now||to<=from) errors.push('expired/future approval');
+  if(typeof a.approvedAt!=='string'||!Number.isFinite(from)||from>now) errors.push('expired/future approval');
+  // PAP-1085 explicitly permits permanent Founder decisions, never inferred
+  // from a missing expiry. Revocation, exact scope and base authority still apply.
+  if(a.permanent!==undefined&&typeof a.permanent!=='boolean') errors.push('invalid permanence declaration');
+  if(a.permanent===true) {
+    if(a.expiresAt!==null||typeof a.reviewTrigger!=='string'||!a.reviewTrigger.trim()) errors.push('permanent approval requires null expiry and review trigger');
+  } else if(typeof a.expiresAt!=='string'||!Number.isFinite(to)||to<=now||to<=from) errors.push('expired/future approval');
   if(!Array.isArray(a.files)||!a.files.length||!a.files.every(exactFile)||new Set(a.files).size!==a.files.length||JSON.stringify([...a.files].sort())!==JSON.stringify([...entry.files].sort())) errors.push('approval file fence mismatch');
   if(changed.some(f=>entry.files.includes(f)&&!a.files.includes(f))) errors.push('out-of-scope exception');
   for(const key of ['security','authorization','accessibility','responsive']) if(!Array.isArray(a.tests?.[key])||!a.tests[key].length||!a.tests[key].every(exactFile)) errors.push('missing '+key+' tests');
@@ -293,7 +300,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     if(/^public\/(bo|ho)-authority-source\/(bo|ho)-scoped\.css$/.test(f)&&fs.existsSync(path.join(root,f))) errors.push(...inspectCss(f,read(root,f),f.includes('/bo-')?'BO':'HO'));
   }
   for(const f of changed.filter(f=>canonical.test(f))) {
-    if(!(baseline.sourceFiles??[]).includes(f)) errors.push(f+': new shared authority file requires separate owner reconciliation');
+    if(!(baseline.sourceFiles??[]).includes(f)&&!sharedExtensions.has(f)) errors.push(f+': new shared authority file requires separate owner reconciliation');
   }
   for(const f of tests) if(!exactFile(f)||! /\.test\.(?:tsx?|mjs)$/.test(f)||!fs.existsSync(path.join(root,f))) errors.push('missing/invalid profile test '+f);
   return {errors:[...new Set(errors)],reports,tests:[...tests].sort(),inventoryPending:baseline.routes.length};

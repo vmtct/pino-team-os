@@ -57,3 +57,18 @@ test("BO Pass history read binds exact canonical IDs and rejects query injection
  assert.equal((await handleBoOperationalReadRequest(request("?passId="+pass+"&centerId="+center,false),env,path)).status,401);
  assert.equal(forwarded.length,1,"no unauthorized Core request");
 });
+
+test("PAP-1248 Parent exact-contact lookup and proof are POST-only and staging BO-only",()=>{
+ for(const suffix of ["parent-contact-lookup","parent-center-proofs"]){
+  const endpoint="open-studio/walkin/"+suffix;
+  const path="/api/bo/"+endpoint;
+  assert.equal(isAllowedPostPath(endpoint),true);
+  assert.equal(isOperationalReadPath(endpoint),false);
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,"POST"),{action:"next"});
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])
+   assert.deepEqual(decideHostBoundary(host,path,"POST"),{action:"not_found"},host);
+  for(const method of ["GET","PUT","DELETE"])
+   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,method),{action:"not_found"},method);
+ }
+ assert.equal(isAllowedPostPath("open-studio/walkin/parent-contact-lookup-all"),false);
+});

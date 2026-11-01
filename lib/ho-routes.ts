@@ -5,6 +5,7 @@ export const HO_PAGE_PATHS = {
   staffs: "/ho/staff",
   syllabi: "/ho/learning/syllabi",
   missions: "/ho/learning/missions",
+  classroomDiaries: "/ho/learning/diaries",
   worlds: "/ho/pinoria/worlds",
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",

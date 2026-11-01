@@ -4,6 +4,47 @@
     {
       "profile": "TDD_DEFAULT",
       "surface": "BO",
+      "key": "classroom-diaries",
+      "route": "/bo/classroom-diaries",
+      "file": "app/bo/classroom-diaries/page.tsx",
+      "files": [
+        "app/bo/classroom-diaries/page.tsx",
+        "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx",
+        "app/bo/classroom-diaries/schema.ts"
+      ],
+      "schema": {
+        "file": "app/bo/classroom-diaries/schema.ts",
+        "export": "diarySchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx"
+      },
+      "tests": [
+        "app/bo/classroom-diaries/schema.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1220"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        }
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
       "key": "pinoria-avatars",
       "route": "/bo/pinoria-avatars",
       "file": "app/bo/pinoria-avatars/page.tsx",
@@ -230,6 +271,14 @@
         {
           "file": "app/bo/parents/provider.ts",
           "owner": "PAP-1075"
+        },
+        {
+          "file": "lib/open-studio-walkin-bo-api.ts",
+          "owner": "PAP-1248"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
         }
       ],
       "schema": {
@@ -350,7 +399,8 @@
         "app/ho/learning/missions/schema.ts",
         "app/ho/learning/missions/command.ts",
         "app/ho/learning/missions/read-edit.ts",
-        "app/ho/learning/missions/MissionCreateFields.tsx"
+        "app/ho/learning/missions/MissionCreateFields.tsx",
+        "lib/bo-registration.ts"
       ],
       "schema": {
         "file": "app/ho/learning/missions/schema.ts",
@@ -371,7 +421,165 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1207"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
         }
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "missions",
+      "route": "/bo/missions",
+      "file": "app/bo/missions/page.tsx",
+      "files": [
+        "app/bo/missions/page.tsx",
+        "app/bo/missions/BoMissionsTdd.tsx",
+        "app/bo/missions/AssignmentFields.tsx",
+        "app/bo/missions/navigation.ts",
+        "app/bo/missions/schema.ts",
+        "lib/bo-mission-assignments.ts",
+        "lib/bo-mission-assignment-write-facade.ts",
+        "lib/bo-mission-assignment-command.ts",
+        "lib/bo-mission-assignment-options.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "lib/bo-url-contract.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "app/bo/architecture/bo-unified-workspace-source.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "app/bo/components/registration/BoRuntimeBoundary.tsx",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        }
+      ],
+      "schema": {
+        "file": "app/bo/missions/schema.ts",
+        "export": "assignmentSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/missions/BoMissionsTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1210-bo-missions-tdd.test.ts",
+        "lib/pap1210-bo-mission-write-facade.test.ts",
+        "lib/pap1210-bo-mission-command.test.ts",
+        "lib/pap1210-bo-mission-options.test.ts",
+        "lib/pap1210-bo-mission-form.test.ts"
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "tvs",
+      "route": "/bo/tvs",
+      "file": "app/bo/tvs/page.tsx",
+      "files": [
+        "app/bo/tvs/page.tsx",
+        "app/bo/tvs/TvsTdd.tsx",
+        "app/bo/tvs/schema.ts"
+      ],
+      "schema": {
+        "file": "app/bo/tvs/schema.ts",
+        "export": "tvSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/tvs/TvsTdd.tsx"
+      },
+      "tests": [
+        "app/bo/tvs/schema.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1263"
+        },
+        {
+          "file": "app/bo/pinoria-tv-mesh/HouseMeshEditor.tsx",
+          "owner": "PAP-1266"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        }
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "classroomDiaries",
+      "route": "/ho/learning/diaries",
+      "file": "app/ho/learning/diaries/page.tsx",
+      "files": [
+        "app/ho/learning/diaries/page.tsx",
+        "app/ho/learning/diaries/HoDiariesTdd.tsx",
+        "app/ho/learning/diaries/schema.ts"
+      ],
+      "externalReferences": [
+        {
+          "owner": "PAP-990",
+          "file": "app/ho/HoWorkspace.tsx"
+        },
+        {
+          "owner": "PAP-1221",
+          "file": "lib/ho-routes.ts"
+        },
+        {
+          "owner": "PAP-1221",
+          "file": "lib/ho-system.ts"
+        },
+        {
+          "owner": "PAP-1221",
+          "file": "lib/workspace-adapters/session.ts"
+        },
+        {
+          "owner": "PAP-1221",
+          "file": "lib/host-boundary.ts"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/learning/diaries/schema.ts",
+        "export": "hoDiarySchema"
+      },
+      "binding": {
+        "file": "app/ho/learning/diaries/HoDiariesTdd.tsx",
+        "kind": "SURFACE_WORKSPACE_ADAPTER"
+      },
+      "tests": [
+        "app/ho/learning/diaries/schema.test.ts",
+        "lib/pap1221-ho-diary-bff.test.ts"
       ]
     }
   ],

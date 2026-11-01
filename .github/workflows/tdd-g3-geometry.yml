@@ -7,6 +7,10 @@ on:
     paths:
       - ".github/workflows/tdd-g3-geometry.yml"
       - "e2e/tdd-g3-geometry.spec.ts"
+      - "e2e/pap1105-freeze.spec.ts"
+      - "e2e/fixtures/pap1105-freeze.tsx"
+      - "lib/tdd-column-freeze.ts"
+      - "app/bo/components/registration/BoDataTable.tsx"
       - "e2e/pap1247-action-geometry.spec.ts"
       - "e2e/ho-tdd-controls.spec.ts"
       - "scripts/build-ho-authority.mjs"
@@ -47,6 +51,10 @@ jobs:
         run: npx playwright test e2e/tdd-g3-geometry.spec.ts e2e/pap1247-action-geometry.spec.ts e2e/ho-tdd-controls.spec.ts --workers=2 --reporter=list
         env:
           CI: "true"
+      - name: Measure BO/HO Freeze across five widths
+        run: npx playwright test e2e/pap1105-freeze.spec.ts --grep "measured sticky geometry" --workers=2 --retries=0 --reporter=list
+        env:
+          CI: "true"
       - name: Require complete screenshot and DOM geometry evidence
         run: node scripts/verify-tdd-g3-artifacts.mjs
       - name: Verify G3 visual diff against Founder-approved immutable golden
@@ -61,5 +69,6 @@ jobs:
           path: |
             artifacts/pap1073-g3/
             artifacts/pap1247-actions/
+            artifacts/pap1105-freeze/
           retention-days: 14
           if-no-files-found: error

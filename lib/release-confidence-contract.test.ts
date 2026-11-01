@@ -16,3 +16,9 @@ test("PAP-867: BO UI and API cannot leak through TOS", () => {
 test("PAP-867: nested navigation additions are automatically collected", () => {
   assert.deepEqual(collectNavHrefs([{href:"/bo",children:[{href:"/bo/new"},{href:"/bo/new"}]}]), ["/bo", "/bo/new"]);
 });
+
+test("PAP-1220 staged-only Classroom Diary stays in navigation coverage, not Production",()=>{
+ const bo="bo.staging.pinohouse.art",route="/bo/classroom-diaries";
+ assert.deepEqual(checkPageContract(process.cwd(),bo,route),[]);
+ assert.ok(checkPageContract(process.cwd(),BO_HOSTNAME,route).includes("host_denied"));
+});

@@ -150,3 +150,28 @@ test("all return values are isolated immutable snapshots, including tags and col
   assert.equal(edited.state.views[0].config.columns.order.length,7);
   assert.equal(original.effective.filters.length,0);
 });
+
+for (const frozenThrough of [undefined, null, "status"] as const) test(`PAP-1105 state: freeze ${String(frozenThrough)} survives snapshots and metadata edits`, () => {
+  const config: BoViewConfig = { ...base, columns: { ...base.columns, ...(frozenThrough !== undefined ? { frozenThrough } : {}) } };
+  let state = loadBoPublicViews({ moduleKey: "subscriptions", role: "manager", allowedFields: fields, views: [view("v1", 0, 3, config), view("v2", 1)], selectedId: "v1" });
+  assert.deepEqual(state.effective, config);
+  state = renameBoPublicView(state, "v1", "Renamed").state;
+  state = reorderBoPublicViews(state, ["v2", "v1"]).state;
+  assert.deepEqual(state.views[1].config, config);
+  const created = createBoPublicView(state, { id: "copy", name: "Copy" });
+  assert.deepEqual(created.state.views[2].config, config);
+  if (created.write?.kind === "create") assert.deepEqual(created.write.config, config);
+  const edited = editBoViewConfig(state, { ...config, search: "Changed" }, fields);
+  if (edited.write?.kind === "update") assert.deepEqual(edited.write.config.columns, config.columns);
+  assert.equal(selectBoPublicView(state, null, fields).state.effective.columns.frozenThrough, undefined);
+  assert.deepEqual(selectBoPublicView(state, "v1", fields).state.effective.columns, config.columns);
+  assert.equal(Object.hasOwn(validateBoViewConfig(config, fields).columns, "frozenThrough"), frozenThrough !== undefined);
+});
+
+test("PAP-1105 state: malformed, unregistered, hidden and unordered freeze targets fail closed", () => {
+  for (const frozenThrough of ["private", "", 5, false, {}, []]) {
+    assert.throws(() => validateBoViewConfig({ ...base, columns: { ...base.columns, frozenThrough } } as BoViewConfig, fields), /freeze boundary/);
+  }
+  assert.throws(() => validateBoViewConfig({ ...base, columns: { ...base.columns, visible: ["name"], frozenThrough: "status" } }, fields), /freeze boundary/);
+  assert.throws(() => validateBoViewConfig({ ...base, columns: { order: ["name"], visible: ["name"], frozenThrough: "status" } }, fields), /freeze boundary/);
+});
