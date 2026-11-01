@@ -52,6 +52,8 @@ const DEPARTURE_PERFORMANCE_MS = 5200;
 export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas, runtimeIdentity }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[]; runtimeIdentity?: {displayId:string;sessionId:string;deviceId:string|null} } = {}) {
   const [centerId, setCenterId] = useState("");
   const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
+  // Only a successful authenticated null response proves that this session is using fallback.
+  const [fallbackProof,setFallbackProof]=useState<string|null>(null);
   const [assetEvidence,setAssetEvidence]=useState<AssetEvidence>({failedAssetIds:[]});
   // Asset failures belong to a single authenticated TV session, not the next device session.
   useEffect(()=>{setAssetEvidence({failedAssetIds:[]});},[runtimeIdentity?.sessionId]);
@@ -76,9 +78,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const runtimeSessionId=runtimeIdentity?.sessionId ?? "";
   const runtimeDeviceId=runtimeIdentity?.deviceId ?? null;
   const appliedRevision=readAppliedSpatialRevision(spatial);
+  const fallbackConfirmed=fallbackProof===centerId+":"+runtimeSessionId&&!spatial.active&&!spatial.pending;
   useEffect(()=>{
     if(!runtimeSessionId||!runtimeDisplayId||!runtimeDeviceId)return;
-    const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,assetEvidence}));
+    const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,fallbackConfirmed,assetEvidence}));
     if(!observation)return;
     // A session-bound report only; Core retains rendererAcknowledged:false until actual render proof.
     // Core considers observations stale after 30s; keep a 15s heartbeat while mounted.
@@ -88,7 +91,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     void report();
     const timer=window.setInterval(()=>void report(),15000);
     return()=>window.clearInterval(timer);
-  },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,assetEvidence,apiBase]);
+  },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,fallbackConfirmed,assetEvidence,apiBase]);
   const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
   const replayBusy = useRef(false);
   const replayLastRevision = useRef(0);
@@ -164,9 +167,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   // Device-authenticated read of Core published TV config. An outage or invalid
   // payload never replaces last-known-good. New geometry waits until House is empty.
   useEffect(()=>{
-    if(!centerId){setSpatial({active:null,pending:null});return;}
+    if(!centerId){setSpatial({active:null,pending:null});setFallbackProof(null);return;}
     let cancelled=false;
-    setSpatial({active:null,pending:null});
+    setSpatial({active:null,pending:null});setFallbackProof(null);
     async function pollSpatial(){
       try{
         const response=await fetch(`${apiBase}/spatial-config`,{cache:"no-store"});
@@ -174,13 +177,14 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         const body=await response.json() as {data?:unknown};
         if(cancelled)return;
         const candidate=parsePublishedHouseSpatialConfig(body.data);
-        if(candidate)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,candidate,liveActorCountRef.current));
+        if(candidate){setFallbackProof(null);setSpatial(previous=>reconcileHouseSpatialRefresh(previous,candidate,liveActorCountRef.current));}
+        else if(body.data===null)setFallbackProof(centerId+":"+runtimeSessionId); // Authenticated explicit absence, not fetch failure.
       }catch{/* Fails closed: keep saved/default or last-known-good revision. */}
     }
     void pollSpatial();
     const timer=window.setInterval(()=>void pollSpatial(),12000);
     return()=>{cancelled=true;window.clearInterval(timer);};
-  },[centerId,apiBase]);
+  },[centerId,apiBase,runtimeSessionId]);
   useEffect(()=>{
     if(inside.length===0&&scenes.length===0&&!presentation)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,null,0));
   },[inside.length,scenes.length,presentation]);
