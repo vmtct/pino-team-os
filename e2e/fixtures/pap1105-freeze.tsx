@@ -6,7 +6,7 @@ import { browserTddNavigation } from "../../lib/workspace-adapters/navigation";
 import { BoApiError } from "../../lib/bo-api-error";
 
 // Synthetic module integration only: no public route, live auth, API or DS fork.
-declare global { interface Window { __g2ReleaseOld?: () => void; __g2OldResolved?: boolean } }
+declare global { interface Window { __freezeResolvedBoundary?: string | null; __g2ReleaseOld?: () => void; __g2OldResolved?: boolean } }
 const surface = location.hostname.startsWith("ho.") ? "HO" : "BO";
 const key = surface === "BO" ? "parents" : "centers";
 const scenario = new URL(location.href).searchParams.get("scenario");
@@ -48,7 +48,7 @@ let listCalls = 0, detailCalls = 0;
 const adapter: AuthenticatedSurfaceAdapter<Fields> = {
   registry, schema, context, scope: surface === "BO" ? { surface, centerId: "fixture-center" } : { surface }, userId: "fixture-actor",
   capabilities: { read: scenario !== "denied", edit: false, create: false, delete: false, reveal: false, audit: scenario !== "history-denied" },
-  list: async () => { await new Promise(r => setTimeout(r, 80)); if (scenario === "list-error" && listCalls++ === 0) throw new BoApiError(503, "Fixture read failed", null); return { rows, total: rows.length, versions: {} }; },
+  list: async currentQuery => { await new Promise(r => setTimeout(r, 600)); if (scenario === "list-error" && listCalls++ === 0) throw new BoApiError(503, "Fixture read failed", null); window.__freezeResolvedBoundary = currentQuery.frozenThrough; return { rows, total: rows.length, versions: {} }; },
   detail: async id => {
     if (scenario === "detail-error" && detailCalls++ === 0) throw new BoApiError(503, "Fixture detail failed", null);
     if (scenario === "stale" && id === rows[0].id) return new Promise(resolve => { window.__g2ReleaseOld = () => { resolve({ row: rows[0] }); window.__g2OldResolved = true; }; });

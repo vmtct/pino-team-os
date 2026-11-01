@@ -102,6 +102,16 @@ for (const surface of ["BO", "HO"] as const) {
     await expect.poll(() => requested(page)).toBe("note");
     await expect(page.locator("thead [data-tdd-freeze-cell]").first()).toHaveAttribute("data-column", "name");
     if (width <= 390) await expect(page.locator("[data-tdd-freeze-notice]")).toContainText("Màn hình quá hẹp");
+    // Query updates legitimately reload controller rows. Wait for the response
+    // for this exact boundary, its mounted rows, and the measured body stamps.
+    // Keep every physical geometry assertion below unchanged.
+    await expect.poll(() => page.evaluate(() => {
+      const owned = Object.entries(history.state ?? {}).find(([key]) => key.startsWith("pino:tdd:"))?.[1] as { query?: { frozenThrough?: string | null } } | undefined;
+      const headers = document.querySelectorAll("thead [data-tdd-freeze-cell]");
+      const rows = document.querySelectorAll("tbody tr[data-record]");
+      return window.__freezeResolvedBoundary === owned?.query?.frozenThrough && headers.length > 0 && rows.length === 8
+        && [...rows].every(row => row.querySelectorAll("td[data-tdd-freeze-cell]").length === headers.length);
+    })).toBe(true);
     await page.locator("#table-scroll").evaluate(node => { node.scrollLeft = 240; });
     const geometry = await page.evaluate(() => {
       const viewport = document.getElementById("table-scroll")!;
