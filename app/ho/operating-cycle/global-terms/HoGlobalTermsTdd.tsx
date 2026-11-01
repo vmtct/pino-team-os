@@ -36,7 +36,7 @@ export function HoGlobalTermsTdd(){
           {term.weeks.length?<dl>{term.weeks.map(w=><div className="property-row" key={w.id}><dt>{w.code}</dt><dd><Link href={"/ho/workforce/term-weeks?record="+w.id} prefetch={false}>{w.startDate} – {w.endDate} · {w.rhythmKey}</Link></dd></div>)}</dl>:<p role="status">Chưa có tuần trong học kỳ này.</p>}
           <Link href="/ho/workforce/term-weeks" prefetch={false}>Quản lý Global TermWeeks</Link></section>;
       }}} />
-    {editor&&<HoGlobalTermEditor key={editor.action+editor.id} {...editor} fetcher={ready.fetcher} onClose={()=>setEditor(null)} onSaved={()=>{
+    {editor&&<HoGlobalTermEditor key={editor.action+editor.id} action={editor.action} id={editor.id} fetcher={ready.fetcher} onClose={()=>setEditor(null)} onSaved={()=>{
       if(editor.action==="delete")ready.navigation.change({kind:"table",tab:"overview",query:ready.navigation.read().query});
       setEditor(null);setRefresh(n=>n+1);
     }}/>}

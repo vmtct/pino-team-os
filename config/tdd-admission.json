@@ -689,6 +689,56 @@
         "app/ho/learning/diaries/schema.test.ts",
         "lib/pap1221-ho-diary-bff.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "globalTerms",
+      "route": "/ho/operating-cycle/global-terms",
+      "file": "app/ho/operating-cycle/global-terms/page.tsx",
+      "files": [
+        "app/ho/operating-cycle/global-terms/page.tsx",
+        "app/ho/operating-cycle/global-terms/HoGlobalTermsTdd.tsx",
+        "app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx",
+        "app/ho/operating-cycle/global-terms/schema.ts",
+        "lib/ho-global-terms-client.ts",
+        "lib/ho-global-terms-contract.ts",
+        "lib/ho-global-terms-facade.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1166"
+        }
+      ],
+      "schema": {
+        "file": "app/ho/operating-cycle/global-terms/schema.ts",
+        "export": "globalTermSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/operating-cycle/global-terms/HoGlobalTermsTdd.tsx"
+      },
+      "tests": [
+        "lib/pap1320-ho-global-terms.test.ts",
+        "lib/ho-routes.test.ts"
+      ]
     }
   ],
   "approvals": []
