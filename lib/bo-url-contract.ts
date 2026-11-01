@@ -18,6 +18,7 @@ export const BO_TARGET_ROUTES = [
   { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
   { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
   { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
+  { key: "tvs", path: "/bo/tvs", tabs: ["overview", "space", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";
