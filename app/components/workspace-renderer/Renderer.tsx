@@ -27,7 +27,13 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
       const { mode, recordId, actionBindings, onClose, title, content } = view.props;
       if (!allows(schema, view.props.context, mode) || (mode === "edit" && !recordId?.trim()) || (mode === "create" && recordId !== undefined)) return <RecordState status="denied" />;
       const footer = authorizedHostActions(schema, view.props.context, "drawer.footer", actionBindings, undefined, mode);
-      if (!footer.some(action => action.variant === "primary")) return <RecordState status="denied" />;
+      // A cancellation confirmation is an edit form whose sole submit is a declared
+      // danger mutation. A navigation-only or unbound danger action cannot admit it.
+      const primarySubmit = footer.some(action => action.variant === "primary");
+      const editDangerSubmit = mode === "edit" && footer.some(action =>
+        action.variant === "danger" && action.capability === "edit" && action.formMode === "edit" &&
+        actionBindings[action.handler]?.kind === "mutation");
+      if (!primarySubmit && !editDangerSubmit) return <RecordState status="denied" />;
       return <DrawerFrame title={title} path={schema.label} onClose={onClose} footer={<TddActionHost schema={schema} context={view.props.context} slot="drawer.footer" formMode={mode} bindings={actionBindings} />}>{content}</DrawerFrame>;
     }
     case "detail": return <TddDetail {...view.props} renderActionSlot={view.props.actionBindings && view.props.status !== "denied" ? (slot, targetId) => <TddActionHost schema={schema} context={view.props.context} slot={slot} targetId={targetId} bindings={view.props.actionBindings!} /> : undefined} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="detail.header" bindings={view.props.actionBindings} /> : null} />;
