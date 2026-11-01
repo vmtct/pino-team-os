@@ -144,15 +144,15 @@ test("PAP-1077: BO/HO TDD scaffold never generates a workspace Center Switcher",
     assert.ok(plan.gates.every(g => !JSON.stringify(g).match(/CenterSwitcher|center-switcher|PAP-1301|PAP-1316/i)));
     assert.equal(Object.hasOwn(plan, "centerSwitcher"), false);
     assert.deepEqual(plan.gates.map(g => g.id), ["G0", "G1", "G2", "G3", "G4"]);
-    const module = read(root, `${base}/MissionSamplesTdd.tsx`);
+    const generatedComponent = read(root, `${base}/MissionSamplesTdd.tsx`);
     if (surface === "bo") {
       // Mandatory verified Center scope remains; no selector does NOT mean unscoped access.
-      assert.match(module, /TODO_TDD_AUTHORIZED_CENTER/);
-      assert.match(module, /if \(!centerId\) return/);
-      assert.match(module, /createBoTddAdapter/);
+      assert.match(generatedComponent, /TODO_TDD_AUTHORIZED_CENTER/);
+      assert.match(generatedComponent, /if \(!centerId\) return/);
+      assert.match(generatedComponent, /createBoTddAdapter/);
     } else {
-      assert.match(module, /createHoTddAdapter/);
-      assert.doesNotMatch(module, /TODO_TDD_AUTHORIZED_CENTER/);
+      assert.match(generatedComponent, /createHoTddAdapter/);
+      assert.doesNotMatch(generatedComponent, /TODO_TDD_AUTHORIZED_CENTER/);
     }
   }
 });
