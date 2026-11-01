@@ -75,3 +75,32 @@ test("PAP-1158 retired Salary Period URL goes to canonical Kỳ lương",()=>{
   assert.equal(targetForLegacyModule("salaryPeriods"),null,"Do not conflate old and new domain identity");
   assert.deepEqual(parseBoTargetUrl("/bo/payroll-periods","?record="+id),{moduleKey:"payroll-periods",surface:"drawer",recordId:id});
 });
+
+test("PAP-1220 Classroom Diary staging TDD uses the canonical BO target registry, no alias leakage",()=>{
+  const route=BO_TARGET_ROUTES.find(r=>r.key==="classroom-diaries");
+  assert.deepEqual(route,{key:"classroom-diaries",path:"/bo/classroom-diaries",tabs:["overview","history"]});
+  assert.equal(buildBoTargetUrl({moduleKey:"classroom-diaries",surface:"table"}),"/bo/classroom-diaries");
+  assert.deepEqual(parseBoTargetUrl("/bo/classroom-diaries"),{moduleKey:"classroom-diaries",surface:"table"});
+  assert.equal(targetForLegacyModule("classroom-diaries"),null,"new route cannot appear as old BO query module");
+  assert.equal(parseBoTargetUrl("/bo/classroom-diaries/../staff"),null);
+  assert.equal(parseBoTargetUrl("/ho/classroom-diaries"),null);
+});
+
+test("PAP-1220 shared TDD navigation admits the real BO Staging Diary pathname, never Production",async()=>{
+  const {browserTddNavigation}=await import("./workspace-adapters/navigation");
+  const {diaryQuery}=await import("../app/bo/classroom-diaries/schema");
+  const previous=Object.getOwnPropertyDescriptor(globalThis,"location");
+  try{
+    Object.defineProperty(globalThis,"location",{configurable:true,value:{
+      hostname:"bo.staging.pinohouse.art",host:"bo.staging.pinohouse.art",origin:"https://bo.staging.pinohouse.art",
+      pathname:"/bo/classroom-diaries",search:"",href:"https://bo.staging.pinohouse.art/bo/classroom-diaries"}});
+    assert.doesNotThrow(()=>browserTddNavigation("BO","classroom-diaries",diaryQuery));
+    Object.defineProperty(globalThis,"location",{configurable:true,value:{
+      hostname:"bo.pinohouse.art",host:"bo.pinohouse.art",origin:"https://bo.pinohouse.art",
+      pathname:"/bo/classroom-diaries",search:"",href:"https://bo.pinohouse.art/bo/classroom-diaries"}});
+    assert.throws(()=>browserTddNavigation("BO","classroom-diaries",diaryQuery),/route mismatch/);
+  }finally{
+    if(previous)Object.defineProperty(globalThis,"location",previous);
+    else Reflect.deleteProperty(globalThis,"location");
+  }
+});

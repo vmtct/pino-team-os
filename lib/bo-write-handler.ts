@@ -238,7 +238,7 @@ export function isOpenStudioPostPath(path: string): boolean {
     || OPEN_STUDIO_LISTING_COMMAND.test(path)
     || OPEN_STUDIO_CENTER_COMMAND.test(path)
     || OPEN_STUDIO_PASS_ISSUE.has(path)
-    || ["open-studio/walkin/batches","open-studio/walkin/assign","open-studio/walkin/revoke"].includes(path)
+    || ["open-studio/walkin/batches","open-studio/walkin/assign","open-studio/walkin/revoke","open-studio/walkin/parent-contact-lookup","open-studio/walkin/parent-center-proofs"].includes(path)
     || OPEN_STUDIO_PASS_REVOKE.test(path)
     || path === OPEN_STUDIO_ADMISSION
     || OPEN_STUDIO_POLICY_VERSION.test(path)

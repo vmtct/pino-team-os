@@ -1,6 +1,6 @@
 import {type Approval,type FieldSchema,type ModuleRow,type TableQuery} from "@/lib/workspace-schema";
 import type {SurfaceDefinition,SurfaceProvider} from "@/lib/workspace-adapters/contracts";
-import {getItem,listItems,slotNames,type HoItem} from "./item-client";
+import {getItem,listItems,slotNames,type ItemRecord} from "./item-client";
 const read={display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false} as const;
 export const itemFields=[
  {key:"displayName",label:"Tên Item",type:"text",icon:"Aa",width:240,permission:"pinoria.item.view",readOnly:true,capabilities:read},
@@ -19,6 +19,11 @@ const extensionApproval={
  files:["app/components/pinoria-item/HoItemCalibration.tsx","app/ho/pinoria/wardrobe/HoItemsTdd.tsx","app/components/workspace-renderer/Slots.tsx"],
  tests:["lib/ho-pinoria-item-handler.test.ts","lib/workspace-renderer.test.ts"],
  reviewBy:"2026-11-30T00:00:00+07:00",
+} as const;
+const s2Approval={
+ jira:"PAP-1253",owner:"Founder",designAuthority:"PAP-1253 i5 HO prototype approved 2026-10-31",
+ files:["app/ho/pinoria/wardrobe/HoItemRelations.tsx","app/ho/pinoria/wardrobe/HoItemsTdd.tsx","app/ho/pinoria/wardrobe/schema.ts"],
+ tests:["lib/pap1253-ho-item-s2.test.ts"],reviewBy:"2026-11-30T00:00:00+07:00",
 } as const;
 export const itemDefinition={
  version:1,classification:"TDD_DEFAULT",surface:"HO",key:"wardrobe",label:"Pinoria · Items",group:"Pinoria",
@@ -39,16 +44,21 @@ export const itemDefinition={
  detail:{
   overview:{sections},
   businessTabs:[{id:"calibration",label:"Calibration",kind:"approved-extension",extensionId:"pap1119-ho-item-calibration-v1",
-   source:{adapter:"pinoria.item.calibration",permission:"pinoria.item.view"},approval:extensionApproval}],
+   source:{adapter:"pinoria.item.calibration",permission:"pinoria.item.view"},visibility:{field:"type",op:"neq",value:"SET"},approval:extensionApproval},
+   {id:"variants",label:"Biến thể",kind:"approved-extension",extensionId:"pap1253-ho-variant-v1",
+   source:{adapter:"pinoria.item.variants",permission:"pinoria.item.view"},approval:s2Approval},
+   {id:"members",label:"Thành viên",kind:"approved-extension",extensionId:"pap1253-ho-members-v1",
+   source:{adapter:"pinoria.item.members",permission:"pinoria.item.view"},visibility:{field:"type",op:"eq",value:"SET"},approval:s2Approval}],
   history:{kind:"unavailable",reason:"Lịch sử revision đã được Core ghi audit; API đọc lịch sử chưa được cấp cho HO S1."}
  }
 } as const satisfies SurfaceDefinition<F>;
 export const extensionVerifier=(approval:Approval,scope:{surface:"BO"|"HO";key:string;extensionId?:string})=>
- scope.surface==="HO"&&scope.key==="wardrobe"&&scope.extensionId==="pap1119-ho-item-calibration-v1"&&
- approval.jira==="PAP-1119"&&approval.designAuthority===extensionApproval.designAuthority&&
- approval.files.length===3&&approval.tests.length===2;
-const projection=(i:HoItem):ModuleRow<F>=>({
- id:i.id,displayName:i.displayName,key:i.key,type:i.type,slot:slotNames[i.slot],status:i.status,revision:i.revision
+ scope.surface==="HO"&&scope.key==="wardrobe"&&(
+  (scope.extensionId==="pap1119-ho-item-calibration-v1"&&approval.jira==="PAP-1119"&&approval.designAuthority===extensionApproval.designAuthority&&approval.files.length===3&&approval.tests.length===2)||
+  (["pap1253-ho-variant-v1","pap1253-ho-members-v1"].includes(scope.extensionId??"")&&approval.jira==="PAP-1253"&&approval.designAuthority===s2Approval.designAuthority&&approval.files.length===3&&approval.tests.length===1)
+ );
+const projection=(i:ItemRecord):ModuleRow<F>=>({
+ id:i.id,displayName:i.displayName,key:i.key,type:i.type,slot:i.type==="SET"?"—":slotNames[i.slot],status:i.status,revision:i.revision
 });
 export const itemProvider:SurfaceProvider<F>={
  pagination:"local-ui",

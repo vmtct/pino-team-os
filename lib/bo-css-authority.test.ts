@@ -15,13 +15,17 @@ test("PAP-1064 Oct27 canonical BO authority + Payroll extension and one styleshe
   assert.match(raw, /\[hidden\]/);
 });
 test("BO scope preserves every rule declaration and at-rule in original order", () => {
-  const original = postcss.parse(raw), isolated = postcss.parse(scoped);
+  const addon = readFileSync("app/components/workspace-renderer/tdd-freeze.css", "utf8");
+  const original = postcss.parse(raw + "\n" + addon), isolated = postcss.parse(scoped);
   const declarations = (root: postcss.Root) => { const result: string[] = []; root.walkDecls(d => { result.push(JSON.stringify([d.prop, d.value, d.important, d.parent?.type === "atrule" ? d.parent.name : "rule"])); }); return result; };
   assert.deepEqual(declarations(isolated), declarations(original));
   const rules: string[] = []; original.walkRules(rule => { rules.push(rule.selector); });
   let index = 0;
   isolated.walkRules(rule => {
-    const selectors = postcss.list.comma(rules[index++]);
+    const originals = postcss.list.comma(rules[index++]);
+    const hides = rule.nodes.some(node => node.type === "decl" && node.prop === "display" && node.value.trim() === "none");
+    const controls = new Set(["#undo-v22","#redo-v22","#filter-toggle","#visible-columns","#reset-all","#group-shortcut","#save-view"]);
+    const selectors = originals.map(selector => hides && controls.has(selector) ? selector + ':where(:not([data-tdd-freeze-controls] *))' : selector);
     const expected = selectors.flatMap(selector => selector === "*" ? ['*:where(html[data-bo-ui-authority="v25"])', ':where(html[data-bo-ui-authority="v25"]) *'] : selector.startsWith(":root") ? [selector.replace(":root", ':root:where([data-bo-ui-authority="v25"])')] : selector === "html" ? ['html:where([data-bo-ui-authority="v25"])'] : [':where(html[data-bo-ui-authority="v25"]) ' + selector]);
     assert.deepEqual(rule.selectors, expected);
     for (const selector of rule.selectors) assert.match(selector, /data-bo-ui-authority="v25"/);
@@ -79,4 +83,14 @@ test("BO authenticated account belongs to shell and does not mutate shared rende
  assert.ok(account.includes("<LogoutButton />"));
  assert.ok(account.includes("resolveBoAccountLabel(displayName, email)"));
  assert.ok(account.includes('data-surface="ho"'));
+});
+test("PAP-1105 BO compiler preserves legacy hiding outside opted-in Freeze controls", () => {
+  const source = readFileSync("public/bo-authority-source/styles.css", "utf8");
+  const compiled = readFileSync("public/bo-authority-source/bo-scoped.css", "utf8");
+  assert.match(source, /#undo-v22,/);
+  for (const id of ["undo-v22","filter-toggle","visible-columns","reset-all","group-shortcut","save-view"]) {
+    assert.ok(compiled.includes("#"+id+':where(:not([data-tdd-freeze-controls] *))'),id);
+  }
+  assert.ok(readFileSync("app/components/workspace-renderer/Table.tsx","utf8").includes('data-tdd-freeze-controls=""'));
+  assert.ok(!readFileSync("app/bo/components/registration/BoDataTable.tsx","utf8").includes('data-tdd-freeze-controls=""'));
 });

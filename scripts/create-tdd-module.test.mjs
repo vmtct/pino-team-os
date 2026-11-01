@@ -38,6 +38,13 @@ test("PAP-1077 BO starter uses canonical schema/adapter, nav and admission but d
   assert.match(read(root, entry.binding.file), /TODO_TDD_AUTHORIZED_CENTER/);
   assert.match(read(root, entry.schema.file), /new TddRegistry/);
   assert.match(read(root, entry.schema.file), /businessTabs: \[\], history:/);
+  assert.match(read(root, entry.schema.file), /type TddActionDescriptor/);
+  assert.match(read(root, entry.schema.file), /actions: \[\] as readonly TddActionDescriptor\[\]/);
+  const componentSource = read(root, entry.binding.file);
+  assert.match(componentSource, /type TddActionBindings/);
+  assert.match(componentSource, /const actionBindings: TddActionBindings = \{\}/);
+  assert.match(componentSource, /actionBindings=\{actionBindings\}/);
+  assert.doesNotMatch(componentSource, /tdd-action-host|<TddActionHost|<ActionBar/);
   assert.match(read(root, entry.schema.file), /TODO_TDD_CORE_BACKED_LIST/);
   assert.match(read(root, "app/bo/navigation.ts"), /mission-samples/);
   assert.match(read(root, "app/bo/mission-samples/module.test.ts"), /assert\.fail/);
@@ -53,6 +60,8 @@ test("PAP-1077 HO starter uses canonical adapter + exact HO route, no BO session
   assert.doesNotMatch(read(root, entry.binding.file), /createBoTddAdapter/);
   assert.match(read(root, "lib/ho-routes.ts"), /"mission-samples": "\/ho\/mission-samples"/);
   assert.match(read(root, entry.schema.file), /surface: "HO"/);
+  assert.match(read(root, entry.schema.file), /actions: \[\] as readonly TddActionDescriptor\[\]/);
+  assert.match(read(root, entry.binding.file), /actionBindings=\{actionBindings\}/);
   assert.match(read(root, entry.schema.file), /TddRegistry\.register|registry\.register/);
 });
 test("PAP-1077 refuse ambiguous or malicious CLI and avoid all file side effects", t => {
