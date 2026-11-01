@@ -135,7 +135,8 @@ test("PAP-1247: declared form footer is mode-specific, and read-only Quick View 
   assert.deepEqual(authorizedHostActions(admittedSchema, denied, "drawer.footer", handlers, undefined, "create"), []);
   const source = readFileSync("app/components/workspace-renderer/Renderer.tsx", "utf8");
   assert.match(source, /case "form":/);
-  assert.match(source, /if \(!footer\.some\(action => action\.variant === "primary"\)\)/);
+  // PAP-1309: both authorized primary and destructive confirmation are valid form submits.
+  assert.match(source, /if \(!footer\.some\(action => action\.variant === "primary" \|\| action\.variant === "danger"\)\)/);
   assert.match(source, /slot="drawer.footer" formMode=\{mode\}/);
   assert.match(source, /mode === "edit" && !recordId\?\.trim\(\)/);
   assert.match(source, /mode === "create" && recordId !== undefined/);
