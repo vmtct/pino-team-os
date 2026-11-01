@@ -68,7 +68,7 @@ export function allowsField(module: PermissionModule, context: AuthorizationCont
 }
 
 export function validateQuery<F extends readonly FieldSchema[]>(module: ModuleSchema<F>, input: unknown, context?: AuthorizationContext): asserts input is TableQuery<F> {
-  object(input, ["search", "filters", "sort", "group", "order", "visible", "page", "pageSize"]);
+  object(input, ["search", "filters", "sort", "group", "order", "visible", "page", "pageSize", "frozenThrough"], ["search", "filters", "sort", "group", "order", "visible", "page", "pageSize"]);
   const query = input as unknown as TableQuery<F>;
   const field = (key: unknown, op: typeof operations[number]) => {
     const found = module.fields.find(f => f.key === key);
@@ -87,6 +87,8 @@ export function validateQuery<F extends readonly FieldSchema[]>(module: ModuleSc
   check(query.order.length === columns.length && columns.every(k => query.order.includes(k)), "order must contain registered columns only");
   check(query.visible.every(k => columns.includes(k)), "unregistered visible column");
   check(query.order[0] === module.table.identity.field && query.visible.includes(module.table.identity.field), "protected identity cannot hide/reorder");
+  check(query.frozenThrough === undefined || query.frozenThrough === null || (typeof query.frozenThrough === "string" && query.frozenThrough !== "id" && query.frozenThrough !== module.table.identity.field && query.visible.includes(query.frozenThrough)), "freeze boundary must be a visible, non-identity field");
+  if (query.frozenThrough != null) field(query.frozenThrough, "display");
   check(Number.isInteger(query.page) && query.page >= 1 && [8, 15, 30].includes(query.pageSize), "invalid pagination");
   object(query.filters, ["logic", "rules"]);
   check(["AND", "OR"].includes(query.filters.logic), "flat filter logic required"); array(query.filters.rules);

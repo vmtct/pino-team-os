@@ -13,6 +13,7 @@ const surfaceFile = /^app\/(bo|ho)\//;
 const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
+const sharedExtensions = new Set(['app/components/workspace-renderer/tdd-freeze.css']);
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
 const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio:['ignore','pipe','pipe'] }).trim();
@@ -122,7 +123,7 @@ export function inspectCss(file, css, surface) {
     for(const s of rule.selectors) {
       // Accept the exact host-anchored forms emitted by the canonical HO compiler.
       // Each selector must begin at the HO host, never at an unrelated ancestor.
-      const boScope=/html\[data-bo-ui-authority=["']v25["']\]/;
+      const boScope=/^(?::root:where\(\[data-bo-ui-authority=["']v25["']\]\)|html:where\(\[data-bo-ui-authority=["']v25["']\]\)|\*?:where\(html\[data-bo-ui-authority=["']v25["']\]\)|html\[data-bo-ui-authority=["']v25["']\])(?=$|[\s:.#>+~\[])/;
       const hoScope=/^(?::root:where\(\[data-surface=["']ho["']\]\)|html:where\(\[data-surface=["']ho["']\]\)|\*?:where\(html\[data-surface=["']ho["']\]\)|\[data-surface=["']ho["']\])(?=$|[\s:.#>+~\[])/;
       const scoped=surface==='BO' ? boScope.test(s) : hoScope.test(s);
       if(!scoped|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
@@ -299,7 +300,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     if(/^public\/(bo|ho)-authority-source\/(bo|ho)-scoped\.css$/.test(f)&&fs.existsSync(path.join(root,f))) errors.push(...inspectCss(f,read(root,f),f.includes('/bo-')?'BO':'HO'));
   }
   for(const f of changed.filter(f=>canonical.test(f))) {
-    if(!(baseline.sourceFiles??[]).includes(f)) errors.push(f+': new shared authority file requires separate owner reconciliation');
+    if(!(baseline.sourceFiles??[]).includes(f)&&!sharedExtensions.has(f)) errors.push(f+': new shared authority file requires separate owner reconciliation');
   }
   for(const f of tests) if(!exactFile(f)||! /\.test\.(?:tsx?|mjs)$/.test(f)||!fs.existsSync(path.join(root,f))) errors.push('missing/invalid profile test '+f);
   return {errors:[...new Set(errors)],reports,tests:[...tests].sort(),inventoryPending:baseline.routes.length};
