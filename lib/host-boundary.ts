@@ -19,6 +19,9 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
+  if (pathname === "/api/bo/open-studio/walkin/parent-contact-lookup" || pathname === "/api/bo/open-studio/walkin/parent-center-proofs")
+    return hostname === BO_STAGING_HOSTNAME && method === "POST" ? {action:"next"} : {action:"not_found"};
   // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
   // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
   const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
