@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TddRenderer } from "../app/components/workspace-renderer/Renderer";
-import { assignmentDefinition } from "../app/bo/missions/schema";
+import { assignmentDefinition, assignmentFields } from "../app/bo/missions/schema";
 import { TddRegistry, type TddActionBindings } from "./workspace-schema";
 
 /** PAP-1309: a danger-only cancel form must not be misreported as permission denied. */
@@ -30,7 +30,7 @@ test("PAP-1309: authorized Mission Cancel renders confirmation, never submits on
       permission === "student.mission_assignment.manage",
   };
   const makeForm = (props: Partial<typeof context> = {}, recordId = "01900000-0000-7000-8000-000000000002",
-    actionBindings = bindings) => renderToStaticMarkup(h(TddRenderer, {
+    actionBindings = bindings) => renderToStaticMarkup(h(TddRenderer<typeof assignmentFields>, {
       view: { kind: "form" as const, props: {
         registry, schema, context: { ...context, ...props }, mode: "edit" as const,
         recordId, title: "Hủy giao Nhiệm vụ",
