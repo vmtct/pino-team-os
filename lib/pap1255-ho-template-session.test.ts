@@ -4,7 +4,7 @@ import { surfaceSession } from "./workspace-adapters/session";
 
 const origin="https://ho.staging.pinohouse.art";
 const center="018e6b98-fcc3-7ef2-a1e1-63fbadc82130";
-test("PAP-1255 HO TDD transport permits only Center-scoped template GET",async()=>{
+test("PAP-1255 HO TDD transport allows valid Center-scoped templates, denies invalid paths",async()=>{
  const calls:string[]=[];
  const fetcher:typeof fetch=async(input)=>{calls.push(String(input));return Response.json({data:[]});};
  const s=surfaceSession("HO",origin,fetcher);
@@ -13,7 +13,7 @@ test("PAP-1255 HO TDD transport permits only Center-scoped template GET",async()
  assert.deepEqual(calls,[origin+accepted]);
  for(const url of ["/api/ho/workforce/shift-templates",accepted+"&centerId="+center,
    accepted+"&unknown=x","/api/ho/workforce/shift-templates?centerId=invalid",
-   "/api/ho/workforce/global-termweeks", "https://bo.staging.pinohouse.art"+accepted])
+   "/api/ho/workforce/global-termweeks?centerId="+center, "https://bo.staging.pinohouse.art"+accepted])
    await assert.rejects(s.transport(url),{status:404});
  for(const method of ["POST","PATCH","DELETE"])
    await assert.rejects(s.transport(accepted,{method}),{status:404});

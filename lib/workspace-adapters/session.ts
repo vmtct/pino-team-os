@@ -25,6 +25,9 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
     const url = new URL(input instanceof Request ? input.url : String(input), base);
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const admittedHoPassInventory = surface === "HO" && method === "GET" && url.pathname === "/api/ho/open-studio/walkin/inventory";
+    // PAP-1295: precise HO GLOBAL TermWeek read. The HO BFF still reauthorizes Founder/ACL.
+    const admittedHoGlobalTermWeeksRead = surface === "HO" && method === "GET" &&
+      url.pathname === "/api/ho/workforce/global-termweeks" && url.search === "";
     // PAP-1255: exact HO read route, explicit canonical Center; Core BFF rechecks Founder/ACL.
     const hoShiftTemplateQuery = url.searchParams.getAll("centerId");
     const admittedHoShiftTemplateRead = surface === "HO" && method === "GET" &&
@@ -32,7 +35,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hoShiftTemplateQuery[0]!) &&
       [...url.searchParams.keys()].every(key => key === "centerId");
     const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(url.pathname);
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoPassInventory || admittedHoShiftTemplateRead || admittedHoDiary) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET")) throw adapterError(404);
     const headers = new Headers(init?.headers);
