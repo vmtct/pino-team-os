@@ -9,7 +9,7 @@ export type Domain="art"|"piano"|"unknown";
 export type Gender="Nữ"|"Nam"|"Khác / chưa cung cấp";
 export type State="REGISTERED"|"CLOSED";
 export type Student={id:string;name:string;age:number|null;gender:Gender;domain:Domain;path:string;lead?:boolean};
-export type ScheduledClass={id:string;name:string;subject:Domain;path:string;time:string;room:string;staff:string[];expected:string[]};
+export type ScheduledClass={id:string;runningClassId:string;eligibleStudentIds:string[];name:string;subject:Domain;path:string;time:string;room:string;staff:string[];expected:string[]};
 
 export type Mission={id:string;name:string;subject:Domain;path:string;level:number;description:string;guideline:string[];materials:string;prerequisites:string[];plsValue?:number};
 export type Evidence={name:string;kind:"image"|"video";preview?:string};
@@ -20,7 +20,7 @@ export type Data={students:Student[];participants:Record<string,string[]>;openin
 
 export type CollectionReadState="LOADED"|"UNAVAILABLE";
 export interface ClassroomV4ViewModel {
- today:string;staffLabel:string;classes:ScheduledClass[];data:Data;missions:Mission[];
+ centerId:string;today:string;staffLabel:string;classes:ScheduledClass[];data:Data;missions:Mission[];
  diaryReadState:CollectionReadState;missionReadState:CollectionReadState;openingReadState:CollectionReadState;
  conflictStudentIds:string[];
 }
@@ -38,9 +38,9 @@ export function classroomV4ReadModel(day:V18bClassroomToday,staffLabel:string):C
    if(member.status==="CONFLICT")conflicts.add(member.studentProfileId);
    return member.studentProfileId;
   });
-  return {id:row.teachingContextKey,name:row.operationalName,subject:"unknown" as const,path:"—",time:row.occurrence.localInterval?row.occurrence.localInterval.startsAt.slice(11,16)+"–"+row.occurrence.localInterval.endsAt.slice(11,16):day.localDate,room:"",staff:[],expected:participants[row.teachingContextKey]};
+  return {id:row.teachingContextKey,runningClassId:row.runningClassId,eligibleStudentIds:row.roster.filter(m=>m.status==="CANDIDATE").map(m=>m.studentProfileId),name:row.operationalName,subject:"unknown" as const,path:"—",time:row.occurrence.localInterval?row.occurrence.localInterval.startsAt.slice(11,16)+"–"+row.occurrence.localInterval.endsAt.slice(11,16):day.localDate,room:"",staff:[],expected:participants[row.teachingContextKey]};
  });
- return {today:day.localDate,staffLabel,classes,data:{students:[...students.values()],participants,diaries:[],openings:{},sequence:0},missions:[],diaryReadState:"UNAVAILABLE",missionReadState:"UNAVAILABLE",openingReadState:"UNAVAILABLE",conflictStudentIds:[...conflicts]};
+ return {centerId:day.centerId,today:day.localDate,staffLabel,classes,data:{students:[...students.values()],participants,diaries:[],openings:{},sequence:0},missions:[],diaryReadState:"UNAVAILABLE",missionReadState:"UNAVAILABLE",openingReadState:"UNAVAILABLE",conflictStudentIds:[...conflicts]};
 }
 export function validateClassroomDraft(input:{missionIds:string[];results:Record<string,boolean|null>;interest:number|null;notes:string;difficulty:string;hasImage:boolean;uploading:boolean}):string[]{
  const errors:string[]=[];
