@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
-import { clientTerm, loadGlobalTerm, termRequest } from "@/lib/ho-global-terms-client";
+import { clientTerm, isDuplicateGlobalTermCodeError, loadGlobalTerm, termRequest } from "@/lib/ho-global-terms-client";
 import { object, parseTermCommand, type GlobalTermDetail } from "@/lib/ho-global-terms-contract";
 
 export function HoGlobalTermEditor({ action, id, fetcher, onClose, onSaved }: {action:"create"|"update"|"delete";id?:string;fetcher:typeof fetch;onClose:()=>void;onSaved:()=>void}) {
@@ -30,7 +30,7 @@ export function HoGlobalTermEditor({ action, id, fetcher, onClose, onSaved }: {a
       if(action==="delete") {if(object(data)?.termId!==id||object(data)?.deleted!==true)throw Error("Core chưa xác nhận xóa.");}
       else {const saved=clientTerm(data,true);if(action==="update"&&saved.id!==id||saved.name!==input.displayName||action==="update"&&saved.updatedAt===term!.updatedAt)throw Error("Core chưa xác nhận lưu.");}
       onSaved();
-    } catch(e){if(lifetime.current?.signal.aborted)return;setError(e instanceof Error?e.message:"Chưa xác minh được kết quả; tải lại trước khi thử lại.");setStale(true);}
+    } catch(e){if(lifetime.current?.signal.aborted)return;setError(e instanceof Error?e.message:"Chưa xác minh được kết quả; tải lại trước khi thử lại.");setStale(action !== "create" || !isDuplicateGlobalTermCodeError(e));}
     finally{setBusy(false);}
   }
   return <DrawerFrame title={action==="create"?"Tạo Global Term":action==="update"?"Chỉnh sửa Global Term":"Xác nhận xóa Global Term"} path="Operating Cycle · Global Terms" onClose={close}
