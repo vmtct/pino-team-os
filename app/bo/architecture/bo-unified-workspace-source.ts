@@ -15,13 +15,14 @@ const school = {
 };
 // PAP-1210: metadata registers the actual sidebar slot. Data is owned by the typed provider.
 school.modules.missions = { label: "Nhiệm vụ", group: "SCHOOL", fields: assignmentFields.map(f => ({ key: f.key, label: f.label, type: f.type, icon: f.icon, w: f.width, readonly: true })) };
-const adapters = {
+type WorkforceKey = "workforce-shift-plans" | "workforce-availability" | "workforce-assignments" | "payroll-periods";
+type ScopedWorkforceAdapter = { list(fetcher?: typeof fetch, centerId?: string): Promise<readonly Record<string, unknown>[]> };
+const adapters: Record<WorkforceKey, ScopedWorkforceAdapter> = {
   "workforce-shift-plans": shiftPlansAdapter,
   "workforce-availability": availabilityAdapter,
   "workforce-assignments": assignmentsAdapter,
   "payroll-periods": payrollPeriodsAdapter,
-} as const;
-type WorkforceKey = keyof typeof adapters;
+};
 const isWorkforce = (key: string): key is WorkforceKey => Object.hasOwn(adapters, key);
 const icons: Record<BoField["type"], string> = {
   text:"Aa", id:"#", select:"▣", number:"#", currency:"#", date:"▦",
@@ -51,7 +52,11 @@ export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   routeForModule: (key) => currentBoModuleHref(key, paths),
   async load(key, fetcher, options) {
     if (!isWorkforce(key)) return school.load(key, fetcher, options);
-    const data = await adapters[key].list(fetcher);
+    // Payroll remains a separate UNVERIFIED financial contract, not scoped by UI.
+    if (key !== "payroll-periods" && !options.centerId) throw Error("Chưa chọn cơ sở cho Workforce.");
+    const data = key === "payroll-periods"
+      ? await adapters[key].list(fetcher) // canonical unmodified Payroll read contract
+      : await adapters[key].list(fetcher, options.centerId);
     if (!Array.isArray(data) || data.some(r => !r || typeof r.id !== "string" || typeof r.name !== "string"))
       throw new Error("Workforce projection invalid");
     const ids = new Set(data.map(r => r.id));
