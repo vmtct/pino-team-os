@@ -57,7 +57,7 @@ export function HoGlobalTermEditor({ action, id, fetcher, onClose, onSaved }: {a
             {!!term?.weekCount&&<p role="status" className={styles.feedbackError}>Học kỳ đã có tuần. Không thể xóa.</p>}
           </section>
         : <section className={styles.editorSection} aria-labelledby="global-term-editor-heading">
-            <h3 id="global-term-editor-heading">Thông tin học kỳ</h3>
+            <h3 id="global-term-editor-heading" className={styles.editorHeading}>Thông tin học kỳ</h3>
             <div className={styles.form}>
               <div className={[styles.field,styles.fieldCode].join(" ")}>
                 <label htmlFor="global-term-code">Mã <span className={styles.required} aria-hidden="true">*</span></label>
