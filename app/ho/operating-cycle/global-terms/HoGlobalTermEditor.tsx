@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import styles from "./HoGlobalTerms.module.css";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { clientTerm, isDuplicateGlobalTermCodeError, loadGlobalTerm, termRequest } from "@/lib/ho-global-terms-client";
 import { object, parseTermCommand, type GlobalTermDetail } from "@/lib/ho-global-terms-contract";
@@ -44,52 +43,52 @@ export function HoGlobalTermEditor({ action, id, fetcher, onClose, onSaved }: {a
         onClick={()=>void save()}>{busy?"Đang xác minh…":action==="delete"?"Xác nhận xóa":"Lưu vào Core"}</button>
     </>}>
     {loading
-      ? <p role="status" className={styles.feedbackStatus}>Đang tải Global Term…</p>
+      ? <p role="status">Đang tải Global Term…</p>
       : action==="delete"
-        ? <section className={styles.editorSection} aria-labelledby="global-term-editor-heading">
-            <h3 id="global-term-editor-heading" className={styles.editorHeading}>Xác nhận xóa học kỳ</h3>
-            {term&&<dl className={styles.deleteSummary}>
-              <div><dt>Tên học kỳ</dt><dd>{term.name}</dd></div>
-              <div><dt>Mã</dt><dd>{term.code}</dd></div>
-              <div><dt>Số tuần</dt><dd>{term.weekCount}</dd></div>
+        ? <section className="property-section" aria-labelledby="global-term-editor-heading">
+            <h3 id="global-term-editor-heading">Xác nhận xóa học kỳ</h3>
+            {term&&<dl>
+              <div className="property-row"><dt>Tên học kỳ</dt><dd>{term.name}</dd></div>
+              <div className="property-row"><dt>Mã</dt><dd>{term.code}</dd></div>
+              <div className="property-row"><dt>Số tuần</dt><dd>{term.weekCount}</dd></div>
             </dl>}
-            <p className={styles.scopeHint}>Chỉ xóa khi Core xác nhận học kỳ không có tuần hoặc dữ liệu tham chiếu. Không xóa dây chuyền.</p>
-            {!!term?.weekCount&&<p role="status" className={styles.feedbackError}>Học kỳ đã có tuần. Không thể xóa.</p>}
+            <p className="settings-hint">Chỉ xóa khi Core xác nhận học kỳ không có tuần hoặc dữ liệu tham chiếu. Không xóa dây chuyền.</p>
+            {!!term?.weekCount&&<p role="status" className="edit-error">Học kỳ đã có tuần. Không thể xóa.</p>}
           </section>
-        : <section className={styles.editorSection} aria-labelledby="global-term-editor-heading">
-            <h3 id="global-term-editor-heading" className={styles.editorHeading}>Thông tin học kỳ</h3>
-            <div className={styles.form}>
-              <div className={[styles.field,styles.fieldCode].join(" ")}>
-                <label htmlFor="global-term-code">Mã <span className={styles.required} aria-hidden="true">*</span></label>
-                <input className={styles.input} id="global-term-code" maxLength={96} required
+        : <section className="property-section" aria-labelledby="global-term-editor-heading">
+            <h3 id="global-term-editor-heading">Thông tin học kỳ</h3>
+            <div className="drawer-fields">
+              <div className="property-row">
+                <label htmlFor="global-term-code">Mã *</label>
+                <input className="edit-input" id="global-term-code" maxLength={96} required
                   aria-describedby="global-term-scope-hint" placeholder="GLOBAL-2027-Q1"
                   value={code} disabled={action!=="create"||busy||stale} onChange={e=>setCode(e.target.value)}/>
               </div>
-              <div className={styles.field}>
-                <label htmlFor="global-term-name">Tên học kỳ <span className={styles.required} aria-hidden="true">*</span></label>
-                <input className={styles.input} id="global-term-name" maxLength={160} required
+              <div className="property-row">
+                <label htmlFor="global-term-name">Tên học kỳ *</label>
+                <input className="edit-input" id="global-term-name" maxLength={160} required
                   placeholder="Học kỳ đầu năm 2027" value={name} disabled={busy||stale} onChange={e=>setName(e.target.value)}/>
               </div>
-              <div className={[styles.field,styles.fieldDate].join(" ")}>
-                <label htmlFor="global-term-start">Bắt đầu <span className={styles.required} aria-hidden="true">*</span></label>
-                <input className={styles.input} id="global-term-start" type="date" required value={start}
+              <div className="property-row">
+                <label htmlFor="global-term-start">Bắt đầu *</label>
+                <input className="edit-input" id="global-term-start" type="date" required value={start}
                   disabled={action!=="create"||busy||stale} onChange={e=>setStart(e.target.value)}/>
               </div>
-              <div className={[styles.field,styles.fieldDate].join(" ")}>
-                <label htmlFor="global-term-end">Kết thúc <span className={styles.required} aria-hidden="true">*</span></label>
-                <input className={styles.input} id="global-term-end" type="date" min={start||undefined} required value={end}
+              <div className="property-row">
+                <label htmlFor="global-term-end">Kết thúc *</label>
+                <input className="edit-input" id="global-term-end" type="date" min={start||undefined} required value={end}
                   disabled={action!=="create"||busy||stale} onChange={e=>setEnd(e.target.value)}/>
               </div>
             </div>
-            <p className={styles.scopeHint} id="global-term-scope-hint">
+            <p className="settings-hint" id="global-term-scope-hint">
               {action==="create"
                 ? "Phạm vi GLOBAL cố định. Không chọn Center; tuần được quản lý riêng trong tab Tuần."
                 : "Chỉ được chỉnh sửa tên học kỳ. Mã và khoảng ngày được khóa để bảo vệ các tuần và lịch vận hành liên quan."}
             </p>
           </section>}
-    {error&&<p role="alert" className={styles.feedbackError}>{error}</p>}
+    {error&&<p role="alert" className="edit-error">{error}</p>}
     {(error||stale)&&action!=="create"&&<button type="button" className="secondary-btn" disabled={busy}
       onClick={()=>{setLoading(true);setError("");setReload(n=>n+1);}}>Tải lại từ Core</button>}
-    {stale&&action==="create"&&<p role="status" className={styles.feedbackStatus}>Đóng và tải lại danh sách để kiểm tra kết quả trước khi tạo lại.</p>}
+    {stale&&action==="create"&&<p role="status" className="settings-hint">Đóng và tải lại danh sách để kiểm tra kết quả trước khi tạo lại.</p>}
   </DrawerFrame>;
 }
