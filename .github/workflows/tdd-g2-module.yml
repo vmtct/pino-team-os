@@ -1,0 +1,62 @@
+name: TDD G2 Assembled BO/HO Browser Contracts
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/tdd-g2-module.yml"
+      - "e2e/tdd-g2-controller.spec.ts"
+      - "e2e/pap1105-freeze.spec.ts"
+      - "e2e/fixtures/pap1105-freeze.tsx"
+      - "lib/tdd-column-freeze.ts"
+      - "app/bo/components/registration/BoDataTable.tsx"
+      - "e2e/pap1247-action-interactions.spec.ts"
+      - "e2e/fixtures/pap1247-action-interactions.tsx"
+      - "e2e/pap1077-generated-samples.spec.ts"
+      - "e2e/fixtures/pap1077-generated-sample.tsx"
+      - "scripts/create-tdd-module.mjs"
+      - "scripts/create-tdd-module.test.mjs"
+      - "lib/bo-url-contract.ts"
+      - "lib/ho-routes.ts"
+      - "lib/host-boundary.ts"
+      - "scripts/tdd-module-acceptance.mjs"
+      - "e2e/pap1076-ho-centers.spec.ts"
+      - "e2e/fixtures/pap1076-ho-centers.tsx"
+      - "app/ho/centers/**"
+      - "e2e/fixtures/tdd-g2-controller.tsx"
+      - "app/components/workspace-adapters/**"
+      - "app/components/workspace-renderer/**"
+      - "lib/workspace-adapters/**"
+      - "lib/workspace-schema/**"
+
+permissions:
+  contents: read
+
+jobs:
+  module-g2:
+    name: BO/HO TDD G2 module interaction
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated headless Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test assembled BO/HO controllers and negative contracts
+        run: npx playwright test e2e/tdd-g2-controller.spec.ts e2e/pap1105-freeze.spec.ts e2e/pap1247-action-interactions.spec.ts e2e/pap1076-ho-centers.spec.ts e2e/pap1077-generated-samples.spec.ts --workers=2 --retries=0 --timeout=30000 --reporter=list
+        env:
+          CI: "true"
+      - name: Retain failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap1072-g2-browser-failure
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: warn

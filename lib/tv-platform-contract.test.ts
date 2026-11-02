@@ -76,3 +76,17 @@ test("production release binding inventory keeps TV runtime binding inside the Y
  assert.ok(source.includes("          PINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane"));
  assert.ok(!source.includes("\nPINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane\n"));
 });
+
+test("PAP-651 spatial config read is bound to authenticated TV display session",()=>{
+ const route=read("app/api/tv/runtime/[displayId]/pinoria-house/spatial-config/route.ts");
+ const reception=read("app/pinoria-tv/reception-tv.tsx");
+ const tvCore=read("lib/tv-runtime-core.ts");
+ assert.ok(route.includes("tvRuntimeCookie(request)"));
+ assert.ok(route.includes("spatialConfig(token,displayId)"));
+ assert.ok(!route.includes("searchParams"));
+ assert.ok(!route.includes("centerId"));
+ assert.ok(reception.includes("${apiBase}/spatial-config"));
+ assert.ok(!reception.includes("spatial-config?centerId"));
+ assert.ok(tvCore.includes("spatialConfig(token:string,displayId:string)"));
+ assert.ok(!fs.existsSync(new URL("../app/api/pinoria-tv/spatial-config/route.ts",import.meta.url)));
+});

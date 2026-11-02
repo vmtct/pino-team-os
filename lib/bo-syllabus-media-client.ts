@@ -1,9 +1,10 @@
 import { BoApiError } from "./bo-api-error";
 import type { BoSyllabusWorksheetMedia } from "./bo-model";
 
-export async function uploadSyllabusWorksheetMedia(file: File, idempotencyKey: string): Promise<BoSyllabusWorksheetMedia> {
+export async function uploadSyllabusWorksheetMedia(file: File, idempotencyKey: string, pathProgramId?: string): Promise<BoSyllabusWorksheetMedia> {
   const form = new FormData();
   form.set("file", file);
+  if (pathProgramId) form.set("pathProgramId", pathProgramId);
   const response = await fetch("/api/bo/learning/syllabi/media", {
     method: "POST",
     headers: { "idempotency-key": idempotencyKey },
@@ -17,6 +18,7 @@ export async function uploadSyllabusWorksheetMedia(file: File, idempotencyKey: s
   return payload.data;
 }
 
-export function syllabusWorksheetPreviewUrl(mediaAssetId: string): string {
-  return `/api/bo/learning/syllabi/media/${encodeURIComponent(mediaAssetId)}/preview`;
+export function syllabusWorksheetPreviewUrl(mediaAssetId: string, pathProgramId?: string): string {
+  const suffix = pathProgramId ? `?pathProgramId=${encodeURIComponent(pathProgramId)}` : "";
+  return `/api/bo/learning/syllabi/media/${encodeURIComponent(mediaAssetId)}/preview${suffix}`;
 }

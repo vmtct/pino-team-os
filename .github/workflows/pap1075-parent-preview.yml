@@ -1,0 +1,42 @@
+name: PAP-1075 Parent TDD Staging Preview Read-Only E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pap1075-parent-staging-preview
+  cancel-in-progress: false
+
+jobs:
+  parents:
+    name: Read-only founder-auth Parent Center preview
+    if: github.ref == 'refs/heads/main' && github.actor == 'vmtct'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: g4-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+      - name: Attest exact Staging SHA and read-only Parent preview
+        run: node scripts/pap1075-parent-preview-ci.mjs
+        env:
+          CI: 'true'
+          PAP1075_PREVIEW_RUN: '1'
+          GITHUB_TOKEN: ${{ github.token }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          TDD_G4_FOUNDER_EMAIL: ${{ secrets.TDD_G4_FOUNDER_EMAIL }}
+          TDD_G4_FOUNDER_PASSWORD: ${{ secrets.TDD_G4_FOUNDER_PASSWORD }}

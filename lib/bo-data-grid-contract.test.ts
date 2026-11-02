@@ -19,7 +19,7 @@ test("PAP-383 Data Grid exposes the approved shared table and side-peek semantic
   }
   for (const state of ["loading", "empty", "error", "permission"]) assert.ok(component.includes(state), state);
   assert.match(css, /position:\s*sticky/);
-  assert.match(css, /height:\s*44px/);
+  assert.match(css, /height:\s*var\(--bo-v23-table-row-height,\s*42px\)/);
   assert.match(css, /\.peek\s*\{/);
 });
 

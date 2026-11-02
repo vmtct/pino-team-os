@@ -15,7 +15,7 @@ type Form = { phaseKey:string; startsAt:string; endsAt:string; rulesVersion:stri
 
 function localValue(date:Date){const offset=date.getTimezoneOffset()*60000;return new Date(date.getTime()-offset).toISOString().slice(0,16);}
 function initialForm():Form { const start=new Date(Date.now()+5*60_000),end=new Date(Date.now()+28*86400_000); return {phaseKey:`wardrobe-${Date.now()}`,startsAt:localValue(start),endsAt:localValue(end),rulesVersion:""}; }
-async function request<T>(path:string,init?:RequestInit){const response=await fetch(`/api/founder/${path}`,{cache:"no-store",...init});const json=await response.json() as Envelope<T>;if(!response.ok||!json.data)throw new Error(json.error?.message??"Wish release phase operation failed");return json.data;}
+async function request<T>(path:string,init?:RequestInit){const response=await fetch(`/api/founder/${path}`,{cache:"no-store",...init});const text=await response.text();let json:Envelope<T>;try{json=JSON.parse(text) as Envelope<T>;}catch{throw new Error("Wish release phase returned an invalid response");}if(!response.ok||!json.data)throw new Error(json.error?.message??"Wish release phase operation failed");return json.data;}
 
 export function ReleasePhaseManager({onChanged}:{onChanged:()=>void}) {
   const[phases,setPhases]=useState<Phase[]>([]),[rules,setRules]=useState<Rule[]>([]),[banners,setBanners]=useState<Banner[]>([]),[form,setForm]=useState<Form>(initialForm),[editing,setEditing]=useState<Phase|null>(null),[busy,setBusy]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState("");

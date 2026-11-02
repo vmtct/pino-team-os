@@ -1,20 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
+import { HO_STAGING_HOSTNAME, normalizeHostname, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
+import { boSkeletonRoute, isBoStagingHost, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
+import { safeHoReturnTo } from "@/lib/ho-routes";
 
 export function middleware(request: NextRequest) {
+  // Source assets are served only through the authenticated staging controller.
+  if (request.nextUrl.pathname.startsWith("/bo-authority-source/")) return new NextResponse("Not Found", { status: 404 });
   const host = request.headers.get("host") ?? request.nextUrl.hostname;
-  const decision = decideHostBoundary(host, request.nextUrl.pathname);
+  // Legacy dedicated Subscription URLs are aliases, NOT staging route admissions.
+  // One canonical /bo React shell owns the module; existing bookmarks are preserved.
+  if (isBoStagingHost(host) && (request.nextUrl.pathname === "/bo/subscriptions" || request.nextUrl.pathname === "/bo/subscriptions/")) {
+    const target = request.nextUrl.clone();
+    target.pathname = "/bo";
+    target.searchParams.set("module", "subscriptions");
+    return NextResponse.redirect(target, 307);
+  }
+  // PAP-1224: BO Staging-only compatibility redirect; keep Production Open Studio unchanged.
+  if (isBoStagingHost(host) && ["/bo/open-studio","/bo/open-studio/"].includes(request.nextUrl.pathname)) {
+    const target=request.nextUrl.clone();
+    target.pathname="/bo/open-studio-passes";
+    target.search="";
+    return NextResponse.redirect(target,307);
+  }
+  // Never trust a caller-supplied internal route marker.
+  const forwarded = new Headers(request.headers);
+  forwarded.delete("x-pino-bo-runtime-path");
+  forwarded.delete("x-pino-ho-auth-page");
+  forwarded.delete("x-pino-ho-return-to");
+  if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho")) {
+    const ret = safeHoReturnTo(request.nextUrl.pathname + request.nextUrl.search);
+    if (ret) forwarded.set("x-pino-ho-return-to",ret);
+  }
+  if (requiresBoStagingPageSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
+  // Public Staff auth pages must not load the restricted HO authority CSS.
+  // The marker is set by middleware, never trusted from caller headers.
+  if (normalizeHostname(host) === HO_STAGING_HOSTNAME &&
+      ["/staff-login", "/staff-password/change"].includes(request.nextUrl.pathname)) {
+    forwarded.set("x-pino-ho-auth-page", "1");
+  }
+  const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
+  if (schoolRoute === "redirect") {
+    const target = request.nextUrl.clone();
+    target.pathname = "/bo";
+    return NextResponse.redirect(target, 307);
+  }
+  const decision = decideHostBoundary(host, request.nextUrl.pathname, request.method);
 
   if (decision.action === "next") {
+    if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho") && !request.cookies.get("pino_staff_password_session")?.value) {
+      const login = new URL("/staff-login", request.url);
+      const ret = safeHoReturnTo(request.nextUrl.pathname + request.nextUrl.search);
+      if (ret) login.searchParams.set("returnTo", ret);
+      return NextResponse.redirect(login, 307);
+    }
     if (requiresTosStaffSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_support_session")?.value && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);
     }
-    if (requiresBoStaffPasswordSession(host, request.nextUrl.pathname) && !request.cookies.get("pino_staff_password_session")?.value) {
+    // Before React starts streaming: an async layout redirect can otherwise be HTTP 200.
+    if ((requiresBoStaffPasswordSession(host, request.nextUrl.pathname) || requiresBoStagingPageSession(host, request.nextUrl.pathname)) && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
       return NextResponse.redirect(login, 307);
     }
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: forwarded } });
   }
   if (decision.action === "not_found") {
     return new NextResponse("Not Found", { status: 404, headers: { "cache-control": "no-store" } });

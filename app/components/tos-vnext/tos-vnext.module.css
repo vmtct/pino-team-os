@@ -1,0 +1,69 @@
+@layer tos.apps {
+/* Approved Home keeps its original shell; only contextual settings need new scope. */
+.homeSettingsMenu{position:relative;z-index:30;margin:0 16px 12px auto;max-width:250px;background:var(--tos-color-surface);border:1px solid var(--tos-color-border);border-radius:12px;box-shadow:0 12px 28px var(--tos-color-border);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--tos-color-ink)}
+.homeLogout{display:block;min-height:44px;padding:10px 12px;text-align:left;border:0;border-radius:9px;background:var(--tos-color-subtle-surface);font-size:14px;font-weight:650;color:var(--tos-color-ink);cursor:pointer}
+.homeIconFallback{display:grid;place-items:center;width:64px;height:64px;border-radius:17px;background:var(--tos-color-info-bg);font:700 24px/1 "Segoe UI",sans-serif;color:var(--tos-color-info-text)}
+.homeLogout:focus-visible{outline:2px solid var(--tos-color-success);outline-offset:2px}
+
+/* PAP-946: Training V5 two-tab cards and certificate evidence. */
+.trainingError{font-size:14px;line-height:1.55;margin:12px 0;color:var(--tos-color-danger-text);overflow-wrap:anywhere}
+.trainingCertRow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 0;border-top:1px solid var(--tos-line)}
+.trainingCertRow strong{font-size:15px;flex:1}
+.trainingCertRow small{color:var(--tos-muted);font-size:13px;line-height:1.5;width:100%}
+
+/* PAP-945: class detail has one header, with Back navigation; no nested app header. */
+.classDetailHeader{height:60px;min-height:60px;max-height:60px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 0 12px;border-bottom:1px solid var(--tos-line)}
+.classDetailHeader button{display:grid;place-items:center;min-width:44px;min-height:44px;background:var(--tos-tint);border:0;border-radius:11px;color:var(--tos-tone);font-size:26px;cursor:pointer}
+.classDetailHeader div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.classDetailHeader strong{font-size:18px;line-height:1.3}
+.classDetailHeader small{font-size:13px;color:var(--tos-muted);line-height:1.5}
+.classDetailHeader button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+
+/* PAP-943 station uses the desktop workspace, never the 430px mobile shell. */
+.stationShell{display:grid;grid-template-columns:256px minmax(0,1fr);gap:0;min-width:0;min-height:calc(100dvh - 48px)}
+.stationSidebar{align-self:start;position:sticky;top:0;display:flex;flex-direction:column;gap:16px;padding:25px 16px 18px;background:var(--tos-color-surface);border-right:1px solid var(--tos-line);border-radius:0;min-height:100dvh}
+.stationBrand{display:flex;align-items:center;gap:13px;padding:6px 9px 29px;font-size:16px}
+.stationBrand div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.stationBrand img{width:51px;height:51px;object-fit:contain;flex:none;border-radius:15px}
+.stationBrand strong{font-size:20px;font-weight:770;letter-spacing:-.04em;color:var(--tos-color-ink)}.stationBrand small{font-size:var(--tos-text-caption);font-weight:760;letter-spacing:.08em;color:var(--tos-color-soft);overflow-wrap:anywhere}
+.stationSidebar nav{display:flex;flex-direction:column;gap:6px}
+.stationSidebar nav button,.stationBack{width:100%;min-height:44px;padding:10px 14px;text-align:left;border:0;background:transparent;border-radius:10px;font-size:14px;font-weight:650;color:var(--tos-text);cursor:pointer}
+/* PAP-943: V8 station sidebar touch geometry; back-home remains a separate compact action. */
+.stationSidebar nav button{min-height:62px;padding:13px 14px;border-radius:13px;display:flex;align-items:center;gap:13px}
+.stationSidebar nav button[aria-current=page]{background:var(--tos-tint);color:var(--tos-tone)}
+.stationBack{margin-top:auto;color:var(--tos-tone);border-top:1px solid var(--tos-line);border-radius:0}
+.stationWorkspace{display:flex;flex-direction:column;gap:20px;min-width:0;background:var(--tos-color-canvas);padding:0 38px 58px}
+.stationWorkspaceHeader{display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:76px;background:var(--tos-color-surface);border-bottom:1px solid var(--tos-color-border);margin:0 -38px;padding:15px 32px}
+.stationWorkspaceHeader small{font-size:12px;color:var(--tos-muted)}
+.stationWorkspaceHeader h1{font-size:24px;line-height:1.3;margin:2px 0}
+.stationDashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.stationDisabledAction{min-height:44px;padding:12px 16px;border:1px solid var(--tos-line);border-radius:10px;font-size:14px;background:var(--tos-color-subtle-surface);color:var(--tos-muted);cursor:not-allowed}
+.stationSidebar button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+@media(max-width:1200px){.stationShell{grid-template-columns:256px minmax(0,1fr);gap:0}.stationDashboardGrid{grid-template-columns:1fr}}
+
+/* PAP-940: authorized multi-center switcher (Home settings only). */
+.homeCenterLabel{display:flex;flex-direction:column;gap:6px;color:var(--tos-color-ink);font-size:13px;font-weight:650}
+.homeCenterLabel select{width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--tos-color-border);border-radius:9px;background:var(--tos-color-surface);color:var(--tos-color-ink);font:500 14px/1.4 "Segoe UI",sans-serif}
+.homeCenterLabel select:focus-visible{outline:2px solid var(--tos-color-success);outline-offset:2px}
+
+
+/* PAP-946: V8 Training Library row composition; contents come exclusively from Core. */
+.trainingCourseRow{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.trainingCourseIcon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:var(--tos-color-accent-bg);color:var(--tos-color-accent);font-size:24px}
+.trainingCourseMain{flex:1;min-width:0;overflow-wrap:anywhere}
+
+.stationSectionLabel{font-size:12px;font-weight:800;letter-spacing:.12em;color:var(--tos-color-soft);margin:14px 15px}
+.stationKicker{font-size:12px;font-weight:820;letter-spacing:.15em;color:var(--tos-color-soft);margin:10px 0 0}
+
+.stationQuickGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stationQuickGrid button{display:flex;align-items:flex-start;flex-direction:column;gap:7px;text-align:left;min-height:95px;padding:14px;border:1px solid var(--tos-color-border);border-radius:12px;background:var(--tos-color-surface);color:var(--tos-color-ink);cursor:pointer;font:inherit}
+.stationQuickGrid button strong{font-size:14px}
+.stationQuickGrid button small{font-size:12px;color:var(--tos-color-muted)}
+.stationQuickGrid button span{align-self:flex-end}
+.stationQuickGrid button:focus-visible{outline:2px solid var(--tos-tone);outline-offset:2px}
+@media(max-width:1200px){.stationQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stationMetricUnknown{display:block;font-size:30px;line-height:1.2;color:var(--tos-color-soft);margin-bottom:8px}
+
+.minimumHours{display:flex;align-items:baseline;gap:var(--tos-space-1)}
+
+}

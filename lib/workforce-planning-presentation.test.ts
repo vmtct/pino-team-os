@@ -23,7 +23,7 @@ test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", asyn
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
   assert.match(source, /Xác nhận ca & phân công/);
   assert.match(source, /Lý do thay đổi/);
-  assert.match(source, /canonical assignment audit/);
+  assert.match(source, /lịch sử thay đổi phân công/);
   assert.match(
     source,
     /cancelWorkforceAssignment\(\s*assignment\.id,\s*cancellationReason/,
@@ -36,41 +36,49 @@ test("WFM-PLAN BO uses inline governed reasons instead of browser prompts", asyn
 });
 
 
-test("WFM-PLAN BO uses Workforce bootstrap and governed ShiftTemplate administration", async () => {
+test("PAP-1199 BO uses Workforce bootstrap and only ACTIVE ShiftTemplates without mutation UI", async () => {
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
   assert.match(source, /workforcePlanningBootstrap/);
   assert.doesNotMatch(source, /f3DeliveryApi|delivery\/bootstrap-state/);
-  assert.match(source, /\+ Tạo ca/);
-  assert.match(source, /createWorkforceShiftTemplate/);
-  assert.match(source, /setWorkforceShiftTemplateStatus/);
-  assert.match(source, /workforce\.shift_template\.manage/);
-  assert.match(source, /Template đã dùng không sửa giờ trực tiếp/);
+  assert.match(source, /Mẫu ca đang hoạt động/);
+  assert.match(source, /template\.status === "ACTIVE"/);
+  assert.match(source, /data\?\.templates/);
+  assert.match(source, /planOperationalWorkforceShift/);
+  assert.doesNotMatch(source, /\+ Tạo ca|createWorkforceShiftTemplate|setWorkforceShiftTemplateStatus/);
+  assert.doesNotMatch(source, /workforce\.shift_template\.manage/);
+  assert.match(source, /Tuần này đã bị khóa từ Head Office/);
+  assert.match(source, /globalWeekLocked/);
+  assert.match(source, /Chốt xếp ca/);
+  assert.match(source, /Mở khóa xếp ca/);
 });
-
 
 test("JCS04 BO exposes governed availability history and operator void only through planning edit authority", async () => {
   const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
   assert.match(source, /availabilityHistory/);
   assert.match(source, /canEditPlanning/);
   assert.match(source, /voidWorkforceAvailability/);
-  assert.match(source, /Void availability/);
+  assert.match(source, /Hủy đăng ký ca/);
   assert.match(source, /history được giữ nguyên và không còn dùng làm planning input/);
   assert.doesNotMatch(source, /deleteWorkforceAvailability|reopenAvailability/);
 });
 
-test("WSRA BO plans FD/Teacher exact Session and derives primary owner authority", async () => {
+test("PAP-1113 BO plans independent RunningClass roles and retains only historical Learning Owner read guards", async () => {
   const [source, model] = await Promise.all([
     read("app/bo/workforce/WorkforcePlanningView.tsx"),
     read("lib/bo-model.ts"),
   ]);
-  assert.match(source, /Front Desk/);
-  assert.match(source, /> Teacher</);
-  assert.match(source, /Phụ trách chính/);
+  assert.match(source, /Tiếp tân/);
+  assert.match(source, /> Giáo viên</);
+  assert.match(source, /> Trợ giảng</);
+  assert.match(source, /checked=\{shiftLeader\}/);
+  assert.match(source, /checked=\{teacherSelected\}/);
+  assert.match(source, /checked=\{assistantSelected\}/);
+  assert.match(source, /buildIndependentRoleCommands/);
   assert.match(source, /planOperationalWorkforceShift/);
-  assert.match(source, /sessionId/);
-  assert.match(source, /runningClassDisplayName/);
-  assert.match(source, /disabled=\{!session\.canAssignLearningOwner\}/);
-  assert.match(source, /Lý do bàn giao/);
+  assert.match(source, /eligibleShiftRunningClasses/);
+  assert.match(source, /canUseTeachingSessionTime/);
+  assert.doesNotMatch(source, /makeLearningOwner:/);
+  assert.doesNotMatch(source, /learningOwnerHandoffReason:/);
   assert.match(source, /hasOwnerRole/);
   assert.match(source, /School → Classes → Sessions/);
   assert.doesNotMatch(model, /isLearningOwner\s*:/);
@@ -95,8 +103,8 @@ test("WSRA weekly grid summarizes roles and exposes Learning Owner link drift", 
   data.sessions[0]!.learningOwner = { staffMemberId: "staff-2" } as never;
   assert.equal(hasOwnerTeacherLinkGap(data, "staff-2", "2026-10-06"), true);
 
-  const source = await read("app/bo/workforce/WorkforcePlanningView.tsx");
-  assert.match(source, /assignmentRoleSummary/);
-  assert.match(source, /Owner chưa link TE/);
-  assert.match(source, /Chưa có TE\/ca tương ứng/);
+  const calendar = await read("app/bo/components/workforce/BoWorkforceWeekPlanner.tsx");
+  assert.match(calendar, /assignmentRoleSummary/);
+  assert.match(calendar, /Owner chưa link TE/);
+  assert.match(calendar, /Chưa có TE\/ca tương ứng/);
 });

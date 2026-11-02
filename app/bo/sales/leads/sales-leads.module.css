@@ -76,3 +76,15 @@
 .pancakeConversation > div > span { overflow: hidden; color: #777783; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .pancakeConversation a { flex: none; padding: 8px 10px; border-radius: 8px; background: #6655c7; color: white; font-size: 11px; font-weight: 800; text-decoration: none; }
 .chatUnavailable { flex: none; color: #8b8b95; font-size: 10px; }
+
+/* PAP-390 · shared Data Grid migration */
+.leadGridIdentity { min-width: 0; display: grid; gap: 4px; }
+.leadGridIdentity strong { color: #2d2d38; font-size: 11px; }
+.leadGridStack { min-width: 0; display: grid; gap: 4px; }
+.leadGridStack strong { overflow: hidden; color: #4b4650; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.leadGridStack small { color: #8b8790; font-size: 8px; line-height: 1.35; }
+.leadGridFilter { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 7px; border: 1px solid #dedde3; border-radius: 8px; background: #fff; color: #57545f; font-size: 9px; font-weight: 750; }
+.leadGridFilter select { border: 0; outline: 0; background: transparent; color: #4f4c56; font: inherit; font-weight: 750; }
+.leadGridPeek { display: grid; gap: 10px; }
+.leadGridPeek .detail { min-height: 0; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+@media (max-width: 680px) { .leadGridFilter { width: 100%; justify-content: space-between; } }

@@ -80,7 +80,8 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   for (const field of ["payerParentUserId", "studentProfileId", "pathProgramId", "centerId", "productPlanId", "contractualStartsOn"]) {
     assert.match(saleCall, new RegExp(field));
   }
-  assert.doesNotMatch(saleCall, /listPriceMinor|purchasedUnits|termWeeks|cadence|contractualEndsOn/);
+  assert.doesNotMatch(saleCall, /listPriceMinor|purchasedUnits|termWeeks|cadence/);
+  assert.ok(saleCall.includes("contractualEndsOn: contractEndsOn || null"));
 });
 
 test("Billing presentation keeps financial truth in Core and retries exact sale/payment commands", async () => {
@@ -93,7 +94,16 @@ test("Billing presentation keeps financial truth in Core and retries exact sale/
   const transactionCallback = billing.slice(billing.indexOf("await runReplay(`${kind}:${billId}`"), billing.indexOf("return <section", billing.indexOf("await runReplay(`${kind}:${billId}`")));
   assert.doesNotMatch(transactionCallback, /occurredAt: new Date/);
   assert.match(billing, /Core plan:/);
-  assert.match(billing, /Contract end được Core tính; UI không gửi units\/price\/end date/);
+  // PAP-1034 Founder contract: suggested local date is editable, then sent as
+  // contractualEndsOn; only price/purchased units remain Core-owned.
+  assert.match(billing, /Ngày kết thúc được gợi ý theo Chủ nhật, có thể sửa tay; Core nhận ngày HĐ đã chọn/);
+  assert.match(billing, /setEndManual\(true\)/);
+  assert.match(billing, /setEndManual\(false\)/);
+  assert.match(billing, /contractualEndsOn: contractEndsOn \|\| null/);
+  const saleStart = billing.indexOf("boApi.createBillingSale({");
+  const saleEnd = billing.indexOf("}, idempotencyKey)", saleStart);
+  assert.ok(saleStart >= 0 && saleEnd > saleStart);
+  assert.doesNotMatch(billing.slice(saleStart, saleEnd), /listPriceMinor|purchasedUnits|termWeeks|cadence/);
   assert.match(billing, /summary\.paymentState/);
   assert.doesNotMatch(billing, /paymentState\s*=(?!=)|balanceMinor\s*=(?!=)|netAmountMinor\s*=(?!=)/);
 });
@@ -129,11 +139,12 @@ test("Product Plan cadence drives exact distinct Running Class placements before
   assert.match(billing, /plannedEntryLocalTime: placementEntryTimes\[index\]/);
   assert.match(billing, /plannedDurationMinutes: duration/);
   assert.match(billing, /Placement starts/);
-  assert.match(billing, /setPlacementStartsOn\(maxLocalDate\(sub\.contractualStartsOn, today\(\)\)\)/);
+  assert.match(billing, /const resumeDate=maxLocalDate\(sub\.contractualStartsOn,today\(\)\)/);
+  assert.match(billing, /setPlacementStartsOn\(resumeDate\)/);
   assert.match(billing, /const body = \{ \.\.\.bulkBody\(sale\), policyEffectiveAt \}/);
-  assert.match(billing, /boApi\.preflightBulkEnrollments\(body\)/);
+  assert.doesNotMatch(billing, /boApi\.preflightBulkEnrollments\(body\)/);
   assert.match(billing, /boApi\.placeBulkEnrollments/);
-  assert.match(billing, /`\$\{idempotencyKey\}:placement`/);
+  assert.match(billing, /idempotencyKey\+":placement"/);
   assert.match(billing, /Subscription đã tạo; hãy hoàn tất placement, không tạo sale mới/);
   assert.match(billing, /latestSale && !registrationComplete/);
   assert.doesNotMatch(billing, /expectedWeeklyCommitment:\s*Number\(/);
@@ -161,12 +172,13 @@ test("New registration passes only canonical sale inputs and keeps manual cadenc
   assert.ok(start >= 0 && end > start);
   const call = billing.slice(start, end);
   assert.match(call, /centerId/);
-  assert.doesNotMatch(call, /weeklyCommitment|purchasedUnits|contractualEndsOn|listPriceMinor/);
+  assert.doesNotMatch(call, /weeklyCommitment|purchasedUnits|listPriceMinor/);
+  assert.ok(call.includes("contractualEndsOn: contractEndsOn || null"));
   assert.match(billing, /authoritativePlacementCenterId\(placements, eligibleClasses\)/);
   assert.match(billing, /Running Classes đã chọn phải có Center hợp lệ/);
   assert.match(billing, /Các Running Classes đã chọn phải thuộc cùng một Center/);
-  assert.match(view, /Manual repair only/);
-  assert.match(view, /New registrations phải dùng Product Plan \+ exact cadence placement phía trên/);
+  assert.doesNotMatch(view, /boApi\.createSubscription/);
+  assert.match(billing, /deferActivation: true/);
 });
 
 

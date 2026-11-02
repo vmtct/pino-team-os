@@ -1,0 +1,682 @@
+[
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-classroom-1440.png",
+    "sha256": "F373974EF14A93D15C0BD895FCE7536C84ACDB49C12809626C72B63E14FD7A3D",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-classroom-390.png",
+    "sha256": "C85304AD3512032E9891B4784B769DDE3D9AAA8100D9B37BD20A13894FEEC203",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-duty-1440.png",
+    "sha256": "65C0D6D085C2D88EB36E4C51466951818AD99C6C4B419C8787BC1BFE9CB2CEA3",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-duty-390.png",
+    "sha256": "F6F5F3949723BB56CA3C6A2371AD791727DA3F898B873ED6EC012143B722BC0B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-reception-1440.png",
+    "sha256": "4D0A6AB4F8E8F6962AB722BE3FE65C19AFB68580C35291B1646DFB91FC9A36A3",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-reception-390.png",
+    "sha256": "500B175A2E08033D5930B265D0D264EE85D887C98A447CA300FF24D1A2D465BD",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-shift-1440.png",
+    "sha256": "CA61F85CB99CCA965CC2E4A286CB309058103C7138C20A56930A3F1808EA0EA7",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-shift-390.png",
+    "sha256": "F85A3EE0B0EB30A07A23933C4A5864FCEF94B4A421AA16A907E379E6A2B2BE47",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-station-1440.png",
+    "sha256": "369F485F0B21814453DBADEB1DCDBF9E0B59D7AF3E60A261537371ABF829CA35",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-training-1440.png",
+    "sha256": "B290F7BA219CA31C236A356AE67206824691CF66DC53559E9C2AC02710135AA1",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\after-training-390.png",
+    "sha256": "074270E6CBF5B23A2E860E2053BF1EDCCE0533B710F4C73AA29CB147AD48B607",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-classroom-1440.png",
+    "sha256": "2EE10B602E0EF8B8FD409FB333C35BDDA8FDF8D6E7F15F8BA549C2958AFFBE74",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-classroom-390.png",
+    "sha256": "09CA25E8D20F6C0E23894958A4CF4DA121B721B9AC4409CF4DBE645DEE9D95EB",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-duty-1440.png",
+    "sha256": "CB5EF413AB0D0944A5E72D27B0D2A4ADFCD44D032CFEEAFCC0709B81211A8DD8",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-duty-390.png",
+    "sha256": "FCFDA10E8447530A4B5C07AD6CCE66492754AA033B6A3385086D48F935CE2373",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-reception-1440.png",
+    "sha256": "B50C9B35B1AAE16251B9AE015FEDE716207D9CF8E1C17E67256F9051364AED1A",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-reception-390.png",
+    "sha256": "2B4DDB92000AB1ABC50BF1C76688B92E12E10ACBFDC1A1161CAE8F234826DFEC",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-shift-1440.png",
+    "sha256": "B39B3B47BD8A624D2F1E18BA739A38C649826EDFC8EAE58A2C48C24642032BE9",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-shift-390.png",
+    "sha256": "9900A168A67B26243F89A2B2EBEF5D846A2C54A5D6879648D678E604A39302EB",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-station-1440.png",
+    "sha256": "D1528D8FAD94FD3B4B5EE0AF4A14E8B179BB61AEE7FAFDC41119A2D499EF8523",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-station-390.png",
+    "sha256": "301D16C112234D8855A62259E1413F88BB5C9BADE98F01E22F70D9D571E62817",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-training-1440.png",
+    "sha256": "ED959418C90D221FF8C1A0F666A472289C1B9C8BAFB6FB4D1FD12193A457A84C",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\cdp-v5\\before-training-390.png",
+    "sha256": "C114E7B129FB870A55F7A73B48FB50A9B15F6F68AA35E745DC3CF9EDB3852988",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\after-detail-1440.png",
+    "sha256": "25906ED48DCE4BFB99E9079DEE20B8B37CA958C088A431416E4D7B7EAFC95FE8",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\after-detail-390.png",
+    "sha256": "785D9F9C19674195004DAEE24687CA00BF971B0C738F757D4803883F9E4B5ED6",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\after-detail-768.png",
+    "sha256": "9FF59119C8A357F220266E41A48D81EF51BFBE2D81C275971F3E08A26FCBEF10",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\after-list-1440.png",
+    "sha256": "88AABC928244F68A3AB35BA8D39529C8683C40C94AD6E1DEEF24F975789E6861",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\after-list-390.png",
+    "sha256": "D17F9B68341550E6E6773577690EC34EBEFFBECA6AAF02121E4BF6CFF8A0B81C",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\after-list-768.png",
+    "sha256": "203AF03304094BA289B911B3F462BC58746EC0DBF835E7DAE0DA29C3A9F8B3B7",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-detail-1024.png",
+    "sha256": "D045E140DFFB3ADEEFFEAEC120998CBA6BBEEFED8D77FEC6AB60C7C153938E48",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-detail-1440.png",
+    "sha256": "981301CD1B30D6BC07E32D7609AA8597D886162817A67BA01D3E173C92989E2B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-detail-390.png",
+    "sha256": "566BA65DAE2912B18C9903014564CAF41C4EF9EA336A24193C7200DC0DDB9CC0",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-detail-768.png",
+    "sha256": "D7CAACA9CF659C1315536D999C6CF0508CED97A316FE27C92C4482776FDD7052",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-list-1024.png",
+    "sha256": "BE70840949BC796ED80EF786F809783A4D27C941826DF30EEA58CAB5E6CBC898",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-list-1440.png",
+    "sha256": "FE4E4B9D54DBF4DB865D91D7B033DA420C04EE972FE820428747D56EF2C48B5E",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-list-390.png",
+    "sha256": "D17F9B68341550E6E6773577690EC34EBEFFBECA6AAF02121E4BF6CFF8A0B81C",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\classroom-v6\\before-list-768.png",
+    "sha256": "7E4CDAE4A09EECC709EF1314FDAC3A67B4D93DAAC730689B8A6DC362895F0346",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-1440-entry.png",
+    "sha256": "F942E13BAC7CFC8CFA472ABF81D707E2BF1B0BF2C7F9D15D3DE4E80BC84EC72B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-1440-opened.png",
+    "sha256": "F942E13BAC7CFC8CFA472ABF81D707E2BF1B0BF2C7F9D15D3DE4E80BC84EC72B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-320-entry.png",
+    "sha256": "87CDC3BBEBCCC62E8F94237BCE7701DD03AB8AA7D5A0240FDA2AB9AE5DF07C1A",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-320-opened.png",
+    "sha256": "87CDC3BBEBCCC62E8F94237BCE7701DD03AB8AA7D5A0240FDA2AB9AE5DF07C1A",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-390-entry.png",
+    "sha256": "838109B25C220A9C5B10751FADED24C85A54079DA1B0320F33E95E6317398EA1",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-390-opened.png",
+    "sha256": "838109B25C220A9C5B10751FADED24C85A54079DA1B0320F33E95E6317398EA1",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-768-entry.png",
+    "sha256": "5FFA51D773296457B3BEF8DC3F1698933536D32D82B97CE55AA2ABE299A0C758",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-768-opened.png",
+    "sha256": "5FFA51D773296457B3BEF8DC3F1698933536D32D82B97CE55AA2ABE299A0C758",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-actual-in-session-390.png",
+    "sha256": "5B488E59D36226EF5294CE89097FB50DAAB16087B7C37EB01D943D47CD720FCB",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-authority-390.png",
+    "sha256": "FECF813A46F247F3FD4DB4D7BD6485C1D7F822E5C811AAEB5975C88F6AE16F0A",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-in-session-390.png",
+    "sha256": "A2E2FCAE688A2296823BC4CB1687832EA0CE3B37E09E5E3620CCF27B185D16D7",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\classroom-opening-390.png",
+    "sha256": "258A4EBFDBAA7E42916C1ED9FCB64132C2F4AB51D366427FCFBF466B6CAD6A6A",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\duty-1440-entry.png",
+    "sha256": "DB1B2013A5A72DABF2453655099C772F8846397D1636F5E3F81435F5B9AC3B1C",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\duty-320-entry.png",
+    "sha256": "41053D7D77DD04840862D3DE9F15D4CA687D419804A842FF02F90E760109364F",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\duty-390-entry.png",
+    "sha256": "B720DFEE2525B1F778226D7795A2F67B324952CE97E38225B28F41BD7771BDA7",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\duty-768-entry.png",
+    "sha256": "8BDFD93BF615EA12894A75DD2004FB9B02A4B8A904F593CCC0D95662223A8BBD",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-1440-entry.png",
+    "sha256": "593E29453364B8A6F9D2BC6A7E9A773B1AEFD31FCB79FDDB541C6BADBAAC03E2",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-1440-opened.png",
+    "sha256": "B0C30576C9CED208B73AA2CBFBDA3A230B6E65A3F8F7952741B1A7DF1F1F8096",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-320-entry.png",
+    "sha256": "566C1D709F0F834A1EC5266F870AC752E986D3D630DAF12D2C20E062EC8CF300",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-320-opened.png",
+    "sha256": "A0BEF6380A61594365D9A9B343AAE39220F84A3A08AF15A524824BF330EE649C",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-390-entry.png",
+    "sha256": "ED42B2EF671AEC0265B7506440A5841362E545782546C6663D27023AC442423B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-390-opened.png",
+    "sha256": "1D501AD48BB13DF2340A4C034804F7B013B94304E6A0EEADE14BAC64147F94D2",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-768-entry.png",
+    "sha256": "2D249BEE26964F4BFA4ED984DC2664C57A5C7C68CF7CC7AE944594328438D249",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\reception-768-opened.png",
+    "sha256": "B0D4EA07BB3CDD41CDA09106830CCE596E1571F4C1578C021FF797E6CAA92F8D",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-1440-checkin.png",
+    "sha256": "94C8F57ED16E77E322BDC6EA8F2C254D661AE279CEA736DC0FADD9DA4DAE9B57",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-1440-entry.png",
+    "sha256": "7F576D0054CDF05189BA539AD53A4CAEDEBBD28C59FC47621EF2BA2C0B043EE7",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-320-checkin.png",
+    "sha256": "373709015A019BE884061E58711F7F963D2891B6FEAFA7343678711459C0CDFD",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-320-entry.png",
+    "sha256": "35A67B61769D1A9018E69A264A2AB7B80F15A0E16A83BF5F44AA39DACE3679F6",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-390-checkin.png",
+    "sha256": "4368DA76D6803F05C5CFDC5A032D6F4D36AF22F41B1AF528F1F633A714D825AC",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-390-entry.png",
+    "sha256": "B8884B5EFA25D91851ABEB7C7A4B7C9D8BC028D7C802033F63C13997F43C6411",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-768-checkin.png",
+    "sha256": "79DEB92EE69B3656BA19C1F019E3AFEF0E746A786215B4101F1C8258E2B56F67",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\shift-768-entry.png",
+    "sha256": "ACD99C6BA9EB65CC6A38CAE0ABDF54C44C85E0B8B048C0FDB361366F137CA863",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-1440-entry.png",
+    "sha256": "A8F55AAB4F60CB0D73CE4840D72F564EE6DF2EDE2F549D8DB4F22957FAEDCF49",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-1440-tablast.png",
+    "sha256": "3768E2053875B87548AB28BFD01FD7FAA6FEE24468C2660E226AD2C52678B394",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-320-entry.png",
+    "sha256": "93872CDC9A28AAA9F7ECF53C4C52CC691DD79CF875386CF683281DE28A6BD156",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-320-tablast.png",
+    "sha256": "CB88E0399D72B8F353D5F8F680366FCE11A525A922C4681B7366EAE7759193C7",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-390-entry.png",
+    "sha256": "404E89942CDEEF150712ADD03F18B4833F1EACDF58D9B780CD3D922A419EF9A6",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-390-tablast.png",
+    "sha256": "C7838D0BF830BB6F429AD3762EA31F131AE769EC21E741CA2CEE5B0A96A496F2",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-768-entry.png",
+    "sha256": "A96BFC28E12C2A2B7B0D8EED6C564C91BBD1A1AA9FE7A9D195010AEA69175B42",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\station-768-tablast.png",
+    "sha256": "AC5449AB095B89903285651B3052E86AAF46DE045498E69CB5AF9A333E3C0E82",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-1440-entry.png",
+    "sha256": "D9B4BED85111058C392D1CD95F35AED662554B6D1410477D5775DE0935A52F57",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-1440-sheet.png",
+    "sha256": "7680104A6204884D42C0AC4A1676999C9ECCF346AEA3A5BB545C4A20EC16B432",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-320-entry.png",
+    "sha256": "A85A208352C5029D5EA02D522992DEE9E34C7653C882603ED85BC0BB63B75CDD",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-320-sheet.png",
+    "sha256": "80E9FF7EACFEF6176A5ACC8B5DA2FF70F05FA57A7E39459A1BBBCF47C84A4E71",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-390-entry.png",
+    "sha256": "1D49E475A77B9749F025440D32C826793254B8AF0630DACE2E20E07EE4E9426E",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-390-sheet.png",
+    "sha256": "784E7D5638D786AE11B9A4FFB5D5775B58EF4063BF685F9100F952E2939A6E28",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-768-entry.png",
+    "sha256": "73FE1E96308567D01367170F3D0CA153A75C7D9570C9B6EEC22D3F1E7911A4BE",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\deep-audit\\training-768-sheet.png",
+    "sha256": "DD90B9D2539D44037A4965E63978B8714FB5FD98CE485C209230039F6B6DB723",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\diary-fix-20261026\\fixed-320.png",
+    "sha256": "C07FB0A81037E8B1584A7CE28C07BB9677059DB5E0E9670690CA8BB9B3FEDEC5",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\diary-fix-20261026\\fixed-390.png",
+    "sha256": "3DFDDF81B472ABCEA155B37C89F83DEF0AF8F1A2AEB9B20C944FDE30F841DC2D",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\diary-fix-20261026\\fixed-430.png",
+    "sha256": "02B5E6C1A5B95C75D6D106C42F9E29AD5CCA54B8667883C2EB01F44634927B32",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\diary-fix-20261026\\fixed-768.png",
+    "sha256": "594E077E33BEFB04E1BBD3CBAA33C76616FF3D998D7FF1201B09D3B21FBA6DB4",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\1024px.png",
+    "sha256": "711A186BBC42CF730BBEA6622481F76BD70DA003F6EB20B924B0E3F9A225AE73",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\1440px.png",
+    "sha256": "867C04B85BC7A28A553F7EB50D5766F464BC1B1D7F27B139345F7367BEA7999F",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\1920px.png",
+    "sha256": "F545B03BC44AD6C61EF2AC36F286BD4B8E35A0E3D281C0ABA43A03FF6FECD0F5",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\320px.png",
+    "sha256": "0CA5A7416E6CDD757E77F34806E0439EEA5C09E05A565CA07383EA0DE7FB7C83",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\390px.png",
+    "sha256": "1350476B24AED5851AB8D7470E01674993D6A1A3D7B5268E948939BD9EAD87D6",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\430px.png",
+    "sha256": "D448697E357F63172707F70D9F056A22D2CD32070BF2DDF9C9A088401F111E17",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\ds-v2-runtime-20261026\\768px.png",
+    "sha256": "06F6BAF98590EEBFF6C93C9D533A9CF0450D09B219EABA4D5A2F06F6BCCE066A",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\published-20261026\\qa-desktop-station.png",
+    "sha256": "05E35919ED8C895F770A5635269E6D3A50ACC14F3FE022DA2C28EFBC48710256",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\published-20261026\\qa-mobile-home.png",
+    "sha256": "186120ED62DFC3709C506278F9F0D575AA686A755F2E7DC12E4CFCA8B1815A80",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\screenshots\\classroom-390.png",
+    "sha256": "0E6D24CF5E5FE8F5D764451F24154043CC7723398DAD34A25581F149439E2108",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\screenshots\\home-1440.png",
+    "sha256": "F942E13BAC7CFC8CFA472ABF81D707E2BF1B0BF2C7F9D15D3DE4E80BC84EC72B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\screenshots\\home-390.png",
+    "sha256": "838109B25C220A9C5B10751FADED24C85A54079DA1B0320F33E95E6317398EA1",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\screenshots\\station-390.png",
+    "sha256": "C7838D0BF830BB6F429AD3762EA31F131AE769EC21E741CA2CEE5B0A96A496F2",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\screenshots\\training-390.png",
+    "sha256": "AD30592ED7B7940E032DBFF9126618DAE03E79634049F98DB23FF41579385631",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\six-apps-v8\\home-six-1440.png",
+    "sha256": "1EA9A259CEB52A0484FAC75E44F07D6D1FC302A456BB5ADB9CC8E3347F7F1B73",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\six-apps-v8\\home-six-390.png",
+    "sha256": "FED76A1CD39EA858955D521E6D1A9ED114108764CE1153A80B4E23D04F9FAC86",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-bottom-1440.png",
+    "sha256": "A3ABEF444A92C99A56F8E80C9147C38D24ABBFC84338C4F2D35A5544CD12F969",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-bottom-320.png",
+    "sha256": "4DD12F9B6A7813BEC6DCD28546E4EBE0BE2E8082F13E4392C851DDDD1C09BA1F",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-bottom-390.png",
+    "sha256": "101CD6616E4151AB4693680D4932253EEE020EC9B029DD0777EB576DF4CC21C3",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-bottom-768.png",
+    "sha256": "37810C0BFE0E434721374CD235394C09536FB8B14343B6A2C21B62DF459C936E",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-final-390.png",
+    "sha256": "55A75C9699CF4BD67B0A779520DB5A034C7EAF2E0D63C16BC61982A9821BF696",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-top-1440.png",
+    "sha256": "ACFEC7F5A412680DBB2D5D87E6E18539470FC69C718A74B8C20E805051D85E35",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-top-320.png",
+    "sha256": "B42BF5EE9F6593E236B3FE8E00DF4E4E940C38029BE65F6B553D6FD5B596EEF6",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-top-390.png",
+    "sha256": "8AE35CA8A507883AC65F73F52C649BFD8990595BC91672B7FB1C023BE91C0EBA",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\after-diary-top-768.png",
+    "sha256": "6C08249C5BF7CFB21314900EBBBAA8D9C94FA6A847EE853C8887E12828281644",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\before-diary-1024.png",
+    "sha256": "18FFE868993E64CFA54DEFCF1CC0622BF233B47AB570A665E961F1FF59107181",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\before-diary-1440.png",
+    "sha256": "C39C07D0A526BDF99258CE0EF16D4FF06C34C72058183AB594F4368F1F84A658",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\before-diary-320.png",
+    "sha256": "36BF0DB4B3AFCBA7101CDD72D9D248FEA1DD67FE69228368510992A3AC984837",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\before-diary-390.png",
+    "sha256": "FD452FEAF1E6B295973D6ACD245F3A23F09C8991C5D91B1A1AA5CF15F9C8F44E",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\before-diary-430.png",
+    "sha256": "5ED65D9086574F93BEA986435611B740F43F8813925D8039852F6764FD62AD46",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\before-diary-768.png",
+    "sha256": "080F7A710360A9F643E36D9D07845C6CA0CD4DB9BB7EA554E7C0DA2BA7A90E53",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\design-system-1440.png",
+    "sha256": "857F01D0F347F2A8A7BFF9E2833BD8B65626EBA851063039AD44B0D07C415BB5",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\design-system-390.png",
+    "sha256": "214DA7B0B8305F905867B31B10B7567F9DC0B2D73F87A907C33288CD3A923647",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\shift-income-click.png",
+    "sha256": "98758B74E1977C0C1214AEA10DDA826ED7523B2302846F04698688790A6B6DCB",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\tos-system-v1\\system-debug.png",
+    "sha256": "EB8551F4B64A04DDCDF094241E092E1C8978AA417127E633FE7B88DEFC33FAB9",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\classroom-1440.png",
+    "sha256": "E0E283FDC6FF60B50CB2FC26108D426438A2E3276F2B4C729CBE23DDC362668D",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\classroom-390.png",
+    "sha256": "89BBDE29A2BF4D0B2B38F37A7DA73B6BC90927DE05A608D09D06D9673C9D83D9",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\duty-1440.png",
+    "sha256": "D7188219EC6EA3FC043AD0C1A5EF24E0493409D19596036E6411EFB511BC9BF0",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\duty-390.png",
+    "sha256": "23ADEA5615BAA4A0038E55D3DAF5971AFC45D78D28C2F13A20A1D9C693D5A32C",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\reception-1440.png",
+    "sha256": "1DF9B07A6A799A6335F6EC098B43599E1D0F85CD0D26CD308F9ECBA6B2A9B8B1",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\reception-390.png",
+    "sha256": "DCE99A043A42637BAA507F83CEFD63F2FCE506A4BE21D974B1EEB66CDCEF7093",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\shift-1440.png",
+    "sha256": "E30C6141405B7D649187C7ABB58BD4F7AAA16BDDDA7876CC4EE6FACCEF93256B",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\shift-390.png",
+    "sha256": "AE6527984ABC6F7782C58F5852CA4145998549CAEFECCAB16B5DBA28A3EBE1DE",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\station-1440.png",
+    "sha256": "74691E691EDB47E7CE0C35A5796894B58474ED25BA7226E631AB6D12FBD28ECA",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\station-390.png",
+    "sha256": "3B804D5F2748DFCF68FB41BF0541E690629E63EBB50EDD1F4663A114441BCD1F",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\training-1440.png",
+    "sha256": "23130633438E4CD00A2383883190F52187CF36BE2CC2888DD96876B74451E0D2",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  },
+  {
+    "uri": "C:\\Users\\ADMIN\\OneDrive\\PINO\\GPT Technical\\Prototype\\PAP-934-tos-master-v3\\qa\\v4\\training-390.png",
+    "sha256": "C460C84A49356C427C290281C3319E6DAE61EBD83EFD01E035DE0A28D6034A07",
+    "classification": "HISTORICAL_PROTOTYPE_ONLY_NOT_FRESH_RUNTIME_GOLDEN"
+  }
+]

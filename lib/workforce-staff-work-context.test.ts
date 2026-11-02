@@ -9,13 +9,14 @@ import {
   compactWorkDate,
   nextAssignment,
   staffInitials,
+  shiftResponsibilityLabels,
   workDateParts,
 } from "./workforce-staff-work-context";
 import type { Assignment, WorkforceContext } from "./workforce-api";
 
 const shift = { code: "EVENING_PA", displayLabel: "Ca tối PA", startLocalTime: "17:30", endLocalTime: "21:00" };
 const assignment = (id: string, workDate: string, start = "17:30"): Assignment => ({
-  id, centerId: "center-1", workDate, shiftTemplateId: "shift-1", termWeekId: "week-1", status: "ACTIVE",
+  id, centerId: "center-1", workDate, shiftTemplateId: "shift-1", timeBasis:"SHIFT_TEMPLATE", coverageMode:"FULL_SHIFT", effectiveStartLocal:null, effectiveEndLocal:null, termWeekId: "week-1", status: "ACTIVE",
   shift: { ...shift, startLocalTime: start },
 });
 
@@ -23,6 +24,10 @@ test("TOSCTX-001 renders deterministic Vietnamese DOW/date and assignment time",
   assert.deepEqual(workDateParts("2026-09-28"), { weekday: "T2", day: "28", month: "09" });
   assert.equal(compactWorkDate("2026-09-27"), "CN, 27/09");
   assert.equal(assignmentTime(assignment("a", "2026-09-28")), "17:30–21:00");
+  const custom={...assignment("custom","2026-09-28"),coverageMode:"CUSTOM_RANGE" as const,effectiveStartLocal:"2026-09-28T18:10",effectiveEndLocal:"2026-09-28T20:40",effectiveWork:{assignmentId:"custom",timeBasis:"SHIFT_TEMPLATE" as const,coverageMode:"CUSTOM_RANGE" as const,windows:[{startsLocal:"2026-09-28T18:10",endsLocal:"2026-09-28T20:40",sourceType:"CUSTOM_RANGE" as const,sourceIds:[]}],reconciliationRequired:false}};
+  assert.equal(assignmentTime(custom), "18:10–20:40");
+  const classroom={...assignment("classroom","2026-09-28"),timeBasis:"TEACHING_SESSIONS" as const,coverageMode:"CLASSROOM_TIME" as const,effectiveWork:{assignmentId:"classroom",timeBasis:"TEACHING_SESSIONS" as const,coverageMode:"CLASSROOM_TIME" as const,windows:[{startsLocal:"2026-09-28T18:00",endsLocal:"2026-09-28T19:30",sourceType:"SESSION" as const,sourceIds:["s1"]},{startsLocal:"2026-09-28T20:00",endsLocal:"2026-09-28T21:00",sourceType:"SESSION" as const,sourceIds:["s2"]}],reconciliationRequired:false}};
+  assert.equal(assignmentTime(classroom), "18:00–19:30, 20:00–21:00");
 });
 
 test("TOSCTX-003 derives weekly count and next shift without changing assignment authority", () => {
@@ -55,6 +60,11 @@ test("TOSCTX-001/002 Today, Schedule and Check-in use human date and hide raw sh
   assert.doesNotMatch(source, /row\.shift\.code/);
 });
 
+test("TOSCTX-007 Staff schedule never exposes Manager coverage mutation controls", async () => {
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  assert.doesNotMatch(source, /customStartLocal|customEndLocal|coverage-mode|CUSTOM_RANGE|CLASSROOM_TIME/);
+});
+
 test("TOSCTX-005 cancelled assignments leave operational schedule and background refresh is wired", async () => {
   const rows = [assignment("active", "2026-09-28"), { ...assignment("cancelled", "2026-09-29"), status: "CANCELLED" }];
   assert.deepEqual(activeAssignments(rows).map((row) => row.id), ["active"]);
@@ -74,4 +84,48 @@ test("TOSCTX-004 profile is read-only by default and edit keeps existing PATCH c
   assert.match(source, /Xem lịch của tôi/);
   assert.match(source, /editing \? <div className="grid">/);
   assert.match(source, /workforceApi\.updateProfile\(\{ email, mobile, legalAddress \}\)/);
+});
+
+
+test("PAP-705 unifies schedule and weekly availability without inventing assignment truth", async () => {
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  assert.match(source, /view !== "availability" && view !== "schedule"/);
+  assert.match(source, /view === "schedule" \|\| view === "availability" \? <ShiftCalendarPanel/);
+  assert.match(source, /Đăng ký chỉ thể hiện thời gian bạn có thể làm[\s\S]*đăng ký không phải assignment/);
+  assert.match(source, /replaceAvailability\(\{ centerId: center\.id, termWeekId: availability\.termWeekId, submissionId: availability\.id, expectedVersion: availability\.version, items \}\)/);
+  assert.match(source, /submitAvailability\(\{ centerId: center\.id, termWeekId: availability\.termWeekId, submissionId: availability\.id, expectedVersion: availability\.version \}\)/);
+  assert.match(source, /shiftResponsibilityLabels\(row\)/);
+  assert.doesNotMatch(source, /Vai trò ca · Chưa sẵn sàng/);
+  assert.match(source, /dayInZone\(center\.timeZone\)/);
+});
+
+
+test("PAP-706 keeps Giờ công truthful while effective totals and correction request are unavailable", async () => {
+  const source = await readFile("app/components/WorkforceWorkspace.tsx", "utf8");
+  const api = await readFile("lib/workforce-api.ts", "utf8");
+  assert.match(source, /view === "history" \? <TimesheetPanel rows=\{history\} current=\{current\}/);
+  assert.match(source, /Đã ghi nhận[\s\S]*Chưa sẵn sàng/);
+  assert.match(source, /Chờ duyệt[\s\S]*Chưa sẵn sàng/);
+  assert.match(source, /Phiên mở không được tính vào tổng finalized/);
+  assert.match(source, /Yêu cầu điều chỉnh[\s\S]*staff self-service request contract[\s\S]*disabled/);
+  assert.doesNotMatch(source, /reduce\([\s\S]*checkOutAt/);
+  assert.doesNotMatch(api, /requestTimekeepingCorrection|timekeeping\/correction-request/);
+});
+
+test("PAP-1128 shows only active authoritative Center, Session and RunningClass shift role facts", () => {
+  const row = { ...assignment("a", "2026-10-18"), roleAssignments: [
+    {roleType:"SHIFT_LEADER" as const,targetType:"CENTER" as const,targetId:"center-1"},
+    {roleType:"TEACHER" as const,targetType:"SESSION" as const,targetId:"lesson-1"},
+    {roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"center-1"},
+    {roleType:"TEACHER" as const,targetType:"RUNNING_CLASS" as const,targetId:"class-a"},
+    {roleType:"TEACHING_ASSISTANT" as const,targetType:"RUNNING_CLASS" as const,targetId:"class-b"},
+  ] };
+  assert.deepEqual(shiftResponsibilityLabels(row), ["Lễ tân", "Giảng dạy", "Trợ giảng", "Trưởng ca"]);
+  assert.deepEqual(shiftResponsibilityLabels({...row,status:"CANCELLED"}), []);
+  assert.deepEqual(shiftResponsibilityLabels(assignment("old","2026-10-18")), []);
+  const invalid = {...assignment("b","2026-10-18"),roleAssignments:[
+    {roleType:"TEACHING_ASSISTANT" as const,targetType:"CENTER" as const,targetId:"center-1"},
+    {roleType:"FRONT_DESK" as const,targetType:"RUNNING_CLASS" as const,targetId:"class-a"},
+  ]};
+  assert.deepEqual(shiftResponsibilityLabels(invalid), []);
 });

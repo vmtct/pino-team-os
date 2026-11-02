@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { resolvePinoriaEffectPresentation, type PinoriaEffectPresentationKey } from "../../lib/pinoria-effect-presentation";
 
 export type PinoriaCharacterConfig = Record<string, string>;
@@ -38,7 +38,8 @@ export function pinoriaAssetUrl(path: unknown) {
 export function hasRenderableCharacterConfig(config: unknown) {
   if (!config || typeof config !== "object" || Array.isArray(config)) return false;
   const source = config as Record<string, unknown>;
-  return ["hair", "face", "outfit"].every((key) => pinoriaAssetUrl(source[key]) !== null);
+  return pinoriaAssetUrl(source.hair) !== null && pinoriaAssetUrl(source.face) !== null
+    && pinoriaAssetUrl(source.outfit ?? source.body) !== null;
 }
 
 const BASE_LAYER_ORDER: Array<{ slot: PinoriaWardSlot | "EYEWEAR"; source: (config: PinoriaCharacterConfig) => string | undefined; zIndex: number }> = [
@@ -118,7 +119,7 @@ export function LayeredCharacter({
   wardRender?: PinoriaWardRender | null;
 }) {
   if (!hasRenderableCharacterConfig(config)) {
-    return <div className={className} style={{ ...style, display: "grid", placeItems: "center" }} data-character-state="invalid" role="img" aria-label="Nhân vật chưa sẵn sàng"><span>Nhân vật chưa sẵn sàng</span></div>;
+    return <div className={className} style={{ ...style, display: "grid", placeItems: "center" }} data-character-state="fallback" role="img" aria-label="Nhân vật chưa sẵn sàng"><span aria-hidden="true" style={{ width: "55%", aspectRatio: "3 / 4", borderRadius: "48% 48% 25% 25%", background: "linear-gradient(160deg, #d7d5c8, #9aada8)", boxShadow: "0 8px 22px rgba(0,0,0,.15)" }} /></div>;
   }
   const layers = resolvedLayeredLayers(config, wardRender);
   const setWebm = wardRender?.mode === "SET_WEBM" ? pinoriaAssetUrl(wardRender.webmAssetKey) : null;
@@ -134,10 +135,13 @@ export function LayeredCharacter({
 }
 
 function LayerMedia({ layer, rainbow = false }: { layer: ResolvedLayer; rainbow?: boolean }) {
+  const [failed, setFailed] = useState(false);
   const wardId = layer.key.startsWith("ward:") ? layer.key.slice(5) : undefined;
+  if (failed) return null;
   if (layer.media === "VIDEO") {
     return <video
       key={layer.key}
+      onError={() => setFailed(true)}
       src={layer.src}
       poster={layer.poster ?? undefined}
       autoPlay
@@ -150,32 +154,48 @@ function LayerMedia({ layer, rainbow = false }: { layer: ResolvedLayer; rainbow?
       style={{ ...layer.style, width: "100%", height: "100%", objectFit: "contain" }}
     />;
   }
-  return <img key={layer.key} src={layer.src} alt="" draggable={false} style={layer.style} data-ward-layer={wardId} />;
+  return <img key={layer.key} onError={() => setFailed(true)} src={layer.src} alt="" draggable={false} style={layer.style} data-ward-layer={wardId} />;
 }
 
 function NormalLayers({ className, style, layers, setWebm }: { className?: string; style?: CSSProperties; layers: ResolvedLayer[]; setWebm: string | null }) {
-  return <div className={className} style={style} data-ward-render-mode={setWebm ? "SET_WEBM" : "LAYERED"}>
-    {setWebm ? <video src={setWebm} autoPlay loop muted playsInline data-ward-set-webm style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: 20 }} /> : null}
-    {layers.filter((layer) => !setWebm || (layer.slot !== "EYEWEAR" && EFFECT_SLOTS.has(layer.slot))).map((layer) => <LayerMedia key={layer.key} layer={layer} />)}
+  const [failedSetUrl, setFailedSetUrl] = useState<string | null>(null);
+  const activeSet = setWebm && setWebm !== failedSetUrl ? setWebm : null;
+  return <div className={className} style={style} data-ward-render-mode={activeSet ? "SET_WEBM" : "LAYERED"}>
+    {activeSet ? <video onError={() => setFailedSetUrl(activeSet)} src={activeSet} autoPlay loop muted playsInline data-ward-set-webm style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: 20 }} /> : null}
+    {layers.filter((layer) => !activeSet || (layer.slot !== "EYEWEAR" && EFFECT_SLOTS.has(layer.slot))).map((layer) => <LayerMedia key={`${layer.key}:${layer.src}`} layer={layer} />)}
   </div>;
 }
 
 function NormalLayersInner({ layers, setWebm, effectKey, surface }: { layers: ResolvedLayer[]; setWebm: string | null; effectKey: PinoriaEffectPresentationKey; surface: PinoriaEffectSurface }) {
+  const [failedSetUrl, setFailedSetUrl] = useState<string | null>(null);
+  const activeSet = setWebm && setWebm !== failedSetUrl ? setWebm : null;
   const frameScale = surface === "FULL_AVATAR" ? effectKey === "GIANT" ? 1.14 : effectKey === "TINY" ? 0.72 : 1 : 1;
   const className = effectKey === "GHOST" ? "pino-effect-ghost-frame" : undefined;
   const filter = effectKey === "GHOST" ? "opacity(.62) saturate(.62) drop-shadow(0 0 10px rgba(190,235,255,.7))" : undefined;
   return <div className={className} style={{ position: "absolute", inset: 0, transform: `scale(${frameScale})`, transformOrigin: "50% 75%", filter }}>
-    {setWebm ? <video src={setWebm} autoPlay loop muted playsInline data-ward-set-webm style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: 20 }} /> : null}
-    {layers.filter((layer) => !setWebm || (layer.slot !== "EYEWEAR" && EFFECT_SLOTS.has(layer.slot))).map((layer) => <LayerMedia key={layer.key} layer={layer} />)}
+    {activeSet ? <video onError={() => setFailedSetUrl(activeSet)} src={activeSet} autoPlay loop muted playsInline data-ward-set-webm style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: 20 }} /> : null}
+    {layers.filter((layer) => !activeSet || (layer.slot !== "EYEWEAR" && EFFECT_SLOTS.has(layer.slot))).map((layer) => <LayerMedia key={`${layer.key}:${layer.src}`} layer={layer} />)}
   </div>;
 }
 
 function RainbowLayers({ layers, surface }: { layers: ResolvedLayer[]; surface: PinoriaEffectSurface }) {
   return <div className="pino-effect-rainbow-frame" data-rainbow-layer-count={layers.length} style={{ position: "absolute", inset: 0 }}>
     {layers.map((layer) => layer.media === "VIDEO"
-      ? <LayerMedia key={layer.key} layer={layer} rainbow />
-      : <span
-          key={layer.key}
+      ? <LayerMedia key={`${layer.key}:${layer.src}`} layer={layer} rainbow />
+      : <RainbowMaskLayer key={`${layer.key}:${layer.src}`} layer={layer} surface={surface} />)}
+  </div>;
+}
+
+function RainbowMaskLayer({ layer, surface }: { layer: ResolvedLayer; surface: PinoriaEffectSurface }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const probe = new Image();
+    probe.onerror = () => setFailed(true);
+    probe.src = layer.src;
+    return () => { probe.onerror = null; };
+  }, [layer.src]);
+  return <>
+    {!failed ? <span
           className="pino-effect-rainbow-layer"
           data-rainbow-source={layer.src}
           data-ward-layer={layer.key.startsWith("ward:") ? layer.key.slice(5) : undefined}
@@ -190,8 +210,8 @@ function RainbowLayers({ layers, surface }: { layers: ResolvedLayer[]; surface: 
             backgroundImage: "linear-gradient(115deg,#ff4d6d 0%,#ffb703 18%,#80ed99 36%,#48cae4 54%,#9d4edd 72%,#ff4d6d 100%)",
             backgroundSize: surface === "HOUSE_MINI" ? "240% 240%" : "320% 320%",
           }}
-        />)}
-  </div>;
+        /> : null}
+  </>;
 }
 
 function EffectStyles() {

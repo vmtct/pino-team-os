@@ -1,0 +1,1975 @@
+{
+  "result": "LOCAL_REACT_PARITY_CHECKS_PASS",
+  "sourceHashes": {
+    "playground.html": "5da8f56e4a869bbb48b7646a58e410ff6c9ee5ea33ed3555e10a62c7805e6f52",
+    "playground.js": "7a2d1d3d394660eb1b0680a1d4bb8041bee1a132a8ff8c22d5179a63f3fdd9cc",
+    "styles.css": "5b7af5a0ec8a7d92e1778f3de8ad82248aa7539b220c7dc6dd90ef88a26a4425",
+    "playground.css": "c8954038bcf831fbdcb4c2a7d4e0f2b4a46bda9b50ad6eddd4d7ba8d3f67fa98",
+    "playground-v22.css": "5bd0d3df806bd3db260a2d5f808e2f0c10c08c28dd652988087772defa4a4ef1",
+    "playground-v23.css": "ec942f280ee2c4e8e55c8df4cffe5fcc98c0eea264ed4f943f9106ed817f3186",
+    "full-detail-v24.css": "99c1a813eaa42cbe09dbf06b3f70d92892351e389fa288e1f930841a2efe87da",
+    "full-detail-v25.css": "3f3dfc04636e0d2139546539055887068e038f52c364c77a6d6c7d38af169c4a"
+  },
+  "checks": [
+    {
+      "key": "students",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "classes",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "subscriptions",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "enrollments",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "visits",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "staffs",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "termWeeks",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "timekeeping",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "salaryPeriods",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "worlds",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "catalog",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "sets",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "users",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "roles",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "audits",
+      "width": 390,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "students",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "classes",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "subscriptions",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "enrollments",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "visits",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "staffs",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "termWeeks",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "timekeeping",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "salaryPeriods",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "worlds",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "catalog",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "sets",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "users",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "roles",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "audits",
+      "width": 768,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "students",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "classes",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "subscriptions",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "enrollments",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "visits",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "staffs",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "termWeeks",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "timekeeping",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "salaryPeriods",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "worlds",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "catalog",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "sets",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "users",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "roles",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    },
+    {
+      "key": "audits",
+      "width": 1440,
+      "table": true,
+      "drawer": true,
+      "threeTabs": true,
+      "focusRestore": true,
+      "noOverflow": true
+    }
+  ],
+  "typed": [
+    {
+      "mode": "table",
+      "type": "text",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "number",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "currency",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "date",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "datetime",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "select",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "boolean",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "relation",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "multirelation",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "multiselect",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "person",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "textarea",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "email",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "url",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "text",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "number",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "currency",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "date",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "datetime",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "select",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "boolean",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "relation",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "multirelation",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "multiselect",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "person",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "textarea",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "email",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "url",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "text",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "number",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "currency",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "date",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "datetime",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "select",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "boolean",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "relation",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "multirelation",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "multiselect",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "person",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "textarea",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "email",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "url",
+      "width": 390,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "text",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "number",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "currency",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "date",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "datetime",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "select",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "boolean",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "relation",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "multirelation",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "multiselect",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "person",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "textarea",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "email",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "url",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "text",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "number",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "currency",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "date",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "datetime",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "select",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "boolean",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "relation",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "multirelation",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "multiselect",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "person",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "textarea",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "email",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "url",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "text",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "number",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "currency",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "date",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "datetime",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "select",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "boolean",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "relation",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "multirelation",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "multiselect",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "person",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "textarea",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "email",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "url",
+      "width": 768,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "text",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "number",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "currency",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "date",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "datetime",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "select",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "boolean",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "relation",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "multirelation",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "multiselect",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "person",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "textarea",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "email",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "table",
+      "type": "url",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "text",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "number",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "currency",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "date",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "datetime",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "select",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "boolean",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "relation",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "multirelation",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "multiselect",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "person",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "textarea",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "email",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "drawer",
+      "type": "url",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "text",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "number",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "currency",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "date",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "datetime",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "select",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "boolean",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "relation",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "multirelation",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "multiselect",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "person",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "textarea",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "email",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    },
+    {
+      "mode": "detail",
+      "type": "url",
+      "width": 1440,
+      "overlay": true,
+      "padding": true
+    }
+  ],
+  "source": [
+    {
+      "width": 390,
+      "baseline": {
+        "padding": "18px",
+        "font": "26px"
+      }
+    },
+    {
+      "width": 768,
+      "baseline": {
+        "padding": "22px 30px",
+        "font": "30px"
+      }
+    },
+    {
+      "width": 1440,
+      "baseline": {
+        "padding": "22px 30px",
+        "font": "30px"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50&cursor=page-2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=running_class&subject_id=00000000-0000-4000-8000-000000000300&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=running_class&subject_id=00000000-0000-4000-8000-000000000300&query=&limit=50&cursor=page-2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/student-visits",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&startDate=2026-09-25&endDate=2026-10-25&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/payroll/periods",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50&cursor=page-2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=running_class&subject_id=00000000-0000-4000-8000-000000000300&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=running_class&subject_id=00000000-0000-4000-8000-000000000300&query=&limit=50&cursor=page-2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/student-visits",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&startDate=2026-09-25&endDate=2026-10-25&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/payroll/periods",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50&cursor=page-2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=running_class&subject_id=00000000-0000-4000-8000-000000000300&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=running_class&subject_id=00000000-0000-4000-8000-000000000300&query=&limit=50&cursor=page-2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/student-visits",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&startDate=2026-09-25&endDate=2026-10-25&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/payroll/periods",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/audit/subject",
+      "query": "?subject_type=student_profile&subject_id=00000000-0000-4000-8000-000000000001&query=&limit=50"
+    }
+  ],
+  "errors": []
+}

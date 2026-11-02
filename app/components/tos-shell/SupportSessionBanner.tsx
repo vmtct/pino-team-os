@@ -55,7 +55,9 @@ export function SupportSessionBanner() {
     } finally {
       const backOffice = window.location.hostname === "tos.pinohouse.art"
         ? "https://bo.pinohouse.art/bo/staff"
-        : "/bo/staff";
+        : window.location.hostname === "tos.staging.pinohouse.art"
+          ? "https://bo.staging.pinohouse.art/bo/staff"
+          : "/bo/staff";
       window.location.replace(backOffice);
     }
   }

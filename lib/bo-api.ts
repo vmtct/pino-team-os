@@ -19,7 +19,7 @@ import type {
   BoLearnerSubscription,
   BoParentSearchResult,
   BoStudentIntakeVoidResult,
-  BoSubscriptionProjectedCompletion,
+  BoSubscriptionProjectedCompletion, BoSubscriptionDirectoryPage,
   BoBillSummary,
   BoPaymentMethod,
   BoPaymentTransaction,
@@ -69,6 +69,7 @@ import type {
   BoStaffRegistrationRequest,
   BoStaffProfile,
   BoStaffPrivateData,
+  BoStaffCompensationEntry,
   BoStaffPinoriaProjection,
   BoStaffProfilePatch,
   BoStaffRecord,
@@ -88,8 +89,9 @@ import type {
 import type { BoAccessAuditEvent, BoAccessPermission, BoAccessRoleDetail, BoAccessSystemUser } from "./bo-access-model";
 import type { BoDutyExceptionReview, BoDutyExceptionRecord } from "./bo-workforce-duty-exception";
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
-import type { StaffQualification, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
+import type { StaffQualification, TrainingAssignmentBrowsePage, TrainingAssignmentBrowseSort, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
+import { auditQueryString, type BoSubjectAuditQuery, type BoSubjectAuditPage } from "./bo-subject-history";
 import { recoverInvalidStaffPasswordSession } from "./staff-session-recovery";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
 import { syllabusWorksheetPreviewUrl, uploadSyllabusWorksheetMedia } from "./bo-syllabus-media-client";
@@ -149,6 +151,16 @@ export type BoPancakeChannel = {
   updatedAt: string;
   version: number;
 };
+
+async function parseBoJson<T>(response: Response, fallback: string): Promise<T> {
+  const text = await response.text();
+  try { return JSON.parse(text) as T; }
+  catch {
+    if (response.status === 401 && typeof window !== "undefined") void recoverInvalidStaffPasswordSession();
+    throw new BoApiError(response.status, fallback, response.headers.get("x-request-id"), false);
+  }
+}
+
 export type BoAcquisitionIntent = {
   id: string;
   leadId: string;
@@ -170,11 +182,52 @@ export type BoAcquisitionIntent = {
   pancakeConversations?: BoPancakeConversation[];
 };
 
-async function read<T>(path: string): Promise<T[]> {
-  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
-  const body = await response.json() as { data?: T[]; error?: { message?: string; requestId?: string } };
+async function read<T>(path: string, fetcher: typeof fetch = fetch): Promise<T[]> {
+  const response = await fetcher(`/api/bo/${path}`, { cache: "no-store" });
+  const body = await parseBoJson<{ data?: T[]; error?: { message?: string; requestId?: string } }>(response, "Back Office returned an invalid response.");
   if (!response.ok || !body.data) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
+}
+
+export type BoAccessAuditPage = {
+  events: BoAccessAuditEvent[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    page: number;
+    pageCount: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+  };
+};
+
+async function readAccessAuditPage(path: string): Promise<BoAccessAuditPage> {
+  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
+  const body = await parseBoJson<{
+    data?: BoAccessAuditEvent[];
+    page?: BoAccessAuditPage["page"];
+    error?: { message?: string; requestId?: string };
+  }>(response, "Back Office returned an invalid response.");
+  if (!response.ok || !body.data || !body.page) throw apiError(response, body, "Access audit could not be loaded.");
+  return { events: body.data, page: body.page };
+}
+
+export function trainingAssignmentsPagePath(input: { limit: number; offset: number; query?: string; status?: string; staffMemberId?: string; sort?: TrainingAssignmentBrowseSort; direction?: "asc" | "desc" }): string {
+  const params = new URLSearchParams({ limit: String(input.limit), offset: String(input.offset) });
+  if (input.query?.trim()) params.set("query", input.query.trim());
+  if (input.status?.trim()) params.set("status", input.status.trim());
+  if (input.staffMemberId?.trim()) params.set("staffMemberId", input.staffMemberId.trim());
+  if (input.sort) params.set("sort", input.sort);
+  if (input.direction) params.set("direction", input.direction);
+  return `workforce/training/assignments?${params.toString()}`;
+}
+
+export function accessAuditPagePath(input: { limit: number; offset: number; query?: string; outcome?: string }): string {
+  const params = new URLSearchParams({ limit: String(input.limit), offset: String(input.offset) });
+  if (input.query?.trim()) params.set("query", input.query.trim());
+  if (input.outcome?.trim()) params.set("outcome", input.outcome.trim());
+  return `access/audit?${params.toString()}`;
 }
 
 async function readAllPages<T>(pathForCursor: (cursor: string | null) => string): Promise<T[]> {
@@ -186,23 +239,23 @@ async function readAllPages<T>(pathForCursor: (cursor: string | null) => string)
       if (seen.has(cursor)) throw new BoApiError(502, "Back Office pagination cursor repeated.", null);
       seen.add(cursor);
     }
-    const response = await fetch(`/api/bo/${pathForCursor(cursor)}`, { cache: "no-store" });
-    const body = await response.json() as {
+    const response: Response = await fetch(`/api/bo/${pathForCursor(cursor)}`, { cache: "no-store" });
+    const body: { data?: T[]; page?: { nextCursor?: string | null }; error?: { message?: string; requestId?: string } } = await parseBoJson<{
       data?: T[];
       page?: { nextCursor?: string | null };
       error?: { message?: string; requestId?: string };
-    };
+    }>(response, "Back Office returned an invalid response.");
     if (!response.ok || !body.data) throw apiError(response, body, "Back Office paged data could not be loaded.");
     items.push(...body.data);
-    const nextCursor = body.page?.nextCursor ?? null;
+    const nextCursor: string | null = body.page?.nextCursor ?? null;
     if (!nextCursor) return items;
     cursor = nextCursor;
   }
 }
 
-async function readOne<T>(path: string): Promise<T> {
-  const response = await fetch(`/api/bo/${path}`, { cache: "no-store" });
-  const body = await response.json() as { data?: T; error?: { message?: string; requestId?: string } };
+async function readOne<T>(path: string, fetcher: typeof fetch = fetch): Promise<T> {
+  const response = await fetcher(`/api/bo/${path}`, { cache: "no-store" });
+  const body = await parseBoJson<{ data?: T; error?: { message?: string; requestId?: string } }>(response, "Back Office returned an invalid response.");
   if (!response.ok || body.data === undefined) throw apiError(response, body, "Back Office data could not be loaded.");
   return body.data;
 }
@@ -262,20 +315,33 @@ type AccessAssignmentCommand = {
 };
 
 export const boApi = {
+  subjectHistory: (input: BoSubjectAuditQuery) => readOne<BoSubjectAuditPage>("audit/subject?" + auditQueryString(input)),
+  sessionRoster: (sessionId: string) => readOne<import("./tos-learning-api").SessionRoster>(`sessions/${encodeURIComponent(sessionId)}/roster`),
   context: () => readOne<BoContext>("context"),
   calendarScope: async () => {
     const state = await readOne<BoScopeBootstrap>("delivery/calendar-scope");
-    return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
+    return { centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })), paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })), classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: state.centers.find((center) => center.id === item.centerId)?.timeZone ?? "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })) };
   },
   scopeCatalog: async () => {
-    const state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
+    let state: BoScopeBootstrap;
+    try {
+      state = await readOne<BoScopeBootstrap>("delivery/bootstrap-state");
+    } catch (cause) {
+      // Founder continues using the canonical full bootstrap. A Center Manager
+      // may retry only within a single Center proven by Workforce Core.
+      if (!(cause instanceof BoApiError) || cause.status !== 403) throw cause;
+      const planning = await readOne<BoWorkforcePlanningBootstrap>("workforce/planning/bootstrap");
+      const centers = planning.centers.filter((center) => center.status === "active");
+      if (centers.length !== 1) throw cause; // Never guess which Center to expose.
+      state = await readOne<BoScopeBootstrap>(`delivery/bootstrap-state?centerId=${encodeURIComponent(centers[0]!.id)}`);
+    }
     return {
       centers: state.centers.map((item): BoCenter => ({ id: item.id, key: item.centerKey, displayName: item.displayName, timeZone: item.timeZone, status: item.status })),
       paths: state.paths.map((item): BoPathProgram => ({ id: item.id, code: item.code, displayName: item.displayName, status: item.status })),
-      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
+      classes: state.runningClasses.map((item): BoRunningClass => ({ id: item.id, centerId: item.centerId, name: item.operationalName, pathProgramId: item.pathProgramId, timezone: state.centers.find((center) => center.id === item.centerId)?.timeZone ?? "Asia/Ho_Chi_Minh", recurrenceWeekdays: [item.weekdayIso], startLocalTime: item.windowStartsLocal, endLocalTime: item.windowEndsLocal, defaultCapacity: item.optimalConcurrentCapacity, deliveryTopology: item.deliveryTopology, defaultParticipationMinutes: item.defaultParticipationMinutes, status: item.status })),
     };
   },
-  centers: () => read<BoCenter>("centers"),
+  centers: (fetcher?: typeof fetch) => read<BoCenter>("centers", fetcher),
   pathPrograms: () => read<BoPathProgram>("path-programs"),
   runningClasses: () => read<BoRunningClass>("running-classes"),
   calendarExclusions: (centerId: string, status?: "ACTIVE" | "ARCHIVED") => read<BoCalendarExclusion>(`delivery/calendar-exclusions?centerId=${encodeURIComponent(centerId)}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
@@ -300,7 +366,7 @@ export const boApi = {
   replacePracticePages: (versionId: string, expectedRevision: number, pages: Array<{ sheetMediaAssetId: string; worksheetMediaAssetId: string | null }>) => write<BoPracticeResourceVersion>(`practice/versions/${encodeURIComponent(versionId)}/pages`, { expectedRevision, pages }, crypto.randomUUID()),
   publishPracticeVersion: (versionId: string, expectedRevision: number) => write<BoPracticeResourceDetail>(`practice/versions/${encodeURIComponent(versionId)}/publish`, { expectedRevision }, crypto.randomUUID()),
   uploadPracticeMedia,
-  syllabusWorksheetMedia: () => read<BoSyllabusWorksheetMedia>("learning/syllabi/media"),
+  syllabusWorksheetMedia: (pathProgramId?: string) => read<BoSyllabusWorksheetMedia>(`learning/syllabi/media${pathProgramId ? `?pathProgramId=${encodeURIComponent(pathProgramId)}` : ""}`),
   uploadSyllabusWorksheetMedia,
   syllabusWorksheetPreviewUrl,
   learningSyllabusOwners: () => readOne<BoLearningSyllabusOwnerCatalog>("learning/syllabi/owners"),
@@ -344,6 +410,7 @@ export const boApi = {
   voidStudentIntake: (studentId: string, body: { expectedStudentVersion: number; reason: string }, idempotencyKey: string) =>
     write<BoStudentIntakeVoidResult>("student-intakes/" + encodeURIComponent(studentId) + "/void", body, idempotencyKey),
   learnerLifecycle: (studentId: string) => readOne<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle`),
+  updateStudentProfile: (studentId: string, body: { displayName: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED"; expectedVersion: number }) => command<{ id: string; displayName: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED"; version: number }>("PATCH", `students/${encodeURIComponent(studentId)}`, body),
   learnerPinoria: (studentId: string) => readOne<BoStudentPinoriaSummary>(`students/${encodeURIComponent(studentId)}/pinoria`),
   pinoriaOnboardingSets: () => read<BoPinoriaOnboardingStarterSet>("pinoria/onboarding/sets"),
   studentPinoriaOnboarding: (studentId: string, centerId?: string) => readOne<BoPinoriaOnboardingStatus>(`pinoria/onboarding/students/${encodeURIComponent(studentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
@@ -357,7 +424,8 @@ export const boApi = {
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
   billingProductPlans: () => read<BoProductPlan>("billing/product-plans"),
   updateBillingProductPlan: (productPlanId: string, body: { listPriceMinor: number; enabled: boolean; badge: BoProductPlanBadge; expectedVersion: number }) => write<BoProductPlan>(`billing/product-plans/${encodeURIComponent(productPlanId)}/configure`, body, crypto.randomUUID()),
-  createBillingSale: (body: { payerParentUserId: string; studentProfileId: string; pathProgramId: string; centerId: string; productPlanId: string; contractualStartsOn: string; itemDiscountMinor?: number; billDiscountMinor?: number; dueOn?: string; campaignReference?: string }, idempotencyKey: string) => write<BoSaleResult>("billing/sales", body, idempotencyKey),
+  activateSubscription: (subscriptionId:string, body:{serviceStartsOn:string;expectedVersion:number}, key:string) => write<unknown>("subscriptions/"+encodeURIComponent(subscriptionId)+"/activate",body,key),
+  createBillingSale: (body: { payerParentUserId: string; studentProfileId: string; pathProgramId: string; centerId: string; productPlanId: string; contractualStartsOn: string; contractualEndsOn?:string|null; deferActivation?:boolean; itemDiscountMinor?: number; billDiscountMinor?: number; dueOn?: string; campaignReference?: string }, idempotencyKey: string) => write<BoSaleResult>("billing/sales", body, idempotencyKey),
   billingBill: (billId: string) => readOne<BoBillSummary>(`billing/bills/${encodeURIComponent(billId)}`),
   recordBillingTransaction: (billId: string, body: { transactionKind: BoPaymentTransactionKind; amountMinor: number; occurredAt: string; method: BoPaymentMethod; reference?: string; note?: string }, idempotencyKey: string) => write<BoPaymentTransaction>(`billing/bills/${encodeURIComponent(billId)}/transactions`, body, idempotencyKey),
   voidBillingTransaction: (transactionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<BoPaymentTransaction>(`billing/transactions/${encodeURIComponent(transactionId)}/void`, body, idempotencyKey),
@@ -377,6 +445,19 @@ export const boApi = {
   fulfillSpecialtyPhysicalReward: (rewardGrantId:string) => write<BoSpecialtyPhysicalRewardGrant>(`specialty/physical-rewards/${encodeURIComponent(rewardGrantId)}/fulfill`,{},crypto.randomUUID()),
   createSubscription: (body: { studentProfileId: string; pathProgramId: string; serviceStartsOn: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>("subscriptions", body, idempotencyKey),
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, idempotencyKey),
+  // PAP-1035 — canonical Core membership API. No client-side placement truth.
+  subscriptionById: (subscriptionId:string) => readOne<import("./bo-model").BoLearnerSubscription>(`subscriptions/${encodeURIComponent(subscriptionId)}`),
+  subscriptionEnrollments: (subscriptionId:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentRecord[]>(`subscriptions/${encodeURIComponent(subscriptionId)}/enrollments`),
+  subscriptionPlacement: (subscriptionId:string, targetLocalDate:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentPlacementState>(`subscriptions/${encodeURIComponent(subscriptionId)}/placement?targetLocalDate=${encodeURIComponent(targetLocalDate)}`),
+  enrollmentCapacity: (input:{runningClassId:string;targetLocalDate:string;subscriptionId?:string;plannedEntryLocalTime?:string|null;plannedDurationMinutes?:number|null}) => {
+    const qs=new URLSearchParams();
+    for(const [k,v] of Object.entries(input))if(v!==undefined&&v!==null)qs.set(k,String(v));
+    return readOne<import("./bo-enrollment-contract").BoEnrollmentCapacity>(`enrollments/capacity?${qs.toString()}`);
+  },
+  enrollmentById: (enrollmentId:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentRecord>(`enrollments/${encodeURIComponent(enrollmentId)}`),
+  transferEnrollment: (enrollmentId:string, body:{destinationRunningClassId:string;transferLocalDate:string;plannedEntryLocalTime?:string|null;plannedDurationMinutes?:number|null;commandEffectiveLocalDate:string;policyEffectiveAt:string;reason:string},idempotencyKey:string) =>
+    write<unknown>(`enrollments/${encodeURIComponent(enrollmentId)}/transfer`,body,idempotencyKey),
+  subscriptionDirectory: (filters: {query?:string;lifecycle?:string;pathProgramId?:string;centerId?:string;limit?:number;beforeCreatedAt?:string;beforeSubscriptionId?:string}={}) => { const query = new URLSearchParams(); for (const [key,value] of Object.entries(filters)) if(value!==undefined&&value!==null&&value!=="")query.set(key,String(value)); return readOne<BoSubscriptionDirectoryPage>("subscriptions?"+query.toString()); },
   subscriptionProjectedCompletion: (subscriptionId: string, effectiveAt: string) => readOne<BoSubscriptionProjectedCompletion>(`subscriptions/${encodeURIComponent(subscriptionId)}/projected-completion?effectiveAt=${encodeURIComponent(effectiveAt)}`),
   cancelSubscription: (subscriptionId: string, body: { expectedVersion: number; reason: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, body, idempotencyKey),
   neutralizeSubscription: (subscriptionId: string, body: { expectedVersion: number; releaseLocalDate: string; reason: string }, idempotencyKey: string) => write<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[]; endedEnrollmentIds: string[]; releasedEnrollmentCount: number; releaseLocalDate: string }>(`subscriptions/${encodeURIComponent(subscriptionId)}/neutralize`, body, idempotencyKey),
@@ -419,12 +500,14 @@ export const boApi = {
   admitOpenStudioOwner: (body: { passId: string; listingId: string; studentProfileId: string; effectiveAt: string }) => write<unknown>("open-studio/admission", { ...body, participantMode: "OWNER" }, crypto.randomUUID()),
   learningOwner: (sessionId: string) => readOne<BoSessionLearningOwnerProjection>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`),
   assignLearningOwner: (sessionId: string, command: BoSessionLearningOwnerCommand, idempotencyKey: string) => write<BoSessionLearningOwner>(`sessions/${encodeURIComponent(sessionId)}/learning-owner`, command, idempotencyKey),
-  accessRoles: () => read<BoAccessRole>("access/roles"),
-  accessRole: (roleId: string) => readOne<BoAccessRoleDetail>(`access/roles/${encodeURIComponent(roleId)}`),
+  accessRoles: (fetcher?: typeof fetch) => read<BoAccessRole>("access/roles", fetcher),
+  accessRole: (roleId: string, fetcher?: typeof fetch) => readOne<BoAccessRoleDetail>(`access/roles/${encodeURIComponent(roleId)}`, fetcher),
   accessPermissions: () => read<BoAccessPermission>("access/permissions"),
   accessAudit: (limit = 100) => read<BoAccessAuditEvent>(`access/audit?limit=${encodeURIComponent(String(limit))}`),
-  accessUsers: () => read<BoAccessSystemUser>("access/users"),
+  accessAuditPage: (input: { limit: number; offset: number; query?: string; outcome?: string }) => readAccessAuditPage(accessAuditPagePath(input)),
+  accessUsers: (fetcher?: typeof fetch) => read<BoAccessSystemUser>("access/users", fetcher),
   trainingCatalog: () => read<TrainingModule>("workforce/training/catalog"),
+  trainingAssignmentsPage: (input: { limit: number; offset: number; query?: string; status?: string; staffMemberId?: string; sort?: TrainingAssignmentBrowseSort; direction?: "asc" | "desc" }) => readOne<TrainingAssignmentBrowsePage>(trainingAssignmentsPagePath(input)),
   trainingStaffAssignments: (staffMemberId: string) => read<TrainingAssignmentDetail>(`workforce/training/staff/${encodeURIComponent(staffMemberId)}`),
   createTrainingModule: (moduleKey: string, draft: TrainingDraftInput) => write<TrainingModule>("workforce/training/modules", { moduleKey, ...draft }, crypto.randomUUID()),
   saveTrainingDraft: (versionId: string, expectedRevision: number, draft: TrainingDraftInput) => write<TrainingModuleVersion>(`workforce/training/versions/${encodeURIComponent(versionId)}/draft`, { expectedRevision, ...draft }, crypto.randomUUID()),
@@ -442,9 +525,13 @@ export const boApi = {
   rejectStaffRegistration: (requestId: string, reason: string, idempotencyKey: string) => write<{ registrationRequestId: string; status: "REJECTED" }>(`workforce/staff-registration-requests/${encodeURIComponent(requestId)}/reject`, { reason }, idempotencyKey),
   staffRecord: (staffMemberId: string) => readOne<BoStaffProfile>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}`),
   staffPrivate: (staffMemberId: string, centerId?: string) => readOne<BoStaffPrivateData>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}/private${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`),
+  staffCompensation: (staffMemberId: string, centerId?: string) => readOne<BoStaffCompensationEntry[]>( "workforce/staff-records/" + encodeURIComponent(staffMemberId) + "/private/compensation" + (centerId ? "?centerId=" + encodeURIComponent(centerId) : "") ),
+  createStaffCompensation: (staffMemberId: string, body: {effectiveFrom:string;amountMinor:number;note:string|null;centerId?:string}) => write<BoStaffCompensationEntry>("workforce/staff-records/" + encodeURIComponent(staffMemberId) + "/private/compensation",body,crypto.randomUUID()),
+  correctStaffCompensation: (staffMemberId: string, entryId: string, body: {amountMinor:number;note:string|null;expectedVersion:number;centerId?:string}) => write<BoStaffCompensationEntry>("workforce/staff-records/" + encodeURIComponent(staffMemberId) + "/private/compensation/" + encodeURIComponent(entryId),body,crypto.randomUUID()),
   staffPrivateDocumentUrl: (staffMemberId: string, documentId: string, centerId?: string) => `/api/bo/workforce/staff-records/${encodeURIComponent(staffMemberId)}/private/documents/${encodeURIComponent(documentId)}${centerId ? `?centerId=${encodeURIComponent(centerId)}` : ""}`,
   staffPinoria: (staffMemberId: string) => readOne<BoStaffPinoriaProjection>(`workforce/staff-records/${encodeURIComponent(staffMemberId)}/pinoria`),
   workforcePlanningBootstrap: () => readOne<BoWorkforcePlanningBootstrap>("workforce/planning/bootstrap"),
+  createWorkforceShiftPlan: (body: { centerId: string; termWeekId: string; expectedVersion: number; reason: string; open: boolean }, key: string) => write<BoWorkforceWindowDecision>("workforce/planning/shift-plan", body, key),
   workforceShiftTemplates: (centerId: string) => read<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates?centerId=${encodeURIComponent(centerId)}`),
   createWorkforceShiftTemplate: (body: { centerId: string; code: string; displayLabel: string; startLocalTime: string; endLocalTime: string }, idempotencyKey: string) => write<BoWorkforceShiftTemplate>("workforce/planning/shift-templates", body, idempotencyKey),
   setWorkforceShiftTemplateStatus: (templateId: string, centerId: string, status: "ACTIVE" | "INACTIVE", idempotencyKey: string) => write<BoWorkforceShiftTemplate>(`workforce/planning/shift-templates/${encodeURIComponent(templateId)}/status`, { centerId, status }, idempotencyKey),
@@ -462,7 +549,7 @@ export const boApi = {
   approveWorkforceCheckInException: (requestId: string, expectedVersion: number, idempotencyKey: string) => write<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}/approve`, { expectedVersion }, idempotencyKey),
   declineWorkforceCheckInException: (requestId: string, expectedVersion: number, reason: string | null, idempotencyKey: string) => write<BoUnscheduledCheckInRequest>(`workforce/planning/check-in-exceptions/${encodeURIComponent(requestId)}/decline`, { expectedVersion, reason }, idempotencyKey),
   timekeepingCenters: () => read<{ id: string; displayLabel: string; timeZone: string }>("workforce/timekeeping/centers"),
-  timekeeping: (params: { centerId: string; workDate?: string; startDate?: string; endDate?: string; staffMemberId?: string; status?: "OPEN" | "CLOSED"; limit?: number; cursor?: string }) => { const query = new URLSearchParams(); Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); }); return readOne<BoTimekeepingPage>(`workforce/timekeeping?${query.toString()}`); },
+  timekeeping: (params: { centerId: string; workDate?: string; startDate?: string; endDate?: string; staffMemberId?: string; status?: "OPEN" | "CLOSED"; limit?: number; offset?: number; cursor?: string }) => { const query = new URLSearchParams(); Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); }); return readOne<BoTimekeepingPage>(`workforce/timekeeping?${query.toString()}`); },
   correctTimekeeping: (sessionId: string, body: { correctionType: "CHECK_IN_AT" | "CHECK_OUT_AT"; correctedAt: string; reason: string; expectedLatestCorrectionId: string | null }, idempotencyKey: string) => write<BoTimekeepingCorrectionResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/corrections`, body, idempotencyKey),
   resolveMissedCheckout: (sessionId: string, body: { checkOutAt: string; reason: string }, idempotencyKey: string) => write<BoTimekeepingMissedCheckoutResult>(`workforce/timekeeping/${encodeURIComponent(sessionId)}/resolve-missed-checkout`, body, idempotencyKey),
   dutyExceptions: (centerId: string) => readAllPages<BoDutyExceptionReview>((cursor) => `workforce/duty/checkout-exceptions?centerId=${encodeURIComponent(centerId)}&limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
@@ -473,10 +560,14 @@ export const boApi = {
     workDate: string;
     shiftTemplateId: string;
     timeBasis?: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+    coverageMode?: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
+    customStartLocal?: string;
+    customEndLocal?: string;
     termWeekId?: string;
     replacesAssignmentId?: string;
     roles: Array<
-      | { roleType: "FRONT_DESK" }
+      | { roleType: "FRONT_DESK" | "SHIFT_LEADER" }
+      | { roleType: "TEACHER" | "TEACHING_ASSISTANT"; runningClassId: string }
       | {
           roleType: "TEACHER";
           sessionId: string;

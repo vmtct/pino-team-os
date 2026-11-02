@@ -1,0 +1,38 @@
+name: PAP-1080 TDD Reference Atlas
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/ho/system/tdd-reference/**'
+      - 'e2e/pap1080-tdd-reference.spec.ts'
+      - 'e2e/fixtures/pap1080-tdd-reference.tsx'
+      - 'public/ho-authority-source/ho-scoped.css'
+      - 'app/ho/ho-theme.css'
+      - 'scripts/build-ho-authority.mjs'
+      - '.github/workflows/tdd-reference-atlas.yml'
+permissions:
+  contents: read
+jobs:
+  atlas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: node --import tsx --test lib/pap1080-tdd-reference.test.ts lib/ho-routes.test.ts lib/host-boundary.test.ts
+      - run: npx playwright test e2e/pap1080-tdd-reference.spec.ts --workers=2 --retries=0 --reporter=list
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pap1080-atlas-candidate
+          path: artifacts/pap1080-atlas/
+          retention-days: 14
+          if-no-files-found: warn

@@ -67,6 +67,20 @@ export type TrainingSelfProjection = {
   qualifications: StaffQualification[];
 };
 
+export type TrainingAssignmentBrowseSort = "staff" | "training" | "status" | "assignedAt" | "updatedAt";
+export type TrainingAssignmentBrowseItem = {
+  assignment: TrainingAssignment;
+  staffDisplayLabel: string;
+  moduleKey: string;
+  version: { id: string; versionNumber: number; title: string; requiresSignoff: boolean; assessmentThreshold: number | null };
+  latestAssessment: { score: number; passed: boolean; attemptedAt: string } | null;
+  signOff: { signedOffByUserId: string; note: string | null; signedOffAt: string } | null;
+};
+export type TrainingAssignmentBrowsePage = {
+  items: TrainingAssignmentBrowseItem[];
+  page: { limit: number; offset: number; total: number; page: number; pageCount: number; hasPrevious: boolean; hasNext: boolean };
+};
+
 export type TrainingDraftInput = {
   title: string;
   summary?: string | null;

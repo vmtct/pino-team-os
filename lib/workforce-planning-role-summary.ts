@@ -4,10 +4,12 @@ export function assignmentRoleSummary(data: BoWorkforceWeeklyPlanning, assignmen
   const roles = data.roleAssignments.filter((role) =>
     role.shiftAssignmentId === assignment.id && role.status === "ACTIVE"
   );
-  if (!roles.length) return "Chưa phân công vai trò";
+  const runningRoles = (data.runningClassResponsibilities ?? []).filter((role) => role.shiftAssignmentId === assignment.id && role.status === "ACTIVE");
+  if (!roles.length && !runningRoles.length) return "Chưa phân công vai trò";
 
   const parts: string[] = [];
   if (roles.some((role) => role.roleType === "FRONT_DESK")) parts.push("FD");
+  if (roles.some((role) => role.roleType === "SHIFT_LEADER")) parts.push("Shift Leader");
   const teachers = roles.filter((role) => role.roleType === "TEACHER");
   if (teachers.length === 1) {
     const session = data.sessions.find((item) => item.id === teachers[0]!.targetId);
@@ -15,6 +17,10 @@ export function assignmentRoleSummary(data: BoWorkforceWeeklyPlanning, assignmen
   } else if (teachers.length > 1) {
     parts.push(`TE ×${teachers.length}`);
   }
+  const classTeachers = runningRoles.filter((role) => role.roleType === "TEACHER");
+  const classAssistants = runningRoles.filter((role) => role.roleType === "TEACHING_ASSISTANT");
+  if (classTeachers.length) parts.push(`TE · RunningClass ×${classTeachers.length}`);
+  if (classAssistants.length) parts.push(`TA · RunningClass ×${classAssistants.length}`);
   return parts.join(" · ");
 }
 

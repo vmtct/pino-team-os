@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sourceRun": 41253524859,
+  "sourceSha": "b869f451eaf91277fc0b9a5fb124f65cd18cdf39",
+  "artifactId": 13062402017,
+  "artifactName": "pap1073-g3-geometry",
+  "founderApprovalDate": "2026-11-01",
+  "approvalIssue": "PAP-1073",
+  "approvalComment": "19586",
+  "approvalScope": "Only BO Table 1024/768; original and HO successors immutable; no merge or live Staging acceptance",
+  "files": [
+    {
+      "path": "bo/1024/table.png",
+      "sha256": "02c3417d55792e373ed7f2a6bdad0f669c6eb255bcf4353b3bd7dcf08d6c8109",
+      "bytes": 44646
+    },
+    {
+      "path": "bo/768/table.png",
+      "sha256": "bbf2f731523181e43fa9983e7995af1ba286074c58cbb04afa5d527788bf1596",
+      "bytes": 43859
+    }
+  ]
+}

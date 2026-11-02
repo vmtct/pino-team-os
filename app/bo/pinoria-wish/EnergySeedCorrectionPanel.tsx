@@ -10,7 +10,7 @@ type Envelope<T>={data?:T;error?:{message?:string}};
 
 async function request<T>(path:string,init?:RequestInit){
   const response=await fetch(`/api/founder/${path}`,{cache:"no-store",...init});
-  const json=await response.json() as Envelope<T>;
+  const text=await response.text();let json:Envelope<T>;try{json=JSON.parse(text) as Envelope<T>;}catch{throw new Error("Energy Seed correction returned an invalid response");}
   if(!response.ok||!json.data)throw new Error(json.error?.message??"Resource correction operation failed");
   return json.data;
 }

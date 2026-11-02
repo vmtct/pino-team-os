@@ -1,51 +1,262 @@
-name: Candidate Team staging deploy
+name: Team Staging CD (Guarded)
 on:
   workflow_dispatch:
     inputs:
-      candidate_id: {required: true, type: string}
-      manifest_hash: {required: true, type: string}
-      team_sha: {required: true, type: string}
-      core_version_id: {required: true, type: string}
-permissions: {contents: read, actions: read}
-concurrency: {group: pino-team-staging-worker-mutation, cancel-in-progress: false}
+      source_sha:
+        description: Verified current main commit SHA
+        required: true
+        type: string
+      validation_run_id:
+        description: Successful main CI run for source_sha
+        required: true
+        type: string
+  workflow_run:
+    workflows: ["PR Validation"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: pino-team-staging-worker-mutation
+  cancel-in-progress: false
 jobs:
   deploy:
+    if: >-
+      github.repository == 'vmtct/pino-team-os' &&
+      (
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os'
+        ) ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env: {CF_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c}
+    timeout-minutes: 35
+    env:
+      SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source_sha || github.event.workflow_run.head_sha }}
+      ACCOUNT: 952c3c8a236f8e4cbcf6ee10b86ad70c
+      WORKER: pino-team-os-staging
     steps:
       - uses: actions/checkout@v4
-        with: {ref: "${{ inputs.team_sha }}", persist-credentials: false}
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
-        with: {node-version: 22, cache: npm}
-      - name: Validate immutable candidate authority
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Admit exact current main, successful push CI and staging-only artifact
         env:
-          GH_TOKEN: "${{ github.token }}"
-          TEAM_SHA: "${{ inputs.team_sha }}"
-          MANIFEST_HASH: "${{ inputs.manifest_hash }}"
+          GH_TOKEN: ${{ github.token }}
+          VALIDATION_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_run_id || github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          [[ "$TEAM_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$MANIFEST_HASH" =~ ^[0-9a-f]{64}$ ]]
-          [ "$(git rev-parse HEAD)" = "$TEAM_SHA" ]
-          grep -q '"name": "pino-team-os-staging"' wrangler.staging.jsonc
-          grep -q '"service": "pino-core-staging"' wrangler.staging.jsonc
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - run: npx opennextjs-cloudflare build
-      - name: Deploy staging only
-        env:
-          CLOUDFLARE_API_TOKEN: "${{ secrets.CF_API_TOKEN }}"
-          CLOUDFLARE_ACCOUNT_ID: "${{ env.CF_ACCOUNT_ID }}"
+          test "$(git rev-parse HEAD)" = "$SHA"
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          git merge-base --is-ancestor 93fde0193685cd465f4888c8cc0bc009252c7edd "$SHA"
+          # A dispatch can start while the main validation workflow's final dispatch job
+          # has not yet completed. Never admit a pending or failed CI run.
+          ci_admitted=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" > /tmp/validation.json
+            if jq -e --arg sha "$SHA" '.head_sha==$sha and .head_branch=="main" and (.event=="push" or .event=="workflow_dispatch") and .conclusion=="success" and .path==".github/workflows/pr-validation.yml"' /tmp/validation.json >/dev/null; then
+              ci_admitted=1
+              break
+            fi
+            if jq -e '.status=="completed"' /tmp/validation.json >/dev/null; then
+              echo "HOLD: main validation completed without success" >&2
+              exit 1
+            fi
+            if [ "$attempt" -lt 12 ]; then sleep 5; fi
+          done
+          test "$ci_admitted" = 1
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const c=require('./wrangler.ho-staging.json');
+          assert.equal(c.name,'pino-team-os-staging');
+          assert.equal(c.main,'worker.ho-staging.mjs');
+          assert.equal(c.keep_vars,false);
+          assert.equal(c.vars.APP_ENV,'staging');
+          assert.equal(c.vars.BO_UI_ONLY,'enabled');
+          assert.deepEqual(c.assets.run_worker_first,['/*']);
+          assert.ok(!c.routes && !c.route && !c.send_email && !c.d1_databases && !c.r2_buckets);
+          assert.ok(c.services.length>0 && c.services.every(s=>s.service==='pino-core-staging'));
+          assert.ok(Object.keys(c.vars).every(k=>!/BYPASS|INGRESS/.test(k)));
+          NODE
+      - run: npm ci --no-audit --no-fund
+      - name: Verify BO contract, typecheck, build and dry-run
         run: |
           set -euo pipefail
-          npx wrangler deploy -c wrangler.staging.jsonc --tag "candidate-${{ inputs.candidate_id }}" --message "candidate=${{ inputs.candidate_id }} manifest=${{ inputs.manifest_hash }} sha=${{ inputs.team_sha }} core=${{ inputs.core_version_id }}"
-          npx wrangler deployments list -c wrangler.staging.jsonc --json > deployment.json
-          version="$(jq -r '.[0].versions[]|select(.percentage==100)|.version_id' deployment.json)"
-          test -n "$version"
-          jq -n --arg c "${{ inputs.candidate_id }}" --arg m "${{ inputs.manifest_hash }}" --arg s "${{ inputs.team_sha }}" --arg v "$version" --arg cv "${{ inputs.core_version_id }}" --arg r "$GITHUB_RUN_ID" '{kind:"PINO_STAGING_RUNTIME_RECEIPT",runtime:"team",candidateId:$c,manifestHash:$m,sourceSha:$s,worker:"pino-team-os-staging",activeVersionId:$v,coreVersionId:$cv,runId:$r,result:"PASS",productionMutation:false}' | tee candidate-staging-receipt.json
-      - uses: actions/upload-artifact@v4
-        with: {name: candidate-staging-team-receipt, path: candidate-staging-receipt.json}
+          npm run bo:contract:check
+          npm run typecheck
+          npm run build
+          npx opennextjs-cloudflare build
+          test -s .open-next/worker.js
+          node scripts/pap659-package-provenance.mjs .next .open-next/assets
+          npx wrangler deploy --dry-run -c wrangler.ho-staging.json
+      - name: CAS release, boundary smoke and guarded rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_ACCOUNT_ID: 952c3c8a236f8e4cbcf6ee10b86ad70c
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts"
+          get() { curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$1/deployments?per_page=1"; }
+          active() { get "$1" | jq -er 'if .success and (.result.deployments[0].versions|length==1) and .result.deployments[0].versions[0].percentage==100 then .result.deployments[0].versions[0].version_id else error("ambiguous deployment") end'; }
+          # Pin live CAS within the serialized staging lane; fail closed on unsafe prior bindings.
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          PREVIOUS="$(active "$WORKER")"
+          CORE_VERSION="$(active pino-core-staging)"
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$PREVIOUS" > previous-version.json
+          jq -e '.success and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging"))' previous-version.json
+          test "$(active "$WORKER")" = "$PREVIOUS"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          get "$WORKER" > before.json
+          message="team-cd-guarded staging sha=$SHA run=$GITHUB_RUN_ID"
+          rollback() {
+            current="$(get "$WORKER")" || return 1
+            if jq -e --arg message "$message" '.result.deployments[0].annotations["workers/message"]==$message' <<<"$current" >/dev/null; then
+              jq -n --arg previous "$PREVIOUS" --arg sha "$SHA" '{strategy:"percentage",versions:[{version_id:$previous,percentage:100}],annotations:{"workers/message":("team-cd guarded rollback from sha="+$sha)}}' > rollback.json
+              curl -fsS --max-time 30 -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data-binary @rollback.json "$api/$WORKER/deployments" | jq -e .success
+              test "$(active "$WORKER")" = "$PREVIOUS"
+            elif [ "$(active "$WORKER")" != "$PREVIOUS" ]; then
+              echo 'Concurrent writer: refusing rollback' >&2
+              return 1
+            fi
+          }
+          trap 'result=$?; if [ "$result" -ne 0 ]; then rollback || echo "ROLLBACK_HOLD" >&2; fi; exit "$result"' EXIT
+          test "$(gh api repos/$GITHUB_REPOSITORY/commits/main --jq .sha)" = "$SHA"
+          test "$(active "$WORKER")" = "$PREVIOUS"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          npx wrangler deploy -c wrangler.ho-staging.json --tag "team-cd-${SHA:0:12}" --message "$message"
+          get "$WORKER" > after.json
+          jq -e --arg message "$message" '.success and .result.deployments[0].annotations["workers/message"]==$message' after.json
+          deployed="$(active "$WORKER")"
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$WORKER/versions/$deployed" > version.json
+          jq -e '.success and ([.result.resources.bindings[]|select(.type=="service")]|length>0 and all(.service=="pino-core-staging")) and ([.result.resources.bindings[]|select(.type=="send_email" or (.name|test("BYPASS|INGRESS")))]|length==0) and ([.result.resources.bindings[]|select(.name=="APP_ENV" and .text=="staging")]|length==1)' version.json
+          origin='https://pino-team-os-staging.minhtri-van42.workers.dev'
+          # PAP-938 staging V4 stays protected; diagnostic route remains unavailable.
+          # Newly promoted Workers can take a moment to serve from each edge location.
+          # Readiness retry is bounded; the exact protected-route 307 remains mandatory.
+          expect_protected_route_ready() {
+            local status attempt
+            for attempt in 1 2 3 4 5; do
+              status="$(curl -sS --max-time 20 -o /tmp/tos-v4-login -w '%{http_code}' "$origin/tos-v4")" || status=000
+              echo "SMOKE_TOS_V4_ANON_HTTP=$status (expected=307 attempt=$attempt/5)"
+              if [ "$status" = 307 ]; then return 0; fi
+              if [ "$attempt" -lt 5 ]; then sleep 2; fi
+            done
+            echo "SMOKE_TOS_V4_ANON_FAIL: expected 307, got $status after 5 attempts" >&2
+            return 1
+          }
+          expect_protected_route_ready
+          # PAP-1050: verify live protected deep-link resolves to canonical module.
+          # The authenticated UI-marker E2E remains a separate Founder acceptance gate.
+          # Cloudflare edge propagation is eventually consistent. Retry only the
+          # exact expected canonical URL; a generic 307-to-login or /bo is FAIL.
+          alias_ready=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            alias_status="$(curl -sS --max-time 20 -D /tmp/bo-subscription-alias-headers -o /tmp/bo-subscription-alias-body -w '%{http_code}' 'https://bo.staging.pinohouse.art/bo/subscriptions')" || alias_status=000
+            alias_location="$(grep -i '^location:' /tmp/bo-subscription-alias-headers | tail -1 | tr -d '\r' | sed -E 's/^[Ll]ocation:[[:space:]]*//' || true)"
+            echo "PAP1050_ALIAS_ATTEMPT=$attempt status=$alias_status location=$alias_location"
+            if [ "$alias_status" = 307 ] && [[ "$alias_location" == "https://bo.staging.pinohouse.art/bo?module=subscriptions" ]]; then
+              alias_ready=1
+              break
+            fi
+            if [ "$attempt" -lt 10 ]; then sleep 3; fi
+          done
+          test "$alias_ready" = 1
+          canonical_status="$(curl -sS --max-time 20 -o /tmp/bo-subscription-anon -w '%{http_code}' 'https://bo.staging.pinohouse.art/bo?module=subscriptions')"
+          echo "PAP1050_CANONICAL_ANON_HTTP=$canonical_status (expected=307 login)"
+          test "$canonical_status" = 307
+          echo 'PAP1050_BO_STAGING_ROUTE_PARITY_PASS'
+          # PAP-1035: edge and BO read facade must agree on each protected GET.
+          # Anonymous 401 JSON proves the request reaches BFF authentication;
+          # an edge 404 text/plain (the original incident) must roll back.
+          s3_id='019d9881-1025-7000-8000-000000001244'
+          s3_cls='019d9881-1025-7000-8000-000000001243'
+          for suffix in "subscriptions/$s3_id" "subscriptions/$s3_id/enrollments" "subscriptions/$s3_id/placement?targetLocalDate=2026-10-27" "enrollments/$s3_cls" "enrollments/capacity?runningClassId=$s3_cls&targetLocalDate=2026-10-27"; do
+            s3_ok=0
+            for attempt in 1 2 3 4 5 6; do
+              s3_status="$(curl -sS --max-time 20 -D /tmp/pap1035-s3-headers -o /tmp/pap1035-s3-body -w '%{http_code}' "https://bo.staging.pinohouse.art/api/bo/$suffix")" || s3_status=000
+              s3_type="$(grep -i '^content-type:' /tmp/pap1035-s3-headers | tail -1 | tr -d '\r' || true)"
+              echo "PAP1035_S3_READ attempt=$attempt status=$s3_status type=$s3_type path=${suffix%%\?*}"
+              if [ "$s3_status" = 401 ] && [[ "$s3_type" == *application/json* ]]; then s3_ok=1; break; fi
+              if [ "$attempt" -lt 6 ]; then sleep 3; fi
+            done
+            test "$s3_ok" = 1
+          done
+          echo 'PAP1035_S3_READ_FENCE_PASS'
+          status="$(curl -sS --max-time 20 -o /tmp/tos-v4-anon -w '%{http_code}' "$origin/api/workforce/context")"
+          echo "SMOKE_TOS_CONTEXT_ANON_HTTP=$status (expected=401)"
+          test "$status" = 401
+          status="$(curl -sS --max-time 20 -o /tmp/tos-v4-prototype -w '%{http_code}' "$origin/prototype/tos-vnext-integration")"
+          echo "SMOKE_PROTOTYPE_DENIED_HTTP=$status (expected=404)"
+          test "$status" = 404
+          for route in workforce-shift-plans workforce-availability workforce-assignments; do
 
-# project: PLT-RELEASE-STAGING-PREPROD-V1
+            code="$(curl -sS --max-time 20 -o /tmp/pap901-login -w '%{http_code}' "$origin/bo/$route")"
+            echo "SMOKE_BO_ROUTE=$route HTTP=$code (expected=307)"
+            test "$code" = 307
+          done
+          # PAP-1030: enforce retirement on the canonical BO host. workers.dev
+          # intentionally does not enforce the BO host allowlist before login;
+          # checking 404 against that generic host falsely fails and rolls back.
+          bo_host='https://bo.staging.pinohouse.art'
+          for route in workforce-term-weeks pinoria-world pinoria-ward pinoria-ward/sets system/users system/roles; do
+            code="$(curl -sS --max-time 20 -o /tmp/pap1030-retired -w '%{http_code}' "$bo_host/bo/$route")"
+            echo "SMOKE_BO_RETIRED=$route HTTP=$code (expected=404 on canonical BO host)"
+            test "$code" = 404
+          done
+          kept="$(curl -sS --max-time 20 -o /tmp/pap1030-kept -w '%{http_code}' "$bo_host/bo/pinoria-ward/learners")"
+          echo "SMOKE_BO_LOADOUTS HTTP=$kept (expected=307 authenticated page)"
+          test "$kept" = 307
+          for endpoint in bootstrap global-weeks weekly; do
+            code="$(curl -sS --max-time 20 -o /tmp/pap901-anon -w '%{http_code}' "$origin/api/bo/workforce/planning/$endpoint")"
+            echo "SMOKE_BO_API=$endpoint HTTP=$code (expected=401)"
+            test "$code" = 401
+          done
+          code="$(curl -sS --max-time 20 -o /tmp/pap901-ho-denied -w '%{http_code}' "$origin/ho")"
+          echo "SMOKE_HO_DENIED_HTTP=$code (expected=404)"
+          test "$code" = 404
+          for url in https://bo.staging.pinohouse.art/bo https://ho.staging.pinohouse.art/ho/centers; do
+            code="$(curl -sS --max-time 20 -o /tmp/staging-login -w '%{http_code}' "$url")"
+            echo "SMOKE_HOST_LOGIN=$url HTTP=$code (expected=307)"
+            test "$code" = 307
+          done
+          # PAP-1028: prevent silent BO CSS regressions (not just successful HTML route loads).
+          for css in team-legacy-global.css bo-legacy-foundation.css; do
+            css_status="$(curl -sS --max-time 20 -D /tmp/bo-style-headers -o /tmp/bo-style-body -w '%{http_code}' "https://bo.staging.pinohouse.art/$css")"
+            css_type="$(grep -i "^content-type:" /tmp/bo-style-headers | tail -1 | tr -d '\r' || true)"
+            css_bytes="$(wc -c < /tmp/bo-style-body)"
+            echo "SMOKE_BO_CSS=$css HTTP=$css_status type=$css_type bytes=$css_bytes (expected=200,text/css,nonempty)"
+            test "$css_status" = 200
+            test -s /tmp/bo-style-body
+            grep -qi "^content-type: text/css" /tmp/bo-style-headers
+          done
+          curl -fsS --max-time 20 "$origin/api/health" | jq -e '.ok==true and .service=="pino-team-os"'
+          digest="$(node -p "require('./.next/pap659-build-provenance.json').digest")"
+          curl -fsS --max-time 20 "$origin/pap659-build-provenance.json" | jq -e --arg digest "$digest" '.digest==$digest'
+          test "$(active "$WORKER")" = "$deployed"
+          test "$(active pino-core-staging)" = "$CORE_VERSION"
+          jq -n --arg sourceSha "$SHA" --arg previousVersionId "$PREVIOUS" --arg activeVersionId "$deployed" --arg coreVersion "$CORE_VERSION" --arg runId "$GITHUB_RUN_ID" '{kind:"TEAM_GUARDED_STAGING_CD",sourceSha:$sourceSha,previousVersionId:$previousVersionId,activeVersionId:$activeVersionId,coreVersion:$coreVersion,runId:$runId,result:"SERVING_BOUNDARY_PASS",productionMutation:false,authenticatedVisualAcceptance:"PENDING"}' > receipt.json
+          cat receipt.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: team-guarded-staging-cd-receipt
+          path: |
+            receipt.json
+            before.json
+            after.json
+            rollback.json
+            previous-version.json
+          if-no-files-found: warn

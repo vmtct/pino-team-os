@@ -52,7 +52,7 @@ export interface BoRunningClass {
   centerId?: string;
   name: string;
   pathProgramId: string;
-  timezone: "Asia/Ho_Chi_Minh";
+  timezone: string;
   recurrenceWeekdays: number[];
   startLocalTime: string;
   endLocalTime: string;
@@ -90,7 +90,7 @@ export interface BoSyllabusRichContent { type:"doc"; content:Array<Record<string
 export interface BoArtSyllabusProfile { syllabusVersionId:string; richContent:BoSyllabusRichContent; toolTags:string[]; worksheetMediaIds:string[]; revision:number; updatedAt:string }
 export interface BoPianoSyllabusProfile { syllabusVersionId:string; practiceResourceId:string; practiceResourceVersionId:string; practicePageId:string; revision:number; updatedAt:string }
 export interface BoLittlePinerSyllabusProfile extends BoArtSyllabusProfile { practiceResourceId:string; practiceResourceVersionId:string; practicePageId:string }
-export interface BoSyllabusWorksheetMedia { mediaAssetId:string; mimeType:"application/pdf"|"image/png"|"image/jpeg"|"image/webp"; byteSize:number|null; createdAt:string; fileName?:string|null }
+export interface BoSyllabusWorksheetMedia { mediaAssetId:string; mimeType:"application/pdf"|"image/png"|"image/jpeg"|"image/webp"; byteSize:number|null; createdAt:string; fileName?:string|null; pathProgramId?:string|null }
 
 export interface BoSession {
   id: string;
@@ -374,7 +374,7 @@ export interface BoBillItem { id: string; billId: string; productPlanId: string;
 export interface BoSpecialtyBillItem { id: string; billId: string; specialtyPurchaseId: string; specialtyOfferId: string; studentProfileId: string; quantity: number; unitPriceMinor: number; discountAmountMinor: number; descriptionSnapshot: string; createdAt: string }
 export interface BoPaymentTransaction { id: string; billId: string; transactionKind: BoPaymentTransactionKind; amountMinor: number; occurredAt: string; method: BoPaymentMethod; reference: string | null; note: string | null; status: "CONFIRMED" | "VOID"; createdAt: string; updatedAt: string; version: number }
 export interface BoBillSummary { bill: BoBill; items: BoBillItem[]; specialtyItems: BoSpecialtyBillItem[]; transactions: BoPaymentTransaction[]; grossAmountMinor: number; itemDiscountMinor: number; netAmountMinor: number; collectedAmountMinor: number; balanceMinor: number; paymentState: "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOID"; isOverdue: boolean }
-export interface BoSaleResult { productPlan: BoProductPlan; bill: BoBillSummary; billItem: BoBillItem; subscriptionId: string; contractualStartsOn: string; contractualEndsOn: string; purchasedUnits: number }
+export interface BoSaleResult { productPlan: BoProductPlan; bill: BoBillSummary; billItem: BoBillItem; subscriptionId: string; contractualStartsOn: string; contractualEndsOn: string | null; purchasedUnits: number }
 
 export interface BoSpecialtyFamily { id:string; pathProgramId:string; code:string; displayName:string; sortOrder:number; status:string; version:number; createdAt:string; updatedAt:string }
 export interface BoSpecialtyModule { id:string; familyId:string; pathProgramId:string; code:string; displayName:string; level:number; sortOrder:number; status:string; version:number; createdAt:string; updatedAt:string }
@@ -557,6 +557,7 @@ export interface BoWorkforceWindowDecision {
   policyVersionId: string | null;
   controlVersion: number;
   availabilityRegistrationOpen: boolean;
+  shiftPlanExists?: boolean;
 }
 
 export interface BoWorkforceAvailability {
@@ -582,10 +583,17 @@ export interface BoWorkforceAssignment {
   workDate: string;
   shiftTemplateId: string;
   timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
+  coverageMode: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
+  effectiveStartLocal: string | null;
+  effectiveEndLocal: string | null;
+  coverageSource: Record<string, unknown> | null;
+  coverageDecidedByUserId: string | null;
+  coverageDecidedAt: string | null;
   effectiveWork?: {
     assignmentId: string;
     timeBasis: "SHIFT_TEMPLATE" | "TEACHING_SESSIONS";
-    windows: Array<{ startsLocal: string; endsLocal: string; sourceType: "SHIFT_TEMPLATE" | "SESSION"; sourceIds: string[] }>;
+    coverageMode: "FULL_SHIFT" | "CLASSROOM_TIME" | "CUSTOM_RANGE";
+    windows: Array<{ startsLocal: string; endsLocal: string; sourceType: "SHIFT_TEMPLATE" | "SESSION" | "CUSTOM_RANGE"; sourceIds: string[] }>;
     reconciliationRequired: boolean;
   };
   termWeekId: string | null;
@@ -611,7 +619,7 @@ export interface BoUnscheduledCheckInRequest {
 export interface BoWorkforceShiftRoleAssignment {
   id: string;
   shiftAssignmentId: string;
-  roleType: "FRONT_DESK" | "TEACHER";
+  roleType: "FRONT_DESK" | "SHIFT_LEADER" | "TEACHER";
   targetType: "CENTER" | "SESSION";
   targetId: string;
   status: "ACTIVE" | "CANCELLED";
@@ -647,9 +655,26 @@ export interface BoWorkforceTeachingSession {
   };
 }
 
+export interface BoWorkforceRunningClassResponsibility {
+  id: string;
+  shiftAssignmentId: string;
+  roleType: "TEACHER" | "TEACHING_ASSISTANT";
+  runningClassId: string;
+  status: "ACTIVE" | "CANCELLED";
+  version: number;
+  assignedByUserId: string;
+  assignedAt: string;
+  cancelledByUserId: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BoOperationalShiftPlanResult {
   assignment: BoWorkforceAssignment;
   roleAssignments: BoWorkforceShiftRoleAssignment[];
+  runningClassResponsibilities?: BoWorkforceRunningClassResponsibility[];
   learningOwners: BoWorkforceTeachingSession["learningOwner"][];
 }
 
@@ -664,6 +689,7 @@ export interface BoWorkforceWeeklyPlanning {
   availabilityHistory: BoWorkforceAvailability[];
   assignments: BoWorkforceAssignment[];
   roleAssignments: BoWorkforceShiftRoleAssignment[];
+  runningClassResponsibilities?: BoWorkforceRunningClassResponsibility[];
   sessions: BoWorkforceTeachingSession[];
   windows?: { availability: BoWorkforceWindowDecision; planning: BoWorkforceWindowDecision };
 }
@@ -724,4 +750,29 @@ export interface BoTimekeepingPage {
   data: BoTimekeepingSession[];
   nextCursor: string | null;
   summary: { totalSessions: number; openSessions: number; closedSessions: number };
+}
+
+export interface BoSubscriptionDirectoryItem {
+  id:string; studentProfileId:string; studentDisplayName:string; pathProgramId:string; pathDisplayName:string; lifecycle:string;
+  serviceStartsOn:string|null; contractualEndsOn:string|null; weeklyCommitment:number; termWeeks:number|null;
+  commercialReference:string|null; productPlanId:string|null; listPriceMinor:number|null; itemDiscountMinor:number;
+  billDiscountMinor:number; finalAmountMinor:number|null; historicalBalance:number; effectiveAvailableUnits:number;
+  createdAt:string; updatedAt:string; version:number;
+}
+export interface BoSubscriptionDirectoryPage {
+  items:BoSubscriptionDirectoryItem[]; limit:number; total:number;
+  nextCursor:{createdAt:string;id:string}|null;
+}
+/** PAP-731: salary only arrives through an explicit authorized private reveal. */
+export interface BoStaffCompensationEntry {
+  id: string;
+  staffMemberId: string;
+  effectiveFrom: string;
+  periodUntilExclusive: string | null;
+  state: "CURRENT" | "HISTORICAL" | "SCHEDULED";
+  amountMinor: number;
+  currency: "VND";
+  note: string | null;
+  version: number;
+  updatedAt: string;
 }

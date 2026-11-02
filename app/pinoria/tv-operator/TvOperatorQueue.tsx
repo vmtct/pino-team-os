@@ -1,0 +1,231 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import { operatorPresentationClient, type OperatorQueue, type OperatorDeviceSession } from "@/app/pinoria-tv/operator-presentation-client";
+import { isCurrentOperatorQueueResponse, matchesInspectedPresentation, isConfirmedPresentationRelease } from "./operator-queue-response";
+import { verifiedReplayCandidates, targetMatchesSelected } from "./replay-target-candidates";
+
+/**
+ * PAP-665 bounded operator view. Explicit manual refresh only; no TV relay,
+ * claim, complete, auto-polling or client-side role grants.
+ * Core TOS ACL remains authoritative for every read.
+ */
+export function TvOperatorQueue() {
+  const [centerId, setCenterId] = useState("");
+  const [replaySessionId, setReplaySessionId] = useState("");
+  const [replayCandidates, setReplayCandidates] = useState<OperatorDeviceSession[]>([]);
+  const [queue, setQueue] = useState<OperatorQueue | null>(null);
+  const [busy, setBusy] = useState(false);
+  const generation = useRef(0);
+  // Synchronous fence: React busy state alone does not stop rapid double-clicks.
+  const commandInFlight = useRef(false);
+  const centerRef = useRef("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [inspected, setInspected] = useState<{ id: string; kind: string; claimedAt: string } | null>(null);
+  const refresh = useCallback(async () => {
+    if (!centerId.trim() || busy || commandInFlight.current) return;
+    const requestedCenter = centerId.trim();
+    const requestedGeneration = ++generation.current;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setQueue(null);
+    setReplayCandidates([]);
+    setReplaySessionId("");
+    try {
+      const response = await operatorPresentationClient.queue(requestedCenter);
+      let candidates: OperatorDeviceSession[] = [];
+      let healthUnavailable = false;
+      try {
+        const health = await operatorPresentationClient.operatorHealth(requestedCenter);
+        candidates = verifiedReplayCandidates(health, requestedCenter);
+        healthUnavailable = health.centerId !== requestedCenter;
+      } catch {
+        // Queue browsing remains available; replay is fail-closed without TV evidence.
+        healthUnavailable = true;
+      }
+      if (isCurrentOperatorQueueResponse(requestedCenter, requestedGeneration, centerRef.current, generation.current)) {
+        setQueue(response);
+        setReplayCandidates(healthUnavailable ? [] : candidates);
+        if (healthUnavailable) setMessage("Không xác minh được phiên TV tại Core; replay bị khóa.");
+      }
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(requestedCenter, requestedGeneration, centerRef.current, generation.current)) setError(cause instanceof Error ? cause.message : "Không thể tải danh sách trình chiếu");
+    } finally {
+      if (requestedGeneration === generation.current) setBusy(false);
+    }
+  }, [centerId, busy]);
+  const activePresentation = queue?.current;
+  const inspectCurrent = useCallback(async () => {
+    const active = activePresentation;
+    if (!active || busy || commandInFlight.current) return;
+    const center = centerId.trim();
+    const version = ++generation.current;
+    setBusy(true);
+    setError("");
+    setInspected(null);
+    try {
+      const current = await operatorPresentationClient.inspectSnapshot(center, active.id);
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current) &&
+          matchesInspectedPresentation(active, current)) {
+        // Do not display the private projection on an operator/shared screen.
+        setInspected({ id: current.id, kind: current.kind, claimedAt: current.claimedAt });
+      }
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setError(cause instanceof Error ? cause.message : "Không thể xác minh presentation");
+      }
+    } finally {
+      if (version === generation.current) setBusy(false);
+    }
+  }, [activePresentation, centerId, busy]);
+  const replayInspect = useCallback(async () => {
+    const active = activePresentation;
+    const center = centerId.trim();
+    if (!active || !center || busy || commandInFlight.current) return;
+    const version = ++generation.current;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setInspected(null);
+    try {
+      const snapshot = await operatorPresentationClient.replaySnapshotInspect(center, active.id);
+      if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
+      if (!matchesInspectedPresentation(active, snapshot)) {
+        throw new Error("Snapshot không còn khớp presentation đang chạy; tải lại queue.");
+      }
+      setInspected({ id: snapshot.id, kind: snapshot.kind, claimedAt: snapshot.claimedAt });
+      setMessage("Đã xác minh snapshot replay tại Core; chưa phát lại trên TV vật lý.");
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setQueue(null);
+        setError(cause instanceof Error ? cause.message : "Không thể xác minh replay snapshot");
+      }
+    } finally {
+      if (version === generation.current) setBusy(false);
+    }
+  }, [activePresentation, centerId, busy]);
+  const dispatchReplay = useCallback(async () => {
+    const active = activePresentation;
+    const center = centerId.trim();
+    const selected = replayCandidates.find(session => session.sessionId === replaySessionId);
+    if (!active || !center || !selected || busy || commandInFlight.current) return;
+    const displayId = selected.displayId;
+    if (!("randomUUID" in crypto) || typeof crypto.randomUUID !== "function") {
+      setError("Không thể tạo khóa idempotency an toàn trên browser này.");
+      return;
+    }
+    commandInFlight.current = true;
+    const version = ++generation.current;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const target = await operatorPresentationClient.replayTarget(center, displayId, active.id);
+      if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
+      if (!target.available || !target.target || !targetMatchesSelected(selected, target.target)) {
+        throw new Error("TV đích chưa có phiên hoạt động hợp lệ; không gửi replay.");
+      }
+      if (!window.confirm(`Phát lại ${active.id}?\nDisplay: ${displayId}\nDevice: ${target.target.deviceId}\nSession: ${target.target.sessionId}\nLệnh chỉ ghi dispatch; chưa xác nhận TV đã render.`)) return;
+      await operatorPresentationClient.replayDispatch(center, displayId, active.id, crypto.randomUUID(), target.target.deviceId, target.target.sessionId);
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setMessage("Core đã nhận replay dispatch; chưa có xác nhận TV vật lý đã render.");
+      }
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setQueue(null);
+        setError(cause instanceof Error ? cause.message : "Không thể gửi replay; tải lại queue.");
+      }
+    } finally {
+      commandInFlight.current = false;
+      setBusy(false);
+    }
+  }, [activePresentation, centerId, replaySessionId, replayCandidates, busy]);  const executeCommand = useCallback(async (action: "close" | "return-to-ambient") => {
+    const active = activePresentation;
+    const center = centerId.trim();
+    if (!active || !center || busy || commandInFlight.current || !active.claimedAt) return;
+    const verb = action === "close" ? "Đóng presentation toàn Center" : "Giải phóng queue về Ambient toàn Center";
+    if (!window.confirm(verb + " " + active.id + "? Đây là lệnh release presentation TOÀN CENTER, không chọn TV/session vật lý. TV có thể vẫn hiển thị hình cũ. Tiếp tục?")) return;
+    if (!("randomUUID" in crypto) || typeof crypto.randomUUID !== "function") {
+      setError("Không thể tạo khóa idempotency an toàn trên browser này.");
+      return;
+    }
+    commandInFlight.current = true;
+    const version = ++generation.current;
+    const receiptKey = crypto.randomUUID();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setInspected(null);
+    try {
+      const command = action === "close" ? operatorPresentationClient.close : operatorPresentationClient.returnToAmbient;
+      const receipt = await command(center, active.id, active.claimedAt, receiptKey);
+      if (!isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) return;
+      // Read-after-write from canonical Core. Never synthesize the next queue locally.
+      const fresh = await operatorPresentationClient.queue(center);
+      if (!isConfirmedPresentationRelease(active.id, receipt, fresh)) {
+        throw new Error("Core chưa xác nhận presentation đã được giải phóng; hãy tải lại hàng đợi.");
+      }
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setQueue(fresh);
+        setMessage(verb + ": Core đã ghi receipt và giải phóng queue. Trạng thái hình ảnh TV chưa được xác nhận.");
+      }
+    } catch (cause) {
+      if (isCurrentOperatorQueueResponse(center, version, centerRef.current, generation.current)) {
+        setQueue(null); // Force fresh authoritative read before allowing another action.
+        setError(cause instanceof Error ? cause.message : "Không thể điều khiển presentation");
+      }
+    } finally {
+      commandInFlight.current = false;
+      // A Center switch may invalidate the result, but must not strand the UI in busy state.
+      setBusy(false);
+    }
+  }, [activePresentation, centerId, busy]);
+  return (
+    <section aria-label="TV operator queue" className="mx-auto max-w-3xl space-y-4 p-5">
+      <header>
+        <h1 className="text-xl font-semibold">Điều khiển TV · Hàng đợi</h1>
+        <p className="text-sm opacity-70">Xem queue và chọn đúng TV/session để replay. Close/Return chỉ giải phóng presentation cấp Center, không điều khiển màn hình riêng lẻ hoặc xác nhận TV đã chuyển cảnh.</p>
+      </header>
+      <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void refresh(); }}>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+          Center ID
+          <input aria-label="Center ID" className="rounded border px-3 py-2" value={centerId} onChange={(event) => {
+            generation.current += 1;
+            centerRef.current = event.target.value.trim();
+            if (!commandInFlight.current) setBusy(false);
+            setCenterId(event.target.value);
+            setError("");
+            setMessage("");
+            setQueue(null);
+            setReplayCandidates([]);
+            setReplaySessionId("");
+          }} required />
+        </label>
+        <button type="submit" disabled={busy || !centerId.trim()} className="self-end rounded border px-4 py-2 disabled:opacity-50">
+          {busy ? "Đang tải…" : "Làm mới"}
+        </button>
+      </form>
+      {error && <p role="alert" className="text-sm">{error}</p>}
+      {message && <p role="status" className="text-sm">{message}</p>}
+      {queue && (
+        <div className="space-y-4" aria-live="polite">
+          <p className="text-sm">Revision: {queue.revision} · {queue.hasMore ? "Danh sách chỉ hiển thị 50 mục đầu" : "Đã hiển thị tất cả mục đang chờ"}</p>
+          <section className="rounded border p-3">
+            <h2 className="font-medium">Đang trình chiếu</h2>
+            {queue.current ? <div className="space-y-2"><p>{queue.current.kind} · {queue.current.id}</p><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void inspectCurrent()}>Xem snapshot (quyền xem)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void replayInspect()}>Kiểm tra replay snapshot (không phát TV)</button><div className="flex flex-wrap gap-2"><select aria-label="Chọn TV/session để replay" className="min-w-0 max-w-full rounded border px-3 py-1" value={replaySessionId} onChange={(event) => setReplaySessionId(event.target.value)}><option value="">Chọn TV đang có heartbeat</option>{replayCandidates.map(session => <option key={session.sessionId} value={session.sessionId}>{session.deviceId} · Display {session.displayId} · Session {session.sessionId}</option>)}</select><button type="button" disabled={busy || !replaySessionId || !replayCandidates.some(session => session.sessionId === replaySessionId)} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void dispatchReplay()}>Phát lại trên TV</button></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("return-to-ambient")}>Release về Ambient (toàn Center)</button><button type="button" disabled={busy} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void executeCommand("close")}>Đóng presentation (toàn Center)</button></div>{inspected && <p className="text-sm">Đã xác minh: {inspected.kind} · {inspected.id} · {inspected.claimedAt}</p>}</div> : <p>Không có presentation đang chạy.</p>}
+          </section>
+          <section className="rounded border p-3">
+            <h2 className="font-medium">Đang chờ ({queue.queued.length})</h2>
+            {queue.queued.length ? (
+              <ol className="list-inside list-decimal space-y-1">
+                {queue.queued.map((item) => <li key={item.id}>{item.kind} · {item.id}</li>)}
+              </ol>
+            ) : <p>Hàng đợi trống.</p>}
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}

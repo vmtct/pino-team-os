@@ -1,0 +1,367 @@
+{
+  "name": "PAP-1073 live HO Staff DOM geometry",
+  "sourceSha": "UNVERIFIED_DYNAMIC",
+  "approvedRun": 40811677302,
+  "expected": 15,
+  "pass": 15,
+  "fail": 0,
+  "results": [
+    {
+      "surface": "HO Staff",
+      "width": 1440,
+      "stage": "table",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 1110.666748046875,
+        "rowHeight": 42,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "rowHeight": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 1440,
+      "stage": "drawer",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 490,
+        "rowHeight": 42,
+        "drawerWidth": 490,
+        "propertyColumns": 3,
+        "minPropertyValueWidth": 300,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "drawerWidth": 0,
+        "minPropertyValueWidth": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 1440,
+      "stage": "detail",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 1126,
+        "rowHeight": 0,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": 1124.666748046875,
+        "tablistWidth": 1124.666748046875,
+        "visibleTabs": 3,
+        "mountedPanel": true,
+        "ariaLinked": true
+      },
+      "deltasFromApprovedFixture": {
+        "heroWidth": -313.3,
+        "tablistWidth": -313.3
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 1024,
+      "stage": "table",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 714.6666870117188,
+        "rowHeight": 42,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "rowHeight": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 1024,
+      "stage": "drawer",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 490,
+        "rowHeight": 176,
+        "drawerWidth": 490,
+        "propertyColumns": 3,
+        "minPropertyValueWidth": 300,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "drawerWidth": 0,
+        "minPropertyValueWidth": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 1024,
+      "stage": "detail",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 730,
+        "rowHeight": 0,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": 728.6666870117188,
+        "tablistWidth": 728.6666870117188,
+        "visibleTabs": 3,
+        "mountedPanel": true,
+        "ariaLinked": true
+      },
+      "deltasFromApprovedFixture": {
+        "heroWidth": -293.3,
+        "tablistWidth": -293.3
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 768,
+      "stage": "table",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 500.66668701171875,
+        "rowHeight": 43,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "rowHeight": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 768,
+      "stage": "drawer",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 490,
+        "rowHeight": 43,
+        "drawerWidth": 490,
+        "propertyColumns": 3,
+        "minPropertyValueWidth": 300,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "drawerWidth": 0,
+        "minPropertyValueWidth": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 768,
+      "stage": "detail",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 516,
+        "rowHeight": 0,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": 514.6666870117188,
+        "tablistWidth": 514.6666870117188,
+        "visibleTabs": 3,
+        "mountedPanel": true,
+        "ariaLinked": true
+      },
+      "deltasFromApprovedFixture": {
+        "heroWidth": -251.3,
+        "tablistWidth": -251.3
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 390,
+      "stage": "table",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 352.66668701171875,
+        "rowHeight": 43,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "rowHeight": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 390,
+      "stage": "drawer",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 390,
+        "rowHeight": 43,
+        "drawerWidth": 390,
+        "propertyColumns": 3,
+        "minPropertyValueWidth": 212,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "drawerWidth": 0,
+        "minPropertyValueWidth": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 390,
+      "stage": "detail",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 368,
+        "rowHeight": 0,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": 366.66668701171875,
+        "tablistWidth": 366.66668701171875,
+        "visibleTabs": 3,
+        "mountedPanel": true,
+        "ariaLinked": true
+      },
+      "deltasFromApprovedFixture": {
+        "heroWidth": -21.3,
+        "tablistWidth": -21.3
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 320,
+      "stage": "table",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 282.66668701171875,
+        "rowHeight": 43,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "rowHeight": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 320,
+      "stage": "drawer",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 320,
+        "rowHeight": 43,
+        "drawerWidth": 320,
+        "propertyColumns": 3,
+        "minPropertyValueWidth": 142,
+        "heroWidth": null,
+        "tablistWidth": null,
+        "visibleTabs": 0,
+        "mountedPanel": false,
+        "ariaLinked": false
+      },
+      "deltasFromApprovedFixture": {
+        "drawerWidth": 0,
+        "minPropertyValueWidth": 0
+      }
+    },
+    {
+      "surface": "HO Staff",
+      "width": 320,
+      "stage": "detail",
+      "status": "PASS",
+      "issues": [],
+      "metrics": {
+        "documentOverflow": 0,
+        "shellWidth": 298,
+        "rowHeight": 0,
+        "drawerWidth": null,
+        "propertyColumns": 0,
+        "minPropertyValueWidth": null,
+        "heroWidth": 296.66668701171875,
+        "tablistWidth": 296.66668701171875,
+        "visibleTabs": 3,
+        "mountedPanel": true,
+        "ariaLinked": true
+      },
+      "deltasFromApprovedFixture": {
+        "heroWidth": -21.3,
+        "tablistWidth": -21.3
+      }
+    }
+  ],
+  "versionAttested": false,
+  "provisionalLiveAudit": true
+}

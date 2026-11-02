@@ -4,6 +4,66 @@ import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requir
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
+test("PAP-938 canonical staging root enters DS V4 without changing production", () => {
+  const staging = "tos.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(staging, "/"), { action: "redirect", pathname: "/tos-v4" });
+  assert.deepEqual(decideHostBoundary(staging, "/", "HEAD"), { action: "redirect", pathname: "/tos-v4" });
+  assert.deepEqual(decideHostBoundary(staging, "/", "POST"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(staging, "/tos-v4"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/tos-v4"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary("pino-team-os-staging.minhtri-van42.workers.dev", "/"), { action: "next" });
+});
+
+test("PAP-989 staging BO and TOS hosts preserve isolation, redirects and staff session gates", () => {
+  const bo = "bo.staging.pinohouse.art";
+  const tos = "tos.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, "/"), { action: "redirect", pathname: "/bo" });
+  assert.deepEqual(decideHostBoundary(bo, "/bo"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(bo, "/staff-login"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(bo, "/api/bo/context"), { action: "next" });
+  for (const css of ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"]) assert.deepEqual(decideHostBoundary(bo, "/bo-skeleton/" + css), { action: "next" });
+  for (const unapproved of ["/bo-skeleton/playground.js", "/bo-skeleton/raw.css", "/bo-authority-source/playground.html", "/bo-skeleton/extra/styles.css"]) assert.deepEqual(decideHostBoundary(bo, unapproved), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(bo, "/dashboard"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(bo, "/staff/register"), { action: "not_found" });
+  assert.equal(requiresBoStaffPasswordSession(bo, "/bo/learners"), true);
+  assert.equal(requiresBoStaffPasswordSession(bo, "/staff-login"), false);
+  assert.deepEqual(decideHostBoundary(tos, "/bo"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(tos, "/api/bo/context"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(tos, "/dashboard"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(tos, "/staff/register"), { action: "not_found" });
+  assert.equal(requiresTosStaffSession(tos, "/dashboard"), true);
+  assert.equal(requiresTosStaffSession(tos, "/staff-login"), false);
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art.evil.example", "/bo"), { action: "next" });
+});
+
+test("PAP-1111 assignment Note edit is exact POST on BO Staging only", () => {
+  const route="/api/bo/workforce/planning/assignment/note", bo="bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo,route,"POST"),{action:"next"});
+  for(const method of ["GET","HEAD","PATCH","PUT","DELETE","OPTIONS"]) assert.deepEqual(decideHostBoundary(bo,route,method),{action:"not_found"},method);
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","join.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route,"POST"),{action:"not_found"},host);
+  for(const malformed of [route+"/extra",route+"/",route+"%2fextra",route.toUpperCase(),"/api/bo/workforce/planning/assignment/notes"]) assert.deepEqual(decideHostBoundary(bo,malformed,"POST"),{action:"not_found"},malformed);
+});
+
+test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
+  const route="/api/bo/pinoria/avatars";
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
+  for(const method of ["HEAD","POST","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route),{action:"not_found"},host);
+  for(const path of [route+"/extra",route+"/PERSON:abc",route+"%2f",route.slice(0,-1)]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"},path);
+});
+test("PAP-982 TDD Self Directory page is staging BO GET/HEAD only", () => {
+  for (const m of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/pinoria-avatars",m),{action:"next"});
+  for (const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,"/bo/pinoria-avatars"),{action:"not_found"});
+  for (const path of ["/bo/pinoria-avatars/extra","/bo/pinoria-avatars%2f"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"});
+  for (const m of ["POST","PUT","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art","/bo/pinoria-avatars",m),{action:"not_found"});
+});
+test("PAP-979 exact subject audit path stays BO-only with no global shortcut", () => {
+  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, "/api/bo/audit/subject"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, "/api/bo/audit/subject"), { action: "not_found" });
+  for (const path of ["/api/bo/audit", "/api/bo/audit/subject/extra"]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" });
+});
+
 test("TOS keeps its root, operational routes, APIs, and Founder behavior", () => {
   for (const pathname of ["/", "/dashboard", "/schedule", "/classroom", "/training", "/open-studio", "/pinoria", "/pinoria/attendance", "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/api/workforce/context", "/api/workforce/training/self", "/api/workforce/training/assignments/0198d050-56c1-7ac5-b9ab-b0e45d912345/lessons/complete", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/founder", "/api/founder/sessions"]) {
     assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, pathname), { action: "next" }, pathname);
@@ -28,7 +88,7 @@ test("BO exposes local Staff password login while keeping BO pages password-gate
     assert.deepEqual(decideHostBoundary(BO_HOSTNAME, pathname), { action: "next" }, pathname);
     assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), false, pathname);
   }
-  for (const pathname of ["/bo", "/bo/profile", "/bo/system/users"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
+  for (const pathname of ["/bo", "/bo/profile", "/bo/training/builder", "/bo/training/builder/"]) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, pathname), true, pathname);
 
   assert.equal(requiresBoStaffPasswordSession(TOS_HOSTNAME, "/bo"), false);
 });
@@ -38,11 +98,12 @@ test("BO root redirects on the same host and only governed BO routes are availab
   assert.deepEqual(decideHostBoundary("bo.pinohouse.art.", "/api/founder/ai/change-sets"), { action: "next" });
   assert.deepEqual(decideHostBoundary("BO.PINOHOUSE.ART.:443", "/api/founder/ai/change-sets"), { action: "next" });
   for (const pathname of [
-    "/bo", "/bo/", "/bo/profile", "/bo/staff", "/bo/workforce", "/bo/tvs", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
-    "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice", "/bo/pinoria-ward", "/bo/pinoria-ward/sets", "/bo/pinoria-ward/learners", "/bo/pinoria-effects", "/bo/content",
-    "/bo/system/users", "/bo/system/roles", "/bo/system/audit", "/bo/system/ai-data",
+    "/bo", "/bo/", "/bo/profile", "/bo/staff", "/bo/workforce", "/bo/tvs", "/bo/workforce/check-in-exceptions", "/bo/workforce/timekeeping", "/bo/workforce/duty-exceptions", "/bo/training", "/bo/training/builder", "/bo/training/builder/", "/bo/learners", "/bo/subscriptions", "/bo/open-studio", "/bo/delivery-activation", "/bo/calendar",
+    "/bo/running-classes", "/bo/sessions", "/bo/registrations", "/bo/syllabus", "/bo/practice", "/bo/pinoria-wish", "/bo/pinoria-companions", "/bo/pinoria-ward/learners", "/bo/pinoria-effects", "/bo/content",
+    "/bo/system/audit", "/bo/system/ai-data",
     "/api/founder/ai/change-sets", "/api/founder/web-cms/manifests/sync", `/api/founder/ai/change-sets/${roleId}`, `/api/founder/ai/change-sets/${roleId}/approve`, `/api/founder/ai/change-sets/${roleId}/reject`, `/api/founder/ai/change-sets/${roleId}/reconcile`,
-    "/api/bo/context", "/api/bo/legacy-imports/pap21/dry-run", "/api/bo/legacy-imports/pap21/execute", "/api/bo/tv/displays", "/api/bo/tv/devices", `/api/bo/tv/devices/${roleId}/update`, "/api/bo/pinoria/effects/catalog", "/api/bo/pinoria/ward/sets", `/api/bo/pinoria/ward/sets/${roleId}`, `/api/bo/pinoria/ward/sets/${roleId}/members`, "/api/bo/pinoria/ward/set-webm-assets", "/api/bo/pinoria/ward/learners", `/api/bo/pinoria/ward/learners/${roleId}`, `/api/bo/pinoria/ward/learners/${roleId}/grants`, `/api/bo/pinoria/ward/learners/${roleId}/revocations`, `/api/bo/pinoria/ward/learners/${roleId}/loadout`, "/api/bo/web-cms/slots", `/api/bo/web-cms/slots/${roleId}`, `/api/bo/web-cms/slots/${roleId}/history`, `/api/bo/web-cms/slots/${roleId}/draft`, `/api/bo/web-cms/slots/${roleId}/publish`, `/api/bo/web-cms/slots/${roleId}/rollback`, "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/catalog/items", `/api/bo/pinoria/ward/catalog/items/${roleId}`, "/api/bo/pinoria/ward/catalog/variants", `/api/bo/pinoria/ward/catalog/variants/${roleId}`, "/api/bo/learners", "/api/bo/identity/parents", "/api/bo/student-intakes", `/api/bo/student-intakes/${roleId}/void`, "/api/bo/practice/authoring-context", "/api/bo/practice/repertoire-access/context", "/api/bo/practice/repertoire-access", "/api/bo/practice/repertoire-access/grants", `/api/bo/practice/repertoire-access/grants/${roleId}/revoke`, "/api/bo/practice/resources", "/api/bo/practice/media", `/api/bo/practice/resources/${roleId}`, `/api/bo/practice/resources/${roleId}/drafts`, `/api/bo/practice/versions/${roleId}`, `/api/bo/practice/versions/${roleId}/pages`, `/api/bo/practice/versions/${roleId}/publish`, "/api/bo/open-studio/operations", "/api/bo/open-studio/learners", "/api/bo/open-studio/passes", "/api/bo/open-studio/listings",
+    "/api/founder/pinoria/wish/catalog", `/api/founder/pinoria/wish/catalog/bearers/${roleId}`, `/api/founder/pinoria/wish/catalog/wearables/${roleId}/projection`, "/api/founder/pinoria/wish/banners", `/api/founder/pinoria/wish/banners/${roleId}/validation`, "/api/founder/pinoria/wish/rules", "/api/founder/pinoria/wish/release-phases", `/api/founder/pinoria/wish/release-phases/${roleId}/assign`, "/api/founder/pinoria/wish/resources/energy-seeds/learners", `/api/founder/pinoria/wish/resources/energy-seeds/learners/${roleId}/corrections`, "/api/founder/pinoria/companions/species", `/api/founder/pinoria/companions/species/${roleId}/activate`, "/api/founder/pinoria/companions/eggs",
+    "/api/bo/context", "/api/bo/legacy-imports/pap21/dry-run", "/api/bo/legacy-imports/pap21/execute", "/api/bo/tv/displays", "/api/bo/tv/devices", `/api/bo/tv/devices/${roleId}/update`, "/api/bo/pinoria/effects/catalog", "/api/bo/pinoria/worlds", "/api/bo/pinoria/worlds/media", "/api/bo/pinoria/worlds/learners", `/api/bo/pinoria/worlds/${roleId}/scenes`, `/api/bo/pinoria/worlds/learners/${roleId}`, `/api/bo/pinoria/worlds/learners/${roleId}/instances`, `/api/bo/pinoria/worlds/instances/${roleId}/set-live`, `/api/bo/pinoria/worlds/instances/${roleId}/scenes/${roleId}`, "/api/bo/pinoria/onboarding/sets", `/api/bo/pinoria/onboarding/sets/${roleId}`, `/api/bo/pinoria/onboarding/students/${roleId}`, `/api/bo/pinoria/onboarding/students/${roleId}/grant`, `/api/bo/pinoria/onboarding/staff/${roleId}`, `/api/bo/pinoria/onboarding/staff/${roleId}/grant`, "/api/bo/pinoria/ward/sets", `/api/bo/pinoria/ward/sets/${roleId}`, `/api/bo/pinoria/ward/sets/${roleId}/members`, "/api/bo/pinoria/ward/set-webm-assets", "/api/bo/pinoria/ward/learners", `/api/bo/pinoria/ward/learners/${roleId}`, `/api/bo/pinoria/ward/learners/${roleId}/grants`, `/api/bo/pinoria/ward/learners/${roleId}/revocations`, `/api/bo/pinoria/ward/learners/${roleId}/loadout`, "/api/bo/web-cms/slots", `/api/bo/web-cms/slots/${roleId}`, `/api/bo/web-cms/slots/${roleId}/history`, `/api/bo/web-cms/slots/${roleId}/draft`, `/api/bo/web-cms/slots/${roleId}/publish`, `/api/bo/web-cms/slots/${roleId}/rollback`, "/api/bo/pinoria/ward/catalog", "/api/bo/pinoria/ward/catalog/items", `/api/bo/pinoria/ward/catalog/items/${roleId}`, "/api/bo/pinoria/ward/catalog/variants", `/api/bo/pinoria/ward/catalog/variants/${roleId}`, "/api/bo/learners", "/api/bo/identity/parents", "/api/bo/student-intakes", `/api/bo/student-intakes/${roleId}/void`, "/api/bo/practice/authoring-context", "/api/bo/practice/repertoire-access/context", "/api/bo/practice/repertoire-access", "/api/bo/practice/repertoire-access/grants", `/api/bo/practice/repertoire-access/grants/${roleId}/revoke`, "/api/bo/practice/resources", "/api/bo/practice/media", `/api/bo/practice/resources/${roleId}`, `/api/bo/practice/resources/${roleId}/drafts`, `/api/bo/practice/versions/${roleId}`, `/api/bo/practice/versions/${roleId}/pages`, `/api/bo/practice/versions/${roleId}/publish`, "/api/bo/open-studio/operations", "/api/bo/open-studio/listing-catalog", "/api/bo/open-studio/learners", "/api/bo/open-studio/passes", "/api/bo/open-studio/listings",
     "/api/bo/open-studio/member-path-centers/assign", "/api/bo/open-studio/passes/issue-monthly-path", "/api/bo/open-studio/admission",
     `/api/bo/open-studio/passes/${roleId}/claim-eligibility`, `/api/bo/open-studio/students/${roleId}/lifecycle`, `/api/bo/students/${roleId}/lifecycle`, `/api/bo/students/${roleId}/pinoria`, `/api/bo/students/${roleId}/pinoria/companions/${roleId}/feed`, `/api/bo/identity/parents/${roleId}/pin/reset`,
     "/api/bo/subscriptions", `/api/bo/subscriptions/${roleId}/renew`, `/api/bo/subscriptions/${roleId}/neutralize`, `/api/bo/subscriptions/${roleId}/projected-completion`,
@@ -73,13 +134,14 @@ test("BO root redirects on the same host and only governed BO routes are availab
 
 test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
   for (const pathname of [
+    "/bo/workforce-term-weeks", "/bo/pinoria-world", "/bo/pinoria-ward", "/bo/pinoria-ward/sets", "/bo/system/users", "/bo/system/roles",
     "/dashboard", "/schedule", "/classroom", "/timesheet", "/check-in", "/companion",
     "/api/workforce/context", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/api/companion/login",
-    "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/web-cms/manifests", "/api/founder/web-cms/manifests/sync/extra", "/api/founder/web-cms/slots", "/api/founder/ai/change-sets/not-a-canonical-id", "/api/founder/ai/change-sets/------------------------------------", "/api/founder/ai/change-sets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings",
+    "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/pinoria/wish/catalog/extra", "/api/founder/pinoria/wish/catalog/wearables", `/api/founder/pinoria/wish/catalog/wearables/${roleId}`, `/api/founder/pinoria/wish/catalog/wearables/${roleId}/projection/extra`, "/api/founder/pinoria/wish/catalog/wearables/not-a-canonical-id/projection", "/api/founder/pinoria/wish/catalog/variants", `/api/founder/pinoria/wish/catalog/variants/${roleId}`, `/api/founder/pinoria/wish/banners/${roleId}/delete`, `/api/founder/pinoria/wish/release-phases/${roleId}/assign/extra`, "/api/founder/pinoria/companions/species/not-a-canonical-id", `/api/founder/pinoria/companions/species/${roleId}/delete`, "/api/founder/web-cms/manifests", "/api/founder/web-cms/manifests/sync/extra", "/api/founder/web-cms/slots", "/api/founder/ai/change-sets/not-a-canonical-id", "/api/founder/ai/change-sets/------------------------------------", "/api/founder/ai/change-sets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings", "/bo/training/builder/extra",
     "/api/bo/billing/product-plans/not-a-canonical-id/configure", "/api/bo/billing/sales/extra", `/api/bo/billing/bills/${roleId}/delete`, "/api/bo/billing/bills/not-a-canonical-id", `/api/bo/billing/transactions/${roleId}/void/extra`,
     "/api/bo/legacy-imports/pap21", "/api/bo/legacy-imports/pap21/dry-run/extra", "/api/bo/legacy-imports/pap21/execute/extra",
     "/api/bo/web-cms/manifests/sync", "/api/bo/web-cms/slots/not-a-canonical-id", `/api/bo/web-cms/slots/${roleId}/retire`, `/api/bo/web-cms/slots/${roleId}/draft/extra`,
-    "/api/bo/pinoria/ward/sets/not-a-canonical-id", `/api/bo/pinoria/ward/sets/${roleId}/delete`, `/api/bo/pinoria/ward/sets/${roleId}/members/extra`, "/api/bo/pinoria/ward/set-webm-assets/extra",
+    "/bo/pinoria-world/extra", "/bo/pinoria-wish/extra", "/bo/pinoria-companions/extra", "/api/bo/pinoria/worlds/extra", `/api/bo/pinoria/worlds/${roleId}/scenes/extra`, "/api/bo/pinoria/worlds/learners/not-a-canonical-id", `/api/bo/pinoria/worlds/instances/${roleId}/delete/extra`, "/api/bo/pinoria/onboarding/sets/extra", `/api/bo/pinoria/onboarding/students/${roleId}/grant/extra`, "/api/bo/pinoria/ward/sets/not-a-canonical-id", `/api/bo/pinoria/ward/sets/${roleId}/delete`, `/api/bo/pinoria/ward/sets/${roleId}/members/extra`, "/api/bo/pinoria/ward/set-webm-assets/extra",
     "/api/bo/pinoria/ward/learners/not-a-canonical-id", `/api/bo/pinoria/ward/learners/${roleId}/delete`, `/api/bo/pinoria/ward/learners/${roleId}/loadout/extra`,
     "/api/bo/access/permissions/export", "/api/bo/access/audit/export", `/api/bo/access/roles/${roleId}/delete`,
     "/api/bo/delivery/learning-spaces/anything", "/api/bo/delivery/enrollment-activation/anything", "/api/bo/delivery/term-weeks/not-a-canonical-id/update", `/api/bo/delivery/term-weeks/${roleId}/remove`, `/api/bo/practice/resources/${roleId}/draft`, `/api/bo/practice/resources/${roleId}/publish`, `/api/bo/practice/versions/${roleId}/delete`,
@@ -88,7 +150,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/api/bo/policies/open_studio/monthly_path_pass.v1/versions/not-a-canonical-id/publish", "/api/bo/policies/open_studio/unknown.v1/stream",
     "/api/bo/learning/syllabi/media/not-a-canonical-id/preview", "/api/bo/learning/syllabi/media/extra", "/api/bo/learning/syllabi/versions/not-a-canonical-id/artchitect-profile", `/api/bo/learning/syllabi/${roleId}/delete`,
     "/api/bo/policies/open_studio/monthly_path_pass.v1/delete", "/api/bo/sessions/not-a-canonical-id/registrations",
-    "/api/bo/open-studio/learners/extra", "/api/bo/open-studio/students/not-a-canonical-id/lifecycle", "/api/bo/open-studio/students/0198d050-56c1-4ac5-b9ab-b0e45d912345/lifecycle", "/api/bo/open-studio/students/0198d050-56c1-7ac5-79ab-b0e45d912345/lifecycle", "/api/bo/open-studio/students/0198D050-56C1-7AC5-B9AB-B0E45D912345/lifecycle", `/api/bo/open-studio/students/${roleId}/lifecycle/extra`,
+    "/api/bo/open-studio/listing-catalog/extra", "/api/bo/open-studio/learners/extra", "/api/bo/open-studio/students/not-a-canonical-id/lifecycle", "/api/bo/open-studio/students/0198d050-56c1-4ac5-b9ab-b0e45d912345/lifecycle", "/api/bo/open-studio/students/0198d050-56c1-7ac5-79ab-b0e45d912345/lifecycle", "/api/bo/open-studio/students/0198D050-56C1-7AC5-B9AB-B0E45D912345/lifecycle", `/api/bo/open-studio/students/${roleId}/lifecycle/extra`,
     `/api/bo/student-intakes/${roleId}/void/extra`, "/api/bo/student-intakes/not-a-canonical-id/void", "/api/bo/workforce/staff-records/not-a-canonical-id", `/api/bo/students/${roleId}/pinoria/companions/${roleId}/ritual`, `/api/bo/students/${roleId}/pinoria/companions/not-a-canonical-id/feed`, "/api/bo/workforce/training/delete-all", "/api/bo/workforce/training/modules/not-a-canonical-id/retire", "/api/bo/workforce/planning/anything", "/api/bo/workforce/planning/operational-assignment/extra", "/api/bo/workforce/planning/assignment/cancel/anything", "/api/bo/workforce/timekeeping/not-a-canonical-id/corrections", `/api/bo/workforce/timekeeping/${roleId}/delete`, `/api/bo/workforce/timekeeping/${roleId}/corrections/extra`, "/api/bo/workforce/duty/checkout-exceptions/not-a-canonical-id/approve", `/api/bo/workforce/duty/checkout-exceptions/${roleId}/delete`, `/api/bo/workforce/duty/checkout-exceptions/${roleId}/approve/extra`,
     `/api/bo/workforce/staff-records/${roleId}/anything`, `/api/bo/workforce/staff-records/${roleId}/pinoria/anything`, `/api/bo/access/users/${roleId}/staff-password/reset/again`, "/staff-password/forgot", "/staff-password/reset", "/api/staff-auth/forgot-password", "/api/staff-auth/reset-password", "/staff-pin/change", "/api/staff-pin/login", "/api/staff-pin/status", "/api/staff-pin/change", "/api/staff-pin/configure",
 
@@ -119,4 +181,195 @@ test("staff registration paths are denied outside join while local and preview d
 test("local and preview hosts retain existing development behavior", () => {
   assert.deepEqual(decideHostBoundary("localhost:3000", "/dashboard"), { action: "next" });
   assert.deepEqual(decideHostBoundary("preview.example.workers.dev", "/bo"), { action: "next" });
+});
+
+
+test("PAP-863: exact P0 BO pages and transport APIs are admitted, but never on TOS host", () => {
+  const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const approved = [
+    "/bo/student-visits", "/bo/missions", "/bo/workforce/compensation",
+    "/bo/workforce/payroll", "/bo/workforce/payroll/extra-time", "/bo/pinoria-tv-policy",
+    "/api/bo/learning/missions", "/api/bo/learning/missions/" + id,
+    "/api/bo/student-visits", "/api/bo/student-visits/check-in", "/api/bo/student-visits/" + id,
+    "/api/bo/student-visits/" + id + "/check-out", "/api/bo/student-visits/" + id + "/correct",
+    "/api/bo/workforce/payroll/periods", "/api/bo/workforce/payroll/periods/" + id,
+    "/api/bo/workforce/payroll/periods/" + id + "/staff-rollup",
+    "/api/bo/workforce/payroll/periods/" + id + "/settlements",
+    "/api/bo/workforce/payroll/periods/" + id + "/staff/" + id + "/preview",
+    "/api/bo/workforce/payroll/periods/" + id + "/staff/" + id + "/finalize",
+    "/api/bo/workforce/payroll/settlements/" + id + "/paid",
+    "/api/bo/workforce/payroll/extra-time/reviews",
+    "/api/bo/workforce/payroll/extra-time/reviews/" + id,
+    "/api/bo/workforce/payroll/extra-time/reviews/" + id + "/decision",
+    "/api/bo/workforce/staff-records/" + id + "/private/compensation",
+    "/api/bo/workforce/staff-records/" + id + "/private/compensation/" + id,
+    "/api/bo/pinoria/worlds/instances",
+    ...["head","versions","version","active","drafts","publish","revert"]
+      .map(suffix => "/api/bo/pinoria/tv-config/policy/" + suffix),
+  ];
+  for (const route of approved) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, route), {action:"next"}, route);
+    assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, route), {action:"not_found"}, route);
+    if (route.startsWith("/bo/")) assert.equal(requiresBoStaffPasswordSession(BO_HOSTNAME, route), true, route);
+  }
+});
+
+test("PAP-863: BO P0 allowlist cannot widen to arbitrary private API or unapproved routes", () => {
+  for (const route of [
+    "/bo/workforce/payroll/any", "/bo/missions/delete", "/bo/student-visits/extra",
+    "/api/bo/learning/missions/forged", "/api/bo/student-visits/extra",
+    "/api/bo/student-visits/check-in/extra", "/api/bo/workforce/payroll/periods/forged",
+    "/api/bo/workforce/payroll/periods/0000/staff-rollup",
+    "/api/bo/workforce/payroll/extra-time/reviews/forged/decision",
+    "/api/bo/workforce/staff-records/forged/private/compensation",
+    "/api/bo/pinoria/tv-config/policy/delete", "/api/bo/pinoria/worlds/instances/private",
+    "/api/bo/any-private-resource", "/api/bo/admin", "/api/tos-learning/sessions/day",
+  ]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME, route), {action:"not_found"}, route);
+});
+
+test("Shared Views BO paths are host-isolated and module-scoped", () => {
+  for (const path of ["/api/bo/views/students", "/api/bo/views/classes", "/api/bo/views/subscriptions", "/api/bo/views/subscriptions/reorder", "/api/bo/views/subscriptions/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/classes/reorder", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345/rename", "/api/bo/views/students/0198d050-56c1-7ac5-b9ab-b0e45d912345"]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+    assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
+  }
+  for (const path of ["/api/bo/views/other", "/api/bo/views/students/garbage", "/api/bo/views/classes/abc/more", "/api/bo/views/subscriptions/garbage", "/api/bo/views/subscriptions/123/rename", "/api/bo/views/subscriptions/0198d050-56c1-7ac5-b9ab-b0e45d912345/private", "/api/bo/views/subscriptions-extra"]) {
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "not_found" }, path);
+  }
+});
+
+import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
+
+test("Shared Views transport operations pass both BO host and Core route guards", () => {
+  const id = "12345678-1234-4123-8123-123456789abc";
+  for (const moduleKey of ["students", "classes", "subscriptions"]) {
+    for (const [suffix, method] of [["", "GET"], ["", "POST"], ["/reorder", "PUT"], ["/" + id, "PATCH"], ["/" + id, "DELETE"], ["/" + id + "/rename", "PATCH"]] as const) {
+      const path = "/api/bo/views/" + moduleKey + suffix;
+      assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path), { action: "next" }, path);
+      assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art", path), { action: "next" }, path);
+      assert.deepEqual(decideHostBoundary(TOS_HOSTNAME, path), { action: "not_found" }, path);
+      assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", path), { action: "not_found" }, path);
+      assert.equal(boPublicViewCoreRoute(path.slice("/api/bo/".length), method), path.slice("/api/bo/".length));
+    }
+  }
+});
+
+
+test("HO staging serves only the consolidated authenticated CSS authority route", () => {
+  const ho = "ho.staging.pinohouse.art";
+  const bo = "bo.staging.pinohouse.art";
+  for (const method of ["GET", "HEAD"]) {
+    assert.deepEqual(decideHostBoundary(ho, "/bo-skeleton/ho-scoped.css", method), { action: "next" });
+  }
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    assert.deepEqual(decideHostBoundary(ho, "/bo-skeleton/ho-scoped.css", method), { action: "not_found" });
+  }
+  for (const retired of ["styles.css", "playground.css", "playground-v22.css", "playground-v23.css", "full-detail-v24.css", "full-detail-v25.css"]) {
+    assert.deepEqual(decideHostBoundary(ho, "/bo-skeleton/" + retired), { action: "not_found" });
+  }
+  assert.deepEqual(decideHostBoundary(bo, "/bo-skeleton/ho-scoped.css"), { action: "not_found" });
+  // TOS/general hosts are filtered again by the authenticated skeleton controller;
+  // their existing broad public route policy must not be narrowed by HO changes.
+  for (const host of ["tos.staging.pinohouse.art", "ho.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, "/bo-skeleton/ho-scoped.css"), { action: "next" });
+  }
+});
+
+test("PAP-1016 retired HO prototype is never served on any host or method", () => {
+  for (const host of ["ho.staging.pinohouse.art", "ho.pinohouse.art", "bo.staging.pinohouse.art", "tos.staging.pinohouse.art", "pino-team-os-staging.minhtri-van42.workers.dev"]) {
+    for (const method of ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]) {
+      for (const path of ["/prototype", "/prototype/", "/prototype/anything"]) {
+        assert.deepEqual(decideHostBoundary(host, path, method), { action: "not_found" }, `${host} ${method} ${path}`);
+      }
+    }
+  }
+  for (const path of ["/ho", "/ho/centers", "/ho/system/users", "/ho/learning/missions", "/ho/pinoria/worlds"]) {
+    assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", path, "GET"), { action: "next" }, path);
+  }
+});
+
+test("PAP-1028 canonical BO legacy stylesheets are exact GET/HEAD-only assets",()=>{
+  for (const host of ["bo.staging.pinohouse.art","bo.pinohouse.art"]) {
+    for (const css of ["/team-legacy-global.css","/bo-legacy-foundation.css"]) {
+      for (const method of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary(host,css,method),{action:"next"});
+      for (const method of ["POST","PUT","DELETE"]) assert.deepEqual(decideHostBoundary(host,css,method),{action:"not_found"});
+      for (const bad of [css+".js",css+"/extra",css+"%2Fextra"]) assert.deepEqual(decideHostBoundary(host,bad),{action:"not_found"});
+    }
+  }
+  for (const host of ["tos.staging.pinohouse.art","join.pinohouse.art","ho.staging.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host,"/bo/workforce-term-weeks"),{action:"not_found"});
+  }
+});
+
+
+test("PAP-1035 staging Worker-first Enrollment GET admission is exact, never Production or write",()=>{
+ const bo="bo.staging.pinohouse.art",u="019d9881-1025-7000-8000-000000001244";
+ const approved=[
+  `/api/bo/subscriptions/${u}`,`/api/bo/subscriptions/${u}/enrollments`,
+  `/api/bo/subscriptions/${u}/placement`,`/api/bo/enrollments/${u}`, "/api/bo/enrollments/capacity"
+ ];
+ for(const p of approved){
+  for(const method of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary(bo,p,method),{action:"next"},p+" "+method);
+  for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS"]) assert.deepEqual(decideHostBoundary(bo,p,method),{action:"not_found"},p+" "+method);
+  for(const host of [BO_HOSTNAME,TOS_HOSTNAME,"tos.staging.pinohouse.art","ho.staging.pinohouse.art","bo.staging.pinohouse.art.evil.test"])
+   assert.deepEqual(decideHostBoundary(host,p,"GET"), host==="bo.staging.pinohouse.art.evil.test"?{action:"next"}:{action:"not_found"},host+" "+p);
+ }
+ for(const p of [
+  "/api/bo/subscriptions/bad","/api/bo/subscriptions/"+u+"/children",
+  "/api/bo/subscriptions/"+u+"/placement/extra","/api/bo/enrollments/"+u+"/unknown-read",
+  "/api/bo/enrollments/capacity/extra","/api/bo/enrollments/no"
+ ]) assert.deepEqual(decideHostBoundary(bo,p),{action:"not_found"},p);
+});
+
+test("PAP-1220 Classroom Diary path and Core read facade: BO Staging-only, no HO/Production/write",()=>{
+  const staging="bo.staging.pinohouse.art",other=["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"];
+  const page="/bo/classroom-diaries",list="/api/bo/learning/path-diaries";
+  const diaryId="01912345-6789-7abc-8def-0123456789ab",detail=list+"/"+diaryId;
+  assert.deepEqual(decideHostBoundary(staging,page,"GET"),{action:"next"});
+  assert.deepEqual(decideHostBoundary(staging,page,"HEAD"),{action:"next"});
+  for(const p of [list,detail]) assert.deepEqual(decideHostBoundary(staging,p,"GET"),{action:"next"},p);
+  assert.equal(requiresBoStaffPasswordSession(staging,page),true);
+  for(const host of other)for(const p of [page,list,detail])
+    assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"},host+" "+p);
+  for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS"])for(const p of [page,list,detail])
+    assert.deepEqual(decideHostBoundary(staging,p,method),{action:"not_found"},method+" "+p);
+  assert.deepEqual(decideHostBoundary(staging,list,"HEAD"),{action:"not_found"});
+  for(const bad of [page+"/extra",page+"%2f",list+"/unknown",detail+"/evidence",list+"/"+diaryId+"/missions",list+"/wrong",list+"/"])
+    assert.deepEqual(decideHostBoundary(staging,bad,"GET"),{action:"not_found"},bad);
+});
+test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
+  const route = "/api/bo/tv/operator-health";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, route, "GET"), { action: "next" });
+  for (const method of ["HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+    assert.deepEqual(decideHostBoundary(bo, route, method), { action: "not_found" }, method);
+  }
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art", "join.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, route, "GET"), { action: "not_found" }, host);
+  }
+  for (const path of [route + "/extra", route + "/", route + "%2fextra", route.toUpperCase(), "/api/bo/tv/operator-healthz"]) {
+    assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
+  }
+});
+
+test("PAP-1332 exact BO Staging Mission linked Diary GET enters existing BFF only", () => {
+  const id = "01a19638-51bf-7444-8a3e-10adc1b2bf20";
+  const base = "/api/bo/learning/mission-assignments/" + id;
+  const path = base + "/diaries";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, path, "GET"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, path + "/", "GET"), {action:"next"});
+  // Existing Assignment read/write/cancel remains unchanged.
+  assert.deepEqual(decideHostBoundary(bo, base, "GET"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, base, "PUT"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, base + "/cancel", "POST"), {action:"next"});
+  for (const method of ["HEAD","OPTIONS","POST","PUT","PATCH","DELETE"])
+    assert.deepEqual(decideHostBoundary(bo, path, method), {action:"not_found"}, method);
+  // Not an authority for Production or adjacent HO/TOS/foreign hosts.
+  for (const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art",
+    "pino-team-os-staging.minhtri-van42.workers.dev","bo.staging.pinohouse.art.evil.example"])
+    assert.deepEqual(decideHostBoundary(host, path, "GET"), {action:"not_found"}, host);
+  for (const invalid of [base + "/diaries/extra",base + "/diary",base + "/cancel/diaries",
+    "/api/bo/learning/mission-assignments/0000/diaries",base + "/diaries%2f",
+    "/api/bo/learning/mission-assignments//diaries"])
+    assert.deepEqual(decideHostBoundary(bo, invalid, "GET"), {action:"not_found"}, invalid);
 });

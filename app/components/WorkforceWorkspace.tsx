@@ -6,6 +6,8 @@ import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import availabilityStyles from "./workforce-availability.module.css";
 import contextStyles from "./workforce-context.module.css";
+import calendarStyles from "./workforce-shift-calendar.module.css";
+import timesheetStyles from "./workforce-timesheet.module.css";
 import {
   activeAssignments,
   availabilityRegistrationWeeks,
@@ -14,6 +16,7 @@ import {
   compactWorkDate,
   nextAssignment,
   staffInitials,
+  shiftResponsibilityLabels,
   workDateParts,
 } from "@/lib/workforce-staff-work-context";
 import {
@@ -32,6 +35,11 @@ import {
 type View = "dashboard" | "schedule" | "availability" | "profile" | "check-in" | "history";
 
 function today() { return new Date().toISOString().slice(0, 10); }
+function dayInZone(timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
 function offset(days: number) { const date = new Date(); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); }
 function weekDates(week: WorkforceContext["termWeeks"][number]) {
   const dates: string[] = [];
@@ -70,7 +78,8 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
   const [saving, setSaving] = useState(false);
   const clockAttempt = useRef<{ action: "in" | "out"; fingerprint: string; key: string } | null>(null);
   const center = context?.centers[0] ?? null;
-  const currentWeek = useMemo(() => context?.termWeeks.find((w) => w.centerId === center?.id && today() >= w.startDate && today() <= w.endDate) ?? context?.termWeeks.find((w) => w.centerId === center?.id) ?? null, [context, center]);
+  const centerToday = center ? dayInZone(center.timeZone) : today();
+  const currentWeek = useMemo(() => context?.termWeeks.find((w) => w.centerId === center?.id && centerToday >= w.startDate && centerToday <= w.endDate) ?? context?.termWeeks.find((w) => w.centerId === center?.id) ?? null, [context, center, centerToday]);
   const availabilityWeeks = useMemo(() => context && center ? availabilityRegistrationWeeks(context, center.id, availabilityWeekIds) : [], [context, center, availabilityWeekIds]);
   const availabilityWeek = useMemo(() => availabilityWeeks.find((week) => week.id === availabilityWeekId) ?? availabilityWeeks[0] ?? null, [availabilityWeeks, availabilityWeekId]);
 
@@ -118,7 +127,7 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     };
   }, [center]);
   useEffect(() => {
-    if (view !== "availability" || !center) return;
+    if ((view !== "availability" && view !== "schedule") || !center) return;
     let active = true;
     void workforceApi.availabilityWeeks(center.id).then((result) => {
       if (!active) return;
@@ -128,20 +137,20 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     return () => { active = false; };
   }, [view, center]);
   useEffect(() => {
-    if (view !== "availability") return;
+    if (view !== "availability" && view !== "schedule") return;
     setAvailability(null); setTemplates([]); setAvailabilityWindow(null);
-    if (!availabilityWeek) return;
+    if (!availabilityWeek || !center) return;
     let active = true;
-    void Promise.all([workforceApi.availability(availabilityWeek.id), workforceApi.availabilityWindow(availabilityWeek.id)]).then(async ([submission, window]) => {
+    void Promise.all([workforceApi.availability(center.id,availabilityWeek.id), workforceApi.availabilityWindow(center.id,availabilityWeek.id)]).then(async ([submission, window]) => {
       if (!active) return;
       setAvailability(submission.data); setAvailabilityWindow(window.data);
       if (submission.data && window.data.state === "OPEN" && submission.data.status !== "VOIDED") {
-        const opened = await workforceApi.availabilityDraft(availabilityWeek.id);
+        const opened = await workforceApi.availabilityDraft(center.id,availabilityWeek.id);
         if (active) { setAvailability(opened.data.submission); setTemplates(opened.data.templates); setAvailabilityWindow(opened.data.window); }
       }
     }).catch((e: unknown) => { if (active) setError(message(e)); });
     return () => { active = false; };
-  }, [view, availabilityWeek]);
+  }, [view, availabilityWeek, center]);
 
   async function clock(action: "in" | "out") {
     if (!center) return;
@@ -200,39 +209,40 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
     finally { setSaving(false); }
   }
   async function openAvailability() {
-    if (!availabilityWeek) return;
+    if (!availabilityWeek || !center) return;
     setSaving(true); setError("");
     try {
-      const result = await workforceApi.availabilityDraft(availabilityWeek.id);
+      const result = await workforceApi.availabilityDraft(center.id,availabilityWeek.id);
       setAvailability(result.data.submission); setTemplates(result.data.templates); setAvailabilityWindow(result.data.window);
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
   async function toggle(date: string, templateId: string) {
-    if (!availability || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
+    if (!center || !availability || availability.centerId !== center.id || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
     const exists = availability.items.some((i) => i.workDate === date && i.shiftTemplateId === templateId);
     const items = exists
       ? availability.items.filter((i) => !(i.workDate === date && i.shiftTemplateId === templateId))
       : [...availability.items, { workDate: date, shiftTemplateId: templateId }];
     setSaving(true);
-    try { const result = await workforceApi.replaceAvailability({ submissionId: availability.id, expectedVersion: availability.version, items }); setAvailability(result.data); }
+    try { const result = await workforceApi.replaceAvailability({ centerId: center.id, termWeekId: availability.termWeekId, submissionId: availability.id, expectedVersion: availability.version, items }); setAvailability(result.data); }
     catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
   async function submitAvailability() {
-    if (!availability || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
+    if (!center || !availability || availability.centerId !== center.id || availability.status === "VOIDED" || availabilityWindow?.state !== "OPEN") return;
     setSaving(true);
-    try { const result = await workforceApi.submitAvailability({ submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
+    try { const result = await workforceApi.submitAvailability({ centerId: center.id, termWeekId: availability.termWeekId, submissionId: availability.id, expectedVersion: availability.version }); setAvailability(result.data); }
     catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
 
-  const title = view === "profile" ? "Hồ sơ của tôi" : view === "history" ? "Chấm công" : view === "check-in" ? "Check-in/out" : view === "schedule" ? "Lịch của tôi" : view === "availability" ? "Đăng ký ca" : "Hôm nay";
-  const active = view === "history" ? "history" : view === "check-in" ? "check" : view === "schedule" ? "schedule" : view === "availability" ? "register" : view === "dashboard" ? "today" : undefined;
+  const title = view === "profile" ? "Hồ sơ của tôi" : view === "history" || view === "schedule" || view === "availability" ? "Ca làm" : view === "check-in" ? "Check-in/out" : "Hôm nay";
+  const active = view === "history" ? "history" : view === "schedule" || view === "availability" ? "schedule" : view === "dashboard" || view === "check-in" ? "today" : undefined;
   const activeSchedule = useMemo(() => activeAssignments(assignments), [assignments]);
   const todayAssignments = activeSchedule.filter((row) => row.workDate === today());
 
-  return <TosShell title={title} subtitle={profile?.displayLabel ?? "PINO Team"} theme="shift" footerItems={TOS_SHIFT_FOOTER} activeFooterId={active}>
+  const compactShiftApp = view === "schedule" || view === "availability" || view === "history";
+  return <TosShell title={title} subtitle={profile?.displayLabel ?? "PINO Team"} theme="shift" footerItems={TOS_SHIFT_FOOTER} activeFooterId={active} compactAppHeader={compactShiftApp} backHref={compactShiftApp ? "/" : undefined} appIconSrc={compactShiftApp ? "https://pub-892fa79b018d4d2f9b0808189dd2ce46.r2.dev/AppIcon/shift.png" : undefined}>
     {loading ? <p>Đang tải dữ liệu an toàn từ Core…</p> : <>
       {error ? <div className="alert">{error}</div> : null}
       {profile && view === "profile" ? <Profile profile={profile} assignments={activeSchedule} center={center} week={currentWeek} onSaved={setProfile} /> : null}
@@ -244,10 +254,9 @@ export default function WorkforceWorkspace({ view }: { view: View }) {
         </section>
         <Schedule rows={todayAssignments} title="Ca hôm nay" />
       </> : null}
-      {view === "schedule" ? <Schedule rows={activeSchedule} title="Ca được phân công" /> : null}
-      {view === "availability" ? <AvailabilityPanel week={availabilityWeek} weeks={availabilityWeeks} selectedWeekId={availabilityWeek?.id ?? ""} availability={availability} window={availabilityWindow} templates={templates} saving={saving} onSelectWeek={setAvailabilityWeekId} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
+      {view === "schedule" || view === "availability" ? <ShiftCalendarPanel rows={activeSchedule} centerName={center?.displayName ?? "—"} centerToday={centerToday} week={availabilityWeek ?? currentWeek} weeks={availabilityWeeks} selectedWeekId={(availabilityWeek ?? currentWeek)?.id ?? ""} availability={availability} window={availabilityWindow} templates={templates} saving={saving} onSelectWeek={setAvailabilityWeekId} onOpen={openAvailability} onToggle={toggle} onSubmit={submitAvailability} /> : null}
       {view === "check-in" ? <CheckInPanel current={current} state={checkInState} saving={saving} centerReady={Boolean(center)} formOpen={requestFormOpen} reason={requestReason} onReason={setRequestReason} onOpenForm={() => setRequestFormOpen(true)} onCancelForm={() => { setRequestFormOpen(false); setRequestReason(""); }} onClock={() => void clock(current ? "out" : "in")} onRequest={() => void requestUnscheduledCheckIn()} /> : null}
-      {view === "history" ? <History rows={history} /> : null}
+      {view === "history" ? <TimesheetPanel rows={history} current={current} centerToday={centerToday} /> : null}
     </>}
   </TosShell>;
 }
@@ -268,10 +277,36 @@ function Schedule({ rows, title }: { rows: Assignment[]; title: string }) {
     const date = workDateParts(row.workDate);
     return <div className={contextStyles.shiftRow} key={row.id}>
       <div className={contextStyles.shiftDate} aria-label={compactWorkDate(row.workDate)}><span>{date.weekday}</span><strong>{date.day}</strong><small>thg {date.month}</small></div>
-      <div className={contextStyles.shiftCopy}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><span>{assignmentTime(row)}</span></div>
+      <div className={contextStyles.shiftCopy}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><span>{assignmentTime(row)}</span><small>{shiftResponsibilityLabels(row).join(" · ") || "Chưa phân công vai trò"}</small></div>
     </div>;
   })}</div> : <p className="muted">Chưa có ca được phân công.</p>}</section>;
 }
+function ShiftCalendarPanel({ rows, centerName, centerToday, week, weeks, selectedWeekId, availability, window, templates, saving, onSelectWeek, onOpen, onToggle, onSubmit }: { rows: Assignment[]; centerName: string; centerToday: string; week: WorkforceContext["termWeeks"][number] | null; weeks: WorkforceContext["termWeeks"]; selectedWeekId: string; availability: Availability | null; window: WorkforceWindowDecision | null; templates: ShiftTemplate[]; saving: boolean; onSelectWeek: (termWeekId: string) => void; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
+  const dates = useMemo(() => week ? weekDates(week) : [], [week]);
+  const [selectedDate, setSelectedDate] = useState("");
+  useEffect(() => { setSelectedDate((current) => dates.includes(current) ? current : dates.find((date) => date === centerToday) ?? dates[0] ?? ""); }, [dates, centerToday]);
+  const assigned = rows.filter((row) => row.workDate === selectedDate);
+  const registered = availability?.items.filter((item) => item.workDate === selectedDate) ?? [];
+  const locked = window?.state === "LOCKED";
+  const voided = availability?.status === "VOIDED";
+  const immutable = locked || voided;
+  const monthTitle = selectedDate ? new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(selectedDate + "T00:00:00Z")) : "Lịch làm việc";
+  const registrationState = !window ? "Đang kiểm tra cửa sổ đăng ký…" : voided ? "Đăng ký tuần này đã được void." : locked ? "Đăng ký ca đã khóa." : availability?.status === "SUBMITTED" ? "Đã gửi cho Manager · vẫn có thể chỉnh trước khi khóa." : "Đăng ký ca đang mở.";
+  return <div className={calendarStyles.stack}>
+    <section className={calendarStyles.intro}><span>LỊCH LÀM VIỆC</span><h2>{monthTitle}</h2><p>Chọn ngày để xem ca được phân công hoặc đăng ký thời gian bạn có thể làm.</p></section>
+    {weeks.length > 1 ? <label className={calendarStyles.weekPicker}><span>Tuần</span><select value={selectedWeekId} disabled={saving} onChange={(event) => onSelectWeek(event.target.value)}>{weeks.map((item) => <option key={item.id} value={item.id}>{item.code} · {shortDate(item.startDate)} — {shortDate(item.endDate)}</option>)}</select></label> : null}
+    {week ? <div className={calendarStyles.week}>{dates.map((date) => <button key={date} type="button" className={selectedDate === date ? calendarStyles.selected : ""} onClick={() => setSelectedDate(date)}><small>{weekday(date)}</small><strong>{dayNumber(date)}</strong></button>)}</div> : <section className={calendarStyles.card}><h3>Chưa có tuần vận hành</h3><p>Core chưa trả TermWeek khả dụng cho Center này.</p></section>}
+    {selectedDate ? <section className={calendarStyles.card}>
+      <div className={calendarStyles.row}><h3>Ngày {shortDate(selectedDate)}</h3><span className={calendarStyles.pill}>{assigned.length ? "Đã phân công" : registered.length ? "Đã đăng ký" : "Chưa có ca"}</span></div>
+      {assigned.length ? <div className={calendarStyles.assignmentList}>{assigned.map((row) => <article key={row.id}><strong>{row.shift?.displayLabel ?? "Ca làm"}</strong><p>{assignmentTime(row)} · {centerName}</p><small>{shiftResponsibilityLabels(row).length ? `Vai trò ca · ${shiftResponsibilityLabels(row).join(" · ")}` : "Vai trò ca · Chưa được phân công"}</small></article>)}</div> : <>
+        <p className={calendarStyles.muted}>Đăng ký chỉ thể hiện thời gian bạn có thể làm. Manager phân công ca/vai trò sau; đăng ký không phải assignment.</p>
+        {!availability ? <button className={calendarStyles.primary} disabled={saving || locked || !window} onClick={() => void onOpen()}>{locked ? "Đã khóa đăng ký" : "Bắt đầu đăng ký tuần"}</button> : templates.length ? <div className={calendarStyles.templateList}>{templates.map((template) => { const selected = registered.some((item) => item.shiftTemplateId === template.id); return <button key={template.id} type="button" className={selected ? calendarStyles.templateSelected : calendarStyles.template} disabled={saving || immutable} onClick={() => void onToggle(selectedDate, template.id)} aria-pressed={selected}><strong>{selected ? "✓ " : ""}{template.displayLabel}</strong><span>{template.startLocalTime}–{template.endLocalTime}</span></button>; })}</div> : <p className={calendarStyles.muted}>ShiftTemplate chưa sẵn sàng cho tuần này.</p>}
+      </>}
+    </section> : null}
+    <section className={calendarStyles.card}><div className={calendarStyles.row}><h3>Đăng ký tuần</h3>{availability ? <span className={calendarStyles.pill}>{voided ? "VOIDED" : locked ? "LOCKED" : availability.status}</span> : null}</div><p className={calendarStyles.muted}>{registrationState}</p>{availability && !immutable ? <button className={calendarStyles.primary} disabled={saving} onClick={() => void onSubmit()}>{saving ? "Đang lưu…" : availability.status === "SUBMITTED" ? "Gửi lại cho Manager" : "Gửi cho Manager"}</button> : null}</section>
+  </div>;
+}
+
 function AvailabilityPanel({ week, weeks, selectedWeekId, availability, window, templates, saving, onSelectWeek, onOpen, onToggle, onSubmit }: { week: WorkforceContext["termWeeks"][number] | null; weeks: WorkforceContext["termWeeks"]; selectedWeekId: string; availability: Availability | null; window: WorkforceWindowDecision | null; templates: ShiftTemplate[]; saving: boolean; onSelectWeek: (termWeekId: string) => void; onOpen: () => Promise<void>; onToggle: (date: string, templateId: string) => Promise<void>; onSubmit: () => Promise<void> }) {
   const submitted = availability?.status === "SUBMITTED";
   const voided = availability?.status === "VOIDED";
@@ -293,7 +328,20 @@ function shortDate(value: string) { return new Intl.DateTimeFormat("vi-VN", { da
 function weekday(value: string) { return new Intl.DateTimeFormat("vi-VN", { weekday: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
 function dayNumber(value: string) { return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
 function monthLabel(value: string) { return new Intl.DateTimeFormat("vi-VN", { month: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }
-function History({ rows }: { rows: TimekeepingSession[] }) { return <section className="card section">{rows.length ? <div className="list">{rows.map((row) => <div className="list-item" key={row.id}><strong>{row.workDate}</strong><div>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "Đang mở"}</div></div>)}</div> : <p className="muted">Chưa có phiên chấm công.</p>}</section>; }
+function TimesheetPanel({ rows, current, centerToday }: { rows: TimekeepingSession[]; current: TimekeepingSession | null; centerToday: string }) {
+  const period = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(centerToday + "T00:00:00Z"));
+  const recent = [...rows].sort((a, b) => b.workDate.localeCompare(a.workDate)).slice(0, 8);
+  return <div className={timesheetStyles.stack}>
+    <section className={timesheetStyles.intro}><span>GIỜ CÔNG</span><h2>{period}</h2><p>Lịch sử chấm công thật từ Core. Tổng giờ và trạng thái duyệt chỉ hiển thị khi có projection authoritative.</p></section>
+    <div className={timesheetStyles.summary}>
+      <article><span>Đã ghi nhận</span><strong>Chưa sẵn sàng</strong><small>Không cộng raw session ở client.</small></article>
+      <article><span>Chờ duyệt</span><strong>Chưa sẵn sàng</strong><small>Core chưa projection approval state cho Staff.</small></article>
+    </div>
+    {current ? <section className={timesheetStyles.openSession}><span>PHIÊN ĐANG MỞ</span><strong>{compactWorkDate(current.workDate)}</strong><p>Bắt đầu {new Date(current.checkInAt).toLocaleString("vi-VN")}. Phiên mở không được tính vào tổng finalized.</p></section> : null}
+    <section className={timesheetStyles.card}><div className={timesheetStyles.row}><h3>Ca gần đây</h3><span>{recent.length} bản ghi</span></div>{recent.length ? <div className={timesheetStyles.history}>{recent.map((row) => <article key={row.id}><div><strong>{compactWorkDate(row.workDate)}</strong><small>{row.status === "OPEN" ? "Đang mở" : "Đã đóng"}</small></div><p>{new Date(row.checkInAt).toLocaleString("vi-VN")} — {row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "Chưa check-out"}</p><em>Hiệu lực điều chỉnh / trạng thái duyệt · Chưa sẵn sàng</em></article>)}</div> : <p className={timesheetStyles.muted}>Chưa có phiên chấm công.</p>}</section>
+    <section className={timesheetStyles.card}><h3>Yêu cầu điều chỉnh</h3><p className={timesheetStyles.muted}>Core hiện chỉ có correction service dành cho Manager/BO. TOS chưa có staff self-service request contract nên không gửi hoặc giả lập yêu cầu.</p><button type="button" disabled>Chưa sẵn sàng</button></section>
+  </div>;
+}
 function Profile({ profile, assignments, center, week, onSaved }: { profile: StaffProfile; assignments: Assignment[]; center: WorkforceContext["centers"][number] | null; week: WorkforceContext["termWeeks"][number] | null; onSaved: (value: StaffProfile) => void }) {
   const [email, setEmail] = useState(profile.email ?? "");
   const [mobile, setMobile] = useState(profile.mobile ?? "");

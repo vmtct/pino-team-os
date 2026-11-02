@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { resolveTosAppAccess } from "./tos-app-access";
+import type { Assignment } from "./workforce-api";
+
+const base: Assignment = {
+  id: "a", centerId: "c1", workDate: "2026-10-18", shiftTemplateId: "s",
+  timeBasis: "SHIFT_TEMPLATE", coverageMode: "FULL_SHIFT", effectiveStartLocal: null,
+  effectiveEndLocal: null, termWeekId: null, status: "ACTIVE", shift: {code:"DAY",displayLabel:"Day",startLocalTime:"08:00",endLocalTime:"20:00"},
+};
+const resolve = (assignments: Assignment[], opts: Partial<Parameters<typeof resolveTosAppAccess>[0]> = {}) =>
+  resolveTosAppAccess({ assignments, centerId: "c1", nowLocal: "2026-10-18T12:00", desktop: false, scheduleReady: true, ...opts });
+test("PAP-702 defaults fail closed when role evidence absent or schedule fails", () => {
+  for (const a of [[], [{...base}], [{...base, roleAssignments: []}]]) {
+    assert.deepEqual(resolve(a), {shift:true,reception:false,station:false,"shift-lead":false,classroom:false});
+  }
+  assert.equal(resolve([{...base,roleAssignments:[{roleType:"FRONT_DESK",targetType:"CENTER",targetId:"c1"}]}],{scheduleReady:false}).reception,false);
+});
+test("PAP-702 requires center/day ACTIVE assignment and matching role target", () => {
+  const role = {roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"c1"};
+  for (const patch of [{centerId:"c2"},{workDate:"2026-10-19"},{status:"CANCELLED"},{roleAssignments:[{...role,targetId:"c2"}]}]) {
+    assert.equal(resolve([{...base,roleAssignments:[role],...patch}]).reception,false);
+  }
+});
+test("PAP-702 derives independent role facts across multiple assignments", () => {
+  const rows = [
+    {...base,roleAssignments:[{roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"c1"}]},
+    {...base,id:"b",roleAssignments:[{roleType:"TEACHER" as const,targetType:"SESSION" as const,targetId:"session-1"},{roleType:"SHIFT_LEADER" as const,targetType:"CENTER" as const,targetId:"c1"}]},
+  ];
+  assert.deepEqual(resolve(rows,{desktop:true}),{shift:true,reception:true,station:true,"shift-lead":true,classroom:true});
+});
+test("PAP-702 rejects wrong target scope and ignores profile roles", () => {
+  const roles = [{roleType:"TEACHER" as const,targetType:"CENTER" as const,targetId:"c1"},
+    {roleType:"SHIFT_LEADER" as const,targetType:"SESSION" as const,targetId:"session-1"}];
+  assert.equal(resolve([{...base,roleAssignments:roles}]).classroom,false);
+  assert.equal(resolve([{...base,roleAssignments:roles}])["shift-lead"],false);
+});
+test("PAP-702 denies role access outside current shift clock", () => { const role = {roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"c1"}; assert.equal(resolve([{...base,roleAssignments:[role]}],{nowLocal:"2026-10-18T20:01"}).reception,false); });
+
+test("PAP-702 overnight, effective windows and unknown timing fail closed", () => {
+  const role = {roleType:"FRONT_DESK" as const,targetType:"CENTER" as const,targetId:"c1"};
+  const night = { ...base, shift:{code:"N",displayLabel:"Night",startLocalTime:"22:00",endLocalTime:"06:00"},roleAssignments:[role] };
+  assert.equal(resolve([night],{nowLocal:"2026-10-19T02:00"}).reception,true);
+  assert.equal(resolve([night],{nowLocal:"2026-10-19T06:00"}).reception,false);
+  const windows = {...night,effectiveWork:{
+    assignmentId:"a",timeBasis:"TEACHING_SESSIONS" as const,coverageMode:"CLASSROOM_TIME" as const,
+    windows:[{startsLocal:"2026-10-18T15:00:00",endsLocal:"2026-10-18T16:00:00",sourceType:"SESSION" as const,sourceIds:["s1"]}],
+    reconciliationRequired:false
+  }};
+  assert.equal(resolve([windows],{nowLocal:"2026-10-18T12:00"}).reception,false);
+  assert.equal(resolve([windows],{nowLocal:"2026-10-18T15:30"}).reception,true);
+  assert.equal(resolve([{...base,shift:null,roleAssignments:[role]}]).reception,false);
+});

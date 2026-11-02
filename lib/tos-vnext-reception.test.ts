@@ -1,0 +1,38 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {ownReceptionAssignments,pickupRequiresCoreVerification,RECEPTION_VNEXT_WRITE_ADMITTED} from "./tos-vnext-reception";
+import type {Assignment} from "./workforce-api";
+const core=(centerId:string,workDate:string,roleType:"FRONT_DESK"|"TEACHER",targetId=centerId):Assignment=>
+ ({id:centerId+workDate+roleType,centerId,workDate,status:"ACTIVE",
+  roleAssignments:[{roleType,targetType:"CENTER",targetId}],shift:null,
+  shiftTemplateId:"tmpl",timeBasis:"SHIFT_TEMPLATE",coverageMode:"FULL_SHIFT",
+  effectiveStartLocal:null,effectiveEndLocal:null,termWeekId:null});
+test("PAP-942 today uses only own scoped FRONT_DESK assignments",()=>{
+ const a=core("center-1","2026-10-23","FRONT_DESK"),b=core("center-2","2026-10-23","FRONT_DESK");
+ const c=core("center-1","2026-10-23","TEACHER"),d=core("center-1","2026-10-24","FRONT_DESK");
+ const e=core("center-1","2026-10-23","FRONT_DESK","center-other");
+ assert.deepEqual(ownReceptionAssignments([a,b,c,d,e],"center-1","2026-10-23"),[a]);
+});
+test("PAP-942 no client-side pickup success without Core authority",()=>{
+ assert.equal(RECEPTION_VNEXT_WRITE_ADMITTED,false);
+ assert.equal(pickupRequiresCoreVerification(),true);
+});
+
+test('PAP-942 excludes unconfirmed reception assignments',()=>{
+ const confirmed=core('center-1','2026-10-23','FRONT_DESK');
+ const draft={...confirmed,id:'draft',status:'DRAFT'};
+ const cancelled={...confirmed,id:'cancelled',status:'CANCELLED'};
+ const unknown={...confirmed,id:'unknown',status:'UNKNOWN'};
+ assert.deepEqual(ownReceptionAssignments([draft,cancelled,unknown,confirmed],'center-1','2026-10-23'),[confirmed]);
+});
+
+test('PAP-942 fails closed on missing center or malformed date',()=>{
+ const row=core('center-1','2026-10-23','FRONT_DESK');
+ assert.deepEqual(ownReceptionAssignments([row],'','2026-10-23'),[]);
+ assert.deepEqual(ownReceptionAssignments([row],'center-1','invalid'),[]);
+});
+
+test('PAP-942 rejects impossible calendar dates',()=>{
+ const row=core('center-1','2026-02-30','FRONT_DESK');
+ assert.deepEqual(ownReceptionAssignments([row],'center-1','2026-02-30'),[]);
+});

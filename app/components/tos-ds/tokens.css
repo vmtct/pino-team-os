@@ -1,0 +1,143 @@
+/* TOS Design System V4 · PAP-934 · semantic source of truth. */
+@layer tos.reset, tos.apps, tos.components, tos.layout, tos.controls;
+[data-tos-system]{
+ --tos-color-classroom-action:#f6bd32;
+ --tos-color-classroom-on-action:#493400;
+ --tos-color-classroom-action-hover:#e9ad1c;
+ --tos-font-family:"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+ --tos-font-symbol:"Segoe UI Symbol","Apple Symbols",sans-serif;
+ --tos-text-body:15px;
+ --tos-text-body-line:1.55;
+ --tos-text-secondary:13px;
+ --tos-text-caption:12px;
+ --tos-text-label:14px;
+ --tos-text-button:14px;
+ --tos-text-heading-xl:24px;
+ --tos-text-heading-lg:20px;
+ --tos-text-heading-md:18px;
+ --tos-text-heading-sm:16px;
+ --tos-text-display-sm:28px;
+ --tos-text-display-md:32px;
+ --tos-text-display-lg:40px;
+ --tos-text-display-xl:56px;
+ --tos-weight-regular:400;
+ --tos-weight-medium:600;
+ --tos-weight-strong:750;
+ --tos-inset-page:16px;
+ --tos-inset-card:16px;
+ --tos-inset-sheet:18px;
+ --tos-button-padding-x:16px;
+ --tos-button-padding-y:12px;
+ --tos-input-padding-x:12px;
+ --tos-input-padding-y:12px;
+ --tos-hit-min:44px;
+ --tos-control-height:48px;
+ --tos-nav-height:76px;
+ --tos-mobile-max:430px;
+ --tos-header-height:60px;
+ --tos-radius-small:8px;
+ --tos-radius-control:11px;
+ --tos-radius-card:16px;
+ --tos-radius-sheet:22px;
+ --tos-radius-pill:999px;
+ --tos-focus-ring:2px solid #267f99;
+ --tos-focus-offset:2px;
+ --tos-color-backdrop:#172b3880;
+ --tos-color-surface-translucent:#ffffffed;
+ --tos-shadow-card:0 4px 16px #172b3810;
+ --tos-shadow-sheet:0 -8px 32px #172b3826;
+ --tos-shadow-inset:inset 0 0 0 1px #172b3814;
+ --tos-button-bg:var(--tone,var(--tos-color-info));
+ --tos-button-bg-quiet:transparent;
+ --tos-home-title-size:clamp(21px, 5vw, 27px);
+ --tos-home-decoration-size:clamp(42px, 13vw, 74px);
+ --tos-space-1:4px;
+ --tos-space-2:8px;
+ --tos-space-3:12px;
+ --tos-space-4:16px;
+ --tos-space-5:20px;
+ --tos-space-6:24px;
+ --tos-space-8:32px;
+ --tos-space-10:40px;
+ --tos-space-12:48px;
+ --tos-space-16:64px;
+ --tos-space-20:80px;
+ --tos-space-24:96px;
+ --tos-color-ink:#293642;
+ --tos-color-muted:#526675;
+ --tos-color-soft:#536777;
+ --tos-color-border:#d9e2e7;
+ --tos-color-surface:#ffffff;
+ --tos-color-canvas:#f4f7f9;
+ --tos-color-subtle-surface:#edf2f5;
+ --tos-color-inverse:#ffffff;
+ --tos-color-night:#172b38;
+ --tos-color-success-bg:#e8f4ed;
+ --tos-color-success-text:#236143;
+ --tos-color-success:#28734f;
+ --tos-color-warning-bg:#fff4df;
+ --tos-color-warning-text:#805516;
+ --tos-color-warning:#966619;
+ --tos-color-danger-bg:#fcebed;
+ --tos-color-danger-text:#a33340;
+ --tos-color-danger:#b23745;
+ --tos-color-info-bg:#e9f3fa;
+ --tos-color-info-text:#225e7e;
+ --tos-color-info:#276e94;
+ --tos-color-accent-bg:#f0eafa;
+ --tos-color-accent-text:#64418e;
+ --tos-color-accent:#71519c;
+ --tos-color-warm-surface:#fff8ed;
+ --tos-color-warm-text:#865334;
+ --tos-color-warm:#925032;
+ --tos-color-avatar-peach:#edc9b4;
+ --tos-color-avatar-blue:#bcd3ed;
+ --tos-color-avatar-green:#bed9c2;
+ --tos-color-avatar-purple:#d8c9ec;
+ --tos-color-avatar-gold:#eed7ab;
+ --tos-color-avatar-teal:#bfe0db;
+}
+
+[data-tos-system]{--tos-tone-default:var(--tos-color-success);}
+
+[data-tos-system]{--tos-color-app-background:var(--tos-color-canvas);}
+
+[data-tos-system]{--tos-color-accent-tint-default:var(--tos-color-success-bg);}
+
+[data-tos-system]{--tos-color-home-button-bg:var(--tos-color-info-bg);}
+
+[data-tos-system]{--tos-color-home-button-text:var(--tos-color-info-text);}
+
+[data-tos-system]{--tos-color-shift:var(--tos-color-info);}
+
+[data-tos-system]{--tos-color-shift-tint:var(--tos-color-info-bg);}
+
+[data-tos-system]{--tos-color-reception:var(--tos-color-success);}
+
+[data-tos-system]{--tos-color-reception-tint:var(--tos-color-success-bg);}
+
+[data-tos-system]{--tos-color-classroom:var(--tos-color-classroom-action);}
+
+[data-tos-system]{--tos-color-classroom-tint:var(--tos-color-warning-bg);}
+
+[data-tos-system]{--tos-color-training:var(--tos-color-accent);}
+
+[data-tos-system]{--tos-color-training-tint:var(--tos-color-accent-bg);}
+
+[data-tos-system]{--tos-color-shift-lead:var(--tos-color-danger-text);}
+
+[data-tos-system]{--tos-color-shift-lead-tint:var(--tos-color-danger-bg);}
+
+[data-tos-system]{--tos-color-station:var(--tos-color-info-text);}
+
+[data-tos-system]{--tos-color-station-tint:var(--tos-color-info-bg);}
+
+[data-tos-system]{--tos-color-sheet-backdrop:var(--tos-color-backdrop);}
+
+[data-tos-system]{--tos-color-card-shadow:var(--tos-color-border);}
+
+[data-tos-system]{--tos-color-header-glass:var(--tos-color-surface);}
+
+[data-tos-system]{--tos-color-dark:var(--tos-color-night);}
+
+[data-tos-system]{--tos-color-danger-border:var(--tos-color-danger-text);}

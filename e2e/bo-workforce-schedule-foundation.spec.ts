@@ -1,0 +1,19 @@
+import { expect, test } from "@playwright/test";
+
+function fixture(){return `<!doctype html><html><head><meta charset="utf-8"><style>
+body{font-family:Arial;margin:0;padding:24px;background:#fafafa}.toolbar{display:flex;gap:8px;padding:8px;border:1px solid #ddd;border-radius:13px}.toolbar label{display:flex;gap:6px;align-items:center}.toolbar .spacer{flex:1}.matrix{margin-top:18px;border:1px solid #ddd;border-radius:14px;padding:16px}.matrix table{border-collapse:collapse;width:100%}.matrix th,.matrix td{border:1px solid #eee;padding:6px}.cell{width:100%;min-height:54px;border:1px solid transparent;background:white;text-align:left}.cell:focus{outline:2px solid #8e7ddd}.cell[aria-pressed=true]{background:#f5f2ff}.detail{margin-top:12px;padding:12px;border:1px solid #ddd;border-radius:12px}
+</style></head><body><header><span>PINO TEAM · BACK OFFICE</span><h1>Lịch ca tuần</h1></header><section class="toolbar" aria-label="Weekly schedule view controls"><label>Center<select id="center"><option>Cần Thơ</option></select></label><label>TermWeek<select id="week"><option>2026-W19</option><option>2026-W20</option></select></label><div class="spacer"></div><span id="result">2 staff · 2026-10-12 → 2026-10-18</span><button id="refresh" aria-label="Refresh workforce planning">↻</button></section><section class="matrix"><table aria-label="Weekly Workforce planning matrix"><thead><tr><th>Staff</th><th>T2 12/10</th><th>T3 13/10</th></tr></thead><tbody><tr><th>Trang</th><td><button class="cell" aria-pressed="false" aria-controls="workforce-planner-detail" aria-label="Trang · T2 12/10 · Có availability"><strong>Có thể</strong><span> 2 ca đăng ký</span></button></td><td><button class="cell" aria-pressed="false" aria-controls="workforce-planner-detail" aria-label="Trang · T3 13/10 · Chưa xếp">—</button></td></tr><tr><th>Bảo</th><td><button class="cell" aria-pressed="false" aria-controls="workforce-planner-detail" aria-label="Bảo · T2 12/10 · Đã xếp"><strong>Đã xếp</strong></button></td><td><button class="cell" aria-pressed="false" aria-controls="workforce-planner-detail" aria-label="Bảo · T3 13/10 · Chưa xếp">—</button></td></tr></tbody></table></section><aside id="workforce-planner-detail" class="detail" aria-label="Workforce planning detail" aria-live="polite">Chọn một ô trong matrix để mở thao tác.</aside><script>
+let refreshes=0;document.querySelector('#refresh').onclick=()=>{refreshes++;document.querySelector('#result').textContent='Refreshed '+refreshes};document.querySelectorAll('.cell').forEach(cell=>cell.onclick=()=>{document.querySelectorAll('.cell').forEach(x=>x.setAttribute('aria-pressed','false'));cell.setAttribute('aria-pressed','true');document.querySelector('#workforce-planner-detail').textContent=cell.getAttribute('aria-label')+' · Operational decision'});document.querySelector('#week').onchange=()=>{document.querySelectorAll('.cell').forEach(x=>x.setAttribute('aria-pressed','false'));document.querySelector('#workforce-planner-detail').textContent='Chọn một ô trong matrix để mở thao tác.'};
+</script></body></html>`}
+
+test("PAP-394 specialized schedule retains toolbar, keyboard focus and bounded selection detail",async({page})=>{
+  await page.setContent(fixture());
+  await expect(page.getByRole("heading",{name:"Lịch ca tuần"})).toBeVisible();
+  await expect(page.getByLabel("Weekly schedule view controls")).toBeVisible();
+  const cell=page.getByRole("button",{name:/Trang · T2 12\/10/});
+  await cell.focus();await expect(cell).toBeFocused();
+  await cell.click();await expect(cell).toHaveAttribute("aria-pressed","true");
+  await expect(page.getByLabel("Workforce planning detail")).toContainText("Operational decision");
+  await page.getByLabel("Refresh workforce planning").click();await expect(page.getByText("Refreshed 1")).toBeVisible();
+  await page.getByLabel("TermWeek").selectOption({label:"2026-W20"});await expect(cell).toHaveAttribute("aria-pressed","false");
+});

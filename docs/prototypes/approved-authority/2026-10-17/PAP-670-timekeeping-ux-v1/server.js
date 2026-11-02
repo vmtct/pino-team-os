@@ -1,0 +1,1 @@
+const http=require('http'); const fs=require('fs'); const path=require('path'); http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(fs.readFileSync(path.join(__dirname,'index.html')))}).listen(8766,'0.0.0.0',()=>console.log('READY 8766'));

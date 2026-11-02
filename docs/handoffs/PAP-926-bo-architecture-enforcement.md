@@ -1,0 +1,32 @@
+# PAP-926 — BO Architecture Enforcement V1 / FC1 safe source handoff
+
+Founder mandate: after PAP-879 BO V2.3 migration, every new BO module must be **created by a registry/factory**, verified by a **required CI contract check**, and fail closed if it violates approved architecture. This source does not claim that 35 existing BO modules have already migrated.
+
+## What this DEV slice does
+- `app/bo/architecture/contract.ts` and `registry.ts`: typed literal definition requiring entity route/key, explicit Core read/write feature declarations, field metadata including read-only canonical ID, public module-level views, canonical Quick View and shared Full Detail layout. Runtime `requireBoModule(...)` and `requireBoModuleForRoute(...)` fail closed for unknown modules.
+- `BoModuleFactory.tsx`: one **interim readonly** render boundary using the existing shared `BoDataGrid`, `BoDataGridCanonicalId` and `BoDataGridSidePeek`, NOT a second grid. Reads through caller-injected Core-authorized domain adapter; never writes because PAP-874/888 shared typed editable properties and PAP-924 Saved Views/Settings are not integrated yet.
+- Frozen `legacy-baseline.json`: captured 2026-10-22 from pristine Team OS origin/main: **47 pre-existing page.tsx route files, 41 navigation hrefs**. SHA-256 `6eb9110b8838b72d4bc6af9e55c4182bf1dc3fd85cbeee0e006ef74bb384c472` checked in the verifier. No new grandfather exceptions can be inserted via ordinary baseline data edits. Existing legacy route paths continue functioning until PAP-878 migration; no mass switch/mutation under this PR.
+- `scripts/verify-bo-module-contract.mjs`: TypeScript AST static analysis of literal registry, BO navigation, filesystem pages. Fail for NEW route/nav missing registry, duplicate key/path, missing domain permissions/fields/read-only ID, wrong factory component, direct bespoke table or unresolved scaffold adapter marker. Enforces each registered module appears in route and navigation, with a canonical module key matching its URL. Does not trust only filename/regex for route/nav AST.
+- `scripts/create-bo-module.mjs`: creates route, registry entry, Workspace nav and domain adapter **deny stub**. CI intentionally fails on TODO permissions or adapter until real Core-backed domain implementation is supplied. It refuses overwrite of an existing module. CLI `npm run bo:module:new -- music-studio "Music Studio"`.
+- `.github/workflows/pr-validation.yml`: inserts mandatory positive and negative enforcement checks after `bun install --frozen-lockfile`, before lint/build. `package.json` scripts `bo:contract:check` and `bo:module:new`.
+- Tests `scripts/verify-bo-module-contract.test.mjs` prove positive baseline and explicit negative cases (rogue page/nav/table, wrong factory, baseline expansion, missing schema/permission, generator deny stub), plus `lib/bo-module-contract.test.ts` runtime registry assertions.
+
+## Real security boundaries / what V1 does NOT guarantee
+1. Registry metadata is NOT a Core permission grant. Only Core server decides which entity records/fields a user can read or mutate, and whether Manager may change PUBLIC Saved Views.
+2. Static AST checking of NEW route files is admission control, not runtime enforcement for **the 47 grandfathered legacy routes**; they must be migrated and removed from baseline through PAP-878 to enable strict enforcement. Nested code imported behind a new route may need enhanced supply-chain AST/import graph checks in V2. Do not claim exhaustive detection of obfuscated or dynamic module injection from V1.
+3. Shared Factory is **read-only interim**, not final authoritative editable property Drawer / tabs / Settings. PAP-874 + PAP-882 + PAP-888 + PAP-924 must bind their approved V2.3 implementations before modules can be declared feature-complete. The adapter scaffold denies by default.
+4. A developer able to edit BOTH checker and workflow in the same PR can bypass a source-embedded gate if the repository allows it. FC1 must configure **branch protection rules** requiring `PR Validation / validate`, and CODEOWNERS / rule requiring independent authorized owner review of `.github/workflows/pr-validation.yml`, `scripts/verify-bo-module-contract.mjs`, `app/bo/architecture/**` and `legacy-baseline.json`. No branch protection or GitHub settings have been changed in this DEV slice. Until such protection is independently verified, refer to this as **CI check present**, not non-bypassable enforcement.
+5. The initial registry deliberately contains **0 new modules** because no real domain adapter is ready to mount. Do not invent fake data to demonstrate a passing module; the fixture test validates correct generated topology only after replacing placeholder markers in an isolated temp directory.
+6. Exception handling: V1 accepts entity-first only. Specialist editors belong inside typed Full Detail tabs once PAP-882 lands. A dashboard/workspace requiring exemption needs a separately approved kind with explicit owner and CI evidence, not changing the checker to ignore the route.
+7. This is no staging, Production, Core migration, CI branch-protection mutation or any BO route migration authority. FC1 remains sole merger with normal PAP-512 Epic-first queue.
+
+## Acceptance / verification
+- Local `node scripts/verify-bo-module-contract.mjs` must print BO_CONTRACT_PASS.
+- Local `node --test scripts/verify-bo-module-contract.test.mjs` negative/positive cases PASS.
+- Local `node --import tsx --test lib/bo-module-contract.test.ts` runtime contracts PASS.
+- Exact-head PR Validation CI required; local shared dependency junction on i5 can have pre-existing missing FontAwesome/ESLint Next deps, so never fabricate a full-local build/lint PASS.
+- Do not mark PAP-926 Review until source is clean pushed, linked Draft PR, exact-head mandatory CI green and reviewer disposition per PAP-507 recorded.
+- FC1 must inspect existing shared workflow ownership, exact PR diff, main-base drift and safe merge admission before merging. **No automatic merge or ship.**
+
+## V2 exit
+As PAP-878 reaches 35/35 source parity, enable strict no-legacy mode, generate nav from typed registry, bind production `BoModuleFactory` to one full V2.3 shared workspace (editable properties/Quick View/Full Detail/Settings/Public Views), ensure allowed domain adapters and Core field ACL match. Confirm protected required checks in GitHub settings. Only then claim every new BO module is architecturally enforced end-to-end.

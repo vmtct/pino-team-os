@@ -1,0 +1,62 @@
+name: PAP-1105 Freeze Staging Acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      bounded_shared_view_write:
+        description: Allow only retained PAP-1105 synthetic Subscription View fixture writes
+        type: boolean
+        required: true
+        default: false
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/pap1105-freeze-g4-staging.yml"
+      - "scripts/pap1105-freeze-g4-contract.mjs"
+      - "scripts/pap1105-freeze-g4-contract.test.mjs"
+      - "scripts/run-pap1105-freeze-g4-ci.mjs"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: pap1105-freeze-g4-staging
+  cancel-in-progress: false
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test scripts/pap1105-freeze-g4-contract.test.mjs
+      - run: node --check scripts/run-pap1105-freeze-g4-ci.mjs
+  live:
+    needs: contract
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == 'vmtct' && inputs.bounded_shared_view_write == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: g4-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Exact serving attestation, live Freeze geometry and bounded retained View persistence
+        run: node scripts/run-pap1105-freeze-g4-ci.mjs
+        env:
+          CI: "true"
+          TDD_FREEZE_G4_RUN: "1"
+          TDD_FREEZE_G4_RETAIN_FIXTURE: "1"
+          GITHUB_TOKEN: ${{ github.token }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          TDD_G4_FOUNDER_EMAIL: ${{ secrets.TDD_G4_FOUNDER_EMAIL }}
+          TDD_G4_FOUNDER_PASSWORD: ${{ secrets.TDD_G4_FOUNDER_PASSWORD }}
+          TDD_G4_MANAGER_EMAIL: ${{ secrets.TDD_G4_MANAGER_EMAIL }}
+          TDD_G4_MANAGER_PASSWORD: ${{ secrets.TDD_G4_MANAGER_PASSWORD }}

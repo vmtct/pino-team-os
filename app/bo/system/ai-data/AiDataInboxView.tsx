@@ -1,49 +1,113 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  BoDataGrid,
+  BoDataGridBadge,
+  BoDataGridCanonicalId,
+  BoDataGridSidePeek,
+  BoDataGridStatus,
+  type BoDataGridColumn,
+} from "@/app/bo/components/data-grid";
+import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGridUrlState";
+import { canRenderAiDataActions, createLatestRequestGuard, reconciledAiDataPage } from "@/lib/bo-ai-data-inbox-lifecycle";
+import {
+  projectAiDataGrid,
+  type AiDataChangeSetSummary,
+  type AiDataInboxFilter,
+  type AiDataInboxSort,
+  type AiDataStatus,
+} from "@/lib/bo-ai-data-grid";
 import styles from "../../bo.module.css";
 import local from "./ai-data-inbox.module.css";
 
-type Status="PENDING_APPROVAL"|"APPLYING"|"APPLIED"|"REJECTED"|"OUTCOME_UNKNOWN";
-type Preview={operationCount:number;destructiveOperationCount:0;destinationTables:Array<{table:string;creates:number}>};
-type Summary={id:string;status:Status;source:"GPT";purpose:string;schemaVersion:"v1";planHash:string;preview:Preview;submittedAt:string;updatedAt:string;approvedAt:string|null;rejectedAt:string|null;appliedAt:string|null;version:number};
+const PAGE_SIZES = [10, 25, 50, 100] as const;
+const SORT_KEYS: readonly AiDataInboxSort[] = ["purpose", "status", "operations", "submittedAt", "updatedAt"];
+const FILTERS: readonly AiDataInboxFilter[] = ["", "PENDING_APPROVAL", "NEEDS_RECONCILE", "APPLIED", "REJECTED"];
+
 type Operation={ref:string;resource:"operating_term"|"operating_term_week";op:"create";targetTable:"terms"|"term_weeks";recordId:string;data:Record<string,unknown>};
-type Detail=Summary&{idempotencyKey:string;plan:{schemaVersion:"v1";operations:Operation[]};validation:Record<string,unknown>;approvedByUserId:string|null;rejectedByUserId:string|null;rejectionReason:string|null;applyAttemptId:string|null;applyStartedAt:string|null;applyReceipt:Record<string,unknown>|null;reconcile:Record<string,unknown>|null};
+type Detail=AiDataChangeSetSummary&{idempotencyKey:string;plan:{schemaVersion:"v1";operations:Operation[]};validation:Record<string,unknown>;approvedByUserId:string|null;rejectedByUserId:string|null;rejectionReason:string|null;applyAttemptId:string|null;applyStartedAt:string|null;applyReceipt:Record<string,unknown>|null;reconcile:Record<string,unknown>|null};
 
 export function AiDataInboxView(){
-  const [items,setItems]=useState<Summary[]>([]);
+  const pathname=usePathname();
+  const router=useRouter();
+  const searchParams=useSearchParams();
+  const grid=useBoDataGridUrlState({defaultPageSize:25,allowedPageSizes:PAGE_SIZES});
+  const selectedId=searchParams.get("changeSet")??"";
+  const [items,setItems]=useState<AiDataChangeSetSummary[]>([]);
   const [detail,setDetail]=useState<Detail|null>(null);
-  const [selectedId,setSelectedId]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [listReady,setListReady]=useState(false);
+  const [detailLoading,setDetailLoading]=useState(false);
   const [busy,setBusy]=useState("");
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
+  const setPageRef=useRef(grid.setPage);setPageRef.current=grid.setPage;
+  const selectedIdRef=useRef(selectedId);selectedIdRef.current=selectedId;
+  const listGuardRef=useRef(createLatestRequestGuard());
+  const detailGuardRef=useRef(createLatestRequestGuard());
+  const mutationGuardRef=useRef(createLatestRequestGuard());
 
-  const loadDetail=useCallback(async(id:string)=>{
-    setSelectedId(id);setError("");
-    try{setDetail(await founderData<Detail>(`/api/founder/ai/change-sets/${id}`));}
-    catch(cause){setError(errorMessage(cause));}
-  },[]);
+  const rawStatus=grid.state.filters.status??"";
+  const status=FILTERS.includes(rawStatus as AiDataInboxFilter)?rawStatus as AiDataInboxFilter:"";
+  const sort=SORT_KEYS.includes(grid.state.sortKey as AiDataInboxSort)?grid.state.sortKey as AiDataInboxSort:"updatedAt";
+  const direction=grid.state.sortKey?grid.state.sortDirection:"desc";
+  const projection=useMemo(()=>projectAiDataGrid(items,{page:grid.state.page,pageSize:grid.state.pageSize,search:grid.state.search,status,sort,direction}),[direction,grid.state.page,grid.state.pageSize,grid.state.search,items,sort,status]);
 
   const refresh=useCallback(async()=>{
-    setError("");
+    const ticket=listGuardRef.current.begin("list");
+    setError("");setLoading(true);setListReady(false);
     try{
-      const next=await founderData<Summary[]>("/api/founder/ai/change-sets");
-      setItems(next);
-      if(selectedId){
-        const still=next.find(item=>item.id===selectedId);
-        if(still)await loadDetail(selectedId); else {setSelectedId("");setDetail(null);}
-      }
-    }catch(cause){setError(errorMessage(cause));}
-  },[loadDetail,selectedId]);
+      const next=await founderData<AiDataChangeSetSummary[]>("/api/founder/ai/change-sets");
+      if(!listGuardRef.current.isCurrent(ticket,"list"))return;
+      setItems(next);setListReady(true);
+    }catch(cause){
+      if(listGuardRef.current.isCurrent(ticket,"list"))setError(errorMessage(cause));
+    }finally{
+      if(listGuardRef.current.isCurrent(ticket,"list"))setLoading(false);
+    }
+  },[]);
 
-  useEffect(()=>{void refresh();},[refresh]);
+  const loadDetail=useCallback(async(id:string)=>{
+    detailGuardRef.current.invalidate();
+    mutationGuardRef.current.invalidate();
+    setDetail(null);setBusy("");setMessage("");
+    if(!id){setDetailLoading(false);return;}
+    const ticket=detailGuardRef.current.begin(id);
+    setError("");setDetailLoading(true);
+    try{
+      const next=await founderData<Detail>(`/api/founder/ai/change-sets/${id}`);
+      if(detailGuardRef.current.isCurrent(ticket,selectedIdRef.current))setDetail(next);
+    }catch(cause){
+      if(detailGuardRef.current.isCurrent(ticket,selectedIdRef.current)){setDetail(null);setError(errorMessage(cause));}
+    }finally{
+      if(detailGuardRef.current.isCurrent(ticket,selectedIdRef.current))setDetailLoading(false);
+    }
+  },[]);
+
+  useEffect(()=>{void refresh();return()=>listGuardRef.current.invalidate();},[refresh]);
+  useEffect(()=>{void loadDetail(selectedId);return()=>{detailGuardRef.current.invalidate();mutationGuardRef.current.invalidate();};},[loadDetail,selectedId]);
+  useEffect(()=>{
+    const page=reconciledAiDataPage({listReady,loading,reconcilePage:projection.reconcilePage});
+    if(page!==null)setPageRef.current(page);
+  },[listReady,loading,projection.reconcilePage]);
+
+  function selectChangeSet(id:string,history:"push"|"replace"="push"){
+    const params=new URLSearchParams(searchParams.toString());
+    if(id)params.set("changeSet",id);else params.delete("changeSet");
+    const query=params.toString();const href=query?`${pathname}?${query}`:pathname;
+    if(history==="push")router.push(href,{scroll:false});else router.replace(href,{scroll:false});
+  }
 
   async function mutate(action:"approve"|"reject"|"reconcile"){
-    if(!detail)return;
+    if(!detail||!canRenderAiDataActions({selectedId,detailId:detail.id,detailLoading}))return;
+    const target=detail;
+    const ticket=mutationGuardRef.current.begin(target.id);
     let body:Record<string,unknown>={};
     if(action==="approve"){
-      if(!window.confirm(`Apply ${detail.preview.operationCount} proposed create operations to Production data?\n\nPlan hash: ${detail.planHash}`))return;
-      body={expectedPlanHash:detail.planHash};
+      if(!window.confirm(`Apply ${target.preview.operationCount} proposed create operations to Production data?\n\nPlan hash: ${target.planHash}`))return;
+      body={expectedPlanHash:target.planHash};
     }
     if(action==="reject"){
       const reason=window.prompt("Reason for rejecting this GPT proposal:");
@@ -52,16 +116,30 @@ export function AiDataInboxView(){
     }
     setBusy(action);setError("");setMessage("");
     try{
-      const next=await founderData<Detail>(`/api/founder/ai/change-sets/${detail.id}/${action}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      const next=await founderData<Detail>(`/api/founder/ai/change-sets/${target.id}/${action}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      if(!mutationGuardRef.current.isCurrent(ticket,selectedIdRef.current))return;
       setDetail(next);
       setMessage(action==="approve"?"Applied with Founder authority.":action==="reject"?"Proposal rejected.":"Reconciliation completed without blind retry.");
-      const list=await founderData<Summary[]>("/api/founder/ai/change-sets");setItems(list);
-    }catch(cause){setError(errorMessage(cause));}
-    finally{setBusy("");}
+      await refresh();
+    }catch(cause){
+      if(mutationGuardRef.current.isCurrent(ticket,selectedIdRef.current))setError(errorMessage(cause));
+    }finally{
+      if(mutationGuardRef.current.isCurrent(ticket,selectedIdRef.current))setBusy("");
+    }
   }
 
   const pending=items.filter(item=>item.status==="PENDING_APPROVAL").length;
   const uncertain=items.filter(item=>item.status==="OUTCOME_UNKNOWN"||item.status==="APPLYING").length;
+  const columns=useMemo<BoDataGridColumn<AiDataChangeSetSummary>[]>(()=>[
+    {key:"purpose",header:"Change Set",sortable:true,sticky:true,minWidth:255,render:(item)=><div><strong>{item.purpose}</strong><BoDataGridCanonicalId value={item.id} label="Copy Change Set ID" /></div>},
+    {key:"status",header:"Status",sortable:true,minWidth:175,render:(item)=><BoDataGridStatus value={formatStatus(item.status)} tone={statusTone(item.status)} />},
+    {key:"operations",header:"Operations",sortable:true,minWidth:210,render:(item)=><div><strong>{item.preview.operationCount} create{item.preview.operationCount===1?"":"s"}</strong><br /><small>{item.preview.destinationTables.map(target=>`${target.table} ×${target.creates}`).join(", ")||"No destinations"}</small></div>},
+    {key:"risk",header:"Destructive",minWidth:135,render:(item)=>item.preview.destructiveOperationCount===0?<BoDataGridBadge>CREATE ONLY</BoDataGridBadge>:<BoDataGridStatus value={`${item.preview.destructiveOperationCount} destructive`} tone="danger" />},
+    {key:"submittedAt",header:"Submitted",sortable:true,minWidth:175,render:(item)=>new Date(item.submittedAt).toLocaleString("vi-VN")},
+    {key:"updatedAt",header:"Updated",sortable:true,minWidth:175,render:(item)=>new Date(item.updatedAt).toLocaleString("vi-VN")},
+    {key:"plan",header:"Plan hash",minWidth:170,render:(item)=><code>{item.planHash.slice(0,16)}…</code>},
+  ],[]);
+  const filtered=Boolean(grid.state.search||status);
 
   return <section className={styles.page}>
     <header className={styles.heading}>
@@ -73,63 +151,76 @@ export function AiDataInboxView(){
     <section className={styles.metrics}>
       <div className={styles.metric}><span>Pending approval</span><strong>{pending}</strong></div>
       <div className={styles.metric}><span>Needs reconcile</span><strong>{uncertain}</strong></div>
-      <div className={styles.metric}><span>Total shown</span><strong>{items.length}</strong></div>
-      <div className={styles.metric}><span>Destructive ops</span><strong>0</strong></div>
+      <div className={styles.metric}><span>Total proposals</span><strong>{items.length}</strong></div>
+      <div className={styles.metric}><span>Destructive ops</span><strong>{items.reduce((sum,item)=>sum+item.preview.destructiveOperationCount,0)}</strong></div>
     </section>
 
     {error?<p className={styles.ownerError}>{error}</p>:null}
     {message?<div className={styles.successCard}><span>AI Data</span><strong>{message}</strong></div>:null}
 
-    <section className={styles.panel}>
-      <div className={styles.panelHeading}>
-        <div><h2>Change Sets</h2><p>v1 allows registered create operations only: Terms and TermWeeks. No raw SQL, update, or delete.</p></div>
-        <button className={styles.secondaryButton} onClick={()=>void refresh()} disabled={Boolean(busy)}>Refresh</button>
-      </div>
-      <div className={styles.ownerQueue}>
-        {items.length===0?<div className={styles.empty}>No AI data proposals yet.</div>:items.map(item=>
-          <button key={item.id} type="button" className={`${local.changeSetRow} ${item.id===selectedId?local.selected:""}`} onClick={()=>void loadDetail(item.id)}>
-            <div>
-              <strong>{item.purpose}</strong>
-              <span>{formatStatus(item.status)} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</span>
-              <small>{item.preview.operationCount} creates → {item.preview.destinationTables.map(target=>`${target.table} ×${target.creates}`).join(", ")}</small>
-            </div>
-            <code>{item.planHash.slice(0,12)}…</code>
-          </button>)}
-      </div>
-    </section>
+    <BoDataGrid
+      rows={projection.items}
+      columns={columns}
+      rowKey={(item)=>item.id}
+      caption="AI Data Change Set review inbox"
+      state={loading?"loading":error?"error":"ready"}
+      stateMessage={error||undefined}
+      search={grid.state.search}
+      onSearchChange={grid.setSearch}
+      searchPlaceholder="Search purpose, Change Set ID, plan hash or destination…"
+      sortKey={sort}
+      sortDirection={direction}
+      onSortChange={grid.setSort}
+      filterChips={status?[{key:"status",label:"Review state",value:filterLabel(status),onClear:()=>grid.setFilter("status",null)}]:[]}
+      toolbarActions={<label className={styles.gridToolbarFilter}>Review state<select aria-label="Filter AI Data Change Sets by review state" value={status} onChange={(event)=>grid.setFilter("status",event.target.value||null)}><option value="">All</option><option value="PENDING_APPROVAL">Pending approval</option><option value="NEEDS_RECONCILE">Needs reconcile</option><option value="APPLIED">Applied</option><option value="REJECTED">Rejected</option></select></label>}
+      onRefresh={()=>void refresh()}
+      resultLabel={`${projection.total} Change Sets`}
+      pagination={{page:projection.page,pageSize:grid.state.pageSize,total:projection.total,pageSizeOptions:PAGE_SIZES,onPageChange:grid.setPage,onPageSizeChange:grid.setPageSize}}
+      selectedRowKey={selectedId||null}
+      onRowOpen={(item)=>selectChangeSet(item.id)}
+      emptyTitle={filtered?"No matching Change Sets":"No AI data proposals yet"}
+      emptyMessage={filtered?"Adjust search or review-state filter.":"GPT has not submitted a create-only Change Set for Founder review."}
+    />
 
-    {detail?<section className={styles.panel}>
-      <div className={styles.panelHeading}>
-        <div><h2>Review exact proposal</h2><p>{detail.id}</p></div>
-        <span className={styles.statusPill}>{formatStatus(detail.status)}</span>
-      </div>
-      <div className={local.facts}>
-        <div><span>Source</span><strong>{detail.source}</strong></div>
-        <div><span>Schema</span><strong>{detail.schemaVersion}</strong></div>
-        <div><span>Operations</span><strong>{detail.preview.operationCount}</strong></div>
-        <div><span>Destructive</span><strong>{detail.preview.destructiveOperationCount}</strong></div>
-      </div>
-      <div className={local.hashBox}><span>Plan hash — approval binds to this exact payload</span><code>{detail.planHash}</code></div>
-      <div className={local.operationList}>
-        {detail.plan.operations.map(operation=><article key={operation.ref} className={local.operation}>
-          <div><strong>{operation.ref}</strong><span>{operation.op.toUpperCase()} · {operation.resource} → {operation.targetTable}</span></div>
-          <code>{operation.recordId}</code>
-          <pre>{JSON.stringify(operation.data,null,2)}</pre>
-        </article>)}
-      </div>
-      {detail.reconcile?<details className={local.details}><summary>Reconciliation evidence</summary><pre>{JSON.stringify(detail.reconcile,null,2)}</pre></details>:null}
-      {detail.applyReceipt?<details className={local.details}><summary>Apply receipt</summary><pre>{JSON.stringify(detail.applyReceipt,null,2)}</pre></details>:null}
-
-      <div className={local.actions}>
-        {detail.status==="PENDING_APPROVAL"?<>
-          <button className={styles.primaryButton} disabled={Boolean(busy)} onClick={()=>void mutate("approve")}>{busy==="approve"?"Applying…":"Approve & Apply"}</button>
-          <button className={local.rejectButton} disabled={Boolean(busy)} onClick={()=>void mutate("reject")}>Reject</button>
-        </>:null}
-        {(detail.status==="APPLYING"||detail.status==="OUTCOME_UNKNOWN")?
-          <button className={styles.primaryButton} disabled={Boolean(busy)} onClick={()=>void mutate("reconcile")}>{busy==="reconcile"?"Reconciling…":"Reconcile outcome"}</button>:null}
-      </div>
-    </section>:null}
+    {selectedId?<BoDataGridSidePeek title={detail?.purpose??"AI Data Change Set"} eyebrow="System · Founder review" onClose={()=>selectChangeSet("","replace")} footer={detail&&canRenderAiDataActions({selectedId,detailId:detail.id,detailLoading})?<ReviewActions detail={detail} busy={busy} mutate={mutate} />:undefined}>
+      {detailLoading?<p>Loading exact proposal…</p>:detail&&detail.id===selectedId?<ChangeSetDetail detail={detail}/>:<p>Change Set detail is unavailable.</p>}
+    </BoDataGridSidePeek>:null}
   </section>;
+}
+
+function ChangeSetDetail({detail}:{detail:Detail}){
+  return <div>
+    <section className={local.facts}>
+      <div><span>Status</span><strong>{formatStatus(detail.status)}</strong></div>
+      <div><span>Source / schema</span><strong>{detail.source} · {detail.schemaVersion}</strong></div>
+      <div><span>Operations</span><strong>{detail.preview.operationCount}</strong></div>
+      <div><span>Destructive</span><strong>{detail.preview.destructiveOperationCount}</strong></div>
+    </section>
+    <dl className={styles.auditDetailList}>
+      <div><dt>Change Set ID</dt><dd><BoDataGridCanonicalId value={detail.id}/></dd></div>
+      <div><dt>Submitted</dt><dd>{new Date(detail.submittedAt).toLocaleString("vi-VN")}</dd></div>
+      <div><dt>Updated</dt><dd>{new Date(detail.updatedAt).toLocaleString("vi-VN")}</dd></div>
+      <div><dt>Approved by</dt><dd>{detail.approvedByUserId??"Not approved"}</dd></div>
+      <div><dt>Rejected by</dt><dd>{detail.rejectedByUserId??"Not rejected"}</dd></div>
+      <div><dt>Rejection reason</dt><dd>{detail.rejectionReason??"n/a"}</dd></div>
+    </dl>
+    <div className={local.hashBox}><span>Plan hash — approval binds to this exact payload</span><code>{detail.planHash}</code></div>
+    <div className={local.operationList}>
+      {detail.plan.operations.map(operation=><article key={operation.ref} className={local.operation}>
+        <div><strong>{operation.ref}</strong><span>{operation.op.toUpperCase()} · {operation.resource} → {operation.targetTable}</span></div>
+        <code>{operation.recordId}</code>
+        <pre>{JSON.stringify(operation.data,null,2)}</pre>
+      </article>)}
+    </div>
+    {detail.reconcile?<details className={local.details}><summary>Reconciliation evidence</summary><pre>{JSON.stringify(detail.reconcile,null,2)}</pre></details>:null}
+    {detail.applyReceipt?<details className={local.details}><summary>Apply receipt</summary><pre>{JSON.stringify(detail.applyReceipt,null,2)}</pre></details>:null}
+  </div>;
+}
+
+function ReviewActions({detail,busy,mutate}:{detail:Detail;busy:string;mutate:(action:"approve"|"reject"|"reconcile")=>Promise<void>}){
+  if(detail.status==="PENDING_APPROVAL")return <div className={local.actions}><button className={styles.primaryButton} disabled={Boolean(busy)} onClick={()=>void mutate("approve")}>{busy==="approve"?"Applying…":"Approve & Apply"}</button><button className={local.rejectButton} disabled={Boolean(busy)} onClick={()=>void mutate("reject")}>Reject</button></div>;
+  if(detail.status==="APPLYING"||detail.status==="OUTCOME_UNKNOWN")return <div className={local.actions}><button className={styles.primaryButton} disabled={Boolean(busy)} onClick={()=>void mutate("reconcile")}>{busy==="reconcile"?"Reconciling…":"Reconcile outcome"}</button></div>;
+  return <span>Review complete · no inline mutation available.</span>;
 }
 
 async function founderData<T>(path:string,init?:RequestInit):Promise<T>{
@@ -140,4 +231,6 @@ async function founderData<T>(path:string,init?:RequestInit):Promise<T>{
   return payload.data;
 }
 function errorMessage(cause:unknown){return cause instanceof Error?cause.message:"AI Data request failed.";}
-function formatStatus(status:Status){return status.replaceAll("_"," ");}
+function formatStatus(status:AiDataStatus){return status.replaceAll("_"," ");}
+function filterLabel(status:AiDataInboxFilter){return status==="NEEDS_RECONCILE"?"Needs reconcile":status.replaceAll("_"," ");}
+function statusTone(status:AiDataStatus):"success"|"neutral"|"warning"|"danger"|"info"{if(status==="APPLIED")return"success";if(status==="REJECTED")return"danger";if(status==="PENDING_APPROVAL")return"warning";if(status==="APPLYING"||status==="OUTCOME_UNKNOWN")return"info";return"neutral";}

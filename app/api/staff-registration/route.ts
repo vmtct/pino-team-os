@@ -38,25 +38,28 @@ async function validate(form: FormData): Promise<StaffRegistrationSubmissionInpu
   const password = registrationPassword(form, "password");
   const confirmPassword = registrationPassword(form, "confirmPassword");
   if (password !== confirmPassword) throw new ValidationError("Mật khẩu xác nhận không khớp.");
-  const mobile = required(form, "mobile", 30, "Vui lòng nhập số điện thoại.");
-  const dateOfBirth = required(form, "dateOfBirth", 10, "Vui lòng nhập ngày sinh.");
-  const currentAddress = required(form, "currentAddress", 500, "Vui lòng nhập địa chỉ hiện tại.");
-  const governmentIdNumber = required(form, "governmentIdNumber", 12, "Vui lòng nhập số CCCD.");
-  const bankName = required(form, "bankName", 120, "Vui lòng nhập ngân hàng.");
-  const bankAccountNumber = required(form, "bankAccountNumber", 34, "Vui lòng nhập số tài khoản.");
-  const bankAccountHolder = required(form, "bankAccountHolder", 160, "Vui lòng nhập tên chủ tài khoản.");
+  // Personal and payroll fields are required by the public FE, not by the
+  // transport/Core contract. Still validate supplied values and document safety.
+  const mobile = optional(form, "mobile", 30);
+  const dateOfBirth = optional(form, "dateOfBirth", 10);
+  const currentAddress = optional(form, "currentAddress", 500);
+  const governmentIdNumber = optional(form, "governmentIdNumber", 12);
+  const bankName = optional(form, "bankName", 120);
+  const bankAccountNumber = optional(form, "bankAccountNumber", 34);
+  const bankAccountHolder = optional(form, "bankAccountHolder", 160);
   const bankBranch = optional(form, "bankBranch", 160);
   if (!email.includes("@")) throw new ValidationError("Vui lòng nhập email hợp lệ.");
-  if (!/^\d{9,12}$/.test(governmentIdNumber)) throw new ValidationError("Số CCCD không hợp lệ.");
+  if (governmentIdNumber !== null && !/^\d{9,12}$/.test(governmentIdNumber)) throw new ValidationError("Số CCCD không hợp lệ.");
   if (form.get("confirmAccuracy") !== "yes") throw new ValidationError("Vui lòng xác nhận tính chính xác của hồ sơ.");
   const governmentIdFront = await document(form, "governmentIdFront", "mặt trước CCCD");
   const governmentIdBack = await document(form, "governmentIdBack", "mặt sau CCCD");
   return { displayLabel, email, password, mobile, dateOfBirth, currentAddress, governmentIdNumber, bankName, bankAccountNumber, bankAccountHolder, bankBranch, governmentIdFront, governmentIdBack };
 }
 
-async function document(form: FormData, key: string, label: string): Promise<StaffRegistrationDocumentInput> {
+async function document(form: FormData, key: string, label: string): Promise<StaffRegistrationDocumentInput | null> {
   const value = form.get(key);
-  if (!(value instanceof File) || value.size === 0) throw new ValidationError(`Vui lòng tải ${label}.`);
+  if (value === null || value === "" || (value instanceof File && value.size === 0)) return null;
+  if (!(value instanceof File)) throw new ValidationError(`Tệp ${label} không hợp lệ.`);
   if (value.size > 5 * 1024 * 1024) throw new ValidationError(`Ảnh ${label} phải nhỏ hơn 5 MB.`);
   if (!isImageType(value.type)) throw new ValidationError(`Ảnh ${label} phải là JPG, PNG hoặc WEBP.`);
   if (value.name.trim().length > 180) throw new ValidationError("Tên tệp CCCD quá dài.");

@@ -8,6 +8,8 @@ export interface BoSyllabusMediaEnv extends TeamAccessEnv {
 const MEDIA_PATH = "learning/syllabi/media";
 const PREVIEW_PATH = /^learning\/syllabi\/media\/([0-9a-f-]{36})\/preview$/;
 const ALLOWED_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
+const CANONICAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+class SyllabusMediaInputError extends Error {}
 
 type PreviewPayload = { data?: { mediaAssetId: string; mimeType: string; byteSize: number | null; createdAt: string; bytes: ArrayBuffer | ArrayBufferView }; error?: unknown };
 
@@ -19,19 +21,25 @@ export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyll
   try {
     const credential = await teamCredential(request, env, "BO", keyResolver);
     if (path === MEDIA_PATH) {
+      if (request.method === "GET") {
+        const pathProgramId = pathContext(new URL(request.url).searchParams.get("pathProgramId"));
+        const corePath = pathProgramId ? `${MEDIA_PATH}?pathProgramId=${encodeURIComponent(pathProgramId)}` : MEDIA_PATH;
+        const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath }, credential);
+        return json(result.body, result.status, { "x-request-id": result.requestId });
+      }
       if (request.method !== "POST") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
       const idempotencyKey = request.headers.get("idempotency-key")?.trim();
       if (!idempotencyKey) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
       let form: FormData;
       try { form = await request.formData(); }
       catch { return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A multipart form body is required" } }, 400); }
-      const file = form.get("file");
+      const file = form.get("file"), pathProgramId = pathContext(form.get("pathProgramId"));
       if (!(file instanceof File) || file.size < 1) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "A non-empty worksheet file is required" } }, 400);
       if (!ALLOWED_MIME_TYPES.has(file.type)) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Worksheet media must be PDF, PNG, JPEG, or WebP" } }, 400);
       const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, {
         method: "POST",
         path: MEDIA_PATH,
-        body: { fileName: file.name, mimeType: file.type, bytes: await file.arrayBuffer() },
+        body: { fileName: file.name, mimeType: file.type, bytes: await file.arrayBuffer(), ...(pathProgramId ? { pathProgramId } : {}) },
         idempotencyKey,
       }, credential);
       return json(result.body, result.status, { "x-request-id": result.requestId });
@@ -39,7 +47,9 @@ export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyll
 
     if (!PREVIEW_PATH.test(path)) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
     if (request.method !== "GET") return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path }, credential);
+    const pathProgramId = pathContext(new URL(request.url).searchParams.get("pathProgramId"));
+    const corePath = pathProgramId ? `${path}?pathProgramId=${encodeURIComponent(pathProgramId)}` : path;
+    const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath }, credential);
     if (result.status < 200 || result.status >= 300) return json(result.body, result.status, { "x-request-id": result.requestId });
     const payload = result.body as PreviewPayload;
     const data = payload?.data;
@@ -58,10 +68,19 @@ export async function handleBoSyllabusMediaRequest(request: Request, env: BoSyll
       },
     });
   } catch (error) {
+    if (error instanceof SyllabusMediaInputError) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: error.message } }, 400);
     if (error instanceof TeamAuthError) return json({ error: { code: "IDENTITY_AUTHENTICATION_FAILED", message: error.message } }, error.status);
     console.error("BO Syllabus media facade failure", error instanceof Error ? error.message : "unknown");
     return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
+}
+
+function pathContext(value: FormDataEntryValue | string | null): string | null {
+  if (value === null || value === "") return null;
+  if (typeof value !== "string") throw new SyllabusMediaInputError("Invalid Path context");
+  const normalized = value.trim();
+  if (!CANONICAL_ID.test(normalized)) throw new SyllabusMediaInputError("Invalid Path context");
+  return normalized;
 }
 
 function toArrayBuffer(value: ArrayBuffer | ArrayBufferView): ArrayBuffer | null {

@@ -23,3 +23,16 @@
 .error { border-color: #e7bebe; color: #8c3939; background: #fff8f8; } .error button { margin-left: 10px; }
 @media (max-width: 900px) { .channel { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 680px) { .heading, .setting { flex-direction: column; } .channel { grid-template-columns: 1fr; } }
+.gridFilter { display:flex; align-items:center; gap:7px; color:#666773; font-size:11px; font-weight:750; }
+.gridFilter select { min-height:34px; border:1px solid #dcdce6; border-radius:8px; padding:6px 9px; background:white; }
+.detail { display:grid; gap:16px; }
+.detail dl { display:grid; gap:10px; margin:0; }
+.detail dl div { display:grid; gap:4px; padding-bottom:10px; border-bottom:1px solid #eeeef3; }
+.detail dt { color:#777783; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.detail dd { margin:0; min-width:0; }
+.detail label { display:grid; gap:6px; color:#666773; font-size:11px; font-weight:750; }
+.detail input[type="text"], .detail label > input:not([type]) { min-height:38px; border:1px solid #dcdce6; border-radius:9px; padding:8px 10px; }
+.detail button { min-height:40px; border:0; border-radius:9px; background:#6655c7; color:white; padding:9px 13px; font-weight:800; cursor:pointer; }
+.detail button:disabled { opacity:.45; cursor:not-allowed; }
+.detailError { margin:0; color:#8c3939; }
+.detailNote { margin:0; color:#777783; font-size:12px; line-height:1.5; }

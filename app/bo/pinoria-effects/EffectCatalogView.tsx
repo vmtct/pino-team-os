@@ -2,19 +2,25 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "@/app/pinoria-tv/layered-character";
+import {
+  BoDataGrid,
+  BoDataGridBadge,
+  BoDataGridCanonicalId,
+  BoDataGridSidePeek,
+  BoDataGridStatus,
+  useBoDataGridUrlState,
+  type BoDataGridColumn,
+} from "@/app/bo/components/data-grid";
+import {
+  buildEffectCatalogGridRows,
+  isEffectCatalogGridSortKey,
+  prettyEffectCatalogToken,
+  type EffectCatalogDefinition,
+  type EffectCatalogGridRow,
+} from "@/lib/bo-pinoria-effects-grid";
 import { resolvePinoriaEffectPresentation } from "@/lib/pinoria-effect-presentation";
 import styles from "./pinoria-effects.module.css";
 
-type EffectDefinition = {
-  key: string;
-  displayName: string;
-  rarity: "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
-  implementationVersion: number;
-  description: string;
-  capabilities: string[];
-  fullAvatarDescription: string;
-  houseMiniDescription: string;
-};
 type Envelope<T> = { data?: T; error?: { message?: string } };
 
 const PREVIEW_CHARACTER: PinoriaCharacterConfig = {
@@ -23,19 +29,21 @@ const PREVIEW_CHARACTER: PinoriaCharacterConfig = {
   outfit: "pinoria/char-base.png",
 };
 
-async function readCatalog(): Promise<EffectDefinition[]> {
+async function readCatalog(): Promise<EffectCatalogDefinition[]> {
   const response = await fetch("/api/bo/pinoria/effects/catalog", { cache: "no-store" });
-  const json = await response.json() as Envelope<EffectDefinition[]>;
+  const json = await response.json() as Envelope<EffectCatalogDefinition[]>;
   if (!response.ok || !json.data) throw new Error(json.error?.message ?? "Không tải được Effect Catalog");
   return json.data;
 }
 
 export function EffectCatalogView() {
-  const [catalog, setCatalog] = useState<EffectDefinition[]>([]);
+  const [catalog, setCatalog] = useState<EffectCatalogDefinition[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { state, setSearch, setSort, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] });
+  const sortKey = isEffectCatalogGridSortKey(state.sortKey) ? state.sortKey : "effect";
+  const rarityFilter = state.filters.rarity ?? "";
 
   useEffect(() => {
     let active = true;
@@ -54,13 +62,37 @@ export function EffectCatalogView() {
     return () => { active = false; };
   }, []);
 
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return catalog;
-    return catalog.filter((effect) => `${effect.displayName} ${effect.key} ${effect.rarity} ${effect.capabilities.join(" ")}`.toLowerCase().includes(normalized));
-  }, [catalog, query]);
+  const rows = useMemo(() => buildEffectCatalogGridRows(catalog, {
+    search: state.search,
+    rarity: rarityFilter,
+    sortKey,
+    sortDirection: state.sortDirection,
+  }), [catalog, rarityFilter, sortKey, state.search, state.sortDirection]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / state.pageSize));
+  const page = Math.min(state.page, pageCount);
+  const pageRows = rows.slice((page - 1) * state.pageSize, page * state.pageSize);
   const selected = catalog.find((effect) => effect.key === selectedKey) ?? null;
 
+  useEffect(() => {
+    if (state.page > pageCount) setPage(pageCount);
+  }, [pageCount, setPage, state.page]);
+
+  const columns = useMemo<BoDataGridColumn<EffectCatalogGridRow>[]>(() => [
+    {
+      key: "effect",
+      header: "Effect",
+      sortable: true,
+      sticky: true,
+      minWidth: 230,
+      render: (row) => <span className={styles.itemCell}><i data-effect={row.item.key}>{glyph(row.item.key)}</i><span><strong>{row.item.displayName}</strong><BoDataGridCanonicalId value={row.item.key} label={`Copy ${row.item.displayName} effect key`} /></span></span>,
+    },
+    { key: "rarity", header: "Rarity", sortable: true, minWidth: 120, render: (row) => <BoDataGridStatus value={row.item.rarity} tone={rarityTone(row.item.rarity)} /> },
+    { key: "version", header: "Version", sortable: true, minWidth: 90, align: "right", render: (row) => `v${row.item.implementationVersion}` },
+    { key: "capabilities", header: "Capabilities", sortable: true, minWidth: 280, render: (row) => <span className={styles.badgeList}>{row.item.capabilities.slice(0, 4).map((capability) => <BoDataGridBadge key={capability}>{prettyEffectCatalogToken(capability)}</BoDataGridBadge>)}</span> },
+    { key: "surfaces", header: "Surfaces", sortable: true, minWidth: 180, render: (row) => <span className={styles.badgeList}>{surfaceBadges(row.item).map((surface) => <BoDataGridBadge key={surface}>{surface}</BoDataGridBadge>)}</span> },
+  ], []);
+
+  const filtered = Boolean(state.search || rarityFilter);
   return <main className={styles.shell}>
     <header className={styles.topbar}>
       <div>
@@ -71,49 +103,48 @@ export function EffectCatalogView() {
       <div className={styles.readOnlyBadge}>READ ONLY</div>
     </header>
 
-    <section className={styles.toolbar}>
-      <label className={styles.searchBox}>
-        <span>⌕</span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search effect, key, capability…" />
-      </label>
-      <div className={styles.catalogMeta}><b>{catalog.length}</b><span>supported effects</span></div>
-    </section>
+    <div className={styles.gridWrap}>
+      <BoDataGrid
+        rows={pageRows}
+        columns={columns}
+        rowKey={(row) => row.item.key}
+        caption="Pinoria Effect Catalog"
+        state={loading ? "loading" : error ? "error" : "ready"}
+        stateMessage={error || undefined}
+        search={state.search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search effect, key, capability…"
+        sortKey={sortKey}
+        sortDirection={state.sortDirection}
+        onSortChange={(key, direction) => { if (isEffectCatalogGridSortKey(key)) setSort(key, direction); }}
+        filterChips={rarityFilter ? [{ key: "rarity", label: "Rarity", value: rarityFilter, onClear: () => setFilter("rarity", null) }] : []}
+        toolbarActions={<label className={styles.gridToolbarFilter}>Rarity<select aria-label="Filter Effects by rarity" value={rarityFilter} onChange={(event) => setFilter("rarity", event.target.value || null)}><option value="">All</option><option value="COMMON">Common</option><option value="RARE">Rare</option><option value="EPIC">Epic</option><option value="LEGENDARY">Legendary</option></select></label>}
+        resultLabel={`${rows.length} of ${catalog.length} effects`}
+        pagination={{ page, pageSize: state.pageSize, total: rows.length, onPageChange: setPage, onPageSizeChange: setPageSize }}
+        selectedRowKey={selectedKey}
+        onRowOpen={(row) => setSelectedKey(row.item.key)}
+        emptyTitle={filtered ? "No matching Effects" : "No Effects"}
+        emptyMessage={filtered ? "Adjust search or rarity filter to see supported Effects." : "Core has not returned any code-defined Effects for this view."}
+      />
+    </div>
 
-    {error ? <div className={styles.error}>{error}</div> : null}
-    <section className={styles.catalogPage} aria-busy={loading}>
-      <div className={styles.listHead}><span>Effect</span><span>Rarity</span><span>Version</span><span>Capabilities</span><span>Surfaces</span></div>
-      {loading ? <div className={styles.state}>Đang tải Effect Catalog…</div> : null}
-      {!loading && !filtered.length ? <div className={styles.state}>Không có Effect phù hợp.</div> : null}
-      <div className={styles.rows}>{filtered.map((effect) => <button key={effect.key} className={styles.row} onClick={() => setSelectedKey(effect.key)}>
-        <span className={styles.itemCell}><i data-effect={effect.key}>{glyph(effect.key)}</i><span><b>{effect.displayName}</b><small>{effect.key}</small></span></span>
-        <span><i className={styles.rarity} data-rarity={effect.rarity}>{effect.rarity}</i></span>
-        <span>v{effect.implementationVersion}</span>
-        <span className={styles.capabilityCell}>{effect.capabilities.slice(0, 3).map((capability) => <i key={capability}>{pretty(capability)}</i>)}</span>
-        <span className={styles.surfaceCell}>{effect.capabilities.includes("FULL_AVATAR") ? "Full" : "—"}<b>·</b>{effect.capabilities.includes("HOUSE_MINI") ? "Mini" : "—"}</span>
-      </button>)}</div>
-    </section>
-
-    {selected ? <div className={styles.backdrop} onClick={() => setSelectedKey(null)} /> : null}
     {selected ? <EffectSidePanel effect={selected} onClose={() => setSelectedKey(null)} /> : null}
   </main>;
 }
 
-function EffectSidePanel({ effect, onClose }: { effect: EffectDefinition; onClose: () => void }) {
-  return <aside className={styles.peek} aria-label={`${effect.displayName} Effect detail`}>
-    <div className={styles.peekTop}><button onClick={onClose} aria-label="Close Effect detail">✕</button><span>Effect catalog side peek</span><div>v{effect.implementationVersion}</div></div>
-    <div className={styles.detailHead}>
+function EffectSidePanel({ effect, onClose }: { effect: EffectCatalogDefinition; onClose: () => void }) {
+  return <BoDataGridSidePeek title={effect.displayName} eyebrow={`${effect.key} · implementation v${effect.implementationVersion}`} onClose={onClose}>
+    <div className={styles.detailIdentity}>
       <div className={styles.detailGlyph} data-effect={effect.key}>{glyph(effect.key)}</div>
-      <div><p>{effect.key}</p><h2>{effect.displayName}</h2><div className={styles.detailBadges}><i className={styles.rarity} data-rarity={effect.rarity}>{effect.rarity}</i><i>IMPLEMENTATION v{effect.implementationVersion}</i></div></div>
+      <div className={styles.detailBadges}><BoDataGridStatus value={effect.rarity} tone={rarityTone(effect.rarity)} /><BoDataGridBadge>IMPLEMENTATION v{effect.implementationVersion}</BoDataGridBadge></div>
     </div>
-    <div className={styles.peekBody}>
-      <section className={styles.summary}><p>{effect.description}</p><div>{effect.capabilities.map((capability) => <span key={capability}>{pretty(capability)}</span>)}</div></section>
-      <section className={styles.previewGrid}>
-        <PreviewCard title="Full avatar" caption={effect.fullAvatarDescription}><FullAvatarPreview effectKey={effect.key} /></PreviewCard>
-        <PreviewCard title="House mini" caption={effect.houseMiniDescription}><HouseMiniPreview effectKey={effect.key} /></PreviewCard>
-      </section>
-      <section className={styles.authorityNote}><span>AUTHORITY</span><strong>Behavior lives in code</strong><p>BO documents and previews this Effect. It does not edit shader, scale, locomotion, economy, RNG, PLS or Wish behavior.</p></section>
-    </div>
-  </aside>;
+    <section className={styles.summary}><p>{effect.description}</p><div className={styles.badgeList}>{effect.capabilities.map((capability) => <BoDataGridBadge key={capability}>{prettyEffectCatalogToken(capability)}</BoDataGridBadge>)}</div></section>
+    <section className={styles.previewGrid}>
+      <PreviewCard title="Full avatar" caption={effect.fullAvatarDescription}><FullAvatarPreview effectKey={effect.key} /></PreviewCard>
+      <PreviewCard title="House mini" caption={effect.houseMiniDescription}><HouseMiniPreview effectKey={effect.key} /></PreviewCard>
+    </section>
+    <section className={styles.authorityNote}><span>AUTHORITY</span><strong>Behavior lives in code</strong><p>BO documents and previews this Effect. It does not edit shader, scale, locomotion, economy, RNG, PLS or Wish behavior.</p></section>
+  </BoDataGridSidePeek>;
 }
 
 function PreviewCard({ title, caption, children }: { title: string; caption: string; children: React.ReactNode }) {
@@ -138,14 +169,21 @@ function HouseMiniPreview({ effectKey }: { effectKey: string }) {
   </div>;
 }
 
+function surfaceBadges(effect: EffectCatalogDefinition) {
+  return [effect.capabilities.includes("FULL_AVATAR") ? "Full avatar" : null, effect.capabilities.includes("HOUSE_MINI") ? "House mini" : null].filter((value): value is string => Boolean(value));
+}
+
+function rarityTone(rarity: EffectCatalogDefinition["rarity"]): "neutral" | "info" | "warning" | "danger" {
+  if (rarity === "RARE") return "info";
+  if (rarity === "EPIC") return "warning";
+  if (rarity === "LEGENDARY") return "danger";
+  return "neutral";
+}
+
 function glyph(key: string) {
   if (key === "RAINBOW") return "◒";
   if (key === "GIANT") return "⬆";
   if (key === "TINY") return "⬇";
   if (key === "GHOST") return "◌";
   return "✦";
-}
-
-function pretty(value: string) {
-  return value.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

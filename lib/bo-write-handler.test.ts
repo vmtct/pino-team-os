@@ -18,6 +18,18 @@ test("support-session issuance is a bounded BO command and forwards only the aut
   assert.equal(response.status,201);
   assert.deepEqual(forwarded,[{request:{method:"POST",path:route,body,idempotencyKey:"support-key"},token}]);
 });
+test("PAP-436 catalog Path lifecycle forwards only exact bounded methods",async()=>{
+  const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",createRoute="catalog/paths",updateRoute=`catalog/paths/${id}`,forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:coreRequest.method==="POST"?201:200,body:{data:{id,code:"e2e-specialty",displayName:"E2E Specialty",status:coreRequest.method==="POST"?"ACTIVE":"ARCHIVED",version:coreRequest.method==="POST"?1:2}},requestId:"pap436-path"};}};
+  const createBody={code:"e2e-specialty",displayName:"E2E Specialty",status:"ACTIVE"};
+  assert.equal((await handleBoWriteRequest(request(createRoute,true,createBody),env(binding),createRoute)).status,201);
+  const updateBody={code:"e2e-specialty",displayName:"E2E Specialty",status:"ARCHIVED",expectedVersion:1};
+  assert.equal((await handleBoWriteRequest(request(updateRoute,true,updateBody,undefined,"PATCH"),env(binding),updateRoute)).status,200);
+  assert.deepEqual(forwarded,[{method:"POST",path:createRoute,body:createBody},{method:"PATCH",path:updateRoute,body:updateBody}]);
+  assert.equal((await handleBoWriteRequest(request(updateRoute,true,updateBody),env(binding),updateRoute)).status,405);
+  assert.equal((await handleBoWriteRequest(request(createRoute,true,createBody,undefined,"PATCH"),env(binding),createRoute)).status,405);
+  assert.equal(forwarded.length,2);
+});
 test("Practice allowlist stays bounded",()=>{const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";assert.equal(isPracticeWritePath("practice/repertoire-access/grants"),true);assert.equal(isPracticeWritePath(`practice/repertoire-access/grants/${id}/revoke`),true);assert.equal(isPracticeWritePath("practice/media"),false);});
 test("unknown paths and wrong methods fail closed",async()=>{let called=false;const binding:BoAccessCoreBinding={async executeWithStaffPassword(){called=true;throw new Error("unexpected");}};assert.equal((await handleBoStaffOnboardingRequest(request("access/users",true,{},"k"),env(binding),"access/users")).status,404);assert.equal((await handleBoStaffOnboardingRequest(request(path,true,{},undefined,"GET"),env(binding),path)).status,405);assert.equal(called,false);});
 test("PAP-21 legacy import facade forwards only the two governed paths and replay-protects execute",async()=>{
@@ -112,3 +124,26 @@ test("missed checkout resolution requires idempotency and forwards exact Core co
 });
 
 test("calendar closure publication requires replay identity while archive forwards canonical optimistic versioning",async()=>{const forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:201,body:{data:{ok:true}},requestId:"closure"};}};const route="delivery/calendar-exclusions",body={centerId:"01912345-6789-7abc-8def-0123456789ab",scopeType:"HOUSE",startsOnLocalDate:"2030-09-04",endsBeforeLocalDate:"2030-09-05",reason:"PUBLIC_HOLIDAY"};assert.equal((await handleBoWriteRequest(request(route,true,body),env(binding),route)).status,400);assert.equal((await handleBoWriteRequest(request(route,true,body,"closure-key"),env(binding),route)).status,201);const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",archive=`delivery/calendar-exclusions/${id}`,archiveBody={action:"archive",expectedVersion:1,archiveReason:"Corrected"};assert.equal((await handleBoWriteRequest(request(archive,true,archiveBody),env(binding),archive)).status,201);assert.deepEqual(forwarded,[{method:"POST",path:route,body,idempotencyKey:"closure-key"},{method:"POST",path:archive,body:archiveBody}]);});
+
+
+test("PAP-863: Missions create/update and TV policy writes require key, method and password", async () => {
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(core){
+    forwarded.push(core);return{status:200,body:{data:{ok:true}},requestId:"hotfix"};
+  }};
+  const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const cases: Array<{path:string; method:string; body:Record<string,unknown>}> = [
+    {path:"learning/missions",method:"POST",body:{code:"M-TEST"}},
+    {path:"learning/missions/"+id,method:"PUT",body:{code:"M-TEST",expectedVersion:1}},
+    {path:"pinoria/tv-config/policy/drafts",method:"POST",body:{scope:{kind:"CENTER",centerId:id},expectedRevision:0}},
+  ];
+  for(const testCase of cases) {
+    assert.equal((await handleBoWriteRequest(request(testCase.path,true,testCase.body,"pap863-key",testCase.method),env(binding),testCase.path)).status,200);
+  }
+  assert.deepEqual(forwarded,cases.map(c=>({method:c.method,path:c.path,body:c.body,idempotencyKey:"pap863-key"})));
+  assert.equal((await handleBoWriteRequest(request("learning/missions",true,{code:"M-TEST"}),env(binding),"learning/missions")).status,400);
+  assert.equal((await handleBoWriteRequest(request("learning/missions/"+id,true,{}, "pap863-key","POST"),env(binding),"learning/missions/"+id)).status,405);
+  assert.equal((await handleBoWriteRequest(request("pinoria/tv-config/policy/publish",true,{}),env(binding),"pinoria/tv-config/policy/publish")).status,400);
+  assert.equal((await handleBoWriteRequest(request("learning/missions",false,{},"pap863-key"),env(binding),"learning/missions")).status,401);
+  assert.equal(forwarded.length,3);
+});

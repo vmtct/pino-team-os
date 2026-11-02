@@ -1,0 +1,44 @@
+{
+  "name": "pino-team-os",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
+    "test:e2e": "playwright test",
+    "delivery:enter": "node scripts/delivery-entry.mjs",
+    "pino:resume": "node scripts/delivery-entry.mjs",
+    "pino:verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "delivery:care": "node scripts/delivery-care.mjs",
+    "delivery:claim": "node scripts/delivery-care.mjs claim",
+    "delivery:heartbeat": "node scripts/delivery-care.mjs heartbeat",
+    "delivery:release": "node scripts/delivery-care.mjs release",
+    "delivery:care:list": "node scripts/delivery-care.mjs list"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.3.1",
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
+    "@fortawesome/react-fontawesome": "^3.5.0",
+    "@notionhq/client": "^5.6.0",
+    "@opennextjs/cloudflare": "^1.0.0",
+    "jose": "^6.2.12",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.0",
+    "@playwright/test": "^1.54.2",
+    "@types/node": "^20.19.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.33.0",
+    "eslint-config-next": "^15.5.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.0"
+  }
+}

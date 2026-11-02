@@ -1,0 +1,21 @@
+/* PAP-1105: shared opt-in TDD Table Freeze primitive; BO/HO host authority untouched. */
+[data-tdd-freeze-viewport] #typed-table th[data-tdd-freeze-cell],
+[data-tdd-freeze-viewport] #typed-table td[data-tdd-freeze-cell] {
+  position: sticky !important;
+  left: var(--tdd-freeze-left) !important;
+  box-shadow: 1px 0 0 var(--bo-palette-neutral-20, #e6e0e3);
+}
+[data-tdd-freeze-viewport] #typed-table th[data-tdd-freeze-cell] {
+  z-index: var(--bo-z-table-identity, 6);
+  background: var(--bo-color-table-heading, #f8f8fa);
+}
+[data-tdd-freeze-viewport] #typed-table td[data-tdd-freeze-cell] {
+  z-index: var(--bo-z-table-cell, 3);
+  background: var(--bo-color-surface, #fff);
+}
+[data-tdd-freeze-viewport] #typed-table tr:hover td[data-tdd-freeze-cell] {
+  background: var(--bo-color-row-hover, #f5f3f5);
+}
+[data-tdd-freeze-notice] {
+  margin: 7px 10px;
+}
