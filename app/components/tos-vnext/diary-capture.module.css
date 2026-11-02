@@ -17,7 +17,7 @@
  .choice label,.ratings label{display:flex;align-items:flex-start;gap:var(--tos-space-3);min-height:32px;font-size:var(--tos-text-caption);color:var(--tos-color-ink)}
  .choice input,.ratings input{flex:0 0 auto;width:18px;height:18px;accent-color:var(--tos-color-info-text);margin:0}
  .choice small{display:block;color:var(--tos-color-soft);font-size:var(--tos-text-caption);margin-top:var(--tos-space-1)}
- .complete{padding-left:var(--tos-space-5);color:var(--tos-color-soft)!important}
+ .complete{padding-left:var(--tos-space-5);color:var(--tos-color-soft)}
  .errors{margin:0;padding:var(--tos-space-3) var(--tos-space-3) var(--tos-space-3) var(--tos-space-6);color:var(--tos-color-danger-text,var(--tos-color-ink));font-size:var(--tos-text-caption);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control)}
  .actions{display:flex;flex-wrap:wrap;gap:var(--tos-space-2);justify-content:flex-end}
  .actions button{min-height:44px;border-radius:var(--tos-radius-control);font:inherit;padding:var(--tos-space-2) var(--tos-space-4);font-weight:var(--tos-weight-strong);font-size:var(--tos-text-caption)}
