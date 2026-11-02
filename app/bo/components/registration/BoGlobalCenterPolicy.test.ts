@@ -18,7 +18,10 @@ test("PAP-1327: central manifest adopts only audited Center read contracts", () 
 
 test("PAP-1327: URL precedence denies forged/deauthorized hints; stored selection is never ACL", () => {
   assert.deepEqual(restoreBoAuthorizedCenter([A], "", A), {selected:A,invalidExplicit:false});
-  assert.deepEqual(restoreBoAuthorizedCenter([A], "", B), {selected:"",invalidExplicit:false});
+  assert.deepEqual(restoreBoAuthorizedCenter([A], "", B), {selected:A,invalidExplicit:false});
+  assert.deepEqual(restoreBoAuthorizedCenter([A,B], "", null), {selected:A,invalidExplicit:false});
+  assert.deepEqual(restoreBoAuthorizedCenter([A,B], "", B), {selected:B,invalidExplicit:false});
+  assert.deepEqual(restoreBoAuthorizedCenter([], "", A), {selected:"",invalidExplicit:false});
   assert.deepEqual(restoreBoAuthorizedCenter([A], "?centerId="+B, A), {selected:"",invalidExplicit:true});
   assert.deepEqual(restoreBoAuthorizedCenter([A], "?centerId=forged", A), {selected:"",invalidExplicit:true});
   assert.deepEqual(restoreBoAuthorizedCenter([A,B], "?centerId="+B, A), {selected:B,invalidExplicit:false});
@@ -33,7 +36,9 @@ test("PAP-1327: one authenticated global BO provider, not per-module switcher in
   assert.match(src, /scopedBoReadFetcher\(key, fetcher, selected\)/);
   const provider = readFileSync("app/bo/components/registration/BoCenterSelection.tsx", "utf8");
   assert.match(provider, /restoreBoAuthorizedCenter\(result\.centers\.map\(c => c\.id\)/);
-  assert.match(provider, /sessionStorage\.setItem\(BO_ACTIVE_CENTER_SESSION_KEY, centerId\)/);
+  assert.match(provider, /saveRecentCenter\(centerId\)/);
+  assert.match(provider, /localStorage\.getItem\(BO_ACTIVE_CENTER_SESSION_KEY\)/);
+  assert.match(provider, /localStorage\.setItem\(BO_ACTIVE_CENTER_SESSION_KEY, centerId\)/);
   assert.match(provider, /candidate\.invalidExplicit/);
   assert.match(provider, /useSearchParams\(\)\.toString\(\)/);
   assert.match(provider, /\[centers, loading, routeQuery\]/);

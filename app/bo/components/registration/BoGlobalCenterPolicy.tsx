@@ -62,7 +62,7 @@ export function restoreBoAuthorizedCenter(
     const selected = requested.length === 1 && authorizedIds.includes(requested[0]!) ? requested[0]! : "";
     return { selected, invalidExplicit: !selected };
   }
-  return { selected: sessionHint && authorizedIds.includes(sessionHint) ? sessionHint : "", invalidExplicit: false };
+  return { selected: sessionHint && authorizedIds.includes(sessionHint) ? sessionHint : (authorizedIds[0] ?? ""), invalidExplicit: false };
 }
 
 export const BO_ACTIVE_CENTER_SESSION_KEY = "pino:bo:active-center:v1";
