@@ -4,6 +4,7 @@ import {FontAwesomeIcon,faArrowLeft,faBookOpen,faCalendarDays,faCamera,faCheck,f
 import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
 import ScopedEligibleMissions from "./ScopedEligibleMissions";
+import DiaryCapturePanel from "./DiaryCapturePanel";
 import {createSlotKeys} from "../tos-ds";
 const tosSlotKeys=createSlotKeys(styles);
 import {AppNavShell,AppModalRoot,AppToast} from "../tos-ds";
@@ -192,6 +193,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
     </section>}
     {tab==="diaries"&&<section role="tabpanel" id="tos-classroom-panel-diaries" aria-labelledby="tos-classroom-tab-diaries">
       <div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Nhật ký buổi học ({model.diaryReadState==="LOADED"?currentDiaries.length:"—"})</h2><p>Mỗi học viên × Path có đúng một Diary; tất cả Mission của Path nằm chung bên trong.</p></div></div>
+      <DiaryCapturePanel key={current.id} model={model} classroom={current}/>
       <div className={styles.filterPills} data-tos-slot={tosSlotKeys(styles.filterPills)}>{([["all","Tất cả"],["REGISTERED","Đang học"],["CLOSED","Đã kết thúc"]] as const).map(([key,label])=><button key={key} className={diaryStateFilter===key?styles.selectedPill:""} data-tos-slot={tosSlotKeys(diaryStateFilter===key?styles.selectedPill:"")} aria-pressed={diaryStateFilter===key} onClick={()=>setDiaryStateFilter(key)}>{label}</button>)}</div>
       {rows.length===0?<p className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>{model.diaryReadState==="LOADED"?"Không có Nhật ký phù hợp.":"Chưa tải được Nhật ký. Vui lòng thử lại sau."}</p>:rows.map(d=>{const s=data.students.find(p=>p.id===d.studentId);return <button className={styles.diaryCard} data-tos-slot={tosSlotKeys(styles.diaryCard)} key={d.id} data-diary-id={d.id} data-diary-path={d.path} onClick={()=>openDiary(d)}><div className={styles.rowTop} data-tos-slot={tosSlotKeys(styles.rowTop)}><strong>{s?<>{s.name} {genderBadge(s)}</>:"Học viên"}</strong>{badge(d)}</div><h3>Path {d.path} · {d.missions.length} Mission</h3><div className={styles.diaryMissionChips} data-tos-slot={tosSlotKeys(styles.diaryMissionChips)}>{d.missions.map(m=><span key={m.id}>{m.id} · {m.completed===true?"✓ Đã hoàn thành":m.completed===false?"○ Chưa hoàn thành":"Đang học"}</span>)}</div><p>{d.notes||"Chưa ghi nhận kết quả chung cho Path này."}</p><span>{timeLabel(d.at)} · {d.status==="REGISTERED"?"Mở Diary · Lưu nháp / Kết thúc":"Xem kết quả chung"} <FontAwesomeIcon icon={faChevronRight}/></span></button>})}
     </section>}
