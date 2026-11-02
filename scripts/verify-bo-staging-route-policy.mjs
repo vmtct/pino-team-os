@@ -99,7 +99,8 @@ export function verifyBoStagingRoutePolicy(root = ROOT) {
       !unifiedSource.includes('modules: { ...school.modules, ...moduleDefinitions }') ||
       !unifiedSource.includes('isModuleReadOnly: isWorkforce') ||
       !unifiedSource.includes('routeForModule:') ||
-      !unifiedSource.includes('await adapters[key].list(fetcher)'))
+      !unifiedSource.includes('if (!options.centerId) throw Error(') ||
+      !unifiedSource.includes('await adapters[key].list(fetcher, options.centerId)'))
     issues.push("Unified BO navigation and data must be registry-backed, authorized and read-only for Workforce");
   if (!gateway.includes("useBoStagingUser") ||
       !gateway.includes("unifiedBoWorkspaceSource") ||
