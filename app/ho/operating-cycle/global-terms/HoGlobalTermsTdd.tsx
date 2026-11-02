@@ -3,7 +3,6 @@ import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect,useState } from "react";
 import Link from "next/link";
-import styles from "./HoGlobalTerms.module.css";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { createHoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
@@ -37,22 +36,22 @@ export function HoGlobalTermsTdd(){
         const term=await loadGlobalTerm(record.id,ready.fetcher,signal);
         return <section className="v24-prop-section" aria-label="Tuần thuộc Global Term">
           <div className="v24-section-heading">
-            <h4>Tuần trong học kỳ</h4><span className={styles.weekCount}>{term.weeks.length} tuần</span>
+            <h4>Tuần trong học kỳ</h4><span className="settings-hint">{term.weeks.length} tuần</span>
           </div>
           {term.weeks.length
-            ? <div className="v24-prop-grid" role="list">
+            ? <div role="list">
                 {term.weeks.map(w=><div className="v24-prop-item" role="listitem" key={w.id}>
                   <span className="v24-prop-key">{w.code}</span>
-                  <Link className={["v24-prop-value",styles.weekLink].join(" ")}
+                  <Link className="v24-prop-value"
                     href={"/ho/workforce/term-weeks?record="+w.id} prefetch={false}
                     aria-label={"Xem "+w.code+" từ "+formatTermDate(w.startDate)+" đến "+formatTermDate(w.endDate)}>
                     <span>{formatTermDate(w.startDate)} – {formatTermDate(w.endDate)}</span>
-                    <span className={styles.weekRhythm}>{w.rhythmKey}</span>
+                    <span className="settings-hint">{w.rhythmKey}</span>
                   </Link>
                 </div>)}
               </div>
             : <div className="v24-audit-empty" role="status">Chưa có tuần trong học kỳ này.</div>}
-          <p className={styles.weekFooter}><Link href="/ho/workforce/term-weeks" prefetch={false}>Đi đến quản lý Global TermWeeks</Link></p>
+          <p className="settings-hint"><Link href="/ho/workforce/term-weeks" prefetch={false}>Đi đến quản lý Global TermWeeks</Link></p>
         </section>;
       }}} />
     {editor&&<HoGlobalTermEditor key={editor.action+editor.id} action={editor.action} id={editor.id} fetcher={ready.fetcher} onClose={()=>setEditor(null)} onSaved={()=>{
