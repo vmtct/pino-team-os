@@ -17,6 +17,19 @@ test("published v1 unchanged and truthful fallback v2 explicit; never renderer A
   assert.deepEqual(makeRuntimeObservation(identity,published),{version:1,...identity,buildDigest:published.buildDigest,appliedConfigRevision:1,assetStatus:"READY"});
   assert.deepEqual(makeRuntimeObservation(identity,fallback),{version:2,...identity,buildDigest:fallback.buildDigest,appliedConfigRevision:0,assetStatus:"READY",configSource:"FALLBACK"});
 });
+test("PAP-1325 accepts real Core UUID identities for v1 and v2 without forged reports",async()=>{
+  const runtimeIdentity={sessionId:"01a19727-a5d1-75fe-9306-a10bafb57017",displayId:"01a18fcf-86ac-78f1-92d6-f170803a4125",deviceId:"019d9880-1025-7000-8000-000000000071"};
+  const v1=makeRuntimeObservation(runtimeIdentity,published),v2=makeRuntimeObservation(runtimeIdentity,fallback);
+  assert.deepEqual(v1,{version:1,...runtimeIdentity,buildDigest:published.buildDigest,appliedConfigRevision:1,assetStatus:"READY"});
+  assert.deepEqual(v2,{version:2,...runtimeIdentity,buildDigest:fallback.buildDigest,appliedConfigRevision:0,assetStatus:"READY",configSource:"FALLBACK"});
+  const success=async()=>Response.json({data:{valid:true,persisted:true,rendererAcknowledged:false}});
+  assert.equal(await sendRuntimeObservation("/api/runtime",v2,success as typeof fetch),true);
+  for(const bad of ["01a19727-a5d1-75fe-9306-a10bafb5701","01a19727-a5d1-75fe-9306-a10bafb5701g","01a19727a5d175fe9306a10bafb57017","forged"]){
+    assert.equal(makeRuntimeObservation({...runtimeIdentity,sessionId:bad},fallback),null);
+    assert.equal(makeRuntimeObservation({...runtimeIdentity,displayId:bad},published),null);
+  }
+  assert.equal(makeRuntimeObservation({...runtimeIdentity,deviceId:"invalid"},fallback),null);
+});
 test("reject malformed reports and forged acknowledgements before network",async()=>{
   let calls=0;
   const deny=async()=>{calls++;return new Response(null,{status:403});};
