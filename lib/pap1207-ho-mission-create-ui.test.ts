@@ -11,6 +11,7 @@ test("PAP-1207: Create Mission is declared only in canonical engine slots", () =
   assert.deepEqual(missionSchema.actions?.map(a => [a.id, a.slot, a.formMode]), [
     ["mission-open-create", "table.header", undefined],
     ["mission-open-edit", "detail.header", undefined],
+    ["mission-archive", "detail.header", undefined],
     ["mission-cancel-create", "drawer.footer", "create"],
     ["mission-save-create", "drawer.footer", "create"],
     ["mission-cancel-edit", "drawer.footer", "edit"],
@@ -19,10 +20,14 @@ test("PAP-1207: Create Mission is declared only in canonical engine slots", () =
   const authorized: AuthorizationContext = { surface: "HO", authorize: () => true };
   const denied: AuthorizationContext = { surface: "HO", authorize: permission => permission !== "learning.mission.manage" };
   const handlers = { openCreate: { run: () => undefined }, openEdit: { run: () => undefined },
+    archiveMission: { kind: "mutation" as const, visible: true, run: () => ({ state: "unverified" as const }) },
     cancelCreate: { run: () => undefined }, saveCreate: { kind: "mutation" as const, run: () => ({ state: "unverified" as const }) },
     cancelEdit: { run: () => undefined }, saveEdit: { kind: "mutation" as const, run: () => ({ state: "unverified" as const }) } };
   assert.deepEqual(authorizedHostActions(missionSchema, authorized, "table.header", handlers).map(a => a.id), ["mission-open-create"]);
-  assert.deepEqual(authorizedHostActions(missionSchema, authorized, "detail.header", handlers).map(a => a.id), ["mission-open-edit"]);
+  assert.deepEqual(authorizedHostActions(missionSchema, authorized, "detail.header", handlers).map(a => a.id), ["mission-open-edit", "mission-archive"]);
+  assert.deepEqual(authorizedHostActions(missionSchema, authorized, "detail.header", {
+    ...handlers, archiveMission: { ...handlers.archiveMission, visible: false },
+  }).map(a => a.id), ["mission-open-edit"]);
   assert.deepEqual(authorizedHostActions(missionSchema, authorized, "drawer.footer", handlers, undefined, "edit").map(a => a.id), ["mission-cancel-edit", "mission-save-edit"]);
   assert.deepEqual(authorizedHostActions(missionSchema, authorized, "drawer.footer", handlers, undefined, "create").map(a => a.id), ["mission-cancel-create", "mission-save-create"]);
   assert.deepEqual(authorizedHostActions(missionSchema, denied, "table.header", handlers), []);
@@ -44,5 +49,6 @@ test("PAP-1207: UI invokes Core readback client and uses engine-only Save/Cancel
   assert.match(source, /result\.state === "verified"/);
   assert.match(source, /result\.state === "unverified"/);
   assert.match(source, /setUncertain\(true\)/);
+  assert.match(source, /visible: archiveAvailable/);
   assert.doesNotMatch(source, /<TosButton|<button[^>]*Tạo|<button[^>]*Lưu/);
 });

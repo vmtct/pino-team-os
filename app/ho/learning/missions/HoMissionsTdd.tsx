@@ -32,6 +32,7 @@ export function HoMissionsTdd() {
   const [formError, setFormError] = useState("");
   const [editLoadError, setEditLoadError] = useState("");
   const [confirmed, setConfirmed] = useState("");
+  const [archiveAvailable, setArchiveAvailable] = useState(false);
   const idempotency = useRef<string | null>(null);
   const writing = useRef(false);
   useEffect(() => {
@@ -46,6 +47,27 @@ export function HoMissionsTdd() {
       .catch(() => { if (!controller.signal.aborted) setError("Không thể xác thực quyền xem Mission trên HO."); });
     return () => { controller.abort(); bound?.dispose(); };
   }, [retry]);
+  useEffect(() => {
+    if (!ready) return;
+    let active = true;
+    let sequence = 0;
+    const refreshArchiveEligibility = () => {
+      const selected = ready.navigation.read();
+      const current = ++sequence;
+      setArchiveAvailable(false);
+      if (selected.kind !== "detail" || !selected.recordId ||
+          !ready.adapter.context.authorize("learning.mission.manage")) return;
+      void loadMissionForEdit(selected.recordId).then(result => {
+        if (!active || current !== sequence || ready.navigation.read().recordId !== selected.recordId) return;
+        setArchiveAvailable(result.state === "ready" && result.data.status === "ACTIVE");
+      }).catch(() => {
+        if (active && current === sequence) setArchiveAvailable(false);
+      });
+    };
+    const unsubscribe = ready.navigation.subscribe(refreshArchiveEligibility);
+    refreshArchiveEligibility();
+    return () => { active = false; sequence += 1; unsubscribe(); };
+  }, [ready]);
   const close = () => {
     if (writing.current || pending) return;
     setMode(null); setEditTarget(null); setFormError("");
@@ -137,7 +159,7 @@ export function HoMissionsTdd() {
   const actions: TddActionBindings = {
     openCreate: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: open },
     openEdit: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: openEdit },
-    archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, run: archiveMission },
+    archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, visible: archiveAvailable, run: archiveMission },
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
     saveCreate: { kind: "mutation", disabled: pending || uncertain || Boolean(validateMissionCreate(draft)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
