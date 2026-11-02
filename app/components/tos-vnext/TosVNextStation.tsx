@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBolt, faChevronRight, faDesktop, faDisplay, faGear, faPause, faPlay, faShieldHalved, faStar, faTabletScreenButton, faTv, faUsers, faVolumeHigh, faWandMagicSparkles, faWifi } from "@fortawesome/free-solid-svg-icons";
+import { faBolt, faChevronRight, faDesktop, faGear, faShieldHalved, faStar, faTabletScreenButton, faTv, faUsers, faVolumeHigh, faWandMagicSparkles, faWifi } from "@fortawesome/free-solid-svg-icons";
 import StationDesktopFrame from "./StationV4Frame";
 import { Initials } from "./OpsInitials";
+import { TvLauncher } from "@/app/tv/TvLauncher";
 import {unavailableOpsReadModel,type OpsReadModel} from "@/lib/tos-ops-v4-view-model";
 import ops from "./ops.module.css";
 import desk from "./station.module.css";
@@ -13,7 +14,7 @@ const statusText=(value:string)=>value==="ARRIVED"?"Đang ở PINO":value==="LEF
 const statusKind=(value:string)=>value==="ARRIVED"?"ok":value==="LEFT"?"left":"waiting";
 
 export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsReadModel(),initialTab="overview"}:{onHome:()=>void;desktop:boolean;centerName:string;model?:OpsReadModel;initialTab?:Tab}){
- const state=model,guests=model.guests,assetNames=model.assetNames,channels=model.channels,outfits=model.outfits;
+ const state=model,guests=model.guests,assetNames=model.assetNames,outfits=model.outfits;
  const [tab,setTab]=useState<Tab>(initialTab);
  const [studentId,setStudentId]=useState<string|null>(model.guests[0]?.id??null);
  const [query,setQuery]=useState("");
@@ -101,19 +102,9 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
     </section>
     <div className={ops.callout} data-tos-ops="callout">Không điều khiển thiết bị, không khởi động lại phần cứng hay thay đổi network thật.</div>
   </>}
-  {tab==="tv"&&<>
-    <div className={desk.twoColumn}>
-      <section className={ops.panel} data-tos-ops="panel"><div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Chương trình TV</h3><span>{model.loaded?channels.length:"—"} nội dung</span></div>
-        <div className={desk.tvChannelList}>{!model.loaded&&<p>Chưa tải được danh mục nội dung.</p>}{channels.map((ch,i)=><button key={ch} aria-pressed={state.tvChannel===ch} disabled title="Chưa có command TV được xác minh">{state.tvChannel===ch?"✓ ":""}{i+1}. {ch}</button>)}</div>
-      </section>
-      <div className={desk.wideColumn}>
-        <section className={ops.panel} data-tos-ops="panel"><div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Xem trước màn hình</h3><span>16:9</span></div>
-          <div className={desk.tvPreview}><FontAwesomeIcon icon={faDisplay}/><strong>{state.tvChannel??"Chưa có nội dung được xác minh"}</strong><small>{state.tvPlaying===null?"CHƯA XÁC MINH":state.tvPlaying?"ĐANG PHÁT":"ĐÃ TẠM DỪNG"} · KHÔNG KẾT NỐI TV THẬT</small></div>
-          <div className={desk.tvStatus}><span>{state.tvPlaying===null?"Chưa xác minh phát TV":state.tvPlaying?"Đang trình chiếu":"Đã tạm dừng"}</span><button className={`${ops.primary} ${desk.tvPlaybackButton}`} disabled title="Chưa có command TV được xác minh"><FontAwesomeIcon icon={state.tvPlaying?faPause:faPlay}/> {state.tvPlaying?"Tạm dừng":"Bắt đầu trình chiếu"}</button></div>
-        </section>
-        <div className={ops.callout} data-tos-ops="callout"><strong><FontAwesomeIcon icon={faWifi}/> Chỉ xem trước</strong><span>Không gửi command đến TV player hoặc hệ thống casting thực tế.</span></div>
-      </div>
-    </div>
-  </>}
+  {tab==="tv"&&<section className={ops.panel} data-tos-ops="panel" data-tos-station-tv-launcher="true">
+    <div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Mở TV tại trạm</h3><span>Danh sách màn hình theo quyền Staff</span></div>
+    <TvLauncher station />
+  </section>}
  </StationDesktopFrame>;
 }
