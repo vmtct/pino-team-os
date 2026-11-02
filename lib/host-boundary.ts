@@ -151,6 +151,14 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (hostname === BO_STAGING_HOSTNAME && pathname === "/api/bo/workforce/planning/assignment/note") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-1353: exact Self-Item BO Staging host/verb fence before PAP-1300 BFF/Core ACL.
+    const selfItemId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const selfItemRead = new RegExp("^/api/bo/pinoria/selfs/" + selfItemId + "/(?:items|catalog)$").test(pathname);
+    const selfItemCommand = new RegExp("^/api/bo/pinoria/selfs/" + selfItemId + "/items/" + selfItemId + "/(?:grant|revoke)$").test(pathname);
+    if (selfItemRead || selfItemCommand) {
+      return hostname === BO_STAGING_HOSTNAME && (selfItemRead ? method === "GET" : method === "POST")
+        ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
     // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
     if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
