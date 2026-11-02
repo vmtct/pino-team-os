@@ -12,6 +12,7 @@ import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapt
 import {TddRegistry} from "@/lib/workspace-schema";
 import type {SlotLoaders} from "@/app/components/workspace-renderer/Slots";
 import {HouseMeshEditor} from "@/app/bo/pinoria-tv-mesh/HouseMeshEditor";
+import {TvDeviceDiagnostics} from "@/app/bo/pinoria-tv-operator/TvDeviceDiagnostics";
 import {tvDefinition,tvFields,tvProvider,tvQuery,verifyTvExtension} from "./schema";
 type F=typeof tvFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
@@ -27,7 +28,7 @@ const loaders:SlotLoaders={
    if(record.runtime!=="PINORIA_HOUSE")return <p role="status">Không gian House chỉ khả dụng cho TV PINORIA_HOUSE.</p>;
    const center=String(record.centerId??"");
    if(!/^[0-9a-f-]{36}$/i.test(center))return <p role="alert">Thiếu Center đã xác thực.</p>;
-   return <HouseMeshEditor embeddedCenterId={center}/>;
+   return <><HouseMeshEditor embeddedCenterId={center}/><TvDeviceDiagnostics centerContextId={center}/></>;
  }
 };
 export function TvsTdd(){
