@@ -9,7 +9,7 @@ test("TV launcher exposes deterministic automation metadata and bounded launch p
  const source=read("app/tv/TvLauncher.tsx");
  for(const marker of ["data-tv-id","data-tv-key","data-tv-runtime","data-tv-scope","data-tv-orientation",'data-tv-action="open-here"']) assert.ok(source.includes(marker),marker);
  assert.ok(source.includes("/api/tv/${tv.id}/launch"));
- assert.ok(source.includes("router.push(`/tv/${tv.id}`)"));
+ assert.ok(source.includes("window.location.assign(`/tv/${encodeURIComponent(tv.id)}`)")); // Same-browser navigation keeps the HttpOnly TV session cookie without a router provider.
 });
 
 test("runtime host enforces declared orientation and delegates PINORIA_HOUSE to existing runtime",()=>{
