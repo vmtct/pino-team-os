@@ -10,6 +10,7 @@ import { BoAuthenticatedAccount } from "@/app/bo/shell/BoAuthenticatedAccount";
 import { BoCenterSelectionProvider, useBoCenterSelection } from "./BoCenterSelection";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { boCenterWave1Href, isBoCenterReadWave1 } from "./BoCenterWave1";
+import { scopedClassesFetcher } from "./BoScopedClassRead";
 
 const ParentTdd = dynamic(() => import("../../parents/ParentTdd").then(module => module.ParentTdd), { ssr: false });
 const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
@@ -35,6 +36,8 @@ function CenterReadWorkspace({ moduleKey, options, currentUser }: {
   const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
   const scopedSource = useMemo(() => ({
     ...unifiedBoWorkspaceSource,
+    load: (key: string, fetcher: typeof fetch, requestedOptions: Record<string, string>) =>
+      unifiedBoWorkspaceSource.load(key, key === "classes" ? scopedClassesFetcher(fetcher, selected) : fetcher, requestedOptions),
     routeForModule: (key: string) => {
       const base = unifiedBoWorkspaceSource.routeForModule?.(key) ?? "/bo?module=" + encodeURIComponent(key);
       // Preserve the authorized Center only on routes whose Core data adapter is enrolled.

@@ -6,10 +6,11 @@ import { boCenterWave1Href, isBoCenterReadWave1 } from "./BoCenterWave1";
 const centerA = "0199f001-0000-7000-8000-000000000001";
 const centerB = "0199f001-0000-7000-8000-000000000002";
 
-test("PAP-1327: only Core-proven Visits and Timekeeping adapters are active in wave 1", () => {
+test("PAP-1327: only verified Visits, Timekeeping and Classes adapters are active", () => {
   assert.equal(isBoCenterReadWave1("visits"), true);
   assert.equal(isBoCenterReadWave1("timekeeping"), true);
-  for (const key of ["students", "parents", "subscriptions", "classes", "audits", "staffs", "missions"]) {
+  assert.equal(isBoCenterReadWave1("classes"), true);
+  for (const key of ["students", "parents", "subscriptions", "audits", "staffs", "missions"]) {
     assert.equal(isBoCenterReadWave1(key), false);
     assert.equal(boCenterWave1Href("/bo?module=" + key, key, centerA, [centerA]), "/bo?module=" + key);
   }
