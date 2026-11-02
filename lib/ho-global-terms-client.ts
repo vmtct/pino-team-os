@@ -2,7 +2,7 @@ import { BoApiError } from "./bo-api-error";
 import { GLOBAL_TERMS_API, object, parseCoreTermDetail, parseCoreTermList, termUuid, type GlobalTerm, type GlobalTermDetail } from "./ho-global-terms-contract";
 const DUPLICATE_GLOBAL_TERM_CODE_MESSAGE = "Mã học kỳ đã tồn tại. Hãy nhập mã khác.";
 /** Only a verified Create/TERM_CONFLICT is a recoverable duplicate-code error. */
-export function isDuplicateGlobalTermCodeError(error: unknown): error is BoApiError {
+export function isDuplicateGlobalTermCodeError(error: unknown): boolean {
   return error instanceof BoApiError && error.status === 409 && error.message === DUPLICATE_GLOBAL_TERM_CODE_MESSAGE;
 }
 export async function termRequest(path: string, init: RequestInit, fetcher: typeof fetch = fetch): Promise<unknown> {
