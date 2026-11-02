@@ -1,7 +1,7 @@
 /** PAP-1316 / PAP-1327. Positively enrolled BO query-module read adapters.
  * Do not add a module until its Core/API CENTER scope and negative ACL tests pass.
  */
-export const BO_CENTER_READ_WAVE1 = ["visits", "timekeeping", "classes"] as const;
+export const BO_CENTER_READ_WAVE1 = ["visits", "timekeeping", "classes", "students"] as const;
 
 export function isBoCenterReadWave1(moduleKey: string): boolean {
   return BO_CENTER_READ_WAVE1.some(key => key === moduleKey);
