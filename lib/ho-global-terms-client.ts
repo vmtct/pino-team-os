@@ -1,8 +1,21 @@
 import { BoApiError } from "./bo-api-error";
 import { GLOBAL_TERMS_API, object, parseCoreTermDetail, parseCoreTermList, termUuid, type GlobalTerm, type GlobalTermDetail } from "./ho-global-terms-contract";
+const DUPLICATE_GLOBAL_TERM_CODE_MESSAGE = "Mã học kỳ đã tồn tại. Hãy nhập mã khác.";
+/** Only a verified Create/TERM_CONFLICT is a recoverable duplicate-code error. */
+export function isDuplicateGlobalTermCodeError(error: unknown): error is BoApiError {
+  return error instanceof BoApiError && error.status === 409 && error.message === DUPLICATE_GLOBAL_TERM_CODE_MESSAGE;
+}
 export async function termRequest(path: string, init: RequestInit, fetcher: typeof fetch = fetch): Promise<unknown> {
   const response = await fetcher(GLOBAL_TERMS_API + path, { ...init, credentials: "same-origin", cache: "no-store", redirect: "error" });
-  if (!response.ok) throw new BoApiError(response.status, response.status === 409 ? "Dữ liệu đã thay đổi hoặc đang được tham chiếu. Tải lại trước khi thử lại." : "Không thể truy cập Global Terms (HTTP " + response.status + ").", null);
+  if (!response.ok) {
+    const failure: unknown = response.status === 409 ? await response.json().catch(() => null) : null;
+    const conflictCode = object(object(failure)?.error)?.code;
+    const duplicateCreate = response.status === 409 && path === "" && init.method === "POST" && conflictCode === "TERM_CONFLICT";
+    const message = duplicateCreate
+      ? DUPLICATE_GLOBAL_TERM_CODE_MESSAGE
+      : response.status === 409 ? "Dữ liệu đã thay đổi hoặc đang được tham chiếu. Tải lại trước khi thử lại." : "Không thể truy cập Global Terms (HTTP " + response.status + ").";
+    throw new BoApiError(response.status, message, null);
+  }
   const body: unknown = await response.json();
   init.signal?.throwIfAborted();
   return object(body)?.data;
