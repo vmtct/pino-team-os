@@ -16,9 +16,10 @@ import { emptyMission, MissionCreateFields, validateMissionCreate } from "./Miss
 type F = typeof missionFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 type EditTarget = { id: string; version: number; status: MissionInput["status"] };
-export const missionWriteUnavailable =
-  "Lưu trữ và xóa Mission chưa khả dụng ở lát cắt này; chỉnh sửa không được tự thay đổi trạng thái lưu trữ.";
-/** PAP-1207: Create/Edit both use canonical TDD Action Host; no local mutation buttons. */
+export const missionLifecycleNote =
+  "Lưu trữ chuyển Mission sang INACTIVE và ngừng giao mới; Assignment và Nhật Ký hiện có được giữ nguyên. Xóa vật lý không khả dụng.";
+
+/** PAP-1207: Create/Edit/Archive use canonical TDD Action Host; no local mutation buttons. */
 export function HoMissionsTdd() {
   const [ready, setReady] = useState<Ready | null>(null);
   const [error, setError] = useState("");
@@ -69,6 +70,43 @@ export function HoMissionsTdd() {
       setFormError(""); setConfirmed(""); setMode("edit");
     } finally { setPending(false); }
   };
+  const archiveMission = async () => {
+    if (writing.current || pending || uncertain || !ready || mode) return;
+    if (!ready.adapter.context.authorize("learning.mission.manage")) return;
+    const selected = ready.navigation.read();
+    if (selected.kind !== "detail" || !selected.recordId) return;
+    setPending(true); setEditLoadError("");
+    try {
+      const loaded = await loadMissionForEdit(selected.recordId);
+      if (loaded.state !== "ready") { setEditLoadError(loaded.message); return; }
+      if (ready.navigation.read().recordId !== loaded.id) return;
+      if (loaded.data.status !== "ACTIVE") {
+        setEditLoadError("Mission đã ở trạng thái INACTIVE; không cần lưu trữ lại.");
+        return;
+      }
+      const accepted = typeof window !== "undefined" && window.confirm(
+        "Lưu trữ Mission " + loaded.data.code + " — " + loaded.data.name +
+        "? Mission sẽ chuyển sang INACTIVE và không còn được giao mới. Assignment và Nhật Ký hiện có vẫn được giữ nguyên; thao tác này không xóa dữ liệu.",
+      );
+      if (!accepted || ready.navigation.read().recordId !== loaded.id || writing.current || uncertain) return;
+      writing.current = true;
+      idempotency.current = "mission-archive-" + crypto.randomUUID();
+      const result = await submitHoMission({
+        kind: "archive", id: loaded.id, expectedVersion: loaded.version,
+        data: loaded.data, idempotencyKey: idempotency.current,
+      });
+      if (result.state === "verified") {
+        ready.navigation.change({ kind: "table", tab: "overview", query: missionQuery });
+        setConfirmed("Đã xác minh lưu trữ Mission " + result.record.code + " trên Core (INACTIVE).");
+        setReady(null); setRetry(n => n + 1);
+      } else {
+        setEditLoadError(result.message);
+        if (result.state === "unverified") setUncertain(true);
+      }
+    } catch {
+      setEditLoadError("Không xác minh được thao tác lưu trữ. Đọc lại Core trước khi thử lại.");
+    } finally { writing.current = false; setPending(false); }
+  };
   const submit = async () => {
     if (!mode) return { state: "invalid" as const };
     const invalid = validateMissionCreate(draft);
@@ -99,6 +137,7 @@ export function HoMissionsTdd() {
   const actions: TddActionBindings = {
     openCreate: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: open },
     openEdit: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: openEdit },
+    archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, run: archiveMission },
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
     saveCreate: { kind: "mutation", disabled: pending || uncertain || Boolean(validateMissionCreate(draft)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
@@ -106,7 +145,7 @@ export function HoMissionsTdd() {
       !editTarget || editTarget.status !== draft.status, run: submit },
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
-    <p role="note">{missionWriteUnavailable}</p>
+    <p role="note">{missionLifecycleNote}</p>
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {editLoadError ? <p role="alert">{editLoadError}</p> : null}
     {uncertain ? <p role="alert">Lệnh ghi chưa được xác minh. Không gửi lại thao tác hoặc mở form mới trước khi đối chiếu Mission trên Core.</p> : null}

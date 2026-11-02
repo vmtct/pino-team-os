@@ -31,6 +31,7 @@ export const missionDefinition = {
   actions: [
     { id: "mission-open-create", label: "Tạo mới", slot: "table.header", variant: "primary", capability: "create", handler: "openCreate" },
     { id: "mission-open-edit", label: "Chỉnh sửa", slot: "detail.header", variant: "secondary", capability: "edit", handler: "openEdit" },
+    { id: "mission-archive", label: "Lưu trữ", slot: "detail.header", variant: "danger", capability: "edit", handler: "archiveMission" },
     { id: "mission-cancel-create", label: "Hủy", slot: "drawer.footer", formMode: "create", variant: "secondary", capability: "create", handler: "cancelCreate" },
     { id: "mission-save-create", label: "Tạo", slot: "drawer.footer", formMode: "create", variant: "primary", capability: "create", handler: "saveCreate" },
     { id: "mission-cancel-edit", label: "Hủy", slot: "drawer.footer", formMode: "edit", variant: "secondary", capability: "edit", handler: "cancelEdit" },
