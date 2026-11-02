@@ -1,0 +1,151 @@
+/* PAP-1348 — HO Global Terms only. The shared TDD engine owns Table/Drawer/Detail shells.
+   This module owns only its editor content and the Weeks business-tab interior. */
+.editorSection {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  max-width: 100%;
+}
+.editorHeading {
+  margin: 0;
+  padding: 0 0 11px;
+  border-bottom: 1px solid var(--ds-border, #e7e3e7);
+  color: var(--text-primary, #30303a);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.form {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 15px;
+  min-width: 0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+  min-width: 0;
+}
+.fieldCode { max-width: 250px; }
+.fieldDate { max-width: 200px; }
+.field label {
+  color: var(--text-secondary, #5e5964);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.required {
+  color: var(--ds-danger, #a92d45);
+}
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary, #30303a);
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-border, #d9d9df);
+  border-radius: 7px;
+}
+.input:focus-visible {
+  outline: 2px solid var(--ds-primary, #74283e);
+  outline-offset: 1px;
+  border-color: var(--ds-primary-border, #dcb4c3);
+}
+.input:disabled {
+  color: var(--text-secondary, #72717b);
+  background: var(--ds-surface-muted, #f7f6f8);
+  cursor: not-allowed;
+}
+.scopeHint {
+  margin: 0;
+  max-width: 430px;
+  color: var(--text-secondary, #76727d);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.feedbackError {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 7px;
+  color: var(--ds-danger, #a62945);
+  background: var(--ds-danger-subtle, #fff1f3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.feedbackStatus {
+  margin: 0;
+  color: var(--text-secondary, #76727d);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.deleteSummary {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  max-width: 440px;
+}
+.deleteSummary > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 35%) minmax(0, 1fr);
+  gap: 10px;
+  border-bottom: 1px solid var(--ds-border, #e7e3e7);
+  padding: 10px 0;
+}
+.deleteSummary dt {
+  color: var(--text-secondary, #6c6874);
+  font-size: 12px;
+}
+.deleteSummary dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary, #30303a);
+  font-size: 12px;
+  font-weight: 600;
+}
+.weekCount {
+  color: var(--text-secondary, #76727d);
+  font-size: 12px;
+  font-weight: 500;
+}
+.weekLink {
+  color: var(--ds-primary, #74283e);
+  text-decoration: none;
+  min-width: 0;
+}
+.weekLink:hover { text-decoration: underline; }
+.weekLink:focus-visible {
+  outline: 2px solid var(--ds-primary, #74283e);
+  outline-offset: 2px;
+}
+.weekRhythm {
+  font-size: 11px;
+  color: var(--text-secondary, #76727d);
+  overflow-wrap: anywhere;
+}
+.weekFooter { margin: 15px 0 0; font-size: 12px; }
+.weekFooter a {
+  color: var(--ds-primary, #74283e);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.weekFooter a:focus-visible {
+  outline: 2px solid var(--ds-primary, #74283e);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .editorSection { gap: 12px; }
+  .field, .fieldCode, .fieldDate { max-width: 100%; }
+  .form { width: 100%; gap: 12px; }
+  .deleteSummary > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
