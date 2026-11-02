@@ -14,7 +14,7 @@ test("PAP-1344 Station TV uses existing desktop shell and shared authorized TV L
   assert.match(launcher,/\/api\/tos-learning\/tv\/displays/);
   assert.match(launcher,/\/api\/tv\/\$\{tv\.id\}\/launch/);
   assert.match(launcher,/credentials:"same-origin"/);
-  assert.match(launcher,/window\.location\.assign/);
+  assert.match(launcher,/router\.push/);
   assert.doesNotMatch(launcher,/019d9880-1025-7000-8000-000000000071/);
 });
 test("PAP-1343 CP1 TV runtime has only ambient artwork/actors, no audience labels, metrics, footer",()=>{
