@@ -30,5 +30,6 @@ test("PAP-1333 BO fetch is Center-scoped, read-only and integrated into canonica
  assert.match(s,/api\/bo\/tv\/operator-health\?centerId=/);
  assert.match(s,/describeTvHealthObservation/);
  assert.doesNotMatch(s,/runtimeToken|PINO_TV_SESSION|\/api\/tv\/runtime\//);
- assert.match(t,/<TvHealthReadOnlyPanel centerId=\{center\}/);\n assert.doesNotMatch(t,/app\/bo\/pinoria-tv-operator\/TvDeviceDiagnostics/);
+ assert.match(t,/<TvHealthReadOnlyPanel centerId=\{center\}/);
+ assert.doesNotMatch(t,/app\/bo\/pinoria-tv-operator\/TvDeviceDiagnostics/);
 });
