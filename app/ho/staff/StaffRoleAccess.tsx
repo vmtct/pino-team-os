@@ -6,7 +6,7 @@ import type { BoAccessSystemUser } from "@/lib/bo-access-model";
 import type { BoAccessRole } from "@/lib/bo-model";
 import { replaceStaffRole, resolveStaffRoleAccount, staffRoleEditorModel } from "@/lib/ho-staff-role-editor";
 import type { OverviewProperties } from "@/app/components/workspace-renderer/Properties";
-import { planTvQaGrant, verifyTvQaReadback, writeTvQaStaffCommand, TV_QA_CENTER_ID, TV_QA_STAFF_ID, TV_QA_USER_ID, TV_QA_ROLE_KEY } from "@/lib/pap1345-tv-qa-grant";
+import { planTvQaGrant, verifyTvQaReadback, writeTvQaStaffCommand, TV_QA_CENTER_ID, TV_QA_STAFF_ID, TV_QA_USER_ID, TV_QA_ROLE_KEY } from "@/lib/ho-staff-role-editor";
 export { resolveStaffRoleAccount } from "@/lib/ho-staff-role-editor";
 
 type State = { kind: "loading" } | { kind: "error" } |
