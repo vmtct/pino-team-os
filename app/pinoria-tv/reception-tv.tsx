@@ -460,10 +460,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const sceneActor = scene ? inside.find((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId) ?? null : null;
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
   const arrivalCompanion = policy.visibleContext.companion && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
-  const arrivalPath = policy.visibleContext.path && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
   // Departure context only comes from the matching canonical presence source and policy.
-  const departurePath = policy.visibleContext.path && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
-  const departureCompanion = policy.visibleContext.companion && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
   const arrivalCompanionAsset = arrivalCompanion ? pinoriaAssetUrl(arrivalCompanion.species.assetKey) : null;
   const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
   const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
@@ -662,14 +659,6 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
       <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} wardRender={visualScene.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.wardRender ?? undefined : undefined} />
       {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => { setFailedArrivalCompanionIdentity(arrivalCompanionIdentity);setAssetEvidence(previous=>recordAssetFailure(previous,"arrival-companion")); }} alt="" /></> : null}
-      <div className={styles.copy}>
-        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${displayNameForSharedTv(policy,visualScene.name).toUpperCase()}` : "HẸN GẶP LẠI"}</span>
-        <h1>{visualScene.kind === "arrival" ? `Chào ${displayNameForSharedTv(policy,visualScene.name)} ✦` : displayNameForSharedTv(policy,visualScene.name)}</h1>
-        {visualScene.kind === "arrival" && arrivalPath ? <div className={styles.arrivalPath} data-arrival-path={arrivalPath.code} aria-label={`Hành trình ${arrivalPath.displayName}`}>{arrivalPath.displayName}</div> : null}
-        {visualScene.kind === "departure" && departurePath ? <div className={styles.arrivalPath} data-departure-path={departurePath.code}>{departurePath.displayName}</div> : null}
-        {visualScene.kind === "departure" && departureCompanion ? <p data-departure-companion="canonical">{departureCompanion.species.displayName} đồng hành cùng bạn ✦</p> : null}
-        <p>{visualScene.kind === "arrival" ? arrivalCompanion ? `Hôm nay ${arrivalCompanion.species.displayName} đi cùng mình!` : "Chào mừng bạn đến Pinoria!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
-      </div>
     </section> : null}
     {visiblePresentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} reveal={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} hatch={visiblePresentation.projection} /> : null}
