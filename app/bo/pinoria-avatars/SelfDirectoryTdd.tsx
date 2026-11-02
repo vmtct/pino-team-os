@@ -8,7 +8,8 @@ import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWor
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry } from "@/lib/workspace-schema";
-import { selfDefinition, selfFields, selfQuery, selfProvider } from "./schema";
+import { selfDefinition, selfFields, selfQuery, selfProvider, verifySelfWardrobeApproval } from "./schema";
+import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { loadAuthorizedDirectoryCenters, type DirectoryCenter, type DirectoryCenterSource } from "./centers";
 
 import { SelfDirectoryProperties } from "./SharedProperties";
@@ -39,7 +40,7 @@ export function SelfDirectoryTdd(){
     if(!selected)return;
     const ctl=new AbortController();let instance:AuthenticatedSurfaceAdapter<F>|null=null;
     void createBoTddAdapter({
-      registry:new TddRegistry(),definition:selfDefinition,provider:selfProvider,
+      registry:new TddRegistry(verifySelfWardrobeApproval),definition:selfDefinition,provider:selfProvider,
       centerId:selected,centerSource,
     },ctl.signal).then(adapter=>{
       instance=adapter;
@@ -60,7 +61,11 @@ export function SelfDirectoryTdd(){
           <p>Chọn cơ sở đã được cấp quyền. Việc đọc Pinoria Self vẫn yêu cầu quyền riêng từ Core.</p>
         </div>
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
-          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}/>
+          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
+          detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
+            <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
+              canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
+              onSaved={onSaved} />}/>
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
