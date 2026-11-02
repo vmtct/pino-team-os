@@ -63,6 +63,8 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
       setError(candidate.invalidExplicit ?
         "Cơ sở trong liên kết không được cấp quyền." : "");
     };
+    // Next App Router may change search params without a popstate event.
+    restore();
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, [centers, loading, routeQuery]);

@@ -37,6 +37,7 @@ test("PAP-1327: one authenticated global BO provider, not per-module switcher in
   assert.match(provider, /candidate\.invalidExplicit/);
   assert.match(provider, /useSearchParams\(\)\.toString\(\)/);
   assert.match(provider, /\[centers, loading, routeQuery\]/);
+  assert.match(provider, /restore\(\);\s*window.addEventListener\("popstate", restore\)/);
 });
 
 test("PAP-1327: centralized scoped fetch rejects unverified modules before their reads", () => {
