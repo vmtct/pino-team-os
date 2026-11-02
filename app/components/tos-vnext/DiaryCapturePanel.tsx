@@ -2,13 +2,14 @@
 /** PAP-945 — authentic V18b Diary form shell. Staging write admission remains OFF.
  * No fake Diary, MissionResult, media receipt or local-only persistence.
  */
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {tosClassroomV18bApi,V18bCoreError,V18B_WRITE_ADMITTED,type V18bEligibleMissionsRead} from "@/lib/tos-classroom-v18b-api";
 import {prepareDiarySubmission} from "@/lib/tos-diary-submit-preflight";
 import {validateDiaryCaptureDraft} from "@/lib/tos-diary-capture-validation";
 import {createDiaryObservationWithLinks,resumeDiaryObservationWithLinks,type ObservationOutcome} from "@/lib/tos-diary-observation-workflow";
 import {resumeDiaryMissionLinks} from "@/lib/tos-diary-mission-link-workflow";
 import {diaryUiReceipt,canCreateDiary,canRetryDiary} from "@/lib/tos-diary-ui-receipt";
+import {inspectDiaryAfterReload,type ReloadReceipt} from "@/lib/tos-diary-reload-inspection";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -29,11 +30,16 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
  const [receipt,setReceipt]=useState<ObservationOutcome|null>(null);
  const [busy,setBusy]=useState(false);
  const [runtimeError,setRuntimeError]=useState("");
+ const [knownDiaryId,setKnownDiaryId]=useState("");
+ const [reloadReceipt,setReloadReceipt]=useState<ReloadReceipt|null>(null);
+ const [reloadBusy,setReloadBusy]=useState(false);
+ const reloadGeneration=useRef(0);
  const writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED;
- const locked=receipt!==null||busy;
+ const locked=receipt!==null||busy||reloadBusy;
  const receiptView=diaryUiReceipt(receipt);
  const permitted=students.some(x=>x.id===studentId);
  const key=JSON.stringify([model.centerId,classroom.runningClassId,model.today,classroom.id,studentId]);
+ useEffect(()=>{reloadGeneration.current++;setKnownDiaryId("");setReloadReceipt(null);},[key]);
  useEffect(()=>{
   if(!permitted)return;
   let active=true;
@@ -102,10 +108,25 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
    "Không đối soát được Diary gốc. Không tạo bản ghi thứ hai.");}
   finally{setBusy(false);}
  }
+ async function inspectExistingDiary(){
+  if(reloadBusy||busy||!permitted||!knownDiaryId.trim()||!missionIds.length||!eligibility||eligibility.hasMore)return;
+  const generation=++reloadGeneration.current;
+  setReloadReceipt(null);setReloadBusy(true);
+  try{
+   const found=await inspectDiaryAfterReload(tosClassroomV18bApi,{
+    centerId:model.centerId,runningClassId:classroom.runningClassId,
+    studentId,localDate:model.today,teachingContextKey:classroom.id,
+    diaryId:knownDiaryId.trim(),selectedMissionIds:[...missionIds],
+   });
+   if(reloadGeneration.current===generation)setReloadReceipt(found);
+  }finally{if(reloadGeneration.current===generation)setReloadBusy(false);}
+ }
  function onStudent(value:string){
-  setStudentId(value);setRead(idle);setMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setShowValidation(false);
+  reloadGeneration.current++;setStudentId(value);setRead(idle);setMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setShowValidation(false);
+  setKnownDiaryId("");setReloadReceipt(null);setReloadBusy(false);
  }
  function toggleMission(id:string,checked:boolean){
+  reloadGeneration.current++;setReloadReceipt(null);setReloadBusy(false);
   setMissionIds(prev=>checked?[...prev.filter(x=>x!==id),id]:prev.filter(x=>x!==id));
  }
  return <section className={styles.panel} aria-label="Soạn Nhật ký lớp học từ dữ liệu Core">
@@ -145,6 +166,22 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
   </label>}
   <p className={styles.hint}>Ảnh bằng chứng và ghi kết quả MissionResult sẽ được kết nối bằng các writer độc lập; hiện chưa gửi/lưu tệp.</p>
   {showValidation&&errors.length>0&&<ul role="alert" className={styles.errors}>{errors.map(e=><li key={e}>{e}</li>)}</ul>}
+  {permitted&&<section className={styles.reloadPanel} aria-label="Đối soát Nhật ký sau khi tải lại trang">
+   <strong>Đối soát Nhật ký đã có</strong>
+   <p className={styles.hint}>Sau khi tải lại trang, nhập ID Diary đã ghi nhận và chọn các Mission để kiểm tra trực tiếp trên Core. Chỉ xem, không lưu hoặc retry.</p>
+   <label className={styles.field}>Diary ID đã biết
+    <input type="text" maxLength={160} value={knownDiaryId} disabled={busy||reloadBusy} placeholder="ID từ biên nhận Nhật ký"
+     onChange={e=>{reloadGeneration.current++;setKnownDiaryId(e.target.value);setReloadReceipt(null);}}/>
+   </label>
+   <button className={styles.secondary} type="button" disabled={busy||reloadBusy||!knownDiaryId.trim()||!missionIds.length||!eligibility||eligibility.hasMore}
+    onClick={()=>void inspectExistingDiary()}>{reloadBusy?"Đang đối soát…":"Kiểm tra Diary trên Core"}</button>
+   {reloadReceipt&&<div className={reloadReceipt.state==="LINK_VERIFIED_READONLY"?styles.receiptSuccess:styles.receiptPending} role="status" aria-live="polite">
+    <strong>{reloadReceipt.state==="LINK_VERIFIED_READONLY"?"Core đã xác minh":"Cần đối soát thêm"}</strong>
+    <p>{reloadReceipt.message}</p>
+    {reloadReceipt.diaryId&&<small>Diary ID: {reloadReceipt.diaryId}</small>}
+    {reloadReceipt.pendingMissionIds.length>0&&<small>Mission chưa xác minh: {reloadReceipt.pendingMissionIds.join(", ")}</small>}
+   </div>}
+  </section>}
   {receiptView&&<div role="status" aria-live="polite" className={receiptView.severity==="success"?styles.receiptSuccess:styles.receiptPending}>
    <strong>{receiptView.title}</strong><p>{receiptView.message}</p>
    {receiptView.diaryId&&<small>Diary ID: {receiptView.diaryId}</small>}

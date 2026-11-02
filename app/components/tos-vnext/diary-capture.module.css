@@ -5,8 +5,12 @@
  .heading span{font-size:var(--tos-text-caption);color:var(--tos-color-soft)}
  .hint{margin:0;color:var(--tos-color-soft);font-size:var(--tos-text-caption);line-height:1.5}
  .field{display:grid;gap:var(--tos-space-2);font-weight:var(--tos-weight-strong);font-size:var(--tos-text-caption);color:var(--tos-color-ink)}
- .field select,.field textarea{width:100%;min-width:0;min-height:44px;padding:var(--tos-space-3);font:inherit;line-height:1.5;border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);background:var(--tos-color-surface);color:var(--tos-color-ink)}
+ .field select,.field textarea,.field input[type=text]{width:100%;min-width:0;min-height:44px;padding:var(--tos-space-3);font:inherit;line-height:1.5;border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);background:var(--tos-color-surface);color:var(--tos-color-ink)}
  .field textarea{resize:vertical}
+ .reloadPanel{display:grid;gap:var(--tos-space-3);padding:var(--tos-space-3);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);background:var(--tos-color-surface);min-width:0}
+ .reloadPanel strong{font-size:var(--tos-text-secondary);color:var(--tos-color-ink)}
+ .reloadPanel button{justify-self:start;min-height:44px;border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);padding:var(--tos-space-2) var(--tos-space-3);background:var(--tos-color-surface);color:var(--tos-color-ink);font:inherit}
+ .reloadPanel button:disabled{opacity:.5;cursor:not-allowed}
  .field :is(select,textarea):focus-visible,.panel button:focus-visible,.panel input:focus-visible{outline:2px solid var(--tos-color-info-text);outline-offset:2px}
  .missions{margin:0;min-width:0;display:grid;gap:var(--tos-space-2);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);padding:var(--tos-space-3)}
  .missions legend{font-weight:var(--tos-weight-strong);font-size:var(--tos-text-caption);padding:0 var(--tos-space-2)}
