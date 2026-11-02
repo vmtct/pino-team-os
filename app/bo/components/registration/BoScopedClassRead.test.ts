@@ -22,8 +22,8 @@ const ok = (payload: unknown) => new Response(JSON.stringify({ data: payload }),
 test("PAP-1328: Classes is adopted only with an explicit Core-authorized Center", async () => {
   assert.equal(isBoCenterReadWave1("classes"), true);
   const urls: string[] = [];
-  const rows = await load("classes", scopedClassesFetcher(async (url: string) => {
-    urls.push(url);
+  const rows = await load("classes", scopedClassesFetcher(async (input: RequestInfo | URL) => {
+    urls.push(String(input));
     return ok(data(A));
   }, A), { centerId: A });
   assert.deepEqual(urls, ["/api/bo/delivery/bootstrap-state?centerId=" + A]);
@@ -48,8 +48,8 @@ test("PAP-1328: foreign Center response cannot appear in a selected-Center Class
 
 test("PAP-1328: explicit Center 403 never falls back to another Center or GLOBAL", async () => {
   const urls: string[] = [];
-  await assert.rejects(load("classes", scopedClassesFetcher(async (url: string) => {
-    urls.push(url);
+  await assert.rejects(load("classes", scopedClassesFetcher(async (input: RequestInfo | URL) => {
+    urls.push(String(input));
     return new Response(null, { status: 403 });
   }, A), { centerId: A }), /Core từ chối/);
   assert.deepEqual(urls, ["/api/bo/delivery/bootstrap-state?centerId=" + A]);
