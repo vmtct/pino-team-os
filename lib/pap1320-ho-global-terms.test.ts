@@ -103,7 +103,7 @@ test("PAP-1320 client propagates 409/invalid detail and never substitutes fake d
 });
 test("PAP-1320 reachable module uses shared slots, editor and real week navigation",()=>{
   const source=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermsTdd.tsx","utf8"),editor=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx","utf8");
-  assert.match(source,/<SurfaceWorkspace/);assert.match(source,/module="globalTerms"/);assert.match(source,/\/ho\/workforce\/term-weeks\?record=/);assert.match(editor,/<DrawerFrame/);assert.match(editor,/Core chưa cung cấp xác nhận an toàn/);
+  assert.match(source,/<SurfaceWorkspace/);assert.match(source,/module="globalTerms"/);assert.match(source,/\/ho\/workforce\/term-weeks\?record=/);assert.match(editor,/<DrawerFrame/);assert.match(editor,/Mã và khoảng ngày được khóa để bảo vệ các tuần/);
   assert.doesNotMatch(source+editor,/localStorage|querySelector|innerHTML|previewRows/);
 });
 
