@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-test("PAP-1345: staging-only synthetic Staff HO UX uses existing Founder Core role facade",()=>{
+test("PAP-1345: staging-only synthetic Staff HO UX uses Founder-only HO facade backed by canonical BO Access Core",()=>{
   const ui = readFileSync("app/ho/staff/StaffRoleAccess.tsx","utf8");
   const handler = readFileSync("lib/ho-staff-role-facade.ts","utf8");
   assert.match(ui,/window\.location\.hostname === "ho\.staging\.pinohouse\.art"/);
@@ -19,7 +19,8 @@ test("PAP-1345: staging-only synthetic Staff HO UX uses existing Founder Core ro
   assert.doesNotMatch(ui,/window\.localStorage|document\.cookie/);
   assert.match(handler,/authorizeHoShell\(request\.headers, env\)/);
   assert.match(handler,/env\.APP_ENV !== "staging"/);
-  assert.match(handler,/callFounderCoreWithStaffPassword/);
+  assert.match(handler,/callBoAccessCoreWithStaffPassword\(env\.PINO_BO_CORE/);
+  assert.doesNotMatch(handler,/callFounderCoreWithStaffPassword|env\.PINO_CORE/);
   assert.match(handler,/idempotency-key/);
   assert.doesNotMatch(ui,/fetch\(["']\/api\/bo\/access\/assignments/);
 });

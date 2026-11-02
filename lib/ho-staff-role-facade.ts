@@ -1,10 +1,10 @@
 import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
-import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
+import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
 
-export interface HoStaffRoleEnv extends HoEnv { PINO_CORE: PinoCoreBinding }
+export interface HoStaffRoleEnv extends HoEnv { PINO_BO_CORE: BoAccessCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const keyPattern = /^[a-z0-9:-]{8,120}$/i;
 type AccessUser = {
@@ -60,7 +60,7 @@ export async function handleHoStaffRole(request: Request, env: HoStaffRoleEnv, s
     if (!actor.userId) return response({ error: { code: "HO_ACCESS_DENIED" } }, 403);
     const credential = await teamCredential(request, env, "BO");
     if (credential.kind !== "password") return response({ error: { code: "IDENTITY_UNAUTHORIZED" } }, 401);
-    const directory = await callFounderCoreWithStaffPassword(env.PINO_CORE,
+    const directory = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,
       { method: "GET", path: "access/users" }, credential.token);
     if (directory.status !== 200)
       return response({ error: { code: "HO_ACCESS_LOOKUP_DENIED" } },
@@ -70,7 +70,7 @@ export async function handleHoStaffRole(request: Request, env: HoStaffRoleEnv, s
     let path: string;
     let body: Record<string,unknown>;
     if (command.action === "assign") {
-      const directoryRoles = await callFounderCoreWithStaffPassword(env.PINO_CORE,
+      const directoryRoles = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,
         { method: "GET", path: "access/roles" }, credential.token);
       if (directoryRoles.status !== 200)
         return response({ error: { code: "HO_ROLE_DIRECTORY_UNAVAILABLE" } },
@@ -89,7 +89,7 @@ export async function handleHoStaffRole(request: Request, env: HoStaffRoleEnv, s
       path = "access/assignments/remove";
       body = { assignmentId: command.assignmentId };
     }
-    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE,
+    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,
       { method: "POST", path, body, idempotencyKey }, credential.token);
     return response(result.body, result.status);
   } catch (error) {
