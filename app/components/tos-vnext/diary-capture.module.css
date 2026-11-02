@@ -19,6 +19,12 @@
  .choice small{display:block;color:var(--tos-color-soft);font-size:var(--tos-text-caption);margin-top:var(--tos-space-1)}
  .complete{padding-left:var(--tos-space-5);color:var(--tos-color-soft)}
  .errors{margin:0;padding:var(--tos-space-3) var(--tos-space-3) var(--tos-space-3) var(--tos-space-6);color:var(--tos-color-danger-text,var(--tos-color-ink));font-size:var(--tos-text-caption);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control)}
+ .receiptPending,.receiptSuccess{display:grid;gap:var(--tos-space-2);padding:var(--tos-space-3);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);color:var(--tos-color-ink);font-size:var(--tos-text-caption)}
+ .receiptPending{background:var(--tos-color-surface)}
+ .receiptSuccess{background:var(--tos-color-surface)}
+ .receiptPending p,.receiptSuccess p{margin:0;line-height:1.5}
+ .receiptPending small,.receiptSuccess small{color:var(--tos-color-soft);overflow-wrap:anywhere}
+ .receiptPending button{justify-self:start;min-height:44px;padding:var(--tos-space-2) var(--tos-space-3);font:inherit;border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control)}
  .actions{display:flex;flex-wrap:wrap;gap:var(--tos-space-2);justify-content:flex-end}
  .actions button{min-height:44px;border-radius:var(--tos-radius-control);font:inherit;padding:var(--tos-space-2) var(--tos-space-4);font-weight:var(--tos-weight-strong);font-size:var(--tos-text-caption)}
  .secondary{border:1px solid var(--tos-color-border);background:var(--tos-color-surface);color:var(--tos-color-ink)}
