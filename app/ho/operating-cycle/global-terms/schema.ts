@@ -9,15 +9,15 @@ const read = { display:true, search:true, filter:true, sort:true, group:true, in
 const permission = GLOBAL_TERMS_PERMISSION;
 export const globalTermFields = [
   {key:"name",label:"Tên học kỳ",type:"text",icon:"Aa",width:260,permission,readOnly:true,capabilities:read},
-  {key:"code",label:"Mã",type:"text",icon:"#",width:160,permission,readOnly:true,capabilities:read},
-  {key:"startDate",label:"Bắt đầu",type:"date",icon:"◷",width:140,permission,readOnly:true,capabilities:read},
-  {key:"endDate",label:"Kết thúc",type:"date",icon:"◷",width:140,permission,readOnly:true,capabilities:read},
+  {key:"code",label:"Mã",type:"text",icon:"Aa",width:190,permission,readOnly:true,capabilities:read},
+  {key:"startDate",label:"Bắt đầu",type:"date",icon:"◷",width:130,permission,readOnly:true,capabilities:read},
+  {key:"endDate",label:"Kết thúc",type:"date",icon:"◷",width:130,permission,readOnly:true,capabilities:read},
   {key:"weekCount",label:"Số tuần",type:"number",icon:"#",width:100,permission,readOnly:true,capabilities:read},
   {key:"scopeType",label:"Phạm vi",type:"text",icon:"Aa",width:100,permission,readOnly:true,capabilities:read},
 ] as const satisfies readonly FieldSchema[];
 type F = typeof globalTermFields;
 const keys = ["name","code","startDate","endDate","weekCount","scopeType"] as const;
-const sections = [{id:"term-properties",label:"Global Term",fields:keys}] as const;
+const sections = [{id:"term-properties",label:"Thông tin học kỳ",fields:keys}] as const;
 export const globalTermQuery: TableQuery<F> = {search:"",filters:{logic:"AND",rules:[]},sort:{field:"startDate",direction:"desc"},group:null,order:keys,visible:["name","code","startDate","endDate","weekCount"],page:1,pageSize:15};
 export const globalTermDefinition = {
   version:1,classification:"TDD_DEFAULT",surface:"HO",key:"globalTerms",label:"Global Terms",group:"Operating Cycle",fields:globalTermFields,

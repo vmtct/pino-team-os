@@ -103,7 +103,7 @@ test("PAP-1320 client propagates 409/invalid detail and never substitutes fake d
 });
 test("PAP-1320 reachable module uses shared slots, editor and real week navigation",()=>{
   const source=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermsTdd.tsx","utf8"),editor=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx","utf8");
-  assert.match(source,/<SurfaceWorkspace/);assert.match(source,/module="globalTerms"/);assert.match(source,/\/ho\/workforce\/term-weeks\?record=/);assert.match(editor,/<DrawerFrame/);assert.match(editor,/Core chưa cung cấp xác nhận an toàn/);
+  assert.match(source,/<SurfaceWorkspace/);assert.match(source,/module="globalTerms"/);assert.match(source,/\/ho\/workforce\/term-weeks\?record=/);assert.match(editor,/<DrawerFrame/);assert.match(editor,/Mã và khoảng ngày được khóa để bảo vệ các tuần/);
   assert.doesNotMatch(source+editor,/localStorage|querySelector|innerHTML|previewRows/);
 });
 
@@ -118,4 +118,26 @@ test("PAP-1346 create TERM_CONFLICT explains duplicate code and permits correcti
   assert.equal(isDuplicateGlobalTermCodeError(new BoApiError(503,"Mã học kỳ đã tồn tại. Hãy nhập mã khác.",null)),false);
   const editor=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx","utf8");
   assert.match(editor,/setStale\(action !== "create" \|\| !isDuplicateGlobalTermCodeError\(e\)\)/);
+});
+
+test("PAP-1348 Global Terms stays inside admitted shared TDD/DS presentation",()=>{
+  const editor=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx","utf8");
+  const page=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermsTdd.tsx","utf8");
+  const schema=readFileSync("app/ho/operating-cycle/global-terms/schema.ts","utf8");
+  assert.match(page,/<SurfaceWorkspace/);
+  assert.match(page,/actionBindings=/);
+  assert.match(editor,/<DrawerFrame/);
+  assert.match(editor,/<h3 id="global-term-editor-heading">Thông tin học kỳ<\/h3>/);
+  assert.ok(editor.indexOf('id="global-term-code"')<editor.indexOf('id="global-term-name"'));
+  assert.match(editor,/className="property-section"/);
+  assert.match(editor,/className="property-row"/);
+  assert.match(editor,/className="edit-input"/);
+  assert.match(editor,/aria-describedby="global-term-scope-hint"/);
+  assert.match(editor,/term\.weekCount/);
+  assert.match(page,/className="v24-prop-item"/);
+  assert.match(page,/className="v24-prop-value"/);
+  assert.match(page,/formatTermDate\(w\.startDate\)/);
+  assert.match(page,/\/ho\/workforce\/term-weeks\?record=/);
+  assert.match(schema,/label:"Thông tin học kỳ"/);
+  assert.doesNotMatch(page+editor,/HoGlobalTerms\.module\.css|className=\{|style=\{|previewRows|localStorage|innerHTML/);
 });

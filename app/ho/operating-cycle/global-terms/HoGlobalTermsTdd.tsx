@@ -12,6 +12,8 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { loadGlobalTerm } from "@/lib/ho-global-terms-client";
 import { globalTermDefinition,globalTermFields,globalTermProvider,globalTermQuery,verifyGlobalTermApproval } from "./schema";
 import { HoGlobalTermEditor } from "./HoGlobalTermEditor";
+/** Core calendar dates are ISO day-only strings. Display without timezone conversion. */
+function formatTermDate(value:string){return value.slice(8,10)+"/"+value.slice(5,7)+"/"+value.slice(0,4);}
 type F=typeof globalTermFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>;fetcher:typeof fetch};
 export function HoGlobalTermsTdd(){
@@ -32,9 +34,25 @@ export function HoGlobalTermsTdd(){
       actionBindings={{"term.create":{run:()=>open("create")},"term.edit":{run:()=>open("update")},"term.delete":{run:()=>open("delete")}}}
       businessLoaders={{"ho-global-term-weeks":async(_slot,record,_context,signal)=>{
         const term=await loadGlobalTerm(record.id,ready.fetcher,signal);
-        return <section className="v24-prop-section" aria-label="Tuần thuộc Global Term"><h3>Global TermWeeks</h3>
-          {term.weeks.length?<dl>{term.weeks.map(w=><div className="property-row" key={w.id}><dt>{w.code}</dt><dd><Link href={"/ho/workforce/term-weeks?record="+w.id} prefetch={false}>{w.startDate} – {w.endDate} · {w.rhythmKey}</Link></dd></div>)}</dl>:<p role="status">Chưa có tuần trong học kỳ này.</p>}
-          <Link href="/ho/workforce/term-weeks" prefetch={false}>Quản lý Global TermWeeks</Link></section>;
+        return <section className="v24-prop-section" aria-label="Tuần thuộc Global Term">
+          <div className="v24-section-heading">
+            <h4>Tuần trong học kỳ</h4><span className="settings-hint">{term.weeks.length} tuần</span>
+          </div>
+          {term.weeks.length
+            ? <div role="list">
+                {term.weeks.map(w=><div className="v24-prop-item" role="listitem" key={w.id}>
+                  <span className="v24-prop-key">{w.code}</span>
+                  <Link className="v24-prop-value"
+                    href={"/ho/workforce/term-weeks?record="+w.id} prefetch={false}
+                    aria-label={"Xem "+w.code+" từ "+formatTermDate(w.startDate)+" đến "+formatTermDate(w.endDate)}>
+                    <span>{formatTermDate(w.startDate)} – {formatTermDate(w.endDate)}</span>
+                    <span className="settings-hint">{w.rhythmKey}</span>
+                  </Link>
+                </div>)}
+              </div>
+            : <div className="v24-audit-empty" role="status">Chưa có tuần trong học kỳ này.</div>}
+          <p className="settings-hint"><Link href="/ho/workforce/term-weeks" prefetch={false}>Đi đến quản lý Global TermWeeks</Link></p>
+        </section>;
       }}} />
     {editor&&<HoGlobalTermEditor key={editor.action+editor.id} action={editor.action} id={editor.id} fetcher={ready.fetcher} onClose={()=>setEditor(null)} onSaved={()=>{
       if(editor.action==="delete")ready.navigation.change({kind:"table",tab:"overview",query:ready.navigation.read().query});
