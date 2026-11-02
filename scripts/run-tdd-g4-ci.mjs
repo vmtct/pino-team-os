@@ -187,10 +187,13 @@ try {
       throw error;
     }
   }, () => invalidDetailPhase);
+  // PAP-1340: report the failing stage without logging learner names, IDs or credentials.
+  let studentSubscriptionPhase = "student_table";
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});
     await fp.goto(BO + "/bo",{waitUntil:"domcontentloaded"});
     await fp.locator('tbody tr button[aria-label^="Quick View"]').first().waitFor({state:"visible",timeout:15000});
+    studentSubscriptionPhase = "subscribed_student_lookup";
     const name = await fp.evaluate(async () => {
       const r = await fetch("/api/bo/learners",{credentials:"include"});
       if (!r.ok) return null;
@@ -198,21 +201,28 @@ try {
       return (Array.isArray(body.data)?body.data:[]).find(s => s.activeSubscriptions > 0)?.displayName ?? null;
     });
     assert(name,"No subscribed Student");
+    studentSubscriptionPhase = "student_search_and_drawer";
     await fp.locator('main input[type="search"]').fill(name);
     await fp.locator('tbody tr button[aria-label^="Quick View"]').first().click();
+    studentSubscriptionPhase = "student_full_detail";
     await fp.locator('[data-tdd-shell="drawer"]').getByRole("button",{name:/Full Detail/}).click();
+    studentSubscriptionPhase = "subscription_tab";
     await fp.getByRole("tab",{name:"Subscription"}).click();
+    studentSubscriptionPhase = "subscription_row";
     const row = fp.locator('[data-tdd-shell="detail"] tbody tr button[aria-label^="Quick View"]').first();
     await row.waitFor({state:"visible",timeout:15000});
     await row.click();
+    studentSubscriptionPhase = "subscription_drawer_full_detail";
     await fp.locator('[data-tdd-shell="drawer"]').getByRole("button",{name:/Full Detail/}).click();
+    studentSubscriptionPhase = "subscription_route";
     await fp.waitForURL(url => url.searchParams.get("module") === "subscriptions" &&
       UUID_V7.test(url.searchParams.get("record")||""),{timeout:15000});
+    studentSubscriptionPhase = "subscription_detail_subtitle";
     const id = new URL(fp.url()).searchParams.get("record");
     const title = fp.locator('[data-tdd-shell="detail"] #detail-subtitle');
     await title.waitFor({state:"visible",timeout:15000});
     assert((await title.innerText()).trim() === id,"wrong opened Subscription");
-  });
+  }, () => studentSubscriptionPhase);
   await check("founder_ho_staff_table_drawer_full_detail",async () => {
     await fp.goto(HO + "/ho/staff",{waitUntil:"domcontentloaded"});
     await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible",timeout:15000});
