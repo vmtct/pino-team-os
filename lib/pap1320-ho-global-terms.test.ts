@@ -129,7 +129,7 @@ test("PAP-1348 HO Global Terms Table/Drawer/Detail uses DS-owned shell and bound
   assert.match(page,/actionBindings=/);
   assert.match(editor,/<DrawerFrame/);
   assert.match(editor,/import styles from "\.\/HoGlobalTerms\.module\.css"/);
-  assert.match(editor,/<h3 id="global-term-editor-heading">Thông tin học kỳ<\/h3>/);
+  assert.match(editor,/<h3 id="global-term-editor-heading"[^>]*>Thông tin học kỳ<\/h3>/);
   assert.ok(editor.indexOf('id="global-term-code"')<editor.indexOf('id="global-term-name"'));
   assert.match(editor,/className=\{styles\.field\}/);
   assert.match(editor,/aria-describedby="global-term-scope-hint"/);
