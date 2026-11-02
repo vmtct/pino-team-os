@@ -5,7 +5,7 @@ import type { BoAccessRole } from "./bo-model";
 import {
   planTvQaGrant, verifyTvQaReadback, writeTvQaStaffCommand, TV_QA_ROLE_KEY,
   TV_QA_USER_ID, TV_QA_STAFF_ID, TV_QA_CENTER_ID,
-} from "./pap1345-tv-qa-grant";
+} from "./ho-staff-role-editor";
 
 const now = Date.parse("2026-11-02T07:00:00.000Z");
 const role = { id: "role-qa", roleKey: TV_QA_ROLE_KEY, status: "active", roleType: "custom", permissionCount: 1 } as BoAccessRole;
