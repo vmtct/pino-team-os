@@ -6,7 +6,8 @@ test("departure uses matching source and policy-gated canonical projection", () 
  assert.match(source, /sceneHasMatchingSource = Boolean\(scene && sceneActor && actorHasSource\(/);
  assert.match(source, /departurePath = policy\.visibleContext\.path && scene\?\.kind === "departure" && sceneHasMatchingSource/);
  assert.match(source, /departureCompanion = policy\.visibleContext\.companion && scene\?\.kind === "departure" && sceneHasMatchingSource/);
- assert.match(source, /data-departure-companion="canonical"/);
+ assert.match(source, /data-departure-companion=\{visualScene\.kind === "departure" && departureCompanion \? "canonical" : undefined\}/);
+ assert.doesNotMatch(source, /<div className=\{styles\.copy\}>/);
  assert.doesNotMatch(source, /departureCompanion.*(?:Mori|PLS\s*[=:]\s*[0-9])/);
 });
 test("departure removal is scoped to exact learner AND originating presence source", () => {
