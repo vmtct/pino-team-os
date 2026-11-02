@@ -58,7 +58,10 @@ test("PAP-1262 React pointermove applies derived next state and pointercancel cl
 test("PAP-1262 leaving the SVG finishes drag history so Undo remains available", () => {
   const component=readFileSync(new URL("../app/bo/pinoria-tv-mesh/HouseMeshEditor.tsx",import.meta.url),"utf8");
   const up=component.slice(component.indexOf(" function up("),component.indexOf(" function edit("));
-  assert.match(component,/onPointerLeave=\{up\}/);
+  assert.doesNotMatch(component,/onPointerLeave=\{up\}/);
   assert.match(component,/onLostPointerCapture=\{up\}/);
-  assert.match(up,/if\(drag\.current\)\{history\.current\.push\(drag\.current\.origin\);drag\.current=null;/);
+  assert.match(component,/window\.addEventListener\("pointerup",finish,true\)/);
+  assert.match(component,/window\.addEventListener\("pointercancel",finish,true\)/);
+  assert.match(up,/finishPendingPointer\(\)/);
+  assert.match(component,/function finishPendingPointer\(\)\{panDrag\.current=null;if\(drag\.current\)\{history\.current\.push\(drag\.current\.origin\);drag\.current=null;\}\}/);
 });
