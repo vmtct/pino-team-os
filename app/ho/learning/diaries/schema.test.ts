@@ -13,7 +13,7 @@ const row={id,centerId:center,studentId:"01912345-6789-7abc-8def-0123456789ad",
  updatedAt:"2026-10-31T12:05:00.000Z",status:"REGISTERED" as const,notes:"Quan sát đã lưu",
  interest:null,difficulty:null,version:1};
 const wrap=(data:unknown,status=200)=>new Response(JSON.stringify({data}),{status,headers:{"content-type":"application/json"}});
-function reader(data:unknown,status=200){const calls:string[]=[];const fn:typeof fetch=async input=>{calls.push(String(input));return wrap(data,status)};return {fn,calls}}
+function reader(data:unknown,status=200){const calls:string[]=[];const fn:typeof fetch=async input=>{calls.push(String(input));return String(input).includes("/mission-links")?wrap([]):wrap(data,status)};return {fn,calls}}
 test("PAP-1221 HO Diary 8 Table columns, read only, linked Mission remains truthful",()=>{
  assert.equal(hoDiaryDefinition.surface,"HO");
  assert.deepEqual(hoDiaryQuery.visible,["student","mission","center","className","date","submitter","status","diaryCode"]);
@@ -27,7 +27,7 @@ test("PAP-1221 HO Diary 8 Table columns, read only, linked Mission remains truth
  assert.equal(view.submitter,row.registeredByUserId);
  assert.equal(view.student,row.studentId);
  assert.equal(view.center,row.centerId);
- assert.equal(view.mission,"Chưa liên kết nhiệm vụ");
+ assert.equal(view.mission,"Chưa xác minh liên kết");
  assert.equal(view.missionCompleted,"Chưa xác nhận");
  assert.equal(projectHoDiary({...row,status:"CLOSED"}).missionCompleted,"Chưa xác nhận");
 });

@@ -1,6 +1,7 @@
 /** PAP-1220 / Epic PAP-727: actual Core Diary, BO Center read-only, shared TDD. */
 import {TddRegistry,type FieldSchema,type ModuleRow,type TableQuery} from "@/lib/workspace-schema";
 import type {SurfaceDefinition,SurfaceProvider} from "@/lib/workspace-adapters/contracts";
+import {readDiaryMissionLabels} from "@/lib/diary-mission-projection";
 
 const P="session.roster.view";
 const READ={display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false} as const;
@@ -86,11 +87,11 @@ async function get(fetcher:typeof fetch,url:string,signal:AbortSignal):Promise<u
  if(!body||typeof body!=="object"||!("data" in body))throw Error("Diary response invalid");
  return body.data;
 }
-export function projectDiary(value:CoreDiary):DiaryViewRow{
- // Current Core intentionally has no PAP-1254 Mission association and no PAP-1204 Result in this read model.
+export function projectDiary(value:CoreDiary,mission="Chưa xác minh liên kết"):DiaryViewRow{
+ // PAP-1342: Caller supplies source-owned association; Mission Result remains separate.
  // Never infer links from Student/date/path/legacy mission children or Diary CLOSED.
  const d=value.teachingContextKey.slice(-10);
- return {id:value.id,student:value.studentId,mission:"Chưa liên kết nhiệm vụ",
+ return {id:value.id,student:value.studentId,mission,
   date:validDiaryDay(d)?d:value.registeredAt.slice(0,10),
   className:value.runningClassId??value.teachingContextKey,
   submitter:value.registeredByUserId,status:value.status==="CLOSED"?"Đã đóng":"Đã ghi nhận",
@@ -145,12 +146,15 @@ export const diaryProvider:SurfaceProvider<F>={
   if(scope.surface!=="BO")throw Error("CENTER scope required");
   const day=requestedDay(query);
   const rows=await readCenterDay(fetcher,scope.centerId,day,signal);
-  return {records:rows.map(v=>({row:projectDiary(v),centerId:scope.centerId,version:String(v.version)})),total:rows.length};
+  const labels=await readDiaryMissionLabels(fetcher,rows,"BO",scope.centerId,signal);
+  return {records:rows.map(v=>({row:projectDiary(v,labels.get(v.id)),centerId:scope.centerId,version:String(v.version)})),total:rows.length};
  },
  async detail(id,scope,fetcher,signal){
   if(scope.surface!=="BO")throw Error("CENTER scope required");
   const row=await readCenterDiary(fetcher,scope.centerId,id,signal);
-  return row?{row:projectDiary(row),centerId:scope.centerId,version:String(row.version)}:null;
+  if(!row)return null;
+  const labels=await readDiaryMissionLabels(fetcher,[row],"BO",scope.centerId,signal);
+  return {row:projectDiary(row,labels.get(row.id)),centerId:scope.centerId,version:String(row.version)};
  },
 };
 
