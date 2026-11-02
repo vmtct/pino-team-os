@@ -606,23 +606,6 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     setCenterId(value);
   }
 
-  function resetCenter() {
-    localStorage.removeItem(CENTER_STORAGE);
-    presentationGeneration.current += 1;
-    presentationCenter.current = "";
-    houseGeneration.current += 1;
-    housePollInFlight.current = false;
-    cursor.current = 0;
-    presentedSequence.current = 0;
-    wasConnected.current = false;
-    houseSnapshotRefreshedAt.current = 0;
-    setInside([]);
-    setScenes([]);
-    setPresentation(null);
-    setOnboardingPreview(null);
-    setPolicy(defaultSharedTvPolicy());
-    setCenterId("");
-  }
   const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: displayNameForSharedTv(policy,actor.displayName), config: actor.character, wardRender: actor.wardRender, experience: actor.experience })), [inside,policy]);
   const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((actor) => actor.wardSession?.status === "OPEN") ?? newest.find((actor) => actor.wardSession) ?? null; }, [inside]);
   if (!centerId) {
@@ -657,17 +640,11 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
   const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
-  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
+  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} data-tv-connection-state={connected ? "online" : "offline"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
     <div className={styles.orbTwo} />
-    <header className={styles.status}>
-      <div><b>PINORIA</b><span>HOUSE</span></div>
-      <div className={styles.live}>
-        <i className={connected ? styles.online : styles.offline} />
-        {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
-      </div>
-    </header>    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} publishedDialogue={publishedDialogue} />
+    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} publishedDialogue={publishedDialogue} showText={false} />
 
     {visualScene ? <section
       key={visualScene.id}
@@ -694,13 +671,6 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         <p>{visualScene.kind === "arrival" ? arrivalCompanion ? `Hôm nay ${arrivalCompanion.species.displayName} đi cùng mình!` : "Chào mừng bạn đến Pinoria!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
       </div>
     </section> : null}
-    {!scene && !presentation && !onboardingPreview ? <section className={styles.idle}>
-      <div className={styles.sigil}>P</div>
-      <span>PINORIA HOUSE IS ALIVE</span>
-      <h1>Chào mừng đến PINO House</h1>
-      <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
-    </section> : null}
-
     {visiblePresentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} reveal={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} hatch={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} ritual={visiblePresentation.projection} /> : null}
@@ -708,14 +678,5 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
     {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession && eligibleTvEvent(policy,"QUICK_CHOICE",new Date().toISOString(),new Date()) ? <WardSessionTv learnerName={displayNameForSharedTv(policy,wardLearner.displayName)} session={wardLearner.wardSession} /> : null}
 
-    <footer>
-      <span>{new Date().toLocaleDateString("vi-VN", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        weekday: "long",
-        day: "2-digit",
-        month: "2-digit",
-      })}</span>
-      <button onClick={resetCenter}>Center</button>
-    </footer>
   </main>;
 }
