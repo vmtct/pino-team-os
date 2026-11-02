@@ -2,6 +2,12 @@
 
 Jira: https://vmtct97.atlassian.net/browse/PAP-1077. Canon: PAP-1067; governance: PAP-184. This document covers the generator and fail-closed gate, not S9 terminal.
 
+## Founder boundary — 2026-11-01 — BO Center Switcher is NOT a TDD output
+
+**PAP-1067 / PAP-1077 do not implement, generate or require a Center Switcher.** The engine owns the Table → Drawer → Full Detail structure, standard system tabs and declarative action hosts. BO and HO generated modules must render their accepted TDD structure even without any workspace Center Switcher. Do not add a switcher to the generated module, route, acceptance plan or G3 gate to manufacture a pass.
+
+The separate feature [PAP-1316](https://vmtct97.atlassian.net/browse/PAP-1316) owns the optional BO shell's top-left Center selection and [PAP-1301](https://vmtct97.atlassian.net/browse/PAP-1301) is its opted-in Parents consumer, **not a PAP-1077 prerequisite**. The BO generated module still requires a **verified, authorized Center scope supplied by its real domain adapter**: the fail-closed `TODO_TDD_AUTHORIZED_CENTER` must not be bypassed or replaced by a fake global Center. HO uses its own authorized global scope. Prototype and DS acceptance of Table/Drawer/Detail remains required independently of the switcher feature.
+
 ## Canonical entry
 
 All NEW BO/HO entity-management routes default to TDD_DEFAULT: shared Table → Drawer → Full Detail, typed TddRegistry, SurfaceWorkspace with real BO or HO authorized adapter, approved pinned @pino/design-system, system Overview/History and domain-owned business-tab content. BO must independently verify Center authorization; HO must use authorized global scope. UI visibility is not an ACL grant.

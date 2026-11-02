@@ -350,3 +350,26 @@ test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
     assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
   }
 });
+
+test("PAP-1332 exact BO Staging Mission linked Diary GET enters existing BFF only", () => {
+  const id = "01a19638-51bf-7444-8a3e-10adc1b2bf20";
+  const base = "/api/bo/learning/mission-assignments/" + id;
+  const path = base + "/diaries";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, path, "GET"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, path + "/", "GET"), {action:"next"});
+  // Existing Assignment read/write/cancel remains unchanged.
+  assert.deepEqual(decideHostBoundary(bo, base, "GET"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, base, "PUT"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, base + "/cancel", "POST"), {action:"next"});
+  for (const method of ["HEAD","OPTIONS","POST","PUT","PATCH","DELETE"])
+    assert.deepEqual(decideHostBoundary(bo, path, method), {action:"not_found"}, method);
+  // Not an authority for Production or adjacent HO/TOS/foreign hosts.
+  for (const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art",
+    "pino-team-os-staging.minhtri-van42.workers.dev","bo.staging.pinohouse.art.evil.example"])
+    assert.deepEqual(decideHostBoundary(host, path, "GET"), {action:"not_found"}, host);
+  for (const invalid of [base + "/diaries/extra",base + "/diary",base + "/cancel/diaries",
+    "/api/bo/learning/mission-assignments/0000/diaries",base + "/diaries%2f",
+    "/api/bo/learning/mission-assignments//diaries"])
+    assert.deepEqual(decideHostBoundary(bo, invalid, "GET"), {action:"not_found"}, invalid);
+});

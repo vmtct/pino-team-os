@@ -6,7 +6,8 @@ export type RuntimeObservationFacts =
   | Readonly<{buildDigest:string;configSource:"PUBLISHED";appliedConfigRevision:number;assetStatus:AssetStatus}>
   | Readonly<{buildDigest:string;configSource:"FALLBACK";appliedConfigRevision:0;assetStatus:AssetStatus}>;
 const digest=/^[0-9a-f]{64}$/;
-const canonical=/^[a-z][a-z0-9_]*_[0-9a-f-]{8,}$/i;
+/** Accept genuine Core UUIDs and previously supported prefixed fixtures only. */
+const canonical=/^(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[a-z][a-z0-9_]*_[0-9a-f-]{8,})$/i;
 const validIdentity=(id:string)=>canonical.test(id);
 const v1="appliedConfigRevision,assetStatus,buildDigest,deviceId,displayId,sessionId,version";
 const v2="appliedConfigRevision,assetStatus,buildDigest,configSource,deviceId,displayId,sessionId,version";

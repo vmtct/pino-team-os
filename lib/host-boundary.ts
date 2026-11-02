@@ -30,10 +30,14 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
   const assignmentChange = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
   const assignmentCancel = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/cancel\/?$/i.test(pathname);
-  if (assignmentRead || assignmentChange || assignmentCancel) {
+  // PAP-1332: one source-authorized Mission Diary projection; no child wildcard.
+  // Middleware must admit the path before the BO BFF can enforce Center/actor ACL.
+  const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
+  if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
+    const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
     const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
-    return readAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
+    return readAllowed || diaryReadAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
   }
 
   if (hostname === HO_STAGING_HOSTNAME) {
