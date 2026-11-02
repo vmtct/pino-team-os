@@ -12,7 +12,7 @@ import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapt
 import {TddRegistry} from "@/lib/workspace-schema";
 import type {SlotLoaders} from "@/app/components/workspace-renderer/Slots";
 import {HouseMeshEditor} from "@/app/bo/pinoria-tv-mesh/HouseMeshEditor";
-import {TvDeviceDiagnostics} from "@/app/bo/pinoria-tv-operator/TvDeviceDiagnostics";
+
 import {tvDefinition,tvFields,tvProvider,tvQuery,verifyTvExtension} from "./schema";
 type F=typeof tvFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
@@ -28,9 +28,57 @@ const loaders:SlotLoaders={
    if(record.runtime!=="PINORIA_HOUSE")return <p role="status">Không gian House chỉ khả dụng cho TV PINORIA_HOUSE.</p>;
    const center=String(record.centerId??"");
    if(!/^[0-9a-f-]{36}$/i.test(center))return <p role="alert">Thiếu Center đã xác thực.</p>;
-   return <><HouseMeshEditor embeddedCenterId={center}/><TvDeviceDiagnostics centerContextId={center}/></>;
+   return <><HouseMeshEditor embeddedCenterId={center}/><TvHealthReadOnlyPanel centerId={center}/></>;
  }
 };
+type TvSessionHealth = {
+  sessionId:string;deviceId:string;displayId:string;heartbeatFresh:boolean;rendererAcknowledged:false;
+  observationStatus:"FRESH"|"STALE"|"NONE";
+  latestObservation:null|{configSource:"PUBLISHED"|"FALLBACK";appliedConfigRevision:number;buildDigest:string;assetStatus:"READY"|"DEGRADED"|"UNKNOWN";observedAt:string;fresh:true};
+};
+type TvHealthPayload = {centerId:string;deviceSessions:TvSessionHealth[]};
+function TvHealthReadOnlyPanel({centerId}:{centerId:string}){
+  const [health,setHealth]=useState<TvHealthPayload|null>(null);
+  const [error,setError]=useState("");
+  const [refresh,setRefresh]=useState(0);
+  const [busy,setBusy]=useState(true);
+  useEffect(()=>{
+    const controller=new AbortController();
+    setBusy(true);setError("");setHealth(null);
+    void fetch(`/api/bo/tv/operator-health?centerId=${encodeURIComponent(centerId)}`,{cache:"no-store",signal:controller.signal})
+      .then(async response=>{
+        const data=await response.json() as {data?:TvHealthPayload;error?:{message?:string}};
+        if(!response.ok||!data.data||data.data.centerId!==centerId||!Array.isArray(data.data.deviceSessions))
+          throw new Error(data.error?.message??"Core TV Health không khả dụng.");
+        return data.data;
+      })
+      .then(data=>{if(!controller.signal.aborted)setHealth(data)})
+      .catch(reason=>{if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Không đọc được TV Health.")})
+      .finally(()=>{if(!controller.signal.aborted)setBusy(false)});
+    return ()=>controller.abort();
+  },[centerId,refresh]);
+  return <section aria-label="BO TV runtime health" data-testid="bo-tv-runtime-health">
+    <h3>Runtime Health · Center</h3>
+    <p>Chứng cứ từ Core theo Center; heartbeat không phải renderer ACK.</p>
+    <button type="button" disabled={busy} onClick={()=>setRefresh(n=>n+1)}>{busy?"Đang tải…":"Làm mới health"}</button>
+    {error?<p role="alert">{error}</p>:null}
+    {health?.deviceSessions.length===0?<p role="status">Không có phiên TV đang hoạt động.</p>:null}
+    {health?.deviceSessions.map(session=>{
+      const obs=session.observationStatus==="FRESH"?session.latestObservation:null;
+      return <article key={session.sessionId}>
+        <strong>Session {session.sessionId}</strong>
+        <p>Device {session.deviceId} · Display {session.displayId}</p>
+        <p>Heartbeat: {session.heartbeatFresh?"Mới":"Cũ"} · Renderer ACK: chưa xác thực</p>
+        {obs&&obs.fresh&&/^[0-9a-f]{64}$/.test(obs.buildDigest)&&
+          ((obs.configSource==="FALLBACK"&&obs.appliedConfigRevision===0)||
+          (obs.configSource==="PUBLISHED"&&Number.isSafeInteger(obs.appliedConfigRevision)&&obs.appliedConfigRevision>0))
+          ?<p data-testid="bo-tv-observation">{obs.configSource} · revision {obs.appliedConfigRevision} · build {obs.buildDigest.slice(0,12)} · assets {obs.assetStatus} · observed {obs.observedAt} (không phải renderer ACK)</p>
+          :<p role="status">{session.observationStatus==="STALE"?"Observation đã cũ, không xác nhận cấu hình hiện tại.":"Chưa có observation hợp lệ còn mới."}</p>}
+      </article>;
+    })}
+  </section>;
+}
+
 export function TvsTdd(){
  const [centers,setCenters]=useState<readonly BoCenter[]>([]);
  const [centerId,setCenterId]=useState("");
