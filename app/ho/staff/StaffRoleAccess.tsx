@@ -109,13 +109,37 @@ export function StaffRoleAccess({ staffId, active, principalId, properties }: {
       catch { if (alive.current) setState({ kind: "error" }); }
     } finally { busy.current = false; setQaBusy(false); }
   }
+  async function revokeTvQaRole() {
+    if (!qaVisible || !qaPlan || qaPlan.kind !== "already" || busy.current || qaBusy) return;
+    busy.current = true; setQaBusy(true); setError(""); setNotice("");
+    try {
+      const latest = await readState();
+      const fresh = planTvQaGrant(latest.user, latest.roles);
+      if (fresh.kind !== "already" || fresh.assignmentId !== qaPlan.assignmentId ||
+        fresh.roleId !== qaPlan.roleId)
+        throw Error("Role QA đã thay đổi; hãy kiểm tra lại quyền trước khi gỡ.");
+      await writeTvQaStaffCommand(staffId, { action: "remove", assignmentId: fresh.assignmentId });
+      const verified = await readState();
+      if (alive.current) setState(verified);
+      if (!verified.user || verified.user.assignments.some(a => a.assignmentId === fresh.assignmentId) ||
+        !fresh.otherAssignmentIds.every(id => verified.user!.assignments.some(a => a.assignmentId === id)))
+        throw Error("Core readback chưa xác minh việc gỡ đúng role QA và giữ nguyên role khác.");
+      if (alive.current) setNotice("Đã thu hồi quyền TV QA; các role Staff khác không đổi.");
+    } catch (cause) {
+      if (alive.current) setError(cause instanceof Error ? cause.message : "Không thu hồi được quyền QA.");
+      try { const refreshed = await readState(); if (alive.current) setState(refreshed); }
+      catch { if (alive.current) setState({ kind: "error" }); }
+    } finally { busy.current = false; setQaBusy(false); }
+  }
   return <div data-testid="ho-staff-role-acl">
     <PropertySections recordKey={staffId} fields={fields} values={values} sections={properties.sections} variant="detail" surface="ho"
       canEdit={key => key === "role" && canEdit} onCommit={commit} onSaved={() => setNotice("Đã lưu.")} editorLabel="Sửa vai trò" />
     {qaVisible && qaPlan ? <section aria-label="QA TV Staging Cần Thơ" data-pap1345-qa-grant="true">
       <p>QA TV · Center Cần Thơ · Staging only. Quyền không tự hết hạn; thu hồi thủ công sau QA.</p>
       {qaPlan.kind === "already"
-        ? <p role="status">Quyền TV QA đang có hiệu lực.</p>
+        ? <div><p role="status">Quyền TV QA đang có hiệu lực.</p>
+          <TosButton type="button" variant="secondary" disabled={qaBusy || busy.current}
+            onClick={() => void revokeTvQaRole()}>{qaBusy ? "Đang thu hồi…" : "Thu hồi quyền TV QA"}</TosButton></div>
         : qaPlan.kind === "ready"
           ? <TosButton type="button" variant="secondary" disabled={qaBusy || busy.current}
               onClick={() => void grantTvQaRole()}>{qaBusy ? "Đang xác minh quyền…" : "Bổ sung quyền TV QA"}</TosButton>
