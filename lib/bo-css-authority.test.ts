@@ -53,7 +53,7 @@ test("HO retains the frozen six stylesheet bytes and BO root scope is opt-in", (
 });
 test("HO authenticated CSS resolves its compatibility asset; BO rejects retired cascade", async () => {
   const paths: string[] = [];
-  const env: BoSkeletonEnv = { APP_ENV: "staging", BO_UI_ONLY: "enabled", HO_PILOT_FOUNDER_USER_IDS: "u", PINO_BO_CORE: { async executeWithStaffPassword() { return { status: 200, requestId: "fixture", body: { data: { userId: "u", email: "fixture@example.test", surface: "BO", entitled: true } } }; } }, ASSETS: { async fetch(request) { paths.push(new URL(request.url).pathname); return new Response("fixture"); } } };
+  const env: BoSkeletonEnv = { APP_ENV: "staging", BO_UI_ONLY: "enabled", HO_PILOT_FOUNDER_USER_IDS: "u", PINO_BO_CORE: { async executeWithStaffPassword(request) { return request.path === "ho/admission" ? { status: 200, requestId: "founder-role", body: { data: { admitted: true } } } : { status: 200, requestId: "fixture", body: { data: { userId: "u", email: "fixture@example.test", surface: "BO", entitled: true } } }; } }, ASSETS: { async fetch(request) { paths.push(new URL(request.url).pathname); return new Response("fixture"); } } };
   const request = new Request("https://ho.staging.pinohouse.art/bo-skeleton/ho-scoped.css", { headers: { host: "ho.staging.pinohouse.art", cookie: "pino_staff_password_session=fixture" } });
   assert.equal((await serveBoSkeleton(request, env, "ho-scoped.css")).status, 200);
   assert.equal(paths.at(-1), "/ho-authority-source/ho-scoped.css");

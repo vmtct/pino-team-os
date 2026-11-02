@@ -423,6 +423,10 @@
           "owner": "PAP-1198"
         },
         {
+          "file": "lib/ho-auth.ts",
+          "owner": "PAP-1337"
+        },
+        {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
         },
@@ -474,6 +478,10 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/ho-auth.ts",
+          "owner": "PAP-1337"
         },
         {
           "file": "lib/ho-shift-templates-read-facade.ts",
@@ -729,6 +737,10 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1198"
+        },
+        {
+          "file": "lib/ho-auth.ts",
+          "owner": "PAP-1337"
         },
         {
           "file": "lib/workspace-adapters/session.ts",

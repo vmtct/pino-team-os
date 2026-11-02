@@ -56,6 +56,7 @@ function env(permitted=true,principal="founder"):HoEnv&{PINO_BO_CORE:any}{
   async executeWithStaffPassword(request:{path:string},token:string){
    if(token!=="valid")return {status:401,requestId:"auth",body:{}};
    if(request.path==="context")return {status:200,requestId:"context",body:{data:{userId:principal,email:"user@example.invalid",surface:"BO",entitled:true}}};
+   if(request.path==="ho/admission")return {status:principal==="founder"?200:403,requestId:"founder-role",body:{data:{admitted:principal==="founder"}}};
    if(!permitted)return {status:403,requestId:"denied",body:{error:{code:"ACCESS_PERMISSION_DENIED"}}};
    return {status:200,requestId:"read",body:{data:[]}};
   },

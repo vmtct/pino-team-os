@@ -47,6 +47,7 @@ function env(userId="founder",granted=true):HoEnv{
   async executeWithStaffPassword(request,token){
    if(token!=="valid")return {status:401,requestId:"unauth",body:{}};
    if(request.path==="context")return {status:200,requestId:"context",body:{data:{userId,email:"principal@example.invalid",surface:"BO",entitled:true}}};
+   if(request.path==="ho/admission")return {status:userId==="founder"?200:403,requestId:"founder-role",body:{data:{admitted:userId==="founder"}}};
    if(!granted)return {status:403,requestId:"denied",body:{error:{code:"ACCESS_PERMISSION_DENIED"}}};
    if(request.path==="access/audit")return {status:200,requestId:"audit",body:{data:[auditRecord],page:{limit:25,offset:0,total:1,page:1,pageCount:1,hasNext:false,hasPrevious:false}}};
    return {status:200,requestId:"read",body:{data:[]}};

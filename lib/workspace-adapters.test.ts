@@ -47,10 +47,11 @@ function definition(surface: "BO" | "HO", writable = false): SurfaceDefinition<F
 }
 /** Test-only Core fixture behind the actual authenticated BFF functions. */
 function server(surface: "BO" | "HO") {
-  const state = { principal: "user-a", permissions: ["team.bo.access", "fixture.read", "fixture.edit", "bo.shared_view.manage", "fixture.history"], authenticated: true, founder: "user-a", wrongCenter: false, denied: false, missing: false, calls: [] as BoAccessRequest[], http: [] as { url: URL; init?: RequestInit }[], views: [] as {id:string;moduleKey:string;name:string;version:number;position:number;config:ReturnType<typeof toSharedConfig<F>>}[], viewStatus: 200 };
+  const state = { principal: "user-a", permissions: ["team.bo.access", "fixture.read", "fixture.edit", "bo.shared_view.manage", "fixture.history"], authenticated: true, founder: "user-a", founderRoleActive: true, wrongCenter: false, denied: false, missing: false, calls: [] as BoAccessRequest[], http: [] as { url: URL; init?: RequestInit }[], views: [] as {id:string;moduleKey:string;name:string;version:number;position:number;config:ReturnType<typeof toSharedConfig<F>>}[], viewStatus: 200 };
   const origin = surface === "BO" ? "https://bo.staging.pinohouse.art" : "https://ho.staging.pinohouse.art";
   const env: BoReadEnv = { APP_ENV: "staging", get HO_PILOT_FOUNDER_USER_IDS() { return state.founder; }, PINO_BO_CORE: { async executeWithStaffPassword(request, token) {
     assert.equal(token, "test-session"); state.calls.push(request);
+    if (request.path === "ho/admission") { const admitted = state.founderRoleActive && state.principal === "user-a"; return { status: admitted ? 200 : 403, body: { data: { admitted } }, requestId: "founder-role-proof" }; }
     if (request.path === "context") return { status: 200, body: { data: { userId: state.principal, email: "fixture@example.test", displayName: null, staffMemberId: null, surface: "BO", entitled: true, permissionKeys: state.permissions } }, requestId: "test" };
     if (request.path === "centers") return { status: 200, body: { data: [{ id: center, key: "CENTER", displayName: "Center fixture", timeZone: "Asia/Ho_Chi_Minh", status: "ACTIVE" }] }, requestId: "test" };
     if (request.path.startsWith("views/")) {
@@ -164,6 +165,9 @@ test("HO Founder admission remains a server requirement even with every schema p
   const api = server("HO"); api.state.founder = "another-founder";
   await assert.rejects(createHoTddAdapter({ ...api, registry: new TddRegistry(), definition: definition("HO"), provider: provider("HO") }, signal()), fails(403));
   assert.equal(api.state.calls.some(v => v.path === "centers"), false);
+  const revoked = server("HO"); revoked.state.founderRoleActive = false;
+  await assert.rejects(createHoTddAdapter({ ...revoked, registry: new TddRegistry(), definition: definition("HO"), provider: provider("HO") }, signal()), fails(403));
+  assert.equal(revoked.state.calls.some(v => v.path === "centers"), false);
   const writable = { ...provider("HO"), mutation: () => ({ update: async () => ({ status: "denied" as const }) }) };
   await assert.rejects(setup("HO", definition("HO", true), writable), fails(403));
 });

@@ -16,6 +16,7 @@ function env(options:{founder?:boolean;grant?:boolean;binding?:boolean;configure
     PINO_BO_CORE:{
       async executeWithStaffPassword(request,token){
         if(token!=="valid")return {status:401,requestId:"ctx-auth",body:{error:{code:"AUTH_REQUIRED"}}};
+        if(request.path==="ho/admission")return {status:founder?200:403,requestId:"founder-role",body:{data:{admitted:founder}}};
         assert.equal(request.path,"context");
         return {status:200,requestId:"ctx-ok",body:{data:{userId:founder?"founder":"manager",email:"actor@example.invalid",surface:"BO",entitled:true,permissionKeys:grant?["team.bo.access","pinoria.item.view","pinoria.item.manage"]:["team.bo.access"]}}};
       }
