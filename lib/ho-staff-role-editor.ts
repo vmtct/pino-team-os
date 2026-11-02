@@ -35,7 +35,7 @@ export const TV_QA_ROLE_KEY = "pap1243-tvlaunch-cantho-qa-staging";
 
 export type TvQaGrantPlan =
   | { kind: "denied"; reason: string }
-  | { kind: "already"; roleId: string }
+  | { kind: "already"; roleId: string; assignmentId: string; otherAssignmentIds: string[] }
   | { kind: "ready"; roleId: string; expiredAssignmentId: string | null; otherAssignmentIds: string[] };
 
 export function planTvQaGrant(
@@ -56,7 +56,7 @@ export function planTvQaGrant(
   const starts = same ? Date.parse(same.effectiveFrom) : NaN;
   const expires = same?.effectiveUntil ? Date.parse(same.effectiveUntil) : Infinity;
   if (same && Number.isFinite(starts) && starts <= now && expires > now)
-    return { kind: "already", roleId: role.id };
+    return { kind: "already", roleId: role.id, assignmentId: same.assignmentId, otherAssignmentIds: user.assignments.filter(a => a.assignmentId !== same.assignmentId).map(a => a.assignmentId) };
   if (same && (!Number.isFinite(starts) || Number.isNaN(expires) || expires > now))
     return { kind: "denied", reason: "QA assignment state is ambiguous" };
   return {
