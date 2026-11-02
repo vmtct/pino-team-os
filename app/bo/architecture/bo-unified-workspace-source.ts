@@ -51,7 +51,11 @@ export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   routeForModule: (key) => currentBoModuleHref(key, paths),
   async load(key, fetcher, options) {
     if (!isWorkforce(key)) return school.load(key, fetcher, options);
-    const data = await adapters[key].list(fetcher);
+    // Payroll remains a separate UNVERIFIED financial contract, not scoped by UI.
+    if (key !== "payroll-periods" && !options.centerId) throw Error("Chưa chọn cơ sở cho Workforce.");
+    const data = key === "payroll-periods"
+      ? await payrollPeriodsAdapter.list()
+      : await adapters[key].list(fetcher, options.centerId);
     if (!Array.isArray(data) || data.some(r => !r || typeof r.id !== "string" || typeof r.name !== "string"))
       throw new Error("Workforce projection invalid");
     const ids = new Set(data.map(r => r.id));
