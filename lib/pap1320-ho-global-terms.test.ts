@@ -119,3 +119,30 @@ test("PAP-1346 create TERM_CONFLICT explains duplicate code and permits correcti
   const editor=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx","utf8");
   assert.match(editor,/setStale\(action !== "create" \|\| !isDuplicateGlobalTermCodeError\(e\)\)/);
 });
+
+test("PAP-1348 HO Global Terms Table/Drawer/Detail uses DS-owned shell and bounded domain presentation",()=>{
+  const editor=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermEditor.tsx","utf8");
+  const page=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTermsTdd.tsx","utf8");
+  const schema=readFileSync("app/ho/operating-cycle/global-terms/schema.ts","utf8");
+  const css=readFileSync("app/ho/operating-cycle/global-terms/HoGlobalTerms.module.css","utf8");
+  assert.match(page,/<SurfaceWorkspace/);
+  assert.match(page,/actionBindings=/);
+  assert.match(editor,/<DrawerFrame/);
+  assert.match(editor,/import styles from "\.\/HoGlobalTerms\.module\.css"/);
+  assert.match(editor,/<h3 id="global-term-editor-heading">Thông tin học kỳ<\/h3>/);
+  assert.ok(editor.indexOf('id="global-term-code"')<editor.indexOf('id="global-term-name"'));
+  assert.match(editor,/className=\{styles\.field\}/);
+  assert.match(editor,/aria-describedby="global-term-scope-hint"/);
+  assert.match(editor,/term\.weekCount/);
+  assert.match(page,/className="v24-prop-grid"/);
+  assert.match(page,/className="v24-prop-item"/);
+  assert.match(page,/formatTermDate\(w\.startDate\)/);
+  assert.match(page,/\/ho\/workforce\/term-weeks\?record=/);
+  assert.match(schema,/label:"Thông tin học kỳ"/);
+  assert.match(css,/--ds-primary/);
+  assert.match(css,/--ds-border/);
+  assert.match(css,/focus-visible/);
+  assert.match(css,/@media\s*\(max-width:\s*600px\)/);
+  assert.doesNotMatch(css,/!important/);
+  assert.doesNotMatch(page+editor,/previewRows|localStorage|innerHTML/);
+});
