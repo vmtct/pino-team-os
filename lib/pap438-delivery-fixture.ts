@@ -165,8 +165,11 @@ export async function publishAndMaterializePap438Fixture(
   }, replayKey(fixture.runTag, "policy-publish"));
 
   const policyEffectiveAt = new Date(publishAt.getTime() + 1000).toISOString();
-  const materialization = await port.command<Pap438MaterializationResult>("POST", "delivery/materializations", {
+  // Core PAP-1338 selects this exact RunningClass inside the materialization writer.
+  // A concurrent unrelated class cannot be materialized after our topology preflight.
+  const materialization = await port.command<Pap438MaterializationResult>("POST", "delivery/materializations/targeted", {
     centerId: fixture.centerId,
+    runningClassId: fixture.runningClass.id,
     startsOnLocalDate: fixture.startsOnLocalDate,
     effectiveAt: policyEffectiveAt,
   }, replayKey(fixture.runTag, "materialize"));

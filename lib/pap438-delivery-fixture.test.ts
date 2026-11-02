@@ -34,8 +34,9 @@ test("PAP-438 first-run Draft stays non-effective until publish, then exactly on
   assert.equal(active.session.runningClassId, fixture.runningClass.id);
   assert.equal(active.session.localDate, fixture.startsOnLocalDate);
 
-  const replay = await port.command<typeof active.materialization>("POST", "delivery/materializations", {
-    centerId: fixture.centerId, startsOnLocalDate: fixture.startsOnLocalDate, effectiveAt: active.policyEffectiveAt,
+  const replay = await port.command<typeof active.materialization>("POST", "delivery/materializations/targeted", {
+    centerId: fixture.centerId, runningClassId: fixture.runningClass.id,
+    startsOnLocalDate: fixture.startsOnLocalDate, effectiveAt: active.policyEffectiveAt,
   }, "pap438:run01:materialize-replay");
   assert.equal(replay.existing, 1);
   assert.equal(replay.materialized, 0);
@@ -130,6 +131,32 @@ test("PAP-438 rechecks exact active topology before publish/materialization", as
   assert.equal(port.bootstrap.upcomingSessions.length, 0);
 });
 
+test("PAP-1338 protects PAP-438 if another class activates after topology preflight", async () => {
+  const port = new FakePort();
+  const fixture = await preparePap438DeliveryFixture(port, "race01", now, 3);
+  const unrelatedId = uuid(997);
+  port.beforeTargetedMaterialization = () => {
+    port.bootstrap.runningClasses.push({
+      ...fixture.runningClass, id: unrelatedId,
+      operationalName: "[E2E] PAP-438 race01 unrelated concurrently activated",
+    });
+    port.syncActive();
+  };
+  const active = await publishAndMaterializePap438Fixture(port, fixture, new Date("2026-10-10T06:10:00.000Z"));
+  assert.equal(port.bootstrap.activeRunningClasses.length, 2, "unrelated class activated after preflight");
+  assert.equal(active.materialization.attempted, 1);
+  assert.equal(active.materialization.materialized, 1);
+  assert.equal(active.session.runningClassId, fixture.runningClass.id);
+  assert.equal(port.bootstrap.upcomingSessions.filter((session) => session.runningClassId === unrelatedId).length, 0);
+  await assert.rejects(
+    () => port.command("POST", "delivery/materializations/targeted", {
+      centerId: fixture.centerId, runningClassId: uuid(998),
+      startsOnLocalDate: fixture.startsOnLocalDate, effectiveAt: active.policyEffectiveAt,
+    }),
+    /exactly one active target RunningClass/,
+  );
+});
+
 test("PAP-438 refuses foreign active E2E topology and malformed run ids", async () => {
   const port = new FakePort();
   port.bootstrap.runningClasses.push({
@@ -151,9 +178,9 @@ test("PAP-438 fetch adapter preserves canonical BO envelope and replay header", 
     return Response.json({data:{ok:true}}, {status:200});
   });
   assert.deepEqual(await port.get<{ok:boolean}>("delivery/bootstrap-state"), {ok:true});
-  assert.deepEqual(await port.command<{ok:boolean}>("POST", "delivery/materializations", {centerId:"x"}, "pap438:key"), {ok:true});
+  assert.deepEqual(await port.command<{ok:boolean}>("POST", "delivery/materializations/targeted", {centerId:"x",runningClassId:"y"}, "pap438:key"), {ok:true});
   assert.equal(seen[0]!.url, "https://bo.pinohouse.art/api/bo/delivery/bootstrap-state");
-  assert.equal(seen[1]!.url, "https://bo.pinohouse.art/api/bo/delivery/materializations");
+  assert.equal(seen[1]!.url, "https://bo.pinohouse.art/api/bo/delivery/materializations/targeted");
   assert.equal(new Headers(seen[1]!.init?.headers).get("idempotency-key"), "pap438:key");
   assert.equal(seen[1]!.init?.credentials, "include");
 });
@@ -167,6 +194,7 @@ class FakePort implements Pap438FixturePort {
   stream: StoredPolicy | null = null;
   globalStream: StoredPolicy | null = null;
   materializationCommands = 0;
+  beforeTargetedMaterialization: (() => void) | null = null;
   bootstrap: F3BootstrapState = {
     asOf: now.toISOString(),
     centers: [
@@ -230,10 +258,12 @@ class FakePort implements Pap438FixturePort {
       this.stream.draftVersionId = null; this.stream.draftVersion = null; this.stream.draftValue = null;
       this.stream.revision += 1; this.syncPolicy(); return structuredClone({ published: true }) as T;
     }
-    if (method === "POST" && path === "delivery/materializations") {
+    if (method === "POST" && path === "delivery/materializations/targeted") {
       this.materializationCommands += 1;
       if (!this.stream?.publishedValue) throw new Error("Policy resolution unavailable");
-      const runningClasses = this.bootstrap.runningClasses.filter((item) => item.centerId === input.centerId && item.status === "ACTIVE");
+      this.beforeTargetedMaterialization?.();
+      const runningClasses = this.bootstrap.runningClasses.filter((item) => item.centerId === input.centerId && item.id === input.runningClassId && item.status === "ACTIVE");
+      if (runningClasses.length !== 1) throw new Error("PAP-438 targeted materialization requires exactly one active target RunningClass");
       let attempted=0, materialized=0, existing=0;
       for (const item of runningClasses) {
         for (let offset=0; offset<this.stream.publishedValue.horizonDays; offset++) {
