@@ -25,6 +25,7 @@ test("PAP-1343 CP1 TV runtime has only ambient artwork/actors, no audience label
   assert.match(tv,/data-tv-connection-state/);
   assert.doesNotMatch(tv,/<header className=\{styles\.status\}>|<footer>|<section className=\{styles\.idle\}>/);
   assert.doesNotMatch(tv,/Piner đang ở House|PINORIA HOUSE IS ALIVE/);
+  assert.doesNotMatch(tv,/<div className=\{styles\.copy\}>|CHÀO ĐẾN|HẸN GẶP LẠI/);
   assert.match(ambient,/\{showText \? <span>\{actor\.name\}<\/span> : null\}/);
   assert.match(ambient,/showText && dialogues\.filter/);
   assert.match(ambient,/data-ambient-runtime-character/);
