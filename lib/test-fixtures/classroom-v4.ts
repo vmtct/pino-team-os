@@ -1,8 +1,8 @@
 /** Synthetic PAP-934 fixture. Imported only by Node render tests, never by runtime. */
 import type {ScheduledClass,Student,Mission,Diary,Data,ClassroomV4ViewModel} from "../tos-classroom-v4-view-model";
 const classes:ScheduledClass[]=[
- {id:"class-art-1810-08",name:"Mỹ thuật sáng tạo",subject:"art",path:"Sáng tạo",time:"08:00–09:00",room:"Phòng A1",staff:["Cô Trang","Cô Vy"],expected:["s-an","s-ngoc","s-ducanh"]},
- {id:"class-piano-1810-10",name:"Piano cơ bản",subject:"piano",path:"Giai điệu",time:"10:00–11:00",room:"Phòng B2",staff:["Thầy Bảo","Cô Trang"],expected:["s-khoi","s-giahan"]}
+ {id:"class-art-1810-08",runningClassId:"class-art-1810-08",eligibleStudentIds:["s-an","s-ngoc","s-ducanh"],name:"Mỹ thuật sáng tạo",subject:"art",path:"Sáng tạo",time:"08:00–09:00",room:"Phòng A1",staff:["Cô Trang","Cô Vy"],expected:["s-an","s-ngoc","s-ducanh"]},
+ {id:"class-piano-1810-10",runningClassId:"class-piano-1810-10",eligibleStudentIds:["s-khoi","s-giahan"],name:"Piano cơ bản",subject:"piano",path:"Giai điệu",time:"10:00–11:00",room:"Phòng B2",staff:["Thầy Bảo","Cô Trang"],expected:["s-khoi","s-giahan"]}
 ];
 const roster:Student[]=[
  {id:"s-an",name:"An Nhiên",age:7,gender:"Nữ",domain:"art",path:"Sáng tạo"},
@@ -35,4 +35,4 @@ const seededDiaries:Diary[]=[
 ];
 const initial:Data={students:roster,participants:{[classes[0].id]:classes[0].expected,[classes[1].id]:classes[1].expected},openings:{},diaries:seededDiaries,sequence:1};
 
-export function classroomFixture():ClassroomV4ViewModel{return structuredClone({today:"2026-10-18",staffLabel:"Cô Trang",classes,data:initial,missions:catalog,diaryReadState:"LOADED",missionReadState:"LOADED",openingReadState:"LOADED",conflictStudentIds:[]})}
+export function classroomFixture():ClassroomV4ViewModel{return structuredClone({centerId:"synthetic-center-1",today:"2026-10-18",staffLabel:"Cô Trang",classes,data:initial,missions:catalog,diaryReadState:"LOADED",missionReadState:"LOADED",openingReadState:"LOADED",conflictStudentIds:[]})}

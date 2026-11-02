@@ -3,6 +3,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {FontAwesomeIcon,faArrowLeft,faBookOpen,faCalendarDays,faCamera,faCheck,faChevronRight,faCircleCheck,faClipboardList,faClock,faFlag,faGraduationCap,faInfoCircle,faLink,faMagnifyingGlass,faMusic,faPalette,faPlay,faPlus,faRotate,faStar,faTriangleExclamation,faUserPlus,faUsers,faXmark} from "./classroom-icons";
 import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
+import ScopedEligibleMissions from "./ScopedEligibleMissions";
 import {createSlotKeys} from "../tos-ds";
 const tosSlotKeys=createSlotKeys(styles);
 import {AppNavShell,AppModalRoot,AppToast} from "../tos-ds";
@@ -167,6 +168,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
     {tab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students"><div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Học viên trong buổi ({people.length})</h2></div><button onClick={showAdd}><FontAwesomeIcon icon={faUserPlus}/> + Thêm</button></div>{people.map(person)}{people.some(s=>model.conflictStudentIds.includes(s.id))&&<p role="alert">Danh sách có học viên xung đột. Cần kiểm tra trước khi ghi.</p>}</section>}
     {tab==="missions"&&<section role="tabpanel" id="tos-classroom-panel-missions" aria-labelledby="tos-classroom-tab-missions">
      <div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Nhiệm vụ hôm nay ({model.diaryReadState==="LOADED"?currentDiaries.reduce((n,d)=>n+d.missions.length,0):"—"})</h2><p>Mỗi Mission một hàng. Hoàn thành và lưu nháp trước khi gán nhiệm vụ tiếp theo cùng Path.</p></div><button type="button" aria-label="Thêm Nhiệm Vụ" title="Thêm" onClick={()=>assign()}><FontAwesomeIcon icon={faPlus}/> + Thêm</button></div>
+     <ScopedEligibleMissions key={current.id} model={model} classroom={current}/>
      {currentDiaries.length===0?<p className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>{model.diaryReadState==="LOADED"?"Chưa có Mission được giao.":"Chưa tải được nhiệm vụ đã giao."}</p>:currentDiaries.map(d=>{
       const s=data.students.find(x=>x.id===d.studentId),allowNext=canAppendToDiary(d);
       return <section className={styles.missionBatch} data-tos-slot={tosSlotKeys(styles.missionBatch)} key={d.id} data-mission-diary-id={d.id} data-path={d.path} aria-label={"Mission của "+(s?.name||"Học viên")+" Path "+d.path}>
