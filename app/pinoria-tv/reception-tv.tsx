@@ -461,6 +461,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
   const arrivalCompanion = policy.visibleContext.companion && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
   // Departure context only comes from the matching canonical presence source and policy.
+  const departurePath = policy.visibleContext.path && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
+  const departureCompanion = policy.visibleContext.companion && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
   const arrivalCompanionAsset = arrivalCompanion ? pinoriaAssetUrl(arrivalCompanion.species.assetKey) : null;
   const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
   const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
@@ -651,6 +653,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       data-arrival-source-type={visualScene.kind === "arrival" ? visualScene.sourceType : undefined}
       data-arrival-source-id={visualScene.kind === "arrival" ? visualScene.sourceId : undefined}
       data-presence-actor-type={visualScene.actorType}
+      data-departure-path={visualScene.kind === "departure" ? departurePath?.code : undefined}
+      data-departure-companion={visualScene.kind === "departure" && departureCompanion ? "canonical" : undefined}
       className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
       style={visualScene.kind === "departure" ? departureStyle : handoffStyle}
     >
