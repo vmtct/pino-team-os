@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./tv.module.css";
 
@@ -10,7 +9,6 @@ type TvDefinition={id:string;key:string;displayName:string;description:string|nu
  * Launch stays in this browser so the HttpOnly TV runtime cookie is never transported.
  * Device-specific BO telemetry requires an independently verified device binding. */
 export function TvLauncher({station=false}:{station?:boolean}={}){
-  const router=useRouter();
   const [items,setItems]=useState<TvDefinition[]>([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
@@ -35,7 +33,7 @@ export function TvLauncher({station=false}:{station?:boolean}={}){
       const json=await response.json() as {error?:{message?:string}};
       if(!response.ok)throw new Error(json.error?.message??"Không thể mở TV.");
       // The cookie is HttpOnly and bound to this browser, not another physical display.
-      router.push(`/tv/${tv.id}`);
+      window.location.assign(`/tv/${encodeURIComponent(tv.id)}`);
     }catch(cause){setError(cause instanceof Error?cause.message:"Không thể mở TV.");setBusy(null);}
   }
   return <div className={station?styles.stationLauncher:styles.launcher} data-tv-launcher={station?"station":"standalone"}>
