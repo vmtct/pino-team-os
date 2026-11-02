@@ -5,6 +5,7 @@
 import {useEffect,useMemo,useState} from "react";
 import {tosClassroomV18bApi,V18bCoreError,V18B_WRITE_ADMITTED,type V18bEligibleMissionsRead} from "@/lib/tos-classroom-v18b-api";
 import {prepareDiarySubmission} from "@/lib/tos-diary-submit-preflight";
+import {validateDiaryCaptureDraft} from "@/lib/tos-diary-capture-validation";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -55,15 +56,10 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
   }catch{return false;}
  },[permitted,model,classroom,studentId,eligibility,chosen]);
  const errors=[
-  ...(!studentId?["Cần chọn học viên thuộc roster."]:[]),
+  ...validateDiaryCaptureDraft({studentId,missionIds,eligibleIds:eligibility?.items.map(x=>x.missionId)??[],
+   eligibilityLoaded:current.phase==="ready",eligibilityHasMore:eligibility?.hasMore??false,notes,interest,difficulty}),
   ...(studentId&&current.phase==="error"?[current.message]:[]),
-  ...(studentId&&current.phase!=="ready"&&current.phase!=="error"?["Chưa xác nhận Mission từ Core."]:[]),
-  ...(eligibility?.hasMore?["Danh sách Mission chưa đầy đủ, không thể xác nhận chọn lựa."]:[]),
-  ...(!missionIds.length?["Cần chọn ít nhất một Nhiệm vụ."]:[]),
   ...(missionIds.length>0&&!preflight?["Mission hoặc ngữ cảnh học chưa được Core xác nhận."]:[]),
-  ...(!notes.trim()?["Cần nhập ghi chú quan sát."]:[]),
-  ...(interest===null?["Cần chọn mức hứng thú 1–4."]:[]),
-  ...(interest===1&&!difficulty.trim()?["Cần mô tả khó khăn khi học viên phản kháng."]:[]),
  ];
  function onStudent(value:string){
   setStudentId(value);setRead(idle);setMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setShowValidation(false);
