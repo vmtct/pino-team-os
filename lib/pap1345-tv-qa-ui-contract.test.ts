@@ -14,6 +14,8 @@ test("PAP-1345: staging-only synthetic Staff HO UX uses existing Founder Core ro
   assert.match(ui,/writeTvQaStaffCommand\(staffId, \{ action: "remove"/);
   assert.match(ui,/writeTvQaStaffCommand\(staffId, \{\s*action: "assign"/);
   assert.match(ui,/verifyTvQaReadback/);
+  assert.match(ui,/revokeTvQaRole/);
+  assert.match(ui,/Thu hồi quyền TV QA/);
   assert.doesNotMatch(ui,/window\.localStorage|document\.cookie/);
   assert.match(handler,/authorizeHoShell\(request\.headers, env\)/);
   assert.match(handler,/env\.APP_ENV !== "staging"/);
