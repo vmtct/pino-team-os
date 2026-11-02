@@ -9,16 +9,14 @@ import dynamic from "next/dynamic";
 import { BoAuthenticatedAccount } from "@/app/bo/shell/BoAuthenticatedAccount";
 import { BoCenterSelectionProvider, useBoCenterSelection } from "./BoCenterSelection";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
-import { boCenterWave1Href, isBoCenterReadWave1 } from "./BoCenterWave1";
-import { scopedClassesFetcher } from "./BoScopedClassRead";
-import { scopedLearnerFetcher } from "./BoScopedLearnerRead";
+import { boCenterModuleScope, boScopedModuleHref, scopedBoReadFetcher } from "./BoGlobalCenterPolicy";
 
 const ParentTdd = dynamic(() => import("../../parents/ParentTdd").then(module => module.ParentTdd), { ssr: false });
 const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 export const useBoStagingUser = () => useContext(RuntimeContext);
 export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode }) {
-  return <RuntimeContext.Provider value={currentUser}>{children}<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} /></RuntimeContext.Provider>;
+  return <RuntimeContext.Provider value={currentUser}><BoCenterSelectionProvider>{children}</BoCenterSelectionProvider><BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} /></RuntimeContext.Provider>;
 }
 function CenterReadPending({ message, denied }: { message: string; denied: boolean }) {
   const menu = useContext(TddHostMenu);
@@ -38,11 +36,11 @@ function CenterReadWorkspace({ moduleKey, options, currentUser }: {
   const scopedSource = useMemo(() => ({
     ...unifiedBoWorkspaceSource,
     load: (key: string, fetcher: typeof fetch, requestedOptions: Record<string, string>) =>
-      unifiedBoWorkspaceSource.load(key, key === "classes" ? scopedClassesFetcher(fetcher, selected) : key === "students" ? scopedLearnerFetcher(fetcher, selected) : fetcher, requestedOptions),
+      unifiedBoWorkspaceSource.load(key, scopedBoReadFetcher(key, fetcher, selected), requestedOptions),
     routeForModule: (key: string) => {
       const base = unifiedBoWorkspaceSource.routeForModule?.(key) ?? "/bo?module=" + encodeURIComponent(key);
       // Preserve the authorized Center only on routes whose Core data adapter is enrolled.
-      return boCenterWave1Href(base, key, selected, center?.centers.map(c => c.id) ?? []);
+      return boScopedModuleHref(base, key, selected, center?.centers.map(c => c.id) ?? []);
     },
   }), [selected, center?.centers]);
   const blocked = !center || center.loading || Boolean(center.error) || !selected;
@@ -59,11 +57,9 @@ export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: {
   const isParentPilot = moduleKey === "parents" && parentTddPilot;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
-  if (isBoCenterReadWave1(moduleKey)) return <BoCenterSelectionProvider>
-    <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />
-  </BoCenterSelectionProvider>;
+  if (boCenterModuleScope(moduleKey) === "CENTER") return <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />;
   const workspace = <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options}
     content={moduleKey === "subscriptions" ? <BoSubscriptionsView embedded /> :
       moduleKey === "parents" && parentTddPilot ? <ParentTdd /> : undefined} />;
-  return isParentPilot ? <BoCenterSelectionProvider>{workspace}</BoCenterSelectionProvider> : workspace;
+  return workspace;
 }

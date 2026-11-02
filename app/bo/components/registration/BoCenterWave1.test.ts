@@ -29,7 +29,7 @@ test("PAP-1327: scoped module links carry only authorized Center and clear stale
 
 test("PAP-1327: runtime never mounts a Center-specific legacy read before authorization", () => {
   const src = readFileSync("app/bo/components/registration/BoRuntimeBoundary.tsx", "utf8");
-  assert.match(src, /isBoCenterReadWave1\(moduleKey\)/);
+  assert.match(src, /boCenterModuleScope\(moduleKey\) === "CENTER"/);
   assert.match(src, /center\.loading \|\| Boolean\(center\.error\) \|\| !selected/);
   assert.match(src, /content=\{blocked \? <CenterReadPending/);
   assert.match(src, /centerId: selected/);
