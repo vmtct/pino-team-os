@@ -39,6 +39,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/diary-mission-projection.ts",
+          "owner": "PAP-1342"
         }
       ]
     },
@@ -675,6 +679,10 @@
         {
           "owner": "PAP-1221",
           "file": "lib/host-boundary.ts"
+        },
+        {
+          "file": "lib/diary-mission-projection.ts",
+          "owner": "PAP-1342"
         }
       ],
       "schema": {

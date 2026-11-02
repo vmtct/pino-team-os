@@ -20,7 +20,7 @@ const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-conf
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
 const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/diaries)?)?$/i;
 /** PAP-1220: strictly Center/day-scoped BO Diary read facade; no HO GLOBAL. */
-const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
+const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;

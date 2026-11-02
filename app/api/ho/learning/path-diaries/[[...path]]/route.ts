@@ -18,7 +18,9 @@ function bad(status:number,code:string):Response{
 }
 export async function handleHoDiaryRead(request:Request,env:DiaryHoEnv,segments:readonly string[]):Promise<Response>{
  try{
-  if(request.method!=="GET"||segments.length>1||(segments.length===1&&!uuid.test(segments[0]!)))
+  // PAP-1342: one exact source-owned child read; all writes/media remain closed.
+  const missionLinkRead=segments.length===2&&uuid.test(segments[0]!)&&segments[1]==="mission-links";
+  if(request.method!=="GET"||(!missionLinkRead&&(segments.length>1||(segments.length===1&&!uuid.test(segments[0]!)))))
    return bad(404,"PLATFORM_NOT_FOUND");
   const query=new URL(request.url).searchParams;
   if(segments.length>0&&[...query.keys()].length)return bad(400,"PLATFORM_INVALID_INPUT");
@@ -49,7 +51,7 @@ export async function handleHoDiaryRead(request:Request,env:DiaryHoEnv,segments:
   const credential=await teamCredential(request,env,"BO");
   if(credential.kind!=="password")return bad(401,"IDENTITY_UNAUTHORIZED");
   const result=await callFounderCoreWithStaffPassword(env.PINO_CORE,{
-    method:"GET",path:"/learning/path-diaries"+(segments.length?"/"+segments[0]:""),
+    method:"GET",path:"/learning/path-diaries"+(segments.length?"/"+segments[0]:"")+(missionLinkRead?"/mission-links":""),
     ...(segments.length?{}:{body:data}),
   },credential.token);
   return Response.json(result.body,{status:result.status,

@@ -20,6 +20,10 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1342: protected source Link GET cannot fall through on foreign hosts.
+  const diaryLinkRead = /^\/api\/(ho|bo)\/learning\/path-diaries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/mission-links$/i.exec(pathname);
+  if (diaryLinkRead) return method === "GET" && hostname === (diaryLinkRead[1]!.toLowerCase()==="ho" ? HO_STAGING_HOSTNAME : BO_STAGING_HOSTNAME)
+    ? {action:"next"} : {action:"not_found"};
   if (pathname === GLOBAL_TERMS_API || pathname.startsWith(GLOBAL_TERMS_API + "/"))
     return { action: hostname === HO_STAGING_HOSTNAME && isGlobalTermsRequest(pathname, method) ? "next" : "not_found" };
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
@@ -44,7 +48,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
     // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
-    if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(p))
+    if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(p))
       return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
     if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
@@ -111,7 +115,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD")
         ? { action: "next" } : { action: "not_found" };
     }
-    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(pathname)) {
+    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(pathname)) {
       return hostname === BO_STAGING_HOSTNAME && method === "GET"
         ? { action: "next" } : { action: "not_found" };
     }

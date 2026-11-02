@@ -36,8 +36,10 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       url.pathname === "/api/ho/workforce/shift-templates" && hoShiftTemplateQuery.length === 1 &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hoShiftTemplateQuery[0]!) &&
       [...url.searchParams.keys()].every(key => key === "centerId");
-    const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(url.pathname);
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary) || url.username || url.password || url.hash ||
+    const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(url.pathname);
+    // PAP-1342: exact same-origin Founder Mission detail read for source-owned Diary label.
+    const admittedHoMissionDetail = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.pathname);
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);
