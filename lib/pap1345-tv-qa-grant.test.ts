@@ -28,7 +28,7 @@ test("PAP-1345 preserves unrelated Staff roles when replacing expired QA duplica
 
 test("PAP-1345 does not renew an already effective grant or wrong target/Center",()=>{
   const active={...expired,effectiveUntil:null};
-  assert.equal(planTvQaGrant(user([active]),[role],now).kind,"already");
+  assert.deepEqual(planTvQaGrant(user([active]),[role],now),{kind:"already",roleId:role.id,assignmentId:expired.assignmentId,otherAssignmentIds:[]});
   assert.equal(planTvQaGrant({...user([expired]),id:"other"},[role],now).kind,"denied");
   assert.equal(planTvQaGrant({...user([expired]),staffMemberId:"other"},[role],now).kind,"denied");
   assert.equal(planTvQaGrant({...user([expired]),status:"suspended"},[role],now).kind,"denied");
