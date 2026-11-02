@@ -27,6 +27,18 @@ export interface V18bDiaryMissionLink {
  id:string;diaryId:string;missionId:string;missionCode:string;missionName:string;
  missionStatus:string;assignmentId:string|null;linkedAt:string;linkedByUserId:string;
 }
+/** Only a server-projected occurrence and actual roster can authorize these choices. */
+export interface V18bEligibleMissionsInput {
+ centerId:string;runningClassId:string;studentId:string;localDate:string;teachingContextKey:string;
+ limit?:number;offset?:number;
+}
+export interface V18bEligibleMissionChoice {
+ missionId:string;code:string;name:string;level:number;assignmentId:string|null;
+}
+export interface V18bEligibleMissionsRead {
+ centerId:string;runningClassId:string;studentId:string;localDate:string;teachingContextKey:string;
+ pathProgramId:string;items:V18bEligibleMissionChoice[];hasMore:boolean;
+}
 export class V18bCoreError extends Error {
  constructor(readonly status:number,readonly code:string,message:string){super(message);this.name="V18bCoreError";}
 }
@@ -78,6 +90,44 @@ export function createV18bApiTransport(canWrite:boolean,transport:typeof fetch=(
       new Date(localDate+"T12:00:00Z").toISOString().slice(0,10)!==localDate)
     throw new V18bCoreError(400,"INVALID_DATE","Ngày lớp không hợp lệ.");
    return get<V18bClassroomToday>("/classroom/day?centerId="+center+"&localDate="+encodeURIComponent(localDate));
+  },
+  eligibleMissions:(input:V18bEligibleMissionsInput)=>{
+   const centerId=input.centerId?.trim()??"",runningClassId=input.runningClassId?.trim()??"";
+   const studentId=input.studentId?.trim()??"",localDate=input.localDate;
+   const teachingContextKey=input.teachingContextKey?.trim()??"";
+   for(const [name,value] of Object.entries({centerId,runningClassId,studentId,localDate,teachingContextKey}))
+    if(!value||typeof value!=="string")
+     throw new V18bCoreError(400,"MISSION_ELIGIBILITY_SCOPE_INVALID","Thiếu "+name+" của lớp học.");
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(localDate)||
+      !Number.isFinite(Date.parse(localDate+"T12:00:00Z"))||
+      new Date(localDate+"T12:00:00Z").toISOString().slice(0,10)!==localDate||
+      teachingContextKey!==runningClassId+":"+localDate)
+    throw new V18bCoreError(400,"MISSION_ELIGIBILITY_SCOPE_INVALID","Ngữ cảnh lớp học không hợp lệ.");
+   const limit=input.limit??50,offset=input.offset??0;
+   if(!Number.isSafeInteger(limit)||limit<1||limit>100||
+      !Number.isSafeInteger(offset)||offset<0||offset>10000)
+    throw new V18bCoreError(400,"MISSION_ELIGIBILITY_PAGE_INVALID","Trang Mission không hợp lệ.");
+   const query=new URLSearchParams({
+    centerId,runningClassId,studentId,localDate,teachingContextKey,
+    limit:String(limit),offset:String(offset),
+   });
+   return get<V18bEligibleMissionsRead>("/learning/missions/eligible?"+query.toString()).then(data=>{
+    const rows=Array.isArray(data?.items)?data.items:[];
+    const valid=Boolean(data&&data.centerId===centerId&&data.runningClassId===runningClassId
+     &&data.studentId===studentId&&data.localDate===localDate
+     &&data.teachingContextKey===teachingContextKey
+     &&typeof data.pathProgramId==="string"&&data.pathProgramId
+     &&typeof data.hasMore==="boolean"&&Array.isArray(data.items)
+     &&rows.every(item=>item&&typeof item.missionId==="string"&&item.missionId.length>0
+      &&typeof item.code==="string"&&item.code.length>0
+      &&typeof item.name==="string"&&item.name.length>0
+      &&Number.isFinite(item.level)
+      &&(item.assignmentId===null||(typeof item.assignmentId==="string"&&item.assignmentId.length>0)))
+     &&new Set(rows.map(item=>item.missionId)).size===rows.length);
+    if(!valid)throw new V18bCoreError(502,"MISSION_ELIGIBILITY_READBACK_MISMATCH",
+     "Core không trả danh sách Nhiệm vụ đúng Center, lớp học và học viên.");
+    return data;
+   });
   },
   diary:(diaryId:string,centerId:string)=>get<V18bPathDiary>(
    "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"?centerId="+requireValue(centerId,"CENTER")),
