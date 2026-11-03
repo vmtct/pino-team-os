@@ -12,6 +12,7 @@ import {diaryUiReceipt,canCreateDiary,canRetryDiary} from "@/lib/tos-diary-ui-re
 import {inspectDiaryAfterReload,type ReloadReceipt} from "@/lib/tos-diary-reload-inspection";
 import {reconcileUnknownDiaryRegister,type LostAckResult} from "@/lib/tos-diary-register-receipt-recovery";
 import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTicketState} from "@/lib/tos-diary-register-ticket";
+import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -23,7 +24,9 @@ const UI_RELOAD_RECOVERY_ADMITTED=false;
 function ticketStorage():Storage|null {
  try{return typeof window==="undefined"?null:window.sessionStorage}catch{return null}
 }
-export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4ViewModel;classroom:ScheduledClass}){
+export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}:{
+ model:ClassroomV4ViewModel;classroom:ScheduledClass;confirmedSkipClassId:string;
+}){
  const students=model.data.students.filter(s=>classroom.eligibleStudentIds.includes(s.id)&&!model.conflictStudentIds.includes(s.id));
  const [studentId,setStudentId]=useState("");
  const [read,setRead]=useState<Read>(idle);
@@ -42,11 +45,11 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
  const [reloadReceipt,setReloadReceipt]=useState<ReloadReceipt|null>(null);
  const [reloadBusy,setReloadBusy]=useState(false);
  const reloadGeneration=useRef(0);
- // Opening is a separate PAP-759 Core source. Local photo/presentation state is NOT proof.
- // Its source model is still UNAVAILABLE; do not admit a writer until Core opens it.
- const openingFromCore=model.openingReadState==="LOADED"&&
-  Boolean(model.data.openings[classroom.id]?.openedAt&&model.data.openings[classroom.id]?.rounds?.some(r=>r.photos.length>0));
- const writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED&&openingFromCore;
+ // Founder PAP-727: explicit "Vào lớp không mở ca" is sufficient entry-mode for
+ // a Diary, NOT an opening/photo/timekeeping event. Core independently checks Staff,
+ // Center, occurrence, actual roster and Mission; local confirmation grants no ACL.
+ const skipEntryConfirmed=isConfirmedSkipDiaryEntry(model,classroom,confirmedSkipClassId);
+ const writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED&&skipEntryConfirmed;
  const locked=receipt!==null||busy||reloadBusy;
  const receiptView=diaryUiReceipt(receipt);
  const permitted=students.some(x=>x.id===studentId);
@@ -264,7 +267,7 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
    <button type="button" className={styles.secondary} disabled={busy} onClick={()=>setShowValidation(true)}>Kiểm tra biểu mẫu</button>
    <button type="button" className={styles.primary} disabled={!canCreateDiary(receipt,writeAdmitted)||busy||registerTicket.state!=="EMPTY"} onClick={()=>void submitDiary()} aria-describedby="tos-diary-admission-message">Gửi Nhật ký</button>
   </div>
-  <p id="tos-diary-admission-message" className={styles.hint}>Ghi Staging chưa được kích hoạt khi chưa có Core xác nhận mở lớp (PAP-759).
-   Mã gửi gốc chỉ được giữ dưới dạng khóa ngẫu nhiên; MissionResult và Progression là nguồn độc lập.</p>
+  <p id="tos-diary-admission-message" className={styles.hint}>Ghi Nhật ký chỉ khả dụng khi đã xác nhận “Vào lớp không mở ca”, đúng quyền Staff, roster, Mission và Staging admission.
+   Không tạo ảnh mở lớp; mã gửi gốc chỉ giữ dưới dạng khóa ngẫu nhiên. MissionResult và Progression là nguồn độc lập.</p>
  </section>;
 }
