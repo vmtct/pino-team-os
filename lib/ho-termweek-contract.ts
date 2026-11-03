@@ -22,7 +22,7 @@ export function parseWeekDetail(body:unknown):HoWeekDetail|null{
  for(const field of ['code','ordinal','startDate','endDate','rhythmKey'])if(before&&after&&before[field]!==after[field])changes.push({field,before:scalar(before[field]),after:scalar(after[field])});
  if(typeof payload?.locked==='boolean')changes.push({field:'global_week_registration_locked',before:scalar(payload.previousLocked),after:payload.locked});
  const reason=typeof payload?.reason==='string'?payload.reason:'';
- if(reason)changes.push({field:'Lý do',before:null,after:reason});
+ if(reason)changes.push({field:'auditReason',before:null,after:reason});
  history.push({id:h.id,occurredAt:h.occurredAt,actorId:h.actorId,action:h.action,reason,changes});}
  return {...week,parent:{id:week.termId,name:p.displayName,startDate:p.startDate,endDate:p.endDate},history};
 }

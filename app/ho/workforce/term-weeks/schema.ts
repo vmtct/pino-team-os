@@ -7,6 +7,7 @@ import {BoApiError} from '@/lib/bo-api-error';
 const permission=WEEK_PERMISSION;
 const read={display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false} as const;
 export const termWeekFields=[
+ {key:'auditReason',label:'Lý do',type:'text',icon:'Aa',width:240,permission,readOnly:true,capabilities:{...read,search:false,filter:false,sort:false,group:false}},
  {key:"name",label:"Tuần",type:"text",icon:"Aa",width:260,permission,readOnly:true,capabilities:read},
  {key:"code",label:"Mã tuần",type:"text",icon:"Aa",width:130,permission,readOnly:true,capabilities:read},
  {key:"ordinal",label:"Thứ tự",type:"number",icon:"#",width:100,permission,readOnly:true,capabilities:read},
@@ -38,7 +39,7 @@ export const termWeekDefinition={version:1,classification:'TDD_DEFAULT',surface:
  drawer:{density:'one-column',sections,actions:[]},
  detail:{overview:{sections},businessTabs:[{id:'business',label:'Dữ liệu và Global Lock',kind:'field-group',source:{adapter:'ho-global-termweek-business',permission},sections:[{id:'week-business',label:'Dữ liệu nghiệp vụ',fields:['code','ordinal','startDate','endDate','rhythmKey','global_week_registration_locked','referenceCount','deletionEligible']}]}],history:{kind:'unavailable',reason:'Chưa tải được lịch sử từ Core.'}},
 } as const satisfies SurfaceDefinition<F>;
-const row=(w:HoWeek):ModuleRow<F>=>({...w});
+const row=(w:HoWeek):ModuleRow<F>=>({...w,auditReason:null});
 export const termWeekProvider:SurfaceProvider<F>={pagination:'local-ui',
  async list(_query,scope,fetcher,signal){if(scope.surface!=='HO')throw Error('HO only');const weeks=await loadWeeks(fetcher,signal);return {records:weeks.map(w=>({row:row(w),version:w.updatedAt})),total:weeks.length};},
  async detail(id,scope,fetcher,signal){if(scope.surface!=='HO')throw Error('HO only');try{const w=await loadWeek(id,fetcher,signal);return {row:row(w),version:w.updatedAt};}catch(e){if(e instanceof BoApiError&&e.status===404)return null;throw e;}},

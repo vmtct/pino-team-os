@@ -1,3 +1,5 @@
+import {loadHistory} from './workspace-schema';
+import {termWeekProvider} from '../app/ho/workforce/term-weeks/schema';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {handleHoTermWeek} from './ho-termweek-facade';
 import {handleHoGlobalWeekLock} from './ho-global-week-lock-facade';
@@ -68,4 +70,12 @@ test('PAP-1373 authenticated session admits only scoped TermWeek routes, not arb
 });
 test('PAP-1373 real lock facade verifies ON/OFF CAS receipt and readback',async()=>{
  for(const locked of [true,false]){const h=harness({core:()=>({status:200,body:{data:{termWeekId:id,locked,version:5}}})});const request=new Request(origin+'/api/ho/workforce/global-week-registration',{method:'POST',headers:{host:'ho.staging.pinohouse.art',origin,'content-type':'application/json','idempotency-key':'pap1373-lock-key',cookie:'pino_staff_password_session=test-session'},body:JSON.stringify({termWeekId:id,locked,expectedVersion:4,reason:'Founder control'})});assert.equal((await handleHoGlobalWeekLock(request,h.env)).status,200);assert.equal(h.calls.length,2);}
+});
+
+test('PAP-1373 populated History passes shared-engine typed diff validation including reason',async()=>{
+ const data=parseWeekDetail({data:detail});assert.ok(data);
+ const binding=termWeekProvider.history!.bind(async()=>Response.json({data}),{surface:'HO'} as never);
+ const schema={...termWeekSchema,detail:{...termWeekSchema.detail,history:binding}};
+ const result=await loadHistory(schema as unknown as Parameters<typeof loadHistory>[0],{id,type:'term_week'},{surface:'HO',authorize:()=>true},new AbortController().signal);
+ assert.equal(result.status,'authorized');if(result.status==='authorized')assert.deepEqual(result.events[0]?.changes?.at(-1),{field:'auditReason',before:null,after:'Correct rhythm'});
 });
