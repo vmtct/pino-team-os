@@ -11,9 +11,10 @@ export function isConfirmedSkipDiaryEntry(
  if(!confirmedClassId||confirmedClassId!==classroom.id||!model?.centerId||
   !model?.today||classroom.id!==classroom.runningClassId+":"+model.today)return false;
  const actual=model.classes.find(c=>c.id===classroom.id);
+ const participants=model.data.participants[classroom.id];
  if(!actual||actual.runningClassId!==classroom.runningClassId||
-  !model.data.participants[classroom.id]||!Array.isArray(actual.eligibleStudentIds)||
+  !participants||!Array.isArray(actual.eligibleStudentIds)||
   actual.eligibleStudentIds.length===0)return false;
- return actual.eligibleStudentIds.every(id=>model.data.participants[classroom.id].includes(id)&&
+ return actual.eligibleStudentIds.every(id=>participants.includes(id)&&
   model.data.students.some(s=>s.id===id)&&!model.conflictStudentIds.includes(id));
 }
