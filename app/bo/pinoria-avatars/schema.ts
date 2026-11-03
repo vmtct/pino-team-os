@@ -1,4 +1,5 @@
 import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-schema";
+import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import { selfDirectoryProvider } from "./provider";
 import type { SurfaceDefinition } from "@/lib/workspace-adapters";
 
@@ -49,12 +50,29 @@ export const selfDefinition = {
     interaction: { settings: ["properties", "grouping", "filters", "quick-views"], quickView: "separate-opener", keyboard: "canonical", undo: "local-ui-only" },
   },
   drawer: { density: "one-column", sections, actions: [] },
-  detail: { overview: { sections }, businessTabs: [], history: { kind: "unavailable", reason: "Core chưa cung cấp lịch sử riêng cho Self Directory." } },
+  detail: { overview: { sections }, businessTabs: [{
+      id: "wardrobe", label: "Tủ đồ", kind: "approved-extension",
+      source: { adapter: "bo-self-item-ownership", permission: "pinoria.self.item.view" },
+      extensionId: "pap1300-bo-self-wardrobe",
+      approval: { jira: "PAP-1296", owner: "BO Runtime", designAuthority: "Founder",
+        files: ["app/bo/pinoria-avatars/SelfWardrobeDetail.tsx", "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx"],
+        tests: ["lib/pap1300-self-wardrobe-ui.test.ts"], reviewBy: "2026-12-01T00:00:00+07:00" },
+    }], history: { kind: "unavailable", reason: "Core chưa cung cấp lịch sử sự kiện sở hữu Item qua BO. Provenance và mốc cấp gần nhất hiển thị trong Tủ đồ." } },
 } as const satisfies SurfaceDefinition<SelfFields>;
 
 /** PAP-982: the declared TDD source is never a public/no-session data adapter. */
 export const selfProvider = selfDirectoryProvider();
-const registry = new TddRegistry();
+/** Founder-approved i5 S4 Tủ đồ prototype PAP-1296, Jira comment #20634.
+ * Presentation admission only; Core independently enforces Center and permission.
+ */
+export const verifySelfWardrobeApproval: ApprovalVerifier = (approval, scope) =>
+  scope.surface === "BO" && scope.key === "pinoria-avatars" &&
+  scope.extensionId === "pap1300-bo-self-wardrobe" &&
+  approval.jira === "PAP-1296" && approval.owner === "BO Runtime" &&
+  approval.designAuthority === "Founder" &&
+  approval.files.includes("app/bo/pinoria-avatars/SelfWardrobeDetail.tsx") &&
+  approval.tests.includes("lib/pap1300-self-wardrobe-ui.test.ts");
+const registry = new TddRegistry(verifySelfWardrobeApproval);
 export const selfSchema = registry.register({
   ...selfDefinition,
   data: {

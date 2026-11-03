@@ -129,12 +129,16 @@ try {
   });
   const parentReady=await check("bo_parent_fixture_read",async()=>{
     await fp.goto(BO+"/bo?module=parents&pilot=tdd",{waitUntil:"domcontentloaded"});
-    const center=fp.locator("#tdd-parent-center");
-    await fp.waitForFunction(()=>document.querySelectorAll("#tdd-parent-center option").length>1);
-    const values=await center.locator("option").evaluateAll(nodes=>nodes.map(n=>n.value).filter(Boolean));
+    const switcher=fp.locator(".workspace-switcher .nav-workspace");
+    await switcher.click();
+    await fp.waitForFunction(()=>document.querySelectorAll('#workspace-centers [role="option"]').length>0);
+    const count=await fp.locator('#workspace-centers [role="option"]').count();
     let found=false;
-    for(const [index,value] of values.slice(0,20).entries()){
-      await center.selectOption(value);
+    for(let index=0;index<Math.min(count,20);index++){
+      if(index>0) await switcher.click();
+      await fp.locator('#workspace-centers [role="option"]').nth(index).click();
+      const value=new URL(fp.url()).searchParams.get("centerId");
+      assert(value);
       const raw=await fp.evaluate(async centerId=>{
         const query=new URLSearchParams({centerId,limit:"100",offset:"0"});
         const response=await fetch("/api/bo/identity/parents/directory?"+query,{cache:"no-store"});
@@ -146,7 +150,7 @@ try {
           readGrant:actor?.data?.permissionKeys?.includes("identity.parent_directory.view")===true};
       },value);
       const dom=()=>fp.evaluate(()=>({
-        selected:!!document.querySelector("#tdd-parent-center")?.value,
+        selected:!!new URL(location.href).searchParams.get("centerId"),
         table:!!document.querySelector("#typed-table"),
         rows:!!document.querySelector("tbody tr[data-record]"),
         alert:!!document.querySelector('[role="alert"]'),

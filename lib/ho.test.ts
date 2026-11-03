@@ -5,7 +5,7 @@ import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { handleBoOperationalReadRequest } from "./bo-read-handler";
 import { mapHoCenters } from "./ho-centers";
 const center = { id:"019d1000-0001-7000-8000-000000000001", key:"canonical", displayName:"Canonical Center", timeZone:"Asia/Ho_Chi_Minh", status:"active" };
-function env(userId="founder", status=200): HoEnv { return { APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:"founder",PINO_BO_CORE:{async executeWithStaffPassword(request, token) { if(token!=="valid")return {status:401,requestId:"test",body:{}}; return {status:request.path==="context"?200:status,requestId:"test",body:{data:request.path==="context"?{userId,email:"server-verified@example.invalid",surface:"BO",entitled:true}:[center]}}; }} }; }
+function env(userId="founder", status=200, founderRoleActive=true): HoEnv { return { APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:"founder",PINO_BO_CORE:{async executeWithStaffPassword(request, token) { if(token!=="valid")return {status:401,requestId:"test",body:{}}; if(request.path==="ho/admission")return {status:founderRoleActive?200:403,requestId:"test",body:{data:{admitted:founderRoleActive}}}; return {status:request.path==="context"?200:status,requestId:"test",body:{data:request.path==="context"?{userId,email:"server-verified@example.invalid",surface:"BO",entitled:true}:[center]}}; }} }; }
 const headers = new Headers({host,cookie:"pino_staff_password_session=valid"});
 test("HO exact host and method allowlist denies neighboring surfaces and business mutations",()=>{
  assert.deepEqual(decideHostBoundary(host,"/"),{action:"redirect",pathname:"/ho/centers"});
@@ -22,6 +22,8 @@ test("HO uses a genuine current Core principal, fails closed for missing cohort,
  await assert.rejects(()=>authorizeHoShell(new Headers({host,cookie:"pino_staff_password_session=forged"}),env()),{status:401});
  await assert.rejects(()=>authorizeHoShell(headers,env("staff")),{status:403});
  await assert.rejects(()=>authorizeHoShell(headers,{...env(),HO_PILOT_FOUNDER_USER_IDS:""}),{status:403});
+ // PAP-1337: demoted Founder still in static cohort cannot enter HO.
+ await assert.rejects(()=>authorizeHoShell(headers,env("founder",200,false)),{status:403});
  await assert.rejects(()=>authorizeHoShell(headers,{...env(),APP_ENV:"production"}),{status:404});
  await assert.rejects(()=>authorizeHoShell(new Headers({host:"bo.staging.pinohouse.art"}),env()),{status:404});
 });

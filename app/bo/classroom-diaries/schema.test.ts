@@ -10,7 +10,7 @@ const row={id,centerId:center,studentId:"01912345-6789-7abc-8def-0123456789ad",r
  interest:null,difficulty:null,version:1};
 const wrap=(data:unknown,status=200)=>new Response(JSON.stringify({data}),{status,headers:{"content-type":"application/json"}});
 function fetcher(data:unknown,status=200){
- const calls:string[]=[];const fn:typeof fetch=async input=>{calls.push(String(input));return wrap(data,status)};
+ const calls:string[]=[];const fn:typeof fetch=async input=>{calls.push(String(input));return String(input).includes("/mission-links")?wrap([]):wrap(data,status)};
  return {fn,calls};
 }
 test("PAP-1220 TDD registration: seven fixed Table columns and truthful submitted actor",()=>{
@@ -31,7 +31,7 @@ test("PAP-1220 source truthful: no linked Mission/Result, no fabricated Student/
  const projected=projectDiary(row);
  assert.equal(projected.student,row.studentId);
  assert.equal(projected.submitter,row.registeredByUserId);
- assert.equal(projected.mission,"Chưa liên kết nhiệm vụ");
+ assert.equal(projected.mission,"Chưa xác minh liên kết");
  assert.equal(projected.missionCompleted,"Chưa xác nhận");
  assert.equal(projected.date,"2026-10-31");
  assert.equal(projected.status,"Đã ghi nhận");

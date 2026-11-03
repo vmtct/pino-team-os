@@ -45,6 +45,39 @@ test("PAP-1111 assignment Note edit is exact POST on BO Staging only", () => {
   for(const malformed of [route+"/extra",route+"/",route+"%2fextra",route.toUpperCase(),"/api/bo/workforce/planning/assignment/notes"]) assert.deepEqual(decideHostBoundary(bo,malformed,"POST"),{action:"not_found"},malformed);
 });
 
+test("PAP-1353 exact Self Item paths/verbs are BO Staging only", () => {
+  const bo = "bo.staging.pinohouse.art";
+  const self = "01a18140-10b8-70d3-ad6b-3e747a0cddea";
+  const item = "01a194f0-9bd0-7896-89a0-677a620e3ecd";
+  const prefix = "/api/bo/pinoria/selfs/" + self + "/";
+  const reads = [prefix + "items", prefix + "catalog"];
+  const commands = [prefix + "items/" + item + "/grant", prefix + "items/" + item + "/revoke"];
+  for (const path of reads) {
+    assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "next" }, path);
+    for (const verb of ["HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+      assert.deepEqual(decideHostBoundary(bo, path, verb), { action: "not_found" }, path + " " + verb);
+  }
+  for (const path of commands) {
+    assert.deepEqual(decideHostBoundary(bo, path, "POST"), { action: "next" }, path);
+    for (const verb of ["GET", "HEAD", "PUT", "PATCH", "DELETE", "OPTIONS"])
+      assert.deepEqual(decideHostBoundary(bo, path, verb), { action: "not_found" }, path + " " + verb);
+  }
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art", "join.pinohouse.art"]) {
+    for (const path of [...reads, ...commands])
+      assert.deepEqual(decideHostBoundary(host, path, reads.includes(path) ? "GET" : "POST"), { action: "not_found" }, host + path);
+  }
+  for (const path of [
+    prefix, prefix + "items/", prefix + "catalog/extra",
+    prefix + "items/" + item + "/delete", prefix + "items/not-a-uuid/grant",
+    prefix.replace(self, "01a18140-10b8-60d3-ad6b-3e747a0cddea") + "items",
+    prefix + "items/" + item.replace("-7896-", "-6896-") + "/revoke",
+    prefix + "items/" + item + "/grant/extra",
+    "/api/bo/pinoria/selfs",
+  ]) {
+    for (const verb of ["GET", "POST"])
+      assert.deepEqual(decideHostBoundary(bo, path, verb), { action: "not_found" }, path + " " + verb);
+  }
+});
 test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
   const route="/api/bo/pinoria/avatars";
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
@@ -349,4 +382,27 @@ test("PAP-1252 BO TV Health GET is exact Staging-only host ingress", () => {
   for (const path of [route + "/extra", route + "/", route + "%2fextra", route.toUpperCase(), "/api/bo/tv/operator-healthz"]) {
     assert.deepEqual(decideHostBoundary(bo, path, "GET"), { action: "not_found" }, path);
   }
+});
+
+test("PAP-1332 exact BO Staging Mission linked Diary GET enters existing BFF only", () => {
+  const id = "01a19638-51bf-7444-8a3e-10adc1b2bf20";
+  const base = "/api/bo/learning/mission-assignments/" + id;
+  const path = base + "/diaries";
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, path, "GET"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, path + "/", "GET"), {action:"next"});
+  // Existing Assignment read/write/cancel remains unchanged.
+  assert.deepEqual(decideHostBoundary(bo, base, "GET"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, base, "PUT"), {action:"next"});
+  assert.deepEqual(decideHostBoundary(bo, base + "/cancel", "POST"), {action:"next"});
+  for (const method of ["HEAD","OPTIONS","POST","PUT","PATCH","DELETE"])
+    assert.deepEqual(decideHostBoundary(bo, path, method), {action:"not_found"}, method);
+  // Not an authority for Production or adjacent HO/TOS/foreign hosts.
+  for (const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art",
+    "pino-team-os-staging.minhtri-van42.workers.dev","bo.staging.pinohouse.art.evil.example"])
+    assert.deepEqual(decideHostBoundary(host, path, "GET"), {action:"not_found"}, host);
+  for (const invalid of [base + "/diaries/extra",base + "/diary",base + "/cancel/diaries",
+    "/api/bo/learning/mission-assignments/0000/diaries",base + "/diaries%2f",
+    "/api/bo/learning/mission-assignments//diaries"])
+    assert.deepEqual(decideHostBoundary(bo, invalid, "GET"), {action:"not_found"}, invalid);
 });

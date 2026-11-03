@@ -11,7 +11,7 @@ const row = { id, name: "Mori water", code: "MORI-1", status: "ACTIVE", level: 3
   plsValue: 30, paperSize: "A4", path: "ART", prerequisite: null,
   description: "Color", guideline: "Observe first" };
 const signal = () => new AbortController().signal;
-test("PAP-1207: registered HO TDD module with truthful read-only lifecycle", () => {
+test("PAP-1207: registered HO TDD module exposes explicit source-backed Archive, not hard delete", () => {
   validateModule(missionSchema);
   assert.equal(missionSchema.key, "missions");
   assert.equal(missionDefinition.surface, "HO");
@@ -20,7 +20,17 @@ test("PAP-1207: registered HO TDD module with truthful read-only lifecycle", () 
   assert.equal(missionDefinition.drawer.density, "one-column");
   assert.deepEqual(composeTabs(missionSchema).map(t => t.id), ["overview", "history"]);
   assert.equal(missionDefinition.detail.history.kind, "unavailable");
-  assert.match(readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8"), /chưa khả dụng/);
+  const archive = missionDefinition.actions.find(action => action.id === "mission-archive");
+  assert.deepEqual(archive, { id: "mission-archive", label: "Lưu trữ", slot: "detail.header",
+    variant: "danger", capability: "edit", handler: "archiveMission" });
+  const uiSource = readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8");
+  assert.match(uiSource, /archiveMission:\s*\{ kind: "mutation"/);
+  assert.match(uiSource, /kind: "archive"/);
+  assert.match(uiSource, /window\.confirm/);
+  assert.match(uiSource, /Assignment và Nhật Ký hiện có vẫn được giữ nguyên/);
+  assert.match(uiSource, /Xóa vật lý không khả dụng/);
+  assert.doesNotMatch(uiSource, /method:\s*"DELETE"/);
+  assert.match(readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8"), /Xóa vật lý không khả dụng/);
   assert.equal(missionUuid.test(id), true);
   const page = readFileSync("app/ho/learning/missions/page.tsx", "utf8");
   const ui = readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8");

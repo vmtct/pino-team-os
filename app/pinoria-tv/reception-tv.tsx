@@ -52,6 +52,8 @@ const DEPARTURE_PERFORMANCE_MS = 5200;
 export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas, runtimeIdentity }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[]; runtimeIdentity?: {displayId:string;sessionId:string;deviceId:string|null} } = {}) {
   const [centerId, setCenterId] = useState("");
   const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
+  // Only a successful authenticated null response proves that this session is using fallback.
+  const [fallbackProof,setFallbackProof]=useState<string|null>(null);
   const [assetEvidence,setAssetEvidence]=useState<AssetEvidence>({failedAssetIds:[]});
   // Asset failures belong to a single authenticated TV session, not the next device session.
   useEffect(()=>{setAssetEvidence({failedAssetIds:[]});},[runtimeIdentity?.sessionId]);
@@ -76,9 +78,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const runtimeSessionId=runtimeIdentity?.sessionId ?? "";
   const runtimeDeviceId=runtimeIdentity?.deviceId ?? null;
   const appliedRevision=readAppliedSpatialRevision(spatial);
+  const fallbackConfirmed=fallbackProof===centerId+":"+runtimeSessionId&&!spatial.active&&!spatial.pending;
   useEffect(()=>{
     if(!runtimeSessionId||!runtimeDisplayId||!runtimeDeviceId)return;
-    const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,assetEvidence}));
+    const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,fallbackConfirmed,assetEvidence}));
     if(!observation)return;
     // A session-bound report only; Core retains rendererAcknowledged:false until actual render proof.
     // Core considers observations stale after 30s; keep a 15s heartbeat while mounted.
@@ -88,7 +91,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     void report();
     const timer=window.setInterval(()=>void report(),15000);
     return()=>window.clearInterval(timer);
-  },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,assetEvidence,apiBase]);
+  },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,fallbackConfirmed,assetEvidence,apiBase]);
   const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
   const replayBusy = useRef(false);
   const replayLastRevision = useRef(0);
@@ -164,9 +167,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   // Device-authenticated read of Core published TV config. An outage or invalid
   // payload never replaces last-known-good. New geometry waits until House is empty.
   useEffect(()=>{
-    if(!centerId){setSpatial({active:null,pending:null});return;}
+    if(!centerId){setSpatial({active:null,pending:null});setFallbackProof(null);return;}
     let cancelled=false;
-    setSpatial({active:null,pending:null});
+    setSpatial({active:null,pending:null});setFallbackProof(null);
     async function pollSpatial(){
       try{
         const response=await fetch(`${apiBase}/spatial-config`,{cache:"no-store"});
@@ -174,13 +177,14 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         const body=await response.json() as {data?:unknown};
         if(cancelled)return;
         const candidate=parsePublishedHouseSpatialConfig(body.data);
-        if(candidate)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,candidate,liveActorCountRef.current));
+        if(candidate){setFallbackProof(null);setSpatial(previous=>reconcileHouseSpatialRefresh(previous,candidate,liveActorCountRef.current));}
+        else if(body.data===null)setFallbackProof(centerId+":"+runtimeSessionId); // Authenticated explicit absence, not fetch failure.
       }catch{/* Fails closed: keep saved/default or last-known-good revision. */}
     }
     void pollSpatial();
     const timer=window.setInterval(()=>void pollSpatial(),12000);
     return()=>{cancelled=true;window.clearInterval(timer);};
-  },[centerId,apiBase]);
+  },[centerId,apiBase,runtimeSessionId]);
   useEffect(()=>{
     if(inside.length===0&&scenes.length===0&&!presentation)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,null,0));
   },[inside.length,scenes.length,presentation]);
@@ -456,7 +460,6 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const sceneActor = scene ? inside.find((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId) ?? null : null;
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
   const arrivalCompanion = policy.visibleContext.companion && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
-  const arrivalPath = policy.visibleContext.path && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
   // Departure context only comes from the matching canonical presence source and policy.
   const departurePath = policy.visibleContext.path && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
   const departureCompanion = policy.visibleContext.companion && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
@@ -602,23 +605,6 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     setCenterId(value);
   }
 
-  function resetCenter() {
-    localStorage.removeItem(CENTER_STORAGE);
-    presentationGeneration.current += 1;
-    presentationCenter.current = "";
-    houseGeneration.current += 1;
-    housePollInFlight.current = false;
-    cursor.current = 0;
-    presentedSequence.current = 0;
-    wasConnected.current = false;
-    houseSnapshotRefreshedAt.current = 0;
-    setInside([]);
-    setScenes([]);
-    setPresentation(null);
-    setOnboardingPreview(null);
-    setPolicy(defaultSharedTvPolicy());
-    setCenterId("");
-  }
   const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: displayNameForSharedTv(policy,actor.displayName), config: actor.character, wardRender: actor.wardRender, experience: actor.experience })), [inside,policy]);
   const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((actor) => actor.wardSession?.status === "OPEN") ?? newest.find((actor) => actor.wardSession) ?? null; }, [inside]);
   if (!centerId) {
@@ -653,17 +639,11 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
   const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
-  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
+  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} data-tv-connection-state={connected ? "online" : "offline"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
     <div className={styles.orbTwo} />
-    <header className={styles.status}>
-      <div><b>PINORIA</b><span>HOUSE</span></div>
-      <div className={styles.live}>
-        <i className={connected ? styles.online : styles.offline} />
-        {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
-      </div>
-    </header>    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} publishedDialogue={publishedDialogue} />
+    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} publishedDialogue={publishedDialogue} showText={false} />
 
     {visualScene ? <section
       key={visualScene.id}
@@ -673,6 +653,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       data-arrival-source-type={visualScene.kind === "arrival" ? visualScene.sourceType : undefined}
       data-arrival-source-id={visualScene.kind === "arrival" ? visualScene.sourceId : undefined}
       data-presence-actor-type={visualScene.actorType}
+      data-departure-path={visualScene.kind === "departure" ? departurePath?.code : undefined}
+      data-departure-companion={visualScene.kind === "departure" && departureCompanion ? "canonical" : undefined}
       className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
       style={visualScene.kind === "departure" ? departureStyle : handoffStyle}
     >
@@ -681,22 +663,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
       <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} wardRender={visualScene.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.wardRender ?? undefined : undefined} />
       {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => { setFailedArrivalCompanionIdentity(arrivalCompanionIdentity);setAssetEvidence(previous=>recordAssetFailure(previous,"arrival-companion")); }} alt="" /></> : null}
-      <div className={styles.copy}>
-        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${displayNameForSharedTv(policy,visualScene.name).toUpperCase()}` : "HẸN GẶP LẠI"}</span>
-        <h1>{visualScene.kind === "arrival" ? `Chào ${displayNameForSharedTv(policy,visualScene.name)} ✦` : displayNameForSharedTv(policy,visualScene.name)}</h1>
-        {visualScene.kind === "arrival" && arrivalPath ? <div className={styles.arrivalPath} data-arrival-path={arrivalPath.code} aria-label={`Hành trình ${arrivalPath.displayName}`}>{arrivalPath.displayName}</div> : null}
-        {visualScene.kind === "departure" && departurePath ? <div className={styles.arrivalPath} data-departure-path={departurePath.code}>{departurePath.displayName}</div> : null}
-        {visualScene.kind === "departure" && departureCompanion ? <p data-departure-companion="canonical">{departureCompanion.species.displayName} đồng hành cùng bạn ✦</p> : null}
-        <p>{visualScene.kind === "arrival" ? arrivalCompanion ? `Hôm nay ${arrivalCompanion.species.displayName} đi cùng mình!` : "Chào mừng bạn đến Pinoria!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
-      </div>
     </section> : null}
-    {!scene && !presentation && !onboardingPreview ? <section className={styles.idle}>
-      <div className={styles.sigil}>P</div>
-      <span>PINORIA HOUSE IS ALIVE</span>
-      <h1>Chào mừng đến PINO House</h1>
-      <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
-    </section> : null}
-
     {visiblePresentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} reveal={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} hatch={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} ritual={visiblePresentation.projection} /> : null}
@@ -704,14 +671,5 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
     {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession && eligibleTvEvent(policy,"QUICK_CHOICE",new Date().toISOString(),new Date()) ? <WardSessionTv learnerName={displayNameForSharedTv(policy,wardLearner.displayName)} session={wardLearner.wardSession} /> : null}
 
-    <footer>
-      <span>{new Date().toLocaleDateString("vi-VN", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        weekday: "long",
-        day: "2-digit",
-        month: "2-digit",
-      })}</span>
-      <button onClick={resetCenter}>Center</button>
-    </footer>
   </main>;
 }

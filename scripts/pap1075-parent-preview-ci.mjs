@@ -55,16 +55,19 @@ try {
   await check("typed_preview_is_server_admitted", async () => {
     await page.goto(BO + "/bo?module=parents&pilot=tdd", { waitUntil: "domcontentloaded" });
     await page.locator('section[aria-label="Parents & Guardians"]').waitFor({ state: "visible", timeout: 15000 });
-    await page.locator('#tdd-parent-center option').first().waitFor({ state: "attached", timeout: 12000 });
+    await page.locator('.workspace-switcher .nav-workspace').waitFor({ state: "visible", timeout: 12000 });
+    assert(await page.locator('#tdd-parent-center').count() === 0, "Inline Center selector must be absent");
   });
   let centerId;
   await check("core_attested_selected_center_directory", async () => {
-    const selector = page.locator("#tdd-parent-center");
-    await page.waitForFunction(() => document.querySelectorAll("#tdd-parent-center option").length > 1 || Boolean(document.querySelector('p[role="alert"]')), null, { timeout: 14000 });
-    const values = await selector.locator("option").evaluateAll(opts => opts.map(o => o.value).filter(Boolean));
-    assert(values.length >= 1, "No authorized Center candidate");
-    centerId = values[0];
-    await selector.selectOption(centerId);
+    const switcher = page.locator(".workspace-switcher .nav-workspace");
+    await switcher.click();
+    await page.waitForFunction(() => document.querySelectorAll('#workspace-centers [role="option"]').length > 0 || Boolean(document.querySelector('p[role="alert"]')), null, { timeout: 14000 });
+    const choices = page.locator('#workspace-centers [role="option"]');
+    assert(await choices.count() >= 1, "No authorized Center candidate");
+    await choices.first().click();
+    centerId = new URL(page.url()).searchParams.get("centerId");
+    assert(centerId, "Shell Center change did not update scoped URL");
     const result = await page.evaluate(async id => {
       const query = new URLSearchParams({ centerId: id, limit: "10", offset: "0" });
       const res = await fetch("/api/bo/identity/parents/directory?" + query, { credentials: "same-origin", cache: "no-store" });

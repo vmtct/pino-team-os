@@ -93,7 +93,9 @@ export function HouseMeshEditor({embeddedCenterId}:{embeddedCenterId?:string}={}
    setDirty(true);
    setError("");
  }
- function up(e:Pointer<SVGSVGElement>){panDrag.current=null;if(drag.current){history.current.push(drag.current.origin);drag.current=null;}if(svg.current?.hasPointerCapture(e.pointerId))svg.current.releasePointerCapture(e.pointerId);}
+ function finishPendingPointer(){panDrag.current=null;if(drag.current){history.current.push(drag.current.origin);drag.current=null;}}
+ function up(e:Pointer<SVGSVGElement>){finishPendingPointer();if(svg.current?.hasPointerCapture(e.pointerId))svg.current.releasePointerCapture(e.pointerId);}
+ useEffect(()=>{const finish=()=>finishPendingPointer();window.addEventListener("pointerup",finish,true);window.addEventListener("pointercancel",finish,true);return()=>{window.removeEventListener("pointerup",finish,true);window.removeEventListener("pointercancel",finish,true);};},[]);
  function edit(field:string,value:unknown){if(!pick)return;mutate(v=>{const item=pick.kind==="lane"?v.graph.horizontalLanes.find(l=>l.id===pick.id):pick.kind==="area"?v.areas.find(a=>a.id===pick.id):pick.kind==="pin"?v.emergencePins.find(a=>a.id===pick.id):v.graph.rawConnectors.find(a=>a.id===pick.id);if(item)(item as unknown as Record<string,unknown>)[field]=value;});}
  function updateAreaBounds(areaId:string,key:"x"|"y"|"width"|"height",value:number){
    mutate(v=>{const area=v.areas.find(a=>a.id===areaId);if(!area)return;

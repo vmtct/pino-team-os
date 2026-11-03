@@ -57,7 +57,7 @@ export const assignmentDefinition = {
     overview: { sections: [{ id: "assignment", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "assignedAt", "context", "contextKey", "center", "mission", "cancelledAt", "cancelledReason"] }] },
     businessTabs: [
       { id: "results", label: "Kết quả", kind: "relation-grid", relatedModule: "student-mission-results", source: { adapter: "mission-results-unavailable", permission } },
-      { id: "diary", label: "Nhật Ký", kind: "relation-grid", relatedModule: "assignment-diaries", source: { adapter: "assignment-diary-unavailable", permission } },
+      { id: "diary", label: "Nhật Ký", kind: "relation-grid", relatedModule: "assignment-diaries", source: { adapter: "assignment-linked-diaries", permission } },
     ],
     history: { kind: "unavailable", reason: "Chưa có nguồn lịch sử được cấp quyền cho Nhiệm vụ này. Không tạo nhật ký thay thế." },
   },

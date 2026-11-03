@@ -9,9 +9,12 @@ type AuthorizedWeeks = {
   weeksByCenter: Array<{ centerId: string; result: GlobalWeekResult }>;
 };
 
-async function authorizedWeeks(fetcher: typeof fetch = fetch): Promise<AuthorizedWeeks> {
+async function authorizedWeeks(fetcher: typeof fetch = fetch, selectedCenterId?: string): Promise<AuthorizedWeeks> {
   const bootstrap = await workforceRead.bootstrap(fetcher);
-  const weeksByCenter = await Promise.all(bootstrap.centers.map(async ({ id }) => ({
+  const scope = selectedCenterId ? bootstrap.centers.filter(center => center.id === selectedCenterId) : bootstrap.centers;
+  // Refuse forged/revoked scope before global-weeks or any detail read.
+  if (selectedCenterId && scope.length !== 1) throw Error("Cơ sở không được cấp quyền trong Workforce.");
+  const weeksByCenter = await Promise.all(scope.map(async ({ id }) => ({
     centerId: id,
     result: await workforceRead.globalWeeks(id, fetcher),
   })));
@@ -26,11 +29,11 @@ function visibleWeeks(weeks: GlobalWeekResult["termWeeks"]): GlobalWeekResult["t
   return ordered.slice(first, first + 12);
 }
 
-export async function authorizedWorkforceSnapshots(fetcher: typeof fetch = fetch): Promise<{
+export async function authorizedWorkforceSnapshots(fetcher: typeof fetch = fetch, selectedCenterId?: string): Promise<{
   weeks: AuthorizedWeeks;
   snapshots: BoWorkforceWeeklyPlanning[];
 }> {
-  const weeks = await authorizedWeeks(fetcher);
+  const weeks = await authorizedWeeks(fetcher, selectedCenterId);
   // The Founder can see many Centers. Serial reads of every visible week
   // previously kept the shared BO list loading for 30+ seconds. Bound
   // concurrency while retaining the original Center/week order and scope.
@@ -81,9 +84,9 @@ function displayLookups(weeks: AuthorizedWeeks) {
     weekName: (centerId: string, weekId: string) => labels.get(centerId + ":" + weekId) ?? weekId,
   };
 }
-export const shiftPlansAdapter: BoModuleReadAdapter = {
-  async list(fetcher: typeof fetch = fetch) {
-    const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher);
+export const shiftPlansAdapter = {
+  async list(fetcher: typeof fetch = fetch, selectedCenterId?: string) {
+    const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher, selectedCenterId);
     const display = displayLookups(weeks);
     return snapshots.filter((s) => s.windows?.availability.shiftPlanExists === true).map((s) => ({
       id: s.centerId + ":" + s.termWeekId, name: workforceWeekDisplayLabel(display.weekName(s.centerId, s.termWeekId)),
@@ -94,11 +97,11 @@ export const shiftPlansAdapter: BoModuleReadAdapter = {
       registrationOpen: s.windows?.availability.availabilityRegistrationOpen ?? false,
     }));
   },
-};
+} satisfies BoModuleReadAdapter;
 
-export const availabilityAdapter: BoModuleReadAdapter = {
-  async list(fetcher: typeof fetch = fetch) {
-    const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher);
+export const availabilityAdapter = {
+  async list(fetcher: typeof fetch = fetch, selectedCenterId?: string) {
+    const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher, selectedCenterId);
     const display = displayLookups(weeks);
     return snapshots.flatMap((s) => s.availability.map((a) => ({
       id: a.id, name: s.staff.find((staff) => staff.id === a.staffMemberId)?.displayLabel ?? a.staffMemberId,
@@ -106,11 +109,11 @@ export const availabilityAdapter: BoModuleReadAdapter = {
       centerId: a.centerId, termWeekId: a.termWeekId, status: a.status, shiftCount: a.items.length,
     })));
   },
-};
+} satisfies BoModuleReadAdapter;
 
-export const assignmentsAdapter: BoModuleReadAdapter = {
-  async list(fetcher: typeof fetch = fetch) {
-    const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher);
+export const assignmentsAdapter = {
+  async list(fetcher: typeof fetch = fetch, selectedCenterId?: string) {
+    const { snapshots, weeks } = await authorizedWorkforceSnapshots(fetcher, selectedCenterId);
     const display = displayLookups(weeks);
     return snapshots.flatMap((s) => s.assignments.map((a) => ({
       id: a.id, name: s.staff.find((staff) => staff.id === a.staffMemberId)?.displayLabel ?? a.staffMemberId,
@@ -120,4 +123,4 @@ export const assignmentsAdapter: BoModuleReadAdapter = {
       note: workforceAssignmentNote(a),
     })));
   },
-};
+} satisfies BoModuleReadAdapter;

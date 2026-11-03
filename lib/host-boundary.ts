@@ -1,5 +1,6 @@
 import {tosV4StagingHost} from "./tos-v4-staging-host";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
+import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
 export const TOS_HOSTNAME = "tos.pinohouse.art";
 export const BO_HOSTNAME = "bo.pinohouse.art";
@@ -19,6 +20,12 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1342: protected source Link GET cannot fall through on foreign hosts.
+  const diaryLinkRead = /^\/api\/(ho|bo)\/learning\/path-diaries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/mission-links$/i.exec(pathname);
+  if (diaryLinkRead) return method === "GET" && hostname === (diaryLinkRead[1]!.toLowerCase()==="ho" ? HO_STAGING_HOSTNAME : BO_STAGING_HOSTNAME)
+    ? {action:"next"} : {action:"not_found"};
+  if (pathname === GLOBAL_TERMS_API || pathname.startsWith(GLOBAL_TERMS_API + "/"))
+    return { action: hostname === HO_STAGING_HOSTNAME && isGlobalTermsRequest(pathname, method) ? "next" : "not_found" };
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
   if (pathname === "/api/bo/open-studio/walkin/parent-contact-lookup" || pathname === "/api/bo/open-studio/walkin/parent-center-proofs")
     return hostname === BO_STAGING_HOSTNAME && method === "POST" ? {action:"next"} : {action:"not_found"};
@@ -27,17 +34,21 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
   const assignmentChange = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
   const assignmentCancel = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/cancel\/?$/i.test(pathname);
-  if (assignmentRead || assignmentChange || assignmentCancel) {
+  // PAP-1332: one source-authorized Mission Diary projection; no child wildcard.
+  // Middleware must admit the path before the BO BFF can enforce Center/actor ACL.
+  const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
+  if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
+    const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
     const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
-    return readAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
+    return readAllowed || diaryReadAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
   }
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
     // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
-    if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(p))
+    if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(p))
       return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
     if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
@@ -104,7 +115,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD")
         ? { action: "next" } : { action: "not_found" };
     }
-    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i.test(pathname)) {
+    if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(pathname)) {
       return hostname === BO_STAGING_HOSTNAME && method === "GET"
         ? { action: "next" } : { action: "not_found" };
     }
@@ -139,6 +150,14 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     // Next and Core still enforce Staff identity, Center ACL, CAS and audit.
     if (hostname === BO_STAGING_HOSTNAME && pathname === "/api/bo/workforce/planning/assignment/note") {
       return method === "POST" ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-1353: exact Self-Item BO Staging host/verb fence before PAP-1300 BFF/Core ACL.
+    const selfItemId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const selfItemRead = new RegExp("^/api/bo/pinoria/selfs/" + selfItemId + "/(?:items|catalog)$").test(pathname);
+    const selfItemCommand = new RegExp("^/api/bo/pinoria/selfs/" + selfItemId + "/items/" + selfItemId + "/(?:grant|revoke)$").test(pathname);
+    if (selfItemRead || selfItemCommand) {
+      return hostname === BO_STAGING_HOSTNAME && (selfItemRead ? method === "GET" : method === "POST")
+        ? { action: "next" } : { action: "not_found" };
     }
     // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
     // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.

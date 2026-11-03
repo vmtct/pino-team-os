@@ -1,17 +1,17 @@
 "use client";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { boApi } from "@/lib/bo-api";
 import type { BoCenter } from "@/lib/bo-model";
-import { assignmentUuid, readMissionAssignment, type MissionAssignment } from "@/lib/bo-mission-assignments";
+import { assignmentUuid, readMissionAssignment, readMissionLinkedDiaries, type MissionAssignment, type LinkedMissionDiary } from "@/lib/bo-mission-assignments";
 import { submitBoMissionAssignment, type AssignmentWrite } from "@/lib/bo-mission-assignment-command";
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry, type TddActionBindings } from "@/lib/workspace-schema";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
-import type { SlotLoaders } from "@/app/components/workspace-renderer/Slots";
+import { BusinessDataGrid, type SlotLoaders } from "@/app/components/workspace-renderer/Slots";
 import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
 import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-workspace-source";
@@ -29,7 +29,13 @@ export const assignmentUnavailable = {
 } as const;
 const businessLoaders: SlotLoaders = {
   results: async () => <p role="status">{assignmentUnavailable.results}</p>,
-  diary: async () => <p role="status">{assignmentUnavailable.diary}</p>,
+  "assignment-linked-diaries": async (_slot, record, context, signal) => {
+    const centerId = context.surface === "BO" ? context.centerId : null;
+    if (context.surface !== "BO" || !centerId || record.center !== centerId ||
+        !context.authorize("student.mission_assignment.view"))
+      return <p role="status">Không có quyền xem Nhật Ký liên kết.</p>;
+    return missionLinkedDiaryContent(await readMissionLinkedDiaries(fetch, centerId, record.id, signal));
+  },
 };
 /** PAP-1210 / Epic PAP-1188: BO typed TDD and declared shared Action Host only.
  * Source-backed Student/Mission selectors; receipt/readback, no optimistic fake status.
@@ -209,4 +215,26 @@ export function BoMissionsTdd() {
       </> : <p role="status">Đang xác thực Center và quyền đọc Nhiệm vụ…</p>}
   </section>;
   return <BoRegistrationWorkspace source={unifiedBoWorkspaceSource} moduleKey="missions" currentUser={user ?? { displayName: null }} content={content} />;
+}
+
+
+/** PAP-1193: content-only business slot, DS DataGrid owns internal table. */
+function missionLinkedDiaryContent(rows: readonly LinkedMissionDiary[]): ReactNode {
+ if (!rows.length) return <section className="v24-prop-section">
+  <p role="status">Chưa có Nhật Ký nào liên kết trực tiếp với lần giao nhiệm vụ này.</p>
+ </section>;
+ const columns = [
+  { key:"registeredAt", header:"Ngày ghi", render:(row:LinkedMissionDiary)=>row.registeredAt??"—" },
+  { key:"diaryId", header:"Diary ID", render:(row:LinkedMissionDiary)=>row.diaryId },
+  { key:"teachingContextKey", header:"Bối cảnh dạy", render:(row:LinkedMissionDiary)=>row.teachingContextKey||"—" },
+  { key:"runningClassId", header:"Lớp", render:(row:LinkedMissionDiary)=>row.runningClassId??"—" },
+  { key:"registeredByUserId", header:"Giáo viên", render:(row:LinkedMissionDiary)=>row.registeredByUserId??"—" },
+  { key:"status", header:"Trạng thái", render:(row:LinkedMissionDiary)=>row.status==="CLOSED"?"Đã đóng":"Đã ghi" },
+ ];
+ return <section className="v24-prop-section">
+  <h3>Nhật Ký đã liên kết</h3>
+  <BusinessDataGrid rows={[...rows]} columns={columns} rowKey={row=>row.linkId}
+   caption="Nhật Ký theo nhiệm vụ được giao" showToolbar={false}
+   emptyTitle="Chưa có Nhật Ký liên kết" emptyMessage="Chưa có bản ghi được cấp quyền." />
+ </section>;
 }

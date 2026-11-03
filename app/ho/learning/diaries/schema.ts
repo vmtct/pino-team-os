@@ -3,6 +3,7 @@
  */
 import {TddRegistry,type FieldSchema,type ModuleRow,type TableQuery} from "@/lib/workspace-schema";
 import type {SurfaceDefinition,SurfaceProvider} from "@/lib/workspace-adapters/contracts";
+import {readDiaryMissionLabels} from "@/lib/diary-mission-projection";
 
 const PERMISSION="team.bo.access"; // Only UI shell admission; Core independently checks learning.diary.global.view.
 const READ={display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false} as const;
@@ -77,11 +78,11 @@ export function isCoreHoDiary(v:unknown):v is CoreHoDiary{
    (x.interest===null||(Number.isInteger(x.interest)&&x.interest!>=1&&x.interest!<=4))&&
    Number.isSafeInteger(x.version)&&x.version!>=1);
 }
-export function projectHoDiary(v:CoreHoDiary):HoDiaryRow{
- // PAP-1254 and MissionResult PAP-1204 not yet present in Core's canonical read projection.
+export function projectHoDiary(v:CoreHoDiary,mission="Chưa xác minh liên kết"):HoDiaryRow{
+ // PAP-1342: Caller must supply authenticated Core source Mission label.
  // UUID submitter is honest source identity; never infer teacher name or Mission completion.
  const day=v.teachingContextKey.slice(-10);
- return {id:v.id,student:v.studentId,mission:"Chưa liên kết nhiệm vụ",center:v.centerId,
+ return {id:v.id,student:v.studentId,mission,center:v.centerId,
   className:v.runningClassId??v.teachingContextKey,date:validDiaryDay(day)?day:v.registeredAt.slice(0,10),
   submitter:v.registeredByUserId,status:v.status==="CLOSED"?"Đã đóng":"Đã ghi nhận",
   diaryCode:v.id,notes:v.notes??"—",interest:v.interest===null?"Chưa xác nhận":String(v.interest),
@@ -142,12 +143,14 @@ export const hoDiaryProvider:SurfaceProvider<F>={pagination:"local-ui",
   async list(query,scope,fetcher,signal){
    if(scope.surface!=="HO")throw Error("HO GLOBAL scope required");
    const rows=await readGlobalDiaries(fetcher,centerFromQuery(query),dayFromQuery(query),signal);
-   return {records:rows.map(v=>({row:projectHoDiary(v),version:String(v.version)})),total:rows.length};
+   const labels=await readDiaryMissionLabels(fetcher,rows,"HO","",signal);
+   return {records:rows.map(v=>({row:projectHoDiary(v,labels.get(v.id)),version:String(v.version)})),total:rows.length};
   },
   async detail(id,scope,fetcher,signal){
    if(scope.surface!=="HO")throw Error("HO GLOBAL scope required");
    const v=await readGlobalDiary(fetcher,id,"",signal);
-   return {row:projectHoDiary(v),version:String(v.version)};
+   const labels=await readDiaryMissionLabels(fetcher,[v],"HO","",signal);
+   return {row:projectHoDiary(v,labels.get(v.id)),version:String(v.version)};
   },
 };
 const registry=new TddRegistry();

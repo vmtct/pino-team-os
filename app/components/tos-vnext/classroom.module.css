@@ -686,3 +686,9 @@
 .primaryButton:not(:disabled):hover,.primaryButtonWide:not(:disabled):hover{background:var(--tos-color-classroom-action-hover)}
 .sectionHead>div{min-width:0;flex:1}
 .sectionHead>button{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;gap:var(--tos-space-1)}}
+
+/* PAP-945: approved single Mission completion checkbox; unchecked is unconfirmed, not a negative result. */
+.resultChoice .missionConfirmCheckbox{grid-column:1/-1;display:flex;align-items:center;gap:var(--tos-space-3);min-height:var(--tos-hit-min);padding:var(--tos-space-3);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-small);background:var(--tos-color-surface);font-size:var(--tos-text-caption);color:var(--tos-color-ink);cursor:pointer}
+.missionConfirmCheckbox input{width:19px;height:19px;flex:0 0 19px;accent-color:var(--tos-color-success);cursor:pointer}
+.missionConfirmCheckbox:has(input:checked){background:var(--tos-color-success-bg);border-color:var(--tos-color-info-text);font-weight:var(--tos-weight-strong)}
+.missionConfirmCheckbox:focus-within{outline:2px solid var(--tos-color-info-text);outline-offset:2px}
