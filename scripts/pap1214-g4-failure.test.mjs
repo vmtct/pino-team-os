@@ -99,7 +99,9 @@ test("PAP-1394 HO Staff G4 source carries bounded phase callback without weakeni
   const source = fs.readFileSync(new URL("./run-tdd-g4-ci.mjs", import.meta.url),"utf8");
   const start = source.indexOf('await check("founder_ho_staff_table_drawer_full_detail"');
   assert.ok(start >= 0);
-  const staff = source.slice(start, source.indexOf('} catch (error) {', start));
+  const end = source.indexOf("}, () => hoStaffPhase);", start);
+  assert.ok(end > start);
+  const staff = source.slice(start, end + "}, () => hoStaffPhase);".length);
   assert.match(staff, /hoStaffPhase = "ho_staff_table"/);
   assert.match(staff, /hoStaffPhase = "ho_staff_drawer"/);
   assert.match(staff, /hoStaffPhase = "ho_staff_full_detail"/);
