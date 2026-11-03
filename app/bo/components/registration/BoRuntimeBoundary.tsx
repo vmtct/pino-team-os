@@ -1,7 +1,8 @@
 "use client";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
-import { BoRegistrationWorkspace } from "./BoRegistrationWorkspace";
+import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
+import { BoStaffsViews, staffsViewRows, type StaffsView } from "./BoStaffsViews";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
@@ -50,10 +51,37 @@ function CenterReadWorkspace({ moduleKey, options, currentUser }: {
     content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined} />;
 }
 
+/** PAP-1407: local Staffs business views atop the existing, unmodified shared TDD host.
+ * The registration tab is intentionally NOT wired to the unscoped legacy queue.
+ * PAP-1406 is responsible for the explicit Center-bound Core contract.
+ */
+function BoStaffsEntry({ currentUser, options }: {
+  currentUser: Pick<BoShellContext, "displayName" | "email">;
+  options: Record<string, string>;
+}) {
+  const [view, setView] = useState<StaffsView>("all");
+  const source = useMemo<BoWorkspaceSource>(() => ({
+    ...unifiedBoWorkspaceSource,
+    isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
+    async load(key, fetcher, scopedOptions) {
+      if (key === "staffs" && view === "register") return []; // Fail closed: no global intake queue.
+      const rows = await unifiedBoWorkspaceSource.load(key, fetcher, scopedOptions);
+      return key === "staffs" ? staffsViewRows(rows, view) : rows;
+    },
+  }), [view]);
+  return <BoRegistrationWorkspace key={"staffs:" + view} currentUser={currentUser}
+    source={source} moduleKey="staffs" options={options}
+    headerContent={<><BoStaffsViews selected={view} onSelect={setView} />
+      {view === "register" ? <p role="alert" className="settings-hint">
+        Đăng ký Staff chờ Core API giới hạn theo Center (PAP-1406). Không đọc hàng đợi Global.
+      </p> : null}</>} />;
+}
+
 export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: { moduleKey: string; options: Record<string, string>; parentTddPilot?: boolean }) {
   const currentUser = useContext(RuntimeContext);
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
+  if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   const isParentPilot = moduleKey === "parents" && parentTddPilot;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
