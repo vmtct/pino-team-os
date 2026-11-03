@@ -57,6 +57,13 @@ export const selfDefinition = {
       approval: { jira: "PAP-1296", owner: "BO Runtime", designAuthority: "Founder",
         files: ["app/bo/pinoria-avatars/SelfWardrobeDetail.tsx", "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx"],
         tests: ["lib/pap1300-self-wardrobe-ui.test.ts"], reviewBy: "2026-12-01T00:00:00+07:00" },
+    }, {
+      id: "loadout", label: "Loadout", kind: "approved-extension",
+      source: { adapter: "bo-self-loadout", permission: "pinoria.self.loadout.view" },
+      extensionId: "pap1356-bo-self-loadout",
+      approval: { jira: "PAP-1312", owner: "BO Runtime", designAuthority: "Founder",
+        files: ["app/bo/pinoria-avatars/SelfLoadoutDetail.tsx", "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx"],
+        tests: ["lib/pap1356-self-loadout-ui.test.ts"], reviewBy: "2026-12-01T00:00:00+07:00" },
     }], history: { kind: "unavailable", reason: "Core chưa cung cấp lịch sử sự kiện sở hữu Item qua BO. Provenance và mốc cấp gần nhất hiển thị trong Tủ đồ." } },
 } as const satisfies SurfaceDefinition<SelfFields>;
 
@@ -67,11 +74,13 @@ export const selfProvider = selfDirectoryProvider();
  */
 export const verifySelfWardrobeApproval: ApprovalVerifier = (approval, scope) =>
   scope.surface === "BO" && scope.key === "pinoria-avatars" &&
-  scope.extensionId === "pap1300-bo-self-wardrobe" &&
-  approval.jira === "PAP-1296" && approval.owner === "BO Runtime" &&
-  approval.designAuthority === "Founder" &&
-  approval.files.includes("app/bo/pinoria-avatars/SelfWardrobeDetail.tsx") &&
-  approval.tests.includes("lib/pap1300-self-wardrobe-ui.test.ts");
+  approval.owner === "BO Runtime" && approval.designAuthority === "Founder" &&
+  ((scope.extensionId === "pap1300-bo-self-wardrobe" && approval.jira === "PAP-1296" &&
+    approval.files.includes("app/bo/pinoria-avatars/SelfWardrobeDetail.tsx") &&
+    approval.tests.includes("lib/pap1300-self-wardrobe-ui.test.ts")) ||
+   (scope.extensionId === "pap1356-bo-self-loadout" && approval.jira === "PAP-1312" &&
+    approval.files.includes("app/bo/pinoria-avatars/SelfLoadoutDetail.tsx") &&
+    approval.tests.includes("lib/pap1356-self-loadout-ui.test.ts")));
 const registry = new TddRegistry(verifySelfWardrobeApproval);
 export const selfSchema = registry.register({
   ...selfDefinition,
