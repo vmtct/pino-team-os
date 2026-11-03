@@ -93,6 +93,8 @@ test("PAP-1400 invalid or replaced submission proof refuses before network",asyn
  const f=setup();
  for(const invalid of [
   {...request,submissionKey:""},
+  {...request,submissionKey:" orig-uuid-1 "},
+  {...request,registration:{...request.registration,extra:"unexpected"}},
   {...request,localDate:"2026-11-03"},
   {...request,selectedMissionIds:[]},
   {...request,selectedMissionIds:["mission-1","mission-1"]},
