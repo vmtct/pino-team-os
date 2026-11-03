@@ -42,9 +42,9 @@ test("PAP-1400 receipt lookup rejects missing scope, legacy Mission and extra fi
  const api=createV18bApiTransport(false,transport);
  await assert.rejects(api.registerReceipt({...request,studentId:""},originalKey),
   (e:unknown)=>e instanceof V18bCoreError&&e.status===400);
- await assert.rejects(api.registerReceipt({...request,mission:"fake"},originalKey),
+ await assert.rejects(api.registerReceipt({...request,mission:"fake"} as Parameters<typeof api.registerReceipt>[0],originalKey),
   (e:unknown)=>e instanceof V18bCoreError&&e.status===409);
- await assert.rejects(api.registerReceipt({...request,extra:"unknown"},originalKey),
+ await assert.rejects(api.registerReceipt({...request,extra:"unknown"} as Parameters<typeof api.registerReceipt>[0],originalKey),
   (e:unknown)=>e instanceof V18bCoreError&&e.status===400);
  await assert.rejects(api.registerReceipt(request,""),
   (e:unknown)=>e instanceof V18bCoreError&&e.status===400);
