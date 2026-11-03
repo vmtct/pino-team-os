@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { BoSubjectHistory } from "@/app/bo/components/BoSubjectHistory";
-import { boApi, BoApiError } from "@/lib/bo-api";
+import { BoApiError } from "@/lib/bo-api";
+import { studentCenterApi } from "@/lib/bo-student-center-api";
 import { StudentProperties } from "./StudentProperties";
 import { useBoEditPermission } from "../components/useBoEditPermission";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
@@ -31,7 +32,7 @@ export function StudentFullDetail({ studentId }: { studentId: string }) {
     currentCenter.current = selectedCenter;
     let active = true;
     if (!selectedCenter) return () => { active = false; };
-    void boApi.learnerLifecycle(studentId, selectedCenter).then(data => {
+    void studentCenterApi.learnerLifecycle(studentId, selectedCenter).then(data => {
       if (active) setDetail({ state: "ready", data });
     }).catch((error: unknown) => {
       if (active) setDetail({ state: "error", message: error instanceof Error ? error.message : "Không thể tải học viên" });
@@ -46,8 +47,8 @@ export function StudentFullDetail({ studentId }: { studentId: string }) {
     if (!name.trim()) { setSaveError("Tên học viên không được để trống."); return; }
     setSaving(true); setSaveError("");
     try {
-      await boApi.updateStudentProfile(studentId, { displayName: name.trim(), expectedVersion: detail.data.student.version }, selectedCenter);
-      const refreshed = await boApi.learnerLifecycle(studentId, selectedCenter);
+      await studentCenterApi.updateStudentProfile(studentId, { displayName: name.trim(), expectedVersion: detail.data.student.version }, selectedCenter);
+      const refreshed = await studentCenterApi.learnerLifecycle(studentId, selectedCenter);
       if (currentCenter.current !== selectedCenter) return;
       setDetail({ state: "ready", data: refreshed });
       setEditing(false);

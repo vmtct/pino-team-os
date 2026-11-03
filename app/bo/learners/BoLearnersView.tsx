@@ -8,6 +8,7 @@ import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGr
 import { useAuthorizedBoPublicView } from "@/app/bo/components/data-grid/useAuthorizedBoPublicView";
 import { useBoPilotSharedGridView } from "@/app/bo/components/data-grid/useBoPilotSharedGridView";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import { studentCenterApi } from "@/lib/bo-student-center-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "@/lib/bo-student-pilot-fields";
 import { applyBoFilterSettings, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
@@ -40,9 +41,9 @@ function StudentNameInlineCell({ student, onSaved }: { student: BoLearnerDirecto
     if (!draft.trim()) { setError("Tên học viên không được để trống."); return; }
     setSaving(true); setError("");
     try {
-      const lifecycle = await boApi.learnerLifecycle(student.id, selectedCenter);
+      const lifecycle = await studentCenterApi.learnerLifecycle(student.id, selectedCenter);
       if (currentCenter.current !== selectedCenter) return;
-      await boApi.updateStudentProfile(student.id, { displayName: draft.trim(), expectedVersion: lifecycle.student.version }, selectedCenter);
+      await studentCenterApi.updateStudentProfile(student.id, { displayName: draft.trim(), expectedVersion: lifecycle.student.version }, selectedCenter);
       if (currentCenter.current !== selectedCenter) return;
       setEditing(false); onSaved();
     } catch (caught) {
@@ -77,7 +78,7 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
 
   async function readDirectory() {
     if (!activeCenter) return [];
-    return collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId, activeCenter));
+    return collectPagedDirectory((beforeStudentId, limit) => studentCenterApi.learners("", limit, beforeStudentId, activeCenter));
   }
 
   function selectStudent(id: string | null, history: "push" | "replace" = "replace") {
@@ -107,7 +108,7 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
     const ticket = detailRequestFence.current.begin(id);
     setDetail({ state: "loading" });
     try {
-      const data = await boApi.learnerLifecycle(id, activeCenter);
+      const data = await studentCenterApi.learnerLifecycle(id, activeCenter);
       if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "ready", data });
     } catch (error) {
       if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "error", message: message(error) });
@@ -117,7 +118,7 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
   useEffect(() => {
     let active = true;
     if (!activeCenter) return () => { active = false; };
-    void collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId, activeCenter)).then((rows) => {
+    void collectPagedDirectory((beforeStudentId, limit) => studentCenterApi.learners("", limit, beforeStudentId, activeCenter)).then((rows) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
     }).catch((error: unknown) => { if (active) setDirectory({ state: "error", message: message(error) }); });
