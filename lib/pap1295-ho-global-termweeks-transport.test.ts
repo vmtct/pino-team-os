@@ -22,7 +22,7 @@ const weeks = Array.from({ length: 4 }, (_, i) => ({
   startDate: `2026-11-${String(2 + i * 7).padStart(2, "0")}`,
   endDate: `2026-11-${String(8 + i * 7).padStart(2, "0")}`,
   rhythmKey: "BUILD",
-  ordinal: i + 1,
+  ordinal: i + 1,updatedAt:"2026-11-01T00:00:00.000Z",createdAt:"2026-11-01T00:00:00.000Z",global_week_registration_locked:false,lockVersion:0,referenceCount:0,deletionEligible:true,
 }));
 
 const rejected = (status: number) => (error: unknown) =>
@@ -45,6 +45,7 @@ test("PAP-1295: authenticated HO TDD list + detail read four real-shaped Global 
       },
     });
     if (url.pathname === collection && !url.search) return Response.json({ data: weeks });
+    if(url.pathname.startsWith(collection+'/')){const w=weeks.find(w=>url.pathname.endsWith(w.id));return Response.json({data:{...w,parent:{id:termId,name:'Term',startDate:'2026-11-01',endDate:'2026-11-30'},history:[]}});}
     throw Error(`Unexpected transport request: ${url.pathname}${url.search}`);
   };
   const controller = new AbortController();
@@ -65,7 +66,7 @@ test("PAP-1295: authenticated HO TDD list + detail read four real-shaped Global 
     const detailed = await adapter.detail(weeks[3]!.id, controller.signal);
     assert.equal(detailed?.row.code, "W4");
     const readCalls = calls.filter(call => call.url.pathname === collection);
-    assert.equal(readCalls.length, 2, "only one collection GET per list/detail");
+    assert.equal(readCalls.length, 1, "one collection GET; detail uses its canonical endpoint");
     assert.ok(readCalls.every(call => call.url.search === "" && call.init?.method === "GET"));
   } finally {
     adapter.dispose();
@@ -87,7 +88,7 @@ test("PAP-1295: only an exact HO GET without query or hostile headers is admitte
       collection + "?centerId=" + termId,
       collection + "?unexpected=1",
       collection + "/",
-      collection + "/" + weeks[0]!.id,
+      collection + "/not-a-uuid",
       collection + "/../global-week-registration",
       "https://bo.staging.pinohouse.art" + collection,
       "https://ho.pinohouse.art" + collection,
@@ -95,7 +96,7 @@ test("PAP-1295: only an exact HO GET without query or hostile headers is admitte
     ]) {
       await assert.rejects(session.transport(pathname, { method: "GET" }), rejected(404), pathname);
     }
-    for (const method of ["POST", "PUT", "PATCH", "DELETE", "HEAD"]) {
+    for (const method of ["PUT", "PATCH", "DELETE", "HEAD"]) {
       await assert.rejects(session.transport(collection, { method }), rejected(404), method);
     }
     for (const key of ["authorization", "cookie", "host", "x-pino-surface"]) {

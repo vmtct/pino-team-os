@@ -1,8 +1,6 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { handleHoGlobalTermWeekUpdate } from "@/lib/ho-global-termweeks-update-facade";
-import type { HoGlobalTermWeeksEnv } from "@/lib/ho-global-termweeks-read-facade";
-export const runtime = "nodejs";
-export async function POST(request:Request):Promise<Response>{
- const {env}=await getCloudflareContext({async:true}) as unknown as {env:HoGlobalTermWeeksEnv};
- return handleHoGlobalTermWeekUpdate(request,env);
-}
+import {getCloudflareContext} from '@opennextjs/cloudflare';
+import {handleHoTermWeek} from '@/lib/ho-termweek-facade';
+import type {HoGlobalTermWeeksEnv} from '@/lib/ho-global-termweeks-read-facade';
+export const runtime='nodejs';
+async function handle(request:Request){const {env}=await getCloudflareContext({async:true}) as unknown as {env:HoGlobalTermWeeksEnv};return handleHoTermWeek(request,env);}
+export const POST=handle;

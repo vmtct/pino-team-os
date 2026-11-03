@@ -1,3 +1,4 @@
+import {WEEK_API,weekRequest} from '../ho-termweek-contract';
 import { BoApiError } from "../bo-api-error";
 import { isGlobalTermsRequest } from "../ho-global-terms-contract";
 import { decideHostBoundary, HO_STAGING_HOSTNAME, isBoHostname } from "../host-boundary";
@@ -28,8 +29,11 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
     const admittedHoGlobalTerms = surface === "HO" && !url.search && isGlobalTermsRequest(url.pathname, method);
     const admittedHoPassInventory = surface === "HO" && method === "GET" && url.pathname === "/api/ho/open-studio/walkin/inventory";
     // PAP-1295: precise HO GLOBAL TermWeek read. The HO BFF still reauthorizes Founder/ACL.
-    const admittedHoGlobalTermWeeksRead = surface === "HO" && method === "GET" &&
-      url.pathname === "/api/ho/workforce/global-termweeks" && url.search === "";
+    const admittedHoGlobalTermWeeksRead = surface === "HO" &&
+      weekRequest(url.pathname,method) && (url.pathname===WEEK_API
+        ? [...url.searchParams.keys()].every(k=>k==='catalog'&&url.searchParams.get(k)==='1')
+        : !url.search);
+    const admittedHoWeekLock=surface==='HO'&&url.pathname==='/api/ho/workforce/global-week-registration'&&method==='POST'&&!url.search;
     // PAP-1255: exact HO read route, explicit canonical Center; Core BFF rechecks Founder/ACL.
     const hoShiftTemplateQuery = url.searchParams.getAll("centerId");
     const admittedHoShiftTemplateRead = surface === "HO" && method === "GET" &&
@@ -39,9 +43,9 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
     const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(url.pathname);
     // PAP-1342: exact same-origin Founder Mission detail read for source-owned Diary label.
     const admittedHoMissionDetail = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.pathname);
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoWeekLock || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
-        (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
+        (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms && !admittedHoGlobalTermWeeksRead && !admittedHoWeekLock)) throw adapterError(404);
     const headers = new Headers(init?.headers);
     if (["authorization", "cookie", "host", "x-pino-surface"].some(key => headers.has(key))) throw adapterError(403);
     const signal = init?.signal ? AbortSignal.any([init.signal, lifetime.signal]) : lifetime.signal;
