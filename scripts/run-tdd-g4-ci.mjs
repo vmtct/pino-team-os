@@ -223,17 +223,24 @@ try {
     await title.waitFor({state:"visible",timeout:15000});
     assert((await title.innerText()).trim() === id,"wrong opened Subscription");
   }, () => studentSubscriptionPhase);
+  // PAP-1394: bounded phase attribution without page data, URLs, or exception messages.
+  let hoStaffPhase = "ho_staff_navigate";
   await check("founder_ho_staff_table_drawer_full_detail",async () => {
     await fp.goto(HO + "/ho/staff",{waitUntil:"domcontentloaded"});
+    hoStaffPhase = "ho_staff_table";
     await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible",timeout:15000});
+    hoStaffPhase = "ho_staff_row";
     const row = fp.locator('[data-tdd-shell="table"] tbody tr button[aria-label^="Quick View"]').first();
     await row.waitFor({state:"visible",timeout:15000});
+    hoStaffPhase = "ho_staff_drawer";
     await row.click();
     await fp.locator('[data-tdd-shell="drawer"]').waitFor({state:"visible"});
     assert(new URL(fp.url()).searchParams.has("record"),"drawer URL");
+    hoStaffPhase = "ho_staff_full_detail";
     await fp.locator('[data-tdd-shell="drawer"]').getByRole("button",{name:/Full Detail/}).click();
     await fp.locator('[data-tdd-shell="detail"]').waitFor({state:"visible"});
-    for (const name of ["Tổng quan","Rate lương","Lịch sử"]) {
+    for (const [name, safePhase] of [["Tổng quan","ho_staff_tab_overview"],["Rate lương","ho_staff_tab_salary"],["Lịch sử","ho_staff_tab_history"]]) {
+      hoStaffPhase = safePhase;
       const tab = fp.locator('[data-tdd-shell="detail"]').getByRole("tab",{name});
       await tab.click();
       assert(await tab.getAttribute("aria-selected") === "true","ARIA selection");
@@ -242,15 +249,17 @@ try {
       assert(await fp.locator('[data-tdd-shell="detail"] [role="tab"][aria-selected="true"]').count() === 1,"single selected tab");
     }
     for (const width of [1440,1024,768,390,320]) {
+      hoStaffPhase = "ho_staff_width_" + width;
       await fp.setViewportSize({width,height:900});
       assert(await fp.locator('[data-tdd-shell="detail"]').isVisible(),"hidden HO detail");
       assert(await fp.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2),"HO overflow");
     }
+    hoStaffPhase = "ho_staff_back";
     await fp.locator('[data-tdd-shell="detail"]').getByRole("button",{name:"Quay lại bảng"}).click();
     await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible"});
     assert(await fp.locator('[data-tdd-shell="detail"]').count() === 0,"detail still mounted");
     assert(!new URL(fp.url()).searchParams.has("record"),"stale record URL");
-  });
+  }, () => hoStaffPhase);
 } catch (error) {
   cases.push({name:"authenticated_ci_admission",status:"FAIL",phase,errorType:error instanceof Error ? error.name : "UnknownError"});
 } finally {
