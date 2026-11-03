@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import type { SelfFields } from "./schema";
+import { SelfLoadoutPreview, SelfLoadoutEditorLayout } from "@/app/components/pinoria/SelfLoadoutPreview";
 
 type Row = ModuleRow<SelfFields>;
 const SLOTS = ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"] as const;
@@ -73,11 +74,8 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   if(!selfId)return <p role="status">Person chưa có Self; không thể chỉnh Loadout.</p>;
   if(!canView)return <p role="alert">Bạn chưa được cấp quyền xem Loadout.</p>;
   return <section className="grid-card" aria-label="Pinoria Self Loadout">
-    <h3>Composition Preview</h3>
-    <figure className="grid-card">
-      <img src="https://assets.pinohouse.art/pinoria/char-base.png" alt="Nền nhân vật Pinoria — khung dọc 9:16" width="216" height="384"/>
-      <figcaption>Ảnh Item riêng tư chưa được hiển thị: chờ Core BO media contract PAP-1428. Không sử dụng ảnh giả.</figcaption>
-    </figure>
+    <SelfLoadoutEditorLayout preview={<SelfLoadoutPreview key={selfId+":"+(loadout?.version??"loading")} loadout={loadout}
+      mediaSrc={slot=>"/api/bo/pinoria/selfs/"+selfId+"/loadout/media/"+slot+"?centerId="+encodeURIComponent(centerId)}/> }>
     <p role="note">Set phủ toàn bộ Self là trạng thái độc lập thuộc S6; SaveSlots không thay đổi Set.</p>
     <label htmlFor="self-loadout-set">Set</label>
     <select id="self-loadout-set" disabled value="separate"><option value="separate">S6 — chưa bật quản lý Set</option></select>
@@ -107,5 +105,6 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
         <button type="submit" className="primary-btn" disabled={!dirty||!canManage||!canViewItems||!reason.trim()||saving}>{saving?"Đang lưu…":"Lưu trang bị"}</button>
       </div>
     </form>}
+    </SelfLoadoutEditorLayout>
   </section>;
 }

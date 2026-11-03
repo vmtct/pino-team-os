@@ -64,6 +64,10 @@
       ],
       "externalReferences": [
         {
+          "file": "app/components/pinoria/SelfLoadoutPreview.tsx",
+          "owner": "PAP-1356"
+        },
+        {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-982"
         },
