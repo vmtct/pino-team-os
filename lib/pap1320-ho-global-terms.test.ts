@@ -93,7 +93,7 @@ test("PAP-1320 surface transport admits only exact GET/POST routes and same orig
   let calls=0;const session=surfaceSession("HO",origin,async()=>{calls++;return Response.json({data:[]});});
   for(const [path,method] of [[base,"GET"],[base,"POST"],[base+"/"+id,"GET"],[base+"/"+id+"/update","POST"],[base+"/"+id+"/delete","POST"]])assert.equal((await session.transport(path,{method})).status,200);
   assert.equal(calls,5);
-  for(const [path,method] of [[base+"?centerId="+id,"GET"],[base+"/","GET"],[base+"/"+id,"POST"],[base,"DELETE"],["/api/bo/centers","POST"],["/api/ho/workforce/global-termweeks","POST"],["https://evil.invalid"+base,"POST"],[base+"/"+id+"/delete/extra","POST"]])await assert.rejects(session.transport(path,{method}),e=>e instanceof BoApiError&&e.status===404);
+  for(const [path,method] of [[base+"?centerId="+id,"GET"],[base+"/","GET"],[base+"/"+id,"POST"],[base,"DELETE"],["/api/bo/centers","POST"],["/api/ho/workforce/global-termweeks/not-a-uuid","POST"],["https://evil.invalid"+base,"POST"],[base+"/"+id+"/delete/extra","POST"]])await assert.rejects(session.transport(path,{method}),e=>e instanceof BoApiError&&e.status===404);
   session.dispose();
 });
 test("PAP-1320 client propagates 409/invalid detail and never substitutes fake data",async()=>{

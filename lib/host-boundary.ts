@@ -1,3 +1,4 @@
+import {WEEK_API,weekRequest} from './ho-termweek-contract';
 import {tosV4StagingHost} from "./tos-v4-staging-host";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
 import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
@@ -24,6 +25,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const diaryLinkRead = /^\/api\/(ho|bo)\/learning\/path-diaries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/mission-links$/i.exec(pathname);
   if (diaryLinkRead) return method === "GET" && hostname === (diaryLinkRead[1]!.toLowerCase()==="ho" ? HO_STAGING_HOSTNAME : BO_STAGING_HOSTNAME)
     ? {action:"next"} : {action:"not_found"};
+  if(pathname===WEEK_API||pathname.startsWith(WEEK_API+'/'))return {action:hostname===HO_STAGING_HOSTNAME&&weekRequest(pathname,method)?'next':'not_found'};
   if (pathname === GLOBAL_TERMS_API || pathname.startsWith(GLOBAL_TERMS_API + "/"))
     return { action: hostname === HO_STAGING_HOSTNAME && isGlobalTermsRequest(pathname, method) ? "next" : "not_found" };
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.

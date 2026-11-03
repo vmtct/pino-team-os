@@ -34,7 +34,7 @@ export const hoModules: Record<HoModule,BoModule> = {
   {key:"endLocalTime",label:"Kết thúc",type:"text",icon:"◷",w:120,readonly:true},
   {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:130,readonly:true},
  ]},
- termWeeks:{label:"TermWeek",group:"Workforce",fields:[
+ termWeeks:{label:"Global TermWeeks",group:"Operating Cycle",fields:[
   {key:"name",label:"Tuần",type:"text",icon:"Aa",w:235,readonly:true},
   {key:"code",label:"Mã tuần",type:"text",icon:"#",w:130,readonly:true},
   {key:"startDate",label:"Bắt đầu",type:"date",icon:"◷",w:145,readonly:true},
