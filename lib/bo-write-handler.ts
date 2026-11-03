@@ -186,6 +186,23 @@ export async function handleBoWriteRequest(
 
     const billingPlanConfig = BILLING_PLAN_CONFIG_PATH.exec(path);
     const specialtyOfferConfig = SPECIALTY_OFFER_CONFIG_PATH.exec(path);
+    // PAP-1426: selected Center is an explicit resource constraint, never a role/grant.
+    // Reject malformed, missing or ambiguous Center and any legacy status payload.
+    let studentProfileResource: { centerId: string } | undefined;
+    if (request.method === "PATCH" && STUDENT_PROFILE_PATCH.test(path)) {
+      const query = new URL(request.url).searchParams;
+      const ids = query.getAll("centerId");
+      if ([...query.keys()].length !== 1 || ids.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!)) {
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one authorized Center selection is required" } }, 400);
+      }
+      if (!body || typeof body !== "object" || Array.isArray(body) ||
+          Object.keys(body).length !== 2 ||
+          Object.keys(body).some(key => key !== "displayName" && key !== "expectedVersion")) {
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Student name-only edit requires displayName and expectedVersion" } }, 400);
+      }
+      studentProfileResource = { centerId: ids[0]! };
+    }
     const coreRequest: BoAccessRequest = billingPlanConfig ? {
       method: "PATCH",
       path: `billing/product-plans/${billingPlanConfig[1]}`,
@@ -198,6 +215,7 @@ export async function handleBoWriteRequest(
       method: request.method,
       path,
       body,
+      ...(studentProfileResource ? { resource: studentProfileResource } : {}),
       ...(idempotencyKey ? { idempotencyKey } : {}),
 
     };
