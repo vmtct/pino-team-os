@@ -47,9 +47,10 @@ test("PAP-1301: selection is restricted to Core-authorized candidate list and cl
   assert.match(provider, /url.searchParams.delete\("record"\)/);
   assert.match(provider, /delete state\["pino:tdd:BO:parents"\]/);
   assert.match(provider, /window.addEventListener\("popstate", restore\)/);
-  assert.doesNotMatch(provider, /localStorage/);
-  assert.match(provider, /restoreBoAuthorizedCenter\(result.centers.map\(c => c.id\), locationUrl.search, safeSessionCenter\(\)\)/);
-  assert.match(provider, /sessionStorage.setItem\(BO_ACTIVE_CENTER_SESSION_KEY, centerId\)/);
+  assert.match(provider, /localStorage.getItem\(BO_ACTIVE_CENTER_SESSION_KEY\)/);
+  assert.match(provider, /localStorage.setItem\(BO_ACTIVE_CENTER_SESSION_KEY, centerId\)/);
+  assert.match(provider, /restoreBoAuthorizedCenter\(result.centers.map\(c => c.id\), locationUrl.search, safeRecentCenter\(\)\)/);
+  assert.match(provider, /saveRecentCenter\(centerId\)/);
   const policy = read("app/bo/components/registration/BoGlobalCenterPolicy.tsx");
   assert.match(policy, /authorizedIds.includes/);
   const initial = new URL("https://bo.staging.pinohouse.art/bo?module=parents&pilot=tdd");
