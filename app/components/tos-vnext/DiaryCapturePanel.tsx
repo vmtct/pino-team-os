@@ -3,7 +3,7 @@
  * No fake Diary, MissionResult, media receipt or local-only persistence.
  */
 import {useEffect,useMemo,useRef,useState} from "react";
-import {tosClassroomV18bApi,V18bCoreError,V18B_WRITE_ADMITTED,type V18bEligibleMissionsRead} from "@/lib/tos-classroom-v18b-api";
+import {createV18bApiTransport,V18bCoreError,type V18bEligibleMissionsRead} from "@/lib/tos-classroom-v18b-api";
 import {prepareDiarySubmission} from "@/lib/tos-diary-submit-preflight";
 import {validateDiaryCaptureDraft} from "@/lib/tos-diary-capture-validation";
 import {createDiaryObservationWithLinks,resumeDiaryObservationWithLinks,type ObservationOutcome} from "@/lib/tos-diary-observation-workflow";
@@ -13,14 +13,16 @@ import {inspectDiaryAfterReload,type ReloadReceipt} from "@/lib/tos-diary-reload
 import {reconcileUnknownDiaryRegister,type LostAckResult} from "@/lib/tos-diary-register-receipt-recovery";
 import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTicketState} from "@/lib/tos-diary-register-ticket";
 import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
+import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
 type Read={key:string;phase:"idle"|"loading"|"ready"|"error";data:V18bEligibleMissionsRead|null;message:string};
 const idle:Read={key:"",phase:"idle",data:null,message:""};
 const interestLabels=["Phản kháng","Không tương tác","Tương tác","Hứng thú, đào sâu"] as const;
-// A real writer may only be admitted after safe authenticated reload recovery and PAP-1222 E2E.
-const UI_RELOAD_RECOVERY_ADMITTED=false;
+// PAP-1400: default disabled in Production and all noncanonical hosts. The guarded
+// Staging-CD build must positively set NEXT_PUBLIC_PINO_DIARY_STAGING_WRITE=true.
+// This client switch never overrides source-owned Core ACL/roster/Mission checks.
 function ticketStorage():Storage|null {
  try{return typeof window==="undefined"?null:window.sessionStorage}catch{return null}
 }
@@ -40,6 +42,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  const [registerRecovery,setRegisterRecovery]=useState<LostAckResult|null>(null);
  const [recovering,setRecovering]=useState(false);
  const [busy,setBusy]=useState(false);
+ const [stagingHostAdmitted,setStagingHostAdmitted]=useState(false);
  const [runtimeError,setRuntimeError]=useState("");
  const [knownDiaryId,setKnownDiaryId]=useState("");
  const [reloadReceipt,setReloadReceipt]=useState<ReloadReceipt|null>(null);
@@ -49,18 +52,23 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  // a Diary, NOT an opening/photo/timekeeping event. Core independently checks Staff,
  // Center, occurrence, actual roster and Mission; local confirmation grants no ACL.
  const skipEntryConfirmed=isConfirmedSkipDiaryEntry(model,classroom,confirmedSkipClassId);
- const writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED&&skipEntryConfirmed;
+ const writerApi=useMemo(()=>createV18bApiTransport(stagingHostAdmitted),[stagingHostAdmitted]);
+ const writeAdmitted=stagingHostAdmitted&&skipEntryConfirmed;
  const locked=receipt!==null||busy||reloadBusy;
  const receiptView=diaryUiReceipt(receipt);
  const permitted=students.some(x=>x.id===studentId);
  const key=JSON.stringify([model.centerId,classroom.runningClassId,model.today,classroom.id,studentId]);
- useEffect(()=>{setRegisterTicket(readDiaryTicket(ticketStorage()));},[]);
+ useEffect(()=>{
+  setStagingHostAdmitted(isDiaryStagingWriterHost(
+   process.env.NEXT_PUBLIC_PINO_DIARY_STAGING_WRITE==="true",window.location.hostname));
+  setRegisterTicket(readDiaryTicket(ticketStorage()));
+ },[]);
  useEffect(()=>{reloadGeneration.current++;setKnownDiaryId("");setReloadReceipt(null);setRegisterRecovery(null);},[key]);
  useEffect(()=>{
   if(!permitted)return;
   let active=true;
   setRead({key,phase:"loading",data:null,message:""});
-  void tosClassroomV18bApi.eligibleMissions({
+  void writerApi.eligibleMissions({
    centerId:model.centerId,runningClassId:classroom.runningClassId,
    studentId,localDate:model.today,teachingContextKey:classroom.id,
   }).then(data=>{
@@ -99,7 +107,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   if(errors.length){setShowValidation(true);return;}
   setBusy(true);setRuntimeError("");
   try{
-   const fresh=await tosClassroomV18bApi.eligibleMissions({centerId:model.centerId,
+   const fresh=await writerApi.eligibleMissions({centerId:model.centerId,
     runningClassId:classroom.runningClassId,studentId,localDate:model.today,teachingContextKey:classroom.id});
    if(fresh.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
    const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
@@ -109,7 +117,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
    if(!stageDiaryTicket(storage,prepared.submissionKey))
     throw new V18bCoreError(503,"DIARY_TICKET_UNAVAILABLE","Còn bản gửi chưa đối soát hoặc không giữ được mã gửi gốc.");
    setRegisterTicket(readDiaryTicket(storage));
-   const outcome=await createDiaryObservationWithLinks(tosClassroomV18bApi,{prepared,
+   const outcome=await createDiaryObservationWithLinks(writerApi,{prepared,
     observation:{interest:interest!,notes,difficulty:difficulty.trim()||null}});
    setReceipt(outcome);
    if(outcome.state==="LINK_VERIFIED"&&clearVerifiedDiaryTicket(storage,prepared.submissionKey))
@@ -123,9 +131,9 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   setBusy(true);setRuntimeError("");
   try{
    const next=receipt.state==="OBSERVATION_PENDING"
-    ?await resumeDiaryObservationWithLinks(tosClassroomV18bApi,receipt.plan)
+    ?await resumeDiaryObservationWithLinks(writerApi,receipt.plan)
     :receipt.state==="LINK_PENDING"
-     ?await resumeDiaryMissionLinks(tosClassroomV18bApi,receipt.plan)
+     ?await resumeDiaryMissionLinks(writerApi,receipt.plan)
      :null;
    if(next){
     setReceipt(next);
@@ -143,14 +151,14 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   setRecovering(true);setRuntimeError("");setRegisterRecovery(null);
   try{
    // Reconstruct original scope from fresh Core roster and Mission eligibility only.
-   const fresh=await tosClassroomV18bApi.eligibleMissions({
+   const fresh=await writerApi.eligibleMissions({
     centerId:model.centerId,runningClassId:classroom.runningClassId,studentId,
     localDate:model.today,teachingContextKey:classroom.id,
    });
    if(fresh.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
    const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
     selected:chosen,submissionKey:registerTicket.key});
-   const outcome=await reconcileUnknownDiaryRegister(tosClassroomV18bApi,{
+   const outcome=await reconcileUnknownDiaryRegister(writerApi,{
     registration:prepared.registration,submissionKey:prepared.submissionKey,
     localDate:model.today,selectedMissionIds:chosen.map(x=>x.missionId),
    });
@@ -169,7 +177,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   const generation=++reloadGeneration.current;
   setReloadReceipt(null);setReloadBusy(true);
   try{
-   const found=await inspectDiaryAfterReload(tosClassroomV18bApi,{
+   const found=await inspectDiaryAfterReload(writerApi,{
     centerId:model.centerId,runningClassId:classroom.runningClassId,
     studentId,localDate:model.today,teachingContextKey:classroom.id,
     diaryId:knownDiaryId.trim(),selectedMissionIds:[...missionIds],
