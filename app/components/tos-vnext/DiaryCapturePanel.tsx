@@ -92,34 +92,74 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
   ...(missionIds.length>0&&!preflight?["Mission hoặc ngữ cảnh học chưa được Core xác nhận."]:[]),
  ];
  async function submitDiary(){
-  if(!canCreateDiary(receipt,writeAdmitted)||busy||!permitted||!eligibility)return;
+  if(!canCreateDiary(receipt,writeAdmitted)||busy||!permitted||!eligibility||registerTicket.state!=="EMPTY")return;
   if(errors.length){setShowValidation(true);return;}
   setBusy(true);setRuntimeError("");
   try{
-   // Re-read actual Core eligibility at submit; preflight cannot grant server authorization.
    const fresh=await tosClassroomV18bApi.eligibleMissions({centerId:model.centerId,
     runningClassId:classroom.runningClassId,studentId,localDate:model.today,teachingContextKey:classroom.id});
    if(fresh.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
    const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
     selected:chosen,submissionKey:crypto.randomUUID()});
+   const storage=ticketStorage();
+   // Save only the opaque original key BEFORE network, not student scope/notes.
+   if(!stageDiaryTicket(storage,prepared.submissionKey))
+    throw new V18bCoreError(503,"DIARY_TICKET_UNAVAILABLE","Còn bản gửi chưa đối soát hoặc không giữ được mã gửi gốc.");
+   setRegisterTicket(readDiaryTicket(storage));
    const outcome=await createDiaryObservationWithLinks(tosClassroomV18bApi,{prepared,
     observation:{interest:interest!,notes,difficulty:difficulty.trim()||null}});
    setReceipt(outcome);
+   if(outcome.state==="LINK_VERIFIED"&&clearVerifiedDiaryTicket(storage,prepared.submissionKey))
+    setRegisterTicket(readDiaryTicket(storage));
   }catch(error){setRuntimeError(error instanceof V18bCoreError?error.message:
-    "Chưa thể kiểm tra trước khi ghi. Không có lệnh ghi mới được tự động gửi lại.");}
+    "Chưa thể xác nhận lệnh gửi. Giữ mã gốc để đối soát, không Register lần hai.");}
   finally{setBusy(false);}
  }
  async function retryDiary(){
   if(!canRetryDiary(receipt,writeAdmitted)||busy||!receipt)return;
   setBusy(true);setRuntimeError("");
   try{
-   if(receipt.state==="OBSERVATION_PENDING")
-    setReceipt(await resumeDiaryObservationWithLinks(tosClassroomV18bApi,receipt.plan));
-   else if(receipt.state==="LINK_PENDING")
-    setReceipt(await resumeDiaryMissionLinks(tosClassroomV18bApi,receipt.plan));
+   const next=receipt.state==="OBSERVATION_PENDING"
+    ?await resumeDiaryObservationWithLinks(tosClassroomV18bApi,receipt.plan)
+    :receipt.state==="LINK_PENDING"
+     ?await resumeDiaryMissionLinks(tosClassroomV18bApi,receipt.plan)
+     :null;
+   if(next){
+    setReceipt(next);
+    if(next.state==="LINK_VERIFIED"&&clearVerifiedDiaryTicket(ticketStorage(),next.plan.submissionKey))
+     setRegisterTicket(readDiaryTicket(ticketStorage()));
+   }
   }catch(error){setRuntimeError(error instanceof V18bCoreError?error.message:
    "Không đối soát được Diary gốc. Không tạo bản ghi thứ hai.");}
   finally{setBusy(false);}
+ }
+ async function inspectOriginalRegister(){
+  if(busy||reloadBusy||recovering||!permitted||!eligibility||eligibility.hasMore||
+   registerTicket.state!=="PENDING"||!missionIds.length)return;
+  const generation=++reloadGeneration.current;
+  setRecovering(true);setRuntimeError("");setRegisterRecovery(null);
+  try{
+   // Reconstruct original scope from fresh Core roster and Mission eligibility only.
+   const fresh=await tosClassroomV18bApi.eligibleMissions({
+    centerId:model.centerId,runningClassId:classroom.runningClassId,studentId,
+    localDate:model.today,teachingContextKey:classroom.id,
+   });
+   if(fresh.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
+   const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
+    selected:chosen,submissionKey:registerTicket.key});
+   const outcome=await reconcileUnknownDiaryRegister(tosClassroomV18bApi,{
+    registration:prepared.registration,submissionKey:prepared.submissionKey,
+    localDate:model.today,selectedMissionIds:chosen.map(x=>x.missionId),
+   });
+   if(reloadGeneration.current===generation){
+    setRegisterRecovery(outcome);
+    if(outcome.state==="RECEIPT_FOUND_READONLY"&&clearVerifiedDiaryTicket(ticketStorage(),registerTicket.key))
+     setRegisterTicket(readDiaryTicket(ticketStorage()));
+   }
+  }catch(error){if(reloadGeneration.current===generation)
+   setRuntimeError(error instanceof V18bCoreError?error.message:
+    "Không đối soát được biên nhận. Giữ mã gửi gốc, không tạo Diary mới.");}
+  finally{if(reloadGeneration.current===generation)setRecovering(false);}
  }
  async function inspectExistingDiary(){
   if(reloadBusy||busy||!permitted||!knownDiaryId.trim()||!missionIds.length||!eligibility||eligibility.hasMore)return;
