@@ -42,13 +42,18 @@ function string(v:unknown){return typeof v==="string"&&v.trim().length>0&&v.leng
 
 function validProof(p:OriginalRegisterProof):boolean{
  const r=p?.registration;
- return Boolean(r&&string(r.centerId)&&string(r.runningClassId)&&string(r.studentId)&&
+ const exactFields=["centerId","runningClassId","studentId","pathKey","teachingContextKey"];
+ return Boolean(r&&Object.keys(r).length===exactFields.length&&
+  Object.keys(r).every(key=>exactFields.includes(key))&&
+  string(r.centerId)&&string(r.runningClassId)&&string(r.studentId)&&
   string(r.pathKey)&&string(r.teachingContextKey)&&string(p.submissionKey)&&
+  p.submissionKey===p.submissionKey.trim()&&
   typeof p.localDate==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(p.localDate)&&
   !Number.isNaN(Date.parse(p.localDate+"T12:00:00Z"))&&
   new Date(p.localDate+"T12:00:00Z").toISOString().slice(0,10)===p.localDate&&
   r.teachingContextKey===r.runningClassId+":"+p.localDate&&
   Array.isArray(p.selectedMissionIds)&&p.selectedMissionIds.length>0&&
+  p.selectedMissionIds.length<=100&&
   p.selectedMissionIds.every(string)&&
   new Set(p.selectedMissionIds).size===p.selectedMissionIds.length);
 }
