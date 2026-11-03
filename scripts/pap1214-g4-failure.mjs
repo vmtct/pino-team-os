@@ -3,6 +3,7 @@
 const allowedPhases = new Set([
   "unspecified", "navigate", "runtime_surface_visible", "invalid_detail_absent", "invalid_error_visible",
   // PAP-1340: Students -> real Subscription detail.
+  "student_center_context",
   "student_table",
   "subscribed_student_lookup",
   "student_search_and_drawer",
@@ -45,4 +46,17 @@ export function safeG4Failure(name, error, phase = "unspecified") {
 export function safeG4SurfaceProbe(flags) {
   const allowed = ["subscriptionHost", "subscriptionSurface", "invalidAlert", "anyDetail", "redirectedLogin", "nextError", "invalidRecordParam", "subscriptionModuleParam", "anyAlert", "invalidCopyPresent"];
   return Object.fromEntries(allowed.map(key => [key, flags?.[key] === true]));
+}
+
+
+/** PAP-1398: no response bodies, identifiers, URLs or exception details in CI logs. */
+export function safeG4HoStaffProbe(flags = {}) {
+  const booleans = ["expectedHost", "staffRoute", "loginRoute",
+    "tablePresent", "alertPresent", "statusPresent"];
+  const output = Object.fromEntries(booleans.map(key => [key, flags?.[key] === true]));
+  for (const key of ["contextHTTP", "staffHTTP"]) {
+    const value = flags?.[key];
+    output[key] = Number.isInteger(value) && value >= 100 && value <= 599 ? value : 0;
+  }
+  return output;
 }
