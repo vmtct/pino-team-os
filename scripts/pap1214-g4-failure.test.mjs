@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { safeG4Failure, safeG4SurfaceProbe } from "./pap1214-g4-failure.mjs";
+import { safeG4Failure, safeG4SurfaceProbe, safeG4HoStaffProbe } from "./pap1214-g4-failure.mjs";
 
 test("PAP-1214 records bounded phase and type but never exception messages, URLs, secrets or PII", () => {
   const error = Object.assign(new Error("PRIVATE_EMAIL cookie=secret https://private.invalid/path?token=secret"), { name: "TimeoutError" });
@@ -107,4 +107,62 @@ test("PAP-1394 HO Staff G4 source carries bounded phase callback without weakeni
   assert.match(staff, /}, \(\) => hoStaffPhase\)/);
   assert.match(staff, /"HO overflow"/);
   assert.match(staff, /"stale record URL"/);
+});
+
+
+test("PAP-1397 cold Center G4 phase is safe and UI selection stays Core-authorized", async () => {
+  const err = Object.assign(new Error("PRIVATE_EMAIL https://private.invalid/token=secret"), {name:"TimeoutError"});
+  const failure = safeG4Failure("student_to_real_subscription_full_detail", err, "student_center_context");
+  assert.deepEqual(failure, {
+    name:"student_to_real_subscription_full_detail", status:"FAIL",
+    phase:"student_center_context", errorType:"TimeoutError",
+  });
+  assert.doesNotMatch(JSON.stringify(failure), /PRIVATE_EMAIL|secret|private.invalid/);
+  const fs = await import("node:fs");
+  const source = fs.readFileSync(new URL("./run-tdd-g4-ci.mjs", import.meta.url),"utf8");
+  const start = source.indexOf('await check("student_to_real_subscription_full_detail"');
+  const end = source.indexOf('await check("founder_ho_staff_table_drawer_full_detail"', start);
+  assert.ok(start >= 0 && end > start);
+  const student = source.slice(start,end);
+  assert.match(student, /section\[aria-label="Chọn cơ sở cho module"\]/);
+  assert.match(student, /button\.nav-workspace\[aria-haspopup="listbox"\]/);
+  assert.match(student, /#workspace-centers \[role="option"\]/);
+  assert.match(student, /await authorizedOption\.waitFor/);
+  assert.match(student, /await authorizedOption\.click\(\)/);
+  assert.match(student, /await centerPending\.waitFor/);
+  assert.match(student, /studentSubscriptionPhase = "student_table"/);
+  assert.match(student, /No subscribed Student/);
+  assert.match(student, /wrong opened Subscription/);
+});
+
+test("PAP-1398 read-only HO Staff diagnostic emits only booleans and HTTP status", async () => {
+  const flags = {
+    expectedHost: true, staffRoute: true, loginRoute: false,
+    tablePresent: false, alertPresent: false, statusPresent: true,
+    contextHTTP: 200, staffHTTP: 403,
+    email: "PRIVATE_EMAIL", cookie:"secret", url:"https://private.invalid/a",
+  };
+  const result = safeG4HoStaffProbe(flags);
+  assert.deepEqual(result, {
+    expectedHost:true, staffRoute:true, loginRoute:false,
+    tablePresent:false, alertPresent:false, statusPresent:true,
+    contextHTTP:200, staffHTTP:403,
+  });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_EMAIL|secret|private.invalid|cookie|url/);
+  assert.equal(safeG4HoStaffProbe({contextHTTP:"200",staffHTTP:999}).contextHTTP,0);
+  assert.equal(safeG4HoStaffProbe({contextHTTP:"200",staffHTTP:999}).staffHTTP,0);
+  assert.equal(safeG4HoStaffProbe({expectedHost:1,alertPresent:"true"}).expectedHost,false);
+  assert.equal(safeG4HoStaffProbe({expectedHost:1,alertPresent:"true"}).alertPresent,false);
+  const fs = await import("node:fs");
+  const source = fs.readFileSync(new URL("./run-tdd-g4-ci.mjs",import.meta.url),"utf8");
+  const start = source.indexOf('await check("founder_ho_staff_table_drawer_full_detail"');
+  assert.ok(start >= 0);
+  const ho = source.slice(start);
+  assert.match(ho, /hoStaffPhase = "ho_staff_table"/);
+  assert.match(ho, /PAP-1398_HO_STAFF_READONLY_PROBE/);
+  assert.match(ho, /safeG4HoStaffProbe\(flags\)/);
+  assert.match(ho, /getStatus\("\/api\/bo\/context"\)/);
+  assert.match(ho, /getStatus\("\/api\/bo\/workforce\/staff-records"\)/);
+  assert.match(ho, /throw error/);
+  assert.match(ho, /"stale record URL"/);
 });
