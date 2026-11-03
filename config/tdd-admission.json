@@ -405,7 +405,10 @@
         "app/ho/workforce/term-weeks/HoGlobalWeekLockEditor.tsx",
         "app/ho/workforce/term-weeks/schema.ts",
         "app/ho/workforce/term-weeks/HoGlobalWeekCreate.tsx",
-        "app/ho/workforce/term-weeks/HoGlobalWeekUpdateEditor.tsx"
+        "app/ho/workforce/term-weeks/HoGlobalWeekUpdateEditor.tsx",
+        "app/ho/workforce/term-weeks/HoGlobalTermWeekEditor.tsx",
+        "lib/ho-termweek-client.ts",
+        "lib/ho-termweek-contract.ts"
       ],
       "externalReferences": [
         {
@@ -425,16 +428,8 @@
           "owner": "PAP-1198"
         },
         {
-          "file": "lib/ho-auth.ts",
-          "owner": "PAP-1337"
-        },
-        {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
-        },
-        {
-          "file": "lib/ho-global-termweeks-read-facade.ts",
-          "owner": "PAP-1198"
         }
       ],
       "schema": {
@@ -449,7 +444,8 @@
         "lib/pap1198-ho-global-termweeks-read.test.ts",
         "lib/pap1198-ho-global-week-lock.test.ts",
         "lib/pap1198-ho-global-termweeks-create.test.ts",
-        "lib/pap1198-ho-global-termweeks-update.test.ts"
+        "lib/pap1198-ho-global-termweeks-update.test.ts",
+        "lib/pap1373-ho-termweeks.test.ts"
       ]
     },
     {
