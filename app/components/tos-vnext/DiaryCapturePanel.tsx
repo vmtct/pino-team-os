@@ -1,6 +1,7 @@
 "use client";
-/** PAP-945 — authentic V18b Diary form shell. Staging write admission remains OFF.
- * No fake Diary, MissionResult, media receipt or local-only persistence.
+/** PAP-945 / PAP-1400 — authenticated V18b Diary capture.
+ * Explicit skip-opening entry + guarded Staging-only writer; Production OFF.
+ * No fake opening, MissionResult, media receipt or local-only Diary truth.
  */
 import {useEffect,useMemo,useRef,useState} from "react";
 import {createV18bApiTransport,V18bCoreError,type V18bEligibleMissionsRead} from "@/lib/tos-classroom-v18b-api";
@@ -81,7 +82,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
      :"Không thể tải Mission hợp lệ từ Core. Vui lòng thử lại."});
   });
   return()=>{active=false};
- },[key,permitted,model.centerId,model.today,classroom.id,classroom.runningClassId,studentId]);
+ },[key,permitted,model.centerId,model.today,classroom.id,classroom.runningClassId,studentId,writerApi]);
  const current=permitted&&read.key===key?read:idle;
  const eligibility=current.phase==="ready"?current.data:null;
  const chosen=useMemo(()=>missionIds.map(missionId=>{
