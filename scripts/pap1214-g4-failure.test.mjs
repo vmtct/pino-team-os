@@ -68,3 +68,43 @@ test("PAP-1214 fail-closed G4 source keeps real TDD detail selector and invalid-
   assert.match(source, /invalid_error_visible/);
   assert.match(source, /\[data-bo-runtime-surface="subscriptions-core"\] \[role="alert"\]/);
 });
+
+
+test("PAP-1340/PAP-1394 retain only safe Student and HO Staff G4 timeout phases", () => {
+  const studentPhases = [
+    "student_table", "subscribed_student_lookup", "student_search_and_drawer",
+    "student_full_detail", "subscription_tab", "subscription_row",
+    "subscription_drawer_full_detail", "subscription_route", "subscription_detail_subtitle",
+  ];
+  const staffPhases = [
+    "ho_staff_navigate", "ho_staff_table", "ho_staff_row", "ho_staff_drawer",
+    "ho_staff_full_detail", "ho_staff_tab_overview", "ho_staff_tab_salary",
+    "ho_staff_tab_history", "ho_staff_width_1440", "ho_staff_width_1024",
+    "ho_staff_width_768", "ho_staff_width_390", "ho_staff_width_320",
+    "ho_staff_back",
+  ];
+  const error = Object.assign(new Error("PRIVATE_EMAIL https://private.invalid/?token=secret"), {name:"TimeoutError"});
+  for (const phase of [...studentPhases, ...staffPhases]) {
+    const result = safeG4Failure("case", error, phase);
+    assert.deepEqual(result, {name:"case",status:"FAIL",phase,errorType:"TimeoutError"});
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE_EMAIL|private.invalid|secret/);
+  }
+  for (const phase of ["ho_staff_width_1", "student_table?record=private", "Bearer secret", "", "toString"]) {
+    assert.equal(safeG4Failure("case", error, phase).phase, "unspecified");
+  }
+});
+
+test("PAP-1394 HO Staff G4 source carries bounded phase callback without weakening assertions", async () => {
+  const fs = await import("node:fs");
+  const source = fs.readFileSync(new URL("./run-tdd-g4-ci.mjs", import.meta.url),"utf8");
+  const start = source.indexOf('await check("founder_ho_staff_table_drawer_full_detail"');
+  assert.ok(start >= 0);
+  const staff = source.slice(start, source.indexOf('} catch (error) {', start));
+  assert.match(staff, /hoStaffPhase = "ho_staff_table"/);
+  assert.match(staff, /hoStaffPhase = "ho_staff_drawer"/);
+  assert.match(staff, /hoStaffPhase = "ho_staff_full_detail"/);
+  assert.match(staff, /hoStaffPhase = "ho_staff_width_" \+ width/);
+  assert.match(staff, /}, \(\) => hoStaffPhase\)/);
+  assert.match(staff, /"HO overflow"/);
+  assert.match(staff, /"stale record URL"/);
+});
