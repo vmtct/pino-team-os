@@ -26,9 +26,9 @@ test("PAP-1400 original Register ticket is stored BEFORE network, no automatic r
  const ui=readFileSync(resolve(process.cwd(),"app/components/tos-vnext/DiaryCapturePanel.tsx"),"utf8");
  const source=readFileSync(resolve(process.cwd(),"lib/tos-diary-register-receipt-recovery.ts"),"utf8");
  const stage=ui.indexOf("stageDiaryTicket(storage,prepared.submissionKey)");
- const register=ui.indexOf("createDiaryObservationWithLinks(tosClassroomV18bApi");
+ const register=ui.indexOf("createDiaryObservationWithLinks(writerApi");
  assert.ok(stage>=0&&register>stage,"opaque ticket must be stored before POST");
- assert.match(ui,/reconcileUnknownDiaryRegister\(tosClassroomV18bApi/);
+ assert.match(ui,/reconcileUnknownDiaryRegister\(writerApi/);
  assert.match(ui,/clearVerifiedDiaryTicket\(ticketStorage\(\),registerTicket\.key\)/);
  assert.match(ui,/registerTicket\.state!=="EMPTY"/);
  assert.doesNotMatch(ui,/localStorage/);
