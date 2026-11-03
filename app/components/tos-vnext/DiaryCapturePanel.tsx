@@ -10,6 +10,8 @@ import {createDiaryObservationWithLinks,resumeDiaryObservationWithLinks,type Obs
 import {resumeDiaryMissionLinks} from "@/lib/tos-diary-mission-link-workflow";
 import {diaryUiReceipt,canCreateDiary,canRetryDiary} from "@/lib/tos-diary-ui-receipt";
 import {inspectDiaryAfterReload,type ReloadReceipt} from "@/lib/tos-diary-reload-inspection";
+import {reconcileUnknownDiaryRegister,type LostAckResult} from "@/lib/tos-diary-register-receipt-recovery";
+import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTicketState} from "@/lib/tos-diary-register-ticket";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -18,6 +20,9 @@ const idle:Read={key:"",phase:"idle",data:null,message:""};
 const interestLabels=["Phản kháng","Không tương tác","Tương tác","Hứng thú, đào sâu"] as const;
 // A real writer may only be admitted after safe authenticated reload recovery and PAP-1222 E2E.
 const UI_RELOAD_RECOVERY_ADMITTED=false;
+function ticketStorage():Storage|null {
+ try{return typeof window==="undefined"?null:window.sessionStorage}catch{return null}
+}
 export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4ViewModel;classroom:ScheduledClass}){
  const students=model.data.students.filter(s=>classroom.eligibleStudentIds.includes(s.id)&&!model.conflictStudentIds.includes(s.id));
  const [studentId,setStudentId]=useState("");
@@ -28,18 +33,26 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
  const [difficulty,setDifficulty]=useState("");
  const [showValidation,setShowValidation]=useState(false);
  const [receipt,setReceipt]=useState<ObservationOutcome|null>(null);
+ const [registerTicket,setRegisterTicket]=useState<DiaryTicketState>({state:"UNAVAILABLE",key:null});
+ const [registerRecovery,setRegisterRecovery]=useState<LostAckResult|null>(null);
+ const [recovering,setRecovering]=useState(false);
  const [busy,setBusy]=useState(false);
  const [runtimeError,setRuntimeError]=useState("");
  const [knownDiaryId,setKnownDiaryId]=useState("");
  const [reloadReceipt,setReloadReceipt]=useState<ReloadReceipt|null>(null);
  const [reloadBusy,setReloadBusy]=useState(false);
  const reloadGeneration=useRef(0);
- const writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED;
+ // Opening is a separate PAP-759 Core source. Local photo/presentation state is NOT proof.
+ // Its source model is still UNAVAILABLE; do not admit a writer until Core opens it.
+ const openingFromCore=model.openingReadState==="LOADED"&&
+  Boolean(model.data.openings[classroom.id]?.openedAt&&model.data.openings[classroom.id]?.rounds?.some(r=>r.photos.length>0));
+ const writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED&&openingFromCore;
  const locked=receipt!==null||busy||reloadBusy;
  const receiptView=diaryUiReceipt(receipt);
  const permitted=students.some(x=>x.id===studentId);
  const key=JSON.stringify([model.centerId,classroom.runningClassId,model.today,classroom.id,studentId]);
- useEffect(()=>{reloadGeneration.current++;setKnownDiaryId("");setReloadReceipt(null);},[key]);
+ useEffect(()=>{setRegisterTicket(readDiaryTicket(ticketStorage()));},[]);
+ useEffect(()=>{reloadGeneration.current++;setKnownDiaryId("");setReloadReceipt(null);setRegisterRecovery(null);},[key]);
  useEffect(()=>{
   if(!permitted)return;
   let active=true;
