@@ -176,7 +176,7 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
  }
  function onStudent(value:string){
   reloadGeneration.current++;setStudentId(value);setRead(idle);setMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setShowValidation(false);
-  setKnownDiaryId("");setReloadReceipt(null);setReloadBusy(false);
+  setKnownDiaryId("");setReloadReceipt(null);setReloadBusy(false);setRegisterRecovery(null);
  }
  function toggleMission(id:string,checked:boolean){
   reloadGeneration.current++;setReloadReceipt(null);setReloadBusy(false);
@@ -235,6 +235,24 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
     {reloadReceipt.pendingMissionIds.length>0&&<small>Mission chưa xác minh: {reloadReceipt.pendingMissionIds.join(", ")}</small>}
    </div>}
   </section>}
+  {registerTicket.state==="UNAVAILABLE"&&<p role="status" className={styles.hint}>
+   Không thể xác minh mã gửi gốc của tab. Chức năng tạo Nhật ký sẽ khóa để tránh trùng bản ghi.
+  </p>}
+  {registerTicket.state==="PENDING"&&<section className={styles.reloadPanel} aria-label="Đối soát khóa gửi Nhật ký gốc">
+   <strong>Có bản gửi Nhật ký cần đối soát</strong>
+   <p className={styles.hint}>Chọn lại đúng học viên và Nhiệm vụ từ Core, sau đó kiểm tra biên nhận gốc.
+    Không tự tạo Diary mới hoặc gửi lại Register khi mất phản hồi.</p>
+   <button type="button" className={styles.secondary} disabled={busy||recovering||reloadBusy||!permitted||
+    !eligibility||eligibility.hasMore||!preflight||missionIds.length===0} onClick={()=>void inspectOriginalRegister()}>
+    {recovering?"Đang đối soát biên nhận…":"Tìm Diary từ mã gửi gốc"}
+   </button>
+  </section>}
+  {registerRecovery&&<div role="status" aria-live="polite"
+   className={registerRecovery.state==="RECEIPT_FOUND_READONLY"?styles.receiptSuccess:styles.receiptPending}>
+   <strong>{registerRecovery.state==="RECEIPT_FOUND_READONLY"?"Đã xác minh Core":"Cần đối soát thêm"}</strong>
+   <p>{registerRecovery.message}</p>
+   {registerRecovery.diaryId&&<small>Diary ID gốc: {registerRecovery.diaryId}</small>}
+  </div>}
   {receiptView&&<div role="status" aria-live="polite" className={receiptView.severity==="success"?styles.receiptSuccess:styles.receiptPending}>
    <strong>{receiptView.title}</strong><p>{receiptView.message}</p>
    {receiptView.diaryId&&<small>Diary ID: {receiptView.diaryId}</small>}
@@ -244,8 +262,9 @@ export default function DiaryCapturePanel({model,classroom}:{model:ClassroomV4Vi
   {runtimeError&&<p role="alert" className={styles.errors}>{runtimeError}</p>}
   <div className={styles.actions}>
    <button type="button" className={styles.secondary} disabled={busy} onClick={()=>setShowValidation(true)}>Kiểm tra biểu mẫu</button>
-   <button type="button" className={styles.primary} disabled={!canCreateDiary(receipt,writeAdmitted)||busy} onClick={()=>void submitDiary()} aria-describedby="tos-diary-admission-message">Gửi Nhật ký</button>
+   <button type="button" className={styles.primary} disabled={!canCreateDiary(receipt,writeAdmitted)||busy||registerTicket.state!=="EMPTY"} onClick={()=>void submitDiary()} aria-describedby="tos-diary-admission-message">Gửi Nhật ký</button>
   </div>
-  <p id="tos-diary-admission-message" className={styles.hint}>Chưa bật ghi Staging và khôi phục sau reload · Không tạo Diary, MissionResult hay Progression.</p>
+  <p id="tos-diary-admission-message" className={styles.hint}>Ghi Staging chưa được kích hoạt khi chưa có Core xác nhận mở lớp (PAP-759).
+   Mã gửi gốc chỉ được giữ dưới dạng khóa ngẫu nhiên; MissionResult và Progression là nguồn độc lập.</p>
  </section>;
 }
