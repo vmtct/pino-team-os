@@ -1,5 +1,33 @@
 /** PAP-1214: safe CI failure telemetry; never echo URLs, exception messages or PII. */
-const allowedPhases = new Set(["unspecified", "navigate", "runtime_surface_visible", "invalid_detail_absent", "invalid_error_visible"]);
+// PAP-1214 + PAP-1340 + PAP-1394: finite, non-sensitive phase vocabulary only.
+const allowedPhases = new Set([
+  "unspecified", "navigate", "runtime_surface_visible", "invalid_detail_absent", "invalid_error_visible",
+  // PAP-1340: Students -> real Subscription detail.
+  "student_table",
+  "subscribed_student_lookup",
+  "student_search_and_drawer",
+  "student_full_detail",
+  "subscription_tab",
+  "subscription_row",
+  "subscription_drawer_full_detail",
+  "subscription_route",
+  "subscription_detail_subtitle",
+  // PAP-1394: HO Staff Table -> Drawer -> Detail.
+  "ho_staff_navigate",
+  "ho_staff_table",
+  "ho_staff_row",
+  "ho_staff_drawer",
+  "ho_staff_full_detail",
+  "ho_staff_tab_overview",
+  "ho_staff_tab_salary",
+  "ho_staff_tab_history",
+  "ho_staff_width_1440",
+  "ho_staff_width_1024",
+  "ho_staff_width_768",
+  "ho_staff_width_390",
+  "ho_staff_width_320",
+  "ho_staff_back",
+]);
 export function safeG4Failure(name, error, phase = "unspecified") {
   const errName = error instanceof Error ? error.name : "";
   const errorType = errName === "TimeoutError" ? "TimeoutError"
