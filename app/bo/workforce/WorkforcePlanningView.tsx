@@ -320,7 +320,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
             }}>
               <option value="">Chọn ca…</option>
-              {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {template.startLocalTime}–{template.endLocalTime}</option>)}
+              {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {template.scopeType === "GLOBAL" ? "GLOBAL" : "Center"} · {template.startLocalTime}–{template.endLocalTime}</option>)}
             </select>
           </div>
 
@@ -428,7 +428,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
     <div className={styles.plannerSettings}><details><summary>Mẫu ca khả dụng</summary><section className={styles.panel}>
       <div className={styles.panelHeading}><div><h2>Mẫu ca đang hoạt động</h2><p>BO chỉ xem và dùng mẫu ca ACTIVE; tạo và cập nhật tại HO.</p></div><span className={styles.readOnly}>Chỉ xem</span></div>
       <div className={styles.plannerHistory}>{(data?.templates ?? []).filter((template) => template.status === "ACTIVE").map((template) =>
-        <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.startLocalTime}–{template.endLocalTime}</span>
+        <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.scopeType === "GLOBAL" ? "GLOBAL" : "Center"} · {template.startLocalTime}–{template.endLocalTime}</span>
       )}</div>
     </section></details></div>
 

@@ -34,7 +34,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
     const hoShiftTemplateQuery = url.searchParams.getAll("centerId");
     const admittedHoShiftTemplateRead = surface === "HO" && method === "GET" &&
       url.pathname === "/api/ho/workforce/shift-templates" && hoShiftTemplateQuery.length === 1 &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hoShiftTemplateQuery[0]!) &&
+      (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hoShiftTemplateQuery[0]!) || ["ALL","GLOBAL"].includes(hoShiftTemplateQuery[0]!)) &&
       [...url.searchParams.keys()].every(key => key === "centerId");
     const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(url.pathname);
     // PAP-1342: exact same-origin Founder Mission detail read for source-owned Diary label.
