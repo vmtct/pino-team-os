@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts",
+    "test": "node --import tsx --test --test-concurrency=1 lib/*.test.ts && node --test scripts/pap1413-student-readonly-cdp.test.mjs",
     "test:e2e": "playwright test",
     "tdd:g3:fixtures": "node --import tsx scripts/render-tdd-g3-fixtures.tsx",
     "tdd:g3:test": "playwright test e2e/tdd-g3-geometry.spec.ts --workers=2 --reporter=list",
