@@ -129,9 +129,14 @@ test("PAP-1397 cold Center G4 phase is safe and UI selection stays Core-authoriz
   assert.match(student, /section\[aria-label="Chọn cơ sở cho module"\]/);
   assert.match(student, /button\.nav-workspace\[aria-haspopup="listbox"\]/);
   assert.match(student, /#workspace-centers \[role="option"\]/);
-  assert.match(student, /await authorizedOption\.waitFor/);
-  assert.match(student, /await authorizedOption\.click\(\)/);
-  assert.match(student, /await centerPending\.waitFor/);
+  assert.match(student, /await authorizedOptions\.first\(\)\.waitFor/);
+  assert.match(student, /await authorizedOptions\.nth\(index\)\.click\(\)/);
+  assert.match(student, /for \(let index = 0; index < centerCount; index\+\+\)/);
+  assert.match(student, /data-record/);
+  assert.match(student, /visibleIds\.has\(candidate\.id\)/);
+  assert.match(student, /No subscribed Student in an authorized Center/);
+  assert.match(student, /await studentRow\.waitFor/);
+  assert.match(student, /await studentRow\.click\(\)/);
   assert.match(student, /studentSubscriptionPhase = "student_table"/);
   assert.match(student, /No subscribed Student/);
   assert.match(student, /wrong opened Subscription/);
@@ -167,4 +172,21 @@ test("PAP-1398 read-only HO Staff diagnostic emits only booleans and HTTP status
   assert.match(ho, /getStatus\("\/api\/bo\/workforce\/staff-records"\)/);
   assert.match(ho, /throw error/);
   assert.match(ho, /"stale record URL"/);
+});
+
+
+test("PAP-1397 scopes subscribed Student selection to UI-visible canonical record identity", async () => {
+  const fs = await import("node:fs");
+  const source = fs.readFileSync(new URL("./run-tdd-g4-ci.mjs", import.meta.url),"utf8");
+  const start = source.indexOf('await check("student_to_real_subscription_full_detail"');
+  const end = source.indexOf('await check("founder_ho_staff_table_drawer_full_detail"', start);
+  const student = source.slice(start, end);
+  assert.match(student, /filter\(s => s\.activeSubscriptions > 0/);
+  assert.match(student, /document\.querySelectorAll\('#typed-table tbody tr\[data-record\]'\)/);
+  assert.match(student, /return candidates\.find\(candidate => visibleIds\.has\(candidate\.id\)\) \?\? null/);
+  assert.match(student, /selectedSubscriber = await match\.jsonValue\(\)/);
+  assert.match(student, /main input\[type="search"\]'\)\.fill\(selectedSubscriber\.name\)/);
+  assert.match(student, /data-record="' \+\s*selectedSubscriber\.id/);
+  assert.match(student, /wrong opened Subscription/);
+  assert.doesNotMatch(student, /centerId\s*=\s*["']?[0-9a-f]{8}-/i);
 });

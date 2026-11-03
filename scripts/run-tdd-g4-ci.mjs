@@ -192,36 +192,61 @@ try {
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});
     await fp.goto(BO + "/bo",{waitUntil:"domcontentloaded"});
-    // PAP-1397: cold authenticated BO may have no active Center in session. Use
-    // the public UI only, choosing an option Core actually authorized.
+    // PAP-1397: the BO table is scoped to an authorized Center. The existing
+    // subscribed-Student lookup is global; never search that result in a
+    // random Center and mistake missing fixture for a broken Drawer.
+    studentSubscriptionPhase = "subscribed_student_lookup";
+    const subscribed = await fp.evaluate(async () => {
+      const r = await fetch("/api/bo/learners",{credentials:"include"});
+      if (!r.ok) return [];
+      const body = await r.json();
+      return (Array.isArray(body.data)?body.data:[])
+        .filter(s => s.activeSubscriptions > 0 && typeof s.id === "string" &&
+          typeof s.displayName === "string" && s.displayName.trim())
+        .map(s => ({id:s.id, name:s.displayName}));
+    });
+    assert(subscribed.length > 0,"No subscribed Student");
+    studentSubscriptionPhase = "student_center_context";
     await fp.waitForFunction(() =>
       Boolean(document.querySelector('section[aria-label="Chọn cơ sở cho module"]')) ||
       Boolean(document.querySelector('tbody tr button[aria-label^="Quick View"]')),
       null, {timeout:15000});
-    const centerPending = fp.locator('section[aria-label="Chọn cơ sở cho module"]');
-    if (await centerPending.isVisible()) {
-      studentSubscriptionPhase = "student_center_context";
-      const switcher = fp.locator('button.nav-workspace[aria-haspopup="listbox"]');
-      await switcher.waitFor({state:"visible",timeout:15000});
-      await switcher.click();
-      const authorizedOption = fp.locator('#workspace-centers [role="option"]').first();
-      await authorizedOption.waitFor({state:"visible",timeout:10000});
-      await authorizedOption.click();
-      await centerPending.waitFor({state:"hidden",timeout:15000});
+    const switcher = fp.locator('button.nav-workspace[aria-haspopup="listbox"]');
+    await switcher.waitFor({state:"visible",timeout:15000});
+    await switcher.click();
+    const authorizedOptions = fp.locator('#workspace-centers [role="option"]');
+    await authorizedOptions.first().waitFor({state:"visible",timeout:10000});
+    const centerCount = await authorizedOptions.count();
+    let selectedSubscriber = null;
+    // Use only Core-authorized UI options; never fabricate a Center ID.
+    for (let index = 0; index < centerCount; index++) {
+      if (index > 0) {
+        await switcher.click();
+        await authorizedOptions.first().waitFor({state:"visible",timeout:10000});
+      }
+      await authorizedOptions.nth(index).click();
+      await fp.locator('section[aria-label="Chọn cơ sở cho module"]')
+        .waitFor({state:"hidden",timeout:15000});
+      const match = await fp.waitForFunction(candidates => {
+        const visibleIds = new Set([...document.querySelectorAll('#typed-table tbody tr[data-record]')]
+          .filter(row => row.querySelector('button[aria-label^="Quick View"]'))
+          .map(row => row.getAttribute("data-record")));
+        return candidates.find(candidate => visibleIds.has(candidate.id)) ?? null;
+      }, subscribed, {timeout:4500}).catch(() => null);
+      if (match) {
+        selectedSubscriber = await match.jsonValue();
+        await match.dispose();
+        break;
+      }
     }
+    assert(selectedSubscriber,"No subscribed Student in an authorized Center");
     studentSubscriptionPhase = "student_table";
-    await fp.locator('tbody tr button[aria-label^="Quick View"]').first().waitFor({state:"visible",timeout:15000});
-    studentSubscriptionPhase = "subscribed_student_lookup";
-    const name = await fp.evaluate(async () => {
-      const r = await fetch("/api/bo/learners",{credentials:"include"});
-      if (!r.ok) return null;
-      const body = await r.json();
-      return (Array.isArray(body.data)?body.data:[]).find(s => s.activeSubscriptions > 0)?.displayName ?? null;
-    });
-    assert(name,"No subscribed Student");
+    const studentRow = fp.locator('#typed-table tbody tr[data-record="' +
+      selectedSubscriber.id + '"] button[aria-label^="Quick View"]');
+    await studentRow.waitFor({state:"visible",timeout:15000});
     studentSubscriptionPhase = "student_search_and_drawer";
-    await fp.locator('main input[type="search"]').fill(name);
-    await fp.locator('tbody tr button[aria-label^="Quick View"]').first().click();
+    await fp.locator('main input[type="search"]').fill(selectedSubscriber.name);
+    await studentRow.click();
     studentSubscriptionPhase = "student_full_detail";
     await fp.locator('[data-tdd-shell="drawer"]').getByRole("button",{name:/Full Detail/}).click();
     studentSubscriptionPhase = "subscription_tab";
