@@ -92,6 +92,10 @@ jobs:
           NODE
       - run: npm ci --no-audit --no-fund
       - name: Verify BO contract, typecheck, build and dry-run
+        # PAP-1400: the flag is injected ONLY into guarded Staging artifact compilation,
+        # never PR/main CI or Production. Browser must also be on canonical TOS Staging.
+        env:
+          NEXT_PUBLIC_PINO_DIARY_STAGING_WRITE: 'true'
         run: |
           set -euo pipefail
           npm run bo:contract:check
