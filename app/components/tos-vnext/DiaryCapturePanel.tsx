@@ -15,6 +15,7 @@ import {reconcileUnknownDiaryRegister,type LostAckResult} from "@/lib/tos-diary-
 import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTicketState} from "@/lib/tos-diary-register-ticket";
 import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
 import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
+import {diaryWriteView} from "@/lib/tos-diary-stage-status";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -57,6 +58,10 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  const writeAdmitted=stagingHostAdmitted&&skipEntryConfirmed;
  const locked=receipt!==null||busy||reloadBusy;
  const receiptView=diaryUiReceipt(receipt);
+ const writeView=diaryWriteView({
+  admitted:writeAdmitted,busy,checking:recovering||reloadBusy,
+  ticket:registerTicket.state,outcome:receipt?.state??null,
+ });
  const permitted=students.some(x=>x.id===studentId);
  const key=JSON.stringify([model.centerId,classroom.runningClassId,model.today,classroom.id,studentId]);
  useEffect(()=>{
@@ -195,8 +200,8 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   setMissionIds(prev=>checked?[...prev.filter(x=>x!==id),id]:prev.filter(x=>x!==id));
  }
  return <section className={styles.panel} aria-label="Soạn Nhật ký lớp học từ dữ liệu Core">
-  <div className={styles.heading}><h3>Nhật ký học viên</h3><span>Chưa mở quyền ghi</span></div>
-  <p className={styles.hint}>Biểu mẫu đang hoàn thiện. Nội dung bạn nhập chưa được lưu; không có dữ liệu nào được gửi đến Core.</p>
+  <div className={styles.heading}><h3>Nhật ký học viên</h3><span role="status" aria-live="polite">{writeView.label}</span></div>
+  <p className={styles.hint}>{writeView.message}</p>
   {students.length===0?<p role="status" className={styles.hint}>Lớp chưa có học viên hợp lệ trong roster để tạo Nhật ký.</p>:
    <label className={styles.field}>Học viên
     <select value={permitted?studentId:""} disabled={locked} onChange={e=>onStudent(e.target.value)}>
