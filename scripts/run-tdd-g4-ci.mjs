@@ -2,7 +2,7 @@
 // Auth is ephemeral: no storageState export, screenshot, trace, credential output or fixture writes.
 import { chromium } from "playwright";
 import { verifyStaging } from "./pap1074-g4-attestation.mjs";
-import { safeG4Failure, safeG4SurfaceProbe } from "./pap1214-g4-failure.mjs";
+import { safeG4Failure, safeG4SurfaceProbe, safeG4HoStaffProbe } from "./pap1214-g4-failure.mjs";
 const BO = "https://bo.staging.pinohouse.art";
 const HO = "https://ho.staging.pinohouse.art";
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -192,6 +192,24 @@ try {
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});
     await fp.goto(BO + "/bo",{waitUntil:"domcontentloaded"});
+    // PAP-1397: cold authenticated BO may have no active Center in session. Use
+    // the public UI only, choosing an option Core actually authorized.
+    await fp.waitForFunction(() =>
+      Boolean(document.querySelector('section[aria-label="Chọn cơ sở cho module"]')) ||
+      Boolean(document.querySelector('tbody tr button[aria-label^="Quick View"]')),
+      null, {timeout:15000});
+    const centerPending = fp.locator('section[aria-label="Chọn cơ sở cho module"]');
+    if (await centerPending.isVisible()) {
+      studentSubscriptionPhase = "student_center_context";
+      const switcher = fp.locator('button.nav-workspace[aria-haspopup="listbox"]');
+      await switcher.waitFor({state:"visible",timeout:15000});
+      await switcher.click();
+      const authorizedOption = fp.locator('#workspace-centers [role="option"]').first();
+      await authorizedOption.waitFor({state:"visible",timeout:10000});
+      await authorizedOption.click();
+      await centerPending.waitFor({state:"hidden",timeout:15000});
+    }
+    studentSubscriptionPhase = "student_table";
     await fp.locator('tbody tr button[aria-label^="Quick View"]').first().waitFor({state:"visible",timeout:15000});
     studentSubscriptionPhase = "subscribed_student_lookup";
     const name = await fp.evaluate(async () => {
@@ -228,7 +246,39 @@ try {
   await check("founder_ho_staff_table_drawer_full_detail",async () => {
     await fp.goto(HO + "/ho/staff",{waitUntil:"domcontentloaded"});
     hoStaffPhase = "ho_staff_table";
-    await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible",timeout:15000});
+    try {
+      await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible",timeout:15000});
+    } catch (error) {
+      // PAP-1398: bounded read-only triage after the ORIGINAL assertion fails.
+      // Only booleans and GET HTTP statuses are emitted, never staff data.
+      const flags = await fp.evaluate(async () => {
+        const getStatus = async (path) => {
+          try {
+            const response = await fetch(path, {
+              method:"GET", credentials:"include", cache:"no-store",
+              signal:AbortSignal.timeout(5000),
+            });
+            return response.status;
+          } catch { return 0; }
+        };
+        const [contextHTTP, staffHTTP] = await Promise.all([
+          getStatus("/api/bo/context"),
+          getStatus("/api/bo/workforce/staff-records"),
+        ]);
+        return {
+          expectedHost: location.hostname === "ho.staging.pinohouse.art",
+          staffRoute: location.pathname === "/ho/staff",
+          loginRoute: location.pathname === "/staff-login",
+          tablePresent: Boolean(document.querySelector('[data-tdd-shell="table"]')),
+          alertPresent: Boolean(document.querySelector('[role="alert"]')),
+          statusPresent: Boolean(document.querySelector('[role="status"]')),
+          contextHTTP, staffHTTP,
+        };
+      }).catch(() => ({}));
+      console.log(JSON.stringify({name:"PAP-1398_HO_STAFF_READONLY_PROBE",
+        ...safeG4HoStaffProbe(flags)}));
+      throw error; // no retry, no swallowed assertion, no wider timeout
+    }
     hoStaffPhase = "ho_staff_row";
     const row = fp.locator('[data-tdd-shell="table"] tbody tr button[aria-label^="Quick View"]').first();
     await row.waitFor({state:"visible",timeout:15000});
