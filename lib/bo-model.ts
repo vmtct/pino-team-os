@@ -531,8 +531,7 @@ export interface BoOpenStudioPass {
 
 export interface BoWorkforceShiftTemplate {
   id: string;
-  scopeType?: "GLOBAL" | "CENTER";
-  centerId: string | null;
+  centerId: string;
   code: string;
   displayLabel: string;
   startLocalTime: string;

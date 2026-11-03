@@ -320,7 +320,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
 
             }}>
               <option value="">Chọn ca…</option>
-              {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {template.scopeType === "GLOBAL" ? "GLOBAL" : "Center"} · {template.startLocalTime}–{template.endLocalTime}</option>)}
+              {data.templates.map((template) => <option key={template.id} value={template.id}>{availableTemplateIds.has(template.id) ? "✓ " : ""}{template.displayLabel} · {templateScopeLabel(template)} · {template.startLocalTime}–{template.endLocalTime}</option>)}
             </select>
           </div>
 
@@ -428,7 +428,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
     <div className={styles.plannerSettings}><details><summary>Mẫu ca khả dụng</summary><section className={styles.panel}>
       <div className={styles.panelHeading}><div><h2>Mẫu ca đang hoạt động</h2><p>BO chỉ xem và dùng mẫu ca ACTIVE; tạo và cập nhật tại HO.</p></div><span className={styles.readOnly}>Chỉ xem</span></div>
       <div className={styles.plannerHistory}>{(data?.templates ?? []).filter((template) => template.status === "ACTIVE").map((template) =>
-        <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {template.scopeType === "GLOBAL" ? "GLOBAL" : "Center"} · {template.startLocalTime}–{template.endLocalTime}</span>
+        <span key={template.id}><strong>{template.displayLabel}</strong> · {template.code} · {templateScopeLabel(template)} · {template.startLocalTime}–{template.endLocalTime}</span>
       )}</div>
     </section></details></div>
 
@@ -451,6 +451,11 @@ function dateRange(data: Pick<BoWorkforceWeeklyPlanning, "startDate" | "endDate"
 function templateLabel(data: BoWorkforceWeeklyPlanning, id: string) {
   const item = data.templates.find((template) => template.id === id);
   return item ? `${item.displayLabel} ${item.startLocalTime}–${item.endLocalTime}` : `Shift ${id.slice(0, 8)}`;
+}
+
+// The new Core projection is additive; keep this presentation contract in Workforce.
+function templateScopeLabel(template: {centerId:string|null;scopeType?:"GLOBAL"|"CENTER"}) {
+  return template.scopeType === "GLOBAL" && template.centerId === null ? "GLOBAL" : "Center";
 }
 function WindowState({label,value}:{label:string;value:NonNullable<BoWorkforceWeeklyPlanning["windows"]>["availability"]}) {
   const detail = String(value.reason) === "GLOBAL_WEEK_LOCK" ? "Khóa toàn bộ chi nhánh từ HO"
