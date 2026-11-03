@@ -19,7 +19,7 @@
 |---|---|---|---|
 | Students — /bo | LEGACY_GENERIC | Core-scoped Center; cold session without Center shows explicit pending state | PAP-1075; BO Center UX PAP-1316 |
 | Parents — /bo?module=parents | LEGACY_GENERIC | MIXED Core scope; ordinary URL not TDD | PAP-1075 |
-| Parents pilot — /bo?module=parents&pilot=tdd | **TDD_PILOT, not another nav target** | APP_ENV=staging, BO_UI_ONLY=enabled, canonical BO host; choose Core-authorized Center via UI. TDD Table rendered in i5 browser, first tested Center had zero visible Quick Views; Drawer/Detail NOT verified | PAP-1075; not a G4 full-pass claim |
+| Parents pilot — /bo?module=parents&pilot=tdd | **TDD_PILOT, not another nav target** | APP_ENV=staging, BO_UI_ONLY=enabled, canonical BO host; choose Core-authorized Center via UI. TDD Table rendered in i5 browser. All 7 authorized Centers returned Core directory HTTP 200; six Center totals 0, one Center total 1. A real Core-authorized Parent in that Center yielded Table→Drawer→Full Detail→Back PASS and four system/business tabs present (Tổng quan, Học viên, Liên hệ, Lịch sử); 390/320px no document overflow. Full five-width / business content negative ACL not yet signed off | PAP-1075; not a G4 full-pass claim |
 | Running Classes — /bo?module=classes | LEGACY_GENERIC | Center-scoped | PAP-1075 / domain |
 | Subscriptions — /bo?module=subscriptions | SPECIALIZED | MIXED center boundary; embedded dedicated BoSubscriptionsView | Subscription Epic; not forced TDD |
 | Enrollments — /bo?module=enrollments | LEGACY_GENERIC | MIXED, not globally auto-admitted | Domain |
@@ -67,7 +67,7 @@
 - BO prototype at /playground.html uses hash targets (sample: #students, #parents); BO Staging uses /bo plus module query and some direct routes. Match semantic module and interaction, **never compare URL equality as a visual gate**. Prototype observed 18 anchor targets, compared with 15 sampled Staging BO nav targets: difference is a coverage/feature-ownership item, not automatically a TDD engine defect.
 - HO prototype at /prototype uses module query (sample ?module=centers). HO Staging uses dedicated /ho/* paths. Prototype observed 13 module nav links, compared with 17 Staging HO nav targets. Staff registration links and Bills are prototype modules; missing a same-label Staging nav entry is **not** proof of a PAP-1067 defect. Reconcile with domain Epic / HO–BO CRUD matrix.
 - BO Students /bo fresh authorized session with no selected Center renders explicit 'Chọn cơ sở' status, not a Table; existing top-left Center chooser belongs PAP-1316. Do not invent Center or mark a blank table as an engine bug.
-- BO Parents canonical generic view rendered Quick Views (sampled 2); pilot route only rendered typed Table after selecting one Core-authorized Center from seven. No parent-row fixture at the chosen Center; pilot Drawer/Detail **NOT RUN**, not FAIL/PASS.
+- BO Parents canonical generic view rendered Quick Views (sampled 2); pilot route rendered typed Table after authorized Center selection. Read-only Center scan with real Core directory receipts found one authorized Parent across seven Centers (HTTP 200 for each). Focused Founder TDD pilot Table→Drawer→Full Detail→Back **PASS**, four tabs present; responsive 390/320px no overflow. This is a focused positive receipt, NOT full five-width/negative ACL acceptance.
 - HO Centers and HO Staff typed TDD Tables rendered under an existing authorized Founder session; no session/PII export. Generic HO pages are not retroactively TDD merely because visually similar.
 - All sampled browser interactions were read-only. Temporary i5 CDP tabs were closed at the end of each probe; existing Founder tabs left unchanged.
 
@@ -83,7 +83,7 @@
 |---|---|---|
 | S0 denominator beyond nav | Direct routes and aliases need independent mounted-host checks; no invented eligible total | PAP-1068 with PAP-1086/1087; finish route inventory |
 | G3 live prototype visual | Fixture/pixel CI PASS cannot prove all actual BO/HO surfaces match i5 visual authority | PAP-1073; Founder preview/visual approval of exact pages and five widths |
-| Parents TDD pilot full Detail | Typed pilot Table rendered but tested authorized Center had no records | PAP-1075: find/reuse existing authorized Parent fixture in other Center; complete read-only Drawer/Detail + system/business tabs; do not insert fake parent |
+| Parents TDD pilot full gate | Real Core-scoped Parent located; Table→Drawer→Full Detail→Back PASS, four tabs present at 390/320px without overflow | PAP-1075: finish 1440/1024/768 geometry, verify each tab panel's authorized data/masking and negative ACL; do not insert fixture |
 | HO Centers ACL negatives | Positive Founder E2E is not proof of Manager 403 or role-revocation behavior | PAP-1337/PAP-1076; negative 401/403/404 and effective Founder-role audit; never provision non-Founder HO account |
 | BO workspace Center UX | Cold session selection / navigation owned independently; no TDD inline selector requirement | PAP-1316 |
 | Custom/special-screen evidence | Reference, audits and domain-specialized routes not automatically TDD-compliant or Founder-exempt | PAP-1085 registry; domain owner supplies exact exception |
