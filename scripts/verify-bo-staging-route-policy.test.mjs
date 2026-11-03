@@ -91,7 +91,7 @@ test("all three registered Workforce routes must stay in canonical nav", () => f
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /Unified BO navigation/);
 }));
 test("Core adapter cannot be replaced with silent empty fallback data", () => fixture(({root,read,write}) => {
-  write(source,read(source).replace("await adapters[key].list(fetcher)", "Promise.resolve([])"));
+  write(source,read(source).replace("await adapters[key].list(fetcher, options.centerId)", "Promise.resolve([])"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /authorized and read-only/);
 }));
 test("staging route must use BO authority CSS rather than unstyled legacy shell", () => fixture(({root,read,write}) => {
