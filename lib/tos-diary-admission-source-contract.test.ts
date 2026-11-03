@@ -3,15 +3,23 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
 
-test("PAP-1400 TOS UI requires source-projected opening before any write admission",()=>{
+test("PAP-1400 explicit Skip opening is Diary-only entry, not a local photo or Core ACL waiver",()=>{
  const ui=readFileSync(resolve(process.cwd(),"app/components/tos-vnext/DiaryCapturePanel.tsx"),"utf8");
+ const presentation=readFileSync(resolve(process.cwd(),"app/components/tos-vnext/ClassroomV4Presentation.tsx"),"utf8");
  const core=readFileSync(resolve(process.cwd(),"lib/tos-classroom-v18b-api.ts"),"utf8");
- assert.match(core,/export const V18B_WRITE_ADMITTED=false;/);
- assert.match(ui,/const UI_RELOAD_RECOVERY_ADMITTED=false;/);
- assert.match(ui,/model\.openingReadState==="LOADED"/);
- assert.match(ui,/Boolean\(model\.data\.openings\[classroom\.id\]/);
- assert.match(ui,/writeAdmitted=V18B_WRITE_ADMITTED&&UI_RELOAD_RECOVERY_ADMITTED&&openingFromCore/);
- assert.doesNotMatch(ui,/model\.openingReadState!=="LOADED"\|\|/);
+ const workflow=readFileSync(resolve(process.cwd(),".github/workflows/candidate-staging-deploy.yml"),"utf8");
+ assert.match(core,/export const V18B_WRITE_ADMITTED=false;/,"default/Production singleton stays OFF");
+ assert.match(ui,/isConfirmedSkipDiaryEntry\(model,classroom,confirmedSkipClassId\)/);
+ assert.match(ui,/writeAdmitted=stagingHostAdmitted&&skipEntryConfirmed/);
+ assert.match(ui,/isDiaryStagingWriterHost\(/);
+ assert.match(ui,/NEXT_PUBLIC_PINO_DIARY_STAGING_WRITE==="true"/);
+ assert.match(ui,/createV18bApiTransport\(stagingHostAdmitted\)/);
+ assert.match(presentation,/setConfirmedSkipClassId\(opening\)/);
+ assert.match(presentation,/setConfirmedSkipClassId\(""\)/);
+ assert.match(presentation,/confirmedSkipClassId=\{skipConfirmed\?current.id:""\}/);
+ assert.doesNotMatch(ui,/openingFromCore/);
+ assert.match(workflow,/NEXT_PUBLIC_PINO_DIARY_STAGING_WRITE: 'true'/);
+ assert.match(workflow,/Verify BO contract, typecheck, build and dry-run/);
 });
 
 test("PAP-1400 original Register ticket is stored BEFORE network, no automatic re-Register on unknown receipt",()=>{
