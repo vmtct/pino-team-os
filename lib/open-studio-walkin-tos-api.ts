@@ -3,6 +3,10 @@ export type WalkinTosPass = {
  id:string;code:string;status:"AVAILABLE"|"ASSIGNED"|"CONSUMED"|"REVOKED";
  path_code:"AC"|"LPP"|"LPA"|"PH"|null;parent_user_id:string|null;
 };
+export type EPassEvidenceReceipt={
+ receiptId:string;passId:string;centerId:string;status:"STORED";
+ mimeType:"image/jpeg"|"image/png"|"image/webp";byteSize:number;createdAt:string;
+};
 export interface WalkinLookup{
  pass:WalkinTosPass;parentName:string|null;students:Array<{id:string;name:string}>;
 }
@@ -16,11 +20,16 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
  return (body as {data:T}).data;
 }
 export const walkinPassTosApi={
+ storeEvidence:(data:{
+  centerId:string;code:string;mimeType:string;base64:string;capturedWithConsent:true;
+ })=>request<EPassEvidenceReceipt>("evidence",{
+  method:"POST",body:JSON.stringify(data),headers:{"idempotency-key":crypto.randomUUID()}
+ }),
  lookup:(centerId:string,code:string)=>request<WalkinLookup>(
   "lookup?"+new URLSearchParams({centerId,code})
  ),
  consume:(data:{
-  centerId:string;code:string;shiftId?:string|null;confirmedHolder:true;
+  centerId:string;code:string;shiftId?:string|null;confirmedHolder:true;evidenceReceiptId:string;
   studentId?:string|null;manualChildName?:string|null;
  })=>request<{id:string;status:"CONSUMED";child_name:string;student_id:string|null}>(
   "consume",{method:"POST",headers:{"idempotency-key":crypto.randomUUID()},body:JSON.stringify(data)}
