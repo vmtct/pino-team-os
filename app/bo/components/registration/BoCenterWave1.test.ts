@@ -11,6 +11,7 @@ test("PAP-1327: only verified Visits, Timekeeping and Classes adapters are activ
   assert.equal(isBoCenterReadWave1("timekeeping"), true);
   assert.equal(isBoCenterReadWave1("classes"), true);
   assert.equal(isBoCenterReadWave1("students"), true);
+  assert.equal(isBoCenterReadWave1("enrollments"), true);
   for (const key of ["parents", "subscriptions", "audits", "staffs", "missions"]) {
     assert.equal(isBoCenterReadWave1(key), false);
     assert.equal(boCenterWave1Href("/bo?module=" + key, key, centerA, [centerA]), "/bo?module=" + key);

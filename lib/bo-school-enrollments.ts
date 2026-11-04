@@ -14,8 +14,12 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
   const url = new URL(request.url);
   if (!boSkeletonEnabled(env, url.hostname)) return json({ error: { code: "NOT_FOUND" } }, 404);
   if (request.method !== "GET") return json({ error: { code: "METHOD_NOT_ALLOWED" } }, 405);
-  const allowed = ["limit", "beforeCreatedAt", "beforeSubscriptionId"];
+  const allowed = ["centerId", "limit", "beforeCreatedAt", "beforeSubscriptionId"];
   if ([...url.searchParams.keys()].some(key => !allowed.includes(key) || url.searchParams.getAll(key).length !== 1)) return json({ error: { code: "INVALID_QUERY" } }, 400);
+  // PAP-1335: explicit Center is mandatory; a missing or forged scope may never fall back to all Centers.
+  const requestedCenters = url.searchParams.getAll("centerId");
+  if (requestedCenters.length !== 1 || !uuid(requestedCenters[0])) return json({ error: { code: "INVALID_CENTER" } }, 400);
+  const centerId = requestedCenters[0]!;
   const limit = url.searchParams.get("limit") || "100";
   if (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) return json({ error: { code: "INVALID_QUERY" } }, 400);
   url.searchParams.set("limit", limit);
@@ -40,7 +44,7 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
       while (index < students.length) {
         const studentId = students[index++];
         // Each read additionally enforces canonical student ACL/center scope.
-        const value = await read<BoLearnerLifecycle>(`students/${studentId}/lifecycle`);
+        const value = await read<BoLearnerLifecycle>(`students/${studentId}/lifecycle`, "?centerId=" + encodeURIComponent(centerId));
         if (value?.student?.id !== studentId || !Array.isArray(value.subscriptions)) throw Error("Invalid lifecycle identity");
         lifecycles.set(studentId, value);
       }
