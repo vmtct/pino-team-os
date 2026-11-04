@@ -44,16 +44,20 @@ const permitted: AuthorizationContext = { surface: "HO", authorize: () => true }
 test("PAP-1247: shared host renders DS variants, native disabled semantics and accessible refresh", () => {
   const actions = [primary, secondary,
     { ...secondary, id: "danger", label: "Remove", handler: "remove", variant: "danger" },
-    { ...secondary, id: "refresh", label: "Refresh", handler: "refresh", variant: "tertiary", icon: "refresh" },
+    { ...secondary, id: "refresh", label: "Refresh", handler: "refresh", variant: "tertiary",
+      slot: "overview.section", targetId: "a", icon: "refresh" },
   ] as const;
-  const admitted = defineTddModule(schema(actions));
+  // Test-only harness widening: data.list makes the typed fixture invariant, but
+  // this host only reads admitted action metadata and never calls the data adapter.
+  const admitted = defineTddModule(schema(actions)) as unknown as ModuleSchema;
   const bindings = {
     createMission: { run: () => undefined }, export: { run: () => undefined },
     remove: { run: () => undefined, disabled: true }, refresh: { run: () => undefined },
   };
-  const html = (context = permitted) => renderToStaticMarkup(createElement(TddActionHost, {
-    schema: admitted, context, slot: "table.header", bindings,
-  }));
+  const html = (context = permitted) => (["table.header", "overview.section"] as const).map(slot =>
+    renderToStaticMarkup(createElement(TddActionHost, {
+      schema: admitted, context, slot, bindings, targetId: slot === "overview.section" ? "a" : undefined,
+    }))).join("");
   const markup = html();
   assert.match(markup, /class="pds-bo-action-group tdd-action-host"/);
   assert.match(markup, /data-tdd-action-slot="table.header"/);

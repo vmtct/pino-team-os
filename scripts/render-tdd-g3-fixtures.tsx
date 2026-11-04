@@ -119,9 +119,15 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
       activeTab: stage === "businessTab" ? "relations" : "overview", onBack: () => {},
       subject: { type: "fixture", id: fixtureData.record.id }, actionBindings: bindings, writes } });
 }
+// PAP-1247: only action-present fixtures load the pinned DS action primitives.
+// Keep htmlDocument's no-action golden CSS unchanged.
+const actionStyles = readFileSync(resolve("node_modules/@pino/design-system/dist/0.3.0/components.css"), "utf8");
+for (const required of [".pds-bo-action-button", ".pds-bo-action-group"]) {
+  if (!actionStyles.includes(required)) throw Error("PAP-1247: pinned DS missing CSS " + required);
+}
 for (const surface of ["BO", "HO"] as const) {
   const cssPath = surface === "BO" ? "public/bo-authority-source/styles.css" : "public/ho-authority-source/ho-scoped.css";
-  const styles = (readFileSync(resolve(cssPath), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-detail-layout.css"), "utf8")).replaceAll("</style>", "<\\/style>");
+  const styles = (readFileSync(resolve(cssPath), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-detail-layout.css"), "utf8") + "\n" + actionStyles).replaceAll("</style>", "<\\/style>");
   // PAP-1455: assert the exact surface control CSS is present.
   // Never approve a native-looking Action Host golden due to absent styles.
   for (const required of [".primary-btn", ".secondary-btn"]) {
