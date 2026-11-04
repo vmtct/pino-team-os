@@ -85,7 +85,7 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
         event.preventDefault();
         onOpen(record);
       }}>
-      {fields.map(f => <td key={f.key} data-freeze-column={freezeEnabled ? f.key : undefined}
+      {fields.map(f => <td key={f.key} data-tdd-identity-column={f.key === identity ? "" : undefined} data-freeze-column={freezeEnabled ? f.key : undefined}
         className={legacyStyles ? undefined : "schema-column"}
         style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}>
         <button type="button" className={"typed-cell" + (["id", "formula"].includes(f.type) ? " readonly" : "")}
@@ -104,7 +104,7 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
     {filterOpen ? <><BoFilters fields={policy ? module.fields.filter(f => policy.filter.includes(f.key)) : module.fields} value={value} update={update} /><div className="rules-actions"><button type="button" id="save-view" className="save-view-btn" onClick={() => onSettings("views")}>＋ Lưu thành Quick View</button></div></> : null}
     <div id="active-chips" className={"filter-chips " + (value.rules.length ? "active" : "")}>{value.rules.map((rule, i) => <button type="button" className="chip" key={i} onClick={() => update({ rules: value.rules.filter((_, n) => n !== i) })}>{module.fields.find(f => f.key === rule.field)?.label} {opLabels[rule.op]} {rule.value} ×</button>)}</div>
     </> : null}
-    <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr>{fields.map(f => <th key={f.key} data-column={f.key} tabIndex={0} aria-label={"Tùy chọn cột " + f.label + " (Shift+F10)"}
+    <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr>{fields.map(f => <th key={f.key} data-column={f.key} data-tdd-identity-column={f.key === identity ? "" : undefined} tabIndex={0} aria-label={"Tùy chọn cột " + f.label + " (Shift+F10)"}
       onContextMenu={event => { event.preventDefault(); openFreeze(f.key, event.currentTarget, { x: event.clientX, y: event.clientY }); }}
       onKeyDown={event => {
         if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
