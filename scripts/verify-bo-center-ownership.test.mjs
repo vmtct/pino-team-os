@@ -42,6 +42,15 @@ test("PAP-1459 negative: a renamed local TDD workspace picker is rejected",t=>{
   assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("embeds a workspace Center picker")));
 });
 
+test("PAP-1460 bounded legacy: exact existing picker accepted as tracked debt, new picker denied",t=>{
+  const {root,write}=fixture(t);
+  const legacy="app/bo/missions/BoMissionsTdd.tsx";
+  write(legacy,'createBoTddAdapter({}); return <select id="bo-mission-center">legacy</select>');
+  assert.deepEqual(boCenterOwnershipViolations(root),[]);
+  write(legacy,'createBoTddAdapter({}); return <><select id="bo-mission-center"/><select id="other-center"/></>');
+  assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("PAP-1460 picker baseline changed")));
+});
+
 test("PAP-1459 negative: stale adapter or local state undermines switch safety",t=>{
   const {root,write}=fixture(t);
   write(SELF,'const center=useBoCenterSelection(); const selected=center.selected; setSelected("forged"); return <SurfaceWorkspace key={selected}/>');
