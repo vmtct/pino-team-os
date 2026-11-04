@@ -67,6 +67,8 @@ function DetailRecord({ schema, context, record, status = "ready", onRetry, onBa
   const approvedExtension = active?.owner === "business" && active.slot.kind === "approved-extension";
   const hasApprovedExtension = schema.detail.businessTabs.some(slot => slot.kind === "approved-extension");
   if (renderApprovedExtension && !hasApprovedExtension) throw Error("TDD approved extension registration required");
+  // Overview remains platform-owned even when a business extension is mounted.
+  const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)} />}{overviewAfter}</> : null;
   return <DetailFrame title={projection?.title ?? "Chi tiết"} subtitle={projection?.record.id} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
     tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
     {projection && renderApprovedExtension && hasApprovedExtension
@@ -74,10 +76,11 @@ function DetailRecord({ schema, context, record, status = "ready", onRetry, onBa
           <div hidden={active?.id !== "overview" && !approvedExtension}>
             {renderApprovedExtension(projection.record, context, active?.id ?? "overview")}
           </div>
+          {overview}
           {active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} /> : null}
         </>
       : !projection ? <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />
-      : active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)} />}{overviewAfter}</>
+      : active?.id === "overview" ? overview
       : active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} />
       : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
         ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
