@@ -25,6 +25,25 @@ const row = { id, centerId: center, studentId: other, missionId: id, missionCode
 const signal = () => new AbortController().signal;
 const reply = (data: unknown, status = 200): typeof fetch => async () => Response.json({ data }, { status });
 
+test("PAP-1434: module views preserve status filters and leave All to the TDD engine", () => {
+  assert.deepEqual(assignmentDefinition.table.views.builtIn, [
+    { id: "assigned", label: "Đang giao", state: { ...assignmentQuery,
+      filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đang giao" }] } } },
+    { id: "cancelled", label: "Đã hủy", state: { ...assignmentQuery,
+      filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đã hủy" }] } } },
+  ]);
+  assert.deepEqual(assignmentQuery.filters, { logic: "AND", rules: [] });
+  validateModule(assignmentSchema);
+});
+
+test("PAP-1434: displayed assignment guidance uses concise Vietnamese without technical internals", () => {
+  const ui = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
+  const guidance = ui.match(/create: "([^"]+)"/)?.[1];
+  assert.equal(guidance, "Chọn học viên và nhiệm vụ đang hoạt động để giao nhiệm vụ.");
+  assert.doesNotMatch(guidance!, /\b(?:Core|ACTIVE|ID)\b/);
+  assert.match(ui, /<p role="note">\{assignmentUnavailable\.create\}<\/p>/);
+});
+
 test("PAP-1210: reload restores only authorized Center; Center change clears assignment identity", () => {
   const url = new URL(`https://bo.staging.pinohouse.art/bo?module=missions&centerId=${center}&record=${id}`);
   assert.equal(missionCenterFromUrl([{ id: center }, { id: other }], url), center);
