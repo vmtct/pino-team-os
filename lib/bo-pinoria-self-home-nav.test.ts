@@ -1,27 +1,22 @@
-// PAP-1447 / Epic PAP-1097 — BO homepage route-only Pinoria Self navigation.
+// PAP-1447 / Epic PAP-1097 — canonical route-only Self Directory link on BO homepage.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { unifiedBoWorkspaceSource } from "../app/bo/architecture/bo-unified-workspace-source";
 import { boNavigation } from "../app/bo/navigation";
 import { BO_LEGACY_QUERY_MODULES } from "./bo-url-contract";
 
-test("BO homepage registers canonical Pinoria Self link, not a legacy query module", () => {
-  const entry = unifiedBoWorkspaceSource.modules["pinoria-avatars"];
-  assert.ok(entry, "homepage sidebar must expose Self Directory");
-  assert.equal(entry.label, "Self Directory");
-  assert.equal(entry.group, "PINORIA");
-  assert.equal(unifiedBoWorkspaceSource.routeForModule?.("pinoria-avatars"), "/bo/pinoria-avatars");
+const shell = readFileSync(new URL("../app/bo/components/registration/BoRegistrationWorkspace.tsx", import.meta.url), "utf8");
+
+test("Pinoria Self stays a dedicated BO TDD route, never a legacy query module", () => {
+  const entry = boNavigation.find(group => group.label === "Pinoria")?.items.find(item => item.label === "Self Directory");
+  assert.equal(entry?.href, "/bo/pinoria-avatars");
   assert.ok(!BO_LEGACY_QUERY_MODULES.some(module => module === "pinoria-avatars"));
-  assert.equal(
-    boNavigation.find(group => group.label === "Pinoria")?.items.find(item => item.label === "Self Directory")?.href,
-    "/bo/pinoria-avatars",
-    "legacy shell and staging shell must agree on href",
-  );
 });
 
-test("Self Directory cannot fall through the generic school data loader", async () => {
-  await assert.rejects(
-    () => unifiedBoWorkspaceSource.load("pinoria-avatars", fetch, {}),
-    /authenticated TDD provider/,
-  );
+test("BO staging shared shell exposes canonical route-only nav without generic data loading", () => {
+  assert.match(shell, /boNavigation\.find\(group => group\.label === "Pinoria"\)/);
+  assert.match(shell, /!ho && !Object\.hasOwn\(source\.modules, "pinoria-avatars"\)/);
+  assert.match(shell, /navModules\)/);
+  assert.match(shell, /selfNav && key === "pinoria-avatars" \? selfNav\.href/);
+  assert.match(shell, /pathname === selfNav\.href/);
 });

@@ -34,11 +34,6 @@ const widths: Partial<Record<BoField["type"], number>> = {
 };
 const admittedModules = boModuleRegistry.filter(def => isBoStagingRouteAdmitted(def.href));
 for (const def of admittedModules) if (!isWorkforce(def.key)) throw new Error("Staging module missing authorized adapter: " + def.key);
-// PAP-1447 / Epic PAP-1097: canonical route-only TDD module belongs in BO navigation.
-// Its own authenticated SelfDirectoryTdd owns data; never route it through the legacy school loader.
-const routeOnlyModules = {
-  "pinoria-avatars": { label: "Self Directory", group: "PINORIA", fields: [] },
-};
 const moduleDefinitions = Object.fromEntries(admittedModules.map(def => [def.key, {
   label: def.label,
   group: "WORKFORCE",
@@ -48,18 +43,14 @@ const moduleDefinitions = Object.fromEntries(admittedModules.map(def => [def.key
     w: field.key === "name" ? 235 : (widths[field.type] ?? 172),
   })),
 }]));
-const paths: Record<string,string> = {
-  ...Object.fromEntries(admittedModules.map(def => [def.key, def.href])),
-  "pinoria-avatars": "/bo/pinoria-avatars",
-};
+const paths: Record<string,string> = Object.fromEntries(admittedModules.map(def => [def.key, def.href]));
 export const unifiedBoWorkspaceSource: BoWorkspaceSource = {
   ...school,
   allowStudentCreate: true,
-  modules: { ...school.modules, ...moduleDefinitions, ...routeOnlyModules },
+  modules: { ...school.modules, ...moduleDefinitions },
   isModuleReadOnly: isWorkforce,
   routeForModule: (key) => currentBoModuleHref(key, paths),
   async load(key, fetcher, options) {
-    if (key === "pinoria-avatars") throw Error("Self Directory data must use its authenticated TDD provider");
     if (!isWorkforce(key)) return school.load(key, fetcher, options);
     if (!options.centerId) throw Error("Chưa chọn cơ sở cho Workforce.");
     const data = await adapters[key].list(fetcher, options.centerId);
