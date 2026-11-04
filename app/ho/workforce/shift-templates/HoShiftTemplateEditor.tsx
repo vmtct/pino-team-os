@@ -22,8 +22,11 @@ const parsedRows=(value:unknown,centerId:string)=>{
 export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSaved,createOpen,onCreateClose,centers=[]}:Props){
   const formId=useId();
 
-  const [createScope,setCreateScope]=useState(centerId==="ALL"?"GLOBAL":centerId);
-  const selectedScope=mode==="create"?createScope:centerId;
+  const [createSelection,setCreateSelection]=useState(()=>({filter:centerId,value:centerId==="ALL"?"GLOBAL":centerId}));
+  const [createRecovery,setCreateRecovery]=useState(()=>new HoCreateRecovery());
+  const selectedScope=mode==="create"
+    ? createRecovery.locked||createSelection.filter===centerId?createSelection.value:centerId==="ALL"?"GLOBAL":centerId
+    :centerId;
   const scope={scopeType:selectedScope==="GLOBAL"?"GLOBAL" as const:"CENTER" as const,centerId:selectedScope==="GLOBAL"?null:selectedScope};
   const [localOpen,setLocalOpen]=useState(false);
   const open=createOpen??localOpen;
@@ -35,18 +38,13 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
   const [uncertain,setUncertain]=useState(false);
-  const [createRecovery,setCreateRecovery]=useState(()=>new HoCreateRecovery());
   const [reload,setReload]=useState(0);
   const inFlight=useRef(false);
   const createForm=useRef<HTMLFormElement>(null);
   const createLocked=mode==="create"&&createRecovery.locked;
   const blocked=uncertain||createLocked;
   const active=mode!=="create"||open;
-  // Follow the current list Center for a new draft, never rewrite an unresolved Core attempt.
-  useEffect(()=>{
-    if(mode==="create"&&!createRecovery.locked)
-      setCreateScope(centerId==="ALL"?"GLOBAL":centerId);
-  },[mode,centerId,createRecovery]);
+  // Derive clean-draft Center from current filter; keep attempted scope fixed while Core truth is unresolved.
   useEffect(()=>{
     if(mode==="create"&&open&&!busy&&createRecovery.locked)
       createForm.current?.querySelector<HTMLButtonElement>("[data-create-recovery]")?.focus();
@@ -134,7 +132,7 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
     }finally{setBusy(false);inFlight.current=false;}
   }
   const fields=<div>
-    <div className="property-row"><label htmlFor="ho-template-scope">Phạm vi / Center</label><select id="ho-template-scope" value={selectedScope} disabled={mode!=="create"||busy||blocked} onChange={event=>setCreateScope(event.target.value)}><option value="GLOBAL">GLOBAL — mọi Center</option>{centers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+    <div className="property-row"><label htmlFor="ho-template-scope">Phạm vi / Center</label><select id="ho-template-scope" value={selectedScope} disabled={mode!=="create"||busy||blocked} onChange={event=>setCreateSelection({filter:centerId,value:event.target.value})}><option value="GLOBAL">GLOBAL — mọi Center</option>{centers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
     {([["displayLabel","Tên mẫu ca","text"],["code","Mã mẫu ca","text"],
       ["startLocalTime","Bắt đầu","time"],["endLocalTime","Kết thúc","time"]] as const).map(([key,label,type])=>
       <div className="property-row" key={key}>
