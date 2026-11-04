@@ -36,3 +36,25 @@ test("Denied Core responses remain classified as BO API errors",async()=>{
   const fetcher=async()=>new Response(JSON.stringify({error:{message:"Denied"}}),{status:403});
   await assert.rejects(()=>studentCenterApi.updateStudentProfile(studentId,{displayName:"Denied",expectedVersion:1},centerId,fetcher as typeof fetch),error=>error instanceof BoApiError&&error.status===403);
 });
+
+test("PAP-1426 Student Center edit capability must read explicit Core decision, never permissionKeys union",async()=>{
+  const urls:string[]=[];
+  const fetcher=async(input:RequestInfo|URL)=>{
+    urls.push(String(input));
+    return new Response(JSON.stringify({data:{permissionKeys:["student.profile.edit"],studentProfileEditAllowed:false}}),{status:200});
+  };
+  assert.equal(await studentCenterApi.editCapability(centerId,fetcher as typeof fetch),false);
+  assert.deepEqual(urls,[`/api/bo/context?centerId=${centerId}`]);
+  const granted=async()=>new Response(JSON.stringify({data:{studentProfileEditAllowed:true}}),{status:200});
+  assert.equal(await studentCenterApi.editCapability(centerId,granted as typeof fetch),true);
+  const missing=async()=>new Response(JSON.stringify({data:{permissionKeys:["student.profile.edit"]}}),{status:200});
+  assert.equal(await studentCenterApi.editCapability(centerId,missing as typeof fetch),false);
+});
+test("PAP-1426 Student capability fails closed for unauthorized, missing or malformed Center",async()=>{
+  let calls=0;
+  const forbidden=async()=>{calls++;return new Response(JSON.stringify({error:{message:"Not allowed"}}),{status:403});};
+  await assert.rejects(()=>studentCenterApi.editCapability(centerId,forbidden as typeof fetch),(error:unknown)=>error instanceof BoApiError&&error.status===403);
+  assert.equal(calls,1);
+  await assert.rejects(()=>studentCenterApi.editCapability("",forbidden as typeof fetch),BoApiError);
+  assert.equal(calls,1);
+});

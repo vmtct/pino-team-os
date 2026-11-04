@@ -18,22 +18,21 @@ import styles from "./bo-learners.module.css";
 import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
 import { StudentProperties } from "./StudentProperties";
 import { StudentFullDetail } from "./StudentFullDetail";
-import { useBoEditPermission } from "../components/useBoEditPermission";
+import { useStudentCenterEditCapability } from "./useStudentCenterEditCapability";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 const STUDENT_GRID_OPTIONS = { defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] as const };
 
-function StudentNameInlineCell({ student, onSaved }: { student: BoLearnerDirectoryItem; onSaved: () => void }) {
+function StudentNameInlineCell({ student, canEditName, onSaved }: { student: BoLearnerDirectoryItem; canEditName: boolean; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(student.displayName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const center = useBoCenterSelection();
   const selectedCenter = center?.selected ?? "";
-  const editPermission = useBoEditPermission("student.profile.edit");
-  const canEdit = editPermission && Boolean(selectedCenter) && !center?.loading && !center?.error && Boolean(center?.centers.some(entry => entry.id === selectedCenter)) && student.status !== "ARCHIVED";
+  const canEdit = canEditName && Boolean(selectedCenter) && !center?.loading && !center?.error && Boolean(center?.centers.some(entry => entry.id === selectedCenter)) && student.status !== "ARCHIVED";
   const currentCenter = useRef(selectedCenter);
   useEffect(() => { currentCenter.current = selectedCenter; return () => { currentCenter.current = ""; }; }, [selectedCenter]);
   async function submit() {
@@ -59,6 +58,7 @@ export function BoLearnersView() {
   return <CenterScopedLearnersView key={activeCenter} activeCenter={activeCenter} />;
 }
 function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
+  const canEditName = useStudentCenterEditCapability(activeCenter);
   const publicViewRuntime = useAuthorizedBoPublicView("students", "student.profile.view", BO_STUDENT_PILOT_DEFAULT_COLUMNS);
   const pathname = usePathname();
   const router = useRouter();
@@ -150,14 +150,14 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
   const visibleRows = pilotFiltered.slice((range.page - 1) * grid.state.pageSize, range.page * grid.state.pageSize);
   const selectedRow = rows.find((student) => student.id === selectedId) ?? null;
   const columns = useMemo<BoDataGridColumn<BoLearnerDirectoryItem>[]>(() => [
-    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <StudentNameInlineCell key={`${student.id}:${activeCenter}`} student={student} onSaved={() => { void loadDirectory(); if (selectedIdRef.current === student.id) void loadDetail(student.id); }} /> },
+    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <StudentNameInlineCell key={`${student.id}:${activeCenter}`} student={student} canEditName={canEditName} onSaved={() => { void loadDirectory(); if (selectedIdRef.current === student.id) void loadDetail(student.id); }} /> },
     { key: "id", header: "Student ID", minWidth: 180, render: (student) => <BoDataGridCanonicalId value={student.id} label="Copy Student ID" /> },
     { key: "birth", header: "Tuổi / sinh", sortable: true, minWidth: 130, render: (student) => <div className={styles.gridStack}><strong>{ageLabel(student.birthYear)}</strong><small>{student.birthPrecision.replaceAll("_", " ")}</small></div> },
     { key: "paths", header: "Active Paths", sortable: true, minWidth: 210, render: (student) => student.activePaths.length ? <div className={styles.gridPathList}>{student.activePaths.slice(0, 2).map((path) => <BoDataGridBadge key={path.id}>{path.displayName}</BoDataGridBadge>)}{student.activePaths.length > 2 ? <BoDataGridBadge>+{student.activePaths.length - 2}</BoDataGridBadge> : null}</div> : <span className={styles.gridMuted}>Chưa có active Path</span> },
     { key: "learning", header: "Subscription / Class", sortable: true, minWidth: 170, render: (student) => <div className={styles.gridStack}><BoDataGridStatus value={student.activeSubscriptions > 0 ? "Đang học" : "Chưa active"} tone={student.activeSubscriptions > 0 ? "success" : "warning"} /><small>{student.activeSubscriptions > 0 ? `${student.activeSubscriptions} active Path · mở detail để xem class` : "Cần Subscription trước khi xếp lớp"}</small></div> },
     { key: "member", header: "House", sortable: true, minWidth: 115, render: (student) => <BoDataGridStatus value={student.houseMember ? "Member" : "Non-member"} tone={student.houseMember ? "info" : "neutral"} /> },
     { key: "attention", header: "Attention", sortable: true, minWidth: 150, render: (student) => { const attention = studentAttention(student); return <BoDataGridStatus value={attention.label} tone={attention.tone} />; } },
-  ], [activeCenter]);
+  ], [activeCenter, canEditName]);
 
   if (catalog.state === "loading") return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
   if (catalog.state === "error") return <BoDataGridState kind="error" message={catalog.message} />;

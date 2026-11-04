@@ -21,6 +21,14 @@ async function requestData<T>(path:string,init:RequestInit={cache:"no-store"},fe
   return payload.data;
 }
 export const studentCenterApi={
+  // One read-only Center-scoped entitlement check per Student workspace.
+  // The Core PATCH still reauthorizes current affiliation and this exact Center at mutation time.
+  editCapability:async(centerId:string,fetcher?:typeof fetch):Promise<boolean>=>{
+    const data=await requestData<{studentProfileEditAllowed?:boolean}>(
+      `context?centerId=${scopeCenter(centerId)}`,{cache:"no-store"},fetcher
+    );
+    return data.studentProfileEditAllowed===true;
+  },
   learners:(query:string,limit:number,beforeStudentId:string|undefined,centerId:string,fetcher?:typeof fetch)=>{
     const p=new URLSearchParams({limit:String(limit),centerId:scopeCenter(centerId)});
     if(query)p.set("query",query);

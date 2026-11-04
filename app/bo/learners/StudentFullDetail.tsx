@@ -7,7 +7,7 @@ import { BoSubjectHistory } from "@/app/bo/components/BoSubjectHistory";
 import { BoApiError } from "@/lib/bo-api";
 import { studentCenterApi } from "@/lib/bo-student-center-api";
 import { StudentProperties } from "./StudentProperties";
-import { useBoEditPermission } from "../components/useBoEditPermission";
+import { useStudentCenterEditCapability } from "./useStudentCenterEditCapability";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import styles from "../components/BoFullDetail.module.css";
 import type { BoLearnerLifecycle } from "@/lib/bo-model";
@@ -16,9 +16,9 @@ type DetailState = { state: "loading" } | { state: "error"; message: string } | 
 
 /** Canonical Student detail with guarded, versioned profile edits. Domain ACL remains enforced by Core. */
 export function StudentFullDetail({ studentId }: { studentId: string }) {
-  const editPermission = useBoEditPermission("student.profile.edit");
   const center = useBoCenterSelection();
   const selectedCenter = center?.selected ?? "";
+  const editPermission = useStudentCenterEditCapability(selectedCenter);
   const canEdit = editPermission && Boolean(selectedCenter) && !center?.loading && !center?.error && Boolean(center?.centers.some(entry => entry.id === selectedCenter));
   const currentCenter = useRef(selectedCenter);
   const pathname = usePathname();
