@@ -5,11 +5,12 @@
 import { boCenterWave1Href, isBoCenterReadWave1 } from "./BoCenterWave1";
 import { scopedClassesFetcher } from "./BoScopedClassRead";
 import { scopedLearnerFetcher } from "./BoScopedLearnerRead";
+import { scopedEnrollmentFetcher } from "./BoScopedEnrollmentRead";
 
 export type BoCenterModuleScope = "CENTER" | "MIXED" | "GLOBAL" | "UNVERIFIED";
 // These screens mix authorized Center operations with legacy/unverified global reads.
 // They are NOT auto-admitted by choosing a Center at the shell.
-const MIXED_MODULES = new Set(["subscriptions", "enrollments", "parents"]);
+const MIXED_MODULES = new Set(["subscriptions", "parents"]);
 const CENTER_WORKFORCE_ROUTES: Record<string, string> = {
   "workforce-shift-plans": "/bo/workforce-shift-plans",
   "workforce-availability": "/bo/workforce-availability",
@@ -30,6 +31,7 @@ export function scopedBoReadFetcher(moduleKey: string, fetcher: typeof fetch, au
   if (!isBoCenterReadWave1(moduleKey)) throw Error("Module chưa có hợp đồng đọc theo cơ sở.");
   switch (moduleKey) {
     case "students": return scopedLearnerFetcher(fetcher, authorizedCenterId);
+    case "enrollments": return scopedEnrollmentFetcher(fetcher, authorizedCenterId);
     case "classes": return scopedClassesFetcher(fetcher, authorizedCenterId);
     case "visits":
     case "timekeeping": return fetcher; // school adapter validates Center scope per row
