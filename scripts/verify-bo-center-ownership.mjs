@@ -11,6 +11,16 @@ const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SHELL = "app/bo/components/registration/BoRuntimeBoundary.tsx";
 const CENTER_OWNER = "app/bo/components/registration/BoCenterSelection.tsx";
 const SELF = "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx";
+/** PAP-1460 / PAP-1329: bounded grandfathered UI debt, not acceptance.
+ * One exact existing workspace selector per file may remain until its own
+ * Core-scoped domain rollout. Additional or renamed selectors fail CI. */
+const LEGACY_PICKERS = new Map([
+  ["app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx", "diary-center"],
+  ["app/bo/missions/BoMissionsTdd.tsx", "bo-mission-center"],
+  ["app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx", "bo-open-studio-center"],
+  ["app/bo/tvs/TvsTdd.tsx", "bo-tv-center"],
+]);
+
 const norm = path => path.split(sep).join("/");
 
 function collect(root, dir) {
@@ -40,11 +50,19 @@ export function boCenterOwnershipViolations(root = ROOT) {
       errors.push(name + ": module-local Center discovery is prohibited");
     if (name !== CENTER_OWNER && /\/api\/bo\/(?:centers|workforce\/planning\/bootstrap)/.test(source) && /createBoTddAdapter\s*\(/.test(source))
       errors.push(name + ": TDD entrypoint must not discover workspace Centers");
-    // Inspect only TDD entrypoints, not domain business fields in detail tabs.
-    if (/\bcreateBoTddAdapter\s*\(/.test(source) &&
-        (/<select\b[^>]*(?:id|name|aria-label)=["'][^"']*(?:center|cơ sở)/i.test(source) ||
-         /className=["'][^"']*\btdd-[a-z0-9-]*-center\b/i.test(source)))
-      errors.push(name + ": TDD entrypoint embeds a workspace Center picker");
+    // Business-field selectors in domain detail tabs are not workspace pickers.
+    // Legacy modules are explicit, exact-ID migration debt rather than silent exceptions.
+    if (/\bcreateBoTddAdapter\s*\(/.test(source)) {
+      const pickers = [...source.matchAll(/<select\b[^>]*(?:id|name|aria-label)=["'][^"']*(?:center|cơ sở)[^>]*>/gi)];
+      const shells = [...source.matchAll(/className=["'][^"']*\btdd-[a-z0-9-]*-center\b/gi)];
+      const legacyId = LEGACY_PICKERS.get(name);
+      if (legacyId) {
+        if (pickers.length !== 1 || !source.includes('<select id="' + legacyId + '"') || shells.length)
+          errors.push(name + ": existing PAP-1460 picker baseline changed; migrate under PAP-1329");
+      } else if (pickers.length || shells.length) {
+        errors.push(name + ": TDD entrypoint embeds a workspace Center picker");
+      }
+    }
   }
   if (mounts !== 1) errors.push("Expected exactly one BO Center provider mount, found " + mounts);
   const selfFile = join(root, SELF);
@@ -71,5 +89,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (errors.length) {
     for (const error of errors) console.error("BO_CENTER_OWNER_FAIL " + error);
     process.exitCode = 1;
-  } else console.log("BO_CENTER_OWNER_PASS: single shell owner, Pinoria Self consumes Active Center");
+  } else {
+    console.log("BO_CENTER_OWNER_PASS: one shell owner; no new module-local Center selector");
+    console.warn("BO_CENTER_LEGACY_DEBT: four exact selectors tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
+  }
 }
