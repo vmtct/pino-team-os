@@ -2,7 +2,7 @@ export interface StaffProfile{id:string;displayLabel:string;status:string;depart
 export interface WorkforceContext{userId:string;staffMemberId:string|null;founderMode?:boolean;email:string;centers:Array<{id:string;key:string;displayName:string;timeZone:string}>;termWeeks:Array<{id:string;termId:string;centerId:string;code:string;ordinal:number;startDate:string;endDate:string}>}
 export interface OwnShiftRoleFact{roleType:"FRONT_DESK"|"TEACHER"|"TEACHING_ASSISTANT"|"SHIFT_LEADER";targetType:"CENTER"|"SESSION"|"RUNNING_CLASS";targetId:string}
 export interface Assignment{roleAssignments?:OwnShiftRoleFact[];id:string;centerId:string;workDate:string;shiftTemplateId:string;timeBasis:"SHIFT_TEMPLATE"|"TEACHING_SESSIONS";coverageMode:"FULL_SHIFT"|"CLASSROOM_TIME"|"CUSTOM_RANGE";effectiveStartLocal:string|null;effectiveEndLocal:string|null;effectiveWork?:{assignmentId:string;timeBasis:"SHIFT_TEMPLATE"|"TEACHING_SESSIONS";coverageMode:"FULL_SHIFT"|"CLASSROOM_TIME"|"CUSTOM_RANGE";windows:Array<{startsLocal:string;endsLocal:string;sourceType:"SHIFT_TEMPLATE"|"SESSION"|"CUSTOM_RANGE";sourceIds:string[]}>;reconciliationRequired:boolean};termWeekId:string|null;status:string;shift:{code:string;displayLabel:string;startLocalTime:string;endLocalTime:string}|null}
-export interface TimekeepingSession{id:string;centerId:string;assignmentId:string|null;workDate:string;status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null}
+export interface TimekeepingSession{id:string;centerId:string;assignmentId:string|null;workDate:string;status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null;photoEvidenceStatus?:"MISSING"|"BOUND"|"DELETED"}
 export interface UnscheduledCheckInRequest{id:string;staffMemberId:string;centerId:string;workDate:string;reason:string;status:"REQUESTED"|"APPROVED"|"DECLINED"|"CANCELLED";requestedAt:string;requestedByUserId:string;approvedAt:string|null;approvedByUserId:string|null;declinedAt:string|null;declinedByUserId:string|null;declineReason:string|null;generatedAssignmentId:string|null;version:number;createdAt:string;updatedAt:string}
 export type UnscheduledCheckInSelfState={kind:"ELIGIBLE_ASSIGNMENT";assignment:Assignment}|{kind:"NO_ELIGIBLE_ASSIGNMENT";request:null}|{kind:"REQUESTED"|"DECLINED"|"APPROVED"|"CANCELLED";request:UnscheduledCheckInRequest}
 export interface Availability{id:string;centerId:string;termWeekId:string;status:"DRAFT"|"SUBMITTED"|"VOIDED";version:number;submittedAt?:string|null;voidedAt?:string|null;voidedByUserId?:string|null;voidReason?:string|null;items:Array<{workDate:string;shiftTemplateId:string}>}
@@ -41,6 +41,15 @@ export const workforceApi={
  currentTimekeeping:(centerId?:string)=>request<{data:TimekeepingSession|null}>(`/timekeeping/current${centerId?`?${query({centerId})}`:""}`),history:(body:{centerId:string;startDate:string;endDate:string})=>request<{data:TimekeepingSession[]}>(`/timekeeping/history?${query(body)}`),
  checkInExceptionStatus:(centerId:string)=>request<{data:UnscheduledCheckInSelfState}>(`/check-in-exceptions/status?${query({centerId})}`),
  requestUnscheduledCheckIn:(centerId:string,reason:string,idempotencyKey:string)=>request<{data:UnscheduledCheckInRequest}>("/check-in-exceptions",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:JSON.stringify({centerId,reason})}),
+ uploadCheckInPhoto:async(sessionId:string,blob:Blob,clientUploadKey:string):Promise<{photoId:string;status:"BOUND"}>=>{
+  const response=await fetch(`/api/workforce/timekeeping/photo/upload?${query({sessionId,clientUploadKey})}`,{
+   method:"POST",cache:"no-store",headers:{"content-type":blob.type},body:blob,
+  });
+  const body=await response.json() as {data?:{photoId:string;status:string};error?:{code:string;message:string}};
+  if(!response.ok)throw new WorkforceApiError(response.status,body.error?.code??"PHOTO_UPLOAD_FAILED",body.error?.message??"Không thể lưu ảnh bằng chứng.");
+  if(!body.data?.photoId||body.data.status!=="BOUND")throw new WorkforceApiError(502,"PHOTO_RECEIPT_UNVERIFIED","Core chưa xác nhận liên kết ảnh với Check-in.");
+  return {photoId:body.data.photoId,status:"BOUND"};
+ },
  checkIn:(centerId:string,assignmentId:string|null|undefined,idempotencyKey:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-in",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:JSON.stringify({centerId,assignmentId:assignmentId??null})}),checkOut:(idempotencyKey:string)=>request<{data:TimekeepingSession}>("/timekeeping/check-out",{method:"POST",headers:{"idempotency-key":idempotencyKey},body:"{}"}),
  dutyBoard:(body:{centerId:string;workDate:string;action?:DutyGateAction;milestoneRef?:string})=>request<{data:StaffDutyBoard}>(`/duty/board?${query(body)}`),
  acknowledgeDutyBriefing:(body:{centerId:string;workDate:string;briefingRef:string;briefingRevision:string})=>request<{data:StaffDutyAcknowledgement}>("/duty/briefing/acknowledge",{method:"POST",body:JSON.stringify(body)}),

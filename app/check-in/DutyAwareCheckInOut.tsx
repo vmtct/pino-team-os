@@ -19,6 +19,7 @@ import {
   type WorkforceContext,
 } from "@/lib/workforce-api";
 import styles from "./check-in.module.css";
+import { CheckInCameraPanel } from "./CheckInCameraPanel";
 
 function dayInZone(timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
@@ -64,6 +65,9 @@ export default function DutyAwareCheckInOut() {
   const [context, setContext] = useState<WorkforceContext | null>(null);
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [current, setCurrent] = useState<TimekeepingSession | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [photoEvidence, setPhotoEvidence] = useState<{sessionId:string;status:"MISSING"|"BOUND"}|null>(null);
+  const photoAttempt = useRef<{sessionId:string;blob:Blob;key:string}|null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [board, setBoard] = useState<StaffDutyBoard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,11 +163,33 @@ export default function DutyAwareCheckInOut() {
       const prior = clockAttempt.current;
       const idempotencyKey = prior?.action === "in" && prior.fingerprint === fingerprint ? prior.key : crypto.randomUUID();
       clockAttempt.current = { action: "in", fingerprint, key: idempotencyKey };
-      await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
+      const checkedIn = await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
+      setCurrent(checkedIn.data);
+      setPhotoEvidence({sessionId:checkedIn.data.id,status:"MISSING"});
+      setPhotoOpen(true);
       clockAttempt.current = null;
       await load();
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setBusy(""); }
+  }
+
+  async function submitPhoto(blob: Blob) {
+    if (!current) return;
+    const prior = photoAttempt.current;
+    const attempt = prior?.sessionId === current.id && prior.blob === blob ? prior : {
+      sessionId:current.id, blob, key:crypto.randomUUID().replaceAll("-",""),
+    };
+    photoAttempt.current = attempt;
+    setBusy("photo"); setError("");
+    try {
+      await workforceApi.uploadCheckInPhoto(current.id, blob, attempt.key);
+      setPhotoEvidence({sessionId:current.id,status:"BOUND"});
+      photoAttempt.current = null;
+      setPhotoOpen(false);
+    } catch (cause) {
+      setPhotoEvidence({sessionId:current.id,status:"MISSING"});
+      setError(apiMessage(cause));
+    } finally { setBusy(""); }
   }
 
   async function requestUnscheduledCheckIn() {
@@ -280,6 +306,16 @@ export default function DutyAwareCheckInOut() {
           <small>{current.workDate} · {center?.displayName ?? "—"}</small>
           <p className={styles.roleUnavailable}>Vai trò ca · Chưa sẵn sàng</p>
           <button className={styles.primaryAction} disabled={!closeout.ready || Boolean(busy)} onClick={() => void checkOut()}>{busy === "check-out" ? "Đang checkout…" : "Check-out"}</button>
+        </section>
+        <section className={styles.evidenceCard} aria-label="Bằng chứng Check-in">
+          <span>BẰNG CHỨNG CHECK-IN</span>
+          {(photoEvidence?.sessionId===current.id ? photoEvidence.status : current.photoEvidenceStatus)==="BOUND"
+            ? <strong role="status">✓ Core đã xác nhận ảnh bằng chứng</strong>
+            : <strong role="status">Thiếu ảnh hoặc chưa xác nhận · Check-in vẫn hợp lệ</strong>}
+          <p>Ảnh là bằng chứng bổ sung, không phải điều kiện ghi nhận giờ công. Có thể chụp lại khi camera hoặc mạng gặp lỗi.</p>
+          {!photoOpen && (photoEvidence?.sessionId===current.id ? photoEvidence.status : current.photoEvidenceStatus)!=="BOUND"
+            ? <button type="button" disabled={Boolean(busy)} onClick={()=>setPhotoOpen(true)}>Chụp ảnh bổ sung</button> : null}
+          {photoOpen ? <CheckInCameraPanel busy={busy==="photo"} onCancel={()=>setPhotoOpen(false)} onConfirm={submitPhoto}/> : null}
         </section>
         <div className={styles.stats}><article><span>Giờ công tháng này</span><strong className={styles.unavailable}>Chưa sẵn sàng</strong><small>Chờ effective timekeeping từ PAP-706.</small></article><article><span>Ca tiếp theo</span><strong>{nextAssignment ? compactDate(nextAssignment.workDate) : "Chưa có"}</strong><small>{nextAssignment?.shift ? `${nextAssignment.shift.startLocalTime}–${nextAssignment.shift.endLocalTime}` : "Không có assignment sắp tới."}</small></article></div>
 
