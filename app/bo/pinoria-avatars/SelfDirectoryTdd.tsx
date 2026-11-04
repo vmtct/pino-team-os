@@ -2,7 +2,7 @@
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useState } from "react";
-import readApi from "@/public/bo-authority-source/school-adapters.js";
+import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-workspace-source";
 import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
@@ -74,5 +74,5 @@ export function SelfDirectoryTdd(){
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
-  return <BoRegistrationWorkspace source={readApi} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
+  return <BoRegistrationWorkspace source={unifiedBoWorkspaceSource} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
 }
