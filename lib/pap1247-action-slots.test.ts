@@ -19,7 +19,7 @@ test("PAP-1247: Drawer & Detail route action slots via one shared Action Host, n
   assert.match(detail, /\{actions\}/);
   assert.match(detail, /id="back-to-list"/);
   assert.match(surface, /status: recordStatus, actionBindings, writes/);
-  assert.match(surface, /status: recordStatus, actionBindings, onRetry:/);
+  assert.match(surface, /status: recordStatus, actionBindings, writes, onRetry:/);
   assert.doesNotMatch(drawer, /<TosButton/);
 });
 test("PAP-1247: only authorized bound record actions appear in exact declared record host", () => {

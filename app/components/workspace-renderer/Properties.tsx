@@ -21,7 +21,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
   const visibleSections = sections.filter(section => section.fields.some(key => fields.some(f => f.key === key)));
   if (!visibleSections.length) return <p role="status">Không có thuộc tính được phép xem.</p>;
   return <>{visibleSections.map(section => <section key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-properties={variant}>
-    {variant === "drawer" ? <h3>{section.label}</h3> : <div className="v24-section-heading"><h4>{section.label}</h4>{sectionActions?.(section.id)}<span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
+    {variant === "drawer" ? <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
     <div className={variant === "detail" ? "v24-prop-grid" : undefined}>{section.fields.map(key => {
       const field = fields.find(f => f.key === key); if (!field) return null;
       const editable = Boolean(onEdit && canEdit?.(field));
@@ -30,7 +30,15 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
         <button type="button" className="property-control" data-prop={key} disabled={!legacyStyles && !editable} aria-disabled={!editable} tabIndex={editable ? 0 : -1} aria-label={(editable ? "Sửa " : "Chỉ đọc ") + field.label} onClick={e => editable && onEdit?.(field, e.currentTarget)}>
           {key === "id" && !record.id ? <span className="empty-val">Chưa tạo</span> : <BoValue field={field} value={record[key]} />}{editable ? <span className="pencil" aria-hidden="true">✎</span> : null}
         </button>
-      </div> : <div className="v24-prop-item" key={key}><div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div><div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}><BoValue field={field} value={record[key]} full /><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div></div>;
+      </div> : <div className="v24-prop-item" key={key}
+        style={{ gridTemplateColumns: "minmax(110px, min(34%, 180px)) minmax(0, 1fr)" }}>
+        <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
+        {editable ? <button type="button" className="v24-prop-value" data-prop={key} aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
+          <BoValue field={field} value={record[key]} full /><span className="v24-edit-glyph" aria-hidden="true">✎</span>
+        </button> : <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
+          <BoValue field={field} value={record[key]} full /><span className="v24-lock" aria-hidden="true">⌁</span>
+        </div>}
+      </div>;
     })}</div>
   </section>)}</>;
 }

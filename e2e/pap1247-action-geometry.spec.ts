@@ -5,11 +5,11 @@ import { resolve } from "node:path";
 /** PAP-1247: five-viewport actual shared Action Host geometry. No Staging or Prod credentials. */
 const widths = [1440, 1024, 768, 390, 320] as const;
 const expected = {
-  table: { "table.header": ["Xuất", "Tạo mới"] },
-  drawer: { "drawer.header": ["Sao chép", "Chỉnh sửa"] },
-  detail: { "detail.header": ["Chỉnh sửa"], "overview.section": ["Tải lại"] },
+  table: { "table.header": ["Xuất", "Xem trước", "Tạo mới"] },
+  drawer: { "drawer.header": ["Sao chép"] },
+  detail: { "overview.section": ["Tải lại"] },
   form: { "drawer.footer": ["Hủy", "Tạo"] },
-  businessTab: { "detail.header": ["Chỉnh sửa"], "businessTab.toolbar": ["Xem thêm"] },
+  businessTab: { "businessTab.toolbar": ["Xem thêm"] },
 } as const;
 
 for (const surface of ["BO", "HO"] as const) for (const width of widths) {
@@ -22,13 +22,41 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
       const file = resolve("node_modules/.cache/pap1073", `${surface}-action-${stage}.html`);
       await page.setContent(readFileSync(file, "utf8"), { waitUntil: "load" });
       const expectedHosts = expected[stage] as Record<string, readonly string[]>;
+      if (stage === "detail") {
+        await expect(page.getByRole("button", { name: "Chỉnh sửa", exact: true })).toHaveCount(0);
+        const heading = page.getByRole("heading", { name: "Thông tin chính" });
+        const refresh = page.getByRole("button", { name: "Tải lại", exact: true });
+        const distance = await heading.evaluate((element) => {
+          const parent = element.parentElement!;
+          const button = parent.querySelector<HTMLButtonElement>('button[aria-label="Tải lại"]')!;
+          return Math.round(button.getBoundingClientRect().left - element.getBoundingClientRect().right);
+        });
+        expect(distance, "refresh icon must sit near section title").toBeLessThanOrEqual(24);
+        await expect(page.locator('[data-tdd-properties="detail"] button[data-prop="name"]')).toHaveCount(1);
+        await expect(page.locator('[data-tdd-properties="detail"] button[data-prop="id"]')).toHaveCount(0);
+        const widths = await page.locator(".v24-prop-item").first().evaluate(node => {
+          const label = node.querySelector<HTMLElement>(".v24-prop-key")!.getBoundingClientRect();
+          const value = node.querySelector<HTMLElement>(".v24-prop-value")!.getBoundingClientRect();
+          return { labelWidth: label.width, gap: value.left - label.right };
+        });
+        expect(widths.labelWidth).toBeLessThanOrEqual(181);
+        expect(widths.gap).toBeGreaterThanOrEqual(0);
+        expect(widths.gap).toBeLessThanOrEqual(12);
+      }
+
       const actual = await page.locator("[data-tdd-action-slot]").evaluateAll((nodes) =>
         nodes.map(node => ({
           slot: node.getAttribute("data-tdd-action-slot"),
-          labels: [...node.querySelectorAll("button")].map(button => button.textContent?.trim()),
+          labels: [...node.querySelectorAll("button")].map(button => button.getAttribute("aria-label") || button.textContent?.trim()),
+          gap: getComputedStyle(node).columnGap,
           rect: (() => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, width: r.width }; })(),
         })));
       expect(actual.map(item => item.slot).sort()).toEqual(Object.keys(expectedHosts).sort());
+      for (const host of actual) {
+        const gap = Number.parseFloat(host.gap);
+        expect(gap, surface + " " + stage + ": shared action spacing").toBeGreaterThanOrEqual(8);
+        expect(gap).toBeLessThanOrEqual(14);
+      }
       for (const host of actual) {
         expect(host.labels).toEqual(expectedHosts[host.slot!]);
         expect(host.rect.left, `${stage} ${host.slot} left clipped at ${width}`).toBeGreaterThanOrEqual(-1);
@@ -47,6 +75,9 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
             background: style.backgroundColor,
             radius: Number.parseFloat(style.borderRadius),
             padding: Number.parseFloat(style.paddingLeft),
+            iconOnly: Boolean(element.getAttribute("aria-label") && !element.textContent?.trim()),
+            accessibleName: element.getAttribute("aria-label"),
+            width: element.getBoundingClientRect().width,
             fontSize: Number.parseFloat(style.fontSize),
             height: element.getBoundingClientRect().height,
           };
@@ -56,7 +87,12 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
         expect(visual.primary !== visual.secondary, surface + " " + stage + " incorrect DS variant").toBe(true);
         expect(visual.background, surface + " " + stage + " transparent background").not.toBe("rgba(0, 0, 0, 0)");
         expect(visual.radius, surface + " " + stage + " missing border radius").toBeGreaterThanOrEqual(6);
-        expect(visual.padding, surface + " " + stage + " missing padding").toBeGreaterThanOrEqual(8);
+        if (visual.iconOnly) {
+          expect(visual.accessibleName).toBe("Tải lại");
+          expect(visual.width).toBeGreaterThanOrEqual(32);
+        } else {
+          expect(visual.padding, surface + " " + stage + " missing padding").toBeGreaterThanOrEqual(8);
+        }
         expect(visual.fontSize, surface + " " + stage + " missing typography").toBeGreaterThanOrEqual(10);
         expect(visual.height, surface + " " + stage + " insufficient hit target").toBeGreaterThanOrEqual(32);
       }
@@ -79,28 +115,28 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
 // authoritative DS control, ensuring the G3 harness cannot silently regress.
 test("PAP-1455 CSS omission is detected by computed-style regression", async ({ page }) => {
   const html = readFileSync(resolve("node_modules/.cache/pap1073", "BO-action-detail.html"), "utf8");
-  const button = page.getByRole("button", { name: "Chỉnh sửa", exact: true });
+  const button = page.getByRole("button", { name: "Tải lại", exact: true });
   await page.setContent(html, { waitUntil: "load" });
   const styled = await button.evaluate(node => {
     const css = getComputedStyle(node);
-    return { radius: Number.parseFloat(css.borderRadius), padding: Number.parseFloat(css.paddingLeft) };
+    return { radius: Number.parseFloat(css.borderRadius), background: css.backgroundColor };
   });
   expect(styled.radius).toBeGreaterThanOrEqual(6);
-  expect(styled.padding).toBeGreaterThanOrEqual(8);
+  expect(styled.background).not.toBe("rgba(0, 0, 0, 0)");
   await page.setContent(html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, ""), { waitUntil: "load" });
   const unstyled = await button.evaluate(node => {
     const css = getComputedStyle(node);
-    return { radius: Number.parseFloat(css.borderRadius), padding: Number.parseFloat(css.paddingLeft) };
+    return { radius: Number.parseFloat(css.borderRadius), background: css.backgroundColor };
   });
   expect(unstyled.radius).toBeLessThan(styled.radius);
-  expect(unstyled.padding).toBeLessThan(styled.padding);
+  expect(unstyled.background).not.toBe(styled.background);
 });
 
 for (const surface of ["BO", "HO"] as const) {
   test("PAP-1455 keyboard focus and disabled state in " + surface, async ({ page }) => {
     const html = readFileSync(resolve("node_modules/.cache/pap1073", surface + "-action-detail.html"), "utf8");
     await page.setContent(html, { waitUntil: "load" });
-    const edit = page.getByRole("button", { name: "Chỉnh sửa", exact: true });
+    const edit = page.getByRole("button", { name: "Tải lại", exact: true });
     await page.keyboard.press("Tab");
     await edit.focus();
     await expect(edit).toBeFocused();

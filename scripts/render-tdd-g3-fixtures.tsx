@@ -82,21 +82,27 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
   const registry = new TddRegistry();
   const actions = [
     { id: "tableExport", label: "Xuất", slot: "table.header", variant: "secondary", capability: "read", handler: "tableExport" },
+    { id: "tablePreview", label: "Xem trước", slot: "table.header", variant: "secondary", capability: "read", handler: "tablePreview" },
     { id: "tableCreate", label: "Tạo mới", slot: "table.header", variant: "primary", capability: "create", handler: "tableCreate" },
     { id: "drawerCopy", label: "Sao chép", slot: "drawer.header", variant: "secondary", capability: "read", handler: "drawerCopy" },
-    { id: "drawerEdit", label: "Chỉnh sửa", slot: "drawer.header", variant: "primary", capability: "edit", handler: "drawerEdit" },
-    { id: "detailEdit", label: "Chỉnh sửa", slot: "detail.header", variant: "primary", capability: "edit", handler: "detailEdit" },
-    { id: "sectionAction", label: "Tải lại", slot: "overview.section", targetId: "main", variant: "secondary", capability: "read", handler: "sectionAction" },
+    { id: "sectionAction", label: "Tải lại", slot: "overview.section", targetId: "main", icon: "refresh", variant: "secondary", capability: "read", handler: "sectionAction" },
     { id: "tabAction", label: "Xem thêm", slot: "businessTab.toolbar", targetId: "relations", variant: "secondary", capability: "read", handler: "tabAction" },
     { id: "cancel", label: "Hủy", slot: "drawer.footer", formMode: "create", variant: "secondary", capability: "create", handler: "cancel" },
     { id: "save", label: "Tạo", slot: "drawer.footer", formMode: "create", variant: "primary", capability: "create", handler: "save" },
   ] as const satisfies readonly TddActionDescriptor[];
-  const schema = registry.register({ ...fixtureData.schema,
+  const editableFields = fixtureData.schema.fields.map(field => field.key === "name" ? {
+    ...field, readOnly: false, capabilities: { ...field.capabilities, inlineEdit: true },
+  } : field);
+  const schema = registry.register({ ...fixtureData.schema, fields: editableFields,
     capabilities: { ...fixtureData.schema.capabilities, create: "fixture.create", edit: "fixture.edit" }, actions });
   const context = fixtureData.context;
   const common = { schema, registry, context };
   const bindings: TddActionBindings = Object.fromEntries(actions.map(action =>
     [action.handler, { run: () => undefined }]));
+  const writes = {
+    version: "1", onSaved: () => {},
+    adapter: { update: async () => ({ status: "denied" as const }) },
+  }; // synthetic G3-only binding; no network or persisted write
   const render = (view: TddStage<ModuleSchema["fields"]>) =>
     renderToStaticMarkup(h(TddRenderer, { view }));
   if (stage === "table") return render({ kind: "table",
@@ -111,7 +117,7 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
   return render({ kind: "detail",
     props: { ...common, record: fixtureData.record, status: "ready",
       activeTab: stage === "businessTab" ? "relations" : "overview", onBack: () => {},
-      subject: { type: "fixture", id: fixtureData.record.id }, actionBindings: bindings } });
+      subject: { type: "fixture", id: fixtureData.record.id }, actionBindings: bindings, writes } });
 }
 for (const surface of ["BO", "HO"] as const) {
   const cssPath = surface === "BO" ? "public/bo-authority-source/styles.css" : "public/ho-authority-source/ho-scoped.css";
