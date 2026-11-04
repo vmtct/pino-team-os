@@ -11,24 +11,29 @@ const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const json = (body: unknown, status: number) => Response.json(body, {
   status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-type Form = { centerId: string; code: string; displayLabel: string; startLocalTime: string; endLocalTime: string; expectedUpdatedAt?: string };
-type StatusForm = { centerId: string; status: "ACTIVE" | "INACTIVE"; expectedUpdatedAt: string };
+type Form = { scopeType?: "GLOBAL"|"CENTER"; centerId: string|null; status?: "ACTIVE"|"INACTIVE"; code: string; displayLabel: string; startLocalTime: string; endLocalTime: string; expectedUpdatedAt?: string };
+type StatusForm = { scopeType?: "GLOBAL"|"CENTER"; centerId: string|null; status: "ACTIVE" | "INACTIVE"; expectedUpdatedAt: string };
 export type HoShiftTemplateWriteAction = "create" | "update" | "status";
 
 /** Exact, explicit fields: no silent Center substitution, legacy BO commands, or forged CAS. */
 export function parseHoShiftTemplateWrite(body: unknown, action: HoShiftTemplateWriteAction): Form | StatusForm | null {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const v = body as Record<string, unknown>;
-  if (!uuid.test(String(v.centerId))) return null;
+  const scopeType=v.scopeType === undefined ? "CENTER" : v.scopeType;
+  if (scopeType!=="GLOBAL" && scopeType!=="CENTER")return null;
+  if (scopeType==="GLOBAL" ? v.centerId!==null : !uuid.test(String(v.centerId)))return null;
+  const scopeFields=v.scopeType===undefined?0:1;
+  const scoped=v.scopeType===undefined?{}:{scopeType:scopeType as "GLOBAL"|"CENTER"};
   const verifyVersion = (value: unknown) =>
     typeof value === "string" && iso.test(value) && Number.isFinite(Date.parse(value));
   if (action === "status") {
-    if (Object.keys(v).length !== 3 || !["ACTIVE", "INACTIVE"].includes(String(v.status))
+    if (Object.keys(v).length !== 3+scopeFields || !["ACTIVE", "INACTIVE"].includes(String(v.status))
       || !verifyVersion(v.expectedUpdatedAt)) return null;
-    return { centerId: v.centerId as string, status: v.status as "ACTIVE" | "INACTIVE",
+    return { ...scoped,centerId: v.centerId as string|null, status: v.status as "ACTIVE" | "INACTIVE",
       expectedUpdatedAt: v.expectedUpdatedAt as string };
   }
-  const expectedFields = action === "create" ? 5 : 6;
+  const expectedFields = (action === "create" ? 5 : 6)+scopeFields+(action==="create"&&v.status!==undefined?1:0);
+  if(action==="create"&&v.status!==undefined&&v.status!=="ACTIVE"&&v.status!=="INACTIVE")return null;
   if (Object.keys(v).length !== expectedFields
     || typeof v.code !== "string" || !v.code.trim() || v.code !== v.code.trim() || v.code.length > 64
     || typeof v.displayLabel !== "string" || !v.displayLabel.trim() || v.displayLabel !== v.displayLabel.trim() || v.displayLabel.length > 160
@@ -37,7 +42,7 @@ export function parseHoShiftTemplateWrite(body: unknown, action: HoShiftTemplate
     || v.endLocalTime <= v.startLocalTime
     || (action === "update" && !verifyVersion(v.expectedUpdatedAt))) return null;
   const base: Form = {
-    centerId: v.centerId as string, code: v.code, displayLabel: v.displayLabel,
+    ...scoped,centerId: v.centerId as string|null,...(action==="create"&&v.status!==undefined?{status:v.status as "ACTIVE"|"INACTIVE"}:{}), code: v.code, displayLabel: v.displayLabel,
     startLocalTime: v.startLocalTime, endLocalTime: v.endLocalTime,
   };
   return action === "update" ? { ...base, expectedUpdatedAt: v.expectedUpdatedAt as string } : base;
@@ -78,14 +83,14 @@ export async function handleHoShiftTemplateWrite(request: Request, env: HoShiftT
     }, credential.token);
     const desiredStatus = location.action === "create" ? 201 : 200;
     if (result.status !== desiredStatus) return json(result.body, result.status);
-    const receipt = parseHoShiftTemplates({ data: [(result.body as { data?: unknown } | null)?.data] }, input.centerId)?.[0];
+    const receipt = parseHoShiftTemplates({ data: [(result.body as { data?: unknown } | null)?.data] }, input.centerId===null?"GLOBAL":input.centerId)?.[0];
     if (!receipt || (location.templateId && receipt.id !== location.templateId) || !matches(input, receipt))
       return json({ error: { code: "HO_SHIFT_TEMPLATE_CONFIRMATION_FAILED" } }, 502);
     const read = await core.executePlanningWithStaffPassword({
-      method: "GET", path: "shift-templates/ho", body: { centerId: input.centerId },
+      method: "GET", path: "shift-templates/ho", body: { scopeType:input.centerId===null?"GLOBAL":"CENTER",centerId: input.centerId },
     }, credential.token);
     if (read.status !== 200) return json(read.body, read.status);
-    const rows = parseHoShiftTemplates(read.body, input.centerId);
+    const rows = parseHoShiftTemplates(read.body, input.centerId===null?"GLOBAL":input.centerId);
     const confirmed = rows?.find(row => row.id === receipt.id);
     if (!confirmed || !matches(input, confirmed) || confirmed.updatedAt !== receipt.updatedAt)
       return json({ error: { code: "HO_SHIFT_TEMPLATE_READBACK_MISMATCH" } }, 502);

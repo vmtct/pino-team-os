@@ -25,6 +25,25 @@ const row = { id, centerId: center, studentId: other, missionId: id, missionCode
 const signal = () => new AbortController().signal;
 const reply = (data: unknown, status = 200): typeof fetch => async () => Response.json({ data }, { status });
 
+test("PAP-1434: module views preserve status filters and leave All to the TDD engine", () => {
+  assert.deepEqual(assignmentDefinition.table.views.builtIn, [
+    { id: "assigned", label: "Đang giao", state: { ...assignmentQuery,
+      filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đang giao" }] } } },
+    { id: "cancelled", label: "Đã hủy", state: { ...assignmentQuery,
+      filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đã hủy" }] } } },
+  ]);
+  assert.deepEqual(assignmentQuery.filters, { logic: "AND", rules: [] });
+  validateModule(assignmentSchema);
+});
+
+test("PAP-1434: displayed assignment guidance uses concise Vietnamese without technical internals", () => {
+  const ui = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
+  const guidance = ui.match(/create: "([^"]+)"/)?.[1];
+  assert.equal(guidance, "Chọn học viên và nhiệm vụ đang hoạt động để giao nhiệm vụ.");
+  assert.doesNotMatch(guidance!, /\b(?:Core|ACTIVE|ID)\b/);
+  assert.match(ui, /<p role="note">\{assignmentUnavailable\.create\}<\/p>/);
+});
+
 test("PAP-1210: reload restores only authorized Center; Center change clears assignment identity", () => {
   const url = new URL(`https://bo.staging.pinohouse.art/bo?module=missions&centerId=${center}&record=${id}`);
   assert.equal(missionCenterFromUrl([{ id: center }, { id: other }], url), center);
@@ -44,6 +63,7 @@ test("PAP-1210: one typed BO TDD with authorized declarative actions and honest 
   assert.equal(assignmentSchema.key, "missions");
   assert.deepEqual(composeTabs(assignmentSchema).map(t => [t.id, t.label]), [["overview", "Tổng quan"], ["results", "Kết quả"], ["diary", "Nhật Ký"], ["history", "Lịch sử"]]);
   assert.deepEqual(assignmentDefinition.capabilities, { read: "student.mission_assignment.view",
+    history: "student.mission_assignment.view",
     create: "student.mission_assignment.manage", edit: "student.mission_assignment.manage" });
   assert.deepEqual(assignmentDefinition.actions.map(a => [a.id, a.slot, a.capability]), [
     ["assignment-open-create", "table.header", "create"], ["assignment-open-edit", "detail.header", "edit"],

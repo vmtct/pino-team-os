@@ -539,3 +539,51 @@ test("PAP-1117 property presentation receives only authorized projection and ove
  html(h(TddDetail, { ...props, context: { ...context, authorize: () => false } }));
  assert.equal(calls, 1);
 });
+
+for (const surface of ["BO", "HO"] as const) {
+ test(`PAP-1464 ${surface}: approved extensions retain standard Overview, usage and History`, () => {
+  const base = fixture(surface);
+  const registry = new TddRegistry((approval, scope) => approval.jira === "PAP-1464" && scope.extensionId === "fixture-extension");
+  const schema = registry.register({ ...base.schema, detail: { ...base.schema.detail, businessTabs: [{
+   id: "usage", label: "Usage", kind: "approved-extension", extensionId: "fixture-extension",
+   source: { adapter: "fixture", permission: "fixture.read" },
+   approval: { jira: "PAP-1464", owner: "Founder", designAuthority: "test-only", files: ["lib/workspace-renderer.test.ts"], tests: ["lib/workspace-renderer.test.ts"], reviewBy: "2026-12-01" },
+  }] } });
+  const props = { ...base, registry, schema, onBack: noop, subject: { type: "fixture", id: base.record.id }, overviewAfter: h("p", null, "After overview") };
+  for (const overviewContent of [null, h("p", null, "Extension overview")]) {
+   const calls: string[] = [];
+   const renderApprovedExtension = (_record: unknown, _context: unknown, active: string) => {
+    calls.push(active);
+    return active === "overview" ? overviewContent : h("p", { "data-extension": active }, "Usage draft");
+   };
+   const render = (activeTab: string) => html(h(TddDetail, { ...props, activeTab, renderApprovedExtension }));
+   const overview = render("overview");
+   assert.match(overview, /data-tdd-properties="detail"/);
+   assert.match(overview, /class="v24-prop-value readonly"[^>]*>12</);
+   assert.equal((overview.match(/class="v24-prop-item"/g) ?? []).length, 3);
+   assert.match(overview, /After overview/);
+   if (overviewContent) assert.match(overview, /Extension overview/);
+   const usage = render("usage");
+   assert.match(usage, /<div><p data-extension="usage">Usage draft<\/p><\/div>/);
+   assert.doesNotMatch(usage, /data-tdd-properties="detail"|After overview/);
+   const history = render("history");
+   assert.match(history, /<div hidden=""><p data-extension="history">Usage draft<\/p><\/div>/);
+   assert.match(history, /Chưa có lịch sử khả dụng/);
+   assert.doesNotMatch(history, /data-tdd-properties="detail"|After overview/);
+   for (const out of [overview, usage, history]) {
+    assert.equal((out.match(/data-tdd-shell="detail"/g) ?? []).length, 1);
+    assert.deepEqual([...out.matchAll(/role="tab"[^>]*>([^<]+)<\/button>/g)].map(m => m[1]), ["Tổng quan", "Usage", "Lịch sử"]);
+   }
+   assert.deepEqual(calls, ["overview", "usage", "history"]);
+  }
+  let presentations = 0;
+  const renderOverviewProperties: NonNullable<Parameters<typeof TddDetail>[0]["renderOverviewProperties"]> = properties => {
+   presentations++;
+   assert.deepEqual(properties.sections[0].fields, ["name", "id", "count"]);
+   return h(PropertySections, { ...properties, variant: "detail" });
+  };
+  const custom = html(h(TddDetail, { ...props, renderOverviewProperties, renderApprovedExtension: () => null }));
+  assert.match(custom, /class="v24-prop-value readonly"[^>]*>12</);
+  assert.equal(presentations, 1);
+ });
+}

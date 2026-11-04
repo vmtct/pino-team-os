@@ -10,7 +10,7 @@ const row = { id: templateId, centerId, code: "EVENING", displayLabel: "Ca tối
   endLocalTime: "21:00", status: "INACTIVE", createdAt: "2026-10-31T02:00:00.000Z",
   updatedAt: "2026-10-31T03:00:00.000Z" };
 test("PAP-1198 HO parser retains inactive historical ShiftTemplates and rejects cross-Center/invalid response", () => {
-  assert.deepEqual(parseHoShiftTemplates({ data: [row] }, centerId), [row]);
+  assert.deepEqual(parseHoShiftTemplates({ data: [row] }, centerId), [{...row,scopeType:"CENTER"}]);
   assert.deepEqual(parseHoShiftTemplates({ data: [] }, centerId), []);
   for (const invalid of [null, { data: {} }, { data: [{ ...row, centerId: otherCenter }] },
     { data: [{ ...row, status: "ARCHIVED" }] }, { data: [{ ...row, startLocalTime: "23:00" }] },

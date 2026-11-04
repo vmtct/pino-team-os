@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { handleBoContextRequest, type BoContextEnv } from "./bo-context-handler";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 
-function request(authenticated = true, url = "https://bo.pinohouse.art/api/bo/context?userId=forged&staffMemberId=forged") {
+function request(authenticated = true, url = "https://bo.pinohouse.art/api/bo/context") {
   return new Request(url, { headers: authenticated ? { cookie: "pino_staff_password_session=local-session-token" } : {} });
 }
 function env(binding: BoAccessCoreBinding): BoContextEnv { return { PINO_BO_CORE: binding }; }
@@ -49,4 +49,34 @@ test("workers.dev staging bypass no longer substitutes a human BO identity", asy
   const response = await handleBoContextRequest(request(false, "https://pino-team-os-staging.example.workers.dev/api/bo/context"), {
     ...env(bindingWith(async () => { called = true; throw new Error("unexpected"); })), });
   assert.equal(response.status, 401); assert.equal(called, false);
+});
+
+test("PAP-1426 BO context sends validated selected Center as resource, not as permission", async () => {
+  const centerId="01912345-6789-7abc-8def-0123456789ab";
+  const calls:BoAccessRequest[]=[];
+  const response=await handleBoContextRequest(
+    request(true,`https://bo.pinohouse.art/api/bo/context?centerId=${centerId}`),
+    env(bindingWith(async coreRequest=>{
+      calls.push(coreRequest);
+      return{status:200,body:{data:{surface:"BO",entitled:true,permissionKeys:["student.profile.edit"],studentProfileEditAllowed:false}},requestId:"capability-check"};
+    }))
+  );
+  assert.equal(response.status,200);
+  assert.deepEqual(calls,[{method:"GET",path:"context",resource:{centerId}}]);
+  assert.equal((await response.json() as {data:{studentProfileEditAllowed:boolean}}).data.studentProfileEditAllowed,false);
+});
+test("PAP-1426 BO context denies arbitrary, duplicate or malformed Center query before Core",async()=>{
+  const centerId="01912345-6789-7abc-8def-0123456789ab";
+  let calls=0;
+  const fake=env(bindingWith(async ()=>{calls++;throw new Error("Unexpected Core call");}));
+  for(const suffix of [
+    "?userId=forged&staffMemberId=forged",
+    "?centerId=","?centerId=bad",
+    `?centerId=${centerId}&centerId=${centerId}`,
+    `?centerId=${centerId}&grant=student.profile.edit`,
+  ]){
+    const result=await handleBoContextRequest(request(true,"https://bo.pinohouse.art/api/bo/context"+suffix),fake);
+    assert.equal(result.status,400,suffix);
+  }
+  assert.equal(calls,0);
 });

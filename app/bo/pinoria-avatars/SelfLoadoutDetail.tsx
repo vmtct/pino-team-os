@@ -1,6 +1,6 @@
 "use client";
-/** PAP-1356 / PAP-1097: Core-owned 8-slot Loadout. No local inventory/Set writes or fake media. */
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+/** PAP-1356 / PAP-1456 / Epic PAP-1097: Core-owned 8-slot Loadout; DS UI and draft-safe save. */
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import type { SelfFields } from "./schema";
 import { SelfLoadoutPreview, SelfLoadoutEditorLayout } from "@/app/components/pinoria/SelfLoadoutPreview";
@@ -25,7 +25,10 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
 }) {
   const selfId=typeof row.pinoriaSelfId==="string" && UUID.test(row.pinoriaSelfId)?row.pinoriaSelfId:null;
   const [loadout,setLoadout]=useState<Loadout|null>(null);
-  const [owned,setOwned]=useState<Owned[]>([]);
+  // null means unavailable, never an authorized empty inventory.
+  const [owned,setOwned]=useState<Owned[]|null>(null);
+  const [itemError,setItemError]=useState("");
+  const [conflict,setConflict]=useState(false);
   const [chosen,setChosen]=useState<Slots|null>(null);
   const [reason,setReason]=useState("");
   const [error,setError]=useState("");
@@ -36,27 +39,40 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   useEffect(()=>{
     if(activeTab!=="loadout" || !selfId || !canView) return;
     const ctl=new AbortController();
-    queueMicrotask(()=>{if(!ctl.signal.aborted){setLoading(true);setError("");}});
+    queueMicrotask(()=>{if(!ctl.signal.aborted){setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
     const base="/api/bo/pinoria/selfs/"+selfId;
     const qs="?centerId="+encodeURIComponent(centerId);
     const load=(url:string)=>fetch(url,{credentials:"include",cache:"no-store",signal:ctl.signal}).then(async r=>{
       if(!r.ok)throw Error(r.status===403?"Không có quyền ở cơ sở này.":"Core trả về "+r.status);return r.json() as Promise<unknown>;
     });
-    void Promise.all([load(base+"/loadout"+qs), ...(canViewItems?[load(base+"/items"+qs)]:[])]).then(parts=>{
+    const readLoadout=load(base+"/loadout"+qs).then(raw=>{
       if(ctl.signal.aborted)return;
-      const next=parseLoadout(parts[0],selfId);
-      const items=parts[1] as {data?:{selfId:string;items:Owned[]}}|undefined;
-      if(canViewItems && (!items?.data || items.data.selfId!==selfId || !Array.isArray(items.data.items)))throw Error("Core trả về Item không hợp lệ.");
-      setLoadout(next);setChosen(slotIds(next));setOwned(items?.data?.items??[]);
-    }).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không tải được Loadout.");})
-      .finally(()=>{if(!ctl.signal.aborted)setLoading(false);});
+      const next=parseLoadout(raw,selfId);
+      setLoadout(next);setChosen(slotIds(next));
+    }).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không tải được Loadout.");});
+    const readItems=canViewItems?load(base+"/items"+qs).then(raw=>{
+      if(ctl.signal.aborted)return;
+      const items=raw as {data?:{selfId:string;items:Owned[]}};
+      if(!items?.data || items.data.selfId!==selfId || !Array.isArray(items.data.items) || items.data.items.some(i=>!i || !UUID.test(i.itemId) || !i.ownership || typeof i.displayName!=="string"))throw Error("Core trả về Item không hợp lệ.");
+      setOwned(items.data.items);
+    }).catch(()=>{if(!ctl.signal.aborted)setItemError("Không tải được danh sách Item được phép sử dụng. Chỉ xem Loadout đã lưu; hãy tải lại để thử lại.");}):Promise.resolve();
+    void Promise.all([readLoadout,readItems]).finally(()=>{if(!ctl.signal.aborted)setLoading(false);});
     return ()=>ctl.abort();
   },[activeTab,selfId,centerId,canView,canViewItems,refresh]);
   const dirty=useMemo(()=>!!chosen && !!loadout && SLOTS.some(s=>chosen[s]!==loadout.slots[s]?.itemId && !(chosen[s]===null && loadout.slots[s]===null)),[chosen,loadout]);
-  const options=useMemo(()=>SLOTS.map(slot=>({slot,items:owned.filter(i=>i.slot===slot && i.ownership.status==="ACTIVE" && i.itemStatus==="PUBLISHED")})),[owned]);
+  const options=useMemo(()=>SLOTS.map(slot=>({slot,items:(owned??[]).filter(i=>i.slot===slot && i.ownership.status==="ACTIVE" && i.itemStatus==="PUBLISHED")})),[owned]);
+  const inventoryReady=canViewItems && owned!==null;
+  const canEdit=canManage && inventoryReady && !loading && !saving && !conflict;
+  const validSelection=!!chosen && options.every(({slot,items})=>chosen[slot]===null || items.some(i=>i.itemId===chosen[slot] && UUID.test(i.itemId)));
+  const mediaSrc=useCallback((slot:Slot)=>"/api/bo/pinoria/selfs/"+selfId+"/loadout/media/"+slot+"?centerId="+encodeURIComponent(centerId),[selfId,centerId]);
+  function resetDraft(){
+    if(!loadout)return;
+    setChosen(slotIds(loadout));setReason("");setNotice("");
+    if(!conflict)setError("");
+  }
   async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!selfId || !loadout || !chosen || !canManage || !canViewItems || !dirty || !reason.trim() || saving)return;
+    if(!selfId || !loadout || !chosen || !canEdit || !validSelection || !dirty || !reason.trim())return;
     setSaving(true);setError("");setNotice("");
     try{
       const response=await fetch("/api/bo/pinoria/selfs/"+selfId+"/loadout?centerId="+encodeURIComponent(centerId),{
@@ -64,33 +80,43 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
         headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
         body:JSON.stringify({expectedVersion:loadout.version,itemIdsBySlot:chosen,reason:reason.trim()}),
       });
-      if(!response.ok)throw Error(response.status===409?"Loadout đã thay đổi. Hãy tải lại trước khi lưu.":response.status===403?"Không có quyền sửa Loadout.":"Core từ chối SaveSlots ("+response.status+").");
+      if(!response.ok){
+        if(response.status===409)setConflict(true);
+        throw Error(response.status===409?"Loadout đã thay đổi. Bản nháp và lý do được giữ lại. Sao chép nội dung cần giữ trước khi chọn bỏ bản nháp và tải lại.":response.status===403?"Không có quyền sửa Loadout tại cơ sở này. Bản nháp được giữ lại; hãy kiểm tra quyền trước khi thử lại.":"Không lưu được trang bị ("+response.status+"). Bản nháp được giữ lại; hãy thử lại hoặc tải lại trạng thái đã lưu.");
+      }
       const next=parseLoadout(await response.json(),selfId);
       setLoadout(next);setChosen(slotIds(next));setReason("");setNotice("Đã lưu Loadout phiên bản "+next.version+".");onSaved();
-    }catch(e){setError(e instanceof Error?e.message:"Lỗi SaveSlots.");setRefresh(n=>n+1);}
+    }catch(e){setError(e instanceof TypeError?"Không xác nhận được kết quả lưu do lỗi kết nối. Bản nháp được giữ lại; hãy kiểm tra kết nối và thử lại hoặc tải lại trạng thái đã lưu.":e instanceof Error?e.message:"Không xác nhận được kết quả lưu. Bản nháp được giữ lại; hãy thử lại hoặc tải lại trạng thái đã lưu.");}
     finally{setSaving(false);}
   }
   if(activeTab!=="loadout")return null;
   if(!selfId)return <p role="status">Person chưa có Self; không thể chỉnh Loadout.</p>;
   if(!canView)return <p role="alert">Bạn chưa được cấp quyền xem Loadout.</p>;
-  return <section className="grid-card" aria-label="Pinoria Self Loadout">
+  return <section aria-label="Pinoria Self Loadout">
     <SelfLoadoutEditorLayout preview={<SelfLoadoutPreview key={selfId+":"+(loadout?.version??"loading")} loadout={loadout}
-      mediaSrc={slot=>"/api/bo/pinoria/selfs/"+selfId+"/loadout/media/"+slot+"?centerId="+encodeURIComponent(centerId)}/> }>
-    <p role="note">Set phủ toàn bộ Self là trạng thái độc lập thuộc S6; SaveSlots không thay đổi Set.</p>
-    <label htmlFor="self-loadout-set">Set</label>
-    <select id="self-loadout-set" disabled value="separate"><option value="separate">S6 — chưa bật quản lý Set</option></select>
+      mediaSrc={mediaSrc}/> }>
+    <h3 className="pds-property-heading">Trang bị Self</h3>
+    <p id="self-loadout-help" role="note" className="pds-property-text">Preview chỉ hiển thị trang bị đã lưu; lựa chọn bên dưới chưa được áp dụng cho đến khi lưu. Set thuộc S6 và được quản lý riêng.</p>
+    <div className="pds-property-row">
+      <label className="pds-property-label" htmlFor="self-loadout-set">Set</label>
+      <select id="self-loadout-set" className="pds-property-input" disabled value="separate"><option value="separate">S6 — chưa bật quản lý Set</option></select>
+    </div>
     {loading && <p role="status">Đang tải Loadout từ Core…</p>}
-    {error && <p role="alert" className="error">{error} <button type="button" onClick={()=>setRefresh(n=>n+1)}>Tải lại</button></p>}
+    {error && <p role="alert" className="pds-property-text">{error}</p>}
+    {itemError && <p role="alert" className="pds-property-text">{itemError}</p>}
+    {(error||itemError) && <div className="pds-property-actions"><button type="button" disabled={loading||saving} onClick={()=>setRefresh(n=>n+1)}>{dirty||reason?"Bỏ bản nháp và tải lại":"Tải lại trạng thái đã lưu"}</button></div>}
     {notice && <p role="status">{notice}</p>}
-    {loadout && chosen && !loading && <form className="grid-card" onSubmit={e=>{void submit(e);}}>
-      <p>Phiên bản {loadout.version} · {loadout.ready?"READY":"Chưa đủ Tóc + Mặt + Trang phục"} · {loadout.updatedAt??"Chưa lưu"}</p>
+    {loadout && chosen && !loading && <form aria-label="Thiết lập trang bị Self" aria-describedby="self-loadout-help self-loadout-state" onSubmit={e=>{void submit(e);}}>
+      <p id="self-loadout-state" role="status" className="pds-property-text">{dirty?"Có thay đổi trang bị chưa lưu.":"Trang bị khớp với phiên bản đã lưu."}</p>
+      {!canManage && <p className="pds-property-text">Chỉ xem: bạn chưa được cấp quyền sửa Loadout.</p>}
+      <p>Phiên bản {loadout.version} · {loadout.ready?"Sẵn sàng":"Chưa đủ Tóc + Mặt + Trang phục"} · {loadout.updatedAt??"Chưa lưu"}</p>
       {options.map(({slot,items})=>{
         const current=loadout.slots[slot];
         const currentValue=chosen[slot]??"";
-        return <div className="property-control" key={slot}>
-          <label htmlFor={"self-loadout-"+slot}>{LABELS[slot]}</label>
-          <select id={"self-loadout-"+slot} value={currentValue} disabled={!canManage||!canViewItems||saving}
-            onChange={e=>setChosen(prev=>prev?{...prev,[slot]:e.target.value||null}:prev)}>
+        return <div className="pds-property-row" key={slot}>
+          <label className="pds-property-label" htmlFor={"self-loadout-"+slot}>{LABELS[slot]}</label>
+          <select className="pds-property-input" id={"self-loadout-"+slot} value={currentValue} disabled={!canEdit}
+            onChange={e=>{setNotice("");setChosen(prev=>prev?{...prev,[slot]:e.target.value||null}:prev);}}>
             <option value="">Không trang bị</option>
             {current && !items.some(item=>item.itemId===current.itemId) && <option value={current.itemId}>{current.displayName} (lịch sử)</option>}
             {items.map(item=><option key={item.itemId} value={item.itemId}>{item.displayName}</option>)}
@@ -98,11 +124,14 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
         </div>;
       })}
       {!canViewItems && <p role="alert">Thiếu quyền xem Item để lựa chọn trang bị.</p>}
-      <label htmlFor="self-loadout-reason">Lý do lưu *</label>
-      <textarea id="self-loadout-reason" maxLength={1000} value={reason} onChange={e=>setReason(e.target.value)} disabled={!canManage||saving}/>
-      <div className="toolbar">
-        <button type="button" className="secondary-btn" onClick={()=>setChosen(slotIds(loadout))} disabled={!dirty||saving}>Hoàn tác</button>
-        <button type="submit" className="primary-btn" disabled={!dirty||!canManage||!canViewItems||!reason.trim()||saving}>{saving?"Đang lưu…":"Lưu trang bị"}</button>
+      {inventoryReady && !validSelection && <p role="alert" className="pds-property-text">Trang bị lịch sử không còn là Item hợp lệ. Chọn Item được phép sử dụng hoặc bỏ trang bị trước khi lưu.</p>}
+      <div className="pds-property-row">
+        <label className="pds-property-label" htmlFor="self-loadout-reason">Lý do lưu *</label>
+        <textarea className="pds-property-input" id="self-loadout-reason" required maxLength={1000} value={reason} onChange={e=>{setNotice("");setReason(e.target.value);}} disabled={!canEdit}/>
+      </div>
+      <div className="pds-property-actions">
+        <button type="button" onClick={resetDraft} disabled={(!dirty&&!reason&&!notice)||saving}>Hoàn tác</button>
+        <button type="submit" className="pds-property-save" disabled={!dirty||!canEdit||!validSelection||!reason.trim()}>{saving?"Đang lưu…":"Lưu trang bị"}</button>
       </div>
     </form>}
     </SelfLoadoutEditorLayout>

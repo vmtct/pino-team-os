@@ -86,6 +86,10 @@
         {
           "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
           "owner": "PAP-1080"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1316"
         }
       ],
       "schema": {
@@ -102,7 +106,8 @@
         "lib/host-boundary.test.ts",
         "lib/pap1170-shared-properties.test.ts",
         "lib/pap1300-self-wardrobe-ui.test.ts",
-        "lib/pap1356-self-loadout-ui.test.ts"
+        "lib/pap1356-self-loadout-ui.test.ts",
+        "lib/pap1456-self-loadout-form-ui.test.ts"
       ]
     },
     {
@@ -498,6 +503,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/ho-shift-template-create-recovery.ts",
+          "owner": "PAP-1463"
         }
       ],
       "schema": {
@@ -512,7 +521,8 @@
         "lib/pap1198-ho-shift-templates-read.test.ts",
         "lib/pap1198-ho-shift-templates-mutation.test.ts",
         "lib/ho-routes.test.ts",
-        "lib/pap1198-ho-shift-template-tdd.test.ts"
+        "lib/pap1198-ho-shift-template-tdd.test.ts",
+        "lib/pap1463-ho-create-recovery.test.ts"
       ]
     },
     {
@@ -528,6 +538,7 @@
         "app/ho/learning/missions/command.ts",
         "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx",
+        "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
       "schema": {
@@ -543,7 +554,8 @@
         "lib/pap1207-ho-mission-write.test.ts",
         "lib/pap1207-ho-mission-command.test.ts",
         "lib/pap1207-ho-mission-create-ui.test.ts",
-        "lib/pap1207-ho-mission-edit.test.ts"
+        "lib/pap1207-ho-mission-edit.test.ts",
+        "lib/pap1188-mission-history.test.ts"
       ],
       "externalReferences": [
         {
@@ -579,7 +591,8 @@
         "lib/bo-mission-assignments.ts",
         "lib/bo-mission-assignment-write-facade.ts",
         "lib/bo-mission-assignment-command.ts",
-        "lib/bo-mission-assignment-options.ts"
+        "lib/bo-mission-assignment-options.ts",
+        "lib/mission-history.ts"
       ],
       "externalReferences": [
         {
@@ -605,6 +618,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
         }
       ],
       "schema": {
@@ -620,7 +637,8 @@
         "lib/pap1210-bo-mission-write-facade.test.ts",
         "lib/pap1210-bo-mission-command.test.ts",
         "lib/pap1210-bo-mission-options.test.ts",
-        "lib/pap1210-bo-mission-form.test.ts"
+        "lib/pap1210-bo-mission-form.test.ts",
+        "lib/pap1188-mission-history.test.ts"
       ]
     },
     {
@@ -661,6 +679,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
         }
       ]
     },
