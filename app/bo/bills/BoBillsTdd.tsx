@@ -27,7 +27,7 @@ export function BoBillsTdd(){
 function BillsAtCenter({centerId,centerSource}:{centerId:string;centerSource:"centers"|"workforce/planning/bootstrap"}){
  const [ready,setReady]=useState<Ready|null>(null),[error,setError]=useState(""),[revision,setRevision]=useState(0),[editor,setEditor]=useState<{id?:string}|null>(null);
  useEffect(()=>{const ctl=new AbortController();let bound:AuthenticatedSurfaceAdapter<F>|null=null;
-  void createBoTddAdapter({registry:new TddRegistry(),definition:billDefinition,provider:billProvider,centerId,centerSource},ctl.signal).then(adapter=>{bound=adapter;if(ctl.signal.aborted){adapter.dispose();return;}setReady({adapter,navigation:browserTddNavigation("BO","bills",billQuery)});}).catch(e=>{if(!ctl.signal.aborted)setError(billError(e));});
+  void createBoTddAdapter({registry:new TddRegistry(),definition:billDefinition,provider:billProvider,centerId:centerId,centerSource},ctl.signal).then(adapter=>{bound=adapter;if(ctl.signal.aborted){adapter.dispose();return;}setReady({adapter,navigation:browserTddNavigation("BO","bills",billQuery)});}).catch(e=>{if(!ctl.signal.aborted)setError(billError(e));});
   return()=>{ctl.abort();bound?.dispose();};
  },[centerId,centerSource,revision]);
  const refresh=()=>{setReady(null);setError("");setRevision(n=>n+1);};
