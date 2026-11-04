@@ -60,11 +60,11 @@ export function HoShiftTemplatesTdd(){
     {centers?.length===0?<p role="status">Không có Center đang hoạt động.</p>:null}
     {error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(v=>v+1);}}>Thử lại</button></p>:null}
     {!valid&&centers?.length?<p role="status">Chọn Center để xem Mẫu ca.</p>:null}
-    {valid&&ready?<div data-testid="ho-shift-templates-workspace">
-      <HoShiftTemplateEditor key={"create:"+centerId} mode="create" centerId={centerId} centers={centers??[]} createOpen={createOpen}
+      <HoShiftTemplateEditor mode="create" centerId={centerId} centers={centers??[]} createOpen={createOpen}
         onCreateClose={()=>setCreateOpen(false)}
-        authorized={ready.adapter.context.authorize("workforce.shift_template.ho_manage")}
+        authorized={ready?.adapter.context.authorize("workforce.shift_template.ho_manage")??false}
         onSaved={()=>setRefresh(v=>v+1)}/>
+    {valid&&ready?<div data-testid="ho-shift-templates-workspace">
       <SurfaceWorkspace key={centerId+":"+refresh} adapter={ready.adapter} navigation={ready.navigation}
         actionBindings={{openCreate:{kind:"navigation",run:()=>setCreateOpen(true)}}}
         initialQuery={shiftTemplateQuery}
