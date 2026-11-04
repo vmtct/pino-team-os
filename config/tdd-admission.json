@@ -608,6 +608,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
         }
       ],
       "schema": {
@@ -665,6 +669,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
         }
       ]
     },

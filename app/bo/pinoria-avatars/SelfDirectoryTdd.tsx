@@ -17,6 +17,14 @@ import { SelfDirectoryProperties } from "./SharedProperties";
 
 type F = typeof selfFields;
 type Bound = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
+// PAP-1447 / Epic PAP-1097: content-only TDD owns its nav metadata without a generic data adapter.
+const selfDirectoryNavSource = {
+  ...readApi,
+  modules: {
+    ...readApi.modules,
+    "pinoria-avatars": { label: "Self Directory", group: "PINORIA", fields: [] },
+  },
+};
 export function SelfDirectoryTdd(){
   const [centers,setCenters]=useState<readonly DirectoryCenter[]>([]);
   const [selected,setSelected]=useState("");
@@ -74,5 +82,5 @@ export function SelfDirectoryTdd(){
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
-  return <BoRegistrationWorkspace source={readApi} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
+  return <BoRegistrationWorkspace source={selfDirectoryNavSource} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
 }
