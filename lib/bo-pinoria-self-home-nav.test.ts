@@ -16,7 +16,8 @@ test("Pinoria Self stays a dedicated BO TDD route, never a legacy query module",
 
 test("BO staging shared shell exposes canonical route-only nav without generic data loading", () => {
   assert.match(shell, /boNavigation\.find\(group => group\.label === "Pinoria"\)/);
-  assert.match(shell, /!ho && !Object\.hasOwn\(source\.modules, "pinoria-avatars"\)/);
+  assert.match(shell, /const selfNav = !ho/);
+  assert.match(shell, /const navModules = selfNav && !Object\.hasOwn\(source\.modules, "pinoria-avatars"\)/);
   assert.match(shell, /navModules\)/);
   assert.match(shell, /selfNav && key === "pinoria-avatars" \? selfNav\.href/);
   assert.match(self, /source=\{selfDirectoryNavSource\}/);

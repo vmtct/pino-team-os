@@ -132,10 +132,10 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   }, [mobileOpen]);
   // PAP-1447 / Epic PAP-1097: route-only Self Directory uses canonical BO navigation.
   // Keep its TDD/Core loader outside the legacy and Workforce module registries.
-  const selfNav = !ho && !Object.hasOwn(source.modules, "pinoria-avatars")
+  const selfNav = !ho
     ? boNavigation.find(group => group.label === "Pinoria")?.items.find(item => item.href === "/bo/pinoria-avatars")
     : undefined;
-  const navModules = selfNav
+  const navModules = selfNav && !Object.hasOwn(source.modules, "pinoria-avatars")
     ? { ...source.modules, "pinoria-avatars": { label: selfNav.label, group: "PINORIA", fields: [] } }
     : source.modules;
   const groups = [...new Set(Object.values(navModules).map(m => m.group))];
