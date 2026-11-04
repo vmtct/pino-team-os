@@ -2,6 +2,7 @@
 import {useEffect,useId,useRef,useState} from "react";
 import {TosButton,TosCard,DrawerFrame} from "@pino/design-system/react";
 import {parseHoShiftTemplates,type HoShiftTemplateRow} from "@/lib/ho-shift-templates-read-facade";
+import {HoCreateRecovery,createRecoveryMessage,type CreatePayload} from "@/lib/ho-shift-template-create-recovery";
 
 type Mode="create"|"edit"|"status";
 type Form={code:string;displayLabel:string;startLocalTime:string;endLocalTime:string};
@@ -34,9 +35,22 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
   const [uncertain,setUncertain]=useState(false);
+  const [createRecovery,setCreateRecovery]=useState(()=>new HoCreateRecovery());
   const [reload,setReload]=useState(0);
   const inFlight=useRef(false);
+  const createForm=useRef<HTMLFormElement>(null);
+  const createLocked=mode==="create"&&createRecovery.locked;
+  const blocked=uncertain||createLocked;
   const active=mode!=="create"||open;
+  // Follow the current list Center for a new draft, never rewrite an unresolved Core attempt.
+  useEffect(()=>{
+    if(mode==="create"&&!createRecovery.locked)
+      setCreateScope(centerId==="ALL"?"GLOBAL":centerId);
+  },[mode,centerId,createRecovery]);
+  useEffect(()=>{
+    if(mode==="create"&&open&&!busy&&createRecovery.locked)
+      createForm.current?.querySelector<HTMLButtonElement>("[data-create-recovery]")?.focus();
+  },[mode,open,busy,createRecovery]);
   useEffect(()=>{
     if(!authorized||!active||mode==="create")return;
     const ctrl=new AbortController();
@@ -63,19 +77,39 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
     hhmm.test(form.startLocalTime)&&hhmm.test(form.endLocalTime)&&form.endLocalTime>form.startLocalTime&&(selectedScope==="GLOBAL"||uuid.test(selectedScope)));
   const dirty=mode==="create" || view.kind!=="ready" ? valid :
     Object.entries(from(view.template)).some(([k,v])=>form[k as keyof Form]!==v);
+  function finishCreate(){
+    if(createRecovery.state!=="committed")return;
+    setNotice("Đã đọc và kiểm chứng Mẫu ca trong Core.");
+    setOpen(false);setForm(empty);setTargetStatus("ACTIVE");setError("");
+    setCreateRecovery(new HoCreateRecovery());onSaved();
+  }
+  async function recoverCreate(){
+    if(!authorized||busy||inFlight.current)return;
+    inFlight.current=true;setBusy(true);
+    try{
+      await createRecovery.reconcile();
+      setError(createRecoveryMessage(createRecovery));finishCreate();
+    }finally{setBusy(false);inFlight.current=false;}
+  }
   async function submit(){
     if(!authorized||busy||uncertain||inFlight.current||!(selectedScope==="GLOBAL"||uuid.test(selectedScope))||mode!=="create"&&view.kind!=="ready")return;
+    if(mode==="create"&&!createRecovery.canSubmit)return;
     if(mode!=="status"&&(!valid||!dirty))return;
     if(mode==="status"&&view.kind==="ready"&&targetStatus===view.template.status)return;
     inFlight.current=true;setBusy(true);setError("");setNotice("");
+    if(mode==="create"){
+      try{
+        await createRecovery.submit({...scope,...form,status:targetStatus} satisfies CreatePayload);
+        setError(createRecoveryMessage(createRecovery));finishCreate();
+      }finally{setBusy(false);inFlight.current=false;}
+      return;
+    }
     const current=view.kind==="ready"?view.template:null;
     const payload=mode==="status"
       ? {...scope,status:targetStatus,expectedUpdatedAt:current!.updatedAt}
-      : mode==="edit"
-        ? {...scope,...form,expectedUpdatedAt:current!.updatedAt}
-        : {...scope,...form,status:targetStatus};
+      : {...scope,...form,expectedUpdatedAt:current!.updatedAt};
     const url="/api/ho/workforce/shift-templates"+
-      (mode==="create"?"":"/"+encodeURIComponent(templateId??"")+"/"+(mode==="edit"?"update":"status"));
+      "/"+encodeURIComponent(templateId??"")+"/"+(mode==="edit"?"update":"status");
     try{
       const response=await fetch(url,{
         method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",
@@ -84,15 +118,14 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
       });
       if(response.status===409)throw Error("Mẫu ca đã thay đổi hoặc xung đột. Cần tải lại từ Core.");
       if([401,403,404].includes(response.status))throw Error("Không được phép thay đổi Mẫu ca tại Center này.");
-      if(response.status!==(mode==="create"?201:200))throw Error("Core chưa xác nhận lưu Mẫu ca.");
+      if(response.status!==200)throw Error("Core chưa xác nhận lưu Mẫu ca.");
       const result:unknown=await response.json();
       const row=parsedRows({data:[(result as {data?:unknown}|null)?.data]},selectedScope)[0];
       if(!row||(current&&row.id!==current.id)||
         Object.entries(payload).some(([k,v])=>k!=="expectedUpdatedAt"&&(row as unknown as Record<string,unknown>)[k]!==v))
         throw Error("Receipt của Mẫu ca chưa khớp Core.");
       setNotice("Đã lưu và kiểm chứng Mẫu ca trong Core.");
-      if(mode==="create"){setOpen(false);setForm(empty);}
-      else{setView({kind:"ready",template:{...current,...row}});setForm(from(row));setTargetStatus(row.status);}
+      setView({kind:"ready",template:{...current,...row}});setForm(from(row));setTargetStatus(row.status);
       onSaved();
     }catch(err){
       setUncertain(true);
@@ -101,33 +134,35 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
     }finally{setBusy(false);inFlight.current=false;}
   }
   const fields=<div>
-    <div className="property-row"><label htmlFor="ho-template-scope">Phạm vi / Center</label><select id="ho-template-scope" value={selectedScope} disabled={mode!=="create"||busy||uncertain} onChange={event=>setCreateScope(event.target.value)}><option value="GLOBAL">GLOBAL — mọi Center</option>{centers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+    <div className="property-row"><label htmlFor="ho-template-scope">Phạm vi / Center</label><select id="ho-template-scope" value={selectedScope} disabled={mode!=="create"||busy||blocked} onChange={event=>setCreateScope(event.target.value)}><option value="GLOBAL">GLOBAL — mọi Center</option>{centers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
     {([["displayLabel","Tên mẫu ca","text"],["code","Mã mẫu ca","text"],
       ["startLocalTime","Bắt đầu","time"],["endLocalTime","Kết thúc","time"]] as const).map(([key,label,type])=>
       <div className="property-row" key={key}>
         <label htmlFor={"ho-template-"+mode+"-"+key}>{label}</label>
         <input id={"ho-template-"+mode+"-"+key} type={type} required
           maxLength={key==="displayLabel"?160:key==="code"?64:undefined}
-          value={form[key]} disabled={!authorized||busy||uncertain||((key==="startLocalTime"||key==="endLocalTime")&&view.kind==="ready"&&((view.template.assignmentCount??0)>0||(view.template.availabilityCount??0)>0))}
+          value={form[key]} disabled={!authorized||busy||blocked||((key==="startLocalTime"||key==="endLocalTime")&&view.kind==="ready"&&((view.template.assignmentCount??0)>0||(view.template.availabilityCount??0)>0))}
           onChange={event=>input(key,event.target.value)}/>
       </div>)}
   </div>;
   const reloadButton=<TosButton type="button" variant="secondary" disabled={busy} onClick={()=>{
     setError("");setUncertain(false);setView({kind:"loading"});setReload(v=>v+1);
   }}>Tải lại từ Core</TosButton>;
-  if(!authorized)return <p role="alert">Không có quyền quản lý Mẫu ca.</p>;
+  if(!authorized)return mode==="create"&&!open?null:<p role="alert">Không có quyền quản lý Mẫu ca.</p>;
   if(mode==="create")return <section aria-label="Tạo mẫu ca" data-ho-shift-template-create>
-    {createOpen===undefined?<TosButton type="button" variant="primary" disabled={busy} onClick={()=>{setOpen(true);setError("");setUncertain(false);}}>Tạo mẫu ca</TosButton>:null}
+    {createOpen===undefined?<TosButton type="button" variant="primary" disabled={busy} onClick={()=>setOpen(true)}>Tạo mẫu ca</TosButton>:null}
     {notice?<p role="status">{notice}</p>:null}
     {open?<DrawerFrame surface="ho" title="Tạo mẫu ca" onClose={()=>{if(!busy)setOpen(false);}} footer={<>
       <TosButton type="button" variant="secondary" disabled={busy} onClick={()=>setOpen(false)}>Hủy</TosButton>
-      <TosButton type="submit" form={formId} variant="primary" disabled={!valid||busy||uncertain}>{busy?"Đang lưu…":"Tạo"}</TosButton>
+      <TosButton type="submit" form={formId} variant="primary" aria-busy={busy} disabled={!valid||busy||!createRecovery.canSubmit}>{busy?"Đang xử lý…":createRecovery.state==="absent"?"Thử lại cùng yêu cầu":"Tạo"}</TosButton>
     </>}>
-      <form id={formId} onSubmit={event=>{event.preventDefault();void submit();}}>
+      <form ref={createForm} id={formId} aria-busy={busy} onSubmit={event=>{event.preventDefault();void submit();}}>
 
         {fields}
-        <div className="property-row"><label htmlFor="ho-create-template-status">Trạng thái</label><select id="ho-create-template-status" value={targetStatus} disabled={busy||uncertain} onChange={event=>setTargetStatus(event.target.value as "ACTIVE"|"INACTIVE")}><option value="ACTIVE">Đang sử dụng</option><option value="INACTIVE">Ngưng sử dụng</option></select></div>
+        <div className="property-row"><label htmlFor="ho-create-template-status">Trạng thái</label><select id="ho-create-template-status" value={targetStatus} disabled={busy||createLocked} onChange={event=>setTargetStatus(event.target.value as "ACTIVE"|"INACTIVE")}><option value="ACTIVE">Đang sử dụng</option><option value="INACTIVE">Ngưng sử dụng</option></select></div>
         {error?<p role="alert">{error}</p>:null}
+        {createRecovery.diagnostic?<p role="status">{createRecovery.diagnostic}{createRecovery.key?" · Mã yêu cầu: "+createRecovery.key:""}</p>:null}
+        {createLocked?<TosButton data-create-recovery type="button" variant="secondary" disabled={busy} aria-busy={busy} onClick={()=>{void recoverCreate();}}>Kiểm tra từ Core</TosButton>:null}
       </form>
     </DrawerFrame>:null}
   </section>;
