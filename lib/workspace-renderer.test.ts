@@ -475,7 +475,9 @@ for (const surface of ["BO", "HO"] as const) {
       const activeIndex = ["overview", "relations", "more", "enrollments", "history"].indexOf(selected);
       assert.match(out, new RegExp(`role="tabpanel" aria-labelledby="detail-tab-${activeIndex}"`));
       assert.match(out, new RegExp(`id="detail-tab-${activeIndex}" aria-selected="true"`));
-      assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2, "keyboard-selected tab and panel only");
+      const resizeHandles = (out.match(/role="separator"/g) ?? []).length;
+      assert.ok(resizeHandles <= 1, "Detail owns at most one shared resize handle");
+      assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2 + resizeHandles, "selected tab/panel plus optional Overview separator");
     }
   });
 

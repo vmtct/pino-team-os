@@ -55,6 +55,23 @@ export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProp
 }
 function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, record, status = "ready", onRetry, onBack, subject, writes, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<F>, "registry"> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
+  // Browser-profile preference; per surface/Center/module (no Core/ACL writes).
+  const preferenceKey = "pino:tdd:label-width:v1:" + context.surface + ":" + (context.surface === "BO" ? context.centerId : "global") + ":" + schema.key;
+  const [labelWidth, setLabelWidth] = useState(160);
+  useEffect(() => {
+    try {
+      const stored = Number(window.localStorage.getItem(preferenceKey));
+      setLabelWidth(Number.isFinite(stored) && stored >= 90 && stored <= 240 ? stored : 160);
+    } catch { setLabelWidth(160); }
+  }, [preferenceKey]);
+  const changeLabelWidth = (width: number, reset = false) => {
+    const next = Math.max(90, Math.min(240, Math.round(width)));
+    setLabelWidth(next);
+    try {
+      if (reset) window.localStorage.removeItem(preferenceKey);
+      else window.localStorage.setItem(preferenceKey, String(next));
+    } catch { /* local storage failure does not prevent Detail */ }
+  };
   const [selected, setSelected] = useState("overview");
   const projection = status === "ready" ? recordProjection(schema as unknown as ModuleSchema, context, record) : null;
   const tabs = authorizedTabs(schema, context, projection?.record);
@@ -73,7 +90,8 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
   // Overview remains platform-owned even when a business extension is mounted.
   const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)}
     canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")}
-    onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined} />}{overviewAfter}</> : null;
+    onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined}
+    labelWidth={labelWidth} onLabelWidthChange={changeLabelWidth} />}{overviewAfter}</> : null;
   return <><DetailFrame title={projection?.title ?? "Chi tiết"} subtitle={projection?.record.id} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
     tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
     {projection && renderApprovedExtension && hasApprovedExtension
