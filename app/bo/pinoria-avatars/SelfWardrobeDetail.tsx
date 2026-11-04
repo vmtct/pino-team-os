@@ -112,7 +112,7 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
         <option value="ALL">Tất cả loại</option><option value="WEARABLE">Wearable</option><option value="ACCESSORY">Accessory</option>
       </select>
     </div>
-    {Number(row.equippedCount) > 0 && <p className="datatag gold" role="note">Self đang có trang bị. Core có thể từ chối Revoke nếu Item đang thuộc Loadout; không tự Unequip.</p>}
+    {Number(row.equippedCount) > 0 && <p className="datatag gold" role="note">Self đang có trang bị. Nếu Item đang được trang bị, Core sẽ tháo khỏi slot và thu hồi trong một giao dịch.</p>}
     {loading && <p role="status">Đang tải Item từ Core…</p>}
     {error && <p role="alert" className="error">{error} <button type="button" onClick={() => setRevision(v => v + 1)}>Tải lại</button></p>}
     {notice && <p role="status">{notice}</p>}
@@ -140,7 +140,7 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
       <form id="self-item-confirm-form" onSubmit={event => { void submit(event); }} className="grid-card">
         <h3>{command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"}</h3>
         <p>{command.item.displayName}</p>
-        {command.mode === "revoke" && <p className="datatag gold">Revoke không tự Unequip; Core sẽ từ chối nếu có Loadout liên quan.</p>}
+        {command.mode === "revoke" && <p className="datatag gold">Nếu Item đang trang bị, Core sẽ tháo trang bị và thu hồi đồng thời; trạng thái READY có thể thay đổi.</p>}
         <label htmlFor="self-item-reason">Lý do *</label>
         <textarea id="self-item-reason" required maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} autoFocus />
         <div className="toolbar">

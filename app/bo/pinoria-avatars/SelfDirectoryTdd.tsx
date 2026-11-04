@@ -10,6 +10,7 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { selfDefinition, selfFields, selfQuery, selfProvider, verifySelfWardrobeApproval } from "./schema";
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
+import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
 import { loadAuthorizedDirectoryCenters, type DirectoryCenter, type DirectoryCenterSource } from "./centers";
 
 import { SelfDirectoryProperties } from "./SharedProperties";
@@ -63,9 +64,13 @@ export function SelfDirectoryTdd(){
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
           : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
           detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
-            <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
-              canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
-              onSaved={onSaved} />}/>
+            activeTab === "loadout"
+              ? <SelfLoadoutDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
+                  canView={context.authorize("pinoria.self.loadout.view")} canManage={context.authorize("pinoria.self.loadout.manage")}
+                  canViewItems={context.authorize("pinoria.self.item.view")} onSaved={onSaved}/>
+              : <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
+                  canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
+                  onSaved={onSaved} />}/>
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
