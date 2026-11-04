@@ -57,3 +57,10 @@ export const billProvider:SurfaceProvider<F>={pagination:"local-ui",
   return {row:projectBill(d,summary),centerId:scope.centerId,version:String(d.version)};
  }
 };
+
+const registry=new TddRegistry();
+export const billSchema=registry.register({...billDefinition,data:{
+ id:"bo-bills-center-bound",
+ list:async()=>{throw Error("Authenticated BO Bills Center adapter required");},
+ detail:async()=>{throw Error("Authenticated BO Bill detail adapter required");},
+}});
