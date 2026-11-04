@@ -13,7 +13,7 @@ test("PAP-1198 TDD uses canonical Table/Drawer/Detail and registered HO edit/sta
  assert.equal(shiftTemplateDefinition.classification,"TDD_DEFAULT");
  assert.deepEqual(shiftTemplateDefinition.actions?.map(a=>[a.id,a.slot,a.variant,a.capability,a.handler]),
    [["create-shift-template","table.header","primary","create","openCreate"]]);
- assert.deepEqual(shiftTemplateSchema.detail.businessTabs.map(t=>t.id),["edit","status"]);
+ assert.deepEqual(shiftTemplateSchema.detail.businessTabs.map(t=>t.id),["usage","edit","status"]);
  assert.equal(shiftTemplateSchema.detail.history.kind,"unavailable");
 });
 test("PAP-1198 Center-selected TDD provider shows true Core inactive templates and fails closed",async()=>{
@@ -24,13 +24,43 @@ test("PAP-1198 Center-selected TDD provider shows true Core inactive templates a
   return Response.json({data:[row]});
  };
  const signal=new AbortController().signal;
- assert.deepEqual(await readShiftTemplates(center,fetcher,signal),[row]);
+ const projected={...row,scopeType:"CENTER",assignmentCount:null,availabilityCount:null};
+ assert.deepEqual(await readShiftTemplates(center,fetcher,signal),[projected]);
  const provider=createShiftTemplateProvider(center);
  const data=await provider.list({} as never,{surface:"HO"},fetcher,signal);
  assert.equal(data.total,1);assert.equal(data.records[0]?.row.status,"INACTIVE");
- assert.deepEqual((await provider.detail(row.id,{surface:"HO"},fetcher,signal))?.row,row);
+ assert.deepEqual((await provider.detail(row.id,{surface:"HO"},fetcher,signal))?.row,projected);
  assert.equal(called,3);
  await assert.rejects(readShiftTemplates("not-a-center",fetcher,signal),/Center hợp lệ/);
  await assert.rejects(readShiftTemplates(center,async()=>Response.json({data:[{...row,centerId:other}]}),signal),/không hợp lệ/);
  assert.equal(called,3);
+});
+
+test("PAP-1198 authenticated HO TDD initializes with a Core-backed history provider",async()=>{
+ const [{createHoTddAdapter},{TddRegistry},{verifyShiftTemplateExtensionApproval}]=await Promise.all([
+  import("./workspace-adapters/ho"),
+  import("./workspace-schema"),
+  import("../app/ho/workforce/shift-templates/schema"),
+ ]);
+ const origin="https://ho.staging.pinohouse.art";
+ const fetcher:typeof fetch=async(input,init)=>{
+  assert.equal(new URL(String(input)).href,origin+"/api/bo/context");
+  assert.equal((init?.method??"GET").toUpperCase(),"GET");
+  return Response.json({data:{
+   surface:"BO",entitled:true,userId:"founder-pap1198-qa",
+   permissionKeys:["team.bo.access","workforce.shift_template.ho_manage"],
+  }});
+ };
+ const controller=new AbortController();
+ const adapter=await createHoTddAdapter({
+  registry:new TddRegistry(verifyShiftTemplateExtensionApproval),
+  definition:shiftTemplateDefinition,
+  provider:createShiftTemplateProvider("ALL"),
+  origin,fetcher,
+ },controller.signal);
+ try{
+  assert.equal(adapter.schema.key,"shiftTemplates");
+  assert.equal(adapter.schema.detail.history.kind,"provider");
+  assert.equal(adapter.context.authorize("workforce.shift_template.ho_manage"),true);
+ }finally{adapter.dispose();}
 });

@@ -147,3 +147,35 @@ test("PAP-863: Missions create/update and TV policy writes require key, method a
   assert.equal((await handleBoWriteRequest(request("learning/missions",false,{},"pap863-key"),env(binding),"learning/missions")).status,401);
   assert.equal(forwarded.length,3);
 });
+
+
+test("PAP-1181 / PAP-435: BO forwards only the idempotent Core-owned Staging affiliation fixture path", async () => {
+  const route = "staging-fixtures/center-affiliations";
+  const id = "01a18140-103f-756c-90e1-65282e154afe";
+  const body = { studentId: id, centerId: id, expectedStudentVersion: 1 };
+  const forwarded: Array<{request: BoAccessRequest; token: string}> = [];
+  const binding: BoAccessCoreBinding = {
+    async executeWithStaffPassword(coreRequest, passwordToken) {
+      forwarded.push({ request: coreRequest, token: passwordToken });
+      return { status: 201, body: {data: {studentId: id, centerId: id, reused: false}}, requestId: "pap1181" };
+    },
+  };
+  const ok = await handleBoWriteRequest(request(route, true, body, "pap1181-idempotency"), env(binding), route);
+  assert.equal(ok.status, 201);
+  assert.deepEqual(forwarded, [{request: {method: "POST", path: route, body, idempotencyKey: "pap1181-idempotency"}, token}]);
+  assert.equal((await handleBoWriteRequest(request(route, true, body), env(binding), route)).status, 400);
+  assert.equal((await handleBoWriteRequest(request(route, false, body, "k"), env(binding), route)).status, 401);
+  assert.equal((await handleBoWriteRequest(request(route, true, body, "k", "GET"), env(binding), route)).status, 405);
+  assert.equal((await handleBoWriteRequest(request(route + "/arbitrary", true, body, "k"), env(binding), route + "/arbitrary")).status, 404);
+  assert.equal(forwarded.length, 1, "invalid inputs never reach Core");
+  const denyBinding: BoAccessCoreBinding = {
+    async executeWithStaffPassword() {
+      return {status: 403, body: {error: {code: "ACCESS_PERMISSION_DENIED"}}, requestId: "pap1181-denied"};
+    },
+  };
+  const denied = await handleBoWriteRequest(request(route, true, body, "pap1181-denied"), env(denyBinding), route);
+  assert.equal(denied.status, 403);
+  assert.equal(denied.headers.get("x-request-id"), "pap1181-denied");
+  // Core remains the sole authority for APP_ENV=staging, both per-Center grants,
+  // synthetic Student/Parent predicates, CAS, receipt and atomic audit.
+});

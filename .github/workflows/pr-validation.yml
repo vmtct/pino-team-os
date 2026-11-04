@@ -45,6 +45,9 @@ jobs:
           node --test scripts/verify-bo-staging-route-policy.test.mjs
           node scripts/verify-bo-runtime-surface-ownership.mjs
           node --test scripts/verify-bo-runtime-surface-ownership.test.mjs
+          node --test scripts/verify-bo-center-ownership.test.mjs
+          node scripts/verify-bo-center-ownership.mjs
+          node --test scripts/pap1472-guarded-staging-cd.test.mjs
       - name: Check BO V2.3 pilot parity contract (PAP-889)
         run: |
           node --test public/bo-ui-replica/*.test.cjs
