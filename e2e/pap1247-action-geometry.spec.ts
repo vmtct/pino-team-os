@@ -34,6 +34,35 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
         expect(host.rect.left, `${stage} ${host.slot} left clipped at ${width}`).toBeGreaterThanOrEqual(-1);
         expect(host.rect.right, `${stage} ${host.slot} right clipped at ${width}`).toBeLessThanOrEqual(width + 1);
       }
+      // PAP-1455: labels and geometry alone did not catch browser-native
+      // buttons. Validate actual BO/HO DS variants and computed CSS.
+      const visuals = await page.locator("[data-tdd-action-slot] button").evaluateAll(nodes =>
+        nodes.map(node => {
+          const element = node as HTMLButtonElement;
+          const style = getComputedStyle(element);
+          return {
+            label: element.textContent?.trim() ?? "",
+            primary: element.classList.contains("primary-btn"),
+            secondary: element.classList.contains("secondary-btn"),
+            background: style.backgroundColor,
+            radius: Number.parseFloat(style.borderRadius),
+            padding: Number.parseFloat(style.paddingLeft),
+            fontSize: Number.parseFloat(style.fontSize),
+            height: element.getBoundingClientRect().height,
+          };
+        }));
+      expect(visuals.length).toBeGreaterThan(0);
+      for (const visual of visuals) {
+        expect(visual.primary !== visual.secondary, surface + " " + stage + " incorrect DS variant").toBe(true);
+        expect(visual.background, surface + " " + stage + " transparent background").not.toBe("rgba(0, 0, 0, 0)");
+        expect(visual.radius, surface + " " + stage + " missing border radius").toBeGreaterThanOrEqual(6);
+        expect(visual.padding, surface + " " + stage + " missing padding").toBeGreaterThanOrEqual(8);
+        expect(visual.fontSize, surface + " " + stage + " missing typography").toBeGreaterThanOrEqual(10);
+        expect(visual.height, surface + " " + stage + " insufficient hit target").toBeGreaterThanOrEqual(32);
+      }
+      const primary = visuals.find(button => button.primary);
+      const secondary = visuals.find(button => button.secondary);
+      if (primary && secondary) expect(primary.background).not.toBe(secondary.background);
       const documentOverflow = await page.evaluate(() => Math.max(
         document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth);
       expect(documentOverflow, `${surface} ${stage} document overflow ${width}`).toBeLessThanOrEqual(1);
@@ -42,5 +71,47 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
     }
     writeFileSync(resolve(dest, "action-geometry.json"),
       JSON.stringify({ surface, width, stages: all }, null, 2) + "\n", "utf8");
+  });
+}
+
+
+// Negative control: a CSS-less SSR page must visibly diverge from the
+// authoritative DS control, ensuring the G3 harness cannot silently regress.
+test("PAP-1455 CSS omission is detected by computed-style regression", async ({ page }) => {
+  const html = readFileSync(resolve("node_modules/.cache/pap1073", "BO-action-detail.html"), "utf8");
+  const button = page.getByRole("button", { name: "Chỉnh sửa", exact: true });
+  await page.setContent(html, { waitUntil: "load" });
+  const styled = await button.evaluate(node => {
+    const css = getComputedStyle(node);
+    return { radius: Number.parseFloat(css.borderRadius), padding: Number.parseFloat(css.paddingLeft) };
+  });
+  expect(styled.radius).toBeGreaterThanOrEqual(6);
+  expect(styled.padding).toBeGreaterThanOrEqual(8);
+  await page.setContent(html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, ""), { waitUntil: "load" });
+  const unstyled = await button.evaluate(node => {
+    const css = getComputedStyle(node);
+    return { radius: Number.parseFloat(css.borderRadius), padding: Number.parseFloat(css.paddingLeft) };
+  });
+  expect(unstyled.radius).toBeLessThan(styled.radius);
+  expect(unstyled.padding).toBeLessThan(styled.padding);
+});
+
+for (const surface of ["BO", "HO"] as const) {
+  test("PAP-1455 keyboard focus and disabled state in " + surface, async ({ page }) => {
+    const html = readFileSync(resolve("node_modules/.cache/pap1073", surface + "-action-detail.html"), "utf8");
+    await page.setContent(html, { waitUntil: "load" });
+    const edit = page.getByRole("button", { name: "Chỉnh sửa", exact: true });
+    await page.keyboard.press("Tab");
+    await edit.focus();
+    await expect(edit).toBeFocused();
+    const focused = await edit.evaluate(node => {
+      const css = getComputedStyle(node);
+      return { width: Number.parseFloat(css.outlineWidth), style: css.outlineStyle };
+    });
+    expect(focused.style, surface + " focus outline lost").not.toBe("none");
+    expect(focused.width, surface + " focus ring width lost").toBeGreaterThanOrEqual(1);
+    await edit.evaluate(node => { (node as HTMLButtonElement).disabled = true; });
+    await expect(edit).toBeDisabled();
+    await expect(edit).not.toBeFocused();
   });
 }

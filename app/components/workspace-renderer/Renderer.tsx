@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { TddDrawer, TddDetail, registeredSchema, RecordState } from "./Record";
 import { DrawerFrame } from "./DrawerFrame";
 import { TddTable, type TddTableProps } from "./Table";
-import { TosButton } from "@pino/design-system/react";
 import { useRef, useState } from "react";
 import { authorizedHostActions, tddActionFeedback, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
 
@@ -57,8 +56,8 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
       const binding = bindings[action.handler];
       if (!binding) return null;
       const disabled = Boolean(busy || binding.disabled);
-      return <TosButton key={action.id} type="button"
-        variant={action.variant === "primary" ? "primary" : "secondary"}
+      return <button key={action.id} type="button"
+        className={action.variant === "primary" ? "primary-btn" : "secondary-btn"}
         disabled={disabled} onClick={() => {
           if (disabled || pending.current || !allows(schema, context, action.capability)) return;
           pending.current = true;
@@ -71,7 +70,7 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
             })
             .catch(() => setError("Chưa xác minh được kết quả. Đọc lại dữ liệu trước khi thử lại."))
             .finally(() => { pending.current = false; setBusy(null); });
-        }}>{action.label}</TosButton>;
+        }}>{action.label}</button>;
     })}
     {error ? <p role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}

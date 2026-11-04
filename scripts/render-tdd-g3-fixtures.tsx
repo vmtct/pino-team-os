@@ -59,6 +59,11 @@ function actualMarkup(surface: Surface, stage: Stage) {
 function htmlDocument(surface: Surface, stage: Stage) {
   const cssPath = surface === "BO" ? "public/bo-authority-source/styles.css" : "public/ho-authority-source/ho-scoped.css";
   const styles = readFileSync(resolve(cssPath), "utf8").replaceAll("</style>", "<\\/style>");
+  // PAP-1455: assert the exact surface control CSS is present.
+  // Never approve a native-looking Action Host golden due to absent styles.
+  for (const required of [".primary-btn", ".secondary-btn"]) {
+    if (!styles.includes(required)) throw Error("PAP-1455: " + surface + " missing CSS " + required);
+  }
   return `<!doctype html><html lang="vi" data-surface="${surface.toLowerCase()}" data-bo-ui-authority="v25"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>*{box-sizing:border-box}html,body{margin:0;max-width:100%}body{min-height:100vh}</style><style>${styles}</style></head><body><main id="g3-fixture" data-surface="${surface.toLowerCase()}" data-bo-ui-authority="v25">${actualMarkup(surface, stage)}</main></body></html>`;
 }
 const out = resolve("node_modules/.cache/pap1073");
@@ -111,6 +116,11 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
 for (const surface of ["BO", "HO"] as const) {
   const cssPath = surface === "BO" ? "public/bo-authority-source/styles.css" : "public/ho-authority-source/ho-scoped.css";
   const styles = readFileSync(resolve(cssPath), "utf8").replaceAll("</style>", "<\\/style>");
+  // PAP-1455: assert the exact surface control CSS is present.
+  // Never approve a native-looking Action Host golden due to absent styles.
+  for (const required of [".primary-btn", ".secondary-btn"]) {
+    if (!styles.includes(required)) throw Error("PAP-1455: " + surface + " missing CSS " + required);
+  }
   for (const stage of ["table", "drawer", "detail", "form", "businessTab"] as const) {
     const markup = actionMarkup(surface, stage);
     if (!markup.includes("data-tdd-action-slot=")) throw Error(`PAP-1247 action host missing ${surface} ${stage}`);
