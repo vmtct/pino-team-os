@@ -28,10 +28,48 @@ test('history action labels are Vietnamese and never reveal raw event codes',()=
   assert.equal(auditActionLabel('student.intake.created'),'Tạo hồ sơ');
   assert.equal(auditActionLabel('UNRECOGNIZED_INTERNAL_CODE'),'Thao tác hồ sơ');
 });
+for (const action of ['Tạo học viên', 'Cập nhật học viên', 'Tạo lớp học', 'Cập nhật lớp học', 'Cập nhật bản ghi', 'Tạo Subscription', 'Kích hoạt Subscription', 'Thay thế Subscription', 'Hoàn tất Subscription', 'Huỷ Subscription', 'Tạo Mission', 'Cập nhật Mission', 'Giao nhiệm vụ', 'Cập nhật giao nhiệm vụ', 'Hủy giao nhiệm vụ']) {
+  test(`history preserves admitted Core action label: ${action}`,()=>{
+    assert.equal(auditActionLabel(action),action);
+  });
+}
+test('history rejects unknown and malicious Mission labels and masks machine codes',()=>{
+  for (const action of ['Xóa Mission', 'Giao nhiệm vụ khác', 'tạo Mission', 'Tạo Mission ', ' Tạo Mission', 'Tạo Mission<script>alert(1)</script>', '<img src=x onerror=alert(1)>', 'Giao nhiệm vụ\nprivate-actor@example.com', 'MISSION_INTERNAL_SECRET', '']) {
+    assert.equal(auditActionLabel(action),'Thao tác hồ sơ');
+  }
+  assert.equal(auditActionLabel('mission.created'),'Tạo hồ sơ');
+  assert.equal(auditActionLabel('mission.updated'),'Cập nhật thông tin');
+  assert.equal(auditActionLabel('student_mission_assignment.assigned'),'Cập nhật phân công');
+  assert.equal(auditActionLabel('mission.created<script>alert(1)</script>'),'Tạo hồ sơ');
+});
 test('column default visibility does not remove searchable fields or change BO defaults',()=>{
   const optional: BoField={key:'technical',label:'Internal key',type:'text',icon:'#',w:180,defaultVisible:false};
   const hidden=defaultTable([...fields,optional]);
   assert.deepEqual(hidden.visible,['name','capacity']);
   assert.deepEqual(hidden.order,['name','capacity','technical']);
   assert.deepEqual(defaultTable(fields).visible,['name','capacity']);
+});
+test('history preserves only exact admitted Mission Core action labels',()=>{
+  for (const action of ['Tạo Mission','Cập nhật Mission','Giao nhiệm vụ','Cập nhật giao nhiệm vụ','Hủy giao nhiệm vụ']) {
+    assert.equal(auditActionLabel(action),action);
+  }
+});
+test('unknown and raw Mission actions retain localized fallbacks',()=>{
+  for (const action of ['', 'UNRECOGNIZED_INTERNAL_CODE', 'Hoàn tất Mission', 'Tạo Mission khác', 'Giao nhiệm vụ: private-student-id']) {
+    assert.equal(auditActionLabel(action),'Thao tác hồ sơ');
+  }
+  for (const action of ['Tạo Mission','Cập nhật Mission','Giao nhiệm vụ','Cập nhật giao nhiệm vụ','Hủy giao nhiệm vụ']) {
+    for (const variant of [action.toLowerCase(), ` ${action}`, `${action} `]) {
+      assert.equal(auditActionLabel(variant),'Thao tác hồ sơ');
+    }
+  }
+  for (const [action, label] of [
+    ['mission.created','Tạo hồ sơ'],
+    ['mission.updated','Cập nhật thông tin'],
+    ['mission.assignment.created','Tạo hồ sơ'],
+    ['mission.assignment.updated','Cập nhật thông tin'],
+    ['mission.assignment.cancelled','Cập nhật phân công'],
+  ]) {
+    assert.equal(auditActionLabel(action),label);
+  }
 });
