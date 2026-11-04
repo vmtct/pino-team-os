@@ -16,7 +16,7 @@ for (const width of [1440,1024,768,390,320]) test(`PAP1076 actual Centers contro
   return route.fulfill({status:404,body:""});
  });
  await page.goto("https://ho.staging.pinohouse.art/ho/centers");
- const opener=page.getByRole("button",{name:"Quick View Synthetic Center",exact:true});
+ const opener=page.getByRole("row",{name:"Mở Quick View Synthetic Center",exact:true});
  await expect(opener).toBeVisible();await opener.click();
  await expect(page.locator('[data-tdd-shell="drawer"]')).toBeVisible();
  await page.getByRole("button",{name:/Full Detail/}).click();

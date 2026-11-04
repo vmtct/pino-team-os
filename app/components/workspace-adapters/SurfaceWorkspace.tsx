@@ -55,18 +55,18 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
   const list = useAdapterResource(listLoad);
   useEffect(() => {
     // history.state clones the query, which may refresh and replace Table rows.
-    // Restore the opener only after those rows have committed to the DOM.
+    // Restore the focused row only after those rows have committed to the DOM.
     if (pendingTableRestore.current && location.kind === "table" && list.state?.value) {
       const recordId = pendingTableRestore.current;
       pendingTableRestore.current = null;
       navigation.restore();
-      // A reloaded Detail has no original DOM opener in its navigation instance.
+      // A reloaded Detail has no original DOM row in its navigation instance.
       // Preserve normal focus/scroll restoration, then recover only an idle body
       // focus using the row actually rendered by this authorized Table.
       requestAnimationFrame(() => {
         if (document.activeElement === document.body) {
-          [...(tableRoot.current?.querySelectorAll<HTMLButtonElement>('button[data-open]') ?? [])]
-            .find(button => button.dataset.open === recordId)?.focus({ preventScroll: true });
+          [...(tableRoot.current?.querySelectorAll<HTMLElement>('[data-open]') ?? [])]
+            .find(row => row.dataset.open === recordId)?.focus({ preventScroll: true });
         }
       });
     }

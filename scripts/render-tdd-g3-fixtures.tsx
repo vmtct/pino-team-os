@@ -58,7 +58,7 @@ function actualMarkup(surface: Surface, stage: Stage) {
 }
 function htmlDocument(surface: Surface, stage: Stage) {
   const cssPath = surface === "BO" ? "public/bo-authority-source/styles.css" : "public/ho-authority-source/ho-scoped.css";
-  const styles = (readFileSync(resolve(cssPath), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-detail-layout.css"), "utf8")).replaceAll("</style>", "<\\/style>");
+  const styles = (readFileSync(resolve(cssPath), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-detail-layout.css"), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-table-geometry.css"), "utf8")).replaceAll("</style>", "<\\/style>");
   // PAP-1455: assert the exact surface control CSS is present.
   // Never approve a native-looking Action Host golden due to absent styles.
   for (const required of [".primary-btn", ".secondary-btn"]) {
@@ -121,7 +121,7 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
 }
 for (const surface of ["BO", "HO"] as const) {
   const cssPath = surface === "BO" ? "public/bo-authority-source/styles.css" : "public/ho-authority-source/ho-scoped.css";
-  const styles = (readFileSync(resolve(cssPath), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-detail-layout.css"), "utf8")).replaceAll("</style>", "<\\/style>");
+  const styles = (readFileSync(resolve(cssPath), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-detail-layout.css"), "utf8") + "\n" + readFileSync(resolve("app/components/workspace-renderer/tdd-table-geometry.css"), "utf8")).replaceAll("</style>", "<\\/style>");
   // PAP-1455: assert the exact surface control CSS is present.
   // Never approve a native-looking Action Host golden due to absent styles.
   for (const required of [".primary-btn", ".secondary-btn"]) {
