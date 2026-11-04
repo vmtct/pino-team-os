@@ -16,6 +16,7 @@ import {
   type StaffDutyObligation,
   type StaffProfile,
   type TimekeepingSession,
+  type CheckInPhotoMissingReason,
   type WorkforceContext,
 } from "@/lib/workforce-api";
 import styles from "./check-in.module.css";
@@ -66,8 +67,9 @@ export default function DutyAwareCheckInOut() {
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [current, setCurrent] = useState<TimekeepingSession | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
-  const [photoEvidence, setPhotoEvidence] = useState<{sessionId:string;status:"MISSING"|"BOUND"}|null>(null);
+  const [photoEvidence, setPhotoEvidence] = useState<{sessionId:string;status:"MISSING"|"BOUND"|"DELETED";reason?:string|null}|null>(null);
   const photoAttempt = useRef<{sessionId:string;blob:Blob;key:string}|null>(null);
+  const missingAttempt=useRef<{signature:string;key:string}|null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [board, setBoard] = useState<StaffDutyBoard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,6 +93,14 @@ export default function DutyAwareCheckInOut() {
       const currentResponse = await workforceApi.currentTimekeeping(nextContext.centers[0]?.id);
       const nextCurrent = currentResponse.data;
       setContext(nextContext); setProfile(profileResponse.data); setCurrent(nextCurrent);
+      if(nextCurrent){
+        void workforceApi.photoStatus(nextCurrent.id).then(({data})=>{
+          setPhotoEvidence(previous=>previous?.sessionId===nextCurrent.id&&previous.status==="BOUND"?previous:{
+            sessionId:nextCurrent.id,status:data.photoEvidenceStatus==="MISSING_EVIDENCE"?"MISSING":data.photoEvidenceStatus,
+            reason:data.missingReason,
+          });
+        }).catch(()=>{}); // Core photo contract is gated until PAP-1430 is serving.
+      }
       const center = nextCurrent ? nextContext.centers.find((item) => item.id === nextCurrent.centerId) ?? nextContext.centers[0] : nextContext.centers[0];
       if (!center) throw new Error("Chưa có Center khả dụng cho StaffMember này.");
       const workDate = nextCurrent?.workDate ?? dayInZone(center.timeZone);
@@ -173,6 +183,17 @@ export default function DutyAwareCheckInOut() {
     finally { setBusy(""); }
   }
 
+  function reportMissing(sessionId:string,reason:CheckInPhotoMissingReason){
+    const signature=`${sessionId}:${reason}`;
+    const previous=missingAttempt.current;
+    const eventKey=previous?.signature===signature?previous.key:crypto.randomUUID().replaceAll("-","");
+    missingAttempt.current={signature,key:eventKey};
+    setPhotoEvidence(prior=>prior?.sessionId===sessionId&&prior.status==="BOUND"?prior:{sessionId,status:"MISSING",reason});
+    void workforceApi.reportPhotoMissing(sessionId,reason,eventKey).catch(()=>{
+      // Failure to record a photo issue never mutates Timekeeping truth.
+    });
+  }
+
   async function submitPhoto(blob: Blob) {
     if (!current) return;
     const prior = photoAttempt.current;
@@ -189,6 +210,7 @@ export default function DutyAwareCheckInOut() {
     } catch (cause) {
       setPhotoEvidence({sessionId:current.id,status:"MISSING"});
       setError(apiMessage(cause));
+      reportMissing(current.id,"UPLOAD_FAILED");
     } finally { setBusy(""); }
   }
 
@@ -311,11 +333,13 @@ export default function DutyAwareCheckInOut() {
           <span>BẰNG CHỨNG CHECK-IN</span>
           {(photoEvidence?.sessionId===current.id ? photoEvidence.status : current.photoEvidenceStatus)==="BOUND"
             ? <strong role="status">✓ Core đã xác nhận ảnh bằng chứng</strong>
-            : <strong role="status">Thiếu ảnh hoặc chưa xác nhận · Check-in vẫn hợp lệ</strong>}
+            : (photoEvidence?.sessionId===current.id?photoEvidence.status:current.photoEvidenceStatus)==="DELETED"
+              ? <strong role="status">Ảnh đã hết thời hạn lưu trữ · Giờ công vẫn hợp lệ</strong>
+              : <strong role="status">Thiếu ảnh hoặc chưa xác nhận · Check-in vẫn hợp lệ</strong>}
           <p>Ảnh là bằng chứng bổ sung, không phải điều kiện ghi nhận giờ công. Có thể chụp lại khi camera hoặc mạng gặp lỗi.</p>
           {!photoOpen && (photoEvidence?.sessionId===current.id ? photoEvidence.status : current.photoEvidenceStatus)!=="BOUND"
             ? <button type="button" disabled={Boolean(busy)} onClick={()=>setPhotoOpen(true)}>Chụp ảnh bổ sung</button> : null}
-          {photoOpen ? <CheckInCameraPanel busy={busy==="photo"} onCancel={()=>setPhotoOpen(false)} onConfirm={submitPhoto}/> : null}
+          {photoOpen ? <CheckInCameraPanel busy={busy==="photo"} onCancel={()=>{setPhotoOpen(false);reportMissing(current.id,"CAPTURE_CANCELLED");}} onConfirm={submitPhoto} onFailure={reason=>reportMissing(current.id,reason)}/> : null}
         </section>
         <div className={styles.stats}><article><span>Giờ công tháng này</span><strong className={styles.unavailable}>Chưa sẵn sàng</strong><small>Chờ effective timekeeping từ PAP-706.</small></article><article><span>Ca tiếp theo</span><strong>{nextAssignment ? compactDate(nextAssignment.workDate) : "Chưa có"}</strong><small>{nextAssignment?.shift ? `${nextAssignment.shift.startLocalTime}–${nextAssignment.shift.endLocalTime}` : "Không có assignment sắp tới."}</small></article></div>
 

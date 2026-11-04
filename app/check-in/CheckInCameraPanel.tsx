@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Camera Blob preview has no remote image URL. */
 import {useEffect,useRef,useState} from "react";
 import styles from "./check-in-camera.module.css";
-type CameraProps={busy:boolean;onCancel:()=>void;onConfirm:(blob:Blob)=>Promise<void>};
+type CameraProps={busy:boolean;onCancel:()=>void;onConfirm:(blob:Blob)=>Promise<void>;onFailure?:(reason:"CAMERA_DENIED"|"CAMERA_UNAVAILABLE")=>void};
 const MAX_BYTES=350*1024;
 
 async function canvasJpeg(canvas:HTMLCanvasElement,quality:number):Promise<Blob>{
@@ -28,7 +28,9 @@ async function takePhoto(video:HTMLVideoElement):Promise<Blob>{
  throw new Error("Ảnh quá lớn. Hãy thử chụp lại.");
 }
 /** getUserMedia only. No gallery/file input, photo bytes never enter localStorage. */
-export function CheckInCameraPanel({busy,onCancel,onConfirm}:CameraProps){
+export function CheckInCameraPanel({busy,onCancel,onConfirm,onFailure}:CameraProps){
+ const onFailureRef=useRef(onFailure);
+ useEffect(()=>{onFailureRef.current=onFailure;},[onFailure]);
  const videoRef=useRef<HTMLVideoElement|null>(null);
  const streamRef=useRef<MediaStream|null>(null);
  const [revision,setRevision]=useState(0);
@@ -40,7 +42,7 @@ export function CheckInCameraPanel({busy,onCancel,onConfirm}:CameraProps){
  useEffect(()=>{
   let valid=true;const video=videoRef.current;
   if(!navigator.mediaDevices?.getUserMedia){
-   queueMicrotask(()=>{if(valid)setError("Camera chỉ hoạt động qua HTTPS/localhost. Hãy mở PINO TOS bằng địa chỉ bảo mật.");});
+   queueMicrotask(()=>{if(valid){setError("Camera chỉ hoạt động qua HTTPS/localhost. Hãy mở PINO TOS bằng địa chỉ bảo mật.");onFailureRef.current?.("CAMERA_UNAVAILABLE");}});
    return;
   }
   void navigator.mediaDevices.getUserMedia({audio:false,
@@ -50,7 +52,7 @@ export function CheckInCameraPanel({busy,onCancel,onConfirm}:CameraProps){
    streamRef.current=stream;
    if(video){video.srcObject=stream;void video.play().catch(()=>setError("Không thể bắt đầu camera."));}
    setPhase("live");
-  }).catch(()=>{if(valid)setError("Không được cấp quyền camera hoặc camera không khả dụng.");});
+  }).catch((cause:unknown)=>{if(valid){setError("Không được cấp quyền camera hoặc camera không khả dụng.");onFailureRef.current?.(cause instanceof DOMException&&cause.name==="NotAllowedError"?"CAMERA_DENIED":"CAMERA_UNAVAILABLE");}});
   return ()=>{valid=false;stop();};
  },[revision]);
  useEffect(()=>{
@@ -63,7 +65,7 @@ export function CheckInCameraPanel({busy,onCancel,onConfirm}:CameraProps){
  async function capture(){
   if(!videoRef.current||phase!=="live")return;
   try{setError("");const blob=await takePhoto(videoRef.current);stop();setPhoto(blob);setPhase("captured");}
-  catch(cause){setError(cause instanceof Error?cause.message:"Không thể chụp ảnh.");}
+  catch(cause){setError(cause instanceof Error?cause.message:"Không thể chụp ảnh.");onFailureRef.current?.("CAMERA_UNAVAILABLE");}
  }
  function retake(){setError("");setPhoto(null);setPhase("starting");setRevision(x=>x+1);}
  return <section className={styles.panel} aria-label="Bằng chứng camera Check-in">
