@@ -58,7 +58,7 @@ export function SelfDirectoryTdd(){
           center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
           center.error ? <p role="alert">{center.error}</p> : null}
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
-          : current ? <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
+          : current ? <SurfaceWorkspace adapter={current.adapter} key={selected} navigation={current.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
           detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
             activeTab === "loadout"
               ? <SelfLoadoutDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
