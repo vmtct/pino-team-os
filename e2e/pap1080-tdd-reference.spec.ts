@@ -23,6 +23,15 @@ for(const width of [1440,1024,768,390,320])test(`PAP1080 Atlas ${width}: shared 
  await page.getByRole("button",{name:"Quay lại bảng"}).click();await expect(quickRow(page)).toBeFocused();
  expect(await page.evaluate(()=>(window as unknown as {__atlasSideEffects:{storage:number}}).__atlasSideEffects)).toEqual({storage:0});
 });
+test("PAP1478 ephemeral Detail resize stays in memory and never accesses storage",async({page})=>{
+ await fixture(page);await detail(page);
+ const handle=page.getByRole("separator",{name:"Điều chỉnh độ rộng cột nhãn"});
+ await expect(handle).toHaveAttribute("aria-valuenow","160");
+ await handle.focus();await page.keyboard.press("ArrowRight");
+ await expect(handle).toHaveAttribute("aria-valuenow","170");
+ await page.getByRole("button",{name:"Quay lại bảng"}).click();await expect(quickRow(page)).toBeFocused();await detail(page);
+ await expect(page.getByRole("separator",{name:"Điều chỉnh độ rộng cột nhãn"})).toHaveAttribute("aria-valuenow","160");
+});
 test("PAP1080 local form re-read/reset and typed business tabs",async({page})=>{
  await fixture(page);await detail(page);await page.getByRole("tab",{name:"Biểu mẫu demo"}).click();
  await page.getByLabel("Tên mô phỏng").fill("Edited only in RAM");await page.getByRole("button",{name:"Lưu",exact:true}).click();await expect(page.getByRole("tabpanel")).toContainText("Đã lưu thành công.");

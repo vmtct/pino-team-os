@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { allows, allowsField, authorizedTabs, validateModule, type AuthorizationContext, type FieldSchema, type HistorySubject, type ModuleRow, type ModuleSchema, type TddRegistry, type TddActionBindings } from "@/lib/workspace-schema";
 import { DetailFrame } from "./DetailFrame";
@@ -10,6 +10,9 @@ import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLo
 import { recordProjection, renderScope } from "./projection";
 import { PropertyEditor, type TddWrites } from "./Editor";
 import { latestRequest } from "./resource";
+
+/** PAP-1478: default live BO/HO browser preference, opt-out for in-memory exemplars. */
+export const TddPreferencePolicy = createContext<"persistent" | "ephemeral">("persistent");
 
 export type TddRecordProps<F extends readonly FieldSchema[]> = {
   readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext;
@@ -55,18 +58,24 @@ export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProp
 }
 function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, record, status = "ready", onRetry, onBack, subject, writes, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<F>, "registry"> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
+  const persistPreferences = useContext(TddPreferencePolicy) === "persistent";
   // Browser-profile preference; per surface/Center/module (no Core/ACL writes).
   const preferenceKey = "pino:tdd:label-width:v1:" + context.surface + ":" + (context.surface === "BO" ? context.centerId : "global") + ":" + schema.key;
   const [labelWidth, setLabelWidth] = useState(160);
   useEffect(() => {
+    if (!persistPreferences) {
+      setLabelWidth(160);
+      return;
+    }
     try {
       const stored = Number(window.localStorage.getItem(preferenceKey));
       setLabelWidth(Number.isFinite(stored) && stored >= 90 && stored <= 240 ? stored : 160);
     } catch { setLabelWidth(160); }
-  }, [preferenceKey]);
+  }, [preferenceKey, persistPreferences]);
   const changeLabelWidth = (width: number, reset = false) => {
     const next = Math.max(90, Math.min(240, Math.round(width)));
     setLabelWidth(next);
+    if (!persistPreferences) return;
     try {
       if (reset) window.localStorage.removeItem(preferenceKey);
       else window.localStorage.setItem(preferenceKey, String(next));
