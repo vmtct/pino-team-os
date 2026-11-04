@@ -72,11 +72,11 @@ for (const surface of ["BO", "HO"] as const) {
   });
   test(`${surface} Table search, sort and pagination preserve typed state`, async ({ page }) => {
     await fixture(page, surface); await expect(opener(page)).toBeVisible();
-    await page.locator("#search").fill("Fixture 03"); await expect(page.getByRole("button", { name: /^Quick View Fixture/ })).toHaveCount(1); await expect(opener(page, "03")).toBeVisible();
+    await page.locator("#search").fill("Fixture 03"); await expect(page.locator("tbody tr[data-open]")).toHaveCount(1); await expect(opener(page, "03")).toBeVisible();
     await page.locator("#search").fill(""); await page.locator('button[data-sort="count"]').click(); await page.locator('button[data-sort="count"]').click();
-    await expect(page.getByRole("button", { name: /^Quick View Fixture/ }).first()).toHaveAttribute("aria-label", "Mở Quick View Fixture 32");
+    await expect(page.locator("tbody tr[data-open]").first()).toHaveAttribute("aria-label", "Mở Quick View Fixture 32");
     await page.getByRole("button", { name: "Trang sau", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Quick View Fixture/ }).first()).toHaveAttribute("aria-label", "Mở Quick View Fixture 24");
+    await expect(page.locator("tbody tr[data-open]").first()).toHaveAttribute("aria-label", "Mở Quick View Fixture 24");
   });
   test(`${surface} module ARIA contract detects a detached or mislabelled panel`, async ({ page }) => {
     await fixture(page, surface); await detail(page); expect(await tabIssues(page)).toEqual([]);
