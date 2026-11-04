@@ -45,7 +45,6 @@ export const assignmentDefinition = {
     sort: { fields: ["name", "code", "student", "status", "assignedAt"], mode: "single", nulls: "last", tieBreak: "record-id" },
     group: { fields: ["status", "student"], mode: "single" },
     views: { builtIn: [
-      { id: "all", label: "Tất cả", state: assignmentQuery },
       { id: "assigned", label: "Đang giao", state: { ...assignmentQuery, filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đang giao" }] } } },
       { id: "cancelled", label: "Đã hủy", state: { ...assignmentQuery, filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đã hủy" }] } } },
     ], saved: { kind: "local-ui" }, actions: ["add", "apply", "rename", "delete", "reorder"] },
