@@ -14,6 +14,7 @@ const CENTER_WORKFORCE_ROUTES: Record<string, string> = {
   "workforce-shift-plans": "/bo/workforce-shift-plans",
   "workforce-availability": "/bo/workforce-availability",
   "workforce-assignments": "/bo/workforce-assignments",
+  "payroll-periods": "/bo/payroll-periods",
 };
 const VERIFIED_GLOBAL_MODULES = new Set<string>(); // Admit only after a Core contract audit.
 
