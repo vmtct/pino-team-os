@@ -123,3 +123,40 @@ export async function handleHoMissionRead(request: Request, env: HoMissionWriteE
     return respond(503, { error: { code: "HO_MISSION_CORE_UNAVAILABLE" } });
   }
 }
+
+/** PAP-1207 / PAP-1188: private Founder-only History read; never use BO catalog proxy. */
+export async function handleHoMissionHistoryRead(request: Request, env: HoMissionWriteEnv, missionId: string): Promise<Response> {
+  try {
+    const url = new URL(request.url);
+    if (env.APP_ENV !== "staging" || request.method !== "GET" ||
+        url.protocol !== "https:" || url.hostname !== HO_STAGING_HOSTNAME ||
+        normalizeHostname(request.headers.get("host") || "") !== HO_STAGING_HOSTNAME ||
+        url.username || url.password || url.hash || !uuid.test(missionId))
+      return respond(404, { error: { code: "PLATFORM_NOT_FOUND" } });
+    for (const key of url.searchParams.keys()) {
+      if (!["limit", "cursor"].includes(key) || url.searchParams.getAll(key).length !== 1)
+        return respond(400, { error: { code: "HO_HISTORY_INVALID_QUERY" } });
+    }
+    const limit = url.searchParams.get("limit");
+    const cursor = url.searchParams.get("cursor");
+    if ((limit !== null && (!/^[1-9][0-9]*$/.test(limit) || Number(limit) > 50)) ||
+        (cursor !== null && !/^[A-Za-z0-9_-]{20,2048}$/.test(cursor)))
+      return respond(400, { error: { code: "HO_HISTORY_INVALID_QUERY" } });
+    const actor = await authorizeHoShell(request.headers, env);
+    if (!actor.userId || !actor.permissionKeys.includes("learning.mission.manage"))
+      return respond(403, { error: { code: "HO_MISSION_PERMISSION_DENIED" } });
+    const credential = await teamCredential(request, env, "BO");
+    if (credential.kind !== "password") return respond(401, { error: { code: "IDENTITY_UNAUTHORIZED" } });
+    if (!env.PINO_CORE || typeof env.PINO_CORE.executeWithStaffPassword !== "function")
+      return respond(503, { error: { code: "HO_MISSION_CORE_UNAVAILABLE" } });
+    const params = url.searchParams.toString();
+    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, {
+      method: "GET", path: "learning/missions/" + missionId + "/history" + (params ? "?" + params : ""),
+    }, credential.token);
+    return respond(result.status, result.body);
+  } catch (error) {
+    if (error instanceof BoShellGateError) return respond(error.status, { error: { code: "HO_ACCESS_DENIED" } });
+    if (error instanceof TeamAuthError) return respond(error.status, { error: { code: "IDENTITY_UNAUTHORIZED" } });
+    return respond(503, { error: { code: "HO_MISSION_CORE_UNAVAILABLE" } });
+  }
+}

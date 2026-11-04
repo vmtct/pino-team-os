@@ -44,11 +44,14 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1332: one source-authorized Mission Diary projection; no child wildcard.
   // Middleware must admit the path before the BO BFF can enforce Center/actor ACL.
   const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
-  if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead) {
+  // PAP-1210: exact Staging-only Center Assignment audit read.
+  const assignmentHistoryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/history\/?$/i.test(pathname);
+  if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead || assignmentHistoryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
     const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
     const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
-    return readAllowed || diaryReadAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
+    const historyReadAllowed = assignmentHistoryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
+    return readAllowed || diaryReadAllowed || historyReadAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
   }
 
   if (hostname === HO_STAGING_HOSTNAME) {
@@ -59,6 +62,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
     if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
+    // PAP-1207: exact Founder Mission audit GET; no other verbs or descendant paths.
+    if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(p))
+      return { action: method === "GET" ? "next" : "not_found" };
     if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
       return { action: (method === "PUT" || method === "GET") ? "next" : "not_found" };
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
