@@ -20,6 +20,13 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
+  const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+  const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
+  if (loadoutRoute) return hostname === BO_STAGING_HOSTNAME && (loadoutRoute[1] ? method === "GET" : (method === "GET" || method === "POST"))
+    ? { action: "next" } : { action: "not_found" };
+  // Reject malformed descendants without passing through generic BO / foreign-host routes.
+  if (new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout/").test(pathname)) return { action: "not_found" };
   // PAP-1342: protected source Link GET cannot fall through on foreign hosts.
   const diaryLinkRead = /^\/api\/(ho|bo)\/learning\/path-diaries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/mission-links$/i.exec(pathname);
   if (diaryLinkRead) return method === "GET" && hostname === (diaryLinkRead[1]!.toLowerCase()==="ho" ? HO_STAGING_HOSTNAME : BO_STAGING_HOSTNAME)

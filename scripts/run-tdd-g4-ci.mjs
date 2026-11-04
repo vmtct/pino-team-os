@@ -2,7 +2,7 @@
 // Auth is ephemeral: no storageState export, screenshot, trace, credential output or fixture writes.
 import { chromium } from "playwright";
 import { verifyStaging } from "./pap1074-g4-attestation.mjs";
-import { safeG4Failure, safeG4SurfaceProbe } from "./pap1214-g4-failure.mjs";
+import { safeG4Failure, safeG4SurfaceProbe, safeG4HoStaffProbe } from "./pap1214-g4-failure.mjs";
 const BO = "https://bo.staging.pinohouse.art";
 const HO = "https://ho.staging.pinohouse.art";
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -192,18 +192,61 @@ try {
   await check("student_to_real_subscription_full_detail",async () => {
     await fp.setViewportSize({width:1024,height:900});
     await fp.goto(BO + "/bo",{waitUntil:"domcontentloaded"});
-    await fp.locator('tbody tr button[aria-label^="Quick View"]').first().waitFor({state:"visible",timeout:15000});
+    // PAP-1397: the BO table is scoped to an authorized Center. The existing
+    // subscribed-Student lookup is global; never search that result in a
+    // random Center and mistake missing fixture for a broken Drawer.
     studentSubscriptionPhase = "subscribed_student_lookup";
-    const name = await fp.evaluate(async () => {
+    const subscribed = await fp.evaluate(async () => {
       const r = await fetch("/api/bo/learners",{credentials:"include"});
-      if (!r.ok) return null;
+      if (!r.ok) return [];
       const body = await r.json();
-      return (Array.isArray(body.data)?body.data:[]).find(s => s.activeSubscriptions > 0)?.displayName ?? null;
+      return (Array.isArray(body.data)?body.data:[])
+        .filter(s => s.activeSubscriptions > 0 && typeof s.id === "string" &&
+          typeof s.displayName === "string" && s.displayName.trim())
+        .map(s => ({id:s.id, name:s.displayName}));
     });
-    assert(name,"No subscribed Student");
+    assert(subscribed.length > 0,"No subscribed Student");
+    studentSubscriptionPhase = "student_center_context";
+    await fp.waitForFunction(() =>
+      Boolean(document.querySelector('section[aria-label="Chọn cơ sở cho module"]')) ||
+      Boolean(document.querySelector('tbody tr button[aria-label^="Quick View"]')),
+      null, {timeout:15000});
+    const switcher = fp.locator('button.nav-workspace[aria-haspopup="listbox"]');
+    await switcher.waitFor({state:"visible",timeout:15000});
+    await switcher.click();
+    const authorizedOptions = fp.locator('#workspace-centers [role="option"]');
+    await authorizedOptions.first().waitFor({state:"visible",timeout:10000});
+    const centerCount = await authorizedOptions.count();
+    let selectedSubscriber = null;
+    // Use only Core-authorized UI options; never fabricate a Center ID.
+    for (let index = 0; index < centerCount; index++) {
+      if (index > 0) {
+        await switcher.click();
+        await authorizedOptions.first().waitFor({state:"visible",timeout:10000});
+      }
+      await authorizedOptions.nth(index).click();
+      await fp.locator('section[aria-label="Chọn cơ sở cho module"]')
+        .waitFor({state:"hidden",timeout:15000});
+      const match = await fp.waitForFunction(candidates => {
+        const visibleIds = new Set([...document.querySelectorAll('#typed-table tbody tr[data-record]')]
+          .filter(row => row.querySelector('button[aria-label^="Quick View"]'))
+          .map(row => row.getAttribute("data-record")));
+        return candidates.find(candidate => visibleIds.has(candidate.id)) ?? null;
+      }, subscribed, {timeout:4500}).catch(() => null);
+      if (match) {
+        selectedSubscriber = await match.jsonValue();
+        await match.dispose();
+        break;
+      }
+    }
+    assert(selectedSubscriber,"No subscribed Student in an authorized Center");
+    studentSubscriptionPhase = "student_table";
+    const studentRow = fp.locator('#typed-table tbody tr[data-record="' +
+      selectedSubscriber.id + '"] button[aria-label^="Quick View"]');
+    await studentRow.waitFor({state:"visible",timeout:15000});
     studentSubscriptionPhase = "student_search_and_drawer";
-    await fp.locator('main input[type="search"]').fill(name);
-    await fp.locator('tbody tr button[aria-label^="Quick View"]').first().click();
+    await fp.locator('main input[type="search"]').fill(selectedSubscriber.name);
+    await studentRow.click();
     studentSubscriptionPhase = "student_full_detail";
     await fp.locator('[data-tdd-shell="drawer"]').getByRole("button",{name:/Full Detail/}).click();
     studentSubscriptionPhase = "subscription_tab";
@@ -223,17 +266,56 @@ try {
     await title.waitFor({state:"visible",timeout:15000});
     assert((await title.innerText()).trim() === id,"wrong opened Subscription");
   }, () => studentSubscriptionPhase);
+  // PAP-1394: bounded phase attribution without page data, URLs, or exception messages.
+  let hoStaffPhase = "ho_staff_navigate";
   await check("founder_ho_staff_table_drawer_full_detail",async () => {
     await fp.goto(HO + "/ho/staff",{waitUntil:"domcontentloaded"});
-    await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible",timeout:15000});
+    hoStaffPhase = "ho_staff_table";
+    try {
+      await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible",timeout:15000});
+    } catch (error) {
+      // PAP-1398: bounded read-only triage after the ORIGINAL assertion fails.
+      // Only booleans and GET HTTP statuses are emitted, never staff data.
+      const flags = await fp.evaluate(async () => {
+        const getStatus = async (path) => {
+          try {
+            const response = await fetch(path, {
+              method:"GET", credentials:"include", cache:"no-store",
+              signal:AbortSignal.timeout(5000),
+            });
+            return response.status;
+          } catch { return 0; }
+        };
+        const [contextHTTP, staffHTTP] = await Promise.all([
+          getStatus("/api/bo/context"),
+          getStatus("/api/bo/workforce/staff-records"),
+        ]);
+        return {
+          expectedHost: location.hostname === "ho.staging.pinohouse.art",
+          staffRoute: location.pathname === "/ho/staff",
+          loginRoute: location.pathname === "/staff-login",
+          tablePresent: Boolean(document.querySelector('[data-tdd-shell="table"]')),
+          alertPresent: Boolean(document.querySelector('[role="alert"]')),
+          statusPresent: Boolean(document.querySelector('[role="status"]')),
+          contextHTTP, staffHTTP,
+        };
+      }).catch(() => ({}));
+      console.log(JSON.stringify({name:"PAP-1398_HO_STAFF_READONLY_PROBE",
+        ...safeG4HoStaffProbe(flags)}));
+      throw error; // no retry, no swallowed assertion, no wider timeout
+    }
+    hoStaffPhase = "ho_staff_row";
     const row = fp.locator('[data-tdd-shell="table"] tbody tr button[aria-label^="Quick View"]').first();
     await row.waitFor({state:"visible",timeout:15000});
+    hoStaffPhase = "ho_staff_drawer";
     await row.click();
     await fp.locator('[data-tdd-shell="drawer"]').waitFor({state:"visible"});
     assert(new URL(fp.url()).searchParams.has("record"),"drawer URL");
+    hoStaffPhase = "ho_staff_full_detail";
     await fp.locator('[data-tdd-shell="drawer"]').getByRole("button",{name:/Full Detail/}).click();
     await fp.locator('[data-tdd-shell="detail"]').waitFor({state:"visible"});
-    for (const name of ["Tổng quan","Rate lương","Lịch sử"]) {
+    for (const [name, safePhase] of [["Tổng quan","ho_staff_tab_overview"],["Rate lương","ho_staff_tab_salary"],["Lịch sử","ho_staff_tab_history"]]) {
+      hoStaffPhase = safePhase;
       const tab = fp.locator('[data-tdd-shell="detail"]').getByRole("tab",{name});
       await tab.click();
       assert(await tab.getAttribute("aria-selected") === "true","ARIA selection");
@@ -242,15 +324,17 @@ try {
       assert(await fp.locator('[data-tdd-shell="detail"] [role="tab"][aria-selected="true"]').count() === 1,"single selected tab");
     }
     for (const width of [1440,1024,768,390,320]) {
+      hoStaffPhase = "ho_staff_width_" + width;
       await fp.setViewportSize({width,height:900});
       assert(await fp.locator('[data-tdd-shell="detail"]').isVisible(),"hidden HO detail");
       assert(await fp.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2),"HO overflow");
     }
+    hoStaffPhase = "ho_staff_back";
     await fp.locator('[data-tdd-shell="detail"]').getByRole("button",{name:"Quay lại bảng"}).click();
     await fp.locator('[data-tdd-shell="table"]').waitFor({state:"visible"});
     assert(await fp.locator('[data-tdd-shell="detail"]').count() === 0,"detail still mounted");
     assert(!new URL(fp.url()).searchParams.has("record"),"stale record URL");
-  });
+  }, () => hoStaffPhase);
 } catch (error) {
   cases.push({name:"authenticated_ci_admission",status:"FAIL",phase,errorType:error instanceof Error ? error.name : "UnknownError"});
 } finally {
