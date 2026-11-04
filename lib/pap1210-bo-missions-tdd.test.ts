@@ -44,6 +44,7 @@ test("PAP-1210: one typed BO TDD with authorized declarative actions and honest 
   assert.equal(assignmentSchema.key, "missions");
   assert.deepEqual(composeTabs(assignmentSchema).map(t => [t.id, t.label]), [["overview", "Tổng quan"], ["results", "Kết quả"], ["diary", "Nhật Ký"], ["history", "Lịch sử"]]);
   assert.deepEqual(assignmentDefinition.capabilities, { read: "student.mission_assignment.view",
+    history: "student.mission_assignment.view",
     create: "student.mission_assignment.manage", edit: "student.mission_assignment.manage" });
   assert.deepEqual(assignmentDefinition.actions.map(a => [a.id, a.slot, a.capability]), [
     ["assignment-open-create", "table.header", "create"], ["assignment-open-edit", "detail.header", "edit"],

@@ -18,7 +18,7 @@ const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|T
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
-const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/diaries)?)?$/i;
+const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:diaries|history))?)?$/i;
 /** PAP-1220: strictly Center/day-scoped BO Diary read facade; no HO GLOBAL. */
 const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
@@ -199,7 +199,7 @@ function readCorePath(path: string, url: URL): string {
     const params = url.searchParams;
     const collection = path === "learning/mission-assignments";
     const allowed = collection ? ["centerId", "studentId", "missionId", "status", "limit", "offset"] :
-        path.endsWith("/diaries") ? ["centerId", "limit", "offset"] : ["centerId"];
+        path.endsWith("/diaries") ? ["centerId", "limit", "offset"] : path.endsWith("/history") ? ["centerId", "limit", "cursor"] : ["centerId"];
     for (const key of params.keys()) if (!allowed.includes(key) || params.getAll(key).length !== 1) throw new RangeError("Invalid assignment query");
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuid.test(params.get("centerId") ?? "")) throw new RangeError("Center required");
@@ -208,6 +208,13 @@ function readCorePath(path: string, url: URL): string {
     for (const key of ["limit", "offset"]) if (params.has(key)) {
       const value = params.get(key)!;
       if (!/^(0|[1-9]\d*)$/.test(value) || !Number.isSafeInteger(Number(value)) || (key === "limit" && (Number(value) < 1 || Number(value) > 100))) throw new RangeError("Invalid assignment pagination");
+    }
+    if (path.endsWith("/history")) {
+      const limit = params.get("limit");
+      const cursor = params.get("cursor");
+      if ((limit !== null && (!/^[1-9][0-9]*$/.test(limit) || Number(limit) > 50)) ||
+          (cursor !== null && !/^[A-Za-z0-9_-]{20,2048}$/.test(cursor)))
+        throw new RangeError("Invalid protected Mission history pagination");
     }
     return path + "?" + params.toString();
   }

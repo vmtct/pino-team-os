@@ -1,6 +1,7 @@
 import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { readMissionAssignment, readMissionAssignments, type MissionAssignment } from "@/lib/bo-mission-assignments";
+import { readMissionHistory } from "@/lib/mission-history";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "student.mission_assignment.view";
@@ -24,7 +25,7 @@ export const assignmentQuery: TableQuery<F> = {
 };
 export const assignmentDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "missions", label: "Nhiệm vụ", group: "SCHOOL",
-  fields: assignmentFields, capabilities: { read: permission,
+  fields: assignmentFields, capabilities: { read: permission, history: permission,
     create: "student.mission_assignment.manage", edit: "student.mission_assignment.manage" },
   actions: [
     { id: "assignment-open-create", label: "Giao Nhiệm vụ", slot: "table.header", variant: "primary", capability: "create", handler: "openCreate" },
@@ -79,6 +80,16 @@ export const assignmentProvider: SurfaceProvider<F> = {
     const p = await readMissionAssignment(fetcher, scope.centerId, id, signal);
     return p ? { row: project(p), centerId: p.centerId, version: String(p.version) } : null;
   },
+  history: { subjectType: "student_mission_assignment", bind: (fetcher, scope) => ({
+    kind: "provider", source: { adapter: "core-center-mission-assignment-history", permission },
+    load: (subject, context, cursor, signal) => {
+      if (scope.surface !== "BO" || context.surface !== "BO" || context.centerId !== scope.centerId ||
+          subject.type !== "student_mission_assignment") return Promise.resolve({ status: "denied" as const });
+      const path = "/api/bo/learning/mission-assignments/" + encodeURIComponent(subject.id) +
+        "/history?" + new URLSearchParams({ centerId: scope.centerId });
+      return readMissionHistory(fetcher, path, subject, cursor, signal);
+    },
+  }) },
 };
 const missionRegistry = new TddRegistry();
 export const assignmentSchema = missionRegistry.register({ ...assignmentDefinition, data: {
