@@ -5,7 +5,7 @@ import {BoApiError} from "@/lib/bo-api-error";
 import {billsApi,billError,draftTotal,type BillDraft,type BillDraftLine,type DraftLineInput,type IssuePreview} from "@/lib/bo-bills-api";
 import {readScopedParentDirectory} from "../parents/provider";
 import {studentCenterApi} from "@/lib/bo-student-center-api";
-import {useBoDialog} from "../components/registration/useBoDialog";
+import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import type {BoSubscriptionDirectoryItem} from "@/lib/bo-model";
 
 type Command={run:()=>Promise<unknown>;reconcile?:()=>Promise<void>};
@@ -15,9 +15,8 @@ export function BillDraftEditor({centerId,id,onClose,onSaved}:{centerId:string;i
  const [query,setQuery]=useState(""),[candidates,setCandidates]=useState<BoSubscriptionDirectoryItem[]>([]),[candidate,setCandidate]=useState("");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [preview,setPreview]=useState<IssuePreview|null>(null),[reload,setReload]=useState(0),[uncertain,setUncertain]=useState(false);
- const panel=useRef<HTMLElement>(null),fence=useRef(false),pending=useRef<Command|null>(null);
+ const fence=useRef(false),pending=useRef<Command|null>(null);
  const close=()=>{if(!fence.current&&!pending.current)onClose();};
- useBoDialog(true,close,panel);
  function accept(d:BillDraft){setDraft(d);setPayer(d.payerParentUserId);setDiscount(String(d.billDiscountMinor));setDue(d.dueOn??"");setNote(d.note);setPreview(null);}
  useEffect(()=>{let live=true;const ctl=new AbortController();
   void (async()=>{try{if(id){const d=await billsApi.get(centerId,id,ctl.signal);if(live)accept(d);}else{const rows=await readScopedParentDirectory(centerId,fetch,ctl.signal);if(live)setParents(rows.map(r=>({id:r.id,name:String(r.name)})));}}
@@ -56,9 +55,10 @@ export function BillDraftEditor({centerId,id,onClose,onSaved}:{centerId:string;i
  async function remove(line:BillDraftLine){if(!draft)return;const d=draft;await execute({run:async()=>{await billsApi.removeLine(centerId,d.id,line.id,d.version);accept(await billsApi.get(centerId,d.id));}});}
  async function preflight(){if(!draft||fence.current)return;fence.current=true;setBusy(true);setError("");try{const p=await billsApi.preview(centerId,draft.id);if(p.expectedVersion!==draft.version)throw new BoApiError(409,"Draft đã thay đổi.",null);setPreview(p);}catch(e){setError(billError(e));}finally{fence.current=false;setBusy(false);}}
  async function issue(){if(!draft||!preview?.preflightPass)return;const d=draft,key=crypto.randomUUID();await execute({run:async()=>{await billsApi.issue(centerId,d.id,preview.expectedVersion,key);},reconcile:async()=>{const next=await billsApi.get(centerId,d.id);if(next.status!=="ISSUED"||!next.issuedBillId)throw Error("Chưa xác minh Bill đã phát hành.");accept(next);}});}
- return <><div className="drawer-scrim visible" aria-hidden="true" onClick={close}/><aside ref={panel} className="drawer open" role="dialog" aria-modal="true" aria-labelledby="bill-editor-title">
-  <div className="drawer-top"><div className="drawer-header-copy"><span className="drawer-path">Tài chính · Bills</span><h2 id="bill-editor-title" className="drawer-record-title">{draft?.status==="ISSUED"?"Bill đã phát hành":draft?"Sửa Bill Draft":"Tạo Bill"}</h2></div><button type="button" className="drawer-close" aria-label="Đóng" disabled={busy||uncertain} onClick={close}>×</button></div>
-  <div className="drawer-content">
+ return <DrawerFrame title={draft?.status==="ISSUED"?"Bill đã phát hành":draft?"Sửa Bill Draft":"Tạo Bill"} path="Tài chính · Bills" onClose={close} footer={<>
+<button className="secondary-btn" type="button" disabled={busy||uncertain} onClick={close}>Đóng</button>
+   {uncertain?<button type="button" className="primary-btn" disabled={busy} onClick={()=>{if(pending.current)void execute(pending.current);}}>Thử lại cùng lệnh</button>:draft?.status==="DRAFT"?<><button type="button" className="secondary-btn" disabled={busy} onClick={()=>{setLoading(true);setPreview(null);setReload(n=>n+1);}}>Tải lại</button><button className="primary-btn" type="button" disabled={busy||!draft.items.length||discount!==String(draft.billDiscountMinor)||due!==(draft.dueOn??"")||note!==draft.note} onClick={()=>void preflight()}>Phát hành…</button></>:null}
+</>}>
    {loading?<p role="status">Đang tải Bill…</p>:null}
    {error?<p className="edit-error" role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
    {uncertain?<p role="alert">Chưa xác minh kết quả. Giữ nguyên lệnh để thử lại an toàn.</p>:null}
@@ -75,10 +75,7 @@ export function BillDraftEditor({centerId,id,onClose,onSaved}:{centerId:string;i
     <label className="property-row">Subscription<select value={candidate} onChange={e=>setCandidate(e.target.value)}><option value="">Chọn Subscription</option>{candidates.map(s=><option key={s.id} value={s.id}>{s.studentDisplayName} ₫ {s.pathDisplayName} ₫ {s.id}</option>)}</select></label><button type="button" className="secondary-btn" disabled={!candidate} onClick={()=>void add()}>Thêm vào Draft</button></fieldset>:null}
    </section><p>Tổng Draft đã lưu: {draftTotal(draft).toLocaleString("vi-VN")} ₫</p></>:null}
    {preview?<section aria-label="Xác nhận phát hành"><h3>Phát hành Bill?</h3><p>{preview.lineCount} Subscription ? {preview.netAmountMinor.toLocaleString("vi-VN")} ₫. Giá và điều kiện đã lưu sẽ được cố định.</p>{preview.blockers.length?<p role="alert">Chưa thể phát hành: {preview.blockers.join(", ")}</p>:<button className="primary-btn" type="button" disabled={busy||uncertain} onClick={()=>void issue()}>Xác nhận phát hành</button>}</section>:null}
-  </div><div className="drawer-footer"><div className="lab-bottom"><button className="secondary-btn" type="button" disabled={busy||uncertain} onClick={close}>Đóng</button>
-   {uncertain?<button type="button" className="primary-btn" disabled={busy} onClick={()=>{if(pending.current)void execute(pending.current);}}>Thử lại cùng lệnh</button>:draft?.status==="DRAFT"?<><button type="button" className="secondary-btn" disabled={busy} onClick={()=>{setLoading(true);setPreview(null);setReload(n=>n+1);}}>Tải lại</button><button className="primary-btn" type="button" disabled={busy||!draft.items.length||discount!==String(draft.billDiscountMinor)||due!==(draft.dueOn??"")||note!==draft.note} onClick={()=>void preflight()}>Phát hành…</button></>:null}
-  </div></div>
- </aside></>;
+  </DrawerFrame>;
 }
 function DraftLine({line,disabled,onSave,onRemove}:{line:BillDraftLine;disabled:boolean;onSave:(v:DraftLineInput)=>void;onRemove:()=>void}){
  const [price,setPrice]=useState(String(line.unitPriceMinor)),[discount,setDiscount]=useState(String(line.discountAmountMinor));
