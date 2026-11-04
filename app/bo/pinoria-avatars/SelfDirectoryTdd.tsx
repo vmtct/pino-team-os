@@ -2,6 +2,7 @@
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useState } from "react";
+import { PresentationState, SingleSelect } from "@pino/design-system/react";
 import readApi from "@/public/bo-authority-source/school-adapters.js";
 import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
@@ -58,16 +59,18 @@ export function SelfDirectoryTdd(){
     }).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không thể tải Self Directory.");});
     return ()=>{ctl.abort();instance?.dispose();};
   },[selected,centerSource,retry]);
+  // PAP-1456 / Epic PAP-1097: PINO DS center selection and loading presentation.
   const content=!centers.length
-    ? <p role="status">{centerError||"Đang tải cơ sở…"}</p>
-    : <section aria-label="Danh bạ Pinoria Self">
-        <div className="tdd-self-center">
-          <label htmlFor="self-directory-center">Cơ sở</label>{" "}
-          <select id="self-directory-center" value={selected} onChange={e=>setSelected(e.target.value)}>
-            <option value="">Chọn cơ sở</option>
-            {centers.map(c=><option value={c.id} key={c.id}>{c.displayName}</option>)}
-          </select>
-          <p>Chọn cơ sở đã được cấp quyền. Việc đọc Pinoria Self vẫn yêu cầu quyền riêng từ Core.</p>
+    ? centerError ? <p role="alert">{centerError}</p> : <PresentationState state="loading"/>
+    : <section aria-label="Danh bạ Pinoria Self" aria-busy={Boolean(selected && !ready && !error)}>
+        <div className="tdd-self-center pds-property-section">
+          <div className="pds-property-row">
+            <label className="pds-property-label" htmlFor="self-directory-center">Cơ sở</label>
+            <SingleSelect id="self-directory-center" label="Cơ sở" value={selected}
+              onChange={setSelected} describedBy="pinoria-self-center-help" required
+              options={centers.map(center=>({value:center.id,label:center.displayName}))}/>
+          </div>
+          <p className="pds-property-label" id="pinoria-self-center-help">Chọn cơ sở được cấp quyền để xem Self.</p>
         </div>
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
           : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
@@ -79,7 +82,7 @@ export function SelfDirectoryTdd(){
               : <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
                   canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
                   onSaved={onSaved} />}/>
-          : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
+          : <PresentationState state="loading"/>
           : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
       </section>;
   return <BoRegistrationWorkspace source={selfDirectoryNavSource} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
