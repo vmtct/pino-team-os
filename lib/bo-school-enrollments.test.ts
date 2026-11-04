@@ -12,11 +12,14 @@ function fixture(denyPath?:string,status=403){
   return {status:200,requestId:"fixture",body:{data:body}};
  }}};return {env,calls};
 }
-const request=(query="",cookie=true)=>new Request(`https://${BO_SKELETON_HOST}/api/bo/school/enrollments${query}`,{headers:cookie?{cookie:"pino_staff_password_session=fixture"}:{}});
+const centerId=id(88);
+const request=(query="",cookie=true)=>new Request(`https://${BO_SKELETON_HOST}/api/bo/school/enrollments?centerId=${centerId}${query?"&"+query.replace(/^\?/,""):""}`,{headers:cookie?{cookie:"pino_staff_password_session=fixture"}:{}});
 test("enrollment projection binds subscription/class IDs, preserves cursor and redacts lifecycle private data",async()=>{
  const {env,calls}=fixture();const r=await handleBoSchoolEnrollments(request(),env);assert.equal(r.status,200);const body=await r.json();
  assert.equal(body.data.items.length,1);assert.equal(body.data.items[0].subscriptionId,id(1));assert.equal(body.data.items[0].runningClassId,id(4));assert.equal(body.data.nextCursor.id,id(1));assert.doesNotMatch(JSON.stringify(body),/DO_NOT_EXPOSE|guardians|internalSecret/);
  assert.deepEqual(calls.map(r=>[r.method,r.path]),[["GET","subscriptions"],["GET",`students/${id(2)}/lifecycle`]]);
+ assert.equal((calls[0]?.body as {centerId?:string}|undefined)?.centerId,centerId);
+ assert.equal(calls[1]?.resource?.centerId,centerId);
  assert.equal(r.headers.get("cache-control"),"private, no-store");
 });
 test("enrollment directory enforces existing auth and propagates subscription/lifecycle denials without partial rows",async()=>{
@@ -50,4 +53,20 @@ test("enrollment projection bounds fan-out while reducing high-cardinality laten
  assert.equal(payload.data.items.length,count);
  assert.equal(lifecycleReads,count);
  assert.ok(peak<=8 && peak>=6,"bounded parallelism should not serialize or exceed the cap: "+peak);
+});
+
+test("PAP-1335: Enrollments BFF requires one canonical Center before any Core read", async () => {
+ for(const query of ["", "?centerId=forged", "?centerId="+centerId+"&centerId="+id(89), "?centerId="+centerId+"&unknown=1"]){
+   const f=fixture();
+   const r=await handleBoSchoolEnrollments(new Request("https://"+BO_SKELETON_HOST+"/api/bo/school/enrollments"+query,{headers:{cookie:"pino_staff_password_session=fixture"}}),f.env);
+   assert.equal(r.status,400);
+   assert.equal(f.calls.length,0);
+ }
+});
+test("PAP-1335: BFF never retries unscoped after Core denies selected Center", async () => {
+ const f=fixture("subscriptions",403);
+ const res=await handleBoSchoolEnrollments(request(),f.env);
+ assert.equal(res.status,403);
+ assert.equal(f.calls.length,1);
+ assert.equal((f.calls[0]?.body as {centerId?:string}|undefined)?.centerId,centerId);
 });
