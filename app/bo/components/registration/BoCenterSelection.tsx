@@ -77,6 +77,9 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
     url.hash = "";
     const state = { ...history.state };
     delete state["pino:tdd:BO:parents"];
+    // PAP-1458/PAP-1316: clear every BO TDD navigation snapshot from the old Center.
+    // This is browser history UI state only; Core authorization remains authoritative.
+    for (const key of Object.keys(state)) if (key.startsWith("pino:tdd:BO:")) delete state[key];
     history.replaceState(state, "", parentCenterUrl(url, centerId));
     try { saveRecentCenter(centerId); } catch { /* session storage unavailable */ }
     setSelected(centerId);
