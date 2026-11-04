@@ -11,12 +11,13 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { selfDefinition, selfFields, selfQuery, selfProvider, verifySelfWardrobeApproval } from "./schema";
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
-import { loadAuthorizedDirectoryCenters, type DirectoryCenter, type DirectoryCenterSource } from "./centers";
+import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 
 import { SelfDirectoryProperties } from "./SharedProperties";
 
 type F = typeof selfFields;
-type Bound = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
+type Bound = { centerId: string; adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
+type Failure = { centerId: string; retry: number; message: string };
 // PAP-1447 / Epic PAP-1097: content-only TDD owns its nav metadata without a generic data adapter.
 const selfDirectoryNavSource = {
   ...readApi,
@@ -26,26 +27,16 @@ const selfDirectoryNavSource = {
   },
 };
 export function SelfDirectoryTdd(){
-  const [centers,setCenters]=useState<readonly DirectoryCenter[]>([]);
-  const [selected,setSelected]=useState("");
-  const [centerSource,setCenterSource]=useState<DirectoryCenterSource>("centers");
-  const [centerError,setCenterError]=useState("");
+  // PAP-1458 / Epic PAP-1316: BO shell is the sole owner of the authorized Active Center.
+  // Never create a module-local Center picker or shadow Center discovery.
+  const center=useBoCenterSelection();
+  const blocked=!center || center.loading || Boolean(center.error);
+  const selected=blocked ? "" : center.selected;
+  const centerSource=center?.source ?? "centers";
   const [ready,setReady]=useState<Bound|null>(null);
-  const [error,setError]=useState("");
+  const [failure,setFailure]=useState<Failure|null>(null);
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
-    const ctl=new AbortController();
-    void loadAuthorizedDirectoryCenters(fetch,ctl.signal)
-      .then(({centers:rows,source})=>{
-        if(ctl.signal.aborted)return;
-        setCenters(rows);setCenterSource(source);setSelected(rows.length===1?rows[0].id:"");
-        setCenterError(rows.length?"":"Không có cơ sở hoạt động được cấp quyền.");
-      })
-      .catch(e=>{if(!ctl.signal.aborted)setCenterError(e instanceof Error?e.message:"Không tải được cơ sở.");});
-    return ()=>ctl.abort();
-  },[]);
-  useEffect(()=>{
-    setReady(null);setError("");
     if(!selected)return;
     const ctl=new AbortController();let instance:AuthenticatedSurfaceAdapter<F>|null=null;
     void createBoTddAdapter({
@@ -54,23 +45,20 @@ export function SelfDirectoryTdd(){
     },ctl.signal).then(adapter=>{
       instance=adapter;
       if(ctl.signal.aborted){adapter.dispose();return;}
-      setReady({adapter,navigation:browserTddNavigation("BO","pinoria-avatars",selfQuery)});
-    }).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không thể tải Self Directory.");});
+      setReady({centerId:selected,adapter,navigation:browserTddNavigation("BO","pinoria-avatars",selfQuery)});
+    }).catch(e=>{if(!ctl.signal.aborted)setFailure({centerId:selected,retry,message:e instanceof Error?e.message:"Không thể tải Self Directory."});});
     return ()=>{ctl.abort();instance?.dispose();};
   },[selected,centerSource,retry]);
-  const content=!centers.length
-    ? <p role="status">{centerError||"Đang tải cơ sở…"}</p>
-    : <section aria-label="Danh bạ Pinoria Self">
-        <div className="tdd-self-center">
-          <label htmlFor="self-directory-center">Cơ sở</label>{" "}
-          <select id="self-directory-center" value={selected} onChange={e=>setSelected(e.target.value)}>
-            <option value="">Chọn cơ sở</option>
-            {centers.map(c=><option value={c.id} key={c.id}>{c.displayName}</option>)}
-          </select>
-          <p>Chọn cơ sở đã được cấp quyền. Việc đọc Pinoria Self vẫn yêu cầu quyền riêng từ Core.</p>
-        </div>
+  // Prevent the old Center's TDD adapter/detail from appearing even for one render
+  // while React cleans up the previous async request.
+  const current=ready?.centerId===selected ? ready : null;
+  const error=failure?.centerId===selected && failure.retry===retry ? failure.message : "";
+  const content=<section aria-label="Danh bạ Pinoria Self">
+        {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
+          center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
+          center.error ? <p role="alert">{center.error}</p> : null}
         {selected ? error ? <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>
-          : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
+          : current ? <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={selfQuery} detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
           detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
             activeTab === "loadout"
               ? <SelfLoadoutDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
@@ -80,7 +68,7 @@ export function SelfDirectoryTdd(){
                   canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
                   onSaved={onSaved} />}/>
           : <p role="status">Đang xác minh quyền và tải danh bạ…</p>
-          : <p role="status">Chọn cơ sở đã được cấp quyền để đọc danh bạ.</p>}
+          : !blocked ? <p role="status">Chọn trung tâm tại góc trên trái để xem Pinoria Self.</p> : null}
       </section>;
   return <BoRegistrationWorkspace source={selfDirectoryNavSource} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
 }
