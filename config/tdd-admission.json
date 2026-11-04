@@ -86,6 +86,10 @@
         {
           "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
           "owner": "PAP-1080"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1316"
         }
       ],
       "schema": {
