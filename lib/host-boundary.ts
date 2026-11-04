@@ -1,4 +1,5 @@
 import {tosV4StagingHost} from "./tos-v4-staging-host";
+import {HO_BILLS_API,isHoBillsRequest} from "./ho-bills-contract";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
 import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
@@ -20,6 +21,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
+    return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
