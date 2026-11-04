@@ -8,6 +8,15 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const rowId = /^(PERSON|STAFF|LEARNER)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const states = ["IDENTITY_UNLINKED", "SELF_MISSING", "NEEDS_REPAIR", "NOT_STARTED", "IN_PROGRESS", "READY"];
 const statuses = ["ACTIVE", "INACTIVE", "ARCHIVED", "MIXED"];
+// PAP-1456 / Epic PAP-1097: labels never replace authoritative Core state/filter values.
+const avatarLabels: Record<string,string> = {
+  IDENTITY_UNLINKED:"Chưa liên kết", SELF_MISSING:"Chưa có Self", NEEDS_REPAIR:"Cần khôi phục",
+  NOT_STARTED:"Chưa bắt đầu", IN_PROGRESS:"Đang thiết lập", READY:"Sẵn sàng",
+};
+const subjectLabels: Record<string,string> = {
+  ACTIVE:"Đang hoạt động", INACTIVE:"Ngừng hoạt động", ARCHIVED:"Đã lưu trữ", MIXED:"Nhiều trạng thái",
+};
+const MAX_SELF_SLOTS=8;
 type Row = ModuleRow<SelfFields>;
 type Payload = { items: unknown[]; nextCursor: string | null };
 function invalid(): never { throw new BoApiError(502,"Core Self Directory trả về dữ liệu không hợp lệ.",null); }
@@ -27,6 +36,8 @@ function project(value: unknown): Row {
      || (r.subjectTypes.includes("LEARNER") !== (r.studentProfileId !== null))) invalid();
   return {
     id: r.rowKey.replace(":", "_"), name: r.displayName, roles: r.subjectTypes.join(" + "), rowKey: r.rowKey,
+    avatarLabel: avatarLabels[String(r.avatarStatus)], subjectLabel: subjectLabels[String(r.subjectStatus)],
+    loadoutSummary: r.equippedCount === null ? null : String(r.equippedCount)+"/"+MAX_SELF_SLOTS,
     avatarStatus: r.avatarStatus as string, subjectStatus: r.subjectStatus as string,
     personId: r.personId as string | null, pinoriaSelfId: r.pinoriaSelfId as string | null,
     staffMemberId: r.staffMemberId as string | null, studentProfileId: r.studentProfileId as string | null,
