@@ -39,8 +39,8 @@ function imageFrom(src:string,signal:AbortSignal):Promise<HTMLImageElement>{
  * This is a suitability sample, not a full-image transparency certification.
  */
 function opaqueForeground(img:HTMLImageElement):boolean {
-  const sample=document.createElement("canvas");
-  sample.width=8;sample.height=8;
+  // Offscreen sampling keeps image validation outside the approved TDD DOM shell.
+  const sample=new OffscreenCanvas(8,8);
   const ctx=sample.getContext("2d",{willReadFrequently:true});
   if(!ctx)throw new Error("ALPHA_SAMPLE_UNAVAILABLE");
   ctx.drawImage(img,0,0,8,8);

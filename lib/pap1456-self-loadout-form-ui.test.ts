@@ -142,6 +142,24 @@ async function composite(sprites:Record<string,Sprite>,renderStack:string[],fore
   let stateIndex=0;
   runInNewContext(ts.transpile(preview,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}),{
     exports,Image:DecodedImage,AbortController,URL,window:{location:{href:"https://bo.example/bo",origin:"https://bo.example"}},
+    OffscreenCanvas:class{
+      width:number;height:number;
+      constructor(width:number,height:number){this.width=width;this.height=height;}
+      getContext(){
+        const sample=this;
+        let sprite:Sprite;
+        return {drawImage(img:{src:string},...geometry:number[]){
+          samples.push(img.src);sprite=sprites[img.src];
+          assert.deepEqual(geometry,[0,0,8,8]);
+          assert.equal(sample.width,8);assert.equal(sample.height,8);
+        },getImageData(){
+          if(sprite.unreadable)throw Error("SecurityError");
+          const data=new Uint8ClampedArray(8*8*4).fill(255);
+          data[3]=sprite.alpha;
+          return {data};
+        }};
+      }
+    },
     document:{createElement(tag:string){
       assert.equal(tag,"canvas");
       const sample={width:0,height:0,getContext(){
