@@ -38,3 +38,9 @@ runtime E2E and Staging serving SHA remain separate from source/PR CI.
 Coordinated rollout requires Core 0163 and its permission-preserving API before
 this UI. No merge, deployment, Staging/Production data mutation or actual E2E
 acceptance is implied by these source changes. Keep both PRs Draft for review.
+
+## PAP-1198 — Founder HO visual parity approved 2026-11-04 09:40 ICT
+
+Feature Epic PAP-1064 / WFM-SHIFT-SCHEDULING. Founder approved the authoritative i5 HO Mẫu ca prototype at http://192.168.1.6:3562/prototype?module=shiftTemplates following removal of the ho-shift-summary counters and all settings-hint sections from that module. Evidence Jira PAP-1198 #21481 and PAP-1064 #21482; code review remains a separate L3 approval.
+
+The Team implementation retains the protected global/center scope contract, server BFF and Core ACL checks. Its HO TDD uses canonical Table→Drawer→Detail; usage shows authorized count/scope/status fields without summary panels, edit displays inputs inside the Full Detail tab rather than an extra nested drawer, status stays in Full Detail, and the Core audit provider remains truth-based (no fake history). Do not extend the visual approval to Production or Team merge. This PR needs exact-head CI and a separately scoped Founder L3.

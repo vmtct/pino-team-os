@@ -69,7 +69,15 @@ export function HoShiftTemplatesTdd(){
         actionBindings={{openCreate:{kind:"navigation",run:()=>setCreateOpen(true)}}}
         initialQuery={shiftTemplateQuery}
         detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=>
-          activeTab==="usage" ? <section aria-label="Sử dụng mẫu ca"><p>Lượt phân công: {row.assignmentCount??"Chưa có dữ liệu"}</p><p>Lượt đăng ký: {row.availabilityCount??"Chưa có dữ liệu"}</p><p>Mốc giờ đã được sử dụng được bảo vệ tại Core.</p></section> : activeTab==="edit"||activeTab==="status"
+          activeTab==="usage" ? <section className="v24-prop-section" aria-label="Sử dụng mẫu ca">
+             <div className="v24-section-heading"><h4>Sử dụng mẫu ca</h4></div>
+             <div className="v24-prop-grid">
+               <div className="v24-prop-item"><span className="v24-prop-key">Lượt phân công</span><span className="v24-prop-value readonly">{row.assignmentCount??"Chưa có dữ liệu"}</span></div>
+               <div className="v24-prop-item"><span className="v24-prop-key">Lượt đăng ký</span><span className="v24-prop-value readonly">{row.availabilityCount??"Chưa có dữ liệu"}</span></div>
+               <div className="v24-prop-item"><span className="v24-prop-key">Phạm vi</span><span className="v24-prop-value readonly">{row.scopeType==="GLOBAL"?"GLOBAL · Mọi Center":centers?.find(c=>c.id===row.centerId)?.name??"Center"}</span></div>
+               <div className="v24-prop-item"><span className="v24-prop-key">Tình trạng</span><span className="v24-prop-value readonly">{row.status==="ACTIVE"?"Đang sử dụng":"Tạm ngưng"}</span></div>
+             </div>
+           </section> : activeTab==="edit"||activeTab==="status"
             ? <HoShiftTemplateEditor key={row.id+":"+activeTab} mode={activeTab} centerId={row.scopeType==="GLOBAL"?"GLOBAL":String(row.centerId)} centers={centers??[]}
                 templateId={row.id} authorized={context.authorize("workforce.shift_template.ho_manage")}
                 onSaved={onSaved}/>

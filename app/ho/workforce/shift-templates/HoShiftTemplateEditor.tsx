@@ -20,7 +20,7 @@ const parsedRows=(value:unknown,centerId:string)=>{
 };
 export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSaved,createOpen,onCreateClose,centers=[]}:Props){
   const formId=useId();
-  const [editOpen,setEditOpen]=useState(false);
+
   const [createScope,setCreateScope]=useState(centerId==="ALL"?"GLOBAL":centerId);
   const selectedScope=mode==="create"?createScope:centerId;
   const scope={scopeType:selectedScope==="GLOBAL"?"GLOBAL" as const:"CENTER" as const,centerId:selectedScope==="GLOBAL"?null:selectedScope};
@@ -135,19 +135,17 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
     {view.kind==="loading"?<p role="status">Đang đọc Mẫu ca từ Core…</p>:null}
     {view.kind==="error"?<p role="alert">{view.message}</p>:null}
     {view.kind==="ready"?<TosCard>
-      {mode==="edit"?<>
-        <TosButton type="button" onClick={()=>setEditOpen(true)}>Chỉnh sửa mẫu ca</TosButton>
-        {editOpen?<DrawerFrame surface="ho" title="Chỉnh sửa mẫu ca" onClose={()=>{if(!busy)setEditOpen(false);}} footer={<>
-          <TosButton type="button" variant="secondary" disabled={busy} onClick={()=>setEditOpen(false)}>Hủy</TosButton>
-          {reloadButton}
-          <TosButton type="submit" form={formId} variant="primary" disabled={!valid||!dirty||busy||uncertain}>{busy?"Đang lưu…":"Lưu"}</TosButton>
-        </>}><form id={formId} onSubmit={event=>{event.preventDefault();void submit();}}>
-        {fields}
-        {(view.template.assignmentCount??0)>0||(view.template.availabilityCount??0)>0?<p>Mẫu ca đã được sử dụng; giờ bắt đầu và kết thúc được bảo vệ.</p>:null}
-        {error?<p role="alert">{error}</p>:null}
-        {notice?<p role="status">{notice}</p>:null}
-        </form></DrawerFrame>:null}
-      </>:<div>
+       {mode==="edit"?<form id={formId} aria-label="Chỉnh sửa mẫu ca" onSubmit={event=>{event.preventDefault();void submit();}}>
+         {fields}
+         {error?<p role="alert">{error}</p>:null}
+         {notice?<p role="status">{notice}</p>:null}
+         <div className="staff-actions">
+           {reloadButton}
+           <TosButton type="submit" variant="primary" disabled={!valid||!dirty||busy||uncertain}>
+             {busy?"Đang lưu…":"Lưu thay đổi"}
+           </TosButton>
+         </div>
+       </form>:<div>
         <div className="property-row">
           <label htmlFor="ho-template-status">Trạng thái</label>
           <select id="ho-template-status" value={targetStatus} disabled={busy||uncertain}
